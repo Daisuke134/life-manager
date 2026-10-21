@@ -31,7 +31,7 @@ class GenExamplesRunnerTest(unittest.TestCase):
             try:
                 os.environ["ARTICLE_MODEL_RUNNER"] = str(runner)
                 os.environ["SCHEMA_RECORD"] = str(schema_record)
-                result = gen_examples._claude("return a plain example")
+                result = gen_examples._codex("return a plain example")
             finally:
                 for key, value in old.items():
                     if value is None:
@@ -63,6 +63,7 @@ class GenExamplesRunnerTest(unittest.TestCase):
             record = root / "record.json"
             runner.write_text(
                 "#!/bin/sh\n"
+                "printf '%s\\n' \"$ARTICLE_PROVIDER\" >> \"$RUNNER_RECORD\"\n"
                 "printf '%s\\n' \"$PWD\" >> \"$RUNNER_RECORD\"\n"
                 "printf '%s\\n' \"$1 $2 $3 $4\" >> \"$RUNNER_RECORD\"\n"
                 "cat \"$3\" >> \"$RUNNER_RECORD\"\n"
@@ -83,8 +84,9 @@ class GenExamplesRunnerTest(unittest.TestCase):
                     else:
                         os.environ[key] = value
             self.assertEqual(len(result), 4)
-            self.assertEqual(Path(record.read_text(encoding="utf-8").splitlines()[0]).resolve(), Path("/tmp").resolve())
             recorded = record.read_text(encoding="utf-8")
+            self.assertEqual(Path(recorded.splitlines()[1]).resolve(), Path("/tmp").resolve())
+            self.assertIn("codex", recorded.splitlines())
             self.assertIn("agent --prompt-file", recorded)
             self.assertIn("## SYSTEM INSTRUCTIONS\nWrite natural English output.", recorded)
             self.assertIn("## BUYER PROMPT\nHere is a skill a buyer uses:", recorded)

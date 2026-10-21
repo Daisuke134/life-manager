@@ -248,10 +248,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "ARTICLE_PROVIDER": "codex",
             "ARTICLE_PROVIDER_COOLDOWN_SECONDS": "300",
             "ARTICLE_AUTOPUBLISH": "1",
-            "ARTICLE_CODEX_PROVIDER_ID": "local_proxy",
             "ARTICLE_CODEX_PROVIDER_BASE_URL": "http://127.0.0.1:8317/v1",
-            "ARTICLE_CODEX_PROVIDER_ENV_KEY": "CLIPROXY_API_KEY",
-            "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE": "cliproxyapi",
             "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
             "CLOAK_CDP_BASE_URL": "http://localhost:9222",
             "CDP_DAILY_DRIVER_PORT": "9222",
@@ -288,6 +285,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "ANICCA_REPO": str(release_root),
             "ANICCA_HOME": os.path.expanduser(entry["state_root"]),
             "ANICCA_INSTANCE": "franklin" if loop_id == "franklin-loop" else "franklin2",
+            "ANICCA_BRAIN": "codex",
         })
     if loop_id == "compute-proxy":
         node = _managed_node(loop_id)

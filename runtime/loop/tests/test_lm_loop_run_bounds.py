@@ -2053,7 +2053,14 @@ def test_owner_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
         "life-manager-cfo-hourly": "skills/cfo/run.sh",
         "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
         "article-daily": "skills/writer-agent/article-daily.sh",
+        "capafy-distribute-daily": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
     }
+
+    capafy_entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
+    capafy = observed_env("capafy-distribute-daily", capafy_entrypoint, "capafy-run-1")
+    assert capafy["LIFE_MANAGER_LOOP_ID"] == "capafy-distribute-daily"
+    assert capafy["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
+        tmp_path / "entrypoint-result.json")
 
     treg = observed_env(
         "marketing-treg-lead-signals-weekly",
@@ -2075,6 +2082,103 @@ def test_owner_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
         "wrong-treg-entrypoint",
     )
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_treg_entrypoint
+
+
+def test_capafy_distributor_effect_hints_require_exact_owner_entrypoint_and_receipt(tmp_path):
+    owner = "capafy-distribute-daily"
+    occurrence = f"{owner}:run-1"
+    entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
+    url = "https://aniccaai.com/blog/youtube-script-writer-ai"
+    hint = tmp_path / "entrypoint-result.json"
+    sha = "d2a734607fc85c0fde294243f4085401dcc8fb0f"
+
+    _write_writer_effect_result(
+        hint, owner_id=owner, occurrence_id=occurrence,
+        provider_receipt_id=sha, live_urls=[url],
+    )
+    result = loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint)
+    assert result == ("verified", f"writer://runs/{sha}", url)
+
+    event = build_runtime_event(
+        loop_id=owner, domain="growth", run_id="run-1", release_sha="a" * 40,
+        provider="shared-agent-runner", profile_alias=None, effect_class="publish",
+        succeeded=True, blocker=None, claimed_occurrence_id=occurrence,
+    )
+    upgraded = _apply_verified_effect_result(event, result)
+    assert upgraded["effect_status"] == "verified"
+    assert upgraded["provider"] == "writer"
+    assert upgraded["provider_receipt_id"] == sha
+    assert upgraded["official_readback_ref"] == f"writer://runs/{sha}"
+    assert url in upgraded["evidence_refs"]
+
+    assert loop_runner._verified_terminal_effect_result(
+        hint, "unrelated-owner", occurrence, entrypoint) is None
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, "skills/earn/capafy-marketing/other.sh") is None
+
+
+def test_capafy_distributor_no_effect_hint_accepts_only_wrapper_owned_reasons(tmp_path):
+    owner = "capafy-distribute-daily"
+    occurrence = f"{owner}:already-published"
+    entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
+    hint = tmp_path / "entrypoint-result.json"
+
+    _write_no_effect_result(
+        hint, owner_id=owner, occurrence_id=occurrence,
+        reason="daily_limit_reached",
+    )
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) == (
+            "not_applicable",
+            f"lm-no-effect://{owner}/{occurrence}/daily_limit_reached",
+        )
+
+    slot = "2026-09-29-h17m00"
+    _write_no_effect_result(
+        hint, owner_id=owner, occurrence_id=occurrence,
+        reason="pii_gate_blocked", slot=slot,
+    )
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) is None
+
+    attestation = hint.with_name("capafy-pii-gate-attestation.json")
+    attestation.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "capafy_pii_gate_attestation",
+        "status": "blocked",
+        "owner_id": owner,
+        "occurrence_id": occurrence,
+        "slot": slot,
+        "stage": "capafy-distribute-publish",
+        "gate_exit_code": 3,
+        "provider_phase": "not_started",
+        "publisher_invocations": 0,
+        "x_post_invocations": 0,
+    }) + "\n")
+    attestation.chmod(0o600)
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) == (
+            "not_applicable",
+            f"lm-no-effect://{owner}/{occurrence}/pii_gate_blocked",
+        )
+
+    value = json.loads(attestation.read_text())
+    value["provider_phase"] = "publish_started"
+    attestation.write_text(json.dumps(value) + "\n")
+    attestation.chmod(0o600)
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) is None
+    assert loop_runner._no_effect_result_hint_allowed(owner, entrypoint)
+    assert not loop_runner._no_effect_result_hint_allowed("other-loop", entrypoint)
+    assert loop_runner._verified_no_effect_result(
+        hint, "other-loop", occurrence, entrypoint) is None
+    assert loop_runner._verified_terminal_effect_result(
+        hint, "other-loop", occurrence, entrypoint) is None
+
+    _write_no_effect_result(hint, reason="arbitrary")
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) is None
 
 
 def test_cfo_nonzero_telegram_result_keeps_message_effect_unknown(tmp_path):

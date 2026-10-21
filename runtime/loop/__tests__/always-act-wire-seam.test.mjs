@@ -1,28 +1,38 @@
-// franklin-alwaysact-skill-router — Phase 2a (RED phase), REQ-504 wiring-seam (PROP-504b).
-//
-// This is the "money-doctrine-critical" test spec-review FIND-001/FIND-005 exists to force: a green
-// PROP-504a (the standalone pure helper, always-act-router.test.mjs) is NECESSARY but NOT SUFFICIENT —
-// this file proves the REAL outbound wire (the literal `tools` field of the HTTP request body
-// runtime/loop/brain.mjs::thinkProxy actually sends) is conditionally governed by `ctx.alwaysActEngaged`.
-//
-// Ground truth on the CURRENT (pre-Phase-2b) HEAD, re-verified this session (matches
-// behavioral-spec.md sec1 + the iteration-5 adversary's own independent spot-check):
-//   brain.mjs:63  tools: getToolDefinitions(ctx.activeSkillSlots)                         <- unconditional
-//   brain.mjs:92  'Respond with a JSON tool_calls block using run_skill or sleep.'         <- unconditional
-// Every test below therefore FAILS against current brain.mjs: `tools` always includes `sleep`
-// regardless of `ctx.alwaysActEngaged`, and the claude-p prompt text always mentions "or sleep".
-//
-// Test-Money-Safety-Rule-compliant network mocking: `think()` (the ALREADY-exported function; no new
-// export needed since default config.ANICCA_BRAIN==='proxy' routes into thinkProxy internally) is
-// called directly against a local mock HTTP server standing in for OPENAI_BASE_URL — this is
-// verification-architecture.md's permitted "PROP-504b exception": import and execute the REAL
-// thinkProxy code path, mock ONLY the module-level network call, never issue a real HTTP request to a
-// paid provider.
-
-import { test, after } from 'node:test';
+// The Codex prompt must carry the bounded slot menu selected by the always-act state machine.
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import { think } from '../brain.mjs';
-import { startMockBrainServer, makeNarrateResponse } from './helpers/always-act-harness.mjs';
+import {
+  codexPromptOffersSleep,
+  mockCodexRunnerEnv,
+  offeredCodexSlots,
+} from './helpers/mock-codex-runner-env.mjs';
+
+function startMockBrainServer() {
+  const server = http.createServer((request, response) => {
+    if (request.method !== 'POST' || !request.url?.endsWith('/chat/completions')) {
+      response.writeHead(404);
+      response.end();
+      return;
+    }
+    request.resume();
+    request.on('end', () => {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: 'idle' } }],
+      }));
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve({ server, url: `http://127.0.0.1:${server.address().port}/v1` });
+    });
+  });
+}
 
 function baseCtx(overrides = {}) {
   return {
@@ -44,86 +54,49 @@ function baseCtx(overrides = {}) {
   };
 }
 
-const openServers = [];
-after(async () => { for (const s of openServers) { try { s.close(); } catch { /* already closed */ } } });
+async function codexPromptFor(ctx) {
+  const { server, url } = await startMockBrainServer();
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'lm-codex-prompt-test-'));
+  const capturePath = path.join(home, 'prompt.txt');
+  const fixtureEnv = mockCodexRunnerEnv({ home, baseUrl: url, capturePromptPath: capturePath });
+  const keys = ['CODEX_AGENT_RUNNER', 'CODEX_AGENT_CONFIG', 'CODEX_BRAIN_PYTHON'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  Object.assign(process.env, fixtureEnv);
+  try {
+    const decision = await think(ctx, { ANICCA_HOME: home, ANICCA_BRAIN: 'codex' });
+    const prompt = JSON.parse((await fs.readFile(capturePath, 'utf8')).trim().split('\n').at(-1));
+    return { prompt, decision };
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+    server.close();
+    await fs.rm(home, { recursive: true, force: true });
+  }
+}
 
-// ===========================================================================
-// PROP-504b — always-act-engaged: the REAL outbound `tools` array omits sleep
-// ===========================================================================
-
-test('PROP-504b (money-doctrine-critical): thinkProxy\'s REAL outbound request body has NO tool named "sleep" when ctx.alwaysActEngaged===true and ctx.alwaysActMenu is set', async () => {
-  const { server, url, requests } = await startMockBrainServer(() => makeNarrateResponse());
-  openServers.push(server);
-
-  const ctx = baseCtx({
+test('always-act Codex prompt contains only its narrowed menu and withholds sleep', async () => {
+  const { prompt, decision } = await codexPromptFor(baseCtx({
     alwaysActEngaged: true,
     alwaysActMenu: ['economy/gig', 'earn/clip'],
-  });
-  const config = { OPENAI_BASE_URL: url, ANICCA_BRAIN: 'proxy' };
-
-  await think(ctx, config);
-
-  assert.equal(requests.length, 1, 'exactly one outbound request must have been captured');
-  const body = requests[0];
-  assert.ok(body, 'request body must have parsed as JSON');
-  assert.ok(Array.isArray(body.tools), 'request body must carry a tools array');
-  const hasSleep = body.tools.some((t) => t.function?.name === 'sleep');
-  assert.equal(hasSleep, false, 'the REAL outbound tools array must NOT include sleep when always-act is engaged');
-  const runSkillTool = body.tools.find((t) => t.function?.name === 'run_skill');
-  assert.ok(runSkillTool, 'run_skill must still be offered');
-  assert.deepEqual(
-    runSkillTool.function.parameters.properties.slot.enum,
-    ['economy/gig', 'earn/clip'],
-    'the enum offered on the wire must equal ctx.alwaysActMenu, not ctx.activeSkillSlots',
-  );
-
-  server.close();
+  }));
+  assert.deepEqual(offeredCodexSlots(prompt), ['economy/gig', 'earn/clip']);
+  assert.equal(codexPromptOffersSleep(prompt), false);
+  assert.deepEqual(decision.tool_calls, [], 'an always-act no-tool-call response must reach the bounded reprompt state machine');
 });
 
-// ===========================================================================
-// PROP-504b — non-always-act: today's behavior preserved byte-for-byte
-// ===========================================================================
-
-test('PROP-504b (non-regression): thinkProxy\'s outbound tools array STILL includes sleep when ctx.alwaysActEngaged is falsy/absent — proving the conditional wiring, not a hardcoded omission', async () => {
-  const { server, url, requests } = await startMockBrainServer(() => makeNarrateResponse());
-  openServers.push(server);
-
-  const ctx = baseCtx(); // no alwaysActEngaged field at all — the overwhelming majority of all wakes
-  const config = { OPENAI_BASE_URL: url, ANICCA_BRAIN: 'proxy' };
-
-  await think(ctx, config);
-
-  assert.equal(requests.length, 1);
-  const body = requests[0];
-  const hasSleep = body.tools.some((t) => t.function?.name === 'sleep');
-  assert.equal(hasSleep, true, 'today\'s existing behavior (sleep always offered) must be preserved for non-always-act ctx');
-  const runSkillTool = body.tools.find((t) => t.function?.name === 'run_skill');
-  assert.deepEqual(
-    runSkillTool.function.parameters.properties.slot.enum,
-    ctx.activeSkillSlots,
-    'a non-always-act ctx must still offer ctx.activeSkillSlots, unchanged',
-  );
-
-  server.close();
+test('ordinary Codex prompt keeps active slots and the sleep option', async () => {
+  const { prompt, decision } = await codexPromptFor(baseCtx());
+  assert.deepEqual(offeredCodexSlots(prompt), ['economy/gig', 'earn/clip', 'earn/sol-trade']);
+  assert.equal(codexPromptOffersSleep(prompt), true);
+  assert.equal(decision.tool_calls[0].function.name, 'sleep');
 });
 
-test('PROP-504b (non-regression): ctx.alwaysActEngaged === false (explicit) behaves identically to absent', async () => {
-  const { server, url, requests } = await startMockBrainServer(() => makeNarrateResponse());
-  openServers.push(server);
-
+test('explicitly disengaged Codex prompt ignores an always-act menu', async () => {
   const ctx = baseCtx({ alwaysActEngaged: false, alwaysActMenu: ['economy/gig'] });
-  const config = { OPENAI_BASE_URL: url, ANICCA_BRAIN: 'proxy' };
-  await think(ctx, config);
-
-  const body = requests[0];
-  const hasSleep = body.tools.some((t) => t.function?.name === 'sleep');
-  assert.equal(hasSleep, true);
-  const runSkillTool = body.tools.find((t) => t.function?.name === 'run_skill');
-  assert.deepEqual(
-    runSkillTool.function.parameters.properties.slot.enum,
-    ctx.activeSkillSlots,
-    'alwaysActEngaged===false must use ctx.activeSkillSlots, never ctx.alwaysActMenu',
-  );
-
-  server.close();
+  const { prompt, decision } = await codexPromptFor(ctx);
+  assert.deepEqual(offeredCodexSlots(prompt), ['economy/gig', 'earn/clip', 'earn/sol-trade']);
+  assert.equal(codexPromptOffersSleep(prompt), true);
+  assert.equal(decision.tool_calls[0].function.name, 'sleep');
 });

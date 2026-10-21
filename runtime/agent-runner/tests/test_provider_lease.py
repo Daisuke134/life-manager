@@ -724,7 +724,7 @@ class ProviderLeaseTest(unittest.TestCase):
         self.addCleanup(lambda: os.close(holder))
         fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
         marker = self.root / "provider-launched"
-        provider = self.root / "claude"
+        provider = self.root / "codex"
         provider.write_text(
             "#!/usr/bin/env python3\n"
             "from pathlib import Path\n"
@@ -737,13 +737,23 @@ class ProviderLeaseTest(unittest.TestCase):
         schema.write_text('{"type":"object","required":["status"]}', encoding="utf-8")
         prompt = self.root / "prompt.txt"
         prompt.write_text("Return the bounded contract JSON only.\n", encoding="utf-8")
+        auth_file = self.root / "codex-auth.json"
+        auth_file.write_text("{}", encoding="utf-8")
         config = self.root / "config.json"
         config.write_text(json.dumps({
             "version": 1,
             "timeout_seconds": 5,
-            "providers": {"claude-direct": {"executable": str(provider)}},
+            "scope": "life-manager",
+            "providers": {"codex": {
+                "executable": str(provider),
+                "profiles": {"fixture": {
+                    "automation_home": str(self.root / "codex-home"),
+                    "auth_file": str(auth_file),
+                }},
+                "account_profile_order": ["fixture"],
+            }},
             "task_classes": {"tool-agent": {"candidates": [
-                {"provider": "claude-direct", "model": "sonnet"}
+                {"provider": "codex", "model": "gpt-5.6-terra", "profile_alias": "fixture"}
             ]}},
         }), encoding="utf-8")
         env = {

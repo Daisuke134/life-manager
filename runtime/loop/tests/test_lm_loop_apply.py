@@ -1684,6 +1684,10 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertTrue(result[0]["changed"])
         environment = plistlib.loads(target.read_bytes())["EnvironmentVariables"]
         self.assertEqual(environment["ARTICLE_PROVIDER"], "codex")
+        self.assertNotIn("ARTICLE_CODEX_PROVIDER_ID", environment)
+        self.assertNotIn("ARTICLE_CODEX_PROVIDER_ENV_KEY", environment)
+        self.assertNotIn("ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE", environment)
+        self.assertEqual(environment["ARTICLE_CODEX_PROVIDER_BASE_URL"], "http://127.0.0.1:8317/v1")
         self.assertEqual(
             environment["ARTICLE_MODEL_ROOT"],
             str(release / "skills/writer-agent"),
@@ -1898,6 +1902,7 @@ class LmLoopApplyTest(unittest.TestCase):
                 self.assertEqual(environment["ANICCA_REPO"], str(self.root.resolve()))
                 self.assertEqual(environment["ANICCA_INSTANCE"], instance)
                 self.assertEqual(environment["ANICCA_HOME"], os.path.expanduser(state_root))
+                self.assertEqual(environment["ANICCA_BRAIN"], "codex")
 
     def test_compute_proxy_plist_pins_owned_home_port_and_node(self):
         entrypoint = self.root / "runtime/compute-proxy/start-local.sh"
@@ -2007,7 +2012,12 @@ class LmLoopApplyTest(unittest.TestCase):
         env_file = self.root / "writer.env"
         env_file.write_text(
             "ARTICLE_PROVIDER=claude\n"
-            "ARTICLE_MODEL_RUNNER=/legacy/runtime/model-runner.sh\n",
+            "ARTICLE_MODEL_RUNNER=/legacy/runtime/model-runner.sh\n"
+            "ARTICLE_CODEX_PROVIDER_ID=local_proxy\n"
+            "ARTICLE_CODEX_PROVIDER_BASE_URL=http://127.0.0.1:8317/v1\n"
+            "ARTICLE_CODEX_PROVIDER_ENV_KEY=CLIPROXY_API_KEY\n"
+            "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE=cliproxyapi\n"
+            "ARTICLE_CODEX_PROVIDER_API_KEY=fixture-must-not-propagate\n",
             encoding="utf-8",
         )
         runtime_contract = self.root / "skills/writer-agent/scripts/writer-runtime-env.sh"
@@ -2022,8 +2032,12 @@ class LmLoopApplyTest(unittest.TestCase):
             [
                 "bash", "-c",
                 'source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh" && '
-                'printf "%s|%s|%s" "$ARTICLE_PROVIDER" '
-                '"${ARTICLE_MODEL_RUNNER:-unset}" "$ARTICLE_MODEL_ROOT"',
+                'printf "%s|%s|%s|%s|%s|%s|%s" "$ARTICLE_PROVIDER" '
+                '"${ARTICLE_MODEL_RUNNER:-unset}" "$ARTICLE_MODEL_ROOT" '
+                '"${ARTICLE_CODEX_PROVIDER_ID:-unset}" '
+                '"${ARTICLE_CODEX_PROVIDER_BASE_URL:-unset}" '
+                '"${ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE:-unset}" '
+                '"${ARTICLE_CODEX_PROVIDER_API_KEY:-unset}"',
             ],
             text=True,
             capture_output=True,
@@ -2039,7 +2053,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(runtime.returncode, 0, runtime.stderr)
         self.assertEqual(
             runtime.stdout,
-            f'codex|unset|{self.root.resolve() / "skills/writer-agent"}',
+            f'codex|unset|{self.root.resolve() / "skills/writer-agent"}|unset|http://127.0.0.1:8317/v1|unset|unset',
         )
 
     def test_polymarket_plists_project_managed_python_and_install_env(self):
@@ -4943,12 +4957,11 @@ class LmLoopApplyTest(unittest.TestCase):
                 self.assertTrue(result[0]["changed"])
                 environment = plistlib.loads(target.read_bytes())["EnvironmentVariables"]
                 self.assertTrue(retired.isdisjoint(environment))
-                self.assertEqual(environment["ARTICLE_PROVIDER"], "codex")
-                self.assertEqual(
-                    environment["ARTICLE_MODEL_LOG"],
-                    str(Path(os.path.expanduser(entry["log_root"])) / "model-runner.log"),
-                )
-                self.assertEqual(environment["WRITER_CUSTOM_OPERATIONAL_SETTING"], "kept")
+        self.assertEqual(
+            environment["ARTICLE_MODEL_LOG"],
+            str(Path(os.path.expanduser(entry["log_root"])) / "model-runner.log"),
+        )
+        self.assertEqual(environment["WRITER_CUSTOM_OPERATIONAL_SETTING"], "kept")
 
     def test_polymarket_target_retires_legacy_home_and_signer_environment(self):
         release = self._release("release-pm-live").resolve()

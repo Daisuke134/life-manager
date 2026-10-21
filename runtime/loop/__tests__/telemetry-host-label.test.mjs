@@ -87,10 +87,9 @@ test('ARCH-11: telemetry reads the exact instance home passed by its owning daem
   assert.equal(instanceHome([], { HOME: '/users/owner' }), '/users/owner/.blockrun');
 });
 
-test('ARCH-11: telemetry names the concrete model used by the shared repository proxy', () => {
-  assert.match(source, /import \{ normalizeModelSelection \} from "\.\.\/compute-proxy\/model-map\.mjs";/);
-  assert.match(source, /process\.env\.ANICCA_MODEL \|\| "free\/glm-4\.7"/);
-  assert.match(source, /process\.env\.ANICCA_FRONTIER_MODEL \|\| "anthropic\/claude-sonnet-4-6"/);
+test('ARCH-11: Franklin telemetry reports the Codex brain used by its owner', () => {
+  assert.match(source, /const FRANKLIN_MODEL = \{ model: "gpt-5\.6-terra", tier: "codex" \}/);
+  assert.match(source, /funding: "self", env: "local", brain: "codex"/);
+  assert.doesNotMatch(source, /compute-proxy|ANICCA_FRONTIER_MODEL|anthropic\/claude/);
   assert.match(source, /model_live: FRANKLIN_MODEL\.model, model_tier: FRANKLIN_MODEL\.tier/);
-  assert.doesNotMatch(source, /nvidia\/llama-4-maverick|franklin proxy --model/);
 });

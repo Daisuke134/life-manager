@@ -7,21 +7,20 @@ import { selectTier } from '../tier.mjs';
 test('PROP-001: selectTier(0) returns broke tier with free model', () => {
   const result = selectTier(0, {});
   assert.equal(result.tier, 'broke');
-  assert.equal(result.model, 'free/gpt-oss-120b');
+  assert.equal(result.model, 'gpt-5.6-terra');
 });
 
-// PROP-001: ANICCA_FREE_MODEL env override
-test('PROP-001: selectTier(0) uses ANICCA_FREE_MODEL env override', () => {
-  const result = selectTier(0, { ANICCA_FREE_MODEL: 'my/free-model' });
+test('agent reasoning stays on the configured Codex brain despite legacy model env overrides', () => {
+  const result = selectTier(0, { ANICCA_FREE_MODEL: 'free/glm-4.7' });
   assert.equal(result.tier, 'broke');
-  assert.equal(result.model, 'my/free-model');
+  assert.equal(result.model, 'gpt-5.6-terra');
 });
 
 // PROP-002: 0 < balance <= 1.00 -> lean, model==ANICCA_LEAN_MODEL default
 test('PROP-002: selectTier(0.5) returns lean tier with lean model', () => {
   const result = selectTier(0.5, {});
   assert.equal(result.tier, 'lean');
-  assert.equal(result.model, 'auto');
+  assert.equal(result.model, 'gpt-5.6-terra');
 });
 
 // PROP-002: boundary at exactly 1.00 -> lean
@@ -34,7 +33,7 @@ test('PROP-002: selectTier(1.00) is still lean (boundary)', () => {
 test('PROP-003: selectTier(5.0) returns funded tier with funded model', () => {
   const result = selectTier(5.0, {});
   assert.equal(result.tier, 'funded');
-  assert.equal(result.model, 'auto');
+  assert.equal(result.model, 'gpt-5.6-terra');
 });
 
 // PROP-003: just above threshold

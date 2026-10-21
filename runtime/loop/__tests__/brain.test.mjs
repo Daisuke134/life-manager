@@ -1,25 +1,11 @@
-/**
- * brain.test.mjs — thinkProxy/httpPost must not swallow HTTP-level error responses.
- *
- * Root cause (agent-economy #F1, 2026-07-06; confirmed still live in brain.mjs 2026-07-07):
- * Franklin's free-model brain (`franklin proxy` -> sol.blockrun.ai) intermittently
- * 403/429s ("NVIDIA API error: 403 Forbidden Authorization failed" / rate-limit) —
- * confirmed live and TRANSIENT. brain.mjs already has a retry loop (3 attempts, 2s
- * back-off) built for exactly this, but httpPost() previously resolved on ANY
- * response regardless of status code — so a non-2xx error body got JSON.parse'd and
- * returned as if it were a valid completion, and the retry loop never fired because
- * no exception was thrown. Live symptom: every masked failure surfaced as a harmless
- * "narrate" wake instead of wake_error, hiding the real failure rate entirely.
- *
- * Contract: httpPost must reject on non-2xx so thinkProxy's existing retry loop
- * actually engages; think() must eventually surface a real completion if a later
- * attempt succeeds, and must throw (not return a garbage "completion") if every
- * attempt keeps failing.
- */
+/** Codex is the only supported agent brain; every other configured route fails closed. */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { think, runCodexAgentWithTimeout } from '../brain.mjs';
 
 const baseCtx = (over) => ({
@@ -28,89 +14,42 @@ const baseCtx = (over) => ({
   recentLedgerLines: [], activeSkillSlots: [], skillCatalog: {}, ...over,
 });
 
-// Starts a server whose response sequence is driven by `statuses` (one entry
-// consumed per request; the last entry repeats if more requests arrive than
-// entries). Non-2xx entries return the real BlockRun/NVIDIA passthrough shape
-// captured live; 200 entries return a minimal valid chat/completions body.
-function startMockProxy(statuses) {
-  let i = 0;
-  const server = http.createServer((req, res) => {
-    const status = statuses[Math.min(i, statuses.length - 1)];
-    i += 1;
-    res.writeHead(status, { 'Content-Type': 'application/json' });
-    if (status >= 200 && status < 300) {
-      res.end(JSON.stringify({
-        id: 'msg_test', choices: [{ message: { role: 'assistant', content: 'ok' } }],
-      }));
-    } else {
-      res.end(JSON.stringify({
-        type: 'error',
-        error: { type: 'api_error', message: 'NVIDIA API error: 403 {"status":403,"title":"Forbidden","detail":"Authorization failed"}' },
-      }));
+test('only Codex can be selected as the agent brain', async () => {
+  for (const brain of ['claude-p', 'claude', 'proxy', 'glm', 'unknown-brain']) {
+    await assert.rejects(
+      () => think(baseCtx(), { ANICCA_BRAIN: brain }),
+      /codex_only_brain_required/,
+      `${brain} must not become an agent inference route`,
+    );
+  }
+});
+
+test('active Codex runner can be stopped and reaped before loop shutdown', async () => {
+  const { stopActiveCodexRunners } = await import('../brain.mjs');
+  assert.equal(typeof stopActiveCodexRunners, 'function');
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-runner-stop-test-'));
+  const pidPath = path.join(home, 'pid');
+  const source = `require('node:fs').writeFileSync(${JSON.stringify(pidPath)}, String(process.pid)); setInterval(() => {}, 1000);`;
+  const running = runCodexAgentWithTimeout(process.execPath, ['-e', source], {
+    env: process.env,
+    cwd: home,
+    input: '',
+    timeoutMs: 30_000,
+  });
+  try {
+    const startedAt = Date.now();
+    while (!(await fs.stat(pidPath).catch(() => null))) {
+      if (Date.now() - startedAt > 5_000) throw new Error('Codex fixture did not start');
+      await delay(10);
     }
-  });
-  return new Promise((resolve) => {
-    server.listen(0, '127.0.0.1', () => resolve({ server, requestCount: () => i }));
-  });
-}
-
-test('think(): all attempts 403 -> throws instead of returning the error body as a completion', async () => {
-  const { server } = await startMockProxy([403, 403, 403]);
-  try {
-    const { port } = server.address();
-    await assert.rejects(
-      () => think(baseCtx(), { ANICCA_BRAIN: 'proxy', OPENAI_BASE_URL: `http://127.0.0.1:${port}/v1` }),
-    );
+    const pid = Number(await fs.readFile(pidPath, 'utf8'));
+    await stopActiveCodexRunners();
+    await assert.rejects(running, /codex_brain_interrupted/);
+    assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
   } finally {
-    server.close();
-  }
-});
-
-test('think(): transient 403s then 200 -> retry loop recovers a real completion', async () => {
-  const { server, requestCount } = await startMockProxy([403, 403, 200]);
-  try {
-    const { port } = server.address();
-    const result = await think(baseCtx(), { ANICCA_BRAIN: 'proxy', OPENAI_BASE_URL: `http://127.0.0.1:${port}/v1` });
-    assert.equal(result.choices[0].message.content, 'ok');
-    assert.equal(requestCount(), 3); // proves it actually retried past the two 403s
-  } finally {
-    server.close();
-  }
-});
-
-test('think(): all attempts 429 (rate-limit) -> throws instead of masking as a narrate-able empty completion', async () => {
-  const { server } = await startMockProxy([429, 429, 429]);
-  try {
-    const { port } = server.address();
-    await assert.rejects(
-      () => think(baseCtx(), { ANICCA_BRAIN: 'proxy', OPENAI_BASE_URL: `http://127.0.0.1:${port}/v1` }),
-    );
-  } finally {
-    server.close();
-  }
-});
-
-// --- claude-p missing-binary recovery (2026-09-25) --------------------------------------------
-// A missing local executable is an infrastructure gap, not a model decision. The loop may recover
-// through its configured proxy for this one typed failure; OAuth, timeout, and non-zero exits still
-// surface as claude-p errors and never silently hand a funded wake to another brain.
-test('ANICCA_BRAIN=claude-p with missing claude binary falls back to proxy', async () => {
-  const { server, requestCount } = await startMockProxy([200]);
-  const config = {
-    ANICCA_BRAIN: 'claude-p',
-    CLAUDE_BIN: '/nonexistent/claude-binary-that-cannot-exist',
-  };
-
-  try {
-    const { port } = server.address();
-    const result = await think(baseCtx(), {
-      ...config,
-      OPENAI_BASE_URL: `http://127.0.0.1:${port}/v1`,
-    });
-    assert.equal(result.choices[0].message.content, 'ok');
-    assert.equal(requestCount(), 1, 'the configured proxy handled the recovered wake');
-  } finally {
-    server.close();
+    await stopActiveCodexRunners();
+    await running.catch(() => {});
+    await fs.rm(home, { recursive: true, force: true });
   }
 });
 

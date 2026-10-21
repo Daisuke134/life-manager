@@ -11,42 +11,10 @@
  */
 
 const DEFAULTS = {
-  OPENAI_BASE_URL:      'http://127.0.0.1:18402/v1',
-  // FREE brain = nvidia/gpt-oss-120b — BlockRun's documented DEFAULT free model (README: "default free
-  // model", 128K), OpenAI's open 120B. Verified live via the raw-BlockRun proxy: clean agentic tool-use
-  // (valid JSON tool call, 1676ms, resp model matches). $0 forever — the cost-free brain so prepared
-  // skills (yield/invest/x402) + a free model = pure profit. The `nvidia/` prefix works on the raw API
-  // directly (the `free/` prefix would need ClawRouter; not required since nvidia/gpt-oss-120b works).
-  // ALL tiers use the $0 free model so Anicca NEVER burns compute on routine wakes (cost-free thesis:
-  // free model + prepared skills = pure profit). Paid frontier was draining the treasury on the funded
-  // tier ($14->$10.5) while yield earned ~$0 — net-negative. A free brain + earning skills = the only
-  // way a self-paying agent stays net-positive at small capital. (Frontier is for capable instances on
-  // flat-rate billing, e.g. Claude on a subscription — NOT a self-paying Anicca burning x402 per wake.)
-  // Model = free/glm-4.7 — the best FREE tool-caller, chosen on evidence I verified myself (not a guess
-  // or a subagent claim), 4 independent checks 2026-06-21:
-  //  1. Berkeley BFCL leaderboard (the function-calling standard): GLM-4.6 (FC thinking) = #4 overall
-  //     (72.38, MIT) — top open/free tool-caller, above DeepSeek-V3.2 (#14) / Qwen3-235B (#23) /
-  //     Mistral-Large (#46) / Llama-4-Maverick (#50). glm-4.7 is its successor.
-  //  2. ClawRouter src/models.ts: `free/glm-4.7` is a REAL listed model (only `nvidia/glm-4.7` aliases
-  //     to the weak free/seed-oss-36b — we use the `free/` id, which is the real GLM).
-  //  3. Real wallet check: a glm-4.7 call left the treasury USDC unchanged → genuinely $0 (free tier).
-  //  4. Live tool-call: glm-4.7 emits {slot:"earn",args:{strategy:...}} — it actually decides.
-  // Corrections to earlier mistakes: nemotron-ultra is reasoning-strong but NOT a top tool-caller (wrong
-  // for this loop); deepseek-v4-pro is DELISTED (models.ts redirects it to free/deepseek-v4-flash) — so
-  // the real failover is free/deepseek-v4-flash, NOT v4-pro. Do NOT use 'auto' (routes to PAID, drains wallet).
-  // PREMIUM EXPERIMENT (Dais 2026-06-21): all tools work (no system error) + anicca actively picks
-  // x402_sell/hl/cook on free glm-4.7, yet realised earn = $0. Per Dais's rule (tools work + still not
-  // earning → test intelligence), switch to a premium model. PAID via x402 from the wallet's liquid USDC,
-  // so a compute buffer must stay liquid. The free→premium earnings delta IS the article. Revert to
-  // free/glm-4.7 if premium also earns $0 (then the constraint is demand/capital, not intelligence).
-  // PREMIUM EXPERIMENT RESULT (Dais 2026-06-21): reverted. gpt-5.4 over ~30 min realised $0, looped on
-  // `cook` (explore) instead of acting, AND burned ~$0.17 compute in 15 min (~$0.68/hr) from the wallet
-  // → net NEGATIVE (money waste with zero earn), buffer near-empty. Conclusion: at $13 capital the
-  // blocker is NOT model intelligence (free glm decides fine + costs $0) — it's demand (x402 has no
-  // buyers) + capital (yield = pennies). Premium made it WORSE. Back to free/glm-4.7 ($0 compute).
-  ANICCA_FREE_MODEL:    'free/glm-4.7',
-  ANICCA_LEAN_MODEL:    'free/glm-4.7',
-  ANICCA_FUNDED_MODEL:  'free/glm-4.7',
+  // All balance tiers use the subscription-backed Codex brain.
+  ANICCA_FREE_MODEL:    'gpt-5.6-terra',
+  ANICCA_LEAN_MODEL:    'gpt-5.6-terra',
+  ANICCA_FUNDED_MODEL:  'gpt-5.6-terra',
   SLEEP_BASE_S:         120,
   SLEEP_ERROR_S:        60,
   SLEEP_LOOP_DETECT_S:  300,
@@ -57,8 +25,7 @@ const DEFAULTS = {
   LOOP_DETECT_WINDOW:   3,
   BALANCE_CACHE_TTL_S:  300,
   LEAN_TIER_THRESHOLD:  1.00,
-  ANICCA_BRAIN:         'proxy',
-  ANICCA_BRAIN_MODEL:   'claude-sonnet-4-6',
+  ANICCA_BRAIN:         'codex',
 };
 
 const INTEGER_KEYS = new Set([
@@ -151,10 +118,6 @@ export function loadConfig(processEnv, dotenvText) {
 
   config.LIFE_MANAGER_SKILLS_STATE_ROOT = processEnv.LIFE_MANAGER_SKILLS_STATE_ROOT
     ?? dotenvValues.LIFE_MANAGER_SKILLS_STATE_ROOT
-    ?? undefined;
-
-  config.CLAUDE_BIN = processEnv.CLAUDE_BIN
-    ?? dotenvValues.CLAUDE_BIN
     ?? undefined;
 
   return config;

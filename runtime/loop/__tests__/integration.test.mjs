@@ -19,6 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { mockCodexRunnerEnv, stopTestLoop } from './helpers/mock-codex-runner-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOOP_ENTRY = path.resolve(__dirname, '../index.mjs');
@@ -100,8 +101,16 @@ function makeTmpHome() {
  * If maxWakes is set, the loop is killed after approximately that many ledger lines.
  */
 function spawnLoop(env, extraEnv = {}) {
+  const loopEnv = { ...env, ...extraEnv };
+  const codexFixtureEnv = mockCodexRunnerEnv({
+    home: loopEnv.ANICCA_HOME,
+    baseUrl: loopEnv.OPENAI_BASE_URL,
+    holdUntilKilled: loopEnv.CODEX_TEST_HOLD_UNTIL_KILLED === '1',
+    pidCapturePath: loopEnv.CODEX_TEST_RUNNER_PID_PATH,
+  });
   const proc = spawn(process.execPath, [LOOP_ENTRY], {
-    env: { ...process.env, ...env, ...extraEnv },
+    // The test-only runner reaches only the in-process loopback server; it never invokes a provider.
+    env: { ...process.env, ...loopEnv, ...codexFixtureEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   return proc;
@@ -177,7 +186,7 @@ test('PROP-014: 10 consecutive wakes yield exactly 10 ledger lines', { timeout: 
   try {
     await waitForLines(ledgerPath, 10, 25000);
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     assert.ok(lines.length >= 10, `Expected >=10 ledger lines, got ${lines.length}`);
     // Verify each line has required fields
     for (const line of lines.slice(0, 10)) {
@@ -188,7 +197,7 @@ test('PROP-014: 10 consecutive wakes yield exactly 10 ledger lines', { timeout: 
     }
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -220,7 +229,7 @@ test('PROP-013: SIGTERM produces shutdown kind as last ledger line', { timeout: 
   // Wait for at least 1 wake, then SIGTERM, then wait for exit before reading
   try {
     await waitForLines(ledgerPath, 1, 10000);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     // Wait for the process to fully exit (ensures shutdown line is flushed)
     await new Promise((resolve) => {
       const t = setTimeout(() => { proc.kill('SIGKILL'); resolve(); }, 5000);
@@ -236,7 +245,7 @@ test('PROP-013: SIGTERM produces shutdown kind as last ledger line', { timeout: 
     assert.equal(proc.exitCode, 0, 'Exit code must be 0 after SIGTERM');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
@@ -275,14 +284,14 @@ test('PROP-015: skill that exits non-zero does not crash the loop', { timeout: 2
     // Loop should record skill_error lines and keep going
     await waitForLines(ledgerPath, 3, 15000);
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     const errorLines = lines.filter(l => l.kind === 'skill_error');
     assert.ok(errorLines.length > 0, 'Expected skill_error lines in ledger');
     // Process must still be running (not crashed) — it should have lived to write multiple lines
     assert.ok(lines.length >= 3, 'Loop should still be running after skill errors');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -323,7 +332,7 @@ test('PROP-016: after LOOP_DETECT_WINDOW identical actions, inference is NOT cal
     await waitForLines(ledgerPath, 4, 15000);
     await new Promise(r => setTimeout(r, 200));
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
 
     const loopDetectLines = lines.filter(l => l.kind === 'loop_detect');
     assert.ok(loopDetectLines.length > 0, 'Should have at least one loop_detect line');
@@ -336,7 +345,7 @@ test('PROP-016: after LOOP_DETECT_WINDOW identical actions, inference is NOT cal
     assert.ok(firstLoopDetectIdx >= 3, 'loop_detect must come after at least 3 wake records');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -374,7 +383,7 @@ test('PROP-016b: consecutive loop_detect on the SAME slot escalates the cooldown
   try {
     // 2 wakes -> loop_detect(streak 1) -> 2 more wakes -> loop_detect(streak 2) = 6 lines minimum.
     const lines = await waitForLines(ledgerPath, 6, 15000);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
 
     const loopDetectLines = lines.filter(l => l.kind === 'loop_detect');
     assert.ok(loopDetectLines.length >= 2, 'expected at least 2 loop_detect cycles on the same slot');
@@ -387,7 +396,7 @@ test('PROP-016b: consecutive loop_detect on the SAME slot escalates the cooldown
     assert.equal(second.sleep_s, first.sleep_s * 2, 'cooldown must double per consecutive same-slot re-offense');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -422,7 +431,7 @@ test('PROP-019: when balance RPC fails, loop retains previous tier and does not 
   try {
     await waitForLines(ledgerPath, 2, 10000);
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     assert.ok(lines.length >= 2, 'Loop should keep running despite balance failures');
     // All wake lines should have a model (from prior/default tier)
     const wakelines = lines.filter(l => l.kind === 'wake' || l.kind === 'narrate');
@@ -431,7 +440,7 @@ test('PROP-019: when balance RPC fails, loop retains previous tier and does not 
     }
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
@@ -485,14 +494,14 @@ exit 0
     await waitForLines(ledgerPath, 1, 15000);
     await new Promise(r => setTimeout(r, 500)); // allow classification
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     const wakeLines = lines.filter(l => l.kind === 'wake');
     assert.ok(wakeLines.length > 0, 'Should have at least one wake line');
     const profitable = wakeLines.find(l => l.profitable === true);
     assert.ok(profitable, 'At least one wake should be profitable:true when earn ledger has valid profitable line');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -540,14 +549,14 @@ exit 0
     await waitForLines(ledgerPath, 1, 10000);
     await new Promise(r => setTimeout(r, 300));
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     const wakeLines = lines.filter(l => l.kind === 'wake');
     for (const wl of wakeLines) {
       assert.equal(wl.profitable, false, `discover wake must be profitable:false, got ${wl.profitable}`);
     }
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -590,14 +599,14 @@ test('PROP-021(e): exit 0 with no matching WAKE_ID in earn-ledger -> profitable:
     await waitForLines(ledgerPath, 1, 10000);
     await new Promise(r => setTimeout(r, 300));
     const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     const wakeLines = lines.filter(l => l.kind === 'wake');
     for (const wl of wakeLines) {
       assert.equal(wl.profitable, false, 'exit 0 with no matching WAKE_ID must be profitable:false');
     }
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -669,15 +678,53 @@ test('PROP-022: SIGTERM while skill runs kills child within 5s, exit code 0', { 
     assert.equal(exitCode, 0, 'Exit code 0 confirms graceful shutdown');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
 });
 
-// ── PROP-023: pluggable brain backend ────────────────────────────────────────
+test('SIGTERM during Codex reasoning reaps the detached runner before shutdown', { timeout: 15000 }, async () => {
+  const home = makeTmpHome();
+  const ledgerPath = path.join(home, 'state', 'ledger.jsonl');
+  const runnerPidPath = path.join(home, 'state', 'codex-runner.pid');
+  const { server, url } = await startMockServer(() => makeNarrateResponse());
+  const proc = spawnLoop({
+    ANICCA_HOME: home,
+    OPENAI_BASE_URL: url,
+    CODEX_TEST_HOLD_UNTIL_KILLED: '1',
+    CODEX_TEST_RUNNER_PID_PATH: runnerPidPath,
+    ANICCA_BALANCE_OVERRIDE: '0',
+    SLEEP_BASE_S: '0',
+    SLEEP_ERROR_S: '0',
+  });
 
-test('PROP-023(a): ANICCA_BRAIN=proxy makes HTTP call, no claude subprocess', { timeout: 15000 }, async () => {
+  try {
+    const startedAt = Date.now();
+    while (!fs.existsSync(runnerPidPath)) {
+      if (Date.now() - startedAt > 5_000) throw new Error('Codex fixture did not enter its hold');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    const runnerPid = Number(fs.readFileSync(runnerPidPath, 'utf8'));
+    const exitCode = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('loop did not stop after Codex runner cancellation')), 6_000);
+      proc.once('exit', (code) => { clearTimeout(timeout); resolve(code); });
+      proc.kill('SIGTERM');
+    });
+    assert.equal(exitCode, 0);
+    assert.throws(() => process.kill(runnerPid, 0), { code: 'ESRCH' }, 'detached Codex runner must be reaped');
+    const records = readLedger(ledgerPath);
+    assert.equal(records.at(-1)?.kind, 'shutdown');
+  } finally {
+    server.close();
+    await stopTestLoop(proc);
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// ── Codex brain integration against a local-only fixture ────────────────────
+
+test('Codex brain uses the test-only loopback runner without invoking an external provider', { timeout: 15000 }, async () => {
   const home = makeTmpHome();
   const ledgerPath = path.join(home, 'state', 'ledger.jsonl');
   fs.mkdirSync(path.join(home, 'identity'), { recursive: true });
@@ -692,7 +739,6 @@ test('PROP-023(a): ANICCA_BRAIN=proxy makes HTTP call, no claude subprocess', { 
   const proc = spawnLoop({
     ANICCA_HOME: home,
     OPENAI_BASE_URL: url,
-    ANICCA_BRAIN: 'proxy',
     ANICCA_BALANCE_OVERRIDE: '0',
     SLEEP_BASE_S: '0',
     SLEEP_ERROR_S: '0',
@@ -702,57 +748,11 @@ test('PROP-023(a): ANICCA_BRAIN=proxy makes HTTP call, no claude subprocess', { 
 
   try {
     await waitForLines(ledgerPath, 2, 10000);
-    proc.kill('SIGTERM');
-    assert.ok(httpHitCount >= 2, `Expected >=2 HTTP hits, got ${httpHitCount}`);
+    await stopTestLoop(proc);
+    assert.ok(httpHitCount >= 2, `Expected the fixture to answer multiple Codex decisions, got ${httpHitCount}`);
   } finally {
     server.close();
-    proc.kill('SIGTERM');
-    fs.rmSync(home, { recursive: true, force: true });
-  }
-});
-
-test('PROP-023(e): ANICCA_BRAIN=claude-p with missing claude binary falls back to proxy', { timeout: 15000 }, async () => {
-  const home = makeTmpHome();
-  const ledgerPath = path.join(home, 'state', 'ledger.jsonl');
-  fs.mkdirSync(path.join(home, 'identity'), { recursive: true });
-  fs.writeFileSync(path.join(home, 'identity', 'genesis.md'), '# Anicca\nTest.\n');
-
-  let httpHitCount = 0;
-  const { server, url } = await startMockServer(() => {
-    httpHitCount++;
-    return makeNarrateResponse();
-  });
-
-  const proc = spawnLoop({
-    ANICCA_HOME: home,
-    OPENAI_BASE_URL: url,
-    ANICCA_BRAIN: 'claude-p',
-    // Point claude binary to a non-existent path so spawn fails
-    CLAUDE_BIN: '/nonexistent/claude',
-    ANICCA_BALANCE_OVERRIDE: '0',
-    SLEEP_BASE_S: '0',
-    SLEEP_ERROR_S: '0',
-    SKILL_TIMEOUT_S: '5',
-    LOOP_DETECT_WINDOW: '100',
-  });
-
-  try {
-    // Should fall back to proxy and still produce ledger lines
-    await waitForLines(ledgerPath, 1, 10000);
-    const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
-    assert.ok(lines.length >= 1, 'Loop must produce ledger lines even when claude binary is missing (fallback to proxy)');
-    assert.ok(
-      lines.some((line) => line.brain_fallback?.from === 'claude-p'
-        && line.brain_fallback?.to === 'proxy'
-        && line.brain_fallback?.reason === 'claude_not_found'),
-      'the recovered brain route must remain observable in the ledger',
-    );
-    // HTTP must have been called (proxy fallback)
-    assert.ok(httpHitCount >= 1, 'Proxy HTTP must be called on claude-p fallback');
-  } finally {
-    server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
   }
 });

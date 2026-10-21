@@ -99,12 +99,12 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "a2c4e760934db9089eef256eab1870d0a65213a20414686cf92670bd231f5a1f"
+          "sha256": "a80f29cd846ae2f176f5f6700aac6c2e4baedc55984a51ed255044503be00068"
         },
         {
           "source": "skills/agent-runner/config.json",
           "target": "runtime/agent-runner/config.json",
-          "sha256": "65922d1d387234de17c476be6bb412f1f131af25422e2daeb0e2213fcbf649c5"
+          "sha256": "efe75ffc5ff44afd707aaac12884aefc8dbfa9a4ee1e6a73d927a80898cf1bed"
         },
         {
           "source": "skills/agent-runner/context_packet.py",
@@ -119,7 +119,7 @@
         {
           "source": "skills/agent-runner/tests/test_prompt_fail_closed.py",
           "target": "runtime/agent-runner/tests/test_prompt_fail_closed.py",
-          "sha256": "639a918d4b34a5d3e0425988b2caf7581d678638393ab92c970d45bda1644b65"
+          "sha256": "78d82971b9c56785fbbc68f1becb8ce7dd537c93bf7840a0a5b8bc3d79d35aa3"
         },
         {
           "source": "skills/agent-runner/tests/test_usage_report.py",
@@ -151,8 +151,8 @@
         {
           "source": "skills/_shared",
           "target": "skills/_shared",
-          "files": 189,
-          "inventory_sha256": "03a010a0d54029a0ce8b72b7d308357cab75fdf6aa7db3e8a6dffb9d41661e23"
+          "files": 190,
+          "inventory_sha256": "5057bc88e233d6cbc001345107c686be11422e763a383104cd26ac83ef86654f"
         },
         {
           "source": "skills/anicca-life-manager",
