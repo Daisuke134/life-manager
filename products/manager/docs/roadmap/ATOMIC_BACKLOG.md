@@ -63,7 +63,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `H002` | H001 | スナップショット/再現性/ハッシュを理解する | 公開suggestions.csvをread-only取得、SHA256/コミットID保存 | data/rawはgitignore; manifestにrowcount 8,274とSHA256 **外部条件:** GitHubの公開ファイルを取得できる実行経路が必要 |
 | ✅ `H003` | H002 | 実データ型・欠測を理解する | scripts/inspect_heartsteps.pyでヘッダ/行数のみ出力 | 個人データの行が表示されない; 8,274 rows照合 |
 | ✅ `H004` | H003 | decision pointとavailabilityの意味を理解する | スキーマからdecision/time/availability/action列を同定 | 出典のcodebookと列名が完全一致; 不明列はunknown |
-| ⛔ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない **外部条件:** 公開版の`study.day.nogap`欠落、元の非公開RDataと変換規則の照合が必要。未検証の閾値調整は禁止 |
+| ⛔ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない **外部条件:** Pinned public suggestions.csv omits the original study.day.nogap variable and original analysis-small.RData / csv.RData are not published. Exact 7,540/6,061 inclusion requires original author-approved material or a validated derived study-day mapping. Do not select cutoffs to match totals. |
 | ⬜ `H006` | H005, L007 | 個別データの記述統計と因果推定を分離する | 記述統計のみのbaselineを実装 | 平均・分散・割付頻度を再計算、因果とは表示しない |
 | ⬜ `H007` | H006, L008 | 重複観測の相関と既知の割付確率を学ぶ | MRT割付確率と被験者クラスタを解析へ導入 | 単純独立標準誤差だけを使用しない |
 | ⬜ `H008` | H007 | weighted-centered least squares等の公開研究手法を理解する | 著者解析仕様に従いwalking suggestion効果を推定 | 元論文の24%/約59歩と差があれば原因を報告 |
