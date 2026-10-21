@@ -1,0 +1,75 @@
+name: Manager Concordia Offline Sandbox (nonhuman mock)
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths: ['.github/workflows/manager-concordia-sandbox.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  concordia-mock-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Checkout a pinned Apache-2.0 Concordia release source
+        shell: bash
+        run: |
+          git init /tmp/concordia-upstream
+          git -C /tmp/concordia-upstream remote add origin https://github.com/google-deepmind/concordia.git
+          git -C /tmp/concordia-upstream fetch --depth 1 origin 7128586aa8c1073bfa09dcb3781cea21e1a49229
+          git -C /tmp/concordia-upstream checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/concordia-upstream rev-parse HEAD)" = "7128586aa8c1073bfa09dcb3781cea21e1a49229"
+      - name: Install only the pinned upstream package, no API credentials
+        run: python -m pip install --disable-pip-version-check /tmp/concordia-upstream
+      - name: Run actual Concordia engine with an offline deterministic mock
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/products/manager/output/concordia-sandbox/simulation"
+          cd /tmp/concordia-upstream
+          python -m examples.deep_time.run --scenario=daisyworld --mode=mock --ticks=6 --seed=0 --out_dir="$GITHUB_WORKSPACE/products/manager/output/concordia-sandbox/simulation"
+      - name: Keep simulation logs and independent validation separate
+        env:
+          OUT: ${{ github.workspace }}/products/manager/output/concordia-sandbox
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['OUT'])
+          sim=root/'simulation'
+          assert (sim/'summary.json').is_file(), 'Missing actual Concordia simulation evidence'
+          assert (sim/'log.html').is_file()
+          assert (sim/'topics.mmd').is_file()
+          data=json.loads((sim/'summary.json').read_text())
+          assert data['scenario']=='daisyworld'
+          assert int(data['ticks']) > 0
+          v=root/'real_world_validation'
+          v.mkdir(parents=True,exist_ok=True)
+          evidence={
+              'schema':'manager.concordia.mock-sandbox.v1',
+              'engine':'google-deepmind/concordia',
+              'upstream_commit':'7128586aa8c1073bfa09dcb3781cea21e1a49229',
+              'upstream_license':'Apache-2.0',
+              'simulation_scenario':data['scenario'],
+              'simulation_steps':data['ticks'],
+              'simulation_log':'simulation/log.html',
+              'simulation_summary':'simulation/summary.json',
+              'independent_real_world_readback':False,
+              'real_world_validation_records':0,
+              'human_behavior_fidelity':'NOT_MEASURED',
+              'external_effects':'DISABLED',
+              'socsci_heldout_results':'NOT_MEASURED'
+          }
+          (v/'verification.json').write_text(json.dumps(evidence,indent=2)+'\n')
+          print(json.dumps(evidence,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manager-concordia-upstream-offline-simulation
+          path: products/manager/output/concordia-sandbox
+          if-no-files-found: warn
+          retention-days: 14
