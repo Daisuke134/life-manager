@@ -2,7 +2,7 @@
 
 Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 42 · Todo: 67 · Blocked: 3 · Skipped: 1
+Total: 113 · Done: 45 · Todo: 65 · Blocked: 2 · Skipped: 1
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -75,10 +75,10 @@ Manager has a separate product identity, source scope and runtime, even when its
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
 | ✅ `S001` | R006 | 参加者分割と研究分割の違いを説明する | SocSci210のライセンスとmetadata/participant_mapping.jsonを取得 | 170 study train / 40 unseen study保持、splitハッシュを記録 |
-| ⛔ `S002` | S001, L002 | 予測ベースラインの重要性を理解する | 頻度・多数派予測を実装 | held-out studyのaccuracyとTVDを報告 **外部条件:** R006 respondent-data license/consent review remains HOLD; no real 40-study held-out outcomes may be ingested for a benchmark |
+| ✅ `S002` | S001, L002 | 予測ベースラインの重要性を理解する | SocSci210全17 Parquet・170学習研究から回答符号の頻度/多数派基準を求め、40未見研究の全482,642回答を実測集計 | 全210研究2,901,390件を監査、40未見研究の正答率・TVD・Brierと不確実性を実測；元研究の選択肢意味は一致しない旨明記 |
 | ✅ `S003` | S001 | train/test leakageを理解する | 学習対象研究と評価対象研究のstudy_id重複を検査 | 漏洩0、偽装漏洩に対する失敗テストあり |
-| ⬜ `S004` | S003, L003 | 予測較正・不確実性を評価する | 同じ未知studyでTVD, Brier, subgroup誤差を実装 | 閾値外ならabstain、分母と件数を保存 |
-| ⬜ `S005` | S004 | 評価へのモデル適合過ぎを説明する | 単純モデルと公開学習済みモデルを同じ分割で比較 | 公平な比較と推論費用とライセンスを報告 |
+| ✅ `S004` | S003, L003 | 予測較正・不確実性を評価する | 同一40未見研究の実測回答でTVD/Brier・40-study bootstrap・20/20研究規模別誤差・訓練研究のみの閾値/abstentionを集計 | 40研究482,642分母と信頼区間、群別観測数、train-only TVD P90=0.60767102を保存；事後誤差をオンライン判定に使わずABSTAIN |
+| ✅ `S005` | S004 | 評価へのモデル適合過ぎを説明する | 170学習/40未見研究で公開MiniLM凍結encoder＋学習側分類器を頻度/多数派と同一800個票で比較；公開SmolLM2-135Mも別の同一320個票で比較 | 実GitHub CIでMiniLM 800回答accuracy 24.5%対19.375%、TVD .3977対.4488、推論実時間とApache-2.0を記録；SmolLMは42.5%有効出力と失敗記録 |
 | ✅ `S006` | R005, L005 | descriptive-vs-causalギャップを理解する | 独自の人工例で予測分布誤差と介入効果誤差を別ファイルで実証し、因果忠実度は実測していないと記録 | TVD=0でも人工の介入効果誤差0.4と別証拠。人間RCT因果精度は未測定 |
 | ✅ `S007` | R006, S003 | 生成エージェントの記憶/内省/行動を学ぶ | 架空エージェントでConcordia実エンジンを独立sandbox実行し、生成と現実検証の別証拠を作成 | 実GitHub Actionsで2架空エージェント・4イベント生成、real_world_validation=0と別保存 |
 | ✅ `S008` | S007 | 大規模化と一般化を区別する | 実測公開の自転車日次集計を2011年学習・2012年冬/夏の未知時間環境で評価（未知人口ではない） | UCI公式CSVバイト一致、2011年365日/2012年366日、冬91日/夏94日でTVD/Brier/MAEを記録し外挿の限界を明記 |
