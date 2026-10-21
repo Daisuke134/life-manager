@@ -154,17 +154,70 @@ class CryptoValidationReportTests(unittest.TestCase):
             self.assertIn("parameter_sensitivity", report)
             self.assertNotEqual(report.get("reason"), "quote_conversion_unknown")
             self.assertEqual(report["measurement_kind"], "modeled_validation")
+            self.assertEqual(report["benchmark"]["symbol"], "BTC/USDC")
+            self.assertEqual(report["benchmark"]["method"], "observed_window_buy_and_hold")
+            self.assertEqual(report["benchmark"]["status"], "measured")
+            self.assertIsNotNone(report["benchmark"]["holdout"]["excess_net_pnl_usd"])
+
+    def test_sparse_and_unpriced_bars_are_excluded_without_forward_fill(self):
+        bars = self._history(120)
+        no_trade_bar = bars.pop(60)
+        unpriced_bar = bars[75]
+        fx = [{"timestamp": row["t"], "currency": "USDC", "rate": "0.99",
+               "evidence_ref": "alpaca://fixture/us1-fx"}
+              for row in bars if row["t"] != unpriced_bar["t"]]
+        evaluated_candles = []
+
+        def capture(card, candles, _split, _costs):
+            evaluated_candles.append(list(candles))
+            return {"status": "unknown", "decision": "rejected",
+                    "strategy_id": card.strategy_id, "reason": "fixture"}
+
+        with patch.object(validation_runner, "validate_series", side_effect=capture):
+            reports = validation_runner.build_crypto_reports_from_history(
+                bars, quote_conversions=fx,
+                source_receipt_ids=["alpaca://fixture/us-btc", "alpaca://fixture/us1-fx"],
+                release_sha="a" * 40, observed_at="2026-01-05T00:00:00Z")
+
+        self.assertEqual(len(reports), 2)
+        observed = {row["timestamp"] for candles in evaluated_candles for row in candles}
+        self.assertNotIn(no_trade_bar["t"], observed)
+        self.assertNotIn(unpriced_bar["t"], observed)
+        self.assertTrue(all("quote_to_usd" in row
+                            for candles in evaluated_candles for row in candles))
+        for report, candles in zip(reports, evaluated_candles):
+            self.assertEqual(report["market_data_coverage"], {
+                "expected_btc_slots": 120,
+                "observed_btc_bars": 119,
+                "unobserved_btc_slots": 1,
+                "fx_matched_btc_bars": 118,
+                "btc_bars_without_exact_fx": 1,
+                "fx_priced_bars": 118,
+                "synthetic_bars": 0,
+                "btc_location": "us",
+                "fx_location": "us-1",
+            })
+            self.assertEqual(report["evaluated_candles"], len(candles))
 
     def test_two_btc_reports_can_share_market_sources_without_duplicate_evidence(self):
         from datetime import datetime, timezone
         from strategy_validation import select_strategy
         measured = {"status": "measured", "decision": "paper", "lookahead_detected": False,
                     "holdout": {"trades": 3, "net_pnl_usd": "2", "max_drawdown_usd": "1"},
-                    "turnover": "3"}
+                    "turnover": "3", "benchmark": {
+                        "symbol": "BTC/USDC", "method": "observed_window_buy_and_hold",
+                        "measurement_kind": "modeled_reference_pnl", "status": "measured",
+                        "holdout": {"status": "measured", "net_pnl_usd": "0.50", "strategy_net_pnl_usd": "2",
+                                    "excess_net_pnl_usd": "1.50"},
+                    }}
         with patch.object(validation_runner, "validate_series",
                           side_effect=lambda card, *_args: {**measured, "strategy_id": card.strategy_id}):
             reports = validation_runner.build_crypto_reports_from_history(
-                self._history(), quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
+                self._history(),
+                quote_conversions=[{"timestamp": row["t"], "currency": "USDC",
+                                    "rate": "0.99", "evidence_ref": "fixture-fx"}
+                                   for row in self._history()],
+                source_receipt_ids=["alpaca://fixture/btc", "alpaca://fixture/fx"],
                 release_sha="a"*40, observed_at=datetime.now(timezone.utc).isoformat())
         self.assertEqual(select_strategy(reports)["selection"], "selected")
         self.assertEqual(len({ref for report in reports for ref in report["evidence_ids"]}), 2)

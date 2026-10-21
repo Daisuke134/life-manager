@@ -241,7 +241,7 @@ class StrategyValidationTests(unittest.TestCase):
             json.dumps(second, sort_keys=True, separators=(",", ":")),
         )
 
-    def test_positive_holdout_and_robust_neighbors_can_become_paper(self):
+    def test_positive_holdout_that_only_matches_buy_and_hold_is_rejected(self):
         result = validate_series(
             _card(),
             _candles([90, 100, 110, 90, 100, 110, 90, 110, 90, 110]),
@@ -250,8 +250,21 @@ class StrategyValidationTests(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "measured")
-        self.assertEqual(result["decision"], "paper")
+        self.assertEqual(result["decision"], "rejected")
+        self.assertIn("benchmark_excess_non_positive", result["failed_gates"])
+        self.assertEqual(result["benchmark"]["holdout"]["excess_net_pnl_usd"], "0.00")
         self.assertGreaterEqual(result["parameter_sensitivity"]["positive_count"], 5)
+
+    def test_repeated_holdout_round_trips_can_beat_buy_and_hold(self):
+        result = validate_series(
+            _card(), _candles([90, 110] * 15), _split(), _costs(),
+        )
+
+        self.assertEqual(result["status"], "measured")
+        self.assertEqual(result["decision"], "paper")
+        self.assertGreater(
+            float(result["benchmark"]["holdout"]["excess_net_pnl_usd"]), 0,
+        )
 
     def test_exit_rule_evaluates_entry_price_and_indicator_arithmetic(self):
         card = _card(exit={"any": ["close <= entry_price - 1.5 * atr_14"]})

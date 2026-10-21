@@ -397,6 +397,92 @@ def _summary(trades: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _benchmark_comparison(
+    card: StrategyCard,
+    partitions: Mapping[str, list[dict[str, Any]]],
+    summaries: Mapping[str, Mapping[str, Any]],
+    notional: Decimal | None,
+    costs: Mapping[str, Decimal],
+) -> dict[str, Any]:
+    """Compare each split with one same-window, costed buy-and-hold reference."""
+    symbol = card.instruments[0] if len(card.instruments) == 1 else None
+    benchmark: dict[str, Any] = {
+        "symbol": symbol,
+        "method": "observed_window_buy_and_hold",
+        "measurement_kind": "modeled_reference_pnl",
+        "notional_usd": _money(notional) if notional is not None else None,
+        "strategy_sizing": "fixed_notional_per_round_trip",
+        "benchmark_sizing": "single_initial_notional_per_partition",
+        "cost_scope": "same_declared_entry_exit_fee_and_slippage",
+    }
+    for period, rows in partitions.items():
+        comparison: dict[str, Any] = {
+            "status": "unknown",
+            "reason": "benchmark_inputs_missing",
+            "start_timestamp": rows[0].get("timestamp") if rows else None,
+            "end_timestamp": rows[-1].get("timestamp") if rows else None,
+            "entry_price_quote": None,
+            "exit_price_quote": None,
+            "entry_quote_to_usd_rate": None,
+            "exit_quote_to_usd_rate": None,
+            "gross_pnl_usd": None,
+            "fees_usd": None,
+            "slippage_usd": None,
+            "net_pnl_usd": None,
+            "strategy_net_pnl_usd": None,
+            "excess_net_pnl_usd": None,
+            "outcome": None,
+        }
+        if rows and notional is not None and notional > 0:
+            first, last = rows[0], rows[-1]
+            entry_price = _decimal(first.get("open"))
+            exit_price = _decimal(last.get("close"))
+            entry_rate = _decimal(first.get("_quote_to_usd_rate"))
+            exit_rate = _decimal(last.get("_quote_to_usd_rate"))
+            strategy_net = _decimal(summaries[period].get("net_pnl_usd"))
+            if (entry_price is not None and entry_price > 0
+                    and exit_price is not None and exit_price > 0
+                    and entry_rate is not None and entry_rate > 0
+                    and exit_rate is not None and exit_rate > 0
+                    and strategy_net is not None):
+                entry_usd = entry_price * entry_rate
+                exit_usd = exit_price * exit_rate
+                quantity = notional / entry_usd
+                exit_notional = quantity * exit_usd
+                gross = exit_notional - notional
+                fees = (notional * costs["entry_fee_bps"]
+                        + exit_notional * costs["exit_fee_bps"]) / _BPS
+                slippage = (notional * costs["entry_slippage_bps"]
+                            + exit_notional * costs["exit_slippage_bps"]) / _BPS
+                net = gross - fees - slippage
+                reported_net = Decimal(_money(net))
+                reported_excess = strategy_net - reported_net
+                comparison.update({
+                    "status": "measured",
+                    "reason": None,
+                    "entry_price_quote": _text(entry_price),
+                    "exit_price_quote": _text(exit_price),
+                    "entry_quote_to_usd_rate": _text(entry_rate),
+                    "exit_quote_to_usd_rate": _text(exit_rate),
+                    "gross_pnl_usd": _money(gross),
+                    "fees_usd": _money(fees),
+                    "slippage_usd": _money(slippage),
+                    "net_pnl_usd": _money(net),
+                    "strategy_net_pnl_usd": _money(strategy_net),
+                    "excess_net_pnl_usd": _money(reported_excess),
+                    "outcome": "outperformed" if reported_excess > 0 else
+                               "underperformed" if reported_excess < 0 else "matched",
+                })
+        benchmark[period] = comparison
+    measured = sum(benchmark[period]["status"] == "measured" for period in partitions)
+    benchmark["status"] = (
+        "measured" if measured == len(partitions) else
+        "partial" if measured else "unknown"
+    )
+    benchmark["reason"] = None if measured == len(partitions) else "benchmark_inputs_missing"
+    return benchmark
+
+
 def _evaluate_partitions(
     card: StrategyCard,
     partitions: Mapping[str, list[dict[str, Any]]],
@@ -669,6 +755,7 @@ def validate_series(
         return _empty_report(card.strategy_id, "unknown", cost_error or "cost_model_incomplete")
 
     summaries, trades, unknown = _evaluate_partitions(card, partitions, cost_values)
+    benchmark = _benchmark_comparison(card, partitions, summaries, _notional(card), cost_values)
     sensitivity = _parameter_sensitivity(card, partitions, cost_values)
     total = _summary(trades)
     if unknown:
@@ -696,6 +783,15 @@ def validate_series(
         failures.append("parameter_sensitivity_negative")
     elif _decimal(sensitivity["median_net_pnl_usd"]) is None or _decimal(sensitivity["median_net_pnl_usd"]) <= 0:
         failures.append("parameter_sensitivity_median_non_positive")
+    holdout_benchmark = benchmark.get("holdout")
+    benchmark_excess = (
+        _decimal(holdout_benchmark.get("excess_net_pnl_usd"))
+        if isinstance(holdout_benchmark, Mapping) else None
+    )
+    if benchmark["status"] != "measured" or benchmark_excess is None:
+        failures.append("benchmark_comparison_missing")
+    elif benchmark_excess <= 0:
+        failures.append("benchmark_excess_non_positive")
 
     result = {
         "status": status,
@@ -711,6 +807,7 @@ def validate_series(
         "max_drawdown_usd": total["max_drawdown_usd"],
         "lookahead_detected": False,
         "parameter_sensitivity": sensitivity,
+        "benchmark": benchmark,
         "decision": "paper" if not failures else "rejected",
     }
     if unknown:
@@ -756,6 +853,59 @@ def _selection_cost_complete(value: Any) -> bool:
             return False
         numeric = True
     return numeric
+
+
+def benchmark_selection_reasons(
+    card: StrategyCard | None, benchmark_value: Any, holdout: Any,
+) -> list[str]:
+    """Validate benchmark identity and recompute its holdout excess contract."""
+    reasons: list[str] = []
+    if not isinstance(benchmark_value, Mapping):
+        return ["benchmark_missing"]
+    if card is None:
+        reasons.append("benchmark_card_missing")
+    symbol = benchmark_value.get("symbol")
+    method = benchmark_value.get("method")
+    expected_symbol = None
+    if card is not None:
+        expected_symbol = (
+            "SPY" if card.strategy_id == "alpaca-etf-126d-momentum-v1"
+            else card.instruments[0] if len(card.instruments) == 1 else None
+        )
+    if not isinstance(symbol, str) or not symbol.strip() or symbol != expected_symbol:
+        reasons.append("benchmark_symbol_mismatch")
+    expected_method = (
+        "observed_window_buy_and_hold"
+        if card is not None and any("/" in item for item in card.instruments)
+        else "buy_and_hold"
+    )
+    if method != expected_method:
+        reasons.append("benchmark_method_mismatch")
+    if benchmark_value.get("measurement_kind") != "modeled_reference_pnl":
+        reasons.append("benchmark_invalid")
+    if benchmark_value.get("status") != "measured":
+        reasons.append("benchmark_unmeasured")
+    benchmark_holdout = benchmark_value.get("holdout")
+    if not isinstance(benchmark_holdout, Mapping):
+        reasons.append("benchmark_excess_missing")
+        return list(dict.fromkeys(reasons))
+    if benchmark_holdout.get("status") != "measured":
+        reasons.append("benchmark_holdout_unmeasured")
+    benchmark_net = _decimal(benchmark_holdout.get("net_pnl_usd"))
+    benchmark_strategy_net = _decimal(benchmark_holdout.get("strategy_net_pnl_usd"))
+    excess = _decimal(benchmark_holdout.get("excess_net_pnl_usd"))
+    strategy_holdout_net = (
+        _decimal(holdout.get("net_pnl_usd")) if isinstance(holdout, Mapping) else None
+    )
+    if (benchmark_net is None or benchmark_strategy_net is None or excess is None
+            or strategy_holdout_net is None):
+        reasons.append("benchmark_excess_missing")
+    elif (benchmark_strategy_net != strategy_holdout_net
+            or excess != benchmark_strategy_net - benchmark_net):
+        reasons.append("benchmark_excess_mismatch")
+    elif excess <= 0:
+        reasons.append("benchmark_excess_non_positive")
+    return list(dict.fromkeys(reasons))
 
 
 def _selection_detail(report: Mapping[str, Any], index: int) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
@@ -814,6 +964,12 @@ def _selection_detail(report: Mapping[str, Any], index: int) -> tuple[dict[str, 
     if not _selection_cost_complete(cost_model):
         reasons.append("cost_model_incomplete")
 
+    benchmark_value = report.get("benchmark")
+    benchmark_errors = benchmark_selection_reasons(card, benchmark_value, holdout)
+    reasons.extend(benchmark_errors)
+    benchmark = (_selection_copy(benchmark_value)
+                 if isinstance(benchmark_value, Mapping) else None)
+
     turnover = _decimal(report.get("turnover", holdout.get("turnover") if isinstance(holdout, Mapping) else None))
     if turnover is None or turnover < 0:
         reasons.append("turnover_missing")
@@ -841,6 +997,7 @@ def _selection_detail(report: Mapping[str, Any], index: int) -> tuple[dict[str, 
         "card": card.to_mapping() if card is not None else None,
         "holdout": _selection_copy(holdout) if isinstance(holdout, Mapping) else None,
         "cost_model": _selection_copy(cost_model) if isinstance(cost_model, Mapping) else None,
+        "benchmark": benchmark,
         "turnover": str(turnover) if turnover is not None else None,
         "evidence_ids": list(evidence_ids),
         "accepted": False,
@@ -956,10 +1113,11 @@ def select_strategy(reports: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "card": selected["card"],
         "holdout": selected["holdout"],
         "cost_model": selected["cost_model"],
+        "benchmark": selected["benchmark"],
         "rejection_reasons": [],
         "reports": details,
         "selection": "selected",
     }
 
 
-__all__ = ["select_strategy", "validate_series"]
+__all__ = ["benchmark_selection_reasons", "select_strategy", "validate_series"]

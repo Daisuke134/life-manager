@@ -67,6 +67,18 @@ def _measured_result() -> dict[str, object]:
         "reason": None,
         "data_quality": {"common_sessions": 1551},
         "trades": [{"net_pnl_usd": "0.10"}],
+        "benchmark": {
+            "symbol": "SPY",
+            "method": "buy_and_hold",
+            "measurement_kind": "modeled_reference_pnl",
+            "status": "measured",
+            "holdout": {
+                "status": "measured",
+                "net_pnl_usd": "0.50",
+                "strategy_net_pnl_usd": "1.62",
+                "excess_net_pnl_usd": "1.12",
+            },
+        },
         "train": summary,
         "validation": {**summary, "trades": 13, "net_pnl_usd": "2.21"},
         "holdout": {

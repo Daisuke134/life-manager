@@ -159,6 +159,7 @@ def _selection_payload(
         "release_sha": runtime_release_sha or selection.get("release_sha"),
         "card": selection.get("card"),
         "holdout": selection.get("holdout"),
+        "benchmark": selected.get("benchmark"),
         "cost_model": selection.get("cost_model"),
         "evidence_ids": selected.get("evidence_ids"),
         "observed_at": source.get("observed_at"),
@@ -246,7 +247,9 @@ def _official_crypto_closed(marker: dict[str, Any], rows: list[dict[str, Any]]) 
         return False
 
 
-def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _guard_reports(
+    root: Path, existing: Any, reports: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], bool]:
     try:
         ledger = root / "receipts.jsonl"
         if ledger.is_symlink():
@@ -299,11 +302,11 @@ def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> 
         def canonical(card):
             return {key: value for key, value in card.items() if key != "status"}
         current = canonical(existing["card"])
-        return [report for report in reports if isinstance(report.get("card"), dict)
-                and canonical(report["card"]) == current]
+        return ([report for report in reports if isinstance(report.get("card"), dict)
+                 and canonical(report["card"]) == current], True)
     btc = [report for report in reports if isinstance(report.get("card"), dict)
            and report["card"].get("instruments") == ["BTC/USDC"]]
-    return btc if btc else reports
+    return (btc if btc else reports), False
 
 
 def provision_selection(path: str | Path, reports_path: str | Path,
@@ -347,12 +350,21 @@ def _provision_selection_locked(
         if not existing_valid and not _existing_selection_is_expired(existing):
             raise SelectionProvisionError("existing_selection_invalid")
 
-    reports = _guard_reports(destination.parent, existing, _read_reports(Path(reports_path).expanduser()))
+    reports, protected_policy = _guard_reports(
+        destination.parent, existing, _read_reports(Path(reports_path).expanduser()))
     try:
         selection = select_strategy(reports)
         payload = _selection_payload(selection, reports, runtime_release_sha)
-    except SelectionProvisionError:
+    except SelectionProvisionError as error:
         if refresh and existing_valid:
+            if (str(error) == "no_strategy_selected" and isinstance(existing, dict)
+                    and not protected_policy and reports):
+                expired = dict(existing)
+                expired["expires_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                encoded = json.dumps(expired, ensure_ascii=False, sort_keys=True,
+                                     separators=(",", ":"))
+                _atomic_write(destination, (encoded + "\n").encode("utf-8"))
+                return {"status": "expired", "path": str(destination)}
             return {"status": "existing", "path": str(destination)}
         raise
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)

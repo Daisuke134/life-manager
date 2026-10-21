@@ -52,6 +52,18 @@ def _report(
             "net_pnl_usd": net,
             "max_drawdown_usd": drawdown,
         },
+        "benchmark": {
+            "symbol": "BTC/USDC",
+            "method": "observed_window_buy_and_hold",
+            "measurement_kind": "modeled_reference_pnl",
+            "status": "measured",
+            "holdout": {
+                "status": "measured",
+                "net_pnl_usd": "0.00",
+                "strategy_net_pnl_usd": net,
+                "excess_net_pnl_usd": net,
+            },
+        },
         "cost_model": card["cost_model"],
         "turnover": turnover,
         "evidence_ids": evidence_ids or [f"evidence-{strategy_id}"],
@@ -62,6 +74,79 @@ def _report(
 
 
 class StrategySelectionTests(unittest.TestCase):
+    def test_missing_benchmark_cannot_select_a_candidate(self):
+        report = _report("candidate-no-benchmark")
+        report.pop("benchmark", None)
+
+        selected = select_strategy([report])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        self.assertIn("benchmark_missing", selected["rejection_reasons"])
+
+    def test_non_positive_holdout_benchmark_excess_cannot_select_a_candidate(self):
+        report = _report("candidate-underperforms")
+        report["benchmark"] = {
+            "symbol": "BTC/USDC",
+            "method": "observed_window_buy_and_hold",
+            "measurement_kind": "modeled_reference_pnl",
+            "status": "measured",
+            "holdout": {
+                "status": "measured",
+                "net_pnl_usd": "12.00",
+                "strategy_net_pnl_usd": "12.00",
+                "excess_net_pnl_usd": "0.00",
+            },
+        }
+
+        selected = select_strategy([report])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        self.assertIn("benchmark_excess_non_positive", selected["rejection_reasons"])
+
+    def test_inconsistent_benchmark_excess_is_rejected(self):
+        report = _report("candidate-inconsistent-benchmark")
+        report["benchmark"]["holdout"]["excess_net_pnl_usd"] = "999.00"
+
+        selected = select_strategy([report])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        self.assertIn("benchmark_excess_mismatch", selected["rejection_reasons"])
+
+    def test_benchmark_must_match_the_card_instrument_and_method(self):
+        report = _report("candidate-wrong-benchmark")
+        report["benchmark"].update(symbol="SPY", method="buy_and_hold")
+
+        selected = select_strategy([report])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        reasons = selected["reports"][0]["rejection_reasons"]
+        self.assertIn("benchmark_symbol_mismatch", reasons)
+        self.assertIn("benchmark_method_mismatch", reasons)
+
+    def test_etf_benchmark_must_remain_spy(self):
+        from etf_momentum import strategy_card
+
+        card = strategy_card().to_mapping()
+        report = _report(card["strategy_id"])
+        report["card"] = card
+        report["cost_model"] = card["cost_model"]
+        report["benchmark"].update(symbol="QQQ", method="buy_and_hold")
+        report["benchmark"]["holdout"]["status"] = "measured"
+
+        selected = select_strategy([report])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        self.assertIn("benchmark_symbol_mismatch", selected["reports"][0]["rejection_reasons"])
+
+    def test_benchmark_holdout_must_be_measured(self):
+        report = _report("candidate-unmeasured-benchmark-holdout")
+        report["benchmark"]["holdout"]["status"] = "unknown"
+
+        selected = select_strategy([report])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        self.assertIn("benchmark_holdout_unmeasured", selected["reports"][0]["rejection_reasons"])
+
     def test_selects_one_candidate_by_holdout_then_ignores_model_score(self):
         selected = select_strategy([
             _report("candidate-a", net="12.00", model_score=-999),
@@ -72,6 +157,7 @@ class StrategySelectionTests(unittest.TestCase):
         self.assertEqual(selected["report_id"], "report-b")
         self.assertEqual(selected["holdout"]["net_pnl_usd"], "99.00")
         self.assertEqual(selected["cost_model"]["entry_fee_bps"], "25.00")
+        self.assertEqual(selected["benchmark"]["holdout"]["excess_net_pnl_usd"], "99.00")
         self.assertEqual(selected["rejection_reasons"], [])
 
     def test_one_positive_holdout_beats_a_rejected_candidate(self):

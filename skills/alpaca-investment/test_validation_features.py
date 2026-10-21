@@ -60,7 +60,7 @@ class ValidationFeatureTests(unittest.TestCase):
         self.assertEqual(candle["indicator_history_stable"],"0")
         self.assertEqual(build_validation_candles(source[:400],"alpaca-btc-5m-trend-400-v2"),[])
 
-    def test_real_core_evaluates_all_numeric_neighbors_for_both_v2_cards(self):
+    def test_real_core_evaluates_neighbors_but_rejects_non_excess_for_both_v2_cards(self):
         from strategy_validation import validate_series
         # Synthetic feature contract fixture, not provider data or performance evidence.
         for kind in ("trend", "reversion"):
@@ -84,7 +84,9 @@ class ValidationFeatureTests(unittest.TestCase):
                 report=validate_series(card,candles,{},card.to_mapping()["cost_model"])
                 self.assertEqual(report["parameter_sensitivity"]["status"],"evaluated")
                 self.assertEqual(report["parameter_sensitivity"]["positive_count"],9)
-                self.assertEqual(report["decision"],"paper")
+                self.assertEqual(report["decision"],"rejected")
+                self.assertIn("benchmark_excess_non_positive", report["failed_gates"])
+                self.assertIn("benchmark", report)
                 self.assertEqual(report["net_pnl_usd"],"4.70")
 
     def test_trend_features_start_after_warmup_and_use_only_past_bars(self):

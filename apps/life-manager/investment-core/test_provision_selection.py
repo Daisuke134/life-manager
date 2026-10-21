@@ -25,6 +25,18 @@ def _report(*, net: str = "1.62", report_id: str = "report-etf") -> dict[str, ob
             "net_pnl_usd": net,
             "max_drawdown_usd": "1.25",
         },
+        "benchmark": {
+            "symbol": "SPY",
+            "method": "buy_and_hold",
+            "measurement_kind": "modeled_reference_pnl",
+            "status": "measured",
+            "holdout": {
+                "status": "measured",
+                "net_pnl_usd": "0.00",
+                "strategy_net_pnl_usd": net,
+                "excess_net_pnl_usd": net,
+            },
+        },
         "cost_model": card["cost_model"],
         "turnover": "14",
         "evidence_ids": ["alpaca-paper://stock-bars/iex/split/20200929-20260928"],
@@ -308,6 +320,7 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(payload["strategy_id"], "alpaca-etf-126d-momentum-v1")
             self.assertEqual(payload["report_id"], "report-etf")
             self.assertEqual(payload["release_sha"], "a" * 40)
+            self.assertEqual(payload["benchmark"]["holdout"]["excess_net_pnl_usd"], "1.62")
             self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(destination.parent.stat().st_mode), 0o700)
 
@@ -389,7 +402,8 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(payload["report_id"], "refreshed-report")
             self.assertEqual(payload["release_sha"], "b" * 40)
 
-    def test_refresh_keeps_existing_selection_when_new_report_is_rejected(self):
+    def test_refresh_expires_existing_selection_when_new_report_is_rejected(self):
+        from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             reports = root / "reports.json"
@@ -404,8 +418,12 @@ class ProvisionSelectionTests(unittest.TestCase):
             )
             result = provision_selection(destination, reports, refresh=True)
 
-            self.assertEqual(result["status"], "existing")
-            self.assertEqual(destination.read_bytes(), before)
+            self.assertEqual(result["status"], "expired")
+            payload = json.loads(destination.read_text(encoding="utf-8"))
+            expires_at = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
+            self.assertLessEqual(expires_at, datetime.now(timezone.utc))
+            self.assertNotEqual(destination.read_bytes(), before)
+            self.assertEqual(payload["report_id"], "report-etf")
 
     def test_expired_selection_is_replaced_by_fresh_report(self):
         with tempfile.TemporaryDirectory() as directory:
