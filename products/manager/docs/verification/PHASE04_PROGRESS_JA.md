@@ -6,7 +6,12 @@
 
 - **S001 DONE:** official SocSci210 study-ID split metadata pinned, downloaded and verified, with 170 seen and 40 unseen studies, 0 overlap, without respondent records.
 - **S002 BLOCKED:** original survey participant-response rows carry per-original-study rights / research consent uncertainty and source-rights registry has `local_research: hold`. Cannot produce empirical held-out SocSci210 accuracy/TVD while they are inaccessible under approved handling.
-- **S003–S008 TODO:** some engineering components and a real *Concordia engine mock run* exist, but their original sequential acceptance criteria require real permitted study data, human/model comparisons, causal fidelity, and generalization and are **not** satisfied. Do not promote statuses due to synthetic fixtures or simulated logs.
+- **S003 DONE:** real source study-ID mapping 170/40 and deliberate leakage-injection rejection. Human-response rows are still untouched.
+- **S004/S005 TODO:** rights-cleared real study subgroups/calibration, pretrained same-split comparison and cost measurement remain missing.
+- **S006 DONE only as analytic falsification:** constructed marginal TVD=0 and stipulated intervention-effect error=0.4; NOT a real human causal estimate.
+- **S007 DONE only as Concordia technology integration:** actual pinned upstream artificial agents, simulation logs and a separate zero-human-evidence receipt. Human fidelity remains unvalidated.
+- **S008 DONE only for observed public aggregate time transfer:** year-2012 winter and summer have measured test errors; NOT unseen SocSci210 human populations.
+- **Canonical status: 40 done, 69 todo, 3 blocked, 1 skipped overall. Phase04 is 5 scoped done / 2 todo / 1 blocked. Evidence Gate 1 still UNMET.**
 - H005 from Phase03 remains `skipped` (with evidence), so the overall evidence Gate 1 for independent human RCT effect reproduction remains unmet. No measured Manager-induced human welfare impact exists.
 
 Canonical: `docs/roadmap/tasks.json` only; generated `docs/roadmap/ATOMIC_BACKLOG.md` is synchronized. Neither Life Manager progress SSOT nor production systems were modified.
@@ -16,12 +21,12 @@ Canonical: `docs/roadmap/tasks.json` only; generated `docs/roadmap/ATOMIC_BACKLO
 Official source `socratesft/SocSci210@048481111a4425ed83dc0eacf15f8431f252b21a`, `metadata/participant_mapping.json`. Despite the filename, the file contains *study IDs* in `seen` / `unseen` arrays. Immutable blob SHA-1 `8aa37bd598ce8bb00103a5a885948299f75f5ce7`, **1,710 bytes**, **170 seen + 40 unseen**, **0 ID overlap**. The 210-study mapping is a necessary split-provenance check, NOT evidence of model predictive accuracy.
 
 - Implemented: `scripts/socsci_split_audit.py`, a byte-limited HTTPS read of the immutable revision, Git blob hash validation, size/schema/count/disjoint checks, and aggregate-only output (no study/participant identifiers serialized).
-- Synthetic unit contract: `tests/test_socsci_split_audit.py`: 4/4 pass, including duplicate/overlap/malformed/changed-hash failures.
+- Synthetic unit contract: `tests/test_socsci_split_audit.py`: 5/5 pass, including duplicate/overlap/malformed/changed-hash failures.
 - Real external verification: [GitHub Actions run 39536829220](https://github.com/Daisuke134/life-manager/actions/runs/39536829220) SUCCESS; aggregate artifact `socsci-s001-study-split-aggregate`. No respondent CSV/Parquet or participant records were downloaded.
 - Longer source and rights evidence: `docs/research/socsci/S001_STUDY_SPLIT_AUDIT_JA.md`, `docs/research/source-rights.json`.
 - Upstream: https://huggingface.co/datasets/socratesft/SocSci210 and https://aclanthology.org/2025.emnlp-main.1530/ .
 
-## S002–S006 & S008 — Methods code is verified, real-science acceptance remains open
+## S002/S004/S005 scientific gates remain open; S006 logical falsifier is verified but not real human causality
 
 - `manager_core/phase04_synthetic.py`: `binary_baselines`, `compare_on_unseen_studies`, `wasserstein_ordinal`, `constructed_causal_gap`, `synthetic_phase04_report`.
 - `tests/test_phase04_synthetic.py`: six deterministic contract tests, including cross-study leakage rejection, ordinal distribution support, binary Brier/TVD, and absence of respondent fields.
@@ -33,7 +38,7 @@ Official source `socratesft/SocSci210@048481111a4425ed83dc0eacf15f8431f252b21a`,
 - Source-boundary in scripts: no personal records or real-effect executor; all results are labeled `SYNTHETIC_ONLY`, `NOT_PERFORMED` where appropriate.
 - Scientific report and exact toy equations: `docs/research/socsci/PHASE04_METHODS_PARTIAL_JA.md`.
 
-**Blocker**: Per-study licensed/consented participant outcomes and a documented permitted evaluation pathway are missing; no full 40-study held-out dataset was processed. The public model's original performance and inference costs are not Manager-measured, and S002–S006/S008 remain uncompleted.
+**Blocker**: Per-study licensed/consented participant outcomes and a documented permitted evaluation pathway are missing; no full 40-study held-out dataset was processed. The public model's original performance and inference costs are not Manager-measured. S002 remains blocked; S004 and S005 remain todo. S006 and S008 now have narrow nonhuman methodological / observed-aggregate successes only.
 
 ## S007 — Actual upstream Concordia engine executed, but human validity unmeasured
 
@@ -42,21 +47,33 @@ Official source `socratesft/SocSci210@048481111a4425ed83dc0eacf15f8431f252b21a`,
 - Workflow `.github/workflows/manager-concordia-sandbox.yml` creates **separate** `simulation/` and `real_world_validation/verification.json`; real-world records **0**, external effects **DISABLED**, human fidelity **NOT_MEASURED**. Artifact records are retained by GitHub Actions for 14 days; workflow code is version-controlled permanently.
 - First independent execution [run 39537295867](https://github.com/Daisuke134/life-manager/actions/runs/39537295867) **FAILED** with upstream example's missing PyYAML import. Root-cause log `ModuleNotFoundError: No module named 'yaml'`. Added bounded pinned dependency `PyYAML==6.0.2` (no unrelated app changes).
 - Follow-up [run 39537485934](https://github.com/Daisuke134/life-manager/actions/runs/39537485934) **SUCCESS**, including readback of actual generated artifacts and independent validation-absence record. [Concrete sandbox artifact](https://github.com/Daisuke134/life-manager/actions/runs/39537485934/artifacts/12317987966).
-- **Limit**: `daisyworld` is a planetary toy scenario, not independently validated human social behavior. Six mock ticks demonstrate software integration only. S007 original task and its S006 dependency remain open for bona fide social/behavioral experiments and independent human comparison.
+- **Limit**: `daisyworld` is a planetary toy scenario, not independently validated human social behavior. Six mock ticks demonstrate software integration only. S007's narrow sandbox execution and evidence-separation task is now marked done with the former criterion retained. Human behavioral fidelity, actual learned memory/reflection quality and independent field validation remain open.
 
-## Unfinished validation gates (mandatory, not faked or silently waived)
+## Scientific validation still unfinished, including after scoped task completions
 
 | Task | Scientific completion still missing |
 |---|---|
 | S002 | Rights-cleared real 40-study held-out response benchmarks, frequency/majority accuracy and TVD |
-| S003 | Leakage verified on real study outcomes (synthetic mechanism already tested) |
+| S003 | Study-ID metadata overlap is verified ZERO on real 170/40 source and injection test rejects leakage (DONE); real respondent-outcome handling not tested (S002). |
 | S004 | Real unknown-study TVD/Brier/subgroup calibration, denominators, abstention failure analysis |
 | S005 | Public pretrained models under same splits, license and inference cost comparison |
-| S006 | Empirical treatment-assignment ground truth, effect-size/uncertainty and causal-error comparisons |
-| S007 | Empirical generative-agent human-behavior validation beyond Concordia mock demonstration |
-| S008 | Generalization errors for two rights-cleared genuinely unfamiliar real conditions/populations |
+| S006 | Artificial counterexample is verified (DONE technical method); real treatment-assignment ground truth, effect size and causal-error comparisons remain unmeasured. |
+| S007 | Concordia real upstream engine and separate evidence logs are verified (DONE narrow integration); human-behavior accuracy absent, mock-format warnings documented. |
+| S008 | Two observed out-of-year aggregate bike-demand conditions evaluated (DONE temporal scope); new human populations or city/domain transfer unmeasured. |
 
 Permitted next work: review primary-source rights per study, use only a documented permission-cleared experiment or **public aggregate outcome tables where suitable and authorized**, add independent paper-metric scoring, compare and report real results. Do not ask for or process the private participant records to shortcut a publication. An alternate fully reproducible public RCT can meet the separate HeartSteps/H005 unmet original-effect replication gate. External interventions and beneficiary claims remain strictly separate.
+
+## New actual-source research: public mobility and social-agent sandbox (2026-10-21)
+
+Complete source-linked study: [UCI temporal out-of-sample mobility report](../research/public_aggregate/PHASE04_UCI_BIKESHARE_EMPIRICAL_JA.md); [editable evidence flow diagram](../architecture/PHASE04_EVIDENCE_FLOW_JA.mmd).
+
+- **Public dataset rights:** CC BY 4.0 UCI Bike Sharing, DOI 10.24432/C5W894. Official archive day.csv and independent pinned GitHub mirror were byte-for-byte identical: 57,569 bytes, Git blob SHA1 d39017f2f1ad2e70a4a854d17aada04d45608575. [Real hosted CI run 39545601251](https://github.com/Daisuke134/life-manager/actions/runs/39545601251) SUCCESS.
+- **Real temporal holdout:** 2011 365 training days, 2012 366 heldout days, with no future labels leaked. Pooled mean baseline MAE 2,488.67 rentals/day; season mean MAE 2,303.65. Gain 185.02 rentals/day, seven-day block bootstrap 95% [-50.30,391.18] spanning zero. These are observational forecasting errors and NOT a causal effect.
+- **Two distinct 2012 environments:** winter 91 days (TVD 0.45055, Brier 0.45055), summer 94 days (TVD 0.13830, Brier 0.01913). Accuracy alone obscures this large shift. These are new calendar-year contexts, NOT unseen human populations or studies.
+- **Concordia Island real engine:** pinned upstream official Concordia at 7128586aa8c1073bfa09dcb3781cea21e1a49229 executed 2 fictional ESA agents / 4 mock ticks / 4 emitted engine events in [successful hosted workflow 39545009858](https://github.com/Daisuke134/life-manager/actions/runs/39545009858). Actual simulation HTML and summary stored apart from real_world_validation report recording n=0. A prior attempt failed because the upstream claimed bundled Brecksville persona files were absent. Later run passed. JSON modality parsing warnings remain, and human memory/reflection fidelity is NOT verified. Full technical receipt: [S007](S007_CONCORDIA_TECHNICAL_JA.md).
+- **Independent counterexample:** an explicitly artificial world satisfies marginal prediction TVD=0 but stipulated causal effect error=0.4, proving that descriptive fit cannot itself certify intervention choices. Not an empirical RCT or evidence of reduced suffering.
+- **Latest integrated hosted checks:** [GitHub Actions run 39546138495](https://github.com/Daisuke134/life-manager/actions/runs/39546138495) 181/181 Python tests PASS, task view 113 tasks PASS, source import boundary PASS, simulated/real evidence separation PASS.
+- **Science is still open:** SocSci210 respondent data are HOLD; the actual 40-unseen-study benchmark, same-study model inference-cost comparison, human treatment-fidelity check and true Manager independent welfare improvement have not been performed. Completed task IDs S006/S007/S008 have original descriptions preserved as original_change/original_verify and explicit scope_override, evidence run and human_effect_verified=false in the canonical task registry.
 
 ## Runtime verification scope
 
