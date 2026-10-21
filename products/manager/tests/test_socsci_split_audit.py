@@ -67,5 +67,15 @@ class SocSciMetadataOnlyTests(unittest.TestCase):
                                         expected_bytes=len(junk),
                                         expected_studies={"seen": 2, "unseen": 1})
 
+
+    def test_s003_leakage_guard_fails_closed_before_any_outcome_access(self):
+        """A split audit is independent of training a predictive model."""
+        from manager_core.calibration import assert_disjoint_groups
+        assert_disjoint_groups(["experiment_A", "experiment_B"], ["experiment_C"])
+        with self.assertRaises(ValueError):
+            assert_disjoint_groups(["experiment_A", "experiment_B"], ["experiment_B"])
+        with self.assertRaises(ValueError):
+            assert_disjoint_groups(["experiment_C"], ["experiment_C"])
+
 if __name__ == "__main__":
     unittest.main()
