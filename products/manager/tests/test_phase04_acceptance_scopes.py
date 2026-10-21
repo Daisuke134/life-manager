@@ -47,10 +47,10 @@ class Phase04HonestAcceptance(unittest.TestCase):
             self.assertIn(required, doc)
         self.assertIn("39545009858", social)
         self.assertIn("Modality Parsing JSON Error", social)
-        self.assertIn("実世界", social)
+        self.assertIn("現実世界", social)
         self.assertIn("実測", doc)
         self.assertNotIn("Managerが苦しみを減らしたことを証明", doc)
-        self.assertNotIn("human_behavior_fidelity_score": 1", social)
+        self.assertNotIn('human_behavior_fidelity_score": 1', social)
 
 
 if __name__ == "__main__":
