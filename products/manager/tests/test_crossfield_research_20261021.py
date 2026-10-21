@@ -62,6 +62,17 @@ class CrossFieldResearchContracts(unittest.TestCase):
         self.assertIn("References",article)
         self.assertIn("No production deployment",WEB.read_text(encoding="utf-8"))
 
+    def test_public_research_source_summary_matches_canonical_evidence_count(self):
+        """One existing source register; derived counts must not drift across public docs."""
+        source_count=len(json.loads(MATRIX.read_text(encoding="utf-8")))
+        self.assertGreaterEqual(source_count,82)
+        readme=(ROOT/"README.md").read_text(encoding="utf-8")
+        roadmap=(ROOT/"docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md").read_text(encoding="utf-8")
+        research=REPORT.read_text(encoding="utf-8")
+        self.assertIn(f"{source_count} upstream references",readme)
+        self.assertIn(f"{source_count} sources",research)
+        self.assertIn(f"{source_count}-source reuse inventory",roadmap)
+
     def test_canonical_registry_unchanged_and_grants_not_faked(self):
         tasks=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
         by_id={t["id"]:t for t in tasks}
