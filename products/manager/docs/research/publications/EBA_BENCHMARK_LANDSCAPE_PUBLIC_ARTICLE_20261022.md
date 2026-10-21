@@ -147,7 +147,7 @@ No finite benchmark can verify that suffering has ended in the entire universe. 
 
 For AI labs: contribute realistic, de-identified cases and independent benchmark graders. For behavioral simulation teams: contribute results from genuinely held-out studies and actual treatment effects, not only plausible simulated stories. For causal researchers: bring randomized data, design assumptions and uncertainty. For public interest organizations: help define meaningful, consented, domain-valid outcomes. For startups: begin with an existing evaluation runner and a real problem before chasing a leaderboard score.
 
-Our next steps are to build a properly rights-cleared EBA dataset and versioned reproducibility package, integrate existing runner/adapters, preregister a true intervention protocol, and publish honest positive, negative and unresolved results. We will only upgrade human-welfare proof after actual externally observed results justify it.
+We will publish negative results and failures as prominently as successes; absence of improvement is an important measurement, not an embarrassment.\n\nOur next steps are to build a properly rights-cleared EBA dataset and versioned reproducibility package, integrate existing runner/adapters, preregister a true intervention protocol, and publish honest positive, negative and unresolved results. We will only upgrade human-welfare proof after actual externally observed results justify it.
 
 **AI is becoming good at doing things. Its evaluations should become equally good at telling us what those things actually changed.**
 
