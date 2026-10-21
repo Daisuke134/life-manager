@@ -1,0 +1,65 @@
+{
+  "embedding_seconds_cpu": 65.86,
+  "evaluation": {
+    "frozen_pretrained_encoder_plus_trained_head": {
+      "accuracy": 0.245,
+      "brier_multiclass": 0.8258807,
+      "n": 800,
+      "studies": 40,
+      "tvd_study_macro": 0.39773813,
+      "tvd_study_micro": 0.39773813
+    },
+    "train_frequency_prior": {
+      "accuracy": 0.19375,
+      "brier_multiclass": 0.86193672,
+      "n": 800,
+      "studies": 40,
+      "tvd_study_macro": 0.44877206,
+      "tvd_study_micro": 0.44877206
+    },
+    "train_majority_hard": {
+      "accuracy": 0.19375,
+      "brier_multiclass": 1.6125,
+      "n": 800,
+      "studies": 40,
+      "tvd_study_macro": 0.80625,
+      "tvd_study_micro": 0.80625
+    }
+  },
+  "limitations": {
+    "beneficiaries_verified": 0,
+    "model_inference_authorized_by_operator": true,
+    "not_a_population_fidelity_certification": true,
+    "not_a_real_world_intervention": true,
+    "not_the_original_socrates_8b_or_14b_model": true,
+    "numeric_response_code_semantics_not_uniform_across_studies": true,
+    "study_condition_level_question_options_not_available_as_features": true,
+    "test_case_label_not_used_to_fit_any_model": true
+  },
+  "model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "privacy": {
+    "participant_ids_output": false,
+    "raw_rows_stored_or_uploaded": false,
+    "respondent_demographics_loaded": false,
+    "sample_responses_output": false,
+    "text_or_profiles_committed": false
+  },
+  "study_split": {
+    "records_per_study": 20,
+    "train_rows": 3400,
+    "train_studies": 170,
+    "unseen_rows": 800,
+    "unseen_studies": 40
+  },
+  "research_receipt": {
+    "actual_run": "https://github.com/Daisuke134/life-manager/actions/runs/39561547086",
+    "source_revision": "socratesft/SocSci210@048481111a4425ed83dc0eacf15f8431f252b21a",
+    "full_scores_with_reliability": "See successful run artifact manager-socsci210-real-pretrained-comparison; this source-controlled summary excludes participant-level data.",
+    "original_model_id": "sentence-transformers/all-MiniLM-L6-v2",
+    "original_model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "model_license": "Apache-2.0",
+    "comparator_same_train_test_sample": true,
+    "mode": "FROZEN_PRETRAINED_SENTENCE_ENCODER_AND_TRAIN_ONLY_LOGISTIC_HEAD",
+    "scope": "Numeric response-code stress test, NOT original task-condition semantic Socrates benchmark"
+  }
+}
