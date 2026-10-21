@@ -181,6 +181,20 @@ Only independent scientific and authorized welfare measurements can later establ
 **Science:** Detailed simulation, aggregate forecasting, 11 validity-test awareness, corporate metrics and a completed source-linked presentation do not establish that Manager has causally reduced suffering. Research / publication state is separate from the product's Phase04 human-effects proof requirements.
 
 
+## October 21: Autonomous earning evaluation and wealth-creating interventions
+
+**Research finding, not an achieved product effect:** Money made in a Vending-Bench simulation, human historical dollar-valued SWE-Lancer tasks, actual settled external customer profit, and credible causal beneficiary wealth are **different proof levels**. Also compare positive and null original IRS/EITC intervention studies before building a money-finding 'blessing'.
+
+- [Original 4,740-word English article](docs/articles/manager-autonomous-agent-money-is-not-wealth-en.md): *A Vending-Machine AI Scored $15,515. Did Anyone Actually Get Richer?* Original first sources and carefully labeled simulated / historically valued / realized / causal evidence.
+- [25-source deep-research registry](docs/research/autonomous_wealth_eval/PRIMARY_SOURCES_2026-10-21.json): Andon Labs, Pion, Project Vend, Anthropic, SWE-Lancer, GDPval, METR, The Agent Company, LM-EAB read-only code, real human RCTs, causal methodology.
+- [Proposed wealth and welfare dual-scorecard protocol](docs/research/autonomous_wealth_eval/WEALTH_BLESSING_EVAL_PROTOCOL.md): existing Life Manager economic-autonomy scorer **read-only schema inspiration only**; independent causal outcome and transparent welfare impact remains Manager's future task.
+- [Original editable 7-level economic-evidence SVG](docs/visuals/autonomous-wealth-evidence-ladder-en.svg).
+- [30-organization, seven-cluster landscape](docs/landscape/2026-10-20-behavior-intervention-entities.md) now includes Andon Labs, Anthropic, OpenAI, and METR; company capabilities do not imply independent verification.
+- [Review/publish package PR](https://github.com/Daisuke134/life-manager/pull/8490) generated on a **separate content branch**; the research branch itself is **not a public blog post**. Requires all repository checks, content merge, site deployment and actual public URL readback before saying 'published'.
+
+Life Manager already has `apps/life-manager/eval/economic-autonomy` and `eval/agent-contract` in its own product: verified receipt arithmetic, economic autonomy and safe promotion checks. The Manager *research* did not connect runtime, production ledgers, credentials or participant profiles. **No actual Manager-recipient wealth improvements are measured.**
+
+
 ## Living Behavior × AGI lab presentations (2026-10-21)
 
 - [Current 39-slide English beginner-to-proposal seminar V3; full claim/source/limits crosswalk](docs/presentations/BEHAVIOR_AGI_END_TO_END_LAB_SEMINAR_V3_2026-10-21.md). The editable PPTX, its builder and generated hero illustration are stored under the user's Library `/Manager/Research/` with verified upload receipts.
