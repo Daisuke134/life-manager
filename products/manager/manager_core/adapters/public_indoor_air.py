@@ -67,8 +67,8 @@ class PublicIndoorAirObservations:
                 if not isinstance(row,dict):
                     raise IndoorAirUnverified("invalid monitoring object")
                 source=row.get("dataSource")
-                if not isinstance(source,str) or not source.strip():
-                    raise IndoorAirUnverified("unattributed monitor reading")
+                if source != "AirGradient":
+                    raise IndoorAirUnverified("unattributed or unrecognized indoor data source")
                 stamp=datetime.fromisoformat(row["measuredAt"].replace("Z","+00:00"))
                 if stamp.tzinfo is None or stamp.utcoffset() is None:
                     raise IndoorAirUnverified("timezone-free reading")
