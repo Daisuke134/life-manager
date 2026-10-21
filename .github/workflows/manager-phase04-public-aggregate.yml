@@ -1,0 +1,56 @@
+name: Manager Phase04 Public Aggregate Mobility Benchmark
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/manager_core/phase04_bike_sharing.py'
+      - 'products/manager/tests/test_phase04_bike_sharing.py'
+      - 'products/manager/scripts/phase04_bike_sharing.py'
+      - '.github/workflows/manager-phase04-public-aggregate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-aggregate-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused safety and methodological tests
+        run: python -m unittest tests/test_phase04_bike_sharing.py -v
+      - name: Pinned public real aggregate holdout (NO SocSci210 participants)
+        run: python scripts/phase04_bike_sharing.py --output output/phase04-public-aggregate
+      - name: Enforce provenance, missing causal proof, and no raw source rows
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('output/phase04-public-aggregate')
+          files = list(root.glob('*'))
+          assert len(files) == 1 and files[0].name == 'public_bikeshare_aggregate.json'
+          report = json.loads(files[0].read_text())
+          assert report['source_snapshot_verified'] is True
+          assert (report['train_days'], report['heldout_days']) == (365,366)
+          assert report['split']['train_test_date_disjoint']
+          assert {x['name'] for x in report['heldout_conditions']} == {'winter_2012','summer_2012'}
+          assert report['privacy']['participant_records'] == 0
+          assert report['privacy']['raw_rows_published'] is False
+          assert report['socsci210_human_benchmark'] == 'NOT_PERFORMED_RIGHTS_HOLD'
+          assert report['causal_effect_estimated'] is False
+          assert report['manager_benefit_proven'] is False
+          assert not list(root.glob('*.csv'))
+          print('PASS: source verified, 365/366 train/test, no personal records, no causal claim')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manager-phase04-real-public-aggregate-only
+          path: products/manager/output/phase04-public-aggregate/
+          if-no-files-found: warn
+          retention-days: 14
