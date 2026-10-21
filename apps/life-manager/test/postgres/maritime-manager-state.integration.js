@@ -362,6 +362,13 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [managerParticipantId])).rows[0].count, 1);
     assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_web_funnel_events WHERE event_name='maritime_consent' AND source_object_id=$1", [managerParticipantId])).rows[0].count, 1,
       "repeat consent deduplicates its stable funnel event");
+    assert.equal(await managerPersistence.isConsentActive(uidC), true);
+    assert.equal(await managerPersistence.revoke(uidC), true);
+    assert.equal(await managerPersistence.isConsentActive(uidC), false);
+    const revokedParticipant = await managerPersistence.getParticipant(uidC);
+    assert.match(revokedParticipant.participant.revoked_at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
+    assert.equal(await managerPersistence.revoke(uidC), false, "revocation is one-shot");
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_web_funnel_events WHERE event_name='maritime_consent_revoked' AND source_object_id=$1", [managerParticipantId])).rows[0].count, 1);
 
     const funnelColumns = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_web_funnel_events'",

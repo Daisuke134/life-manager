@@ -265,3 +265,12 @@ test('manager email consent event reuses HMAC identity and web attribution',asyn
  assert.equal(events[0].sourceObjectId,store.participantId(uid));assert.equal(events[0].sourceEventId,`maritime:${store.participantId(uid)}:maritime_consent`);
  assert.deepEqual(events[0].attribution,{utm_source:'maritime-instagram',utm_medium:'web',utm_campaign:'the-first-1000'});
 });
+
+test('manager consent revocation event reuses HMAC identity and web attribution',async()=>{
+ const uid='lm_11111111-1111-4111-8111-111111111111',events=[];
+ const store=createMaritimeDistributionStore({env:{LM_UID_SECRET:'fixture-secret'},recordEventImpl:async event=>{events.push(event);return true;}});
+ assert.equal(await store.recordConsentRevokedEvent(uid,'referral','web'),true);
+ assert.equal(events[0].eventName,'maritime_consent_revoked');assert.equal(events[0].uid,null);
+ assert.equal(events[0].sourceObjectId,store.participantId(uid));
+ assert.deepEqual(events[0].attribution,{utm_source:'maritime-referral',utm_medium:'web',utm_campaign:'the-first-1000'});
+});

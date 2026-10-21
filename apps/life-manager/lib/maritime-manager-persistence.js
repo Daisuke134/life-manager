@@ -141,12 +141,42 @@ function createMaritimeManagerPersistence(options = {}) {
     } catch { return { ok: false, status: "unavailable" }; }
   }
 
+  async function isConsentActive(uid) {
+    const result = await getParticipant(uid);
+    const row = result.participant;
+    return result.ok && Boolean(row && row.consent_version === CONSENT_VERSION && row.consented_at && !row.revoked_at);
+  }
+
+  async function revoke(uid) {
+    const existing = await getParticipant(uid);
+    const row = existing.participant;
+    if (!existing.ok || !row || row.consent_version !== CONSENT_VERSION || !row.consented_at || row.revoked_at) return false;
+    const rawNow = nowMs();
+    const at = rawNow instanceof Date ? rawNow : new Date(rawNow);
+    if (!Number.isFinite(at.getTime())) return false;
+    const id = distributionStore.participantId(uid);
+    let rows;
+    try {
+      rows = await query(
+        `UPDATE public.lm_maritime_pilot_participants SET revoked_at=$2::timestamptz,updated_at=$2::timestamptz
+         WHERE participant_id=$1 AND consent_version=$3 AND consented_at IS NOT NULL AND revoked_at IS NULL
+         RETURNING participant_id`,
+        [id, at.toISOString(), CONSENT_VERSION],
+      );
+    } catch { return false; }
+    if (rows.length !== 1 || rows[0].participant_id !== id) return false;
+    await distributionStore.recordConsentRevokedEvent(uid, row.source, "web");
+    return true;
+  }
+
   return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch,
     participantId: distributionStore.participantId,
     recordManagerEvent: distributionStore.recordManagerEvent,
     recordAnonymousEvent: distributionStore.recordAnonymousEvent,
     getParticipant,
-    accept });
+    accept,
+    isConsentActive,
+    revoke });
 }
 
 module.exports = { createMaritimeManagerPersistence };
