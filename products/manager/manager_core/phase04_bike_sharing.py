@@ -13,7 +13,6 @@ import random
 import statistics
 from collections import defaultdict
 from datetime import date
-from math import isfinite
 
 from manager_core.evaluation import brier_score, total_variation
 
@@ -147,9 +146,6 @@ def build_report(rows: list[dict], *, source_verified: bool) -> dict:
     by_season = defaultdict(list)
     for r in train:
         by_season[r["season"]].append(r["count"])
-    if set(by_season) != {1, 2, 3, 4}:
-        # Educational fixtures may have 1/3; any truly unseen season must abstain.
-        pass
     p_season = {}
     mean_season = {}
     for s, vals in by_season.items():
@@ -217,9 +213,7 @@ def build_report(rows: list[dict], *, source_verified: bool) -> dict:
                   "training_features": ["season"],
                   "training_label": "daily_rentals_above_2011_median",
                   "target_and_future_year_excluded_from_features": True,
-                  "train_test_date_disjoint": not bool(
-                      {r["date"] for r in train} & {r["date"] for r in test}
-                  ) is False},
+                  "train_test_date_disjoint": not bool({r["date"] for r in train} & {r["date"] for r in test})},
         "train_threshold_daily_rentals": threshold,
         "train_fitted_parameters": parameters,
         "baselines": models,
