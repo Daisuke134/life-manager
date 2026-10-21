@@ -485,14 +485,55 @@ class ProvisionSelectionTests(unittest.TestCase):
                 json.dumps([_report(report_id="rejected", net="0")]),
                 encoding="utf-8",
             )
-            result = provision_selection(destination, reports, refresh=True)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("provision_selection.py")),
+                    "--path", str(destination),
+                    "--reports", str(reports),
+                    "--release-sha", "b" * 40,
+                    "--refresh",
+                    "--hold-on-known-blocker",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
 
-            self.assertEqual(result["status"], "expired")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["status"], "expired")
             payload = json.loads(destination.read_text(encoding="utf-8"))
             expires_at = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
             self.assertLessEqual(expires_at, datetime.now(timezone.utc))
             self.assertNotEqual(destination.read_bytes(), before)
             self.assertEqual(payload["report_id"], "report-etf")
+
+    def test_no_strategy_without_existing_selection_is_held(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report(report_id="rejected", net="0")]), encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("provision_selection.py")),
+                    "--path", str(destination),
+                    "--reports", str(reports),
+                    "--release-sha", "b" * 40,
+                    "--refresh",
+                    "--hold-on-known-blocker",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["reason"], "no_strategy_selected")
+            self.assertEqual(json.loads(result.stdout)["status"], "held")
+            self.assertFalse(destination.exists())
 
     def test_expired_selection_is_replaced_by_fresh_report(self):
         with tempfile.TemporaryDirectory() as directory:
