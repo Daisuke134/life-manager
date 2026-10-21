@@ -62,6 +62,7 @@ class Phase04RealAggregateContract(unittest.TestCase):
         self.assertEqual(report["heldout_days"], 4)
         self.assertEqual(report["split"]["train_year"], 2011)
         self.assertEqual(report["split"]["test_year"], 2012)
+        self.assertTrue(report["split"]["train_test_date_disjoint"])
         self.assertEqual([x["name"] for x in report["heldout_conditions"]],
                          ["winter_2012", "summer_2012"])
         self.assertEqual(report["heldout_conditions"][0]["days"], 2)
