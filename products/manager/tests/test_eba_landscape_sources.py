@@ -25,7 +25,7 @@ class BenchmarkAtlasContracts(unittest.TestCase):
         required = {"id","name","family","kind","url","original_reuse",
                     "metric","measures","does_not_prove","rights","inspection"}
         allowed_kind = {"benchmark","evaluation_harness","field_study",
-                        "outcome_instrument","simulation_platform","dataset"}
+                        "outcome_instrument","simulation_platform","dataset","methodology"}
         for r in rows:
             with self.subTest(id=r.get("id")):
                 self.assertEqual(set(r),required)
@@ -33,7 +33,7 @@ class BenchmarkAtlasContracts(unittest.TestCase):
                 self.assertTrue(r["url"].startswith("https://"))
                 self.assertIn(r["rights"],{"UPSTREAM_LICENSE_CHECK","PUBLIC_METHOD_ONLY",
                                            "DATA_RIGHTS_REVIEW_REQUIRED"})
-                self.assertIn(r["inspection"],{"UPSTREAM_CODE_READ","DOCS_REVIEWED","PAPER_METHOD"})
+                self.assertIn(r["inspection"],{"UPSTREAM_CODE_READ","DOCS_REVIEWED","PAPER_METHOD","SOURCE_IDENTIFIED"})
                 for key in required:
                     self.assertTrue(isinstance(r[key],str) and r[key].strip())
 
