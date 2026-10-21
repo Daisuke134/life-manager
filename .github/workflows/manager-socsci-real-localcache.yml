@@ -4,6 +4,8 @@ on:
     branches: [research/manager-product-r006-20261020]
     paths:
       - 'products/manager/scripts/phase04_socsci_empirical.py'
+      - 'products/manager/manager_core/phase04_socsci_empirical.py'
+      - 'products/manager/tests/test_phase04_socsci_empirical.py'
       - '.github/workflows/manager-socsci-real-localcache.yml'
   workflow_dispatch:
 permissions: {contents: read}
