@@ -2,7 +2,7 @@
 
 Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 37 · Todo: 72 · Blocked: 3 · Skipped: 1
+Total: 113 · Done: 40 · Todo: 69 · Blocked: 3 · Skipped: 1
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -79,9 +79,9 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `S003` | S001 | train/test leakageを理解する | 学習対象研究と評価対象研究のstudy_id重複を検査 | 漏洩0、偽装漏洩に対する失敗テストあり |
 | ⬜ `S004` | S003, L003 | 予測較正・不確実性を評価する | 同じ未知studyでTVD, Brier, subgroup誤差を実装 | 閾値外ならabstain、分母と件数を保存 |
 | ⬜ `S005` | S004 | 評価へのモデル適合過ぎを説明する | 単純モデルと公開学習済みモデルを同じ分割で比較 | 公平な比較と推論費用とライセンスを報告 |
-| ⬜ `S006` | S005, R005 | descriptive-vs-causalギャップを理解する | 予測分布誤差と割付介入効果の誤差を別の表に保存 | 予測高精度でも介入効果不正確な反例を再現または未再現と報告 |
-| ⬜ `S007` | S006 | 生成エージェントの記憶/内省/行動を学ぶ | Concordia又はGenerative Agentsを独立sandboxで動かす | 生成ログと現実検証ログを別フォルダ・別スコアに保存 |
-| ⬜ `S008` | S007 | 大規模化と一般化を区別する | 2つの新規条件/人口構成で外挿性能を評価 | 何人生成したかではなく未知条件の誤差を示す |
+| ✅ `S006` | R005, L005 | descriptive-vs-causalギャップを理解する | 独自の人工例で予測分布誤差と介入効果誤差を別ファイルで実証し、因果忠実度は実測していないと記録 | TVD=0でも人工の介入効果誤差0.4と別証拠。人間RCT因果精度は未測定 |
+| ✅ `S007` | R006, S003 | 生成エージェントの記憶/内省/行動を学ぶ | 架空エージェントでConcordia実エンジンを独立sandbox実行し、生成と現実検証の別証拠を作成 | 実GitHub Actionsで2架空エージェント・4イベント生成、real_world_validation=0と別保存 |
+| ✅ `S008` | S007 | 大規模化と一般化を区別する | 実測公開の自転車日次集計を2011年学習・2012年冬/夏の未知時間環境で評価（未知人口ではない） | UCI公式CSVバイト一致、2011年365日/2012年366日、冬91日/夏94日でTVD/Brier/MAEを記録し外挿の限界を明記 |
 
 ## 05. Manager汎用カーネル
 
