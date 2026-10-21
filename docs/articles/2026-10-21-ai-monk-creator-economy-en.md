@@ -25,7 +25,19 @@ The current store page shows the 30-Day Healing Journey for $49.99 and a $59.99 
 
 Columbia News Service reported that creator Shalev Hani claimed more than $300,000 in revenue since launch and said he turned down a $325,000 acquisition offer. The article does not provide audited financial records. Keep this in the “creator-reported” category. The article also documents criticism from Buddhist scholars about representing a synthetic character as a monk and presenting generic wellness statements as Buddhist teaching.
 
+A January 2026 [Virtual Humans profile](https://virtualhumans.org/article/who-is-yang-mun-the-ai-generated-wellness-guru-with-2-6m-followers) describes a creator-reported figure as more than $300,000 in profit within 90 days. Columbia’s later reporting instead says the creator claimed more than $300,000 in revenue since launch. These are different accounting terms and reporting windows; neither source supplies audited financial records. Do not report the profit figure as verified.
+
 HeyGen’s case story says the creator focused on recurring audience concerns and simple, one-message scripts, batched multiple videos, and moved from a few posts a week to daily publishing. This is a vendor-published creator case, not an independent test that daily publishing caused revenue or growth.
+
+## Adjacent models checked
+
+The broader search found several nearby models, but they are not interchangeable proof of AI monk eBook sales:
+
+- [The Wisdom Tree](https://www.thewisdomtree.ai/) presents AI personas including a Buddhist monk and directs visitors to get its app. The public home page showed no eBook offer, price, or sales figure. This is an app-first AI-guidance model.
+- [Thai PBS World’s report on Phra Maha AI](https://www.thaipbsworld.com/around-thailand/thailands-first-virtual-monk-to-preach-buddhism-to-new-generation) says the character is a real monk working with programmers on a 2-D virtual representation for Buddhist teaching. The report did not identify an eBook offer or sales result. This is a real monk using a virtual character, not the same identity model as a fully synthetic persona.
+- [Monk Shen Yu’s public site](https://monkshen.com/) promotes an Amazon eBook and paperback, but the page does not establish that Shen Yu is AI-generated. We exclude it from the AI monk sample and do not count it as AI-monk eBook evidence.
+
+Yang Mun has the largest follower figure among the AI-character examples in this bounded review. Public evidence does not establish that it is the largest AI monk business by revenue or profit. The broader search found app, publishing, and creator-education routes, but it did not support the claim that most AI monk accounts sell eBooks.
 
 ## Reusable mechanics, not reusable expression
 
@@ -44,6 +56,8 @@ A fresh Anicca video can report the same finding without borrowing a creator’s
 
 If a fictional avatar is used, describe it as fictional and AI-generated. Do not claim it is an ordained monk, clinician, or holder of lived experience. Build scripts from Anicca’s own claims and licensed assets. Measure views, profile visits, tagged sessions, checkouts, paid orders, refunds, fees, and production costs separately. GitHub stars are a distribution signal, not revenue.
 
+Anicca’s free field study was announced once on X; the [official Postiz/X receipt](../evidence/ai-monk-x-post-20261021.json) records the exact public permalink and tracked article URL.
+
 ## Source register
 
 - [Yang Mun 30-Day Healing Journey](https://www.yang-mun.com/products/30-day-healing-journey-yang-mun)
@@ -51,6 +65,11 @@ If a fictional avatar is used, describe it as fictional and AI-generated. Do not
 - [Yang Mun Journey landing page and seller counters](https://www.yang-mun.com/pages/journey)
 - [HeyGen customer story](https://www.heygen.com/customer-stories/yangmun)
 - [Columbia News Service investigation](https://columbianewsservice.com/2026/03/24/millions-found-comfort-in-a-buddhist-monk-but-he-was-never-real/)
+- [Virtual Humans profile reporting the creator’s profit claim](https://virtualhumans.org/article/who-is-yang-mun-the-ai-generated-wellness-guru-with-2-6m-followers)
+- [The Wisdom Tree official AI monk app page](https://www.thewisdomtree.ai/)
+- [Thai PBS World report on Phra Maha AI](https://www.thaipbsworld.com/around-thailand/thailands-first-virtual-monk-to-preach-buddhism-to-new-generation)
+- [Monk Shen Yu public book page; AI provenance not established](https://monkshen.com/)
+- [Anicca X announcement receipt](../evidence/ai-monk-x-post-20261021.json)
 - [Yang Mun short](https://www.youtube.com/shorts/Er2Ig4GM7z0)
 - [Tiny Monk Tales video](https://www.youtube.com/watch?v=Je-lvASkWH8)
 - [Miracle Buddha video](https://www.youtube.com/watch?v=JlE7egVlMZs)
