@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T09:39:59Z",
-  "source_main_sha": "c0846ea05f02b801d288c7d62023d965e6dfcc25",
+  "observed_at": "2026-10-21T09:50:24Z",
+  "source_main_sha": "c205863a05a651c17fef183e59a043383e8663b6",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
     "terms_url": "https://competition.maritime.sh/terms",
@@ -25,7 +25,7 @@
     "project": "Anicca",
     "environment": "production",
     "life_call": {
-      "readback_at": "2026-10-21T09:35:00Z",
+      "readback_at": "2026-10-21T09:50Z",
       "latest_success_deployment": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
       "deployment_status": "SUCCESS",
       "loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
@@ -35,7 +35,7 @@
       "loaded_source_sha_readback_at": "2026-10-21T08:00Z"
     },
     "worker": {
-      "readback_at": "2026-10-21T09:35:00Z",
+      "readback_at": "2026-10-21T09:50Z",
       "latest_success_deployment": "9dc09440-42ed-4349-83c2-e437b1fc5017",
       "deployment_status": "SUCCESS",
       "loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
@@ -48,7 +48,7 @@
       "pilot_max_users": "3",
       "loaded_source_sha_readback_at": "2026-10-21T08:00Z"
     },
-    "deployment_readback_at": "2026-10-21T09:35:00Z",
+    "deployment_readback_at": "2026-10-21T09:50Z",
     "latest_main_deployments": {
       "source_sha": "d7c03e907d930511785121344ce2a2e6cd0e483a",
       "life_call_status": "SKIPPED",
@@ -60,16 +60,16 @@
       "last_success_worker_deployment_id": "9dc09440-42ed-4349-83c2-e437b1fc5017"
     },
     "current_main_adoption_check": {
-      "observed_at": "2026-10-21T09:39:59Z",
-      "latest_origin_main_sha": "c0846ea05f02b801d288c7d62023d965e6dfcc25",
+      "observed_at": "2026-10-21T09:50:24Z",
+      "latest_origin_main_sha": "c205863a05a651c17fef183e59a043383e8663b6",
       "paths_changed_after_production_loaded_sha": [
         "apps/life-manager/investment-core/provision_selection.py",
         "apps/life-manager/investment-core/test_provision_selection.py",
         "apps/life-manager/scripts/maritime-week1-export.js",
         "apps/life-manager/scripts/maritime-week1-export.test.js"
       ],
-      "railway_live_deployments": "09:35Z readback: life-call e9ebfb62-e8c3-46eb-a198-d9203f574899 and money-printer-worker 9dc09440-42ed-4349-83c2-e437b1fc5017 remain SUCCESS from 06:23Z. Later main commit deployments are SKIPPED; c0846ea is not verified as loaded.",
-      "latest_main_adoption": "origin/main c0846ea is not verified as deployed; latest exact loaded SHA remains 982875d62eaa03f8e924b990c4bc80f521d8dcce from 08:00Z."
+      "railway_live_deployments": "09:50Z Railway readback: life-call e9ebfb62-e8c3-46eb-a198-d9203f574899 and money-printer-worker 9dc09440-42ed-4349-83c2-e437b1fc5017 remain SUCCESS from 06:23Z.",
+      "latest_main_adoption": "origin/main c205863a is not verified as deployed; loaded SHA last exact readback is 982875d62eaa03f8e924b990c4bc80f521d8dcce."
     }
   },
   "runtime_database_readback": {
@@ -170,8 +170,8 @@
     "current_experiment": {
       "observed_at": "2026-10-21T09:39:59Z",
       "article_source": "docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.md",
-      "article_source_state": "source and matching package exist in feature worktree; uncommitted",
-      "article_package_state": "56th manifest entry; byte/hash matches source; uncommitted",
+      "article_source_state": "committed to feature branch cf10222a9f; source is not merged to main",
+      "article_package_state": "56th manifest entry; source/package bytes and SHA verified; committed to feature branch; not deployed",
       "article_public_state": "HTTP 404; unpublished",
       "cta_policy": "An early-pilot CTA is allowed before the complete hosted cycle only when the article and page disclose cycle limitations, Maritime retention, and no income/profit guarantee.",
       "x_policy": "Do not post until a live readback identifies the existing broad X identity; current Postiz connector has zero integrations.",
@@ -278,8 +278,8 @@
     "sigma_analytics": "unavailable; account has no Sigma subscription"
   },
   "source_repository_readback": {
-    "observed_at": "2026-10-21T09:39:59Z",
-    "origin_main_sha": "c0846ea05f02b801d288c7d62023d965e6dfcc25",
+    "observed_at": "2026-10-21T09:50:24Z",
+    "origin_main_sha": "c205863a05a651c17fef183e59a043383e8663b6",
     "production_loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
     "life_manager_source_paths_changed_after_loaded_sha": [
       "apps/life-manager/investment-core/provision_selection.py",
@@ -290,7 +290,7 @@
   },
   "current_cursor": {
     "product": "T22.1e.2 / b.6-28: existing owner PKCE and explicit Maritime retention consent are unrecorded. No enrollment/execution/participant/job/external work is in Runtime PG at the 08:00:19Z readback. Worker email flag is 0; the full hosted work/report/stop cycle is unverified.",
-    "distribution": "T24.4b: source and matching package are prepared in this feature worktree but uncommitted/unpublished. Candidate canonical URL returned 404 at 09:31Z. GSC is 0 clicks/7 impressions through 2026-10-18. Postiz 09:32Z has zero groups/integrations/posts; no current LM X post or attributed sale.",
+    "distribution": "T24.4b: source and matching package are committed on feature branch cf10222a9f; not merged to main or public. Candidate canonical URL returned HTTP 404 at 09:31Z. GSC is 0 clicks/7 impressions through 2026-10-18. Postiz 09:32Z has zero groups/integrations/posts; no current LM X post or attributed sale.",
     "submission": "One accepted-team entry is posted and read back; channel warns it does not replace any required form. Official home/Terms rechecked 09:31Z show no form/cutoff/rubric. Existing organizer thread last read 08:26:15Z has only two sent messages and no reply. Formal receipt unconfirmed; do not repost.",
     "packet_export": "T23.1 packet remains an aggregate-only draft generated 08:34:34Z; users/work receipts=0, costs=null, formal receipt=null. Do not treat it as submitted.",
     "revenue": "Stripe live readback 09:38Z: both Life Manager monthly prices have 0 active subscriptions; MRR USD 0. Dais reports local workflow earnings without a joined settlement receipt. Hosted user earnings and source-attributed distribution revenue are unverified."
@@ -334,7 +334,7 @@
     "gsc_sitewide_28d_through": "2026-10-18",
     "gsc_sitewide_28d_clicks": 0,
     "gsc_sitewide_28d_impressions": 7,
-    "article_source_state": "feature worktree source and matching package; uncommitted/unpublished",
+    "article_source_state": "source/package committed on feature branch cf10222a9f; unpublished",
     "cta_policy": "Early-pilot article CTA allowed with full-cycle-unverified, retention, and no-income-guarantee disclosures.",
     "article_source_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9"
   },
@@ -368,6 +368,6 @@
     "life_manager_company_revenue": "Stripe live readback at 09:38Z: Life Manager active subscriptions 0 and MRR USD 0; both $29 and $20 monthly prices returned zero active subscriptions.",
     "distribution_revenue": "No Life Manager source-attributed paid user or receipt. Candidate article is HTTP 404; GSC is 0 clicks/7 impressions; Postiz connector has no integrations or LM post."
   },
-  "current_status_refresh_at": "2026-10-21T09:39:59Z",
-  "status_updated_at": "2026-10-21T09:39:59Z"
+  "current_status_refresh_at": "2026-10-21T09:50:24Z",
+  "status_updated_at": "2026-10-21T09:50:24Z"
 }

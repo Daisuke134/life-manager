@@ -17,7 +17,7 @@
 - brief/公開条件: docs/distribution/maritime/week1/seo-article-draft-en.md
 - existing destination: https://aniccaai.com/blog/manager
 - candidate canonical URL: https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en
-- 2026-10-21 09:31 UTC readback: candidate URL HTTP 404。source exists only in the current feature worktree; package/deploy/readback remain.
+- 2026-10-21 09:31 UTC readback: candidate URL HTTP 404。source/package are committed in feature branch cf10222a9f; deploy/readback remain.
 - Early-pilot CTA may publish before the complete hosted cycle if the page and article both say: full hosted work/report cycle is unverified; pilot sends necessary work data to Maritime; its AI-credit calls may be retained indefinitely after account deletion; revenue/profit is not guaranteed. Do not claim completed work or user earnings without provider receipts.
 - UTM: utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1.
 
