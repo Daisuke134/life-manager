@@ -27,7 +27,7 @@ from etf_momentum import ETF_MOMENTUM_UNIVERSE, strategy_card as etf_strategy_ca
 from etf_ownership import investment_owner_id  # noqa: E402
 from etf_policy import evaluate as evaluate_etf_policy  # noqa: E402
 from strategy_cards import StrategyCard, validate_strategy_card  # noqa: E402
-from strategy_validation import _consistent_condition  # noqa: E402
+from strategy_validation import benchmark_selection_reasons, _consistent_condition  # noqa: E402
 
 
 getcontext().prec = 28
@@ -541,13 +541,15 @@ def evaluate(
     return _result(card, ACTION_HOLD, inputs, "signal_hold", cost_text)
 
 
-def load_selected_card(state: Path, *, allow_expired: bool = False) -> tuple[StrategyCard, str]:
+def load_selected_card(
+    state: Path, *, allow_existing_position_management: bool = False,
+) -> tuple[StrategyCard, str]:
     """Load a release-pinned card, rejecting missing/stale selections.
 
-    Expired selections are only allowed for a separately verified existing
-    position's HOLD/EXIT path; callers must keep new entries fail-closed.
+    Unbenchmarked or expired selections are only allowed for a separately
+    verified existing position's HOLD/EXIT path; new entries fail closed.
     """
-    if type(allow_expired) is not bool:
+    if type(allow_existing_position_management) is not bool:
         raise ValueError("strategy_release_invalid")
     try:
         payload = json.loads((state / "selected-strategy.json").read_text(encoding="utf-8"))
@@ -562,10 +564,16 @@ def load_selected_card(state: Path, *, allow_expired: bool = False) -> tuple[Str
         expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
     except ValueError as error:
         raise ValueError("strategy_release_expiry_invalid") from error
-    if expires.tzinfo is None or (expires <= datetime.now(timezone.utc) and not allow_expired):
+    if (expires.tzinfo is None
+            or (expires <= datetime.now(timezone.utc) and not allow_existing_position_management)):
         raise ValueError("strategy_release_expired")
-    return validate_policy_card(payload.get("card"), payload.get("release_sha"),
-                                strategy_id=payload.get("strategy_id"))
+    card, release_sha = validate_policy_card(
+        payload.get("card"), payload.get("release_sha"),
+        strategy_id=payload.get("strategy_id"))
+    if (benchmark_selection_reasons(card, payload.get("benchmark"), payload.get("holdout"))
+            and not allow_existing_position_management):
+        raise ValueError("strategy_release_benchmark_invalid")
+    return card, release_sha
 
 
 def validate_policy_card(card_payload: Any, release_sha: Any, *, strategy_id: Any = None) -> tuple[StrategyCard, str]:

@@ -59,17 +59,26 @@ def _snapshot(mode: str = "paper") -> dict[str, object]:
     return value
 
 
-def _selected_state(path: Path) -> None:
+def _selected_state(path: Path, *, include_benchmark: bool = True) -> None:
     card = candidate_cards()[ETF_ID].to_mapping()
     path.mkdir(parents=True, exist_ok=True)
-    (path / "selected-strategy.json").write_text(json.dumps({
+    payload = {
         "selection": "selected",
         "report_id": "alpaca-etf-126d-momentum-v1-20260929",
         "release_sha": "c" * 40,
         "strategy_id": ETF_ID,
         "card": card,
+        "holdout": {"net_pnl_usd": "1.62"},
         "expires_at": "2099-01-01T00:00:00Z",
-    }))
+    }
+    if include_benchmark:
+        payload["benchmark"] = {
+            "symbol": "SPY", "method": "buy_and_hold",
+            "measurement_kind": "modeled_reference_pnl", "status": "measured",
+            "holdout": {"status": "measured", "net_pnl_usd": "0.50", "strategy_net_pnl_usd": "1.62",
+                        "excess_net_pnl_usd": "1.12"},
+        }
+    (path / "selected-strategy.json").write_text(json.dumps(payload))
 
 
 def _expired_selected_state(path: Path) -> None:
@@ -106,6 +115,47 @@ class LegacyCryptoEntryRetirementTests(unittest.TestCase):
 
 
 class EtfAllocatorTests(unittest.TestCase):
+    def test_unbenchmarked_selection_cannot_open_a_new_etf_position(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            _selected_state(state, include_benchmark=False)
+
+            result = allocator.choose(
+                _snapshot("paper"), [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertEqual(result["action"], "NO_TRADE")
+        self.assertEqual(result["gate"], "strategy_release_benchmark_invalid")
+        self.assertFalse(result["approved"])
+
+    def test_unbenchmarked_selection_allows_only_owned_etf_position_management(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},
+        ):
+            state = Path(directory) / "state"
+            _selected_state(state, include_benchmark=False)
+            snapshot = _snapshot("paper")
+            snapshot.update({
+                "positions": 1,
+                "position": {
+                    "owner_id": "alpaca-investment-paper",
+                    "strategy_id": ETF_ID,
+                    "symbol": "QQQ",
+                    "qty": "0.025",
+                    "entry_session": SESSIONS[-16].isoformat(),
+                },
+            })
+
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertEqual(result["action"], "HOLD")
+        self.assertTrue(result["selection_management_only"])
+        self.assertFalse(result["approved"])
+
     def test_build_candidates_exposes_fixed_etf_universe_when_daily_bars_exist(self):
         snapshot = _snapshot()
         snapshot.update({

@@ -271,13 +271,14 @@ def build_crypto_reports_for_period(
         cursor = chunk_end
     return build_crypto_reports_from_history(
         bars, quote_conversions=conversions, source_receipt_ids=receipts,
-        release_sha=release_sha, observed_at=observed_at)
+        release_sha=release_sha, observed_at=observed_at,
+        expected_btc_slots=int((end - start).total_seconds() // 300))
 
 
 def build_crypto_reports_from_history(
     bars: Sequence[Mapping[str, Any]], *,
     quote_conversions: Sequence[Mapping[str, Any]], source_receipt_ids: Sequence[str],
-    release_sha: str, observed_at: str,
+    release_sha: str, observed_at: str, expected_btc_slots: int | None = None,
 ) -> list[dict[str, Any]]:
     """Reuse the existing BTC features/evaluator; never submit or provision here."""
     if not is_valid_release_sha(release_sha):
@@ -289,15 +290,18 @@ def build_crypto_reports_from_history(
             or not isinstance(quote_conversions, (list, tuple))):
         raise ValueError("crypto_validation_history_invalid")
     previous = None
+    bar_times = set()
     try:
         for row in bars:
             timestamp = _parse_timestamp(row["t"])
             prices = [Decimal(str(row[key])) for key in ("o", "h", "l", "c")]
             if (observed - timestamp < timedelta(minutes=5)
-                    or (previous is not None and timestamp - previous != timedelta(minutes=5))
+                    or timestamp.timestamp() % 300
+                    or (previous is not None and timestamp <= previous)
                     or any(not price.is_finite() or price <= 0 for price in prices)
                     or prices[1] < max(prices) or prices[2] > min(prices)):
                 raise ValueError("crypto_validation_history_invalid")
+            bar_times.add(timestamp)
             previous = timestamp
         fx_by_time = {}
         for conversion in quote_conversions:
@@ -312,25 +316,46 @@ def build_crypto_reports_from_history(
         ref = conversion.get("evidence_ref")
         if isinstance(ref, str) and ref.strip() and ref not in evidence:
             evidence.append(ref)
+    if expected_btc_slots is None:
+        expected_btc_slots = int((max(bar_times) - min(bar_times)).total_seconds() // 300) + 1
+    if (isinstance(expected_btc_slots, bool) or not isinstance(expected_btc_slots, int)
+            or expected_btc_slots <= 0 or len(bar_times) > expected_btc_slots):
+        raise ValueError("crypto_validation_history_invalid")
+    valued_bars = [row for row in bars if _parse_timestamp(row["t"]) in fx_by_time]
+    market_data_coverage = {
+        "expected_btc_slots": expected_btc_slots,
+        "observed_btc_bars": len(bar_times),
+        "unobserved_btc_slots": expected_btc_slots - len(bar_times),
+        "fx_matched_btc_bars": len(valued_bars),
+        "btc_bars_without_exact_fx": len(bars) - len(valued_bars),
+        "fx_priced_bars": len(valued_bars),
+        "synthetic_bars": 0,
+        "btc_location": "us",
+        "fx_location": "us-1",
+    }
     digest = hashlib.sha256(json.dumps(
-        {"bars": list(bars), "fx": list(quote_conversions)}, sort_keys=True,
+        {"bars": list(bars), "fx": list(quote_conversions),
+         "market_data_coverage": market_data_coverage}, sort_keys=True,
         separators=(",", ":"),
     ).encode()).hexdigest()
     reports = []
     for card in candidate_cards().values():
         if tuple(card.instruments) != ("BTC/USDC",) or card.strategy_id not in INDICATOR_HISTORY_CONTRACTS:
             continue
-        candles = build_validation_candles(bars, card.strategy_id)
+        candles = build_validation_candles(valued_bars, card.strategy_id)
         for candle in candles:
             conversion = fx_by_time.get(_parse_timestamp(candle["timestamp"]))
-            if conversion is not None:
-                candle["quote_to_usd"] = conversion
+            if conversion is None:
+                raise ValueError("crypto_validation_fx_invalid")
+            candle["quote_to_usd"] = conversion
         costs = card.to_mapping()["cost_model"]
         result = validate_series(card, candles, {}, costs)
         report = {
             **result, "report_id": f"{card.strategy_id}-{digest[:16]}",
             "release_sha": release_sha, "card": card.to_mapping(), "cost_model": costs,
             "source_receipt_ids": evidence, "observed_at": _utc_timestamp(observed_at),
+            "market_data_coverage": market_data_coverage,
+            "evaluated_candles": len(candles),
             "expires_at": (observed + timedelta(days=REPORT_TTL_DAYS)).astimezone(
                 timezone.utc).isoformat().replace("+00:00", "Z"),
             "measurement_kind": "modeled_validation",

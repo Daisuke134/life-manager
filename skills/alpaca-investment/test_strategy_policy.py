@@ -60,6 +60,22 @@ def _trend_exit_history():
     return [_bar(index, 100 + index) for index in range(50)] + [_bar(50, 100)]
 
 
+def _benchmark(card, *, strategy_net="1.62"):
+    symbol = "SPY" if card["strategy_id"] == "alpaca-etf-126d-momentum-v1" else card["instruments"][0]
+    return {
+        "symbol": symbol,
+        "method": "observed_window_buy_and_hold" if "/" in symbol else "buy_and_hold",
+        "measurement_kind": "modeled_reference_pnl",
+        "status": "measured",
+        "holdout": {
+            "status": "measured",
+            "net_pnl_usd": "0.00",
+            "strategy_net_pnl_usd": strategy_net,
+            "excess_net_pnl_usd": strategy_net,
+        },
+    }
+
+
 class StrategyPolicyTests(unittest.TestCase):
     def test_reversion_candidate_enters_only_on_declared_signal(self):
         result = evaluate(_snapshot(_reversion_entry_history()), candidate_cards()["alpaca-btc-5m-reversion-v1"])
@@ -211,10 +227,32 @@ class StrategyPolicyTests(unittest.TestCase):
                 "release_sha": "b" * 40,
                 "strategy_id": card["strategy_id"],
                 "card": card,
+                "holdout": {"net_pnl_usd": "1.62"},
+                "benchmark": _benchmark(card),
                 "expires_at": "2099-01-01T00:00:00Z",
             }))
 
             selected, release_sha = load_selected_card(state)
+
+        self.assertEqual(selected.strategy_id, "alpaca-etf-126d-momentum-v1")
+        self.assertEqual(release_sha, "b" * 40)
+
+    def test_unbenchmarked_selection_fails_for_entries_but_can_be_read_for_owned_management(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            card = candidate_cards()["alpaca-etf-126d-momentum-v1"].to_mapping()
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "release_sha": "b" * 40,
+                "strategy_id": card["strategy_id"],
+                "card": card,
+                "holdout": {"net_pnl_usd": "1.62"},
+                "expires_at": "2099-01-01T00:00:00Z",
+            }))
+
+            with self.assertRaisesRegex(ValueError, "^strategy_release_benchmark_invalid$"):
+                load_selected_card(state)
+            selected, release_sha = load_selected_card(
+                state, allow_existing_position_management=True)
 
         self.assertEqual(selected.strategy_id, "alpaca-etf-126d-momentum-v1")
         self.assertEqual(release_sha, "b" * 40)
