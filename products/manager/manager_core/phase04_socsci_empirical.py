@@ -99,6 +99,17 @@ def evaluate_aggregates(mapping, aggregates):
     tvds=[x["tvd_frequency"] for x in evaluated]
     boot=[sum(tvds[rng.randrange(len(tvds))] for _ in tvds)/len(tvds) for _ in range(1000)]
     boot.sort()
+    # Threshold is computed ONLY using leave-one-seen-study-out errors.
+    # It never sees any held-out study outcome during fitting.
+    train_cv_tvd=[]
+    for study in sorted(seen):
+        other=global_counts.copy()
+        other.subtract(groups[study])
+        train_cv_tvd.append(_tvd(_prop(other),_prop(groups[study])))
+    train_cv_tvd.sort()
+    tvd_alert_threshold=train_cv_tvd[int((len(train_cv_tvd)-1)*0.90)]
+    train_top_p=max(p)
+    pooled_majority_accuracy=sum(e["accuracy_majority"]*e["n"] for e in evaluated)/test_n
     def robust_stats(v):
         arr=sorted(v)
         return {"min":_round(arr[0]),"median":_round(median(arr)),
@@ -140,10 +151,24 @@ def evaluate_aggregates(mapping, aggregates):
              "rows":sum(x["n"] for x in evaluated if x["n"]<1000),
              "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]<1000)/max(1,sum(x["n"]<1000 for x in evaluated))) if any(x["n"]<1000 for x in evaluated) else None},
         ],
+        "calibration":{
+            "prediction_type":"GLOBAL_COARSE_CATEGORICAL_PRIOR_NOT_QUESTION_CONDITIONED",
+            "top_class_probability_train_only":_round(train_top_p),
+            "top_class_empirical_hit_rate_on_40_unseen":_round(pooled_majority_accuracy),
+            "absolute_top_class_calibration_gap":_round(abs(train_top_p-pooled_majority_accuracy)),
+            "micro_sample_size":test_n,
+            "one_reliability_bin_only":True,
+            "meaningful_individual_level_calibration_established":False
+        },
         "abstention_policy":{
             "decision":"ABSTAIN_ALL_UNSEEN_FOR_DEPLOYMENT",
             "reason":"No unseen-study task semantics, available options, or calibrated per-task prior available at inference time",
-            "retrospective_tvd_is_never_used_to_predict_abstention":True},
+            "retrospective_tvd_is_never_used_to_predict_abstention":True,
+            "train_only_leave_one_study_out_tvd_p90":_round(tvd_alert_threshold),
+            "train_cv_studies":len(train_cv_tvd),
+            "heldout_studies_exceeding_train_error_alert":sum(v>tvd_alert_threshold for v in tvds),
+            "retrospective_error_alert_not_an_online_action_policy":True
+        },
         "privacy":{"participant_records_published":0,"personal_attributes_loaded":False,
                    "raw_prompt_loaded":False,"raw_rows_saved":False,
                    "only_study_response_bucket_counts_inspected_transiently":True},
