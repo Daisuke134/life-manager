@@ -29,7 +29,7 @@ for (const name of pages) {
 test('three journeys reach official information, NOT a completed welfare service', async ({page})=>{
   for (const [domain,caption] of [['finance','生活費・仕事・借入'],['mental','こころの相談'],['physical','健康づくり']]) {
     await page.goto('index.html');
-    await page.getByRole('link',{name:caption,exact:true}).click();
+    await page.locator('main').getByRole('link',{name:caption,exact:true}).click();
     await expect(page).toHaveURL(new RegExp(domain+'\\.html$'));
     await expect(page.locator('a[data-official]').first()).toHaveAttribute('href',/^https:\/\/(www\.mhlw\.go\.jp|www\.fsa\.go\.jp|kennet\.mhlw\.go\.jp)\//);
     await expect(page.locator('[data-limit]')).toContainText('申請・診断・治療');
