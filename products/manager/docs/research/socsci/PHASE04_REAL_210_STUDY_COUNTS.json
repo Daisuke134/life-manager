@@ -1,0 +1,69 @@
+{
+  "schema": "manager.phase04.socsci210-aggregate-heldout-evidence.v1",
+  "observed_at": "2026-10-21",
+  "primary_source": "https://huggingface.co/datasets/socratesft/SocSci210",
+  "original_authors_paper": "https://aclanthology.org/2025.emnlp-main.1530/",
+  "verified_workflow": "https://github.com/Daisuke134/life-manager/actions/runs/39561141530",
+  "source_split": {
+    "overlap": 0,
+    "seen_rows": 2418748,
+    "seen_studies": 170,
+    "unseen_rows": 482642,
+    "unseen_studies": 40
+  },
+  "baseline_metrics": {
+    "frequency": {
+      "brier_multiclass_micro": 0.85240376,
+      "expected_accuracy_micro": 0.14351427,
+      "tvd_micro": 0.3586828,
+      "tvd_study_macro": 0.3953619
+    },
+    "majority": {
+      "accuracy_micro": 0.22856486,
+      "brier_multiclass_micro": 1.54287028,
+      "tvd_micro": 0.77143514,
+      "tvd_study_macro": 0.78381829
+    }
+  },
+  "study_level_error": {
+    "bootstrap_seed": 20261021,
+    "bootstrap_study_macro_tvd_ci95": [
+      0.34944333,
+      0.44290644
+    ],
+    "n": 40,
+    "resamples": 1000,
+    "respondent_level_ci_claim": false,
+    "tvd_summary": {
+      "max": 0.73896976,
+      "median": 0.38513813,
+      "min": 0.09346523,
+      "p90": 0.60413817
+    }
+  },
+  "privacy": {
+    "only_study_response_bucket_counts_inspected_transiently": true,
+    "participant_records_published": 0,
+    "personal_attributes_loaded": false,
+    "raw_prompt_loaded": false,
+    "raw_rows_saved": false
+  },
+  "scientific_gates": {
+    "S002_cross_study_numeric_response_baseline": "MEASURED_RESTRICTED_SCOPE",
+    "S002_original_semantic_task_aware_acceptance": "NOT_MET",
+    "S004_calibration_of_meaningful_task_probabilities": "NOT_MET",
+    "S005_pretrained_model_same_split": "NOT_RUN",
+    "causal_effect_prediction": "NOT_TESTED",
+    "manager_real_beneficiaries": "NOT_MEASURED"
+  },
+  "source_integrity": {
+    "dataset_revision": "048481111a4425ed83dc0eacf15f8431f252b21a",
+    "elapsed_seconds": 0.61,
+    "method": "DuckDB projection and GROUP BY study_id,coarse_code; no individual records persisted",
+    "parquet_files": 17,
+    "source_sql_result_cells": 1553,
+    "study_mapping_sha1": "8aa37bd598ce8bb00103a5a885948299f75f5ce7",
+    "transport": "local"
+  },
+  "interpretation": "This is real individual response data reduced to counts with study-specific numerical responses grouped into 0..10 and OTHER. Because response category semantics differ between studies, these metrics do not reproduce the paper's task-conditioned behavioral prediction benchmark or clinically validated human behavior."
+}
