@@ -1,26 +1,27 @@
 /**
- * brain.mjs — Effectful: unified THINK step with fallback.
+ * brain.mjs — Effectful: unified THINK step through the shared Codex agent-runner.
  *
  * Registered local owners select Codex through the shared agent-runner. It owns provider profile
  * isolation, structured output, usage accounting, and provider-unavailable reporting.
  */
 
-import https from 'node:https';
-import http from 'node:http';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { buildSystemPrompt, buildUserMessage, getToolDefinitions } from './prompt.mjs';
+import { buildSystemPrompt, buildUserMessage } from './prompt.mjs';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
 const CODEX_BRAIN_TASK_CLASS = 'codex-brain-agent';
 const CODEX_BRAIN_TIMEOUT_MS = 180_000;
 const CODEX_BRAIN_SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CODEX_BRAIN_RESULT_REASON = /^[a-z][a-z0-9_:-]{1,99}$/;
 const LOOP_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const activeCodexRunnerStoppers = new Set();
+
+export async function stopActiveCodexRunners() {
+  await Promise.all([...activeCodexRunnerStoppers].map((stop) => stop()));
+}
 
 /**
  * Kept for old ledger readers; Codex-only owner routes no longer attach provider fallback metadata.
@@ -32,57 +33,14 @@ export function getBrainFallback() { return null; }
  *
  * @param {object} ctx - WakeContext
  * @param {object} config - loaded config
- * @returns {Promise<object>} - raw response (OpenAI-compatible)
- * @throws only if both backends fail (caller writes wake_error)
+ * @returns {Promise<object>} - validated Codex tool decision
+ * @throws when the configured brain is not Codex or the Codex runner fails
  */
 export async function think(ctx, config) {
   const brain = config.ANICCA_BRAIN || 'codex';
 
-  if (brain === 'claude-p') throw new Error('codex_only_brain_required');
-
-  if (brain === 'codex') return thinkCodex(ctx, config);
-  return thinkProxy(ctx, config);
-}
-
-// ── Proxy brain (HTTP POST) ──────────────────────────────────────────────────
-
-async function thinkProxy(ctx, config) {
-  const baseUrl = config.OPENAI_BASE_URL || 'http://127.0.0.1:18402/v1';
-  const url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
-
-  // Policy 2026-06-21 (Dais): use the survival-tier model (ctx.model from tier.mjs). For LEAN
-  // and FUNDED tiers that resolves to ClawRouter `auto` — paid (kimi-k2.7 ~$0.004/call typical)
-  // is OK because net-positive (earn − burn) is the real goal, not zero compute. BROKE tier
-  // (balance=0) stays on `free/gpt-oss-120b` as a safety floor since an empty wallet can't pay.
-  // Operator override via ANICCA_MODEL.
-  const body = JSON.stringify({
-    model: config.ANICCA_MODEL || ctx.model || 'auto',
-    messages: [
-      { role: 'system', content: buildSystemPrompt(ctx) },
-      { role: 'user',   content: buildUserMessage(ctx) },
-    ],
-    // franklin-alwaysact-skill-router REQ-504: an always-act-engaged ctx offers ONLY the (possibly
-    // reroute-narrowed) always-act menu, with sleep withheld — a non-engaged ctx (the overwhelming
-    // majority of all wakes) produces the exact byte-for-byte current call.
-    tools: getToolDefinitions(
-      ctx.alwaysActEngaged ? ctx.alwaysActMenu : ctx.activeSkillSlots,
-      { omitSleep: ctx.alwaysActEngaged === true },
-    ),
-    tool_choice: 'auto',
-    max_tokens: 512,
-  });
-
-  let lastErr;
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    if (attempt > 0) await delay(RETRY_DELAY_MS);
-    try {
-      const raw = await httpPost(url, body);
-      return JSON.parse(raw);
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw new Error(`proxy_down: ${lastErr?.message || 'unknown'}`);
+  if (brain !== 'codex') throw new Error('codex_only_brain_required');
+  return thinkCodex(ctx, config);
 }
 
 // ── Codex brain (existing agent-runner, subscription-backed) ────────────────
@@ -119,6 +77,32 @@ export function runCodexAgentWithTimeout(bin, args, { env, cwd, input, timeoutMs
     const killGroup = (signal) => {
       try { process.kill(-proc.pid, signal); } catch { try { proc.kill(signal); } catch {} }
     };
+    let interrupted = false;
+    let resolveExited;
+    let stopPromise = null;
+    const exited = new Promise((resolve) => { resolveExited = resolve; });
+    const stopAndWait = () => {
+      if (stopPromise) return stopPromise;
+      stopPromise = (async () => {
+        if (settled) return;
+        interrupted = true;
+        clearTimeout(timer);
+        clearTimeout(graceTimer);
+        killGroup('SIGTERM');
+        let grace;
+        await Promise.race([
+          exited,
+          new Promise((resolve) => { grace = setTimeout(resolve, 2_000); }),
+        ]);
+        clearTimeout(grace);
+        if (!settled) {
+          killGroup('SIGKILL');
+          await exited;
+        }
+      })();
+      return stopPromise;
+    };
+    activeCodexRunnerStoppers.add(stopAndWait);
     const timer = setTimeout(() => {
       timedOut = true;
       killGroup('SIGTERM');
@@ -132,6 +116,8 @@ export function runCodexAgentWithTimeout(bin, args, { env, cwd, input, timeoutMs
       settled = true;
       clearTimeout(timer);
       clearTimeout(graceTimer);
+      activeCodexRunnerStoppers.delete(stopAndWait);
+      resolveExited();
       reject(new Error(`codex_brain_spawn:${error.message}`));
     });
     proc.on('exit', (code) => {
@@ -139,6 +125,12 @@ export function runCodexAgentWithTimeout(bin, args, { env, cwd, input, timeoutMs
       settled = true;
       clearTimeout(timer);
       clearTimeout(graceTimer);
+      activeCodexRunnerStoppers.delete(stopAndWait);
+      resolveExited();
+      if (interrupted) {
+        reject(new Error('codex_brain_interrupted'));
+        return;
+      }
       if (timedOut) {
         reject(new Error('codex_brain_timeout'));
         return;
@@ -193,11 +185,14 @@ function safeResultPath(evidenceDirectory, value) {
   return target;
 }
 
-function validateCodexDecision(value) {
+function validateCodexDecision(value, { allowNoToolCall = false } = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)
-    || !Array.isArray(value.tool_calls) || value.tool_calls.length !== 1) {
+    || !Array.isArray(value.tool_calls) || value.tool_calls.length > 1
+    || (value.tool_calls.length === 0 && !allowNoToolCall)) {
     throw new Error('codex_brain_invalid_result');
   }
+  // An always-act no-op must reach its existing bounded reprompt; ordinary wakes use `sleep`.
+  if (value.tool_calls.length === 0) return value;
   const call = value.tool_calls[0];
   const name = call?.function?.name;
   const args = call?.function?.arguments;
@@ -318,55 +313,5 @@ export async function thinkCodex(ctx, config = {}) {
   } catch {
     throw new Error('codex_brain_result_unreadable');
   }
-  return validateCodexDecision(decision);
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function httpPost(url, body) {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const lib = parsed.protocol === 'https:' ? https : http;
-    const options = {
-      hostname: parsed.hostname,
-      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
-      path: parsed.pathname + parsed.search,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY || 'x402-local'}`,
-      },
-      timeout: 30000,
-    };
-    const req = lib.request(options, (res) => {
-      let data = '';
-      res.on('data', c => { data += c; });
-      res.on('end', () => {
-        // #F1 (2026-07-06): a non-2xx here is a real upstream failure (observed live:
-        // sol.blockrun.ai's free-model NVIDIA passthrough intermittently 403/429s —
-        // transient: retrying the identical request succeeds within a few attempts).
-        // Resolving unconditionally let that error BODY get JSON.parse'd and returned
-        // as if it were a real completion, so the retry loop above never fired and
-        // every failure silently surfaced as a harmless "narrate" wake instead of
-        // wake_error (confirmed live 2026-07-07: a real 429 body parses as valid JSON
-        // with no `choices` array, so parseToolCall sees null and index.mjs treats it
-        // as text-only). Reject instead so the existing attempt/back-off loop actually
-        // retries transient gateway errors.
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`HTTP ${res.statusCode}: ${data.slice(0, 300)}`));
-          return;
-        }
-        resolve(data);
-      });
-    });
-    req.on('timeout', () => { req.destroy(); reject(new Error('HTTP timeout')); });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
-
-function delay(ms) {
-  return new Promise(r => setTimeout(r, ms));
+  return validateCodexDecision(decision, { allowNoToolCall: ctx?.alwaysActEngaged === true });
 }

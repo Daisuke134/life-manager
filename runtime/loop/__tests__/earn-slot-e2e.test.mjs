@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mockCodexRunnerEnv, stopTestLoop } from './helpers/mock-codex-runner-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOOP_ENTRY = path.resolve(__dirname, '../index.mjs');
@@ -52,7 +53,8 @@ test('E2E: real loop picks earn/_probe → stub gets EARN_LEDGER+WAKE_ID → ear
 
   const { server, url } = await startMock();
   const proc = spawn(process.execPath, [LOOP_ENTRY], {
-    env: { ...process.env, ANICCA_HOME: home, OPENAI_BASE_URL: url, ANICCA_BALANCE_OVERRIDE: '0',
+    env: { ...process.env, ANICCA_HOME: home, OPENAI_BASE_URL: url,
+      ...mockCodexRunnerEnv({ home, baseUrl: url }), ANICCA_BALANCE_OVERRIDE: '0',
       SLEEP_BASE_S: '0', SLEEP_ERROR_S: '0', SLEEP_LOOP_DETECT_S: '0', SKILL_TIMEOUT_S: '10',
       LOOP_DETECT_WINDOW: '100', EARN_LEDGER: earnLedger },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -70,7 +72,7 @@ test('E2E: real loop picks earn/_probe → stub gets EARN_LEDGER+WAKE_ID → ear
     assert.equal(el.wake, wakeLine.wake_id, 'earn-ledger correlates by wake===WAKE_ID (GAP-A classify path)');
     assert.equal(el.earn_usdc, 0.01);
   } finally {
-    try { proc.kill('SIGTERM'); } catch {}
+    await stopTestLoop(proc);
     server.close();
   }
 });
@@ -89,10 +91,12 @@ test('E2E: forced earn/<sub> with NO run.sh → skill_missing (not crash) (REQ-6
     });
     return new Promise(r => s.listen(0, '127.0.0.1', () => r({ server: s, url: `http://127.0.0.1:${s.address().port}/v1` })));
   })();
-  const proc = spawn(process.execPath, [LOOP_ENTRY], { env: { ...process.env, ANICCA_HOME: home, OPENAI_BASE_URL: url, ANICCA_BALANCE_OVERRIDE: '0', SLEEP_BASE_S: '0', SLEEP_ERROR_S: '0', SLEEP_LOOP_DETECT_S: '0', SKILL_TIMEOUT_S: '10', LOOP_DETECT_WINDOW: '100' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const proc = spawn(process.execPath, [LOOP_ENTRY], { env: { ...process.env, ANICCA_HOME: home, OPENAI_BASE_URL: url,
+    ...mockCodexRunnerEnv({ home, baseUrl: url }), ANICCA_BALANCE_OVERRIDE: '0', SLEEP_BASE_S: '0', SLEEP_ERROR_S: '0',
+    SLEEP_LOOP_DETECT_S: '0', SKILL_TIMEOUT_S: '10', LOOP_DETECT_WINDOW: '100' }, stdio: ['ignore', 'pipe', 'pipe'] });
   try {
     await waitFor(() => readJsonl(wakeLedger).some(l => l.slot === 'earn/_gone'));
     const line = readJsonl(wakeLedger).find(l => l.slot === 'earn/_gone');
     assert.equal(line.kind, 'skill_missing', 'missing earn/<sub> run.sh → skill_missing, not a crash');
-  } finally { try { proc.kill('SIGTERM'); } catch {} server.close(); }
+  } finally { await stopTestLoop(proc); server.close(); }
 });

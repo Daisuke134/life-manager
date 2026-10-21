@@ -1686,11 +1686,25 @@ def configured_task_classes(config: dict[str, Any]) -> tuple[str, ...]:
     return tuple(task_classes)
 
 
+def validate_codex_only_config(config: dict[str, Any]) -> None:
+    providers = config.get("providers")
+    if not isinstance(providers, dict) or set(providers) - {"codex"}:
+        raise ValueError("codex_only_provider_required")
+    for task in config["task_classes"].values():
+        candidates = task.get("candidates", [])
+        if not isinstance(candidates, list) or any(
+            not isinstance(candidate, dict) or candidate.get("provider") != "codex"
+            for candidate in candidates
+        ):
+            raise ValueError("codex_only_provider_required")
+
+
 def run() -> int:
     config_path = Path(os.environ.get("AGENT_RUNNER_CONFIG", HERE / "config.json"))
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
         task_classes = configured_task_classes(config)
+        validate_codex_only_config(config)
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         print(f"agent-runner: invalid input/config: {error}", file=sys.stderr)
         return 2

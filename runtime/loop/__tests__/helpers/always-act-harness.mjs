@@ -6,9 +6,9 @@
 // helper module without the `.test.` infix is never accidentally picked up as its own test file, and
 // `node --test` (glob-based CI runs) would also skip it since it does not match `*.test.mjs`.
 //
-// Mirrors the EXISTING integration.test.mjs pattern (mock HTTP brain server + spawnLoop + tmp
-// ANICCA_HOME + waitForLines) — extended with request-BODY capture (for PROP-504b's real outbound
-// `tools` array assertion) and Solana identity fixtures (REQ-501's own identity-match guard idiom,
+// Mirrors the existing integration pattern (test Codex runner + loopback decision server + tmp
+// ANICCA_HOME + waitForLines) — extended with Codex prompt capture (for PROP-504b's bounded menu
+// assertion) and Solana identity fixtures (REQ-501's own identity-match guard idiom,
 // mirroring runtime/loop/__tests__/wallet-address-solana.test.mjs).
 //
 // Test-Money Safety Rule (behavioral-spec.md sec5 / verification-architecture.md): every wallet used
@@ -23,6 +23,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { mockCodexRunnerEnv } from './mock-codex-runner-env.mjs';
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 
@@ -78,8 +79,11 @@ export function writeMockEarnSkill(home, slot, { realizeForWakeId = null, profit
   const realismFields = profitable
     ? ',"net_usdc":0.01,"external":true,"sig":"mockAlwaysActFixtureSig1111111111111111111111111111111111111111","confirmed":true'
     : ',"net_usdc":0';
+  const wakeGuard = realizeForWakeId === '*'
+    ? '[ -n "$WAKE_ID" ]'
+    : `[ "$WAKE_ID" = "${realizeForWakeId}" ]`;
   const body = realizeForWakeId
-    ? `if [ "$WAKE_ID" = "${realizeForWakeId}" ]; then\n` +
+    ? `if ${wakeGuard}; then\n` +
       `  printf '%s\\n' '{"wake":"'"$WAKE_ID"'","slot":"${slot}","profitable":${profitable ? 'true' : 'false'},"earn_usdc":${profitable ? '0.01' : '0'}${realismFields}}' >> "${ledgerPath}"\n` +
       `fi\n` +
       `echo "[${slot}] mock earn skill ran wake=$WAKE_ID"\nexit 0`
@@ -187,11 +191,8 @@ export function makeNarrateResponse(text = 'I am thinking.') {
 }
 
 /**
- * Start a mock HTTP server standing in for OPENAI_BASE_URL (the `httpPost` network boundary
- * brain.mjs::thinkProxy hits) — this is the Test-Money-Safety-Rule-compliant "mock ONLY the network
- * boundary" seam: no real HTTP request ever leaves the machine, and `responseFactory` receives the
- * REAL, actually-constructed request body (parsed JSON) so callers can assert on its literal `tools`
- * array (PROP-504b) — not merely on a standalone pure helper's return value.
+ * Start a loopback-only decision fixture for the test Codex runner. `responseFactory` receives the
+ * actual prompt sent by the loop; exact slot menus are captured separately from that prompt.
  *
  * @param {(count: number, parsedBody: object) => string} responseFactory
  * @returns {Promise<{server, port, url, requests: object[]}>}
@@ -227,18 +228,29 @@ export function startMockBrainServer(responseFactory) {
 // ── Spawn / ledger helpers (mirrors integration.test.mjs verbatim) ─────────
 
 export function spawnLoop(env) {
+  const codexFixtureEnv = mockCodexRunnerEnv({
+    home: env.ANICCA_HOME,
+    baseUrl: env.OPENAI_BASE_URL,
+    capturePromptPath: env.CODEX_TEST_PROMPT_CAPTURE
+      || path.join(env.ANICCA_HOME, 'state', 'codex-prompts.jsonl'),
+  });
   const fixtureSkills = env.LIFE_MANAGER_SKILLS_ROOT
     || (env.ANICCA_HOME ? path.join(env.ANICCA_HOME, 'skills') : undefined);
   const fixtureLedger = env.EARN_LEDGER
     || (env.ANICCA_HOME ? path.join(env.ANICCA_HOME, 'skills', 'earn', 'state', 'earn-ledger.jsonl') : undefined);
   const registryPath = env.ALWAYS_ACT_REGISTRY_PATH_OVERRIDE
     || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..', 'skills', 'registry.json');
+  if (fixtureSkills) {
+    const ledgerSource = path.join(REPO_ROOT, 'skills', '_shared', 'lib', 'ledger.mjs');
+    const ledgerShim = path.join(fixtureSkills, '_shared', 'lib', 'ledger.mjs');
+    fs.mkdirSync(path.dirname(ledgerShim), { recursive: true });
+    if (!fs.existsSync(ledgerShim)) fs.symlinkSync(ledgerSource, ledgerShim);
+  }
   return spawn(process.execPath, [LOOP_ENTRY], {
     env: {
       ...process.env,
-      // The server returned below is an in-process test fixture, never a real model provider.
-      ANICCA_BRAIN: 'proxy',
       ...env,
+      ...codexFixtureEnv,
       ...(fixtureSkills ? { LIFE_MANAGER_SKILLS_ROOT: fixtureSkills } : {}),
       ...(fixtureLedger ? { EARN_LEDGER: fixtureLedger } : {}),
       ALWAYS_ACT_REGISTRY_PATH_OVERRIDE: registryPath,
@@ -285,7 +297,7 @@ export function baseSpawnEnv(extra = {}) {
     ANICCA_BALANCE_OVERRIDE: '50', // >= BOOTSTRAP_RESERVE_USDC(20) default so capital-risking slots
                                     // are menu-visible via REQ-503's reserve gate, letting REQ-506's
                                     // risk-free reroute filter be the ONLY thing under test.
-    SLEEP_BASE_S: '0',
+    SLEEP_BASE_S: '1', // give the test process time to observe one terminal wake before the next decision
     SLEEP_ERROR_S: '0',
     SLEEP_LOOP_DETECT_S: '0',
     SKILL_TIMEOUT_S: '5',

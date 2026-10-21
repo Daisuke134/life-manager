@@ -3,21 +3,12 @@
  * R6 (behavioral-spec.md + verification-architecture.md proof table).
  *
  * Extends index.mjs's existing temp-$ANICCA_HOME integration-test convention (integration.test.mjs):
- * spawns the real runtime/loop/index.mjs against a mock OpenAI-compatible HTTP server + mock skill
- * scripts, and inspects the REAL $ANICCA_HOME/state/harness-failures.jsonl file it produces.
+ * spawns the real loop against a test-only Codex runner, a loopback decision fixture, and mock skills,
+ * then inspects the real harness-failures.jsonl file.
  *
- * Testing-mechanism note (documented, not a silent spec deviation): brain.mjs's httpPost() caps a
- * non-2xx error body at 300 chars (`data.slice(0, 300)`) before it ever reaches index.mjs's THINK
- * catch -- an existing, unrelated cap that legitimately protects against megabyte HTTP error dumps
- * (see brain.mjs, `HTTP ${res.statusCode}: ${data.slice(0, 300)}`). That means a REAL spawned-process
- * network failure can never produce an err.message longer than ~330 chars, so the brain_transport
- * branch's own >4000-char upper-boundary fixture (mandated identically for BOTH branches by
- * behavioral-spec.md R6 line 143 / verification-architecture.md FIND-009) cannot be exercised through
- * a live network failure. index.mjs's THINK catch and the tool_missing/tool_timeout/tool_logic branch
- * both funnel their raw text through the SAME exported pure helper, `capFailureDetail` (harness-health.mjs)
- * -- the boundary is proven directly against that shared function (unit-level, still exact per spec's
- * mandated ceiling) for the brain_transport case, while the tool_logic branch's >4000 case (skill stdout
- * has no such upstream cap) is proven end-to-end via a real spawned mock skill below.
+ * The test-only Codex runner deliberately discards non-2xx response bodies and returns only a bounded
+ * status error class. `capFailureDetail` still proves the shared 4000-character bound directly; tool
+ * output length is verified end-to-end below.
  */
 
 import { test } from 'node:test';
@@ -29,6 +20,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { capFailureDetail } from '../harness-health.mjs';
+import { mockCodexRunnerEnv, stopTestLoop } from './helpers/mock-codex-runner-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOOP_ENTRY = path.resolve(__dirname, '../index.mjs');
@@ -86,8 +78,9 @@ function makeTmpHome() {
 }
 
 function spawnLoop(env) {
+  const codexFixtureEnv = mockCodexRunnerEnv({ home: env.ANICCA_HOME, baseUrl: env.OPENAI_BASE_URL });
   return spawn(process.execPath, [LOOP_ENTRY], {
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...env, ...codexFixtureEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -158,7 +151,7 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
     await waitFor(() => readJsonl(ledgerPath).some((l) => l.kind === 'wake_error') || null);
     await waitFor(() => readJsonl(failuresPath).length > 0 || null);
     await waitFor(() => readJsonl(recoveryIntentsPath).length > 0 || null);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     await new Promise((r) => setTimeout(r, 300));
 
     const lines = readJsonl(failuresPath);
@@ -179,18 +172,17 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
     assert.equal(fs.statSync(recoveryIntentsPath).mode & 0o777, 0o600);
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
-test('R6: brain_transport err.message containing a 64-hex private key -> detail shows [REDACTED], not the raw hex', async () => {
+test('R6: Codex transport failure never imports a provider response body containing a private key', async () => {
   const home = makeTmpHome();
   const failuresPath = path.join(home, 'state', 'harness-failures.jsonl');
   const privKey = '0x' + 'a'.repeat(64);
 
-  // FIND-003: err.message is NOT already redacted anywhere upstream of index.mjs's THINK catch --
-  // this proves R6's NEW redactPrivateKeyPatterns(err.message) call site actually redacts.
+  // The fake Codex runner receives this response only on loopback and must not forward its body.
   const { server, url } = await startMockServer(() => ({
     status: 500,
     body: JSON.stringify({ error: `leaked key ${privKey} in response` }),
@@ -208,16 +200,16 @@ test('R6: brain_transport err.message containing a 64-hex private key -> detail 
 
   try {
     await waitFor(() => readJsonl(failuresPath).length > 0 || null);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     await new Promise((r) => setTimeout(r, 300));
 
     const lines = readJsonl(failuresPath);
     const line = lines[0];
     assert.ok(!line.detail.includes(privKey), 'raw private key must never appear in detail');
-    assert.ok(line.detail.includes('[REDACTED]'), 'detail must contain the [REDACTED] marker');
+    assert.equal(line.detail, 'codex_brain_failed:fixture_http_500');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
@@ -250,7 +242,7 @@ test('R6: skill_error wake with >2000-char stdout -> detail LONGER than 900 char
   try {
     await waitFor(() => readJsonl(ledgerPath).some((l) => l.kind === 'skill_error') || null);
     await waitFor(() => readJsonl(failuresPath).length > 0 || null);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     await new Promise((r) => setTimeout(r, 300));
 
     const failureLines = readJsonl(failuresPath);
@@ -267,7 +259,7 @@ test('R6: skill_error wake with >2000-char stdout -> detail LONGER than 900 char
     assert.notEqual(skillErrorLine.result.length, failLine.detail.length, 'result and detail must genuinely diverge in length on this fixture');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -297,7 +289,7 @@ test('R6: skill_error wake with >4000-char stdout -> detail length EXACTLY 4000 
 
   try {
     await waitFor(() => readJsonl(failuresPath).length > 0 || null);
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     await new Promise((r) => setTimeout(r, 300));
 
     const failLine = readJsonl(failuresPath).find((l) => l.layer === 'tool_logic');
@@ -305,7 +297,7 @@ test('R6: skill_error wake with >4000-char stdout -> detail length EXACTLY 4000 
     assert.equal(failLine.detail.length, 4000, 'detail must be capped at EXACTLY 4000, neither uncapped nor wrongly capped');
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }
@@ -340,7 +332,7 @@ test('R6: clean wake -> ZERO lines appended to harness-failures.jsonl; ledger re
 
   try {
     await waitFor(() => (readJsonl(ledgerPath).filter((l) => l.kind === 'wake').length >= 3 ? true : null));
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     await new Promise((r) => setTimeout(r, 300));
 
     const failureLines = readJsonl(failuresPath);
@@ -355,7 +347,7 @@ test('R6: clean wake -> ZERO lines appended to harness-failures.jsonl; ledger re
     }
   } finally {
     server.close();
-    proc.kill('SIGTERM');
+    await stopTestLoop(proc);
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(mockSkillPath, { force: true });
   }

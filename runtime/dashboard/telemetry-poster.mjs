@@ -24,9 +24,8 @@ const acct = privateKeyToAccount(pk);
 // Unique-by-construction identity: explicit ANICCA_NAME wins, else a guaranteed-unique handle derived
 // from this instance's wallet address (collision-impossible across spawns; auto-registers on first POST).
 const NAME = process.env.ANICCA_NAME || (await assignIdentity(acct.address)).name;
-// Identity attributes for the fleet dashboard (REQ-1): funding origin (human gives compute only / self =
-// own wallet), runtime environment (local Mac vs cloud), and brain backend (claude-p subscription vs the
-// self-pay proxy). Declared via env so one runtime serves both types by config, not by a separate script.
+// Identity attributes for the fleet dashboard (REQ-1): funding origin, runtime environment, and the
+// Codex brain selected by this local owner.
 const FUNDING = process.env.ANICCA_FUNDING || "human";
 const ENV = process.env.ANICCA_ENV || "local";
 const BRAIN = "codex";

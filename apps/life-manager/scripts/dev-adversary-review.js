@@ -87,6 +87,9 @@ const REVIEW_PROMPT = [
 const REVIEW_ARGS = Object.freeze([
   "exec",
   "--ephemeral",
+  "--disable", "shell_tool",
+  "--disable", "code_mode_host",
+  "--disable", "unified_exec",
   "--sandbox", "read-only",
   "--ignore-user-config",
   "-C", os.tmpdir(),

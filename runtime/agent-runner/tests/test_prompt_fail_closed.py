@@ -29,32 +29,45 @@ class PromptFailClosedTest(unittest.TestCase):
         self.bin = self.root / "bin"
         self.bin.mkdir()
         self.marker = self.root / "provider-was-launched"
+        self.auth_file = self.root / "codex-auth.json"
+        self.auth_file.write_text("{}", encoding="utf-8")
+        self.codex_home = self.root / "codex-home"
         self.schema = self.root / "schema.json"
         self.schema.write_text(json.dumps({
             "type": "object",
             "required": ["status"],
             "properties": {"status": {"const": "ok"}},
         }), encoding="utf-8")
-        # A stub provider that records the fact it ran at all. If the guard
-        # works, this marker must not exist.
-        stub = self.bin / "claude"
+        # A stub Codex executable records provider launch without calling a model.
+        stub = self.bin / "codex"
         stub.write_text(
             "#!/usr/bin/env bash\nset -u\n"
             f"touch {self.marker}\n"
-            "printf '%s' '{\"result\": \"{\\\"status\\\":\\\"ok\\\"}\"}'\n",
+            "while (($#)); do if [[ \"$1\" == \"-o\" ]]; then output=\"$2\"; shift 2; else shift; fi; done\n"
+            "printf '%s' '{\"status\":\"ok\"}' > \"${output:?missing -o output}\"\n"
+            "printf '%s\\n' '{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}'\n",
             encoding="utf-8",
         )
         stub.chmod(0o755)
         self.config = self.root / "config.json"
         self.config.write_text(json.dumps({
             "version": 1,
+            "scope": "life-manager",
             "task_classes": {
                 "tool-agent": {
                     "timeout_seconds": 5,
-                    "candidates": [{"provider": "claude-direct", "model": "sonnet"}],
+                    "candidates": [{"provider": "codex", "model": "gpt-5.6-terra",
+                        "profile_alias": "fixture"}],
                 },
             },
-            "providers": {"claude-direct": {"executable": "claude"}},
+            "providers": {"codex": {
+                "executable": "codex",
+                "profiles": {"fixture": {
+                    "automation_home": str(self.codex_home),
+                    "auth_file": str(self.auth_file),
+                }},
+                "account_profile_order": ["fixture"],
+            }},
             "timeout_seconds": 5,
         }), encoding="utf-8")
 

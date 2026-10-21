@@ -121,9 +121,7 @@ else
 fi
 POSTER_PID="$!"
 
-# 4. brain endpoint + model the loop should use -------------------------------------------------
-export OPENAI_BASE_URL="http://127.0.0.1:$PORT/v1"
-export OPENAI_API_KEY="${OPENAI_API_KEY:-x402-local}"
+# 4. the shared loop brain uses Codex through runtime/agent-runner; no proxy endpoint is needed.
 if is_franklin_instance "$INSTANCE"; then
   # franklin-loop-revival REQ-001: derive Franklin's OWN Solana wallet address (base58 pubkey) via
   # the gated per-instance resolve-identity.mjs::resolveSolanaSecret path (never bare-grepped, never
@@ -136,9 +134,8 @@ else
   export ANICCA_WALLET_ADDRESS="${ANICCA_WALLET_ADDRESS:-$(cd "$REPO/runtime/compute-proxy" && node "$REPO/runtime/wallet-address.mjs" 2>/dev/null)}"
 fi
 
-log "exec loop (model tiers from config; funded=$(node -e 'import("'"$REPO"'/runtime/loop/config.mjs").then(m=>console.log(m.loadConfig(process.env,"").ANICCA_FUNDED_MODEL)).catch(()=>console.log("?"))' 2>/dev/null))"
-# 5. run the loop and retain ownership of any proxy this daemon started. Its exit ends this script;
-# the supervisor restarts a clean release with no orphaned proxy process.
+log "exec loop (Codex brain; model=$(node -e 'import("'"$REPO"'/runtime/loop/config.mjs").then(m=>console.log(m.loadConfig(process.env,"").ANICCA_FUNDED_MODEL)).catch(()=>console.log("?"))' 2>/dev/null))"
+# 5. run the loop. Its exit ends this script; the supervisor restarts a clean release.
 node "$REPO/runtime/loop/index.mjs" &
 LOOP_PID="$!"
 wait "$LOOP_PID"

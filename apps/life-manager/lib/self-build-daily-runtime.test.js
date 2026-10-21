@@ -696,6 +696,10 @@ test("the reviewer runs with ephemeral state, no operator config and read-only a
   assert.ok(REVIEW_ARGS.includes("--ignore-user-config"));
   assert.equal(REVIEW_ARGS[REVIEW_ARGS.indexOf("--sandbox") + 1], "read-only");
   assert.ok(REVIEW_ARGS.includes("--ephemeral"));
+  for (const feature of ["shell_tool", "code_mode_host", "unified_exec"]) {
+    assert.ok(REVIEW_ARGS.some((value, index) => value === "--disable" && REVIEW_ARGS[index + 1] === feature),
+      `the diff reviewer must not have ${feature}`);
+  }
 });
 
 

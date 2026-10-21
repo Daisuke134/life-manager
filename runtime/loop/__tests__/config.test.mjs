@@ -48,10 +48,10 @@ test('PROP-012: entirely malformed .env does not crash', () => {
 test('PROP-011/012: defaults applied when nothing set', () => {
   const config = loadConfig({ ANICCA_HOME: '/tmp/test' }, '');
   assert.equal(config.ANICCA_BRAIN, 'codex');
-  assert.equal(config.OPENAI_BASE_URL, 'http://127.0.0.1:18402/v1');
-  assert.equal(config.ANICCA_FREE_MODEL, 'free/glm-4.7');
-  assert.equal(config.ANICCA_LEAN_MODEL, 'free/glm-4.7');
-  assert.equal(config.ANICCA_FUNDED_MODEL, 'free/glm-4.7');
+  assert.equal(config.OPENAI_BASE_URL, undefined);
+  assert.equal(config.ANICCA_FREE_MODEL, 'gpt-5.6-terra');
+  assert.equal(config.ANICCA_LEAN_MODEL, 'gpt-5.6-terra');
+  assert.equal(config.ANICCA_FUNDED_MODEL, 'gpt-5.6-terra');
   assert.equal(config.SLEEP_BASE_S, 120);
   assert.equal(config.SLEEP_ERROR_S, 60);
   assert.equal(config.SLEEP_LOOP_DETECT_S, 300);
