@@ -446,11 +446,13 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                     {"argv": [
                         "--path", str(root / "state/selected-strategy.json"),
                         "--reports", str(root / "state/validation-reports.json"),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                     {"argv": [
                         "--path", str(root / "state/paper-selected-strategy.json"),
                         "--reports", str(root / "state/validation-reports.json"),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                 ],
@@ -507,11 +509,13 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                     {"argv": [
                         "--path", str((root / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json").resolve()),
                         "--reports", str(runtime_reports.resolve()),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                     {"argv": [
                         "--path", str((root / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json").resolve()),
                         "--reports", str(runtime_reports.resolve()),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                 ],

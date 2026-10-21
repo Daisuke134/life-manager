@@ -166,9 +166,10 @@ provision_investment_selection() {
   local selection_path
   for selection_path in "$live_selection_path" "$paper_selection_path"; do
     if ! "$runtime_python" "$provisioner" \
-        --path "$selection_path" \
-        --reports "$reports_path" \
-        --release-sha "$release_sha"; then
+      --path "$selection_path" \
+      --reports "$reports_path" \
+      --refresh \
+      --release-sha "$release_sha"; then
       printf 'agent-runner reconcile: investment strategy selection provisioning failed for %s\n' \
         "$selection_path" >&2
       return 1
