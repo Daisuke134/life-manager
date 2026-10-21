@@ -131,3 +131,14 @@ The aggregate-only [pinned public study-day join probe](scripts/heartsteps_phase
 Founder explicitly skipped H005 because publicly released HeartSteps files do not uniquely recover the original 2019 7,540/6,061 analytic set. H005 is `skipped`, never `done`. H006–H010 are complete only under revised, preserved-original-criteria **exploratory** acceptance. The pinned CSV produced 6,330 selected available decisions from 37 persons; noncausal participant-cluster adjusted ratios 1.140 [1.001,1.297] for any message and 1.239 [1.056,1.454] for walking message; decision-ordinal index/50 interaction 0.858 [0.772,0.953]. The 2019 sample, original time definition and inference procedure are not reproduced. **Gate 1 independent randomized causal replication remains UNMET.** No verified Manager human benefit exists.
 
 The public research outputs are at `docs/research/heartsteps/PHASE03_PUBLIC_ANALYSIS_JA.md`, `docs/research/heartsteps/PHASE03_PUBLIC_METRICS.json`, `docs/verification/PHASE03_VERIFICATION.md`. Real-data CI: https://github.com/Daisuke134/life-manager/actions/runs/39526839889 . Proceed next to S001 rights-safe study-level metadata. Individual participant data are not copied to the Manager product.
+
+## Phase 04: verified study split and offline methods only (2026-10-21)
+
+**Scientific completion: NOT YET.** S001 is done: SocSci210's pinned *study-ID-only* metadata is hash-checked with **170 seen / 40 unseen**, no overlapping study, no participant rows. S002 is blocked on per-study respondent-use rights and evidence access; S003–S008 remain open. The offline baseline/causal-gap tests and six-tick real Concordia **mock engine** execute, but no real human behavior forecast or intervention effect has been independently validated. **170/170 Python tests passed** in GitHub Actions [39537750991](https://github.com/Daisuke134/life-manager/actions/runs/39537750991), official split-source [39536829220](https://github.com/Daisuke134/life-manager/actions/runs/39536829220) and Concordia mock [39537485934](https://github.com/Daisuke134/life-manager/actions/runs/39537485934).
+
+- [Phase04 verified progress, blockers and evidence](docs/verification/PHASE04_PROGRESS_JA.md)
+- [SocSci210 actual study-split verification](docs/research/socsci/S001_STUDY_SPLIT_AUDIT_JA.md)
+- [Phase04 synthetic score/causality methods](docs/research/socsci/PHASE04_METHODS_PARTIAL_JA.md)
+- Core source: `manager_core/phase04_synthetic.py`, `scripts/socsci_split_audit.py`; no Life Manager production files modified.
+
+The Phase04 task registry is canonical in `docs/roadmap/tasks.json`. No published human-behavior benchmark, deployed effects or real-world beneficiary results are claimed.
