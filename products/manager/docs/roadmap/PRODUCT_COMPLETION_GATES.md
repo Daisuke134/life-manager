@@ -2,6 +2,8 @@
 
 Status: 2026-10-20 JST. Product strategy / milestones, **not evidence of completion**. Task status and dependencies are canonical in `docs/roadmap/tasks.json`. Managers and Life Manager remain separate. No automated publish, money transfers or private-person data allowed in the current scaffold.
 
+**Phase05 scope verified (2026-10-21):** K001–K014 software/fixture acceptance **14/14** in [hosted CI](https://github.com/Daisuke134/life-manager/actions/runs/39578500491), 234 tests and deterministic two-domain offline demo. This does **not** close Gate1 (human causal replication), or automatically satisfy Gate2 (U005 also required), or certify a single real-world blessing. Current task registry 59 done / 51 todo / 2 blocked / 1 skipped. [Evidence/limitations](../verification/PHASE05_FINAL_OFFLINE_KERNEL_EVIDENCE_JA.md).
+
 ## 0. Why “End suffering” cannot be closed by one task
 
 End suffering is a **normative directional objective**, not a measurable one-time finish line that we can declare with a finite test. A model alone cannot prove an end to suffering. Model development, science, pilots, beneficiary evidence, legal authority, governance, and real-world verification must be kept separate. The “digital Buddha / digital god” is a metaphor for beneficial intelligence, not an authorization for control over anyone.

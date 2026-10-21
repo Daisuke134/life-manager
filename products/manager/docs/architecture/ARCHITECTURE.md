@@ -1,6 +1,6 @@
 # Manager — domain-general intervention kernel
 
-Status: design only, **not a working impact system**. Updated 2026-10-20.
+Status: Phase05 **offline fixture kernel implemented and tested** (2026-10-21); NOT a live impact system. See [implemented architecture](PHASE05_KERNEL_IMPLEMENTATION.md).
 
 ## Immutable product boundary
 
@@ -32,7 +32,7 @@ flowchart TB
  E --> C
 ```
 
-### Read-only types (proposed, **not implemented**)
+### Original read-only contracts (implemented as bounded offline types in Phase05)
 
 - `Source`: `source_id`, `url`, `rights`, `retrieved_at`, `content_hash`, `public_classification`, `data_quality`.
 - `Observation`: `source_id`, `measure_id`, `recorded_at`, `unit`, `value`, `missingness`, `coverage_scope`.

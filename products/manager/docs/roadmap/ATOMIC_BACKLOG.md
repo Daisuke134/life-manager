@@ -2,7 +2,7 @@
 
 Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 45 · Todo: 65 · Blocked: 2 · Skipped: 1
+Total: 113 · Done: 59 · Todo: 51 · Blocked: 2 · Skipped: 1
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -87,20 +87,20 @@ Manager has a separate product identity, source scope and runtime, even when its
 
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
-| ⬜ `K001` | R007, L004 | 観測と推論を分ける理由を学ぶ | manager_core/models/source.pyの公開URL/rights/hash型 | source不明/PII判定不明なら取り込み拒否 |
-| ⬜ `K002` | K001 | 測定値の時刻と単位と欠測を扱う | manager_core/models/observation.py | 同じvalueでもtimestamp/unitが違えば別状態 |
-| ⬜ `K003` | K002, L005 | 問題と原因仮説を区別する | manager_core/models/problem.pyにalternative_explanations | すべてのcausal_claimにevidence refsを要求 |
-| ⬜ `K004` | K003 | no_actionを常に含める理由を学ぶ | manager_core/models/intervention.pyにcost/risk/no_action | 根拠不明ならno_actionが残る |
-| ⬜ `K005` | K004, L009 | シミュレーション予測と介入効果を分離する | manager_core/forecast.pyにcalibrated distribution | 予測確信度とRCT効果推定のスコアを混在させない |
-| ⬜ `K006` | K004 | 形式的状態遷移を学ぶ | manager_core/state_machine.py | すべての違法な状態遷移を拒否、UNKNOWNを成功扱いしない |
-| ⬜ `K007` | K006 | 最小権限・予算・法的根拠を学ぶ | manager_core/authority.pyにscope/expiry/revocation | 署名/承認がないもの、期限切れ、budget超過はexecute不可 |
-| ⬜ `K008` | K007 | 冪等性を学ぶ | manager_core/outbox.pyにidempotency_key + durable record | 同じ効果を10回再試行しても外部実行は最大1回 |
-| ⬜ `K009` | K008 | 外部APIのtimeoutと二重送信の危険を学ぶ | manager_core/reconcile.pyにpresent/absent/unknown | unknownは再送せず状態確認を要求 |
-| ⬜ `K010` | K009 | 成功ログと独立観測の違いを説明する | manager_core/verifier.pyにsource-independent readback | executor自身のSUCCESSだけでverifiedにならない |
-| ⬜ `K011` | K010, L010 | 因果効果推定と介入スピルオーバーを学ぶ | manager_core/evaluator.pyの比較群/効果/CI/害 | 任意の成功数から因果効果を確定表示しない |
-| ⬜ `K012` | K011, S006 | Holdout評価と安全な自己改善を学ぶ | manager_core/learning.pyにversion, eval, rollback | 改善失敗時は前バージョンを自動復元 |
-| ⬜ `K013` | K010 | 機械可読な監査証跡を学ぶ | manager_core/audit.pyにsource/action/receipt/readback trace | 同一runの全段階を追跡可能; 証拠なし効果0扱い禁止 |
-| ⬜ `K014` | K011, K013 | 領域横断の再利用とは何かを定量化 | 同一kernelでfinanceとenvironmentのテストfixtureを走らせる | 新規領域追加で中核型/権限/証拠ロジック変更0 |
+| ✅ `K001` | R007, L004 | 観測と推論を分ける理由を学ぶ | manager_core/models/source.pyの公開URL/rights/hash型 | source不明/PII判定不明なら取り込み拒否 |
+| ✅ `K002` | K001 | 測定値の時刻と単位と欠測を扱う | manager_core/models/observation.py | 同じvalueでもtimestamp/unitが違えば別状態 |
+| ✅ `K003` | K002, L005 | 問題と原因仮説を区別する | manager_core/models/problem.pyにalternative_explanations | すべてのcausal_claimにevidence refsを要求 |
+| ✅ `K004` | K003 | no_actionを常に含める理由を学ぶ | manager_core/models/intervention.pyにcost/risk/no_action | 根拠不明ならno_actionが残る |
+| ✅ `K005` | K004, L009 | シミュレーション予測と介入効果を分離する | manager_core/forecast.pyにcalibrated distribution | 予測確信度とRCT効果推定のスコアを混在させない |
+| ✅ `K006` | K004 | 形式的状態遷移を学ぶ | manager_core/state_machine.py | すべての違法な状態遷移を拒否、UNKNOWNを成功扱いしない |
+| ✅ `K007` | K006 | 最小権限・予算・法的根拠を学ぶ | manager_core/authority.pyにscope/expiry/revocation | 署名/承認がないもの、期限切れ、budget超過はexecute不可 |
+| ✅ `K008` | K007 | 冪等性を学ぶ | manager_core/outbox.pyにidempotency_key + durable record | 同じ効果を10回再試行しても外部実行は最大1回 |
+| ✅ `K009` | K008 | 外部APIのtimeoutと二重送信の危険を学ぶ | manager_core/reconcile.pyにpresent/absent/unknown | unknownは再送せず状態確認を要求 |
+| ✅ `K010` | K009 | 成功ログと独立観測の違いを説明する | manager_core/verifier.pyにsource-independent readback | executor自身のSUCCESSだけでverifiedにならない |
+| ✅ `K011` | K010, L010 | 因果効果推定と介入スピルオーバーを学ぶ | manager_core/evaluator.pyの比較群/効果/CI/害 | 任意の成功数から因果効果を確定表示しない |
+| ✅ `K012` | K011, S006 | Holdout評価と安全な自己改善を学ぶ | manager_core/learning.pyにversion, eval, rollback | 改善失敗時は前バージョンを自動復元 |
+| ✅ `K013` | K010 | 機械可読な監査証跡を学ぶ | manager_core/audit.pyにsource/action/receipt/readback trace | 同一runの全段階を追跡可能; 証拠なし効果0扱い禁止 |
+| ✅ `K014` | K011, K013 | 領域横断の再利用とは何かを定量化 | 同一kernelでfinanceとenvironmentのテストfixtureを走らせる | 新規領域追加で中核型/権限/証拠ロジック変更0 |
 
 ## 06. 現実の介入と独立した効果評価
 

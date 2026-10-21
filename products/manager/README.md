@@ -1,5 +1,14 @@
 # Manager — independent intervention research prototype
 
+## October 21 Phase05 — offline shared intervention kernel
+
+**K001–K014: 14/14 verified engineering/fixture acceptances, NOT a live welfare intervention.** A domain-independent kernel now validates public-source metadata, typed observations, competing hypotheses, NO_ACTION options, separate forecast and causal scores, signed **fixture-only** scoped grants, durable SQLite idempotence/reconciliation, independently named fixture sensors, bounded net-effect evaluation, versioned rollback, and SHA256-linked audit records. Finance and environment use the exact same offline kernel; external writes, private accounts, donations, posting, actuators and private-person processing remain prohibited.
+
+[Final Phase05 Japanese verification](docs/verification/PHASE05_FINAL_OFFLINE_KERNEL_EVIDENCE_JA.md) · [Technical architecture + state boundaries](docs/architecture/PHASE05_KERNEL_IMPLEMENTATION.md) · [Two-domain deterministic demo](scripts/phase05_demo.py) · [reproducible aggregate result](docs/verification/PHASE05_OFFLINE_DEMO_RESULTS.json) · [234 tests + demo successful hosted CI](https://github.com/Daisuke134/life-manager/actions/runs/39578500491).
+
+**Canonical 113 tasks: 59 done / 51 todo / 2 blocked / 1 skipped.** Scientific Gate 1 is **UNMET**; no real-world Manager welfare impact has been measured. Product Gate 2 also requires U005.
+
+
 ## October 21 Phase04 final verification
 
 **Phase04 S001–S008: 8/8 atomic tasks verified within explicit scoped acceptance. This is not human-behavior foundation-model fidelity or real-world impact proof.** All 210 SocSci210 studies and 2,901,390 originally observed responses were processed for a **coarse numeric-code 170/40 held-out evaluation**, with anonymized aggregate outputs only. A published frozen MiniLM encoder with a seen-only head was tested against simple baselines on exactly the same 800 original unseen individual responses; a separate 135M instruction model was compared on 320 other unseen individual responses. Poor/invalid model output was preserved, not reclassified as success. SocSci authors' original task-aware evaluation and 8B/14B models are **not** independently reproduced by Manager.
@@ -16,7 +25,7 @@
 
 **Manager ≠ Life Manager.** This standalone repository has no imports, credentials, runtime contracts, or shared database with Life Manager. Later integration would require a separately reviewed API contract. Previous Life Manager code is **not** imported.
 
-**Current status:** source research and offline learning scaffold only; no live intervention; no trial replicated yet; no actual human-impact claim.
+**Current status:** Phase05 offline fixture kernel implemented and tested; no live intervention, human causal fidelity validation, or actual human-impact claim.
 
 ## What is intentionally forbidden in this scaffold
 
