@@ -72,6 +72,40 @@ class CryptoValidationHistoryTests(unittest.TestCase):
         self.assertIn("next_page_token", run.call_args.args[1][-1])
         self.assertTrue(result["source_receipt_ids"])
 
+    def test_empty_string_page_token_is_terminal_for_complete_window(self):
+        result, _, run = self._read(
+            mutate=lambda payload: payload.update(next_page_token=""))
+
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(len(result["crypto_history"]), 12)
+        self.assertEqual(len(result["quote_conversions"]), 12)
+
+    def test_empty_string_page_token_still_requires_complete_btc_window(self):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        rows = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
+                 "o": "100", "h": "102", "l": "99", "c": "101"}
+                for i in range(13)]
+        payload = {"next_page_token": "", "bars": {"BTC/USDC": rows,
+                   "USDC/USD": [{"t": row["t"], "c": "0.99"} for row in rows]}}
+        payload["bars"]["BTC/USDC"].pop(0)
+
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", return_value=payload,
+        ) as run:
+            with self.assertRaisesRegex(
+                    ValueError,
+                    "^alpaca_crypto_validation_history_invalid:btc_bar_count_mismatch$") as raised:
+                alpaca_cli.read_crypto_validation_history(
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    start=start, end=start + timedelta(hours=1),
+                    observed_at="2026-01-02T00:00:00Z")
+
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(raised.exception.details, {
+            "symbol": "BTC/USDC", "expected_count": 12, "actual_count": 11,
+        })
+
     def test_history_follows_page_token_before_validating_complete_window(self):
         from datetime import datetime, timezone
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)

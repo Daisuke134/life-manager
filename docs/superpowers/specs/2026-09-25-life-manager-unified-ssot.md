@@ -16466,6 +16466,24 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **Inference:** an empty string cannot supply a continuation cursor, so treating that exact value as the end of pagination is safer than mislabeling it `pagination_incomplete`; the separate bar-count/timestamp gate still prevents incomplete data from entering the strategy evaluator. If the complete-bar regression fails after that change, the data window remains blocked and needs another source-level diagnosis.
 
+#### 2026-10-21 11:42 JST — Empty cursor normalization implemented with completeness held
+
+**Source delta:** `skills/alpaca-investment/alpaca_cli.py` now maps only exact `next_page_token == ""` to the exhausted-page state. Non-empty malformed/repeated cursors and page exhaustion still fail closed. Two tests were added: a complete page with an empty cursor is accepted, while an incomplete BTC window with an empty cursor still raises `btc_bar_count_mismatch` with expected and actual counts. The tests first failed against old code; focused and full Alpaca tests now pass (744/744), `git diff --check` and `verify-source-boundary.sh` pass.
+
+**Provider data still incomplete:** the exact six-hour BTC/USDC window returned an empty cursor with 64 BTC bars against 72 expected and 4 USDC/USD bars at `limit=10000`; a later full reader call returned 63/72 and stopped at `btc_bar_count_mismatch`. No BTC validation report is produced. This is not a pass or profitability evidence. The source change fixes cursor classification only; no gaps are filled.
+
+**Updated atomic TODO (current cursor = 1):**
+1. [ ] Push and review the empty-cursor normalization, run exact-head CI, and merge the reader/tests/spec branch. **Current cursor.**
+2. [ ] Cut a main-derived immutable release and adopt it only for `investment-strategy-validation` under the owner lock/loaded-idle gate; preserve its existing schedule and do not manually wake it.
+3. [ ] Read the next natural validation terminal from the new release. The BTC result must have complete aligned bars; if the provider still returns 63–64 of 72, keep the BTC report invalid and investigate a supported data-coverage repair.
+4. [ ] Once validation input is complete, copy one profitable strategy mechanism from public code or primary evidence, record its source/outcome, and evaluate it on matched windows with costs, benchmark, drawdown, lookahead, holdout, and sensitivity.
+5. [ ] Keep the four live orders unscoped and their effect fence held unless exact local ownership receipts appear. Keep the live owner disabled.
+6. [ ] Confirm risk/duplicate/daily-loss caps and usable buying power. Last official snapshot is equity `$66.49`, cash `$0`, buying power `$0`; do not deposit.
+7. [ ] Only after complete lineage, valid strategy evidence, risk gates, and buying power, evaluate a small local live pilot. Measure settled owner-attributed realized net after all costs; require 30 cost-complete positive benchmark-excess round trips before scaling.
+8. [ ] After repeatable real net exists, calculate best/base/worst 1-month, 1-year, and 10-year scenarios. Profitability is a goal, not a guarantee.
+
+**順序変更の理由:** exact page inspection revealed the current provider emits an empty-string cursor on a response that is itself incomplete. The change now reports the remaining 72-versus-63/64 data gap without loosening validation. The next action is source review/merge; trading remains disabled.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。

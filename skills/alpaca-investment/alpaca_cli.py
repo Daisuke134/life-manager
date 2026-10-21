@@ -1011,7 +1011,9 @@ def read_crypto_validation_history(
             if not isinstance(payload, dict) or "next_page_token" not in payload:
                 raise CryptoValidationHistoryError("response_shape_invalid")
             next_page_token = payload["next_page_token"]
-            if next_page_token is not None and (
+            if next_page_token == "":  # Alpaca may emit an empty-string end marker.
+                next_page_token = None
+            elif next_page_token is not None and (
                     not isinstance(next_page_token, str) or not next_page_token.strip()
                     or len(next_page_token) > 8192 or next_page_token in seen_page_tokens):
                 raise CryptoValidationHistoryError(
