@@ -1,0 +1,258 @@
+{
+  "schema": "manager.autonomous-wealth-eval.primary-sources.v1",
+  "reviewed_at": "2026-10-21",
+  "reader": "Builder designing autonomous business agents and wishing to measure real profit and incremental human welfare",
+  "question": "Which existing evals can measure earning capability, long-horizon autonomy, observed settled net profit, and causal beneficiary wealth?",
+  "strict_distinctions": [
+    "benchmark simulated dollars ≠ settled platform payout",
+    "historically priced task ≠ payment to tested model",
+    "enterprise revenue ≠ customer/recipient wealth",
+    "money transferred ≠ new aggregate wealth",
+    "model scoring trace ≠ independent official receipt",
+    "owner authorization to build != third-party authority to act",
+    "measured predictive fit != identified intervention effect"
+  ],
+  "method": "First party company technical disclosures, original peer-reviewed RCTs and code/license readback from original publisher repositories. Any company metric remains vendor-reported; owned code reviewed as read-only context, not integrated with Manager runtime.",
+  "source_count": 21,
+  "sources": [
+    {
+      "id": "andon-vending-bench2",
+      "name": "Andon Labs — Vending-Bench 2",
+      "source_url": "https://andonlabs.com/evals/vending-bench-2",
+      "source_date": "2025-11",
+      "evidence_type": "SIMULATED_BUSINESS",
+      "actually_measures": "365 simulated days, $500 opening cash, simulated final bank balance, multi-run spread and adverse behavior traces",
+      "cannot_establish": "No settled real revenue; no official public runnable code confirmed from linked page",
+      "manager_reuse_decision": "RESEARCH_INTERFACE_ONLY",
+      "license_or_access": "read+link; code reuse unknown"
+    },
+    {
+      "id": "andon-pion",
+      "name": "Andon Labs — Pion research preview",
+      "source_url": "https://andonlabs.com/blog/why-we-built-pion",
+      "source_date": "2026-09-14",
+      "evidence_type": "REAL_BUSINESS_PLATFORM_VENDOR_REPORT",
+      "actually_measures": "Persistent agents operate email/phone/banking/browser in real partner-owned businesses with delegated permission; preview waitlist",
+      "cannot_establish": "Not broadly open-source/available; real stores may hire/pay humans; disclosure, employment, legal approval remain separate",
+      "manager_reuse_decision": "CONDITIONAL_ADAPTER",
+      "license_or_access": "vendor terms and direct deployment evidence required"
+    },
+    {
+      "id": "andon-market",
+      "name": "Andon Labs — Andon Market / Café",
+      "source_url": "https://andonlabs.com/blog/andon-market-launch",
+      "source_date": "2026-04-10",
+      "evidence_type": "REAL_BUSINESS_VENDOR_FIELD_NOTE",
+      "actually_measures": "Actual staffed San Francisco store controlled strategically by AI",
+      "cannot_establish": "Not 0 human labor; Andon reports stores/cafe not profitable as of 2026-09 Pion announcement",
+      "manager_reuse_decision": "FIELD_PRECEDENT_ONLY",
+      "license_or_access": "cite vendor story; no independent causal ledger"
+    },
+    {
+      "id": "anthropic-vend2",
+      "name": "Anthropic + Andon Labs — Project Vend Phase 2",
+      "source_url": "https://www.anthropic.com/research/project-vend-2",
+      "source_date": "2025-12-18",
+      "evidence_type": "REAL_STOREFRONT_VENDOR_EXPERIMENT",
+      "actually_measures": "AI shopkeeper running office micro-shop with real inventory/customer transactions; progress from loss to improved economics",
+      "cannot_establish": "Observed real pilot and company reports; model change and scaffolding confounded; not independent generalized autonomous enterprise proof",
+      "manager_reuse_decision": "FIELD_PRECEDENT_ONLY",
+      "license_or_access": "not a replicated Manager result"
+    },
+    {
+      "id": "openai-swelancer",
+      "name": "OpenAI — SWE-Lancer",
+      "source_url": "https://openai.com/index/swe-lancer/",
+      "source_date": "2025-02-18",
+      "evidence_type": "HISTORICAL_MARKET_PAYMENTS_VALUED_OFFLINE_BENCH",
+      "actually_measures": "More than 1,400 real Upwork projects, ~$1m historic compensation weights and end-to-end task grading",
+      "cannot_establish": "Model does NOT get actual contracted payment; payouts are past human historical values",
+      "manager_reuse_decision": "OPEN_RESEARCH_REUSE",
+      "license_or_access": "https://github.com/openai/frontier-evals project/swelancer MIT repo, task licensing separate"
+    },
+    {
+      "id": "openai-gdpval",
+      "name": "OpenAI — GDPval",
+      "source_url": "https://openai.com/index/gdpval/",
+      "source_date": "2025-09-25",
+      "evidence_type": "HUMAN_EXPERT_WORK_PRODUCT_EVAL",
+      "actually_measures": "44 occupations, 9 industries, expert-judged real-work style documents and deliverables",
+      "cannot_establish": "One-shot quality comparisons not actual customer purchases, earnings or long-horizon autonomous operation",
+      "manager_reuse_decision": "TASK_QUALITY_INSPIRATION",
+      "license_or_access": "evaluation sources/rights separately"
+    },
+    {
+      "id": "metr-horizon",
+      "name": "METR — Time Horizon 1.1",
+      "source_url": "https://metr.org/time-horizons/",
+      "source_date": "2026-09-08",
+      "evidence_type": "AUTONOMY_RELIABILITY_BENCH",
+      "actually_measures": "Task length measured as human expert time at model 50%/80% success on software/research/cyber tasks",
+      "cannot_establish": "Not real-world duration or net-profit indicator; dated page no longer maintained",
+      "manager_reuse_decision": "USE_METRIC_DESIGN",
+      "license_or_access": "https://github.com/METR/eval-analysis-public; repo license not yet verified"
+    },
+    {
+      "id": "metr-productivity",
+      "name": "METR — early AI developer productivity randomized trial",
+      "source_url": "https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/",
+      "source_date": "2025-07-10",
+      "evidence_type": "REAL_RANDOMIZED_PRODUCTIVITY_STUDY",
+      "actually_measures": "Randomized issues AI allowed vs disallowed among 16 experienced OSS developers; early-2025 AI associated with 19% longer times",
+      "cannot_establish": "Setting/era-specific; 2026 recruitment and multi-agent measurement issues in follow-up; not income change",
+      "manager_reuse_decision": "RCT_DESIGN_PRECEDENT",
+      "license_or_access": "https://metr.org/blog/2026-02-24-uplift-update/"
+    },
+    {
+      "id": "theagentcompany",
+      "name": "TheAgentCompany — consequential workplace tasks",
+      "source_url": "https://github.com/TheAgentCompany/TheAgentCompany",
+      "source_date": "2025",
+      "evidence_type": "OFFLINE_SIMULATED_COMPANY",
+      "actually_measures": "Realistic digital employee tool use and coworker interactions in a simulated business",
+      "cannot_establish": "Simulator task success not actual jobs, wage savings or customer income",
+      "manager_reuse_decision": "OPEN_SOURCE_TEST_HARNESS",
+      "license_or_access": "MIT LICENSE verified 2026-10-21"
+    },
+    {
+      "id": "pion-vending-alignment",
+      "name": "Andon Labs — score versus deception",
+      "source_url": "https://andonlabs.com/blog/openai-gpt-5-5-vending-bench",
+      "source_date": "2026-04-22",
+      "evidence_type": "VENDOR_BEHAVIORAL_STRESS_TEST",
+      "actually_measures": "Observed collusion/refund deception in simulator under profit incentives",
+      "cannot_establish": "Ethical behavior not proven globally by a single model run; research cautions that profit objective may reward abuse",
+      "manager_reuse_decision": "POLICY_STRESS_TEST",
+      "license_or_access": "source methodology and runs vendor claimed"
+    },
+    {
+      "id": "causalpy",
+      "name": "PyMC Labs — CausalPy",
+      "source_url": "https://github.com/pymc-labs/CausalPy",
+      "source_date": "2026",
+      "evidence_type": "OPEN_CAUSAL_METHOD_TOOL",
+      "actually_measures": "Difference-in-differences, synthetic control, regression discontinuity, interrupted time series and uncertainty",
+      "cannot_establish": "Estimates conditional on assumptions/data. No causal proof from installing package",
+      "manager_reuse_decision": "POTENTIAL_K011_ADAPTER",
+      "license_or_access": "Apache-2.0 license verified"
+    },
+    {
+      "id": "dowhy",
+      "name": "PyWhy — DoWhy",
+      "source_url": "https://github.com/py-why/dowhy",
+      "source_date": "2026",
+      "evidence_type": "OPEN_CAUSAL_METHOD_TOOL",
+      "actually_measures": "Explicit causal graphs, identification, estimation, assumption refutation",
+      "cannot_establish": "Need valid design, comparators, covariate/selection overlap",
+      "manager_reuse_decision": "POTENTIAL_K011_ADAPTER",
+      "license_or_access": "MIT license verified"
+    },
+    {
+      "id": "econml",
+      "name": "PyWhy — EconML",
+      "source_url": "https://github.com/py-why/EconML",
+      "source_date": "2026",
+      "evidence_type": "OPEN_CAUSAL_METHOD_TOOL",
+      "actually_measures": "CATE / heterogeneous treatment effects after identification",
+      "cannot_establish": "Not a license to rank vulnerable recipients without governance; observational confounding remains",
+      "manager_reuse_decision": "POTENTIAL_K011_ADAPTER",
+      "license_or_access": "MIT license verified"
+    },
+    {
+      "id": "geolift",
+      "name": "Meta — GeoLift",
+      "source_url": "https://github.com/facebookincubator/GeoLift",
+      "source_date": "2025",
+      "evidence_type": "OPEN_GEO_EXPERIMENT_TOOL",
+      "actually_measures": "Geo-level incrementality design, power checks, synthetic controls, treatment market selection",
+      "cannot_establish": "Needs comparable geographic data, spillover/mobility check, rights to intervene in markets",
+      "manager_reuse_decision": "POTENTIAL_PILOT_EVALUATOR",
+      "license_or_access": "MIT license verified"
+    },
+    {
+      "id": "langsmith",
+      "name": "LangChain — LangSmith eval",
+      "source_url": "https://docs.langchain.com/langsmith/evaluation-types",
+      "source_date": "2026",
+      "evidence_type": "AGENT_TRACE_EVAL_TOOL",
+      "actually_measures": "Offline datasets, online production traces, deterministic + model-judge eval and monitoring",
+      "cannot_establish": "Agent trace or LLM judge not independent profit/beneficiary receipts",
+      "manager_reuse_decision": "OPTIONAL_EVAL_TRACE_ONLY",
+      "license_or_access": "SaaS data movement/permissions and pricing need review"
+    },
+    {
+      "id": "zozo-openbandit",
+      "name": "ZOZO — Open Bandit Dataset",
+      "source_url": "https://github.com/st-tech/zr-obp/tree/master/obd",
+      "source_date": "2020",
+      "evidence_type": "REAL_LOGGED_RECOMMENDATION_POLICY_EVIDENCE",
+      "actually_measures": "Historical randomized policy logs: action, propensity, click; sample and full dataset alternatives",
+      "cannot_establish": "Clicks are not net wealth; first 10k per arm not representative full trial; importance weights may explode",
+      "manager_reuse_decision": "EXISTING_MANAGER_RESEARCH",
+      "license_or_access": "Original code Apache2; source-user feature reuse rights separate"
+    },
+    {
+      "id": "givedirectly-cash",
+      "name": "Haushofer & Shapiro 2016 / GiveDirectly",
+      "source_url": "https://doi.org/10.1093/qje/qjw025",
+      "source_date": "2016",
+      "evidence_type": "ORIGINAL_HUMAN_RANDOMIZED_INTERVENTION",
+      "actually_measures": "Household cash transfers randomized across village/household, monitored consumption/assets/wellbeing",
+      "cannot_establish": "Direct transfer is not productivity, and external donor money is not auto-created by agent",
+      "manager_reuse_decision": "HUMAN_WELFARE_EVAL_PRECEDENT",
+      "license_or_access": "copyright conditions; cite short only"
+    },
+    {
+      "id": "egger-spillovers",
+      "name": "Egger et al. 2022 Econometrica Kenya general equilibrium",
+      "source_url": "https://doi.org/10.3982/ECTA17945",
+      "source_date": "2022",
+      "evidence_type": "ORIGINAL_HUMAN_RANDOMIZED_SPILLOVER",
+      "actually_measures": "$1k+ transfers to 10.5k+ households across randomized villages; estimated ~2.5 local transfer multiplier and spillovers",
+      "cannot_establish": "Context-specific donor-funded intervention; does not mean AI creates 2.5x money or comparable effect elsewhere",
+      "manager_reuse_decision": "SOCIAL_NET_BENEFIT_DESIGN",
+      "license_or_access": "respect supplementary dataset reuse rights"
+    },
+    {
+      "id": "opower-energy",
+      "name": "Hunt Allcott 2011 energy reports randomized",
+      "source_url": "https://doi.org/10.1016/j.jpubeco.2011.03.003",
+      "source_date": "2011",
+      "evidence_type": "ORIGINAL_FIELD_RANDOMIZED_ECONOMIC_SAVINGS",
+      "actually_measures": "~600k household randomized trials of home energy report feedback; average electricity reduction ~2%",
+      "cannot_establish": "Energy use reduction not identical to financial wealth or overall welfare without cost/fuel/comfort effects",
+      "manager_reuse_decision": "SAVINGS_INTERVENTION_PRECEDENT",
+      "license_or_access": "cite original abstract, do not copy charts"
+    },
+    {
+      "id": "lm-eab-internal",
+      "name": "Life Manager Economic Autonomy Benchmark",
+      "source_url": "internal:apps/life-manager/eval/economic-autonomy/",
+      "source_date": "2026-10-21",
+      "evidence_type": "EXISTING_OPERATOR_OWNED_ECONOMIC_EVAL_CODE",
+      "actually_measures": "Code verifies receipt uniqueness, settled customer revenue, net after cost, recurring revenue, human intervention count, unknown effects, immutable fixtures and split",
+      "cannot_establish": "Life Manager separate product; do not embed proprietary operator identity or private code paths in PUBLIC article; no causal customer-welfare proof",
+      "manager_reuse_decision": "REUSE_SCHEMA_AS_SEPARATE_READONLY_ADAPTER",
+      "license_or_access": "Actual source reviewed in connected GitHub 2026-10-21"
+    },
+    {
+      "id": "lm-agentgate-internal",
+      "name": "Life Manager Agent Contract Gate",
+      "source_url": "internal:apps/life-manager/eval/agent-contract/",
+      "source_date": "2026-10-21",
+      "evidence_type": "EXISTING_OPERATOR_OWNED_AGENT_EVAL_CODE",
+      "actually_measures": "Heldout behavior, safety, cost/latency regression, external official readback, rollback gate",
+      "cannot_establish": "Not a benefit causal inference engine; do not modify Life Manager runtime or redistribute private fixtures",
+      "manager_reuse_decision": "REUSE_INVARIANTS_AS_SEPARATE_READONLY_ADAPTER",
+      "license_or_access": "Actual source reviewed in connected GitHub 2026-10-21"
+    }
+  ],
+  "open_questions": [
+    "No confirmed publicly downloadable executable implementation of original Vending-Bench 2 or Pion; validate on official maintainer channel rather than inferring open source.",
+    "Pion waitlist access and bank/write permissions not confirmed, cannot benchmark proprietary preview.",
+    "Causal transfer of firm revenue into beneficiaries' net welfare requires separately defined P3/P4 study and counterfactual; user intervention consent where applicable.",
+    "Pricing of independent verifier time and server resources from real receipts, not invented defaults."
+  ],
+  "publication_limits": "Never use personal owner handle/path or live bank balances in public editorial; use source-backed public references; published model outputs are not independently peer reviewed.",
+  "integration_boundary": "Manager != Life Manager. Reuse only scientific methods and approved high-level schema via separately authorized, read-only aggregate interface; do not import source/runtime/keys."
+}
