@@ -22242,3 +22242,27 @@ The Capafy source is merged and adopted; the revenue result remains unknown unti
 | 6 | Migrate x402 `runLocalModel` from Mistral/Qwen to Codex while keeping paid markdown fulfillment. | After Capafy revenue cycle. |
 | 7 | Migrate Polymarket `pick.py` from BlockRun to Codex; preserve decision gates and historical evaluation, with live adoption behind `pm-live-trade:18d61d6a6df63248-48979`. | After #6. |
 | 8 | Migrate daily report `llmReport` from the local proxy to Codex while preserving truth-only output. | Last; completes the internal all-pipelines Codex-only invariant. |
+
+### Capafy merge and 06:49 natural-wake cursor — 2026-10-21 06:53 UTC
+
+**User policy:** every internal Life Manager agent pipeline uses Codex only; Claude is not an allowed pipeline route. The local loop-development skill still contains an older Claude/Codex reference, but this explicit policy takes precedence. The Codex-only invariant is already recorded above and remains incomplete only because the x402, Polymarket, and daily-report inference routes below have not yet migrated. Capafy stays the first business cursor.
+
+**Source acceptance:** PR #8479 passed its exact-head checks and fresh review, then merged at `2026-10-21T06:52:22Z` as main `88de3718c61eddcd160e702a0c974338bd0ed099`. It moves `CRAFT_GUIDANCE` and `IDENTITY_GUIDANCE` reads before prompt-heredoc expansion; the focused Capafy suite passed 12/12. This is source merged, not production adoption: the loaded Capafy release remains `70c93940bc712261f3dd01aa9556b467b1481539` until a safe immutable release is cut and target-applied.
+
+**Effect fence and natural wake:** read-only `lm-loop status --explain capafy-distribute-daily` at `06:50:45Z` confirms `admission_effect_unknown.current=true` for `capafy-distribute-daily:18e077fbebd96ce8-96969`. Its official no-effect window ends at `2026-10-21T08:01:20.522605Z`. The `06:49:09.809457Z` natural wake `18e078afb0753290-45403` exited 75 at admission with `host_admission_deferred:resource_effect_unknown`; it did not reach a provider and does not close or replace the original fence. Do not replay or manually wake it.
+
+**Revenue:** the newest saved seller snapshot remains `05:07:40Z`, with 7-day gross/net `$0`, paid/trial split unavailable, and true MRR unknown. This checkpoint did not refresh seller data. No article/X publication receipt or new paid Capafy order is confirmed.
+
+**Ordered atomic TODO; current cursor = 1:**
+
+| # | Next action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | At/after `08:01:20.522605Z`, query complete official GitHub and Postiz windows for `18e077fbebd96ce8-96969`; resolve only from exact provider evidence. | Current cursor. DONE: the exact admission row closes from verified effect or complete empty listings; no replay. |
+| 2 | Cut an immutable release from latest main `88de3718` with release pruning disabled and `~/loops/current` unchanged; after #1 closes, apply only Capafy with the candidate release root and `--loaded-idle-only`. | Depends on #1. DONE: Capafy plist and loaded argv show `88de3718`-derived fixed source; unrelated browser owner is unchanged. |
+| 3 | Observe the next natural Capafy distribution on that release and reconcile its exact article, GitHub, Postiz, occurrence, and duplicate receipts. | Depends on #2. DONE: one natural occurrence joins all official receipts with duplicate count zero. |
+| 4 | Refresh Capafy source-to-paid evidence and run the next bounded distribution experiment selected from measured conversion. | Depends on #3. Revenue DONE requires an official attributed paid order and observed economics; otherwise continue a measurable distribution test. |
+| 5 | Replace `skills/earn/x402-sell/the402-worker-daemon.mjs::runLocalModel` Mistral/Qwen proxy with Codex; preserve paid `userPrompt → non-empty markdown` fulfillment and pass fake-CLI contract tests. | After #4. DONE: no alternate inference fallback remains and paid fulfillment tests pass. |
+| 6 | Replace `skills/earn/polymarket-trade/pick.py` vendored BlockRun consensus with Codex; preserve decision fields, gates, and historical evaluation. | Depends on #5. Keep live adoption behind official receipt `pm-live-trade:18d61d6a6df63248-48979`. |
+| 7 | Replace `skills/report/daily-nl-report.mjs::llmReport` local proxy with Codex while preserving truth-only output. | Last. DONE: all internal pipeline inference routes use Codex; no Claude or alternate-model route remains. |
+
+The 06:49 admission defer is expected fence behavior, not a successful distribution. Source repair is merged, but production adoption, publication, attributed revenue, and the all-pipelines Codex-only invariant are not yet complete.
