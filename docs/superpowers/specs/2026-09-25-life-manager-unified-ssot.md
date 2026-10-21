@@ -21792,3 +21792,30 @@ The branch's TODO cursor stays at #1. The previous Git sub-order was merge `orig
 | 7 | Migrate remaining direct internal model clients, starting with Polymarket and the x402 fulfillment worker; reporting stays last. | Codex-only decisions across internal agents; preserve `pm-live-trade` until its effect receipt is reconciled. |
 
 The next cursor is independent review plus exact-head CI; do not resume the distributor before the Codex release is loaded.
+
+### Codex-only scope reaffirmed and revenue order refreshed — 2026-10-21 04:09 UTC
+
+**Policy:** Dais reconfirmed that every Life Manager pipeline uses Codex for agent reasoning. This is broader than “no Claude”: BlockRun, Mistral, Qwen, GLM, local compute-proxy, and any other alternate model route are not valid internal agent fallbacks. Do not report global Codex-only completion until every internal agent inference route uses Codex or is removed. Data/provider APIs used for deterministic facts remain separate from model inference.
+
+**As-is evidence:** PR #8467 is at `b35845bed3a7482e25546b2fda4c41a4eeb5877c` on top of `origin/main` `76d36e33979aa6e4b8924db6405fa8031b169782`. The fresh exact-range review found no unresolved Critical/Important findings. Required checks are green except `Loop control contracts` and `TruffleHog`, both pending at 04:09Z. Shared brain, Agent Runner, Cloud Agent Economy, scheduled reviewer, and daemon startup are Codex-only in this source change; the production owners have not adopted its release.
+
+Source inspection confirms three remaining internal model routes: `skills/earn/polymarket-trade/pick.py` calls the vendored BlockRun `AIAnalyzer.consensus_analysis`; `skills/earn/x402-sell/the402-worker-daemon.mjs::runLocalModel` calls the local proxy with Mistral/Qwen; `skills/report/daily-nl-report.mjs::llmReport` calls the same local proxy. These are migration debt, not policy exceptions. Capafy remains ahead of those source migrations because its distribution/revenue cycle is the active money cursor.
+
+**Live owner readback:** `capafy-distribute-daily` remains loaded-running on release `464635e4f455a7411e441e76c3208cc188de68c2`. Its latest recorded publish occurrence is `capafy-distribute-daily:b7bf291abc2d1ace055f135d`, terminal pass at `2026-10-21T04:00:40.993560Z`, provider `codex`, but effect is still `unknown` and has no official receipt. Do not call that publication verified or replay it. `pm-live-trade` is loaded-idle on `37384185bcc36b7033154a6d321a84288b41b8aa`; occurrence `18d61d6a6df63248-48979` remains unresolved without provider receipt, so preserve the trade fence and do not resume/replay it.
+
+**Order update:** the earlier post-Capafy route order was Polymarket → x402 → report. Change it to x402 → Polymarket → report: x402 fulfills paid work and has the more direct revenue path; Polymarket is gated by an unresolved live-trade receipt and changes capital decisions; daily reporting is support work and stays last. The current cursor remains the shared-route PR; this ordering change does not interrupt any live owner or external effect.
+
+**Remaining TODO (cursor = 2):**
+
+| # | Atomic TODO | Dependency and DONE evidence |
+|---|---|---|
+| 1 | Complete pending checks for PR #8467 at `b35845bed3a7482e25546b2fda4c41a4eeb5877c` (`Loop control contracts`, `TruffleHog`); then merge the reviewed shared-route change. | Depends on exact-head checks. DONE: required checks all pass and merged SHA is read from `origin/main`. |
+| 2 | Cut a main-derived immutable release and apply the shared Codex route only to affected owners at safe idle boundaries through `launchctl-safe`. | Depends on #1. DONE: loaded release SHA/argv/env show Codex and each affected owner reaches a natural terminal. |
+| 3 | Reconcile Capafy occurrence `capafy-distribute-daily:b7bf291abc2d1ace055f135d` with its registered effect adapter and official GitHub/Postiz readback. | Depends on #2. DONE: exact occurrence is classified from official evidence, `effect_unknown=0`, and duplicate effect is zero. |
+| 4 | Let one natural Capafy distribution occurrence run on the adopted release; verify its public URL, CTA/source attribution, and official publication receipt. | Depends on #3. DONE: the natural occurrence and official provider receipt agree. |
+| 5 | Read official Capafy source-to-paid results and select the next distribution action from measured conversion. | Depends on #4. DONE for a revenue win only when official evidence records an attributed paid order and its economics; otherwise run the next bounded distribution experiment. |
+| 6 | Replace `skills/earn/x402-sell/the402-worker-daemon.mjs::runLocalModel` with a Codex-only invocation that preserves its `userPrompt → non-empty markdown` contract and fails closed on timeout/exit/empty output; add a fake-CLI regression in `skills/earn/x402-sell/__tests__/` and run `node --test skills/earn/x402-sell/__tests__/*.test.mjs`. | Depends on #5. DONE: no Mistral/Qwen/proxy fallback remains and paid fulfillment contract tests pass. |
+| 7 | Replace `skills/earn/polymarket-trade/pick.py`'s BlockRun analyzer route with Codex output validated into the existing decision fields/gates; test with `python3 -m unittest discover -s skills/earn/polymarket-trade -p 'test*.py'` and the existing historical-evaluation fixture before any live adoption. | Depends on #6 and official receipt for `pm-live-trade:18d61d6a6df63248-48979`. DONE: no BlockRun model call remains, historical decision checks pass, and the live owner is only adopted after its exact effect is reconciled. |
+| 8 | Replace `skills/report/daily-nl-report.mjs::llmReport`'s proxy call with Codex and add a focused report-contract test; run `node --test skills/report/__tests__/daily-nl-report.test.mjs`. | Depends on revenue routes #6–#7. DONE: the report has no alternate model fallback and retains its truth-only facts/output contract. |
+
+The global Codex-only invariant remains incomplete until TODO #8. Revenue status remains unproven: the last saved seller readback is gross `$0` / `0` paid orders at `02:20:43Z`; the 04:00Z Capafy occurrence is not an official receipt.
