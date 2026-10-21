@@ -115,3 +115,23 @@ test("packet_uses_measured_counts_and_excludes_private_users", () => {
     "keiodaisuke",
   ]) assert.equal(serialized.includes(privateValue), false, `packet leaked ${privateValue}`);
 });
+
+test("non_completed_receipts_keep_missing_completed_work_caveat", () => {
+  const packet = buildMaritimeWeek1Packet({
+    status: {
+      observed_at: "2026-10-21T08:20:00Z",
+      runtime_database_readback: { verified_external_manager_users: 1 },
+      verified_work_receipts: ["failed", "effect_unknown"].map(status => ({
+        provider: "maritime",
+        kind: "cycle",
+        status,
+        observed_at: "2026-10-21T08:00:00Z",
+        proof_sha256: "c".repeat(64),
+      })),
+    },
+    requirements: { required_fields: ["project_name"] },
+  });
+
+  assert.deepEqual(packet.work_receipts.map(receipt => receipt.status), ["failed", "effect_unknown"]);
+  assert.match(packet.limitations.join(" "), /No completed hosted work receipt is verified\./);
+});

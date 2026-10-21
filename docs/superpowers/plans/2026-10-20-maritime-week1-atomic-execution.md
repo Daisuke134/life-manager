@@ -467,9 +467,9 @@ life-manager/
   users/work receipts=0、costs=null、formal receipt=null。
   作業時mode=0600、SHA256=`fa891f6e8ed9410a0bb7c6249a0a698c259557578a6816dfaaf5c4f756ca9865`。
   このdraftは正式提出ではない。
-- [ ] T23.1-R1 `apps/life-manager/scripts/maritime-week1-export.js`のcompleted-work caveat判定を修正する。read-only reviewで、`workReceipts.length`が1以上でもstatusが`failed`/`deferred`/`effect_unknown`だけなら「完了したhosted work receiptがない」という注意書きが消える指摘を確認した。現在のpacketはreceipt 0件で注意書きが入り、現packet自体はその点で誤表示していない。
+- [x] T23.1-R1 review findingを修正。apps/life-manager/scripts/maritime-week1-export.jsでcompleted statusのreceiptがある場合だけmissing-work caveatを外す。failed/deferred/effect_unknownだけでは注意書きを維持する。
   入力境界は`safeWorkReceipts`、出力境界は`limitations`。`apps/life-manager/scripts/maritime-week1-export.test.js`へfailed/effect_unknownのみのケースを追加し、completed receiptが1件以上ある場合に限り注意書きを外す。
-  DONE=`node --test apps/life-manager/scripts/maritime-week1-export.test.js`の回帰テストpass、再生成packetのcompleted count/limitationsが正確、status=draftと個人情報除外を維持。T23.2より先に完了する。
+  DONE: RED reproduced before fix; node --test apps/life-manager/scripts/maritime-week1-export.test.js passes 2/2 including non-completed-only regression. Packet regenerated at 2026-10-21T08:34:34.541Z, SHA256=68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1, mode=0600, status=draft, work_receipts=0, costs=null. T23.2 is next.
 - [ ] T23.2 審査者が試せるURL、最小画面録画、Cloud実行receipt、現状の人数、制約を揃える。内部2–3分動画は推奨で、公式指定と混同しない。
 - [ ] T23.3 channel entryの重複投稿は行わない。organizer replyまたは公開formから正式な必須項目を確認したら、現entry shareとは別のrequired formだけを一回提出し、正式経路が不明な間はformal status=unconfirmedのまま維持する。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。

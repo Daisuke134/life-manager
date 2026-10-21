@@ -114,12 +114,13 @@ function buildMaritimeWeek1Packet({ status, requirements, generatedAt } = {}) {
   const officialRequiredFields = safeRequiredFieldNames(requirements.required_fields);
   const channelEntry = safeChannelEntry(submission.channel_entry_readback);
   const submissionReceipt = safeFormalReceipt(submission.formal_submission_receipt);
+  const hasCompletedWorkReceipt = workReceipts.some(receipt => receipt.status === "completed");
   const releaseSha = safeReleaseSha(status.production?.life_call?.loaded_source_sha);
   const limitations = [];
 
   if (!officialRequiredFields) limitations.push("Official form fields are unpublished in the supplied requirements readback.");
   if (verifiedExternalUsers === 0) limitations.push("The supplied Runtime PG readback shows zero verified external Manager users.");
-  if (workReceipts.length === 0) limitations.push("No completed hosted work receipt is verified.");
+  if (!hasCompletedWorkReceipt) limitations.push("No completed hosted work receipt is verified.");
   if (!costs) limitations.push("Costs are unmeasured; the packet does not report USD 0.");
   if (!channelEntry) limitations.push("No read-back project entry is attached.");
   if (!submissionReceipt) limitations.push("Formal submission receipt is unconfirmed; a channel entry is not a formal receipt.");

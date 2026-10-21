@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T08:26:15Z",
+  "observed_at": "2026-10-21T08:34:47Z",
   "source_main_sha": "a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
@@ -255,7 +255,7 @@
     "product": "T22.1e.2 / b.6-28: owner PKCE and explicit retention consent are still unrecorded. Railway 08:25Z shows the same two SUCCESS deployments from 06:23Z; exact loaded SHA last read at 08:00Z is 982875d62eaa03f8e924b990c4bc80f521d8dcce. Runtime PG last read at 08:00:19Z: identity 1; enrollment/execution/participant/job/external work 0.",
     "distribution": "T24.4b/T24.5: manager acquisition URL returned 404 at 08:11Z; GSC settled baseline is 0 clicks/7 impressions through 2026-10-18. Postiz connector 08:24Z returned 0 groups/integrations, while date-only official API integration evidence from 2026-10-21 lists 30 enabled channels; the exact 06:41Z post receipt confirms general X @selawmqt and a separate AI-monk post. No Life Manager post, attributed signup, or sale is evidenced.",
     "submission": "One entry is posted/read back; the channel warns it does not replace any required form. Public pages checked 08:06Z still had no project form, Week 1 cutoff, or rubric. Follow-up email thread was reread 08:26:15Z and contains only the two sent messages; no organizer reply. Formal receipt remains unconfirmed; do not duplicate the entry.",
-    "packet_export": "T23.1 draft exists (test 1/1 pass; generated 08:11:36Z), but a medium review finding remains: non-completed receipt statuses can suppress the missing-completed-work limitation. The current empty-receipt packet is truthful; fix and regenerate before treating T23.1 as complete.",
+    "packet_export": "T23.1 complete: focused test 2/2 passes after review fix; privacy-safe aggregate draft regenerated at 08:34:34Z, SHA256 68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1, mode 0600. It remains a draft; formal submission is not complete.",
     "revenue": "Stripe live readback at 06:55:37Z: Life Manager active subscriptions 0 and MRR USD 0. Dais reports local workflow earnings, but no provider settlement receipt is joined here. Hosted external users/work events last read at 08:00:19Z are 0; hosted user cash/net is unverified. Distribution has no Life Manager-attributed paid outcome."
   },
   "latest_slack_readback": {
@@ -309,11 +309,11 @@
   },
   "packet_export_readback": {
     "test_command": "node --test apps/life-manager/scripts/maritime-week1-export.test.js",
-    "test_result": "1 passed; 0 failed",
+    "test_result": "2 passed; 0 failed",
     "packet_path": "docs/distribution/maritime/week1/submission.json",
     "packet_status": "draft",
-    "packet_generated_at": "2026-10-21T08:11:36.468Z",
-    "packet_sha256": "fa891f6e8ed9410a0bb7c6249a0a698c259557578a6816dfaaf5c4f756ca9865",
+    "packet_generated_at": "2026-10-21T08:34:34.541Z",
+    "packet_sha256": "68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1",
     "packet_mode": "0600",
     "verified_external_manager_users": 0,
     "external_work_events": 0,
@@ -324,9 +324,12 @@
     "review_finding": {
       "severity": "medium",
       "file": "apps/life-manager/scripts/maritime-week1-export.js",
-      "issue": "workReceipts.length suppresses the missing-completed-work caveat even when all retained receipts are failed, deferred, or effect_unknown.",
-      "current_packet_effect": "Current packet has zero receipts and includes the caveat; no misstatement in this packet.",
-      "status": "fix and focused regression case pending"
+      "issue": "A receipt counted as evidence of completed work only when status is completed; failed/deferred/effect_unknown receipts retain the missing-completed-work limitation.",
+      "fix": "Use an explicit status === completed predicate.",
+      "regression_test": "non_completed_receipts_keep_missing_completed_work_caveat",
+      "test_command": "node --test apps/life-manager/scripts/maritime-week1-export.test.js",
+      "test_result": "2 passed; 0 failed",
+      "status": "resolved"
     }
   },
   "money_loop_status": {
