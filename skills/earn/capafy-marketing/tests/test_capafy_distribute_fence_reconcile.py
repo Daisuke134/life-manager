@@ -349,6 +349,27 @@ def test_legacy_missing_binding_requires_complete_empty_official_window(tmp_path
     assert effect_possible["provider_receipt_id"] == (
         f"github:{'e' * 40}|https://aniccaai.com/blog/capafy-x-2026-09-29-h21m00")
 
+    article_commit = {"ok": True, "commits": [{
+        "sha": "e" * 40,
+        "slug": "capafy-x-2026-09-29-h21m00",
+        "at": (started + dt.timedelta(minutes=5)).isoformat(),
+    }]}
+    post_possible = reconcile(
+        started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        article_commit,
+        posts_result={"ok": True, "posts": ["unknown-post"]},
+    )
+    assert post_possible["verified"] is False
+    assert post_possible["reason"] == "x_post_in_window_without_occurrence_manifest"
+
+    post_readback_failed = reconcile(
+        started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        article_commit,
+        posts_result={"ok": False, "reason": "postiz_unavailable"},
+    )
+    assert post_readback_failed["verified"] is False
+    assert post_readback_failed["reason"] == "postiz_unavailable"
+
     ambiguous = reconcile(
         started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
         {"ok": True, "commits": [

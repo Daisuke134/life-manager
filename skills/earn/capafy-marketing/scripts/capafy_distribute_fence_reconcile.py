@@ -507,6 +507,16 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
             proof["reason"] = "ambiguous_legacy_capafy_commits"
             return proof
         if matching_commits:
+            if not x_posts.get("ok"):
+                proof["reason"] = x_posts.get("reason")
+                return proof
+            legacy_posts = x_posts.get("posts")
+            if not isinstance(legacy_posts, list):
+                proof["reason"] = "postiz_readback_malformed"
+                return proof
+            if legacy_posts:
+                proof["reason"] = "x_post_in_window_without_occurrence_manifest"
+                return proof
             commit = matching_commits[0]
             sha = commit.get("sha")
             try:
