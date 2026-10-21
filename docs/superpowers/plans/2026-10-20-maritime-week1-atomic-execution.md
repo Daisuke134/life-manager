@@ -26,7 +26,7 @@
 
 ## 現状と選定理由
 
-計画改訂の基準main=`286e982bfe`。T02–T04のsourceは統合済み。状態・cursorはSpec正本だけで管理する。既存`maritime-pilot.js`はOpenClaw chat-onlyで、factory接続ではない。`mail-resend.js`と`cfo-cloud-delivery.js`は存在するので再利用する。Capafy factoryにはHOME、認証、browser、mutable sourceの依存が残るため、T07–T10で具体的に移す。既存売上のあるfactoryを第一候補にするが、全ての新利用者が接続なしで販売可能とは仮定しない。
+計画初版の基準main=`286e982bfe`。現在のmain SHAと各taskの最新状態はSSOTのMaritime節を参照する。T02–T04のsourceは統合済み。状態・cursorはSpec正本だけで管理する。既存`maritime-pilot.js`はOpenClaw chat-onlyで、factory接続ではない。`mail-resend.js`と`cfo-cloud-delivery.js`は存在するので再利用する。Capafy factoryにはHOME、認証、browser、mutable sourceの依存が残るため、T07–T10で具体的に移す。既存売上のあるfactoryを第一候補にするが、全ての新利用者が接続なしで販売可能とは仮定しない。
 
 **採用:** 既存factory + Maritime custom runtime + 既存メール。最短で同じ業務を移せ、競技platform usageも残る。
 **棄却した最強案:** Keikiだけで新しい収益agentを組めば入口は速い。ただし既存factory/経費/receiptを別実装にしてしまうため主経路にしない。Keikiが必要なchannelを短縮すると確認できた場合だけ追加adapterにする。
@@ -363,15 +363,15 @@ life-manager/
 
 ## Task T17: browser実行とprovider公開を一件完走する
 
-**Files:** 既存browser/session adapterとCapafy split scripts。ModifyはT08で特定した不足箇所だけ。
-**Interfaces:** CycleResultにofficial `agentId/version/status/receiptRef`を結合。provider作用のownerを一つにする。
-**Depends:** T16/T11 worker wiringとT22.1の非公開foundation deploy。
+**Files:** Create `apps/life-manager/lib/maritime-manager-provider-runtime.js`とtest。Modify `apps/life-manager/scripts/runtime-up.js`/`runtime-up.test.js`で2つのprovider capabilityをwireする。Capafy split scriptsはT08で特定した不足がある場合だけ変更する。新しいDB tableは作らず、`lm_runtime_jobs`のimmutable `input_refs`と`lm_runtime_job_receipts`を使う。
+**Interfaces:** VMの`CycleResult`はartifact-onlyを維持し、`providerSnapshotRef=null`/`providerReceiptRefs=[]`を受け入れ条件とする。providerのagent/version/action attemptをmodel/stdoutから採らない。中央の`buildMaritimeCapafyPrepareJob({tenantId,releaseSha,occurrenceId,cycleJobId,artifactRef,accountRef})`は`effectClass=publish`、`maxAttempts=1`、effect key=`maritime-capafy-prepare://<tenant>/<occurrence>`を持ち、`input_refs`を`source_cycle_job_id`, `artifact_ref`, `account_ref`, `occurrence_id`, `release_ref`に固定する。tenant-bound公式prepare/readbackが作ったimmutable prepare receiptからagent/version/account bindingを取り出し、`createMaritimeManagerCapafyPrepareAdapter.continuation(job,receipt)`が既存のtransactional queue completionとともに`buildMaritimeCapafyPublishJob({tenantId,releaseSha,occurrenceId,sourceCycleJobId,artifactRef,prepareJobId,accountRef,agentId,agentVersionId})`を一度だけenqueueする。publish jobは`effectClass=publish`、`maxAttempts=1`、effect key=`maritime-capafy-publish://<tenant>/<occurrence>`を持ち、`input_refs`を`source_cycle_job_id`, `artifact_ref`, `prepare_job_id`, `account_ref`, `agent_id`, `agent_version_id`, `occurrence_id`, `release_ref`に固定する。`createMaritimeManagerCapafyPublishAdapter`が同じjob/attempt/effect keyと公式Capafy statusを結んだ`provider_action_receipt`を生成する。売上はT10の公式financial snapshotだけで確認する。
+**Depends:** T08 tenant-bound provider readiness、T11 worker wiring、T16 tenant wake/auth binding、T22.1 non-public foundation deploy。
 
-- [ ] T17.1 自分がownerの接続済みtenantで新規original商品を一つ選び、既存frozen_guard/duplicate_gateを通す。既存sellerを編集しない。
-- [ ] T17.2 既存prepare→CP1→finish→CP2/CP3を一回実行する。途中で応答不明ならofficial readbackへ進み、publishを再送しない。
-- [ ] T17.3 同じagent/versionのofficial status、公開URL、申請中/公開済みの区別をreceiptへ記録する。審査待ちを販売可能と呼ばない。
+- [ ] T17.1 完了したcycleの中央receiptから一つのoriginal artifactだけを選び、既存frozen_guard/duplicate_gateを通す。founderのseller/accountをtenant bindingとして流用しない。
+- [ ] T17.2 T08/T16で確認したnon-secret `account_ref`と完了cycle/artifactをinput refsに固定した`maritime.manager.capafy.prepare` jobを作り、既存prepare→CP1→CP2を行う。公式readbackでtenant accountを照合し、agent ID/version IDをimmutable prepare receiptへ記録する。曖昧な効果はreconciliationへ送り、prepareをblind retryしない。
+- [ ] T17.3 prepare receiptからだけ`maritime.manager.capafy.publish` jobをenqueueする。既存`public.complete_lm_runtime_job_and_enqueue` transactionでprepare receiptとsuccessor jobを原子的にcommitし、上記8つのsnake_case `input_refs`にsource cycle/artifact/prepare/tenant account/agent/version/occurrence/releaseを固定する。stable occurrence effect key/`maxAttempts=1`でCP3を一度行う。応答後は同じaccount/agent/versionのofficial `publish-remote-status`/`publish-list`を読み、申請中/公開済みを区別する。審査待ちを販売可能と呼ばず、seller売上の証拠にも使わない。
 - [ ] T17.4 receiptとsource差分を分離して保存し、自己所有の不足修正だけをcommit/push。provider審査は進行中でも他taskを進める。
-- [ ] T17.5 `apps/life-manager/lib/maritime-manager-runtime.js::verifyCycleReceipt` と `createMaritimeManagerLoopAdapter` 内の `inspect` が`CycleResult.providerSnapshotRef`/`providerReceiptRefs`を拒否する境界を更新し、T17.3のofficial Capafy receiptを同じtenant/job/occurrence/releaseのcycle receiptへ結合する。入力はverified tenant-scoped Capafy receipt、出力はartifact＋provider refsを持つ同一`maritime_manager_cycle` receipt。`apps/life-manager/lib/maritime-manager-runtime.test.js`で有効receipt保持とtenant/job/agent/occurrence/release mismatch・欠落receipt拒否を確認する（`node --test apps/life-manager/lib/maritime-manager-runtime.test.js`）。DONE=同一receiptにverified provider refsがあり、欠落時はrevenue/statusを`unknown`のままにする。
+- [ ] T17.5 `apps/life-manager/lib/maritime-manager-provider-runtime.js`に`verifyMaritimeCapafyPrepareReceipt`/`verifyMaritimeCapafyPublishReceipt`と`createMaritimeManagerCapafyPrepareAdapter`/`createMaritimeManagerCapafyPublishAdapter`を実装する。prepare verifierは`source_cycle_job_id`/`artifact_ref`/`account_ref`/`occurrence_id`/`release_ref`を照合する。publish verifierはprepare receiptとpublish jobの同名`input_refs`および`prepare_job_id`/`agent_id`/`agent_version_id`の一致、`attempt=1`、stable effect key、公式status/URL/evidenceを要求する。対象agent/versionと「このoccurrenceのCP3試行」は中央発行のprepare→publish job chain以外から受け付けない。VM/modelの`CycleResult.providerSnapshotRef`/`providerReceiptRefs`は引き続き拒否する。CP3後readback不明はpublish jobをunknown/reconcilingに残し、完了receiptもblind retryも作らない。`apps/life-manager/scripts/runtime-up.js::reconcileMaritimeCapabilityJobs`の`scoped` allowlistへ両capabilityを加え、各adapterの`reconcile(job)`をread-only official readbackへつなぐ。presentなprepare receiptからpublish successorは`resolveReconciliationAndEnqueue`で原子的に作る。officially absentは`reconciled_absent`として処理し、`maxAttempts=1`なので同じ外部作用を再送しない。unknown/invalid readbackはfenceを保持しreconcilingのままにする。`maritime_work_completed`はCycleだけが発行し、prepare/publish jobは内部action証拠としてusage eventやdistinct userを増やさない。`apps/life-manager/lib/maritime-manager-provider-runtime.test.js`、`apps/life-manager/scripts/runtime-up.test.js`、`apps/life-manager/lib/maritime-manager-usage.test.js`でatomic successor enqueue、reconcile allowlist、prepare/publishのpresent/absent/unknown、chain有効receipt、agent/version/job/occurrence/account mismatch、VM偽装ref拒否、試行後readback不明でのfence保持・再送なし、provider subjobのusage event=0を確認する。DONE=official action receiptがtarget identityとattemptをimmutable publish jobへたどれ、reconciliationでpresent/absent/unknownが正しい終端へ進み、外部成功を偽って報告しない。売上はT10の公式financial snapshotだけで確認する。
 
 ## Task T18: 初日から役立つ日次結果を組み立てる
 
@@ -381,7 +381,7 @@ life-manager/
 **Depends:** T10/T11Aのsource。T17の売上発生は待たない。
 
 - [ ] T18.1 test `daily_result_separates_artifact_publish_sales_payout_and_unknown_cost`を定義。商品作成だけなら売上0の観測がある場合のみ0、未取得は未確認、費用欠落で利益unknownをassert。
-- [ ] T18.2 action receiptから「何を作った/公開した/保留中か」を構成し、gross/refund/known cost/payoutを別表示する。私用Moneytree/Dais balanceは参照しない。
+- [ ] T18.2 cycle artifact receiptと、T17の中央prepare/publish job receiptから「何を作った/申請した/公開した/保留中か」を構成し、gross/refund/known cost/payoutを別表示する。publisher action statusを売上へ変換しない。私用Moneytree/Dais balanceは参照しない。
 - [ ] T18.3 日次copyを「今日実行したこと／確認できた成果と売上／費用／未完・失敗／次に進めること」に固定し、URLは同tenantのartifact/provider evidenceだけにする。
 - [ ] T18.4 focused report testと二通貨/日付またぎを確認しcommit/push。
 - [ ] T18.5 `buildMaritimeArtifactPath({jobId,artifactRef})`と`handleMaritimeManagerArtifact(req,res,options)`を新artifact moduleへ定義。URLは`/maritime/artifacts/<encoded jobId>/<各segmentをencodeしたrelative artifact path>`。uidは既存resolveMaritimeManagerUserの認証cookieからのみ解決する。新しいdownload token/secret/storeは作らない。
@@ -389,6 +389,7 @@ life-manager/
 - [ ] T18.6a rootのproof verifierをmodelが書き換えられないよう、`maritime/run-cycle.js`はLinux root時にnative setprivでPython factoryをuid/gid10001・groups空・全capability削除・no-new-privsへ落とす。失敗はnonzero、root fallbackなし。`runtime-env.js`が/data parentをroot所有/書込不可にし、tenantの既知write dirsとgenerated configだけをfd経由でuid10001へ渡す。Dockerfileはutil-linux/専用userとroot所有readonly /appを含める。Localのagent-runner全体は変更しない。既存root Codex profileはコピーせず、Cloud専用agent-codex/agent-ledgersを使い旧データは保持する。rootrelay tokenはmodel子のenvから除外。focused argv/envと既存runtime profile、owned Linuxの非root/書込拒否/capabilityなしのread-only probeで確認する。
 - [ ] T18.7 transportへreadArtifact({uid,agentId,artifactRef})を追加。先に公式read-only execでimmutable sourceのartifact-proof.pyを呼び、固定 `/data/<uid>/build/<raw relative>`をdirfd/O_NOFOLLOW/regular-fileだけで開いてsize/hashを取得する。公式files/downloadを同じ固定pathで読み、metadataのsize/hashと一致したbytesだけを返す。これによりworkspace途中のsymlinkや、proof後の差替えでprivate pathを配信しない。20MiBまでstreamを蓄積して超過時cancelする（中央HTTPのmemory bound）。SDKの無制限arrayBuffer downloadをこの経路では使わない。redirect禁止/20秒。返却はattachment/octet-stream/nosniff/no-store、SVG等を同originで実行しない。
 - [ ] T18.8 serverへGET routeをmount。認証なしはログインへの案内、他tenant/不在は404。日報builderが既存publicOriginで実routeのlinkを作り、利用者がcookieで取得する。相対refだけをクリック可能URLと偽装しない。Unicode/空白/%/literal backslashをround-trip、dot/NUL/encoded separatorを拒否、foreign/未完/oversize/no-dispatchをfocused testしcommit/push。
+- [ ] T18.9 `apps/life-manager/lib/maritime-manager-report.js::readMaritimeDailyObservations`を更新し、`maritime.manager.capafy.prepare`/`maritime.manager.capafy.publish`の中央job receiptを同tenant・local dayで読み、immutable publish `input_refs.source_cycle_job_id`/`prepare_job_id`から元cycleへjoinする。provider runtime verifierでchainを再検証し、未確定jobはreconcilingとして渡す。`maritime-manager-report.test.js`で同日status表示・foreign tenant/job/version拒否・不明時にrevenue=0へ置換しないことを確認する。
 
 ## Task T19: 日次メールを既存CFO配信へ接続する
 
@@ -450,6 +451,7 @@ life-manager/
 - [x] T22.1d Runtime PG/identity/tenant/source/wake baseとservice configurationを準備し、main由来でdeployした。b.6-01〜26のschema/ACL/worker wiringは既存evidenceに記録済み。公開flag/capabilityのenableは後続b.6-27a/bで分離する。
 - [x] T22.1e.1 worker capabilityとlife-call email入口を順に有効化しloaded readbackした。b.6-27a/bの証拠と現在値はcurrent-status-20261021.jsonにある。
 - [ ] T22.1e.2 / b.6-28 owned participantがメールPKCEを完了し、Maritimeのretention条件へ明示同意した後に、PG identity/enrollment/CSRF bindingを照合する。現状confirmと同意は未確認。OTP再送や同意の代行をしない。
+- [ ] T22.1e.3 T17 sourceがmainへ統合されT08/T16のtenant provider bindingがreadbackされた後、既存workerの`LM_WORKER_CAPABILITIES`へ`maritime.manager.capafy.prepare`/`maritime.manager.capafy.publish`を追加し、現行値とloaded worker capabilitiesをreadbackする。provider jobを実行する前に、runtime handler登録・reconciliation allowlist・tenant bindingの三つが同じmain SHAで揃うことを確認する。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
 - [ ] T22.3 正規sleep後のscheduled wakeを一回観測し、同occurrenceの公開/送信が増えないことを読む。メール着信/送信provider ID、official usageとloaded SHAを結合する。
 - [ ] T22.4 readiness/capacity/費用/未接続条件を正本へ更新。全14loopsをCloud完成扱いにせず、実証したCapafy範囲だけcatalogへ反映する。
