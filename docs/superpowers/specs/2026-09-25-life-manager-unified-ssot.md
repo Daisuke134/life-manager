@@ -22146,11 +22146,11 @@ The all-pipelines Codex-only invariant remains incomplete until TODO #8. The las
 
 The last pushed branch head remains `73ef11226e5c654394a42c98646cdbd1dfa86b9b` on base `9802693fa246d08b7e0fc181587985bcf5a8fb49`. Latest main `8f843d1449fbb94cab3e6bcc75f50224de36020b` is integrated locally at merge head `63561289be`; the Capafy trust-boundary and legacy-reconciliation changes are committed locally but not pushed. PR #8467 remains open at the older head; its checks pass for that head and do not cover these commits. Source is not merged, no new immutable release is cut, and production remains on the older `27b594…` release with the active fence above. Current cursor = TODO #2.
 
-### Capafy Codex-only execution and fence proof checkpoint — 2026-10-21 06:02 UTC
+### Capafy Codex-only execution and fence proof checkpoint — 2026-10-21 06:05 UTC
 
 **Policy reaffirmed by Dais:** every Life Manager internal agent pipeline uses Codex. Claude and all non-Codex inference fallbacks are prohibited. The policy is active; global implementation remains incomplete until the x402, Polymarket, and daily-report atoms below are done. Do not treat a Codex-only Capafy source branch as proof that all pipelines have migrated.
 
-**As-Is source:** PR #8467 remains open on the pushed head `40ad5726335b9546885cf3120bf64e1219b43ff7`, based on integrated `origin/main` `8f843d1449fbb94cab3e6bcc75f50224de36020b`. The current worktree adds uncommitted receipt and tool-free Codex changes; the PR and its checks do not yet contain them. No source merge, release cut, or production apply is claimed.
+**As-Is source:** PR #8467 remains open on remote head `40ad5726335b9546885cf3120bf64e1219b43ff7`. The source commit `380411f45c` contains the PII-attestation and tool-free Codex draft fix; local merge commit `94d949f614` incorporates latest main `483ba43b506c8266399334328258bc0c358d70c1`. The worktree is clean, but the remote PR still lacks these commits and its checks do not cover them. No source PR merge, release cut, or production apply is claimed.
 
 **Review findings addressed in the worktree:**
 
@@ -22159,13 +22159,13 @@ The last pushed branch head remains `73ef11226e5c654394a42c98646cdbd1dfa86b9b` o
 
 **Verification:** Capafy distribute/reconcile/draft-output tests 60/60; writer model-runner contract 10 plus 3 subtests; loop runtime bounds 202/202; Capafy article publisher 21/21; `./bin/lm-loop-contract` reports 18 catalog loops, 191 registry jobs, 112 mapped jobs, and zero errors; `node scripts/verify-oss-self-contained.mjs --json` reports `ok=true` and no violations. Bash syntax, Python compilation, and `git diff --check` pass. These are local source gates, not production revenue proof.
 
-**Current production state:** read-only `lm-loop status capafy-distribute-daily --explain` at `06:01Z` still shows owner loaded-idle on release `27b594cd84f6e660f6ffbacabb21be8d7f25cb2c`. Occurrence `18e0730354954fe8-53052` remains claimed with `effect_unknown`; `18e0756837b0e1c8-75481` deferred at `05:49Z` before provider start because the fence remains. The complete official no-effect window is not eligible until `06:30:09.844547Z`; the earlier 0-commit/0-Postiz read is premature. Keep the fence; do not replay. Latest seller readback remains the `05:07:40Z` snapshot: 7-day gross/net `$0`, with paid/trial split unavailable; true MRR unknown. No new paid Capafy order is confirmed.
+**Current production state:** read-only `lm-loop status capafy-distribute-daily --explain` at `06:04Z` still shows owner loaded-idle on release `27b594cd84f6e660f6ffbacabb21be8d7f25cb2c`. Occurrence `18e0730354954fe8-53052` remains claimed with `effect_unknown`; latest attempt `18e0763ac5c60c68-6761` deferred at `06:04Z` before provider start because the fence remains. The complete official no-effect window is not eligible until `06:30:09.844547Z`; the earlier 0-commit/0-Postiz read is premature. Keep the fence; do not replay. Latest seller readback remains the `05:07:40Z` snapshot: 7-day gross/net `$0`, with paid/trial split unavailable; true MRR unknown. No new paid Capafy order is confirmed.
 
 **Atomic TODO, unchanged priority order; current cursor = 1:**
 
 | # | Exact action | Dependency and DONE evidence |
 |---|---|---|
-| 1 | Commit/push the current Capafy PII-attestation and tool-free Codex draft path, obtain a fresh exact-head read-only review, pass required PR #8467 checks, then merge. | Current cursor. DONE: no unresolved HIGH/MEDIUM finding; every required check passes on the exact pushed head; merged SHA is read from `origin/main`. |
+| 1 | Push local source commit `380411f45c` plus main-sync merge `94d949f614`; obtain a fresh exact-head read-only review, pass required PR #8467 checks, then merge. | Current cursor. DONE: no unresolved HIGH/MEDIUM finding; every required check passes on the exact pushed head; merged SHA is read from `origin/main`. |
 | 2 | At/after `06:30:09.844547Z`, read the exact GitHub and Postiz windows for `capafy-distribute-daily:18e0730354954fe8-53052`, then close only with a complete occurrence-bound official effect receipt or complete empty listings. | Does not authorize replay. DONE: official readback classifies this exact occurrence and its admission row is closed; ambiguous rows/read errors keep it held. |
 | 3 | Cut a complete immutable release from merged main without pruning retained releases; after fresh owner/GUI/lease/idle checks, apply only Capafy via `launchctl-safe`. | Depends on #1 and #2. DONE: loaded release SHA and argv show Codex's tool-free route; owner reaches a natural terminal. |
 | 4 | Verify one natural Capafy distribution on that release, including the public page, GitHub receipt, exact Postiz ID/URL, occurrence attribution, and duplicate-zero. | Depends on #3. DONE: provider receipts and `lm-loop` terminal identify the same occurrence. |
