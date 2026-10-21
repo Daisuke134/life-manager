@@ -1,0 +1,20 @@
+name: Manager Open Bandit Public Source Probe
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/scripts/phase04_obd_source_probe.py'
+      - '.github/workflows/manager-obd-source-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  aggregate-only-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Download and parse immutable released samples without persisting people
+        run: python products/manager/scripts/phase04_obd_source_probe.py
