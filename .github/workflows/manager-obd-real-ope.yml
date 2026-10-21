@@ -1,0 +1,47 @@
+name: Manager ZOZO Real Open Bandit A/B Evaluation
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/manager_core/phase04_open_bandit.py'
+      - 'products/manager/scripts/phase04_obd_empirical.py'
+      - 'products/manager/tests/test_phase04_open_bandit.py'
+      - '.github/workflows/manager-obd-real-ope.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  real-public-ab-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Exact mathematical safety tests
+        run: python -m unittest tests/test_phase04_open_bandit.py -v
+      - name: Live six-cohort public A/B effect and OPE run
+        run: python scripts/phase04_obd_empirical.py --output output/obd-real/aggregates.json
+      - name: Verify research boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('output/obd-real')
+          assert {x.name for x in p.iterdir()}=={'aggregates.json'}
+          data=json.loads((p/'aggregates.json').read_text())
+          assert len(data['campaign_results'])==3
+          assert all(x['random']['n']==10000 and x['bts']['n']==10000 for x in data['campaign_results'])
+          assert data['privacy']['raw_rows_committed'] is False
+          assert not data['limitations']['causal_benefit_claim']
+          print('PASS observed six anonymized source cohorts, no field-benefit claim')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: manager-zozo-real-ope-aggregate-only
+          path: products/manager/output/obd-real/aggregates.json
+          retention-days: 14
+          if-no-files-found: error
