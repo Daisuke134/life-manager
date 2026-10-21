@@ -156,6 +156,15 @@ def evaluate_aggregates(mapping, aggregates):
              "tvd_study_macro":_round(sum(evaluated[i]["tvd_frequency"] for i in large)/len(large))},
         ],
         "subgroup_methodology":"Descriptive split of 40 heldout studies into smaller/larger 20 by study observation count, breaking ties by stable study rank; no response label/personal attribute influences grouping.",
+        "calibration":{
+            "prediction_type":"GLOBAL_COARSE_CATEGORICAL_PRIOR_NOT_QUESTION_CONDITIONED",
+            "top_class_probability_train_only":_round(train_top_p),
+            "top_class_empirical_hit_rate_on_40_unseen":_round(pooled_majority_accuracy),
+            "absolute_top_class_calibration_gap":_round(abs(train_top_p-pooled_majority_accuracy)),
+            "micro_sample_size":test_n,
+            "one_reliability_bin_only":True,
+            "meaningful_individual_level_calibration_established":False
+        },
         "abstention_policy":{
             "decision":"ABSTAIN_ALL_UNSEEN_FOR_DEPLOYMENT",
             "reason":"No unseen-study task semantics, available options, or calibrated per-task prior available at inference time",
