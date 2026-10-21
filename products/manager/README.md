@@ -172,3 +172,11 @@ Only independent scientific and authorized welfare measurements can later establ
 
 **Science:** Detailed simulation, aggregate forecasting, 11 validity-test awareness, corporate metrics and a completed source-linked presentation do not establish that Manager has causally reduced suffering. Research / publication state is separate from the product's Phase04 human-effects proof requirements.
 
+
+## Living Behavior × AGI lab presentations (2026-10-21)
+
+- [Current 39-slide English beginner-to-proposal seminar V3; full claim/source/limits crosswalk](docs/presentations/BEHAVIOR_AGI_END_TO_END_LAB_SEMINAR_V3_2026-10-21.md). The editable PPTX, its builder and generated hero illustration are stored under the user's Library `/Manager/Research/` with verified upload receipts.
+- [Earlier 44-slide seminar V2](docs/presentations/BEHAVIOR_SIMULATION_LAB_DECK_V2_2026-10-21.md) remains preserved separately; V3 is a condensed alternative, not scientific peer review.
+- [Radiant primary-source analysis](docs/research/societies/RADIANT_2026-10-21_JA.md) and [company-first 26-organization map](docs/landscape/2026-10-20-behavior-intervention-entities.md). Radiant is already included once.
+
+Company numbers are labeled vendor-reported; Manager's own aggregate-model test is observational; no independent beneficial intervention has been demonstrated. Research and article publication are separate gates.
