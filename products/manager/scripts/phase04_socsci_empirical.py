@@ -25,7 +25,7 @@ PARQUET_URLS=[
 SQL_EXPR=("CASE WHEN response BETWEEN 0 AND 10 THEN CAST(response AS VARCHAR) "
           "ELSE 'OTHER' END")
 
-def run():
+def run(*, transport='remote'):
     req=Request(MAPPING_URL,headers={"User-Agent":"Manager-Research-SocSci210/1.0"})
     with urlopen(req,timeout=30) as stream:
         content=stream.read(EXPECTED_BYTES+1)
@@ -40,12 +40,33 @@ def run():
     con.execute("SET http_timeout=120")
     # Pin immutable revision; DuckDB remote Parquet processes only two named
     # columns (study_id,response), not demographics, prompts, participants etc.
-    subset=','.join("'"+url+"'" for url in PARQUET_URLS)
+    local_cache=None
+    if transport=='local':
+        from huggingface_hub import snapshot_download
+        from tempfile import TemporaryDirectory
+        local_cache=TemporaryDirectory(prefix='socsci210-ephemeral-')
+        snapshot_download(repo_id='socratesft/SocSci210', repo_type='dataset',
+            revision=DATA_REV, allow_patterns=['data/train-*.parquet'],
+            local_dir=local_cache.name, max_workers=6)
+        local_paths=sorted((Path(local_cache.name)/'data').glob('train-*.parquet'))
+        if len(local_paths)!=17:
+            raise ValueError('incomplete pinned local parquet dataset')
+        source_files=[str(p) for p in local_paths]
+    elif transport=='remote':
+        source_files=PARQUET_URLS
+    else:
+        raise ValueError('unsupported source transport')
+    subset=','.join("'"+url+"'" for url in source_files)
     sql=f"""SELECT study_id, {SQL_EXPR} AS bucket, COUNT(*)::BIGINT AS n
         FROM read_parquet([{subset}], union_by_name=true)
         GROUP BY 1,2 ORDER BY 1,2"""
     start=time.monotonic()
-    rows=con.execute(sql).fetchall()
+    try:
+        rows=con.execute(sql).fetchall()
+    finally:
+        con.close()
+        if local_cache is not None:
+            local_cache.cleanup()
     # Only aggregate cells are handled after remote source read, no raw logs.
     summarized=[(str(s),str(b),int(n)) for s,b,n in rows]
     report=evaluate_aggregates(mapping,summarized)
@@ -54,13 +75,15 @@ def run():
       "parquet_files":17,"method":"DuckDB projection and GROUP BY study_id,coarse_code; no individual records persisted",
       "elapsed_seconds":round(time.monotonic()-start,2),
       "source_sql_result_cells":len(summarized),
+      "transport":transport,
     }
     return report
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--transport",choices=["remote","local"],default="remote")
     args=parser.parse_args()
-    result=run()
+    result=run(transport=args.transport)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in ("source_split","unseen_baselines","study_level_distribution_error","scientific_gates","privacy","evidence")},sort_keys=True))
