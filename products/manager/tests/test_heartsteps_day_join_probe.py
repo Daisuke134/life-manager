@@ -86,5 +86,42 @@ class JoinProbeTests(unittest.TestCase):
         self.assertEqual(report["pair_overlap"], 1)
         self.assertNotIn("'1'", str(report))
 
+
+    def test_combine_past_and_following_decision_day_evidence_without_guessing(self):
+        m = self.get_module()
+        merged, audit = m.merge_day_lookups(
+            {("a", "1"): 4, ("a", "2"): 5, ("a", "3"): None},
+            {("a", "1"): 4, ("a", "2"): 7, ("b", "1"): 5},
+        )
+        self.assertEqual(merged[("a", "1")], 4)
+        self.assertIsNone(merged[("a", "2")])
+        self.assertIsNone(merged[("a", "3")])
+        self.assertEqual(merged[("b", "1")], 5)
+        self.assertEqual(audit["conflicting_keys"], 1)
+        self.assertEqual(audit["new_nonconflicting_keys"], 1)
+
+    def test_following_decision_day_can_fill_missing_previous_day(self):
+        m = self.get_module()
+        steps = self.read(
+            "user.index,decision.index.following.dec,study.day.nogap.following.dec\n"
+            "a,7,3\na,8,4\n"
+        )
+        lookup, report = m.build_following_day_lookup(steps)
+        self.assertEqual(lookup[("a", "7")], 3)
+        self.assertEqual(lookup[("a", "8")], 4)
+        self.assertEqual(report["unique_day_keys"], 2)
+
+    def test_observed_study_days_reject_unverified_index_division(self):
+        m = self.get_module()
+        rows = self.read(
+            "user.index,decision.index,decision.index.nogap,avail\n"
+            "a,1,10,TRUE\na,2,19,TRUE\n"
+        )
+        audit = m.compare_proxy_days(rows, {("a", "1"): 2, ("a", "2"): 8})
+        self.assertEqual(audit["matched"], 2)
+        self.assertEqual(audit["agree"], 1)
+        self.assertEqual(audit["disagree"], 1)
+        self.assertEqual(audit["missing_proxy"], 0)
+
 if __name__ == "__main__":
     unittest.main()

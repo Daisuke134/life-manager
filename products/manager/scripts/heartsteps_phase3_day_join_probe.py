@@ -96,6 +96,67 @@ def build_day_lookup(step_rows):
     }
     return lookup, counts
 
+
+def build_following_day_lookup(step_rows):
+    """A second independently observed study-day mapping BEFORE a decision."""
+    _required(step_rows, ["user.index", "decision.index.following.dec", "study.day.nogap.following.dec"])
+    lookup = {}
+    for row in step_rows:
+        uid = _norm_key(row.get("user.index"))
+        decision = _norm_key(row.get("decision.index.following.dec"))
+        day = _day(row.get("study.day.nogap.following.dec"))
+        if not uid or not decision or day is None:
+            continue
+        key = (uid, decision)
+        if key not in lookup:
+            lookup[key] = day
+        elif lookup[key] is not None and lookup[key] != day:
+            lookup[key] = None
+    return lookup, {
+        "unique_day_keys": sum(day is not None for day in lookup.values()),
+        "ambiguous_keys": sum(day is None for day in lookup.values()),
+    }
+
+def merge_day_lookups(primary, following):
+    merged = dict(primary)
+    conflicts = new_nonconflicting = 0
+    for key, day in following.items():
+        if key not in merged:
+            merged[key] = day
+            if day is not None:
+                new_nonconflicting += 1
+        elif merged[key] is not None and day is not None and merged[key] != day:
+            merged[key] = None
+            conflicts += 1
+    return merged, {
+        "conflicting_keys": conflicts,
+        "new_nonconflicting_keys": new_nonconflicting,
+        "merged_unique_keys": sum(v is not None for v in merged.values()),
+        "merged_ambiguous_keys": sum(v is None for v in merged.values()),
+    }
+
+def compare_proxy_days(suggestion_rows, day_lookup):
+    """Report where the historical floor(index/5) shortcut differs from observed days."""
+    _required(suggestion_rows, ["user.index", "decision.index", "decision.index.nogap"])
+    out = Counter()
+    for row in suggestion_rows:
+        key = (_norm_key(row.get("user.index")), _norm_key(row.get("decision.index")))
+        if key not in day_lookup or day_lookup[key] is None:
+            continue
+        out["matched"] += 1
+        raw = row.get("decision.index.nogap")
+        if raw is None or str(raw).strip() in MISSING:
+            out["missing_proxy"] += 1
+            continue
+        index = float(raw)
+        if not math.isfinite(index) or index < 0 or not index.is_integer():
+            raise ValueError("invalid decision index for proxy comparison")
+        if int(index) // 5 == day_lookup[key]:
+            out["agree"] += 1
+        else:
+            out["disagree"] += 1
+    return {field: out[field] for field in ("matched", "agree", "disagree", "missing_proxy")}
+
 def aggregate_coverage(suggestion_rows, day_lookup):
     """Count join coverage without serializing or logging personal observations."""
     _required(suggestion_rows, ["user.index", "decision.index", "avail"])
@@ -147,7 +208,20 @@ def main():
             coverage = aggregate_coverage(csv.DictReader(fh), lookup)
         with suggestions.open(newline="", encoding="utf-8-sig") as fh:
             alignment = summarize_key_alignment(csv.DictReader(fh), lookup)
-        del lookup
+        with jawbone.open(newline="", encoding="utf-8-sig") as fh:
+            reader = csv.DictReader(fh)
+            required = {"user.index", "decision.index.following.dec", "study.day.nogap.following.dec"}
+            has_following = bool(reader.fieldnames and required.issubset(reader.fieldnames))
+            if has_following:
+                following, following_info = build_following_day_lookup(reader)
+            else:
+                following, following_info = {}, {"columns_available": False}
+        merged, merged_info = merge_day_lookups(lookup, following)
+        with suggestions.open(newline="", encoding="utf-8-sig") as fh:
+            merged_coverage = aggregate_coverage(csv.DictReader(fh), merged)
+        with suggestions.open(newline="", encoding="utf-8-sig") as fh:
+            proxy_comparison = compare_proxy_days(csv.DictReader(fh), merged)
+        del lookup, merged, following
         report = {
             "schema": "manager.heartsteps.pinned-day-join-diagnostic.v1",
             "source_commit": SOURCE_COMMIT,
@@ -158,6 +232,10 @@ def main():
             "steps": step_counts,
             "coverage": coverage,
             "key_alignment": alignment,
+            "following_mapping": following_info,
+            "combined_mapping": merged_info,
+            "combined_coverage": merged_coverage,
+            "old_proxy_comparison": proxy_comparison,
             "original_paper_counts": {"included": 7540, "available": 6061},
             "raw_subject_rows_persisted": False,
             "causal_effect_estimated": False,
