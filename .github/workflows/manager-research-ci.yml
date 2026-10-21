@@ -50,6 +50,12 @@ jobs:
         run: python scripts/phase06_public_indoor_readback.py
       - name: Phase06 issuer and site blocker gap report (not authorized)
         run: python scripts/check_phase06_authority.py
+      - name: Reuse official GrowthBook Python SDK (synthetic only)
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-internet-eval.txt
+          python scripts/phase06_growthbook_existing_sdk.py
+      - name: Independently verify actual public GitHub artifact by unauthenticated GET
+        run: python scripts/phase06_public_good_readback.py --baseline-sha c16660f9c6d5c1a79a801f0587dc7cc0355df1b3
       - name: Manager offline self-check
         run: python -m manager_core
       - name: Backlog consistency
