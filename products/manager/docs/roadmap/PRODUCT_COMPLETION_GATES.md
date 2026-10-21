@@ -6,7 +6,7 @@ Status: 2026-10-20 JST. Product strategy / milestones, **not evidence of complet
 
 **Phase06 evidence transition (2026-10-21):** F001 and U001 are done **only within their operator/rights/beneficiary-opportunity comparison research acceptance**; 7 candidates retain explicit NO_ACTION, no verified operator grants, no real effects. Counts 61 done / 49 todo / 2 blocked / 1 skipped out of 113. Scientific Gate1 UNMET; product Gate2 still U005 and later real-field evidence. See [market and simulator primary-source review](../research/2026-10-21_MANAGER_SIM_TO_REAL_ECOSYSTEM_JA.md) and [read-only opportunity matrix](../product/OPPORTUNITIES.md).
 
-## 0. Why “End suffering” cannot be closed by one task
+**Phase06 partial acceptance 2026-10-21:** F001–F003 are done under their original *research/design/read-only software* acceptance criteria; [F003 live public historical ledger CI proof](https://github.com/Daisuke134/life-manager/actions/runs/39586031696). No real Manager-originated financial transfer, indoor actuation or causal welfare benefit; F004/F007 blocked on independent rights; F005/F006/F008/F009 todo. [Exact F002/F003 evidence](../verification/PHASE06_F002_F003_FIELD_READINESS.md). Canonical tasks now 63 done / 47 todo / 2 blocked / 1 skipped.\n\n## 0. Why “End suffering” cannot be closed by one task
 
 End suffering is a **normative directional objective**, not a measurable one-time finish line that we can declare with a finite test. A model alone cannot prove an end to suffering. Model development, science, pilots, beneficiary evidence, legal authority, governance, and real-world verification must be kept separate. The “digital Buddha / digital god” is a metaphor for beneficial intelligence, not an authorization for control over anyone.
 
