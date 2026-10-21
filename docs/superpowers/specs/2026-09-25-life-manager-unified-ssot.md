@@ -16346,6 +16346,27 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** the fresh review found that raw provider request IDs could exceed the central evidence envelope. The adapter now rejects and redacts only that invalid case while preserving exact normal IDs; merge and release remain ahead of any strategy or live-pilot work. The current account has no buying power, and the four observed fills still lack exact Life Manager lineage.
 
+#### 2026-10-21 10:49 JST — Readback adapter merged; runtime adoption cursor
+
+**Source acceptance:** PR #8458 merged at main `1418bc76430a0d428c85f1eafbf3014389e85a02` after fresh review round 2 returned ready / 0 findings and every exact-head required CI check passed. The full Alpaca suite is 742/742; source boundary passes. No code from the worktree has been applied to production yet.
+
+**Fresh official readback:** canonical-credential, no-env, `--readback-only` returned two bounded request IDs, four post-queue orders, zero open orders, and four exact order refs. Result is `verified=false / orders_present:after=4,open=0`; the historical occurrence remains `effect_unknown`, with no resolver close, order, or account mutation. The four late fills remain unscoped without exact local receipt lineage.
+
+**Runtime snapshot:** `alpaca-investment-live` remains disabled with the same held occurrence. `lm-fence-reconciler` is loaded-idle on installed release `01307d0f`; therefore it has not loaded main `1418bc` or the new adapter. `investment-strategy-validation` is loaded-idle on `4b230cba`, with latest terminal `entrypoint_exit_1` at `2026-10-20T21:26:02Z` from older release `55cc06f2`. The latest official account balance snapshot is still `2026-10-21T00:59:58Z`: equity `$66.49`, cash `$0`, buying power `$0`. None of these values establishes Life Manager realized net profit.
+
+**Updated atomic TODO (current cursor = 2):**
+1. [x] Merge the bounded, credential-SSOT readback adapter and tests to main; PR #8458=`1418bc76`, 742 Alpaca tests pass, high-risk review has 0 findings, and exact-head CI passes.
+2. [ ] Cut a complete immutable release from pushed main `1418bc76`, then inspect release SHA/content and host capacity; never install worktree code. **Current cursor.**
+3. [ ] Under the existing `lm-fence-reconciler` owner lock, confirm loaded-idle and apply that one owner to the immutable release. Read back exact loaded argv/SHA and state path; do not touch `alpaca-investment-live`.
+4. [ ] Let the reconciler run naturally and read its occurrence-specific official adapter receipt. It must retain four refs and leave the fence held while the four orders remain unmatched.
+5. [ ] Match each late provider order to exact decision, intent, owner, release, occurrence, fill, fee, and settlement evidence. If a complete join is unavailable, preserve `unscoped` attribution and the held fence.
+6. [ ] Repair `investment-strategy-validation` from its exact failed inputs/logs, then inspect its next natural terminal without a manual wake. Compare candidate strategies only on matched windows with all costs, benchmark excess, drawdown, lookahead, holdout, and parameter sensitivity.
+7. [ ] Confirm duplicate/daily-loss/risk caps and usable buying power. Current cash/buying power is `$0`; do not deposit. Keep live disabled until the historical fence, exact lineage, strategy evidence, and risk gates pass.
+8. [ ] Only after all gates pass, evaluate a small local live pilot. Count money only as owner-attributed, settled realized net after fills, fees, slippage, model, system, and operating costs; require 30 cost-complete round trips with positive benchmark-excess net before scaling.
+9. [ ] After repeatable real net is established, calculate best/base/worst 1-month, 1-year, and 10-year scenarios from cost-complete evidence and then evaluate other venues. Profitability is a measured target, not a guarantee.
+
+**順序変更の理由:** the source blocker is integrated and local provider access is verified, so the next gate is immutable release adoption by the reconciler only. Live capital remains unavailable (`buying_power=$0`), and the strategy-validation owner still has an older failed terminal; neither condition justifies an order or a profitability claim.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
