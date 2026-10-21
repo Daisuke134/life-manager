@@ -294,6 +294,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n")
         return {
             **os.environ,
+            "HOME": str(root),
             "SOURCE_REPO": str(repo),
             "LIFE_MANAGER_SOURCE_REPO": str(repo),
             "LOOPS_ROOT": str(root / "loops"),
@@ -445,11 +446,13 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                     {"argv": [
                         "--path", str(root / "state/selected-strategy.json"),
                         "--reports", str(root / "state/validation-reports.json"),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                     {"argv": [
                         "--path", str(root / "state/paper-selected-strategy.json"),
                         "--reports", str(root / "state/validation-reports.json"),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                 ],
@@ -476,7 +479,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(self._apply_call_count(calls_log), 0)
 
-    def test_release_handoff_uses_release_reviewed_reports_by_default(self):
+    def test_release_handoff_uses_owner_runtime_validation_reports_by_default(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repo, sha = self._make_repo(root)
@@ -485,6 +488,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 with_reviewed_validation_reports=True,
             )
             self._activate(root, release_dir)
+            runtime_reports = root / ".local/state/life-manager/alpaca-investment-validation/reviewed-validation-reports.json"
+            runtime_reports.parent.mkdir(parents=True, exist_ok=True)
+            runtime_reports.write_text('{"reports": []}\n', encoding="utf-8")
             calls_log = root / "calls.log"
             marker = root / "selection-provision.json"
             env = self._base_env(root, repo, calls_log=calls_log)
@@ -493,17 +499,23 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             result = self._run(env)
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            recorded_calls = json.loads(marker.read_text(encoding="utf-8"))
+            for call in recorded_calls:
+                call["argv"][1] = str(Path(call["argv"][1]).resolve())
+                call["argv"][3] = str(Path(call["argv"][3]).resolve())
             self.assertEqual(
-                json.loads(marker.read_text(encoding="utf-8")),
+                recorded_calls,
                 [
                     {"argv": [
-                        "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json"),
-                        "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                        "--path", str((root / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json").resolve()),
+                        "--reports", str(runtime_reports.resolve()),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                     {"argv": [
-                        "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json"),
-                        "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                        "--path", str((root / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json").resolve()),
+                        "--reports", str(runtime_reports.resolve()),
+                        "--refresh",
                         "--release-sha", sha,
                     ]},
                 ],
