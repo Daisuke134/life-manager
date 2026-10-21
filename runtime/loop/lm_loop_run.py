@@ -122,11 +122,15 @@ EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
     "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
     "article-daily": "skills/writer-agent/article-daily.sh",
+    "capafy-distribute-daily": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
 }
 # Provider each owner above reports; owners not listed report Telegram messages.
-# Writer's receipt is its run ID, read back from the reality-PASS ledger rows of
-# every active destination (skills/writer-agent/scripts/article-run-complete.py).
-EFFECT_RESULT_HINT_LOOP_PROVIDERS = {"article-daily": "writer"}
+# Writer receipts are accepted only from the owner-specific readback contract:
+# article-daily's reality-PASS ledger or Capafy's GitHub commit + live page.
+EFFECT_RESULT_HINT_LOOP_PROVIDERS = {
+    "article-daily": "writer",
+    "capafy-distribute-daily": "writer",
+}
 WRITER_LIVE_URL = re.compile(r"https://[A-Za-z0-9._:/-]{1,504}\Z")
 NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
@@ -136,6 +140,9 @@ NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
+NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
+    "capafy-distribute-daily": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
+}
 # Owners that report only a verified no-effect result, never a verified effect:
 # article-resume writes one when its pass provably dispatched no publisher.
 NO_EFFECT_ONLY_LOOP_ENTRYPOINTS = {
@@ -988,14 +995,24 @@ def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
             or (entrypoint == "skills/alpaca-investment/run.py"
                 and loop_id in {"alpaca-investment-paper", "alpaca-investment-live"})
             or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint
+            or NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint
             or NO_EFFECT_ONLY_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
+
+
+def _no_effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
+    return (entrypoint in NO_EFFECT_RESULT_HINT_ENTRYPOINTS
+            or NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
 
 
 def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
                                entrypoint: str) -> tuple[str, str] | None:
-    if entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
+    if loop_id in NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS:
+        if entrypoint != NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
+            return None
+        allowed_reasons = {"daily_limit_reached"}
+    elif entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
-    if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":
+    elif entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":
         allowed_reasons = {"setup_required", "no_due_slot", "render_not_ready"}
         if loop_id == "ebook-en-tiktok-daily":
             allowed_reasons.add("publication_readiness_gate_closed")
@@ -1037,7 +1054,7 @@ def _verified_terminal_effect_result(
         entrypoint: str | None) -> tuple[str, ...] | None:
     if not _effect_result_hint_allowed(loop_id, entrypoint):
         return None
-    if entrypoint in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
+    if _no_effect_result_hint_allowed(loop_id, entrypoint):
         result = _verified_no_effect_result(path, loop_id, occurrence_id, entrypoint)
         if result is not None:
             return result

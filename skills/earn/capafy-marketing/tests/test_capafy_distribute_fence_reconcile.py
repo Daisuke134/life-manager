@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import os
+import stat
 import sys
 import types
 from pathlib import Path
@@ -24,6 +25,144 @@ def test_live_landing_commit_is_effected():
     p = proof(10, {"ok": True, "commits": [{"sha": "abc", "slug": "capafy-x-2026-09-29-h15"}]},
               {"ok": True, "posts": []})
     assert p["verified"] and p["effected"] and "abc" in p["provider_receipt_id"]
+
+
+def test_effect_proof_writes_runtime_accepted_writer_receipt(tmp_path, monkeypatch):
+    from runtime.loop.lm_loop_run import _verified_terminal_effect_result
+
+    sha = "d2a734607fc85c0fde294243f4085401dcc8fb0f"
+    slug = "capafy-x-2026-09-29-h21m00"
+    url = f"https://aniccaai.com/blog/{slug}"
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, slug, slot="2026-09-29-h21m00")
+    monkeypatch.setattr(rec, "occurrence_queued_at", lambda _occurrence: Q)
+    monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
+        "ok": True, "commits": [{"sha": sha, "slug": slug}],
+    })
+    monkeypatch.setattr(rec, "read_x_posts", lambda _start, _end: {
+        "ok": True, "posts": [],
+    })
+    monkeypatch.setattr(rec, "page_status", lambda checked_slug: 200 if checked_slug == slug else 404)
+    hint = tmp_path / "entrypoint-result.json"
+
+    proof = rec.write_result_hint(OCC, hint)
+    assert proof["hint_written"] is True
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+    entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
+    result = _verified_terminal_effect_result(hint, rec.OWNER_ID, OCC, entrypoint)
+    assert result == ("reconciled", f"writer://runs/{sha}", url)
+
+
+def test_no_effect_hint_is_exactly_bound_to_already_published_slot(tmp_path, monkeypatch):
+    from runtime.loop.lm_loop_run import _verified_terminal_effect_result
+
+    slot = "2026-09-29-h17m00"
+    occurrence_run(
+        tmp_path, monkeypatch, OCC, Q, "capafy-x-2026-09-29-h17m00", slot=slot,
+    )
+    state_dir = tmp_path / "capafy-state"
+    state_dir.mkdir()
+    ledger = state_dir / "ledger.json"
+    ledger.write_text(json.dumps({slot: {"status": "published"}}))
+    ledger.chmod(0o600)
+    monkeypatch.setattr(rec, "EVENTS_PATH", tmp_path / "events.jsonl")
+    monkeypatch.setattr(rec, "LEDGER_PATH", ledger)
+    hint = tmp_path / "entrypoint-result.json"
+    entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
+    assert rec.write_no_effect_result_hint(OCC, hint, "daily_limit_reached", slot)
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+    assert _verified_terminal_effect_result(hint, rec.OWNER_ID, OCC, entrypoint) == (
+        "not_applicable", f"lm-no-effect://{rec.OWNER_ID}/{OCC}/daily_limit_reached")
+
+    forged = tmp_path / "forged.json"
+    assert not rec.write_no_effect_result_hint(
+        "other-owner:run-1", forged, "daily_limit_reached", slot)
+    assert not forged.exists()
+    assert not rec.write_no_effect_result_hint(OCC, forged, "daily_limit_reached", "2026-09-29-h17m30")
+    assert not forged.exists()
+
+
+def test_no_effect_hint_ignores_untrusted_event_and_state_root_overrides(tmp_path, monkeypatch):
+    slot = "2026-09-29-h17m00"
+    events = tmp_path / "events.jsonl"
+    occurrence_run(
+        tmp_path, monkeypatch, OCC, Q, "capafy-x-2026-09-29-h17m00", slot=slot,
+    )
+    state_dir = tmp_path / "canonical-state"
+    state_dir.mkdir()
+    ledger = state_dir / "ledger.json"
+    ledger.write_text(json.dumps({}))
+    monkeypatch.setattr(rec, "EVENTS_PATH", events)
+    monkeypatch.setattr(rec, "LEDGER_PATH", ledger)
+
+    attacker_state = tmp_path / "attacker-state"
+    attacker_state.mkdir()
+    (attacker_state / "ledger.json").write_text(
+        json.dumps({slot: {"status": "published"}}))
+    attacker_events = tmp_path / "attacker-events.jsonl"
+    attacker_events.write_text("{}\n")
+    monkeypatch.setenv("CAPAFY_DISTRIBUTE_STATE_DIR", str(attacker_state))
+    monkeypatch.setenv("CAPAFY_DISTRIBUTE_EVENTS_PATH", str(attacker_events))
+
+    hint = tmp_path / "attacker-result.json"
+    assert not rec.write_no_effect_result_hint(OCC, hint, "daily_limit_reached", slot)
+    assert not hint.exists()
+
+    ledger.write_text(json.dumps({slot: {"status": "published"}}))
+    assert rec.write_no_effect_result_hint(OCC, hint, "daily_limit_reached", slot)
+
+
+def test_forged_proof_dictionary_is_not_a_writer_api_and_existing_hint_is_never_overwritten(
+        tmp_path, monkeypatch):
+    prove_occurrence = rec.prove_occurrence
+    hint = tmp_path / "entrypoint-result.json"
+    forged = {"owner_id": rec.OWNER_ID, "occurrence_id": OCC,
+              "verified": True, "effected": True,
+              "proof_kind": "official_github_landing_commit_and_live_page",
+              "expected_slug": "x",
+              "provider_receipt_id": "github:" + "a" * 40 + "|https://aniccaai.com/blog/x"}
+    monkeypatch.setattr(rec, "prove_occurrence", lambda _occurrence: (_ for _ in ()).throw(
+        AssertionError("invalid occurrence must fail before official readback")))
+    assert rec.write_result_hint(forged, hint)["hint_written"] is False
+    assert not hint.exists()
+
+    slug = "capafy-x-2026-09-29-h15m00"
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, slug, slot="2026-09-29-h15m00")
+    monkeypatch.setattr(rec, "prove_occurrence", prove_occurrence)
+    monkeypatch.setattr(rec, "occurrence_queued_at", lambda _occurrence: Q)
+    monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
+        "ok": True, "commits": [{"sha": "a" * 40, "slug": slug}],
+    })
+    monkeypatch.setattr(rec, "read_x_posts", lambda _start, _end: {"ok": True, "posts": []})
+    monkeypatch.setattr(rec, "page_status", lambda _slug: 200)
+    hint.write_text("existing\n")
+    assert rec.write_result_hint(OCC, hint)["hint_written"] is False
+    assert hint.read_text() == "existing\n"
+
+
+def test_result_hint_cli_returns_success_only_after_writing_verified_proof(
+        tmp_path, monkeypatch):
+    hint = tmp_path / "entrypoint-result.json"
+    slug = "capafy-x-2026-09-29-h15m00"
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, slug, slot="2026-09-29-h15m00")
+    monkeypatch.setattr(rec, "occurrence_queued_at", lambda _occurrence: Q)
+    monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
+        "ok": True, "commits": [{"sha": "b" * 40, "slug": slug}],
+    })
+    monkeypatch.setattr(rec, "read_x_posts", lambda _start, _end: {"ok": True, "posts": []})
+    monkeypatch.setattr(rec, "page_status", lambda checked_slug: 200 if checked_slug == slug else 404)
+
+    assert rec.main(["--occurrence", OCC, "--result-hint", str(hint)]) == 0
+    assert json.loads(hint.read_text())["provider_receipt_id"] == "b" * 40
+
+    held_hint = tmp_path / "held-result.json"
+    monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
+        "ok": True, "commits": [],
+    })
+    monkeypatch.setattr(rec, "read_x_posts", lambda _start, _end: {
+        "ok": True, "posts": ["unexpected-post"],
+    })
+    assert rec.main(["--occurrence", OCC, "--result-hint", str(held_hint)]) == 1
+    assert not held_hint.exists()
 
 
 def test_commit_without_live_page_stays_fenced():
@@ -156,6 +295,34 @@ def test_occurrence_manifest_records_exact_runtime_slot(tmp_path):
     assert json.loads(path.read_text()) == record
     assert record["slot"] == "2026-09-30-h00m00"
     assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_success_proof_uses_exact_parent_occurrence_and_official_landing_receipt(
+        tmp_path, monkeypatch):
+    started = Q + dt.timedelta(hours=4)
+    occurrence_id = "capafy-distribute-daily:parent-run-1"
+    slug = "capafy-x-2026-09-29-h21m00"
+    occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug)
+    windows = []
+
+    def commits_fn(start, end):
+        windows.append((start, end))
+        return {"ok": True, "commits": [{"sha": "a" * 40, "slug": slug}]}
+
+    proof = rec.prove_occurrence(
+        occurrence_id,
+        now=started + dt.timedelta(minutes=5),
+        queued_at_fn=lambda _occurrence: Q,
+        commits_fn=commits_fn,
+        x_fn=lambda _start, _end: {"ok": True, "posts": []},
+        page_status_fn=lambda checked_slug: 200 if checked_slug == slug else 404,
+    )
+
+    assert windows == [(started, started + dt.timedelta(seconds=rec.MAX_RUN_SECONDS))]
+    assert proof["occurrence_id"] == occurrence_id
+    assert proof["expected_slug"] == slug
+    assert proof["verified"] is True and proof["effected"] is True
+    assert proof["provider_receipt_id"] == f"github:{'a' * 40}|https://aniccaai.com/blog/{slug}"
 
 
 def test_occurrence_manifest_rejects_runtime_identity_mismatch(tmp_path):

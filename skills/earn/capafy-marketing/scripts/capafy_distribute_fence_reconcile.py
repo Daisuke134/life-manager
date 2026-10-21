@@ -55,6 +55,9 @@ NO_EFFECT_MIN_AGE_SECONDS = MAX_RUN_SECONDS + 900
 EVENTS_PATH = Path(
     "~/.local/state/life-manager/writer/capafy-distribute/events.jsonl"
 ).expanduser()
+LEDGER_PATH = Path(
+    "~/.local/state/life-manager/writer/capafy-distribute/ledger.json"
+).expanduser()
 RUNS_ROOT = Path(
     "~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/runs"
 ).expanduser()
@@ -90,6 +93,22 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
     if row is None or row[1] is None:
         raise ValueError("occurrence is not an effect_unknown row")
     return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
+
+
+def occurrence_queued_at(occurrence_id: str) -> dt.datetime:
+    """Read the queue timestamp for a claimed or released parent occurrence."""
+    from runtime.host import resource_admission
+
+    run_id = _run_id_for_occurrence(occurrence_id)
+    database = resource_admission.state_root() / "admission-v2.sqlite3"
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
+        row = connection.execute(
+            "SELECT queued_at FROM occurrences WHERE owner_id=? AND occurrence_id=?",
+            (OWNER_ID, f"{OWNER_ID}:{run_id}"),
+        ).fetchone()
+    if row is None or row[0] is None:
+        raise ValueError("occurrence admission row missing")
+    return dt.datetime.fromtimestamp(float(row[0]), dt.timezone.utc)
 
 
 def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -> dt.datetime:
@@ -511,6 +530,124 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
     return proof
 
 
+def prove_occurrence(occurrence_id: str, *, now: dt.datetime | None = None,
+                     queued_at_fn=None, started_at_fn=None, expected_slug_fn=None,
+                     commits_fn=None, x_fn=None, page_status_fn=None) -> dict[str, Any]:
+    """Read official publication proof for this parent run without changing admission."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    queued_at_fn = queued_at_fn or occurrence_queued_at
+    started_at_fn = started_at_fn or occurrence_started_at
+    expected_slug_fn = expected_slug_fn or expected_article_slug
+    commits_fn = commits_fn or read_landing_commits
+    x_fn = x_fn or read_x_posts
+    page_status_fn = page_status_fn or page_status
+    queued_at = queued_at_fn(occurrence_id)
+    started_at = started_at_fn(occurrence_id)
+    expected_slug = expected_slug_fn(occurrence_id)
+    end = started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
+    return build_proof(
+        occurrence_id, queued_at, started_at=started_at,
+        expected_slug=expected_slug, now=now,
+        commits=commits_fn(started_at, end), x_posts=x_fn(started_at, end),
+        page_status_fn=page_status_fn,
+    )
+
+
+def _write_private_hint(path: Path, value: dict[str, Any]) -> bool:
+    try:
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+    except OSError:
+        return False
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(json.dumps(value, sort_keys=True) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    return True
+
+
+def write_result_hint(occurrence_id: str, path: Path) -> dict[str, Any]:
+    """Read official proof internally, then write only its exact occurrence receipt."""
+    if (not isinstance(occurrence_id, str)
+            or not re.fullmatch(rf"{re.escape(OWNER_ID)}:[A-Za-z0-9_-]{{1,128}}", occurrence_id)):
+        return {"owner_id": OWNER_ID, "verified": False,
+                "hint_written": False, "reason": "invalid_occurrence"}
+    requested_occurrence_id = occurrence_id
+    proof = prove_occurrence(requested_occurrence_id)
+    proof["hint_written"] = False
+    occurrence_id = proof.get("occurrence_id")
+    expected_slug = proof.get("expected_slug")
+    receipt = proof.get("provider_receipt_id")
+    if (proof.get("verified") is not True or proof.get("effected") is not True
+            or proof.get("proof_kind") != "official_github_landing_commit_and_live_page"
+            or proof.get("owner_id") != OWNER_ID
+            or occurrence_id != requested_occurrence_id
+            or not isinstance(occurrence_id, str)
+            or not occurrence_id.startswith(f"{OWNER_ID}:")
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", occurrence_id.split(":", 1)[1])
+            or not isinstance(expected_slug, str)
+            or not re.fullmatch(r"[a-z0-9-]{1,160}", expected_slug)
+            or not isinstance(receipt, str)):
+        return proof
+    match = re.fullmatch(
+        r"github:([0-9a-f]{40})\|(https://aniccaai\.com/blog/([a-z0-9-]{1,160}))",
+        receipt,
+    )
+    if match is None or match.group(3) != expected_slug:
+        return proof
+    proof["hint_written"] = _write_private_hint(path, {
+        "schema_version": 1,
+        "kind": "life_manager_effect_result",
+        "status": "verified_effect",
+        "effect": 1,
+        "owner_id": OWNER_ID,
+        "occurrence_id": occurrence_id,
+        "provider": "writer",
+        "provider_receipt_id": match.group(1),
+        "effect_status": "reconciled",
+        "live_urls": [match.group(2)],
+    })
+    return proof
+
+
+def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
+                                slot: str) -> bool:
+    """Report no effect only when this exact occurrence's slot is already published."""
+    if (not isinstance(occurrence_id, str)
+            or not occurrence_id.startswith(f"{OWNER_ID}:")
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", occurrence_id.split(":", 1)[1])
+            or reason != "daily_limit_reached"
+            or not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot)):
+        return False
+    started_at = occurrence_started_at(occurrence_id, events_path=EVENTS_PATH)
+    local = started_at.astimezone(ZoneInfo("Asia/Tokyo"))
+    half_hour = (local.minute // 30) * 30
+    expected_slot = f"{local:%Y-%m-%d}-h{local.hour:02d}m{half_hour:02d}"
+    if slot != expected_slot:
+        return False
+    if LEDGER_PATH.is_symlink():
+        return False
+    try:
+        from capafy_distribute_ledger import is_published  # noqa: PLC0415
+
+        if not is_published(LEDGER_PATH, slot):
+            return False
+    except (OSError, ValueError, TypeError):
+        return False
+    return _write_private_hint(path, {
+        "schema_version": 1,
+        "kind": "life_manager_no_effect_result",
+        "status": "verified_no_effect",
+        "effect": 0,
+        "owner_id": OWNER_ID,
+        "occurrence_id": occurrence_id,
+        "reason": reason,
+    })
+
+
 def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | None = None,
               fenced_row_fn=fenced_row, commits_fn=read_landing_commits,
               x_fn=read_x_posts, page_status_fn=page_status, resolve_fn=None,
@@ -550,8 +687,32 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--occurrence", required=True)
     parser.add_argument("--resolve", action="store_true")
+    parser.add_argument("--result-hint")
+    parser.add_argument("--no-effect-reason", choices=("daily_limit_reached",))
+    parser.add_argument("--slot")
     args = parser.parse_args(argv)
     try:
+        if args.no_effect_reason and (not args.result_hint or not args.slot):
+            raise ValueError("--no-effect-reason requires --result-hint and --slot")
+        if args.result_hint:
+            if args.resolve:
+                raise ValueError("--result-hint cannot resolve an admission fence")
+            if args.no_effect_reason:
+                written = write_no_effect_result_hint(
+                    args.occurrence, Path(args.result_hint), args.no_effect_reason, args.slot,
+                )
+                result = {"owner_id": OWNER_ID, "occurrence_id": args.occurrence,
+                          "verified": written, "effected": False,
+                          "reason": args.no_effect_reason, "hint_written": written}
+            else:
+                result = write_result_hint(args.occurrence, Path(args.result_hint))
+                written = result.get("hint_written") is True
+            print(json.dumps(result, sort_keys=True, default=str))
+            if not written:
+                print("CAPAFY_DISTRIBUTE_RESULT_HINT=HELD")
+                return 1
+            print("CAPAFY_DISTRIBUTE_RESULT_HINT=PASS")
+            return 0
         result = reconcile(args.occurrence, resolve=args.resolve)
     except (OSError, ValueError, sqlite3.Error) as exc:
         print(json.dumps({"owner_id": OWNER_ID, "occurrence_id": args.occurrence,

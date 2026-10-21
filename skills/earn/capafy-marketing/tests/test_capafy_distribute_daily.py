@@ -105,6 +105,49 @@ def test_second_dry_run_same_day_is_a_no_op_and_does_not_rewrite_the_pick(tmp_pa
     assert first_ledger == second_ledger  # idempotent: no duplicate publish, same receipt
 
 
+def test_already_published_slot_writes_occurrence_bound_no_effect_hint(tmp_path: Path) -> None:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    now = datetime.now(ZoneInfo("Asia/Tokyo"))
+    slot = f"{now:%Y-%m-%d}-h{now.hour:02d}m{(now.minute // 30) * 30:02d}"
+    home = tmp_path / "home"
+    state_dir = home / ".local/state/life-manager/writer/capafy-distribute"
+    state_dir.mkdir(parents=True)
+    (state_dir / "ledger.json").write_text(json.dumps({slot: {"status": "published"}}))
+    occurrence = "capafy-distribute-daily:test-run-1"
+    events = state_dir / "events.jsonl"
+    events.write_text(json.dumps({
+        "owner_id": "capafy-distribute-daily",
+        "run_id": "test-run-1",
+        "occurrence_id": occurrence,
+        "phase": "execute",
+        "status": "running",
+        "timestamp": now.isoformat(),
+    }) + "\n")
+    hint = tmp_path / "entrypoint-result.json"
+
+    result = run(tmp_path, {
+        "HOME": str(home),
+        "WRITER_STATE_DIR": str(home / ".local/state/life-manager/writer"),
+        "CAPAFY_DISTRIBUTE_STATE_DIR": str(state_dir),
+        "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+    })
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    value = json.loads(hint.read_text())
+    assert value == {
+        "schema_version": 1,
+        "kind": "life_manager_no_effect_result",
+        "status": "verified_no_effect",
+        "effect": 0,
+        "owner_id": "capafy-distribute-daily",
+        "occurrence_id": "capafy-distribute-daily:test-run-1",
+        "reason": "daily_limit_reached",
+    }
+    assert hint.stat().st_mode & 0o777 == 0o600
+
+
 def test_model_publish_command_keeps_a_multiword_query_as_one_argument() -> None:
     # Bash strips the quotes inside ${VAR:+ "..."} in a here-document, so the model was
     # handed `--title-must-contain hook script template` and publish failed (10/18-19).
@@ -118,6 +161,14 @@ def test_model_publish_command_keeps_a_multiword_query_as_one_argument() -> None
         capture_output=True, text=True, check=True,
     ).stdout
     assert shlex.split(out) == ["x", "--title-must-contain", "hook script template", "--indexnow-key", "k"]
+
+
+def test_model_runner_does_not_inherit_loop_owned_result_hint_path() -> None:
+    text = SCRIPT.read_text()
+    dispatch = text.index('python3 "$LIFE_MANAGER_REPO/runtime/loop/bounded-exec.py"')
+    sanitization = text.rfind(
+        "env -u LIFE_MANAGER_RESULT_HINT_PATH -u CAPAFY_DISTRIBUTE_STATE_DIR", 0, dispatch)
+    assert sanitization >= 0
 
 
 def test_seo_brief_renders_under_launchd_python39() -> None:

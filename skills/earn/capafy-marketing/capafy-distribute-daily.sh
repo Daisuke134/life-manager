@@ -90,6 +90,12 @@ CHECK_RC=0
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || CHECK_RC=$?
 if [ "$CHECK_RC" -eq 10 ]; then
   echo "capafy-distribute-daily: already published slot=$SLOT, skipping (fail closed, no duplicate)" >>"$LOG"
+  if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+    python3 "$SELF_DIR/capafy_distribute_fence_reconcile.py" \
+      --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
+      --result-hint "$LIFE_MANAGER_RESULT_HINT_PATH" \
+      --no-effect-reason daily_limit_reached --slot "$SLOT" >>"$LOG" 2>&1 || exit 1
+  fi
   exit 0
 elif [ "$CHECK_RC" -ne 0 ]; then
   echo "capafy-distribute-daily: ledger check failed rc=$CHECK_RC" >>"$LOG"
@@ -306,7 +312,8 @@ PROMPT_EOF
 ARTICLE_MODEL_RUNNER="${ARTICLE_MODEL_RUNNER:-$ARTICLE_ROOT/runtime/model-runner.sh}"
 ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS="${CAPAFY_DISTRIBUTE_MODEL_AGENT_TIMEOUT_SECONDS:-1800}"
 
-BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-writers.stop" \
+env -u LIFE_MANAGER_RESULT_HINT_PATH -u CAPAFY_DISTRIBUTE_STATE_DIR \
+  BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-writers.stop" \
 ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
   python3 "$LIFE_MANAGER_REPO/runtime/loop/bounded-exec.py" \
     "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \
@@ -411,5 +418,18 @@ if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
 fi
 POST_RC=0
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?
-[ "$POST_RC" -eq 10 ] && exit 0
+if [ "$POST_RC" -eq 10 ]; then
+  if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ] \
+      && [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+    python3 "$SELF_DIR/capafy_distribute_fence_reconcile.py" \
+      --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
+      --result-hint "$LIFE_MANAGER_RESULT_HINT_PATH" >>"$LOG" 2>&1 || exit 1
+  fi
+  exit 0
+fi
+if [ "$RC" -eq 0 ] && [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ] \
+    && [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+  echo "capafy-distribute-daily: published slot lacks a verified result hint" >>"$LOG"
+  exit 1
+fi
 exit "$RC"
