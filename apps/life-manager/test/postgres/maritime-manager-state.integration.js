@@ -7,6 +7,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { Client } = require("pg");
 const test = require("node:test");
+const { normalizeWebFunnelEvent } = require("../../lib/web-funnel-events.js");
 
 const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
 const MANAGER_TABLES = [
@@ -83,9 +84,10 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(relations.lm_maritime_manager_enrollments, "lm_maritime_manager_enrollments");
     assert.equal(relations.lm_maritime_manager_executions, "lm_maritime_manager_executions");
     assert.equal(relations.lm_maritime_pilot_participants, "lm_maritime_pilot_participants");
+    assert.equal(relations.lm_web_funnel_events, "lm_web_funnel_events");
     assert.equal((await client.query("SELECT to_regclass('public.lm_users') AS relation")).rows[0].relation, null,
       "Manager runtime state does not require or create the global lm_users table");
-    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions", "lm_maritime_pilot_participants"].includes(name))) {
+    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions", "lm_maritime_pilot_participants", "lm_web_funnel_events"].includes(name))) {
       assert.equal(relations[table], null, `${table} stays out of this Manager migration`);
     }
 
@@ -218,9 +220,93 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(restored.source, acceptedSource, "re-consent preserves first-touch source");
     assert.equal(restored.revoked_at, null);
     assert.equal(await claimParticipant(client, "e".repeat(64), "direct"), "capacity_full", "re-consent does not increase capacity");
+
+    const funnelColumns = await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_web_funnel_events'",
+    );
+    const funnelNames = new Set(funnelColumns.rows.map(row => row.column_name));
+    for (const column of ["event_id", "event_name", "audience_kind", "uid", "source_object_id", "source_event_id", "attribution", "amount_usd", "currency", "billing_reason", "occurred_at"]) {
+      assert.ok(funnelNames.has(column), `funnel schema includes ${column}`);
+    }
+    const insertFunnelEvent = row => client.query(
+      `INSERT INTO public.lm_web_funnel_events(event_id,event_name,audience_kind,uid,source_object_id,source_event_id,attribution,amount_usd,currency,billing_reason,occurred_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11::timestamptz)`,
+      [row.event_id, row.event_name, row.audience_kind || null, row.uid, row.source_object_id, row.source_event_id,
+        JSON.stringify(row.attribution), row.amount_usd, row.currency, row.billing_reason, row.occurred_at],
+    );
+    const invoiceRow = normalizeWebFunnelEvent({
+      eventName: "paid_invoice", eventId: "invoice-1", uid: uidA, sourceObjectId: "in_1", sourceEventId: "stripe-event-1",
+      amountUsd: 29, currency: "USD", billingReason: "subscription_cycle", attribution: {},
+    }, Date.parse("2026-10-21T00:00:00Z"));
+    await insertFunnelEvent(invoiceRow);
+    const storedInvoice = (await client.query("SELECT uid,audience_kind,amount_usd,currency,billing_reason FROM public.lm_web_funnel_events WHERE event_id='invoice-1'")).rows[0];
+    assert.equal(storedInvoice.uid, uidA);
+    assert.equal(storedInvoice.audience_kind, null);
+    assert.equal(storedInvoice.amount_usd, "29");
+    assert.equal(storedInvoice.currency, "usd");
+    assert.equal(storedInvoice.billing_reason, "subscription_cycle");
+    const workRow = normalizeWebFunnelEvent({
+      eventName: "maritime_work_completed", eventId: "work-1", audienceKind: "external",
+      sourceObjectId: "f".repeat(64), sourceEventId: "maritime:work-event-1",
+      attribution: { utm_source: "maritime-instagram", utm_medium: "web", utm_campaign: "the-first-1000" },
+    }, Date.parse("2026-10-21T00:00:00Z"));
+    await insertFunnelEvent(workRow);
+    const storedWork = (await client.query("SELECT * FROM public.lm_web_funnel_events WHERE event_id='work-1'")).rows[0];
+    assert.equal(storedWork.audience_kind, "external");
+    assert.equal(storedWork.attribution.utm_source, "maritime-instagram");
+    assert.equal(storedWork.occurred_at.toISOString(), workRow.occurred_at, "the current normalizer payload stores without transformation");
+    await insertFunnelEvent(normalizeWebFunnelEvent({
+      eventName: "maritime_work_completed", eventId: "work-2", audienceKind: "external",
+      sourceObjectId: "f".repeat(64), sourceEventId: "maritime:work-event-2",
+    }, Date.parse("2026-10-21T00:01:00Z")));
+    await assert.rejects(
+      insertFunnelEvent(normalizeWebFunnelEvent({
+        eventName: "maritime_report_sent", eventId: "report-duplicate-source", audienceKind: "external",
+        sourceObjectId: "f".repeat(64), sourceEventId: "maritime:work-event-1",
+      })),
+      error => error.code === "23505",
+      "stable source_event_id is globally unique",
+    );
+    const startRow = normalizeWebFunnelEvent({
+      eventName: "maritime_start", eventId: "start-1", sourceObjectId: "f".repeat(64), sourceEventId: "maritime:start-event-1",
+    });
+    await insertFunnelEvent(startRow);
+    await assert.rejects(
+      insertFunnelEvent(normalizeWebFunnelEvent({
+        eventName: "maritime_start", eventId: "start-2", sourceObjectId: "f".repeat(64), sourceEventId: "maritime:start-event-2",
+      })),
+      error => error.code === "23505",
+      "a one-time milestone cannot be duplicated for one source object",
+    );
+    await assert.rejects(
+      insertFunnelEvent({ ...workRow, event_id: "bad-audience-1", event_name: "paid_invoice", audience_kind: "external", source_event_id: "bad-audience-source-1" }),
+      error => error.code === "23514",
+      "only Maritime events may be assigned an audience kind",
+    );
+    await assert.rejects(
+      insertFunnelEvent({ ...workRow, event_id: "bad-audience-2", audience_kind: "everyone", source_event_id: "bad-audience-source-2", source_object_id: "e".repeat(64) }),
+      error => error.code === "23514",
+      "audience kind is restricted to internal or external",
+    );
+    await assert.rejects(
+      client.query("UPDATE public.lm_web_funnel_events SET attribution='{}'::jsonb WHERE event_id='work-1'"),
+      error => error.code === "P0001",
+      "funnel events are append-only for updates",
+    );
+    await assert.rejects(
+      client.query("DELETE FROM public.lm_web_funnel_events WHERE event_id='work-1'"),
+      error => error.code === "P0001",
+      "funnel events are append-only for deletes",
+    );
+    await assert.rejects(
+      client.query("TRUNCATE public.lm_web_funnel_events"),
+      error => error.code === "P0001",
+      "funnel events are append-only for truncation",
+    );
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
     assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
+    assert.equal((await client.query("SELECT event_id FROM public.lm_web_funnel_events WHERE event_id='work-1'")).rows[0].event_id, "work-1", "reapplying the migration preserves append-only events");
   } finally {
     if (racingClient) await racingClient.end();
     if (client) await client.end();

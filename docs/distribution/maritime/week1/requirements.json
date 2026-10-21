@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-21T00:17:09.321733+00:00",
+  "observed_at": "2026-10-21T00:45:08Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
@@ -58,7 +58,7 @@
     "latest_observation": "Refreshed 2026-10-21: no newer week-1 deadline or required project form was visible; announcements page remained loading, so its current posts were not fully read. Submission channel caveat remains."
   },
   "submission_status": "not_submitted",
-  "mail_checked_at": "2026-10-21T00:17:09.321733+00:00",
+  "mail_checked_at": "2026-10-21T00:45:08Z",
   "official_instruction_email_unchanged": null,
   "participant_access": {
     "source_subject": "You're in! Keiki x Maritime",
@@ -77,12 +77,10 @@
     "link_authentication": "pending user action; connector withholds OTP"
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T00:17:09.321733+00:00",
+    "observed_at": "2026-10-21T00:45:08Z",
     "source_urls": [
       "https://competition.maritime.sh/",
-      "https://competition.maritime.sh/terms",
-      "https://competition.maritime.sh/video",
-      "https://keikixmaritime.slack.com"
+      "https://competition.maritime.sh/terms"
     ],
     "terms_last_updated": "2026-10-15",
     "official_goal": "1000 distinct users with real usage during the six-week window; first three verified projects to reach the target win",
@@ -91,7 +89,7 @@
     "week1_deadline_time": null,
     "week1_deadline_reason": "Kickoff email says end of week one; no exact time/timezone in that email or current Program Terms, and the latest announcements view did not fully load",
     "project_submission_status": "not_submitted",
-    "gmail_refresh": "Keiki search in the current authenticated mailbox found no newer matching message; prior 2026-10-19 kickoff email remains the last confirmed instruction"
+    "gmail_refresh": "Mailbox search after 2026-10-19 found the 2026-10-19 Keiki kickoff as the latest competition instruction; newer Maritime welcome/verification emails are account notices, not a new deadline or submission form"
   },
-  "official_instruction_email_unchanged_reason": "No newer Keiki match appeared in the current Gmail search; the prior kickoff email remains the last confirmed instruction."
+  "official_instruction_email_unchanged_reason": "The 2026-10-21 mailbox search found no newer Keiki competition instruction. The Oct 20 Maritime welcome and email-verification notices do not state a week-one deadline or project submission route."
 }

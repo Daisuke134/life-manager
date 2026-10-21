@@ -1,0 +1,35 @@
+{
+  "observed_at": "2026-10-21T00:53:31Z",
+  "source_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "6f2c2af523f025fbccbcb6959375fb22993e8fac6daaf40c81d29137192f2bfe",
+  "test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "fixture": "native PostgreSQL 17 over private Unix socket; stopped and removed",
+  "relations_present_after_migration": [
+    "lm_maritime_manager_identities",
+    "lm_maritime_manager_enrollments",
+    "lm_maritime_manager_executions",
+    "lm_maritime_pilot_participants",
+    "lm_web_funnel_events"
+  ],
+  "relations_absent_after_migration": ["lm_cfo_result_receipts"],
+  "normalized_payload_inserted_without_transformation": true,
+  "existing_paid_invoice_normalizer_payload_inserted": true,
+  "stable_source_event_unique": true,
+  "single_milestone_source_unique": true,
+  "repeatable_work_and_report_events_supported": true,
+  "audience_kind": {
+    "null_allowed": true,
+    "maritime_only": true,
+    "allowed_values": ["internal", "external"]
+  },
+  "append_only": {
+    "update_rejected": true,
+    "delete_rejected": true,
+    "truncate_rejected": true
+  },
+  "migration_reapply_preserves_events": true
+}

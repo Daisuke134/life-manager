@@ -21142,11 +21142,11 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 これは推奨準備物であり、公式必須形式・提出済みとは扱わない。
 
-**Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。Manager側はDM文案・X/IG copy・動画台本・公開URL・source別計測を開発と並行して用意する。3人の返答・利用・feedbackを、開発・配布素材・提出の開始条件にしない。無料pilotでも利用は未保証。動くURLと真実のdemoが揃った時点で配布し、visit→email確認→起動→業務完了→再利用を測る。自社LM獲得と、利用者businessのCapafy訪問/注文は別funnel。利益は実測するが、競技の公表winner条件を「最高利益」へ置換しない。参照事例と模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
+**Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。初期獲得は既存`aniccaai.com/blog/manager`のSEO記事を主軸、既存Postiz接続済みXアカウントのbuild-in-public投稿を補助とする。既存Writer workflowを再利用し、複数destinationへの自動配布を無条件に起動しない。Life Managerを既存Instagram profileへ混在させず、新規Instagram/X accountも作らない。Instagramは初期配布から外す。Xは一つの既存profileから独自の確認済み情報を一投稿し、duplicate post/自動DM/サイト操作scriptを使わない。3人の返答・利用・feedbackを開発・配布素材・提出の開始条件にしない。SEO/Xの有用な実績は参考にするが、同一の自律Life Managerから1,000人獲得した因果事例は未確認なので、まず一記事・一投稿で検証する。公開URLと実証済みdemoが揃った後、search impression/click・X click・email verified・activation・work completion・returnをsource別に測る。Blog reader/follower/impression/signupだけを競技利用者にしない。自社LM獲得と利用者businessのCapafy訪問/注文は別funnel。参照例・限界・模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
 
-**TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
+**TODO順変更:** 旧配布順=DM+X/IG文案→X/IG/community投稿。新配布順=既存blogのSEO記事1本→既存Postiz Xから独自build-in-public投稿1件→source別の実利用計測→実績に応じて他媒体検討、IGは除外。理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。文案と成功事例調査は公開URL/友人の返事を待たず進め、投稿は稼働製品と実証済みclaim後に行う。現在cursor=T22.1b.6-07、b.6-06 schema test pass後のCFO receipt schema。進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-06（funnel event schema/append-only）。b.6-01〜05のnative PG identity/enrollment/execution/participant schemaは完了。b.6-04のclaim/rebind evidence→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json`、b.6-05のInstagram source/並行容量claim evidence→`docs/evidence/maritime/runtime-pg-manager-participant-capacity.json`。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映。health/source hashes一致・Linux privilege/browser境界をread-only probeで確認した。新しいoffline draft cycleはcompleted/exit0、receipt3 refs、7 filesのproof/download hash一致、listing linter pass。provider未接続のため公開/売上/入金なし、外部user0。既存v3 deferredと6-file unknown receiptは保持。b.6-06以降の保存経路・実PKCE/起動/日報/停止、公開URLと実利用、作品の正式提出は未完。提出フォームと初週の正確な締切時刻は未確認。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-07（CFO receipt schema/function）。b.6-01〜06 Runtime PG identity/enrollment/execution/participant/funnel schemaは完了、native PostgreSQL 17 test 1/1 pass、production DSN不使用。b.6-06のpayload/audience/source-event/append-only証拠→`docs/evidence/maritime/runtime-pg-manager-funnel-schema.json`。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映しoffline draft occurrenceはverified。これは公開製品ではなく外部user0、売上/入金なし。Hosted signup→activate→cloud work→daily report、公開URL、正式作品提出は未完。初週の正確な締切と提出formは未公表。配布準備は既存blog SEO+既存Postiz Xへ更新済みだがarticle/postは未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21171,12 +21171,12 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T19 | 既存CFO/Resendへの一日一通配信 | #8424/main0cで既存CFO/Resendの日次adapterを統合する。SMTP/Authのowned着信は別途確認済み。Manager日報の新period送信/受信箱/自然継続はT22で未確認。 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | #8424/main0cへ停止API/同tenant lock/pause recoveryを統合する。paused永続化を先行し、receipt/過去結果を保持する。実環境の停止はT22で未確認。 |
 | T21 | 登録と業務完了を分けたsource別funnel | #8424/main0cへ署名first-touch/確認/起動/実仕事/受理日報/24h復帰を統合する。利用計測migrationはproduction公式success。内部cohortを設定し、登録/deferredを実仕事や外部利用者に数えない。新Managerの実計測は未確認。 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | main image・DB migration・非公開foundationは反映する。現在cursorは認証REST503 PGRST002/Auth timeoutの診断/回復→Maritime capability/flag有効化→owned PKCE/仕事/成果物/日報/停止。URL共有・正式提出は未完。 |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | main image・DB foundationと非公開offline occurrenceは確認済み。b.6-01〜06 Runtime PG schema source acceptance完了。現在cursor=b.6-07→b.6-24 PG store/handler接続→必要CI/main→DB反映→公開flag/cap→PKCE/仕事/成果物/日報/停止。公開URL・実利用・正式提出は未完。 |
 | T23 | 正式提出・一回submit・受付readback | T01/T22後。3人/売上/7日継続を待たない |
-| T24 | Dais用DMとX/IG文案、source別URL | 初稿保存済み、公開URL差込は未完。待ち依存なし |
+| T24 | 既存blogのSEO記事brief・既存Xの一投稿・Dais DM、source別URL | 成功事例と初期方針を更新。article/X copy、URL確定は未完。待ち依存なし |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
 | T26 | 日英公開説明と無料email入口のdeploy/readback | 原稿準備T06後、実URL切替T22後 |
-| T27 | DaisのDMとowned X/IG/community配布 | T22/T24/T26後、3人feedback待ちなし |
+| T27 | 既存blogの1記事→既存Postiz Xの1投稿→Dais DM | T22/T24/T26後。Instagram/新規accountは初期配布に使わない。3人feedback待ちなし |
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
 | T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T22直後。正式form未公表で止めず、T29の長期成長を待たない |
@@ -21248,7 +21248,9 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **T22.1b.6の保存先決定:** 主cursor=b.6-03。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
 
 
-**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-06（funnel event schema/append-only）。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。probeはUID/GID10001、caps0、NoNewPrivs、credentials非継承、fixed browser/CDP/DOM/cleanup pass。occurrence `week1-offline-a0-20261021-01`はcompleted/exit0、artifact refs3と追加4 fileをproof/downloadして全hash一致、listing linter pass。これは非公開offline draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。Runtime PGのidentity/enrollment/execution/participant schemaはb.6-01〜05完了、native PostgreSQL 17 fixture 1/1 pass、production DSN不使用。b.6-06以降の保存経路・PKCE/Manager artifact handler・user reportは未実装。作品の正式提出は`not_submitted`のまま、提出フォームと初週の正確な締切は未確認。実利用者・公開・実売上も未確認。
+**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-07（CFO receipt schema/function）。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP 91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。read-only probeはUID/GID10001・caps0・NoNewPrivs・credential非継承・fixed browser/CDP/DOM/cleanup pass。offline occurrenceはcompleted/exit0、receipt3 refsと追加4 filesのhash一致、listing linter pass。これは非公開draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。Runtime PG schema b.6-01〜06完了、b.6-07以降のManager store/PKCE/handler/reportは未完。作品の正式提出は`not_submitted`、project form/初週の正確な締切は未確認。したがってTop30進出・winner・San Francisco渡航は確定していない。旅行terms→`docs/distribution/maritime/week1/requirements.json`。配布は既存`aniccaai.com/blog/manager`のSEO記事＋既存Postiz Xを初期方針とし、Instagram/new accountは使わない。article/post/公開URLは未完。
+
+**As-Is → To-Be:** As-Isは、既存VMにoffline factory draftが一件あり、Runtime PGのsource schemaはb.6-01〜06まで通った状態。一般利用者向け登録→自律仕事→成果確認→日次メール→停止の一連動作、公開URL、外部利用者、正式作品提出は未成立。To-Beは、メール確認後にManager自身が仕事を選び実行し、証拠と結果をメール報告するCloud製品。利用者に目標/予算を設定させず、Telegramを必須にしない。初週は動く製品を提出してTop30進出を目指し、6週間では実利用のある別々の1,000人を公式project usageで検証する。現在はどちらの達成も確認できない。
 
 | 残ID | 一つずつ実行する範囲 | 状態 |
 |---|---|---|
@@ -21258,8 +21260,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | b.6-03 | enrollment schema / provision claim-bind | 完了、native PG17 claim一回・同一agent再bind・foreign subjectと別UIDのagent重複拒否→`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json` |
 | b.6-04 | execution schema / cycle claim-bind | 完了、native PG17二接続競合で一回claim・execution binding・pause・再適用→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json` |
 | b.6-05 | participant schema / capacity claim | 完了、native PG17二接続競合・Instagram・再同意・cap入力→`docs/evidence/maritime/runtime-pg-manager-participant-capacity.json` |
-| b.6-06 | funnel event / append-only guard | 現在cursor。stable source-event dedupと匿名/UID audience制約をnative PGで確認 |
-| b.6-07 | CFO receipt schema/function | 未着手 |
+| b.6-06 | funnel event / append-only guard | 完了、normalizer payload・stable source-event・audience・UPDATE/DELETE/TRUNCATE guard→`docs/evidence/maritime/runtime-pg-manager-funnel-schema.json` |
+| b.6-07 | CFO receipt schema/function | 現在cursor。uid/period unique、pending/sent整合、recipient hashをnative PGで確認 |
 | b.6-08〜14 | Manager CRUD/checkpoint・verified identity・first-touchのPG接続 | 未着手 |
 | b.6-15〜18 | 同意/容量/計測/CFO receiptのPG接続 | 未着手 |
 | b.6-19〜21 | frontend6経路・worker・return読取の接続 | 未着手 |
@@ -21267,10 +21269,10 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | b.6-25〜27 | 既存DBへの反映、loaded設定照合、flag/cap有効化 | 未着手 |
 | b.6-28〜34 | 実PKCE・起動・仕事/download・日報・停止・計測・packet更新 | 未着手 |
 | T30.1〜4 | Daisへの稼働URLメール一回送信とreadback | 未完 |
-| T24〜26 | 既存文案の実URL確定、実画面demo、媒体配布/流入計測 | 文案のみ、公開未完 |
+| T24〜26 | 既存blog SEO brief/X copy、実URL、実画面demo、公開readback | strategy/cases更新済み。article/post/demo/public route未完 |
 | T23 | 正式経路/締切/field確認、一回提出、受付readback | 未完、正式form/初週時刻は未公表 |
 | T08/T09/T10 | 同tenantのCapafy認証・正規publish・公式売上collector→workerへの接続 | 本番の販売/売上は未確認 |
-| T27〜29 | 実利用・継続・cap3からの段階拡大 | 未完 |
+| T27〜29 | SEO blog→既存X→実利用/再利用/cap段階拡大 | 未完、外部利用者0。初期waveでInstagramは使わない |
 | T31.1〜9 | Calendar/Supabase直結の既存課金をManagerへ分離接続し、公式売上/純利益を確認 | 未完 |
 
 各IDの対象file・method・操作・完了条件はAtomic Planのb.6と既存T節が所有する。enableはPG/Auth読取確認後・実製品受入前に行う。友人の参加待ちを開発/素材制作へ戻さず、初週提出に不要な人数・売上・7日継続・1,000人を受付条件として発明しない。

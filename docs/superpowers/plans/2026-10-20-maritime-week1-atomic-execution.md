@@ -457,16 +457,18 @@ life-manager/
 - [ ] T23.3 正式form/channelのduplicate submission状態を読み、確定したpayloadを一回提出する。未送信draftを提出済みと呼ばない。正式経路が不明ならその不足だけを保持し他taskを続ける。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。
 
-## Task T24: Daisがすぐ使える配布copyを作る（開発と並行）
+## Task T24: 既存ブログSEOと既存X用の初週配布を準備する（開発と並行）
 
-**Files:** `docs/distribution/maritime/week1/channel-copy.md`、source-map。
-**Interfaces:** 家族/友人DM、X日英、IG DM/Story caption、返信テンプレ。公開URL確定前/後でclaimを分ける。
-**Depends:** なし。最初の文案は本計画と同時に作成する。
+**Files:** `docs/distribution/maritime/week1/channel-copy.md`、`docs/research/maritime/2026-10-20-source-map.md`、既存`apps/landing/marketing/pages/life-manager-en.html`のCTA参照。
+**Interfaces:** Dais向けDM、既存`aniccaai.com/blog/manager`の記事brief、既存Postiz接続済みXアカウント向け1投稿、source別UTM。Instagramは初期配布に含めない。
+**Depends:** なしで成功事例・SEO意図・記事briefを準備する。記事公開とX投稿はT22/T26の実URL・ライブ証拠後。
 
-- [ ] T24.1 source-mapのArc/Panda/Pokeを読み、模倣する導入・成果の見せ方・CTAと、同じ対象でない証拠の限界を記録する。
-- [ ] T24.2 「Managerが自分で仕事を進める」「無料pilot」「試せる一つの業務」「一つのURL」を含むDM/X/IG文案を日英で用意する。利益保証/架空testimonial/架空実績を書かない。
-- [ ] T24.3 source別URLを`/maritime?source=referral|x|other`+既存UTMで指定する。IGは配備済みsource allowlistのinstagramを使い、utm_source=instagramも残す。emailや知人名をURLへ入れない。
-- [ ] T24.4 DaisへのDM用文案を成果物として渡す。送信/友人の返事を待たずT25/T26へ進む。最終URLを確認してplaceholderがない版を保存しcommit/push。
+- [ ] T24.1 `source-map.md`のTodoist/Ahrefs/Levels/X policy記録を読み、数値・対象・獲得因果の確認範囲と模倣する仕組みを分ける。同一の自律Life Manager獲得成功例は未確認と記録し、article+Xの小さい実験に限定する。
+- [ ] T24.2 既存Writerの`skills/writer-agent/SKILL.md`、`article-daily` registry row、`aniccaai.com/blog/manager`のcanonical/article ownerを読む。現在worktreeのsparse checkoutはWriter directoryを展開していないため、tracked Git treeのsourceを読むか、このowner taskの専用worktreeへ必要pathだけ含める。Writerは複数destination matrixを持つため全destination自動配布を起動せず、blog+指定Xのみを使う経路を確認する。CMSやschedulerを新設しない。
+- [ ] T24.3 既存の無料keyword/SERP evidenceから一つの具体的なreader queryを選ぶ。需要が実測できない場合は仮説と記録し、検索量/SEO順位を捏造しない。
+- [ ] T24.4 `channel-copy.md`に一記事briefを作る: 読者の困りごと→現行Managerの実画面/receipt→未対応範囲/必要接続→一つの稼働URL CTA。目標/予算入力必須・Telegram必須・利益保証を加えない。
+- [ ] T24.5 既存Xのbuild-in-public投稿を一つ日英で準備する。毎回一つの確認済み進捗と一つの制約を示し、blog/landingの単一URLへ誘導する。既存Postiz profileをreadbackして使い、新規X account・自動DM・複数accountへの類似投稿を行わない。
+- [ ] T24.6 Dais向けDMと一つのCTAを保存し、URL確定前はprelaunch copyとして明示する。最終URLとUTMにplaceholderがないことを確認しcommit/push。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
 
@@ -492,19 +494,20 @@ life-manager/
 
 ## Task T27: 公開配布を開始する
 
-**Files:** channel-copyの公開版、demo artifact refs、既存distribution ledger。
-**Interfaces:** Dais=家族/友人DM。LM=許可済みowned X/IG等の投稿。全channelはsource別URL付き。
-**Depends:** T22/T24/T26。T25完成動画は後追い可、3人の利用は待たない。
+**Files:** channel-copy公開版、`aniccaai.com/blog/manager`記事、既存Postiz/X publisher receipt、既存distribution/funnel ledger。
+**Interfaces:** Dais=家族/友人DM。LM=既存ブログ1記事→既存X profile 1投稿。source別URLとcanonical permalinkを保存。
+**Depends:** T22/T24/T26。公開URLと該当機能の実証が必要。T25完成動画・3人のfeedback・IG accountは待ち条件ではない。
 
-- [ ] T27.1 Daisへ実URL入りDM文案を渡し、送信はDaisの担当とする。知人リストを要求したり勝手に取得しない。
-- [ ] T27.2 owner/account/既存送信ledgerを確認し、owned Xに実画面とCTAを一件投稿する。投稿不可ならexact blockerを記録し、別の準備済みchannelを進める。
-- [ ] T27.3 IGのStory/Reelと関連community向けに同じ事実を媒体の形式へ変換する。community rulesと重複投稿を確認し、無差別DMを行わない。
-- [ ] T27.4 permalink/provider receipt/source/copy SHAを既存ledgerへ保存し、投稿数ではなく登録→完了をT28で読む。
+- [ ] T27.1 T22の実URL、email確認/activate/stop、表示中claimをreadbackし、本文のfeature claimと実装状態を一致させる。
+- [ ] T27.2 既存Writerの正規記事経路でManagerカテゴリへ一記事公開し、canonical URL・published revision・Search Consoleまたは既存解析の初期 readbackを記録する。Writerの他destinationを勝手に有効化しない。
+- [ ] T27.3 現在Postizへ接続済みのX account owner/integrationを確認し、確認済みの一進捗・一CTAだけを一投稿する。新規account、duplicate account、類似投稿の繰返し、無断自動DM、website scriptingを行わない。
+- [ ] T27.4 Daisへ最終URL入りDMを渡す。送信はDaisの担当とし、送ったcopyだけをsignup/userに数えない。
+- [ ] T27.5 Article canonical、X permalink/provider receipt、copy SHA、UTM sourceを既存ledgerに記録し、blog/Xからverified email→activation→completed work→returnまで読む。初期waveでInstagramは使わない。
 
 ## Task T28: source別の最大離脱を一つ直す
 
 **Files:** Modify `scripts/maritime-week1-export.js`、既存funnel report、該当する入口一箇所。
-**Interfaces:** source cohort=`visit→verified→activated→work_completed→returned`、費用/人、time-to-first-work。
+**Interfaces:** source cohort=`search impression/click or X click→visit→verified→activated→work_completed→returned`、費用/人、time-to-first-work。Blog readers、followers、impressions、signupだけを競技の実利用者にしない。
 **Depends:** T21/T27。
 
 - [ ] T28.1 source別aggregateを読み、team/test/重複を除いて最初の実利用を公式project usageへ照合する。人数が未取得なら0にしない。
@@ -704,7 +707,7 @@ apps/life-manager/
 - [x] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。native PostgreSQL 17 fixtureでclaim一回、同一agent再bind、foreign subject拒否、別UIDへのagent重複拒否を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json`。
 - [x] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。native PostgreSQL 17の2接続競合・pause・migration再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json`。
 - [x] **b.6-05:** 同migrationにparticipantsと容量claim関数を移す。advisory lockで人数上限を直列化し、sourceは現在のnormalizerと揃えInstagramも受理する。旧SQLにないInstagramを落とさない。native PostgreSQL 17の2接続容量競合・再同意・source・上限入力を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-participant-capacity.json`。
-- [ ] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。
+- [x] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。native PostgreSQL 17でsource-event重複、audience拒否、UPDATE/DELETE/TRUNCATE拒否、migration再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-funnel-schema.json`。
 - [ ] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。
 - [ ] **b.6-08:** `maritime-manager-store.js`の`read/listPending/listPaused`をparameterized SQLへ接続する。PG timestamp→ISO、date_key→YYYY-MM-DDを正規化し、既存input/row検証を残す。
 - [ ] **b.6-09:** 同fileの`enroll`をPGへ接続する。verified subject・UID・emailが既存rowと一致しなければ拒否し、conflictで所有者を上書きしない。
