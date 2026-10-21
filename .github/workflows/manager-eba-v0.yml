@@ -1,0 +1,33 @@
+name: Manager EBA v0 Open Benchmark
+on:
+  push:
+    branches: [research/manager-eba-benchmark-20261022, research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/**'
+      - '.github/workflows/manager-eba-v0.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: All Manager tests (including adversarial benchmarks)
+        run: python -m unittest discover -s tests -v
+      - name: Manager and Life Manager isolation
+        run: |
+          python scripts/check_boundaries.py
+          python scripts/make_roadmap.py --check
+          python -m manager_core
+      - name: Deterministic EBA reproducible results
+        run: python -m manager_core.eba_benchmark --check
