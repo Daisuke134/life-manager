@@ -134,11 +134,11 @@ def evaluate_aggregates(mapping, aggregates):
             {"category":"heldout_studies_with_at_least_1000_observations",
              "studies":sum(x["n"]>=1000 for x in evaluated),
              "rows":sum(x["n"] for x in evaluated if x["n"]>=1000),
-             "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]>=1000)/max(1,sum(x["n"]>=1000))) if any(x["n"]>=1000 for x in evaluated) else None},
+             "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]>=1000)/max(1,sum(x["n"]>=1000 for x in evaluated))) if any(x["n"]>=1000 for x in evaluated) else None},
             {"category":"heldout_studies_below_1000_observations",
              "studies":sum(x["n"]<1000 for x in evaluated),
              "rows":sum(x["n"] for x in evaluated if x["n"]<1000),
-             "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]<1000)/max(1,sum(x["n"]<1000))) if any(x["n"]<1000 for x in evaluated) else None},
+             "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]<1000)/max(1,sum(x["n"]<1000 for x in evaluated))) if any(x["n"]<1000 for x in evaluated) else None},
         ],
         "abstention_policy":{
             "decision":"ABSTAIN_ALL_UNSEEN_FOR_DEPLOYMENT",
