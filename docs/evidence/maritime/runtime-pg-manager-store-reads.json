@@ -1,0 +1,28 @@
+{
+  "observed_at": "2026-10-21T00:58:44Z",
+  "source_file": "apps/life-manager/lib/maritime-manager-store.js",
+  "source_sha256": "ff6456041246f7c5f5653db368c18c3c5bc3242e7366c98f3bfc6cdfda0944d6",
+  "test_files": [
+    "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+    "apps/life-manager/lib/maritime-manager-store.test.js"
+  ],
+  "test_sha256": {
+    "apps/life-manager/test/postgres/maritime-manager-state.integration.js": "d8ce606e2718242a97237f4f7d74ec4bd47b1c85923f41d923459bff8d94f335"
+  },
+  "commands": [
+    "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+    "node --test lib/maritime-manager-store.test.js"
+  ],
+  "results": {
+    "native_postgresql_integration": "1/1 pass",
+    "manager_store_unit": "16/16 pass"
+  },
+  "production_dsn_used": false,
+  "fixture": "native PostgreSQL 17 over private Unix socket; stopped and removed",
+  "methods": ["read", "listPending", "listPaused"],
+  "parameterized_sql": true,
+  "uid_status_cursor_and_limit_bound_as_parameters": true,
+  "postgres_timestamps_normalized_to_iso8601": true,
+  "supa_fallback_for_these_methods": false,
+  "date_key_normalization": "deferred to b.6-12, which owns execution reads"
+}

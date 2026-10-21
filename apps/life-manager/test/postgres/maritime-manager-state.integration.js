@@ -7,6 +7,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { Client } = require("pg");
 const test = require("node:test");
+const { createMaritimeManagerStore } = require("../../lib/maritime-manager-store.js");
 const { normalizeWebFunnelEvent } = require("../../lib/web-funnel-events.js");
 
 const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
@@ -138,6 +139,23 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await client.query(`INSERT INTO public.lm_maritime_manager_enrollments(uid,auth_subject,email,status,source,consent_version,release_sha)
       VALUES ($1,$2,'a@example.invalid','pending','direct','maritime-manager-v1',$3),
              ($4,$5,'b@example.invalid','pending','direct','maritime-manager-v1',$3)`, [uidA, subjectA, releaseSha, uidB, subjectB]);
+    const storeQueries = [];
+    const managerStore = createMaritimeManagerStore({ pgPool: { query: (statement, values = []) => {
+      storeQueries.push({ statement, values });
+      return client.query(statement, values);
+    } } });
+    const storedEnrollment = await managerStore.read(uidA);
+    assert.equal(storedEnrollment.uid, uidA);
+    assert.equal(storedEnrollment.status, "pending");
+    assert.equal(storedEnrollment.paused_at, null);
+    assert.match(storedEnrollment.created_at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
+    assert.equal(storeQueries[0].values[0], uidA, "UID is passed as a parameter");
+    assert.match(storeQueries[0].statement, /WHERE uid = \$1/);
+    const pendingEnrollments = await managerStore.listPending(5);
+    assert.deepEqual(pendingEnrollments.map(row => row.uid), [uidA, uidB]);
+    assert.deepEqual(storeQueries[1].values, ["pending", 5]);
+    assert.ok(pendingEnrollments.every(row => /^\d{4}-\d{2}-\d{2}T.*Z$/.test(row.created_at)));
+    assert.deepEqual(await managerStore.listPaused(5), []);
     const claim = uid => client.query('SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed', [uid]).then(result => result.rows[0].claimed);
     const bind = (uid, subject, agent) => client.query(
       'SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound', [uid, subject, agent, releaseSha],
@@ -189,6 +207,9 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     );
     assert.equal(await cycleBind(uidA, "second-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-2"), true);
     await client.query("UPDATE public.lm_maritime_manager_enrollments SET status='paused',paused_at=clock_timestamp() WHERE uid=$1", [uidA]);
+    const pausedEnrollments = await managerStore.listPaused(5);
+    assert.equal(pausedEnrollments[0].uid, uidA);
+    assert.match(pausedEnrollments[0].paused_at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
     assert.equal(await cycleClaim(client, uidA, "after-stop", "agent-a"), false, "a paused enrollment cannot dispatch another occurrence");
     assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-1"), true, "a prior dispatch can still read back its exact binding after pause");
 

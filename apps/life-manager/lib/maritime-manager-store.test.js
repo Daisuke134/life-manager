@@ -15,7 +15,7 @@ function input(uid = UID_A, subject = SUBJECT_A) {
 }
 function fixture() {
   assert.equal(typeof createMaritimeManagerStore, "function", "enrollment store must exist");
-  const rows = new Map(); const executions = new Map(); const requests = [];
+  const rows = new Map(); const executions = new Map(); const requests = []; const pgQueries = [];
   const fetchImpl = async (url, opts = {}) => {
     const u = new URL(url); const body = JSON.parse(opts.body || "null");
     requests.push({ url: u, method: opts.method || "GET", body });
@@ -59,15 +59,31 @@ function fixture() {
     if (opts.method === "POST") {
       if (rows.has(body.uid)) return response([]);
       if ([...rows.values()].some(r => r.auth_subject === body.auth_subject)) return response({}, 409);
-      const row = { ...body, auth_subject: body.auth_subject.toLowerCase(), status: "pending", agent_id: null, paused_at: null };
+      const row = { ...body, auth_subject: body.auth_subject.toLowerCase(), status: "pending", agent_id: null, paused_at: null,
+        created_at: "2026-10-20T00:00:00.000Z" };
       rows.set(body.uid, row); return response([row]);
     }
     const uid = u.searchParams.get("uid")?.replace(/^eq\./, ""); const row = rows.get(uid);
     if (opts.method === "PATCH" && row) Object.assign(row, body);
     return response(row ? [row] : []);
   };
+  const pgRow = row => ({ ...row, paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
+  const pgPool = { query: async (statement, values = []) => {
+    pgQueries.push({ statement, values });
+    let selected;
+    if (statement.includes("WHERE uid = $1 LIMIT 2")) selected = [rows.get(values[0])].filter(Boolean);
+    else if (statement.includes("status = $1 AND paused_at IS NULL AND agent_id IS NULL")) {
+      selected = [...rows.values()].filter(row => row.status === values[0] && row.paused_at == null && row.agent_id == null)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.uid.localeCompare(b.uid)).slice(0, values[1]);
+    } else if (statement.includes("status = $1 AND paused_at IS NOT NULL")) {
+      selected = [...rows.values()].filter(row => row.status === values[0] && row.paused_at != null && (values[1] == null || row.uid > values[1]))
+        .sort((a, b) => a.uid.localeCompare(b.uid)).slice(0, values[2])
+        .map(({ uid, status, paused_at, agent_id, release_sha }) => ({ uid, status, paused_at, agent_id, release_sha }));
+    } else throw new Error("unexpected_pg_query");
+    return { rows: selected.map(pgRow) };
+  } };
   return { rows, requests, store: createMaritimeManagerStore({ supaUrl: "https://database.invalid",
-    supaKey: "fixture-private-key", fetchImpl, now: () => "2026-10-20T00:00:00.000Z" }) };
+    supaKey: "fixture-private-key", fetchImpl, pgPool, now: () => "2026-10-20T00:00:00.000Z" }), pgQueries };
 }
 
 test("enrollment_is_idempotent_and_tenant_scoped", async () => {
@@ -259,19 +275,17 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
 
 test('pending enrollment recovery is bounded and excludes paused or claimed rows', async () => {
   const requested=[];
-  const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture-key',fetchImpl:async url=>{
-    requested.push(new URL(url));return new Response(JSON.stringify([{uid:UID_A,status:'pending',paused_at:null,agent_id:null,release_sha:SHA}]));
-  }});
+  const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{
+    requested.push({statement,values});return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'pending',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
+  }}});
   const rows=await store.listPending(5);
   assert.equal(rows.length,1);assert.equal(rows[0].uid,UID_A);
-  assert.equal(requested[0].searchParams.get('status'),'eq.pending');
-  assert.equal(requested[0].searchParams.get('paused_at'),'is.null');
-  assert.equal(requested[0].searchParams.get('agent_id'),'is.null');
-  assert.equal(requested[0].searchParams.get('limit'),'5');
-  assert.equal(requested[0].searchParams.get('order'),'created_at.asc,uid.asc');
+  assert.match(requested[0].statement,/status = \$1 AND paused_at IS NULL AND agent_id IS NULL/);
+  assert.deepEqual(requested[0].values,['pending',5]);
+  assert.equal(rows[0].created_at,'2026-10-20T00:00:00.000Z');
   for(const limit of [0,101,'5'])await assert.rejects(store.listPending(limit),/input_invalid/);
   assert.equal(requested.length,1);
-  const foreign=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture-key',fetchImpl:async()=>new Response(JSON.stringify([{uid:UID_A,status:'paused',paused_at:null,agent_id:null,release_sha:SHA}]))});
+  const foreign=createMaritimeManagerStore({pgPool:{query:async()=>({rows:[{uid:UID_A,status:'paused',paused_at:null,agent_id:null,release_sha:SHA}]})}});
   await assert.rejects(foreign.listPending(1),/store_invalid/);
 });
 
@@ -291,10 +305,11 @@ test('quarantine pending provision is tenant scoped and cannot change active or 
 
 
 test('paused cleanup recovery reads bounded identity pages without contact data fallback',async()=>{
- const calls=[];const row={uid:UID_B,status:'paused',paused_at:'2026-10-21T00:00:00Z',agent_id:null,release_sha:SHA};
- const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture',fetchImpl:async url=>{calls.push(new URL(url));return new Response(JSON.stringify([row]));}});
- assert.deepEqual(await store.listPaused(20,UID_A),[row]);
- assert.equal(calls[0].searchParams.get('uid'),'gt.'+UID_A);assert.equal(calls[0].searchParams.get('status'),'eq.paused');
- assert.equal(calls[0].searchParams.get('order'),'uid.asc');assert.equal(calls[0].searchParams.get('limit'),'20');
- await assert.rejects(()=>store.listPaused(0),/invalid/);await assert.rejects(()=>store.listPaused(20,'foreign'),/invalid/);assert.equal(calls.length,1);
+ const calls=[];const row={uid:UID_B,status:'paused',paused_at:new Date('2026-10-21T00:00:00Z'),agent_id:null,release_sha:SHA};
+ const normalizedRow={...row,paused_at:'2026-10-21T00:00:00.000Z'};
+ const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{calls.push({statement,values});return {rows:[row]};}}});
+ assert.deepEqual(await store.listPaused(20,UID_A),[normalizedRow]);
+ assert.equal(calls[0].values[0],'paused');assert.equal(calls[0].values[1],UID_A);assert.equal(calls[0].values[2],20);
+ assert.match(calls[0].statement,/uid > \$2/);assert.equal((await store.listPaused(20))[0].paused_at,'2026-10-21T00:00:00.000Z');
+ await assert.rejects(()=>store.listPaused(0),/invalid/);await assert.rejects(()=>store.listPaused(20,'foreign'),/invalid/);assert.equal(calls.length,2);
 });
