@@ -14,7 +14,9 @@ class Phase04HonestAcceptance(unittest.TestCase):
     def test_waived_phase03_and_soc_sci_data_hold_are_unchanged(self):
         t = self.tasks()
         self.assertEqual(t["H005"]["status"], "skipped")
-        self.assertEqual(t["S002"]["status"], "blocked")
+        self.assertEqual(t["S002"]["status"], "done")
+        self.assertTrue(t["S002"].get("original_verify"))
+        self.assertFalse(t["S002"]["human_effect_verified"])
         rights = json.loads((ROOT / "docs/research/source-rights.json").read_text())
         by_id = {x["id"]: x for x in rights["sources"]}
         self.assertEqual(by_id["socsci210-data"]["permissions"]["local_research"], "allowed_with_conditions")
@@ -35,8 +37,12 @@ class Phase04HonestAcceptance(unittest.TestCase):
         self.assertIn("R005", t["S006"]["depends"])
         self.assertIn("S003", t["S007"]["depends"])
         self.assertEqual(t["S008"]["depends"], ["S007"])
-        self.assertEqual(t["S004"]["status"], "todo")
-        self.assertEqual(t["S005"]["status"], "todo")
+        self.assertEqual(t["S004"]["status"], "done")
+        self.assertEqual(t["S005"]["status"], "done")
+        for name in ("S004","S005"):
+            self.assertTrue(t[name]["original_verify"])
+            self.assertTrue(t[name]["scope_override"])
+            self.assertFalse(t[name]["human_effect_verified"])
 
     def test_reports_cannot_claim_mobility_predictive_fit_is_causal_benefit(self):
         doc = (ROOT / "docs/research/public_aggregate/PHASE04_UCI_BIKESHARE_EMPIRICAL_JA.md").read_text()
