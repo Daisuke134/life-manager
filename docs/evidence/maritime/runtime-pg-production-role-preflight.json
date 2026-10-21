@@ -1,11 +1,12 @@
 {
-  "observed_at": "2026-10-21T02:45:00Z",
-  "source_main_sha": "f56b4cabd4238f90cd6b9747210f6c203829db66",
+  "observed_at": "2026-10-21T02:54:26Z",
+  "source_main_sha": "7717a5d63d40629f21c1072f12aadc8a73f9f5bd",
   "target_migration": {
     "id": "20261021090000_maritime_manager_runtime_state.sql",
     "sha256": "5016c67facbfe3b40a92ee4fefdf0b1e9a130047718329caac106823a40b22a0",
-    "present_in_schema_migrations": false,
-    "applied": false
+    "present_in_schema_migrations": true,
+    "applied": true,
+    "applied_at": "2026-10-21T02:48:28.220Z"
   },
   "runtime_pg": {
     "read_path": "Railway SSH into life-call production; same LM_RUNTIME_DATABASE_URL used by the app pool",
@@ -26,19 +27,19 @@
       }
     },
     "manager_relations": {
-      "lm_maritime_manager_identities": false,
-      "lm_maritime_manager_enrollments": false,
-      "lm_maritime_manager_executions": false,
-      "lm_maritime_pilot_participants": false,
-      "lm_web_funnel_events": false,
-      "lm_cfo_result_receipts": false
+      "lm_maritime_manager_identities": true,
+      "lm_maritime_manager_enrollments": true,
+      "lm_maritime_manager_executions": true,
+      "lm_maritime_pilot_participants": true,
+      "lm_web_funnel_events": true,
+      "lm_cfo_result_receipts": true
     },
     "schema_migrations": {
       "columns": [
         "id",
         "applied_at"
       ],
-      "row_count": 6,
+      "row_count": 7,
       "rows": [
         {
           "id": "006_init_billing_tables_on_railway.sql",
@@ -63,6 +64,10 @@
         {
           "id": "012_sensor_access_state.sql",
           "applied_at": "2025-12-27T21:15:04.410Z"
+        },
+        {
+          "id": "20261021090000_maritime_manager_runtime_state.sql",
+          "applied_at": "2026-10-21T02:48:28.220Z"
         }
       ],
       "owner": "postgres",
@@ -95,17 +100,166 @@
           "rolbypassrls": false
         }
       ]
+    },
+    "post_migration_readback": {
+      "read_path": "New read-only Railway SSH session from life-call production container; Runtime PG same as application pool",
+      "readback_at": "2026-10-21T02:49Z",
+      "history_total": 7,
+      "target_history_count": 1,
+      "tables": [
+        {
+          "name": "lm_maritime_manager_identities",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "row_count": 0,
+          "service_role_privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "anon_select": false,
+          "authenticated_select": false,
+          "policy_roles": [
+            "service_role"
+          ]
+        },
+        {
+          "name": "lm_maritime_manager_enrollments",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "row_count": 0,
+          "service_role_privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "anon_select": false,
+          "authenticated_select": false,
+          "policy_roles": [
+            "service_role"
+          ]
+        },
+        {
+          "name": "lm_maritime_manager_executions",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "row_count": 0,
+          "service_role_privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "anon_select": false,
+          "authenticated_select": false,
+          "policy_roles": [
+            "service_role"
+          ]
+        },
+        {
+          "name": "lm_maritime_pilot_participants",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "row_count": 0,
+          "service_role_privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "anon_select": false,
+          "authenticated_select": false,
+          "policy_roles": [
+            "service_role"
+          ]
+        },
+        {
+          "name": "lm_web_funnel_events",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "row_count": 0,
+          "service_role_privileges": [
+            "SELECT",
+            "INSERT"
+          ],
+          "service_role_update": false,
+          "anon_select": false,
+          "authenticated_select": false,
+          "policy_roles": [
+            "service_role"
+          ]
+        },
+        {
+          "name": "lm_cfo_result_receipts",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "row_count": 0,
+          "service_role_privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "anon_select": false,
+          "authenticated_select": false,
+          "policy_roles": [
+            "service_role"
+          ]
+        }
+      ],
+      "business_rpcs": [
+        {
+          "name": "claim_lm_maritime_manager_provision_v1",
+          "service_role_execute": true,
+          "anon_execute": false,
+          "authenticated_execute": false
+        },
+        {
+          "name": "bind_lm_maritime_manager_agent_v1",
+          "service_role_execute": true,
+          "anon_execute": false,
+          "authenticated_execute": false
+        },
+        {
+          "name": "claim_lm_maritime_manager_cycle_v1",
+          "service_role_execute": true,
+          "anon_execute": false,
+          "authenticated_execute": false
+        },
+        {
+          "name": "bind_lm_maritime_manager_execution_v1",
+          "service_role_execute": true,
+          "anon_execute": false,
+          "authenticated_execute": false
+        },
+        {
+          "name": "claim_lm_maritime_participant_v1",
+          "service_role_execute": true,
+          "anon_execute": false,
+          "authenticated_execute": false
+        }
+      ],
+      "triggers": [
+        "lm_maritime_manager_identity_reassignment_guard",
+        "lm_web_funnel_events_guard UPDATE/DELETE",
+        "lm_web_funnel_events_truncate_guard TRUNCATE"
+      ],
+      "trigger_guard_functions_direct_execute": {
+        "service_role": false,
+        "anon": false,
+        "authenticated": false
+      }
     }
   },
   "live_services": {
     "life_call": {
       "loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
-      "manager_email_enabled": false,
-      "manager_migration_file_in_image": false
+      "deployment_id": "fb939ad8-2d3b-49bc-b756-7a8b8820cc09",
+      "status": "SUCCESS",
+      "manager_email_enabled": "0"
     },
     "money_printer_worker": {
       "loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
-      "manager_email_enabled": false,
+      "deployment_id": "8072a482-96bb-47d6-8733-e6ad2c52dc39",
+      "status": "SUCCESS",
+      "manager_email_enabled": "0",
       "worker_capability_count": 3,
       "manager_capabilities": []
     }
@@ -121,7 +275,9 @@
     "local_effect": "read_only_no_state_change",
     "local_readback": {
       "runtime_database_env_present": true,
-      "host_class": "railway_internal"
+      "host_class": "railway_internal",
+      "error_class": "ENOTFOUND",
+      "effect": "read_only_no_state_change"
     },
     "error_class": "ENOTFOUND",
     "retryable": true,
@@ -137,12 +293,12 @@
       },
       "error_class": null,
       "retryable": false,
-      "next_action": "Apply reviewed migration exactly once, then official readback."
+      "next_action": "Applied exact current-main migration once and confirmed commit; post-migration readback completed."
     }
   },
   "external_effects": {
-    "production_database_mutated": false,
-    "migration_applied": false,
+    "production_database_mutated": true,
+    "migration_applied": true,
     "manager_rows_created": false,
     "feature_flags_changed": false,
     "worker_capabilities_changed": false,
@@ -160,5 +316,45 @@
       "DDL and history insert can be applied in one transaction using one client"
     ],
     "recovery_rule": "If COMMIT response is unknown, read back migration history and relations; do not replay."
+  },
+  "runner_attempts": [
+    {
+      "phase": "database_preflight",
+      "exit_code": 1,
+      "effect": "no_mutation",
+      "transaction_started": false,
+      "error_class": "MIGRATION_LEDGER_PK_CHANGED",
+      "root_cause": "Node pg returned PostgreSQL name[] as the string {id}, while the runner compared it with a JavaScript array.",
+      "diagnostic_readback": "Exact catalog query showed schema_migrations_pkey and column id; target migration count 0; all six Manager relations absent.",
+      "action": "Changed the read-only PK check to compare catalog rows; reran the same reviewed transaction."
+    },
+    {
+      "phase": "migration_sql_and_history_transaction",
+      "exit_code": 0,
+      "effect": "committed_once",
+      "transaction_started": true,
+      "transaction_committed": true,
+      "migration_sha256": "5016c67facbfe3b40a92ee4fefdf0b1e9a130047718329caac106823a40b22a0",
+      "readback": "target history 1, six tables present and empty; see post_migration_readback"
+    }
+  ],
+  "deployment_preflight": {
+    "current_workspace_plan": "HOBBY",
+    "workspace_plan_read_path": "Railway GraphQL read-only query via authenticated CLI",
+    "public_status": "Fully Operational",
+    "public_status_url": "https://status.railway.com",
+    "public_status_checked_at": "2026-10-21T02:50Z",
+    "life_call_manual_deploy": {
+      "source_branch": "main",
+      "source_sha": "7717a5d63d40629f21c1072f12aadc8a73f9f5bd",
+      "command_shape": "railway up ./apps/life-manager --path-as-root --service life-call --environment production --project <existing project> --detach --json",
+      "result": "UPLOAD_FAILED",
+      "provider_message": "Deploys have been paused temporarily",
+      "deployment_id_created": false,
+      "current_service_deployment_id": "fb939ad8-2d3b-49bc-b756-7a8b8820cc09",
+      "current_loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c"
+    },
+    "diagnosis": "Inference: a temporary Hobby-tier deployment-capacity queue is plausible because the workspace is HOBBY and Railway community reports this state during high demand; the specific workspace-level reason is not confirmed by Railway.",
+    "plan_change_or_upgrade": "not_performed"
   }
 }
