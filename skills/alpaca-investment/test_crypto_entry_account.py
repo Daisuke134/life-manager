@@ -207,6 +207,9 @@ class CryptoEntryAccountTests(unittest.TestCase):
         with ExitStack() as stack:
             stack.enter_context(patch.dict(os.environ, {'LIFE_MANAGER_INVESTMENT_MODE': mode,
                 'LIFE_MANAGER_INVESTMENT_DEPLOYMENT': 'local', 'LIFE_MANAGER_INVESTMENT_OWNER_ID': 'alpaca-investment-' + mode,
+                'LIFE_MANAGER_RUN_ID': f'synthetic-entry-{mode}',
+                'LIFE_MANAGER_OCCURRENCE_ID': f'alpaca-investment-{mode}:synthetic-entry-{mode}',
+                'LIFE_MANAGER_RELEASE_SHA': 'b' * 40,
                 f'ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR': str(root),
                 f'ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE': str(root / 'unused')}, clear=True))
             stack.enter_context(patch.object(native, 'observe', side_effect=observe))
@@ -420,6 +423,55 @@ class CryptoEntryAccountTests(unittest.TestCase):
                         with self.assertRaises(ValueError): read()
                     else:
                         self.assertEqual(read()['receipt']['kind'], 'owned_crypto_no_fill')
+
+    def test_no_fill_outcome_carries_execution_identity_from_intent(self):
+        env = {'LIFE_MANAGER_INVESTMENT_MODE': 'live', 'LIFE_MANAGER_INVESTMENT_DEPLOYMENT': 'local',
+            'LIFE_MANAGER_INVESTMENT_OWNER_ID': 'alpaca-investment-live', 'LIFE_MANAGER_RUN_ID': 'no-fill-run',
+            'LIFE_MANAGER_OCCURRENCE_ID': 'alpaca-investment-live:no-fill-run',
+            'LIFE_MANAGER_RELEASE_SHA': 'b' * 40}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, env, clear=True):
+            root = Path(directory)
+            marker, broker, observation, owner = seed(root, 'live')
+            broker.update(status='canceled', filled_qty='0', filled_avg_price=None, filled_at=None)
+            observation['positions'] = []
+            ledger = root / 'receipts.jsonl'
+            rows = store._rows(ledger)
+            planned = next(row for row in rows if row.get('receipt_type') == 'effect_intent'
+                and row.get('status') == 'planned' and row.get('effect_id') == marker['entry_effect_id'])
+            expected_submission = {**planned['execution_identity'], 'runtime_release_sha': 'c' * 40,
+                'run_id': 'no-fill-submit-run', 'occurrence_id': f'{owner}:no-fill-submit-run'}
+            for row in rows:
+                if row.get('receipt_type') == 'effect_intent' and row.get('status') == 'started':
+                    row['submission_identity'] = expected_submission
+            ledger.write_text(''.join(json.dumps(row, separators=(',', ':')) + '\n' for row in rows))
+            store.reconcile_started(root / 'receipts.jsonl', lambda _: broker)
+            proof = store.record_no_fill_account_receipt(root / 'receipts.jsonl', marker, broker,
+                observation, owner_id=owner, mode='live')
+            rows = store._rows(root / 'receipts.jsonl')
+            intent = next(row for row in rows if row.get('receipt_type') == 'effect_intent'
+                and row.get('status') == 'planned' and row.get('effect_id') == marker['entry_effect_id'])
+            outcome = next(row for row in rows if row.get('receipt_type') == 'outcome'
+                and row.get('effect_id') == marker['entry_effect_id'] and row.get('strategy_receipt') == proof)
+            self.assertEqual(outcome['execution_identity'], intent['execution_identity'])
+            self.assertEqual(outcome['submission_identity'], expected_submission)
+
+    def test_legacy_no_fill_outcome_does_not_invent_execution_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker, broker, observation, owner = seed(root, 'paper')
+            broker.update(status='canceled', filled_qty='0', filled_avg_price=None, filled_at=None)
+            observation['positions'] = []
+            store.reconcile_started(root / 'receipts.jsonl', lambda _: broker)
+            ledger = root / 'receipts.jsonl'
+            rows = store._rows(ledger)
+            for row in rows:
+                row.pop('execution_identity', None)
+            ledger.write_text(''.join(json.dumps(row, separators=(',', ':')) + '\n' for row in rows))
+            store.record_no_fill_account_receipt(ledger, marker, broker, observation,
+                owner_id=owner, mode='paper')
+            outcome = next(row for row in store._rows(ledger) if row.get('receipt_type') == 'outcome'
+                and row.get('effect_id') == marker['entry_effect_id'] and row.get('strategy_receipt') is not None)
+            self.assertIsNone(outcome.get('execution_identity'))
 
     def test_open_new_bound_owner_rejects_foreign_current_account_before_reuse(self):
         # The open-owner path reads historical A; its fresh quantity check must bind A too.

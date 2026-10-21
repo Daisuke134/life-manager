@@ -5,6 +5,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -89,20 +90,38 @@ def record_native_fee_debit(ledger: Path, ownership: dict[str, Any], observation
     return _append_once(ledger,candidate,('receipt_type','fee_debit_id'))
 
 
-def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[str, str]:
+def _execution_identity(decision: dict[str, Any], mode: str) -> dict[str, Any]:
+    owner_id = decision.get("owner_id") or f"alpaca-investment-{mode}"
+    return {
+        "owner_id": owner_id,
+        "mode": mode,
+        "deployment": os.environ.get("LIFE_MANAGER_INVESTMENT_DEPLOYMENT"),
+        "strategy_id": decision.get("strategy_id"),
+        "policy_release_sha": decision.get("release_sha"),
+        "runtime_release_sha": os.environ.get("LIFE_MANAGER_RELEASE_SHA"),
+        "run_id": os.environ.get("LIFE_MANAGER_RUN_ID"),
+        "occurrence_id": os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"),
+        "native_trading_account_id": decision.get("native_trading_account_id"),
+    }
+
+
+def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[str, Any]:
     mode = _mode(decision.get("mode"))
     paper = mode == "paper"
+    execution_identity = _execution_identity(decision, mode)
     decision_id = _digest({"mode": mode, "decision": decision})
     effect_id = _digest({"decision_id": decision_id, "order": order})
     client_order_id = f"lm-ai-{effect_id[:24]}"
     now = datetime.now(timezone.utc).isoformat()
     _append_once(ledger, {
         "decision": decision, "decision_id": decision_id, "mode": mode, "paper": paper,
+        "execution_identity": execution_identity,
         "receipt_type": "decision", "recorded_at": now, "schema_version": 1,
     }, ("receipt_type", "decision_id"))
     _append_once(ledger, {
         "client_order_id": client_order_id, "decision_id": decision_id,
         "effect_id": effect_id, "order": order, "mode": mode, "paper": paper,
+        "execution_identity": execution_identity,
         "owner_id": decision.get("owner_id"),
         "strategy_id": decision.get("strategy_id"),
         "decision_session": decision.get("decision_session"),
@@ -110,8 +129,16 @@ def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[
         "receipt_type": "effect_intent", "recorded_at": now,
         "schema_version": 1, "status": "planned",
     }, ("receipt_type", "effect_id", "status"))
-    return {"client_order_id": client_order_id, "decision_id": decision_id,
-            "effect_id": effect_id, "mode": mode}
+    planned = next((row for row in reversed(_rows(ledger))
+                    if row.get("receipt_type") == "effect_intent" and row.get("status") == "planned"
+                    and row.get("effect_id") == effect_id and row.get("client_order_id") == client_order_id), None)
+    if planned is None:
+        raise ValueError("investment_effect_intent_missing")
+    sealed = {"client_order_id": client_order_id, "decision_id": decision_id,
+              "effect_id": effect_id, "mode": mode}
+    if "execution_identity" in planned:
+        sealed["execution_identity"] = planned["execution_identity"]
+    return sealed
 
 
 def _owned_rows(ledger: Path) -> list[dict[str, Any]]:
@@ -136,11 +163,20 @@ def record_no_fill_account_receipt(ledger: Path, ownership: dict[str, Any], brok
     if any(row.get("receipt_type") == "outcome" and row.get("effect_id") == ownership["entry_effect_id"]
            and row.get("strategy_receipt") is not None for row in rows):
         return recorded_no_fill_proof_from_rows(rows, ownership, broker, observation, owner_id=owner_id, mode=mode)
+    intent = next(row for row in rows if row.get("receipt_type") == "effect_intent"
+                  and row.get("status") == "planned" and row.get("effect_id") == ownership["entry_effect_id"]
+                  and row.get("client_order_id") == ownership["entry_client_order_id"])
+    started = next((row for row in reversed(rows) if row.get("receipt_type") == "effect_intent"
+                    and row.get("effect_id") == ownership["entry_effect_id"]
+                    and row.get("client_order_id") == ownership["entry_client_order_id"]
+                    and row.get("status") in {"started", "reconciliation_pending", "reconciliation_blocked", "applied"}), {})
     _append_once(ledger, {
         "schema_version": 1, "receipt_type": "outcome", "outcome": "broker_terminal_failure",
         "effect_id": ownership["entry_effect_id"], "client_order_id": ownership["entry_client_order_id"],
         "mode": mode, "paper": mode == "paper", "broker": broker, "broker_status": broker["status"],
         "broker_receipt_id": broker["id"], "strategy_receipt": proof,
+        **({"execution_identity": intent["execution_identity"]} if "execution_identity" in intent else {}),
+        **({"submission_identity": started["submission_identity"]} if "submission_identity" in started else {}),
         "recorded_at": datetime.now(timezone.utc).isoformat(),
     }, ("receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id", "strategy_receipt"))
     return proof
@@ -148,16 +184,35 @@ def record_no_fill_account_receipt(ledger: Path, ownership: dict[str, Any], brok
 
 def record_no_trade(ledger: Path, decision: dict[str, Any]) -> str:
     mode = _mode(decision.get("mode"))
+    execution_identity = _execution_identity(decision, mode)
     decision_id = _digest({"mode": mode, "decision": decision})
     _append_once(ledger, {
         "decision": decision, "decision_id": decision_id, "outcome": "no_trade",
+        "execution_identity": execution_identity,
         "mode": mode, "paper": mode == "paper", "receipt_type": "decision",
         "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
     }, ("receipt_type", "decision_id"))
     return decision_id
 
 
-def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
+def _live_execution_identity_valid(identity: Any) -> bool:
+    if not isinstance(identity, dict) or identity.get("mode") != "live" \
+            or identity.get("deployment") != "local" \
+            or identity.get("owner_id") != "alpaca-investment-live":
+        return False
+    for key in ("strategy_id", "run_id", "native_trading_account_id"):
+        if not isinstance(identity.get(key), str) or not identity[key].strip():
+            return False
+    for key in ("policy_release_sha", "runtime_release_sha"):
+        if not isinstance(identity.get(key), str) or not re.fullmatch(r"[0-9a-f]{40}", identity[key]):
+            return False
+    occurrence = identity.get("occurrence_id")
+    prefix, separator, suffix = occurrence.partition(":") if isinstance(occurrence, str) else ("", "", "")
+    return (prefix == identity["owner_id"] and bool(separator and suffix) and len(suffix) <= 200
+            and suffix.isascii() and all(character.isalnum() or character in "._-" for character in suffix))
+
+
+def mark_started(ledger: Path, sealed: dict[str, Any]) -> bool:
     mode = _mode(sealed.get("mode"))
     if any(row.get("receipt_type") == "outcome" and row.get("effect_id") == sealed["effect_id"]
            for row in _rows(ledger)):
@@ -174,17 +229,62 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
     preserved = {
         key: planned[key]
         for key in (
-            "order", "owner_id", "strategy_id", "decision_session",
+            "order", "owner_id", "strategy_id", "execution_identity", "decision_session",
             "source_receipt_ids",
         )
         if key in planned
     }
-    return _append_once(ledger, {
-        **preserved, **sealed, "mode": mode, "paper": mode == "paper",
+    started = {
+        **sealed, **preserved, "mode": mode, "paper": mode == "paper",
         "receipt_type": "effect_intent",
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": 1, "status": "started",
-    }, ("receipt_type", "effect_id", "status"))
+    }
+    if planned and "execution_identity" not in planned:
+        started.pop("execution_identity", None)
+    return _append_once(ledger, started, ("receipt_type", "effect_id", "status"))
+
+
+def begin_effect(ledger: Path, sealed: dict[str, Any]) -> bool:
+    mode = _mode(sealed.get("mode"))
+    rows = _rows(ledger)
+    intent = next((row for row in reversed(rows)
+                   if row.get("receipt_type") == "effect_intent" and row.get("status") == "planned"
+                   and row.get("effect_id") == sealed.get("effect_id")
+                   and row.get("client_order_id") == sealed.get("client_order_id")), {})
+    planned_identity = intent.get("execution_identity")
+    decision_row = next((row for row in rows if row.get("receipt_type") == "decision"
+                         and row.get("decision_id") == intent.get("decision_id")), {})
+    decision = decision_row.get("decision")
+    if not isinstance(decision, dict):
+        if mode == "live":
+            raise ValueError("investment_execution_identity_invalid")
+        return mark_started(ledger, sealed)
+    submission_identity = _execution_identity(decision, mode)
+    stable_fields = ("owner_id", "mode", "deployment", "strategy_id", "policy_release_sha",
+                     "native_trading_account_id")
+    context_fields = ("runtime_release_sha", "run_id", "occurrence_id")
+    matches_plan = isinstance(planned_identity, dict) and all(
+        submission_identity.get(key) == planned_identity.get(key) for key in stable_fields
+    )
+    complete_context = all(isinstance(submission_identity.get(key), str)
+                           and submission_identity[key].strip() for key in context_fields)
+    if mode == "live":
+        if (os.environ.get("LIFE_MANAGER_INVESTMENT_MODE") != mode
+                or os.environ.get("LIFE_MANAGER_INVESTMENT_OWNER_ID") != "alpaca-investment-live"
+                or not _live_execution_identity_valid(planned_identity)
+                or not _live_execution_identity_valid(submission_identity)
+                or not matches_plan):
+            raise ValueError("investment_execution_identity_invalid")
+    elif not (matches_plan and complete_context):
+        submission_identity = None
+    started = dict(sealed)
+    if submission_identity is not None:
+        started["submission_identity"] = submission_identity
+    appended = mark_started(ledger, started)
+    if appended and submission_identity is not None:
+        sealed["submission_identity"] = submission_identity
+    return appended
 
 
 
@@ -317,7 +417,7 @@ def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
         key: intent[key]
         for key in (
             "decision_id", "order", "owner_id", "strategy_id",
-            "decision_session", "source_receipt_ids",
+            "execution_identity", "submission_identity", "decision_session", "source_receipt_ids",
         )
         if key in intent
     }
@@ -356,19 +456,34 @@ def effect_state(ledger: Path, effect_id: str) -> str:
     return "planned"
 
 
-def record_terminal_outcome(ledger: Path, sealed: dict[str, str], broker: dict[str, Any],
+def record_terminal_outcome(ledger: Path, sealed: dict[str, Any], broker: dict[str, Any],
                             outcome: str) -> bool:
     """Close a canary intent only after an official terminal broker readback."""
     if outcome not in {"live_canary_verified", "live_canary_terminal_failure",
                        "live_close_verified", "live_close_terminal_failure"}:
         raise ValueError("effect_outcome_invalid")
     mode = _mode(sealed.get("mode"))
-    return _append_once(ledger, {
+    rows = _rows(ledger)
+    planned = next((row for row in rows
+                    if row.get("receipt_type") == "effect_intent" and row.get("status") == "planned"
+                    and row.get("effect_id") == sealed.get("effect_id")
+                    and row.get("client_order_id") == sealed.get("client_order_id")), {})
+    started = next((row for row in reversed(rows)
+                    if row.get("receipt_type") == "effect_intent"
+                    and row.get("status") in {"started", "reconciliation_pending", "reconciliation_blocked", "applied"}
+                    and row.get("effect_id") == sealed.get("effect_id")
+                    and row.get("client_order_id") == sealed.get("client_order_id")), {})
+    receipt = {
         "broker": broker, "client_order_id": sealed["client_order_id"],
         "effect_id": sealed["effect_id"], "mode": mode, "outcome": outcome,
         "paper": mode == "paper", "receipt_type": "outcome",
         "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
-    }, ("receipt_type", "effect_id"))
+    }
+    if "execution_identity" in planned:
+        receipt["execution_identity"] = planned["execution_identity"]
+    if "submission_identity" in started:
+        receipt["submission_identity"] = started["submission_identity"]
+    return _append_once(ledger, receipt, ("receipt_type", "effect_id"))
 
 
 def reconcile_started(
@@ -394,6 +509,8 @@ def reconcile_started(
         if order is None:
             _append_once(ledger, {
                 "client_order_id": intent["client_order_id"], "effect_id": intent["effect_id"],
+                "execution_identity": intent.get("execution_identity"),
+                **({"submission_identity": intent["submission_identity"]} if "submission_identity" in intent else {}),
                 "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
                 "recorded_at": datetime.now(timezone.utc).isoformat(),
                 "schema_version": 1, "status": "reconciliation_blocked",
@@ -410,6 +527,8 @@ def reconcile_started(
                     "broker_status": status,
                     "client_order_id": intent["client_order_id"],
                     "effect_id": intent["effect_id"], "outcome": "broker_terminal_failure",
+                    "execution_identity": intent.get("execution_identity"),
+                    **({"submission_identity": intent["submission_identity"]} if "submission_identity" in intent else {}),
                     "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
                     "recorded_at": datetime.now(timezone.utc).isoformat(),
                     "schema_version": 1,
@@ -439,6 +558,8 @@ def reconcile_started(
                 raise ValueError("strategy_receipt_invalid")
         _append_once(ledger, {
             "client_order_id": intent["client_order_id"], "effect_id": intent["effect_id"],
+            "execution_identity": intent.get("execution_identity"),
+            **({"submission_identity": intent["submission_identity"]} if "submission_identity" in intent else {}),
             "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
             "recorded_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": 1, "status": "applied",
@@ -448,6 +569,8 @@ def reconcile_started(
             "broker_status": status, "client_order_id": intent["client_order_id"],
             "effect_id": intent["effect_id"],
             "outcome": "broker_reconciled",
+            "execution_identity": intent.get("execution_identity"),
+            **({"submission_identity": intent["submission_identity"]} if "submission_identity" in intent else {}),
             "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
             "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
         }
@@ -483,6 +606,8 @@ def reconcile_started(
                 "broker_status": order.get("status"),
                 "client_order_id": intent["client_order_id"],
                 "effect_id": intent["effect_id"],
+                "execution_identity": intent.get("execution_identity"),
+                **({"submission_identity": intent["submission_identity"]} if "submission_identity" in intent else {}),
                 "mode": mode,
                 "outcome": "broker_reconciled",
                 "paper": mode == "paper",
