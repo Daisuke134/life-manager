@@ -1,0 +1,310 @@
+{
+  "schema": "manager.ampersand.public-aggregate-recalculation.v1",
+  "sources": {
+    "life_combined": {
+      "url": "https://ampersand.humansand.ai/blog/life-combined-data.js?v=no-note-1",
+      "retrieved_at": "2026-10-21T23:33:45.463593Z",
+      "bytes": 2046,
+      "sha256": "196aff6d814a702058528c8d158e32d00340dde40e0096b9553f364dd4f917f1"
+    },
+    "evaluation_display": {
+      "url": "https://ampersand.humansand.ai/blog/evaluations.js",
+      "retrieved_at": "2026-10-21T23:33:45.633121Z",
+      "bytes": 63968,
+      "sha256": "f5160c6d396acb368a52f2358b16c112b645f7551a61c1de1cfac166f70bbc89"
+    }
+  },
+  "calculation": {
+    "formula": "score = goal - weight * cost",
+    "standard_error_formula": "sqrt(A - 2 * weight * B + weight^2 * C)",
+    "published_default_weight": 0.2,
+    "arithmetic": "Decimal arithmetic on the published decimal values; no JavaScript execution",
+    "weight_sensitivity": "Alternative weights change the arithmetic on fixed aggregates, not the model outputs",
+    "units": "Publisher-defined goal progress and V9 interaction cost; these are not dollars or human welfare units"
+  },
+  "model_aggregates": [
+    {
+      "name": "Gemini 3.8 Flash",
+      "goal": 13.2943,
+      "cost": 1.8528,
+      "published_cost_error": 0.15,
+      "published_se_terms": [
+        0.88278,
+        -0.03551,
+        0.02377
+      ],
+      "score_at_published_weight": 12.92374,
+      "standard_error_at_published_weight": 0.947594216952
+    },
+    {
+      "name": "Fable 5.1",
+      "goal": 13.4456,
+      "cost": 2.5019,
+      "published_cost_error": 0.12,
+      "published_se_terms": [
+        0.61963,
+        0.00805,
+        0.01492
+      ],
+      "score_at_published_weight": 12.94522,
+      "standard_error_at_published_weight": 0.785497803943
+    },
+    {
+      "name": "Ampersand",
+      "goal": 13.8157,
+      "cost": 4.3651,
+      "published_cost_error": 0.31,
+      "published_se_terms": [
+        0.90213,
+        0.04024,
+        0.0975
+      ],
+      "score_at_published_weight": 12.94268,
+      "standard_error_at_published_weight": 0.943363132627
+    },
+    {
+      "name": "Muse Spark 1.3",
+      "goal": 13.0179,
+      "cost": 1.9217,
+      "published_cost_error": 0.19,
+      "published_se_terms": [
+        1.55966,
+        -0.04631,
+        0.03513
+      ],
+      "score_at_published_weight": 12.63356,
+      "standard_error_at_published_weight": 1.256817090909
+    },
+    {
+      "name": "Kimi K3",
+      "goal": 12.5893,
+      "cost": 4.2691,
+      "published_cost_error": 0.3,
+      "published_se_terms": [
+        1.46034,
+        -0.02593,
+        0.09234
+      ],
+      "score_at_published_weight": 11.73548,
+      "standard_error_at_published_weight": 1.214251044883
+    },
+    {
+      "name": "Opus 5.5",
+      "goal": 10.8288,
+      "cost": 1.3279,
+      "published_cost_error": 0.14,
+      "published_se_terms": [
+        0.50174,
+        0.01072,
+        0.01946
+      ],
+      "score_at_published_weight": 10.56322,
+      "standard_error_at_published_weight": 0.705854375916
+    },
+    {
+      "name": "GPT-6 Astra",
+      "goal": 9.9567,
+      "cost": 0.7631,
+      "published_cost_error": 0.09,
+      "published_se_terms": [
+        0.68855,
+        -0.01229,
+        0.00873
+      ],
+      "score_at_published_weight": 9.80408,
+      "standard_error_at_published_weight": 0.832955701103
+    },
+    {
+      "name": "GPT-6.1 Sol",
+      "goal": 9.1987,
+      "cost": 0.9806,
+      "published_cost_error": 0.1,
+      "published_se_terms": [
+        0.62305,
+        -0.01338,
+        0.0092
+      ],
+      "score_at_published_weight": 9.00258,
+      "standard_error_at_published_weight": 0.792950187591
+    },
+    {
+      "name": "GLM 5.3",
+      "goal": 10.9667,
+      "cost": 5.4016,
+      "published_cost_error": 0.48,
+      "published_se_terms": [
+        0.67631,
+        -0.10193,
+        0.22597
+      ],
+      "score_at_published_weight": 9.88638,
+      "standard_error_at_published_weight": 0.852127220549
+    }
+  ],
+  "rankings": [
+    {
+      "weight": 0.0,
+      "numerical_order": [
+        {
+          "rank": 1,
+          "name": "Ampersand",
+          "score": 13.8157
+        },
+        {
+          "rank": 2,
+          "name": "Fable 5.1",
+          "score": 13.4456
+        },
+        {
+          "rank": 3,
+          "name": "Gemini 3.8 Flash",
+          "score": 13.2943
+        },
+        {
+          "rank": 4,
+          "name": "Muse Spark 1.3",
+          "score": 13.0179
+        },
+        {
+          "rank": 5,
+          "name": "Kimi K3",
+          "score": 12.5893
+        },
+        {
+          "rank": 6,
+          "name": "GLM 5.3",
+          "score": 10.9667
+        },
+        {
+          "rank": 7,
+          "name": "Opus 5.5",
+          "score": 10.8288
+        },
+        {
+          "rank": 8,
+          "name": "GPT-6 Astra",
+          "score": 9.9567
+        },
+        {
+          "rank": 9,
+          "name": "GPT-6.1 Sol",
+          "score": 9.1987
+        }
+      ]
+    },
+    {
+      "weight": 0.2,
+      "numerical_order": [
+        {
+          "rank": 1,
+          "name": "Fable 5.1",
+          "score": 12.94522
+        },
+        {
+          "rank": 2,
+          "name": "Ampersand",
+          "score": 12.94268
+        },
+        {
+          "rank": 3,
+          "name": "Gemini 3.8 Flash",
+          "score": 12.92374
+        },
+        {
+          "rank": 4,
+          "name": "Muse Spark 1.3",
+          "score": 12.63356
+        },
+        {
+          "rank": 5,
+          "name": "Kimi K3",
+          "score": 11.73548
+        },
+        {
+          "rank": 6,
+          "name": "Opus 5.5",
+          "score": 10.56322
+        },
+        {
+          "rank": 7,
+          "name": "GLM 5.3",
+          "score": 9.88638
+        },
+        {
+          "rank": 8,
+          "name": "GPT-6 Astra",
+          "score": 9.80408
+        },
+        {
+          "rank": 9,
+          "name": "GPT-6.1 Sol",
+          "score": 9.00258
+        }
+      ]
+    },
+    {
+      "weight": 0.3,
+      "numerical_order": [
+        {
+          "rank": 1,
+          "name": "Gemini 3.8 Flash",
+          "score": 12.73846
+        },
+        {
+          "rank": 2,
+          "name": "Fable 5.1",
+          "score": 12.69503
+        },
+        {
+          "rank": 3,
+          "name": "Ampersand",
+          "score": 12.50617
+        },
+        {
+          "rank": 4,
+          "name": "Muse Spark 1.3",
+          "score": 12.44139
+        },
+        {
+          "rank": 5,
+          "name": "Kimi K3",
+          "score": 11.30857
+        },
+        {
+          "rank": 6,
+          "name": "Opus 5.5",
+          "score": 10.43043
+        },
+        {
+          "rank": 7,
+          "name": "GPT-6 Astra",
+          "score": 9.72777
+        },
+        {
+          "rank": 8,
+          "name": "GLM 5.3",
+          "score": 9.34622
+        },
+        {
+          "rank": 9,
+          "name": "GPT-6.1 Sol",
+          "score": 8.90452
+        }
+      ]
+    }
+  ],
+  "fable_minus_ampersand_at_published_weight": 0.00254,
+  "boundary": {
+    "analysis_type": "Recalculation of company-published simulation aggregates",
+    "model_inference_calls": 0,
+    "new_simulation_runs": 0,
+    "human_participants_recruited": 0,
+    "javascript_executed": false,
+    "raw_individual_records_retained": false,
+    "source_comments_or_internal_links_retained": false,
+    "api_access_observation": "A separate unauthenticated GET of /v1/models returned HTTP 401; inference was not run",
+    "significance": "No paired model-difference test or causal inference was performed",
+    "standard_error_scope": "Publisher-reported within-scenario repeat variation; not generalization to real populations",
+    "interpretation": "Numerical ordering depends on the cost weight and does not establish a practically meaningful winner"
+  }
+}
