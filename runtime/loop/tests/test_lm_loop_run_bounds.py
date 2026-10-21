@@ -2124,16 +2124,51 @@ def test_capafy_distributor_no_effect_hint_accepts_only_wrapper_owned_reasons(tm
     entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
     hint = tmp_path / "entrypoint-result.json"
 
-    for reason in ("daily_limit_reached", "pii_gate_blocked"):
-        _write_no_effect_result(
-            hint, owner_id=owner, occurrence_id=occurrence,
-            reason=reason,
+    _write_no_effect_result(
+        hint, owner_id=owner, occurrence_id=occurrence,
+        reason="daily_limit_reached",
+    )
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) == (
+            "not_applicable",
+            f"lm-no-effect://{owner}/{occurrence}/daily_limit_reached",
         )
-        assert loop_runner._verified_terminal_effect_result(
-            hint, owner, occurrence, entrypoint) == (
-                "not_applicable",
-                f"lm-no-effect://{owner}/{occurrence}/{reason}",
-            )
+
+    slot = "2026-09-29-h17m00"
+    _write_no_effect_result(
+        hint, owner_id=owner, occurrence_id=occurrence,
+        reason="pii_gate_blocked", slot=slot,
+    )
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) is None
+
+    attestation = hint.with_name("capafy-pii-gate-attestation.json")
+    attestation.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "capafy_pii_gate_attestation",
+        "status": "blocked",
+        "owner_id": owner,
+        "occurrence_id": occurrence,
+        "slot": slot,
+        "stage": "capafy-distribute-publish",
+        "gate_exit_code": 3,
+        "provider_phase": "not_started",
+        "publisher_invocations": 0,
+        "x_post_invocations": 0,
+    }) + "\n")
+    attestation.chmod(0o600)
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) == (
+            "not_applicable",
+            f"lm-no-effect://{owner}/{occurrence}/pii_gate_blocked",
+        )
+
+    value = json.loads(attestation.read_text())
+    value["provider_phase"] = "publish_started"
+    attestation.write_text(json.dumps(value) + "\n")
+    attestation.chmod(0o600)
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, entrypoint) is None
     assert loop_runner._no_effect_result_hint_allowed(owner, entrypoint)
     assert not loop_runner._no_effect_result_hint_allowed("other-loop", entrypoint)
     assert loop_runner._verified_no_effect_result(

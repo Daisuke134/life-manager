@@ -46,6 +46,19 @@ if [ "$MODE" = "agent-workspace" ]; then
     *) echo "model-runner: ARTICLE_RUN_DIR must be absolute" >&2; exit 64 ;;
   esac
 fi
+if [ "${ARTICLE_CODEX_NO_TOOLS:-0}" = "1" ]; then
+  [ "$MODE" = "agent-workspace" ] \
+    && [ -n "${ARTICLE_CODEX_OUTPUT_FILE:-}" ] \
+    && [ -f "${ARTICLE_CODEX_OUTPUT_SCHEMA:-}" ] \
+    && [ ! -L "$ARTICLE_CODEX_OUTPUT_FILE" ] || {
+    echo "model-runner: tool-free Codex output requires agent-workspace, schema, and a regular output path" >&2
+    exit 64
+  }
+  case "$ARTICLE_CODEX_OUTPUT_FILE" in
+    "$ARTICLE_RUN_DIR"/*) ;;
+    *) echo "model-runner: tool-free output must stay under ARTICLE_RUN_DIR" >&2; exit 64 ;;
+  esac
+fi
 
 # SSOT §9.3.1 H2. `agent` is write-capable but has no event stream (the C1
 # session surface below is deliberately off for it, so the daily writing path
@@ -372,6 +385,9 @@ invoke_provider() {
       # and durable state stay with the trusted wrapper outside this workspace.
       sandbox="workspace-write"
       working_root="$ARTICLE_RUN_DIR"
+      if [ "${ARTICLE_CODEX_NO_TOOLS:-0}" = "1" ]; then
+        sandbox="read-only"
+      fi
     elif [ "$MODE" = "repair" ]; then
       # Narrow on purpose. `danger-full-access` with $HOME writable would let an
       # unattended repair worker reach credentials, other loops' state, and the
@@ -397,7 +413,8 @@ invoke_provider() {
         -C "$working_root"
       )
     fi
-    if [ "$MODE" = "repair" ] || [ "$MODE" = "agent-workspace" ]; then
+    if [ "$MODE" = "repair" ] || { [ "$MODE" = "agent-workspace" ] \
+        && [ "$sandbox" = "workspace-write" ]; }; then
       # Measured 2026-08-07 on codex-cli 0.145.0: without both exclusions,
       # workspace-write still allows writes under /tmp and $TMPDIR, which is a
       # channel out of the workspace. network_access is stated rather than left
@@ -425,6 +442,14 @@ invoke_provider() {
         && command+=(--output-schema "$ARTICLE_CODEX_OUTPUT_SCHEMA")
     fi
     [ "$MODE" = "vision" ] && command+=(--image "$IMAGE_FILE")
+    if [ "$MODE" = "agent-workspace" ] \
+        && [ "${ARTICLE_CODEX_NO_TOOLS:-0}" = "1" ]; then
+      command+=(
+        --disable shell_tool --disable code_mode_host --disable unified_exec
+        --output-schema "$ARTICLE_CODEX_OUTPUT_SCHEMA"
+        -o "$ARTICLE_CODEX_OUTPUT_FILE"
+      )
+    fi
     if [ "$CODEX_SESSION_MODE" = "1" ] && [ -n "${ARTICLE_CODEX_RESUME_SESSION_ID:-}" ]; then
       # Verified against codex-cli 0.145.0 on 2026-08-07: resuming by explicit
       # session id returns the same thread_id with its context carried forward.

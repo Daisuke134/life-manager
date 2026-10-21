@@ -183,7 +183,10 @@ FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 RUN_TS="capafy-distribute-$SLOT"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
 mkdir -p "$RUN_DIR/gates"
+chmod 700 "$RUN_DIR" "$RUN_DIR/gates" || exit 1
 CAPTION_FILE="$RUN_DIR/x-caption.txt"
+DRAFT_RESPONSE="$RUN_DIR/draft-response-$LIFE_MANAGER_RUN_ID.json"
+DRAFT_SCHEMA="$SELF_DIR/capafy-distribute-draft.schema.json"
 # Bind the wrapper's actual clock-selected slot to the runtime occurrence before
 # any model or publication step. Execute-start may straddle a JST half-hour edge.
 if ! CAPAFY_DISTRIBUTE_SCRIPT_DIR="$SELF_DIR" python3 - \
@@ -237,16 +240,22 @@ skills/writer-agent/article-daily.sh, its state, or publication ledgers.
 
 GOAL: write ONE complete free English article (no paywall, no preview/paid
 split) promoting the $PRODUCT_LABEL "$CAPAFY_SKILL_SLUG" (buyer problem:
-$CAPAFY_BUYER_PROBLEM). Follow $ARTICLE_ROOT/reference/CRAFT.md and the
-humanizer guidance at $ARTICLE_ROOT/vendor/writing-skills/humanizer/SKILL.md.
-Follow the IDENTITY / OPERATOR-IDENTIFIER rules in $ARTICLE_ROOT/SKILL.md.
+$CAPAFY_BUYER_PROBLEM).
+
+Writing craft:
+$CRAFT_GUIDANCE
+
+Author identity and operator privacy:
+$IDENTITY_GUIDANCE
+
+Use natural varied English. Cut filler, generic conclusions, empty promotion,
+unsupported claims, vague attributions, and invented personal experience.
 $SEO_BRIEF
 
 The article body must contain exactly one Capafy CTA link, verbatim:
 $CTA_URL
 Do not add a second Capafy link or send readers to another product checkout.
-Give the draft one H1 title and write the full body to
-$RUN_DIR/article-en.md. Do not invent statistics, product behavior, earnings,
+Give the draft one H1 title in "article_markdown". Do not invent statistics, product behavior, earnings,
 or conversion claims.
 
 For hook-lab, write one short X caption that demonstrates one input topic and
@@ -255,14 +264,16 @@ $LIFE_MANAGER_REPO/skills/capafy/catalog/hook-lab/LISTING.md). Briefly say what
 Hook Lab returns. Other skills keep their existing caption style. Use only
 supplied product facts; do not promise retention, views, or revenue. Include
 the article URL $FREE_ARTICLE_URL and separate Capafy link $X_CTA_URL. Write
-only the caption text to $RUN_DIR/x-caption.txt.
+the caption as the "x_caption" string value.
 
 Do not publish, push commits, call Postiz, run capafy_x_post.py, write a
-receipt, or update the ledger. The trusted wrapper runs the PII gate and owns
-article/X publication and ledger updates after you exit. If the PII gate
-blocks the draft, the wrapper records a no-effect outcome and retries on a
-later cadence. The model workspace is only this run directory; do not try to
-read or write other paths.
+receipt, update the ledger, or write files. Return exactly one JSON object with
+the fields "article_markdown" and "x_caption" containing the complete article
+and caption. Do not include code fences or other fields. The trusted wrapper
+validates the JSON, writes the draft and caption, runs the PII gate, and owns
+article/X publication and ledger updates after you exit. If the PII gate blocks
+the draft, the wrapper records a no-effect outcome and retries on a later
+cadence. Do not try to read other files or paths.
 
 dev.to, Zenn, and Substack are out of scope. Do not publish or build a route
 to any of them.
@@ -270,6 +281,13 @@ PROMPT_EOF
 
 ARTICLE_MODEL_RUNNER="${ARTICLE_MODEL_RUNNER:-$ARTICLE_ROOT/runtime/model-runner.sh}"
 ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS="${CAPAFY_DISTRIBUTE_MODEL_AGENT_TIMEOUT_SECONDS:-1800}"
+CRAFT_GUIDANCE="$(cat "$ARTICLE_ROOT/reference/CRAFT.md")" || exit 1
+IDENTITY_GUIDANCE="$(awk '/^## IDENTITY / {printing=1; next} /^## / {if (printing) exit} printing' \
+  "$ARTICLE_ROOT/SKILL.md")" || exit 1
+if [ -e "$DRAFT_RESPONSE" ] || [ -L "$DRAFT_RESPONSE" ]; then
+  echo "capafy-distribute-daily: Codex output path already exists" >>"$LOG"
+  exit 1
+fi
 
 env -u LIFE_MANAGER_RESULT_HINT_PATH -u CAPAFY_DISTRIBUTE_STATE_DIR \
   -u CAPAFY_DISTRIBUTE_EVENTS_PATH -u CAPAFY_DISTRIBUTE_RUNS_ROOT \
@@ -278,11 +296,17 @@ env -u LIFE_MANAGER_RESULT_HINT_PATH -u CAPAFY_DISTRIBUTE_STATE_DIR \
   -u POSTIZ_API_KEY -u LM_POSTIZ_API_KEY -u LIFE_MANAGER_MARKETING_ENV_FILE \
   BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-writers.stop" \
 ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
+ARTICLE_CODEX_NO_TOOLS=1 ARTICLE_CODEX_OUTPUT_FILE="$DRAFT_RESPONSE" \
+ARTICLE_CODEX_OUTPUT_SCHEMA="$DRAFT_SCHEMA" CODEX_SESSION_MODE=0 \
   python3 "$LIFE_MANAGER_REPO/runtime/loop/bounded-exec.py" \
     "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \
     "$ARTICLE_MODEL_RUNNER" agent-workspace --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
 RC=$?
 echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
+[ -f "$DRAFT_RESPONSE" ] && [ ! -L "$DRAFT_RESPONSE" ] || exit 1
+chmod 600 "$DRAFT_RESPONSE" || exit 1
+python3 "$SELF_DIR/capafy_draft_output.py" materialize \
+  --response "$DRAFT_RESPONSE" --run-dir "$RUN_DIR" >>"$LOG" 2>&1 || exit 1
 # The ledger is the effect truth, not the exit code. Before PR #8249 the agent
 # exited 1 even after a fully published run (live 2026-09-29 h15) because its
 # prose report failed the shared runner's JSON contract; rc is still advisory.
@@ -298,6 +322,19 @@ fi
 if [ "$PII_RC" -ne 0 ]; then
   echo "capafy-distribute-daily: PII gate blocked provider publish rc=$PII_RC" >>"$LOG"
   if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+    python3 - "$SELF_DIR" "$LIFE_MANAGER_RESULT_HINT_PATH" \
+      "$LIFE_MANAGER_OCCURRENCE_ID" "$SLOT" "$PII_RC" >>"$LOG" 2>&1 <<'PY' || exit 1
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(sys.argv[1]).parents[3]))
+from runtime.loop.lm_loop_run import write_capafy_pii_gate_attestation
+
+if not write_capafy_pii_gate_attestation(
+        Path(sys.argv[2]), sys.argv[3], sys.argv[4],
+        gate_exit_code=int(sys.argv[5])):
+    raise SystemExit(1)
+PY
     python3 "$SELF_DIR/capafy_distribute_fence_reconcile.py" \
       --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
       --result-hint "$LIFE_MANAGER_RESULT_HINT_PATH" \

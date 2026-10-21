@@ -646,6 +646,13 @@ def _write_private_hint(path: Path, value: dict[str, Any]) -> bool:
     return True
 
 
+def _occurrence_slot(occurrence_id: str) -> str:
+    started_at = occurrence_started_at(occurrence_id, events_path=EVENTS_PATH)
+    local = started_at.astimezone(ZoneInfo("Asia/Tokyo"))
+    half_hour = (local.minute // 30) * 30
+    return f"{local:%Y-%m-%d}-h{local.hour:02d}m{half_hour:02d}"
+
+
 def write_result_hint(occurrence_id: str, path: Path) -> dict[str, Any]:
     """Read official proof internally, then write only its exact occurrence receipt."""
     if (not isinstance(occurrence_id, str)
@@ -697,17 +704,14 @@ def write_result_hint(occurrence_id: str, path: Path) -> dict[str, Any]:
 
 def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
                                 slot: str) -> bool:
-    """Report no effect for an already-published slot or a pre-provider PII block."""
+    """Report an existing published slot or an attested pre-provider PII block."""
     if (not isinstance(occurrence_id, str)
             or not occurrence_id.startswith(f"{OWNER_ID}:")
             or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", occurrence_id.split(":", 1)[1])
             or reason not in {"daily_limit_reached", "pii_gate_blocked"}
             or not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot)):
         return False
-    started_at = occurrence_started_at(occurrence_id, events_path=EVENTS_PATH)
-    local = started_at.astimezone(ZoneInfo("Asia/Tokyo"))
-    half_hour = (local.minute // 30) * 30
-    expected_slot = f"{local:%Y-%m-%d}-h{local.hour:02d}m{half_hour:02d}"
+    expected_slot = _occurrence_slot(occurrence_id)
     if slot != expected_slot:
         return False
     if LEDGER_PATH.is_symlink():
@@ -721,7 +725,15 @@ def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
             return False
     except (OSError, ValueError, TypeError):
         return False
-    return _write_private_hint(path, {
+    if reason == "pii_gate_blocked":
+        try:
+            expected_article_slug(occurrence_id, occurrences_root=OCCURRENCES_ROOT)
+        except (OSError, ValueError, TypeError):
+            return False
+        from runtime.loop.lm_loop_run import verify_capafy_pii_gate_attestation
+        if not verify_capafy_pii_gate_attestation(path, OWNER_ID, occurrence_id, slot):
+            return False
+    result = {
         "schema_version": 1,
         "kind": "life_manager_no_effect_result",
         "status": "verified_no_effect",
@@ -729,7 +741,10 @@ def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
         "owner_id": OWNER_ID,
         "occurrence_id": occurrence_id,
         "reason": reason,
-    })
+    }
+    if reason == "pii_gate_blocked":
+        result["slot"] = slot
+    return _write_private_hint(path, result)
 
 
 def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | None = None,

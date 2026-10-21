@@ -22127,3 +22127,33 @@ The all-pipelines Codex-only invariant remains incomplete until TODO #8. The las
 | 9 | Move `daily-nl-report.mjs::llmReport` from proxy to Codex and preserve the truth-only report contract. | Depends on #7–#8; completes the all-pipelines Codex-only invariant. |
 
 The last pushed branch head remains `73ef11226e5c654394a42c98646cdbd1dfa86b9b` on base `9802693fa246d08b7e0fc181587985bcf5a8fb49`. Latest main `8f843d1449fbb94cab3e6bcc75f50224de36020b` is integrated locally at merge head `63561289be`; the Capafy trust-boundary and legacy-reconciliation changes are committed locally but not pushed. PR #8467 remains open at the older head; its checks pass for that head and do not cover these commits. Source is not merged, no new immutable release is cut, and production remains on the older `27b594…` release with the active fence above. Current cursor = TODO #2.
+
+### Capafy Codex-only execution and fence proof checkpoint — 2026-10-21 06:02 UTC
+
+**Policy reaffirmed by Dais:** every Life Manager internal agent pipeline uses Codex. Claude and all non-Codex inference fallbacks are prohibited. The policy is active; global implementation remains incomplete until the x402, Polymarket, and daily-report atoms below are done. Do not treat a Codex-only Capafy source branch as proof that all pipelines have migrated.
+
+**As-Is source:** PR #8467 remains open on the pushed head `40ad5726335b9546885cf3120bf64e1219b43ff7`, based on integrated `origin/main` `8f843d1449fbb94cab3e6bcc75f50224de36020b`. The current worktree adds uncommitted receipt and tool-free Codex changes; the PR and its checks do not yet contain them. No source merge, release cut, or production apply is claimed.
+
+**Review findings addressed in the worktree:**
+
+- A bare `pii_gate_blocked` CLI reason no longer clears a Capafy no-effect fence. After the real PII gate exits nonzero, the trusted wrapper writes a private, exclusive 0600 attestation bound to the exact occurrence and slot, with stage `capafy-distribute-publish`, `provider_phase=not_started`, and zero publisher/X calls. The writer and `lm-loop` runtime both validate it. A direct CLI reason with no attestation is rejected.
+- The prior `workspace-write` Codex route could read a harmless sentinel outside its run directory. Capafy now calls Codex in `read-only` mode with `shell_tool`, `code_mode_host`, and `unified_exec` disabled; Codex returns schema-bound JSON through `-o`, and the trusted wrapper writes `article-en.md` and `x-caption.txt`. A real Codex probe returned valid JSON, the wrapper parser materialized a 1,107-character article and 53-character caption, and the private sentinel was absent. This verifies the tool-free invocation path; it does not claim a general OS-level file-read deny for every Codex process.
+
+**Verification:** Capafy distribute/reconcile/draft-output tests 60/60; writer model-runner contract 10 plus 3 subtests; loop runtime bounds 202/202; Capafy article publisher 21/21; `./bin/lm-loop-contract` reports 18 catalog loops, 191 registry jobs, 112 mapped jobs, and zero errors; `node scripts/verify-oss-self-contained.mjs --json` reports `ok=true` and no violations. Bash syntax, Python compilation, and `git diff --check` pass. These are local source gates, not production revenue proof.
+
+**Current production state:** read-only `lm-loop status capafy-distribute-daily --explain` at `06:01Z` still shows owner loaded-idle on release `27b594cd84f6e660f6ffbacabb21be8d7f25cb2c`. Occurrence `18e0730354954fe8-53052` remains claimed with `effect_unknown`; `18e0756837b0e1c8-75481` deferred at `05:49Z` before provider start because the fence remains. The complete official no-effect window is not eligible until `06:30:09.844547Z`; the earlier 0-commit/0-Postiz read is premature. Keep the fence; do not replay. Latest seller readback remains the `05:07:40Z` snapshot: 7-day gross/net `$0`, with paid/trial split unavailable; true MRR unknown. No new paid Capafy order is confirmed.
+
+**Atomic TODO, unchanged priority order; current cursor = 1:**
+
+| # | Exact action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | Commit/push the current Capafy PII-attestation and tool-free Codex draft path, obtain a fresh exact-head read-only review, pass required PR #8467 checks, then merge. | Current cursor. DONE: no unresolved HIGH/MEDIUM finding; every required check passes on the exact pushed head; merged SHA is read from `origin/main`. |
+| 2 | At/after `06:30:09.844547Z`, read the exact GitHub and Postiz windows for `capafy-distribute-daily:18e0730354954fe8-53052`, then close only with a complete occurrence-bound official effect receipt or complete empty listings. | Does not authorize replay. DONE: official readback classifies this exact occurrence and its admission row is closed; ambiguous rows/read errors keep it held. |
+| 3 | Cut a complete immutable release from merged main without pruning retained releases; after fresh owner/GUI/lease/idle checks, apply only Capafy via `launchctl-safe`. | Depends on #1 and #2. DONE: loaded release SHA and argv show Codex's tool-free route; owner reaches a natural terminal. |
+| 4 | Verify one natural Capafy distribution on that release, including the public page, GitHub receipt, exact Postiz ID/URL, occurrence attribution, and duplicate-zero. | Depends on #3. DONE: provider receipts and `lm-loop` terminal identify the same occurrence. |
+| 5 | Refresh Capafy source-to-paid data, then choose and run the next bounded distribution experiment from measured conversion. | Depends on #4. Revenue DONE requires an official attributed paid order and observed economics; otherwise keep testing distribution. |
+| 6 | Migrate `skills/earn/x402-sell/the402-worker-daemon.mjs::runLocalModel` from Mistral/Qwen proxy to Codex and retain its `userPrompt → non-empty markdown` contract. | After the Capafy distribution cycle. DONE: no alternate inference fallback; `node --test skills/earn/x402-sell/__tests__/*.test.mjs` passes. |
+| 7 | Migrate `skills/earn/polymarket-trade/pick.py` from BlockRun to Codex; preserve current decision fields/gates and historical evaluation. | Depends on #6. Keep live adoption behind official receipt `pm-live-trade:18d61d6a6df63248-48979`. |
+| 8 | Migrate `skills/report/daily-nl-report.mjs::llmReport` from the local proxy to Codex and preserve its truth-only output contract. | Last. Depends on #6–#7; completes the internal all-pipelines Codex-only invariant. |
+
+Reporting remains last because it does not directly bring distribution or paid orders. The factory and distributor remain the Capafy revenue cursor. The active production fence is the current blocker before any new Capafy natural publish.

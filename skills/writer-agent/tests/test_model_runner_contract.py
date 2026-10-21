@@ -406,7 +406,12 @@ class ModelRunnerContractTests(unittest.TestCase):
                 "ARTICLE_RUN_ID": "isolated-agent-contract",
                 "ARTICLE_RUN_DIR": str(workspace),
                 "CAPTURE_ARGS": str(args_path),
+                "ARTICLE_CODEX_NO_TOOLS": "1",
+                "ARTICLE_CODEX_OUTPUT_FILE": str(workspace / "draft-response.json"),
+                "ARTICLE_CODEX_OUTPUT_SCHEMA": str(sandbox / "schema.json"),
+                "CODEX_SESSION_MODE": "0",
             })
+            (sandbox / "schema.json").write_text("{}", encoding="utf-8")
 
             result = subprocess.run(
                 [str(RUNNER), "agent-workspace", "--prompt-file", str(prompt)],
@@ -418,11 +423,16 @@ class ModelRunnerContractTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             args = args_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(args[args.index("--sandbox") + 1], "workspace-write")
+            self.assertEqual(args[args.index("--sandbox") + 1], "read-only")
             self.assertEqual(args[args.index("-C") + 1], str(workspace))
-            self.assertIn("sandbox_workspace_write.exclude_slash_tmp=true", args)
-            self.assertIn("sandbox_workspace_write.exclude_tmpdir_env_var=true", args)
-            self.assertIn("sandbox_workspace_write.network_access=false", args)
+            self.assertEqual(
+                [args[i + 1] for i, value in enumerate(args[:-1]) if value == "--disable"],
+                ["shell_tool", "code_mode_host", "unified_exec"],
+            )
+            self.assertEqual(args[args.index("--output-schema") + 1],
+                             str(sandbox / "schema.json"))
+            self.assertEqual(args[args.index("-o") + 1],
+                             str(workspace / "draft-response.json"))
             self.assertNotIn("--add-dir", args)
             self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
 

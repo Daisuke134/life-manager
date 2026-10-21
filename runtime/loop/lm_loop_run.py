@@ -64,6 +64,8 @@ EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_EVENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
+CAPAFY_SLOT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}-h(?:[01]\d|2[0-3])m(?:00|30)\Z")
+CAPAFY_PII_GATE_ATTESTATION_NAME = "capafy-pii-gate-attestation.json"
 HEARTBEAT_SUBCAUSES = frozenset({
     "resource_heartbeat_claim_missing",
     "resource_heartbeat_claim_invalid",
@@ -945,6 +947,82 @@ def _read_private_result_hint(path: Path) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
+def write_capafy_pii_gate_attestation(path: Path, occurrence_id: str,
+                                     slot: str, *, gate_exit_code: int) -> bool:
+    if (path.name != "entrypoint-result.json"
+            or not isinstance(occurrence_id, str)
+            or not re.fullmatch(r"capafy-distribute-daily:[A-Za-z0-9_-]{1,128}", occurrence_id)
+            or not isinstance(slot, str) or not CAPAFY_SLOT_PATTERN.fullmatch(slot)
+            or type(gate_exit_code) is not int or not 1 <= gate_exit_code <= 255
+            or os.environ.get("LIFE_MANAGER_LOOP_ID") != "capafy-distribute-daily"
+            or os.environ.get("LIFE_MANAGER_OCCURRENCE_ID") != occurrence_id
+            or os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH") != str(path)):
+        return False
+    try:
+        parent = path.parent.lstat()
+    except OSError:
+        return False
+    if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.getuid()
+            or stat.S_IMODE(parent.st_mode) != 0o700):
+        return False
+    value = {
+        "schema_version": 1, "kind": "capafy_pii_gate_attestation",
+        "status": "blocked", "owner_id": "capafy-distribute-daily",
+        "occurrence_id": occurrence_id, "slot": slot,
+        "stage": "capafy-distribute-publish", "gate_exit_code": gate_exit_code,
+        "provider_phase": "not_started", "publisher_invocations": 0,
+        "x_post_invocations": 0,
+    }
+    try:
+        descriptor = os.open(
+            path.with_name(CAPAFY_PII_GATE_ATTESTATION_NAME),
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600,
+        )
+    except OSError:
+        return False
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        os.fchmod(stream.fileno(), 0o600)
+        stream.write(json.dumps(value, sort_keys=True) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    return True
+
+
+def verify_capafy_pii_gate_attestation(path: Path, loop_id: str,
+                                      occurrence_id: str, slot: str) -> bool:
+    if loop_id != "capafy-distribute-daily" or not CAPAFY_SLOT_PATTERN.fullmatch(slot):
+        return False
+    try:
+        parent = path.parent.lstat()
+    except OSError:
+        return False
+    if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.getuid()
+            or stat.S_IMODE(parent.st_mode) != 0o700):
+        return False
+    value = _read_private_result_hint(
+        path.with_name(CAPAFY_PII_GATE_ATTESTATION_NAME))
+    expected_fields = {
+        "schema_version", "kind", "status", "owner_id", "occurrence_id",
+        "slot", "stage", "gate_exit_code", "provider_phase",
+        "publisher_invocations", "x_post_invocations",
+    }
+    return (isinstance(value, dict) and set(value) == expected_fields
+            and type(value.get("schema_version")) is int and value["schema_version"] == 1
+            and value.get("kind") == "capafy_pii_gate_attestation"
+            and value.get("status") == "blocked"
+            and value.get("owner_id") == loop_id
+            and value.get("occurrence_id") == occurrence_id
+            and value.get("slot") == slot
+            and value.get("stage") == "capafy-distribute-publish"
+            and type(value.get("gate_exit_code")) is int
+            and 1 <= value["gate_exit_code"] <= 255
+            and value.get("provider_phase") == "not_started"
+            and type(value.get("publisher_invocations")) is int
+            and value["publisher_invocations"] == 0
+            and type(value.get("x_post_invocations")) is int
+            and value["x_post_invocations"] == 0)
+
+
 def _verified_effect_result(path: Path, loop_id: str,
                             occurrence_id: str, *,
                             entrypoint: str | None = None) -> tuple[str, ...] | None:
@@ -1034,6 +1112,9 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
         "schema_version", "kind", "status", "effect", "owner_id",
         "occurrence_id", "reason",
     }
+    reason = value.get("reason") if isinstance(value, dict) else None
+    if reason == "pii_gate_blocked":
+        expected_fields.add("slot")
     if (not isinstance(value, dict) or set(value) != expected_fields
             or type(value.get("schema_version")) is not int
             or value.get("schema_version") != 1
@@ -1045,6 +1126,11 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
             or value.get("occurrence_id") != occurrence_id
             or not isinstance(value.get("reason"), str)
             or value.get("reason") not in allowed_reasons):
+        return None
+    if (reason == "pii_gate_blocked"
+            and (not isinstance(value.get("slot"), str)
+                 or not verify_capafy_pii_gate_attestation(
+                     path, loop_id, occurrence_id, value["slot"]))):
         return None
     return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
 

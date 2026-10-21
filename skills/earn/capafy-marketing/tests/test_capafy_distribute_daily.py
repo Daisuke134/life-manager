@@ -186,21 +186,30 @@ def test_model_prompt_only_writes_draft_and_caption_for_wrapper() -> None:
     prompt = text.split('cat >"$PROMPT_FILE" <<PROMPT_EOF\n', 1)[1].split(
         "\nPROMPT_EOF", 1)[0]
     assert "Do not publish" in prompt
-    assert "trusted wrapper runs the PII gate" in prompt
-    assert "owns\narticle/X publication and ledger updates" in prompt
+    assert "validates the JSON" in prompt
+    assert "writes the draft and caption" in prompt
+    assert '"article_markdown"' in prompt and '"x_caption"' in prompt
+    assert "or write files" in prompt
     assert "capafy_free_article.py publish" not in prompt
     assert "Do not publish, push commits, call Postiz, run capafy_x_post.py" in prompt
     assert "capafy_distribute_ledger.py record" not in prompt
     assert '"$ARTICLE_MODEL_RUNNER" agent-workspace --prompt-file "$PROMPT_FILE"' in text
+    assert 'ARTICLE_CODEX_NO_TOOLS=1' in text
+    assert "write_capafy_pii_gate_attestation" in text
     assert "--no-effect-reason pii_gate_blocked" in text
     assert 'TG_MARK="$CAPAFY_DISTRIBUTE_STATE_DIR/notifications/$LIFE_MANAGER_RUN_ID.telegram-sent"' in text
 
 
 def test_wrapper_runs_pii_gate_before_external_article_publish() -> None:
     text = SCRIPT.read_text()
+    model = text.index('"$ARTICLE_MODEL_RUNNER" agent-workspace --prompt-file "$PROMPT_FILE"')
+    materialize = text.index('python3 "$SELF_DIR/capafy_draft_output.py" materialize')
     gate = text.index('"$ARTICLE_ROOT/scripts/pii-gate.py" --stage capafy-distribute-publish')
+    attest = text.index("write_capafy_pii_gate_attestation")
+    no_effect = text.index("--no-effect-reason pii_gate_blocked")
     publish = text.index('python3 "$SELF_DIR/capafy_free_article.py" publish')
-    assert gate < publish
+    assert model < materialize < gate
+    assert gate < attest < no_effect < publish
 
 
 def test_x_post_requires_wrapper_verified_published_article() -> None:

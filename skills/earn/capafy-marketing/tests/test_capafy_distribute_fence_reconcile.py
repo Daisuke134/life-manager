@@ -219,6 +219,8 @@ def test_no_effect_hint_ignores_untrusted_event_and_state_root_overrides(tmp_pat
 
 
 def test_pii_gate_blocked_no_effect_hint_does_not_mark_slot_published(tmp_path, monkeypatch):
+    from runtime.loop.lm_loop_run import write_capafy_pii_gate_attestation
+
     slot = "2026-09-29-h17m00"
     occurrence_run(tmp_path, monkeypatch, OCC, Q, "capafy-x-2026-09-29-h17m00", slot=slot)
     state_dir = tmp_path / "canonical-state"
@@ -227,11 +229,60 @@ def test_pii_gate_blocked_no_effect_hint_does_not_mark_slot_published(tmp_path, 
     ledger.write_text(json.dumps({}))
     monkeypatch.setattr(rec, "EVENTS_PATH", tmp_path / "events.jsonl")
     monkeypatch.setattr(rec, "LEDGER_PATH", ledger)
-    hint = tmp_path / "pii-blocked-result.json"
+    hint = tmp_path / "entrypoint-result.json"
 
+    # A bare CLI reason is not evidence that the trusted wrapper ran the gate.
+    assert rec.main([
+        "--occurrence", OCC, "--result-hint", str(hint),
+        "--no-effect-reason", "pii_gate_blocked", "--slot", slot,
+    ]) == 1
+    assert not hint.exists()
+
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", rec.OWNER_ID)
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", OCC)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    assert write_capafy_pii_gate_attestation(hint, OCC, slot, gate_exit_code=3)
     assert rec.write_no_effect_result_hint(OCC, hint, "pii_gate_blocked", slot)
     assert json.loads(ledger.read_text()).get(slot) is None
-    assert json.loads(hint.read_text())["reason"] == "pii_gate_blocked"
+    assert json.loads(hint.read_text()) == {
+        "schema_version": 1,
+        "kind": "life_manager_no_effect_result",
+        "status": "verified_no_effect",
+        "effect": 0,
+        "owner_id": rec.OWNER_ID,
+        "occurrence_id": OCC,
+        "reason": "pii_gate_blocked",
+        "slot": slot,
+    }
+
+
+def test_pii_gate_attestation_is_exact_private_and_exclusive(tmp_path, monkeypatch):
+    from runtime.loop.lm_loop_run import write_capafy_pii_gate_attestation
+
+    slot = "2026-09-29-h17m00"
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, "capafy-x-2026-09-29-h17m00", slot=slot)
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", rec.OWNER_ID)
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", OCC)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    assert not write_capafy_pii_gate_attestation(
+        hint, "capafy-distribute-daily:other", slot, gate_exit_code=3)
+    attestation = hint.with_name("capafy-pii-gate-attestation.json")
+    assert not attestation.exists()
+    assert not write_capafy_pii_gate_attestation(hint, OCC, slot, gate_exit_code=0)
+    assert not attestation.exists()
+    assert write_capafy_pii_gate_attestation(hint, OCC, slot, gate_exit_code=3)
+    assert stat.S_IMODE(attestation.stat().st_mode) == 0o600
+    assert not write_capafy_pii_gate_attestation(hint, OCC, slot, gate_exit_code=3)
+
+    value = json.loads(attestation.read_text())
+    value["provider_phase"] = "publish_started"
+    attestation.write_text(json.dumps(value))
+    attestation.chmod(0o600)
+    forged_hint = tmp_path / "forged-result.json"
+    assert not rec.write_no_effect_result_hint(OCC, forged_hint, "pii_gate_blocked", slot)
+    assert not forged_hint.exists()
 
 
 def test_forged_proof_dictionary_is_not_a_writer_api_and_existing_hint_is_never_overwritten(
