@@ -63,7 +63,9 @@ jobs:
           root = Path('output/phase04-public-aggregate')
           files = list(root.glob('*'))
           assert {x.name for x in files} == {'public_bikeshare_aggregate.json', 'official_archive_crosscheck.json'}
-          report = json.loads(files[0].read_text())
+          report = json.loads((root/'public_bikeshare_aggregate.json').read_text())
+          cross = json.loads((root/'official_archive_crosscheck.json').read_text())
+          assert cross['status'] == 'BYTE_IDENTICAL'
           assert report['source_snapshot_verified'] is True
           assert (report['train_days'], report['heldout_days']) == (365,366)
           assert report['split']['train_test_date_disjoint']
