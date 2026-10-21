@@ -79,7 +79,10 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     );
     const relations = Object.fromEntries(migrated.rows.map(row => [row.name, row.relation]));
     assert.equal(relations.lm_maritime_manager_identities, "lm_maritime_manager_identities");
-    for (const table of MANAGER_TABLES.filter(name => name !== "lm_maritime_manager_identities")) {
+    assert.equal(relations.lm_maritime_manager_enrollments, "lm_maritime_manager_enrollments");
+    assert.equal((await client.query("SELECT to_regclass('public.lm_users') AS relation")).rows[0].relation, null,
+      "Manager runtime state does not require or create the global lm_users table");
+    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments"].includes(name))) {
       assert.equal(relations[table], null, `${table} stays out of the identity migration`);
     }
 
@@ -94,6 +97,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     const uidB = "lm_22222222-2222-4222-8222-222222222222";
     const subjectA = "11111111-1111-4111-8111-111111111111";
     const subjectB = "22222222-2222-4222-8222-222222222222";
+    const releaseSha = "a".repeat(40);
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidA, subjectA]);
     await client.query("UPDATE public.lm_maritime_manager_identities SET first_touch=$1::jsonb,first_touch_at=clock_timestamp() WHERE uid=$2", [JSON.stringify({ utm_source: "x" }), uidA]);
     await assert.rejects(
@@ -116,6 +120,30 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       error => error.code === "23514",
       "first-touch must be an object with its timestamp",
     );
+    await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidB, subjectB]);
+
+    const enrollmentColumns = await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_enrollments'",
+    );
+    const enrollmentNames = new Set(enrollmentColumns.rows.map(row => row.column_name));
+    for (const column of ["uid", "auth_subject", "email", "timezone", "status", "source", "consent_version", "agent_id", "release_sha", "paused_at"]) {
+      assert.ok(enrollmentNames.has(column), `enrollment schema includes ${column}`);
+    }
+    await client.query(`INSERT INTO public.lm_maritime_manager_enrollments(uid,auth_subject,email,status,source,consent_version,release_sha)
+      VALUES ($1,$2,'a@example.invalid','pending','direct','maritime-manager-v1',$3),
+             ($4,$5,'b@example.invalid','pending','direct','maritime-manager-v1',$3)`, [uidA, subjectA, releaseSha, uidB, subjectB]);
+    const claim = uid => client.query('SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed', [uid]).then(result => result.rows[0].claimed);
+    const bind = (uid, subject, agent) => client.query(
+      'SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound', [uid, subject, agent, releaseSha],
+    ).then(result => result.rows[0].bound);
+    assert.equal(await claim(uidA), true);
+    assert.equal(await claim(uidA), false);
+    assert.equal(await bind(uidA, subjectA, 'agent-a'), true);
+    assert.equal(await bind(uidA, subjectA, 'agent-a'), true);
+    assert.equal(await bind(uidA, subjectB, 'agent-other'), false);
+    assert.equal(await claim(uidB), true);
+    assert.equal(await bind(uidB, subjectB, 'agent-a'), false);
+    assert.equal(await bind(uidB, subjectB, 'agent-b'), true);
   } finally {
     if (client) await client.end();
     if (started) execFileSync(bin + "/pg_ctl", ["-D", data, "-m", "fast", "-w", "stop"], { env, stdio: "pipe" });

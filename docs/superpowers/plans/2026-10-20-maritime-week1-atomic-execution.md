@@ -678,7 +678,7 @@ life-manager/
 
 ### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
 
-旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-03、副cursorなし（c-5e.8完了）。
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在cursorはUnified SSOTのT22.1b.6を参照する。副cursorなし（c-5e.8完了）。
 
 **対象tree（新規は予定、既存componentを再利用する）:**
 
@@ -701,7 +701,7 @@ apps/life-manager/
 
 - [x] **b.6-01:** `test/postgres/maritime-manager-state.integration.js`へ既存native initdb/Unix socket/pg driver手順を流用し、6対象relationの欠落とSQLSTATE 42P01を確認する。`PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js` passes1/1。Production DSN不使用、fixture stopped/removed。Evidence→`docs/evidence/maritime/runtime-pg-manager-schema-absence.json`。
 - [x] **b.6-02:** `20261021090000_maritime_manager_runtime_state.sql`に`lm_maritime_manager_identities`を定義。UID PK / verified Auth subject UNIQUE、verified_at、first_touch JSONBとtimestamp、UID/subject再割当拒否を実装。native PG17 fixtureでunique/reassignment/first-touch制約を確認し、他5 relationは未作成のまま。`maritime-manager-state.integration.js` 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-identity-schema.json`。
-- [ ] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。
+- [x] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。native PostgreSQL 17 fixtureでclaim一回、同一agent再bind、foreign subject拒否、別UIDへのagent重複拒否を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json`。
 - [ ] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。
 - [ ] **b.6-05:** 同migrationにparticipantsと容量claim関数を移す。advisory lockで人数上限を直列化し、sourceは現在のnormalizerと揃えInstagramも受理する。旧SQLにないInstagramを落とさない。
 - [ ] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。
