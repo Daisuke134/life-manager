@@ -31,6 +31,12 @@ def _entry_selection_fixture(state: Path, decision: dict, mode="paper"):
     state.mkdir(parents=True, exist_ok=True)
     selection = {"selection": "selected", "strategy_id": card.strategy_id,
                  "release_sha": "a" * 40, "card": card.to_mapping(),
+                 "holdout": {"net_pnl_usd": "1.00"},
+                 "benchmark": {"symbol": "BTC/USDC", "method": "observed_window_buy_and_hold",
+                               "measurement_kind": "modeled_reference_pnl", "status": "measured",
+                               "holdout": {"status": "measured", "net_pnl_usd": "0.00",
+                                           "strategy_net_pnl_usd": "1.00",
+                                           "excess_net_pnl_usd": "1.00"}},
                  "expires_at": "2099-01-01T00:00:00Z", "report_id": "entry-fixture"}
     (state / "selected-strategy.json").write_text(json.dumps(selection))
     return selection
@@ -464,6 +470,12 @@ class PolicyHistoryDispatchTest(unittest.TestCase):
                 card=candidate_cards()[strategy]
                 (root/"selected-strategy.json").write_text(json.dumps({
                     "strategy_id":strategy,"card":card.to_mapping(),"release_sha":"a"*40,
+                    "holdout":{"net_pnl_usd":"1.00"},
+                    "benchmark":{"symbol":"SPY" if strategy.endswith("momentum-v1") else "BTC/USDC",
+                        "method":"buy_and_hold" if strategy.endswith("momentum-v1") else "observed_window_buy_and_hold",
+                        "measurement_kind":"modeled_reference_pnl","status":"measured",
+                        "holdout":{"status":"measured","net_pnl_usd":"0.00",
+                            "strategy_net_pnl_usd":"1.00","excess_net_pnl_usd":"1.00"}},
                     "expires_at":"2099-01-01T00:00:00Z"}))
                 with patch.object(MODULE,"read_crypto_history",return_value={}) as read:
                     MODULE._policy_crypto_history(root,None,mode="paper",credentials_path=Path("c"),

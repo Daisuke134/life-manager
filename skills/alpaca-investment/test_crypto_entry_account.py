@@ -174,6 +174,11 @@ class CryptoEntryAccountTests(unittest.TestCase):
         card = candidate_cards()['alpaca-btc-5m-trend-400-v2']
         (root / 'selected-strategy.json').write_text(json.dumps({'selection': 'selected', 'report_id': 'synthetic-report',
             'strategy_id': card.strategy_id, 'release_sha': 'a' * 40, 'card': card.to_mapping(),
+            'holdout': {'net_pnl_usd': '1.00'},
+            'benchmark': {'symbol': 'BTC/USDC', 'method': 'observed_window_buy_and_hold',
+                'measurement_kind': 'modeled_reference_pnl', 'status': 'measured',
+                'holdout': {'status': 'measured', 'net_pnl_usd': '0.00',
+                    'strategy_net_pnl_usd': '1.00', 'excess_net_pnl_usd': '1.00'}},
             'expires_at': '2099-01-01T00:00:00Z'}))
         reads = []
         provider_order = {}

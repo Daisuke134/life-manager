@@ -154,6 +154,10 @@ class CryptoValidationReportTests(unittest.TestCase):
             self.assertIn("parameter_sensitivity", report)
             self.assertNotEqual(report.get("reason"), "quote_conversion_unknown")
             self.assertEqual(report["measurement_kind"], "modeled_validation")
+            self.assertEqual(report["benchmark"]["symbol"], "BTC/USDC")
+            self.assertEqual(report["benchmark"]["method"], "observed_window_buy_and_hold")
+            self.assertEqual(report["benchmark"]["status"], "measured")
+            self.assertIsNotNone(report["benchmark"]["holdout"]["excess_net_pnl_usd"])
 
     def test_sparse_and_unpriced_bars_are_excluded_without_forward_fill(self):
         bars = self._history(120)
@@ -200,7 +204,12 @@ class CryptoValidationReportTests(unittest.TestCase):
         from strategy_validation import select_strategy
         measured = {"status": "measured", "decision": "paper", "lookahead_detected": False,
                     "holdout": {"trades": 3, "net_pnl_usd": "2", "max_drawdown_usd": "1"},
-                    "turnover": "3"}
+                    "turnover": "3", "benchmark": {
+                        "symbol": "BTC/USDC", "method": "observed_window_buy_and_hold",
+                        "measurement_kind": "modeled_reference_pnl", "status": "measured",
+                        "holdout": {"status": "measured", "net_pnl_usd": "0.50", "strategy_net_pnl_usd": "2",
+                                    "excess_net_pnl_usd": "1.50"},
+                    }}
         with patch.object(validation_runner, "validate_series",
                           side_effect=lambda card, *_args: {**measured, "strategy_id": card.strategy_id}):
             reports = validation_runner.build_crypto_reports_from_history(

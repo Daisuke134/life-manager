@@ -138,7 +138,7 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
             "observed_at": observed_at,
         }
     position = snapshot.get("position")
-    allow_expired_position_management = (
+    allow_existing_position_management = (
         snapshot.get("mode") in {"paper", "live"}
         and isinstance(selection, Mapping)
         and selection.get("strategy_id") == ETF_STRATEGY_ID
@@ -148,23 +148,27 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
         and position.get("symbol") in ETF_SYMBOLS
     )
     selection_expired = False
+    selection_management_only = False
     try:
         card, release_sha = load_selected_card(state)
     except ValueError as error:
-        if str(error) == "strategy_release_expired" and allow_expired_position_management:
+        if (str(error) in {"strategy_release_expired", "strategy_release_benchmark_invalid"}
+                and allow_existing_position_management):
             try:
-                card, release_sha = load_selected_card(state, allow_expired=True)
-                selection_expired = True
-            except ValueError as expired_error:
+                card, release_sha = load_selected_card(
+                    state, allow_existing_position_management=True)
+                selection_expired = str(error) == "strategy_release_expired"
+                selection_management_only = True
+            except ValueError as management_error:
                 return {
                     "action": ACTION_NO_TRADE,
                     "strategy_id": None,
                     "signal_inputs": {},
-                    "reason": str(expired_error),
+                    "reason": str(management_error),
                     "expected_cost_usd": None,
                     "candidate_ref": "NO_TRADE",
                     "approved": False,
-                    "gate": str(expired_error),
+                    "gate": str(management_error),
                     "observed_at": observed_at,
                 }
         else:
@@ -208,16 +212,21 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
                 "observed_at": observed_at,
             }
     policy = evaluate(snapshot, card, owner_id=investment_owner_id())
-    if selection_expired:
-        policy["selection_expired"] = True
+    if selection_management_only:
+        policy["selection_management_only"] = True
+        if selection_expired:
+            policy["selection_expired"] = True
         if policy.get("action") not in {ACTION_HOLD, ACTION_EXIT}:
+            reason = ("strategy_release_expired_new_entry_forbidden" if selection_expired
+                      else "strategy_release_benchmark_invalid_new_entry_forbidden")
             return {
                 **policy,
                 "action": ACTION_NO_TRADE,
-                "reason": "strategy_release_expired_new_entry_forbidden",
+                "reason": reason,
                 "candidate_ref": "NO_TRADE",
                 "approved": False,
-                "gate": "strategy_release_expired",
+                "gate": ("strategy_release_expired" if selection_expired
+                         else "strategy_release_benchmark_invalid"),
                 "release_sha": release_sha,
                 "observed_at": observed_at,
             }
