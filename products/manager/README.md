@@ -115,3 +115,7 @@ H001 does not copy participant CSVs into the public repo or the Manager runtime.
 ## October 21, 2026: autonomy philosophy and first real-data audit
 
 Routine Manager operation is designed to use no human per-action approval. Legitimate standing delegated scopes and safe policy gates remain necessary for external effects. Read [H002–H005 source audit and philosophy](docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md). H002/H003/H004 are source-data audit checkpoints only, not an experimental treatment-effect reproduction. Raw participant rows are not part of the public repository.
+
+## H005 dataset-lineage diagnosis (2026-10-21)
+
+The aggregate-only [pinned public study-day join probe](scripts/heartsteps_phase3_day_join_probe.py) and its [nine focused tests](tests/test_heartsteps_day_join_probe.py) show 7,427 nonconflicting matched days from 8,274 notification decisions, 769 missing and 78 contradictory join-days. The day shortcut disagrees on 3,345 of 7,409 comparable decisions. Scientific exact-replication remains blocked. Details and [CI evidence](docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md).
