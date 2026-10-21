@@ -1,0 +1,59 @@
+name: Manager Phase06 Digital Environment
+on:
+  push:
+    branches: [research/manager-product-r006-20261020, research/manager-phase06-service-execution-20261021]
+    paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: manager-service-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: All Manager unit contracts
+        run: python -m unittest discover -s tests -v
+      - name: Boundaries, unchanged task registry, existing core
+        run: |
+          python -m manager_core
+          python scripts/check_boundaries.py
+          python scripts/make_roadmap.py --check
+          python scripts/phase05_demo.py --check
+      - name: Build immutable owned service bundle
+        run: python scripts/phase06_digital_service.py build --commit "$GITHUB_SHA"
+      - name: Install pinned upstream browser and accessibility engines
+        run: |
+          cd tests/e2e
+          npm install --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Real browser verification across desktop and mobile
+        run: npm --prefix tests/e2e test
+      - name: Read-only source audit and truthful outcome report
+        run: |
+          python scripts/phase06_digital_service.py audit
+          python scripts/phase06_digital_service.py outcomes
+      - name: Preserve evidence and deployable site (no auto field trial)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-service-${{ github.sha }}
+          path: |
+            products/manager/output/service
+            products/manager/tests/e2e/package-lock.json
+          if-no-files-found: warn
+          retention-days: 30
