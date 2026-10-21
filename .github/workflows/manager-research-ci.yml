@@ -1,7 +1,7 @@
 name: Manager Independent Offline Research
 on:
   push:
-    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021, research/manager-phase06-evidence-r001-20261021, research/manager-phase06-f002-f003-20261021, research/manager-crossfield-evidence-20261021, research/manager-phase06-unblock-evidence-20261021, research/manager-reuse-only-world-evals-20261021, research/manager-phase06-internet-public-good-20261021]
+    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021, research/manager-phase06-evidence-r001-20261021, research/manager-phase06-f002-f003-20261021, research/manager-crossfield-evidence-20261021, research/manager-phase06-unblock-evidence-20261021, research/manager-reuse-only-world-evals-20261021, research/manager-phase06-internet-public-good-20261021, research/manager-phase06-reuse-source-count-20261021]
     paths:
       - 'products/manager/**'
       - '.github/workflows/manager-research-ci.yml'
