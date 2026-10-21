@@ -63,10 +63,34 @@ def failure_line(returncode: int, evidence: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("agent", "judge", "vision", "repair"))
+    parser.add_argument("mode", choices=("agent", "agent-workspace", "judge", "vision", "repair"))
     parser.add_argument("--prompt-file", required=True)
     parser.add_argument("--image")
     args = parser.parse_args(argv)
+    workspace: Path | None = None
+    workspace_output: Path | None = None
+    if args.mode == "agent-workspace":
+        workspace_raw = os.environ.get("ARTICLE_RUN_DIR", "")
+        output_raw = os.environ.get("ARTICLE_CODEX_OUTPUT_FILE", "")
+        schema_raw = os.environ.get("ARTICLE_CODEX_OUTPUT_SCHEMA", "")
+        if os.environ.get("ARTICLE_CODEX_NO_TOOLS") != "1":
+            print("writer shared runner agent-workspace requires tool-free Codex output", file=sys.stderr)
+            return os.EX_USAGE
+        workspace_path = Path(workspace_raw)
+        output_path = Path(output_raw)
+        schema_path = Path(schema_raw)
+        if (not workspace_path.is_absolute() or workspace_path.is_symlink()
+                or not workspace_path.is_dir() or not output_path.is_absolute()
+                or output_path.is_symlink() or output_path.exists()
+                or not schema_path.is_absolute() or schema_path.is_symlink()
+                or not schema_path.is_file()):
+            print("writer shared runner agent-workspace paths are missing or unsafe", file=sys.stderr)
+            return os.EX_USAGE
+        workspace = workspace_path.resolve()
+        if output_path.parent.resolve() != workspace:
+            print("writer shared runner agent-workspace output must stay in ARTICLE_RUN_DIR", file=sys.stderr)
+            return os.EX_USAGE
+        workspace_output = output_path
     prompt = sys.stdin.read() if args.prompt_file == "-" else Path(args.prompt_file).read_text()
     runner = Path(os.environ.get("AGENT_RUNNER_BIN", DEFAULT_RUNNER))
     state = Path(os.environ.get(
@@ -75,13 +99,21 @@ def main(argv: list[str] | None = None) -> int:
     evidence = state / f"{args.mode}-{uuid.uuid4().hex}"
     loop_id = os.environ.get("LIFE_MANAGER_LOOP_ID", "writer")
     role = os.environ.get("ARTICLE_MODEL_ROLE", "terra")
+    if args.mode == "agent-workspace" and role == "sol-audit":
+        print("writer shared runner agent-workspace does not allow sol-audit role", file=sys.stderr)
+        return os.EX_USAGE
     schema_override = os.environ.get("ARTICLE_CODEX_OUTPUT_SCHEMA", "").strip()
     text_envelope = args.mode == "agent" and not schema_override
     schema_path = Path(schema_override) if schema_override else (
         AGENT_SCHEMA if text_envelope else SCHEMA)
     task_class = "high-value-agent" if args.mode == "agent" else "composition-agent"
     workdir = REPO_ROOT
-    if args.mode == "repair":
+    if args.mode == "agent-workspace":
+        # Workspace drafts use the shared runner's tool-less Codex class; the
+        # trusted wrapper, not the model, materializes the response file.
+        assert workspace is not None
+        workdir = workspace
+    elif args.mode == "repair":
         task_class = "writer-repair-agent"
         workspace = os.environ.get("ARTICLE_REPAIR_WORKSPACE", "")
         if not workspace or not Path(workspace).is_dir():
@@ -124,6 +156,25 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
         print(f"writer shared runner result invalid: {error}", file=sys.stderr)
         return os.EX_DATAERR
+    if args.mode == "agent-workspace":
+        if not isinstance(value, dict) or workspace_output is None:
+            print("writer shared runner agent-workspace result must be a JSON object", file=sys.stderr)
+            return os.EX_DATAERR
+        try:
+            descriptor = os.open(
+                workspace_output,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+            )
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                os.fchmod(stream.fileno(), 0o600)
+                stream.write(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+        except OSError as error:
+            print(f"writer shared runner agent-workspace output failed: {type(error).__name__}", file=sys.stderr)
+            return os.EX_CANTCREAT
+        return 0
     last_message = os.environ.get("ARTICLE_CODEX_LAST_MESSAGE_FILE", "").strip()
     if last_message:
         Path(last_message).write_text(

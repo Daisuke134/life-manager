@@ -256,6 +256,87 @@ r=e/'result.json'; r.write_text('{"complete":true}')
             self.assertIn('thread.started',events.read_text())
             self.assertEqual(json.loads(last.read_text()),{'complete':True})
 
+    def test_agent_workspace_materializes_private_draft_with_tooled_codex_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workspace = root / "run"
+            workspace.mkdir()
+            prompt = root / "prompt.txt"
+            prompt.write_text("draft only")
+            schema = root / "capafy-draft.schema.json"
+            schema.write_text('{"type":"object"}')
+            output = workspace / "draft-response.json"
+            captured = root / "agent-runner-args.json"
+            fake = root / "agent-runner.py"
+            fake.write_text("""#!/usr/bin/env python3
+import json,os,pathlib,sys
+a=sys.argv[1:]
+pathlib.Path(os.environ["CAPTURE_ARGS"]).write_text(json.dumps(a))
+e=pathlib.Path(a[a.index("--evidence-dir")+1]); e.mkdir(parents=True)
+r=e/"result.json"
+r.write_text(json.dumps({"article_markdown":"draft","x_caption":"caption"}))
+(e/"summary.json").write_text(json.dumps({"result_path":str(r)}))
+""")
+            fake.chmod(0o755)
+            env = {
+                **os.environ,
+                "AGENT_RUNNER_BIN": str(fake),
+                "WRITER_SHARED_RUNNER_STATE": str(root / "state"),
+                "ARTICLE_RUN_DIR": str(workspace),
+                "ARTICLE_CODEX_NO_TOOLS": "1",
+                "ARTICLE_CODEX_OUTPUT_FILE": str(output),
+                "ARTICLE_CODEX_OUTPUT_SCHEMA": str(schema),
+                "CAPTURE_ARGS": str(captured),
+            }
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "agent-workspace", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = json.loads(captured.read_text())
+            self.assertEqual(args[args.index("--task-class") + 1], "composition-agent")
+            self.assertEqual(args[args.index("--workdir") + 1], str(workspace.resolve()))
+            self.assertEqual(args[args.index("--schema") + 1], str(schema))
+            self.assertEqual(json.loads(output.read_text()), {
+                "article_markdown": "draft", "x_caption": "caption",
+            })
+            self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(result.stdout, "")
+
+    def test_agent_workspace_rejects_sol_audit_role_before_runner_dispatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workspace = root / "run"
+            workspace.mkdir()
+            prompt = root / "prompt.txt"
+            prompt.write_text("draft only")
+            schema = root / "capafy-draft.schema.json"
+            schema.write_text('{"type":"object"}')
+            output = workspace / "draft-response.json"
+            dispatched = root / "runner-dispatched"
+            fake = root / "agent-runner.py"
+            fake.write_text(f"#!/usr/bin/env python3\nfrom pathlib import Path\nPath({str(dispatched)!r}).touch()\n")
+            fake.chmod(0o755)
+            env = {
+                **os.environ,
+                "AGENT_RUNNER_BIN": str(fake),
+                "WRITER_SHARED_RUNNER_STATE": str(root / "state"),
+                "ARTICLE_RUN_DIR": str(workspace),
+                "ARTICLE_CODEX_NO_TOOLS": "1",
+                "ARTICLE_CODEX_OUTPUT_FILE": str(output),
+                "ARTICLE_CODEX_OUTPUT_SCHEMA": str(schema),
+                "ARTICLE_MODEL_ROLE": "sol-audit",
+            }
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "agent-workspace", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("sol-audit", result.stderr)
+            self.assertFalse(dispatched.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
