@@ -56,6 +56,8 @@ jobs:
           python scripts/phase06_growthbook_existing_sdk.py
       - name: Independently verify actual public GitHub artifact by unauthenticated GET
         run: python scripts/phase06_public_good_readback.py --baseline-sha c16660f9c6d5c1a79a801f0587dc7cc0355df1b3
+      - name: Separate beneficiary outcomes from real public technical effect
+        run: python scripts/phase06_welfare_proof_gate.py
       - name: Manager offline self-check
         run: python -m manager_core
       - name: Backlog consistency
