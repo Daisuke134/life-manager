@@ -1,5 +1,31 @@
 # Manager — independent intervention research prototype
 
+## October 22 — Phase06 through Phase12 implementation and publication
+
+The current completion pass connects the existing kernel to the owned CI release
+channel with a digest-bound, inert intent, exact seven-path admission, stable
+effect identity, and independent immutable-parent/commit/live-byte verification.
+The runtime's fixture-only authority and default external-write prohibitions are
+preserved. The [execution record](docs/verification/COMPLETION_EXECUTION_20261022.md)
+records tests, review fixes, source limitations and deployment evidence separately.
+
+Later-phase deliverables include separate opportunity/payment accounting,
+OutcomeBench and holdout contracts, governance/incident utilities, source-backed
+measurement and researcher maps, a truthful pitch, three audience-specific decks,
+and a [recorded real-code NO_ACTION demonstration](docs/demos/README.md).
+The reviewed article package contains 63 articles and the existing 29 media files;
+publication is through the established owned-blog bridge with independent readback.
+
+The [single task registry](docs/roadmap/tasks.json) remains authoritative: **69 done / 41 todo / 2 blocked / 1 scientifically skipped**. The final local suite passed **462 tests**, including actual optional-library execution.
+[Phase06–12 acceptance coverage](docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md)
+distinguishes completed original tasks from implemented preparation. Original
+financial/site authority, consented interviews, real cohorts and independently
+measured human outcomes remain required for their respective field tasks. A
+public artifact or an offline test is not evidence of reduced suffering.
+
+Sections dated October 20–21 below are historical checkpoints; their counts and
+then-current implementation statements are superseded by the current registry.
+
 ## October 21 — Environment-first Phase06 54-step executable breakdown
 
 **Goal: improve people's actual online environment and access to useful services, not print money.** The [existing canonical Phase06 roadmap](docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md) now specifies **54 exact executable substeps** across F004–F009 (file, reused OSS, fail-closed pass criteria, scientific evidence). It learns from [Code for America GetCalFresh](https://codeforamerica.org/news/reflecting-on-10-years-of-getcalfresh/), [J-PAL SNAP randomized enrollment](https://www.povertyactionlab.org/evaluation/impact-informational-mailings-snap-enrollment-united-states), [GOV.UK service design](https://www.gov.uk/service-manual/design/introduction-designing-government-services) and [W3C WCAG 2.2](https://www.w3.org/WAI/standards-guidelines/wcag/) to design low-friction, accessible, source-accurate public services on owned internet assets. **No human welfare outcomes are yet measured; the original F004/F007 remain BLOCKED and the 113-task SSOT statuses are untouched.** No new task registry or invented reward model.

@@ -1,0 +1,6 @@
+# Optional offline assignment/health checks, compatible with Python 3.11.
+# Default Manager imports and unittest discovery do not require these packages.
+# Reuse the maintained engines; no custom allocator or chi-square implementation.
+growthbook==3.2.2
+scipy==1.15.3
+numpy==2.2.6

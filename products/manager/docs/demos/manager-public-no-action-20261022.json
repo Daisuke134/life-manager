@@ -1,0 +1,74 @@
+{
+  "alternative": "NO_ACTION",
+  "candidate": "Republish the identical public artifact",
+  "captured_at": "2026-10-21T16:47:27.352145+00:00",
+  "causal_effect_verified": false,
+  "changed_pages": [],
+  "decision": "NO_ACTION",
+  "effect_key": "c88f40e0e6b8c3ca4940c82699c2745e1a43ff9a171ffa8ee79b3ca36e032547",
+  "external_writes": 0,
+  "human_outcome": "NOT_MEASURED",
+  "limitation": "Real public observation; deterministic software decision; no new field intervention, beneficiary measurement, or causal trial.",
+  "manifest": {
+    "beneficiary_outcome": "NOT_MEASURED",
+    "clinical_claim": false,
+    "experiment_enabled": false,
+    "files": {
+      "control.html": "a0a58035968ff3a12e8f9d042492f0db09fa46cb6f5f48ffe6938ce885435aac",
+      "finance.html": "d9ea3fa54ace5df1485213a8217d28efec218fd839b304c0eb2c310ffed9b93f",
+      "index.html": "71eabe0f448155021c4b22bef4d1aa7dc824bc1b7fa95cf02c7d50ce3a19df1b",
+      "mental.html": "305a5898cb881fc3e769f76c5e1eaf5de4d2acc194644d72df0bbb8afc1fc10d",
+      "physical.html": "0a0a01231a48b3a9601401714fa01affc060e518ee4fb9675d29d479dcfaaefb",
+      "proof.html": "bf58b723b24b5b8dccbebeaf903c5f4caf7b614dfd8b21f4807f38d32a1cb545"
+    },
+    "real_participants": 0,
+    "schema": "manager.public-service.v1",
+    "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5"
+  },
+  "observed_pages": 6,
+  "public_url": "https://daisuke134.github.io/life-manager/manager-support/",
+  "schema": "manager.public-demo.v1",
+  "source": "ACTUAL_PUBLIC_HTTPS_READBACK",
+  "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+  "trace": [
+    {
+      "data": {
+        "content_hash": "f8ae08f3545afbf3883c92c44b1529deeb7ac08bd6e49cbb8e925265916d67dd",
+        "recorded_at": "2026-10-21T16:47:27.352145+00:00",
+        "source_url": "https://daisuke134.github.io/life-manager/manager-support/",
+        "unit": "public_artifact_bytes"
+      },
+      "hash": "4eaf890e54c5a01bc56ab48f3caaee9759cbb33b682976313c0d4392dd0c1257",
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "seq": 0,
+      "stage": "observation"
+    },
+    {
+      "data": {
+        "content_hash": "f8ae08f3545afbf3883c92c44b1529deeb7ac08bd6e49cbb8e925265916d67dd",
+        "decision": "NO_ACTION",
+        "effect_key": "c88f40e0e6b8c3ca4940c82699c2745e1a43ff9a171ffa8ee79b3ca36e032547",
+        "option_cost": 0,
+        "reason": "Tested owned artifact; NO_ACTION alternative retained"
+      },
+      "hash": "2687bf3f2e25b49f248944e17a64ad08f5c5a5df835a47f0ba15e9062163cb90",
+      "previous_hash": "4eaf890e54c5a01bc56ab48f3caaee9759cbb33b682976313c0d4392dd0c1257",
+      "seq": 1,
+      "stage": "proposal"
+    },
+    {
+      "data": {
+        "benefit_status": "NOT_MEASURED",
+        "grant_expires_at": "2026-10-21T22:47:27.352145+00:00",
+        "grant_target": "https://daisuke134.github.io/life-manager/manager-support/",
+        "proof_level": "P0",
+        "status": "EXTERNAL_PLATFORM_AUTHORITY_REQUIRED"
+      },
+      "hash": "50566c63f74248603523ddb234ff8210197abb8307fa7104236d8d095a31596a",
+      "previous_hash": "2687bf3f2e25b49f248944e17a64ad08f5c5a5df835a47f0ba15e9062163cb90",
+      "seq": 2,
+      "stage": "authorization"
+    }
+  ],
+  "trace_valid": true
+}

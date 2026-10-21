@@ -1,0 +1,880 @@
+{
+  "schema_version": 1,
+  "prepared_utc_date": "2026-10-21",
+  "prepared_jst_date": "2026-10-22",
+  "scheduled_presentation_date": null,
+  "language": "English visible slides with Japanese speaker notes",
+  "design_source": "scripts/build_behavior_agi_lab_seminar_v3.py palette and 16:9 typography adapted for new flat evidence layouts",
+  "facts_cutoff": "Fixed 2026-10-21 14:36 UTC public-release evidence, plus the explicitly labeled 16:47 UTC NO_ACTION demo. No current suite count or field-effect claim.",
+  "sources": {
+    "M-SPEC": {
+      "label": "Manager evidence definitions",
+      "url": "https://github.com/Daisuke134/life-manager/blob/ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5/products/manager/docs/MANAGER_PRODUCT_SPEC.md"
+    },
+    "M-RELEASE": {
+      "label": "Dated digital release evidence",
+      "url": "https://github.com/Daisuke134/life-manager/blob/ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5/products/manager/docs/verification/PHASE06_DIGITAL_SERVICE_EXECUTION_20261021.md"
+    },
+    "M-CI": {
+      "label": "Source/build/readback run",
+      "url": "https://github.com/Daisuke134/life-manager/actions/runs/39617848783"
+    },
+    "M-PAGES": {
+      "label": "Pages deployment run",
+      "url": "https://github.com/Daisuke134/life-manager/actions/runs/39618047098"
+    },
+    "M-PUBLIC": {
+      "label": "Live support-navigation prototype",
+      "url": "https://daisuke134.github.io/life-manager/manager-support/"
+    },
+    "M-DEMO": {
+      "label": "Captured NO_ACTION decision",
+      "path": "products/manager/docs/demos/manager-public-no-action-20261022.json"
+    },
+    "M-VIDEO": {
+      "label": "Recorded public-readback demo",
+      "path": "products/manager/docs/demos/manager-public-no-action-20261022.mp4"
+    },
+    "M-WEDGE": {
+      "label": "Provisional first wedge",
+      "path": "products/manager/docs/product/FIRST_WEDGE.md"
+    },
+    "M-MAP": {
+      "label": "Outcome measurement map",
+      "path": "products/manager/docs/research/MENTAL_PUBLIC_AGGREGATE_MAP.md"
+    },
+    "M-PEOPLE": {
+      "label": "13-researcher source map",
+      "path": "products/manager/docs/research/RESEARCHER_PUBLIC_SOURCE_MAP.md"
+    },
+    "M-PITCH": {
+      "label": "English/Japanese pitch",
+      "path": "products/manager/docs/founder/Y001_MANAGER_PITCH_EN_JA.md"
+    },
+    "WHO5-OVERVIEW": {
+      "label": "WHO Five Well-Being Index (2024)",
+      "url": "https://www.who.int/publications/m/item/WHO-UCN-MSD-MHE-2024.01"
+    },
+    "WHO5-INSTRUMENT": {
+      "label": "WHO-5 English instrument and rights (2024)",
+      "url": "https://cdn.who.int/media/docs/default-source/mental-health/who-5_english-original4da539d6ed4b49389e3afe47cda2326a.pdf?sfvrsn=ed43f352_11"
+    },
+    "WHODAS": {
+      "label": "WHO Disability Assessment Schedule 2.0",
+      "url": "https://www.who.int/classifications/international-classification-of-functioning-disability-and-health/who-disability-assessment-schedule"
+    },
+    "CFPB-RESOURCES": {
+      "label": "CFPB financial well-being resources",
+      "url": "https://www.consumerfinance.gov/consumer-tools/educator-tool/financial-well-being-resources/"
+    },
+    "CFPB-SCALE": {
+      "label": "CFPB Financial Well-Being Scale",
+      "url": "https://www.consumerfinance.gov/data-research/research-reports/financial-well-being-scale/"
+    },
+    "CFPB-SCORECARD": {
+      "label": "CFPB full financial well-being scorecard",
+      "url": "https://files.consumerfinance.gov/f/documents/bcfp_fin-well-being_full-scorecard.pdf"
+    },
+    "CFPB-INTERPRET": {
+      "label": "CFPB Measure and score financial well-being",
+      "url": "https://www.consumerfinance.gov/consumer-tools/educator-tool/financial-well-being-resources/measure-and-score/"
+    },
+    "CFPB-DATA": {
+      "label": "CFPB 2016 National Financial Well-Being Survey landing page",
+      "url": "https://www.consumerfinance.gov/data-research/financial-well-being-survey-data/"
+    },
+    "OECD-SWB-2025": {
+      "label": "OECD Guidelines on Measuring Subjective Well-being (2025 Update)",
+      "url": "https://www.oecd.org/en/publications/oecd-guidelines-on-measuring-subjective-well-being-2025-update_9203632a-en.html"
+    },
+    "ONS-LONELINESS": {
+      "label": "ONS Measuring loneliness: guidance for use of national indicators",
+      "url": "https://www.ons.gov.uk/peoplepopulationandcommunity/wellbeing/methodologies/measuringlonelinessguidanceforuseofthenationalindicatorsonsurveys"
+    },
+    "CLS-2024-25": {
+      "label": "Community Life Survey 2024/25: Loneliness and support networks",
+      "url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication/community-life-survey-202425-loneliness-and-support-networks"
+    },
+    "FAO-FIES": {
+      "label": "FAO Food Insecurity Experience Scale",
+      "url": "https://www.fao.org/measuring-hunger/access-to-food/about-the-food-insecurity-experience-scale-(fies)/en"
+    },
+    "GOVUK-COMPLETION": {
+      "label": "GOV.UK Measuring completion rate",
+      "url": "https://www.gov.uk/service-manual/measuring-success/measuring-completion-rate"
+    },
+    "W3C-WCAG": {
+      "label": "W3C WCAG overview",
+      "url": "https://www.w3.org/WAI/standards-guidelines/wcag/"
+    },
+    "MHLW-SUPPORT": {
+      "label": "MHLW livelihood-support system overview",
+      "url": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000059425.html"
+    },
+    "CFA-GETCALFRESH": {
+      "label": "Code for America: Reflecting on 10 years of GetCalFresh",
+      "url": "https://codeforamerica.org/news/reflecting-on-10-years-of-getcalfresh/"
+    },
+    "HEARTSTEPS-PAPER": {
+      "label": "Klasnja et al. Efficacy of Contextually Tailored Suggestions for Physical Activity",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/"
+    },
+    "HEARTSTEPS-CODE": {
+      "label": "klasnja/HeartStepsV1",
+      "url": "https://github.com/klasnja/HeartStepsV1"
+    },
+    "JITAI-PAPER": {
+      "label": "Nahum-Shani et al. JITAI key components and design principles",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/"
+    },
+    "MEGASTUDY-PAPER": {
+      "label": "Milkman et al. Megastudies improve the impact of applied behavioural science",
+      "url": "https://www.nature.com/articles/s41586-021-04128-4"
+    },
+    "MATCHING-PAPER": {
+      "label": "Karlan and List: Does Price Matter in Charitable Giving?",
+      "url": "https://www.aeaweb.org/articles?id=10.1257/aer.97.5.1774"
+    },
+    "KARLAN-PROFILE": {
+      "label": "Northwestern Kellogg: Dean Karlan",
+      "url": "https://www.kellogg.northwestern.edu/academics-research/faculty/karlan_dean/"
+    },
+    "LIST-PROFILE": {
+      "label": "University of Chicago: John List",
+      "url": "https://economics.uchicago.edu/directory/john-list"
+    },
+    "CASH-TRIAL": {
+      "label": "Haushofer and Shapiro: Short-Term Impact of Unconditional Cash Transfers",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7575201/"
+    },
+    "GENERATIVE-PAPER": {
+      "label": "Park et al. Generative Agents: Interactive Simulacra of Human Behavior",
+      "url": "https://dl.acm.org/doi/10.1145/3586183.3606763"
+    },
+    "GENERATIVE-CODE": {
+      "label": "joonspk-research/generative_agents",
+      "url": "https://github.com/joonspk-research/generative_agents"
+    },
+    "SIMILE-OFFICIAL": {
+      "label": "Simile official company site",
+      "url": "https://www.simile.com/"
+    }
+  },
+  "decks": [
+    {
+      "key": "LAB",
+      "name": "Manager_Completion_Lab_20261022",
+      "audience": "Research lab",
+      "slides": [
+        {
+          "type": "cover",
+          "title": "Autonomous action\nwith evidence",
+          "subtitle": "Manager research discussion",
+          "statement": "How can an authorized action produce a measurable human benefit?",
+          "sources": [
+            "M-SPEC"
+          ],
+          "claim_type": "RESEARCH_QUESTION",
+          "ja": "研究室向けの中心的な問いは、権限のある実行と、その後に人へ生じた結果を、どのように別々に検証できるかです。Managerは研究段階にあります。公開成果物の配信は確認されていますが、人の生活への改善効果は未測定です。本資料に発表予定日は記載していません。ファイル名の日付は資料の作成日です。"
+        },
+        {
+          "type": "table",
+          "title": "Evidence has distinct levels",
+          "subtitle": "Each claim requires its own observation",
+          "headers": [
+            "Level",
+            "Meaning",
+            "Current interpretation"
+          ],
+          "rows": [
+            [
+              "P0",
+              "Simulation or model/task score",
+              "Research evidence"
+            ],
+            [
+              "P1",
+              "Authentic execution receipt",
+              "Action evidence"
+            ],
+            [
+              "P2",
+              "Independently observed state change",
+              "Live artifact verified"
+            ],
+            [
+              "P3",
+              "Authentic downstream human outcome",
+              "NOT_MEASURED"
+            ],
+            [
+              "P4",
+              "Causal net improvement, costs and harms",
+              "Not established"
+            ],
+            [
+              "P5",
+              "Replication across settings",
+              "Not established"
+            ]
+          ],
+          "widths": [
+            1,
+            7,
+            3.85
+          ],
+          "sources": [
+            "M-SPEC",
+            "M-RELEASE"
+          ],
+          "claim_type": "DEFINITION",
+          "ja": "P0からP5は一般的な能力ランキングではなく、Managerの主張と証拠の対応です。P1は実行の受領証、P2は独立に確認した状態変化です。P3は実際の人の結果、P4は比較対象と費用・害を含む因果的な純改善、P5は異なる設定での再現です。P2の公開成果物からP3やP4へ飛躍してはいけません。"
+        },
+        {
+          "type": "metrics",
+          "title": "The public artifact is verifiable",
+          "subtitle": "Recorded verification: 21 October 2026, 14:36 UTC",
+          "metrics": [
+            {
+              "value": "6",
+              "label": "HTML pages matched",
+              "detail": "One public product release"
+            },
+            {
+              "value": "16",
+              "label": "Public browser checks passed",
+              "detail": "Software scenarios, not participants"
+            }
+          ],
+          "statement": "P2 artifact only. Human outcomes remain NOT_MEASURED.",
+          "sources": [
+            "M-RELEASE",
+            "M-CI",
+            "M-PAGES"
+          ],
+          "claim_type": "OBSERVATION",
+          "ja": "この数字は、2026年10月21日14時36分UTCの既存の公開検証記録から取っています。6ページは一つの公開成果物を構成するHTMLであり、6回の人への介入ではありません。16件はブラウザの検査であり、16人の利用者ではありません。配信の確認はP2 artifact onlyです。公的支援に到達した人数や、精神・身体・経済面の改善効果は未測定のままです。後続のコード変更や新しいテスト総数を、この固定された記録に混ぜません。"
+        },
+        {
+          "type": "table",
+          "title": "Prior work informs the evaluation",
+          "subtitle": "Original studies suggest different design requirements",
+          "headers": [
+            "Research",
+            "What it contributes",
+            "Question for Manager"
+          ],
+          "rows": [
+            [
+              "HeartSteps / JITAI",
+              "Repeated decisions and availability",
+              "Does the action reach a valid opportunity?"
+            ],
+            [
+              "Megastudies",
+              "Comparable arms and follow-up",
+              "Does the change persist?"
+            ],
+            [
+              "Cash-transfer experiments",
+              "Separate recipient outcomes",
+              "Who benefits after costs and spillovers?"
+            ],
+            [
+              "Generative Agents",
+              "Simulated behavior and interaction",
+              "What held-out result could falsify a policy?"
+            ]
+          ],
+          "widths": [
+            3.1,
+            4.25,
+            4.5
+          ],
+          "sources": [
+            "HEARTSTEPS-PAPER",
+            "JITAI-PAPER",
+            "MEGASTUDY-PAPER",
+            "CASH-TRIAL",
+            "GENERATIVE-PAPER"
+          ],
+          "claim_type": "LITERATURE_AND_INFERENCE",
+          "ja": "ここでは各研究の成果をManagerの成果として移していません。HeartStepsとJITAIからは、意思決定の機会や利用可能性を定義する必要を学びます。メガスタディは共通条件下の比較と持続性を示す設計例です。現金給付研究では実際の受給者の複数の結果を区別しています。Generative Agentsのシミュレーションは、人の因果的な福祉改善をそのまま証明しません。右列は原著者の発言ではなく、Manager側の研究上の問いです。"
+        },
+        {
+          "type": "table",
+          "title": "A support journey needs separate endpoints",
+          "subtitle": "Prospective definitions for the provisional finance-navigation wedge",
+          "headers": [
+            "Endpoint",
+            "Unit",
+            "Evidence still needed"
+          ],
+          "rows": [
+            [
+              "Correct official destination",
+              "Browser or participant task",
+              "State which unit was tested"
+            ],
+            [
+              "Completed support step",
+              "Consented support journey",
+              "Independent observation and follow-up"
+            ],
+            [
+              "Recipient gain",
+              "Original outcome measure",
+              "Valid measurement and harms"
+            ],
+            [
+              "Causal net benefit",
+              "Predeclared comparison",
+              "Assignment, uncertainty and total cost"
+            ]
+          ],
+          "widths": [
+            3.3,
+            3.3,
+            5.25
+          ],
+          "statement": "A link click cannot establish support receipt.",
+          "sources": [
+            "GOVUK-COMPLETION",
+            "M-WEDGE",
+            "M-SPEC"
+          ],
+          "claim_type": "PROPOSED_DESIGN",
+          "ja": "最初の候補は経済的支援への公式情報を探す経路です。ただし、U002の5件の同意済み面談は揃っておらず、U003の選定は暫定です。ブラウザの検査と人が実際に操作する試験は単位が違います。公式ページへの到達、相談や申請の完了、受給、人の生活の改善を分けて測ります。対象集団、割付方法、サンプルサイズ、測定期間はまだ確定した試験計画ではありません。"
+        },
+        {
+          "type": "table",
+          "title": "Outcomes retain their original units",
+          "subtitle": "A measurement choice needs a version and a population",
+          "headers": [
+            "Construct",
+            "Unit and direction",
+            "Limit"
+          ],
+          "rows": [
+            [
+              "Loneliness",
+              "Three-item score 3–9, higher worse",
+              "No universal diagnostic threshold"
+            ],
+            [
+              "Mental wellbeing",
+              "WHO-5 0–25 or 0–100, higher better",
+              "Two-week recall and rights review"
+            ],
+            [
+              "Functioning",
+              "WHODAS method-specific score",
+              "Version, scoring and license matter"
+            ],
+            [
+              "Financial wellbeing",
+              "CFPB converted score",
+              "Age/mode conversion, local validity"
+            ]
+          ],
+          "widths": [
+            2.8,
+            4.55,
+            4.5
+          ],
+          "sources": [
+            "ONS-LONELINESS",
+            "WHO5-INSTRUMENT",
+            "WHODAS",
+            "CFPB-SCORECARD"
+          ],
+          "claim_type": "MEASUREMENT_DEFINITION",
+          "ja": "孤独感、肯定的な精神的ウェルビーイング、生活機能、経済的ウェルビーイングは異なる構成概念です。WHO-5は5項目で過去2週間を対象とし、素点0〜25を4倍した0〜100表示があります。孤独感の3項目尺度は3〜9で方向が逆です。WHODASはバージョンと採点法を、CFPBは年齢帯と回答方法による変換を区別します。これらを合計して普遍的な苦しみの点数にはしません。実装前には権利と対象集団における妥当性を確認します。"
+        },
+        {
+          "type": "table",
+          "title": "The demo chooses NO_ACTION",
+          "subtitle": "An actual public readback with a deterministic decision",
+          "headers": [
+            "Observed state",
+            "Decision",
+            "Scope of the evidence"
+          ],
+          "rows": [
+            [
+              "6 public pages match",
+              "NO_ACTION",
+              "An identical publication adds no new artifact"
+            ],
+            [
+              "0 external writes",
+              "Keep the existing release",
+              "No new field intervention"
+            ],
+            [
+              "Human outcome unknown",
+              "NOT_MEASURED",
+              "No beneficiary or causal-effect claim"
+            ]
+          ],
+          "widths": [
+            3.4,
+            3.1,
+            5.35
+          ],
+          "statement": "The demo records a real observation and a bounded software decision.",
+          "sources": [
+            "M-DEMO",
+            "M-VIDEO",
+            "M-PUBLIC"
+          ],
+          "claim_type": "OBSERVATION",
+          "ja": "このデモは、実際の公開HTTPSページを読み戻し、同じ内容を再公開する候補に対してNO_ACTIONを選んだ記録です。JSONのcaptured_atは2026-10-21T16:47:27.352145+00:00です。6ページの観測と外部書き込み0件はこのデモの事実です。新しい配信、資金移動、現地介入、人の結果測定を行ったという意味ではありません。トレース中のローカル権限チェックはP0で、外部プラットフォームの実行権限が必要であることも記録されています。動画とJSONを併せて参照してください。"
+        },
+        {
+          "type": "split",
+          "title": "The next study must answer a concrete question",
+          "left_title": "Product question",
+          "left_body": "Do people and operators identify navigation as a meaningful barrier?\n\nThe five consented interviews remain outstanding.",
+          "right_title": "Scientific question",
+          "right_body": "Does improving that journey cause a useful support step at acceptable cost?\n\nA partner, protocol and independent outcome data remain outstanding.",
+          "statement": "Current contribution: inspectable artifacts and a falsifiable evaluation design.",
+          "sources": [
+            "M-WEDGE",
+            "M-MAP",
+            "M-SPEC"
+          ],
+          "claim_type": "RESEARCH_QUESTION",
+          "ja": "相談したいのは、一般的なAIの印象ではなく、特定の支援経路と測定可能な結果です。面談は問題の発見に役立ちますが、因果効果の証明にはなりません。研究の次の段階では、適切な比較、脱落と欠測、利用者への負担、無効や悪化を含む結果、実際の費用を事前に定義する必要があります。現時点では研究協力の確約も参加者もありません。"
+        }
+      ]
+    },
+    {
+      "key": "IACS",
+      "name": "Manager_Completion_IACS_20261022",
+      "audience": "IACS",
+      "slides": [
+        {
+          "type": "cover",
+          "title": "Accountable autonomous\nintervention",
+          "subtitle": "Manager discussion for an IACS audience",
+          "statement": "Connecting behavioral models to observable changes",
+          "sources": [
+            "M-SPEC",
+            "GENERATIVE-PAPER"
+          ],
+          "claim_type": "RESEARCH_QUESTION",
+          "ja": "IACS向けには、行動モデルの予測と、現実の環境を変える実行、その後の人の結果を接続する問題として説明します。IACSの正式な開催予定や発表枠は未確認なので、予定日は記載していません。研究段階であることと、人への改善効果が未測定であることを明示します。"
+        },
+        {
+          "type": "table",
+          "title": "Observation, prediction and effect",
+          "subtitle": "Three statements require different evidence",
+          "headers": [
+            "Statement",
+            "Example",
+            "Required support"
+          ],
+          "rows": [
+            [
+              "Observation",
+              "The served file matches its digest",
+              "Independent readback"
+            ],
+            [
+              "Prediction",
+              "A policy may improve access",
+              "Held-out predictive evaluation"
+            ],
+            [
+              "Causal effect",
+              "The policy improved access",
+              "Credible comparator and uncertainty"
+            ]
+          ],
+          "widths": [
+            2.6,
+            4.7,
+            4.55
+          ],
+          "statement": "Agreement in simulation does not identify a field effect.",
+          "sources": [
+            "M-SPEC",
+            "GENERATIVE-PAPER",
+            "HEARTSTEPS-PAPER"
+          ],
+          "claim_type": "CONCEPTUAL_DISTINCTION",
+          "ja": "観測とは、例えば公開ファイルの内容が期待したハッシュに一致することです。予測は、ある方策が今後の行動をどう変えるかというモデルの主張です。因果効果は、比較可能な条件との差として介入の結果を推定する主張です。三者は必要なデータと検証方法が異なります。表は概念整理であり、シミュレーションから得た予測値やManagerの効果推定を示しているわけではありません。"
+        },
+        {
+          "type": "table",
+          "title": "A controlled action has separate records",
+          "subtitle": "Conceptual contract for the Manager system",
+          "headers": [
+            "Record",
+            "What it binds",
+            "What it cannot establish alone"
+          ],
+          "rows": [
+            [
+              "Authority",
+              "Purpose, target, scope and expiry",
+              "Benefit"
+            ],
+            [
+              "Execution",
+              "Actual authorized operation",
+              "Independent world state"
+            ],
+            [
+              "Readback",
+              "Observed state and source",
+              "Human outcome"
+            ],
+            [
+              "Outcome",
+              "Original units and provenance",
+              "Causality without a comparator"
+            ]
+          ],
+          "widths": [
+            2.45,
+            4.65,
+            4.75
+          ],
+          "statement": "A simulation signature remains a simulation artifact.",
+          "sources": [
+            "M-SPEC"
+          ],
+          "claim_type": "DESIGN_CONTRACT",
+          "ja": "これは実装の設計契約を説明する図表です。権限は目的、対象、範囲、期限を結びます。実行の受領証と独立した読み戻しは別の記録です。結果は元の単位と出所を保持します。ローカルなfixture署名は、外部の本物の操作権限になりません。この表だけでライブの端から端までの実行がすべて完成したとは主張していません。"
+        },
+        {
+          "type": "metrics",
+          "title": "The public artifact is verifiable",
+          "subtitle": "Recorded verification: 21 October 2026, 14:36 UTC",
+          "metrics": [
+            {
+              "value": "6",
+              "label": "HTML pages matched",
+              "detail": "One public product release"
+            },
+            {
+              "value": "16",
+              "label": "Public browser checks passed",
+              "detail": "Software scenarios, not participants"
+            }
+          ],
+          "statement": "P2 artifact only. Human outcomes remain NOT_MEASURED.",
+          "sources": [
+            "M-RELEASE",
+            "M-CI",
+            "M-PAGES"
+          ],
+          "claim_type": "OBSERVATION",
+          "ja": "この数字は、2026年10月21日14時36分UTCの既存の公開検証記録から取っています。6ページは一つの公開成果物を構成するHTMLであり、6回の人への介入ではありません。16件はブラウザの検査であり、16人の利用者ではありません。配信の確認はP2 artifact onlyです。公的支援に到達した人数や、精神・身体・経済面の改善効果は未測定のままです。後続のコード変更や新しいテスト総数を、この固定された記録に混ぜません。"
+        },
+        {
+          "type": "table",
+          "title": "Behavioral research offers complementary tests",
+          "subtitle": "The research map links original work to open questions",
+          "headers": [
+            "Approach",
+            "Primary example",
+            "Useful test"
+          ],
+          "rows": [
+            [
+              "Adaptive intervention",
+              "HeartSteps and JITAI",
+              "Availability and repeated outcomes"
+            ],
+            [
+              "Multi-arm field experiment",
+              "Milkman et al., 2021",
+              "Shared comparison and persistence"
+            ],
+            [
+              "Recipient outcome study",
+              "Haushofer and Shapiro, 2016",
+              "Benefit beyond transferred money"
+            ],
+            [
+              "Generative simulation",
+              "Park et al., 2023",
+              "Behavioral fidelity on held-out cases"
+            ]
+          ],
+          "widths": [
+            3.45,
+            4.2,
+            4.2
+          ],
+          "sources": [
+            "HEARTSTEPS-PAPER",
+            "JITAI-PAPER",
+            "MEGASTUDY-PAPER",
+            "CASH-TRIAL",
+            "GENERATIVE-PAPER",
+            "M-PEOPLE"
+          ],
+          "claim_type": "LITERATURE_AND_INFERENCE",
+          "ja": "4つの研究方法を同じ競技のランキングにせず、何を検証できるかで対応させています。適応的介入では繰り返しの意思決定と利用可能性が重要です。複数アームの現地実験では共通条件下で比較します。受給者研究では資金の移転とその後の生活を分けます。生成的シミュレーションでは未知の行動に対する再現性を問います。公開人物マップは13名を原著と公開成果に結びますが、交流や推薦は主張しません。"
+        },
+        {
+          "type": "metrics",
+          "title": "Public aggregates provide population context",
+          "subtitle": "Community Life Survey 2024/25, England adults aged 16+",
+          "metrics": [
+            {
+              "value": "6.6%",
+              "label": "Often or always lonely",
+              "detail": "October 2024–March 2025"
+            },
+            {
+              "value": "3–9",
+              "label": "Indirect loneliness score range",
+              "detail": "A distinct instrument and unit"
+            }
+          ],
+          "statement": "Neither figure describes a Manager visitor or estimates a Manager effect.",
+          "sources": [
+            "CLS-2024-25",
+            "ONS-LONELINESS"
+          ],
+          "claim_type": "PUBLIC_AGGREGATE_AND_DEFINITION",
+          "ja": "6.6%はイングランドの16歳以上の成人に関する公式集計で、期間は2024年10月から2025年3月です。見出しでは7%に丸められています。3〜9は別の間接的な3項目尺度の採点範囲であり、6.6%の計算から得た値ではありません。公的な集計でも、個々の閲覧者の孤独感は推定できません。日本の対象集団やManagerの介入効果への外挿もしません。ONSは2025年8月に尺度の正式名称を訂正しています。"
+        },
+        {
+          "type": "table",
+          "title": "Evidence status for the current prototype",
+          "subtitle": "Real delivery and unmeasured human outcomes coexist",
+          "headers": [
+            "Level",
+            "Meaning",
+            "Current interpretation"
+          ],
+          "rows": [
+            [
+              "P0",
+              "Simulation or model/task score",
+              "Research evidence"
+            ],
+            [
+              "P1",
+              "Authentic execution receipt",
+              "Action evidence"
+            ],
+            [
+              "P2",
+              "Independently observed state change",
+              "Live artifact verified"
+            ],
+            [
+              "P3",
+              "Authentic downstream human outcome",
+              "NOT_MEASURED"
+            ],
+            [
+              "P4",
+              "Causal net improvement, costs and harms",
+              "Not established"
+            ],
+            [
+              "P5",
+              "Replication across settings",
+              "Not established"
+            ]
+          ],
+          "widths": [
+            1,
+            7,
+            3.85
+          ],
+          "sources": [
+            "M-SPEC",
+            "M-RELEASE"
+          ],
+          "claim_type": "DEFINITION_AND_OBSERVATION",
+          "ja": "P2のデジタル成果物の存在は事実ですが、P3の人の結果を測定したことにはなりません。P4には比較、費用、害、推定の不確実性が必要で、P5には再現が必要です。欠測をゼロとして扱わず、悪化と無効を含めて同じ水準で証拠を残します。異なる領域の単位も維持し、一つの便益点数へ任意に足し合わせません。"
+        },
+        {
+          "type": "split",
+          "title": "Open questions for a field evaluation",
+          "left_title": "Model validity",
+          "left_body": "Which held-out outcomes could reject a policy recommendation?\n\nHow should uncertainty prevent an unsupported action?",
+          "right_title": "Human outcomes",
+          "right_body": "Who can independently observe the support journey?\n\nHow will the study report missing data, harms and unequal effects?",
+          "statement": "A partner and a prospective protocol are still required.",
+          "sources": [
+            "M-WEDGE",
+            "M-MAP",
+            "SIMILE-OFFICIAL"
+          ],
+          "claim_type": "RESEARCH_QUESTION",
+          "ja": "問いは、モデルがもっともらしい答えを出すかだけでなく、どの観測によって方策を棄却できるかです。現地の観測者と比較設計がなければ人への純改善を主張できません。Simileの公式ページも人による検証と不確実性を説明しているため、他社は人で検証しないという比較は行いません。Managerの仮説は、権限から実行と検証、結果までの接続が役立つかどうかです。"
+        }
+      ]
+    },
+    {
+      "key": "YC",
+      "name": "Manager_Completion_YC_20261022",
+      "audience": "YC",
+      "slides": [
+        {
+          "type": "cover",
+          "title": "Manager",
+          "subtitle": "Autonomous software for access to public services",
+          "statement": "We are building auditable evidence of what changed.",
+          "sources": [
+            "M-PITCH",
+            "M-SPEC"
+          ],
+          "claim_type": "PRODUCT_THESIS",
+          "ja": "一文の説明は、公的支援へのアクセスを改善し、何が変わったかを検証できる自律型ソフトウェアを開発している、というものです。開発中の目標と現在の実績を区別します。公開試作はありますが、人の生活への改善効果は未測定です。YC W27は準備上の文脈で、応募、面接、採択や締切の確認を意味しません。"
+        },
+        {
+          "type": "split",
+          "title": "The first customer problem is a hypothesis",
+          "left_title": "Potential beneficiary",
+          "left_body": "A person trying to find the right official route for financial support.\n\nThe prototype offers a public navigation page.",
+          "right_title": "Potential customer",
+          "right_body": "An organization responsible for a support-information journey.\n\nDemand and willingness to pay remain unvalidated.",
+          "statement": "Five consented interviews are still required before the wedge decision.",
+          "sources": [
+            "MHLW-SUPPORT",
+            "M-WEDGE"
+          ],
+          "claim_type": "CUSTOMER_HYPOTHESIS",
+          "ja": "受益者と顧客を分けます。受益者候補は経済的支援の公式な窓口を探す人です。顧客候補はその情報経路を運営する自治体や支援組織などですが、現時点で契約や支払意思を確認したわけではありません。MHLWの公式ページは支援制度の存在を確認する資料であり、利用者の課題仮説を検証する証拠ではありません。5件の同意済み面談がないため、最初の対象選定は暫定です。"
+        },
+        {
+          "type": "metrics",
+          "title": "The public artifact is verifiable",
+          "subtitle": "Recorded verification: 21 October 2026, 14:36 UTC",
+          "metrics": [
+            {
+              "value": "6",
+              "label": "HTML pages matched",
+              "detail": "One public product release"
+            },
+            {
+              "value": "16",
+              "label": "Public browser checks passed",
+              "detail": "Software scenarios, not participants"
+            }
+          ],
+          "statement": "P2 artifact only. Human outcomes remain NOT_MEASURED.",
+          "sources": [
+            "M-RELEASE",
+            "M-CI",
+            "M-PAGES"
+          ],
+          "claim_type": "OBSERVATION",
+          "ja": "この数字は、2026年10月21日14時36分UTCの既存の公開検証記録から取っています。6ページは一つの公開成果物を構成するHTMLであり、6回の人への介入ではありません。16件はブラウザの検査であり、16人の利用者ではありません。配信の確認はP2 artifact onlyです。公的支援に到達した人数や、精神・身体・経済面の改善効果は未測定のままです。後続のコード変更や新しいテスト総数を、この固定された記録に混ぜません。"
+        },
+        {
+          "type": "table",
+          "title": "The demo chooses NO_ACTION",
+          "subtitle": "An actual public readback with a deterministic decision",
+          "headers": [
+            "Observed state",
+            "Decision",
+            "Scope of the evidence"
+          ],
+          "rows": [
+            [
+              "6 public pages match",
+              "NO_ACTION",
+              "An identical publication adds no new artifact"
+            ],
+            [
+              "0 external writes",
+              "Keep the existing release",
+              "No new field intervention"
+            ],
+            [
+              "Human outcome unknown",
+              "NOT_MEASURED",
+              "No beneficiary or causal-effect claim"
+            ]
+          ],
+          "widths": [
+            3.4,
+            3.1,
+            5.35
+          ],
+          "statement": "The demo records a real observation and a bounded software decision.",
+          "sources": [
+            "M-DEMO",
+            "M-VIDEO",
+            "M-PUBLIC"
+          ],
+          "claim_type": "OBSERVATION",
+          "ja": "このデモは、実際の公開HTTPSページを読み戻し、同じ内容を再公開する候補に対してNO_ACTIONを選んだ記録です。JSONのcaptured_atは2026-10-21T16:47:27.352145+00:00です。6ページの観測と外部書き込み0件はこのデモの事実です。新しい配信、資金移動、現地介入、人の結果測定を行ったという意味ではありません。トレース中のローカル権限チェックはP0で、外部プラットフォームの実行権限が必要であることも記録されています。動画とJSONを併せて参照してください。"
+        },
+        {
+          "type": "split",
+          "title": "The product and business hypotheses",
+          "left_title": "Product value to test",
+          "left_body": "An operator can inspect what the software was allowed to do and what it actually changed.\n\nHuman outcomes have their own evidence.",
+          "right_title": "Commercial value to test",
+          "right_body": "A service operator may pay for maintaining and evaluating a support journey.\n\nNo validated pricing or revenue claim is available.",
+          "statement": "The immediate test is a real operator problem and a measurable support task.",
+          "sources": [
+            "M-PITCH",
+            "M-WEDGE",
+            "SIMILE-OFFICIAL"
+          ],
+          "claim_type": "BUSINESS_HYPOTHESIS",
+          "ja": "技術的な仮説は、権限、実行、独立した状態確認、その後の結果を追跡できることが運営者に役立つというものです。事業面では、情報経路の維持や評価への支払意思を確認する必要があります。市場規模、売上、顧客パイプラインを仮の数字で埋めません。また、他社も人の検証を行っているため、未検証の独占的優位性は主張しません。"
+        },
+        {
+          "type": "table",
+          "title": "The next decisive milestones",
+          "subtitle": "Each milestone answers an unresolved question",
+          "headers": [
+            "Milestone",
+            "Question it answers",
+            "Current status"
+          ],
+          "rows": [
+            [
+              "Five consented interviews",
+              "Is navigation a material barrier?",
+              "Outstanding"
+            ],
+            [
+              "An operating partner",
+              "Can we observe a real support task?",
+              "Not secured"
+            ],
+            [
+              "A prospective evaluation",
+              "Does a change improve that task?",
+              "Not run"
+            ],
+            [
+              "A customer commitment",
+              "Will an operator pay for the value?",
+              "Unvalidated"
+            ]
+          ],
+          "widths": [
+            3.55,
+            5,
+            3.3
+          ],
+          "statement": "Current evidence: a live artifact. Human benefit remains NOT_MEASURED.",
+          "sources": [
+            "M-WEDGE",
+            "M-PITCH",
+            "M-SPEC"
+          ],
+          "claim_type": "PROPOSED_MILESTONES",
+          "ja": "次の段階は、面談、実際の運営者、事前に定めた評価、顧客価値の確認です。これは達成済みの実績表ではありません。面談で課題が否定された場合には対象候補を変えます。実際の支援ステップが観測できない場合には、配信試作の範囲に主張を留めます。資料の提示は応募や連絡の送信ではなく、発表の開催日時も未確認です。"
+        }
+      ]
+    }
+  ]
+}

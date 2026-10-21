@@ -39,9 +39,9 @@ def render(tasks):
     sums = Counter(t['status'] for t in tasks)
     lines = [
       '# Manager — atomic learning & engineering backlog', '',
-      'Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
+      'Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
       f"Total: {len(tasks)} · Done: {sums['done']} · Todo: {sums['todo']} · Blocked: {sums['blocked']} · Skipped: {sums['skipped']}", '',
-      '✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.', '',
+      '✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.', '',
       'Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.', '',
       '## Definitions of done', '',
       '- Study: source-backed research note and stated verification succeeds.',
@@ -66,6 +66,7 @@ def render(tasks):
       '- R006 rights register: `docs/research-rights.md` and `docs/research/source-rights.json`. Unknown downstream permissions remain HOLD.',
       '- imozuru research uses original links and local short excerpts; third-party original text is not automatically redistributable.',
       '- No Manager field intervention or human suffering reduction has yet been proven.', '',
+      '- Phase06–12 implementation evidence and remaining original acceptances: `docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`.', '',
     ])
     return '\n'.join(lines)
 

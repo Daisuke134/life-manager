@@ -1,0 +1,106 @@
+{
+  "schema": "manager.blog-publication-package.v1",
+  "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+  "legacy_article_count": 54,
+  "article_count": 63,
+  "media_count": 29,
+  "publication_verified": false,
+  "existing_installer": "apps/landing/manager-blog/scripts/install.mjs",
+  "transformations": [
+    "Remove YAML frontmatter from two EBA manuscripts.",
+    "Resolve source-relative citations to existing files at the immutable source commit.",
+    "Preserve all prose, existing absolute links and registered media."
+  ],
+  "articles": [
+    {
+      "slug": "manager-evidence-cards-r007-r008-en",
+      "source": "products/manager/docs/articles/manager-evidence-cards-r007-r008-en.md",
+      "source_sha256": "708cc3a92402a57032529153190fce3d7204d4b1e5aebd0d3e191551d6791fb5",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-evidence-cards-r007-r008-en.md",
+      "sha256": "708cc3a92402a57032529153190fce3d7204d4b1e5aebd0d3e191551d6791fb5",
+      "canonical_url": "https://aniccaai.com/blog/manager-evidence-cards-r007-r008-en",
+      "word_count": 1288
+    },
+    {
+      "slug": "manager-population-behavior-causality-field-guide-en",
+      "source": "products/manager/docs/articles/manager-population-behavior-causality-field-guide-en.md",
+      "source_sha256": "43f09759d3541d753e88ae30d073f8791c78f2270094742dc04cd7841ac66756",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-population-behavior-causality-field-guide-en.md",
+      "sha256": "43f09759d3541d753e88ae30d073f8791c78f2270094742dc04cd7841ac66756",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-behavior-causality-field-guide-en",
+      "word_count": 1671
+    },
+    {
+      "slug": "manager-great-management-evidence-first-en",
+      "source": "products/manager/docs/articles/manager-great-management-evidence-first-en.md",
+      "source_sha256": "ec14f2ea58a6d583d2c4e566b2e1a73f62f5957e0ac14d7c55882644a51be661",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-great-management-evidence-first-en.md",
+      "sha256": "ec14f2ea58a6d583d2c4e566b2e1a73f62f5957e0ac14d7c55882644a51be661",
+      "canonical_url": "https://aniccaai.com/blog/manager-great-management-evidence-first-en",
+      "word_count": 1440
+    },
+    {
+      "slug": "manager-prediction-intervention-blessing-en",
+      "source": "products/manager/docs/articles/manager-prediction-intervention-blessing-en.md",
+      "source_sha256": "c7c0d41557e3a12bffaacfe9d1bf077e38fe02582c31678afa30e4e6a9420ef3",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-prediction-intervention-blessing-en.md",
+      "sha256": "c7c0d41557e3a12bffaacfe9d1bf077e38fe02582c31678afa30e4e6a9420ef3",
+      "canonical_url": "https://aniccaai.com/blog/manager-prediction-intervention-blessing-en",
+      "word_count": 2277
+    },
+    {
+      "slug": "manager-radiant-societies-field-guide-en",
+      "source": "products/manager/docs/articles/manager-radiant-societies-field-guide-en.md",
+      "source_sha256": "9c23fdae8bba4526a1e9ee946f1026ef461054059eb49c683c8128a55d62d462",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-radiant-societies-field-guide-en.md",
+      "sha256": "9c23fdae8bba4526a1e9ee946f1026ef461054059eb49c683c8128a55d62d462",
+      "canonical_url": "https://aniccaai.com/blog/manager-radiant-societies-field-guide-en",
+      "word_count": 1606
+    },
+    {
+      "slug": "manager-autonomous-agent-money-is-not-wealth-en",
+      "source": "products/manager/docs/articles/manager-autonomous-agent-money-is-not-wealth-en.md",
+      "source_sha256": "59d18deb7d03a962dec95aa04ef0708b95478e56998e39251b78c6a7a2f9ebbf",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-autonomous-agent-money-is-not-wealth-en.md",
+      "sha256": "59d18deb7d03a962dec95aa04ef0708b95478e56998e39251b78c6a7a2f9ebbf",
+      "canonical_url": "https://aniccaai.com/blog/manager-autonomous-agent-money-is-not-wealth-en",
+      "word_count": 4740
+    },
+    {
+      "slug": "manager-eba-evaluating-beneficial-action-en",
+      "source": "products/manager/docs/public/2026-10-22-eba-evaluating-beneficial-action.md",
+      "source_sha256": "328e445183fa8ebad5cdd1c6a8648b5515ddd8d9643119f14f0339f87ba78a57",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-eba-evaluating-beneficial-action-en.md",
+      "sha256": "328e445183fa8ebad5cdd1c6a8648b5515ddd8d9643119f14f0339f87ba78a57",
+      "canonical_url": "https://aniccaai.com/blog/manager-eba-evaluating-beneficial-action-en",
+      "word_count": 3146
+    },
+    {
+      "slug": "manager-eba-benchmark-landscape-en",
+      "source": "products/manager/docs/research/publications/EBA_BENCHMARK_LANDSCAPE_PUBLIC_ARTICLE_20261022.md",
+      "source_sha256": "b7ad4b8c1efc00bcb500cd0d8fab264f82d723afa4760bb9648a11a171008b48",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-eba-benchmark-landscape-en.md",
+      "sha256": "8edda9ee35951769a9c95e633e7d68c27bb802317700581bf769ad91e51d4582",
+      "canonical_url": "https://aniccaai.com/blog/manager-eba-benchmark-landscape-en",
+      "word_count": 2423
+    },
+    {
+      "slug": "manager-eba-open-benchmark-en",
+      "source": "products/manager/docs/research/publications/EBA_OPEN_BENCHMARK_ARTICLE_20261022.md",
+      "source_sha256": "fa91778f0c6114e28565db5cb0b980a30b43170e606f5e89eb37685f031c685a",
+      "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+      "package_path": "en/manager-eba-open-benchmark-en.md",
+      "sha256": "b39db53a24b42ec0b9b796f1ddd7a17fd7665f0ae3275c6c12c458546a529c98",
+      "canonical_url": "https://aniccaai.com/blog/manager-eba-open-benchmark-en",
+      "word_count": 2507
+    }
+  ]
+}

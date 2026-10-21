@@ -2,7 +2,7 @@ name: EBA Read-Only Upstream Code Audit
 on:
   workflow_dispatch:
   push:
-    branches: [research/manager-eba-benchmark-20261022, research/manager-product-r006-20261020]
+    branches: [research/manager-eba-benchmark-20261022, research/manager-product-r006-20261020, research/manager-completion-20261022]
     paths:
       - 'products/manager/docs/research/evals/**'
       - '.github/workflows/manager-eba-upstream-readonly.yml'
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Shallow clone and read pinned upstream Python source only
+      - name: Read exact pinned upstream source without checkout
         shell: bash
         run: |
           set -euo pipefail
@@ -27,15 +27,19 @@ jobs:
             [[ -z "$repo" ]] && continue
             echo "::group::read upstream code $repo"
             local_dir="$RUNNER_TEMP/eba-upstream/${repo//\//_}"
-            timeout 120 git clone --quiet --filter=blob:none --depth 1 --no-checkout "https://github.com/$repo.git" "$local_dir"
-            current="$(git -C "$local_dir" rev-parse HEAD)"
+            # Inspect the frozen revision even when upstream's default branch advances.
+            # Never check out or execute upstream code.
+            git init --quiet "$local_dir"
+            git -C "$local_dir" remote add origin "https://github.com/$repo.git"
+            timeout 120 git -C "$local_dir" -c protocol.version=2 fetch --quiet --filter=blob:none --depth 1 origin "$sha"
+            current="$(git -C "$local_dir" rev-parse FETCH_HEAD)"
             if [[ "$current" != "$sha" ]]; then
               echo "UPSTREAM_PIN_DRIFT $repo wanted=$sha actual=$current" >&2
               exit 1
             fi
-            blob="$(git -C "$local_dir" rev-parse "HEAD:$path")"
-            timeout 60 git -C "$local_dir" show "HEAD:$path" > "$RUNNER_TEMP/eba-evidence/current-code.txt"
-            if ! grep -Fq "$marker" "$RUNNER_TEMP/eba-evidence/current-code.txt"; then
+            blob="$(git -C "$local_dir" rev-parse "$sha:$path")"
+            timeout 60 git -C "$local_dir" show "$sha:$path" > "$RUNNER_TEMP/eba-evidence/current-code.txt"
+            if ! grep -Fq -- "$marker" "$RUNNER_TEMP/eba-evidence/current-code.txt"; then
               echo "EXPECTED_MARKER_MISSING: $repo/$path" >&2
               exit 1
             fi
