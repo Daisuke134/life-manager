@@ -33,9 +33,19 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$MODE" in
-  agent|judge|vision|repair) ;;
-  *) echo "model-runner: mode must be agent, judge, vision, or repair" >&2; exit 64 ;;
+  agent|agent-workspace|judge|vision|repair) ;;
+  *) echo "model-runner: mode must be agent, agent-workspace, judge, vision, or repair" >&2; exit 64 ;;
 esac
+
+if [ "$MODE" = "agent-workspace" ]; then
+  [ -n "${ARTICLE_RUN_DIR:-}" ] && [ -d "$ARTICLE_RUN_DIR" ] \
+    && [ ! -L "$ARTICLE_RUN_DIR" ] || {
+    echo "model-runner: agent-workspace requires a real ARTICLE_RUN_DIR" >&2; exit 64; }
+  case "$ARTICLE_RUN_DIR" in
+    /*) ;;
+    *) echo "model-runner: ARTICLE_RUN_DIR must be absolute" >&2; exit 64 ;;
+  esac
+fi
 
 # SSOT §9.3.1 H2. `agent` is write-capable but has no event stream (the C1
 # session surface below is deliberately off for it, so the daily writing path
@@ -320,7 +330,8 @@ provider_binary() {
 # --ephemeral. When ON, the session is persisted so it can be resumed, the
 # event stream is machine-readable, and the final answer is schema-bound.
 CODEX_SESSION_MODE=0
-if [ -n "${ARTICLE_CODEX_EVENTS_FILE:-}" ] && [ "$MODE" != "agent" ]; then
+if [ -n "${ARTICLE_CODEX_EVENTS_FILE:-}" ] \
+  && [ "$MODE" != "agent" ] && [ "$MODE" != "agent-workspace" ]; then
   CODEX_SESSION_MODE=1
 fi
 
@@ -356,6 +367,11 @@ invoke_provider() {
     if [ "$MODE" = "agent" ]; then
       sandbox="danger-full-access"
       working_root="$MODEL_ROOT"
+    elif [ "$MODE" = "agent-workspace" ]; then
+      # Draft-only owners write into their run directory; provider publication
+      # and durable state stay with the trusted wrapper outside this workspace.
+      sandbox="workspace-write"
+      working_root="$ARTICLE_RUN_DIR"
     elif [ "$MODE" = "repair" ]; then
       # Narrow on purpose. `danger-full-access` with $HOME writable would let an
       # unattended repair worker reach credentials, other loops' state, and the
@@ -381,7 +397,7 @@ invoke_provider() {
         -C "$working_root"
       )
     fi
-    if [ "$MODE" = "repair" ]; then
+    if [ "$MODE" = "repair" ] || [ "$MODE" = "agent-workspace" ]; then
       # Measured 2026-08-07 on codex-cli 0.145.0: without both exclusions,
       # workspace-write still allows writes under /tmp and $TMPDIR, which is a
       # channel out of the workspace. network_access is stated rather than left
@@ -400,6 +416,7 @@ invoke_provider() {
     # owner fence without reaching a publication boundary.
     command+=(--ignore-user-config --ignore-rules)
     [ "$MODE" = "agent" ] && command+=(--add-dir "$HOME")
+    [ "$MODE" = "agent-workspace" ] && command+=(--skip-git-repo-check)
     if [ "$CODEX_SESSION_MODE" = "1" ]; then
       # C1: events as JSONL and the final message in its own file, so the
       # outcome is read from the stream instead of a binary exit status.

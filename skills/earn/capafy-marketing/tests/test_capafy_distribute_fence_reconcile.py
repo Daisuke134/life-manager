@@ -62,6 +62,7 @@ def test_success_hint_ignores_untrusted_event_and_manifest_path_overrides(
     occurrence_run(canonical_root, monkeypatch, occurrence_id, started, canonical_slug)
     canonical_events = rec.EVENTS_PATH
     canonical_runs = rec.RUNS_ROOT
+    canonical_occurrences = rec.OCCURRENCES_ROOT
 
     attacker_slug = "capafy-x-2026-09-29-h22m00"
     attacker_root = tmp_path / "attacker"
@@ -70,6 +71,7 @@ def test_success_hint_ignores_untrusted_event_and_manifest_path_overrides(
                    slot="2026-09-29-h22m00")
     monkeypatch.setattr(rec, "EVENTS_PATH", canonical_events)
     monkeypatch.setattr(rec, "RUNS_ROOT", canonical_runs)
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", canonical_occurrences)
     monkeypatch.setattr(rec, "occurrence_queued_at", lambda _occurrence: started)
     monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
         "ok": True, "commits": [{"sha": "c" * 40, "slug": attacker_slug}],
@@ -100,6 +102,61 @@ def test_success_hint_rejects_queue_timestamp_after_execute_start(tmp_path, monk
     proof = rec.write_result_hint(occurrence_id, hint)
     assert proof["hint_written"] is False
     assert not hint.exists()
+
+
+def test_expected_slug_ignores_model_writable_run_directory_manifest(tmp_path, monkeypatch):
+    occurrence_id = "capafy-distribute-daily:writer-canary"
+    trusted_slug = "capafy-x-2026-09-29-h21m00"
+    trusted_root = tmp_path / "occurrences"
+    trusted_root.mkdir(mode=0o700)
+    rec.record_occurrence_manifest(
+        trusted_root / "writer-canary.json",
+        owner_id=rec.OWNER_ID,
+        run_id="writer-canary",
+        occurrence_id=occurrence_id,
+        slot="2026-09-29-h21m00",
+        article_slug=trusted_slug,
+    )
+
+    attacker_root = tmp_path / "writer-workspace"
+    attacker_root.mkdir()
+    occurrence_run(
+        attacker_root,
+        monkeypatch,
+        occurrence_id,
+        Q + dt.timedelta(hours=4),
+        "capafy-x-2026-09-29-h22m00",
+        slot="2026-09-29-h22m00",
+    )
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", trusted_root, raising=False)
+
+    assert rec.expected_article_slug(occurrence_id) == trusted_slug
+
+
+def test_occurrence_manifest_cannot_be_overwritten(tmp_path):
+    path = tmp_path / "occurrences" / "writer-canary.json"
+    original = rec.record_occurrence_manifest(
+        path,
+        owner_id=rec.OWNER_ID,
+        run_id="writer-canary",
+        occurrence_id="capafy-distribute-daily:writer-canary",
+        slot="2026-09-29-h21m00",
+        article_slug="capafy-x-2026-09-29-h21m00",
+    )
+    try:
+        rec.record_occurrence_manifest(
+            path,
+            owner_id=rec.OWNER_ID,
+            run_id="writer-canary",
+            occurrence_id="capafy-distribute-daily:writer-canary",
+            slot="2026-09-29-h22m00",
+            article_slug="capafy-x-2026-09-29-h22m00",
+        )
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("an occurrence binding was overwritten")
+    assert json.loads(path.read_text()) == original
 
 
 def test_no_effect_hint_is_exactly_bound_to_already_published_slot(tmp_path, monkeypatch):
@@ -159,6 +216,22 @@ def test_no_effect_hint_ignores_untrusted_event_and_state_root_overrides(tmp_pat
 
     ledger.write_text(json.dumps({slot: {"status": "published"}}))
     assert rec.write_no_effect_result_hint(OCC, hint, "daily_limit_reached", slot)
+
+
+def test_pii_gate_blocked_no_effect_hint_does_not_mark_slot_published(tmp_path, monkeypatch):
+    slot = "2026-09-29-h17m00"
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, "capafy-x-2026-09-29-h17m00", slot=slot)
+    state_dir = tmp_path / "canonical-state"
+    state_dir.mkdir()
+    ledger = state_dir / "ledger.json"
+    ledger.write_text(json.dumps({}))
+    monkeypatch.setattr(rec, "EVENTS_PATH", tmp_path / "events.jsonl")
+    monkeypatch.setattr(rec, "LEDGER_PATH", ledger)
+    hint = tmp_path / "pii-blocked-result.json"
+
+    assert rec.write_no_effect_result_hint(OCC, hint, "pii_gate_blocked", slot)
+    assert json.loads(ledger.read_text()).get(slot) is None
+    assert json.loads(hint.read_text())["reason"] == "pii_gate_blocked"
 
 
 def test_forged_proof_dictionary_is_not_a_writer_api_and_existing_hint_is_never_overwritten(
@@ -230,6 +303,88 @@ def test_no_commit_no_post_after_window_is_no_effect():
     assert p["verified"] and p["effected"] is False
 
 
+def test_legacy_missing_binding_requires_complete_empty_official_window(tmp_path, monkeypatch):
+    occurrence_id = "capafy-distribute-daily:legacy-run"
+    started = Q + dt.timedelta(hours=4)
+    events = tmp_path / "events.jsonl"
+    events.write_text(json.dumps({
+        "owner_id": rec.OWNER_ID,
+        "run_id": "legacy-run",
+        "occurrence_id": occurrence_id,
+        "phase": "execute",
+        "status": "running",
+        "timestamp": started.isoformat(),
+    }) + "\n")
+    monkeypatch.setattr(rec, "EVENTS_PATH", events)
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", tmp_path / "missing-occurrences")
+    commits = {"ok": True, "commits": []}
+    posts = {"ok": True, "posts": []}
+
+    def reconcile(now, commits_result=commits, posts_result=posts,
+                  page_status_fn=lambda _slug: 200):
+        return rec.reconcile(
+            occurrence_id,
+            now=now,
+            fenced_row_fn=lambda *_args: ("claimed", started - dt.timedelta(seconds=1)),
+            commits_fn=lambda *_args: commits_result,
+            x_fn=lambda *_args: posts_result,
+            page_status_fn=page_status_fn,
+        )
+
+    early = reconcile(started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS - 1))
+    assert early["verified"] is False
+    assert early["reason"].startswith("too_recent:")
+
+    effect_possible = reconcile(
+        started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        {"ok": True, "commits": [{
+            "sha": "e" * 40,
+            "slug": "capafy-x-2026-09-29-h21m00",
+            "at": (started + dt.timedelta(minutes=5)).isoformat(),
+        }]},
+    )
+    assert effect_possible["verified"] is True
+    assert effect_possible["effected"] is True
+    assert effect_possible["proof_kind"] == "official_unique_capafy_commit_and_live_page_for_legacy_occurrence"
+    assert effect_possible["provider_receipt_id"] == (
+        f"github:{'e' * 40}|https://aniccaai.com/blog/capafy-x-2026-09-29-h21m00")
+
+    ambiguous = reconcile(
+        started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        {"ok": True, "commits": [
+            {"sha": "f" * 40, "slug": "capafy-x-2026-09-29-h21m00",
+             "at": (started + dt.timedelta(minutes=5)).isoformat()},
+            {"sha": "1" * 40, "slug": "tiktok-hook-generator-free",
+             "at": (started + dt.timedelta(minutes=6)).isoformat()},
+        ]},
+    )
+    assert ambiguous["verified"] is False
+    assert ambiguous["reason"] == "ambiguous_legacy_capafy_commits"
+
+    page_unavailable = reconcile(
+        started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        {"ok": True, "commits": [{
+            "sha": "e" * 40,
+            "slug": "capafy-x-2026-09-29-h21m00",
+            "at": (started + dt.timedelta(minutes=5)).isoformat(),
+        }]},
+        page_status_fn=lambda _slug: 404,
+    )
+    assert page_unavailable["verified"] is False
+    assert page_unavailable["reason"] == "legacy_capafy_commit_without_live_page"
+
+    post_possible = reconcile(
+        started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        posts_result={"ok": True, "posts": ["unknown-post"]},
+    )
+    assert post_possible["verified"] is False
+
+    empty_window = reconcile(started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1))
+    assert empty_window["verified"] is True
+    assert empty_window["effected"] is False
+    assert empty_window["proof_kind"] == "official_github_postiz_empty_after_legacy_manifest_gap"
+
+
 def test_x_post_without_article_stays_fenced():
     assert not proof(200, {"ok": True, "commits": []}, {"ok": True, "posts": ["p1"]})["verified"]
 
@@ -251,19 +406,21 @@ def occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug, slot="20
     runs_root = tmp_path / "runs"
     run_dir = runs_root / f"capafy-distribute-{slot}"
     (run_dir / "gates").mkdir(parents=True)
-    (run_dir / "gates/occurrence.json").write_text(json.dumps({
-        "schema": rec.OCCURRENCE_SCHEMA,
-        "owner_id": rec.OWNER_ID,
-        "run_id": occurrence_id.rsplit(":", 1)[1],
-        "occurrence_id": occurrence_id,
-        "slot": slot,
-        "article_slug": slug,
-    }))
+    occurrences_root = tmp_path / "occurrences"
+    rec.record_occurrence_manifest(
+        occurrences_root / f"{occurrence_id.rsplit(':', 1)[1]}.json",
+        owner_id=rec.OWNER_ID,
+        run_id=occurrence_id.rsplit(":", 1)[1],
+        occurrence_id=occurrence_id,
+        slot=slot,
+        article_slug=slug,
+    )
     (run_dir / "prompt.txt").write_text(f"Publish this article: https://aniccaai.com/blog/{slug}\n")
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_EVENTS_PATH", str(events))
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_RUNS_ROOT", str(runs_root))
     monkeypatch.setattr(rec, "EVENTS_PATH", events)
     monkeypatch.setattr(rec, "RUNS_ROOT", runs_root)
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", occurrences_root)
 
 
 def test_occurrence_start_rejects_mismatched_owner_or_run_id(tmp_path):
@@ -334,7 +491,7 @@ def test_occurrence_start_rejects_malformed_event_rows(tmp_path):
 
 def test_occurrence_manifest_records_exact_runtime_slot(tmp_path):
     occurrence_id = "capafy-distribute-daily:midnight-boundary"
-    path = tmp_path / "runs/capafy-distribute-2026-09-30-h00m00/gates/occurrence.json"
+    path = tmp_path / "occurrences/midnight-boundary.json"
     record = rec.record_occurrence_manifest(
         path,
         owner_id=rec.OWNER_ID,
@@ -378,7 +535,7 @@ def test_success_proof_uses_exact_parent_occurrence_and_official_landing_receipt
 
 
 def test_occurrence_manifest_rejects_runtime_identity_mismatch(tmp_path):
-    path = tmp_path / "occurrence.json"
+    path = tmp_path / "occurrences/midnight-boundary.json"
     try:
         rec.record_occurrence_manifest(
             path,
@@ -611,6 +768,9 @@ def pre_effect_manifest_failure(tmp_path, monkeypatch, *, artifact=None):
     os.utime(run_dir, (run_time, run_time))
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_EVENTS_PATH", str(events))
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_RUNS_ROOT", str(runs_root))
+    monkeypatch.setattr(rec, "EVENTS_PATH", events)
+    monkeypatch.setattr(rec, "RUNS_ROOT", runs_root)
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", tmp_path / "occurrences")
     return occurrence_id, started
 
 
@@ -706,25 +866,24 @@ def test_pre_effect_enospc_manifest_failure_rejects_malformed_postiz_listing(tmp
     assert result["reason"] == "postiz_readback_malformed"
 
 
-def test_pre_effect_enospc_manifest_failure_rejects_any_run_artifact(tmp_path, monkeypatch):
+def test_legacy_missing_manifest_uses_official_empty_window_despite_run_artifact(tmp_path, monkeypatch):
     occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch, artifact="prompt.txt")
-    try:
-        rec.reconcile(
-            occurrence_id,
-            now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
-            fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
-            commits_fn=lambda _start, _end: {"ok": True, "commits": []},
-            x_fn=lambda _start, _end: {"ok": True, "posts": []},
-        )
-    except ValueError as exc:
-        assert "occurrence slot manifest missing" in str(exc)
-        return
-    raise AssertionError("unbound prompt artifact was accepted as pre-effect proof")
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {"ok": True, "posts": []},
+    )
+
+    assert result["verified"] is True
+    assert result["effected"] is False
+    assert result["proof_kind"] == "official_github_postiz_empty_after_legacy_manifest_gap"
 
 
 def test_occurrence_manifest_accepts_listed_seo_keyword_slug(tmp_path):
     record = rec.record_occurrence_manifest(
-        tmp_path / "occurrence.json", owner_id=rec.OWNER_ID, run_id="seo-run",
+        tmp_path / "occurrences/seo-run.json", owner_id=rec.OWNER_ID, run_id="seo-run",
         occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-17-h20m00",
         article_slug="tiktok-hook-generator-free")
     assert record["article_slug"] == "tiktok-hook-generator-free"
@@ -734,7 +893,7 @@ def test_occurrence_manifest_rejects_unlisted_or_unsafe_slugs(tmp_path):
     for slug in ("../etc", "not-a-listed-keyword", "capafy-hook-lab-2026-10-17-h19m30"):
         try:
             rec.record_occurrence_manifest(
-                tmp_path / "occurrence.json", owner_id=rec.OWNER_ID, run_id="seo-run",
+                tmp_path / "occurrences/seo-run.json", owner_id=rec.OWNER_ID, run_id="seo-run",
                 occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-17-h20m00",
                 article_slug=slug)
         except ValueError:
@@ -744,7 +903,7 @@ def test_occurrence_manifest_rejects_unlisted_or_unsafe_slugs(tmp_path):
 
 def test_occurrence_manifest_accepts_keyword_slugs_from_every_seller_list(tmp_path):
     record = rec.record_occurrence_manifest(
-        tmp_path / "occurrence.json", owner_id=rec.OWNER_ID, run_id="seo-run",
+        tmp_path / "occurrences/seo-run.json", owner_id=rec.OWNER_ID, run_id="seo-run",
         occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-18-h02m30",
         article_slug="tiktok-script-template")
     assert record["article_slug"] == "tiktok-script-template"
@@ -855,27 +1014,17 @@ def test_invalid_utf8_query_does_not_block_exact_ascii_slug_readback(tmp_path, m
             x_fn=lambda *_args: {'ok': True, 'posts': posts})
         assert result['verified'] is verified
     prompt.write_bytes(prompt.read_bytes() + b'https://aniccaai.com/blog/conflicting-slug\n')
-    try:
-        rec.expected_article_slug(OCC)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError('conflicting URL was accepted in a damaged prompt')
+    assert rec.expected_article_slug(OCC) == slug
 
 
-def test_damaged_prompt_requires_the_whole_canonical_url_not_a_slug_prefix(tmp_path, monkeypatch):
+def test_writer_mutated_prompt_cannot_change_canonical_occurrence_slug(tmp_path, monkeypatch):
     slug = 'capafy-hook-lab-2026-09-29-h21m00'
     occurrence_run(tmp_path, monkeypatch, OCC, Q, slug)
     prompt = tmp_path / 'runs/capafy-distribute-2026-09-29-h21m00/prompt.txt'
     prefix = b'https://aniccaai.com/blog/' + slug.encode('ascii')
     for suffix in (b'\xe3', b'/other', b'--broken', b'%2Fother'):
         prompt.write_bytes(prefix + suffix + b'\n')
-        try:
-            rec.expected_article_slug(OCC)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError(f'noncanonical URL prefix was accepted: {suffix!r}')
+        assert rec.expected_article_slug(OCC) == slug
 
 
 def test_damaged_url_is_not_ignored_when_a_valid_url_is_also_present(tmp_path, monkeypatch):
@@ -885,9 +1034,4 @@ def test_damaged_url_is_not_ignored_when_a_valid_url_is_also_present(tmp_path, m
     prefix = b'https://aniccaai.com/blog/'
     for path in (slug.encode('ascii') + b'\xff-other', b''):
         prompt.write_bytes(prefix + slug.encode('ascii') + b'\n' + prefix + path + b'\n')
-        try:
-            rec.expected_article_slug(OCC)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError('invalid extra publication URL was silently skipped')
+        assert rec.expected_article_slug(OCC) == slug

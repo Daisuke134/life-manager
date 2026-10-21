@@ -2118,21 +2118,22 @@ def test_capafy_distributor_effect_hints_require_exact_owner_entrypoint_and_rece
         hint, owner, occurrence, "skills/earn/capafy-marketing/other.sh") is None
 
 
-def test_capafy_distributor_no_effect_hint_only_accepts_already_published_reason(tmp_path):
+def test_capafy_distributor_no_effect_hint_accepts_only_wrapper_owned_reasons(tmp_path):
     owner = "capafy-distribute-daily"
     occurrence = f"{owner}:already-published"
     entrypoint = "skills/earn/capafy-marketing/capafy-distribute-daily.sh"
     hint = tmp_path / "entrypoint-result.json"
 
-    _write_no_effect_result(
-        hint, owner_id=owner, occurrence_id=occurrence,
-        reason="daily_limit_reached",
-    )
-    assert loop_runner._verified_terminal_effect_result(
-        hint, owner, occurrence, entrypoint) == (
-            "not_applicable",
-            f"lm-no-effect://{owner}/{occurrence}/daily_limit_reached",
+    for reason in ("daily_limit_reached", "pii_gate_blocked"):
+        _write_no_effect_result(
+            hint, owner_id=owner, occurrence_id=occurrence,
+            reason=reason,
         )
+        assert loop_runner._verified_terminal_effect_result(
+            hint, owner, occurrence, entrypoint) == (
+                "not_applicable",
+                f"lm-no-effect://{owner}/{occurrence}/{reason}",
+            )
     assert loop_runner._no_effect_result_hint_allowed(owner, entrypoint)
     assert not loop_runner._no_effect_result_hint_allowed("other-loop", entrypoint)
     assert loop_runner._verified_no_effect_result(

@@ -172,18 +172,23 @@ fi
 # Keyword pages must carry the query in the H1 and are announced to IndexNow (key file is public on aniccaai.com).
 SEO_QUERY="${SEO_QUERY:-}"
 INDEXNOW_KEY=92ec974b25b70513c2cbc172f532bb3b
-# Pre-quote as UTF-8 text: macOS Bash printf %q can split multibyte query bytes.
-SEO_PUBLISH_FLAGS=""; [ -n "$SEO_QUERY" ] && SEO_PUBLISH_FLAGS=" --title-must-contain $(python3 -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$SEO_QUERY") --indexnow-key $INDEXNOW_KEY"
+# Build publisher options as arguments so multiword/UTF-8 queries stay one value.
+SEO_PUBLISH_ARGS=()
+if [ -n "$SEO_QUERY" ]; then
+  SEO_PUBLISH_ARGS+=(--title-must-contain "$SEO_QUERY" --indexnow-key "$INDEXNOW_KEY")
+fi
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 [ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
 RUN_TS="capafy-distribute-$SLOT"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
 mkdir -p "$RUN_DIR/gates"
+CAPTION_FILE="$RUN_DIR/x-caption.txt"
 # Bind the wrapper's actual clock-selected slot to the runtime occurrence before
 # any model or publication step. Execute-start may straddle a JST half-hour edge.
 if ! CAPAFY_DISTRIBUTE_SCRIPT_DIR="$SELF_DIR" python3 - \
-    "$RUN_DIR/gates/occurrence.json" "$SLOT" "$FREE_ARTICLE_SLUG" <<'PY'
+    "$CAPAFY_DISTRIBUTE_STATE_DIR/occurrences/$LIFE_MANAGER_RUN_ID.json" \
+    "$SLOT" "$FREE_ARTICLE_SLUG" <<'PY'
 import os
 import sys
 from pathlib import Path
@@ -227,119 +232,90 @@ FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 # --- build the model pass prompt: one free English article + X link post --
 PROMPT_FILE="$RUN_DIR/prompt.txt"
 cat >"$PROMPT_FILE" <<PROMPT_EOF
-Run ONE Capafy distribute pass, no daily human in the loop. This is a fresh
-loop (capafy-distribute-daily, triggered by launchd label
-ai.anicca.capafy-distribute-daily); it is NOT the existing article-daily loop
-and must not touch skills/writer-agent/article-daily.sh, its state, or its
-publication ledgers.
+Run ONE Capafy distribute draft pass. Do not touch
+skills/writer-agent/article-daily.sh, its state, or publication ledgers.
 
-GOAL: write and publish ONE free (no paywall, no preview/paid split) English
-article promoting the $PRODUCT_LABEL "$CAPAFY_SKILL_SLUG" (buyer problem: $CAPAFY_BUYER_PROBLEM).
-Follow $ARTICLE_ROOT/reference/CRAFT.md and the humanizer pass at
-$ARTICLE_ROOT/vendor/writing-skills/humanizer/SKILL.md for craft quality, and
-the IDENTITY / OPERATOR-IDENTIFIER rules in $ARTICLE_ROOT/SKILL.md (never
-identify as AI, never name the operator).
-$SEO_BRIEF Before publishing anywhere, run
-$ARTICLE_ROOT/scripts/pii-gate.py on the draft and abort publish (but still
-record this run in the ledger with status="blocked" and the gate's reason) if
-it fails -- this hard safety gate is never skipped.
+GOAL: write ONE complete free English article (no paywall, no preview/paid
+split) promoting the $PRODUCT_LABEL "$CAPAFY_SKILL_SLUG" (buyer problem:
+$CAPAFY_BUYER_PROBLEM). Follow $ARTICLE_ROOT/reference/CRAFT.md and the
+humanizer guidance at $ARTICLE_ROOT/vendor/writing-skills/humanizer/SKILL.md.
+Follow the IDENTITY / OPERATOR-IDENTIFIER rules in $ARTICLE_ROOT/SKILL.md.
+$SEO_BRIEF
 
 The article body must contain exactly one Capafy CTA link, verbatim:
 $CTA_URL
-Do not invent a second Capafy link in the article body and do not send
-readers to any other product's checkout. Give the draft a single H1 title
-line ("# ...") -- write $RUN_DIR/article-en.md with that H1 and the full
-free article body (no paywall, no preview/paid split, nothing held back;
-YAML frontmatter is optional and ignored by the publish step below).
+Do not add a second Capafy link or send readers to another product checkout.
+Give the draft one H1 title and write the full body to
+$RUN_DIR/article-en.md. Do not invent statistics, product behavior, earnings,
+or conversion claims.
 
-DESTINATIONS:
-1. aniccaai.com, FULL FREE PUBLIC PAGE (required -- step 2 depends on its
-   URL) -- once article-en.md is frozen, run exactly:
-     python3 $SELF_DIR/capafy_free_article.py publish \\
-       --draft-file $RUN_DIR/article-en.md \\
-       --slug $FREE_ARTICLE_SLUG \\
-       --cta-url "$CTA_URL" \\
-       --landing-root "$ARTICLE_SELF_OWNED_LANDING_ROOT" \\
-       --remote "$ARTICLE_SELF_OWNED_REMOTE" \\
-       --branch "$ARTICLE_SELF_OWNED_BRANCH" \\
-       --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \\
-       --date "$JST_DATE"$SEO_PUBLISH_FLAGS
-   This writes ONE plain public JSON page (no preview/paid split, unlike the
-   Writer's own self-owned paid articles) straight into the same landing
-   repo the Writer commits to, pushes it, then polls the live page at
-   $FREE_ARTICLE_URL until it reads back HTTP 200 with the title and the
-   Capafy CTA link both present, before printing its JSON result. Do not
-   call self_owned_article.py's build_contract/stage_contracts/resume
-   directly and do not edit that module's paid preview/paid-split contract
-   to unblock this -- this script exists specifically so this loop never
-   touches that paid pipeline. If this command exits non-zero, record
-   status="blocked" with its stderr as the reason, skip step 2 entirely
-   (there is no live URL to link to), and still run the ledger write below.
-2. X caption only -- only if step 1 published. For hook-lab, make the native
-   caption useful without opening the article: show one input topic and one
-   finished spoken hook from the supplied published product example (or its
-   own $LIFE_MANAGER_REPO/skills/capafy/catalog/hook-lab/LISTING.md example
-   when no example was supplied). Then briefly say what Hook Lab returns. Lead with this mini-demo instead
-   of a generic teaser or just the article title. Use only supplied product
-   facts, with no promised retention, views, or revenue improvement. Keep the
-   copy within X's existing length limits. Other skills keep their existing
-   caption style. Write ONE short caption that
-   contains the aniccaai.com URL from step 1's JSON output ("url") and this
-   SEPARATE Capafy link:
-   $X_CTA_URL
-   to the file $RUN_DIR/x-caption.txt (plain text, nothing else). Do NOT run
-   capafy_x_post.py yourself: the wrapper posts it after you exit, because
-   your per-command timeout killed its Postiz readback mid-run (2026-09-29
-   h21). In the receipt, record "x" as {"status": "pending_wrapper"}.
-3. dev.to, Zenn, Substack: SKIP all three (Dais decision 2026-09-29 -- we do
-   not publish to dev.to or Zenn; Substack is still paid-subscription only
-   per $ARTICLE_ROOT/SKILL.md). Do not build a publish path to any of them
-   in this run; record the skip and move on.
+For hook-lab, write one short X caption that demonstrates one input topic and
+one finished spoken hook from the supplied published example (or
+$LIFE_MANAGER_REPO/skills/capafy/catalog/hook-lab/LISTING.md). Briefly say what
+Hook Lab returns. Other skills keep their existing caption style. Use only
+supplied product facts; do not promise retention, views, or revenue. Include
+the article URL $FREE_ARTICLE_URL and separate Capafy link $X_CTA_URL. Write
+only the caption text to $RUN_DIR/x-caption.txt.
 
-Write the final receipt as JSON to $RUN_DIR/gates/receipt.json with keys
-status ("published" if aniccaai.com went live, "blocked" if the PII gate or
-step 1 failed, "skipped" if step 1 itself was skipped), capafy_skill,
-cta_url, x_cta_url, and a "destinations" object keyed by aniccaai/x with each
-entry's status and url (or skip/failure reason) taken verbatim from the two
-commands' own JSON output above -- never invent a URL that was not printed by
-capafy_free_article.py or capafy_x_post.py. Then run:
-  python3 $SELF_DIR/capafy_distribute_ledger.py record --ledger "$LEDGER" \\
-    --date "$SLOT" --json "\$(cat $RUN_DIR/gates/receipt.json)"
-This ledger write is the ONLY thing that marks today done; if you exit before
-writing it, the next scheduled wake will retry today's date.
+Do not publish, push commits, call Postiz, run capafy_x_post.py, write a
+receipt, or update the ledger. The trusted wrapper runs the PII gate and owns
+article/X publication and ledger updates after you exit. If the PII gate
+blocks the draft, the wrapper records a no-effect outcome and retries on a
+later cadence. The model workspace is only this run directory; do not try to
+read or write other paths.
+
+dev.to, Zenn, and Substack are out of scope. Do not publish or build a route
+to any of them.
 PROMPT_EOF
 
 ARTICLE_MODEL_RUNNER="${ARTICLE_MODEL_RUNNER:-$ARTICLE_ROOT/runtime/model-runner.sh}"
 ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS="${CAPAFY_DISTRIBUTE_MODEL_AGENT_TIMEOUT_SECONDS:-1800}"
 
 env -u LIFE_MANAGER_RESULT_HINT_PATH -u CAPAFY_DISTRIBUTE_STATE_DIR \
+  -u CAPAFY_DISTRIBUTE_EVENTS_PATH -u CAPAFY_DISTRIBUTE_RUNS_ROOT \
+  -u LIFE_MANAGER_RESOURCE_ADMISSION_ROOT -u LIFE_MANAGER_LOOP_ID \
+  -u LIFE_MANAGER_RUN_ID -u LIFE_MANAGER_OCCURRENCE_ID \
+  -u POSTIZ_API_KEY -u LM_POSTIZ_API_KEY -u LIFE_MANAGER_MARKETING_ENV_FILE \
   BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-writers.stop" \
 ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
   python3 "$LIFE_MANAGER_REPO/runtime/loop/bounded-exec.py" \
     "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \
-    "$ARTICLE_MODEL_RUNNER" agent --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
+    "$ARTICLE_MODEL_RUNNER" agent-workspace --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
 RC=$?
 echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
 # The ledger is the effect truth, not the exit code. Before PR #8249 the agent
 # exited 1 even after a fully published run (live 2026-09-29 h15) because its
 # prose report failed the shared runner's JSON contract; rc is still advisory.
-# X post runs here, outside the agent (same move as daily_loop.sh's prepare: the
-# agent's per-command timeout killed the up-to-10-min Postiz readback, h21 x=failed).
-CAPTION_FILE="$RUN_DIR/x-caption.txt"
-# Article publish fallback, same move as the X post below: capafy_free_article.py
-# polls the live page for up to 15 min while the GitHub Actions deploy runs, and
-# the agent runner's own 15 min budget expired mid-poll (2026-10-08 h06: draft
-# written, no receipt, nothing published). If a draft exists and the slot is not
-# published yet, finish the publish here. Re-running is idempotent: an already
-# committed page is only re-pushed.
+# The article model cannot publish or update the ledger. Gate every model-written
+# public surface before the trusted wrapper reaches any provider.
+PII_RC=0
+if [ -s "$RUN_DIR/article-en.md" ]; then
+  PII_FILES=("$RUN_DIR/article-en.md")
+  [ -s "$CAPTION_FILE" ] && PII_FILES+=("$CAPTION_FILE")
+  python3 "$ARTICLE_ROOT/scripts/pii-gate.py" --stage capafy-distribute-publish \
+    "${PII_FILES[@]}" >>"$LOG" 2>&1 || PII_RC=$?
+fi
+if [ "$PII_RC" -ne 0 ]; then
+  echo "capafy-distribute-daily: PII gate blocked provider publish rc=$PII_RC" >>"$LOG"
+  if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+    python3 "$SELF_DIR/capafy_distribute_fence_reconcile.py" \
+      --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
+      --result-hint "$LIFE_MANAGER_RESULT_HINT_PATH" \
+      --no-effect-reason pii_gate_blocked --slot "$SLOT" >>"$LOG" 2>&1 || exit 1
+    exit 0
+  fi
+  exit 1
+fi
+# The trusted wrapper publishes the draft and waits for official public-page
+# readback; the model cannot perform or record this provider effect.
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >/dev/null 2>&1
 if [ "$?" -eq 0 ] && [ -s "$RUN_DIR/article-en.md" ] && [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
   PUB_OUT="$(python3 "$SELF_DIR/capafy_free_article.py" publish \
-    --draft-file "$RUN_DIR/article-en.md" --slug "$FREE_ARTICLE_SLUG" --cta-url "$CTA_URL" ${SEO_QUERY:+--title-must-contain "$SEO_QUERY" --indexnow-key "$INDEXNOW_KEY"} \
+    --draft-file "$RUN_DIR/article-en.md" --slug "$FREE_ARTICLE_SLUG" --cta-url "$CTA_URL" \
     --landing-root "$ARTICLE_SELF_OWNED_LANDING_ROOT" --remote "$ARTICLE_SELF_OWNED_REMOTE" \
     --branch "$ARTICLE_SELF_OWNED_BRANCH" --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \
-    --date "$JST_DATE" 2>>"$LOG" | tail -1)" || true
-  echo "capafy-distribute-daily: wrapper publish fallback: ${PUB_OUT:0:300}" >>"$LOG"
+    --date "$JST_DATE" "${SEO_PUBLISH_ARGS[@]}" 2>>"$LOG" | tail -1)" || true
+  echo "capafy-distribute-daily: wrapper publish: ${PUB_OUT:0:300}" >>"$LOG"
   PUB_OUT="$PUB_OUT" LEDGER="$LEDGER" SLOT="$SLOT" SKILL="$CAPAFY_SKILL_SLUG" CTA="$CTA_URL" XCTA="$X_CTA_URL" \
   DRAFT="$RUN_DIR/article-en.md" CAPTION_FILE="$CAPTION_FILE" LEDGER_TOOL="$SELF_DIR/capafy_distribute_ledger.py" \
   python3 - <<'PY' >>"$LOG" 2>&1 || true
@@ -350,7 +326,7 @@ except ValueError:
     out = {}
 ok = out.get("status") == "published" and out.get("url")
 entry = {"status": "published" if ok else "blocked", "capafy_skill": os.environ["SKILL"],
-         "cta_url": os.environ["CTA"], "x_cta_url": os.environ["XCTA"], "publisher": "wrapper_fallback",
+         "cta_url": os.environ["CTA"], "x_cta_url": os.environ["XCTA"], "publisher": "wrapper",
          "destinations": {"aniccaai": {"status": "published", "url": out["url"]} if ok
                           else {"status": "blocked", "reason": "capafy_free_article.py did not confirm the live page"}}}
 subprocess.run([sys.executable, os.environ["LEDGER_TOOL"], "record", "--ledger", os.environ["LEDGER"],
@@ -361,7 +337,10 @@ if ok and not (os.path.exists(cap) and os.path.getsize(cap)):
     open(cap, "w", encoding="utf-8").write(f"{title}\n{out['url']}\nTry it on Capafy: {os.environ['XCTA']}\n")
 PY
 fi
-if [ -s "$CAPTION_FILE" ] && [ -n "${POSTIZ_X_INTEGRATION_ID:-}" ]; then
+X_CHECK_RC=0
+python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >/dev/null 2>&1 || X_CHECK_RC=$?
+if [ "$X_CHECK_RC" -eq 10 ] && [ -s "$CAPTION_FILE" ] \
+    && [ -n "${POSTIZ_X_INTEGRATION_ID:-}" ]; then
   # Postiz strips links from X posts (2026-10-11), so the caption ends with a Capafy search CTA.
   X_OUT="$(python3 "$SELF_DIR/capafy_x_post.py" --caption "$(cat "$CAPTION_FILE")" \
     --integration-id "$POSTIZ_X_INTEGRATION_ID" \
@@ -390,7 +369,9 @@ subprocess.run([sys.executable, os.environ["LEDGER_TOOL"], "record", "--ledger",
 PY
 fi
 # Dais 2026-10-08: every published article reaches Telegram with clickable links.
-TG_MARK="$RUN_DIR/.telegram-sent"
+# Keep this idempotency marker outside the draft-only model workspace.
+TG_MARK="$CAPAFY_DISTRIBUTE_STATE_DIR/notifications/$LIFE_MANAGER_RUN_ID.telegram-sent"
+mkdir -p "$(dirname "$TG_MARK")"
 if [ ! -e "$TG_MARK" ] && [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
   TG_MSG="$(LEDGER="$LEDGER" SLOT="$SLOT" FALLBACK_URL="${ARTICLE_SELF_OWNED_BASE_URL:-https://aniccaai.com}/blog/$FREE_ARTICLE_SLUG" python3 - <<'PY' 2>>"$LOG"
 import json, os

@@ -379,13 +379,52 @@ class ModelRunnerContractTests(unittest.TestCase):
     def test_agent_mode_still_has_no_event_stream_so_repair_needs_its_own_mode(
         self,
     ) -> None:
-        """The C1 session surface is deliberately off for `agent`, which is why
-        H2 is a fourth mode rather than a widening of an existing one."""
+        """The C1 session surface stays off for `agent`; repair remains separate."""
         with tempfile.TemporaryDirectory() as temporary:
             sandbox = Path(temporary)
             args = self._capture(sandbox, "agent", session=True)
             self.assertNotIn("--json", args)
             self.assertIn("--ephemeral", args)
+
+    def test_agent_workspace_mode_is_confined_to_its_run_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            sandbox = Path(temporary)
+            workspace = sandbox / "run"
+            workspace.mkdir()
+            args_path = sandbox / "args.txt"
+            fake_codex = sandbox / "codex"
+            fake_codex.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" >\"$CAPTURE_ARGS\"\n"
+                "cat >/dev/null\nprintf 'DONE\\n'\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+            prompt = sandbox / "prompt.txt"
+            prompt.write_text("draft only", encoding="utf-8")
+            environment = self.make_environment(sandbox, fake_codex)
+            environment.update({
+                "ARTICLE_RUN_ID": "isolated-agent-contract",
+                "ARTICLE_RUN_DIR": str(workspace),
+                "CAPTURE_ARGS": str(args_path),
+            })
+
+            result = subprocess.run(
+                [str(RUNNER), "agent-workspace", "--prompt-file", str(prompt)],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = args_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(args[args.index("--sandbox") + 1], "workspace-write")
+            self.assertEqual(args[args.index("-C") + 1], str(workspace))
+            self.assertIn("sandbox_workspace_write.exclude_slash_tmp=true", args)
+            self.assertIn("sandbox_workspace_write.exclude_tmpdir_env_var=true", args)
+            self.assertIn("sandbox_workspace_write.network_access=false", args)
+            self.assertNotIn("--add-dir", args)
+            self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
 
     def test_sol_rejects_missing_invalid_or_wrong_run_receipt(self) -> None:
         cases = (

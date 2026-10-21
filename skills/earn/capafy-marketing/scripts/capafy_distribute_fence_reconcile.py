@@ -36,6 +36,7 @@ import json
 import os
 import re
 import sqlite3
+import stat
 import subprocess
 import sys
 import urllib.request
@@ -58,6 +59,7 @@ EVENTS_PATH = Path(
 RUNS_ROOT = Path(
     "~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/runs"
 ).expanduser()
+OCCURRENCES_ROOT = RUNS_ROOT.parent / "occurrences"
 LEDGER_PATH = RUNS_ROOT.parent / "ledger.json"
 LANDING_ROOT = Path(os.environ.get(
     "CAPAFY_DISTRIBUTE_LANDING_ROOT",
@@ -115,7 +117,7 @@ def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -
     if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
         raise ValueError("occurrence owner or run identity is invalid")
     run_id = occurrence_id[len(prefix):]
-    path = events_path or Path(os.environ.get("CAPAFY_DISTRIBUTE_EVENTS_PATH") or EVENTS_PATH)
+    path = events_path or EVENTS_PATH
     starts = []
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -152,7 +154,10 @@ def _run_id_for_occurrence(occurrence_id: str) -> str:
     prefix = f"{OWNER_ID}:"
     if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
         raise ValueError("occurrence owner or run identity is invalid")
-    return occurrence_id[len(prefix):]
+    run_id = occurrence_id[len(prefix):]
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", run_id):
+        raise ValueError("occurrence run identity is malformed")
+    return run_id
 
 
 def _validate_slot_article(slot: Any, article_slug: Any) -> tuple[str, str]:
@@ -182,55 +187,64 @@ def _seo_keyword_slugs() -> set[str]:
 
 def record_occurrence_manifest(path: Path, *, owner_id: str, run_id: str,
                                occurrence_id: str, slot: str, article_slug: str) -> dict[str, str]:
-    """Persist the wrapper's actual slot before it can publish for this occurrence."""
-    if owner_id != OWNER_ID or run_id != _run_id_for_occurrence(occurrence_id):
+    """Persist the wrapper's slot outside the model-writable run directory."""
+    if (owner_id != OWNER_ID or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", run_id)
+            or run_id != _run_id_for_occurrence(occurrence_id)
+            or path.name != f"{run_id}.json" or path.parent.name != "occurrences"):
         raise ValueError("runtime occurrence identity mismatch")
     slot, article_slug = _validate_slot_article(slot, article_slug)
     record = {"schema": OCCURRENCE_SCHEMA, "owner_id": owner_id, "run_id": run_id,
               "occurrence_id": occurrence_id, "slot": slot, "article_slug": article_slug}
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}")
-    try:
-        temporary.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(temporary, path)
-        os.chmod(path, 0o600)
-    finally:
-        temporary.unlink(missing_ok=True)
+    parent_info = path.parent.stat()
+    if (path.parent.is_symlink() or not stat.S_ISDIR(parent_info.st_mode)
+            or parent_info.st_uid != os.getuid() or stat.S_IMODE(parent_info.st_mode) != 0o700):
+        raise ValueError("occurrence binding directory is not private and owner-controlled")
+    descriptor = os.open(
+        path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        os.fchmod(stream.fileno(), 0o600)
+        stream.write(json.dumps(record, sort_keys=True) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
     return record
 
 
-def expected_article_slug(occurrence_id: str, runs_root: Path | None = None) -> str:
-    """Read the wrapper-recorded slot and its prompt, bound to one occurrence."""
+def expected_article_slug(occurrence_id: str, occurrences_root: Path | None = None) -> str:
+    """Read the wrapper-owned occurrence binding outside the model workspace."""
     run_id = _run_id_for_occurrence(occurrence_id)
-    root = runs_root or Path(os.environ.get("CAPAFY_DISTRIBUTE_RUNS_ROOT") or RUNS_ROOT)
-    matches = []
-    for manifest_path in root.glob("capafy-distribute-*/gates/occurrence.json"):
+    root = occurrences_root or OCCURRENCES_ROOT
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError("canonical occurrence binding directory is unavailable")
+    root_info = root.stat()
+    if (root_info.st_uid != os.getuid() or stat.S_IMODE(root_info.st_mode) != 0o700):
+        raise ValueError("canonical occurrence binding directory is not private")
+    path = root / f"{run_id}.json"
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError as exc:
+        raise ValueError("occurrence binding is missing or unsafe") from exc
+    with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+        info = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            raise ValueError("occurrence binding file is not private and owner-controlled")
         try:
-            record = json.loads(manifest_path.read_text(encoding="utf-8"))
+            record = json.load(stream)
         except (OSError, ValueError) as exc:
             raise ValueError("occurrence manifest is missing or malformed") from exc
-        if not isinstance(record, dict):
-            raise ValueError("occurrence manifest must be a JSON object")
-        if record.get("occurrence_id") != occurrence_id:
-            continue
-        if (record.get("schema") != OCCURRENCE_SCHEMA
-                or record.get("owner_id") != OWNER_ID
-                or record.get("run_id") != run_id):
-            raise ValueError("occurrence manifest identity mismatch")
-        slot, slug = _validate_slot_article(record.get("slot"), record.get("article_slug"))
-        run_dir = manifest_path.parent.parent
-        if run_dir.name != f"capafy-distribute-{slot}":
-            raise ValueError("occurrence manifest path does not match its slot")
-        # Only the ASCII publication URL binds this artifact; a damaged non-URL
-        # query must not prevent official readback of an already failed run.
-        prompt = (run_dir / "prompt.txt").read_bytes()
-        slugs = set(re.findall(rb"https://aniccaai\.com/blog/([^\s\"'<>]*)", prompt))
-        if slugs != {slug.encode("ascii")}:
-            raise ValueError("occurrence prompt does not match its manifest slug")
-        matches.append(slug)
-    if len(matches) != 1:
-        raise ValueError("occurrence slot manifest missing or ambiguous")
-    return matches[0]
+    if not isinstance(record, dict):
+        raise ValueError("occurrence manifest must be a JSON object")
+    if (record.get("schema") != OCCURRENCE_SCHEMA
+            or record.get("owner_id") != OWNER_ID
+            or record.get("run_id") != run_id
+            or record.get("occurrence_id") != occurrence_id):
+        raise ValueError("occurrence manifest identity mismatch")
+    _slot, slug = _validate_slot_article(record.get("slot"), record.get("article_slug"))
+    return slug
 
 
 def pre_effect_manifest_enospc(occurrence_id: str, started_at: dt.datetime, *,
@@ -238,7 +252,7 @@ def pre_effect_manifest_enospc(occurrence_id: str, started_at: dt.datetime, *,
                                runs_root: Path | None = None) -> dict[str, Any] | None:
     """Bind the one known ENOSPC failure to an empty pre-publication run directory."""
     run_id = _run_id_for_occurrence(occurrence_id)
-    path = events_path or Path(os.environ.get("CAPAFY_DISTRIBUTE_EVENTS_PATH") or EVENTS_PATH)
+    path = events_path or EVENTS_PATH
     matching: list[dict[str, Any]] = []
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -295,7 +309,7 @@ def pre_effect_manifest_enospc(occurrence_id: str, started_at: dt.datetime, *,
     local = event_started.astimezone(ZoneInfo("Asia/Tokyo"))
     half_hour = (local.minute // 30) * 30
     slot = f"{local:%Y-%m-%d}-h{local.hour:02d}m{half_hour:02d}"
-    root = runs_root or Path(os.environ.get("CAPAFY_DISTRIBUTE_RUNS_ROOT") or RUNS_ROOT)
+    root = runs_root or RUNS_ROOT
     run_dir = root / f"capafy-distribute-{slot}"
     gates = run_dir / "gates"
     if (root.is_symlink() or run_dir.is_symlink() or gates.is_symlink()
@@ -475,6 +489,51 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
         matching_commits = [
             commit for commit in commit_rows if commit.get("slug") == expected_slug
         ]
+    elif pre_effect is not None and pre_effect.get("proof_kind") == "legacy_manifest_gap":
+        # Legacy releases stored this binding beside model-writable artifacts.
+        # Without a trusted binding, this slot's dated slug or a registered SEO
+        # slug keeps the occurrence fenced if it has an official commit.
+        slot = pre_effect.get("slot")
+        pattern = (rf"capafy-[a-z0-9]+(?:-[a-z0-9]+)*-{re.escape(slot)}"
+                   if isinstance(slot, str) and SLOT_PATTERN.fullmatch(slot) else None)
+        seo_slugs = _seo_keyword_slugs()
+        matching_commits = [
+            commit for commit in commit_rows
+            if isinstance(commit, dict) and isinstance(commit.get("slug"), str)
+            and ((pattern is not None and re.fullmatch(pattern, commit["slug"]))
+                 or commit["slug"] in seo_slugs)
+        ]
+        if len(matching_commits) > 1:
+            proof["reason"] = "ambiguous_legacy_capafy_commits"
+            return proof
+        if matching_commits:
+            commit = matching_commits[0]
+            sha = commit.get("sha")
+            try:
+                committed_at = dt.datetime.fromisoformat(
+                    str(commit["at"]).replace("Z", "+00:00")
+                ).astimezone(dt.timezone.utc)
+            except (KeyError, TypeError, ValueError):
+                proof["reason"] = "legacy_capafy_commit_timestamp_malformed"
+                return proof
+            if (not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha)
+                    or committed_at < started_at.astimezone(dt.timezone.utc)
+                    or committed_at > (
+                        started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
+                    ).astimezone(dt.timezone.utc)):
+                proof["reason"] = "legacy_capafy_commit_identity_invalid"
+                return proof
+            if page_status_fn(commit["slug"]) != 200:
+                proof["reason"] = "legacy_capafy_commit_without_live_page"
+                return proof
+            proof.update(
+                verified=True,
+                effected=True,
+                provider_receipt_id=f"github:{sha}|{BASE_URL}{commit['slug']}",
+                proof_kind="official_unique_capafy_commit_and_live_page_for_legacy_occurrence",
+                checked_at=now.isoformat(timespec="seconds"),
+            )
+            return proof
     elif pre_effect is not None:
         slot = pre_effect.get("slot")
         if not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot):
@@ -528,6 +587,9 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
                      f"github-landing-and-postiz-x-empty:{started_at.isoformat()}"
                  ),
                  proof_kind=(
+                     "official_github_postiz_empty_after_legacy_manifest_gap"
+                     if expected_slug is None and pre_effect is not None
+                     and pre_effect.get("proof_kind") == "legacy_manifest_gap" else
                      "official_github_postiz_empty_after_pre_effect_enospc"
                      if expected_slug is None else "official_github_commits_and_postiz_listing"
                  ),
@@ -584,7 +646,8 @@ def write_result_hint(occurrence_id: str, path: Path) -> dict[str, Any]:
     proof = prove_occurrence(
         requested_occurrence_id,
         started_at_fn=lambda value: occurrence_started_at(value, events_path=EVENTS_PATH),
-        expected_slug_fn=lambda value: expected_article_slug(value, runs_root=RUNS_ROOT),
+        expected_slug_fn=lambda value: expected_article_slug(
+            value, occurrences_root=OCCURRENCES_ROOT),
     )
     proof["hint_written"] = False
     occurrence_id = proof.get("occurrence_id")
@@ -624,11 +687,11 @@ def write_result_hint(occurrence_id: str, path: Path) -> dict[str, Any]:
 
 def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
                                 slot: str) -> bool:
-    """Report no effect only when this exact occurrence's slot is already published."""
+    """Report no effect for an already-published slot or a pre-provider PII block."""
     if (not isinstance(occurrence_id, str)
             or not occurrence_id.startswith(f"{OWNER_ID}:")
             or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", occurrence_id.split(":", 1)[1])
-            or reason != "daily_limit_reached"
+            or reason not in {"daily_limit_reached", "pii_gate_blocked"}
             or not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot)):
         return False
     started_at = occurrence_started_at(occurrence_id, events_path=EVENTS_PATH)
@@ -642,7 +705,9 @@ def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
     try:
         from capafy_distribute_ledger import is_published  # noqa: PLC0415
 
-        if not is_published(LEDGER_PATH, slot):
+        published = is_published(LEDGER_PATH, slot)
+        if ((reason == "daily_limit_reached" and not published)
+                or (reason == "pii_gate_blocked" and published)):
             return False
     except (OSError, ValueError, TypeError):
         return False
@@ -670,7 +735,13 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
     except ValueError:
         pre_effect = pre_effect_manifest_enospc(occurrence_id, started_at)
         if pre_effect is None:
-            raise
+            local = started_at.astimezone(ZoneInfo("Asia/Tokyo"))
+            half_hour = (local.minute // 30) * 30
+            pre_effect = {
+                "proof_kind": "legacy_manifest_gap",
+                "slot": f"{local:%Y-%m-%d}-h{local.hour:02d}m{half_hour:02d}",
+                "started_at": started_at.astimezone(dt.timezone.utc).isoformat(),
+            }
         expected_slug = None
     else:
         pre_effect = None
@@ -697,7 +768,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--occurrence", required=True)
     parser.add_argument("--resolve", action="store_true")
     parser.add_argument("--result-hint")
-    parser.add_argument("--no-effect-reason", choices=("daily_limit_reached",))
+    parser.add_argument(
+        "--no-effect-reason", choices=("daily_limit_reached", "pii_gate_blocked"))
     parser.add_argument("--slot")
     args = parser.parse_args(argv)
     try:

@@ -1009,7 +1009,7 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
     if loop_id in NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS:
         if entrypoint != NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
             return None
-        allowed_reasons = {"daily_limit_reached"}
+        allowed_reasons = {"daily_limit_reached", "pii_gate_blocked"}
     elif entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
     elif entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":

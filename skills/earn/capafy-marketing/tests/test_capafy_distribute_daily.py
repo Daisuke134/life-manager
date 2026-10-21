@@ -73,9 +73,7 @@ def test_dry_run_exits_zero_and_writes_ledger(tmp_path: Path) -> None:
     # Capafy only attributes ct values registered as promotion links in the
     # console (2026-10-07); these are the ones issued for the sellers.
     assert entry["cta_url"].endswith(("ct=hooklab_blog", "ct=slides_blog"))
-    occurrence_files = list((tmp_path / "capafy-distribute-state" / "runs").glob(
-        "capafy-distribute-*/gates/occurrence.json"
-    ))
+    occurrence_files = list((tmp_path / "capafy-distribute-state" / "occurrences").glob("*.json"))
     assert len(occurrence_files) == 1
     occurrence = json.loads(occurrence_files[0].read_text())
     assert occurrence["owner_id"] == "capafy-distribute-daily"
@@ -84,6 +82,7 @@ def test_dry_run_exits_zero_and_writes_ledger(tmp_path: Path) -> None:
     keyword_slugs = {k["slug"] for f in (Path(__file__).resolve().parents[1] / "seo").glob("*-keywords.json")
                      for k in json.loads(f.read_text())}
     assert occurrence["slot"] in occurrence["article_slug"] or occurrence["article_slug"] in keyword_slugs
+    assert not list((tmp_path / "capafy-distribute-state" / "runs").rglob("occurrence.json"))
 
 
 def test_mismatched_runtime_occurrence_identity_stops_before_receipt(tmp_path: Path) -> None:
@@ -98,7 +97,10 @@ def test_second_dry_run_same_day_is_a_no_op_and_does_not_rewrite_the_pick(tmp_pa
     ledger_path = tmp_path / "capafy-distribute-state" / "ledger.json"
     first_ledger = json.loads(ledger_path.read_text())
 
-    second = run(tmp_path)
+    second = run(tmp_path, {
+        "LIFE_MANAGER_RUN_ID": "test-run-2",
+        "LIFE_MANAGER_OCCURRENCE_ID": "capafy-distribute-daily:test-run-2",
+    })
     assert second.returncode == 0, second.stdout + second.stderr
     second_ledger = json.loads(ledger_path.read_text())
 
@@ -150,19 +152,18 @@ def test_already_published_slot_writes_occurrence_bound_no_effect_hint(tmp_path:
     assert hint.stat().st_mode & 0o777 == 0o600
 
 
-def test_model_publish_command_keeps_a_multiword_query_as_one_argument() -> None:
-    # Bash strips the quotes inside ${VAR:+ "..."} in a here-document, so the model was
-    # handed `--title-must-contain hook script template` and publish failed (10/18-19).
-    import shlex
-
+def test_wrapper_publish_keeps_a_multiword_query_as_one_argument() -> None:
     text = SCRIPT.read_text()
-    (line,) = [l for l in text.splitlines() if l.startswith("SEO_PUBLISH_FLAGS=")]
-    assert '--date "$JST_DATE"$SEO_PUBLISH_FLAGS' in text
+    start = text.index("SEO_PUBLISH_ARGS=()")
+    end = text.index("\nFREE_ARTICLE_URL=", start)
+    arguments = text[start:end]
+    assert 'SEO_PUBLISH_ARGS+=(--title-must-contain "$SEO_QUERY" --indexnow-key "$INDEXNOW_KEY")' in arguments
+    assert '"${SEO_PUBLISH_ARGS[@]}"' in text
     out = subprocess.run(
-        ["bash", "-c", f'SEO_QUERY="hook script template"; INDEXNOW_KEY=k\n{line}\ncat <<EOF\nx$SEO_PUBLISH_FLAGS\nEOF'],
+        ["bash", "-c", f'SEO_QUERY="hook script template"; INDEXNOW_KEY=k\n{arguments}\nprintf "%s\\n" "${{SEO_PUBLISH_ARGS[@]}}"'],
         capture_output=True, text=True, check=True,
-    ).stdout
-    assert shlex.split(out) == ["x", "--title-must-contain", "hook script template", "--indexnow-key", "k"]
+    ).stdout.splitlines()
+    assert out == ["--title-must-contain", "hook script template", "--indexnow-key", "k"]
 
 
 def test_model_runner_does_not_inherit_loop_owned_result_hint_path() -> None:
@@ -171,6 +172,45 @@ def test_model_runner_does_not_inherit_loop_owned_result_hint_path() -> None:
     sanitization = text.rfind(
         "env -u LIFE_MANAGER_RESULT_HINT_PATH -u CAPAFY_DISTRIBUTE_STATE_DIR", 0, dispatch)
     assert sanitization >= 0
+    for variable in (
+        "CAPAFY_DISTRIBUTE_EVENTS_PATH", "CAPAFY_DISTRIBUTE_RUNS_ROOT",
+        "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", "LIFE_MANAGER_LOOP_ID",
+        "LIFE_MANAGER_RUN_ID", "LIFE_MANAGER_OCCURRENCE_ID", "POSTIZ_API_KEY",
+        "LM_POSTIZ_API_KEY", "LIFE_MANAGER_MARKETING_ENV_FILE",
+    ):
+        assert f"-u {variable}" in text[sanitization:dispatch]
+
+
+def test_model_prompt_only_writes_draft_and_caption_for_wrapper() -> None:
+    text = SCRIPT.read_text()
+    prompt = text.split('cat >"$PROMPT_FILE" <<PROMPT_EOF\n', 1)[1].split(
+        "\nPROMPT_EOF", 1)[0]
+    assert "Do not publish" in prompt
+    assert "trusted wrapper runs the PII gate" in prompt
+    assert "owns\narticle/X publication and ledger updates" in prompt
+    assert "capafy_free_article.py publish" not in prompt
+    assert "Do not publish, push commits, call Postiz, run capafy_x_post.py" in prompt
+    assert "capafy_distribute_ledger.py record" not in prompt
+    assert '"$ARTICLE_MODEL_RUNNER" agent-workspace --prompt-file "$PROMPT_FILE"' in text
+    assert "--no-effect-reason pii_gate_blocked" in text
+    assert 'TG_MARK="$CAPAFY_DISTRIBUTE_STATE_DIR/notifications/$LIFE_MANAGER_RUN_ID.telegram-sent"' in text
+
+
+def test_wrapper_runs_pii_gate_before_external_article_publish() -> None:
+    text = SCRIPT.read_text()
+    gate = text.index('"$ARTICLE_ROOT/scripts/pii-gate.py" --stage capafy-distribute-publish')
+    publish = text.index('python3 "$SELF_DIR/capafy_free_article.py" publish')
+    assert gate < publish
+
+
+def test_x_post_requires_wrapper_verified_published_article() -> None:
+    text = SCRIPT.read_text()
+    x_post = text.index('python3 "$SELF_DIR/capafy_x_post.py" --caption')
+    guard = text.rfind('if [ "$X_CHECK_RC" -eq 10 ]', 0, x_post)
+    ledger_check = text.rfind('capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT"',
+                              0, x_post)
+    assert ledger_check >= 0
+    assert guard > ledger_check
 
 
 def test_seo_brief_renders_under_launchd_python39() -> None:
@@ -191,17 +231,17 @@ def test_seo_brief_renders_under_launchd_python39() -> None:
 
 
 def test_publish_flags_preserve_utf8_and_one_shell_argument_across_locales() -> None:
-    import shlex
-
-    (assignment,) = [line for line in SCRIPT.read_text().splitlines()
-                     if line.startswith('SEO_PUBLISH_FLAGS=')]
+    text = SCRIPT.read_text()
+    start = text.index("SEO_PUBLISH_ARGS=()")
+    end = text.index("\nFREE_ARTICLE_URL=", start)
+    arguments = text[start:end]
     for locale in ('en_US.UTF-8', 'C'):
         for query in ('リール 冒頭 文言', 'ganchos para vídeos',
                       "creator's hook; $(echo must-stay-literal)"):
             result = subprocess.run(
-                ['/bin/bash', '-c', assignment + '\nprintf "%s" "$SEO_PUBLISH_FLAGS"'],
+                ['/bin/bash', '-c', arguments + '\nprintf \'%s\\0\' "${SEO_PUBLISH_ARGS[@]}"'],
                 env=os.environ | {'SEO_QUERY': query, 'INDEXNOW_KEY': 'test',
                                   'LC_ALL': locale}, capture_output=True, check=True)
-            flags = result.stdout.decode('utf-8')
-            assert shlex.split(flags) == ['--title-must-contain', query,
-                                          '--indexnow-key', 'test']
+            flags = result.stdout.decode('utf-8').split('\0')[:-1]
+            assert flags == ['--title-must-contain', query,
+                             '--indexnow-key', 'test']
