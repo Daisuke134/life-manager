@@ -2,11 +2,15 @@
 
 const { separateWebUidForSubject } = require("./web-auth.js");
 const { sanitizeWebAttribution } = require("./web-attribution.js");
+const { normalizeWebFunnelEvent } = require("./web-funnel-events.js");
+const { createMaritimeDistributionStore } = require("./maritime-distribution.js");
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function createMaritimeManagerPersistence(options = {}) {
   const pgPool = options.pgPool;
+  const env = options.env || process.env;
   const now = options.now || (() => new Date().toISOString());
+  const nowMs = options.nowMs || (() => Date.now());
 
   async function query(statement, values) {
     if (!pgPool || typeof pgPool.query !== "function") {
@@ -68,7 +72,28 @@ function createMaritimeManagerPersistence(options = {}) {
     return Object.keys(await readFirstTouch(uid)).length > 0;
   }
 
-  return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch });
+  async function recordEventImpl(event, eventOptions = {}) {
+    let row;
+    try { row = normalizeWebFunnelEvent(event, eventOptions.nowMs == null ? Number(nowMs()) : eventOptions.nowMs); }
+    catch { return false; }
+    try {
+      await query(
+        `INSERT INTO public.lm_web_funnel_events
+          (event_id,event_name,audience_kind,uid,source_object_id,source_event_id,attribution,amount_usd,currency,billing_reason,occurred_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11::timestamptz)
+         ON CONFLICT DO NOTHING RETURNING event_id`,
+        [row.event_id, row.event_name, row.audience_kind || null, row.uid, row.source_object_id, row.source_event_id,
+          JSON.stringify(row.attribution), row.amount_usd, row.currency, row.billing_reason, row.occurred_at],
+      );
+      return true;
+    } catch { return false; }
+  }
+
+  const distributionStore = createMaritimeDistributionStore({ env, now: nowMs, recordEventImpl });
+  return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch,
+    participantId: distributionStore.participantId,
+    recordManagerEvent: distributionStore.recordManagerEvent,
+    recordAnonymousEvent: distributionStore.recordAnonymousEvent });
 }
 
 module.exports = { createMaritimeManagerPersistence };

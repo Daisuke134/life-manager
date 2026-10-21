@@ -137,7 +137,9 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     );
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidB, subjectB]);
     assert.equal(typeof createMaritimeManagerPersistence, "function", "Runtime PG identity persistence must exist");
-    const managerPersistence = createMaritimeManagerPersistence({ pgPool: client });
+    const managerPersistence = createMaritimeManagerPersistence({ pgPool: client,
+      env: { LM_UID_SECRET: "fixture-secret", LM_MARITIME_INTERNAL_UIDS: uidC },
+      now: () => "2026-10-21T00:00:00.000Z", nowMs: () => Date.parse("2026-10-21T00:00:00.000Z") });
     assert.equal(await managerPersistence.ensureWebUserImpl(subjectC), uidC);
     assert.equal(await managerPersistence.ensureWebUserImpl(subjectC), uidC, "verified subject resolution is idempotent");
     assert.equal(typeof managerPersistence.storeFirstTouch, "function", "Manager first-touch persistence must exist");
@@ -148,6 +150,22 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(await managerPersistence.storeFirstTouch(uidC, { utm_source: "instagram", utm_campaign: "later" }), true);
     assert.deepEqual(await managerPersistence.readFirstTouch(uidC), { utm_source: "x", utm_medium: "social" }, "later touch cannot overwrite the first attribution");
     assert.equal((await client.query("SELECT first_touch_at IS NOT NULL AS stored FROM public.lm_maritime_manager_identities WHERE uid=$1", [uidC])).rows[0].stored, true);
+    assert.equal(typeof managerPersistence.recordManagerEvent, "function", "Manager distribution event writer must exist");
+    assert.equal(typeof managerPersistence.recordAnonymousEvent, "function", "anonymous distribution event writer must exist");
+    const managerEvent = { eventKey: "job:first", source: "x", attribution: { utm_source: "x", email: "private@example.invalid", token: "private-token" } };
+    assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidC, managerEvent), true);
+    assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidC, managerEvent), true, "stable event replay is idempotent");
+    assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidC, { ...managerEvent, eventKey: "job:second" }), true);
+    assert.equal(await managerPersistence.recordAnonymousEvent("maritime_landing_view", "x"), true);
+    const participantId = managerPersistence.participantId(uidC);
+    const managerEvents = await client.query("SELECT source_event_id,audience_kind,uid,attribution FROM public.lm_web_funnel_events WHERE source_object_id=$1 ORDER BY source_event_id", [participantId]);
+    assert.equal(managerEvents.rows.length, 2, "same event key dedups, a second completed job remains countable");
+    assert.ok(managerEvents.rows.every(row => row.audience_kind === "internal" && row.uid === null));
+    assert.ok(managerEvents.rows.every(row => row.attribution.utm_source === "x" && !JSON.stringify(row.attribution).includes("private")));
+    const anonymousEvent = (await client.query("SELECT uid,source_object_id,source_event_id FROM public.lm_web_funnel_events WHERE event_name='maritime_landing_view' ORDER BY occurred_at DESC LIMIT 1")).rows[0];
+    assert.equal(anonymousEvent.uid, null);
+    assert.equal(anonymousEvent.source_object_id, null);
+    assert.equal(anonymousEvent.source_event_id, null);
     const conflictSubject = "55555555-5555-4555-8555-555555555555";
     const conflictUid = "lm_66666666-6666-4666-8666-666666666666";
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [conflictUid, conflictSubject]);
