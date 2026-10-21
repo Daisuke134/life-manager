@@ -22485,3 +22485,26 @@ Claude and all alternate-provider fallbacks remain forbidden for every Life Mana
 | 6 | attributed paid orderがない場合、`/agent/agents/search`から同targetのCapafy成功例を1つ選び、distributionの1変数experimentを実施する。 | #5。DONE=勝ち例URL、verified outcome、機構、計測sourceを記録し、自然配信とpaid conversionでvariantを判定する。 |
 
 Life Managerの全pipeline inferenceはCodexのみ。Claudeと他provider fallbackは禁止。
+
+### Capafy収益復旧cursor — 2026-10-21 11:10 UTC
+
+**方針:** Life Managerの全pipeline inferenceはCodexのみ。別providerへのfallbackは使わない。Capafyのshared runner修正はPR #8493でmainへ統合済みで、release `20261021T195230-726123ea`（SHA `726123eac587131e94544a900a967b278ac550d9`）に含まれる。`~/loops/current`はrelease reconcilerが移動した正本として扱い、手で変更しない。
+
+**As-Is:** 元のeffect-unknown fence `capafy-distribute-daily:18e08184ecb3add0-20935`は10:56:54Zに、GitHubとPostizの同一window公式readbackで`effected=false`として閉鎖済み。snapshot SHA256=`4f6f164894274e1a55b3d8e372cc54aae7d6d0495c0dc43067e0f234f122fd83`。11:04:07Zの自然occurrence `18e08699ed8a8958-69075`は旧loaded SHA `c0846ea05f02b801d288c7d62023d965e6dfcc25`で`disk_floor_low` / exit 75、provider receiptなし。fenceはinactiveで、再送理由にはしない。
+
+Data volume空きは11:14:05Z watchdog receiptで`4,591,169,536` bytes（`df`表示約4.3 GiB）。revenue producer floorは10 GiB、一般producer floorは12 GiB。`~/.local/state/life-manager/disk-ballast`は8 GiBを物理割当済み。現行watchdogは空き3 GiB未満でしかballastを解放せず、25 GiB超でのみ再作成するため、3–12 GiB帯で8 GiBを保持し続ける。帯域内では10 GiB未満でrevenue loop、12 GiB未満で一般producerが止まる。11:14:05Zのwatchdogは`reclaimed=36,273` bytes、許可候補9件中8件を使用中6/保護2として保持し、inventory gapは29。cleanup自身の2 GiB recovery targetは満たすがproducer floorは未達。ここで床を下げたり、保護対象を削除したりしない。
+
+**順序更新:** 旧cursorは「Capafy apply → natural distribution → seller readback → paidが無ければwinner実験」。fence閉鎖後もCapafyがdisk admissionで止まるため、新cursorを「ballast deadband修正 → watchdog natural recovery → Capafy adoption → natural publish → seller paid readback → winner distribution実験」に変更する。理由は、空き容量が全producer floorを下回り、既存cleanupに安全な回収対象がなく、8 GiB reserveの解放が3 GiB未満まで遅れることが全pipelineを止める直接原因だから。
+
+**ローカル候補:** worktree=`/Users/anicca/Projects/life-manager-main/.worktrees/capafy-ballast-revenue-floor-20261021`、branch=`fix/capafy-ballast-revenue-floor-20261021`。`bin/disk-watchdog.sh`の解放境界を12 GiB未満へ揃え、25 GiB超の再作成は維持。5 GiBでのREDを確認し、続いて10 GiBでのREDも確認してから変更。focused test 14/14、`sh -n`、`git diff --check`はPASS。fresh Codex adversarial verificationはship／重大指摘なし。これはsource candidateの証拠であり、ホスト上のballast解放、loaded SHA更新、producer再開はまだ未確認。current cursorは#1のexact-head checks/merge。
+
+**残TODO（current cursor=1）:**
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | `bin/disk-watchdog.sh`のballast release条件を3 GiB未満から12 GiB未満へ変更し、`skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py`で既存ballastが空き5 GiBと10 GiBで解放され、12 GiBでは保持されることを検証する。25 GiB超の再作成条件は維持する。 | Current cursor。各新ケースのREDを確認後、`python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py`が全passし、`git diff --check`もpass。PR exact-head checks/review/merge完了がDONE。 |
+| 2 | main由来immutable releaseから既存`skills/self/disk-cleanup/install-launchd.sh`を使い、`com.anicca.disk-watchdog`だけを更新する。再度launchctl-safe user/GUI preflightを通し、自然60秒wakeを待つ。 | #1。DONE=loaded program/argvが新releaseを指し、ballastが解放され、同一Data volumeの空きが12 GiB以上。届かなければcursorを保持し、既存ownerのallowlist sweep/receiptを継続調査する。床を下げず、未知パスを削除しない。 |
+| 3 | fence inactive、Capafy loaded-idle、admission rebind可を再確認し、新immutable releaseを`LIFE_MANAGER_APPLY_TARGET=capafy-distribute-daily`で対象applyする。 | #2。DONE=skipなしでCapafyだけが新SHAへloaded-idle。current selectorと兄弟ownerを手で変更しない。 |
+| 4 | Capafyの次の自然15分occurrenceを待つ。 | #3。DONE=Codex tool-less JSON draft、同一occurrenceに結び付くlive GitHub article/HTTP 200とPostiz `PUBLISHED` ID/permalink、duplicate 0。 |
+| 5 | 同一seller/sourceの公式行でviews、trials、paid orders、creator earningsを照合する。 | #4。DONE=source-attributed paid orderとearningsを確認する。無注文や帰属不明は0/unknownを混同しない。 |
+| 6 | paid orderがない場合、`/agent/agents/search`から同targetの成功例を一つ選び、成功URL・検証済み結果・勝ち筋を記録してdistributionの一変数実験を行う。 | #5。DONE=自然配信後の同source paid conversionで採否を判定し、勝ちvariantだけを次回に残す。 |

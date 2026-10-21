@@ -361,9 +361,17 @@ def test_ballast_is_released_when_free_space_is_critical(tmp_path: Path) -> None
     assert not _run_ballast(tmp_path, 3 * 1024 * 1024 - 1, existing=True).exists()
 
 
+def test_ballast_is_released_below_producer_floor_before_critical_floor(tmp_path: Path) -> None:
+    assert not _run_ballast(tmp_path, 5 * 1024 * 1024, existing=True).exists()
+
+
+def test_ballast_is_released_below_general_producer_floor(tmp_path: Path) -> None:
+    assert not _run_ballast(tmp_path, 10 * 1024 * 1024, existing=True).exists()
+
+
 def test_ballast_is_kept_between_floor_and_recreate_threshold(tmp_path: Path) -> None:
-    assert _run_ballast(tmp_path, 10 * 1024 * 1024, existing=True).exists()
-    assert not _run_ballast(tmp_path / "b", 10 * 1024 * 1024, existing=False).exists()
+    assert _run_ballast(tmp_path, 12 * 1024 * 1024, existing=True).exists()
+    assert not _run_ballast(tmp_path / "b", 12 * 1024 * 1024, existing=False).exists()
 
 
 def test_ballast_is_recreated_when_free_space_is_ample(tmp_path: Path) -> None:
