@@ -12,7 +12,7 @@
 - PPTX `ec4e3a0f5b6e02833af69e01a3143c92d2ab57af1bed28a9face09c7c920e7e1`
 - PDF `48dc1b1479d741f125db43b15f476756c05f87e76b797e07556ed2d08a27aaa3`
 
-**Intended audience:** beginner researcher, startup founder, academic seminar. Introduce the foundational science before vendors; present Manager's research questions **only after** explaining what others already accomplish. The slides are not a demonstrated scientific contribution merely because they are professionally illustrated.
+**Intended audience:** beginner researcher, startup founder, academic seminar. Introduce the foundational science before vendors; present Manager's research questions **only after** explaining what others already accomplish. The slides are not a demonstrated scientific contribution merely because they are professionally illustrated. Claims must be independently evaluated against the relevant source and human comparator; vendor accuracy figures are not independently replicated by Manager.
 
 ## Slide-by-slide structure
 
