@@ -1,0 +1,167 @@
+{
+  "campaign_results": [
+    {
+      "actions": 80,
+      "bts": {
+        "click_rate": 0.0042,
+        "click_rate_normal95": [
+          0.002932445,
+          0.005467555
+        ],
+        "clicks": 42,
+        "importance_weights": {
+          "ess": 340.378,
+          "max": 277.7777778,
+          "min": 0.0130994
+        },
+        "ips_naive_row_se": 0.000871022,
+        "n": 10000,
+        "random_target_ips": 0.00235964,
+        "random_target_snips": 0.002333714
+      },
+      "bts_minus_random_normal95": [
+        -0.001349559,
+        0.002149559
+      ],
+      "bts_minus_random_observed": 0.0004,
+      "campaign": "all",
+      "direct_random_policy_observed": 0.0038,
+      "off_policy_error_abs_ips_vs_random_direct": 0.00144036,
+      "off_policy_error_abs_snips_vs_random_direct": 0.001466286,
+      "off_policy_random_target_ips_on_bts": 0.00235964,
+      "off_policy_random_target_snips_on_bts": 0.002333714,
+      "random": {
+        "click_rate": 0.0038,
+        "click_rate_normal95": [
+          0.002594073,
+          0.005005927
+        ],
+        "clicks": 38,
+        "importance_weights": {
+          "ess": 10000,
+          "max": 1,
+          "min": 1
+        },
+        "ips_naive_row_se": 0.0006153,
+        "n": 10000,
+        "random_target_ips": 0.0038,
+        "random_target_snips": 0.0038
+      }
+    },
+    {
+      "actions": 34,
+      "bts": {
+        "click_rate": 0.0069,
+        "click_rate_normal95": [
+          0.005277528,
+          0.008522472
+        ],
+        "clicks": 69,
+        "importance_weights": {
+          "ess": 655.71,
+          "max": 178.2531194,
+          "min": 0.0405517
+        },
+        "ips_naive_row_se": 0.000773935,
+        "n": 10000,
+        "random_target_ips": 0.003008626,
+        "random_target_snips": 0.003189423
+      },
+      "bts_minus_random_normal95": [
+        0.000204428,
+        0.004395572
+      ],
+      "bts_minus_random_observed": 0.0023,
+      "campaign": "men",
+      "direct_random_policy_observed": 0.0046,
+      "off_policy_error_abs_ips_vs_random_direct": 0.001591374,
+      "off_policy_error_abs_snips_vs_random_direct": 0.001410577,
+      "off_policy_random_target_ips_on_bts": 0.003008626,
+      "off_policy_random_target_snips_on_bts": 0.003189423,
+      "random": {
+        "click_rate": 0.0046,
+        "click_rate_normal95": [
+          0.003273724,
+          0.005926276
+        ],
+        "clicks": 46,
+        "importance_weights": {
+          "ess": 10000,
+          "max": 1,
+          "min": 1
+        },
+        "ips_naive_row_se": 0.000676705,
+        "n": 10000,
+        "random_target_ips": 0.0046,
+        "random_target_snips": 0.0046
+      }
+    },
+    {
+      "actions": 46,
+      "bts": {
+        "click_rate": 0.0046,
+        "click_rate_normal95": [
+          0.003273724,
+          0.005926276
+        ],
+        "clicks": 46,
+        "importance_weights": {
+          "ess": 2.078,
+          "max": 21739.1304348,
+          "min": 0.0225791
+        },
+        "ips_naive_row_se": 0.004118361,
+        "n": 10000,
+        "random_target_ips": 0.007437578,
+        "random_target_snips": 0.002373046
+      },
+      "bts_minus_random_normal95": [
+        -0.001875637,
+        0.001875637
+      ],
+      "bts_minus_random_observed": 0,
+      "campaign": "women",
+      "direct_random_policy_observed": 0.0046,
+      "off_policy_error_abs_ips_vs_random_direct": 0.002837578,
+      "off_policy_error_abs_snips_vs_random_direct": 0.002226954,
+      "off_policy_random_target_ips_on_bts": 0.007437578,
+      "off_policy_random_target_snips_on_bts": 0.002373046,
+      "random": {
+        "click_rate": 0.0046,
+        "click_rate_normal95": [
+          0.003273724,
+          0.005926276
+        ],
+        "clicks": 46,
+        "importance_weights": {
+          "ess": 10000,
+          "max": 1,
+          "min": 1
+        },
+        "ips_naive_row_se": 0.000676705,
+        "n": 10000,
+        "random_target_ips": 0.0046,
+        "random_target_snips": 0.0046
+      }
+    }
+  ],
+  "limitations": {
+    "causal_benefit_claim": false,
+    "confidence_intervals": "naive independent Bernoulli approximations; exploratory only",
+    "ips_heavy_tails_unclipped": true,
+    "manager_deployed_intervention": false,
+    "personalized_user_intervention": false,
+    "propensity": "source propensity_score per position used; item catalog counts from upstream README",
+    "randomization": "original company says policies randomized A/B; first-row subsets and user duplication may invalidate textbook iid intervals",
+    "small_click_counts": true,
+    "socsci210_semantic_task_benchmark": false,
+    "subset_selection": "first 10000 rows per policy/campaign, NOT randomly sampled full A/B trial"
+  },
+  "privacy": {
+    "person_identifiers_saved": false,
+    "profile_features_used": false,
+    "raw_rows_committed": false
+  },
+  "schema": "manager.phase04.zozo-open-bandit-public-ab-eval.v1",
+  "evidence_run": "https://github.com/Daisuke134/life-manager/actions/runs/39560417247"
+}
