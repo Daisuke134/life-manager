@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
+
 
 TESTS = Path(__file__).parent
 SCRIPT = TESTS.parent / "scripts" / "storefront_official_reconcile.py"
@@ -186,3 +188,18 @@ def test_unreadable_official_roster_stays_fenced(tmp_path, monkeypatch, capsys):
     assert code == 1
     assert result["reason"] == "official_roster_unavailable"
     resolver.assert_not_called()
+
+
+def test_deferred_unknown_reaches_roster_gate_without_weakening_it(tmp_path, monkeypatch, capsys):
+    from test_storefront_pre_effect_reconcile import deferred_events
+    module, _, runtime, store = setup(tmp_path, monkeypatch)
+    occurrence = f"{OWNER_ID}:queued"
+    write_jsonl(runtime / "events.jsonl", deferred_events() + start_terminal_events(
+        "legacy-run", terminal_occurrence_id=occurrence))
+    runner = child([SERVICES[0], dict(SERVICES[1], price_jpy=9999)])
+    with pytest.raises(module.Held, match="official_roster_changed_since_snapshot"):
+        module.official_proof(occurrence, runtime, store, runner=runner)
+    proof, receipt = module.official_proof(occurrence, runtime, store, runner=child(SERVICES))
+    assert proof["occurrence_id"] == occurrence
+    assert proof["proof_type"] == "official_roster_unchanged_since_pre_occurrence_snapshot"
+    assert receipt["run_id"] == "legacy-run"
