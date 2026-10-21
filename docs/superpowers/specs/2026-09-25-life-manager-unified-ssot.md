@@ -22455,3 +22455,45 @@ host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中�
 | 6 | 同一sourceのofficial seller rowsでviews/trials/paid/earningsを確認し、orderがなければ`/agent/agents/search`の同target勝ち例を1つ再現して1変数のdistribution experimentを行う。 | #5。DONE=source-attributed paid order/creator earnings、または次の測定実験と判定基準を記録。 |
 
 このentryは10:12時点のsource-only cursorを更新する。cursor=1はPR #8493のexact-head CI/merge。source adoptionはactive fenceの公式解決より後へ置く。distributionを再開できたら、次の成果判定はsource-attributed paid order。
+
+### Capafy post-merge adoption cursor — 2026-10-21 10:40 UTC
+
+**Source is merged; production adoption is not complete.** PR #8493 head `9566c2382ad6daaab39a741df510bea3769312c6` merged to `origin/main` as `0464605c8f06332b28a0736456413a555e1c65df`. All 12 exact-head checks passed. Fresh Codex source and release-order reviews were GO. The merge adds the Codex-only `agent-workspace` route and rejects inherited `sol-audit` before dispatch.
+
+**Immutable release is cut without moving shared current.** Release=`/Users/anicca/loops/releases/20261021T194003-0464605c`, manifest SHA=`0464605c8f06332b28a0736456413a555e1c65df`, provenance=`ancestor-of-origin-main`, release paths=`ALL`. `~/loops/current` remains `/Users/anicca/loops/releases/20261021T191521-b5ecef6e`. The Capafy owner is not yet adopted on the new SHA.
+
+**Latest production status:** `lm-loop status all` readback at 10:34:04.529697Z shows occurrence `capafy-distribute-daily:18e084f5ede88530-95835` on loaded SHA `c0846ea05f02b801d288c7d62023d965e6dfcc25`, `loaded-idle`, `host_admission_deferred:resource_effect_unknown`, exit 75, provider receipt null. The original fence `18e08184ecb3add0-20935` is still active and `_owner_has_pending_admission("capafy-distribute-daily")=true`. Runtime's last success timestamp is 04:57:21Z; this is not seller revenue evidence. Do not apply while the fence is active: the shared admission rebind guard refuses the pending queue.
+
+**Remaining atomic TODO (current cursor=1).** The previous cursor was #1 source PR/merge; it moves to this fence-proof step because main is merged and an immutable release is ready. The wait for the exact no-effect observation window remains.
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | Strictly after `2026-10-21T10:55:59.633850Z`, run the immutable release's `capafy_distribute_fence_reconcile.py` without `--resolve` for occurrence `18e08184ecb3add0-20935`. Use the existing private Postiz credential SSOT without printing credential values. | Current cursor. DONE=official GitHub commit/live-page and exact Postiz integration-window proof returns `verified=true`; otherwise hold the fence and do not replay. |
+| 2 | Send the sanitized official proof to a fresh Codex read-only verifier; if GO, rerun the same immutable reconciler with `--resolve`. | #1. DONE=the resolver independently returns `verified=true`, persists the raw GitHub/Postiz snapshot and SHA-256, closes the exact occurrence, and owner status shows `admission_effect_unknown.current=false`. No proof or reviewer NO-GO means remain fenced. |
+| 3 | Recheck launchctl-safe GUI/user preflight and Capafy loaded-idle state; run `lm-loop apply --loaded-idle-only` with `LIFE_MANAGER_RELEASE_ROOT=/Users/anicca/loops/releases/20261021T194003-0464605c` and `LIFE_MANAGER_APPLY_TARGET=capafy-distribute-daily`. | #2. DONE=result has no skip and only Capafy is loaded-idle on SHA `0464605c8f06332b28a0736456413a555e1c65df`. If `pending-admission` or busy is returned, keep this cursor open; read the exact queue/reservation and retry only after it becomes rebindable. `~/loops/current` and sibling owners stay unchanged. |
+| 4 | Let the next eligible natural Capafy occurrence run with the disk gate at or above 10 GiB. | #3. DONE=the new occurrence returns a private JSON draft through tool-less Codex and joins to one live GitHub article plus one Postiz `PUBLISHED` ID/permalink; duplicate count=0. |
+| 5 | Read same-source official seller rows for views, trials, paid orders, and creator earnings. | #4. DONE=source-attributed paid order and earnings are confirmed, or `unknown` is retained where provider attribution is absent. |
+| 6 | If no paid order is attributed, select one same-target Capafy winner from `/agent/agents/search` and run one distribution variable experiment. | #5. DONE=winning-case URL, verified outcome, mechanism, and measurement source are recorded; one variant is judged from natural distribution and paid conversion. |
+
+Claude and all alternate-provider fallbacks remain forbidden for every Life Manager pipeline.
+
+### Capafy merge・release後cursor — 2026-10-21 10:40 UTC
+
+**sourceはmerge済み、production未採用:** PR #8493のhead `9566c2382ad6daaab39a741df510bea3769312c6`を`origin/main`へmergeしたSHAは`0464605c8f06332b28a0736456413a555e1c65df`。exact-head checksは12/12 pass。fresh Codex source reviewとrelease順序reviewはGO。merge内容はCodex-onlyの`agent-workspace`経路と、継承`sol-audit` roleのdispatch前拒否。
+
+**共有currentを動かさずimmutable releaseをcut済み:** release=`/Users/anicca/loops/releases/20261021T194003-0464605c`、manifest SHA=`0464605c8f06332b28a0736456413a555e1c65df`、provenance=`ancestor-of-origin-main`、release paths=`ALL`。`~/loops/current`は`/Users/anicca/loops/releases/20261021T191521-b5ecef6e`のまま。Capafy ownerは新SHAをまだ採用していない。
+
+**最新production status:** `lm-loop status all`の10:34:04.529697Z readbackでは、occurrence `capafy-distribute-daily:18e084f5ede88530-95835`がloaded SHA `c0846ea05f02b801d288c7d62023d965e6dfcc25`で`loaded-idle`、`host_admission_deferred:resource_effect_unknown`、exit 75、provider receiptなし。元fence `18e08184ecb3add0-20935`はactiveで、`_owner_has_pending_admission("capafy-distribute-daily")=true`。runtimeの最終成功時刻は04:57:21Zだが、seller revenueの証拠ではない。fenceがactiveな間はshared admission rebind guardがqueueを拒否するためapplyしない。
+
+**残TODO (current cursor=1):** 前cursorは#1 source PR/merge。main mergeとimmutable release cutが完了したため、cursorをfence公式proofへ進める。strict no-effect観測windowを満たすまではfenceを保持する。
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | `2026-10-21T10:55:59.633850Z`を厳密に過ぎてから、immutable release内の`capafy_distribute_fence_reconcile.py`をoccurrence `18e08184ecb3add0-20935`に対して`--resolve`なしで実行する。既存private Postiz credential SSOTを使い、credential valueを出力しない。 | Current cursor。DONE=公式GitHub commit/live-pageと対象Postiz integration windowのproofが`verified=true`。proof不成立ならfenceを保持し、replayしない。 |
+| 2 | credentialと投稿本文を除いたofficial proofをfresh Codex read-only verifierへ渡し、GOなら同じimmutable reconcilerを`--resolve`付きで再実行する。 | #1。DONE=再実行でも`verified=true`、raw GitHub/Postiz snapshotとSHA-256が保存され、exact occurrenceが閉じ、owner statusが`admission_effect_unknown.current=false`。proofなしまたはreviewer NO-GOならfenceを保持する。 |
+| 3 | launchctl-safeのGUI/user preflightとCapafy loaded-idleを再確認し、`LIFE_MANAGER_RELEASE_ROOT=/Users/anicca/loops/releases/20261021T194003-0464605c`、`LIFE_MANAGER_APPLY_TARGET=capafy-distribute-daily`で`lm-loop apply --loaded-idle-only`を実行する。 | #2。DONE=resultにskipがなく、CapafyだけがSHA `0464605c8f06332b28a0736456413a555e1c65df`でloaded-idle。`pending-admission`またはbusyならcursorを進めず、exact queue/reservationをreadbackしてrebind可能になった後だけ再試行する。`~/loops/current`と兄弟ownerは変更しない。 |
+| 4 | disk gateが10 GiB以上の次のeligible natural Capafy occurrenceを観測する。 | #3。DONE=tool-less Codexからprivate JSON draftが返り、1つのlive GitHub articleと1つのPostiz `PUBLISHED` ID/permalinkが同じoccurrenceへjoinし、duplicate=0。 |
+| 5 | 同一sourceのofficial seller rowsでviews、trials、paid orders、creator earningsを読む。 | #4。DONE=source-attributed paid orderとearningsを確認。provider attributionが無ければ`unknown`を保つ。 |
+| 6 | attributed paid orderがない場合、`/agent/agents/search`から同targetのCapafy成功例を1つ選び、distributionの1変数experimentを実施する。 | #5。DONE=勝ち例URL、verified outcome、機構、計測sourceを記録し、自然配信とpaid conversionでvariantを判定する。 |
+
+Life Managerの全pipeline inferenceはCodexのみ。Claudeと他provider fallbackは禁止。
