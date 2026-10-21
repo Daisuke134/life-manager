@@ -1,3 +1,5 @@
+> **Historical methods-only note (2026-10-21).** This document was written before the research-execution milestone. Since then, the complete SocSci210 dataset **2,901,390 real original human response rows / 210 studies** was analyzed with **170/40 study holdout**, and frozen public MiniLM/SmolLM2 comparisons were executed on actual individual response samples. For current quantitative measurements, scope and exact caveats see [Phase04 final evidence report](../../verification/PHASE04_FINAL_REAL_DATA_EVIDENCE_JA.md). The artificial examples below remain teaching examples and must never be presented as human causal verification. Original source-author task-conditioned evaluation and real-world Manager benefits are still UNMEASURED.
+
 # Phase 04 — Prediction, causal fidelity, generalization (engineering work and scientific gaps)
 
 Date: 2026-10-21 JST. **Not a completed human-behavior prediction benchmark.**
