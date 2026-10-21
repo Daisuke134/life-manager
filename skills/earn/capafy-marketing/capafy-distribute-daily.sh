@@ -233,6 +233,9 @@ python3 "$SELF_DIR/capafy_article_image.py" "$RUN_DIR" "$CAPAFY_SKILL_SLUG" >>"$
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
 # --- build the model pass prompt: one free English article + X link post --
+CRAFT_GUIDANCE="$(cat "$ARTICLE_ROOT/reference/CRAFT.md")" || exit 1
+IDENTITY_GUIDANCE="$(awk '/^## IDENTITY / {printing=1; next} /^## / {if (printing) exit} printing' \
+  "$ARTICLE_ROOT/SKILL.md")" || exit 1
 PROMPT_FILE="$RUN_DIR/prompt.txt"
 cat >"$PROMPT_FILE" <<PROMPT_EOF
 Run ONE Capafy distribute draft pass. Do not touch
@@ -281,9 +284,6 @@ PROMPT_EOF
 
 ARTICLE_MODEL_RUNNER="${ARTICLE_MODEL_RUNNER:-$ARTICLE_ROOT/runtime/model-runner.sh}"
 ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS="${CAPAFY_DISTRIBUTE_MODEL_AGENT_TIMEOUT_SECONDS:-1800}"
-CRAFT_GUIDANCE="$(cat "$ARTICLE_ROOT/reference/CRAFT.md")" || exit 1
-IDENTITY_GUIDANCE="$(awk '/^## IDENTITY / {printing=1; next} /^## / {if (printing) exit} printing' \
-  "$ARTICLE_ROOT/SKILL.md")" || exit 1
 if [ -e "$DRAFT_RESPONSE" ] || [ -L "$DRAFT_RESPONSE" ]; then
   echo "capafy-distribute-daily: Codex output path already exists" >>"$LOG"
   exit 1
