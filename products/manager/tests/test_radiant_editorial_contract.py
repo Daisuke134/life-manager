@@ -12,7 +12,15 @@ class RadiantCommunicationContract(unittest.TestCase):
     def test_radiant_updates_existing_company_not_duplicate(self):
         m = json.loads((DOCS / "landscape/2026-10-20-behavior-intervention-entities.json").read_text())
         orgs = [o for group in m["clusters"] for o in group["organizations"]]
-        self.assertEqual(len(orgs), 26)
+        self.assertEqual(len(orgs), 30)
+        self.assertEqual(len(m["clusters"]), 7)
+        self.assertEqual(len({o["entity_name"] for o in orgs}), 30)
+        autonomy = next(g for g in m["clusters"] if g["category"] == "Autonomous business & economic evaluation")
+        self.assertEqual({o["entity_name"] for o in autonomy["organizations"]},
+                         {"Andon Labs", "Anthropic", "OpenAI", "METR"})
+        andon = next(o for o in orgs if o["entity_name"] == "Andon Labs")
+        self.assertIn("andonlabs.com/evals/vending-bench-2", andon["official_source"])
+        self.assertIn("Simulated", andon["evidence_status"])
         self.assertEqual(len([o for o in orgs if o["entity_name"] == "Artificial Societies"]), 1)
         company = next(o for o in orgs if o["entity_name"] == "Artificial Societies")
         self.assertEqual(company["product"], "Radiant")
