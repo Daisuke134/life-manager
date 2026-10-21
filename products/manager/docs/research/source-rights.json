@@ -207,6 +207,29 @@
         "file_bytes": 57569,
         "ci_run": "https://github.com/Daisuke134/life-manager/actions/runs/39545041899"
       }
+    },
+    {
+      "id": "zozo-open-bandit-small",
+      "name": "Open Bandit Dataset 10k public cohorts by campaign and logging policy",
+      "kind": "anonymized historical randomized recommender-policy impression and click records",
+      "license_expression": "REPOSITORY_APACHE-2.0_ORIGINAL_DATA_CONDITIONS_MUST_BE_REVIEWED",
+      "source_url": "https://github.com/st-tech/zr-obp/tree/8cbd5fa4558b7ad2ba4781546d6604e4cc3e07c4/obd",
+      "license_evidence_url": "https://github.com/st-tech/zr-obp/blob/8cbd5fa4558b7ad2ba4781546d6604e4cc3e07c4/LICENSE",
+      "license_evidence_sha": "commit:8cbd5fa4558b7ad2ba4781546d6604e4cc3e07c4",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "Attribute Saito et al., Open Bandit Dataset and Pipeline (arXiv:2008.07146).",
+        "Process only randomized policy action, click, and logging propensities for methodology; ignore hashed user attributes.",
+        "Do not commit public source CSV or participant feature data. Aggregate-only public reporting.",
+        "User has authorized research; separately validate data/third-party redistribution or product terms before commercial packaging."
+      ],
+      "risk": "Published 10k rows are the first records rather than a representative random sample; repeated user exposure and extreme importance weights can break naive causal confidence intervals.",
+      "unresolved": "Independent representativeness of first 10k rows and exact reward estimator mapping to authors' full OPE benchmark not verified."
     }
   ]
 }
