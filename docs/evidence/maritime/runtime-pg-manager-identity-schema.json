@@ -1,0 +1,25 @@
+{
+  "observed_at": "2026-10-21T00:30:02.761424+00:00",
+  "source_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "0a1a0d818bd89f55799a08ffdd9c603247a3f599ba081c6245ff7bd7d29fc029",
+  "test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "identity_table": "lm_maritime_manager_identities",
+  "columns": [
+    "uid",
+    "auth_subject",
+    "verified_at",
+    "first_touch",
+    "first_touch_at"
+  ],
+  "uid_primary_key": true,
+  "auth_subject_unique": true,
+  "identity_reassignment_blocked": true,
+  "first_touch_json_object_only": true,
+  "first_touch_timestamp_pair": true,
+  "other_five_manager_relations_remain_absent": true,
+  "native_fixture_stopped_and_removed": true
+}

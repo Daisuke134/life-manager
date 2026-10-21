@@ -1,10 +1,18 @@
 # Life Manager 初週の配布文案
 
-状態: 文案。未送信・未投稿。Daisが家族・友人へDMする。公開投稿は稼働URLと実際の対応範囲を確認してから実行する。無料pilotは既存のpaid Calendar trialとは別。全員の利益・将来の無料継続を保証しない。
+状態: 未配布。Daisが家族・友人へDMする。公開投稿は稼働URLと実際の対応範囲を確認してから実行する。初期の獲得レーンは既存ブログのSEO記事と、既存Postiz接続済みXアカウント。Instagramは使わず、新規アカウントも作らない。無料pilotは既存のpaid Calendar trialとは別。全員の利益・将来の無料継続を保証しない。
 
 ## 配布の仕組み
 
-参照: `docs/research/maritime/2026-10-20-source-map.md`。Arc/Pandaの「具体的な仕事→実際の成果→普段の連絡先で短く見せる」、Pokeの「一つの業務と一つの共有URL」を模倣する。成果数値や保護された文言をコピーしない。
+参照: `docs/research/maritime/2026-10-20-source-map.md`。Todoistの有用な生産性記事＋実ユーザー事例＋一つの製品CTA、Ahrefsの検索意図別ガイド/調査、Levelsの公開build記事と短いX投稿を形式の参考にする。いずれもLife Managerの利用者獲得を証明するものではないので、まず一記事・一投稿で計測する。数値・顧客の言葉・保護されたコピーは転用しない。
+
+## SEO記事（未作成）
+
+- 配置先は既存`https://aniccaai.com/blog/manager`。本文と公開は既存Writer workflowを調べて再利用し、新CMSや別publisherを作らない。
+- 読者の具体的な検索意図は既存の無料keyword/SERP資料で一つ選ぶ。根拠が足りなければ検索語は仮説と明記し、検索量を捏造しない。
+- 記事の骨格: 具体的な問題 → AI assistantとManagerの違い → 現在ライブで動く実画面/receipt → 未対応・必要なprovider接続 → 無料pilotの一つのCTA。
+- Product URL、実行証拠、メール登録から初回完了までの公開経路が揃うまで公開しない。売上・利益が出たという未検証の主張は書かない。
+- 計測UTMは`utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1`。公開後はSearch Console等の既存readbackでimpressions/clicksを見て、funnelでverified signup/activation/completed work/returnにつなぐ。
 
 ## 公開前にDaisが送れる家族・友人向けDM
 
@@ -40,29 +48,29 @@
 
 最終URLを添付する。「商品づくり」は実行確認した範囲に限定し、公開実績がなければ販売完了を示す画面を使わない。長い補足は返信へ分け、accountの長文投稿権限を前提にしない。
 
+## X build-in-public（初期の一投稿案）
+
+> Life ManagerのCloud版をMaritime向けに接続中。今週はメール登録から「仕事を選ぶ→実行→結果を確認→日次レポート」までを一つずつ通しています。
+>
+> 今日確認できたこと: [公開可能な実際の画面またはreceiptを一つ記載]
+> まだできないこと: [未対応を一つ記載]
+>
+> 動くpilot: [稼働URL]
+
+これはdraftで未投稿。確認できた一件だけを埋め、同じ文面を複数アカウントへ重複投稿しない。既存X accountをPostiz経由で使い、URLは`utm_source=x&utm_medium=social&utm_campaign=maritime-week1`を付ける。自動DMや新規アカウントは作らない。
+
 ## X English・公開後
 
 > Life Manager chooses work, executes it, and emails daily results. No required goal/budget setup. Telegram is optional. Starting with product creation. Free pilot; revenue isn't guaranteed. Real demo + signup link below.
 
 最終URLを添付する。利用可能な文字数へ収まることを投稿前に確認し、補足は返信へ分ける。
 
-## Instagram DM・公開後
-
-> 作っていたLife Managerの無料pilotを公開したよ。自分で仕事を進めて、毎日メールで結果が届く仕組み。最初から利益が出る保証はないけど、実行したことと未接続の部分が分かるようにしてる。メールで試せるリンクを送るね。
-
-## Instagram Story/Reel caption・公開後
-
-> 毎日の指示なしで、仕事を進めるManager。
-> メール登録 → 自律実行 → 日次レポート。
-> 無料pilot公開中。できたことも、未完も、そのまま報告。
-> 実際の対応範囲は登録ページへ。収益保証なし。
-
 ## URL確定
 
 - 公開先はT22でreadbackしたRailway/既存domain originを使う。例のhostnameを公開しない。
 - Daisの紹介: `${PUBLIC_ORIGIN}/maritime?source=referral&utm_source=friends&utm_medium=dm&utm_campaign=maritime-week1`
 - X: `${PUBLIC_ORIGIN}/maritime?source=x&utm_source=x&utm_medium=social&utm_campaign=maritime-week1`
-- IG: `${PUBLIC_ORIGIN}/maritime?source=instagram&utm_source=instagram&utm_medium=dm&utm_campaign=maritime-week1`
+- Blog: `${PUBLIC_ORIGIN}/maritime?source=aniccaai&utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1`
 - Community: `${PUBLIC_ORIGIN}/maritime?source=community&utm_source=community&utm_medium=community&utm_campaign=maritime-week1`
 - `PUBLIC_ORIGIN`差込後にGETとCTAを確認し、完成版には変数・例示URL・未検証リンクを残さない。
 - 氏名・email・紹介先の個人識別子をURLへ入れない。UTMの媒体名だけを残す。
@@ -77,4 +85,4 @@
 
 ## 計測
 
-copy variant/source/permalink → visit → email verified → activated → work completed → return。APIのsignup成功や知人への送信だけを競技実利用にしない。投稿量より、完了した人数と費用を改善する。
+blog canonical URL / search query / X permalink → organic impressions or post clicks → visit → email verified → activated → work completed → return。Blog reader数、X impression/like、API signup、知人への送信だけを競技実利用にしない。source別に初回完了・再利用・利用者あたり費用を比較して、成果が確認できた配布だけを増やす。

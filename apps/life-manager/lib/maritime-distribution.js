@@ -164,6 +164,16 @@ function createMaritimeDistributionStore({
     return writeEvent(eventName, { source, medium: "web" });
   }
 
+  async function recordConsentEvent(uid, source, medium = "telegram") {
+    if (typeof uid !== "string" || !uid || uid.length > 128) return false;
+    return writeEvent("maritime_consent", { uid, source: normalizeMaritimeSource(source), medium });
+  }
+
+  async function recordConsentRevokedEvent(uid, source, medium = "telegram") {
+    if (typeof uid !== "string" || !uid || uid.length > 128) return false;
+    return writeEvent("maritime_consent_revoked", { uid, source: normalizeMaritimeSource(source), medium });
+  }
+
   async function recordStart(uid, source) {
     return writeEvent("maritime_start", { uid, source });
   }
@@ -230,7 +240,7 @@ function createMaritimeDistributionStore({
       return { ok: false, status: "unavailable" };
     }
     if (result.result === "capacity_full") return { ok: false, status: "capacity_full" };
-    await writeEvent("maritime_consent", { uid, source: campaignSource });
+    await recordConsentEvent(uid, campaignSource);
     return { ok: true, status: result.result };
   }
 
@@ -260,7 +270,7 @@ function createMaritimeDistributionStore({
     if (!response || !response.ok) return false;
     const rows = await response.json().catch(() => null);
     if (!Array.isArray(rows) || rows.length !== 1) return false;
-    await writeEvent("maritime_consent_revoked", { uid, source: row.source });
+    await recordConsentRevokedEvent(uid, row.source);
     return true;
   }
 
@@ -283,6 +293,8 @@ function createMaritimeDistributionStore({
     participantId,
     getParticipant,
     recordAnonymousEvent,
+    recordConsentEvent,
+    recordConsentRevokedEvent,
     recordManagerEvent,
     recordStart,
     startSource,

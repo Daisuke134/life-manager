@@ -1,0 +1,28 @@
+{
+  "observed_at": "2026-10-21T01:57:56Z",
+  "migration_sha256": "2ab5181a15d1ee9fcdb14d3d0c3919de1101c092d3bd59c511a79fc354f09a15",
+  "integration_test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "integration_test_sha256": "aaa962653a68d28d3e4e8127b078f966d2b76afabbc18595daac1a97e3cfdd09",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "1/1 pass",
+  "contracts": {
+    "six_manager_relations_start_absent_and_migrate": true,
+    "migration_reapply_preserves_state": true,
+    "identity_uses_verified_auth_subject_and_separate_uid": true,
+    "global_lm_users_required": false,
+    "manager_enrollment_and_agent_binding_are_tenant_scoped": true,
+    "capacity_race_has_one_winner": true,
+    "pause_blocks_future_provision_and_dispatch": true,
+    "dispatch_claim_is_one_shot_and_execution_binding_immutable": true,
+    "postgres_date_and_timestamps_normalize": true,
+    "cfo_receipt_schema_and_claim_are_idempotent": true,
+    "funnel_event_dedup_and_append_only_guards": true,
+    "first_completed_work_uses_external_audience_only": true
+  },
+  "external_effects": {
+    "production_dsn_used": false,
+    "production_database_mutated": false,
+    "resend_invoked": false,
+    "real_email_sent": false
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "observed_at": "2026-10-21T01:11:30Z",
+  "source_file": "apps/life-manager/lib/maritime-manager-persistence.js",
+  "source_sha256": "c7b921d078083031ac6b408491f54b86dadd8c86d33517cefaeaccecc3c2ff6d",
+  "integration_test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "integration_test_sha256": "103c3d855edac67a7fdfeaae4d66a071f9534971ed340cfe93c477571a639bae",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "fixture": "native PostgreSQL 17 over private Unix socket; stopped and removed",
+  "uid_derived_by_existing_separateWebUidForSubject": true,
+  "same_subject_resolution_idempotent": true,
+  "preexisting_wrong_uid_subject_binding_rejected": true,
+  "conflicting_identity_not_overwritten": true,
+  "global_lm_users_table_created": false
+}

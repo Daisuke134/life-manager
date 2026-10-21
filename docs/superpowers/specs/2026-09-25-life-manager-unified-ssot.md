@@ -21326,11 +21326,11 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 これは推奨準備物であり、公式必須形式・提出済みとは扱わない。
 
-**Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。Manager側はDM文案・X/IG copy・動画台本・公開URL・source別計測を開発と並行して用意する。3人の返答・利用・feedbackを、開発・配布素材・提出の開始条件にしない。無料pilotでも利用は未保証。動くURLと真実のdemoが揃った時点で配布し、visit→email確認→起動→業務完了→再利用を測る。自社LM獲得と、利用者businessのCapafy訪問/注文は別funnel。利益は実測するが、競技の公表winner条件を「最高利益」へ置換しない。参照事例と模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
+**Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。初期獲得は既存`aniccaai.com/blog/manager`のSEO記事を主軸、既存Postiz接続済みXアカウントのbuild-in-public投稿を補助とする。既存Writer workflowを再利用し、複数destinationへの自動配布を無条件に起動しない。Life Managerを既存Instagram profileへ混在させず、新規Instagram/X accountも作らない。Instagramは初期配布から外す。Xは一つの既存profileから独自の確認済み情報を一投稿し、duplicate post/自動DM/サイト操作scriptを使わない。3人の返答・利用・feedbackを開発・配布素材・提出の開始条件にしない。SEO/Xの有用な実績は参考にするが、同一の自律Life Managerから1,000人獲得した因果事例は未確認なので、まず一記事・一投稿で検証する。公開URLと実証済みdemoが揃った後、search impression/click・X click・email verified・activation・work completion・returnをsource別に測る。Blog reader/follower/impression/signupだけを競技利用者にしない。自社LM獲得と利用者businessのCapafy訪問/注文は別funnel。参照例・限界・模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
 
-**TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
+**TODO順変更:** 旧配布順=DM+X/IG文案→X/IG/community投稿。新配布順=既存blogのSEO記事1本→既存Postiz Xから独自build-in-public投稿1件→source別の実利用計測→実績に応じて他媒体検討、IGは除外。理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。文案と成功事例調査は公開URL/友人の返事を待たず進め、投稿は稼働製品と実証済みclaim後に行う。現在cursor=T22.1b.6-07、b.6-06 schema test pass後のCFO receipt schema。進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.6-01（Manager保存先を既存Runtime Postgresへ接続）と独立副cursor=T22.1c-5e.5（occurrence専用成果物境界のsource acceptance）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。初回基盤はVM/Web/workerのmain0c採用と4source hash/固定browserの非rootCDP/DOMを確認する。現在のowned VMは権限修正main4fのhealth/hash/receipts親を確認済み。Web/workerの必須設定は直近のfoundation readbackを基準とし、新PG sourceの採用は未完。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-24（ACL/RLS修正→service_role実操作受入→fresh read-only review→修正head CI→main統合）。b.6-01〜23 Runtime PG schema/store/identity/first-touch/event/participant consent/CFO receipt/HTTP/worker/return/native SQL/related fixture acceptanceはfeature branchで完了。b.6-16 Manager participant accept→`docs/evidence/maritime/runtime-pg-manager-participant-accept.json`、b.6-17 revoke/inactive consent→`docs/evidence/maritime/runtime-pg-manager-consent-revoke.json`、b.6-18 CFO receipt IO→`docs/evidence/maritime/runtime-pg-manager-cfo-receipt-io.json`、b.6-19 HTTP wiring→`docs/evidence/maritime/runtime-pg-manager-http-wiring.json`、b.6-20 worker wiring→`docs/evidence/maritime/runtime-pg-manager-worker-wiring.json`、b.6-21 return read→`docs/evidence/maritime/runtime-pg-manager-return-eligibility.json`、b.6-22 native contract suite→`docs/evidence/maritime/runtime-pg-manager-native-contracts.json`、b.6-23 related fixtures→`docs/evidence/maritime/runtime-pg-manager-related-fixtures.json`。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映しoffline draft occurrenceはverified。これは公開製品ではなくexternal user0、売上/入金なし。Hosted signup→activate→cloud work→daily email、公開URL、正式作品提出は未完。初週の正確な締切と提出formは未公表。配布準備は既存blog SEO+既存Postiz Xへ更新済みだがarticle/postは未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21355,12 +21355,12 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T19 | 既存CFO/Resendへの一日一通配信 | #8424/main0cで既存CFO/Resendの日次adapterを統合する。SMTP/Authのowned着信は別途確認済み。Manager日報の新period送信/受信箱/自然継続はT22で未確認。 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | #8424/main0cへ停止API/同tenant lock/pause recoveryを統合する。paused永続化を先行し、receipt/過去結果を保持する。実環境の停止はT22で未確認。 |
 | T21 | 登録と業務完了を分けたsource別funnel | #8424/main0cへ署名first-touch/確認/起動/実仕事/受理日報/24h復帰を統合する。利用計測migrationはproduction公式success。内部cohortを設定し、登録/deferredを実仕事や外部利用者に数えない。新Managerの実計測は未確認。 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | main image・DB migration・非公開foundationは反映する。現在cursorは認証REST503 PGRST002/Auth timeoutの診断/回復→Maritime capability/flag有効化→owned PKCE/仕事/成果物/日報/停止。URL共有・正式提出は未完。 |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | main image・DB foundationと非公開offline occurrenceは確認済み。b.6-01〜23 Runtime PG schema/store/identity/first-touch/event/participant consent/CFO receipt/HTTP/worker/return/native SQL/related fixture acceptanceはbranch上で完了。現在cursor=b.6-24 ACL/RLS policyとservice_role実操作→native PG 1/1・関連fixture 170/170 PASS→fresh-context review Critical/High 0→Security Scan 12/12・Cloud reminder 1/1 PASS→main統合→Runtime接続role readback→DB反映→公開flag/cap→PKCE/仕事/成果物/日報/停止。公開URL・実利用・正式提出は未完。 |
 | T23 | 正式提出・一回submit・受付readback | T01/T22後。3人/売上/7日継続を待たない |
-| T24 | Dais用DMとX/IG文案、source別URL | 初稿保存済み、公開URL差込は未完。待ち依存なし |
+| T24 | 既存blogのSEO記事brief・既存Xの一投稿・Dais DM、source別URL | 成功事例と初期方針を更新。article/X copy、URL確定は未完。待ち依存なし |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
 | T26 | 日英公開説明と無料email入口のdeploy/readback | 原稿準備T06後、実URL切替T22後 |
-| T27 | DaisのDMとowned X/IG/community配布 | T22/T24/T26後、3人feedback待ちなし |
+| T27 | 既存blogの1記事→既存Postiz Xの1投稿→Dais DM | T22/T24/T26後。Instagram/新規accountは初期配布に使わない。3人feedback待ちなし |
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
 | T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T22直後。正式form未公表で止めず、T29の長期成長を待たない |
@@ -21429,26 +21429,47 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **T22.1c-5a/b source受入:** 公式lstatはreceipts親uid/gid0・0755、新v2 receipt未作成を返す。固定親receiptsをruntime-env.jsの既存no-follow ownership対象へ加える1箇所の修正とし、再帰chownはしない。focused RED→runtime-env6/6を確認し、実imageのchown/再実行は未完。副cursor=c-5c、証拠→docs/evidence/maritime/owned-factory-v2-preflight.json。DB側b.5本人ログイン待ちと分離して進める。
 
 
-**T22.1b.6の保存先決定:** 主cursor=b.6-01。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
+**T22.1b.6の保存先決定:** 主cursor=b.6-03。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
 
 
-**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-01、副cursor=T22.1c-5e.5。権限修正はPR8449/main `4f008688db5aff872ae11429d2753ed9f38c598c`へ統合し、exact73efの13checks全成功・fresh review重大指摘0を確認する。既存VMへmain4f ZIPのupload200/deploy200と公式successを受け、health release・変更file hash・receipts親10001:10001/0700の実採用を確認する。v2後の再dispatch/新業務完了は未確認。PG接続はspec/preflightまでで、b.6の実装は未着手。公開flag/Manager capabilityは無効、Manager enrollment/execution/jobは0、Cloud売上・外部利用者・正式提出・DaisへのURLメールは未完。
+**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-24（RLS/ACL＋service_role受入→fresh-context review→修正版CI→main統合）。PR #8460はopen。初回reviewのPUBLIC ACL指摘と後続のRLS/role指摘は修正済み。隔離PostgreSQLで`SET ROLE service_role`の全6表・5 RPC・CFO receipt実操作を通し、native integration 1/1、関連suite 170/170 PASS。fresh-context reviewはCritical/High 0。修正版source headのSecurity Scan 12/12、Cloud reminder 1/1もPASS（run `39532097277`、`39532097282`）。CodeRabbitはOSSのmanual-review条件でskip。PRのmain統合は未完。Runtime PG production接続role/readbackは未確認、migrationは未適用、flag/capはOFF。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP 91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。read-only probeはUID/GID10001・caps0・NoNewPrivs・credential非継承・fixed browser/CDP/DOM/cleanup pass。offline occurrenceはcompleted/exit0、receipt3 refsと追加4 filesのhash一致、listing linter pass。これは非公開draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。Runtime PG schema/store/persistence/consent/CFO IO/HTTP/worker/return/native contract/related fixture atoms b.6-01〜23はfeature branchでsource acceptance完了。b.6-24は6表のACL/RLSとservice_role-only policiesを修正し、native PostgreSQLで全Manager業務RPCと各表の実操作、関連fixture 170/170 PASS。新証拠→`docs/evidence/maritime/runtime-pg-manager-acl.json`。修正版のfresh review/修正head CI/main merge待ち。production接続role/readbackは未確認。b.6-25以降のproduction migration/PKCEは未着手。作品の正式提出は`not_submitted`、project form/初週の正確な締切は未確認。したがってTop30進出・winner・San Francisco渡航は確定していない。旅行terms→`docs/distribution/maritime/week1/requirements.json`。配布は既存`aniccaai.com/blog/manager`のSEO記事＋既存Postiz Xを初期方針とし、Instagram/new accountは使わない。article/post/公開URLは未完。
+
+**As-Is → To-Be:** As-Isは、既存Maritime agentで未公開のoffline業務draftを一件作成し、3 receipt artifactと4追加fileのhashを確認した状態。external users=0、provider receipt=0、公開/販売/入金は未確認。Runtime PGのManager schema/store/identity/first-touch/event/consent/CFO IO/HTTP/worker/return/native contract/related fixture atoms b.6-01〜23は専用feature branch上で完了したが、main統合・本番DB反映・public runtime adoptionは未完。一般利用者向け登録→自律仕事→成果確認/download→日次email→停止、公開URL、正式作品提出は未成立。To-Beは、メール確認後にManager自身が仕事を選び実行し、証拠と結果をメール報告するCloud製品。利用者に目標/予算を設定させず、Telegramを必須にしない。初週は動く製品を提出してTop30進出を目指し、6週間では実利用のある別々の1,000人を公式project usageで検証する。現在はどちらの達成も確認できない。
 
 | 残ID | 一つずつ実行する範囲 | 状態 |
 |---|---|---|
 | c-5d → c-4 | 未着手occurrenceの一回実行→literal成果物/size/hash確認 | image採用完了、新実行は未完 |
-| b.6-01〜07 | native失敗確認と6表/functionの定義 | 未着手 |
-| b.6-08〜14 | Manager CRUD/checkpoint・verified identity・first-touchのPG接続 | 未着手 |
-| b.6-15〜18 | 同意/容量/計測/CFO receiptのPG接続 | 未着手 |
-| b.6-19〜21 | frontend6経路・worker・return読取の接続 | 未着手 |
-| b.6-22〜24 | 実SQL/関連契約・review・必要CI・main統合 | 未着手 |
+| b.6-01 | local native PG fixtureで6 relation欠落/SQLSTATE42P01を確認 | 完了、production DSN不使用→`docs/evidence/maritime/runtime-pg-manager-schema-absence.json` |
+| b.6-02 | verified subject↔uid identity / first-touch schema | 完了、native PG17 unique/reassignment/first-touch checks→`docs/evidence/maritime/runtime-pg-manager-identity-schema.json` |
+| b.6-03 | enrollment schema / provision claim-bind | 完了、native PG17 claim一回・同一agent再bind・foreign subjectと別UIDのagent重複拒否→`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json` |
+| b.6-04 | execution schema / cycle claim-bind | 完了、native PG17二接続競合で一回claim・execution binding・pause・再適用→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json` |
+| b.6-05 | participant schema / capacity claim | 完了、native PG17二接続競合・Instagram・再同意・cap入力→`docs/evidence/maritime/runtime-pg-manager-participant-capacity.json` |
+| b.6-06 | funnel event / append-only guard | 完了、normalizer payload・stable source-event・audience・UPDATE/DELETE/TRUNCATE guard→`docs/evidence/maritime/runtime-pg-manager-funnel-schema.json` |
+| b.6-07 | CFO receipt schema/function | 完了、native PG17 identity FK・uid/period unique・pending/sent・recipient hash→`docs/evidence/maritime/runtime-pg-manager-cfo-receipts.json` |
+| b.6-08 | manager-store read/listPending/listPaused | 完了、native PG integration 1/1・store unit 16/16・parameterized SQL/timestamp ISO→`docs/evidence/maritime/runtime-pg-manager-store-reads.json` |
+| b.6-09 | manager-store enroll | 完了、verified subject/UID/email conflict拒否・owner上書きなし→`docs/evidence/maritime/runtime-pg-manager-enrollment-write.json` |
+| b.6-10 | manager-store claimProvision/bindAgent | 完了、native PG paused claim・foreign binding・release mismatch拒否・paused不活性維持→`docs/evidence/maritime/runtime-pg-manager-provision-binding.json` |
+| b.6-11 | manager-store pause/quarantinePendingProvision | 完了、pause先行/再play timestamp stable/provision block/quarantine one-shot/receipt保持→`docs/evidence/maritime/runtime-pg-manager-pause.json` |
+| b.6-12 | manager-store cycle dispatch/claim/bind | 完了、PG date_key text/one-shot claim/immutable execution binding→`docs/evidence/maritime/runtime-pg-manager-cycle-dispatch-store.json` |
+| b.6-13 | ensureWebUser / verified identity | 完了、separateWebUidForSubjectと一致・conflict拒否→`docs/evidence/maritime/runtime-pg-manager-identity-resolution.json` |
+| b.6-14 | first-touch save/read | 完了、既存sanitize・first-write-wins・PII除外→`docs/evidence/maritime/runtime-pg-manager-first-touch.json` |
+| b.6-15 | distribution PG event writer | 完了、既存normalizer/HMAC/stable key/internal audience/anonymous event→`docs/evidence/maritime/runtime-pg-manager-events.json` |
+| b.6-16 | Manager participant `getParticipant/accept` | 完了、PG capacity claim/HMAC participant ID/retention consent + separate Manager consent→`docs/evidence/maritime/runtime-pg-manager-participant-accept.json` |
+| b.6-17 | Manager `revoke/isConsentActive` | 完了、PG revocation/idempotency/inactive readback + legacy Telegram regression→`docs/evidence/maritime/runtime-pg-manager-consent-revoke.json` |
+| b.6-18 | CFO receipt IO | 完了、Runtime PG parameterized read/claim/mark・2接続raceは1勝・既存送信器のduplicate抑止/recipient hash/23h/Resend idempotency維持→`docs/evidence/maritime/runtime-pg-manager-cfo-receipt-io.json`。実Resend送信なし |
+| b.6-19 | server HTTPのpage/auth/activate/stop/artifact/wakeをRuntime PGへ接続 | 完了、共通Poolのdependency factory→`docs/evidence/maritime/runtime-pg-manager-http-wiring.json` |
+| b.6-20 | runtime-up worker/report/completion telemetryをRuntime PGへ接続 | 完了、既存worker Poolを共有しSupabase CFO receipt fallbackを除去→`docs/evidence/maritime/runtime-pg-manager-worker-wiring.json` |
+| b.6-21 | firstCompletedWorkAtによるreturn計測PG読取 | 完了、earliest external workのみ/24h boundary/prefetch除外/PG native read→`docs/evidence/maritime/runtime-pg-manager-return-eligibility.json` |
+| b.6-22 | Manager state native SQL contract suite | 完了、schema/identity/capacity/stop/dispatch/date/event/CFO/return checks→`docs/evidence/maritime/runtime-pg-manager-native-contracts.json` |
+| b.6-23 | Manager auth/store/handler/usage related fixtures | 完了、関連11 file 170/170 PASS→`docs/evidence/maritime/runtime-pg-manager-related-fixtures.json` |
+| b.6-24 | 6表/RPCのRLS・ACL修正、service_role実操作受入、fresh review・修正head CI・main統合 | native PG 1/1・related 170/170、fresh review Critical/High 0、CI 12/12＋Cloud 1/1。main merge待ち |
 | b.6-25〜27 | 既存DBへの反映、loaded設定照合、flag/cap有効化 | 未着手 |
 | b.6-28〜34 | 実PKCE・起動・仕事/download・日報・停止・計測・packet更新 | 未着手 |
 | T30.1〜4 | Daisへの稼働URLメール一回送信とreadback | 未完 |
-| T24〜26 | 既存文案の実URL確定、実画面demo、媒体配布/流入計測 | 文案のみ、公開未完 |
+| T24〜26 | 既存blog SEO brief/X copy、実URL、実画面demo、公開readback | 既存WriterでSEO記事1本を先行し、全社/build-in-public用の既存Postiz Xで1投稿。URL/demo未確認のため記事・投稿・公開routeは未完 |
 | T23 | 正式経路/締切/field確認、一回提出、受付readback | 未完、正式form/初週時刻は未公表 |
 | T08/T09/T10 | 同tenantのCapafy認証・正規publish・公式売上collector→workerへの接続 | 本番の販売/売上は未確認 |
-| T27〜29 | 実利用・継続・cap3からの段階拡大 | 未完 |
+| T27〜29 | SEO blog→既存X→実利用/再利用/cap段階拡大 | 未完、外部利用者0。source→verified signup→初回完了→returnで勝ち筋を測ってから既存の適合channelへ拡張する。他product用の既存accountへ混載せず、新規Instagram等のaccountも作らない |
 | T31.1〜9 | Calendar/Supabase直結の既存課金をManagerへ分離接続し、公式売上/純利益を確認 | 未完 |
 
 各IDの対象file・method・操作・完了条件はAtomic Planのb.6と既存T節が所有する。enableはPG/Auth読取確認後・実製品受入前に行う。友人の参加待ちを開発/素材制作へ戻さず、初週提出に不要な人数・売上・7日継続・1,000人を受付条件として発明しない。
@@ -21457,10 +21478,10 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **収益側の残境界:** cloud_cycle.pyはprovider binding参照の形を検証するが、同tenantの販売認証と正規publishの本番完了は未確認。readCapafyFinancialRecordsはmoduleとして存在するが、本番callerは未接続。既存T08/T09/T10でowned account readback→正規publish→official seller snapshot→FinancialRecord.append→日報を一件ずつ接続する。成果物生成を売上に置換しない。LM自身の課金も既存web-billing.jsはCalendar必須/Supabase lm_users直結なのでresolver差替えだけでは動かず、Atomic Plan T31.1〜9へ補正する。現在のcapは3で、25を稼働値として扱わない。
 
 
-**権限修正の実反映:** c-5c完了。公式配備success後のread-only実行でrelease4f、変更fileのmain hash一致、receipts親10001:10001/0700を確認し、v2 cycle receipt不存在を確認する。新しいモデル実行は行っていない。証拠→docs/evidence/maritime/receipt-parent-image-adoption.json。主cursor=b.6-01、副cursor=c-5d。
+**権限修正の実反映:** c-5c完了。公式配備success後のread-only実行でrelease4f、変更fileのmain hash一致、receipts親10001:10001/0700を確認し、v2 cycle receipt不存在を確認する。新しいモデル実行は行っていない。証拠→docs/evidence/maritime/receipt-parent-image-adoption.json。当時cursor=b.6-01/c-5d。
 
 
-**c-5dの実業務readback:** main4f VM execution completed/exit0。runnerはno_op/evidence4、4fileはregular・single-link・UID10001、合計7188bytes。cycle receiptはdeferred/no_work/artifact refsなし。原因はcloud_cycleがno_opのevidenceを捨てること。mtimeは調査時の観測事実としてのみ記録し、時刻に基づくfreshness判定は採用しない。以前のoffline factory 6file receipt unknownとv3 deferred receiptは変更しない。販売公開/売上/入金は未確認。現在副cursor=T22.1c-5e.5、詳細→Atomic Plan c-5e.1〜8。実測→docs/evidence/maritime/owned-factory-no-op.json。
+**c-5dの実業務readback:** main4f VM execution completed/exit0。runnerはno_op/evidence4、4fileはregular・single-link・UID10001、合計7188bytes。cycle receiptはdeferred/no_work/artifact refsなし。原因はcloud_cycleがno_opのevidenceを捨てること。mtimeは観測事実でありfreshness判定には使わない。以前のoffline factory 6-file unknown receiptとv3 deferred receiptは変更しない。販売公開/売上/入金は未確認。artifact修正は#8452でmain a0へ統合済み。実測→`docs/evidence/maritime/owned-factory-no-op.json`。
 
 
-**T22.1c-5d/5eの現況:** runnerはno_op/evidence4で、4つの成果物はUID10001所有の通常file、合計7188bytes。保存されたv3 receiptはdeferred/no_work・refs空のまま保持する。mtime freshness案は粗い時刻精度の懸念で棄却し、排他receipt claim後に作る新規`build/occurrences/<occurrence_id>/`を証拠境界にした。root既存draftは採用せず、発生dirも再利用しない。root catalog参照は維持し、runner workdirだけを発生dirへ分ける。artifact refは発生dir内のregular・single-link・実行UID所有fileに限定する。preexisting dir、symlink親/file、hardlink、directory artifactはfocused testで拒否を確認し、`test_cloud_cycle.py` 21/21 PASS。旧v3 receiptは変更せず、公開・売上のclaimはしない。副cursor=T22.1c-5e.5。詳細→Atomic Plan c-5e.1〜8。
+**T22.1c-5d/5eの現況:** receipt claim後の新規`build/occurrences/<occurrence_id>/`を証拠境界とし、mtime判定は使用しない。no_op/successのartifact refは発生dir内のregular・single-link・実行UID所有fileだけを受け付ける。preexisting dir/symlink/hardlink/non-file拒否、focused suite21/21、fresh review指摘0を確認。PR #8452をmain a0へ統合後、既存VMのhealth/source hash a0採用を確認。新offline occurrence completed/exit0、receipt refs3、追加bundle4 fileもproof/download hash一致、listing linter pass。全draftは非公開で、売上/外部利用者なし。旧receipts保持。c5 stream完了、現在主cursor=b.6-01。証拠→`docs/evidence/maritime/owned-factory-a0-occurrence.json`。

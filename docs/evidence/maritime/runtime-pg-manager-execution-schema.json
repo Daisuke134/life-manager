@@ -1,0 +1,45 @@
+{
+  "observed_at": "2026-10-21T00:37:38Z",
+  "source_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "854f8f7d9a5da80bb3cc96e02876947de4488a9c608ec00029b74b9db3bcf834",
+  "test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "fixture": "native PostgreSQL 17 over private Unix socket; stopped and removed",
+  "relations_present_after_migration": [
+    "lm_maritime_manager_identities",
+    "lm_maritime_manager_enrollments",
+    "lm_maritime_manager_executions"
+  ],
+  "relations_absent_after_migration": [
+    "lm_maritime_pilot_participants",
+    "lm_web_funnel_events",
+    "lm_cfo_result_receipts"
+  ],
+  "execution_columns": [
+    "uid",
+    "occurrence_id",
+    "agent_id",
+    "date_key",
+    "release_sha",
+    "execution_id",
+    "claimed_at"
+  ],
+  "cycle_claim": {
+    "two_connection_race_exactly_one_winner": true,
+    "occurrence_replay_rejected": true,
+    "foreign_uid_agent_rejected": true,
+    "stale_release_rejected": true,
+    "paused_enrollment_new_occurrence_rejected": true
+  },
+  "execution_binding": {
+    "same_execution_id_rebind_idempotent": true,
+    "different_execution_id_rejected": true,
+    "date_mismatch_rejected": true,
+    "duplicate_agent_execution_id_rejected_sqlstate_23505": true,
+    "existing_binding_readable_after_pause": true,
+    "migration_reapply_preserves_checkpoint": true
+  }
+}

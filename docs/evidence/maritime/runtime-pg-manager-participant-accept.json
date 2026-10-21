@@ -1,0 +1,36 @@
+{
+  "observed_at": "2026-10-21T01:21:14Z",
+  "source_files": {
+    "apps/life-manager/lib/maritime-manager-persistence.js": "d9b03e3150fa61ce2f2899fc746d65f1b0324ab56f57a056377502e78c4afb3d",
+    "apps/life-manager/lib/maritime-distribution.js": "085e9c1439d4aade6438eacb3521a56f2f862f86b3ac629540c6e4b723c4e5c7"
+  },
+  "tests": [
+    {
+      "file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+      "sha256": "ccd678da58813119b5e99211c519e259b56c2660c07d0986225ebd22775ae7c6",
+      "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+      "result": "1/1 pass"
+    },
+    {
+      "file": "apps/life-manager/lib/maritime-distribution.test.js",
+      "sha256": "347988e2ecb7bbbbed9a68b66a3a44b4867d403fc96c03b2269d7bf83450efac",
+      "command": "node --test lib/maritime-distribution.test.js",
+      "result": "13/13 pass"
+    },
+    {
+      "file": "apps/life-manager/lib/maritime-manager-store.test.js",
+      "command": "node --test lib/maritime-manager-store.test.js",
+      "result": "16/16 pass"
+    }
+  ],
+  "production_dsn_used": false,
+  "participant_id_is_hmac_only": true,
+  "retention_consent_version": "maritime-retention-v1",
+  "manager_enrollment_consent_version_remains_separate": "maritime-manager-v1",
+  "same_user_accept_idempotent": true,
+  "first_source_preserved": true,
+  "capacity_claim_uses_existing_advisory_lock": true,
+  "stable_consent_event_deduplicated": true,
+  "existing_telegram_consent_flow_preserved": true,
+  "global_lm_users_referenced": false
+}

@@ -13,6 +13,21 @@ function bounded(value, max) {
   if (typeof value !== "string" || !value.trim() || value.length > max || /[\r\n]/.test(value)) invalid();
   return value.trim();
 }
+function timestampIso(value, nullable = false) {
+  if (value == null && nullable) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (!Number.isFinite(date.getTime())) throw new Error("maritime_manager_store_invalid");
+  return date.toISOString();
+}
+function dateKeyString(value) {
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) throw new Error("maritime_manager_store_invalid");
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value) return value;
+  throw new Error("maritime_manager_store_invalid");
+}
 
 // Service-owned storage only. Public handlers must derive uid from verified auth.
 function createMaritimeManagerStore(options = {}) {
@@ -20,7 +35,16 @@ function createMaritimeManagerStore(options = {}) {
   const root = String(options.supaUrl || env.SUPABASE_URL || "").replace(/\/$/, "");
   const key = options.supaKey || env.SUPABASE_SERVICE_ROLE_KEY;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const pgPool = options.pgPool;
   const now = options.now || (() => new Date().toISOString());
+  async function queryPg(statement, values) {
+    if (!pgPool || typeof pgPool.query !== "function") throw new Error("maritime_manager_store_unconfigured");
+    let result;
+    try { result = await pgPool.query(statement, values); }
+    catch { throw new Error("maritime_manager_store_unavailable"); }
+    if (!result || !Array.isArray(result.rows)) throw new Error("maritime_manager_store_invalid");
+    return result.rows;
+  }
   async function request(path, method = "GET", body, prefer, signal) {
     if (!root || !key) throw new Error("maritime_manager_store_unconfigured");
     let response;
@@ -37,36 +61,44 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function read(uid, { signal } = {}) {
     identifier(uid, UID);
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&select=${SELECT}&limit=2`, "GET", undefined, undefined, signal);
-    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
+    const rows = await queryPg(
+      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments WHERE uid = $1 LIMIT 2`, [uid],
+    );
+    if (rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
       throw new Error("maritime_manager_store_invalid");
     }
-    return rows[0] || null;
+    if (!rows[0]) return null;
+    return { ...rows[0], paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) };
   }
   async function listPending(limit = 20) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
-    const rows = await request(`lm_maritime_manager_enrollments?status=eq.pending&paused_at=is.null&agent_id=is.null&select=${SELECT}&order=created_at.asc,uid.asc&limit=${limit}`);
-    if (!Array.isArray(rows) || rows.length > limit || rows.some(row => !row || !UID.test(row.uid)
+    const rows = await queryPg(
+      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments WHERE status = $1 AND paused_at IS NULL AND agent_id IS NULL ORDER BY created_at ASC, uid ASC LIMIT $2`,
+      ["pending", limit],
+    );
+    if (rows.length > limit || rows.some(row => !row || !UID.test(row.uid)
       || row.status !== 'pending' || row.paused_at !== null || row.agent_id !== null || !SHA.test(row.release_sha))) {
       throw new Error('maritime_manager_store_invalid');
     }
-    return rows;
+    return rows.map(row => ({ ...row, created_at: timestampIso(row.created_at) }));
   }
   async function listPaused(limit = 20, afterUid = null) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
     if (afterUid !== null) identifier(afterUid, UID);
-    const rows = await request(`lm_maritime_manager_enrollments?status=eq.paused&paused_at=not.is.null&select=uid,status,paused_at,agent_id,release_sha&order=uid.asc&limit=${limit}`
-      + (afterUid === null ? "" : `&uid=gt.${encodeURIComponent(afterUid)}`));
-    if (!Array.isArray(rows) || rows.length > limit) throw new Error("maritime_manager_store_invalid");
+    const rows = await queryPg(
+      `SELECT uid,status,paused_at,agent_id,release_sha FROM public.lm_maritime_manager_enrollments WHERE status = $1 AND paused_at IS NOT NULL AND ($2::text IS NULL OR uid > $2) ORDER BY uid ASC LIMIT $3`,
+      ["paused", afterUid, limit],
+    );
+    if (rows.length > limit) throw new Error("maritime_manager_store_invalid");
     let previous = afterUid;
     for (const row of rows) {
-      if (!row || !UID.test(row.uid) || row.status !== "paused" || typeof row.paused_at !== "string"
-        || !Number.isFinite(Date.parse(row.paused_at)) || !SHA.test(row.release_sha)
+      if (!row || !UID.test(row.uid) || row.status !== "paused" || row.paused_at == null || !SHA.test(row.release_sha)
         || (row.agent_id !== null && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(row.agent_id))
         || (previous !== null && row.uid <= previous)) throw new Error("maritime_manager_store_invalid");
+      timestampIso(row.paused_at);
       previous = row.uid;
     }
-    return rows;
+    return rows.map(row => ({ ...row, paused_at: timestampIso(row.paused_at) }));
   }
   async function enroll(input) {
     const uid = identifier(input?.uid, UID);
@@ -79,10 +111,16 @@ function createMaritimeManagerStore(options = {}) {
     if (!/^[a-z0-9_-]+$/.test(source)) invalid();
     const consentVersion = bounded(input.consentVersion, 100);
     const releaseSha = identifier(input.releaseSha, SHA);
-    await request("lm_maritime_manager_enrollments?on_conflict=uid", "POST", {
-      uid, auth_subject: authSubject, email, timezone, source,
-      consent_version: consentVersion, release_sha: releaseSha,
-    }, "resolution=ignore-duplicates,return=representation");
+    const inserted = await queryPg(
+      `INSERT INTO public.lm_maritime_manager_enrollments
+        (uid,auth_subject,email,timezone,status,source,consent_version,release_sha)
+       SELECT i.uid,i.auth_subject,$3,$4,'pending',$5,$6,$7
+       FROM public.lm_maritime_manager_identities AS i
+       WHERE i.uid=$1 AND i.auth_subject=$2
+       ON CONFLICT (uid) DO NOTHING RETURNING uid`,
+      [uid, authSubject, email, timezone, source, consentVersion, releaseSha],
+    );
+    if (inserted.length > 1) throw new Error("maritime_manager_store_invalid");
     const row = await read(uid);
     if (!row || row.auth_subject !== authSubject || row.email !== email) {
       throw new Error("maritime_manager_identity_mismatch");
@@ -91,40 +129,48 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function claimProvision(uid) {
     identifier(uid, UID);
-    const result = await request("rpc/claim_lm_maritime_manager_provision_v1", "POST", { p_uid: uid });
-    if (typeof result !== "boolean") throw new Error("maritime_manager_store_invalid");
-    return result;
+    const rows = await queryPg("SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed", [uid]);
+    if (rows.length !== 1 || typeof rows[0].claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    return rows[0].claimed;
   }
   async function bindAgent({ uid, authSubject, agentId, releaseSha }) {
     identifier(uid, UID); authSubject = identifier(authSubject, SUBJECT).toLowerCase(); identifier(releaseSha, SHA);
     identifier(agentId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
-    const bound = await request("rpc/bind_lm_maritime_manager_agent_v1", "POST", {
-      p_uid: uid, p_auth_subject: authSubject, p_agent_id: agentId, p_release_sha: releaseSha,
-    });
-    if (bound !== true) throw new Error("maritime_manager_binding_rejected");
+    const rows = await queryPg(
+      "SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound",
+      [uid, authSubject, agentId, releaseSha],
+    );
+    if (rows.length !== 1 || typeof rows[0].bound !== "boolean") throw new Error("maritime_manager_store_invalid");
+    if (rows[0].bound !== true) throw new Error("maritime_manager_binding_rejected");
     const row = await read(uid);
-    if (!row || row.auth_subject !== authSubject || row.agent_id !== agentId) {
+    if (!row || row.auth_subject !== authSubject || row.agent_id !== agentId || row.release_sha !== releaseSha
+      || (row.paused_at !== null ? row.status !== "paused" : row.status !== "active")) {
       throw new Error("maritime_manager_binding_rejected");
     }
     return row;
   }
   async function quarantinePendingProvision(uid) {
     identifier(uid, UID);
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&status=eq.pending&paused_at=is.null&agent_id=is.null`,
-      "PATCH", { status: "effect_unknown" });
-    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && (rows[0].uid !== uid
+    const rows = await queryPg(
+      `UPDATE public.lm_maritime_manager_enrollments SET status = $2
+       WHERE uid = $1 AND status = $3 AND paused_at IS NULL AND agent_id IS NULL RETURNING ${SELECT}`,
+      [uid, "effect_unknown", "pending"],
+    );
+    if (rows.length > 1 || (rows[0] && (rows[0].uid !== uid
       || rows[0].status !== "effect_unknown" || rows[0].agent_id !== null || rows[0].paused_at !== null))) {
       throw new Error("maritime_manager_store_invalid");
     }
-    return rows[0] || null;
+    return rows[0] ? { ...rows[0], paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) } : null;
   }
   async function pause(uid) {
     identifier(uid, UID);
     const pausedAt = now();
     if (!Number.isFinite(Date.parse(pausedAt))) invalid();
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&paused_at=is.null`,
-      "PATCH", { status: "paused", paused_at: pausedAt });
-    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
+    const rows = await queryPg(
+      "UPDATE public.lm_maritime_manager_enrollments SET status = 'paused', paused_at = $2 WHERE uid = $1 AND paused_at IS NULL RETURNING uid",
+      [uid, pausedAt],
+    );
+    if (rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
       throw new Error("maritime_manager_store_invalid");
     }
     return read(uid);
@@ -144,11 +190,13 @@ function createMaritimeManagerStore(options = {}) {
     return readCycleDispatchIdentity(cycleIdentity(input));
   }
   async function readCycleDispatchIdentity(identity) {
-    const rows = await request(`lm_maritime_manager_executions?uid=eq.${encodeURIComponent(identity.p_uid)}`
-      + `&occurrence_id=eq.${encodeURIComponent(identity.p_occurrence_id)}`
-      + "&select=uid,occurrence_id,agent_id,date_key,release_sha,execution_id&limit=2");
-    if (!Array.isArray(rows) || rows.length > 1) throw new Error("maritime_manager_store_invalid");
-    const row = rows[0];
+    const rows = await queryPg(
+      "SELECT uid,occurrence_id,agent_id,date_key::text AS date_key,release_sha,execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2 LIMIT 2",
+      [identity.p_uid, identity.p_occurrence_id],
+    );
+    if (rows.length > 1) throw new Error("maritime_manager_store_invalid");
+    const raw = rows[0];
+    const row = raw ? { ...raw, date_key: dateKeyString(raw.date_key) } : null;
     if (row && (row.uid !== identity.p_uid || row.occurrence_id !== identity.p_occurrence_id
       || row.agent_id !== identity.p_agent_id || row.release_sha !== identity.p_release_sha
       || row.date_key !== identity.p_date_key || (row.execution_id !== null
@@ -159,8 +207,12 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function claimCycleDispatch(input) {
     const identity = cycleIdentity(input);
-    const claimed = await request("rpc/claim_lm_maritime_manager_cycle_v1", "POST", identity);
-    if (typeof claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    const rows = await queryPg(
+      "SELECT public.claim_lm_maritime_manager_cycle_v1($1,$2,$3,$4,$5::date) AS claimed",
+      [identity.p_uid, identity.p_occurrence_id, identity.p_agent_id, identity.p_release_sha, identity.p_date_key],
+    );
+    if (rows.length !== 1 || typeof rows[0].claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    const claimed = rows[0].claimed;
     const row = await readCycleDispatchIdentity(identity);
     if (claimed && !row) throw new Error("maritime_manager_store_invalid");
     return { claimed, row };
@@ -168,10 +220,12 @@ function createMaritimeManagerStore(options = {}) {
   async function bindCycleExecution(input) {
     const identity = cycleIdentity(input);
     const executionId = identifier(input.executionId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
-    const bound = await request("rpc/bind_lm_maritime_manager_execution_v1", "POST", {
-      ...identity, p_execution_id: executionId,
-    });
-    if (bound !== true) throw new Error("maritime_manager_binding_rejected");
+    const rows = await queryPg(
+      "SELECT public.bind_lm_maritime_manager_execution_v1($1,$2,$3,$4,$5::date,$6) AS bound",
+      [identity.p_uid, identity.p_occurrence_id, identity.p_agent_id, identity.p_release_sha, identity.p_date_key, executionId],
+    );
+    if (rows.length !== 1 || typeof rows[0].bound !== "boolean") throw new Error("maritime_manager_store_invalid");
+    if (rows[0].bound !== true) throw new Error("maritime_manager_binding_rejected");
     const row = await readCycleDispatchIdentity(identity);
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;

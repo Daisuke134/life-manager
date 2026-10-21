@@ -246,12 +246,24 @@ async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJ
   return paused.length === 20 ? paused.at(-1).uid : null;
 }
 
+function createMaritimeManagerWorkerDependencies({ pgPool, env = process.env, recordMaritimeManagerCompletion } = {}) {
+  const managerDependencies = require("../lib/maritime-manager-dependencies.js").createMaritimeManagerDependencies({ pgPool, env });
+  const recordCompletion = recordMaritimeManagerCompletion
+    || require("../lib/maritime-manager-usage.js").recordMaritimeManagerCompletion;
+  return Object.freeze({
+    ...managerDependencies,
+    onJobCompleted: (job, receipt, telemetry = {}) => recordCompletion(job, receipt,
+      { env, ...telemetry, ...managerDependencies }),
+  });
+}
+
 function createWorkerHandlers(env, capabilities, dependencies = {}) {
   const handlers = {};
   const servicesByAdapter = {};
   if (capabilities.some(value => value.startsWith("maritime.manager."))) {
-    const managerStore = dependencies.maritimeManagerStore
-      || require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env, fetchImpl: dependencies.fetchImpl });
+    const managerDependencies = dependencies.maritimeManagerDependencies;
+    const managerStore = dependencies.maritimeManagerStore || managerDependencies?.managerStore;
+    if (!managerStore) throw new Error("maritime_manager_postgres_store_unavailable");
     const getWakeBinding = identity => require("../lib/maritime-manager-wake.js").createMaritimeWakeBinding(identity, {
       secret: env.LM_MARITIME_MANAGER_ID_SECRET, publicOrigin: env.LM_PANEL_BASE_URL,
     });
@@ -260,7 +272,8 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
         getWakeBinding, fetchImpl: dependencies.fetchImpl });
     if (capabilities.includes("maritime.manager.provision")) {
       const distribution = dependencies.maritimeDistributionStore
-        || require("../lib/maritime-distribution.js").createMaritimeDistributionStore({ env, fetchImpl: dependencies.fetchImpl });
+        || managerDependencies?.distributionStore;
+      if (!distribution) throw new Error("maritime_manager_postgres_distribution_unavailable");
       const isConsentRevoked = async uid => {
         const state = await distribution.getParticipant(uid);
         if (state?.ok !== true) throw new Error("maritime_consent_readback_unavailable");
@@ -290,11 +303,11 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
     if (capabilities.includes("maritime.manager.report")) {
       if (typeof dependencies.query !== "function") throw new Error("maritime report database unavailable");
       const report = require("../lib/maritime-manager-report.js");
-      const deliveryDeps = { env, managerStore, supaUrl: env.SUPABASE_URL,
-        supaKey: env.SUPABASE_SERVICE_ROLE_KEY, resendKey: env.RESEND_API_KEY,
+      const deliveryDeps = { env, managerStore, resendKey: env.RESEND_API_KEY,
         fetchImpl: dependencies.fetchImpl, publicOrigin: env.LM_PANEL_BASE_URL };
       const io = dependencies.maritimeReportReceiptIO
-        || require("../lib/cfo-cloud-delivery.js").createCloudCfoReceiptIO(deliveryDeps);
+        || managerDependencies?.cfoReceiptIO;
+      if (!io) throw new Error("maritime_manager_postgres_cfo_receipt_io_unavailable");
       servicesByAdapter["maritime-manager-report"] = {
         managerStore,
         readDailyObservations: input => report.readMaritimeDailyObservations(input, { query: dependencies.query }),
@@ -803,12 +816,14 @@ async function runCapabilityWorker(env = process.env) {
   const pool = new Pool({ connectionString, max: 2 });
   const opts = { query: pool.query.bind(pool), connect: pool.connect.bind(pool) };
   let registry;
-  const maritimeManagerStore = capabilities.some(value => value.startsWith("maritime.manager."))
-    ? require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env }) : null;
-  const onJobCompleted = maritimeManagerStore ? (job, receipt, telemetry = {}) => require("../lib/maritime-manager-usage.js").recordMaritimeManagerCompletion(job, receipt, { env, managerStore: maritimeManagerStore, ...telemetry }) : null;
+  const maritimeManagerDependencies = capabilities.some(value => value.startsWith("maritime.manager."))
+    ? createMaritimeManagerWorkerDependencies({ pgPool: pool, env }) : null;
+  const maritimeManagerStore = maritimeManagerDependencies?.managerStore || null;
+  const onJobCompleted = maritimeManagerDependencies?.onJobCompleted || null;
   let nextMaritimeRecoveryMs = 0;
   let maritimePausedCursor = null;
   const handlers = createWorkerHandlers(env, capabilities, {
+    maritimeManagerDependencies,
     maritimeManagerStore,
     onRegistry: value => { registry = value; },
     query: opts.query,
@@ -907,6 +922,7 @@ if (require.main === module) {
 
 module.exports = {
   createScopedEnvironmentSecretProvider,
+  createMaritimeManagerWorkerDependencies,
   createWorkerHandlers,
   observeWorkerPoll,
   executeCapabilityJob,

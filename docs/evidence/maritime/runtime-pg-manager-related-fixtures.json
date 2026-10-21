@@ -1,0 +1,35 @@
+{
+  "observed_at": "2026-10-21T01:59:21Z",
+  "tested_head": "58077e86a69b70f5edebd3e4338a450ff7adf0c8",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test lib/maritime-manager-auth.test.js lib/maritime-manager-artifacts.test.js lib/maritime-manager-wake.test.js lib/maritime-manager-store.test.js lib/maritime-manager-runtime.test.js lib/maritime-manager-usage.test.js lib/maritime-manager-report.test.js lib/maritime-distribution.test.js lib/cfo-cloud-delivery.test.js scripts/runtime-up.test.js test/postgres/maritime-manager-state.integration.js",
+  "test_files": [
+    "lib/maritime-manager-auth.test.js",
+    "lib/maritime-manager-artifacts.test.js",
+    "lib/maritime-manager-wake.test.js",
+    "lib/maritime-manager-store.test.js",
+    "lib/maritime-manager-runtime.test.js",
+    "lib/maritime-manager-usage.test.js",
+    "lib/maritime-manager-report.test.js",
+    "lib/maritime-distribution.test.js",
+    "lib/cfo-cloud-delivery.test.js",
+    "scripts/runtime-up.test.js",
+    "test/postgres/maritime-manager-state.integration.js"
+  ],
+  "result": {
+    "tests": 170,
+    "passed": 170,
+    "failed": 0,
+    "skipped": 0
+  },
+  "coverage_intent": [
+    "PKCE, CSRF, origin and verified UID isolation",
+    "PG enrollment, pause, dispatch, identity, consent, receipt and funnel contracts",
+    "worker, artifact, report, return and telemetry fixtures"
+  ],
+  "external_effects": {
+    "production_dsn_used": false,
+    "production_worker_started": false,
+    "real_email_sent": false,
+    "provider_accounts_mutated": false
+  }
+}

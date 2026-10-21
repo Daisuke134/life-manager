@@ -1,0 +1,47 @@
+{
+  "observed_at": "2026-10-21T00:32:51.680642+00:00",
+  "source_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "406093d8dd8662d89ff63700cfad4e2631b0c3719be8f98e41765736af5a2bd0",
+  "test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "fixture": "native PostgreSQL 17 over private Unix socket; stopped and removed",
+  "relations_present_after_migration": [
+    "lm_maritime_manager_identities",
+    "lm_maritime_manager_enrollments"
+  ],
+  "relations_absent_after_migration": [
+    "lm_maritime_manager_executions",
+    "lm_maritime_pilot_participants",
+    "lm_web_funnel_events",
+    "lm_cfo_result_receipts"
+  ],
+  "global_lm_users_table_created": false,
+  "identity_constraints": [
+    "uid primary key",
+    "auth_subject unique",
+    "uid/auth_subject reassignment rejected",
+    "first_touch JSON object/timestamp pair"
+  ],
+  "enrollment_columns": [
+    "uid",
+    "auth_subject",
+    "email",
+    "timezone",
+    "status",
+    "source",
+    "consent_version",
+    "agent_id",
+    "release_sha",
+    "paused_at"
+  ],
+  "provision_claims": {
+    "pending_claim_once": true,
+    "duplicate_claim_rejected": true,
+    "matching_agent_bind_idempotent": true,
+    "foreign_subject_rejected": true,
+    "duplicate_agent_rejected_without_overwrite": true
+  }
+}

@@ -10,6 +10,7 @@ const { spawnSync } = require("node:child_process");
 const {
   executeCapabilityJob,
   createScopedEnvironmentSecretProvider,
+  createMaritimeManagerWorkerDependencies,
   createWorkerHandlers,
   observeWorkerPoll,
   reconcileMaritimeCapabilityJobs,
@@ -1211,14 +1212,39 @@ test("Maritime cycle worker injects the existing remote transport and activates 
 });
 
 
-test("Maritime report worker injects existing queue reader and CFO receipt IO", async () => {
+test("Maritime worker completion telemetry shares persisted Manager dependencies", async () => {
+  let observed;
+  const pgPool = { query: async () => ({ rows: [] }) };
+  const manager = createMaritimeManagerWorkerDependencies({
+    pgPool,
+    env: { LM_UID_SECRET: "fixture-only-secret" },
+    recordMaritimeManagerCompletion: async (job, receipt, options) => { observed = { job, receipt, options }; return true; },
+  });
+  const job = { tenant_id: "lm_11111111-1111-4111-8111-111111111111", job_id: "work-1" };
+  const receipt = { status: "completed" };
+  const signal = new AbortController().signal;
+  assert.equal(await manager.onJobCompleted(job, receipt, { signal }), true);
+  assert.equal(observed.job, job);
+  assert.equal(observed.receipt, receipt);
+  assert.equal(observed.options.managerStore, manager.managerStore);
+  assert.equal(observed.options.distributionStore, manager.distributionStore);
+  assert.equal(observed.options.readFirstTouch, manager.readFirstTouch);
+  assert.equal(observed.options.cfoReceiptIO, manager.cfoReceiptIO);
+  assert.equal(observed.options.signal, signal);
+});
+
+
+test("Maritime report worker injects existing queue reader and shared CFO receipt IO", async () => {
   const io = { read: async identity => ({ uid: identity.uid, period_key: identity.periodKey, status: "sent" }) };
   const queries = [];
+  const managerStore = {};
+  const managerDependencies = { managerStore, distributionStore: {}, cfoReceiptIO: io };
   const handlers = createWorkerHandlers({}, ["maritime.manager.report"], {
-    maritimeManagerStore: {}, maritimeTransport: {}, maritimeReportReceiptIO: io,
+    maritimeManagerDependencies: managerDependencies, maritimeTransport: {},
     query: async (sql, params) => { queries.push({sql,params}); return { rows: [] }; },
     createRegistry: ({ servicesByAdapter }) => {
       const report = servicesByAdapter["maritime-manager-report"];
+      assert.equal(report.managerStore, managerStore);
       assert.equal(typeof report.deliverDailyResult, "function");
       return { hasCapability: () => true, getByCapability: () => ({execute: async input => {
         const observations = await report.readDailyObservations(input);
@@ -1243,13 +1269,15 @@ test("pending Maritime enrollment recovery reuses stable jobs and skips undeclar
  assert.deepEqual(calls[0],calls[1]);assert.equal(calls[0].tenant_id,uid);assert.equal(calls[0].capability,"maritime.manager.provision");
 });
 
-test("Maritime provision worker binds release-specific source and existing remote operations",()=>{
+test("Maritime provision worker binds release-specific source and shared Manager persistence",async()=>{
  const sha="a".repeat(40),transport=Object.fromEntries(["ensureAgent","readAgent","configureWake","readWakeConfiguration","writeScheduleSnapshot"].map(key=>[key,async()=>{}]));
- let services;
+ const managerStore={},queries=[];let services;
+ const distributionStore={getParticipant:async()=>{queries.push('participant');return {ok:true,participant:null};},revoke:async()=>true};
  createWorkerHandlers({LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA:sha,LM_MARITIME_MANAGER_SOURCE_S3_KEY:"uploads/fixture.zip",LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256:"b".repeat(64)},["maritime.manager.provision"],{
-  maritimeManagerStore:{},maritimeTransport:transport,query:async()=>({rows:[]}),
+  maritimeManagerDependencies:{managerStore,distributionStore,cfoReceiptIO:{}},maritimeTransport:transport,query:async()=>({rows:[]}),
   createRegistry:({servicesByAdapter})=>{services=servicesByAdapter["maritime-manager-provision"];return {hasCapability:()=>false};},
  });
+ assert.equal(services.managerStore,managerStore);assert.equal(await services.isConsentRevoked("lm_11111111-1111-4111-8111-111111111111"),true);assert.deepEqual(queries,['participant']);
  assert.equal(services.ensureAgent,transport.ensureAgent);assert.equal(services.readWakeConfiguration,transport.readWakeConfiguration);
  assert.equal(services.provisionSource(sha).uploadS3Key,"uploads/fixture.zip");
  assert.throws(()=>services.provisionSource("c".repeat(40)),/source/);
@@ -1263,7 +1291,7 @@ test("Maritime post-send continuation failure reconciles the receipt without a s
   continuation:async()=>{if(++continuations===1)throw new Error("store temporarily unavailable");return next;},
   reconcile:async()=>({state:"present",receipt})};
  const registry={hasCapability:()=>true,getByCapability:()=>adapter};
- const handlers=createWorkerHandlers({},["maritime.manager.report"],{maritimeManagerStore:{},maritimeTransport:{},query:async()=>({rows:[]}),createRegistry:()=>registry});
+ const handlers=createWorkerHandlers({},["maritime.manager.report"],{maritimeManagerStore:{},maritimeReportReceiptIO:{read:async()=>null,claim:async()=>true,mark:async()=>true},maritimeTransport:{},query:async()=>({rows:[]}),createRegistry:()=>registry});
  const job={tenant_id:"tenant-a",job_id:"report-a",attempt:1,capability:"maritime.manager.report",effect_class:"message",effect_key:"message-a",status:"running"};
  await executeCapabilityJob(job,{workerId:"worker-a",handlers,failJob:async input=>{failure=input;}});
  assert.equal(sends,1);assert.equal(failure.unknownEffect,true);

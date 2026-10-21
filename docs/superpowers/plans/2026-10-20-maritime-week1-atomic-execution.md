@@ -437,7 +437,7 @@ life-manager/
 - [ ] T22.0a Intel CIの既存release-bytecode testがcompute-proxyのnpm10 lock不整合で失敗する。既存npm10.9.4の隔離dry-runでREDを再現し、jayson/ws用の既存pinned utf-8-validate5 metadataを不足するnested lock entryへ補う。bytecode testのrelease allowlistは対象のruntime/loopへ絞り、無関係なNode packageのnetwork installに依存させない。bytecode/readonly/runtime Pythonのassertionは保持し、同じfocused testとnpm10 dry-runを通す。
 - [ ] T22.0b CEO外部state境界のtestが191-loopの実registry全件を処理しIntel CIで30秒timeoutになる。実shell entry/CLI/libを使う一つのloopのsource fixtureへ分離し、30秒制限とsource registry不変・外部snapshot・state配下にregistryを複製しないassertionを保持する。production light-passと191-loop registryは変更しない。CI RED→focused GREENを確認する。
 - [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。公開flagをoffに保ち、central worker/relayとowned tenantの非公開foundationを先にdeployし、その後T17の実業務とT19の着信を確認する。
-- [ ] T22.1a main由来commitで両DBのschema/historyを読む。Railwayは既存runtime jobs/receipts/reconcile agingと既存worker用`2026-09-09-lm-financial-records-worker.sql`のtableを確認する。Supabaseは`2026-09-30-lm-cfo-result-report.sql`、`2026-10-18-lm-maritime-distribution.sql`、`2026-10-20-lm-maritime-manager.sql`、`2026-10-20-lm-maritime-runtime-executions.sql`、`2026-10-21-lm-maritime-manager-usage.sql`を依存順で照合する。存在するmigrationを未確認で再applyせず、不足分だけ実行・readbackする。新FinancialRecord storeをSupabaseへ作らない。
+- [ ] T22.1a main由来commitでRailway Runtime PGのmigration history・6 Manager tables/RPC/ACL、既存runtime jobs/receipts/reconcile aging、worker用`2026-09-09-lm-financial-records-worker.sql`のtableを照合する。同じRuntime PG接続から`session_user/current_user`、login roleの`rolsuper/rolbypassrls`、6表のownerと`service_role` membershipをreadbackし、Poolが実際に使用するroleで認証済みidentity/enrollment/RPCを一件だけ非公開fixture検証する。owner/superuser/BYPASSRLS/service_role membershipのいずれでもない場合は、flagをoffのままにして正確なruntime roleだけへ必要最小のgrant/policyを追加する。Supabase側はAuth動作と過去のCFO/distribution/Manager/usage stateをread-onlyで確認し、既存データがあれば件数と用途を記録する。Manager stateの正本はRuntime PGとし、SupabaseへManager table migrationを適用せず、二重writeもしない。不足分だけ対象Runtime PGへ一回適用し、同じ接続でschema/ACL/readbackする。新FinancialRecord storeは作らない。
 - [ ] T22.1b SupabaseのAuth/認証RESTを実測する。project ACTIVE_HEALTHYや未認証401だけでPASSにしない。503 PGRST002時は直近postgres_logsをerror/query classで集計し、本文/SQL本文/email/tokenを取得しない。過去の適用済みtimezone migrationを未適用と断定せず、既存の全体restart/restore禁止を守る。
 - [ ] T22.1c `build-context.py`で統合mainからZIPを作る。owned external identityは現行HMACと一致するため、既存agentへ公式ZIP redeployを一回行い、新agentを作らない。既存VMの`LM_RELEASE_SHA`/`LM_SOURCE_ARCHIVE_SHA256`を新main/ZIPへ更新し、`LM_RUNTIME_TENANT_ID`は同値維持する。source SHA/ZIP hashとprovider deployment/image digestを区別し、実source file hashとloaded healthも照合する。envのSHAだけで新版採用と判定しない。upload/agent ID/tokenはprivate SSOTへ保存する。
 - [ ] T22.1d 既存Railway life-callへruntime DB・Manager identity secret・image releaseの必要値を追加し、workerの既存3capabilityを保持して`maritime.manager.provision,maritime.manager.cycle,maritime.manager.report`を追加する。workerにはMARITIME_API_KEY/source S3 key/archive hash/同じfrontend originを設定する。secretはstdin/private SSOT経由としargv/logへ出さない。workerで未設定の`LM_UID_SECRET`へfrontendの既存値を追加し、既存値をrotateしない。両appへ`MARITIME_PILOT_MAX_USERS=3`と`LM_MARITIME_INTERNAL_UIDS=owned uid`を設定する。既存Resend keyは保持する。公開flag offでmain由来を反映し、worker healthのcapability/loaded releaseを読む。
@@ -457,16 +457,18 @@ life-manager/
 - [ ] T23.3 正式form/channelのduplicate submission状態を読み、確定したpayloadを一回提出する。未送信draftを提出済みと呼ばない。正式経路が不明ならその不足だけを保持し他taskを続ける。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。
 
-## Task T24: Daisがすぐ使える配布copyを作る（開発と並行）
+## Task T24: 既存ブログSEOと既存X用の初週配布を準備する（開発と並行）
 
-**Files:** `docs/distribution/maritime/week1/channel-copy.md`、source-map。
-**Interfaces:** 家族/友人DM、X日英、IG DM/Story caption、返信テンプレ。公開URL確定前/後でclaimを分ける。
-**Depends:** なし。最初の文案は本計画と同時に作成する。
+**Files:** `docs/distribution/maritime/week1/channel-copy.md`、`docs/research/maritime/2026-10-20-source-map.md`、既存`apps/landing/marketing/pages/life-manager-en.html`のCTA参照。
+**Interfaces:** Dais向けDM、既存`aniccaai.com/blog/manager`の記事brief、既存Postiz接続済みXアカウント向け1投稿、source別UTM。Instagramは初期配布に含めない。
+**Depends:** なしで成功事例・SEO意図・記事briefを準備する。記事公開とX投稿はT22/T26の実URL・ライブ証拠後。
 
-- [ ] T24.1 source-mapのArc/Panda/Pokeを読み、模倣する導入・成果の見せ方・CTAと、同じ対象でない証拠の限界を記録する。
-- [ ] T24.2 「Managerが自分で仕事を進める」「無料pilot」「試せる一つの業務」「一つのURL」を含むDM/X/IG文案を日英で用意する。利益保証/架空testimonial/架空実績を書かない。
-- [ ] T24.3 source別URLを`/maritime?source=referral|x|other`+既存UTMで指定する。IGは配備済みsource allowlistのinstagramを使い、utm_source=instagramも残す。emailや知人名をURLへ入れない。
-- [ ] T24.4 DaisへのDM用文案を成果物として渡す。送信/友人の返事を待たずT25/T26へ進む。最終URLを確認してplaceholderがない版を保存しcommit/push。
+- [ ] T24.1 `source-map.md`のTodoist/Ahrefs/Levels/X policy記録を読み、数値・対象・獲得因果の確認範囲と模倣する仕組みを分ける。同一の自律Life Manager獲得成功例は未確認と記録し、article+Xの小さい実験に限定する。
+- [ ] T24.2 既存Writerの`skills/writer-agent/SKILL.md`、`article-daily` registry row、`aniccaai.com/blog/manager`のcanonical/article ownerを読む。現在worktreeのsparse checkoutはWriter directoryを展開していないため、tracked Git treeのsourceを読むか、このowner taskの専用worktreeへ必要pathだけ含める。Writerは複数destination matrixを持つため全destination自動配布を起動せず、blog+指定Xのみを使う経路を確認する。CMSやschedulerを新設しない。
+- [ ] T24.3 既存の無料keyword/SERP evidenceから一つの具体的なreader queryを選ぶ。需要が実測できない場合は仮説と記録し、検索量/SEO順位を捏造しない。
+- [ ] T24.4 `channel-copy.md`に一記事briefを作る: 読者の困りごと→現行Managerの実画面/receipt→未対応範囲/必要接続→一つの稼働URL CTA。目標/予算入力必須・Telegram必須・利益保証を加えない。
+- [ ] T24.5 既存Xのbuild-in-public投稿を一つ日英で準備する。毎回一つの確認済み進捗と一つの制約を示し、blog/landingの単一URLへ誘導する。既存Postiz profileをreadbackして使い、新規X account・自動DM・複数accountへの類似投稿を行わない。
+- [ ] T24.6 Dais向けDMと一つのCTAを保存し、URL確定前はprelaunch copyとして明示する。最終URLとUTMにplaceholderがないことを確認しcommit/push。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
 
@@ -492,19 +494,20 @@ life-manager/
 
 ## Task T27: 公開配布を開始する
 
-**Files:** channel-copyの公開版、demo artifact refs、既存distribution ledger。
-**Interfaces:** Dais=家族/友人DM。LM=許可済みowned X/IG等の投稿。全channelはsource別URL付き。
-**Depends:** T22/T24/T26。T25完成動画は後追い可、3人の利用は待たない。
+**Files:** channel-copy公開版、`aniccaai.com/blog/manager`記事、既存Postiz/X publisher receipt、既存distribution/funnel ledger。
+**Interfaces:** Dais=家族/友人DM。LM=既存ブログ1記事→既存X profile 1投稿。source別URLとcanonical permalinkを保存。
+**Depends:** T22/T24/T26。公開URLと該当機能の実証が必要。T25完成動画・3人のfeedback・IG accountは待ち条件ではない。
 
-- [ ] T27.1 Daisへ実URL入りDM文案を渡し、送信はDaisの担当とする。知人リストを要求したり勝手に取得しない。
-- [ ] T27.2 owner/account/既存送信ledgerを確認し、owned Xに実画面とCTAを一件投稿する。投稿不可ならexact blockerを記録し、別の準備済みchannelを進める。
-- [ ] T27.3 IGのStory/Reelと関連community向けに同じ事実を媒体の形式へ変換する。community rulesと重複投稿を確認し、無差別DMを行わない。
-- [ ] T27.4 permalink/provider receipt/source/copy SHAを既存ledgerへ保存し、投稿数ではなく登録→完了をT28で読む。
+- [ ] T27.1 T22の実URL、email確認/activate/stop、表示中claimをreadbackし、本文のfeature claimと実装状態を一致させる。
+- [ ] T27.2 既存Writerの正規記事経路でManagerカテゴリへ一記事公開し、canonical URL・published revision・Search Consoleまたは既存解析の初期 readbackを記録する。Writerの他destinationを勝手に有効化しない。
+- [ ] T27.3 現在Postizへ接続済みのX account owner/integrationを確認し、確認済みの一進捗・一CTAだけを一投稿する。新規account、duplicate account、類似投稿の繰返し、無断自動DM、website scriptingを行わない。
+- [ ] T27.4 Daisへ最終URL入りDMを渡す。送信はDaisの担当とし、送ったcopyだけをsignup/userに数えない。
+- [ ] T27.5 Article canonical、X permalink/provider receipt、copy SHA、UTM sourceを既存ledgerに記録し、blog/Xからverified email→activation→completed work→returnまで読む。初期waveでInstagramは使わない。
 
 ## Task T28: source別の最大離脱を一つ直す
 
 **Files:** Modify `scripts/maritime-week1-export.js`、既存funnel report、該当する入口一箇所。
-**Interfaces:** source cohort=`visit→verified→activated→work_completed→returned`、費用/人、time-to-first-work。
+**Interfaces:** source cohort=`search impression/click or X click→visit→verified→activated→work_completed→returned`、費用/人、time-to-first-work。Blog readers、followers、impressions、signupだけを競技の実利用者にしない。
 **Depends:** T21/T27。
 
 - [ ] T28.1 source別aggregateを読み、team/test/重複を除いて最初の実利用を公式project usageへ照合する。人数が未取得なら0にしない。
@@ -668,14 +671,17 @@ life-manager/
 - [x] **c-5e.2 / boundary checks:** empty evidence remains no_work; a preexisting occurrence dir, symlink parent/file, directory artifact, or hard-linked artifact cannot become a ref. Preserve existing receipt fences.
 - [x] **c-5e.3 / minimal fix:** after exclusive receipt creation, create `build/occurrences/<occurrence_id>` with `mkdir(exist_ok=False, mode=0700)`. `lstat` the parent and occurrence dir; reject symlink/non-directory/wrong owner and never reuse a preexisting dir. Keep `LIFE_MANAGER_BUILD_WORKSPACE` at the tenant build root; set runner `--workdir` and `AGENT_RUNNER_WORKDIR` to this occurrence dir. Accept evidence for `no_op` and `success` only when it resolves strictly inside that dir and `lstat` reports a regular, current-UID, single-link file. No valid no_op refs stays deferred/no_work; success without refs stays effect_unknown. Do not use mtime.
 - [x] **c-5e.4 / focused verification:** `python3 -m unittest skills/capafy-autopublish/test/test_cloud_cycle.py` passes 21/21. Evidence→`docs/evidence/maritime/no-op-occurrence-staging-fix.json`. Publish/sale/payout remain unverified.
-- [ ] **c-5e.5 / source acceptance:** fresh read-only review→commit/push→all registered exact-HEAD checks→main. Preserve the old v3 receipt and original drafts.
-- [ ] **c-5e.6 / image:** build from merged main, upload/redeploy the existing VM, and verify loaded SHA plus `cloud_cycle.py` hash.
-- [ ] **c-5e.7 / fresh occurrence:** verify a new occurrence ID has no receipt; retain v3 deferred receipt; read free credit and existing binding; dispatch once and verify terminal/receipt.
-- [ ] **c-5e.8 / demo proof:** verify all refs point to current literal files; use the artifact handler to download and compare size/hash. Call it an unpublished draft until an official publish receipt exists.
+- [x] **c-5e.5 / source acceptance:** fresh read-only review Critical0/Important0/Minor0; PR #8452 exact head `13b2910cae65ebdfaf53c7efd886f33ed5f52e0f` had all13 required checks success; admin squash merged as main `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`. Preserve the old v3 receipt and original drafts.
+- [x] **c-5e.6.1 / sanitized build:** from merged main a0, build secret-free ZIP at 91,658,636 bytes / 8,768 files, archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`, mode0600; forbidden path audit0, 13 approved vendored profile-source files.
+- [x] **c-5e.6.2 / source upload:** upload once through the existing official dashboard session. HTTP200/custom/100 files; archive reference stored only in credential SSOT. No new agent created.
+- [x] **c-5e.6.3 / redeploy existing agent:** official API GET bound the exact existing agentId+externalId; the same agent was redeployed once at source a0; HTTP200 and deployment receipt stored privately. No new VM/agent and no retry. Evidence→`docs/evidence/maritime/image-build-source-a0d217.json`.
+- [x] **c-5e.6.4 / loaded source readback:** deployment status success; `/health` reports main a0; four loaded source hashes match main, UID/GID10001, caps0, NoNewPrivs, no inherited credentials, fixed browser binary/CDP/DOM verified, fixture/process group removed. Evidence→`docs/evidence/maritime/owned-image-adoption-a0d217.json`.
+- [x] **c-5e.7 / fresh occurrence:** occurrence `week1-offline-a0-20261021-01` had absent receipt before dispatch, Free/no-next-charge preflight, no Capafy provider binding, and exactly one execution dispatch. Official API receipt is completed/exit0 for main a0 with 3 literal refs; no publication/sales/payout and external users for this run0. Credit use is welcome-credit only; exact balance is kept in private billing readback.
+- [x] **c-5e.8 / demo proof:** all 3 receipt refs passed `artifact-proof.py` and official files/download size+SHA-256 verification. Four additional `SKILL.md`/listing-config/icon/test files named by the factory verification document were also proof/download hash matched. Local receipt artifacts are under private mode0700 directory with file mode0600. `lint_listing.py` passes (title22/50, short128/500, overclaims0). This is an offline unpublished draft; Manager user-facing artifact handler is not yet connected, and synthetic example figures are not customer results.
 
 ### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
 
-旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursor=c-5e.5。
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在cursorはUnified SSOTのT22.1b.6を参照する。副cursorなし（c-5e.8完了）。
 
 **対象tree（新規は予定、既存componentを再利用する）:**
 
@@ -696,36 +702,36 @@ apps/life-manager/
 
 #### schemaと保存処理
 
-- [ ] **b.6-01:** `test/postgres/maritime-manager-state.integration.js`へ既存native initdb/Unix socket/pg driver手順を流用する。対象6表が無い状態の失敗を確認する。production DSNは使わない。
-- [ ] **b.6-02:** 上記migrationに`lm_maritime_manager_identities`を定義する。verified Auth subject↔uidをuniqueにし、first-touch列を持たせる。重複subject/他UIDへの差替えを拒否する。
-- [ ] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。
-- [ ] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。
-- [ ] **b.6-05:** 同migrationにparticipantsと容量claim関数を移す。advisory lockで人数上限を直列化し、sourceは現在のnormalizerと揃えInstagramも受理する。旧SQLにないInstagramを落とさない。
-- [ ] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。
-- [ ] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。
-- [ ] **b.6-08:** `maritime-manager-store.js`の`read/listPending/listPaused`をparameterized SQLへ接続する。PG timestamp→ISO、date_key→YYYY-MM-DDを正規化し、既存input/row検証を残す。
-- [ ] **b.6-09:** 同fileの`enroll`をPGへ接続する。verified subject・UID・emailが既存rowと一致しなければ拒否し、conflictで所有者を上書きしない。
-- [ ] **b.6-10:** 同fileの`claimProvision/bindAgent`を上記既存関数へ接続する。paused/foreign agent/異なるreleaseの拒否を確認する。
-- [ ] **b.6-11:** 同fileの`pause/quarantinePendingProvision`をPGへ接続する。pauseを先に永続化し、既存receiptを削除しない。
-- [ ] **b.6-12:** 同fileの`readCycleDispatch/claimCycleDispatch/bindCycleExecution`をPGへ接続する。agent/release/date/occurrenceの照合とdispatch前fenceを残す。ManagerのREST transportを置換し、障害時fallback/二重writeを作らない。
+- [x] **b.6-01:** `test/postgres/maritime-manager-state.integration.js`へ既存native initdb/Unix socket/pg driver手順を流用し、6対象relationの欠落とSQLSTATE 42P01を確認する。`PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js` passes1/1。Production DSN不使用、fixture stopped/removed。Evidence→`docs/evidence/maritime/runtime-pg-manager-schema-absence.json`。
+- [x] **b.6-02:** `20261021090000_maritime_manager_runtime_state.sql`に`lm_maritime_manager_identities`を定義。UID PK / verified Auth subject UNIQUE、verified_at、first_touch JSONBとtimestamp、UID/subject再割当拒否を実装。native PG17 fixtureでunique/reassignment/first-touch制約を確認し、他5 relationは未作成のまま。`maritime-manager-state.integration.js` 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-identity-schema.json`。
+- [x] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。native PostgreSQL 17 fixtureでclaim一回、同一agent再bind、foreign subject拒否、別UIDへのagent重複拒否を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json`。
+- [x] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。native PostgreSQL 17の2接続競合・pause・migration再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json`。
+- [x] **b.6-05:** 同migrationにparticipantsと容量claim関数を移す。advisory lockで人数上限を直列化し、sourceは現在のnormalizerと揃えInstagramも受理する。旧SQLにないInstagramを落とさない。native PostgreSQL 17の2接続容量競合・再同意・source・上限入力を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-participant-capacity.json`。
+- [x] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。native PostgreSQL 17でsource-event重複、audience拒否、UPDATE/DELETE/TRUNCATE拒否、migration再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-funnel-schema.json`。
+- [x] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。native PostgreSQL 17でidentity FK、pending/sent整合、recipient hash、一意性、再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-cfo-receipts.json`。
+- [x] **b.6-08:** `maritime-manager-store.js`の`read/listPending/listPaused`をparameterized SQLへ接続する。PG timestamp→ISOを正規化し、既存input/row検証を残す。native PG integration 1/1とstore unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-store-reads.json`。
+- [x] **b.6-09:** 同fileの`enroll`をPGへ接続する。verified subject・UID・emailが既存rowと一致しなければ拒否し、conflictで所有者を上書きしない。native PG integration 1/1/store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-enrollment-write.json`。
+- [x] **b.6-10:** 同fileの`claimProvision/bindAgent`を上記既存関数へ接続する。paused時のprovision claim・foreign subject/agent・異なるreleaseを拒否し、遅延bind後もpausedを保つ。native PG integration 1/1/store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-provision-binding.json`。
+- [x] **b.6-11:** 同fileの`pause/quarantinePendingProvision`をPGへ接続する。pauseを先に永続化し、既存receiptを削除しない。native PG integration 1/1/store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-pause.json`。
+- [x] **b.6-12:** 同fileの`readCycleDispatch/claimCycleDispatch/bindCycleExecution`をPGへ接続する。PG date_keyをtimezone shiftなしでYYYY-MM-DDへ正規化し、agent/release/date/occurrenceの照合とdispatch前fenceを残す。ManagerのREST transportを置換し、障害時fallback/二重writeを作らない。native PG integration 1/1/store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-cycle-dispatch-store.json`。
 
 #### verified identity・同意・日報
 
-- [ ] **b.6-13:** `maritime-manager-persistence.js`に`ensureWebUserImpl(subject)`を作る。既存`separateWebUidForSubject()`を使い、owned UIDと一致することを確認する。一般Calendar/Telegramのlm_usersは参照/移行しない。
-- [ ] **b.6-14:** 同fileに`storeFirstTouch/readFirstTouch`を作る。既存sanitizeを使い、署名cookieから得た初回流入だけを保存する。後の流入で上書きしない。
-- [ ] **b.6-15:** 同fileのPG event writerを既存distributionの`recordEventImpl`へ注入し、`participantId/recordManagerEvent/recordAnonymousEvent`を再利用する。internal除外・HMAC・stable event key・dedupを維持する。
-- [ ] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。
-- [ ] **b.6-17:** 同fileに`revoke/isConsentActive`を作る。停止状態を永続化し、失敗や読取不明を同意済みに置換しない。旧Telegram用global distributionは切替えない。
-- [ ] **b.6-18:** 同fileにCFO IOの`read/claim/mark`を作り、既存`deliverCloudCfoEmail`へ渡す。pending fence・recipient hash・23時間期限・Resend idempotencyを変えず、送信器を作り直さない。
+- [x] **b.6-13:** `maritime-manager-persistence.js`に`ensureWebUserImpl(subject)`を作る。既存`separateWebUidForSubject()`を使い、owned UIDと一致することを確認する。一般Calendar/Telegramのlm_usersは参照/移行しない。native PG integration 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-identity-resolution.json`。
+- [x] **b.6-14:** 同fileに`storeFirstTouch/readFirstTouch`を作る。既存sanitizeを使い、署名cookieから得た初回流入だけを保存する。後の流入で上書きしない。native PG integration 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-first-touch.json`。
+- [x] **b.6-15:** 同fileのPG event writerを既存distributionの`recordEventImpl`へ注入し、`participantId/recordManagerEvent/recordAnonymousEvent`を再利用する。internal除外・HMAC・stable event key・dedupを維持する。native PG integration 1/1 + store/distribution unit 28/28 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-events.json`。
+- [x] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。`maritime-retention-v1`と`maritime-manager-v1`を別々に保持し、既存Telegram distributionを切り替えない。Evidence→`docs/evidence/maritime/runtime-pg-manager-participant-accept.json`。
+- [x] **b.6-17:** 同fileに`revoke/isConsentActive`を作る。停止状態を永続化し、失敗や読取不明を同意済みに置換しない。旧Telegram用global distributionは切替えない。native PG integration 1/1、distribution unit 14/14、store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-consent-revoke.json`。
+- [x] **b.6-18:** 同fileにCFO IOの`read/claim/mark`を作り、既存`deliverCloudCfoEmail`へ渡す。pending fence・recipient hash・23時間期限・Resend idempotencyを維持する。native PostgreSQL integration 1/1と既存CFO unit 2/2 PASS。2接続raceは1 claim、2回目の配送はDB receiptからduplicateとなりsender1回。実Resend/メール送信なし、production DSN不使用。Evidence→`docs/evidence/maritime/runtime-pg-manager-cfo-receipt-io.json`。
 
 #### 呼出経路とsource受入
 
-- [ ] **b.6-19:** `server.js`のManager page/auth/activate/stop/artifact/wakeに同じpersistence依存を渡す。既存frontend Poolを再利用し、control lockとdata queryのPool待ちが循環しない構成にする。
-- [ ] **b.6-20:** `scripts/runtime-up.js`のHandler生成・worker生成・completion観測に同じPG store/distribution/CFO IO/first-touchを渡す。既存workerの順次awaitと既存Poolを使う。
-- [ ] **b.6-21:** `maritime-manager-usage.js`のManager return直接REST読取を、PGの`firstCompletedWorkAt`へ置換する。prefetch除外、24時間条件、internal cohort除外を維持する。
-- [ ] **b.6-22:** 上記native integrationでschema再適用、identity分離、容量並行claim、停止後拒否、dispatch一回claim、同ID bind、date/timestamp正規化、CFO一回claim、event dedupを実SQLで確認する。各機能追加時に対応する確認を増やす。
-- [ ] **b.6-23:** Manager store/auth/handler/usageの既存関連fixtureを新transportへ合わせて確認する。PKCE/CSRF/origin/他人のUID拒否を弱めない。
-- [ ] **b.6-24:** 全変更をfresh read-only reviewし、commit/push→exact HEADの必要CI→main統合する。source受入を本番採用/メール実着信/売上と混同しない。
+- [x] **b.6-19:** `server.js`のManager page/auth/activate/stop/artifact/wakeに同じpersistence依存を渡す。既存Money Printer Runtime PG PoolからmanagerStore/persistence/distribution/CFO IO/first-touchを一度構成し共有する。email flag OFFではroute依存を初期化しない。control lock用Poolをdata queryへ渡さず待ち循環を避ける。Manager auth/artifact/wake/store関連fixture 63/63 PASS、`server.js`/dependency factory構文check PASS。実runtime/PGは起動していない。Evidence→`docs/evidence/maritime/runtime-pg-manager-http-wiring.json`。
+- [x] **b.6-20:** `scripts/runtime-up.js`のHandler生成・worker生成・completion観測に同じPG store/distribution/CFO IO/first-touchを渡す。既存workerの順次awaitとmax2の既存Poolを使い、Manager向けSupabase REST receipt fallbackを除去する。`scripts/runtime-up.test.js` 48/48 PASS。既存CFO sender/Resendは変更・呼出しなし。Production worker/DBは起動していない。Evidence→`docs/evidence/maritime/runtime-pg-manager-worker-wiring.json`。
+- [x] **b.6-21:** `maritime-manager-usage.js`のManager return直接REST読取を、PGの`readFirstCompletedWorkAt`へ置換する。earliest external completed-work timestamp、prefetch除外、24時間境界、internal cohort除外を維持する。usage unit 4/4とnative PostgreSQL integration 1/1 PASS。Supabase REST/production DSN不使用。Evidence→`docs/evidence/maritime/runtime-pg-manager-return-eligibility.json`。
+- [x] **b.6-22:** native PostgreSQL integrationでschema再適用、identity分離、capacity並行claim、停止後拒否、dispatch一回claim、同ID bind、date/timestamp正規化、CFO一回claim、event dedup、external first-work read/internal除外を実SQLで確認する。native integration 1/1 PASS。Production DSN不使用。Evidence→`docs/evidence/maritime/runtime-pg-manager-native-contracts.json`。
+- [x] **b.6-23:** Manager store/auth/handler/usageの既存関連fixtureを新transportで確認する。PKCE/CSRF/origin/他人のUID拒否を維持し、関連11 fileをまとめて170/170 PASS。Production DSN・worker・Resend不使用。Evidence→`docs/evidence/maritime/runtime-pg-manager-related-fixtures.json`。
+- [ ] **b.6-24:** fresh reviewで検出したRuntime PGの権限とrole実行欠落を閉じる。6つのManager table（identity/enrollment/execution/participant/funnel/CFO receipt）にRLSを有効化し、PUBLIC/anon/authenticatedの全権限を剥奪する。trusted `service_role`にだけ各tableの必要権限と明示RLS policyを与える（append-only funnelはSELECT/INSERTのみ）。5つの業務RPCはPUBLIC/anon/authenticatedをrevokeして`service_role`だけへEXECUTEをgrantし、trigger guard関数は直接EXECUTE不可にする。native PostgreSQL integrationで各tableのRLS/ACL、RPC execute ACLを確認し、`SET ROLE service_role`でidentity/enrollment/provision/bind/cycle/participant/funnel/CFOの実読み書きと全RPCを通す。まず欠落を検出する失敗assertionを実行し、migration修正後にnative integrationとb.6関連fixtureを再実行する。production DSN/DBは使わない。証拠→`docs/evidence/maritime/runtime-pg-manager-acl.json`。修正をcommit/pushし、fresh read-only review→修正後exact HEADの必要CI→main統合まで行う。main統合はsource採用だけを意味し、本番migration・email実着信・売上とは区別する。
 
 #### 本番反映と実際の製品受入
 

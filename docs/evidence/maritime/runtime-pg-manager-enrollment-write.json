@@ -1,0 +1,23 @@
+{
+  "observed_at": "2026-10-21T01:01:57Z",
+  "source_file": "apps/life-manager/lib/maritime-manager-store.js",
+  "source_sha256": "0e67a9e7a5010e06d5bff832fbac4f8d13530db2436f0ed5b99b6175901d6881",
+  "integration_test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "integration_test_sha256": "457f89e834c6054b8d13658d4520f851081898a21e0f39273af6a0de87f5df91",
+  "unit_test_file": "apps/life-manager/lib/maritime-manager-store.test.js",
+  "unit_test_sha256": "e0f2f895e5c54120fc631a633ddd00abcea170329a687863c08f95d6e2037ba8",
+  "commands": [
+    "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+    "node --test lib/maritime-manager-store.test.js"
+  ],
+  "results": {
+    "native_postgresql_integration": "1/1 pass",
+    "manager_store_unit": "16/16 pass"
+  },
+  "production_dsn_used": false,
+  "identity_verified_by_existing_uid_subject_pair": true,
+  "same_uid_subject_email_enrollment_idempotent": true,
+  "conflicting_subject_rejected_without_overwrite": true,
+  "conflicting_email_rejected_without_overwrite": true,
+  "global_lm_users_required": false
+}

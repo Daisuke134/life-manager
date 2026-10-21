@@ -1,0 +1,21 @@
+{
+  "observed_at": "2026-10-21T00:25:06.828514+00:00",
+  "test": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "database_fixture": "native PostgreSQL 17 over a private Unix socket",
+  "manager_tables_expected": [
+    "lm_maritime_manager_identities",
+    "lm_maritime_manager_enrollments",
+    "lm_maritime_manager_executions",
+    "lm_maritime_pilot_participants",
+    "lm_web_funnel_events",
+    "lm_cfo_result_receipts"
+  ],
+  "all_six_absent_before_migration": true,
+  "query_failure_sqlstate": "42P01",
+  "fixture_stopped_and_removed": true,
+  "next_cursor": "b.6-02"
+}

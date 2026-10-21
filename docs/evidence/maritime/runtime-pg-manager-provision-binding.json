@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-10-21T01:04:06Z",
+  "source_file": "apps/life-manager/lib/maritime-manager-store.js",
+  "source_sha256": "bf3de2004058aa2662d13f4201b35d44061de3445dc17c6e02e656dc9ab86dc5",
+  "migration_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "2ab5181a15d1ee9fcdb14d3d0c3919de1101c092d3bd59c511a79fc354f09a15",
+  "integration_test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "integration_test_sha256": "174d1aed22ee3c1b1c280eca3014e44aa5c73b5fad3b63e0f32c8798b989f364",
+  "unit_test_file": "apps/life-manager/lib/maritime-manager-store.test.js",
+  "unit_test_sha256": "065edd9ce4ab1b2c2a53e3cade8be5e87c1635067be25288268344c706fcbd94",
+  "commands": [
+    "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+    "node --test lib/maritime-manager-store.test.js"
+  ],
+  "results": {
+    "native_postgresql_integration": "1/1 pass",
+    "manager_store_unit": "16/16 pass"
+  },
+  "production_dsn_used": false,
+  "pg_methods": ["claimProvision", "bindAgent"],
+  "provision_claim_one_shot": true,
+  "paused_provision_claim_rejected": true,
+  "foreign_subject_and_duplicate_agent_rejected": true,
+  "release_mismatch_rejected_without_overwrite": true,
+  "late_bind_does_not_reactivate_paused_enrollment": true,
+  "supa_fallback_for_these_methods": false
+}

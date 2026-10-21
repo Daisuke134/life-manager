@@ -70,15 +70,10 @@ async function recordMaritimeManagerReturn(uid,options={}){
  try{
   if(/prefetch/i.test(String(options.request?.headers?.purpose||'')+' '+String(options.request?.headers?.['sec-purpose']||'')))return true;
   const ctx=await context(uid,options);if(!ctx.enrollment)return true;
-  const base=String(ctx.env.SUPABASE_URL||'').replace(/\/$/,''),key=ctx.env.SUPABASE_SERVICE_ROLE_KEY;
-  if(!base||!key)return false;
-  const id=ctx.distributionStore.participantId(uid);if(!/^[0-9a-f]{64}$/.test(id||''))return false;
-  const query=new URLSearchParams({source_object_id:'eq.'+id,event_name:'eq.maritime_work_completed',select:'occurred_at',order:'occurred_at.asc',limit:'1'});
-  const response=await (options.fetchImpl||globalThis.fetch)(base+'/rest/v1/lm_web_funnel_events?'+query,{headers:{apikey:key,Authorization:'Bearer '+key},signal:AbortSignal.timeout(10000)});
-  if(!response?.ok)return false;
-  const rows=await response.json();if(!Array.isArray(rows)||rows.length>1)return false;
-  if(!rows.length)return true;
-  const first=Date.parse(rows[0].occurred_at),rawNow=(options.now||Date.now)(),nowMs=typeof rawNow==='string'?Date.parse(rawNow):Number(rawNow);
+  if(typeof options.readFirstCompletedWorkAt!=='function')return false;
+  const firstAt=await options.readFirstCompletedWorkAt(uid);
+  if(firstAt==null)return true;
+  const first=Date.parse(firstAt),rawNow=(options.now||Date.now)(),nowMs=typeof rawNow==='string'?Date.parse(rawNow):Number(rawNow);
   if(!Number.isFinite(first)||!Number.isFinite(nowMs))return false;
   if(nowMs-first<86400000)return true;
   return await emit('maritime_returned',uid,ctx);
