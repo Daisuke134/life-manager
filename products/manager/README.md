@@ -1,5 +1,12 @@
 # Manager — independent intervention research prototype
 
+## October 21 Phase06 — REAL published internet public artifact (P2_ARTIFACT_ONLY)
+
+**Actual public change verified, not only mocked:** Manager published an original, nontracking [Japanese official-support directory](public_goods/RESOURCE_DIRECTORY_JA.md) for financial difficulty, mental health support and physical activity; independent unauthenticated GitHub Contents GET confirms it was absent at the frozen baseline and present with matching SHA256 afterward. [Real 282-test successful hosted CI](https://github.com/Daisuke134/life-manager/actions/runs/39603999651). Reused official [GrowthBook](https://github.com/growthbook/growthbook-python) for separate SYNTHETIC allocation (512 fictional IDs); **0 real participants and 0 verified beneficiary improvements**. Existing WHO-5, WHODAS and CFPB scales are referenced as separate future domains; no new metric, no copyrighted questionnaire copied, no live user A/B trial. **Welfare outcomes NOT_MEASURED.**
+
+[Complete independent public readback and limitations](docs/verification/PHASE06_INTERNET_PUBLIC_ARTIFACT_20261021.md) · [Original source and program details](pilot/INTERNET_FIRST_TRIAL_DESIGN.md) · [Domain outcome crosswalk](pilot/INTERNET_WELFARE_EVIDENCE_CROSSWALK.json).
+
+
 ## October 21 — Reuse → Connect → Evaluate: digital-first welfare path
 
 **Internet is a real-world environment; external charity and facility approval are not the default execution path.** Manager prioritizes reusable public-goods software, owned transparent online assets, permitted permissionless protocols and opt-in outcomes. We will **not** invent a new welfare score, evaluation harness, marketplace, token or training method in place of existing work. The [source inventory](docs/research/crossfield-20261021/SOURCES.json) now includes **76 upstream references** spanning verified mental/physical/financial wellbeing scales and existing online experimentation/eval libraries; [scientific synthesis](docs/research/crossfield-20261021/REPORT_JA.md), [autonomy doctrine](docs/MANAGER_NO_HUMAN_WORLD_ENGINEERING.md), [Phase06 priority plan](docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md).
