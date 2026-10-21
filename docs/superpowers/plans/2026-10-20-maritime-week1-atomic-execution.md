@@ -473,6 +473,8 @@ life-manager/
 - [ ] T23.2 審査者が試せるURL、最小画面録画、Cloud実行receipt、現状の人数、制約を揃える。内部2–3分動画は推奨で、公式指定と混同しない。
 - [ ] T23.3 channel entryの重複投稿は行わない。organizer replyまたは公開formから正式な必須項目を確認したら、現entry shareとは別のrequired formだけを一回提出し、正式経路が不明な間はformal status=unconfirmedのまま維持する。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。
+- [x] T23.5a 日本発SF travel supportの条件をMariaへ既存応募threadで照会し、送信済みをreadbackする。2026-10-21T11:14:59Z、message ID `1a15e2beef607bc0`、thread `1a140594be21af55`。質問は東京往復航空券の対象/上限/予約手順、1 projectあたりの渡航人数、宿泊/現地移動/食費、旅程日付。
+- [ ] T23.5b 主催者の書面回答をreadbackして、日本在住winnerの航空券・人数・費用・日程をevidenceへ記録する。`2026-10-23T11:14:59Z`を厳密に過ぎても返信がなければ同じthreadで一度だけfollow-upし、未確定条件はnullのまま保持する。航空券は未確定条件で予約しない。この旅行確認はT23.3のWeek 1提出を待たせない。
 
 ## Task T24: 既存ブログSEOと既存X用の初週配布を準備する（開発と並行）
 
@@ -565,7 +567,7 @@ life-manager/
 **Depends:** 無料pilotの提供/初週提出を先行する。価格・商品・支払実績の読取は独立して進められる。任意upgradeとして実装し、Calendar guardや無料pilotの条件を変えない。
 
 - [x] **T31.1a:** Exact credential-SSOT-matched live Stripe accountをread-onlyで照合。Anicca Life Managerのactive monthly pricesはUSD 29/20、Anicca CloudはUSD 30だが、各product priceにactive subscription=0、Life Manager active MRR=USD 0。Account-wide paid invoice historyは9件/USD 40.00だが、Life Managerへのproduct attributionは未確認。証拠→`docs/evidence/maritime/stripe-life-manager-readback-20261021.json`。
-- [ ] **T31.1b:** paid invoice line itemsをLife Manager product/priceへjoinし、refund/fee/settlementを公式readbackする。Account-wide paid invoice rowsをLife Manager売上へ付け替えない。Stripe Sigmaはaccountに未契約のため、direct API readで続ける。
+- [x] **T31.1b:** Read paid invoice line items, completed Checkout Session line items, active Payment Links, PaymentIntents, refunds, and balance transactions from the exact live account. Exact $29/$20 Life Manager price invoices/checkout sessions=0; one active $29 price link exists but has 0 completed sessions; $20 price link=0. Account-wide invoices are 9/$40, succeeded PaymentIntents 9/$50.99, refunds 3/$15, and 20 JPY balance transactions; none is attributed to Life Manager. Aggregate-only receipt: docs/evidence/maritime/stripe-revenue-attribution-readback-20261021.json. This completes the readback, not the T31.1 acceptance for Life Manager-attributed settled cash/net.
 **T31.1 acceptance:** Stripe product/price/trial, paid invoices, refunds, fees, and settled cash are read back and attributable to Life Manager. Never infer MRR/net revenue from Dais's statement or account-wide totals alone.
 - [ ] **T31.2:** web-billing.jsの`readWebBillingUser`、customer保存、`requireActiveCalendar`、metadata、戻り先をManagerの差替箇所として固定する。既存Calendarのeligibilityを残し、共通Stripe session/portal組立てを再利用できる境界へ分ける。
 - [ ] **T31.3:** native Runtime PGにManager本人とStripe customer/subscriptionを結ぶ保存先、およびStripe event一回処理のfenceを定義する。一般lm_users/旧Stripe ledgerは移行しない。

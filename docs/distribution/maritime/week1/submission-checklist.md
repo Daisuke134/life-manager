@@ -1,23 +1,24 @@
 # Maritime 初週の現状と残TODO
 
-**更新:** 2026-10-21 10:49 UTC。競技サイト/Terms、Railway、Supabase集計、Stripe live subscriptions、Postiz connector、Gmail、Life Manager/Anicca Products PRをreadback。
+**更新:** 2026-10-21 11:17 UTC。競技home/Terms、Railway status/API readback、英日pilot page、Stripe、Postiz、Gmail、Life Manager/Anicca Products PRをreadback。
 
 ## As-Is
 
 - 申請はaccepted。競技公式条件は6週間で実利用のある別人1,000人、最初に到達して検証された3 projectがwinner。利益額は公開順位条件にない。Kickoffメールは初週後Top 30のみ次週へ進出とするが、cutoff/timezone/rubric/最低ユーザー数は公表されていない。
-- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを10:49Zに再確認してもform/cutoff/rubricなし。10/16のCEO返信は日程・資格・旅費補助をチームに確認中という内容で、10/19以降の返信なし。正式submission receiptは未確認。投稿を重複させない。
-- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23Zの旧SUCCESS deployment。last exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。app code b5ecef6e624203811d0e1103003c3cdbaf88c4cdを含むcurrent main head 726123eac587131e94544a900a967b278ac550d9は未採用。英日pilot pageはHTTP 200だが日次メールを現在形で示す。worker email flagは09:50Zのlast exact readback=0。10:26Z Railway variables connectorはvaluesをredact。
+- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを11:10Zに再確認してもWeek 1の別form/cutoff/rubricなし。Gmailの10/20以降検索はMaritimeのWelcome/Verify通知のみで、競技案内なし。正式submission receiptとTop 30 statusは未確認。旅行条件は11:14ZにMaria宛て既存スレッドで質問し、送信済み/readback済み、返信待ち。投稿を重複させない。
+- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。app code b5ecef6e624203811d0e1103003c3cdbaf88c4cdを含むcurrent main headはdocs-only PR #8498後のcab43203e2d80c3600ed53754377565920df6845。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23ZのSUCCESS deployment、exact SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。英日pilot pageは11:10ZにHTTP 200だが、日次メールを現在機能として示し、hosted cycle未検証の説明を欠く。worker email flagは09:50Zのlast exact readback=0、11:12Z variables values redacted。
 - Product usage: 10:49Z Supabase aggregate-only readbackでlive participants/enrollments/executions/completed-work/report-sentはすべて0。これは内部DB集計で、Keiki/Maritimeの公式user countではない。owner PKCE、Maritime AI-credit保持への明示同意、hosted work→external result→daily report→stopは未完。個人業務データは同意前に送らない。
-- Revenue: 10:49Z Stripe live GETでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。Anicca Cloudの$30/月は別productでactive subscription 0。Daisのlocal earnings申告はLife Managerやhosted userへのsettled receiptと未結合。hosted user income/net、distribution-attributed revenueは未確認。
-- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは10:49Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
-- Railway: status pageは10:49ZにもMajor Outage（Dashboard/API停止、全regionのbuild停止）。copy correctionはsourceのみで、public pageは古い日次メール表示のまま。現行pageを正す前に新規trafficを流さない。
+- Revenue: 11:05Z Stripe live readbackでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。paid invoice/checkout line itemは両priceとも0。$29 payment linkはactiveだがcompleted session=0、$20 linkなし。Account-wide invoice/PI/refund/balance rowsはLife Managerへ未帰属。T31.1b evidence: docs/evidence/maritime/stripe-revenue-attribution-readback-20261021.json。Daisのlocal earnings申告、hosted user income/net、distribution revenueは未確認。
+- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは11:10Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは10:49Zに0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
+- Railway: 11:10Z official statusはMajor Outage（Dashboard/API停止、新規buildは全region停止）。11:12Z Railway readbackでは既存life-call/workerは06:23ZのSUCCESSのままSHA 982875d。10/17からinvestment resource/flagの無関係な3変更がstagedのまま。Maritime変更と混ぜてacceptしない。
 
 - Demo: T25.1/.2の5shot順・route/receipt・PII境界・未実装時のhold条件をdemo-script.mdへ追加。動画素材は未撮影でT22/T26ゲート後。
 
 ## Ordered atomic TODO
 
 1. **T23.3 — 正式な提出経路を監視し、出たら一度だけsubmit。**
-   - Official home/Terms、announcements、既存organizer threadの新着を確認する。現時点のpublic form/締切/rubricは未公表。
+   - Official home/Terms、announcements、既存organizer threadの新着を確認する。11:10Z時点でpublic form/締切/rubricは未公表。11:14ZにSF国際旅行条件をMariaへ質問済み、返信待ち。
+   - 旅行問い合わせはmessage `1a15e2beef607bc0`として既存スレッドへ送信/readback済み。2026-10-23T11:14:59Zまでに回答がなければ同じthreadで一度だけfollow-upする。旅行条件の回答を待って初週提出を遅らせない。
    - 公開formが出たら、実測値と理由付きnullのみで既存draftを更新し、指定のformal formだけを一度submitする。Slack entryを重複投稿しない。
    - **DONE:** confirmation/受付IDと提出本文・時刻・release SHAを保存。現状はformal submission unconfirmed。
 
