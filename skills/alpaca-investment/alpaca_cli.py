@@ -986,7 +986,7 @@ def read_crypto_validation_history(
     *, credentials_path: Path, cli_path: Path, start: datetime, end: datetime,
     observed_at: str,
 ) -> dict[str, Any]:
-    """Read one complete, bounded paper-context historical BTC/FX window."""
+    """Read bounded paper-context BTC bars and exact-time USD valuation bars."""
     observed = parse_instant(observed_at)
     if (not isinstance(start, datetime) or not isinstance(end, datetime)
             or start.tzinfo is None or end.tzinfo is None
@@ -996,71 +996,73 @@ def read_crypto_validation_history(
     start_text = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     end_text = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     context = _context(credentials_path, cli_path, mode="paper")
-    raw_rows_by_symbol: dict[str, list[dict[str, Any]]] = {}
-    seen_page_tokens: set[str] = set()
-    page_token = None
+    locations = {"BTC/USDC": "us", "USDC/USD": "us-1"}
+    source_evidence: dict[str, str] = {}
+    count = int((end - start).total_seconds() // 300)
     try:
-        for page_number in range(1, MAX_CRYPTO_VALIDATION_HISTORY_PAGES + 1):
-            args = ["data", "crypto", "bars", "--symbols", "BTC/USDC,USDC/USD",
-                "--start", start_text, "--end", end_text, "--timeframe", "5Min", "--limit", "1000",
-                "--sort", "asc", "--quiet", "--jq",
-                '{next_page_token,bars:(.bars|with_entries(.value|=map({t,o,h,l,c})))}']
-            if page_token is not None:
-                args.extend(["--page-token", page_token])
-            payload = _run(cli_path, args, context)
-            if not isinstance(payload, dict) or "next_page_token" not in payload:
-                raise CryptoValidationHistoryError("response_shape_invalid")
-            next_page_token = payload["next_page_token"]
-            if next_page_token == "":  # Alpaca may emit an empty-string end marker.
-                next_page_token = None
-            elif next_page_token is not None and (
-                    not isinstance(next_page_token, str) or not next_page_token.strip()
-                    or len(next_page_token) > 8192 or next_page_token in seen_page_tokens):
-                raise CryptoValidationHistoryError(
-                    "pagination_incomplete", page_number=page_number,
-                    received_count=sum(map(len, raw_rows_by_symbol.values())),
-                )
-            page_rows_by_symbol = payload.get("bars")
-            if (not isinstance(page_rows_by_symbol, dict) or not page_rows_by_symbol
-                    or set(page_rows_by_symbol) - {"BTC/USDC", "USDC/USD"}):
-                raise CryptoValidationHistoryError("symbol_set_invalid")
-            page_row_count = 0
-            for symbol, bars in page_rows_by_symbol.items():
-                if not isinstance(bars, list):
+        rows_by_symbol: dict[str, list[dict[str, str]]] = {}
+        for symbol, location in locations.items():
+            raw_rows: list[dict[str, Any]] = []
+            seen_page_tokens: set[str] = set()
+            page_token = None
+            for page_number in range(1, MAX_CRYPTO_VALIDATION_HISTORY_PAGES + 1):
+                projection = ("{t,o,h,l,c}" if symbol == "BTC/USDC" else "{t,c}")
+                args = ["data", "crypto", "bars", "--symbols", symbol,
+                    "--start", start_text, "--end", end_text, "--timeframe", "5Min",
+                    "--limit", "1000", "--sort", "asc", "--loc", location,
+                    "--quiet", "--jq",
+                    "{next_page_token,bars:(.bars|with_entries(.value|=map(" + projection + ")))}"]
+                if page_token is not None:
+                    args.extend(["--page-token", page_token])
+                payload = _run(cli_path, args, context)
+                if not isinstance(payload, dict) or "next_page_token" not in payload:
+                    raise CryptoValidationHistoryError("response_shape_invalid")
+                next_page_token = payload["next_page_token"]
+                if next_page_token == "":  # Alpaca may emit an empty-string end marker.
+                    next_page_token = None
+                elif next_page_token is not None and (
+                        not isinstance(next_page_token, str) or not next_page_token.strip()
+                        or len(next_page_token) > 8192 or next_page_token in seen_page_tokens):
+                    raise CryptoValidationHistoryError(
+                        "pagination_incomplete", page_number=page_number,
+                        received_count=len(raw_rows),
+                    )
+                page_rows_by_symbol = payload.get("bars")
+                if (not isinstance(page_rows_by_symbol, dict)
+                        or set(page_rows_by_symbol) - {symbol}):
+                    raise CryptoValidationHistoryError("symbol_set_invalid")
+                page_rows = page_rows_by_symbol.get(symbol, [])
+                if not isinstance(page_rows, list):
                     raise CryptoValidationHistoryError("symbol_bars_invalid", symbol=symbol)
-                page_row_count += len(bars)
-                raw_rows_by_symbol.setdefault(symbol, []).extend(bars)
-            received_count = sum(map(len, raw_rows_by_symbol.values()))
-            if next_page_token is None:
-                break
-            if page_row_count == 0:
+                raw_rows.extend(page_rows)
+                if next_page_token is None:
+                    break
+                if not page_rows:
+                    raise CryptoValidationHistoryError(
+                        "pagination_incomplete", page_number=page_number,
+                        received_count=len(raw_rows),
+                    )
+                seen_page_tokens.add(next_page_token)
+                if page_number == MAX_CRYPTO_VALIDATION_HISTORY_PAGES:
+                    raise CryptoValidationHistoryError(
+                        "pagination_incomplete", page_number=page_number,
+                        received_count=len(raw_rows),
+                    )
+                page_token = next_page_token
+            else:
                 raise CryptoValidationHistoryError(
-                    "pagination_incomplete", page_number=page_number,
-                    received_count=received_count,
+                    "pagination_incomplete", page_number=MAX_CRYPTO_VALIDATION_HISTORY_PAGES,
+                    received_count=len(raw_rows),
                 )
-            seen_page_tokens.add(next_page_token)
-            if page_number == MAX_CRYPTO_VALIDATION_HISTORY_PAGES:
-                raise CryptoValidationHistoryError(
-                    "pagination_incomplete", page_number=page_number,
-                    received_count=received_count,
-                )
-            page_token = next_page_token
-        if "BTC/USDC" not in raw_rows_by_symbol:
-            raise CryptoValidationHistoryError("symbol_set_invalid")
-        by_symbol = raw_rows_by_symbol
-        rows_by_symbol = {}
-        count = int((end - start).total_seconds() // 300)
-        for symbol, bars in by_symbol.items():
-            if not isinstance(bars, list):
-                raise CryptoValidationHistoryError("symbol_bars_invalid", symbol=symbol)
-            if len(bars) > count + 1:
+
+            if len(raw_rows) > count + 1:
                 raise CryptoValidationHistoryError(
                     "bar_count_exceeded", symbol=symbol,
-                    expected_count=count + 1, actual_count=len(bars),
+                    expected_count=count + 1, actual_count=len(raw_rows),
                 )
             normalized = []
             previous = None
-            for row_index, row in enumerate(bars):
+            for row_index, row in enumerate(raw_rows):
                 try:
                     timestamp = parse_instant(row["t"])
                 except (KeyError, TypeError, ValueError, OverflowError) as error:
@@ -1102,29 +1104,37 @@ def read_crypto_validation_history(
                 normalized.append({"t": timestamp.astimezone(timezone.utc).isoformat(),
                                    **{key: str(price) for key, price in prices.items()}})
             rows_by_symbol[symbol] = normalized
-        btc = rows_by_symbol["BTC/USDC"]
-        if len(btc) != count:
-            raise CryptoValidationHistoryError(
-                "btc_bar_count_mismatch", symbol="BTC/USDC",
-                expected_count=count, actual_count=len(btc),
+            digest = hashlib.sha256(json.dumps({
+                "location": location, "symbol": symbol, "start": start_text,
+                "end": end_text, "bars": normalized,
+            }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            source_evidence[symbol] = (
+                f"alpaca://crypto-bars/{location}/5Min/{symbol}/{start_text}/{end_text}/{digest}"
             )
-        for row_index, row in enumerate(btc):
-            if parse_instant(row["t"]) != start + timedelta(minutes=5 * row_index):
-                raise CryptoValidationHistoryError(
-                    "btc_timestamp_gap", symbol="BTC/USDC", row_index=row_index,
-                    expected_count=count, actual_count=len(btc),
-                )
+
+        btc = rows_by_symbol["BTC/USDC"]
     except CryptoValidationHistoryError:
         raise
     except (InvalidOperation, KeyError, OverflowError, TypeError, ValueError) as error:
         raise CryptoValidationHistoryError("malformed_payload") from error
-    digest = hashlib.sha256(json.dumps(rows_by_symbol, sort_keys=True,
-                                      separators=(",", ":")).encode()).hexdigest()
-    evidence = f"alpaca://crypto-bars/5Min/{start_text}/{end_text}/{digest}"
+    fx_timestamps = {row["t"] for row in rows_by_symbol["USDC/USD"]}
+    matched_fx = sum(row["t"] in fx_timestamps for row in btc)
+    coverage = {
+        "expected_btc_slots": count,
+        "observed_btc_bars": len(btc),
+        "unobserved_btc_slots": count - len(btc),
+        "fx_matched_btc_bars": matched_fx,
+        "btc_bars_without_exact_fx": len(btc) - matched_fx,
+        "synthetic_bars": 0,
+        "btc_location": locations["BTC/USDC"],
+        "fx_location": locations["USDC/USD"],
+    }
     return {"crypto_history": btc, "quote_conversions": [
-        {"timestamp": row["t"], "currency": "USDC", "rate": row["c"], "evidence_ref": evidence}
+        {"timestamp": row["t"], "currency": "USDC", "rate": row["c"],
+         "evidence_ref": source_evidence["USDC/USD"]}
         for row in rows_by_symbol.get("USDC/USD", [])],
-        "source_receipt_ids": [evidence], "observed_at": observed_at}
+        "source_receipt_ids": list(source_evidence.values()),
+        "market_data_coverage": coverage, "observed_at": observed_at}
 
 
 def read_crypto_fx_evidence(*,credentials_path: Path,cli_path: Path,mode: str,asof_at: str,observed_at: str) -> dict[str,Any]:

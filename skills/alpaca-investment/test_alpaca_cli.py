@@ -55,8 +55,16 @@ class CryptoValidationHistoryTests(unittest.TestCase):
                    "USDC/USD": [{"t": r["t"], "c": "0.99"} for r in rows]}}
         if mutate:
             mutate(payload)
+        def read_source(_cli, args, _env):
+            symbol = args[args.index("--symbols") + 1]
+            response = {"next_page_token": payload.get("next_page_token")}
+            source_bars = payload.get("bars")
+            if isinstance(source_bars, dict):
+                response["bars"] = ({symbol: source_bars[symbol]}
+                                     if symbol in source_bars else {})
+            return response
         with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
-            alpaca_cli, "_run", return_value=payload) as run:
+            alpaca_cli, "_run", side_effect=read_source) as run:
             result = alpaca_cli.read_crypto_validation_history(
                 credentials_path=Path("credentials"), cli_path=Path("alpaca"),
                 start=start, end=start + timedelta(hours=1), observed_at="2026-01-02T00:00:00Z")
@@ -68,43 +76,102 @@ class CryptoValidationHistoryTests(unittest.TestCase):
         self.assertEqual(len(result["quote_conversions"]), 12)
         self.assertEqual(result["quote_conversions"][0]["rate"], "0.99")
         self.assertEqual(context.call_args.kwargs["mode"], "paper")
-        self.assertIn("BTC/USDC,USDC/USD", run.call_args.args[1])
-        self.assertIn("next_page_token", run.call_args.args[1][-1])
+        self.assertEqual(run.call_count, 2)
+        btc_args, fx_args = [call.args[1] for call in run.call_args_list]
+        self.assertEqual((btc_args[btc_args.index("--loc") + 1],
+                          btc_args[btc_args.index("--symbols") + 1]), ("us", "BTC/USDC"))
+        self.assertEqual((fx_args[fx_args.index("--loc") + 1],
+                          fx_args[fx_args.index("--symbols") + 1]), ("us-1", "USDC/USD"))
+        self.assertIn("next_page_token", btc_args[-1])
+        self.assertIn("next_page_token", fx_args[-1])
         self.assertTrue(result["source_receipt_ids"])
 
     def test_empty_string_page_token_is_terminal_for_complete_window(self):
         result, _, run = self._read(
             mutate=lambda payload: payload.update(next_page_token=""))
 
-        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_count, 2)
         self.assertEqual(len(result["crypto_history"]), 12)
         self.assertEqual(len(result["quote_conversions"]), 12)
 
-    def test_empty_string_page_token_still_requires_complete_btc_window(self):
+    def test_reader_uses_explicit_price_and_fx_locations(self):
         from datetime import datetime, timezone
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        rows = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
-                 "o": "100", "h": "102", "l": "99", "c": "101"}
-                for i in range(13)]
-        payload = {"next_page_token": "", "bars": {"BTC/USDC": rows,
-                   "USDC/USD": [{"t": row["t"], "c": "0.99"} for row in rows]}}
-        payload["bars"]["BTC/USDC"].pop(0)
+        btc = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
+                "o": "100", "h": "102", "l": "99", "c": "101"}
+               for i in range(13)]
+        fx = [{"t": row["t"], "c": "0.99"} for row in btc]
+        pages = [
+            {"next_page_token": "", "bars": {"BTC/USDC": btc}},
+            {"next_page_token": "", "bars": {"USDC/USD": fx}},
+        ]
 
         with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
-            alpaca_cli, "_run", return_value=payload,
+            alpaca_cli, "_run", side_effect=pages,
         ) as run:
-            with self.assertRaisesRegex(
-                    ValueError,
-                    "^alpaca_crypto_validation_history_invalid:btc_bar_count_mismatch$") as raised:
-                alpaca_cli.read_crypto_validation_history(
-                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
-                    start=start, end=start + timedelta(hours=1),
-                    observed_at="2026-01-02T00:00:00Z")
+            result = alpaca_cli.read_crypto_validation_history(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                start=start, end=start + timedelta(hours=1),
+                observed_at="2026-01-02T00:00:00Z")
 
-        self.assertEqual(run.call_count, 1)
-        self.assertEqual(raised.exception.details, {
-            "symbol": "BTC/USDC", "expected_count": 12, "actual_count": 11,
-        })
+        self.assertEqual(len(result["crypto_history"]), 12)
+        self.assertEqual(len(result["quote_conversions"]), 12)
+        self.assertEqual(len(result["source_receipt_ids"]), 2)
+        self.assertEqual([
+            (call.args[1][call.args[1].index("--loc") + 1],
+             call.args[1][call.args[1].index("--symbols") + 1])
+            for call in run.call_args_list
+        ], [("us", "BTC/USDC"), ("us-1", "USDC/USD")])
+
+    def test_sparse_btc_bars_are_kept_without_synthetic_rows(self):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        btc = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
+                "o": "100", "h": "102", "l": "99", "c": "101"}
+               for i in range(13)]
+        missing_timestamp = btc.pop(2)["t"]
+        fx = [{"t": (start + timedelta(minutes=5 * i)).isoformat(), "c": "0.99"}
+              for i in range(13)]
+        pages = [
+            {"next_page_token": "", "bars": {"BTC/USDC": btc}},
+            {"next_page_token": "", "bars": {"USDC/USD": fx}},
+        ]
+
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", side_effect=pages,
+        ):
+            result = alpaca_cli.read_crypto_validation_history(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                start=start, end=start + timedelta(hours=1),
+                observed_at="2026-01-02T00:00:00Z")
+
+        self.assertEqual(len(result["crypto_history"]), 11)
+        self.assertNotIn(missing_timestamp,
+                         {row["t"] for row in result["crypto_history"]})
+        self.assertEqual(result["market_data_coverage"]["synthetic_bars"], 0)
+        self.assertEqual(result["market_data_coverage"]["unobserved_btc_slots"], 1)
+
+    def test_empty_terminal_btc_window_is_valid_and_fully_unobserved(self):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        pages = [
+            {"next_page_token": "", "bars": {"BTC/USDC": []}},
+            {"next_page_token": "", "bars": {"USDC/USD": []}},
+        ]
+
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", side_effect=pages,
+        ):
+            result = alpaca_cli.read_crypto_validation_history(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                start=start, end=start + timedelta(hours=1),
+                observed_at="2026-01-02T00:00:00Z")
+
+        self.assertEqual(result["crypto_history"], [])
+        self.assertEqual(result["quote_conversions"], [])
+        self.assertEqual(result["market_data_coverage"]["expected_btc_slots"], 12)
+        self.assertEqual(result["market_data_coverage"]["unobserved_btc_slots"], 12)
+        self.assertEqual(result["market_data_coverage"]["synthetic_bars"], 0)
 
     def test_history_follows_page_token_before_validating_complete_window(self):
         from datetime import datetime, timezone
@@ -117,7 +184,8 @@ class CryptoValidationHistoryTests(unittest.TestCase):
             {"next_page_token": "opaque-token-2", "bars": {
                 "BTC/USDC": btc[:6]}},
             {"next_page_token": None, "bars": {
-                "BTC/USDC": btc[6:], "USDC/USD": fx}},
+                "BTC/USDC": btc[6:]}},
+            {"next_page_token": "", "bars": {"USDC/USD": fx}},
         ]
         with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
             alpaca_cli, "_run", side_effect=pages,
@@ -128,10 +196,12 @@ class CryptoValidationHistoryTests(unittest.TestCase):
                 observed_at="2026-01-02T00:00:00Z")
 
         self.assertEqual(context.call_args.kwargs["mode"], "paper")
-        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_count, 3)
         second_args = run.call_args_list[1].args[1]
         self.assertEqual(second_args[second_args.index("--page-token") + 1],
                          "opaque-token-2")
+        fx_args = run.call_args_list[2].args[1]
+        self.assertEqual(fx_args[fx_args.index("--loc") + 1], "us-1")
         self.assertEqual(len(result["crypto_history"]), 12)
         self.assertEqual(len(result["quote_conversions"]), 12)
 
@@ -193,9 +263,10 @@ class CryptoValidationHistoryTests(unittest.TestCase):
         mutations = [
             ("pagination_incomplete", lambda p: p.update(next_page_token="more")),
             ("symbol_set_invalid", lambda p: p.pop("bars")),
-            ("btc_bar_count_mismatch", lambda p: p["bars"]["BTC/USDC"].pop(2)),
             ("bar_timestamp_not_increasing", lambda p: p["bars"]["BTC/USDC"][0].update(
                 t=p["bars"]["BTC/USDC"][1]["t"])),
+            ("bar_timestamp_unaligned", lambda p: p["bars"]["BTC/USDC"][0].update(
+                t="2026-01-01T00:01:00+00:00")),
             ("bar_price_invalid", lambda p: p["bars"]["BTC/USDC"][0].update(c="NaN")),
             ("bar_price_invalid", lambda p: p["bars"]["BTC/USDC"][0].update(h="0")),
             ("bar_timestamp_outside_window", lambda p: p["bars"]["BTC/USDC"][-1].update(
@@ -208,15 +279,6 @@ class CryptoValidationHistoryTests(unittest.TestCase):
                         ValueError,
                         f"^alpaca_crypto_validation_history_invalid:{reason}$"):
                     self._read(mutate=mutate)
-
-    def test_btc_bar_count_failure_reports_only_safe_counts(self):
-        with self.assertRaises(ValueError) as raised:
-            self._read(mutate=lambda p: p["bars"]["BTC/USDC"].pop(2))
-        self.assertEqual(getattr(raised.exception, "reason_code", None),
-                         "btc_bar_count_mismatch")
-        self.assertEqual(getattr(raised.exception, "details", None), {
-            "symbol": "BTC/USDC", "expected_count": 12, "actual_count": 11,
-        })
 
     def test_missing_fx_is_not_replaced_by_one(self):
         result, _, _ = self._read(mutate=lambda p: p["bars"].pop("USDC/USD"))
