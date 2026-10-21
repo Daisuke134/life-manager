@@ -900,5 +900,60 @@
     "limitation": "General information is not individualized diagnosis, injury outcome or physical function improvement.",
     "reuse": "Link to official physical-health information with no copied medical instructions.",
     "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "cfa-getcalfresh-environment",
+    "name": "Code for America GetCalFresh online public benefits navigation",
+    "field": "digital_structural_intervention",
+    "url": "https://codeforamerica.org/news/reflecting-on-10-years-of-getcalfresh/",
+    "source_kind": "provider_first_party_case",
+    "supported_claim": "Code for America reports more than 7 million users of GetCalFresh since 2014 and iterated easier application pathways and language support.",
+    "limitation": "Vendor/nonprofit retrospective user count, not Manager-caused incremental benefit or isolated causal estimate; original implementation involved government cooperation.",
+    "reuse": "Reuse user-journey and administrative-friction methodology on owned informational website; no third-party filing or invented payout.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "jpal-snap-enrollment-rct",
+    "name": "J-PAL randomized SNAP benefit take-up study",
+    "field": "digital_structural_intervention",
+    "url": "https://www.povertyactionlab.org/evaluation/impact-informational-mailings-snap-enrollment-united-states",
+    "source_kind": "randomized_research_summary",
+    "supported_claim": "31,888 households were studied; informational mailings nearly doubled SNAP enrollment and information plus application assistance roughly tripled it.",
+    "limitation": "Households were recruited with agency partner data and mailings; this causal evidence does not authorize Manager to send individualized messages or obtain eligibility files.",
+    "reuse": "Reuse mechanism: information / frictions / assistance; measure real program access vs randomized NO_ACTION, not views.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "gds-end-to-end-environment",
+    "name": "GOV.UK Service Manual whole-service design",
+    "field": "digital_structural_intervention",
+    "url": "https://www.gov.uk/service-manual/design/introduction-designing-government-services",
+    "source_kind": "official_design_standard",
+    "supported_claim": "End-to-end service design asks for the whole user task, fewer steps, accessible channels and clear next steps.",
+    "limitation": "Principles are not a controlled treatment-effect estimate and government operating privileges cannot be copied.",
+    "reuse": "Reuse blueprint for a source-linked public service journey on an owned page with no dead ends.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "gds-real-completion-rate",
+    "name": "GOV.UK genuine service completion measurement",
+    "field": "digital_structural_intervention",
+    "url": "https://www.gov.uk/service-manual/measuring-success/measuring-completion-rate",
+    "source_kind": "official_outcome_method",
+    "supported_claim": "Service completion rate counts completed actual transactions divided by all started genuine transactions and excludes internal or bot users.",
+    "limitation": "A visitor viewing a site or clicking a link is not the same as completing a service or receiving a benefit.",
+    "reuse": "Measure a true task completion endpoint separately from informational clicks; split digital partial/whole transaction.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "w3c-wcag22",
+    "name": "W3C WCAG 2.2 Web Content Accessibility Guidelines",
+    "field": "digital_structural_intervention",
+    "url": "https://www.w3.org/WAI/standards-guidelines/wcag/",
+    "source_kind": "formal_web_standard",
+    "supported_claim": "WCAG 2.2 defines accessibility success criteria for perceivable, operable, understandable and robust digital content.",
+    "limitation": "Automated axe scan alone does not establish full conformance or clinical improvement for beneficiaries.",
+    "reuse": "Reuse Playwright with axe for technical accessibility and manual/assistive-technology audit when possible.",
+    "rights": "PUBLIC_DOC_ONLY"
   }
 ]
