@@ -20,7 +20,9 @@ class BacklogTest(unittest.TestCase):
             self.assertTrue(set(t['depends']) <= seen,
                             f"unresolved dependency in {t['id']}")
             self.assertIn(t['status'], ('done', 'todo', 'blocked', 'skipped'))
-            if t['status'] == 'skipped':\n                self.assertTrue(t.get('waiver_reason') and t.get('waiver_scope'))\n            seen.add(t['id'])
+            if t['status'] == 'skipped':
+                self.assertTrue(t.get('waiver_reason') and t.get('waiver_scope'))
+            seen.add(t['id'])
         self.assertGreaterEqual(len(seen), 60)
 
     def test_official_imozuru_source_blob_matches(self):

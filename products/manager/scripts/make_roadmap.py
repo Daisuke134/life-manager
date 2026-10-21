@@ -29,7 +29,9 @@ def validate(tasks):
             raise ValueError(f"task lacks atomic acceptance: {t['id']}")
         if not set(t['depends']) <= seen:
             raise ValueError(f"dependency missing/forward/cyclic: {t['id']}")
-        if t['status'] == 'skipped' and (not t.get('waiver_reason') or not t.get('waiver_scope')):\n            raise ValueError(f"skipped task without waiver: {t['id']}")\n        seen.add(t['id'])
+        if t['status'] == 'skipped' and (not t.get('waiver_reason') or not t.get('waiver_scope')):
+            raise ValueError(f"skipped task without waiver: {t['id']}")
+        seen.add(t['id'])
 
 
 def render(tasks):
@@ -52,7 +54,9 @@ def render(tasks):
             if t['section'] != group:
                 continue
             dependencies = ', '.join(t['depends']) or '—'
-            ext = '' if t.get('external', 'none')=='none' else ' **外部条件:** '+t['external']\n            if t['status'] == 'skipped':\n                ext += ' **Waiver (not completed):** '+t['waiver_reason']
+            ext = '' if t.get('external', 'none')=='none' else ' **外部条件:** '+t['external']
+            if t['status'] == 'skipped':
+                ext += ' **Waiver (not completed):** '+t['waiver_reason']
             fields = (SYMBOLS[t['status']]+' `'+t['id']+'`',dependencies,t['learn'],t['change'],t['verify']+ext)
             safe_fields = [str(field).replace('|', '\\|').replace('\n',' ') for field in fields]
             lines.append('| ' + ' | '.join(safe_fields) + ' |')
