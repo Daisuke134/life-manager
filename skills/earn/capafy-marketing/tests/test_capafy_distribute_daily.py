@@ -212,6 +212,15 @@ def test_wrapper_runs_pii_gate_before_external_article_publish() -> None:
     assert gate < attest < no_effect < publish
 
 
+def test_prompt_guidance_is_loaded_before_unquoted_prompt_heredoc() -> None:
+    text = SCRIPT.read_text()
+    craft = text.index('CRAFT_GUIDANCE="$(cat "$ARTICLE_ROOT/reference/CRAFT.md")"')
+    identity = text.index('IDENTITY_GUIDANCE="$(awk')
+    prompt = text.index('cat >"$PROMPT_FILE" <<PROMPT_EOF')
+    assert craft < prompt
+    assert identity < prompt
+
+
 def test_x_post_requires_wrapper_verified_published_article() -> None:
     text = SCRIPT.read_text()
     x_post = text.index('python3 "$SELF_DIR/capafy_x_post.py" --caption')
