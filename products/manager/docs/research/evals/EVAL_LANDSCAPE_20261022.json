@@ -23,7 +23,7 @@
     "measures": "expert-level scientific reasoning",
     "does_not_prove": "Correct expert answers do not establish acting safely or improving real human welfare.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "hle",
@@ -36,7 +36,7 @@
     "measures": "frontier multidisciplinary questions",
     "does_not_prove": "Correct expert answers do not establish acting safely or improving real human welfare.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "livebench",
@@ -49,7 +49,7 @@
     "measures": "dynamic hard knowledge/reasoning tasks",
     "does_not_prove": "Correct expert answers do not establish acting safely or improving real human welfare.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "big-bench",
@@ -62,7 +62,7 @@
     "measures": "broad language model abilities",
     "does_not_prove": "Correct expert answers do not establish acting safely or improving real human welfare.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "arc-agi-2",
@@ -75,7 +75,7 @@
     "measures": "fluid generalization puzzles",
     "does_not_prove": "Correct expert answers do not establish acting safely or improving real human welfare.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "swe-bench",
@@ -114,7 +114,7 @@
     "measures": "harder long-horizon repo tasks",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "swe-lancer",
@@ -127,7 +127,7 @@
     "measures": "paid software engineering work samples",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "livecodebench",
@@ -140,7 +140,7 @@
     "measures": "code generation with temporal contamination controls",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "terminal-bench",
@@ -153,7 +153,7 @@
     "measures": "terminal environment operations",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "bigcodebench",
@@ -166,7 +166,7 @@
     "measures": "library-intensive code generation",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "ds1000",
@@ -179,7 +179,7 @@
     "measures": "practical Python data science tasks",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "mlebench",
@@ -192,7 +192,7 @@
     "measures": "longer machine-learning engineering projects",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "humaneval",
@@ -205,7 +205,7 @@
     "measures": "short function code synthesis",
     "does_not_prove": "Passing repository tests does not establish broader user benefit, security, or causal impact.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "webarena",
@@ -231,7 +231,7 @@
     "measures": "image-rich web applications",
     "does_not_prove": "Completing a website workflow does not measure reduced hardship or legitimate ownership.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "browsergym",
@@ -244,7 +244,7 @@
     "measures": "standard browser agent gym interface",
     "does_not_prove": "Completing a website workflow does not measure reduced hardship or legitimate ownership.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "workarena",
@@ -257,7 +257,7 @@
     "measures": "ServiceNow workflow tasks",
     "does_not_prove": "Completing a website workflow does not measure reduced hardship or legitimate ownership.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "mind2web",
@@ -270,7 +270,7 @@
     "measures": "diverse websites from recorded demos",
     "does_not_prove": "Completing a website workflow does not measure reduced hardship or legitimate ownership.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "online-mind2web",
@@ -296,7 +296,7 @@
     "measures": "real desktop GUI environments",
     "does_not_prove": "Completing a website workflow does not measure reduced hardship or legitimate ownership.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "browser-use-env",
@@ -322,7 +322,7 @@
     "measures": "customer-service DB state and user interaction",
     "does_not_prove": "Tool correctness and policy compliance cannot substitute for verified human outcomes.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "tau2bench",
@@ -335,7 +335,7 @@
     "measures": "realistic customer-service environment with simulation",
     "does_not_prove": "Tool correctness and policy compliance cannot substitute for verified human outcomes.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "UPSTREAM_CODE_READ"
   },
   {
     "id": "toolbench",
@@ -348,7 +348,7 @@
     "measures": "API tool calling tasks",
     "does_not_prove": "Tool correctness and policy compliance cannot substitute for verified human outcomes.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "bfcl",
@@ -361,7 +361,7 @@
     "measures": "function selection and invocation",
     "does_not_prove": "Tool correctness and policy compliance cannot substitute for verified human outcomes.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "theagentcompany",
@@ -374,7 +374,7 @@
     "measures": "consequential enterprise workflows",
     "does_not_prove": "Tool correctness and policy compliance cannot substitute for verified human outcomes.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "gaia",
@@ -387,7 +387,7 @@
     "measures": "cross-tool information tasks",
     "does_not_prove": "Tool correctness and policy compliance cannot substitute for verified human outcomes.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "browsecomp",
@@ -400,7 +400,7 @@
     "measures": "difficult browsed information retrieval",
     "does_not_prove": "Technical research answer quality is not an externally measured social improvement.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "deepresearch-bench",
@@ -413,7 +413,7 @@
     "measures": "multi-source research agents",
     "does_not_prove": "Technical research answer quality is not an externally measured social improvement.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "rebench",
@@ -426,7 +426,7 @@
     "measures": "ML research engineering performance",
     "does_not_prove": "Technical research answer quality is not an externally measured social improvement.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "metr-time-horizon",
@@ -439,7 +439,7 @@
     "measures": "longer autonomous software tasks",
     "does_not_prove": "Technical research answer quality is not an externally measured social improvement.",
     "rights": "PUBLIC_METHOD_ONLY",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "vendingbench2",
@@ -465,7 +465,7 @@
     "measures": "physical office shop AI experiment",
     "does_not_prove": "Simulated profit and uncontrolled field case studies do not identify human welfare benefit.",
     "rights": "PUBLIC_METHOD_ONLY",
-    "inspection": "PAPER_METHOD"
+    "inspection": "DOCS_REVIEWED"
   },
   {
     "id": "agentdojo",
@@ -491,7 +491,7 @@
     "measures": "sandboxes for covert sabotage",
     "does_not_prove": "A safe score under benchmark attacks does not guarantee all future attacks or net benefit.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "agentharm",
@@ -504,7 +504,7 @@
     "measures": "multi-step harmful-agent task resistance",
     "does_not_prove": "A safe score under benchmark attacks does not guarantee all future attacks or net benefit.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "harmbench",
@@ -517,7 +517,7 @@
     "measures": "harmful prompt defense",
     "does_not_prove": "A safe score under benchmark attacks does not guarantee all future attacks or net benefit.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "jailbreakbench",
@@ -530,7 +530,7 @@
     "measures": "standardized jailbreak testing",
     "does_not_prove": "A safe score under benchmark attacks does not guarantee all future attacks or net benefit.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "strongreject",
@@ -543,7 +543,7 @@
     "measures": "refusal efficacy measurement",
     "does_not_prove": "A safe score under benchmark attacks does not guarantee all future attacks or net benefit.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "judgebench",
@@ -569,7 +569,7 @@
     "measures": "reward model preference quality",
     "does_not_prove": "Agreement with labeled examples may be biased, miscalibrated or overfit to the task.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "alpacaeval",
@@ -582,7 +582,7 @@
     "measures": "instruction responses with model judges",
     "does_not_prove": "Agreement with labeled examples may be biased, miscalibrated or overfit to the task.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "mtbench",
@@ -595,7 +595,7 @@
     "measures": "multiturn assistant comparisons",
     "does_not_prove": "Agreement with labeled examples may be biased, miscalibrated or overfit to the task.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "hamel-decisions",
@@ -647,7 +647,7 @@
     "measures": "public inspect evaluation implementations",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "openai-evals",
@@ -660,7 +660,7 @@
     "measures": "evaluation registry and runners",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "helm",
@@ -673,7 +673,7 @@
     "measures": "holistic LM evaluation",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "lm-eval",
@@ -686,7 +686,7 @@
     "measures": "reproducible model eval suite",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "lighteval",
@@ -699,7 +699,7 @@
     "measures": "open-source model evaluations",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "deepeval",
@@ -712,7 +712,7 @@
     "measures": "AI app eval test infrastructure",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "promptfoo",
@@ -725,7 +725,7 @@
     "measures": "test-driven prompts and red teaming",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "ragas",
@@ -738,7 +738,7 @@
     "measures": "retrieval augmented generation evaluation",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "ragbench",
@@ -751,7 +751,7 @@
     "measures": "retrieval-augmented output claims",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "crag",
@@ -764,7 +764,7 @@
     "measures": "realistic retrieval generation answers",
     "does_not_prove": "A runner or framework does not furnish task validity, authorized effects or causal identification.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "omni-behavior",
@@ -777,7 +777,7 @@
     "measures": "real-world long-horizon online user traces",
     "does_not_prove": "Descriptive response or social-agent realism does not prove do-intervention causal fidelity.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "UPSTREAM_CODE_READ"
   },
   {
     "id": "aaru",
@@ -816,7 +816,7 @@
     "measures": "task-conditioned social-science simulation",
     "does_not_prove": "Descriptive response or social-agent realism does not prove do-intervention causal fidelity.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "concordia",
@@ -829,7 +829,7 @@
     "measures": "agent-based fictional social systems",
     "does_not_prove": "Descriptive response or social-agent realism does not prove do-intervention causal fidelity.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "generative-agents",
@@ -842,7 +842,7 @@
     "measures": "town agents with memory and schedules",
     "does_not_prove": "Descriptive response or social-agent realism does not prove do-intervention causal fidelity.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "oasis",
@@ -855,7 +855,7 @@
     "measures": "online social platform agent populations",
     "does_not_prove": "Descriptive response or social-agent realism does not prove do-intervention causal fidelity.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "ai-economist",
@@ -868,7 +868,7 @@
     "measures": "economic multiagent policy/game environment",
     "does_not_prove": "Descriptive response or social-agent realism does not prove do-intervention causal fidelity.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "open-bandit",
@@ -894,7 +894,7 @@
     "measures": "advertising randomized treatment logs",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "criteo-ite",
@@ -907,7 +907,7 @@
     "measures": "uplift evaluation on logged experimental data",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "causalbench",
@@ -920,7 +920,7 @@
     "measures": "cell gene perturbation graph inference",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "causalrivers",
@@ -933,7 +933,7 @@
     "measures": "causal graph discovery from real rivers",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "dowhy",
@@ -946,7 +946,7 @@
     "measures": "causal identification and estimation API",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "econml",
@@ -959,7 +959,7 @@
     "measures": "heterogeneous causal effect estimates",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "heartsteps",
@@ -972,7 +972,7 @@
     "measures": "micro-randomized digital walking intervention",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "PAPER_METHOD"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "bcfg-megastudy",
@@ -985,7 +985,7 @@
     "measures": "54 fitness interventions and actual visits",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "PAPER_METHOD"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "jpal-snap",
@@ -998,7 +998,7 @@
     "measures": "actual social benefit application and enrollment",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "PAPER_METHOD"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "givedirectly",
@@ -1011,7 +1011,7 @@
     "measures": "real payments and economic outcomes",
     "does_not_prove": "Logged uplift, synthetic truth or one study's effect does not transport automatically to new populations.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "PAPER_METHOD"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "who5",
@@ -1024,7 +1024,7 @@
     "measures": "self-reported subjective mental wellbeing",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "whodas",
@@ -1037,7 +1037,7 @@
     "measures": "physical and social functioning",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "cfpb",
@@ -1050,7 +1050,7 @@
     "measures": "financial freedom of choice/security",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "fies",
@@ -1063,7 +1063,7 @@
     "measures": "adequate food experience by population",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "oecd",
@@ -1076,7 +1076,7 @@
     "measures": "life evaluation and emotions separate",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "nice-esf",
@@ -1089,7 +1089,7 @@
     "measures": "appropriately supported digital health claims",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "mentalhealthbench",
@@ -1102,7 +1102,7 @@
     "measures": "model behavior on mental health conversations",
     "does_not_prove": "Domain-specific population-valid measures cannot certify universal absence of suffering.",
     "rights": "DATA_RIGHTS_REVIEW_REQUIRED",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "behavior1k",
@@ -1115,7 +1115,7 @@
     "measures": "1000 simulated everyday physical tasks",
     "does_not_prove": "Robotics simulator success need not transfer to actual humans and costs.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "libero",
@@ -1128,7 +1128,7 @@
     "measures": "long-horizon robot task adaptation",
     "does_not_prove": "Robotics simulator success need not transfer to actual humans and costs.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "robocasa",
@@ -1141,7 +1141,7 @@
     "measures": "rich simulated home tasks",
     "does_not_prove": "Robotics simulator success need not transfer to actual humans and costs.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "forecastbench",
@@ -1154,7 +1154,7 @@
     "measures": "future event probability calibration",
     "does_not_prove": "Event probability or a market price does not identify consequences of acting.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   },
   {
     "id": "polymarket",
@@ -1167,6 +1167,6 @@
     "measures": "tradable event resolution probabilities",
     "does_not_prove": "Event probability or a market price does not identify consequences of acting.",
     "rights": "UPSTREAM_LICENSE_CHECK",
-    "inspection": "DOCS_REVIEWED"
+    "inspection": "SOURCE_IDENTIFIED"
   }
 ]
