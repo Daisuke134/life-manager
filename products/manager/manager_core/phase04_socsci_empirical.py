@@ -108,6 +108,10 @@ def evaluate_aggregates(mapping, aggregates):
         train_cv_tvd.append(_tvd(_prop(other),_prop(groups[study])))
     train_cv_tvd.sort()
     tvd_alert_threshold=train_cv_tvd[int((len(train_cv_tvd)-1)*0.90)]
+    # Deterministic count-based strata: use no outcomes to select cohorts.
+    order=sorted(range(len(evaluated)), key=lambda i:(evaluated[i]["n"], i))
+    small=set(order[:len(order)//2])
+    large=set(order[len(order)//2:])
     train_top_p=max(p)
     pooled_majority_accuracy=sum(e["accuracy_majority"]*e["n"] for e in evaluated)/test_n
     def robust_stats(v):
@@ -142,18 +146,16 @@ def evaluate_aggregates(mapping, aggregates):
             "respondent_level_ci_claim":False
         },
         "subgroups":[
-            {"category":"at_or_below_unseen_study_sample_count_median",
-             "studies":sum(e["n"] <= median(weights) for e in evaluated),
-             "rows":sum(e["n"] for e in evaluated if e["n"] <= median(weights)),
-             "tvd_study_macro":_round(sum(e["tvd_frequency"] for e in evaluated if e["n"] <= median(weights)) /
-                        sum(e["n"] <= median(weights) for e in evaluated))},
-            {"category":"above_unseen_study_sample_count_median",
-             "studies":sum(e["n"] > median(weights) for e in evaluated),
-             "rows":sum(e["n"] for e in evaluated if e["n"] > median(weights)),
-             "tvd_study_macro":_round(sum(e["tvd_frequency"] for e in evaluated if e["n"] > median(weights)) /
-                        sum(e["n"] > median(weights) for e in evaluated))},
+            {"category":"smaller_half_of_unseen_studies_by_observed_n",
+             "studies":len(small),
+             "rows":sum(evaluated[i]["n"] for i in small),
+             "tvd_study_macro":_round(sum(evaluated[i]["tvd_frequency"] for i in small)/len(small))},
+            {"category":"larger_half_of_unseen_studies_by_observed_n",
+             "studies":len(large),
+             "rows":sum(evaluated[i]["n"] for i in large),
+             "tvd_study_macro":_round(sum(evaluated[i]["tvd_frequency"] for i in large)/len(large))},
         ],
-        "subgroup_methodology":"Descriptive strata based ONLY on heldout study sample counts (not respondent attributes or response labels); test-set median is posthoc metadata, not a train-time decision rule.",
+        "subgroup_methodology":"Descriptive split of 40 heldout studies into smaller/larger 20 by study observation count, breaking ties by stable study rank; no response label/personal attribute influences grouping.",
         "abstention_policy":{
             "decision":"ABSTAIN_ALL_UNSEEN_FOR_DEPLOYMENT",
             "reason":"No unseen-study task semantics, available options, or calibrated per-task prior available at inference time",
