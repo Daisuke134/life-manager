@@ -86,7 +86,7 @@ def main():
     result=run(transport=args.transport)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",encoding="utf-8")
-    print(json.dumps({k:result[k] for k in ("source_split","unseen_baselines","study_level_distribution_error","scientific_gates","privacy","evidence")},sort_keys=True))
+    print(json.dumps({k:result[k] for k in ("source_split","unseen_baselines","study_level_distribution_error","calibration","abstention_policy","subgroups","scientific_gates","privacy","evidence")},sort_keys=True))
 
 if __name__=="__main__":
     main()
