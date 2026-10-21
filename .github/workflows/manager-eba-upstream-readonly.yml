@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Shallow clone and read pinned upstream Python source only
+      - name: Read exact pinned upstream source without checkout
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +39,7 @@ jobs:
             fi
             blob="$(git -C "$local_dir" rev-parse "$sha:$path")"
             timeout 60 git -C "$local_dir" show "$sha:$path" > "$RUNNER_TEMP/eba-evidence/current-code.txt"
-            if ! rg -Fq "$marker" "$RUNNER_TEMP/eba-evidence/current-code.txt"; then
+            if ! grep -Fq -- "$marker" "$RUNNER_TEMP/eba-evidence/current-code.txt"; then
               echo "EXPECTED_MARKER_MISSING: $repo/$path" >&2
               exit 1
             fi
