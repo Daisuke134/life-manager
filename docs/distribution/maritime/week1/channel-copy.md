@@ -1,6 +1,6 @@
 # Life Manager 初週配布プラン
 
-**最終readback:** 2026-10-21 09:39 UTC。SEO原稿とpublication packageはfeature worktree内に作成済みで未commit/未公開、candidate URLはHTTP 404。GSC sitewideは0 clicks / 7 impressions（settled through 2026-10-18）。Postiz connectorはgroups=0 / integrations=0 / posts空。Life ManagerのX投稿・attributed signup・売上は未確認。新規Instagram/X accountは作らない。
+**最終readback:** 2026-10-21 09:39 UTC。SEO原稿とpublication packageはfeature worktree内に作成済みで未commit/未公開、candidate URLはHTTP 404。GSC sitewideは0 clicks / 7 impressions（settled through 2026-10-18）。Postiz connectorはgroups=0 / integrations=0 / posts空。live pilot pageは日次メールを現在形で案内する一方、worker email flag=0でcycle未検証。copy修正はPR #8492 sourceのみで、production反映前はarticle公開しない。Life ManagerのX投稿・attributed signup・売上は未確認。新規Instagram/X accountは作らない。
 
 ## 成功事例から移す仕組み
 
@@ -18,7 +18,7 @@
 - existing destination: https://aniccaai.com/blog/manager
 - candidate canonical URL: https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en
 - 2026-10-21 09:31 UTC readback: candidate URL HTTP 404。source/package are committed in feature branch cf10222a9f; deploy/readback remain.
-- Early-pilot CTA may publish before the complete hosted cycle if the page and article both say: full hosted work/report cycle is unverified; pilot sends necessary work data to Maritime; its AI-credit calls may be retained indefinitely after account deletion; revenue/profit is not guaranteed. Do not claim completed work or user earnings without provider receipts.
+- Early-pilot CTA may publish before the complete hosted cycle only after the page and article both say: full hosted work/report cycle is unverified; pilot sends necessary work data to Maritime; its AI-credit calls may be retained indefinitely after account deletion; revenue/profit is not guaranteed. Do not claim completed work or user earnings without provider receipts.
 - UTM: utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1.
 
 ### Publication atoms

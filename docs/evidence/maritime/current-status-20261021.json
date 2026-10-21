@@ -183,13 +183,19 @@
     "manager_page_url": "https://aniccaai.com/lm",
     "copy": "Describes proactive manager and says task-specific goals/budgets are not required; the broader hosted experience is still in development.",
     "pilot_url": "https://life-call-production.up.railway.app/maritime?lang=en",
-    "pilot_copy": "Manager chooses work; goal/budget setup is not required; Telegram is optional. The page discloses that necessary work inputs/results go to Maritime and AI-credit calls may be retained indefinitely after account deletion; revenue is not guaranteed.",
+    "pilot_copy": "At the 09:31Z live readback the page says a manager chooses work, executes it, and emails daily results; goal/budget setup is not required and Telegram is optional. Retention and no-income-guarantee notices are visible. The complete hosted cycle is unverified, and worker email flag=0.",
     "family_share_url": "https://life-call-production.up.railway.app/maritime?lang=ja",
     "family_share_url_readback_at": "2026-10-21T08:16Z",
     "family_share_url_http_status": 200,
     "family_share_copy": "The Japanese pilot page loads and discloses the Maritime AI-call retention condition.",
     "pilot_url_http_status": 200,
-    "pilot_url_readback_at": "2026-10-21T09:31Z"
+    "pilot_url_readback_at": "2026-10-21T09:31Z",
+    "source_copy_correction": {
+      "file": "apps/life-manager/lib/maritime-distribution.js",
+      "pr": 8492,
+      "status": "working-tree change after current PR head; not committed, merged, or deployed",
+      "required_live_readback": "Both ja/en pilot pages label daily-email completion as design intent and state that the full hosted work/report cycle is unverified."
+    }
   },
   "submission": {
     "application": "accepted",

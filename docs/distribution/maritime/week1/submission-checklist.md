@@ -17,7 +17,8 @@
 - Source: docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.md。
 - Package: docs/research/manager/publication/2026-10-19/en/manager-ai-assistant-vs-agent-next-task-en.md と docs/research/manager/publication/2026-10-19/manifest.json。
 - Daisuke134/anicca-productsの既存Manager bridgeを使い、新CMSを作らない。
-- 記事とpilot pageに、hosted work/report cycle未検証、必要なwork dataをMaritimeへ送信、AI-credit callの無期限保持条件、収益非保証を明記。実行・収益claimはprovider receiptがあるものだけ。
+- PR #8492のapps/life-manager/lib/maritime-distribution.js copy修正をproductionへdeploy/readbackし、pageがhosted work/report cycle未検証と表示するまでCTAを公開しない。
+- 記事とpilot pageに、必要なwork dataをMaritimeへ送信、AI-credit callの無期限保持条件、収益非保証を明記。実行・収益claimはprovider receiptがあるものだけ。
 - title/description/slug/word_count/series_order=56とsource/package SHA256を記録。Life Manager branchをpushし、exact-head review/required CI後に既存bridgeを更新しbuild。
 - DONE: production canonical URLがHTTP 200で、title/canonical/bodyがsource packageと一致。記事公開だけを獲得/売上の証拠とはしない。
 

@@ -4,7 +4,7 @@
 
 **検索意図:** AI assistantとAI agentの違いを知り、次の仕事を誰が選ぶかで製品を比較したい人向けのguide。需要/検索量は未計測。Search Consoleの直近settled sitewide baselineは0 clicks / 7 impressions through 2026-10-18で、この題の需要を示さない。
 
-**公開条件:** hosted work/report/stop cycle完了を記事公開の前提にしない。early-pilot CTAを使う場合、pilot pageに次の事実を明記する: 完全なhosted work/report cycleは未検証、AI-credit呼出しで必要なwork dataをMaritimeへ送る、Maritime Privacy Policyはその呼出しをaccount deletion後も無期限保持すると記す、収益/利益は保証しない。実行済み・completed work・user income・profitはprovider receiptなしに主張しない。目標/予算入力やTelegramを必須と書かない。
+**公開条件:** hosted work/report/stop cycle完了を記事公開の前提にしない。ただしlive pilot pageが日次メールを現在形で案内しているため、PR #8492のpage-copy修正がproductionへdeploy/readbackされるまではarticle/CTAを公開しない。early-pilot CTAを使う場合、pilot pageに次の事実を明記する: 完全なhosted work/report cycleは未検証、AI-credit呼出しで必要なwork dataをMaritimeへ送る、Maritime Privacy Policyはその呼出しをaccount deletion後も無期限保持すると記す、収益/利益は保証しない。実行済み・completed work・user income・profitはprovider receiptなしに主張しない。目標/予算入力やTelegramを必須と書かない。
 
 **CTA:** https://life-call-production.up.railway.app/maritime?source=aniccaai&utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1
 

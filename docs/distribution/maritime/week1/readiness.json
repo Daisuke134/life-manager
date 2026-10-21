@@ -162,7 +162,7 @@
     "docs/evidence/maritime/postgrest-startup-budget-production.json",
     "docs/evidence/maritime/current-status-20261021.json"
   ],
-  "current_blocker": "Hosted product is unproven end-to-end: owner PKCE and explicit Maritime retention consent are unrecorded; Runtime PG last readback 08:00:19Z has identity=1 and enrollment/execution/participant/job/external work/users=0; worker email flag is 0. One entry is posted but formal submission receipt is unconfirmed. Life Manager Stripe MRR is USD 0 at 09:38Z. Article/package are committed to cf10222a9f, not published; no current X integration/post or attributed sale.",
+  "current_blocker": "Hosted product is unproven end-to-end: owner PKCE and explicit Maritime retention consent are unrecorded; Runtime PG last readback 08:00:19Z has identity=1 and external work/users=0; worker email flag=0. Live pilot page currently promises daily email despite the disabled worker flag; page-copy correction in PR #8492 is not deployed. Formal submission receipt is unconfirmed; Life Manager MRR is USD 0.",
   "updated_at": "2026-10-21T09:50:24Z",
   "current_status_refresh": {
     "observed_at": "2026-10-21T09:50:24Z",
@@ -189,7 +189,7 @@
     "signup_http_readback": "Railway proxy log query 2026-10-21T08:00Z–09:38Z: GET /maritime 200×8; no signup/activate/stop POST routes; proxy request counts are not unique users.",
     "project_submission": "One accepted-team entry posted/read back. Channel says it does not replace a required form. Official home/Terms at 09:31Z show no form/cutoff/rubric; formal receipt unconfirmed.",
     "share_url_email": "sent and read back; Gmail message 1a15cc8791911599",
-    "distribution_campaign": "Article source/package are committed on feature branch cf10222a9f but not merged/deployed. Candidate URL returned HTTP 404 at 09:31Z. GSC settled through 2026-10-18 is 0 clicks/7 impressions. Postiz at 09:32Z has groups=0, integrations=0, posts=0. No attributed signup/sale.",
+    "distribution_campaign": "Source article/package are on feature branch cf10222a9f, not merged/deployed. Candidate URL returned HTTP 404 at 09:31Z. Live pilot page claims daily email while worker email flag=0; bilingual page-copy correction is in the current worktree and not deployed. Hold article publication until copy readback. GSC settled through 2026-10-18 is 0 clicks/7 impressions. Postiz at 09:32Z has groups=0, integrations=0, posts=0.",
     "submission_channel_permalink": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
     "organizer_inquiry": "Follow-up sent at 08:13:26Z, message 1a15d85b491c9450; last thread readback 08:26:15Z had two sent messages and no organizer reply.",
     "stripe_life_manager_readback": "Live API at 09:38Z: both exact Life Manager monthly prices ($29/$20) have 0 active subscriptions; Life Manager subscription MRR USD 0. Sigma analytics unavailable. Hosted user cash/net unverified.",

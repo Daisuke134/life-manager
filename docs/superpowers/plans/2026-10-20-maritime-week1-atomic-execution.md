@@ -501,7 +501,7 @@ life-manager/
 
 ## Task T26: 入口と公開説明を同じ製品へ揃える
 
-**Files:** Modify `apps/landing/marketing/pages/life-manager-en.html`、`life-manager.html`、`route-manifest.json`、既存publish-overlay。
+**Files:** apps/life-manager/lib/maritime-distribution.js copy.intro/scope/queued; apps/life-manager/lib/maritime-distribution.test.js only if an existing exact-text assertion needs updating; existing apps/landing/marketing/pages/life-manager-en.html, life-manager.html, route-manifest.json and publish-overlay remain a separate site lane.
 **Interfaces:** marketing CTA→稼働中`/maritime`のemail入口。既存Calendar有料導線は別で保持。
 **Depends:** T06。原稿は先に用意し、実URLへの切替はT22後。
 
@@ -509,6 +509,7 @@ life-manager/
 - [x] T26.2 Cloud無料pilotの対象範囲と現在動く業務をchannel-copy/SEO draftへ反映した。既存Calendarの$29 trialとMaritime無料pilotは別と明記し、利益保証を加えていない。
 - [ ] T26.3 既存full site exportへapproved overlayとして反映し、他商品/blog/legal/functionを保持する。manifest hashとpublished revisionを更新する。
 - [ ] T26.4 公開URLのemail CTA/認証/停止/localeをreadbackし、source commitとpublished SHAを結合する。source変更だけを公開完了と呼ばない。
+- [ ] T26.5 In apps/life-manager/lib/maritime-distribution.js update ja/en copy.intro, copy.scope and copy.queued: label daily email as design intent; say the full hosted work→verified result→daily email cycle is still unverified; retain no-required-goal/budget and optional-Telegram wording; retain Maritime retention and no-revenue-guarantee notice. DONE: production /maritime GET in both locales shows the caveat and no misleading current-tense completion promise. PR #8492 source change alone is not production adoption.
 
 ## Task T27: 公開配布を開始する
 
