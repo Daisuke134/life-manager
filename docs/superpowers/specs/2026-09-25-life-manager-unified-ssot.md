@@ -21770,3 +21770,25 @@ Two final regression checks are now in the local diff: `SIGTERM during Codex rea
 ### Git cursor sequencing — 2026-10-21 04:03 UTC
 
 The branch's TODO cursor stays at #1. The previous Git sub-order was merge `origin/main` before committing local work. Since latest main `76d36e33979aa6e4b8924db6405fa8031b169782` and this worktree both append to this same SSOT, the safe sub-order is now: commit and push the completed source/spec/test delta on the task branch; merge `origin/main` while preserving both append-only spec updates; then commit and push the merge without force. The main-side delta is limited to the ebook playbook and Maritime files plus its SSOT append; this avoids overwriting either author's update. No release, owner apply, or provider effect occurs in this Git sync.
+
+### Pushed Codex source checkpoint — 2026-10-21 04:05 UTC
+
+**Source head:** latest main `76d36e33979aa6e4b8924db6405fa8031b169782` is merged and pushed with the Codex source work. Branch `chore/codex-only-agent-pipelines-20261021` and PR #8467 are at `acb9442f66c7539427b0a1a9e2a8e67769654a6d`; worktree is clean. The unified SSOT keeps both the Codex/Capafy progress and the main-side ebook/Maritime appends.
+
+**Exact-head gates:** local `node scripts/verify-oss-self-contained.mjs --json` is `ok=true, violations=[]`; source syntax, `git diff --check`, agent-runner 131/131, loop apply 197/197, loop integration 11/11, always-act reroute 25/25, reviewer/runtime 59/59, Cloud wake 6/6, and other focused checks pass. PR #8467 checks at this head are passing except `Travel and online notification contracts`, which is pending. A fresh read-only review has not yet run.
+
+**Current production state:** no merge, release, or owner adoption is claimed. Capafy distributor is still on old release `464635e4f455a7411e441e76c3208cc188de68c2`; `18e0697919f17030-82979` remains effect-unknown without official receipt. The 03:34 admission defer did not start a provider. Last seller API readback remains $0 gross / 0 paid orders at 02:20:43Z. The separate `pm-live-trade` effect fence `18d61d6a6df63248-48979` is also unresolved. Direct model API clients in Polymarket and the x402 worker remain after the Capafy revenue cycle; do not claim every internal pipeline is Codex-only yet.
+
+**Remaining TODO (cursor = 2):**
+
+| # | Atomic TODO | DONE evidence |
+|---|---|---|
+| 1 | Merge latest main, Codex shared-brain/runner changes, lifecycle guard, schema fix, manifest refresh, and source tests are pushed. | Complete: branch/PR head both read `acb9442f66`; local OSS verifier is clean. |
+| 2 | Obtain a fresh exact-head read-only review and wait for all PR #8467 required checks. | No unresolved Critical/Important findings and every exact-head required check PASS. |
+| 3 | Merge, cut the main-derived immutable release, and apply Codex settings at safe affected-owner boundaries. | Merged SHA, loaded argv/env/SHA, and one natural terminal per affected owner. |
+| 4 | Reconcile the Capafy fence with the registered adapter and official GitHub/Postiz receipt. | Exact occurrence released with `effect_unknown=0`. |
+| 5 | Run one natural Capafy distribution and read its official publication receipt. | Correct public URL/CTA/source attribution and duplicate count zero. |
+| 6 | Read source-to-paid Capafy results and expand the measured winner. | New attributed paid order and gross amount in official seller evidence. |
+| 7 | Migrate remaining direct internal model clients, starting with Polymarket and the x402 fulfillment worker; reporting stays last. | Codex-only decisions across internal agents; preserve `pm-live-trade` until its effect receipt is reconciled. |
+
+The next cursor is independent review plus exact-head CI; do not resume the distributor before the Codex release is loaded.
