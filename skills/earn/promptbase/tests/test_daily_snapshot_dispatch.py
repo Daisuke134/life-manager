@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 DAILY = REPO_ROOT / "skills" / "earn" / "promptbase" / "daily.sh"
 
 
-def _run_daily(tmp_path, *, occurrence=None, snapshot_rc=0):
+def _run_daily(tmp_path, *, occurrence=None, snapshot_rc=0, readback_rc=0):
     home = tmp_path / "home"
     home.mkdir()
     call_log = tmp_path / "calls.log"
@@ -23,7 +23,7 @@ if [ "$1" = "-c" ]; then
   exec "$FAKE_PY_REAL" "$@"
 fi
 case "$*" in
-  *"readback.py"*) exit 0 ;;
+  *"readback.py"*) exit "$FAKE_READBACK_RC" ;;
   *"packager.py publish-list"*) printf '%s\\n' '{"agents":[]}' ;;
   *"select_next.py"*) printf '%s\\n' '{"slug":"reels-hook-lab","title":"Reels Hook Lab"}' ;;
   *"promptbase_fence_reconcile.py"*"--record-snapshot"*) exit "$FAKE_SNAPSHOT_RC" ;;
@@ -72,6 +72,7 @@ printf '%s\\n' 'http://127.0.0.1:9222'
     env["PROMPTBASE_LEDGER_PATH"] = str(tmp_path / "ledger.jsonl")
     env["FAKE_CALL_LOG"] = str(call_log)
     env["FAKE_PY_REAL"] = sys.executable
+    env["FAKE_READBACK_RC"] = str(readback_rc)
     env["FAKE_SNAPSHOT_RC"] = str(snapshot_rc)
     env.pop("LIFE_MANAGER_OCCURRENCE_ID", None)
     if occurrence is not None:
@@ -82,6 +83,17 @@ printf '%s\\n' 'http://127.0.0.1:9222'
     )
     calls = call_log.read_text(encoding="utf-8").splitlines() if call_log.exists() else []
     return result, calls
+
+
+def test_daily_skips_selection_when_official_readback_fails(tmp_path):
+    result, calls = _run_daily(tmp_path, readback_rc=1)
+
+    assert any("readback.py" in call for call in calls)
+    assert not any("packager.py publish-list" in call for call in calls)
+    assert not any("select_next.py" in call for call in calls)
+    assert not any("promptbase_fence_reconcile.py" in call for call in calls)
+    assert not any("publish.py" in call for call in calls)
+    assert result.returncode == 0
 
 
 def test_daily_aborts_before_publish_when_occurrence_is_missing(tmp_path):

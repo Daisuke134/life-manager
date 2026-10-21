@@ -159,7 +159,10 @@ Runs `daily.sh` once a day (04:20, a quiet hour) through the registered
 `promptbase:dais` identity. The loop is `effect_class: publish`, no human in the loop:
 
 1. `readback.py` — refresh every tracked ledger row's status/sales from the
-   dashboard first.
+   dashboard first. If the official readback fails (login redirect, challenge,
+   or unrecognized page), `daily.sh` logs a skip and exits before Capafy
+   selection, the occurrence snapshot, and `publish.py`; stale listing state
+   cannot authorize a new submission, and no zero-sales summary is written.
 2. Read the authoritative Capafy state (`packager.py publish-list` under
    `skills/capafy-autopublish/vendor/capafy-publisher`, with
    `CAPAFY_PUBLISHER_STATE_HOME`/`HOME` pointed at
