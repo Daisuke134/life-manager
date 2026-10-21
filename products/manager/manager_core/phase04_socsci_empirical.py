@@ -142,24 +142,18 @@ def evaluate_aggregates(mapping, aggregates):
             "respondent_level_ci_claim":False
         },
         "subgroups":[
-            {"category":"heldout_studies_with_at_least_1000_observations",
-             "studies":sum(x["n"]>=1000 for x in evaluated),
-             "rows":sum(x["n"] for x in evaluated if x["n"]>=1000),
-             "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]>=1000)/max(1,sum(x["n"]>=1000 for x in evaluated))) if any(x["n"]>=1000 for x in evaluated) else None},
-            {"category":"heldout_studies_below_1000_observations",
-             "studies":sum(x["n"]<1000 for x in evaluated),
-             "rows":sum(x["n"] for x in evaluated if x["n"]<1000),
-             "mean_study_tvd":_round(sum(x["tvd_frequency"] for x in evaluated if x["n"]<1000)/max(1,sum(x["n"]<1000 for x in evaluated))) if any(x["n"]<1000 for x in evaluated) else None},
+            {"category":"at_or_below_unseen_study_sample_count_median",
+             "studies":sum(e["n"] <= median(weights) for e in evaluated),
+             "rows":sum(e["n"] for e in evaluated if e["n"] <= median(weights)),
+             "tvd_study_macro":_round(sum(e["tvd_frequency"] for e in evaluated if e["n"] <= median(weights)) /
+                        sum(e["n"] <= median(weights) for e in evaluated))},
+            {"category":"above_unseen_study_sample_count_median",
+             "studies":sum(e["n"] > median(weights) for e in evaluated),
+             "rows":sum(e["n"] for e in evaluated if e["n"] > median(weights)),
+             "tvd_study_macro":_round(sum(e["tvd_frequency"] for e in evaluated if e["n"] > median(weights)) /
+                        sum(e["n"] > median(weights) for e in evaluated))},
         ],
-        "calibration":{
-            "prediction_type":"GLOBAL_COARSE_CATEGORICAL_PRIOR_NOT_QUESTION_CONDITIONED",
-            "top_class_probability_train_only":_round(train_top_p),
-            "top_class_empirical_hit_rate_on_40_unseen":_round(pooled_majority_accuracy),
-            "absolute_top_class_calibration_gap":_round(abs(train_top_p-pooled_majority_accuracy)),
-            "micro_sample_size":test_n,
-            "one_reliability_bin_only":True,
-            "meaningful_individual_level_calibration_established":False
-        },
+        "subgroup_methodology":"Descriptive strata based ONLY on heldout study sample counts (not respondent attributes or response labels); test-set median is posthoc metadata, not a train-time decision rule.",
         "abstention_policy":{
             "decision":"ABSTAIN_ALL_UNSEEN_FOR_DEPLOYMENT",
             "reason":"No unseen-study task semantics, available options, or calibrated per-task prior available at inference time",
