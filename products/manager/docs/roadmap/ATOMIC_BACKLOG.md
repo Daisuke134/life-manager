@@ -8,6 +8,21 @@ Total: 113 · Done: 69 · Todo: 41 · Blocked: 0 · Skipped: 3
 
 Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.
 
+## 唯一の実装順（E01〜E16を先に、一件ずつ）
+
+**ManagerのSSOT（状態・依存・現在位置）:** [tasks.json](tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor`。Life Manager の別SSOTは変更しない。
+
+**現在の次タスク:** `E01`
+
+実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。
+
+**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の製品受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。
+
+**対象外:** F004（第三者の資金管理者）とF007（施設所有者・屋内センサー）は `skipped`（未実施・未達成）で、実装の依存条件にしない。他者の設備・口座を操作する場合の権限は引き続き必要。
+
+**並行する編集作業:** P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）。E実装の現在位置は移動しない。
+
+下のPhase 06表は受け入れ条件の一覧であり、時系列の作業順を示すものではない。
 ## Definitions of done
 
 - Study: source-backed research note and stated verification succeeds.
@@ -110,7 +125,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `F002` | F001, L010 | 一次アウトカムと副作用を事前固定する | pilot/PREREGISTRATION.mdにunit/comparator/n/duration/outcome | 「成功した後に指標を選ぶ」ことを禁止 |
 | ✅ `F003` | F002 | 仮想テストと現実証明を分離する | finance read-only adapterと初期fixtureを実装 | 公開送金/公開台帳を第三者でreadbackできる |
 | ⏭️ `F004` | F003, K007 | 資金管理者の許可待ちをManager開発の前提にしない | 旧・第三者の資金管理者承認と寄付予算取得の実地試験を必須ルートから廃止。所有サイトの情報環境改善へ移行 | 旧試験は未実施のまま履歴へ保存。実送金や外部資金確保を完了と主張せず、依存経路から除外 **Waiver (not completed):** 2026-10-22 founder-requested scope revision: external finance operators, transfers and allocated funds are not prerequisites for first-party digital Manager. Original finance field trial retired, NOT completed. |
-| ⬜ `F005` | F003, K009 | 所有する公開デジタル環境の実更新と外部readbackを区別する | Manager所有の公式情報案内ページを限定公開し、実際の提供者commitと配信中のSHA256を独立照合 | 提供者receipt P1＋公開ページ外部GET P2＋NO_ACTION replay-zeroと他のパス不変。人の便益はNOT_MEASURED |
+| ⬜ `F005` | K009 | 所有する公開デジタル環境の実更新と外部readbackを区別する | Manager所有の公式情報案内ページを限定公開し、実際の提供者commitと配信中のSHA256を独立照合 | 提供者receipt P1＋公開ページ外部GET P2＋NO_ACTION replay-zeroと他のパス不変。人の便益はNOT_MEASURED |
 | ⬜ `F006` | F005, K011 | 公開コンテンツの状態変化と人の苦しみの減少を混同しない | 公開ページ変化、初期状態、比較対象、欠測、費用、害を版付きで報告。人間アウトカムと因果効果の未測定を明示 | P1/P2出典・SHA・時刻を確認。利用者のP3/P4はNOT_MEASURED、標本がないのに信頼区間を捏造しない |
 | ⏭️ `F007` | F001 | 屋内設備介入なしに情報アクセス環境を改善する | 旧・共有屋内施設やセンサーの取得・操作権限の確保を必須ルートから廃止。所有オンライン案内面の改善へ移行 | 旧屋内試験は未実施のまま履歴保存。屋内の曝露・疾患改善を主張せず、F008の依存を解除 **Waiver (not completed):** 2026-10-22 founder-requested scope revision: physical facilities and indoor sensors are unnecessary prerequisites to a first-party digital environmental intervention. Original indoor field trial retired, NOT completed. |
 | ⬜ `F008` | F005, K010 | 対象の異なる所有オンライン環境の変化を別々に観測する | 金融案内とは別の公開情報アクセス面で改善を確認し、固有URL・SHA・独立GET・差分・復元可能性を記録 | 異なる2ページで外部読み戻しP2。室内センサーも施設許可も要求せず、人への因果効果は未測定 |
