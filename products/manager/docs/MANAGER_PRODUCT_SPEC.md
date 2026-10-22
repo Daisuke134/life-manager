@@ -5,7 +5,7 @@
 
 Managerの**状態・依存関係・次の実行位置の唯一のSSOT**は [`docs/roadmap/tasks.json`](roadmap/tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor` です。Life Managerの別SSOTを更新するものではありません。
 
-**コード実装は必ず E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。** 現在の位置は **E01** です。テストと証拠によってEを一つずつ完了確認した後だけ、次へ進みます。詳しいテスト・編集対象は [Superpowers Writing Plan](plans/2026-10-22-manager-core-execution-plan.md) を参照。
+**コード実装は必ず E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。** 現在の位置は**SSOTの `technical_execution_cursor` を参照**（この版ではE02）です。テストと証拠によってEを一つずつ完了確認した後だけ、次へ進みます。詳しいテスト・編集対象は [Superpowers Writing Plan](plans/2026-10-22-manager-core-execution-plan.md) を参照。
 
 **F005 → F006 → F008 → F009 は実装順ではなく、Phase 06の受け入れ確認です。** Eでできた仕組みが本物の公開資産に作用し、独立して読み戻せた証拠で判定します。F004（外部資金管理者）とF007（施設・センサー）は `skipped`（未実施）で、必須の依存条件ではありません。人の苦しみの減少は `NOT_MEASURED` であり、公開ページの技術的変更だけで証明したとは扱いません。
 
