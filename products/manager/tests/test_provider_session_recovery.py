@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from manager_core.provider_sessions import SessionJournal, SessionConflict
+from manager_core.provider_sessions import SessionJournal, SessionConflict, reconcile_session_pages
 from manager_core.ampersand_api import read_completed_turn, SessionFailure
 
 
@@ -162,6 +162,61 @@ class DurableSessionIntent(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_followup_turn(None,"sess_abcdefgh","Hi",key="next-01",
                                    journal=j,writer_id=None)
+
+    def test_reconciliation_fetches_all_pages_before_binding(self):
+        with TemporaryDirectory() as d:
+            j=SessionJournal(Path(d)/"state.sqlite")
+            j.begin("req_page",digest("prompt"));j.mark_unknown("req_page")
+            cursors=[]
+            def fetch_page(after,limit):
+                cursors.append(after)
+                if after is None:
+                    return {"data":[{"id":"sess_11111111","metadata":{"other":"value"}}],
+                            "has_more":True}
+                if after=="sess_11111111":
+                    return {"data":[{"id":"sess_abcdefgh",
+                                     "metadata":{"manager_request_id":"req_page"}}],
+                            "has_more":False}
+                raise AssertionError("unexpected page cursor")
+            result=reconcile_session_pages(j,"req_page",fetch_page)
+            self.assertEqual(result.session_id,"sess_abcdefgh")
+            self.assertEqual(cursors,[None,"sess_11111111"])
+            self.assertEqual(j.get("req_page").status,"BOUND")
+
+    def test_reconciliation_rejects_incomplete_page_scan(self):
+        with TemporaryDirectory() as d:
+            j=SessionJournal(Path(d)/"state.sqlite")
+            j.begin("req_unknown",digest("prompt"));j.mark_unknown("req_unknown")
+            def looping(after,limit):
+                return {"data":[{"id":"sess_abcdefgh",
+                                 "metadata":{"other":"value"}}],"has_more":True}
+            with self.assertRaises(SessionConflict):
+                reconcile_session_pages(j,"req_unknown",looping,max_pages=3)
+            self.assertEqual(j.get("req_unknown").status,"UNKNOWN")
+
+    def test_two_matching_sessions_across_pages_quarantined(self):
+        with TemporaryDirectory() as d:
+            j=SessionJournal(Path(d)/"state.sqlite")
+            j.begin("req_duplicate",digest("prompt"));j.mark_unknown("req_duplicate")
+            def fetch(after,limit):
+                if after is None:
+                    return {"data":[{"id":"sess_aaaaaaaa","metadata":{
+                        "manager_request_id":"req_duplicate"}}],"has_more":True}
+                return {"data":[{"id":"sess_bbbbbbbb","metadata":{
+                    "manager_request_id":"req_duplicate"}}],"has_more":False}
+            with self.assertRaises(SessionConflict):
+                reconcile_session_pages(j,"req_duplicate",fetch)
+            self.assertEqual(j.get("req_duplicate").status,"UNKNOWN")
+
+    def test_absent_session_never_causes_another_create(self):
+        with TemporaryDirectory() as d:
+            j=SessionJournal(Path(d)/"state.sqlite")
+            j.begin("req_absent",digest("prompt"));j.mark_unknown("req_absent")
+            status=reconcile_session_pages(j,"req_absent",lambda after,limit:{
+                "data":[],"has_more":False})
+            self.assertEqual(status.status,"UNKNOWN")
+            with self.assertRaises(SessionConflict):
+                j.reserve_for_send("req_absent")
 
     def test_missing_session_and_invalid_ids_fail_closed(self):
         with TemporaryDirectory() as d:
