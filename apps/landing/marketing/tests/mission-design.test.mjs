@@ -20,7 +20,9 @@ for(const locale of ['en','ja']) {
   assert.match(html,/id="motion-pause" type="checkbox"/);
   assert.match(html,/<label for="motion-pause">/);
   assert.match(html,/aria-labelledby="scene-title scene-desc"/);
-  assert.match(html,/class="scene-person"/);
+  const people=[...html.matchAll(/<g class="scene-person"[^>]*transform="([^"]+)"/g)];
+  assert.equal(people.length,15);
+  assert.equal(new Set(people.map(p=>p[1])).size,15);
   assert.doesNotMatch(html,/<animateMotion|<script[^>]+src=/);
   assert.match(html,locale==='en'?/Concept illustration, not a prediction/:/予測結果ではありません/);
  });
