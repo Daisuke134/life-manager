@@ -5,7 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LEGACY_MIGRATION="$ROOT_DIR/migrations/2026-07-18-lm-api-cost.sql"
 APPEND_ONLY_MIGRATION="$ROOT_DIR/migrations/2026-10-06-lm-api-cost-append-only.sql"
 FUNNEL_MIGRATION="$ROOT_DIR/migrations/2026-10-08-zz-lm-web-funnel-events.sql"
-for migration in "$LEGACY_MIGRATION" "$APPEND_ONLY_MIGRATION" "$FUNNEL_MIGRATION"; do
+PERIOD_SUMMARY_MIGRATION="$ROOT_DIR/migrations/2026-10-07-lm-usage-cost-period-summary.sql"
+PERIOD_INDEX_MIGRATION="$ROOT_DIR/migrations/2026-10-23-lm-api-cost-period-index.sql"
+for migration in "$LEGACY_MIGRATION" "$APPEND_ONLY_MIGRATION" "$FUNNEL_MIGRATION" "$PERIOD_SUMMARY_MIGRATION" "$PERIOD_INDEX_MIGRATION"; do
   if [[ ! -f "$migration" ]]; then
     printf 'missing migration: %s\n' "$migration" >&2
     exit 1
@@ -147,4 +149,29 @@ expect_error_contains "table owner Web funnel UPDATE trigger" "lm_web_funnel_eve
 expect_error_contains "table owner Web funnel DELETE trigger" "lm_web_funnel_events is append-only" "DELETE FROM public.lm_web_funnel_events WHERE event_id = 'view-test';"
 expect_error_contains "table owner Web funnel TRUNCATE trigger" "lm_web_funnel_events is append-only" "TRUNCATE public.lm_web_funnel_events;"
 
-printf '%s\n' 'lm-api-cost-append-only-postgres: PASS provider_costs=append_only web_funnel=append_only service_role_select_insert=1 browser_roles=denied migration_rerun=1'
+# Tenant/half-open period reads must stay exact and avoid scanning other tenants/history.
+"${PSQL[@]}" >/dev/null <<'SQL'
+INSERT INTO public.lm_api_cost(ts, uid, kind, quantity, unit, est_usd, meta)
+SELECT '2026-01-01T00:00:00Z'::timestamptz + (n / 50) * interval '1 hour',
+       'index-tenant-' || (n % 50), 'provider_usage', 1, 'request', 0.01, '{}'::jsonb
+FROM generate_series(0, 29999) AS n;
+ANALYZE public.lm_api_cost;
+SQL
+PERIOD_FILTER="uid = 'index-tenant-7' AND ts >= '2026-01-10T00:00:00Z' AND ts < '2026-01-10T12:00:00Z'"
+assert_scalar "tenant and half-open period boundaries" '12|0.12' "SET ROLE service_role; SELECT count(*), sum(est_usd) FROM public.lm_api_cost WHERE $PERIOD_FILTER;"
+"${PSQL[@]}" -f "$PERIOD_SUMMARY_MIGRATION" >/dev/null
+PERIOD_SUMMARY_QUERY="SET ROLE service_role; SELECT coalesce(jsonb_agg(to_jsonb(s)), '[]'::jsonb) FROM public.lm_usage_cost_period_summary('2026-01-10T00:00:00Z', '2026-01-10T12:00:00Z', 'index-tenant-7') AS s;"
+PERIOD_SUMMARY_BEFORE="$(scalar "$PERIOD_SUMMARY_QUERY")"
+"${PSQL[@]}" -f "$PERIOD_INDEX_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$PERIOD_INDEX_MIGRATION" >/dev/null
+assert_scalar "one valid ready nonpartial uid/ts btree index" 1 "SELECT count(*) FROM pg_index WHERE indexrelid = to_regclass('public.lm_api_cost_uid_ts_idx') AND indrelid = 'public.lm_api_cost'::regclass AND indisvalid AND indisready AND NOT indisunique AND indpred IS NULL AND pg_get_indexdef(indexrelid) LIKE '% USING btree (uid, ts)';"
+assert_scalar "period result unchanged after index" '12|0.12' "SET ROLE service_role; SELECT count(*), sum(est_usd) FROM public.lm_api_cost WHERE $PERIOD_FILTER;"
+assert_scalar "period RPC result unchanged after index" "$PERIOD_SUMMARY_BEFORE" "$PERIOD_SUMMARY_QUERY"
+assert_scalar "index preserves original row and append-only RLS boundary" t "SELECT relrowsecurity AND (SELECT count(*) FROM pg_trigger WHERE tgrelid = 'public.lm_api_cost'::regclass AND NOT tgisinternal AND tgname IN ('lm_api_cost_guard', 'lm_api_cost_truncate_guard')) = 2 AND (SELECT count(*) FROM public.lm_api_cost WHERE uid = 'tenant-a' AND kind = 'before_append_only' AND meta = '{\"evidence\":\"original\"}'::jsonb) = 1 AND has_table_privilege('service_role', 'public.lm_api_cost', 'SELECT') AND has_table_privilege('service_role', 'public.lm_api_cost', 'INSERT') AND NOT has_table_privilege('service_role', 'public.lm_api_cost', 'UPDATE,DELETE,TRUNCATE') AND NOT has_table_privilege('anon', 'public.lm_api_cost', 'SELECT,INSERT') AND NOT has_table_privilege('authenticated', 'public.lm_api_cost', 'SELECT,INSERT') FROM pg_class WHERE oid = 'public.lm_api_cost'::regclass;"
+PERIOD_PLAN="$(scalar "SET ROLE service_role; EXPLAIN (FORMAT JSON) SELECT sum(est_usd) FROM public.lm_api_cost WHERE $PERIOD_FILTER;")"
+if [[ "$PERIOD_PLAN" != *'lm_api_cost_uid_ts_idx'* ]]; then
+  printf '%s\n' 'FAIL: tenant/period aggregate does not use the uid/ts index' >&2
+  exit 1
+fi
+
+printf '%s\n' 'lm-api-cost-append-only-postgres: PASS provider_costs=append_only web_funnel=append_only service_role_select_insert=1 browser_roles=denied migration_rerun=1 tenant_period_index=1 unchanged_period_rpc=1'
