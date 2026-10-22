@@ -174,6 +174,160 @@ test("durable Travel update keeps the known helper fenced unless the proxy prove
   });
 });
 
+function durableCancelFixture(uid) {
+  const f = durableUpdateFixture(uid);
+  f.args = { calendar_id: "primary", event_id: "travel-helper-1" };
+  f.options.travelWriteContext.command = "calendar.cancel";
+  f.cancel = () => f.calendar.deleteEvent(f.uid, f.args, f.options);
+  return f;
+}
+
+test("durable Travel cancel DELETE sends no body and keeps the known helper for readback", async (t) => {
+  for (const uid of ["hybrid-cancel-fixture", UID]) await t.test(uid === UID ? "Web return" : "Hybrid go", async () => {
+    const f = durableCancelFixture(uid);
+    if (uid === UID) f.options.travelWriteContext.leg = "return";
+    f.response.body = { status: 204, data: null };
+    const result = await f.cancel();
+    assert.equal(result.effect, "unknown");
+    assert.equal(result.successful, false);
+    assert.deepEqual(f.stages, ["account", "dispatch", "provider"]);
+    assert.deepEqual(f.dispatches, [{ account_ref_hash: f.options.travelWriteContext.account_ref_hash, command: "calendar.cancel" }]);
+    assert.deepEqual(f.writes, [{ url: "https://backend.composio.dev/api/v3.1/tools/execute/proxy", method: "POST", body: {
+      user_id: uid, connected_account_id: ACCOUNT_ID,
+      endpoint: "https://www.googleapis.com/calendar/v3/calendars/primary/events/travel-helper-1", method: "DELETE",
+      parameters: [{ name: "If-Match", value: '"etag-before"', type: "header" },
+        { name: "sendUpdates", value: "none", type: "query" }],
+    } }]);
+    assert.equal(result.writeReceipt.command, "calendar.cancel");
+    assert.equal(result.writeReceipt.provider_event_id, "travel-helper-1");
+    assert.equal(result.writeReceipt.phase, "response");
+    assert.equal(result.writeReceipt.next_action, "owned_readback");
+    assert.equal(result.writeReceipt.retryable, false);
+    assert.equal(f.ledger[0].tool, "GOOGLECALENDAR_DELETE_EVENT");
+    assert.equal(f.ledger[0].travelWrite.marker_request_id, "2".repeat(64));
+    assert.equal(f.ledger[0].travelWrite.prior_request_fingerprint, "6".repeat(64));
+  });
+});
+
+test("durable Travel cancel rejects unsafe inputs and changed ownership before dispatch", async (t) => {
+  const scenarios = [
+    ["missing context", f => { delete f.options.travelWriteContext; }],
+    ["missing callback", f => { delete f.options.beforeDispatch; }],
+    ["missing etag", f => { delete f.options.expectedEtag; }],
+    ["wildcard etag", f => { f.options.expectedEtag = "*"; }],
+    ["header injection", f => { f.options.expectedEtag = '\"etag\"\r\nPrivate: secret'; }],
+    ["different helper", f => { f.options.travelWriteContext.provider_event_id = "other-helper"; }],
+    ["body argument", f => { f.args.body = { summary: "must not be sent" }; }],
+    ["wrong command", f => { f.options.travelWriteContext.command = "calendar.update"; }],
+    ["private request", f => { f.options.travelWriteContext.request_id = "private request detail"; }],
+    ["missing marker", f => { delete f.options.travelWriteContext.marker_request_id; }],
+    ["missing prior fingerprint", f => { delete f.options.travelWriteContext.prior_request_fingerprint; }],
+    ["reused marker", f => { f.options.travelWriteContext.marker_request_id = f.options.travelWriteContext.request_id; }],
+    ["changed binding", f => { f.user.calendar_connected_account_id = "ca-other"; }],
+    ["changed hash", f => { f.options.travelWriteContext.account_ref_hash = "a".repeat(64); }],
+    ["other tenant", f => { f.account.user_id = "other-owner"; }],
+    ["inactive", f => { f.account.status = "EXPIRED"; }],
+    ["Web pause", f => { f.controls.dailyAutomationEnabled = false; }],
+    ["Web Telegram row", f => { f.user.telegram_chat_id = 123; }],
+  ];
+  for (const [name, change] of scenarios) await t.test(name, async () => {
+    const f = durableCancelFixture(name.startsWith("Web") ? UID : undefined);
+    change(f);
+    const result = await f.cancel();
+    assert.equal(result.successful, false);
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.dispatches.length, 0);
+    assert.equal(JSON.stringify(f.ledger).includes("private"), false);
+  });
+});
+
+test("durable Travel cancel holds the known helper when its durable CAS does not succeed", async (t) => {
+  for (const throws of [false, true]) await t.test(throws ? "callback throws" : "CAS lost", async () => {
+    const f = durableCancelFixture();
+    f.options.beforeDispatch = async () => { if (throws) throw new Error("private CAS detail"); return false; };
+    const result = await f.cancel();
+    assert.equal(result.effect, "unknown");
+    assert.equal(result.writeReceipt.command, "calendar.cancel");
+    assert.equal(result.writeReceipt.error_class, "receipt_not_durable");
+    assert.equal(result.writeReceipt.provider_event_id, "travel-helper-1");
+    assert.equal(result.writeReceipt.next_action, "owned_readback");
+    assert.equal(f.writes.length, 0);
+    assert.equal(JSON.stringify(f.ledger).includes("private"), false);
+  });
+});
+
+test("durable Travel cancel never closes from ACK and retains explicit rejections for owned readback", async (t) => {
+  const scenarios = [
+    ["204", { ok: true, status: 200, body: { status: 204, data: null } }, "unknown"],
+    ["200 same helper", { ok: true, status: 200, body: { status: 200, data: { id: "travel-helper-1" } } }, "unknown"],
+    ["412", { ok: true, status: 200, body: { status: 412 } }, "no_effect"],
+    ["404", { ok: true, status: 200, body: { status: 404 } }, "no_effect"],
+    ["outer 500", { ok: false, status: 500, body: { status: 412 } }, "unknown"],
+    ["outer 401", { ok: false, status: 401, body: { status: 412 } }, "unknown"],
+    ["string status", { ok: true, status: 200, body: { status: "412" } }, "unknown"],
+    ["missing status", { ok: true, status: 200, body: {} }, "unknown"],
+    ["unreadable", { ok: true, status: 200, unreadable: true }, "unknown"],
+    ["timeout", { transportError: true }, "unknown"],
+  ];
+  for (const [name, response, effect] of scenarios) await t.test(name, async () => {
+    const f = durableCancelFixture();
+    f.response = response;
+    const result = await f.cancel();
+    assert.equal(result.effect, effect);
+    assert.equal(result.successful, false);
+    assert.equal(result.writeReceipt.command, "calendar.cancel");
+    assert.equal(result.writeReceipt.provider_event_id, "travel-helper-1");
+    assert.equal(result.writeReceipt.next_action, "owned_readback");
+    assert.equal(f.writes.length, 1);
+    assert.equal(f.dispatches.length, 1);
+    assert.equal(JSON.stringify(f.ledger).includes("private"), false);
+  });
+});
+
+function completeListFixture(page) {
+  const calls = [];
+  const response = { ok: true, status: 200 };
+  const calendar = makeComposioCalendar({ apiKey: "fixture-key", recordCall: () => false,
+    resolveConnectedAccountId: async () => ACCOUNT_ID,
+    fetchImpl: async (_url, init) => {
+      const args = JSON.parse(init.body).arguments;
+      calls.push(args);
+      return { ...response, json: async () => page(args, calls.length) };
+    },
+  });
+  return { calendar, calls, response };
+}
+
+test("complete raw Calendar read follows all pages without changing the default first-page contract", async () => {
+  for (const complete of [false, true]) {
+    const f = completeListFixture(args => ({ successful: true, data: args.pageToken
+      ? { items: [{ id: "second" }] } : { items: [{ id: "first" }], nextPageToken: "page-2" } }));
+    const result = await f.calendar.listEventsRaw("complete-fixture", { complete, maxResults: 1, strict: false });
+    assert.deepEqual(result.map(x => x.id), complete ? ["first", "second"] : ["first"]);
+    assert.equal(f.calls.length, complete ? 2 : 1);
+    assert.equal(f.calls[0].maxResults, complete ? 2500 : 1);
+  }
+});
+
+test("complete raw Calendar read rejects partial, malformed, looping, and over-limit results", async (t) => {
+  const scenarios = [
+    ["later failure", (_args, n) => n === 1 ? { successful: true, data: { items: [{ id: "first" }], nextPageToken: "next" } } : { successful: false }, 2],
+    ["token loop", () => ({ successful: true, data: { items: [], nextPageToken: "same-token" } }), 2],
+    ["page limit", (_args, n) => ({ successful: true, data: { items: [], nextPageToken: `next-${n}` } }), 20],
+    ["malformed items", () => ({ successful: true, data: { items: {} } }), 1],
+    ["null items", () => ({ successful: true, data: { items: null } }), 1],
+    ["invalid cursor", () => ({ successful: true, data: { items: [], nextPageToken: 12 } }), 1],
+    ["outer HTTP failure", () => ({ successful: true, data: { items: [] } }), 1],
+    ["transport failure", () => { throw new Error("fixture read failed"); }, 1],
+  ];
+  for (const [name, page, count] of scenarios) await t.test(name, async () => {
+    const f = completeListFixture(page);
+    if (name === "outer HTTP failure") Object.assign(f.response, { ok: false, status: 503 });
+    await assert.rejects(f.calendar.listEventsRaw("complete-fixture", { complete: true, strict: false }));
+    assert.equal(f.calls.length, count);
+  });
+});
+
 test("owned point GET uses the exact Hybrid account and direct proxy event, including a bare cancellation", async () => {
   for (const cancelled of [false, true]) {
     const uid = "hybrid-point-fixture", eventId = "event-point_20300101T000000Z";

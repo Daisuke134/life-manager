@@ -127,17 +127,19 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
 async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWrite = false) {
   const durableUpdate = tool === "GOOGLECALENDAR_PATCH_EVENT"
     && (opts.travelWriteContext != null || typeof opts.beforeDispatch === "function");
-  const command = durableUpdate ? "calendar.update" : "calendar.create";
+  const durableCancel = tool === "GOOGLECALENDAR_DELETE_EVENT";
+  const durableMutation = durableUpdate || durableCancel;
+  const command = durableCancel ? "calendar.cancel" : durableUpdate ? "calendar.update" : "calendar.create";
   let dispatched = false;
   let accountHash = null;
   const finish = async (effect, result = { successful: false }, errorClass = null, httpStatus = null) => {
-    const id = durableUpdate ? args?.event_id : result?.data?.id;
+    const id = durableMutation ? args?.event_id : result?.data?.id;
     const writeReceipt = { phase: dispatched ? "response" : "claimed", command,
       effect, account_ref_hash: accountHash, http_status: httpStatus, error_class: errorClass,
       provider_event_id: typeof id === "string" && /^[A-Za-z0-9_-]{1,1024}$/.test(id) ? id : null,
       readback: null, evidence_ref: null, retryable: false,
-      next_action: effect === "created" || effect === "updated" || effect === "no_effect" ? "none" : "owned_readback" };
-    const costReceiptSaved = durableUpdate && errorClass === "invalid_update_request" ? false
+      next_action: !durableCancel && ["created", "updated", "no_effect"].includes(effect) ? "none" : "owned_readback" };
+    const costReceiptSaved = durableMutation && ["invalid_update_request", "invalid_cancel_request"].includes(errorClass) ? false
       : await recordOutcome(effect === "created" || effect === "updated" ? "success"
       : effect === "no_effect" ? "failure" : "unknown", writeReceipt);
     return { effect, result, writeReceipt, costReceiptSaved };
@@ -149,8 +151,8 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
     && typeof args.event_id === "string" && args.event_id.length > 0
     && args.reminders && typeof args.reminders === "object" && !Array.isArray(args.reminders)
     && Object.keys(args).every((field) => ["calendar_id", "event_id", "reminders", "send_updates"].includes(field));
-  const proxyOperation = proxyCreate || proxyReminderPatch || durableUpdate;
-  if (durableUpdate) {
+  const proxyOperation = proxyCreate || proxyReminderPatch || durableMutation;
+  if (durableMutation) {
     const context = opts.travelWriteContext;
     if (!context || context.schema_version !== 1 || context.phase !== "dispatching"
       || context.command !== command || context.effect !== "unknown" || context.retryable !== false
@@ -163,16 +165,17 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
       || opts.expectedEtag.length > 1024 || !/^"[^"\x00-\x20\x7f]+"$/.test(opts.expectedEtag)
       || !args || args.calendar_id !== "primary" || typeof args.event_id !== "string"
       || !/^[A-Za-z0-9_-]{1,1024}$/.test(args.event_id) || context.provider_event_id !== args.event_id
-      || typeof args.summary !== "string" || typeof args.location !== "string"
-      || typeof args.start?.dateTime !== "string" || typeof args.end?.dateTime !== "string"
-      || !Number.isFinite(Date.parse(args.start.dateTime)) || !(Date.parse(args.end.dateTime) > Date.parse(args.start.dateTime))
+      || durableCancel && Object.keys(args).some((field) => !["calendar_id", "event_id"].includes(field))
+      || durableUpdate && (typeof args.summary !== "string" || typeof args.location !== "string"
+        || typeof args.start?.dateTime !== "string" || typeof args.end?.dateTime !== "string"
+        || !Number.isFinite(Date.parse(args.start.dateTime)) || !(Date.parse(args.end.dateTime) > Date.parse(args.start.dateTime)))
       || WEB_TRAVEL_UID_RE.test(String(uid || "")) && opts.expectedCalendarAccountId == null) {
-      return finish("no_effect", undefined, "invalid_update_request");
+      return finish("no_effect", undefined, durableCancel ? "invalid_cancel_request" : "invalid_update_request");
     }
   }
   if (opts.ownedReadAccountRef && tool !== "GOOGLECALENDAR_EVENTS_LIST") throw new Error("owned readback is read only");
   let connectedAccountId;
-  try { connectedAccountId = durableUpdate && !WEB_TRAVEL_UID_RE.test(String(uid || ""))
+  try { connectedAccountId = durableMutation && !WEB_TRAVEL_UID_RE.test(String(uid || ""))
     ? await ownedAccountId(uid, apiKey, { ...opts, ownedReadAccountRef: opts.travelWriteContext.account_ref_hash })
     : await selectedAccountId(uid, apiKey, opts); }
   catch (error) {
@@ -180,7 +183,7 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
     throw error;
   }
   if (connectedAccountId) accountHash = accountRefHash(uid, connectedAccountId);
-  if (durableUpdate && accountHash !== opts.travelWriteContext.account_ref_hash) {
+  if (durableMutation && accountHash !== opts.travelWriteContext.account_ref_hash) {
     return finish("no_effect", undefined, "account_binding_unavailable");
   }
   if (tool !== "GOOGLECALENDAR_EVENTS_LIST" && opts.expectedCalendarAccountId != null
@@ -204,12 +207,12 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
   let result;
   let response;
   try {
-    const requestBody = durableUpdate ? {
+    const requestBody = durableMutation ? {
       user_id: uid, connected_account_id: connectedAccountId,
-      endpoint: GOOGLE_CALENDAR_EVENTS_ENDPOINT + "/" + encodeURIComponent(args.event_id), method: "PATCH",
+      endpoint: GOOGLE_CALENDAR_EVENTS_ENDPOINT + "/" + encodeURIComponent(args.event_id), method: durableCancel ? "DELETE" : "PATCH",
       parameters: [{ name: "If-Match", value: opts.expectedEtag, type: "header" },
         { name: "sendUpdates", value: "none", type: "query" }],
-      body: { summary: args.summary, start: args.start, end: args.end, location: args.location },
+      ...(durableUpdate ? { body: { summary: args.summary, start: args.start, end: args.end, location: args.location } } : {}),
     } : proxyCreate
       ? { ...args, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}) }
       : proxyReminderPatch ? {
@@ -235,13 +238,17 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
     await recordOutcome("unknown");
     throw error;
   }
+  if (tool === "GOOGLECALENDAR_EVENTS_LIST" && opts.completeRead === true && response.ok !== true) {
+    await recordOutcome("failure");
+    throw new Error("calendar list failed");
+  }
   if (proxyOperation) {
     let proxied;
     try { proxied = await response.json(); }
     catch {
       return finish("unknown", undefined, "unreadable_response", response.status || null);
     }
-    if (durableUpdate) {
+    if (durableMutation) {
       const outerStatus = Number.isInteger(response.status) ? response.status : null;
       const upstreamStatus = proxied?.status;
       const numericUpstream = Number.isInteger(upstreamStatus) && upstreamStatus >= 100 && upstreamStatus <= 599;
@@ -328,7 +335,7 @@ function makeComposioCalendar(opts = {}) {
       const context = extraOpts.travelWriteContext;
       const travelWrite = context ? Object.fromEntries([
         "request_id", "source_event_hash", "source_event_version", "request_fingerprint", "leg",
-        ...(context.command === "calendar.update" ? ["marker_request_id", "prior_request_fingerprint"] : []),
+        ...(["calendar.update", "calendar.cancel"].includes(context.command) ? ["marker_request_id", "prior_request_fingerprint"] : []),
       ].map((field) => [field, context[field]])) : null;
       if (travelWrite && receipt) Object.assign(travelWrite, receipt);
       try { return await ledger(uid, tool, { outcome, runtimeTrace: trace, ...(travelWrite ? { travelWrite } : {}) }) === true; }
@@ -355,7 +362,7 @@ function makeComposioCalendar(opts = {}) {
   // Error contract unchanged and shared with listEventsRaw: default (wake path) swallows every
   // failure to an empty page — load-bearing, a transport blip must not crash the 60s tick — while
   // strict (history path) THROWS, because "empty calendar" and "the read failed" must never merge.
-  const listEventsPage = async (uid, { timeMin, timeMax, maxResults, pageToken, strict, expectedCalendarAccountId,
+  const listEventsPage = async (uid, { timeMin, timeMax, maxResults, pageToken, strict, complete, expectedCalendarAccountId,
     ownedReadAccountRef, supaUrl, supaKey } = {}) => {
     const empty = { items: [], nextPageToken: null };
     if (!key || !uid) {
@@ -368,20 +375,40 @@ function makeComposioCalendar(opts = {}) {
     let j;
     try {
       j = await execute("GOOGLECALENDAR_EVENTS_LIST", uid, args, expectedCalendarAccountId, false,
-        ownedReadAccountRef ? { ownedReadAccountRef, ...(supaUrl ? { supaUrl, supaKey } : {}) } : {});
+        { ...(ownedReadAccountRef ? { ownedReadAccountRef, ...(supaUrl ? { supaUrl, supaKey } : {}) } : {}),
+          ...(complete ? { completeRead: true } : {}) });
     } catch (e) {
       if (strict) throw e;
       return empty;
     }
-    if (!j || (ownedReadAccountRef ? j.successful !== true : !j.successful)) {
-      if (strict) throw new Error(`calendar list failed: ${String((j && (j.error || j.message)) || "unsuccessful response")}`);
+    if (!j || (ownedReadAccountRef || complete ? j.successful !== true : !j.successful)) {
+      if (strict) throw new Error(complete ? "calendar list failed"
+        : `calendar list failed: ${String((j && (j.error || j.message)) || "unsuccessful response")}`);
       return empty;
     }
     const d = j.data || {};
+    if (complete && (typeof j.data !== "object" || j.data === null || Array.isArray(j.data)
+      || Object.hasOwn(d, "items") && !Array.isArray(d.items)
+      || Object.hasOwn(d, "events") && !Array.isArray(d.events)
+      || d.nextPageToken != null && typeof d.nextPageToken !== "string")) throw new Error("calendar readback malformed");
     return {
       items: d.items || d.events || [],
       nextPageToken: typeof d.nextPageToken === "string" && d.nextPageToken ? d.nextPageToken : null,
     };
+  };
+  const listEventsComplete = async (uid, input) => {
+    const items = [], tokens = new Set();
+    let pageToken;
+    for (let page = 0; page < 20; page++) {
+      const result = await listEventsPage(uid, { ...input, pageToken, maxResults: 2500, strict: true, complete: true });
+      if (!Array.isArray(result.items)) throw new Error("calendar readback malformed");
+      items.push(...result.items);
+      if (!result.nextPageToken) return items;
+      if (tokens.has(result.nextPageToken)) break;
+      tokens.add(result.nextPageToken);
+      pageToken = result.nextPageToken;
+    }
+    throw new Error("calendar readback incomplete");
   };
   return {
     kind: "composio",
@@ -417,26 +444,12 @@ function makeComposioCalendar(opts = {}) {
     },
     async listOwnedEvents(uid, { accountRefHash: accountHash, ...input } = {}) {
       if (!/^[a-f0-9]{64}$/.test(String(accountHash || ""))) throw new Error("calendar receipt account missing");
-      const items = [];
-      const tokens = new Set();
-      let pageToken;
-      for (let page = 0; page < 20; page++) {
-        const result = await listEventsPage(uid, { ...input, pageToken, maxResults: 2500,
-          strict: true, ownedReadAccountRef: accountHash });
-        if (!Array.isArray(result.items)) throw new Error("calendar readback malformed");
-        items.push(...result.items);
-        if (!result.nextPageToken) return items;
-        if (tokens.has(result.nextPageToken)) break;
-        tokens.add(result.nextPageToken);
-        pageToken = result.nextPageToken;
-      }
-      throw new Error("calendar readback incomplete");
+      return listEventsComplete(uid, { ...input, ownedReadAccountRef: accountHash });
     },
     // Raw Google Calendar items (each consumer maps to its own shape) for [timeMin, timeMax] (ISO Z),
-    // FIRST page only — the wake path reads an 18-hour horizon and has never approached a page
-    // boundary. Callers that need provable completeness follow listEventsPage's cursor instead.
+    // FIRST page by default; complete:true opts into a strict, bounded read of the whole window.
     async listEventsRaw(uid, opts = {}) {
-      return (await listEventsPage(uid, opts)).items;
+      return opts.complete === true ? listEventsComplete(uid, opts) : (await listEventsPage(uid, opts)).items;
     },
     async createEvent(uid, args, operationOpts = {}) {
       if (!key) return withCreateEffect({ effect: "no_effect", result: { successful: false } });
@@ -457,6 +470,15 @@ function makeComposioCalendar(opts = {}) {
               travelWriteContext: operationOpts.travelWriteContext,
               supaUrl: operationOpts.supaUrl || opts.supaUrl, supaKey: operationOpts.supaKey || opts.supaKey } : {}) }));
       } catch { return withCreateEffect({ effect: "unknown", result: { successful: false } }); }
+    },
+    async deleteEvent(uid, args, operationOpts = {}) {
+      return withCreateEffect(await execute("GOOGLECALENDAR_DELETE_EVENT", uid, args,
+        operationOpts.expectedCalendarAccountId, true, {
+          allowWebInitialScan: operationOpts.allowWebInitialScan === true,
+          travelWriteContext: operationOpts.travelWriteContext, beforeDispatch: operationOpts.beforeDispatch,
+          expectedEtag: operationOpts.expectedEtag, supaUrl: operationOpts.supaUrl || opts.supaUrl,
+          supaKey: operationOpts.supaKey || opts.supaKey,
+        }));
     },
     async patchEvent(uid, args, operationOpts = {}) {
       const durableUpdate = operationOpts.travelWriteContext != null || typeof operationOpts.beforeDispatch === "function";
