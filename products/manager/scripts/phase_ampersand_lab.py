@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import time
@@ -35,6 +36,7 @@ from manager_core.collaboration import (
 from manager_core.models.source import Source
 from manager_core.kernel import ManagerKernel
 from manager_core.audit import AuditTrail
+from manager_core.provider_sessions import SessionJournal
 
 OUTPUT = Path("output/ampersand-research/report.json")
 # Purely fictional examples: no assertion that any target URL was actually fetched.
@@ -128,6 +130,22 @@ def run_lab(*, live: bool, max_sessions: int = 3,
         })
     result["baseline_matches_count"] = sum(c["baseline_matches_author"] for c in result["cases"])
     if live:
+        # Never send provider input from an ephemeral CI runner or from a
+        # workspace that loses intent state on restart. A real persistent host
+        # with one stable run ID must be configured by the execution owner.
+        journal_raw = os.environ.get("MANAGER_AMPERSAND_JOURNAL_PATH", "")
+        run_id = os.environ.get("MANAGER_AMPERSAND_RUN_ID") or os.environ.get("GITHUB_RUN_ID", "")
+        if not journal_raw or not Path(journal_raw).is_absolute():
+            raise SessionFailure("durable absolute session journal path required for live provider calls")
+        journal_path = Path(journal_raw).resolve()
+        project_root = Path(__file__).resolve().parents[1]
+        if (journal_path.is_relative_to(project_root) or
+                journal_path.is_relative_to(Path("/tmp")) or
+                not journal_path.parent.exists()):
+            raise SessionFailure("journal must reside on an existing durable volume outside repository and tmp")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,70}", run_id):
+            raise SessionFailure("stable unique trial run ID required")
+        journal = SessionJournal(journal_path)
         api_key = os.environ.get("AMPERSAND_API_KEY", "")
         if not valid_api_key(api_key):
             raise SessionFailure(
@@ -148,7 +166,9 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                     record = result["cases"][i]
                     try:
                         initial = read_initial_turn(
-                            client, render_prompt(c), DEFAULT_INSTRUCTIONS)
+                            client, render_prompt(c), DEFAULT_INSTRUCTIONS,
+                            journal=journal,
+                            request_id=f"manager_{run_id}_{row[0].replace('-', '_')}")
                         result["model_sessions_created"] += 1
                         record["session_id"] = initial.session_id
                         record["turn_id"] = initial.turn_id
@@ -185,7 +205,8 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                                 "decision, reason and source_ids; do not rely on the outdated conflict.")
                             followup = read_followup_turn(
                                 client, initial.session_id, followup_prompt,
-                                key="manager-fictional-goal-update-v1")
+                                key="manager-fictional-goal-update-v1",
+                                journal=journal, writer_id=f"manager_{run_id}")
                             record["followup"] = {
                                 "same_session": followup.session_id == initial.session_id,
                                 "turn_id": followup.turn_id,
