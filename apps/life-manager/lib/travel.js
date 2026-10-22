@@ -168,7 +168,7 @@ function shortName(addr) {
   return (addr || "").split(/[,、]/)[0].slice(0, 18) || "?";
 }
 
-async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false, expectedCalendarAccountId } = {}) {
+async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false, expectedCalendarAccountId, includeResolverContext = false } = {}) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const items = await cal.listEventsRaw(uid, {
     complete: true,
@@ -182,6 +182,9 @@ async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { stri
     summary: e.summary || "",
     location: e.location || "",
     sourceEventVersion: sourceEventVersion(e),
+    ...(includeResolverContext && !isTravel(e.summary) ? {
+      description: e.description || "", start: { dateTime: (e.start || {}).dateTime || "" },
+    } : {}),
     ...(isTravel(e.summary) && (e.description === LIFE_MANAGER_TRAVEL_DESCRIPTION
       || String(e.description || "").startsWith(`${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}`)
         && OPAQUE_EVENT_VERSION.test(String(e.description).slice(`${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}`.length)))
@@ -1198,7 +1201,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   let events = [], calendarReadFailed = false;
   try { events = (await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
-    strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
+    strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId, includeResolverContext: true,
   })).sort((left, right) => left.startMs - right.startMs); }
   catch { calendarReadFailed = true; }
   const repeatedLocation = deriveAnchors({

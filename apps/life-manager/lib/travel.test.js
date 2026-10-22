@@ -105,17 +105,19 @@ test("replayed lm_travel_log claim prevents a duplicate helper for the same even
 test("shared event reader exposes the existing normalized seven-day calendar query", async () => {
   const requests = [];
   const nowMs = Date.parse("2030-01-01T08:00:00+09:00");
-  const events = await listEvents7d("uid-1", "unused", nowMs, {
+  const source = {
+    id: "event-1", summary: "Meeting", location: "Shibuya", description: "Meet at the east entrance.",
+    start: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
+    end: { dateTime: "2030-01-01T11:00:00+09:00", timeZone: "Asia/Tokyo" },
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+  };
+  const calendar = {
     async listEventsRaw(uid, bounds) {
       requests.push({ uid, bounds });
-      return [{
-        id: "event-1", summary: "Meeting", location: "Shibuya",
-        start: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
-        end: { dateTime: "2030-01-01T11:00:00+09:00", timeZone: "Asia/Tokyo" },
-        reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
-      }];
+      return [source];
     },
-  });
+  };
+  const events = await listEvents7d("uid-1", "unused", nowMs, calendar);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].uid, "uid-1");
   assert.equal(requests[0].bounds.timeMin, "2029-12-30T21:00:00Z");
@@ -125,6 +127,13 @@ test("shared event reader exposes the existing normalized seven-day calendar que
   assert.equal(events[0].startMs, Date.parse("2030-01-01T10:00:00+09:00"));
   assert.equal(events[0].endMs, Date.parse("2030-01-01T11:00:00+09:00"));
   assert.deepEqual(events[0].reminders, { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
+  assert.equal(Object.hasOwn(events[0], "description"), false);
+  assert.equal(Object.hasOwn(events[0], "start"), false);
+  const [withContext] = await listEvents7d("uid-1", "unused", nowMs, calendar, null, { includeResolverContext: true });
+  assert.deepEqual(withContext, {
+    ...events[0], description: source.description, start: { dateTime: source.start.dateTime },
+  });
+  assert.deepEqual(requests[1], requests[0]);
 });
 
 test("shared event reader carries the expected account into its Calendar operation", async () => {
@@ -162,17 +171,24 @@ test("CLD03 online-only events make no route, origin, allowance, or Calendar wri
 });
 
 test("shared event reader exposes only an ownership flag for Life Manager Travel blocks", async () => {
-  const events = await listEvents7d("uid-web", "unused", Date.parse("2030-01-01T08:00:00+09:00"), {
-    async listEventsRaw() { return [{
-      id: "travel-owned", summary: "[Travel] 🚆 Home→Venue", location: "Venue",
-      description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
-      start: { dateTime: "2030-01-01T09:35:00+09:00", timeZone: "Asia/Tokyo" },
-      end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
-      reminders: { useDefault: true, overrides: [] },
-    }]; },
-  });
-  assert.equal(events[0].lifeManagerGeneratedTravel, true);
-  assert.equal(Object.hasOwn(events[0], "description"), false);
+  const ownedDescription = "Auto-inserted by Life Manager — adjust if the route is wrong.";
+  for (const includeResolverContext of [false, true]) {
+    const events = await listEvents7d("uid-web", "unused", Date.parse("2030-01-01T08:00:00+09:00"), {
+      async listEventsRaw() { return [
+        ownedDescription, `${ownedDescription}\n\nLife Manager travel receipt: ${"a".repeat(64)}`, "Private manual travel note",
+      ].map((description, index) => ({
+        id: `travel-${index}`, summary: "[Travel] 🚆 Home→Venue", location: "Venue", description,
+        start: { dateTime: "2030-01-01T09:35:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
+        reminders: { useDefault: true, overrides: [] },
+      })); },
+    }, null, { includeResolverContext });
+    assert.deepEqual(events.map((event) => event.lifeManagerGeneratedTravel), [true, true, undefined]);
+    for (const event of events) {
+      assert.equal(Object.hasOwn(event, "description"), false);
+      assert.equal(Object.hasOwn(event, "start"), false);
+    }
+  }
 });
 
 test("Travel event uses one five-minute buffer and safe attendee/meeting defaults", async () => {
@@ -1250,16 +1266,28 @@ test("legacy Telegram tenant never patches an existing Life Manager Travel remin
   assert.equal(result.verified, 0);
 });
 
-test("unroutable venue fallback passes the exact tenant and usage writer to the location agent", async () => {
-  await withTravelClaimStore(async () => {
-    let resolveOptions = null;
-    const usageWriter = async () => true;
+test("unroutable venue fallback passes source context, exact tenant, and usage writer to the location agent", async () => {
+  const source = {
+    id: "event-route-fallback", summary: "Meeting", location: "Venue",
+    description: "Meet at the east entrance of Fixture Hall.",
+    start: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
+    end: { dateTime: "2030-01-01T11:00:00+09:00" },
+  };
+  let resolvedEvent = null, resolveOptions = null, calendarWrites = 0, providerCalls = 0;
+  const usageWriter = async () => true;
+  const calendarWrite = async () => { calendarWrites++; throw new Error("unexpected Calendar write"); };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { providerCalls++; throw new Error("unexpected provider call"); };
+  try {
     await fillTravel("tenant-web-route-fallback", {
       ...GO_TRAVEL_OPTIONS,
-      calendar: makeUnknownGoCalendar(),
+      supaUrl: undefined, supaKey: undefined,
+      calendar: { listEventsRaw: async () => [source],
+        createEvent: calendarWrite, patchEvent: calendarWrite, deleteEvent: calendarWrite },
       geminiKey: "fixture-gemini-key",
       _directionsMinutes: async () => null,
-      _agentResolveLocation: async (_event, options) => {
+      _agentResolveLocation: async (event, options) => {
+        resolvedEvent = event;
         resolveOptions = options;
         return { kind: "ask" };
       },
@@ -1267,7 +1295,12 @@ test("unroutable venue fallback passes the exact tenant and usage writer to the 
     });
     assert.equal(resolveOptions.uid, "tenant-web-route-fallback");
     assert.equal(resolveOptions.recordUsageEvent, usageWriter);
-  });
+    assert.equal(calendarWrites, 0);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual({ description: resolvedEvent.description, start: resolvedEvent.start }, {
+      description: source.description, start: { dateTime: source.start.dateTime },
+    });
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("keeps GO claim after an unknown create result and does not replay the Calendar write", async () => {
