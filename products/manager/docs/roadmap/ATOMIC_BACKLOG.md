@@ -23,6 +23,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 **並行する編集作業:** P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）。E実装の現在位置は移動しない。
 
 下のPhase 06表は受け入れ条件の一覧であり、時系列の作業順を示すものではない。
+
 ## Definitions of done
 
 - Study: source-backed research note and stated verification succeeds.
