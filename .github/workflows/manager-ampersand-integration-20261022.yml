@@ -4,6 +4,7 @@ on:
     branches: [research/manager-ampersand-integration-20261022]
     paths:
       - 'products/manager/manager_core/collaboration.py'
+      - 'products/manager/manager_core/kernel.py'
       - 'products/manager/manager_core/ampersand_api.py'
       - 'products/manager/tests/test_ampersand_integration.py'
       - 'products/manager/scripts/phase_ampersand_lab.py'
@@ -79,7 +80,7 @@ jobs:
         env:
           AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
         run: |
-          python scripts/phase_ampersand_lab.py --live --max-sessions 3 --max-seconds 850
+          python scripts/phase_ampersand_lab.py --live --max-sessions 10 --max-seconds 850
       - name: Keep sanitized evaluation evidence
         if: always()
         uses: actions/upload-artifact@v4
