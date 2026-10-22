@@ -159,11 +159,14 @@ def read_initial_turn(client: Any, prompt: str,
 
 
 def read_followup_turn(client: Any, session_id: str, prompt: str, *,
-                       key: str) -> SessionEvidence:
+                       key: str, journal=None,
+                       writer_id: str | None = None) -> SessionEvidence:
     """Submit exactly one idempotent message, read its completed reply in same session."""
     if type(session_id) is not str or not re.fullmatch(r"sess_[A-Za-z0-9_-]{8,128}", session_id):
         raise ValueError("session ID required")
     _bounded_str(prompt)
+    if (journal is None) != (writer_id is None):
+        raise ValueError("journal and stable writer_id must be supplied together")
     if type(key) is not str or not re.fullmatch(r"[A-Za-z0-9_-]{4,128}", key):
         raise ValueError("bounded stable event idempotency key required")
     event = {
@@ -173,6 +176,19 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
             "content": [{"type": "input_text", "text": prompt}],
         }],
     }
+    if journal is not None:
+        # Fail closed if an uncertain previous event with the same key exists.
+        # It can be reconciled and, if appropriate, retried with exactly the
+        # same key/body, but never submitted twice automatically.
+        from .provider_sessions import SessionConflict
+        try:
+            journal.claim_writer(session_id, writer_id)
+            body = json.dumps(event, ensure_ascii=False, sort_keys=True,
+                              separators=(",", ":")).encode("utf8")
+            if not journal.reserve_event(session_id, key, sha256(body).hexdigest()):
+                raise SessionFailure("event may already have been submitted; reconcile first")
+        except SessionConflict as exc:
+            raise SessionFailure("session writer/event conflict; reconcile first") from exc
     completed = False
     response = None
     completed_turn_id = None
@@ -207,6 +223,11 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
     # An event may be about a different turn when multiple writers are active.
     if type(completed_turn_id) is not str or getattr(turn, "id", None) != completed_turn_id:
         raise SessionFailure("concurrent writer or missing/mismatched saved turn")
+    if journal is not None:
+        try:
+            journal.release_writer(session_id, writer_id)
+        except Exception as exc:
+            raise SessionFailure("completed turn but journal writer release failed") from exc
     return SessionEvidence(session_id, turn.id, response, "completed", *_usage(turn))
 
 
