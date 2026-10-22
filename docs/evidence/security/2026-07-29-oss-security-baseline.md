@@ -210,3 +210,21 @@ Only the exact commit/path/rule/line fingerprint for this finding is added to
 `.gitleaksignore`; the full fingerprint remains in that canonical baseline.
 The current-tree and full-history scans remain enabled. Different commits,
 paths, rules, and lines remain subject to detection.
+
+## AI monk runtime documentation CI: public fixture effect identity
+
+PR #8545's workflow `39809108919` passes the current-tree scan but reports one
+`generic-api-key` history finding at commit
+`9ea03355acbcb8e251e3f4c79df6ca16da8a09f9`,
+`products/manager/docs/verification/E16_RECOVERY_REVIEW_20261022.md:51`.
+The `effect_key` is a deterministic SHA-256 effect identity, not a credential.
+An independent read-only verifier recomputes it from the same commit's public
+`test_candidate_verification.py:24–32` fixture and
+`digital_handoff.py:27–33,53–64` canonical-JSON hashing path. The recomputed value
+matches exactly, with no credential access, network request, or file write.
+The older `ea646b27` demo exceptions have different values and are not reused
+as evidence for this finding.
+
+Only this exact commit/path/rule/line fingerprint is added to `.gitleaksignore`.
+No rule, path, directory, or new finding is suppressed; current-tree and
+full-history scans remain enabled. No credential rotation is indicated.

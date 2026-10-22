@@ -174,5 +174,36 @@
   ],
   "daily_publication_restored": false,
   "paid_orders": null,
-  "revenue": null
+  "revenue": null,
+  "natural_article_after_adoption": {
+    "owner_id": "ebook-articles",
+    "run_id": "18e0e59b77289fa0-47608",
+    "occurrence_id": "ebook-articles:18e0e59b77289fa0-47608",
+    "installed_release_sha": "1dbf2b502d9f0733e91b6f53a6ecd2ab86675da1",
+    "event_release_sha": "1dbf2b502d9f0733e91b6f53a6ecd2ab86675da1",
+    "launchd_state": "loaded-idle",
+    "phase": "report",
+    "exit_code": 75,
+    "effect_status": "not_applicable",
+    "error_class": "host_admission_deferred:resource_capacity_busy",
+    "blocker": "host_admission_deferred:resource_capacity_busy",
+    "admission_effect_unknown": false,
+    "evidence_refs": [
+      "lm-loop://ebook-articles/18e0e59b77289fa0-47608/summary.json"
+    ],
+    "retryable": true,
+    "next_action": "retry_after_eligibility"
+  },
+  "historical_cost_probe": {
+    "same_attempt_wallet_after_found": false,
+    "provider_cost_receipt_found": false,
+    "searched": [
+      "exact old owner run events and stdout/stderr",
+      "32 render sidecars",
+      "57 evidence JSON records",
+      "existing factory records and backup candidates"
+    ],
+    "other_attempt_receipt_not_reused": true,
+    "next_action": "Obtain video-specific official Billing/Usage receipt; retain null cost and guard"
+  }
 }
