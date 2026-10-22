@@ -19,6 +19,7 @@
 
 ## Global Constraints
 
+- **Current branch source boundary:** The authenticated Ampersand adapter is currently on the separate, NOT-YET-INTEGRATED branch `research/manager-ampersand-integration-20261022` (commit `66997ea549f8d1373a7670b8a11add9af17613ea`). At the start of E01, inspect and safely integrate/review its four files `manager_core/collaboration.py`, `manager_core/ampersand_api.py`, `tests/test_ampersand_integration.py`, `scripts/phase_ampersand_lab.py` (and its reviewed research workflow). Do **not** assume the module exists in this phase06 branch. Run its full offline tests after integration before doing E02. Never reuse credentials from research artifacts. This is setup WITHIN E01, not a separate earlier F implementation.
 - `products/manager/docs/roadmap/tasks.json` is the Manager task-status authority. Do not edit Life Manager's status/runtime or mark field gates done from a local test.
 - Model output remains P0, `authorized_execution=False`, `causal_support=False`; execution is separately authorized and independently verified.
 - No private records, third-party messages, money transfers or arbitrary tools. No per-action human approval inside a previously established owned-digital scope; unavailable privilege means NO_ACTION.
@@ -45,7 +46,7 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 
 **Files:** Create `docs/verification/ampersand-20261022/ten_case_raw.json`, `ten_case_receipt.json`; add `tests/test_ampersand_evidence_receipt.py`. **Depends:** none. **Maps:** V002,V005,C002 (technical research only).
 **Interface:** `load_verified_trial(path: Path, receipt: dict) -> dict` in `manager_core/evidence.py`, validating bytes and declared code/run identity, not authenticating merely because a field says verified.
-- [ ] Download artifact `12398755518` from run `39713799676`; record source SHA `66997ea549f8d1373a7670b8a11add9af17613ea`, artifact digest, retrieval time and raw report hash; preserve original output unchanged.
+- [ ] Check the current branch against `research/manager-ampersand-integration-20261022`; reconcile only the verified P0 advisory modules/tests and run `python -m unittest discover -s tests -p 'test_ampersand_integration.py' -v`. Then download artifact `12398755518` from run `39713799676`; record source SHA `66997ea549f8d1373a7670b8a11add9af17613ea`, artifact digest, retrieval time and raw report hash; preserve original output unchanged.
 - [ ] RED `test_trial_counts_are_derived`: assert 10 cases, 7 label matches, 7 held-out-from-prompt cases with 4 matches, 1 follow-up, 10 audits, actual humans=0 and exact cost=None; mutate one count and require rejection.
 - [ ] Implement source-hash and derived-count verification; distinguish provider trial from field data.
 - [ ] GREEN `python -m unittest discover -s tests -p 'test_ampersand_evidence_receipt.py' -v`; all assertions pass and changed bytes reject.
@@ -205,4 +206,4 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 
 **Single active cursor:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16. The original evaluation/observation streams can be developed by independent workers when their shared interfaces are stable, but the project-wide completion cursor is strictly the ordered E list in `../roadmap/tasks.json`; never present parallel work as a second authoritative sequence. **After E verification, assess F005 → F006 → F008 → F009 as acceptance gates**, not new engineering tasks. Content P01–P07 is a separate editorial lane and does not move the E cursor. Do not parallel-write shared schema, ledger, publishing branch or authority state.
 
-The detailed simulator, actual beneficiary, cross-domain, outreach and governance gates remain in the Phase06–12 acceptance plan. Finishing E16 is a finite technical product release, not a declaration that Manager eliminated suffering or all 113 original tasks are complete.
+The detailed simulator, actual beneficiary, cross-domain, outreach and governance gates remain in [Phase06–12 acceptance evidence](../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md) and the v2 Phase06 scope amendment. There is no separate F-first execution plan. Finishing E16 is a finite technical product release, not a declaration that Manager eliminated suffering or all 113 original tasks are complete.
