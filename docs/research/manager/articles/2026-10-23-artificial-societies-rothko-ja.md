@@ -81,7 +81,7 @@ D_{\mathrm{TV}}(P,Q)=\frac12\sum_k |P(k)-Q(k)|
 \]
 で比較できる。だが、たとえば人間100人のうち50人が質問A・Bとも「はい」、50人が両方「いいえ」であっても、合成100人の半分が(A=はい,B=いいえ)、残りが(A=いいえ,B=はい)なら、**A単独もB単独もTVD=0、AとBの組み合わせはTVD=1**となる。この架空例は「同じ周辺分布でも相関・共同回答は異なる」という意味を直感的に示す。
 
-この例の再現コードは、別途作成した教育用Pythonデモに保存した。公式フルベンチマークの再現ではない。
+この例の再現コードは [educational Python demo](../examples/artificial-societies-benchmark-mini-demo.py) に保存した。`python3 docs/research/manager/examples/artificial-societies-benchmark-mini-demo.py` で実行できる。公式フルベンチマークの再現ではない。
 
 ### 人間より「完璧」すぎても失敗
 
