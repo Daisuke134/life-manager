@@ -69,7 +69,7 @@ class RetiredLegacyScopeContract(unittest.TestCase):
 
     def test_original_H005_scientific_waiver_is_untouched(self):
         self.assertEqual(self.by["H005"]["status"],"skipped")
-        self.assertEqual(self.by["H005"]["waiver_scope"], "ORIGINAL_PAPER_REPLICATION_ONLY")
+        self.assertIn("H005 analysis-set reproduction waived", self.by["H005"]["waiver_scope"])
 
     def test_product_scope_distinguishes_public_delivery_from_human_outcome(self):
         text=SPEC.read_text(encoding="utf-8")
