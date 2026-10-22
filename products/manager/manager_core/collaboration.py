@@ -85,7 +85,7 @@ def render_prompt(context: PlannerContext) -> str:
         "no_action_alternative": "NO_ACTION",
     }
     return (
-        "RESEARCH-ONLY MANAGER COLLABORATION: advisory only. "
+        "RESEARCH-ONLY MANAGER COLLABORATION: ADVISORY only. "
         "Return exactly one JSON object with keys decision, reason, source_ids. "
         "decision must be PASS, ASK or PROPOSE. PASS means NO_ACTION. "
         "Do not call tools or claim any execution, permission, proven causal effect, "
