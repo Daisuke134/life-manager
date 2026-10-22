@@ -70,7 +70,10 @@ function providerFailureClass(response, providerStatus) {
   const status = Number(response && response.status);
   if (Number.isFinite(status) && status >= 400 && status < 500) return "provider_4xx";
   if (Number.isFinite(status) && status >= 500) return "provider_5xx";
-  if (providerStatus && providerStatus !== "OK") return "no_route";
+  if (providerStatus === "ZERO_RESULTS" || providerStatus === "NOT_FOUND") return "no_route";
+  if (providerStatus === "UNKNOWN_ERROR") return "provider_5xx";
+  if (["REQUEST_DENIED", "OVER_QUERY_LIMIT", "OVER_DAILY_LIMIT", "INVALID_REQUEST",
+    "MAX_WAYPOINTS_EXCEEDED", "MAX_ROUTE_LENGTH_EXCEEDED"].includes(providerStatus)) return "provider_4xx";
   return "network";
 }
 
@@ -296,9 +299,9 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
   }
   try {
     const r = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${p}`);
-    const j = await r.json();
-    const accepted = r.ok !== false && j.status === "OK" && j.routes && j.routes[0]
-      && j.routes[0].legs && j.routes[0].legs[0];
+    const j = r.ok === false ? {} : await r.json();
+    const durationSeconds = j.routes?.[0]?.legs?.[0]?.duration?.value;
+    const accepted = r.ok !== false && j.status === "OK" && Number.isFinite(durationSeconds) && durationSeconds >= 0;
     if (!accepted) noteProviderFailure(usage, providerFailureClass(r, j.status));
     await emitUsage(usage.options, {
       tenantId: usage.tenantId || "anonymous", provider: "google_maps", feature: "directions",
@@ -308,7 +311,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       meta: { ...routeMeta, sku: "Directions", pricing_basis: "list_price_after_free_cap" },
     });
     if (!accepted) return null;
-    return minutesFromSeconds(j.routes[0].legs[0].duration.value);
+    return minutesFromSeconds(durationSeconds);
   } catch {
     noteProviderFailure(usage, "network");
     await emitUsage(usage.options, {
@@ -407,7 +410,7 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
     try {
       const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
       const response = await fetch(u);
-      const j = await response.json();
+      const j = response.ok === false ? {} : await response.json();
       const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
       const providerSucceeded = response && response.ok !== false && j && j.status === "OK";
       const candidate = providerSucceeded && loc ? { lat: loc.lat, lon: loc.lng } : null;
