@@ -47,12 +47,26 @@ jobs:
           # visually similar Unicode glyphs. Correct only known confusables
           # in ephemeral memory; never print or persist a credential.
           # A real console-generated ASCII copy remains the preferred fix.
+          import unicodedata
+          # Map only common look-alike glyphs found in copy/paste text.
+          # No value, substring, digest, or per-character position is logged.
           confusables = str.maketrans({
               "\u0445": "x", "\u0425": "X", "\u0412": "B",
               "\u0421": "C", "\u0441": "c", "\u0456": "i",
-              "\u0406": "I",
+              "\u0406": "I", "\u0430": "a", "\u0410": "A",
+              "\u0435": "e", "\u0415": "E", "\u043e": "o",
+              "\u041e": "O", "\u0440": "p", "\u0420": "P",
+              "\u0443": "y", "\u0423": "Y", "\u043a": "k",
+              "\u041a": "K", "\u043c": "m", "\u041c": "M",
+              "\u041d": "H", "\u0422": "T", "\u0408": "J",
+              "\u0458": "j", "\u0391": "A", "\u0392": "B",
+              "\u0395": "E", "\u0397": "H", "\u0399": "I",
+              "\u039a": "K", "\u039c": "M", "\u039d": "N",
+              "\u039f": "O", "\u03a1": "P", "\u03a4": "T",
+              "\u03a5": "Y", "\u03a7": "X", "\u03bf": "o",
+              "\u03c1": "p",
           })
-          key = "".join(raw_key.split()).translate(confusables)
+          key = "".join(unicodedata.normalize("NFKC", raw_key).split()).translate(confusables)
           if key != raw_key:
               print("KEY_FORMAT=IN_MEMORY_ASCII_NORMALIZATION_APPLIED")
           if not key.isascii() or not key.startswith("hak_") or not key[4:].isalnum():
