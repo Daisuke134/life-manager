@@ -68,7 +68,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** FND01a（実行環境の誤削除防止）はPR #8529 / source `20061d909797ec0a0547d0bf2f5c147f012917e3` の256 tests・独立ship・CI全12件を通過し、main `23c6412524bbd3ab54dc1dbab3a17efce8dbab53` に統合する。本番watchdogへの同main immutable採用と自然receiptを確認中。FND01bは、実測した復旧ownerのcapacity延期を既存control exemptionへ合わせる。FND02は別担当が独立sourceを開発し、本番反映は先行patchの後へ直列化する。CLD01はPR #8530 / source `8929ed3ce6330ee4bcd3dc7fe7824f41ca9077ac`、関連243 tests・primary79 tests・独立shipでCI待ち。進行中provider effect、他者branch/lease、既存ownerの販売・納品を中断しない。
+**現在cursor:** FND01は本番採用を確認中。実行環境の保護、復旧ownerのslot exemption、削除エラー診断はPR #8529 / #8531 / #8533でmainへ統合する。watchdogは23c64125 immutableを採用し自然receiptでerrors0/protected_deletions0を確認する。browser-recycleと診断追加の採用は既存release ownerの30分cut間隔に従う。FND02はPR #8532の欠測・不完全末尾・現在状態保持を修正/CI確認中。独立なFND03は `lm-money-liveness-fnd03-20261022` / `fix/lm-money-liveness-fnd03-20261022` でsource実装を進める。CLD01はPR #8530のsource統合済みだがCloud公開healthは旧buildのためdeploy未証明。進行中effect/他ownerのleaseは保持する。
 
 primaryは本節、共有source、統合/受入/採用順を所有する。Local writerとCloud writerは別worktree/別ファイル所有で進められる。共有registry、credential、Calendar account、browser profile、release promotion、effect照合は該当leaseで直列化する。reviewerはfresh contextのread-onlyとし、現在UIで選択されたモデルを継承する。登録済agent数と稼働席・作業開始を混同しない。
 
@@ -108,6 +108,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 実装: 一度のowner作業が増やした一時物をそのownerの既存finally/cleanupへ戻す。inventory欠測は次のbounded owner測定へ送る。immutable依存bundle/既存native保持方針を再利用し、保護storeは変更しない。floor変更は実測working setと既存契約が必要な時だけ検討し、目先のPASS目的で下げない。
 - 受入: 対象ownerの自然作業→終了→既存cleanupの回収と正式receipt保持、該当する次のeligible業務がdisk由来で失敗しないこと。全量サイズ確定/任意の空きGB/追加7日待機をgateにしない。未特定writerはowner/path/次probeを残す。
 
+- FND01採用状況: #8531の独立反証47 testsとbusy-slot実registry probeはPASS、#8533の独立反証13 testsと12連続削除失敗（詳細8/省略4/error12、例外本文非出力）はPASS。両PRの全exact-head CIとmain統合を確認する。これらを自然成果や容量全体の解決とは扱わない。
 - FND01c: FND01aのmain `23c6412524bbd3ab54dc1dbab3a17efce8dbab53` / immutable `20261022T200547-23c64125` へのwatchdog採用は、既存lock・loaded-idle・preflight/launchctl-safeで成功する。最初のrun receiptは `remove_failed=1 / protected_deletions=0` で、削除対象とerrnoが記録されず原因を断定できない。既存bounded `probe_errors` の記録境界を削除例外にも再利用し、owner/candidate/error_class/errno/operationを残す。削除allowlist・floor・外部effectは変えず、次の自然runで得るexact原因にだけ修復を絞る。新規root走査や手動大量削除は行わない。
 - FND01c検証: permission-denied fixtureで対象/errno欠落のREDを確認し、既存8件上限の診断へoperation付き削除例外を接続後、関連257 tests・loop-contract18/191/errors0・diff checkがPASSする。既存watchdogの後続自然receiptは `ok=true/errors=0/protected_deletions=0` になるが、先のremove_failedの対象/errnoは未取得として保持する。誤削除防止のsource採用と、一過性の削除例外の原因確定を混同しない。
 
@@ -120,10 +121,14 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 **FND03 — mtimeを成功の代用にしない**
 
-- 対象: `runtime/loop/money_liveness.py::{evaluate,messages}`、`config/money-liveness.json`、`runtime/loop/tests/test_money_liveness.py`。既存health observerと通知transportを再利用する。
+- 実行範囲: 既存6 laneの成果readerと通知判定を修復する。`capafy-daily-terminals.jsonl`のstarted/terminal、Capafy配信のslot別destinations、Writerのverified publication、商品別business-outcomes、marketing receiptのprovider readbackを再利用する。単なるmtimeは診断だけに残す。旧Capafy掲載台帳のdate-onlyを時刻精度の成果へ水増しせず、freshなCAP_FULL/DRAINEDはno-workとし、売上/公開へのRECOVEREDを送らない。商品が異なる成果を相互の復旧に使わない。既存cooldown/送信失敗retryを保ち、本番通知を手動送信しない。owner別のlast_attempt/last_verified_outcome/last_paidと欠測理由を返す。入金reader未接続のlast_paidはNoneのまま扱う。
+
+- 対象: `runtime/loop/money_liveness.py::{evaluate,messages}`、`config/money-liveness.json`、`runtime/loop/tests/test_money_liveness.py`。既存health observerと通知transportを再利用する。 Capafy既存publisherの正式検証後ledger追記にだけ `submitted_at` を加え、今後の成果に時刻精度を残す。既存date-only行の時刻を推定してbackfillしない。
 - RED: `test_failed_ledger_touch_does_not_recover_outcome`、`test_verified_receipt_advances_only_its_lane_clock`、`test_no_work_is_not_revenue_or_provider_failure`。今回の隔離probeをそのまま回帰化する。無関係な商品/別slotのreceipt、malformed/欠測、無料trial、単なるfactory log更新も成功へ数えない。
 - 実装: laneごとの既存official receipt reader/terminal schemaを読む。`last_attempt`、`last_verified_outcome`、`last_paid`を分離し、mtimeは診断値に残す。cadence・eligible work・provider審査待ちを尊重する。cooldownと送信失敗時の再試行を維持する。全18へはEARN02の役割に合う既存readerを段階的に接続する。
 - 受入: 自然失敗で正常復帰しない、次の本物の成果receiptで一度だけ復帰すること。通知テストはfake transport、実通知は既存ownerの自然動作で確認する。この会話のagentはTelegramへ進捗を送らない。
+
+- FND03 source検証: failed ledger touch・別商品readback・CAP_FULLの3反例とproducer時刻欠落をRED→GREENへ進める。初期関連22 tests後、独立reviewは不正verdict型で全lane停止と、正式TikTok photo APIのURL無しreceipt取り落としを反証する。両件を追加REDで再現し、verdict比較を型安全にし、モバイルの部分schema再実装を既存3 adapter verifierを使うread-only `marketing_receipt_clock.cjs`へ置き換える。修正後は関連24 testsと既存投稿契約51 testsがPASS、実host評価約0.25秒。旧date-onlyを推定backfillせず、last_paidは未接続Noneを保持し、agentからの本番Telegram送信は0。
 
 **FND04 — host slotとmodel leaseを混同しない**
 

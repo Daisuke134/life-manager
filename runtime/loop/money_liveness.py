@@ -2,16 +2,19 @@
 
 A launchd job that exits 0 proves nothing: Capafy's factory ran every 15 minutes for a week
 without submitting an agent, and the Writer was silent for nine days, while the health observer
-only appended to a file nobody read. A lane is alive only if its outcome artifact is fresh.
+only appended to a file nobody read. A lane is alive only if its typed outcome is fresh.
 Stale lanes are sent to Telegram once per cooldown, and a recovery is announced once.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "config/money-liveness.json"
@@ -25,13 +28,135 @@ def _age_hours(path: Path, now: float) -> float | None:
         return None
 
 
+def _timestamp(value, now: float) -> float | None:
+    if not isinstance(value, str) or "T" not in value:
+        return None  # Date-only legacy rows cannot prove an hourly outcome clock.
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        stamp = parsed.timestamp() if parsed.tzinfo else None
+        return stamp if stamp is not None and stamp <= now else None
+    except (ValueError, OverflowError, OSError):
+        return None
+
+
+def _records(path: Path):
+    try:
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    value = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(value, dict):
+                    yield value
+    except (OSError, UnicodeError):
+        return
+
+
+def _marketing_clock(path: Path, product: str, now: float) -> float | None:
+    try:
+        result = subprocess.run(
+            [os.environ.get("LIFE_MANAGER_RUNTIME_NODE", "node"),
+             str(ROOT / "runtime/loop/marketing_receipt_clock.cjs"), str(path), product, str(now)],
+            capture_output=True, text=True, timeout=10, check=True,
+        )
+        return _timestamp(json.loads(result.stdout).get("last_verified_outcome"), now)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def _outcome_clocks(lane: dict, state_home: Path, now: float) -> dict:
+    reader, path = lane.get("reader"), state_home / lane["path"]
+    attempts, verified, healthy_terminals, terminal_results = [], [], [], []
+    idle_at = None
+    if reader == "marketing_publication":
+        verified.append(_marketing_clock(path, lane["product_id"], now))
+    elif reader == "capafy_distribution":
+        try:
+            entries = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeError):
+            entries = {}
+        for slot, entry in entries.items() if isinstance(entries, dict) else ():
+            if not isinstance(entry, dict):
+                continue
+            # The existing receipt is keyed by its JST occurrence. A later file touch
+            # cannot refresh a previous slot, including a partial/blocked write.
+            match = re.fullmatch(r"(\d{4}-\d{2}-\d{2})(?:-h(\d{2})(?:m(\d{2}))?)?", slot)
+            if not match:
+                continue
+            try:
+                stamp = datetime.fromisoformat(f"{match[1]}T{match[2] or '00'}:{match[3] or '00'}:00").replace(tzinfo=ZoneInfo("Asia/Tokyo")).timestamp()
+            except ValueError:
+                continue
+            destinations = entry.get("destinations")
+            article = destinations.get("aniccaai") if isinstance(destinations, dict) else None
+            if (stamp <= now and entry.get("status") == "published"
+                    and isinstance(article, dict) and article.get("status") == "published"
+                    and str(article.get("url") or "").startswith("https://")):
+                verified.append(stamp)
+    else:
+        for row in _records(path):
+            if reader in {"capafy_factory", "capafy_submission"}:
+                if reader == "capafy_submission":
+                    if row.get("agent_id") and str(row.get("status") or "").startswith("submitted"):
+                        verified.append(_timestamp(row.get("submitted_at"), now))
+                    continue
+                stamp = _timestamp(row.get("observed_at"), now)
+                if row.get("schema_version") == 1 and row.get("execution_id"):
+                    attempts.append(stamp)
+                    if row.get("phase") == "terminal" and stamp is not None:
+                        healthy = row.get("healthy") is True and type(row.get("rc")) is int and row["rc"] == 0
+                        terminal_results.append((stamp, len(terminal_results), healthy))
+                        if healthy:
+                            healthy_terminals.append(stamp)
+            elif reader == "writer_publication":
+                attempts.append(_timestamp(row.get("ts"), now))
+                if (row.get("published") is True and row.get("verified") is True
+                        and row.get("identity_verified") is True and row.get("public_id")
+                        and row.get("state") == "live"
+                        and str(row.get("live_url") or "").startswith("https://")):
+                    verified.append(_timestamp(row.get("published_at"), now))
+            elif reader == "business_readback" and row.get("product_id") == lane.get("product_id"):
+                stamp = _timestamp(row.get("observed_at"), now)
+                attempts.append(stamp)
+                sources = row.get("sources")
+                for name in ("revenuecat", "app_store_sales"):
+                    source = sources.get(name) if isinstance(sources, dict) else None
+                    if (isinstance(source, dict) and source.get("status") == "available"
+                            and re.fullmatch(r"[a-f0-9]{64}", str(source.get("evidence_sha256") or ""))
+                            and isinstance(source.get("data"), dict) and source["data"]):
+                        verified.append(stamp)
+    if reader == "capafy_submission":
+        terminals = [row for row in _records(state_home / lane["terminal_path"])
+                     if row.get("schema_version") == 1 and row.get("execution_id")]
+        for row in terminals:
+            attempts.append(_timestamp(row.get("observed_at"), now))
+        terminal = max(terminals, key=lambda row: str(row.get("observed_at") or ""), default={})
+        if (terminal.get("phase") == "terminal" and terminal.get("healthy") is True
+                and type(terminal.get("rc")) is int and terminal["rc"] == 0
+                and terminal.get("verdict") in ("CAP_FULL", "DRAINED")):
+            idle_at = _timestamp(terminal.get("observed_at"), now)
+    latest = lambda values: max((value for value in values if value is not None), default=None)
+    return {"last_attempt": latest(attempts), "last_verified_outcome": latest(verified),
+            "last_terminal_success": latest(healthy_terminals), "last_paid": None, "idle_at": idle_at,
+            "latest_terminal_failed": bool(terminal_results and not max(terminal_results)[2])}
+
+
 def evaluate(lanes: list[dict], state_home: Path, now: float | None = None) -> list[dict]:
     now = time.time() if now is None else now
     rows = []
     for lane in lanes:
-        age = _age_hours(state_home / lane["path"], now)
-        rows.append({**lane, "age_hours": age,
-                     "stale": age is None or age > float(lane["max_age_hours"])})
+        clocks = _outcome_clocks(lane, state_home, now)
+        stamp = clocks["last_terminal_success"] if lane.get("reader") == "capafy_factory" else clocks["last_verified_outcome"]
+        age = (now - stamp) / 3600 if stamp is not None else None
+        no_work = (clocks["idle_at"] is not None and now - clocks["idle_at"] <= 3600
+                   and (age is None or age > float(lane["max_age_hours"])))
+        stale = not no_work and (clocks["latest_terminal_failed"] or age is None or age > float(lane["max_age_hours"]))
+        reason = ("no_work" if no_work else "terminal_failed" if clocks["latest_terminal_failed"]
+                  else "outcome_missing_or_unverified" if stamp is None else "outcome_stale" if stale else "verified_record")
+        rows.append({**lane, **clocks, "mtime_age_hours": _age_hours(state_home / lane["path"], now),
+                     "age_hours": age, "outcome_status": "no_work" if no_work else "stale" if stale and stamp is not None else "verified" if stamp is not None else "unknown",
+                     "reason": reason, "stale": stale})
     return rows
 
 
@@ -40,14 +165,17 @@ def messages(rows: list[dict], memory: dict, now: float) -> tuple[list[str], dic
     out, new = [], dict(memory)
     for row in rows:
         last = memory.get(row["id"])
+        if row.get("outcome_status") == "no_work":
+            continue
         if row["stale"]:
             if last is None or now - float(last) >= COOLDOWN_HOURS * 3600:
                 age = "never" if row["age_hours"] is None else f"{row['age_hours']:.0f}h"
-                out.append(f"STALE money loop [{row['id']}]: {row['meaning']} for {age} "
-                           f"(limit {row['max_age_hours']}h). Look at: {row['look_at']}")
+                out.append(f"STALE money loop [{row['id']}]: {row['meaning']}。経過 {age} "
+                           f"(期限 {row['max_age_hours']}h)。確認先: {row['look_at']}")
                 new[row["id"]] = now
         elif last is not None:
-            out.append(f"RECOVERED money loop [{row['id']}]: outcome is fresh again.")
+            fact = "正常な実行記録" if row.get("reader") == "capafy_factory" else "正式な成果記録"
+            out.append(f"RECOVERED money loop [{row['id']}]: 新しい{fact}を確認しました。")
             new.pop(row["id"], None)
     return out, new
 

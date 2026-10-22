@@ -1,47 +1,74 @@
 {
-  "why": "Dais 2026-10-08: nothing may be 'working yesterday, broken today' without a human being told. A money loop is alive only if its OUTCOME artifact is fresh, not because its process ran.",
+  "why": "更新時刻や実行成功を売上成果と混同せず、ownerと商品が一致する既存の正式成果を監視する。未確認の入金はNoneのまま保持する。",
   "lanes": [
     {
       "id": "capafy-ship",
       "path": "state/capafy-autopublish/published.jsonl",
       "max_age_hours": 4,
-      "meaning": "no new Capafy agent has been submitted (the factory shipped on 2026-10-08 after a 7-day stall, so 4h is a real stall)",
-      "look_at": "daily_loop.log, select_publish_agent, CP1 evidence under state/agent-runner-evidence/capafy-drainer"
+      "meaning": "新しいCapafy掲載の正式確認がない",
+      "look_at": "daily_loop.log, select_publish_agent, CP1 evidence under state/agent-runner-evidence/capafy-drainer",
+      "reader": "capafy_submission",
+      "terminal_path": "state/capafy-daily-terminals.jsonl"
     },
     {
       "id": "capafy-factory-pass",
-      "path": "state/capafy-autopublish/daily_loop.log",
+      "path": "state/capafy-daily-terminals.jsonl",
       "max_age_hours": 1,
-      "meaning": "the Capafy factory (15-minute cadence) has not run a pass",
-      "look_at": "launchctl print ai.anicca.capafy-loop-daily (runs/last exit), host-admission occurrences for capafy-loop-daily (effect_unknown fence), release-reconciler/fleet-apply-state.json (timers reset by applies)"
+      "meaning": "Capafy factoryの正常終了記録がない",
+      "look_at": "launchctl print ai.anicca.capafy-loop-daily (runs/last exit), host-admission occurrences for capafy-loop-daily (effect_unknown fence), release-reconciler/fleet-apply-state.json (timers reset by applies)",
+      "reader": "capafy_factory"
     },
     {
       "id": "capafy-articles",
       "path": "writer/capafy-distribute/capafy-distribute/ledger.json",
       "max_age_hours": 6,
-      "meaning": "no Capafy marketing article/X post slot was recorded",
-      "look_at": "capafy-distribute-daily log and ledger"
+      "meaning": "Capafy記事の公開確認がない",
+      "look_at": "capafy-distribute-daily log and ledger",
+      "reader": "capafy_distribution"
     },
     {
       "id": "writer-articles",
       "path": "writer/articles.jsonl",
       "max_age_hours": 36,
-      "meaning": "Writer published no article",
-      "look_at": "launchd.err.log for ai.anicca.article-daily, writer/runs"
+      "meaning": "Writer記事の公開確認がない",
+      "look_at": "launchd.err.log for ai.anicca.article-daily, writer/runs",
+      "reader": "writer_publication"
     },
     {
-      "id": "money-readback",
+      "id": "money-readback-anicca-ios",
       "path": "marketing-metrics-daily/state/business-outcomes.jsonl",
       "max_age_hours": 12,
-      "meaning": "revenue readback (App Store / RevenueCat) is stale",
-      "look_at": "marketing-metrics-daily loop"
+      "meaning": "商品の公式収益照合が古い",
+      "look_at": "marketing-metrics-daily loop",
+      "reader": "business_readback",
+      "product_id": "anicca-ios"
     },
     {
-      "id": "mobile-posts",
+      "id": "money-readback-honne-ai",
+      "path": "marketing-metrics-daily/state/business-outcomes.jsonl",
+      "max_age_hours": 12,
+      "meaning": "商品の公式収益照合が古い",
+      "look_at": "marketing-metrics-daily loop",
+      "reader": "business_readback",
+      "product_id": "honne-ai"
+    },
+    {
+      "id": "mobile-posts-anicca-ios",
       "path": "marketing/receipts.jsonl",
       "max_age_hours": 12,
-      "meaning": "no mobile-app marketing post receipt was recorded",
-      "look_at": "life-manager-honne-* / life-manager-anicca-* lanes, launchd.err.log, Postiz"
+      "meaning": "商品の投稿公開確認がない",
+      "look_at": "life-manager-honne-* / life-manager-anicca-* lanes, launchd.err.log, Postiz",
+      "reader": "marketing_publication",
+      "product_id": "anicca-ios"
+    },
+    {
+      "id": "mobile-posts-honne-ai",
+      "path": "marketing/receipts.jsonl",
+      "max_age_hours": 12,
+      "meaning": "商品の投稿公開確認がない",
+      "look_at": "life-manager-honne-* / life-manager-anicca-* lanes, launchd.err.log, Postiz",
+      "reader": "marketing_publication",
+      "product_id": "honne-ai"
     }
   ]
 }
