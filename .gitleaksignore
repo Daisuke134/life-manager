@@ -1079,3 +1079,5 @@ a572c1509832e981c46959a900f5a947b6e249d3:skills/earn/marketing-engine/measure/te
 # Scoped to these two historical occurrences only, approved 2026-10-22.
 ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:8
 ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:50
+# Non-secret generated occurrence identity; current audit uses structured owner/run parts.
+8dacc657fc04b35a000d08c48471af541bab5a1d:docs/evidence/lm-foundation-audit-20261022.json:generic-api-key:6059

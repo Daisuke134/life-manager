@@ -37,6 +37,8 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 | Capafy公式保存readback、09:20:19Z | seller orders70、gross$102.75、creator earnings$76.18、paid_out$0。7日paid0 / gross$0 / trial3、30日paid10 / gross$27.90 | 新paid停滞は確認する。API verdict success、商品62掲載、無料利用、過去grossを成長や純利益へ読み替えない。将来の売上不振すべてをruntime故障のせいにしない |
 | Cloud公開health・DB・公式Calendar readback | route成功と通知receiptがある同じeventで、対応するTravel blockがない実例を確認する | 認証だけを原因にしない。Cloudの詳細は後述のCLD patchへ結ぶ。特定CREATE_EVENT失敗とのexact request joinは未取得として保持する |
 
+**公開証拠の識別子:** exact occurrenceはowner/runの構造として保存し、元snapshotと同じIDへ復元できる。秘密情報スキャンが生成実行識別子1件をgeneric-api-keyと誤判定するため、既存 `.gitleaksignore` へ当該過去commit/file/lineのexact fingerprintだけを追加する。検出ruleやpath全体の除外は変更しない。
+
 **既存sourceの使える部分:** `self-eval.mjs`のUNKNOWN保持、candidate boundary、Gigの同時A/B、Writerの戦略適用/keep/revert、Postiz identity/attribution、owner lockとexact effect resolverを再利用する。既存focused health4件、self-eval/candidate gate/record19件、loop contract18/191/errors0は今回PASSする。これは上記の本番欠落を否定しない。
 
 ### To-Beの共通契約
