@@ -6,3 +6,41 @@
 
 /* Reader-first product portfolio. Shared white/ink language with the article hub. */
 .owned-media{--paper:#fff;--white:#f6f7f8;--ink:#17191b;--muted:#454a50;--accent:#17191b;font:17px/1.65 Arial,sans-serif}.owned-media .brand,.owned-media h1,.owned-media h2{font-family:Arial,sans-serif;font-weight:650;letter-spacing:-.035em}.owned-media .eyebrow,.owned-media .tag{font-size:15px;text-transform:none;letter-spacing:0}.owned-media .catalogue-hero{padding:64px 0;max-width:850px}.owned-media .section{border:0;padding:64px 0}.owned-media .grid{gap:28px}.owned-media .app-card{border:0;background:#f6f7f8;border-radius:0;padding:30px;min-height:0}.owned-media .app-card h3{font-size:25px;letter-spacing:-.025em;margin:24px 0 12px}.owned-media .app-card p{font-size:17px;color:var(--ink);margin:0 0 24px}.app-icon{width:96px;height:96px;object-fit:contain}.app-actions{margin-top:auto;display:flex;flex-wrap:wrap;gap:12px 20px;font-size:16px}.app-actions a{text-decoration:underline;text-underline-offset:5px}.owned-media footer{background:#f6f7f8;border:0}.owned-media .card{box-shadow:none}.owned-media .navlinks{font-size:15px}.owned-media h1{line-height:1.1}.owned-media .lead{font-size:19px}.owned-media .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.owned-media .product-grid{grid-template-columns:1fr}.owned-media .catalogue-hero{padding:40px 0}.owned-media .app-card{padding:24px}.owned-media .navlinks{font-size:14px}}
+
+/* Mission home: isolated from the portfolio and Life Manager pages. */
+.manager-mission{--paper:#f6f4ee;--ink:#20392e;--muted:#59675c;--accent:#44644b;background:var(--paper)}
+.manager-mission nav{height:auto;min-height:104px;padding-top:24px;padding-bottom:24px}
+.manager-mission .brand{letter-spacing:-.06em;font-weight:700}
+.manager-mission .hero{padding:70px 0 88px;gap:54px;grid-template-columns:1fr 1.05fr;align-items:center}
+body.manager-mission .hero h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(64px,7.6vw,106px);font-weight:400;line-height:.98;letter-spacing:-.065em;margin:25px 0 30px;max-width:510px}
+.manager-mission:lang(ja) .hero h1{font-family:serif;font-size:clamp(48px,5vw,72px);line-height:1.2;letter-spacing:-.055em}
+.manager-mission .eyebrow{font-size:11px;letter-spacing:.15em;font-weight:600}
+.manager-mission .hero .lead{font-size:18px;line-height:1.8;max-width:440px;color:var(--muted)}
+.manager-mission .actions{align-items:center;gap:24px;flex-wrap:wrap}
+.manager-mission .btn{border-radius:100px;background:var(--ink);color:#fffef9;padding:14px 23px;font-size:14px}
+.manager-mission .mission-story{font-size:14px;text-decoration:underline;text-underline-offset:5px}
+.manager-mission .mission-note{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:30px 0 0}
+.manager-mission .mission-world{margin:0;min-width:0;position:relative;display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:center}
+.manager-mission .mission-world input{width:16px;height:16px;margin:0;accent-color:var(--ink)}
+.manager-mission .mission-world label{font-size:12px;cursor:pointer;color:var(--muted)}
+.manager-mission .scene-canvas{grid-column:1/-1;grid-row:1;width:100%;aspect-ratio:580/570}
+.manager-mission .scene-canvas svg{display:block;width:100%;height:auto;overflow:visible}
+.manager-mission .scene-canvas .tiny{font:10px Arial,sans-serif;letter-spacing:1.8px;fill:#3f5743}
+.manager-mission .scene-canvas .scene-heading{font:26px Georgia,serif;fill:#264a35}
+.manager-mission .mission-world figcaption{grid-column:1/-1;font-size:11px;color:var(--muted);margin-top:0}
+.manager-mission .scene-person{animation:var(--walk) 18s ease-in-out infinite alternate;animation-delay:var(--delay);transform-box:view-box;transform-origin:0 0}
+.manager-mission #motion-pause:checked~.scene-canvas .scene-person{animation-play-state:paused}
+@keyframes walk1{0%{transform:translate(80px,390px)}40%{transform:translate(205px,390px)}65%{transform:translate(205px,220px)}100%{transform:translate(420px,220px)}}
+@keyframes walk2{0%{transform:translate(150px,180px)}35%{transform:translate(150px,320px)}80%{transform:translate(455px,320px)}100%{transform:translate(455px,430px)}}
+@keyframes walk3{0%{transform:translate(90px,272px)}40%{transform:translate(290px,272px)}65%{transform:translate(290px,413px)}100%{transform:translate(490px,413px)}}
+.manager-mission .section{padding-top:80px;padding-bottom:80px;scroll-margin-top:24px}
+.manager-mission h2{font-family:Georgia,'Times New Roman',serif;font-weight:400;letter-spacing:-.04em}
+.manager-mission .card{border-radius:18px;box-shadow:none;background:#fbfaf6;border:1px solid #d9ded2}
+.manager-mission .proof .card{padding:32px}
+.manager-mission .step{border-radius:16px;background:#e9ede2}
+.manager-mission .product-entry{background:#e9ede2;border-radius:24px;padding:36px;gap:30px}
+.manager-mission .product-entry .actions{flex-shrink:0;max-width:250px}
+.manager-mission a:focus-visible,.manager-mission input:focus-visible{outline:3px solid #9d4a2e;outline-offset:5px}
+@media(max-width:900px){.manager-mission .hero{grid-template-columns:1fr;gap:42px;padding-top:40px}body.manager-mission .hero h1{max-width:600px}.manager-mission .hero .lead{max-width:540px}.manager-mission .mission-world{max-width:580px;width:100%;justify-self:center}.manager-mission .product-entry{display:block}.manager-mission .product-entry .actions{max-width:none}}
+@media(max-width:600px){.manager-mission nav,.manager-mission .wrap,.manager-mission footer>div{padding-left:24px;padding-right:24px}.manager-mission nav{gap:18px}.manager-mission .navlinks{gap:10px 16px;font-size:12px}.manager-mission .hero{padding:36px 0 52px}body.manager-mission .hero h1{font-size:72px;max-width:340px}body.manager-mission:lang(ja) .hero h1{font-size:clamp(32px,8vw,48px);max-width:none}.manager-mission .hero .lead{font-size:16px}.manager-mission .actions{gap:16px}.manager-mission .section{padding:52px 0}.manager-mission .product-entry,.manager-mission .proof .card{padding:24px}.manager-mission .mission-world label,.manager-mission .mission-world figcaption{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.manager-mission .scene-person{animation:none}.manager-mission{scroll-behavior:auto}html:has(.manager-mission){scroll-behavior:auto}}
