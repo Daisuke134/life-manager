@@ -246,6 +246,23 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
             client.beta.agents.sessions.events.create(
                 session_id, events=[event], idempotency_key=key)
             for i, item in enumerate(stream):
+                if deadline_monotonic is not None:
+                    import time
+                    if time.monotonic() >= deadline_monotonic:
+                        turn_id = getattr(item, "turn_id", None)
+                        if (journal is not None and isinstance(turn_id, str)
+                                and re.fullmatch(r"turn_[A-Za-z0-9_-]{4,128}", turn_id)):
+                            from .provider_budget import cancel_and_reconcile
+                            try:
+                                cancel_and_reconcile(
+                                    client, journal, session_id, turn_id,
+                                    event_key=key+"-cancel", writer_id=writer_id)
+                            except Exception as exc:
+                                raise SessionFailure(
+                                    "deadline exceeded; cancellation outcome unknown"
+                                ) from exc
+                        raise SessionFailure(
+                            "deadline exceeded; reconcile saved provider turn")
                 if i >= 4000:
                     raise SessionFailure("event budget exceeded")
                 typ = getattr(item, "type", "")
