@@ -1,0 +1,33 @@
+name: Manager Phase06 v2 Owner-Scope Contract
+on:
+  push:
+    branches:
+      - research/manager-phase06-owned-public-good-20261022
+    paths:
+      - 'products/manager/**'
+      - '.github/workflows/manager-phase06-v2-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Phase06 owner scope TDD contracts
+        run: python -m unittest discover -s tests -p 'test_phase06_owned_scope.py' -v
+      - name: Roadmap consistency and safety boundary
+        run: |
+          python scripts/make_roadmap.py --check
+          python scripts/check_boundaries.py
+      - name: All existing Manager unit tests
+        run: python -m unittest discover -s tests -q
