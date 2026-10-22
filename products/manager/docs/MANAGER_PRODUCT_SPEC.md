@@ -1,5 +1,10 @@
 # Manager product specification (independent product)
 
+## 現行引き継ぎリンク（2026-10-22、スナップショット）
+
+新しい開発セッションでは、最初に **[E06からの引き継ぎ書](handoffs/2026-10-22-manager-e06-session-handoff.md)** と [唯一のManager SSOT](roadmap/tasks.json) を確認する。引き継ぎ保存時点では E01–E05 完了記録、E06 次、E07–E16 未完了。ただし現在の作業開始位置は**必ず実行時のSSOT**から読取る。EvalBenchの本格的な独立評価とP3/P4の受益効果はいずれも未完成。技術的P2公開と人への福祉効果の区別を保持する。
+
+
 
 ## 実行順の現行正本 — 2026-10-22（Active, first read）
 
