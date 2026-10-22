@@ -6,12 +6,16 @@ dependencies and statuses are retained. Use --check to verify a committed view.
 """
 import argparse
 import json
+import re
 from pathlib import Path
 from collections import Counter
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'docs/roadmap/tasks.json'
 VIEW = ROOT / 'docs/roadmap/ATOMIC_BACKLOG.md'
+CORE_PLAN = ROOT / 'docs/plans/2026-10-22-manager-core-execution-plan.md'
+EXPECTED_E = [f'E{i:02d}' for i in range(1, 17)]
+EXPECTED_F = ['F005', 'F006', 'F008', 'F009']
 ALLOWED = {'done', 'todo', 'blocked', 'skipped'}
 SYMBOLS = {'done': '✅', 'todo': '⬜', 'blocked': '⛔', 'skipped': '⏭️'}
 
@@ -19,6 +23,24 @@ SYMBOLS = {'done': '✅', 'todo': '⬜', 'blocked': '⛔', 'skipped': '⏭️'}
 def validate(tasks):
     if not isinstance(tasks, list):
         raise ValueError('expected an array of task objects')
+    by_id = {t.get('id'): t for t in tasks if isinstance(t, dict)}
+    if len(by_id) != len(tasks) or 'F009' not in by_id:
+        raise ValueError('unique 113-task Manager registry and F009 gate required')
+    order = by_id['F009']
+    if (order.get('technical_execution_sequence') != EXPECTED_E
+        or order.get('technical_execution_plan') != str(CORE_PLAN.relative_to(ROOT))
+        or order.get('technical_execution_cursor') not in EXPECTED_E
+        or order.get('acceptance_sequence') != EXPECTED_F):
+        raise ValueError('E01-E16 execution order/cursor or F acceptance order out of sync')
+    if (by_id.get('F004', {}).get('status') != 'skipped'
+        or by_id.get('F007', {}).get('status') != 'skipped'
+        or any(by_id[f]['status'] == 'done' for f in EXPECTED_F)):
+        raise ValueError('retired external prerequisites or unverified field gate status')
+    if not CORE_PLAN.is_file():
+        raise ValueError('core E implementation plan missing')
+    headings = re.findall(r'^## (E\\d{2})\\b', CORE_PLAN.read_text(encoding='utf-8'), re.MULTILINE)
+    if headings != EXPECTED_E:
+        raise ValueError('core implementation plan headings are not E01-E16 in order')
     seen = set()
     for t in tasks:
         if t['id'] in seen:
@@ -43,6 +65,14 @@ def render(tasks):
       f"Total: {len(tasks)} · Done: {sums['done']} · Todo: {sums['todo']} · Blocked: {sums['blocked']} · Skipped: {sums['skipped']}", '',
       '✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.', '',
       'Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.', '',
+      '## 唯一の実装順（E01〜E16を先に、一件ずつ）', '',
+      '**ManagerのSSOT（状態・依存・現在位置）:** [tasks.json](tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor`。Life Manager の別SSOTは変更しない。', '',
+      '**現在の次タスク:** `' + by_id['F009']['technical_execution_cursor'] + '`', '',
+      '実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。', '',
+      '**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の製品受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。', '',
+      '**対象外:** F004（第三者の資金管理者）とF007（施設所有者・屋内センサー）は `skipped`（未実施・未達成）で、実装の依存条件にしない。他者の設備・口座を操作する場合の権限は引き続き必要。', '',
+      '**並行する編集作業:** P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）。E実装の現在位置は移動しない。', '',
+      '下のPhase 06表は受け入れ条件の一覧であり、時系列の作業順を示すものではない。', '',
       '## Definitions of done', '',
       '- Study: source-backed research note and stated verification succeeds.',
       '- Implementation: tests and documented acceptance conditions pass.',
