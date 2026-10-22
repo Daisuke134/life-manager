@@ -1,0 +1,606 @@
+{
+  "as_of": "2026-10-22",
+  "research_scope": "PRIMARY_SOURCE_OPEN_REUSE_STRATEGY_NOT_IMPLEMENTATION",
+  "report": "[private retrieval artifact]",
+  "decision": "Reuse AS benchmark metrics; Nature2026 methods and released aggregate data; CC-BY4 Twin wave-split and released predictions; existing Concordia only for interaction tasks. No proprietary partnership prerequisite.",
+  "repositories": [
+    {
+      "repo": "google-deepmind/concordia",
+      "sha": "239f0e8275a55b186b99e133e06432cd681ff2e3",
+      "selected": [
+        "LICENSE",
+        "README.md",
+        "pyproject.toml",
+        "requirements.txt"
+      ]
+    },
+    {
+      "repo": "camel-ai/oasis",
+      "sha": "8607dba82d73f7bfc371b3beafe57cc844687be2",
+      "selected": [
+        "LICENSE",
+        "README.md",
+        "pyproject.toml"
+      ]
+    },
+    {
+      "repo": "TianyiPeng/Twin-2K-500-Mega-Study",
+      "sha": "afe2bb933fce377ed196f441a4c12962cb55a53a",
+      "selected": [
+        "LICENSE",
+        "README.md",
+        "pyproject.toml"
+      ]
+    },
+    {
+      "repo": "AgentTorch/AgentTorch",
+      "sha": "86bb57e8a19ad6a52396875777f3c7b74264ada1",
+      "selected": [
+        "LICENSE",
+        "NOTICE.md",
+        "pyproject.toml",
+        "readme.md",
+        "requirements.txt"
+      ]
+    }
+  ],
+  "dataset": {
+    "repo": "LLM-Digital-Twin/Twin-2K-500",
+    "revision": "f883165a3026fde855dfd448e0cd16443ab257b6",
+    "license": "CC-BY-4.0",
+    "private": false,
+    "gated": false,
+    "api_inspected": true,
+    "new_person_data_processed": false
+  },
+  "nature": {
+    "doi": "10.1038/s41586-026-10742-x",
+    "version": "2026-07-08 version of record",
+    "paper_access": "SUBSCRIPTION_PREVIEW_ABSTRACT_DATA_STATEMENTS_EXTENDED_LEGENDS",
+    "supplement_access": "FULL_PDF_RETRIEVED_METHODS_AND_RELEVANT_RESULTS_READ",
+    "data_access": "OFFICIAL_SOURCE_DATA_FIGURES_1_2_3_DECODED",
+    "codeocean_access": "HTTP_403",
+    "capsule_code_license": "NOT_VERIFIED",
+    "source_data_redistribution_license": "NOT_VERIFIED_NO_CC_ASSUMED",
+    "execution_receipt": {
+      "kind": "RELEASED_AGGREGATE_INSPECTION_NOT_NEW_LLM_INFERENCE",
+      "primary_archive_studies": 70,
+      "released_directed_contrasts_rows": 3356,
+      "declared_distinct_effects": 469,
+      "group_counts_rows": {
+        "published": 1572,
+        "unpublished": 1784
+      },
+      "naive_all_directed_rows_pearson_r": 0.8051489088799295,
+      "naive_all_directed_rows_ols_slope": 0.5512408722293488,
+      "naive_all_directed_rows_ols_intercept": -4.539435057964929e-16,
+      "naive_all_directed_rows_rmse_scale0to1": 0.11834675045564791,
+      "caution": "These naive directed-contrast summaries reuse dependent rows, use no study bootstrap, do not reproduce the original random-reference/attenuation-adjusted protocol and have no independent confidence interval. Source data and published model summaries are not fresh predictions or independent proof.",
+      "published_panelB_summaries": [
+        {
+          "model": "combined",
+          "model_class": "human",
+          "estimate": "0.9329768501847416",
+          "ci.lb": "0.910438839448326",
+          "ci.ub": "0.950016934255197",
+          "cor_raw": "0.8900999358537776",
+          "cor_raw_ci.lb": "0.8601001555390193",
+          "cor_raw_ci.ub": "0.913964207924497"
+        },
+        {
+          "model": "davinci-002",
+          "model_class": "gpt",
+          "estimate": "0.235188861182367",
+          "ci.lb": "0.104055168068922",
+          "ci.ub": "0.3582992487452839",
+          "cor_raw": "0.2083463311929894",
+          "cor_raw_ci.lb": "0.08257566104810188",
+          "cor_raw_ci.ub": "0.3275844399610059"
+        },
+        {
+          "model": "deepseek/deepseek-chat-v3-0324",
+          "model_class": "open",
+          "estimate": "0.8619824979984301",
+          "ci.lb": "0.8191058004832239",
+          "ci.ub": "0.8944748787580299",
+          "cor_raw": "0.8088599975511511",
+          "cor_raw_ci.lb": "0.7595100710782385",
+          "cor_raw_ci.ub": "0.8489529775908543"
+        },
+        {
+          "model": "google/gemma-3-27b-it",
+          "model_class": "open",
+          "estimate": "0.8134627639996703",
+          "ci.lb": "0.7597794822387245",
+          "ci.ub": "0.8561306674580282",
+          "cor_raw": "0.7636080030189908",
+          "cor_raw_ci.lb": "0.7044780276061682",
+          "cor_raw_ci.ub": "0.8122103897022119"
+        },
+        {
+          "model": "gpt-3.5-turbo",
+          "model_class": "gpt",
+          "estimate": "0.8087545577410477",
+          "ci.lb": "0.7541603049523214",
+          "ci.ub": "0.8521519924726597",
+          "cor_raw": "0.7410663607466392",
+          "cor_raw_ci.lb": "0.6773294068343745",
+          "cor_raw_ci.ub": "0.7937614278972489"
+        },
+        {
+          "model": "gpt-4",
+          "model_class": "gpt",
+          "estimate": "0.9151266459087334",
+          "ci.lb": "0.8861363533272137",
+          "ci.ub": "0.9369368673304874",
+          "cor_raw": "0.8507895015768856",
+          "cor_raw_ci.lb": "0.8111312095578356",
+          "cor_raw_ci.ub": "0.8826599557158533"
+        },
+        {
+          "model": "human",
+          "model_class": "human",
+          "estimate": "0.8879436372484145",
+          "ci.lb": "0.8533818436819565",
+          "ci.ub": "0.914730418231402",
+          "cor_raw": "0.8402162820560181",
+          "cor_raw_ci.lb": "0.7980544712783129",
+          "cor_raw_ci.ub": "0.8741915562333719"
+        },
+        {
+          "model": "openai/gpt-oss-120b",
+          "model_class": "open",
+          "estimate": "0.8531603396183647",
+          "ci.lb": "0.8083335994831589",
+          "ci.ub": "0.8881006447530965",
+          "cor_raw": "0.7773745742895832",
+          "cor_raw_ci.lb": "0.7211434187243552",
+          "cor_raw_ci.ub": "0.8234300356251901"
+        }
+      ],
+      "files": [
+        {
+          "name": "supplement.pdf",
+          "bytes": 4034654,
+          "sha256": "c747529d8031695b101963aec3cdff8669dadc47fed569112a004ce1a719f001"
+        },
+        {
+          "name": "fig1.xlsx",
+          "bytes": 174251,
+          "sha256": "6b3bfc2566584a04ab65108e97ca27ab657f276583b7d61889cc9378198582e0"
+        },
+        {
+          "name": "fig2.xlsx",
+          "bytes": 19154,
+          "sha256": "c129c1f3ba5485cf2449685ac5143e98c989c28d2c531ef4f8c40f0874b0d548"
+        },
+        {
+          "name": "fig3.xlsx",
+          "bytes": 60020,
+          "sha256": "67c6c957b51ce5f2fcbe93985672ffe9d7d49e4b26c946c7413c90c4f8c8a0d7"
+        }
+      ]
+    },
+    "source_downloads": [
+      {
+        "key": "fig1",
+        "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41586-026-10742-x/MediaObjects/41586_2026_10742_MOESM4_ESM.xlsx",
+        "status": 200,
+        "bytes": 174251,
+        "sha256": "6b3bfc2566584a04ab65108e97ca27ab657f276583b7d61889cc9378198582e0",
+        "sheetnames": [
+          "panelA",
+          "panelB",
+          "panelC"
+        ],
+        "rowcounts": {
+          "xl/worksheets/sheet1.xml": 3357,
+          "xl/worksheets/sheet2.xml": 9,
+          "xl/worksheets/sheet3.xml": 12
+        },
+        "examples": {
+          "xl/worksheets/sheet1.xml": [
+            {
+              "A1": "study",
+              "B1": "reference_condition",
+              "C1": "outcome.name",
+              "D1": "condition.name",
+              "E1": "estimate",
+              "F1": "prediction",
+              "G1": "group"
+            },
+            {
+              "A2": "Blair1131",
+              "B2": "Male, Democrat, Eric Engage",
+              "C2": "Approve_Handling",
+              "D2": "Male, Democrat, Eric, Not engage",
+              "E2": "-0.266816372358889",
+              "F2": "-0.3911443300832172",
+              "G2": "published"
+            },
+            {
+              "A3": "Blair1131",
+              "B3": "Male, Democrat, Eric Engage",
+              "C3": "Approve_Handling",
+              "D3": "Male, Democrat, Eric, Stay out",
+              "E3": "-0.1160442196719168",
+              "F3": "-0.2265047281544371",
+              "G3": "published"
+            },
+            {
+              "A4": "Blair1131",
+              "B4": "Male, Democrat, Eric Engage",
+              "C4": "Approve_Handling",
+              "D4": "Male, Democrat, Erica, Engage",
+              "E4": "0.01643269722892533",
+              "F4": "0.02245718484333536",
+              "G4": "published"
+            },
+            {
+              "A5": "Blair1131",
+              "B5": "Male, Democrat, Eric Engage",
+              "C5": "Approve_Handling",
+              "D5": "Male, Democrat, Erica, Not engage",
+              "E5": "-0.3231349074381997",
+              "F5": "-0.3686060806065667",
+              "G5": "published"
+            }
+          ],
+          "xl/worksheets/sheet2.xml": [
+            {
+              "A1": "model",
+              "B1": "model_class",
+              "C1": "estimate",
+              "D1": "ci.lb",
+              "E1": "ci.ub",
+              "F1": "cor_raw",
+              "G1": "cor_raw_ci.lb",
+              "H1": "cor_raw_ci.ub"
+            },
+            {
+              "A2": "combined",
+              "B2": "human",
+              "C2": "0.9329768501847416",
+              "D2": "0.910438839448326",
+              "E2": "0.950016934255197",
+              "F2": "0.8900999358537776",
+              "G2": "0.8601001555390193",
+              "H2": "0.913964207924497"
+            },
+            {
+              "A3": "davinci-002",
+              "B3": "gpt",
+              "C3": "0.235188861182367",
+              "D3": "0.104055168068922",
+              "E3": "0.3582992487452839",
+              "F3": "0.2083463311929894",
+              "G3": "0.08257566104810188",
+              "H3": "0.3275844399610059"
+            },
+            {
+              "A4": "deepseek/deepseek-chat-v3-0324",
+              "B4": "open",
+              "C4": "0.8619824979984301",
+              "D4": "0.8191058004832239",
+              "E4": "0.8944748787580299",
+              "F4": "0.8088599975511511",
+              "G4": "0.7595100710782385",
+              "H4": "0.8489529775908543"
+            },
+            {
+              "A5": "google/gemma-3-27b-it",
+              "B5": "open",
+              "C5": "0.8134627639996703",
+              "D5": "0.7597794822387245",
+              "E5": "0.8561306674580282",
+              "F5": "0.7636080030189908",
+              "G5": "0.7044780276061682",
+              "H5": "0.8122103897022119"
+            }
+          ],
+          "xl/worksheets/sheet3.xml": [
+            {
+              "A1": "model",
+              "B1": "spec",
+              "C1": "group",
+              "D1": "estimate",
+              "E1": "ci.lb",
+              "F1": "ci.ub",
+              "G1": "cor_raw",
+              "H1": "cor_raw_ci.lb",
+              "I1": "cor_raw_ci.ub"
+            },
+            {
+              "A2": "gpt-4",
+              "B2": "Communication",
+              "C2": "Field",
+              "D2": "0.9545471143141528",
+              "E2": "0.3391306150237668",
+              "F2": "1",
+              "G2": "0.7085210082435239",
+              "H2": "0.4097724559077487",
+              "I2": "0.8700864380369163"
+            },
+            {
+              "A3": "gpt-4",
+              "B3": "Targets existing attitudes",
+              "D3": "0.5553765776079491",
+              "E3": "0.3531219076118984",
+              "F3": "0.7010187885760759",
+              "G3": "0.4149779954102218",
+              "H3": "0.2426113031375194",
+              "I3": "0.5619463319093377"
+            },
+            {
+              "A4": "gpt-4",
+              "B4": "Hypothesized contrasts",
+              "D4": "0.8352733578882736",
+              "E4": "0.7227994741797776",
+              "F4": "0.9046752269234544",
+              "G4": "0.8232835335868269",
+              "H4": "0.7084314394610018",
+              "I4": "0.8956572788633679"
+            },
+            {
+              "A5": "gpt-4",
+              "B5": "Unpublished by 2025",
+              "D5": "0.9695734486487362",
+              "E5": "0.9434123364339078",
+              "F5": "0.9832762941029336",
+              "G5": "0.9202780298291136",
+              "H5": "0.8767282700530903",
+              "I5": "0.9488617666325015"
+            }
+          ]
+        }
+      },
+      {
+        "key": "fig2",
+        "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41586-026-10742-x/MediaObjects/41586_2026_10742_MOESM5_ESM.xlsx",
+        "status": 200,
+        "bytes": 19154,
+        "sha256": "c129c1f3ba5485cf2449685ac5143e98c989c28d2c531ef4f8c40f0874b0d548",
+        "sheetnames": [
+          "fig2"
+        ],
+        "rowcounts": {
+          "xl/worksheets/sheet1.xml": 21
+        },
+        "examples": {
+          "xl/worksheets/sheet1.xml": [
+            {
+              "A1": "predictor",
+              "B1": "dataset_type",
+              "C1": "study_label",
+              "D1": "outcome_label",
+              "E1": "label",
+              "F1": "yfacet",
+              "G1": "r",
+              "H1": "estimate",
+              "I1": "conf.low",
+              "J1": "conf.high"
+            },
+            {
+              "A2": "gpt",
+              "B2": "Allen2023",
+              "C2": "Allen et al. 2024",
+              "D2": "COVID-19 attitudes",
+              "E2": "Allen et al. 2024: COVID-19 attitudes",
+              "F2": "Survey experiments",
+              "G2": "0.4922693884399558",
+              "H2": "0.96",
+              "I2": "0.71",
+              "J2": "1"
+            },
+            {
+              "A3": "gpt",
+              "B3": "Broockman",
+              "C3": "Broockman et al. 2024",
+              "D3": "Political attitudes",
+              "E3": "Broockman et al. 2024: Political attitudes",
+              "F3": "Survey experiments",
+              "G3": "0.1999389916114113",
+              "H3": "0.1766666666666667",
+              "I3": "-0.09428571428571428",
+              "J3": "0.494047619047619"
+            },
+            {
+              "A4": "gpt",
+              "B4": "Dellavigna",
+              "C4": "Dellavigna & Linos 2022",
+              "D4": "Various behavioural outcomes",
+              "E4": "Dellavigna & Linos 2022: Various behavioural outcomes",
+              "F4": "Field experiments",
+              "G4": "0.2711271406199791",
+              "H4": "0.3100000000000001",
+              "I4": "-0.24",
+              "J4": "0.71"
+            },
+            {
+              "A5": "gpt",
+              "B5": "DellavignaPope",
+              "C5": "Dellavigna & Pope 2018",
+              "D5": "Typing task effort",
+              "E5": "Dellavigna & Pope 2018: Typing task effort",
+              "F5": "Survey experiments",
+              "G5": "0.6912827524694458",
+              "H5": "0.7",
+              "I5": "0.3100000000000001",
+              "J5": "0.8800000000000001"
+            }
+          ]
+        }
+      },
+      {
+        "key": "fig3",
+        "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41586-026-10742-x/MediaObjects/41586_2026_10742_MOESM6_ESM.xlsx",
+        "status": 200,
+        "bytes": 60020,
+        "sha256": "67c6c957b51ce5f2fcbe93985672ffe9d7d49e4b26c946c7413c90c4f8c8a0d7",
+        "sheetnames": [
+          "panelA",
+          "panelB",
+          "panelC",
+          "panelD"
+        ],
+        "rowcounts": {
+          "xl/worksheets/sheet1.xml": 39,
+          "xl/worksheets/sheet2.xml": 1501,
+          "xl/worksheets/sheet3.xml": 13,
+          "xl/worksheets/sheet4.xml": 12
+        },
+        "examples": {
+          "xl/worksheets/sheet1.xml": [
+            {
+              "A1": "source",
+              "B1": "n_human_participants",
+              "C1": "rmse_adj_pp"
+            },
+            {
+              "A2": "Human-only pilot",
+              "B2": "0"
+            },
+            {
+              "A3": "Human-only pilot",
+              "B3": "58.06442307692308",
+              "C3": "9.544775308313618"
+            },
+            {
+              "A4": "Human-only pilot",
+              "B4": "116.1288461538462",
+              "C4": "6.527964637186014"
+            },
+            {
+              "A5": "Human-only pilot",
+              "B5": "174.1932692307693",
+              "C5": "5.508128000290982"
+            }
+          ],
+          "xl/worksheets/sheet2.xml": [
+            {
+              "A1": "p_threshold",
+              "B1": "llm_predicted_effect_pp",
+              "C1": "replication_prob"
+            },
+            {
+              "A2": "0.001",
+              "B2": "-67.98182409109101",
+              "C2": "0.00422208836763521"
+            },
+            {
+              "A3": "0.001",
+              "B3": "-67.64582409109101",
+              "C3": "0.00440949362156266"
+            },
+            {
+              "A4": "0.001",
+              "B4": "-67.30882409109101",
+              "C4": "0.0046057738481487"
+            },
+            {
+              "A5": "0.001",
+              "B5": "-66.97282409109101",
+              "C5": "0.00481012742990256"
+            }
+          ],
+          "xl/worksheets/sheet3.xml": [
+            {
+              "A1": "dataset",
+              "B1": "ATE_with_LLM_pct_of_expert_only",
+              "C1": "conf.low",
+              "D1": "conf.high"
+            },
+            {
+              "A2": "Broockman",
+              "B2": "115.5547621945886",
+              "C2": "107.685713111909",
+              "D2": "123.4238112772681"
+            },
+            {
+              "A3": "DellavignaPope",
+              "B3": "112.5175177188713",
+              "C3": "109.3184323969234",
+              "D3": "115.7166030408193"
+            },
+            {
+              "A4": "Doell",
+              "B4": "111.3675203410565",
+              "C4": "99.06062328697824",
+              "D4": "123.6744173951347"
+            },
+            {
+              "A5": "Goldwert",
+              "B5": "121.9231582855376",
+              "C5": "73.54658293056718",
+              "D5": "170.2997336405081"
+            }
+          ],
+          "xl/worksheets/sheet4.xml": [
+            {
+              "A1": "name",
+              "B1": "label",
+              "C1": "estimate",
+              "D1": "conf.low",
+              "E1": "conf.high",
+              "F1": "std.error",
+              "G1": "statistic",
+              "H1": "p.value"
+            },
+            {
+              "A2": "combine",
+              "B2": "Combining w/ human samples for greater accuracy",
+              "C2": "37.69607843137258",
+              "D2": "34.53959728354408",
+              "E2": "40.85255957920108",
+              "F2": "1.605690055941434",
+              "G2": "23.47655968341346",
+              "H2": "1.114364761480003E-77"
+            },
+            {
+              "A3": "generalizability",
+              "B3": "Assessing generalizability to alternate stimuli versions",
+              "C3": "48.25615763546794",
+              "D3": "45.12686746220311",
+              "E3": "51.38544780873278",
+              "F3": "1.591834664853911",
+              "G3": "30.31480511193455",
+              "H3": "3.198336663138709E-106"
+            },
+            {
+              "A4": "hard_to_reach",
+              "B4": "Assessing generalizability to hard-to-reach samples",
+              "C4": "41.83004926108369",
+              "D4": "38.52931936553259",
+              "E4": "45.13077915663479",
+              "F4": "1.679044120595589",
+              "G4": "24.91301374870708",
+              "H4": "9.725806483234465E-84"
+            },
+            {
+              "A5": "harm",
+              "B5": "Simulating studies involving harm exposure",
+              "C5": "45.55555555555564",
+              "D5": "42.2881424608714",
+              "E5": "48.82296865023987",
+              "F5": "1.662083908519231",
+              "G5": "27.40869779320684",
+              "H5": "3.317810441204438E-94"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "firecrawl": {
+    "searches": 8,
+    "successful_project_scrapes": 9,
+    "failed_primary_paper_scrapes": 5,
+    "failure": "INSUFFICIENT_CREDITS",
+    "fallback": "PUBLIC_PRIMARY_HTTP_READS_NO_UPGRADE",
+    "raw_scrapes_glob": "[private retrieval artifact]"
+  },
+  "new_inference": false,
+  "new_human_experiment": false,
+  "source_edits": false,
+  "created_at": "2026-10-22"
+}

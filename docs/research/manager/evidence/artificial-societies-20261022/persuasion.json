@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "checked_date": "2026-10-22",
+  "scope": "Primary evidence for persuasion and population behavior change; no Manager benefit claim",
+  "sources": [
+    {
+      "id": "P01",
+      "title": "GPT-4 persuasion",
+      "url": "https://www.nature.com/articles/s41562-025-02194-6",
+      "method": "firecrawl",
+      "status": "fulltext_current",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P02",
+      "title": "GPT-4 correction 2026-09-03",
+      "url": "https://www.nature.com/articles/s41562-026-02588-0",
+      "method": "official_http",
+      "status": "fulltext",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P03",
+      "title": "Conspiracy dialogue original",
+      "url": "https://www.science.org/doi/10.1126/science.adq1814",
+      "method": "firecrawl",
+      "status": "fulltext_with_editorial_expression_of_concern",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P04",
+      "title": "Conspiracy Editorial Expression of Concern",
+      "url": "https://www.science.org/doi/10.1126/science.aej2383",
+      "method": "official_europepmc_api",
+      "status": "metadata_only_publisher_http403",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P05",
+      "title": "Conspiracy correction archive",
+      "url": "https://zenodo.org/records/22754984",
+      "method": "firecrawl_and_http_range",
+      "status": "landing_fulltext_selected_7_archive_files_not_full_analysis_reproduction",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P06",
+      "title": "Walmart vaccine megastudy",
+      "url": "https://www.pnas.org/doi/10.1073/pnas.2115126119",
+      "method": "firecrawl",
+      "status": "fulltext",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P07",
+      "title": "Healthcare vaccine megastudy",
+      "url": "https://www.pnas.org/doi/10.1073/pnas.2101165118",
+      "method": "firecrawl",
+      "status": "fulltext",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P08",
+      "title": "Accuracy prompt internal metaanalysis",
+      "url": "https://www.nature.com/articles/s41467-022-30073-5",
+      "method": "firecrawl",
+      "status": "fulltext",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P09",
+      "title": "Accuracy prompt Twitter field",
+      "url": "https://www.nature.com/articles/s41586-021-03344-2",
+      "method": "firecrawl",
+      "status": "abstract_figures_availability_not_full_body",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P10",
+      "title": "Inoculation YouTube field",
+      "url": "https://www.science.org/doi/10.1126/sciadv.abo6254",
+      "method": "official_europepmc_fulltext",
+      "status": "fulltext",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    },
+    {
+      "id": "P11",
+      "title": "Social convention tipping",
+      "url": "https://www.science.org/doi/10.1126/science.aas8827",
+      "method": "official_europepmc_api",
+      "status": "abstract_only_publisher_http403",
+      "raw": "[private retrieval artifact]",
+      "checked_date": "2026-10-22"
+    }
+  ],
+  "firecrawl": {
+    "account": "Manager",
+    "successful_scrapes": 7,
+    "failed_additional_scrapes": 6,
+    "failure": "Insufficient credits",
+    "new_spending_or_account_switch": false
+  },
+  "executed": [
+    "Downloaded fixed DebateGPT CSV and calculated counts/simple descriptive means using Python stdlib",
+    "Read seven selected ZIP members via HTTP Range and decompression"
+  ],
+  "not_executed": [
+    "Original proportional odds regression",
+    "Conspiracy corrected regression or causal forest re-fit",
+    "Any new human intervention"
+  ]
+}

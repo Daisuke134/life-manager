@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-22",
+  "scope": "All 9 Papers entries on https://societies.ai/publications",
+  "count": 9,
+  "body_or_webpage_available": 7,
+  "partial_preview": 2,
+  "notes": [
+    "Primary requested retrieval through Firecrawl Manager account",
+    "Additional free primary API checks for repository license and OSF metadata",
+    "Firecrawl Insufficient credits on two later requests; no purchase",
+    "Not all fulltexts read; not new independent replication",
+    "Raw source files remain outside Git"
+  ],
+  "papers": [
+    {
+      "id": "benchmark",
+      "title": "Artificial Societies Benchmark: A Validation Framework for Synthetic Research",
+      "index_url": "https://doi.org/10.48550/arXiv.2609.30030",
+      "read_url": "https://arxiv.org/html/2609.30030v2",
+      "access": "full_text_major_sections_read",
+      "version": "2026-10-01 v2",
+      "terms": "Paper CC-BY-4.0; repository code MIT; outputs CC-BY-4.0; original datasets/instruments individually restricted",
+      "limitations": "No universal model rank or real-world intervention proof",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "consequential",
+      "title": "Consequential Behaviour and Representational Fairness in the Validation of Synthetic Research",
+      "index_url": "https://doi.org/10.48550/arXiv.2609.27690",
+      "read_url": "https://arxiv.org/html/2609.27690v1",
+      "access": "full_text_major_sections_read",
+      "version": "2026-09-23 v1",
+      "terms": "Paper CC-BY-4.0",
+      "limitations": "Framework only; no new data created or analyzed",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "eval",
+      "title": "How Artificial Societies Accurately Models Human Opinion",
+      "index_url": "https://societies.ai/eval",
+      "read_url": "https://societies.ai/eval",
+      "access": "company_webpage_full",
+      "version": "live 2026-10-22",
+      "terms": "No general code/data release established",
+      "limitations": "January2026 source PDF 404; metrics company-reported",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "coordination",
+      "title": "Towards an Informational Account of Interpersonal Coordination",
+      "index_url": "https://doi.org/10.1038/s41583-025-00989-0",
+      "read_url": "https://www.nature.com/articles/s41583-025-00989-0",
+      "access": "abstract_figures_glossary_references_only",
+      "version": "online 2025-11-17; issue February2026",
+      "terms": "Publisher exclusive rights; not established open fulltext",
+      "limitations": "144916 characters mostly references; main body paywalled",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "rituals",
+      "title": "Synchronized Movements and Rituals",
+      "index_url": "https://doi.org/10.1007/978-3-031-38971-9_1837-1",
+      "read_url": "https://link.springer.com/rwe/10.1007/978-3-031-38971-9_1837-1",
+      "access": "definition_introduction_preview_only",
+      "version": "2025-01-28",
+      "terms": "Publisher copyright; no open implementation established",
+      "limitations": "Publisher title Rituals: Synchronized Movements and; main body paywalled",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "collective",
+      "title": "Artificial Intelligence Chatbots Mimic Human Collective Behaviour",
+      "index_url": "https://doi.org/10.1111/bjop.12764",
+      "read_url": "https://societies.ai/pdfs/bjop-2025-ai-chatbots-collective-behaviour.pdf",
+      "access": "full_text_major_sections_read",
+      "version": "PDF copyright2024",
+      "terms": "Paper CC Attribution; individual OSF files terms not audited",
+      "limitations": "Chirper single platform observational bot study, not human intervention",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "unfollowing-full",
+      "title": "Unfollowing Hyperpartisan Social Media Influencers Durably Reduces Out-Party Animosity",
+      "index_url": "https://doi.org/10.31234/osf.io/acbwg",
+      "read_url": "https://files.osf.io/v1/resources/acbwg_v1/providers/osfstorage/66fe22bb63acb59f47fcacc1",
+      "access": "v1_full_text_major_sections_read_v2_metadata",
+      "version": "v2 API latest2025-08-23; read PDF URLv1",
+      "terms": "OSF project public node_license null; individual file terms not audited",
+      "limitations": "DOI scrape INVALID_ARGUMENT; abstract/body correlational n1447/1477 discrepancy; effects not population-wide proof",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "gittins-full",
+      "title": "Computing the Performance of a New Adaptive Sampling Algorithm Based on the Gittins Index in Experiments with Exponential Rewards",
+      "index_url": "https://doi.org/10.1007/978-3-031-37717-4_10",
+      "read_url": "https://arxiv.org/pdf/2301.01107",
+      "access": "preprint_full_text_major_sections_read",
+      "version": "2023",
+      "terms": "GitHub implementation CC-BY-4.0 verified README/LICENSE/API",
+      "limitations": "Simulated exponential rewards only; R code not executed",
+      "firecrawl_raw": "[private retrieval artifact]"
+    },
+    {
+      "id": "vaccines",
+      "title": "Social Media Behavior Is Associated with Vaccine Hesitancy",
+      "index_url": "https://doi.org/10.1093/pnasnexus/pgac207",
+      "read_url": "https://societies.ai/pdfs/pnas-nexus-2022-vaccine-hesitancy.pdf",
+      "access": "full_text_major_sections_read",
+      "version": "2022",
+      "terms": "OSF node_license null; raw Twitter private; NewsGuard ratings require license",
+      "limitations": "Observational association and self-reported vaccine attitudes; not causal intervention",
+      "firecrawl_raw": "[private retrieval artifact]"
+    }
+  ]
+}
