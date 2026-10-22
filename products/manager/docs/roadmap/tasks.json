@@ -1019,7 +1019,7 @@
       "E15",
       "E16"
     ],
-    "technical_execution_cursor": "E12",
+    "technical_execution_cursor": "E13",
     "technical_execution_plan": "docs/plans/2026-10-22-manager-core-execution-plan.md",
     "acceptance_sequence": [
       "F005",
@@ -1048,7 +1048,8 @@
       "E08",
       "E09",
       "E10",
-      "E11"
+      "E11",
+      "E12"
     ],
     "technical_execution_receipts": {
       "E01": {
@@ -1217,6 +1218,19 @@
         "focused_tests": 7,
         "human_outcome": "NOT_MEASURED",
         "verification": "docs/verification/E11_WORLD_STATE_20261022.md"
+      },
+      "E12": {
+        "status": "PASSED",
+        "result": "NATIVE_UNIT_CANDIDATES_WITH_STRUCTURAL_NO_ACTION_AND_HOST_SCOPE_PREVIEW",
+        "source_commit": "cc2fb2578acc330b09ef5ac37ef94c0b3e6459e6",
+        "run_id": 39769010637,
+        "run_url": "https://github.com/Daisuke134/life-manager/actions/runs/39769010637",
+        "full_suite_total": 625,
+        "skipped": 5,
+        "focused_tests": 7,
+        "human_outcome": "NOT_MEASURED",
+        "execution_authority": "NOT_GRANTED_BY_CANDIDATE_OR_FEASIBILITY",
+        "verification": "docs/verification/E12_CANDIDATES_AND_UNITS_20261022.md"
       }
     },
     "handoff_document": "docs/handoffs/2026-10-22-manager-e06-session-handoff.md",
