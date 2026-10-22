@@ -75,6 +75,18 @@ jobs:
               print("KEY_ASCII=" + str(key.isascii()))
               print("KEY_PREFIX_VALID=" + str(key.startswith("hak_")))
               print("KEY_SUFFIX_ALNUM=" + str(key[4:].isalnum()))
+              # Script family only, not characters, codepoints, positions or length.
+              families = set()
+              for letter in key:
+                  if ord(letter) > 127:
+                      name = unicodedata.name(letter, "UNKNOWN")
+                      families.add(
+                          "CYRILLIC" if name.startswith("CYRILLIC") else
+                          "GREEK" if name.startswith("GREEK") else
+                          "LATIN_EXTENDED" if name.startswith("LATIN") else
+                          "OTHER"
+                      )
+              print("KEY_UNMAPPED_SCRIPT_FAMILIES=" + ",".join(sorted(families)))
               print("RESULT=BLOCKED_INVALID_KEY_CHARACTERS")
               print("ACTION=REPLACE_GITHUB_SECRET_WITH_PROVIDER_COPY_BUTTON_VALUE")
               sys.exit(2)
