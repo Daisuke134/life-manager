@@ -5,7 +5,7 @@
 
 **Managerの唯一のタスク状態・順序・カーソル正本:** [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json)（`F009.technical_execution_sequence` と `technical_execution_cursor`）。
 
-**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは**SSOTの `technical_execution_cursor` を参照**（この版ではE02）。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
+**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは**SSOTの `technical_execution_cursor` を参照**（実際の値はSSOTを参照）。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
 
 **F005 → F006 → F008 → F009** はEの後に証拠で確認する **Phase 06の受け入れ条件** で、Eより前に実装する順序ではありません。旧F004/F007の資金提供者・施設許可は必須ルートから除外、`skipped`（未実施）です。状態は **113件 = done 69 / todo 41 / blocked 0 / skipped 3**。技術的P1/P2と受益者へのP3/P4は別物で、後者は未測定です。
 
