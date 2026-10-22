@@ -1459,12 +1459,14 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             }
             if (res && res.kind === "filled" && res.location) {
               dest = res.location;
-              if (routeFn) {
-                try { route = await routeFn(origin, dest, mapsKey, ev.startMs, nowMs, false, routeOpts); }
-                catch { route = null; }
-                if (routeDurationSeconds(route) == null) route = null;
+              if (travelDecision({ ...ev, location: dest }, previous, home, origin).insert) {
+                if (routeFn) {
+                  try { route = await routeFn(origin, dest, mapsKey, ev.startMs, nowMs, false, routeOpts); }
+                  catch { route = null; }
+                  if (routeDurationSeconds(route) == null) route = null;
+                }
+                mins = routeFn ? null : await directionsFn(origin, dest, mapsKey, ev.startMs, nowMs, false, routeOpts);
               }
-              mins = routeFn ? null : await directionsFn(origin, dest, mapsKey, ev.startMs, nowMs, false, routeOpts);
             }
           } catch { /* fall through to null-mins skip below */ }
         }
