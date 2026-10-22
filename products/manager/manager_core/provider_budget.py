@@ -160,6 +160,8 @@ class BudgetLedger:
             if row:
                 if row[1]!=amount: raise BudgetExceeded("run ID reused with changed ceiling")
                 return self._row(row)
+            if db.execute("SELECT 1 FROM budget_reservations WHERE measured_cost_units > reserved_units LIMIT 1").fetchone():
+                raise BudgetExceeded("observed provider exposure exceeded reservation; reconcile before new requests")
             used=db.execute("SELECT COALESCE(SUM(reserved_units),0) FROM budget_reservations").fetchone()[0]
             if used+amount>self.cap:
                 raise BudgetExceeded("provider budget exhausted; no new inference allowed")
@@ -191,7 +193,8 @@ class BudgetLedger:
             if row[3] is not None and row[3]!=serialized and usage is not None:
                 raise BudgetExceeded("usage cannot be silently rewritten")
             # Missing usage must remain UNKNOWN, not free budget or inferred $0.
-            status="TOKENS_OBSERVED_COST_UNSETTLED" if usage is not None else "UNKNOWN_USAGE"
+            status=("TOKENS_OBSERVED_COST_UNSETTLED" if usage is not None
+                    else row[2] if row[3] is not None else "UNKNOWN_USAGE")
             db.execute(
                 "UPDATE budget_reservations SET status=?,usage_json=COALESCE(?,usage_json),"
                 "measured_cost_units=COALESCE(?,measured_cost_units) WHERE run_id=?",
@@ -246,6 +249,8 @@ def cancel_and_reconcile(client,journal,session_id: str,turn_id: str, *,
     try:
         turn=client.beta.agents.sessions.turns.retrieve(
             turn_id,session_id=session_id)
+        if getattr(turn,"id",None)!=turn_id:
+            return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",sent)
         state=getattr(turn,"status","UNKNOWN")
     except Exception:
         return CancellationReceipt(session_id,turn_id,

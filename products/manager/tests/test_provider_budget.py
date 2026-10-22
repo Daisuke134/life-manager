@@ -172,10 +172,12 @@ class BudgetContract(unittest.TestCase):
     def test_followup_deadline_sends_cancel_and_reconciles(self):
         from hashlib import sha256
         from unittest.mock import patch
+        clock=[100.0]
         class Stream:
             def __enter__(self): return self
             def __exit__(self,*args): return False
             def __iter__(self):
+                clock[0]=200.0
                 yield SimpleNamespace(type="agent.session.turn.output_text.delta",
                                       turn_id="turn_abcdefgh",delta="partial")
         posted=[]
@@ -190,7 +192,7 @@ class BudgetContract(unittest.TestCase):
             journal=SessionJournal(Path(d)/"journal.sqlite")
             journal.begin("req_deadline",sha256(b"fictional").hexdigest())
             journal.bind("req_deadline","sess_abcdefgh")
-            with patch("time.monotonic",side_effect=[100.0,200.0]):
+            with patch("time.monotonic",side_effect=lambda:clock[0]):
                 with self.assertRaises(SessionFailure):
                     read_followup_turn(client,"sess_abcdefgh","fictional",
                         key="case-01",journal=journal,writer_id="writer-01",

@@ -39,6 +39,7 @@ from manager_core.kernel import ManagerKernel
 from manager_core.audit import AuditTrail
 from manager_core.provider_sessions import SessionJournal
 from manager_core.provider_budget import BudgetLedger, BudgetExceeded
+from manager_core.provider_deadline import provider_deadline
 
 OUTPUT = Path("output/ampersand-research/report.json")
 # Purely fictional examples: no assertion that any target URL was actually fetched.
@@ -177,7 +178,8 @@ def run_lab(*, live: bool, max_sessions: int = 3,
         start = time.monotonic()
         try:
             with make_client(api_key, timeout=120) as client:
-                listed = client.models.list()
+                with provider_deadline(start + max_seconds):
+                    listed = client.models.list()
                 ids = {getattr(m, "id", None) for m in getattr(listed, "data", [])}
                 if MODEL not in ids:
                     raise SessionFailure("model not listed for this tenant")

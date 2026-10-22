@@ -9,6 +9,7 @@ from hashlib import sha256
 import json
 import re
 from typing import Any
+from .provider_deadline import bounded_provider_call, observe_event
 
 BASE_URL = "https://ampersand.humansand.ai/v1"
 MODEL = "ampersand-v0.1"
@@ -81,6 +82,7 @@ def _bounded_str(text: object, *, max_size=6000) -> str:
     return text
 
 
+@bounded_provider_call
 def read_initial_turn(client: Any, prompt: str,
                       instructions: str = DEFAULT_INSTRUCTIONS, *,
                       journal=None, request_id: str | None = None,
@@ -141,6 +143,7 @@ def read_initial_turn(client: Any, prompt: str,
         ).with_result_collection() as stream:
             state = "MISSING_FINAL_EVENT"
             for index, event in enumerate(stream):
+                observe_event(event)
                 if index >= 4000:
                     raise SessionFailure("event budget exceeded")
                 typ = getattr(event, "type", "")
@@ -192,6 +195,7 @@ def read_initial_turn(client: Any, prompt: str,
                            "SILENT_COMPLETED" if silent else "completed", *tokens)
 
 
+@bounded_provider_call
 def read_followup_turn(client: Any, session_id: str, prompt: str, *,
                        key: str, journal=None,
                        writer_id: str | None = None,
@@ -246,23 +250,7 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
             client.beta.agents.sessions.events.create(
                 session_id, events=[event], idempotency_key=key)
             for i, item in enumerate(stream):
-                if deadline_monotonic is not None:
-                    import time
-                    if time.monotonic() >= deadline_monotonic:
-                        turn_id = getattr(item, "turn_id", None)
-                        if (journal is not None and isinstance(turn_id, str)
-                                and re.fullmatch(r"turn_[A-Za-z0-9_-]{4,128}", turn_id)):
-                            from .provider_budget import cancel_and_reconcile
-                            try:
-                                cancel_and_reconcile(
-                                    client, journal, session_id, turn_id,
-                                    event_key=key+"-cancel", writer_id=writer_id)
-                            except Exception as exc:
-                                raise SessionFailure(
-                                    "deadline exceeded; cancellation outcome unknown"
-                                ) from exc
-                        raise SessionFailure(
-                            "deadline exceeded; reconcile saved provider turn")
+                observe_event(item)
                 if i >= 4000:
                     raise SessionFailure("event budget exceeded")
                 typ = getattr(item, "type", "")
