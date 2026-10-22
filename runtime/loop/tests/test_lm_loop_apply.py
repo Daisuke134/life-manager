@@ -3294,6 +3294,36 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], [])
 
+    def test_automatic_reconcile_adopts_pending_capafy_from_current_registry(self):
+        source_registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in ("capafy-loop-daily", "capafy-distribute-daily"):
+            with self.subTest(loop_id=loop_id):
+                release = self._release("release-pending-" + loop_id).resolve()
+                (release / "config/loop-registry.json").write_text(json.dumps(source_registry))
+                route = source_registry["loops"][loop_id]["provider_route"]
+                rows = [{"classification": "managed", "provider_route": route,
+                         "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+                         "event_release_sha": "b" * 40, "loop_id": loop_id,
+                         "admission_effect_unknown": False}]
+                applied = []
+                with (
+                    patch.object(lm_loop, "ROOT", release),
+                    patch.object(lm_loop, "snapshot", return_value=rows),
+                    patch.object(lm_loop, "_pending_admission_owners", return_value={loop_id}),
+                    patch.object(lm_loop, "_pending_admission_policy_mismatches", return_value=set()),
+                    patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+                    patch.object(lm_loop, "apply_live", side_effect=lambda *a, **kw: applied.append(kw) or [{"ok": True}]),
+                    patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release),
+                                            "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler"}),
+                    redirect_stdout(io.StringIO()),
+                ):
+                    self.assertEqual(lm_loop.main(["reconcile", route, "--loaded-idle-only",
+                                                  "--max-owners", "1"]), 0)
+                self.assertEqual([row["target"] for row in applied], [loop_id])
+                self.assertTrue(applied[0]["preserve_pending_admission"])
+                self.assertTrue(applied[0]["allow_reserved_release_rebind"])
+                self.assertFalse(applied[0]["replace_reserved_policy_drift"])
+
     def test_automatic_reconcile_delegates_only_opted_in_queued_release(self):
         release = self._release("release-auto-pending-release-opt-in").resolve()
         value = registry()
