@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import sys
 import time
+import tempfile
 
 # Script entry point runs from products/manager but Python otherwise adds only
 # scripts/ to sys.path. Reuse the package in this checkout, not a global install.
@@ -32,6 +33,8 @@ from manager_core.collaboration import (
     no_action_plan,
 )
 from manager_core.models.source import Source
+from manager_core.kernel import ManagerKernel
+from manager_core.audit import AuditTrail
 
 OUTPUT = Path("output/ampersand-research/report.json")
 # Purely fictional examples: no assertion that any target URL was actually fetched.
@@ -160,6 +163,19 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                             parsed.status == "MODEL_ADVICE_P0"
                             and parsed.decision == row[3])
                         record["authorized_execution"] = parsed.authorized_execution
+                        # Exercise the real kernel audit boundary, but with NO
+                        # authority, outbox or third-party effects. Persist
+                        # only verified chain digest in this public P0 report.
+                        with tempfile.TemporaryDirectory(prefix="manager-p0-audit-") as d:
+                            audit = AuditTrail(Path(d) / "audit.sqlite")
+                            run_id = "synthetic-advice-" + row[0]
+                            audited = ManagerKernel(None, None, audit).review_public_advice(
+                                run_id, c, initial.output_text)
+                            record["kernel_audit_valid"] = audit.verify_chain(run_id)
+                            record["kernel_audit_digest"] = audit.trace(run_id)[-1]["hash"]
+                            record["kernel_decision"] = audited.decision
+                            if not record["kernel_audit_valid"]:
+                                raise SessionFailure("advisory P0 audit chain broken")
                         if i == 0:
                             # Same saved session, explicit event idempotency, changed goal.
                             followup_prompt = (
@@ -190,6 +206,12 @@ def run_lab(*, live: bool, max_sessions: int = 3,
     scored = [c for c in result["cases"] if c["model_matches_author"] is not None]
     result["model_scored"] = len(scored)
     result["model_matches_count"] = sum(c["model_matches_author"] for c in scored)
+    result["completed_followups"] = sum(
+        bool(c.get("followup", {}).get("same_session"))
+        and c.get("followup", {}).get("status") == "completed"
+        for c in result["cases"])
+    result["completed_kernel_audits"] = sum(
+        c.get("kernel_audit_valid") is True for c in result["cases"])
     result["heldout_cases"] = sum(c["split"]=="HELD_OUT_FROM_PROMPT_ITERATION" for c in result["cases"])
     result["heldout_model_scored"] = sum(
         c["split"]=="HELD_OUT_FROM_PROMPT_ITERATION" and c["model_matches_author"] is not None
