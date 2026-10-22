@@ -80,6 +80,13 @@ def test_search_caption_keeps_exact_limit_unchanged():
     assert module.search_caption(body, "Hook Lab") == body + '\n\nSearch "Hook Lab" on Capafy.'
 
 
+def test_search_caption_url_like_prefix_and_space_passes_payload_preflight():
+    module = load_module()
+    caption = module.search_caption("a" * 239 + "https:// " + "b" * 248, "Hook Lab")
+    assert caption.endswith('Search "Hook Lab" on Capafy.')
+    module.build_payload(integration_id="int-1", caption=caption, scheduled_at="fixture")
+
+
 def test_search_caption_rejects_an_unfittable_search_cta():
     module = load_module()
     with pytest.raises(ValueError, match="CTA"):

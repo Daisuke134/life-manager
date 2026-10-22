@@ -264,6 +264,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 - EARN01a source検証: 匿名の実観測同型入力、ASCII/CJK/emoji長文、過長CTA、非search超過で最小RED6件を確認する。既存stdlib-only counterと上限を再利用し、検索CTA付きprefix調整とpayload境界の拒否だけでGREEN11件となる。直接callerを含む関連83 tests、18/191 loop-contract、source-boundary、diff checkがPASSする。初回の関連検証で欠けていたwriter/appのsparse pathsはcheckoutへ追加し、ソフトウェア不具合とは扱わない。旧投稿の再送、provider公開、ledger/fence変更は0で、fresh reviewとexact CI/main/immutable/自然slotは未完である。
 
+- EARN01a fresh反証: URLに似たprefixと末尾空白の入力で、検査後のrstripがweightを280→292へ変えるP2を再現し、追加回帰は1FAIL/11PASSとなる。prefixの単調性を仮定する探索を削除し、長文だけ280 codepointsへ限定してから実返却文字列そのものを検査・末尾短縮する。修正後は関連84 testsと18/191 contractがPASSする。HTTP前の安全弁とCTA保全を維持し、既存ERRORは再送しない。
+
 - EARN01a順序判断: 旧=CLD04配備/自然Travelを待つ→EARN01。新=CLD04の既存CI/配備待ちと独立して確認済みX本文不具合のsourceだけを進め、provider公開は既存自然ownerに任せる。Cloud配備も既存effectも中断せず、成果を止める実証済み境界を先に減らす。現在cursor=既存counter/全caller確認→最小RED→修正→関連GREEN→通常統合/採用。
 
 **EARN03 — 最小の公式経済入力をつなぐ。** 対象は `skills/cfo/economic_attribution.py` と既存 `skills/cfo/adapters/`、`apps/life-manager/scripts/cfo-hourly-local.js`、各providerの既存money reader。`test_unknown_fee_or_cost_never_becomes_positive_net`、`test_same_currency_period_and_external_receipt_are_required`、`test_financing_principal_self_payment_and_duplicate_receipts_are_excluded`を既存関連testでまず確認し、未表現の実欠落だけ追加する。CFOがcurrentなsourceを読めない場合は、そのreaderとjoinだけ直す。既存6時間freshness、通貨単位、refund/settlement/active subscription、総費用と推計寄与の区別を維持する。cost-complete net判定ができるまではunknownを保持し、許可済み無料配信や契約納品を止めない。

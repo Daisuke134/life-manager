@@ -84,14 +84,11 @@ def search_caption(caption: str, name: str) -> str:
         return body + suffix
     if x_weighted_length("…" + suffix) > X_LIMIT:
         raise ValueError("X search CTA leaves no room within the weighted limit")
-    low, high = 0, len(body)
-    while low < high:
-        end = (low + high + 1) // 2
-        if x_weighted_length(body[:end] + "…" + suffix) <= X_LIMIT:
-            low = end
-        else:
-            high = end - 1
-    return body[:low].rstrip() + "…" + suffix
+    # Bound shortening work even for unusually large generated captions.
+    body = body[:X_LIMIT]
+    while x_weighted_length(body.rstrip() + "…" + suffix) > X_LIMIT:
+        body = body[:-1]
+    return body.rstrip() + "…" + suffix
 
 
 def extract_post_id(create_response) -> str:
