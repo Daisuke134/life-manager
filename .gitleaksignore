@@ -1074,3 +1074,8 @@ bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/te
 acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:295
 acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:332
 a572c1509832e981c46959a900f5a947b6e249d3:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:368
+
+# Public deterministic SHA-256 effect identifier; independently reproduced from public fixture inputs.
+# Scoped to these two historical occurrences only, approved 2026-10-22.
+ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:8
+ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:50

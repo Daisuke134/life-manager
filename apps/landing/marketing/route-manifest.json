@@ -49,7 +49,7 @@
     {
       "source": "assets/styles.css",
       "export_path": "assets/manager-site/styles.css",
-      "sha256": "3f7e309a04dfba3cbcd44dec239d0e3406f57803a901b7a638e88027f8bbcddc"
+      "sha256": "d5bb6ef07edf5b69eb7e7db2e510c816a7d6074f0e253570cc93848ccf2490e1"
     },
     {
       "source": "assets/writer-cta-url.js",

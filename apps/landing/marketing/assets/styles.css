@@ -12,7 +12,7 @@
 .manager-mission nav{height:auto;min-height:104px;padding-top:24px;padding-bottom:24px}
 .manager-mission .brand{letter-spacing:-.06em;font-weight:700}
 .manager-mission .hero{padding:70px 0 88px;gap:54px;grid-template-columns:1fr 1.05fr;align-items:center}
-.manager-mission .hero h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(64px,7.6vw,106px);font-weight:400;line-height:.98;letter-spacing:-.065em;margin:25px 0 30px;max-width:510px}
+body.manager-mission .hero h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(64px,7.6vw,106px);font-weight:400;line-height:.98;letter-spacing:-.065em;margin:25px 0 30px;max-width:510px}
 .manager-mission:lang(ja) .hero h1{font-family:serif;font-size:clamp(48px,5vw,72px);line-height:1.2;letter-spacing:-.055em}
 .manager-mission .eyebrow{font-size:11px;letter-spacing:.15em;font-weight:600}
 .manager-mission .hero .lead{font-size:18px;line-height:1.8;max-width:440px;color:var(--muted)}
@@ -41,6 +41,6 @@
 .manager-mission .product-entry{background:#e9ede2;border-radius:24px;padding:36px;gap:30px}
 .manager-mission .product-entry .actions{flex-shrink:0;max-width:250px}
 .manager-mission a:focus-visible,.manager-mission input:focus-visible{outline:3px solid #9d4a2e;outline-offset:5px}
-@media(max-width:900px){.manager-mission .hero{grid-template-columns:1fr;gap:42px;padding-top:40px}.manager-mission .hero h1{max-width:600px}.manager-mission .hero .lead{max-width:540px}.manager-mission .mission-world{max-width:580px;width:100%;justify-self:center}.manager-mission .product-entry{display:block}.manager-mission .product-entry .actions{max-width:none}}
-@media(max-width:600px){.manager-mission nav,.manager-mission .wrap,.manager-mission footer>div{padding-left:24px;padding-right:24px}.manager-mission nav{gap:18px}.manager-mission .navlinks{gap:10px 16px;font-size:12px}.manager-mission .hero{padding:36px 0 52px}.manager-mission .hero h1{font-size:72px;max-width:340px}.manager-mission:lang(ja) .hero h1{font-size:48px}.manager-mission .hero .lead{font-size:16px}.manager-mission .actions{gap:16px}.manager-mission .section{padding:52px 0}.manager-mission .product-entry,.manager-mission .proof .card{padding:24px}.manager-mission .mission-world label,.manager-mission .mission-world figcaption{font-size:11px}}
+@media(max-width:900px){.manager-mission .hero{grid-template-columns:1fr;gap:42px;padding-top:40px}body.manager-mission .hero h1{max-width:600px}.manager-mission .hero .lead{max-width:540px}.manager-mission .mission-world{max-width:580px;width:100%;justify-self:center}.manager-mission .product-entry{display:block}.manager-mission .product-entry .actions{max-width:none}}
+@media(max-width:600px){.manager-mission nav,.manager-mission .wrap,.manager-mission footer>div{padding-left:24px;padding-right:24px}.manager-mission nav{gap:18px}.manager-mission .navlinks{gap:10px 16px;font-size:12px}.manager-mission .hero{padding:36px 0 52px}body.manager-mission .hero h1{font-size:72px;max-width:340px}body.manager-mission:lang(ja) .hero h1{font-size:clamp(32px,8vw,48px);max-width:none}.manager-mission .hero .lead{font-size:16px}.manager-mission .actions{gap:16px}.manager-mission .section{padding:52px 0}.manager-mission .product-entry,.manager-mission .proof .card{padding:24px}.manager-mission .mission-world label,.manager-mission .mission-world figcaption{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.manager-mission .scene-person{animation:none}.manager-mission{scroll-behavior:auto}html:has(.manager-mission){scroll-behavior:auto}}
