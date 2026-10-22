@@ -15,7 +15,7 @@ function inline(text) {
    out += !safeUrl(url) ? esc(label) : image
     ? `<img src="${esc(url)}" alt="${esc(label)}" class="my-10 w-full rounded border border-bone" loading="lazy" />`
     : `<a href="${esc(url)}" class="underline underline-offset-4" rel="noopener noreferrer">${esc(label)}</a>`;
-  } else if (s.startsWith('`')) out += `<code class="rounded bg-bone/60 px-1">${esc(s.slice(1,-1))}</code>`;
+  } else if (s.startsWith('`')) out += `<code class="rounded bg-bone/60 px-1 break-all">${esc(s.slice(1,-1))}</code>`;
   else if(s.startsWith('**')) out += `<strong>${esc(s.slice(2,-2))}</strong>`;
   else out += `<em>${esc(s.slice(1,-1))}</em>`;
   last = match.index+s.length;

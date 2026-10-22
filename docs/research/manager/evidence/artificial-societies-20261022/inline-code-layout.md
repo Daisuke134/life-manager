@@ -1,0 +1,9 @@
+# Inline identifiers on the published chapter — 2026-10-22
+
+The first chapter publication completed through canonical PR8550 (content revision `a69a8a4a66e5b2f032c13efcc6bef18c446cf448`), publishing PR556 (main `3685f4b5a447fb270bacae9647a2631b66ec6c02`) and successful Netlify run39821196601 including money-path smoke. Unauthenticated readback at17:22UTC verified all12 main sections,52 citation URLs, the chapter/figure hashes and preservation of the previous65 articles/33media. This is publication evidence, not a human trial or welfare result.
+
+The subsequent real-site browser check found document width460px at a390px viewport. The only element outside the viewport was the inline40-character AS benchmark commit identifier: code element x20/width440 at font18px. This escaped identifier is legitimate scientific version information; its text should remain intact.
+
+The publishing repository already uses Tailwind `break-all` for long identifiers, including `apps/landing/app/alarm/setup/page.tsx` and wallet/playbook code. Applying that existing class to inline code in a temporary browser DOM experiment reduced the real page document width to390px and kept the full40-character identifier unchanged. No production write occurred in this experiment. The earlier standalone preview had its own wrapping CSS and therefore did not expose this real-style issue.
+
+The canonical fix applies this same existing class only to inline code and regenerates the immutable module hash. Fenced blocks retain their existing local horizontal scrolling. All67 article/34media bytes and the content revision remain unchanged. The installer and its checksum are unchanged. Review/CI, a renderer-only code-pin promotion through the same publishing bridge and actual live390/1280px readback are required before calling the production layout fixed. No new CSS engine, package, hosting or publication path is introduced.
