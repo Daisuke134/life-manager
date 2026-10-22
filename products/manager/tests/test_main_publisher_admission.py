@@ -89,8 +89,9 @@ class MainPublisherAdmissionTests(unittest.TestCase):
         helper = integration.PublisherIntegrationTests(); release = helper.load()
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
+            now = acceptance.NOW
             _, _, host, _ = acceptance.CycleAcceptanceTests().prepare(tmp)
-            prepared = m.prepare_owned_change(host.context, host.assessment, host.scope, NOW,
+            prepared = m.prepare_owned_change(host.context, host.assessment, host.scope, now,
                                               schema='manager.digital-handoff.v2')
             self.assertEqual(prepared.packet['schema'], 'manager.digital-handoff.v2')
             audit = root/'audit.json'; audit.write_text(json.dumps(host.source_audit))
@@ -100,12 +101,12 @@ class MainPublisherAdmissionTests(unittest.TestCase):
                 'GITHUB_WORKFLOW_REF':f'{m.REPOSITORY}/{m.WORKFLOW}@refs/heads/main'}
             with patch.dict(os.environ, env, clear=True), \
                  patch.object(release, 'source_checkout_commit', return_value='b'*40):
-                for bad_scope in (replace(host.scope,revoked=True), replace(host.scope,expires_at=NOW)):
+                for bad_scope in (replace(host.scope,revoked=True), replace(host.scope,expires_at=now)):
                     with self.assertRaises(PermissionError):
                         release.admit_owned(host.context,host.assessment,bad_scope,prepared,
-                                            host.checkout,audit,root/'admit.json',NOW)
+                                            host.checkout,audit,root/'admit.json',now)
                 result = release.admit_owned(host.context,host.assessment,host.scope,prepared,
-                                             host.checkout,audit,root/'admit.json',NOW+timedelta(seconds=1))
+                                             host.checkout,audit,root/'admit.json',now+timedelta(seconds=1))
                 self.assertTrue(result['dispatch_deployment'])
 
 
