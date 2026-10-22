@@ -76,3 +76,31 @@ class AuthorityVerifier:
         if type(cost) not in (int,float) or not isfinite(cost) or cost < 0 or cost > grant.limit:
             raise PermissionError("outside grant budget")
         return True
+
+
+@dataclass(frozen=True)
+class OwnedDigitalScope:
+    """Host configuration for feasibility, NOT authenticated publisher authority.
+
+    Actual effects still require the original privileged platform admission.
+    This is not signed by fixture keys or accepted from provider advice JSON.
+    """
+    scope_id: str
+    allowed_paths: frozenset[str]
+    not_before: datetime
+    expires_at: datetime
+    max_changed_files: int
+    revoked: bool = False
+
+    def __post_init__(self):
+        from .digital_handoff import ALLOWED_PATHS
+        _text(self.scope_id);_aware(self.not_before);_aware(self.expires_at)
+        if (type(self.allowed_paths) is not frozenset or not self.allowed_paths
+                or not self.allowed_paths<=set(ALLOWED_PATHS)
+                or self.expires_at<=self.not_before
+                or type(self.max_changed_files) is not int or not 1<=self.max_changed_files<=len(ALLOWED_PATHS)
+                or type(self.revoked) is not bool):raise ValueError('bounded host-owned digital scope required')
+
+    def allows(self,target: str,at: datetime):
+        _aware(at)
+        return not self.revoked and self.not_before<=at<self.expires_at and target in self.allowed_paths
