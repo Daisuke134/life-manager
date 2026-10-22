@@ -658,7 +658,8 @@ async function withDurableTravelFixture(run) {
   const updates = [];
   const state = { visible: true, response: "timeout", rejectPhase: null, wrongTenant: false,
     extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
-    ledgerSaved: true, onDispatch: null, rejectDelete: false };
+    ledgerSaved: true, onDispatch: null, rejectDelete: false, pointReads: [], pointSource: null,
+    pointHelper: null, pointFailure: null };
   const clone = (value) => structuredClone(value);
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -712,6 +713,18 @@ async function withDurableTravelFixture(run) {
         ...createdTravelRow(args), ...(state.omitMarker ? { description: "User-created travel" } : {}),
       })) : []), ...state.extraRows] } });
     }
+    if (url.pathname.endsWith("/tools/execute/proxy")) {
+      assert.equal(body.method, "GET", "reconciliation must never update or delete Calendar events");
+      assert.equal(body.connected_account_id, accountId);
+      assert.equal(body.user_id, uid);
+      const eventId = decodeURIComponent(new URL(body.endpoint).pathname.split("/").at(-1));
+      state.pointReads.push(eventId);
+      if (state.pointFailure === "unreadable") throw new Error("synthetic point read failure");
+      if (state.pointFailure === 404 || state.pointFailure === 410) return response({ status: state.pointFailure, data: {} });
+      const event = eventId === source.id ? state.pointSource || source
+        : state.pointHelper || createdTravelRow(creates[0]);
+      return response({ status: 200, data: state.pointFailure === "wrong-id" ? { ...event, id: "other-event" } : event });
+    }
     assert.equal(url.pathname.endsWith("GOOGLECALENDAR_CREATE_EVENT"), true);
     creates.push(clone(body.arguments));
     state.phaseAtDispatch = clone(rows.get("synthetic-source:go")?.calendar_write_receipt);
@@ -756,12 +769,149 @@ test("CLD02 Hybrid unknown create is verified only by its durable owned marker r
   });
 });
 
+test("CLD03b1 known helper and source use point reads outside the list window without counting old proof again", async () => {
+  for (const effect of ["created", "verified", "unknown"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.response = "success";
+      const first = await fillTravel(f.uid, f.options);
+      assert.equal(first.inserted, 1);
+      const row = f.rows.get("synthetic-source:go");
+      if (effect === "verified") {
+        row.calendar_write_receipt = { ...row.calendar_write_receipt, phase: "readback", effect,
+          readback: "exact_one", evidence_ref: `calendar-event:${"a".repeat(64)}` };
+      } else row.calendar_write_receipt.effect = effect;
+      const before = structuredClone(row.calendar_write_receipt);
+      f.state.visible = false;
+      f.calendar.listEventsRaw = async () => [structuredClone(f.source)];
+      f.calendar.listOwnedEvents = async () => assert.fail("a known helper ID must not use a time-window list");
+      const result = await fillTravel(f.uid, f.options);
+      assert.deepEqual(f.state.pointReads, ["travel-readback", "synthetic-source"]);
+      assert.equal(result.verified, effect === "unknown" ? 1 : 0);
+      assert.equal(result.inserted, 0);
+      assert.equal(f.creates.length, 1);
+      assert.deepEqual(f.deletes, []);
+      if (effect !== "unknown") assert.deepEqual(row.calendar_write_receipt, before);
+      f.state.pointReads.length = 0;
+      const replay = await fillTravel(f.uid, f.options);
+      assert.equal(replay.verified, 0);
+      assert.deepEqual(f.state.pointReads, ["travel-readback", "synthetic-source"]);
+    });
+  }
+});
+
+test("CLD03b1 current source or helper failures fence both legs and reminders while preserving prior verified proof", async () => {
+  const scenarios = [
+    ["changed", "source_changed"], ["ordinary-changed", "source_view_mismatch"], ["cancelled", "source_cancelled"],
+    ["marker", "helper_mismatch"], ["fingerprint", "helper_mismatch"], ["helper-cancelled", "helper_mismatch"],
+    ["unreadable", "owned_read_error"], [404, "owned_read_error"], [410, "owned_read_error"],
+    ["wrong-id", "owned_read_error"], ["wrong-tenant", "owned_read_error"],
+  ];
+  for (const [scenario, errorClass] of scenarios) {
+    await withDurableTravelFixture(async (f) => {
+      await fillTravel(f.uid, f.options);
+      const row = f.rows.get("synthetic-source:go");
+      assert.equal(row.calendar_write_receipt.effect, "verified");
+      const before = structuredClone(row.calendar_write_receipt);
+      const cached = structuredClone(f.source), helper = createdTravelRow(f.creates[0]);
+      f.calendar.listEventsRaw = async () => [cached, helper];
+      if (scenario === "changed") f.state.pointSource = { ...f.source, updated: "2030-01-01T00:01:00Z" };
+      else if (scenario === "ordinary-changed") cached.updated = "2030-01-01T00:01:00Z";
+      else if (scenario === "cancelled") f.state.pointSource = { id: f.source.id, status: "cancelled" };
+      else if (scenario === "marker") f.state.pointHelper = { ...helper, description: "Handwritten travel" };
+      else if (scenario === "fingerprint") f.state.pointHelper = { ...helper, location: "Manually changed venue" };
+      else if (scenario === "helper-cancelled") f.state.pointHelper = { id: helper.id, status: "cancelled" };
+      else if (scenario === "wrong-tenant") f.state.wrongTenant = true;
+      else f.state.pointFailure = scenario;
+      const writes = [], routes = [];
+      f.calendar.patchEvent = async () => { writes.push("patch"); return { successful: true }; };
+      f.calendar.createEvent = async () => { writes.push("create"); return { successful: true }; };
+      const result = await fillTravel(f.uid, { ...f.options, expectedCalendarAccountId: "ca-hybrid-fixture",
+        _directionsMinutes: async (...args) => { routes.push(args); return 20; } });
+      assert.deepEqual(result.reconciliationErrors, { [errorClass]: 1 }, String(scenario));
+      assert.equal(result.verified, 0, String(scenario));
+      assert.equal(result.inserted, 0, String(scenario));
+      assert.deepEqual(row.calendar_write_receipt, before, String(scenario));
+      assert.deepEqual(writes, [], String(scenario));
+      assert.deepEqual(routes, [], String(scenario));
+      assert.deepEqual(f.deletes, [], String(scenario));
+    });
+  }
+});
+
+test("CLD03b1 typed failure releases only a duplicate claimant's reservation", async () => {
+  for (const duplicate of [false, true]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      if (duplicate) await fillTravel(f.uid, f.options);
+      f.calendar.listEventsRaw = async () => [structuredClone(f.source)];
+      f.state.hideClaimReads = duplicate ? 1 : 0;
+      const released = [];
+      const result = await fillTravel(f.uid, { ...f.options,
+        _reserveManagedAction: async () => ({ allowed: true, reservationToken: "fixture-reservation" }),
+        _releaseManagedAction: async (_uid, _event, _url, _key, { reservation }) => released.push(reservation.reservationToken),
+      });
+      assert.deepEqual(result.reconciliationErrors, { helper_mismatch: 1 });
+      assert.deepEqual(released, duplicate ? ["fixture-reservation"] : []);
+      assert.equal(f.state.conflicts, duplicate ? 1 : 0);
+      assert.equal(f.creates.length, 1);
+      assert.deepEqual(f.deletes, []);
+    });
+  }
+});
+
+test("CLD03b1 preserves created proof but records an unresolved receipt's readback failure", async () => {
+  for (const effect of ["created", "unknown"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.response = "success";
+      await fillTravel(f.uid, f.options);
+      const row = f.rows.get("synthetic-source:go");
+      row.calendar_write_receipt.effect = effect;
+      const before = structuredClone(row.calendar_write_receipt);
+      f.state.pointSource = { ...f.source, updated: "2030-01-01T00:01:00Z" };
+      const result = await fillTravel(f.uid, f.options);
+      assert.deepEqual(result.reconciliationErrors, { source_changed: 1 });
+      if (effect === "created") assert.deepEqual(row.calendar_write_receipt, before);
+      else {
+        assert.equal(row.calendar_write_receipt.effect, "unknown");
+        assert.equal(row.calendar_write_receipt.phase, "readback");
+        assert.equal(row.calendar_write_receipt.error_class, "source_changed");
+      }
+      assert.equal(f.creates.length, 1);
+      assert.deepEqual(f.deletes, []);
+    });
+  }
+});
+
+test("CLD03b1 a held source does not stop a different eligible event", async () => {
+  await withDurableTravelFixture(async (f) => {
+    await fillTravel(f.uid, f.options);
+    const other = { ...structuredClone(f.source), id: "other-source", location: "Other venue",
+      start: { dateTime: "2030-01-01T12:00:00Z" }, end: { dateTime: "2030-01-01T13:00:00Z" } };
+    f.calendar.listEventsRaw = async () => [structuredClone(f.source), other];
+    f.state.pointSource = { ...f.source, updated: "2030-01-01T00:01:00Z" };
+    const routes = [], writes = [];
+    f.calendar.createEvent = async (_uid, args) => { writes.push(args.location); return { successful: false, effect: "unknown" }; };
+    const result = await fillTravel(f.uid, { ...f.options,
+      _directionsMinutes: async (_from, to, _key, _anchor, _now, isReturn) => {
+        if (isReturn) return null;
+        routes.push(to); return 20;
+      },
+    });
+    assert.deepEqual(result.reconciliationErrors, { source_changed: 1 });
+    assert.deepEqual(routes, ["Other venue"]);
+    assert.deepEqual(writes, ["Other venue"]);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
 test("CLD02 claim409 reconciles a prior dispatch read-only, including a stop before response persistence", async () => {
   await withDurableTravelFixture(async (f) => {
     f.state.visible = false;
     f.state.rejectPhase = "response";
     await fillTravel(f.uid, f.options);
-    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.phase, "dispatching");
+    assert.equal(f.state.phaseAtDispatch.phase, "dispatching");
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.phase, "readback");
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.error_class, "helper_mismatch");
     f.state.rejectPhase = null;
     // The normal cached view still lacks the helper; the owned readback sees the provider result.
     const initialList = f.calendar.listEventsRaw;

@@ -658,3 +658,20 @@ test("legacy organ scheduler keeps Calendar reads and care for a Telegram tenant
   const result = await observeOrganCalendarAndCare("telegram-user", "101");
   assert.deepEqual(result, { calendarReads: 1, careRuns: 1 });
 });
+
+
+test("travel reconciliation holds are observable even without inserts or origin questions", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const originalError = console.error;
+  const errors = [];
+  const counts = { source_changed: 1, owned_read_error: 2 };
+  console.error = (...args) => errors.push(args.join(" "));
+  try {
+    await travelUserOnce({ uid: "diagnostic-fixture", daily_automation_enabled: true, notifications_enabled: false }, {
+      apiKey: "fixture", mapsKey: "fixture", telegramToken: null,
+      fillTravel: async () => ({ inserted: 0, originQuestionsAsked: 0, outboundReports: [], reconciliationErrors: counts }),
+    });
+  } finally { console.error = originalError; }
+  assert.deepEqual(errors, [`[travel] reconciliation_held ${JSON.stringify(counts)}`]);
+  assert.equal(errors[0].includes("diagnostic-fixture"), false);
+});

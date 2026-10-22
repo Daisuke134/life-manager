@@ -341,6 +341,34 @@ function makeComposioCalendar(opts = {}) {
     kind: "composio",
     ready: () => !!key,
     listEventsPage,
+    async getOwnedEvent(uid, eventId, { accountRefHash: accountHash, ...input } = {}) {
+      let dispatched = false, outcome = "unknown";
+      try {
+        if (!key || !uid || !/^[a-f0-9]{64}$/.test(String(accountHash || ""))
+          || typeof eventId !== "string" || !/^[A-Za-z0-9_-]{1,1024}$/.test(eventId)) throw new Error();
+        const readOpts = { ...opts, ...input, ownedReadAccountRef: accountHash };
+        const connectedAccountId = await ownedAccountId(uid, key, readOpts);
+        dispatched = true;
+        const response = await (opts.fetchImpl || fetch)(COMPOSIO_PROXY_EXEC, {
+          method: "POST", headers: { "x-api-key": key, "Content-Type": "application/json" },
+          body: JSON.stringify({ connected_account_id: connectedAccountId, user_id: uid,
+            endpoint: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(eventId)}`, method: "GET" }),
+        });
+        const payload = await response.json();
+        const event = payload?.data;
+        if (response.ok !== true || payload?.status !== 200 || !event || typeof event !== "object"
+          || Array.isArray(event) || event.id !== eventId) throw new Error();
+        outcome = "success";
+        return event;
+      } catch { throw new Error("calendar owned event read failed"); }
+      finally {
+        if (dispatched) {
+          try { await ledger(uid, "calendar.owned_get", { outcome,
+            runtimeTrace: runtimeTrace({ tenantId: uid }, usageRuntimeEnv(opts.runtimeEnv || process.env,
+              { fallbackOwnerId: "life-call-calendar" })) }); } catch { /* cost recording remains best effort */ }
+        }
+      }
+    },
     async listOwnedEvents(uid, { accountRefHash: accountHash, ...input } = {}) {
       if (!/^[a-f0-9]{64}$/.test(String(accountHash || ""))) throw new Error("calendar receipt account missing");
       const items = [];
