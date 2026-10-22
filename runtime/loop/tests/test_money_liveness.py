@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -17,6 +18,31 @@ def _publication(stamp):
             "published_at": datetime.fromtimestamp(stamp, timezone.utc).isoformat(),
             "published": True, "verified": True, "identity_verified": True,
             "public_id": "article-1", "state": "live", "live_url": "https://example.test/article"}
+
+
+def _native_carousel_receipt():
+    script = r'''
+const crypto = require("node:crypto");
+const adapter = require("./apps/life-manager/lib/marketing-native-carousel-publication-adapter.js");
+const lane = adapter.EN_SLIDESHOW_TIKTOK_LANE;
+const hashes = lane.mediaRefs.map(ref => ref.slice(-64));
+const receipt = {
+  schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published",
+  product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale,
+  platform: lane.platform, account_id: lane.accountId, integration_ref: lane.integrationRef,
+  creative_id: lane.creativeId, pack_sha256: lane.packRef.slice(-64), media_sha256: hashes,
+  media_order_sha256: crypto.createHash("sha256").update(JSON.stringify(hashes)).digest("hex"),
+  caption_sha256: lane.captionRef.slice(-64), caption_with_cta_sha256: "c".repeat(64),
+  provider_post_id: "postiz-test-carousel-1", provider_reconciled: true, public_url: null,
+  provider_state: "PUBLISHED", provider_integration_id: lane.integrationId,
+  provider_content_sha256: "c".repeat(64), provider_title: lane.title,
+  provider_posting_method: "DIRECT_POST", provider_release_id: "p_pub_url~v2.7678198747632977937",
+  published_at: "2026-10-22T10:30:00.000Z"
+};
+if (!adapter.verifyMarketingNativeCarouselPublicationReceipt(receipt)) process.exit(1);
+process.stdout.write(JSON.stringify(receipt));
+'''
+    return json.loads(subprocess.check_output(["node", "-e", script], cwd=ml.ROOT, text=True))
 
 
 def _setup(tmp_path, age_hours):
@@ -155,17 +181,16 @@ def test_published_distribution_recovers_from_its_slot_once(tmp_path):
 
 def test_telegram_liveness_and_unreconciled_post_are_not_publications(tmp_path):
     p = tmp_path / "receipts.jsonl"
-    receipt = {"product": "anicca-ios", "status": "published", "published_at": "2026-10-22T10:00:00Z",
-               "provider_reconciled": True, "provider_post_id": "post-1", "public_url": "https://example.test/post"}
+    receipt = _native_carousel_receipt()
     rows = [{"receipt": {**receipt, "kind": "telegram_marketing_liveness"}},
-            {"receipt": {**receipt, "kind": "marketing_video_distribution", "provider_reconciled": False}},
-            {"receipt": {**receipt, "kind": "marketing_video_distribution", "product": "honne-ai"}}]
+            {"receipt": {**receipt, "provider_reconciled": False}},
+            {"receipt": {**receipt, "product_id": "honne-ai"}}]
     p.write_text("\n".join(json.dumps(row) for row in rows))
     lane = {"id": "mobile", "reader": "marketing_publication", "product_id": "anicca-ios", "path": p.name, "max_age_hours": 12}
     row = ml.evaluate([lane], tmp_path, 1792665900.0)[0]
     assert row["stale"] is True and row["last_verified_outcome"] is None
     with p.open("a") as stream:
-        stream.write("\n" + json.dumps({"receipt": {**receipt, "kind": "marketing_video_distribution"}}))
+        stream.write("\n" + json.dumps({"receipt": receipt}))
     assert ml.evaluate([lane], tmp_path, 1792665900.0)[0]["stale"] is False
 
 
@@ -211,3 +236,22 @@ def test_malformed_receipt_kind_does_not_crash_other_lanes(tmp_path):
     p.write_text(json.dumps({"receipt": {"product": "anicca-ios", "kind": [], "status": "published"}}))
     lane = {"id": "mobile", "reader": "marketing_publication", "product_id": "anicca-ios", "path": p.name, "max_age_hours": 12}
     assert ml.evaluate([lane], tmp_path, 1792665900.0)[0]["stale"] is True
+
+
+def test_invalid_terminal_verdict_does_not_stop_other_lanes(tmp_path):
+    (tmp_path / "published.jsonl").write_text("")
+    (tmp_path / "terminals.jsonl").write_text(json.dumps({"schema_version": 1, "execution_id": "run-1", "phase": "terminal",
+        "observed_at": "2026-10-22T10:00:00Z", "healthy": True, "rc": 0, "verdict": []}))
+    lane = {"id": "ship", "reader": "capafy_submission", "path": "published.jsonl", "terminal_path": "terminals.jsonl", "max_age_hours": 4}
+    assert len(ml.evaluate([lane, {**lane, "id": "next"}], tmp_path, 1792665900.0)) == 2
+
+
+def test_official_photo_api_receipt_without_url_advances_only_its_product(tmp_path):
+    receipt = _native_carousel_receipt()
+    assert receipt["public_url"] is None
+    (tmp_path / "receipts.jsonl").write_text(json.dumps({"receipt": receipt}))
+    lanes = [{"id": product, "reader": "marketing_publication", "product_id": product,
+              "path": "receipts.jsonl", "max_age_hours": 12} for product in ("anicca-ios", "honne-ai")]
+    rows = ml.evaluate(lanes, tmp_path, 1792665900.0)
+    assert rows[0]["stale"] is False and rows[0]["last_verified_outcome"] is not None
+    assert rows[1]["stale"] is True and rows[1]["last_verified_outcome"] is None

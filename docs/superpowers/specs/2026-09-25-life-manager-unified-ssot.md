@@ -128,7 +128,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 実装: laneごとの既存official receipt reader/terminal schemaを読む。`last_attempt`、`last_verified_outcome`、`last_paid`を分離し、mtimeは診断値に残す。cadence・eligible work・provider審査待ちを尊重する。cooldownと送信失敗時の再試行を維持する。全18へはEARN02の役割に合う既存readerを段階的に接続する。
 - 受入: 自然失敗で正常復帰しない、次の本物の成果receiptで一度だけ復帰すること。通知テストはfake transport、実通知は既存ownerの自然動作で確認する。この会話のagentはTelegramへ進捗を送らない。
 
-- FND03 source検証: failed ledger touch・別商品readback・CAP_FULLをRECOVEREDへ誤変換する3反例をREDで確認する。旧成功後のfactory失敗、正式投稿とTelegram通知の区別、欠測/不正/未来/date-only、正式掲載と審査待ち併存を含む関連22 testsがPASSする。既存publisherの正式検証後ledgerにsubmitted_atがないREDを確認し、今後のappendへUTC精度の時刻を追加する。read-only実データ評価は約0.2秒で、Honneの正式投稿clock約23hに対し共有台帳mtime約0.45hの混同を解消する。公式収益照合と入金は別で、last_paidは未接続Noneを維持する。agentからの本番Telegram送信は0。
+- FND03 source検証: failed ledger touch・別商品readback・CAP_FULLの3反例とproducer時刻欠落をRED→GREENへ進める。初期関連22 tests後、独立reviewは不正verdict型で全lane停止と、正式TikTok photo APIのURL無しreceipt取り落としを反証する。両件を追加REDで再現し、verdict比較を型安全にし、モバイルの部分schema再実装を既存3 adapter verifierを使うread-only `marketing_receipt_clock.cjs`へ置き換える。修正後は関連24 testsと既存投稿契約51 testsがPASS、実host評価約0.25秒。旧date-onlyを推定backfillせず、last_paidは未接続Noneを保持し、agentからの本番Telegram送信は0。
 
 **FND04 — host slotとmodel leaseを混同しない**
 

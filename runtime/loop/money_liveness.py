@@ -53,11 +53,25 @@ def _records(path: Path):
         return
 
 
+def _marketing_clock(path: Path, product: str, now: float) -> float | None:
+    try:
+        result = subprocess.run(
+            [os.environ.get("LIFE_MANAGER_RUNTIME_NODE", "node"),
+             str(ROOT / "runtime/loop/marketing_receipt_clock.cjs"), str(path), product, str(now)],
+            capture_output=True, text=True, timeout=10, check=True,
+        )
+        return _timestamp(json.loads(result.stdout).get("last_verified_outcome"), now)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, AttributeError):
+        return None
+
+
 def _outcome_clocks(lane: dict, state_home: Path, now: float) -> dict:
     reader, path = lane.get("reader"), state_home / lane["path"]
     attempts, verified, healthy_terminals, terminal_results = [], [], [], []
     idle_at = None
-    if reader == "capafy_distribution":
+    if reader == "marketing_publication":
+        verified.append(_marketing_clock(path, lane["product_id"], now))
+    elif reader == "capafy_distribution":
         try:
             entries = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError, UnicodeError):
@@ -112,15 +126,6 @@ def _outcome_clocks(lane: dict, state_home: Path, now: float) -> dict:
                             and re.fullmatch(r"[a-f0-9]{64}", str(source.get("evidence_sha256") or ""))
                             and isinstance(source.get("data"), dict) and source["data"]):
                         verified.append(stamp)
-            elif reader == "marketing_publication":
-                receipt = row.get("receipt")
-                if not isinstance(receipt, dict) or (receipt.get("product_id") or receipt.get("product")) != lane.get("product_id"):
-                    continue
-                if (receipt.get("kind") in ("marketing_daily_distribution", "marketing_video_distribution", "marketing_native_carousel_distribution")
-                        and receipt.get("status") == "published" and receipt.get("provider_reconciled") is True
-                        and isinstance(receipt.get("provider_post_id"), str) and receipt["provider_post_id"].strip()
-                        and str(receipt.get("public_url") or "").startswith("https://")):
-                    verified.append(_timestamp(receipt.get("published_at"), now))
     if reader == "capafy_submission":
         terminals = [row for row in _records(state_home / lane["terminal_path"])
                      if row.get("schema_version") == 1 and row.get("execution_id")]
@@ -129,7 +134,7 @@ def _outcome_clocks(lane: dict, state_home: Path, now: float) -> dict:
         terminal = max(terminals, key=lambda row: str(row.get("observed_at") or ""), default={})
         if (terminal.get("phase") == "terminal" and terminal.get("healthy") is True
                 and type(terminal.get("rc")) is int and terminal["rc"] == 0
-                and terminal.get("verdict") in {"CAP_FULL", "DRAINED"}):
+                and terminal.get("verdict") in ("CAP_FULL", "DRAINED")):
             idle_at = _timestamp(terminal.get("observed_at"), now)
     latest = lambda values: max((value for value in values if value is not None), default=None)
     return {"last_attempt": latest(attempts), "last_verified_outcome": latest(verified),
