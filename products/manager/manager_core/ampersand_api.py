@@ -5,6 +5,8 @@ Failure/unknown states must not be retried as if no work had happened.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+from hashlib import sha256
+import json
 import re
 from typing import Any
 
@@ -80,14 +82,40 @@ def _bounded_str(text: object, *, max_size=6000) -> str:
 
 
 def read_initial_turn(client: Any, prompt: str,
-                      instructions: str = DEFAULT_INSTRUCTIONS) -> SessionEvidence:
-    """Start exactly one remote session; verify that its final turn completed."""
+                      instructions: str = DEFAULT_INSTRUCTIONS, *,
+                      journal=None, request_id: str | None = None) -> SessionEvidence:
+    """Start exactly one session, optionally guarded by durable external intent.
+
+    Live automated callers must pass journal + stable request_id. Old offline
+    fixture-only call sites retain journal=None for backward-compatible tests.
+    A duplicate/UNKNOWN creation is quarantined, NEVER retried blindly.
+    """
     _bounded_str(prompt)
     _bounded_str(instructions)
+    if (journal is None) != (request_id is None):
+        raise ValueError("journal and request_id must be supplied together")
+    create_kwargs = {
+        "agent": {"model": MODEL, "instructions": instructions},
+        "environment": {"type": "none"},
+        "input": prompt,
+        "stream": True,
+    }
+    if journal is not None:
+        # Avoid saving input text or secrets in the journal. Identity is a
+        # stable hash of the exact model request, including instructions.
+        identity = json.dumps(
+            {"model": MODEL, "instructions": instructions,
+             "input": prompt, "environment": {"type": "none"}},
+            ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf8")
+        journal.begin(request_id, sha256(identity).hexdigest())
+        journal.reserve_for_send(request_id)  # RESERVED→UNKNOWN before HTTP
+        # Official SessionCreate allows metadata and preserves it in list.
+        create_kwargs["metadata"] = {"manager_request_id": request_id}
     try:
         with client.beta.agents.sessions.create(
-            agent={"model": MODEL, "instructions": instructions},
-            environment={"type": "none"}, input=prompt, stream=True,
+            **create_kwargs,
         ).with_result_collection() as stream:
             state = "MISSING_FINAL_EVENT"
             for index, event in enumerate(stream):
@@ -107,8 +135,14 @@ def read_initial_turn(client: Any, prompt: str,
         raise SessionFailure("initial provider session uncertain or failed; do not retry blindly") from exc
     session_id = getattr(result, "session_id", None)
     output = getattr(result, "output_text", None)
-    if type(session_id) is not str or not session_id.startswith("sess_"):
+    if (type(session_id) is not str or
+            not re.fullmatch(r"sess_[A-Za-z0-9_-]{4,128}", session_id)):
         raise SessionFailure("initial provider session ID missing")
+    if journal is not None:
+        try:
+            journal.bind(request_id, session_id)  # bind BEFORE text validation
+        except Exception as exc:
+            raise SessionFailure("received provider session but durable bind failed") from exc
     if type(output) is not str or not output.strip():
         raise SessionFailure("empty/silent model response; no advisory action")
     if len(output) > 16000:
