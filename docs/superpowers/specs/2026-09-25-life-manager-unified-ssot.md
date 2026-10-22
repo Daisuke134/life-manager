@@ -75,8 +75,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 | TODO・状態 | 一つの検証可能な成果 | 依存 / 既存TODOへの接続 |
 |---|---|---|
 | [ ] FND01 | 実producerの容量増加と後始末を直し、blockedな次の業務wakeを通す | F1–F5/C2/R15。全18完了待ちにしない |
-| [ ] FND02 | 現在状態を残したまま、履歴clockを既存期限内に返す | C2/SH。FND01と独立なsource調査可 |
-| [ ] FND03 | 失敗ledger更新を成果復旧と誤判定しない監視を通す | DD12/EDD-FLEET。最初に既存6lane、次に全18の役割別coverage |
+| [x] FND02 | 現在状態を残したまま、履歴clockを既存期限内に返す | C2/SH。FND01と独立なsource調査可 |
+| [x] FND03 | 失敗ledger更新を成果復旧と誤判定しない監視を通す | DD12/EDD-FLEET。最初に既存6lane、次に全18の役割別coverage |
 | [ ] FND04 | model/profile競合・quotaとhost不足を区別し、安全な次回実行へ戻す | R04/brain_transport。既存profile leaseを維持 |
 | [ ] FND05 | 優先業務のexact未知effectを公式証拠で照合し、同じ原因の再生成を止める | C1の既完了は保持、現runは別occurrence |
 | [ ] FND06 | 修正が必要なownerへ同main由来SHAを安全に届ける | A15/通常promotion。全owner一斉更新はしない |
@@ -117,7 +117,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - FND01c: FND01aのmain `23c6412524bbd3ab54dc1dbab3a17efce8dbab53` / immutable `20261022T200547-23c64125` へのwatchdog採用は、既存lock・loaded-idle・preflight/launchctl-safeで成功する。最初のrun receiptは `remove_failed=1 / protected_deletions=0` で、削除対象とerrnoが記録されず原因を断定できない。既存bounded `probe_errors` の記録境界を削除例外にも再利用し、owner/candidate/error_class/errno/operationを残す。削除allowlist・floor・外部effectは変えず、次の自然runで得るexact原因にだけ修復を絞る。新規root走査や手動大量削除は行わない。
 - FND01c検証: permission-denied fixtureで対象/errno欠落のREDを確認し、既存8件上限の診断へoperation付き削除例外を接続後、関連257 tests・loop-contract18/191/errors0・diff checkがPASSする。既存watchdogの後続自然receiptは `ok=true/errors=0/protected_deletions=0` になるが、先のremove_failedの対象/errnoは未取得として保持する。誤削除防止のsource採用と、一過性の削除例外の原因確定を混同しない。
 
-- FND01f容量不足時のidle回収: CrowdWorksは既存4時間条件を超え、lease無し・同profile/UUIDを確認後に既存ownerを一度起動して通常更新する。新PID/UUIDとowner PASSを確認するが、空き容量は約9.49GBで回復しない。Coconala/Capafy/Lancers/LINEの4 profileもreachable・lease無しで、uptime約3時間のため現行条件では保持される。通常MAX_AGE=4時間は維持し、既存producer disk floorを下回ることが確認できる時だけ、既存browser-recycle-idleの登録実行間隔3600秒を回収年齢の下限として再利用する。新しいfloor/cooldown knobを作らず、情報不明なら通常基準へ戻す。lease取得後にageと圧力を再確認し、直前に更新されたbrowser、busy lease、Dais/provisionは保持する。新daemon/生kill/credential複製は追加しない。source所有は既存recyclerとそのtestsだけ。REDは3h/低容量の回収、通常容量では4h維持、fresh/不明/busy/excluded保持。既存guard経路の通常終了・runtime readback・容量/次の業務wakeで受け入れ、swap解放や収益は先に断定しない。
+- FND01f容量不足時のidle回収: CrowdWorksは既存4時間条件を超え、lease無し・同profile/UUIDを確認後に既存ownerを一度起動して通常更新する。新PID/UUIDとowner PASSを確認するが、空き容量は約9.49GBで回復しない。Coconala/Capafy/Lancers/LINEの4 profileもreachable・lease無しで、uptime約3時間のため現行条件では保持される。通常MAX_AGE=4時間は維持し、既存producer disk floorを下回ることが確認できる時だけ、既存browser-recycle-idleの登録実行間隔3600秒を回収年齢の下限として再利用する。新しいfloor/cooldown knobを作らず、情報不明なら通常基準へ戻す。lease取得後にageと圧力を再確認し、直前に更新されたbrowser、busy lease、Dais/provisionは保持する。新daemon/生kill/credential複製は追加しない。source所有は既存recyclerとそのtestsだけ。REDは3h/低容量の回収、通常容量では4h維持、fresh/不明/busy/excluded保持。既存guard経路の通常終了・runtime readback・容量/次の業務wakeで受け入れ、swap解放や収益は先に断定しない。 source検証: 3時間/低容量のRED→GREEN、関連91 tests＋6 subtests、diff checkを確認する。本番の容量回復は未証明。
 - 順序更新: 旧順FND01eのCI/採用→FND04。新順FND01eのCI/採用と独立にFND01f→FND04。理由は現在のdisk floorが全収益ownerとCloud新規profileを直接止め、4つの非使用browserを確認するため。進行中provider effectや既存leaseは中断しない。現在cursorはFND01f source、FND01eはexact-head CI待ち。
 
 **FND02 — 履歴再走査を毎回のhealthから外す**
@@ -125,7 +125,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 対象: `runtime/loop/lm_loop.py::{snapshot,collect_live,_last_event,_health_event_projection}`、`runtime/loop/runtime_event.py::append_runtime_event`、`runtime/loop/health.py`、`runtime/loop/tests/test_lm_loop_health.py`。新しい監視daemonは作らない。
 - RED: `test_health_current_and_history_share_one_collection`、`test_health_clocks_survive_rotation_and_long_cadence`、`test_clock_projection_detects_gap_without_false_healthy`。共有journal・日次/週次・rotation・遅い読取・不完全末尾・異なるreleaseのwriterを含め、現在状態を消さず、`started`をverified outcomeへ昇格しない。
 - 実装: まず現況/履歴の二重収集を単一collectionへ揃える。既存event journalを正本とし、writerの同じlock下で更新する再構築可能な小さいclock projectionを使い、読取はjournal identity/positionと照合する。混在旧writerや破損時はbounded catch-upと明示unknownへ落とす。正式journalを削除/改変しない。projection単体を効果証明に使わない。
-- 検証: 既存health4ケースを含む関連suite。今回の104 roots相当fixtureと現hostのread-only profileで既存30秒budget内に現在状態/時計を取得する。単なるdeadline延長、archiveを無制限に読む修正は採らない。自然observerでhistory_timeoutの解消を確認する。
+- 検証: 既存health4ケースを含む関連suite。今回の104 roots相当fixtureと現hostのread-only profileで既存30秒budget内に現在状態/時計を取得する。単なるdeadline延長、archiveを無制限に読む修正は採らない。自然observerでhistory_timeoutの解消を確認する。 受入: 自然snapshotは191 jobs、telemetry_gap0/history_timeout0で現在状態を保持する。明示history_gap5は未知のまま残し、全履歴の完全性や全agentの正常化へ置換しない。
 
 - FND02b開始前延期の分類: 自然Capafyの`host_admission_deferred:disk_floor_low`はentrypoint開始前、同じadmission rowはqueued/effect_unknown=0だが、terminal eventはeffect_status=unknownになりhealthへ誤伝播する。`lm_loop_run.disk_deferred`のeffect0 receiptから`build_runtime_event`へ至る呼出しと、既存のpre-entrypoint no-effect allowlistに当該reasonが無いことを確認する。既存allowlistへexact reasonだけを追加する。既存runtime-event/healthの2 testを実builder経由で拡張しRED→GREEN、既存resource_effect_unknown/heartbeat不明はunknown保持を検証する。admission DB・provider fence・floor・slot・過去journalは変更せず、新immutableの自然延期で分類が直ることを確認する。 実際のdisk_floor_lowによる2 subtestのREDを確認後、既存allowlistへ1行追加し、runtime-event/health106 tests＋29 subtestsがPASSする。source採用前の自然結果は未証明。
 
@@ -138,7 +138,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 実装: laneごとの既存official receipt reader/terminal schemaを読む。`last_attempt`、`last_verified_outcome`、`last_paid`を分離し、mtimeは診断値に残す。cadence・eligible work・provider審査待ちを尊重する。cooldownと送信失敗時の再試行を維持する。全18へはEARN02の役割に合う既存readerを段階的に接続する。
 - 受入: 自然失敗で正常復帰しない、次の本物の成果receiptで一度だけ復帰すること。通知テストはfake transport、実通知は既存ownerの自然動作で確認する。この会話のagentはTelegramへ進捗を送らない。
 
-- FND03 source検証: failed ledger touch・別商品readback・CAP_FULLの3反例とproducer時刻欠落をRED→GREENへ進める。初期関連22 tests後、独立reviewは不正verdict型で全lane停止と、正式TikTok photo APIのURL無しreceipt取り落としを反証する。両件を追加REDで再現し、verdict比較を型安全にし、モバイルの部分schema再実装を既存3 adapter verifierを使うread-only `marketing_receipt_clock.cjs`へ置き換える。修正後は関連24 testsと既存投稿契約51 testsがPASS、実host評価約0.25秒。旧date-onlyを推定backfillせず、last_paidは未接続Noneを保持し、agentからの本番Telegram送信は0。
+- FND03 source検証: failed ledger touch・別商品readback・CAP_FULLの3反例とproducer時刻欠落をRED→GREENへ進める。初期関連22 tests後、独立reviewは不正verdict型で全lane停止と、正式TikTok photo APIのURL無しreceipt取り落としを反証する。両件を追加REDで再現し、verdict比較を型安全にし、モバイルの部分schema再実装を既存3 adapter verifierを使うread-only `marketing_receipt_clock.cjs`へ置き換える。修正後は関連24 testsと既存投稿契約51 testsがPASS、実host評価約0.25秒。旧date-onlyを推定backfillせず、last_paidは未接続Noneを保持し、agentからの本番Telegram送信は0。 既存ownerの4通知をMTProto公式windowで照合し、Anicca/Honneの別lane、bot sender、message存在を確認する。primaryは履歴を読むだけで、本文/chat ID/credential値をログへ保存しない。
 
 **FND04 — host slotとmodel leaseを混同しない**
 
