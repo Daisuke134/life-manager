@@ -458,6 +458,28 @@ class LmLoopHealthTest(unittest.TestCase):
             self.assertTrue(all(not call.args[1] for call in project_lines.call_args_list))
             self.assertLess(time.monotonic() - started, lm_loop.HEALTH_SNAPSHOT_TIMEOUT_SECONDS)
 
+    def test_history_never_replaces_a_newer_current_terminal_with_an_old_projection(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        loop_id = "compute-proxy"
+        registry["loops"] = {loop_id: registry["loops"][loop_id]}
+        current = build_runtime_event(
+            loop_id=loop_id, domain="system", run_id="failed", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="none",
+            succeeded=False, blocker="entrypoint_exit_1",
+        )
+        current["timestamp"] = "2026-10-22T00:01:00+00:00"
+        stale = {**current, "status": "pass", "blocker": None, "event_id": "a" * 24,
+                 "run_id": "older", "timestamp": "2026-10-22T00:00:00+00:00"}
+        with patch.object(lm_loop, "collect_live", return_value=({}, {}, {loop_id: current}, {}, set())), \
+             patch.object(lm_loop, "_admission_effect_unknown_occurrences", return_value={}), \
+             patch.object(lm_loop, "_resolved_effect_unknown_occurrences", return_value=set()), \
+             patch.object(lm_loop, "_latest_harness_failure", return_value=None), \
+             patch.object(lm_loop, "_last_event", return_value=stale):
+            rows = lm_loop.snapshot(registry, loop_id, include_effect_details=False, include_health_clocks=True)
+        self.assertEqual(rows[0]["last_terminal_result"], "fail")
+        self.assertEqual(rows[0]["run_id"], "failed")
+        self.assertEqual(rows[0]["health_history_status"], "health_history_gap")
+
     def test_snapshot_exposes_current_rows_before_one_collection_history_timeout(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         loop_id = "compute-proxy"

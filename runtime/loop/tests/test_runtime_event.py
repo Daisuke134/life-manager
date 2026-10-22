@@ -44,6 +44,83 @@ class RuntimeEventTest(unittest.TestCase):
             "lm-occurrence://example/older/claim",
         ])
 
+    def test_normal_append_projects_the_old_writer_tail_completed_by_its_newline(self):
+        import runtime.loop.lm_loop as lm_loop
+
+        for rotate in (False, True):
+            with self.subTest(rotate=rotate), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory, "events.jsonl")
+                append_runtime_event(path, BASE)
+                failed = {**BASE, "event_id": "c" * 24, "run_id": "run-2",
+                          "status": "fail", "effect_status": "failed"}
+                with path.open("a") as stream:
+                    stream.write(json.dumps(failed))
+                self.assertEqual(runtime_event.read_runtime_health_projection(path)["history_status"],
+                                 "health_history_incomplete")
+                with mock.patch.object(runtime_event, "_max_bytes", return_value=1 if rotate else 10**7):
+                    append_runtime_event(path, {**BASE, "event_id": "d" * 24, "loop_id": "other"})
+                projected = lm_loop._last_event(directory, "example", include_health_clocks=True)
+                self.assertEqual(projected["status"], "fail")
+                self.assertEqual(projected["run_id"], "run-2")
+                self.assertIsNone(runtime_event.read_runtime_health_projection(path)["history_status"])
+
+    def test_duplicate_retry_completes_and_indexes_a_valid_unterminated_old_event_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            failed = {**BASE, "event_id": "c" * 24, "run_id": "run-2", "status": "fail"}
+            with path.open("a") as stream:
+                stream.write(json.dumps(failed))
+            append_runtime_event(path, failed)
+            self.assertTrue(path.read_bytes().endswith(b"\n"))
+            self.assertEqual(len(path.read_text().splitlines()), 2)
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"], failed)
+            self.assertIsNone(value["history_status"])
+
+    def test_backfill_cannot_resurrect_a_clock_hidden_by_a_newer_invalid_record(self):
+        for malformed in (json.dumps({"phase": "report", "loop_id": "example", "status": "fail"}),
+                          '{"phase":"report","loop_id":"example",',
+                          json.dumps({**BASE, "future_schema": True})):
+            with self.subTest(malformed=malformed), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory, "events.jsonl")
+                for index in range(5):
+                    with gzip.open(Path(directory, f"events-{index:04d}.jsonl.gz"), "wt") as stream:
+                        stream.write(json.dumps(BASE) + "\n")
+                append_runtime_event(path, BASE)
+                with path.open("a") as stream:
+                    stream.write(malformed + "\n")
+                append_runtime_event(path, {**BASE, "event_id": "d" * 24, "loop_id": "other"})
+                value = runtime_event.read_runtime_health_projection(path)
+                self.assertFalse(value["complete"])
+                self.assertNotIn("example", value["reports"])
+                self.assertIsNone(value["clocks"]["example"]["last_success"])
+                self.assertEqual(value["reports"]["other"]["status"], "pass")
+                self.assertEqual(value["clocks"]["other"]["last_success"], BASE["timestamp"])
+
+    def test_invalid_new_report_does_not_leave_a_fully_complete_older_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            with path.open("a") as stream:
+                stream.write(json.dumps({"phase": "report", "loop_id": "example", "status": "fail"}) + "\n")
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertFalse(value["complete"])
+            self.assertEqual(value["history_status"], "health_history_gap")
+            self.assertNotIn("example", value["reports"])
+            self.assertIsNone(value["clocks"]["example"]["last_success"])
+            append_runtime_event(path, {**BASE, "event_id": "d" * 24, "loop_id": "other"})
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertNotIn("example", value["reports"])
+            self.assertFalse(value["complete"])
+            fresh = {**BASE, "event_id": "e" * 24, "timestamp": "2026-10-22T00:00:00+00:00",
+                     "effect_status": "verified"}
+            append_runtime_event(path, fresh)
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"], fresh)
+            self.assertEqual(value["clocks"]["example"]["last_verified_effect"], fresh["timestamp"])
+            self.assertFalse(value["complete"])
+
     def test_archive_bootstrap_preserves_the_latest_pid_bound_running_event(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory, "events.jsonl")

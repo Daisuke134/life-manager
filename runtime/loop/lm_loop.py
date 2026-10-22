@@ -2554,10 +2554,20 @@ def snapshot(registry: dict, target: str, *, include_effect_details: bool = True
                 if entry.get("cadence", {}).get("keep_alive") is True else None,
                 include_health_clocks=True,
             )
+            current = events.get(loop_id, {})
+            if historical and current:
+                try:
+                    stale = datetime.fromisoformat(current["timestamp"].replace("Z", "+00:00")) > datetime.fromisoformat(
+                        historical["timestamp"].replace("Z", "+00:00"))
+                except (KeyError, ValueError, TypeError, AttributeError):
+                    stale = True
+                if stale:
+                    historical = None
             if historical:
                 events[loop_id] = historical
             else:
-                events[loop_id] = {**events.get(loop_id, {}), "_health_history_status": "health_history_gap"}
+                events[loop_id] = {**current, "_health_clocks": None,
+                                  "_health_history_status": "health_history_gap"}
         rows = project(events)
     if not include_effect_details:
         for row in rows:
