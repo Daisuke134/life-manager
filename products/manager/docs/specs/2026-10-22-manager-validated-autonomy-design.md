@@ -66,9 +66,9 @@ Evaluation v2: first use deterministic fixtures to validate contracts; then free
 
 ## Completion and execution documents
 
-The linked implementation plans are derived execution views, NOT new task-status authorities:
+The linked implementation plans are derived execution views, NOT new task-status authorities. The sole E order and cursor are stored in `../roadmap/tasks.json`; the E code implementation work and F acceptance status must never be conflated:
 - `../plans/2026-10-22-manager-core-execution-plan.md`: critical hardening and digital closed loop.
-- `../plans/2026-10-22-manager-phase06-12-acceptance-plan.md`: all original 43 open IDs with concrete evidence gates.
+- `../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`: historical/updated evidence matrix; Phase06 v2 replaces F004/F007 dependencies. For other phases read `../roadmap/tasks.json` and their verified acceptance checks, not an extra SSOT.
 - `../plans/2026-10-22-manager-research-products-plan.md`: bilingual evidence-to-content pipeline and website release.
 
 Maintain `tasks.json` as the Manager status authority and regenerate ATOMIC_BACKLOG.md only when original acceptance has actually been met. Preserve original descriptions, dependency history, prior negative results and external blockers.
