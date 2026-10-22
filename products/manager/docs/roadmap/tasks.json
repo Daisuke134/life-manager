@@ -1019,7 +1019,7 @@
       "E15",
       "E16"
     ],
-    "technical_execution_cursor": "E15",
+    "technical_execution_cursor": "E16",
     "technical_execution_plan": "docs/plans/2026-10-22-manager-core-execution-plan.md",
     "acceptance_sequence": [
       "F005",
@@ -1051,7 +1051,8 @@
       "E11",
       "E12",
       "E13",
-      "E14"
+      "E14",
+      "E15"
     ],
     "technical_execution_receipts": {
       "E01": {
@@ -1254,6 +1255,16 @@
         "focused_total": 7,
         "result": "VERIFIED_INERT_OWNED_HANDOFF_P0_ORIGINAL_AUTHORITY_REQUIRED",
         "evidence": "docs/verification/E14_OWNED_HANDOFF_20261022.md"
+      },
+      "E15": {
+        "status": "PASSED",
+        "source_commit": "dc0dcf448b7e58bb7b20643676833cca2b004529",
+        "run_id": 39770574905,
+        "browser_run_id": 39770574840,
+        "full_suite_total": 649,
+        "focused_total": 8,
+        "result": "VERIFIED_PERSISTENT_INTENT_AND_LOCAL_GIT_RECOVERY_P0",
+        "evidence": "docs/verification/E15_OWNED_RECOVERY_20261022.md"
       }
     },
     "handoff_document": "docs/handoffs/2026-10-22-manager-e06-session-handoff.md",
