@@ -36,3 +36,16 @@ test('rejects tampered article bytes before any public content is staged',async(
  await assert.rejects(()=>fs.access(path.join(c.root,'data/research/manager-example-en.json')));
  await fs.rm(c.root,{recursive:true});
 });
+test('separate immutable content revision preserves publication metadata and records both pins',async()=>{
+ const c=await setup(); const calls=[];
+ const fetchBytes=async (file,revision)=>{calls.push([file,revision]);return c.fetchBytes(file);};
+ const receipt=await installManagerBlog({...c,fetchBytes,revision:'a'.repeat(40),contentRevision:'b'.repeat(40)});
+ assert.equal(receipt.revision,'a'.repeat(40));assert.equal(receipt.content_revision,'b'.repeat(40));
+ for(const [file,rev] of calls)assert.equal(rev,file.startsWith('docs/')?'b'.repeat(40):'a'.repeat(40));
+ const post=JSON.parse(await fs.readFile(path.join(c.root,'data/research/manager-example-en.json')));
+ for(const key of ['slug','title','date','markdown'])assert.equal(post[key],c.article[key]);
+ await fs.rm(c.root,{recursive:true});
+});
+test('rejects mutable content revision before fetching or staging',async()=>{
+ await assert.rejects(()=>installManagerBlog({revision:'a'.repeat(40),contentRevision:'main',fetchBytes:()=>{throw new Error('must not fetch')}}),/Immutable canonical content revision required/);
+});

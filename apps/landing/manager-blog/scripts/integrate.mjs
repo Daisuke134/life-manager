@@ -28,7 +28,18 @@ export async function integrateManagerBlog(root) {
  await patch(root,'app/blog/page.tsx',[
   ['import { BUSINESSES }','import { BUSINESSES, businessHubPath }'],
   ['href={`/blog/c/${key}`}','href={businessHubPath(key)}'],
+  ["const posts=corpus.filter(p=>editorialOf(p.slug,p.project) !== 'Research').slice(0,6);", "const posts=corpus.slice(0,24);"],
+  ['<h1>Explore by topic.</h1>', '<h1>Latest articles.</h1>'],
+  ['Choose an area to explore the work behind Anicca.', 'Newest first, across every topic. Explore the work behind Anicca.'],
+
  ]);
+ // Keep the complete chronological feed ahead of the topic directory.
+ const indexPath=join(root,'app/blog/page.tsx');let index=await readFile(indexPath,'utf8');
+ const latest=index.match(/ <section aria-labelledby="latest-heading">[\s\S]*?<\/section>/)?.[0];
+ const directory=' {groups.map(';
+ if(!latest||!index.includes(directory))throw new Error('Legacy blog chronology contract changed');
+ if(index.indexOf(latest)>index.indexOf(directory))index=index.replace(latest,'').replace(directory,latest+'\n'+directory);
+ await writeFile(indexPath,index);
  await patch(root,'app/blog/[slug]/page.tsx',[
   ['import { BUSINESSES, businessOf }','import { BUSINESSES, businessOf, businessHubPath }'],
   ['import { affiliatePlacement, renderMarkdown }', 'import { renderManagerMarkdown } from "../../../lib/render-manager-markdown.mjs";\nimport { affiliatePlacement, renderMarkdown }'],
