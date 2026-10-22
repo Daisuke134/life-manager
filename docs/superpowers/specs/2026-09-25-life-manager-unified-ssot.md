@@ -68,7 +68,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** FND01は本番採用を確認中。実行環境の保護、復旧ownerのslot exemption、削除エラー診断はPR #8529 / #8531 / #8533でmainへ統合する。watchdogは23c64125 immutableを採用し自然receiptでerrors0/protected_deletions0を確認する。browser-recycleと診断追加の採用は既存release ownerの30分cut間隔に従う。FND02はPR #8532の欠測・不完全末尾・現在状態保持を修正/CI確認中。独立なFND03は `lm-money-liveness-fnd03-20261022` / `fix/lm-money-liveness-fnd03-20261022` でsource実装を進める。CLD01はPR #8530のsource統合済みだがCloud公開healthは旧buildのためdeploy未証明。進行中effect/他ownerのleaseは保持する。
+**現在cursor:** FND01のPR #8529 / #8531 / #8533は全exact-head CI後mainへ統合する。cb3a0773 immutableのwatchdog採用後、自然receiptはerrors0/protected_deletions0。browser-recycleも同SHAで自然terminal PASSだが、回収後のaffiliate browserはdisk floorで再起動を待つ。空き約8.75GB、収益ownerのdisk_floor_lowが続くため容量全体は未完。FND02 #8532 / FND03 #8534はmain d6b740ceに入り、既存ownerが完全immutable `20261022T211226-d6b740ce` を作成する。監視ownerへのloaded-idle applyとloaded argv/SHAは一致し、同SHA自然runのterminalを確認中。CLD02 #8535は独立反証2件を修正した最終CI中。独立なCLD03aは `lm-cloud-cld03-20261022` / `fix/lm-cloud-online-travel-cld03-20261022` でonline-onlyのroute停止と物理hybrid保持を修正する。CLD01のCloud配備と認証復旧は未証明。進行中effect/他ownerのleaseは保持する。
 
 primaryは本節、共有source、統合/受入/採用順を所有する。Local writerとCloud writerは別worktree/別ファイル所有で進められる。共有registry、credential、Calendar account、browser profile、release promotion、effect照合は該当leaseで直列化する。reviewerはfresh contextのread-onlyとし、現在UIで選択されたモデルを継承する。登録済agent数と稼働席・作業開始を混同しない。
 
@@ -189,6 +189,10 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 - source: `lib/travel.js::{listEvents7d,fillTravel}`、必要時だけ `lib/calendar-interpreter.js::{onlineSignal,interpretCalendarEvent}`、`lib/travel-reminder.js`と既存test。推測住所や新分類frameworkは追加しない。
 - RED実測: Meet URLだけのsynthetic予定は正規化後1件残り、期待0でexit1。現在filterは `decision !== "no_call"` のみ。現在Calendarのonline5件が残り、route/no-route作業もある。**会場＋会議URLがある対面/hybrid予定は保持する。** `decision===online`だけの全除外はしない。
+- CLD03a実装範囲: `listEvents7d`の実callerはtravel作成/再照合とWeb Travel表示であり、T5のreaderとは別であることを確認する。既存interpreterのonline判定をオンライン専用（URLだけ/場所なしのconference/明示online）へ絞り、物理会場＋conference URLはofflineとして保持した上で、Travel readerからonlineを除外する。新しい分類frameworkやLLM呼出しを増やさない。作成・route・origin質問・課金予約0の反例と、hybridの既存物理route維持を検証する。
+- CLD03a source検証: online-onlyがreaderに残る反例と、物理会場＋conferenceがonlineへ誤分類される反例の2 REDを確認する。既存interpreterとTravel filterだけを変更し、関連15 files/282 tests、18/191 loop-contract、source/agent契約とOSS境界を確認する。場所/時刻変更後の既存helper修復、Cloud配備、自然予定の成果はこのsource検証で完了扱いしない。
+- CLD03a独立反証: 明示 `オンライン（Zoom）`＋conferenceが非URL会場へ誤分類され、T5のrouteを増やす反例を採用する。既存online区切りへ全角/半角の開き括弧を加える最小修正をRED→GREENで行う。`events.js`/T5/ask/panel/evalの実callerも関連検証に含める。電話候補の増加はsource反証では成立しないが、実電話の成果を主張しない。
+- CLD03a反証修正後: 明示online括弧の追加REDを確認し、既存正規表現の区切りだけを修正する。構文検証と関連18 files/356 testsはPASS。新しい分類層や電話処理の置換を追加しない。
 - 最小追加test: online-only→route/provider呼出し0、会場＋会議URL→物理候補保持、明示online→route0。既存のall-day/取消、同会場、origin/home不足、timezone/DST/日跨ぎ、予定時刻/場所変更の関連ケースは既存testを使い、欠ける反例だけ追加する。
 - 変更/取消はLife Manager生成markerと同source revision/legに一致するblockだけを変更する。手書きTravelや別tenantの予定を変更しない。古いhelperの更新が必要なのにclaimが永久skipする枝はCLD02のdurable状態を使って照合する。T5は正しい現eventのleave時刻と選択channelへ一度だけ届ける。
 - 受入: 新しい自然eligible予定のGO/RETURN block、時刻/場所/所要時間、対応readback、次wakeで追加0。オンライン予定で不要な有料routeを発生させない。今回60件でnext pageが無いため、pagination改修を現在故障の前提にしない。
