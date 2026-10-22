@@ -388,3 +388,33 @@ test("cached Composio list, create, and patch use only operation-level account p
     "each transport operation must validate the operation-level expected ID");
   assert.deepEqual(providerCalls.map((body) => body.connected_account_id), [pinned, pinned, pinned]);
 });
+
+
+test("complete weekly reads cannot reuse a cached first page or swallow a failed full read", async () => {
+  const calls = [];
+  const calendar = makeCachedCalendar({
+    async listEventsRaw(_uid, input) {
+      calls.push(input.complete === true);
+      if (input.complete) throw new Error("incomplete weekly list");
+      return [{ id: "first-page" }];
+    },
+  }, { now: () => TICK_0 });
+  await calendar.listEventsRaw("u1", WINDOW);
+  await assert.rejects(calendar.listEventsRaw("u1", { ...WINDOW, complete: true }), /incomplete weekly list/);
+  assert.deepEqual(calls, [false, true]);
+});
+
+test("deleteEvent forwards its durable options and invalidates only the owner's cached lists", async () => {
+  const { inner, calls } = fakeCalendar();
+  const options = { beforeDispatch() {}, travelWriteContext: { command: "calendar.cancel" } };
+  let received;
+  inner.deleteEvent = async (...args) => { received = args; return { effect: "unknown" }; };
+  const calendar = makeCachedCalendar(inner, { now: () => TICK_0 });
+  await calendar.listEventsRaw("u1", WINDOW);
+  await calendar.listEventsRaw("u2", WINDOW);
+  assert.equal((await calendar.deleteEvent("u1", { event_id: "helper-1" }, options)).effect, "unknown");
+  await calendar.listEventsRaw("u1", WINDOW);
+  await calendar.listEventsRaw("u2", WINDOW);
+  assert.deepEqual(received, ["u1", { event_id: "helper-1" }, options]);
+  assert.equal(calls.list, 3);
+});
