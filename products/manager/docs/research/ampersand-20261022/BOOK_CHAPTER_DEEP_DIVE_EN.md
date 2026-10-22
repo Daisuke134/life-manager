@@ -132,3 +132,22 @@ What is welfare, and whose utility takes precedence? How do minority costs survi
 - https://andonlabs.com/blog/why-we-built-pion
 
 **Editorial boundary:** The provider's metrics, independent arithmetic, synthetic illustration, mock API tests, and actual human welfare measurements are five distinct evidence classes. None substitutes for the others.
+
+## Supplement: Why a perfect simulator optimizer can harm real people
+
+The following numbers are an **invented teaching experiment**, not an empirical measurement of Ampersand, Persimmon or Manager.
+
+Let an unsolicited coaching intervention be welcome with probability `p`. A welcome intervention produces utility +10; an unwelcome one −3; contacting someone always incurs 1.2 units of interruption cost. NO_ACTION returns zero under these assumptions.
+
+```text
+E[intervention net value] = 10p − 3(1−p) − 1.2 = 13p − 4.2
+E[NO_ACTION] = 0
+intervene only if p > 4.2/13 ≈ 0.32308
+```
+If the simulated user population yields `p=0.8`, the simulated intervention nets **+6.2**. If real users differ and welcome the advice with `p=0.2`, it nets **−1.6**, and NO_ACTION becomes optimal. A policy could perfectly maximize the simulator's chosen objective while still acting against users' interests in the real setting. Simulator validity, reward validity, and reliable field evaluation are separate scientific questions. The toy `p` is not a license to infer an identifiable person's private intentions.
+
+### Causal inference and interference between people
+
+Write potential outcomes as `Y_i(1)` and `Y_i(0)`. The average treatment effect is `ATE=E[Y(1)-Y(0)]`. The fundamental problem of causal inference is that only one potential outcome can be observed for a given person and moment. Comparing outcomes from selected intervention and nonintervention groups usually mixes the intervention effect with confounding, selection bias and changes over time. Randomization or justified quasiexperimental identification plus uncertainty estimation is required before making causal benefit claims.
+
+For collaboration systems, a person's intervention can change colleagues' behavior, which changes a third person's outcomes. This is **interference** or **spillover**; naïve individual-level no-interference assumptions can fail. Use team/cluster-level units and preregister the comparator, timing, exposure, privacy, harm and displacement. A simulated leaderboard score, a causal ATE, and net social welfare are **three distinct estimands**, not synonyms.
