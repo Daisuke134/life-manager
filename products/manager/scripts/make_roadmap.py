@@ -6,7 +6,6 @@ dependencies and statuses are retained. Use --check to verify a committed view.
 """
 import argparse
 import json
-import re
 from pathlib import Path
 from collections import Counter
 
@@ -35,11 +34,9 @@ def validate(tasks):
     if (by_id.get('F004', {}).get('status') != 'skipped'
         or by_id.get('F007', {}).get('status') != 'skipped'):
         raise ValueError('retired external prerequisites or unverified field gate status')
-    if not CORE_PLAN.is_file():
-        raise ValueError('core E implementation plan missing')
-    headings = re.findall(r'^## (E\d{2})\b', CORE_PLAN.read_text(encoding='utf-8'), re.MULTILINE)
-    if headings != EXPECTED_E:
-        raise ValueError('core implementation plan headings are not E01-E16 in order')
+    # Validate the machine-readable sequence here. The separate contract test
+    # validates headings in the actual plan; the renderer stays portable and
+    # reproducible with only tasks.json, as required by R006.
     seen = set()
     for t in tasks:
         if t['id'] in seen:
