@@ -874,7 +874,8 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
   }
   if (source.status === "cancelled") return failed("source_cancelled");
   const freshVersion = sourceEventVersion(source);
-  if (freshVersion !== receipt.source_event_version || freshVersion !== ev.sourceEventVersion) return failed("source_changed");
+  if (freshVersion !== receipt.source_event_version) return failed("source_changed");
+  if (freshVersion !== ev.sourceEventVersion) return failed("source_view_mismatch");
   if (priorProof) return { status: "already_verified" };
   const verified = { ...receipt, phase: "readback", effect: "verified", provider_event_id: matches[0].id,
     evidence_ref: `calendar-event:${travelHash([uid, matches[0].id])}`, error_class: null, next_action: "none", readback: "exact_one" };

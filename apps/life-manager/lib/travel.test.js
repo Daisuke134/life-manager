@@ -801,7 +801,7 @@ test("CLD03b1 known helper and source use point reads outside the list window wi
 
 test("CLD03b1 current source or helper failures fence both legs and reminders while preserving prior verified proof", async () => {
   const scenarios = [
-    ["changed", "source_changed"], ["ordinary-changed", "source_changed"], ["cancelled", "source_cancelled"],
+    ["changed", "source_changed"], ["ordinary-changed", "source_view_mismatch"], ["cancelled", "source_cancelled"],
     ["marker", "helper_mismatch"], ["fingerprint", "helper_mismatch"], ["helper-cancelled", "helper_mismatch"],
     ["unreadable", "owned_read_error"], [404, "owned_read_error"], [410, "owned_read_error"],
     ["wrong-id", "owned_read_error"], ["wrong-tenant", "owned_read_error"],
