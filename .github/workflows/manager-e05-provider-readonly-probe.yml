@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -21,6 +24,7 @@ jobs:
       - name: Read-only authenticated provider sessions (no create, no tool calls)
         env:
           AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
+          PYTHONPATH: products/manager
         run: |
           python - <<'PY'
           import os,re
@@ -59,11 +63,13 @@ jobs:
                               client.beta.agents.sessions.turns.retrieve)))
                           print("SDK_ITEM_LIST_SIGNATURE="+str(inspect.signature(
                               client.beta.agents.sessions.items.list)))
-                          try:
-                              exact=client.beta.agents.sessions.turns.retrieve(sid,t.id)
-                              print("EXACT_TURN_READBACK="+str(exact.id==t.id))
-                          except TypeError:
-                              print("EXACT_TURN_POSITIONAL_SIGNATURE_UNSUPPORTED=True")
+                          exact=client.beta.agents.sessions.turns.retrieve(
+                              t.id,session_id=sid)
+                          print("EXACT_TURN_READBACK="+str(exact.id==t.id))
+                          from manager_core.ampersand_api import read_saved_assistant_items
+                          messages=read_saved_assistant_items(client,sid,t.id)
+                          print("EXACT_TURN_SAVED_MESSAGES="+str(len(messages)))
+                          print("EXACT_TURN_SAVED_OUTPUT_CHARS="+str(sum(map(len,messages))))
                       page=client.beta.agents.sessions.items.list(sid,limit=5,order="desc")
                       print("SAVED_ITEM_COUNT="+str(len(page.data)))
                       print("SAVED_ITEM_PAGE_HAS_MORE="+str(page.has_more))
