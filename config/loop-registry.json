@@ -4222,6 +4222,9 @@
       "state_root": "~/.local/state/life-manager/verify-loops-audit"
     },
     "warmup-flip-daily": {
+      "admission_class": "revenue",
+      "resource_class": "agent",
+      "priority": "distribution",
       "cadence": {
         "calendar_interval": {
           "Hour": 6,
