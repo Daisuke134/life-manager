@@ -83,7 +83,10 @@ def _bounded_str(text: object, *, max_size=6000) -> str:
 
 def read_initial_turn(client: Any, prompt: str,
                       instructions: str = DEFAULT_INSTRUCTIONS, *,
-                      journal=None, request_id: str | None = None) -> SessionEvidence:
+                      journal=None, request_id: str | None = None,
+                      budget_ledger=None, budget_run_id: str | None = None,
+                      upper_usd=None, deadline_monotonic: float | None = None,
+                      allow_silent_completion: bool = False) -> SessionEvidence:
     """Start exactly one session, optionally guarded by durable external intent.
 
     Live automated callers must pass journal + stable request_id. Old offline
@@ -94,6 +97,19 @@ def read_initial_turn(client: Any, prompt: str,
     _bounded_str(instructions)
     if (journal is None) != (request_id is None):
         raise ValueError("journal and request_id must be supplied together")
+    if (budget_ledger is None) != (budget_run_id is None):
+        raise ValueError("budget ledger and run ID must be supplied together")
+    if budget_ledger is None and upper_usd is not None:
+        raise ValueError("budget estimate without budget ledger")
+    if budget_ledger is not None and upper_usd is None:
+        raise ValueError("budget estimate required for provider execution")
+    if deadline_monotonic is not None:
+        import time
+        if (type(deadline_monotonic) not in (float, int) or
+                time.monotonic() >= deadline_monotonic):
+            raise SessionFailure("provider deadline elapsed before session creation")
+    reservation = (budget_ledger.reserve(budget_run_id, upper_usd)
+                   if budget_ledger is not None else None)
     create_kwargs = {
         "agent": {"model": MODEL, "instructions": instructions},
         "environment": {"type": "none"},
@@ -160,13 +176,20 @@ def read_initial_turn(client: Any, prompt: str,
             journal.bind(request_id, session_id)  # bind BEFORE text validation
         except Exception as exc:
             raise SessionFailure("received provider session but durable bind failed") from exc
-    if type(output) is not str or not output.strip():
-        raise SessionFailure("empty/silent model response; no advisory action")
+    silent = type(output) is not str or not output.strip()
+    if silent and allow_silent_completion is not True:
+        raise SessionFailure("empty model response without opt-in silence")
+    if silent:
+        output = ""
     if len(output) > 16000:
         raise SessionFailure("model output exceeds strict research limit")
     turn = _latest_completed_turn(client, session_id)
     tokens = _usage(turn)
-    return SessionEvidence(session_id, turn.id, output, "completed", *tokens)
+    if reservation is not None:
+        from .provider_budget import Usage
+        budget_ledger.settle(reservation, Usage.from_turn(turn))
+    return SessionEvidence(session_id, turn.id, output,
+                           "SILENT_COMPLETED" if silent else "completed", *tokens)
 
 
 def read_followup_turn(client: Any, session_id: str, prompt: str, *,
