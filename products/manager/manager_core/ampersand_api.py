@@ -194,13 +194,27 @@ def read_initial_turn(client: Any, prompt: str,
 
 def read_followup_turn(client: Any, session_id: str, prompt: str, *,
                        key: str, journal=None,
-                       writer_id: str | None = None) -> SessionEvidence:
+                       writer_id: str | None = None,
+                       budget_ledger=None, budget_run_id: str | None = None,
+                       upper_usd=None, deadline_monotonic: float | None = None,
+                       allow_silent_completion: bool = False) -> SessionEvidence:
     """Submit exactly one idempotent message, read its completed reply in same session."""
     if type(session_id) is not str or not re.fullmatch(r"sess_[A-Za-z0-9_-]{8,128}", session_id):
         raise ValueError("session ID required")
     _bounded_str(prompt)
     if (journal is None) != (writer_id is None):
         raise ValueError("journal and stable writer_id must be supplied together")
+    if (budget_ledger is None) != (budget_run_id is None):
+        raise ValueError("budget ledger and run ID must be supplied together")
+    if (budget_ledger is None and upper_usd is not None or
+        budget_ledger is not None and upper_usd is None):
+        raise ValueError("budget estimate must have a matching ledger")
+    if deadline_monotonic is not None:
+        import time
+        if type(deadline_monotonic) not in (int,float) or time.monotonic() >= deadline_monotonic:
+            raise SessionFailure("provider follow-up deadline elapsed before submission")
+    reservation = (budget_ledger.reserve(budget_run_id,upper_usd)
+                   if budget_ledger is not None else None)
     if type(key) is not str or not re.fullmatch(r"[A-Za-z0-9_-]{4,128}", key):
         raise ValueError("bounded stable event idempotency key required")
     event = {
@@ -249,8 +263,13 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
         raise
     except Exception as exc:
         raise SessionFailure("follow-up state uncertain; inspect saved session before retry") from exc
-    if not completed or type(response) is not str or not response.strip():
-        raise SessionFailure("missing completed follow-up response")
+    if not completed:
+        raise SessionFailure("missing completed follow-up turn; reconcile before retry")
+    silent = type(response) is not str or not response.strip()
+    if silent and allow_silent_completion is not True:
+        raise SessionFailure("missing follow-up text without opt-in silence")
+    if silent:
+        response = ""
     if len(response) > 16000:
         raise SessionFailure("follow-up output exceeds research limit")
     turn = _latest_completed_turn(client, session_id)
@@ -262,7 +281,11 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
             journal.release_writer(session_id, writer_id)
         except Exception as exc:
             raise SessionFailure("completed turn but journal writer release failed") from exc
-    return SessionEvidence(session_id, turn.id, response, "completed", *_usage(turn))
+    if reservation is not None:
+        from .provider_budget import Usage
+        budget_ledger.settle(reservation, Usage.from_turn(turn))
+    return SessionEvidence(session_id, turn.id, response,
+                           "SILENT_COMPLETED" if silent else "completed", *_usage(turn))
 
 
 def read_completed_turn(client: Any, session_id: str, turn_id: str) -> SessionEvidence:
