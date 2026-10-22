@@ -1,0 +1,92 @@
+{
+  "source": {
+    "FND01a": "PR8529",
+    "FND01b": "PR8531",
+    "FND01c": "PR8533",
+    "FND02": "PR8532",
+    "FND03": "PR8534",
+    "CLD01": "PR8530",
+    "CLD02": "PR8535"
+  },
+  "local_adoption": {
+    "release_sha": "d6b740ceadb17413c65c4cf875e6881fb39f8a29",
+    "health_observer": {
+      "natural_run_id": "18e0d91c70697300-49513",
+      "terminal": "pass",
+      "terminal_at": "2026-10-22T12:18:09.667257+00:00"
+    },
+    "capafy": [
+      {
+        "owner_id": "capafy-loop-daily",
+        "apply_ok": true,
+        "queue_identity_preserved": true,
+        "effect_unknown_before": 0,
+        "effect_unknown_after": 0
+      },
+      {
+        "owner_id": "capafy-distribute-daily",
+        "apply_ok": true,
+        "queue_identity_preserved": true,
+        "effect_unknown_before": 0,
+        "effect_unknown_after": 0
+      }
+    ],
+    "capafy_factory_natural": {
+      "terminal": "pass",
+      "outcome": "no_work",
+      "new_publication_proven": false,
+      "new_paid_proven": false
+    }
+  },
+  "host": {
+    "swap_total_mib": 9216,
+    "indexer": "com.apple.corespotlightd",
+    "footprint_top_mem": "27G",
+    "footprint_top_cmprs": "27G",
+    "metrics_non_additive": true,
+    "signal_exit_code": 1,
+    "old_process_still_present": true,
+    "signal_failure_stderr_preserved": false,
+    "capacity_recovered": false,
+    "available_bytes_samples": [
+      8693248000,
+      10881548288,
+      9848152064
+    ],
+    "own_merged_worktrees_retired": 2
+  },
+  "cloud": {
+    "build": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+    "source_adoption_proven": false,
+    "migration_sent": true,
+    "error_counts": {
+      "statement_timeout": 17,
+      "client_reset": 3,
+      "dynamic_shared_area_attach_failed": 1
+    },
+    "database_root_cause": "unconfirmed",
+    "migration_verified": true,
+    "migration_receipt": "20261022125437",
+    "official_health_samples": [
+      {
+        "order": 1,
+        "auth": "UNHEALTHY",
+        "db": "UNHEALTHY",
+        "rest": "ACTIVE_HEALTHY"
+      },
+      {
+        "order": 2,
+        "auth": "ACTIVE_HEALTHY",
+        "db": "ACTIVE_HEALTHY",
+        "rest": "UNHEALTHY"
+      }
+    ],
+    "data_api_error": "PGRST002",
+    "restart_sent": false
+  },
+  "business": {
+    "new_revenue_proven": false,
+    "net_profit_proven": false
+  },
+  "recorded_at": "2026-10-22T13:12:08.354085+00:00"
+}
