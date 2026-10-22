@@ -423,6 +423,7 @@ LEDGER="$LIFE_MANAGER_STATE_HOME/state/capafy-autopublish/published.jsonl"
 mkdir -p "$(dirname "$LEDGER")"
 python3 - "$ID" "$SKILL_NAME" "$LISTING" "$LEDGER" <<'PY'
 import json,sys
+import datetime as dt
 aid,sn,listing,ledger=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4]
 title=sn
 try:
@@ -440,7 +441,8 @@ if os.path.exists(ledger) and any(('"agent_id":"%s"'%aid) in l or ('"agent_id": 
 else:
     open(ledger,"a").write(json.dumps({
      "agent_id":aid,"skill":sn,"title":title,
-     "status":"submitted (status=1 under review) — agentic CP1","date":__import__("datetime").date.today().isoformat()
+     "status":"submitted (status=1 under review) — agentic CP1","date":dt.date.today().isoformat(),
+     "submitted_at":dt.datetime.now(dt.timezone.utc).isoformat()
     },ensure_ascii=False)+"\n")
     print("ledger appended", aid)
 PY
