@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION="$ROOT_DIR/migrations/2026-10-22-lm-travel-write-receipts.sql"
 UPDATE_MIGRATION="$ROOT_DIR/migrations/2026-10-23-lm-travel-update-receipts.sql"
+CANCEL_MIGRATION="$ROOT_DIR/migrations/2026-10-23-lm-travel-cancel-receipts.sql"
 TEST_TMP="$(mktemp -d /tmp/lm-travel-write-receipts-pg.XXXXXX)"
 unset PGHOSTADDR PGSERVICE PGSERVICEFILE PGPASSWORD PGUSER PGPORT
 export PGPASSFILE="$TEST_TMP/pgpass"
@@ -33,6 +34,8 @@ SQL
 "${PSQL[@]}" -f "$MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$UPDATE_MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$UPDATE_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$CANCEL_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$CANCEL_MIGRATION" >/dev/null
 "${PSQL[@]}" >/dev/null <<'SQL'
 CREATE TEMP TABLE receipt_fixture AS SELECT jsonb_build_object(
   'schema_version',1,'request_id',repeat('1',64),'source_event_hash',repeat('2',64),
@@ -158,8 +161,69 @@ DO $$ DECLARE n integer; invalid jsonb; BEGIN
     RAISE EXCEPTION 'update rejection released claim';
   END IF;
 END $$;
+CREATE TEMP TABLE cancel_fixture AS SELECT receipt || jsonb_build_object(
+  'request_id',repeat('8',64),'prior_request_fingerprint',repeat('6',64),
+  'source_event_version',repeat('9',64),'command','calendar.cancel') AS receipt FROM update_fixture;
+INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt)
+SELECT 'tenant-a','cancel-go','go',receipt FROM cancel_fixture;
+INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt)
+SELECT 'tenant-a','cancel-return','return',receipt || '{"leg":"return"}' FROM cancel_fixture;
+INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt)
+SELECT 'tenant-a','cancel-no-effect','go',receipt || jsonb_build_object('phase','response','effect','no_effect',
+  'http_status',412,'error_class','provider_validation','next_action','owned_readback') FROM cancel_fixture;
+DO $$ DECLARE n integer; invalid jsonb; plan jsonb; BEGIN
+  FOR invalid IN
+    SELECT receipt - 'marker_request_id' FROM cancel_fixture
+    UNION ALL SELECT receipt - 'prior_request_fingerprint' FROM cancel_fixture
+    UNION ALL SELECT receipt || patch FROM cancel_fixture CROSS JOIN (VALUES
+      ('{"marker_request_id":null}'::jsonb), ('{"prior_request_fingerprint":"not-a-hash"}'::jsonb),
+      ('{"account_ref_hash":null}'::jsonb), ('{"provider_event_id":null}'::jsonb),
+      ('{"phase":"claimed"}'::jsonb), ('{"effect":"created"}'::jsonb),
+      ('{"next_action":"none"}'::jsonb), ('{"next_action":"release_claim"}'::jsonb),
+      ('{"phase":"response","effect":"no_effect","http_status":412,"error_class":"provider_validation","next_action":"none"}'::jsonb),
+      ('{"description":"private content"}'::jsonb)) AS patches(patch)
+  LOOP
+    BEGIN
+      INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt) VALUES ('tenant-a','invalid-cancel','go',invalid);
+      RAISE EXCEPTION 'invalid cancel receipt accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+  END LOOP;
+  UPDATE public.lm_travel_log SET calendar_write_receipt=(SELECT receipt FROM cancel_fixture)
+    WHERE uid='tenant-a' AND event_key='future' AND leg='go'
+      AND calendar_write_receipt->>'request_id'=repeat('5',64)
+      AND calendar_write_receipt->>'phase'='readback' AND calendar_write_receipt->>'effect'='verified'
+      AND calendar_write_receipt->>'source_event_version'=repeat('7',64)
+      AND calendar_write_receipt->>'request_fingerprint'=repeat('6',64)
+      AND calendar_write_receipt->>'provider_event_id'='synthetic_event';
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>1 THEN RAISE EXCEPTION 'cancel dispatch CAS failed'; END IF;
+  UPDATE public.lm_travel_log SET calendar_write_receipt=calendar_write_receipt || '{"phase":"response"}'
+    WHERE uid='tenant-a' AND event_key='future' AND leg='go' AND calendar_write_receipt->>'request_id'=repeat('5',64);
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>0 THEN RAISE EXCEPTION 'late update callback changed cancel'; END IF;
+  UPDATE public.lm_travel_log SET calendar_write_receipt=calendar_write_receipt || jsonb_build_object(
+    'phase','readback','effect','verified','readback','exact_one','evidence_ref','calendar-event:' || repeat('d',64),'next_action','none')
+    WHERE uid='tenant-a' AND event_key='future' AND leg='go' AND calendar_write_receipt->>'request_id'=repeat('8',64)
+      AND calendar_write_receipt->>'phase'='dispatching' AND calendar_write_receipt->>'effect'='unknown';
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>1 THEN RAISE EXCEPTION 'owned cancel readback did not close operation'; END IF;
+  UPDATE public.lm_travel_log SET calendar_write_receipt=calendar_write_receipt || '{"phase":"response","effect":"unknown","next_action":"owned_readback"}'
+    WHERE uid='tenant-a' AND event_key='future' AND leg='go' AND calendar_write_receipt->>'request_id'=repeat('8',64)
+      AND calendar_write_receipt->>'effect'='unknown';
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>0 THEN RAISE EXCEPTION 'late cancel response overwrote readback'; END IF;
+  IF (SELECT count(*) FROM public.lm_travel_log WHERE event_key='cancel-no-effect')<>1 THEN RAISE EXCEPTION 'cancel rejection released claim'; END IF;
+  IF (SELECT calendar_write_receipt->>'command' FROM public.lm_travel_log WHERE uid='tenant-b' AND event_key='future')<>'calendar.create' THEN
+    RAISE EXCEPTION 'cancel changed another tenant';
+  END IF;
+  SET LOCAL enable_seqscan=off;
+  EXECUTE 'EXPLAIN (FORMAT JSON) SELECT * FROM public.lm_travel_log WHERE uid=''tenant-a'' AND leg IN (''go'',''return'') AND calendar_write_receipt IS NOT NULL AND calendar_write_receipt->>''provider_event_id'' IN (''synthetic_event'')' INTO plan;
+  IF plan::text NOT LIKE '%lm_travel_log_owned_helper_idx%' THEN RAISE EXCEPTION 'helper join index not usable'; END IF;
+  EXECUTE 'EXPLAIN (FORMAT JSON) SELECT * FROM public.lm_travel_log WHERE uid=''tenant-a'' AND leg IN (''go'',''return'') AND calendar_write_receipt IS NOT NULL AND calendar_write_receipt->>''command'' IN (''calendar.create'',''calendar.update'',''calendar.cancel'') AND calendar_write_receipt->>''effect'' IN (''unknown'',''no_effect'') AND calendar_write_receipt->>''phase'' IN (''dispatching'',''response'',''readback'')' INTO plan;
+  IF plan::text NOT LIKE '%lm_travel_log_pending_calendar_idx%' THEN RAISE EXCEPTION 'pending read index not usable'; END IF;
+END $$;
 SET ROLE service_role;
 SELECT 1 FROM public.lm_travel_log LIMIT 1;
 RESET ROLE;
 SQL
-printf '%s\n' 'lm-travel-write-receipts-postgres: PASS legacy=1 unique=1 receipt_shape=1 update_shape=1 scoped_cas=1 update_cas=1 late_callback=1 tenant=1 rls=1 acl=1 telegram=1 rerun=1'
+printf '%s\n' 'lm-travel-write-receipts-postgres: PASS legacy=1 unique=1 receipt_shape=1 update_shape=1 cancel_shape=1 scoped_cas=1 update_cas=1 cancel_cas=1 helper_index=1 pending_index=1 late_callback=1 tenant=1 rls=1 acl=1 telegram=1 rerun=1'

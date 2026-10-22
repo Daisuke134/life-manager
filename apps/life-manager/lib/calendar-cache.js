@@ -25,16 +25,16 @@ function timeBucket(value, widthMs) {
   return widthMs > 0 ? Math.floor(epochMs / widthMs) : epochMs;
 }
 
-function cacheKey(uid, { timeMin, timeMax, expectedCalendarAccountId } = {}, ttlMs) {
+function cacheKey(uid, { timeMin, timeMax, expectedCalendarAccountId, complete } = {}, ttlMs) {
   // Same resolver as makeCachedCalendar, so a standalone call and the wrapper agree by construction.
   const widthMs = configuredTtlMs(ttlMs);
   const account = expectedCalendarAccountId ? [String(expectedCalendarAccountId)] : [];
-  return [uid, ...account, timeBucket(timeMin, widthMs), timeBucket(timeMax, widthMs)].join("|");
+  return [uid, ...account, ...(complete === true ? ["complete"] : []), timeBucket(timeMin, widthMs), timeBucket(timeMax, widthMs)].join("|");
 }
 
 function forCaller(outcome, input) {
   if (outcome.ok) return outcome.items;
-  if (input.strict === true) throw outcome.error;
+  if (input.strict === true || input.complete === true) throw outcome.error;
   return [];
 }
 
@@ -83,6 +83,11 @@ function makeCachedCalendar(inner, opts = {}) {
     },
     async patchEvent(uid, input, operationOpts = {}) {
       const result = await inner.patchEvent(uid, input, operationOpts);
+      invalidateUid(uid);
+      return result;
+    },
+    async deleteEvent(uid, input, operationOpts = {}) {
+      const result = await inner.deleteEvent(uid, input, operationOpts);
       invalidateUid(uid);
       return result;
     },

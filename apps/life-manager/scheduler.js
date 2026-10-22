@@ -1288,6 +1288,7 @@ async function travelUserOnce(u, deps = {}) {
     });
     if (r.reconciliationErrors) console.error(`[travel] reconciliation_held ${JSON.stringify(r.reconciliationErrors)}`);
     if (r.updated) console.log(`[travel] updated=${r.updated}`);
+    if (r.cancelled) console.log(`[travel] cancelled=${r.cancelled}`);
     if (r.inserted || r.originQuestionsAsked) console.log(`[travel] uid=${u.uid.slice(0, 12)} inserted=${r.inserted} checked=${r.checked} origin_asks=${r.originQuestionsAsked || 0}`);
     if (!deps.suppressAutofillReport && u.notifications_enabled !== false && telegramToken && u.telegram_chat_id) {
       for (const report of r.outboundReports || []) {

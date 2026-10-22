@@ -171,6 +171,7 @@ function shortName(addr) {
 async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false, expectedCalendarAccountId } = {}) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const items = await cal.listEventsRaw(uid, {
+    complete: true,
     timeMin: new Date(nowMs - TRAVEL_ORIGIN_LOOKBACK_MS).toISOString().replace(/\.\d{3}Z$/, "Z"),
     timeMax: new Date(nowMs + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
     ...(strict ? { strict: true } : {}),
@@ -812,17 +813,48 @@ async function readTravelClaims(uid, eventKey, supaUrl, supaKey) {
   } catch { return null; }
 }
 
+// The helper IDs bound discovery to this week's visible generated blocks. Pending operations
+// use a separate bounded read so a disappeared helper cannot hide an uncertain cancellation.
+async function readTravelOperationClaims(uid, helperIds, supaUrl, supaKey) {
+  if (!supaUrl || !supaKey) return [];
+  try {
+    const rows = [];
+    const batches = helperIds === null ? [null]
+      : Array.from({ length: Math.ceil(helperIds.length / 32) }, (_, i) => helperIds.slice(i * 32, i * 32 + 32));
+    for (const ids of batches) {
+      const url = new URL(`${supaUrl.replace(/\/+$/, "")}/rest/v1/lm_travel_log`);
+      url.searchParams.set("uid", `eq.${uid}`);
+      url.searchParams.set("leg", "in.(go,return)");
+      url.searchParams.set("select", "uid,event_key,leg,calendar_write_receipt");
+      url.searchParams.set("limit", "65");
+      if (ids) url.searchParams.set("calendar_write_receipt->>provider_event_id", `in.(${ids.join(",")})`);
+      else {
+        url.searchParams.set("calendar_write_receipt->>command", "in.(calendar.create,calendar.update,calendar.cancel)");
+        url.searchParams.set("calendar_write_receipt->>effect", "in.(unknown,no_effect)");
+        url.searchParams.set("calendar_write_receipt->>phase", "in.(dispatching,response,readback)");
+      }
+      const response = await fetch(url.toString(), { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } });
+      const batch = response.ok ? await response.json() : null;
+      if (!Array.isArray(batch) || batch.length > 64 || batch.some((row) => row.uid !== uid
+        || typeof row.event_key !== "string" || !["go", "return"].includes(row.leg)
+        || ids && !ids.includes(row.calendar_write_receipt?.provider_event_id))) return null;
+      rows.push(...batch);
+    }
+    return rows;
+  } catch { return null; }
+}
+
 async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, expectedPhase, priorReceipt) {
   try {
     const url = travelClaimUrl(uid, eventKey, supaUrl, receipt.leg);
     url.searchParams.set("calendar_write_receipt->>request_id", `eq.${priorReceipt?.request_id || receipt.request_id}`);
     if (priorReceipt) {
-      for (const field of ["phase", "effect", "source_event_version", "request_fingerprint", "provider_event_id", "account_ref_hash"]) {
+      for (const field of ["command", "phase", "effect", "source_event_version", "request_fingerprint", "provider_event_id", "account_ref_hash"]) {
         url.searchParams.set(`calendar_write_receipt->>${field}`, `eq.${priorReceipt[field]}`);
       }
     } else {
       if (expectedPhase) url.searchParams.set("calendar_write_receipt->>phase", `eq.${expectedPhase}`);
-      if (receipt.effect !== "verified" || receipt.command === "calendar.update") {
+      if (receipt.effect !== "verified" || ["calendar.update", "calendar.cancel"].includes(receipt.command)) {
         url.searchParams.set("calendar_write_receipt->>effect", "eq.unknown");
       }
     }
@@ -846,7 +878,7 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
   const update = receipt.command === "calendar.update";
   if (update && (!receipt.provider_event_id || ![receipt.marker_request_id, receipt.prior_request_fingerprint]
     .every((value) => OPAQUE_EVENT_VERSION.test(value || "")))) return unknown;
-  if (receipt.effect === "no_effect" && receipt.phase === "response" && !update
+  if (receipt.effect === "no_effect" && receipt.phase === "response" && receipt.command === "calendar.create"
     && ["provider_validation", "account_binding_unavailable", "web_automation_paused"].includes(receipt.error_class)) {
     return await unclaimTravel(uid, eventKey, leg, opts.supaUrl, opts.supaKey, receipt.request_id)
       ? { status: "released" } : unknown;
@@ -918,6 +950,86 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
     evidence_ref: `calendar-event:${travelHash([uid, matches[0].id])}`, error_class: null, next_action: "none", readback: "exact_one" };
   const saved = await saveTravelWriteReceipt(uid, eventKey, verified, opts.supaUrl, opts.supaKey);
   return saved ? { status: "verified" } : unknown;
+}
+
+async function reconcileTravelCancellation(uid, eventKey, leg, cal, opts, receipt) {
+  if (!receipt || receipt.schema_version !== 1 || receipt.command !== "calendar.cancel" || receipt.leg !== leg
+    || receipt.source_event_hash !== travelHash([uid, eventKey])
+    || ![receipt.request_id, receipt.marker_request_id, receipt.prior_request_fingerprint,
+      receipt.request_fingerprint, receipt.source_event_version, receipt.account_ref_hash]
+      .every((value) => OPAQUE_EVENT_VERSION.test(value || ""))
+    || typeof receipt.provider_event_id !== "string" || !/^[A-Za-z0-9_-]{1,1024}$/.test(receipt.provider_event_id)
+    || !["dispatching", "response", "readback"].includes(receipt.phase)) return { status: "unknown" };
+  if (receipt.effect === "verified") return { status: "already_cancelled" };
+  if (!["unknown", "no_effect"].includes(receipt.effect)) return { status: "unknown" };
+  const failed = async (errorClass) => {
+    if (receipt.effect === "unknown") await saveTravelWriteReceipt(uid, eventKey,
+      { ...receipt, phase: "readback", error_class: errorClass, readback: "error", next_action: "owned_readback" }, opts.supaUrl, opts.supaKey);
+    return { status: "unknown", error_class: errorClass };
+  };
+  let helper;
+  try { helper = await cal.getOwnedEvent(uid, receipt.provider_event_id, { accountRefHash: receipt.account_ref_hash,
+    supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+    ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}) }); }
+  catch { return failed("cancel_owned_read_error"); }
+  // A Google tombstone can contain only id/status. Ownership was durably proven before dispatch.
+  if (helper?.id !== receipt.provider_event_id || helper.status !== "cancelled") {
+    return failed(receipt.effect === "no_effect" ? "cancel_rejected" : "cancel_readback_pending");
+  }
+  const verified = { ...receipt, phase: "readback", effect: "verified", error_class: null,
+    readback: "exact_one", evidence_ref: `calendar-event:${travelHash([uid, helper.id])}`, next_action: "none" };
+  return await saveTravelWriteReceipt(uid, eventKey, verified, opts.supaUrl, opts.supaKey, undefined, receipt)
+    ? { status: "cancelled" } : { status: "unknown", error_class: "cancel_receipt_conflict" };
+}
+
+async function cancelTravelBlock(uid, row, cal, opts) {
+  const prior = row.calendar_write_receipt;
+  const eventKey = row.event_key, leg = row.leg;
+  if (!prior || prior.schema_version !== 1 || prior.leg !== leg
+    || !["calendar.create", "calendar.update"].includes(prior.command)
+    || !["created", "verified"].includes(prior.effect)
+    || prior.source_event_hash !== travelHash([uid, eventKey])
+    || ![prior.request_id, prior.request_fingerprint, prior.source_event_version, prior.account_ref_hash]
+      .every((value) => OPAQUE_EVENT_VERSION.test(value || ""))
+    || !/^[A-Za-z0-9_-]{1,1024}$/.test(prior.provider_event_id || "")) return { status: "unknown" };
+  const readOptions = { accountRefHash: prior.account_ref_hash, supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+    ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}) };
+  let source, helper;
+  try {
+    source = await cal.getOwnedEvent(uid, eventKey, readOptions);
+    if (source?.id !== eventKey) throw new Error();
+    if (source.status !== "cancelled") return { status: "not_cancelled" };
+    helper = await cal.getOwnedEvent(uid, prior.provider_event_id, readOptions);
+  } catch { return { status: "unknown", error_class: "cancel_owned_read_error" }; }
+  if (helper?.id !== prior.provider_event_id || helper.status === "cancelled" || !isTravel(helper.summary)
+    || helper.description !== `${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}${prior.marker_request_id || prior.request_id}`
+    || travelRequestFingerprint(helper) !== prior.request_fingerprint) return { status: "unknown", error_class: "cancel_helper_mismatch" };
+  const receipt = { ...prior, request_id: travelHash([uid, eventKey, leg, randomUUID()]),
+    marker_request_id: prior.marker_request_id || prior.request_id, prior_request_fingerprint: travelRequestFingerprint(helper),
+    source_event_version: sourceEventVersion(source), request_fingerprint: travelHash(["calendar.cancel", eventKey, leg, helper.id]),
+    command: "calendar.cancel", phase: "dispatching", effect: "unknown", runtime_trace: opts.runtimeTrace,
+    http_status: null, error_class: null, readback: null, evidence_ref: null, next_action: "owned_readback" };
+  let durable = false;
+  const beforeDispatch = async (binding) => {
+    if (binding.command !== "calendar.cancel" || binding.account_ref_hash !== prior.account_ref_hash) return false;
+    const fresh = await cal.getOwnedEvent(uid, eventKey, readOptions);
+    if (fresh.id !== eventKey || fresh.status !== "cancelled" || sourceEventVersion(fresh) !== receipt.source_event_version) return false;
+    durable = await saveTravelWriteReceipt(uid, eventKey, receipt, opts.supaUrl, opts.supaKey, undefined, prior);
+    return durable;
+  };
+  let result;
+  try { result = await cal.deleteEvent(uid, { calendar_id: "primary", event_id: helper.id }, {
+    expectedEtag: helper.etag, travelWriteContext: receipt, beforeDispatch,
+    supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+    ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId,
+      allowWebInitialScan: opts.allowWebInitialScan === true } : {}) }); } catch { result = null; }
+  if (!durable) return { status: "unknown", error_class: "cancel_not_dispatched" };
+  const response = { ...receipt, ...(result?.writeReceipt || {}), command: "calendar.cancel", phase: "response",
+    effect: result?.effect === "no_effect" ? "no_effect" : "unknown", provider_event_id: helper.id, next_action: "owned_readback" };
+  if (!await saveTravelWriteReceipt(uid, eventKey, response, opts.supaUrl, opts.supaKey)) {
+    return { status: "unknown", error_class: "cancel_receipt_conflict" };
+  }
+  return reconcileTravelCancellation(uid, eventKey, leg, cal, opts, response);
 }
 
 async function updateTravelBlock(uid, ev, eventKey, leg, write, cal, opts, candidate) {
@@ -1031,6 +1143,7 @@ async function unclaimTravel(uid, eventKey, leg, supaUrl, supaKey, requestId) {
   if (requestId) {
     url.searchParams.set("calendar_write_receipt->>request_id", `eq.${requestId}`);
     url.searchParams.set("calendar_write_receipt->>effect", "eq.no_effect");
+    url.searchParams.set("calendar_write_receipt->>command", "eq.calendar.create");
   }
   const response = await fetch(url.toString(), {
     method: "DELETE",
@@ -1083,14 +1196,16 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
-  const events = (await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
+  let events = [], calendarReadFailed = false;
+  try { events = (await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
     strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
-  })).sort((left, right) => left.startMs - right.startMs);
+  })).sort((left, right) => left.startMs - right.startMs); }
+  catch { calendarReadFailed = true; }
   const repeatedLocation = deriveAnchors({
     homeAddress: home,
     calendarEvents: events.filter((event) => !isTravel(event.summary)).map(({ location, startMs }) => ({ location, startMs })),
   }).work;
-  let inserted = 0, verified = 0, updated = 0, checked = 0, skipped = 0, originQuestionsAsked = 0;
+  let inserted = 0, verified = 0, updated = 0, cancelled = 0, checked = 0, skipped = 0, originQuestionsAsked = 0;
   const outboundReports = [];
   const reconciliationErrors = {};
   const noteReconciliationError = ({ error_class: errorClass }) => {
@@ -1100,6 +1215,46 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   };
   const writeOptions = { nowMs, supaUrl, supaKey, expectedCalendarAccountId, allowWebInitialScan,
     runtimeTrace: runtimeTrace({ tenantId: uid }, usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call-calendar" })) };
+  const fencedEvents = new Set();
+  if (calendarReadFailed) noteReconciliationError({ error_class: "calendar_list_incomplete" });
+  if (cal.kind === "composio" && supaUrl && supaKey) {
+    const visibleSources = new Set(events.filter((event) => !isTravel(event.summary)).map((event) => event.id));
+    const pending = await readTravelOperationClaims(uid, null, supaUrl, supaKey);
+    const handled = new Set();
+    if (pending === null) noteReconciliationError({ error_class: "pending_claim_read_error" });
+    for (const row of pending || []) {
+      const receipt = row.calendar_write_receipt;
+      if (!receipt) continue;
+      if (receipt.command !== "calendar.cancel" && visibleSources.has(row.event_key)) continue;
+      handled.add(receipt.request_id);
+      const result = receipt.command === "calendar.cancel"
+        ? await reconcileTravelCancellation(uid, row.event_key, row.leg, cal, writeOptions, receipt)
+        : await reconcileTravelBlock(uid, { sourceEventVersion: receipt.source_event_version }, row.event_key, row.leg, cal, writeOptions, receipt);
+      if (result.status === "verified") verified++;
+      if (result.status === "updated") updated++;
+      if (result.status === "cancelled") cancelled++;
+      noteReconciliationError(result);
+      if (result.status === "unknown" || receipt.command === "calendar.cancel") fencedEvents.add(row.event_key);
+    }
+    const helperIds = [...new Set(events.filter((event) => event.lifeManagerGeneratedTravel === true
+      && Number.isFinite(event.endMs) && event.endMs > nowMs && /^[A-Za-z0-9_-]{1,1024}$/.test(event.id)).map((event) => event.id))];
+    const claims = await readTravelOperationClaims(uid, helperIds, supaUrl, supaKey);
+    if (claims === null) noteReconciliationError({ error_class: "helper_claim_read_error" });
+    for (const row of claims || []) {
+      const receipt = row.calendar_write_receipt;
+      if (!receipt || handled.has(receipt.request_id) || receipt.command === "calendar.cancel") continue;
+      if (visibleSources.has(row.event_key)) continue;
+      if (claims.filter((other) => other.calendar_write_receipt?.provider_event_id === receipt.provider_event_id).length !== 1) {
+        noteReconciliationError({ error_class: "helper_claim_ambiguous" });
+        fencedEvents.add(row.event_key);
+        continue;
+      }
+      const result = await cancelTravelBlock(uid, row, cal, writeOptions);
+      if (result.status === "cancelled") cancelled++;
+      noteReconciliationError(result);
+      if (result.status !== "not_cancelled" && result.status !== "unknown" || result.error_class) fencedEvents.add(row.event_key);
+    }
+  }
   const releaseAllowance = async (eventKey, state) => {
     if (!state || !state.receipt || typeof _releaseManagedAction !== "function") return;
     await _releaseManagedAction(uid, eventKey, supaUrl, supaKey, { reservation: state.receipt });
@@ -1118,6 +1273,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // C-H1: atomic claim key per (event, leg). Prefer the gcal event id (stable + unique). Fallback to
     // startMs:summary (NOT startMs alone — two different same-user events can share a start time, FIND-001).
     const evKey = String(ev.id || `${ev.startMs}:${ev.summary || ""}`);
+    if (fencedEvents.has(evKey)) { skipped++; continue; }
     let priorClaims = cal.kind === "composio" ? await readTravelClaims(uid, evKey, supaUrl, supaKey) : [];
     const retainedClaims = [];
     const updatesNeeded = new Map();
@@ -1461,7 +1617,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     }
     void outboundInserted; // suppress unused warning — used for semantic clarity only
   }
-  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports, ...(updated ? { updated } : {}),
+  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports, ...(updated ? { updated } : {}), ...(cancelled ? { cancelled } : {}),
     ...(Object.keys(reconciliationErrors).length ? { reconciliationErrors } : {}) };
 }
 
