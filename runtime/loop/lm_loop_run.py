@@ -887,7 +887,8 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
         return None
-    if value.get("status") != "deferred" or value.get("effect") != 0:
+    if (not isinstance(value, dict) or value.get("status") != "deferred"
+            or value.get("effect") != 0):
         return None
     reason = value.get("reason")
     prefix = "host_admission_deferred:"
@@ -923,14 +924,15 @@ def _proven_pre_effect_failure(path: Path) -> bool:
         return False
 
 
-def _read_private_result_hint(path: Path) -> dict | None:
+def _read_private_result_hint(path: Path, *, started_ns: int | None = None) -> dict | None:
     descriptor = -1
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         info = os.fstat(descriptor)
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
                 or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600
-                or info.st_size > 4096):
+                or info.st_size > 4096
+                or (started_ns is not None and info.st_mtime_ns < started_ns)):
             return None
         data = os.read(descriptor, 4097)
     except OSError:
@@ -945,6 +947,13 @@ def _read_private_result_hint(path: Path) -> dict | None:
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
     return value if isinstance(value, dict) else None
+
+
+def _proven_pre_enqueue_deferral(path: Path, started_ns: int) -> bool:
+    value = _read_private_result_hint(path, started_ns=started_ns)
+    return (isinstance(value, dict) and type(value.get("effect")) is int
+            and value == {"status": "deferred", "effect": 0, "phase": "pre_enqueue",
+                          "reason": "resource_effect_unknown"})
 
 
 def write_capafy_pii_gate_attestation(path: Path, occurrence_id: str,
@@ -1796,6 +1805,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 75
         if durable and ticket is None:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "phase": "pre_enqueue",
                                   "reason": f"resource_{admission_reason}"})
             return 75
         available = memory_free_percent()
@@ -2309,7 +2319,13 @@ def _main(argv: list[str] | None = None) -> int:
             if terminal_saved and effect_identity_status == "rejected":
                 cleanup_status = "held_effect_identity_unrecorded"
                 cleanup_operation = "persist_effect_identity"
-            elif terminal_saved and event["effect_status"] in {"unknown", "started"}:
+            elif (terminal_saved and event["effect_status"] in {"unknown", "started"}
+                  and not (event["effect_status"] == "unknown"
+                           and claimed_occurrence_id is None
+                           and effect_identity_status == "not_written"
+                           and event.get("provider_receipt_id") is None
+                           and event.get("official_readback_ref") is None
+                           and _proven_pre_enqueue_deferral(host_receipt, started_ns))):
                 cleanup_status = "held_effect_unknown"
                 cleanup_operation = "official_readback_required"
                 # Keep the readback evidence, not the run's bulk artifacts (journald-style cap).
