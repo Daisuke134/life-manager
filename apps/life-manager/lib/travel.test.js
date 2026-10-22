@@ -1437,3 +1437,135 @@ test("CLD03b2 changed GO and RETURN update the same owned helper and replay with
     });
   }
 });
+
+
+test("CLD03b2 timeout retains the new operation fence and never replays an unconfirmed PATCH", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    f.state.patchResponse = "timeout";
+    f.state.patchVisible = false;
+    const first = await fillTravel(f.uid, f.options);
+    assert.deepEqual(first.reconciliationErrors, { update_readback_pending: 1 });
+    const receipt = structuredClone(f.rows.get("synthetic-source:go").calendar_write_receipt);
+    assert.equal(receipt.command, "calendar.update");
+    assert.equal(receipt.effect, "unknown");
+    await fillTravel(f.uid, f.options);
+    assert.equal(f.patches.length, 1);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.request_id, receipt.request_id);
+  });
+});
+
+test("CLD03b2 a lost ACK closes the exact update before holding a newer source", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    f.state.patchResponse = "timeout";
+    f.state.onPatch = () => { f.source.updated = "2030-01-01T00:03:00Z"; };
+    const result = await fillTravel(f.uid, f.options);
+    assert.equal(result.updated, 1);
+    assert.deepEqual(result.reconciliationErrors, { source_changed: 1 });
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.equal(f.patches.length, 1);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD03b2 failed dispatch CAS preserves the old proof and sends no PATCH", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    const before = structuredClone(f.rows.get("synthetic-source:go").calendar_write_receipt);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    f.state.rejectPhase = "dispatching";
+    const result = await fillTravel(f.uid, f.options);
+    assert.deepEqual(result.reconciliationErrors, { update_not_dispatched: 1 });
+    assert.deepEqual(f.rows.get("synthetic-source:go").calendar_write_receipt, before);
+    assert.equal(f.patches.length, 0);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD03b2 a late update response cannot overwrite or recount a verified operation", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    let nested;
+    f.state.onPatch = async () => {
+      f.state.onPatch = null;
+      f.state.pointHelper = { ...createdTravelRow(f.creates[0]), ...f.patches[0].body, etag: '\"fixture-helper-v2\"' };
+      nested = await fillTravel(f.uid, f.options);
+    };
+    const outer = await fillTravel(f.uid, f.options);
+    assert.equal(nested.updated, 1);
+    assert.equal(outer.updated || 0, 0);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.equal(f.patches.length, 1);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+
+test("CLD03b2 a proven 412 preserves the claim and replans from a fresh owned read", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    f.state.patchResponse = "precondition";
+    const first = await fillTravel(f.uid, f.options);
+    assert.deepEqual(first.reconciliationErrors, { update_precondition_failed: 1 });
+    const receipt = structuredClone(f.rows.get("synthetic-source:go").calendar_write_receipt);
+    assert.equal(receipt.effect, "no_effect");
+    assert.equal(receipt.http_status, 412);
+    assert.equal(f.patches.length, 1);
+    assert.deepEqual(f.deletes, []);
+    f.state.pointHelper = { ...createdTravelRow(f.creates[0]), etag: '\"fixture-helper-v2\"' };
+    f.state.patchResponse = "success";
+    const second = await fillTravel(f.uid, f.options);
+    assert.equal(second.updated, 1);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.notEqual(f.rows.get("synthetic-source:go").calendar_write_receipt.request_id, receipt.request_id);
+    assert.equal(f.patches.length, 2);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD03b2 a source changed during route planning prevents dispatch", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    const before = structuredClone(f.rows.get("synthetic-source:go").calendar_write_receipt);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    const result = await fillTravel(f.uid, { ...f.options, _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+      if (isReturn) return null;
+      f.source.updated = "2030-01-01T00:03:00Z";
+      return 20;
+    } });
+    assert.deepEqual(result.reconciliationErrors, { update_not_dispatched: 1 });
+    assert.deepEqual(f.rows.get("synthetic-source:go").calendar_write_receipt, before);
+    assert.equal(f.patches.length, 0);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});

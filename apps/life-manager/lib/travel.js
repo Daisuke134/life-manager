@@ -809,12 +809,20 @@ async function readTravelClaims(uid, eventKey, supaUrl, supaKey) {
   } catch { return null; }
 }
 
-async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, expectedPhase) {
+async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, expectedPhase, priorReceipt) {
   try {
     const url = travelClaimUrl(uid, eventKey, supaUrl, receipt.leg);
-    url.searchParams.set("calendar_write_receipt->>request_id", `eq.${receipt.request_id}`);
-    if (expectedPhase) url.searchParams.set("calendar_write_receipt->>phase", `eq.${expectedPhase}`);
-    if (receipt.effect !== "verified") url.searchParams.set("calendar_write_receipt->>effect", "eq.unknown");
+    url.searchParams.set("calendar_write_receipt->>request_id", `eq.${priorReceipt?.request_id || receipt.request_id}`);
+    if (priorReceipt) {
+      for (const field of ["phase", "effect", "source_event_version", "request_fingerprint", "provider_event_id", "account_ref_hash"]) {
+        url.searchParams.set(`calendar_write_receipt->>${field}`, `eq.${priorReceipt[field]}`);
+      }
+    } else {
+      if (expectedPhase) url.searchParams.set("calendar_write_receipt->>phase", `eq.${expectedPhase}`);
+      if (receipt.effect !== "verified" || receipt.command === "calendar.update") {
+        url.searchParams.set("calendar_write_receipt->>effect", "eq.unknown");
+      }
+    }
     const response = await fetch(url.toString(), {
       method: "PATCH", headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`,
         "Content-Type": "application/json", Prefer: "return=representation" },
@@ -829,9 +837,13 @@ async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, 
 async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, receipt) {
   const unknown = { status: "unknown" };
   if (!receipt || receipt.schema_version !== 1 || receipt.leg !== leg
+    || !["calendar.create", "calendar.update"].includes(receipt.command)
     || receipt.source_event_hash !== travelHash([uid, eventKey])
     || !OPAQUE_EVENT_VERSION.test(receipt.request_id || "")) return unknown;
-  if (receipt.effect === "no_effect" && receipt.phase === "response" && receipt.command === "calendar.create"
+  const update = receipt.command === "calendar.update";
+  if (update && (!receipt.provider_event_id || ![receipt.marker_request_id, receipt.prior_request_fingerprint]
+    .every((value) => OPAQUE_EVENT_VERSION.test(value || "")))) return unknown;
+  if (receipt.effect === "no_effect" && receipt.phase === "response" && !update
     && ["provider_validation", "account_binding_unavailable", "web_automation_paused"].includes(receipt.error_class)) {
     return await unclaimTravel(uid, eventKey, leg, opts.supaUrl, opts.supaKey, receipt.request_id)
       ? { status: "released" } : unknown;
@@ -840,14 +852,19 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
     .every((value) => OPAQUE_EVENT_VERSION.test(value || ""))
     || !["dispatching", "response", "readback"].includes(receipt.phase)) return unknown;
   const priorProof = receipt.effect === "verified" || receipt.effect === "created";
+  let completedUpdate = false;
   const failed = async (errorClass, readback = "error") => {
-    if (!priorProof) await saveTravelWriteReceipt(uid, eventKey, { ...receipt, phase: "readback", error_class: errorClass,
-      readback, next_action: "owned_readback" }, opts.supaUrl, opts.supaKey);
-    return { status: "unknown", error_class: errorClass };
+    if (!priorProof && !completedUpdate && receipt.effect !== "no_effect") {
+      await saveTravelWriteReceipt(uid, eventKey, { ...receipt, phase: "readback", error_class: errorClass,
+        readback, next_action: "owned_readback" }, opts.supaUrl, opts.supaKey);
+    }
+    return { status: completedUpdate ? "updated" : "unknown", error_class: errorClass };
   };
+  const retryPrecondition = update && receipt.effect === "no_effect" && receipt.http_status === 412;
   const ownsHelper = (event) => event && event.status !== "cancelled" && isTravel(event.summary)
-    && event.description === `${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}${receipt.request_id}`
-    && travelRequestFingerprint(event) === receipt.request_fingerprint
+    && event.description === `${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}${receipt.marker_request_id || receipt.request_id}`
+    && (travelRequestFingerprint(event) === receipt.request_fingerprint
+      || update && travelRequestFingerprint(event) === receipt.prior_request_fingerprint)
     && typeof event.id === "string" && /^[A-Za-z0-9_-]{1,1024}$/.test(event.id);
   const readOptions = { accountRefHash: receipt.account_ref_hash, supaUrl: opts.supaUrl, supaKey: opts.supaKey,
     ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}) };
@@ -857,6 +874,17 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
       const helper = await calendar.getOwnedEvent(uid, receipt.provider_event_id, readOptions);
       if (helper?.id !== receipt.provider_event_id || !ownsHelper(helper)) return failed("helper_mismatch");
       matches = [helper];
+      if (update && travelRequestFingerprint(helper) !== receipt.request_fingerprint && !retryPrecondition) {
+        return failed(receipt.effect === "no_effect" ? "update_rejected" : "update_readback_pending");
+      }
+      // Close this dispatched operation before considering a newer source revision.
+      if (update && !priorProof && receipt.effect === "unknown"
+        && travelRequestFingerprint(helper) === receipt.request_fingerprint) {
+        const verified = { ...receipt, phase: "readback", effect: "verified", error_class: null,
+          evidence_ref: `calendar-event:${travelHash([uid, helper.id])}`, next_action: "none", readback: "exact_one" };
+        if (!await saveTravelWriteReceipt(uid, eventKey, verified, opts.supaUrl, opts.supaKey)) return failed("update_receipt_conflict");
+        completedUpdate = true;
+      }
       source = await calendar.getOwnedEvent(uid, eventKey, readOptions);
       if (source?.id !== eventKey) return failed("owned_read_error");
     } else {
@@ -869,18 +897,62 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
       if (sources.length !== 1) return failed("owned_read_error", "absent");
       source = sources[0];
     }
-  } catch {
-    return failed("owned_read_error");
-  }
+  } catch { return failed("owned_read_error"); }
   if (source.status === "cancelled") return failed("source_cancelled");
   const freshVersion = sourceEventVersion(source);
-  if (freshVersion !== receipt.source_event_version) return failed("source_changed");
+  if (freshVersion !== receipt.source_event_version || retryPrecondition) {
+    if (!completedUpdate && (priorProof || retryPrecondition) && freshVersion === ev.sourceEventVersion
+      && typeof matches[0].etag === "string" && matches[0].etag.length > 0
+      && typeof calendar.patchEvent === "function") {
+      return { status: "update_needed", helper: matches[0], receipt };
+    }
+    return failed("source_changed");
+  }
   if (freshVersion !== ev.sourceEventVersion) return failed("source_view_mismatch");
+  if (completedUpdate) return { status: "updated" };
   if (priorProof) return { status: "already_verified" };
   const verified = { ...receipt, phase: "readback", effect: "verified", provider_event_id: matches[0].id,
     evidence_ref: `calendar-event:${travelHash([uid, matches[0].id])}`, error_class: null, next_action: "none", readback: "exact_one" };
   const saved = await saveTravelWriteReceipt(uid, eventKey, verified, opts.supaUrl, opts.supaKey);
   return saved ? { status: "verified" } : unknown;
+}
+
+async function updateTravelBlock(uid, ev, eventKey, leg, write, cal, opts, candidate) {
+  const prior = candidate.receipt;
+  const receipt = { ...prior, request_id: travelHash([uid, eventKey, leg, randomUUID()]),
+    marker_request_id: prior.marker_request_id || prior.request_id,
+    prior_request_fingerprint: travelRequestFingerprint(candidate.helper),
+    source_event_version: ev.sourceEventVersion, request_fingerprint: travelRequestFingerprint(write),
+    command: "calendar.update", phase: "dispatching", effect: "unknown", runtime_trace: opts.runtimeTrace,
+    http_status: null, error_class: null, readback: null, evidence_ref: null, next_action: "owned_readback" };
+  let durable = false;
+  const beforeDispatch = async (binding) => {
+    if (binding.account_ref_hash !== prior.account_ref_hash || binding.command !== "calendar.update") return false;
+    const source = await cal.getOwnedEvent(uid, eventKey, { accountRefHash: prior.account_ref_hash,
+      supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+      ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}) });
+    if (source.id !== eventKey || source.status === "cancelled" || sourceEventVersion(source) !== ev.sourceEventVersion) return false;
+    durable = await saveTravelWriteReceipt(uid, eventKey, receipt, opts.supaUrl, opts.supaKey, undefined, prior);
+    return durable;
+  };
+  let result;
+  try {
+    result = await cal.patchEvent(uid, { calendar_id: "primary", event_id: candidate.helper.id,
+      summary: write.summary, start: { dateTime: new Date(write.startMs).toISOString(), timeZone: "UTC" },
+      end: { dateTime: new Date(write.endMs).toISOString(), timeZone: "UTC" }, location: write.destination },
+    { expectedEtag: candidate.helper.etag, travelWriteContext: receipt, beforeDispatch,
+      supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+      ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId,
+        allowWebInitialScan: opts.allowWebInitialScan === true } : {}) });
+  } catch { result = null; }
+  if (!durable) return { status: "unknown", error_class: "update_not_dispatched" };
+  const response = { ...receipt, ...(result?.writeReceipt || {}), phase: "response", command: "calendar.update",
+    effect: result?.effect === "no_effect" ? "no_effect" : "unknown", provider_event_id: candidate.helper.id,
+    next_action: result?.effect === "no_effect" ? "none" : "owned_readback" };
+  await saveTravelWriteReceipt(uid, eventKey, response, opts.supaUrl, opts.supaKey);
+  if (response.effect === "no_effect") return { status: "unknown",
+    error_class: response.http_status === 412 ? "update_precondition_failed" : "update_rejected" };
+  return reconcileTravelBlock(uid, ev, eventKey, leg, cal, opts, response);
 }
 
 async function createTravelBlock(uid, ev, eventKey, leg, write, cal, opts) {
@@ -1014,7 +1086,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     homeAddress: home,
     calendarEvents: events.filter((event) => !isTravel(event.summary)).map(({ location, startMs }) => ({ location, startMs })),
   }).work;
-  let inserted = 0, verified = 0, checked = 0, skipped = 0, originQuestionsAsked = 0;
+  let inserted = 0, verified = 0, updated = 0, checked = 0, skipped = 0, originQuestionsAsked = 0;
   const outboundReports = [];
   const reconciliationErrors = {};
   const noteReconciliationError = ({ error_class: errorClass }) => {
@@ -1044,17 +1116,20 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     const evKey = String(ev.id || `${ev.startMs}:${ev.summary || ""}`);
     let priorClaims = cal.kind === "composio" ? await readTravelClaims(uid, evKey, supaUrl, supaKey) : [];
     const retainedClaims = [];
+    const updatesNeeded = new Map();
     let reconciliationFailed = false;
     for (const row of priorClaims || []) {
       const reconciliation = await reconcileTravelBlock(uid, ev, evKey, row.leg, cal, writeOptions, row.calendar_write_receipt);
       if (noteReconciliationError(reconciliation)) reconciliationFailed = true;
       if (reconciliation.status === "verified") verified++;
+      if (reconciliation.status === "updated") updated++;
+      if (reconciliation.status === "update_needed") updatesNeeded.set(row.leg, reconciliation);
       if (reconciliation.status !== "released") retainedClaims.push(row);
     }
     if (reconciliationFailed) { skipped++; continue; }
     if (priorClaims !== null) priorClaims = retainedClaims;
-    const priorGo = priorClaims && priorClaims.some((row) => row.leg === "go");
-    const priorReturn = priorClaims && priorClaims.some((row) => row.leg === "return");
+    const priorGo = !updatesNeeded.has("go") && priorClaims && priorClaims.some((row) => row.leg === "go");
+    const priorReturn = !updatesNeeded.has("return") && priorClaims && priorClaims.some((row) => row.leg === "return");
     const goReconciliationPending = priorGo && !["created", "verified"].includes(
       priorClaims.find((row) => row.leg === "go")?.calendar_write_receipt?.effect);
     let eventAllowanceBlocked = false;
@@ -1065,7 +1140,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // Use if/else (NOT continue) so the RETURN LEG below always runs regardless of outbound fate.
     // FIND-005: the outbound continue statements must NEVER skip the return-leg evaluation.
     // An exact existing block already has the route, so repair its reminder before origin resolution.
-    const duplicateBlocks = events.filter((e) => isTravel(e.summary) && e.endMs
+    const duplicateBlocks = events.filter((e) => e.id !== updatesNeeded.get("go")?.helper.id && isTravel(e.summary) && e.endMs
       && e.endMs >= ev.startMs - 2 * 60000 && e.endMs <= ev.startMs + 60000
       && String(e.location || "").replace(/\s+/g, "").toLowerCase()
         === String(ev.location || "").replace(/\s+/g, "").toLowerCase());
@@ -1246,12 +1321,17 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
           } else {
             {
               const plan = planTravelBlock(leaveMs, arriveMs, origin, dest, dest, expectedCalendarAccountId);
-              const write = await createTravelBlock(uid, ev, evKey, "go", plan, cal, writeOptions);
+              const candidate = updatesNeeded.get("go");
+              const write = candidate ? await updateTravelBlock(uid, ev, evKey, "go", plan, cal, writeOptions, candidate)
+                : await createTravelBlock(uid, ev, evKey, "go", plan, cal, writeOptions);
               if (noteReconciliationError(write)) {
+                if (write.status === "updated") updated++;
                 if (write.duplicate) await releaseAllowance(evKey, allowanceState);
                 skipped++; continue;
               }
-              if (write.status === "created") {
+              if (write.status === "updated") {
+                updated++;
+              } else if (write.status === "created") {
                 inserted++;
                 outboundInserted = true;
                 if (typeof _completeManagedAction === "function") {
@@ -1304,7 +1384,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     }
 
     // returnDecision is PURE; pass events[i+1] as the "next" hint.
-    const retDecision = returnDecision(ev, events[i + 1], home);
+    const returnHelperId = updatesNeeded.get("return")?.helper.id;
+    const retDecision = returnDecision(ev, returnHelperId ? events.slice(i + 1).find((event) => event.id !== returnHelperId) : events[i + 1], home);
     if (!retDecision.insert) {
       skipped++;
       continue;
@@ -1313,7 +1394,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // ev.endMs. Catches both the adjacent case and the non-adjacent case (FIND-003/FIND-006):
     // a block that already exists but is NOT events[i+1] (e.g. another event sits between them).
     const retDup = events.some(
-      (e) => isTravel(e.summary) && e.startMs && e.startMs >= ev.endMs && e.startMs < ev.endMs + 3 * 3600000,
+      (e) => e.id !== returnHelperId && isTravel(e.summary) && e.startMs && e.startMs >= ev.endMs && e.startMs < ev.endMs + 3 * 3600000,
     );
     if (retDup) { skipped++; continue; }
     // Compute return travel time: DEPARTURE anchored to ev.endMs (FIND-004 — departureMode=true).
@@ -1343,12 +1424,17 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     const retArriveMs = retLeaveMs + retMins * 60000;
     {
       const plan = planTravelBlock(retLeaveMs, retArriveMs, venue, home, home, expectedCalendarAccountId);
-      const write = await createTravelBlock(uid, ev, evKey, "return", plan, cal, writeOptions);
+      const candidate = updatesNeeded.get("return");
+      const write = candidate ? await updateTravelBlock(uid, ev, evKey, "return", plan, cal, writeOptions, candidate)
+        : await createTravelBlock(uid, ev, evKey, "return", plan, cal, writeOptions);
       if (noteReconciliationError(write)) {
+        if (write.status === "updated") updated++;
         if (write.duplicate) await releaseAllowance(evKey, returnAllowanceState);
         skipped++; continue;
       }
-      if (write.status === "created") {
+      if (write.status === "updated") {
+        updated++;
+      } else if (write.status === "created") {
         inserted++;
         if (typeof _completeManagedAction === "function") {
           await _completeManagedAction(uid, evKey, supaUrl, supaKey,
@@ -1371,7 +1457,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     }
     void outboundInserted; // suppress unused warning — used for semantic clarity only
   }
-  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports,
+  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports, ...(updated ? { updated } : {}),
     ...(Object.keys(reconciliationErrors).length ? { reconciliationErrors } : {}) };
 }
 

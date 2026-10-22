@@ -675,3 +675,19 @@ test("travel reconciliation holds are observable even without inserts or origin 
   assert.deepEqual(errors, [`[travel] reconciliation_held ${JSON.stringify(counts)}`]);
   assert.equal(errors[0].includes("diagnostic-fixture"), false);
 });
+
+
+test("travel updates are observable without counting them as new inserts", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const originalLog = console.log;
+  const logs = [];
+  console.log = (...args) => logs.push(args.join(" "));
+  try {
+    const result = await travelUserOnce({ uid: "update-fixture", daily_automation_enabled: true, notifications_enabled: false }, {
+      apiKey: "fixture", mapsKey: "fixture", telegramToken: null,
+      fillTravel: async () => ({ inserted: 0, updated: 2, originQuestionsAsked: 0, outboundReports: [] }),
+    });
+    assert.equal(result.updated, 2);
+  } finally { console.log = originalLog; }
+  assert.deepEqual(logs, ["[travel] updated=2"]);
+});
