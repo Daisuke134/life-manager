@@ -3,7 +3,7 @@
   "modules": [
     {
       "path": "scripts/integrate.mjs",
-      "sha256": "10820fc45824cb474958cabf229983afbcf1d18d705df0831cab99298273c93f"
+      "sha256": "35e6578fe931b380c8c8ab025d118f7fb8cafff3909e804da73fdcd929170f96"
     },
     {
       "path": "scripts/package-contract.mjs",
