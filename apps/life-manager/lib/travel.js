@@ -839,35 +839,51 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
     return await unclaimTravel(uid, eventKey, leg, opts.supaUrl, opts.supaKey, receipt.request_id)
       ? { status: "released" } : unknown;
   }
-  if (receipt.source_event_version !== ev.sourceEventVersion
-    || ![receipt.request_id, receipt.request_fingerprint, receipt.account_ref_hash].every((value) => OPAQUE_EVENT_VERSION.test(value || ""))
-    || !["dispatching", "response", "readback"].includes(receipt.phase)
-    || typeof calendar.listOwnedEvents !== "function") return unknown;
-  if (receipt.effect === "verified" || receipt.effect === "created") return { status: "already_verified" };
-  let matches;
+  if (![receipt.source_event_version, receipt.request_fingerprint, receipt.account_ref_hash]
+    .every((value) => OPAQUE_EVENT_VERSION.test(value || ""))
+    || !["dispatching", "response", "readback"].includes(receipt.phase)) return unknown;
+  const priorProof = receipt.effect === "verified" || receipt.effect === "created";
+  const failed = async (errorClass, readback = "error") => {
+    if (!priorProof) await saveTravelWriteReceipt(uid, eventKey, { ...receipt, phase: "readback", error_class: errorClass,
+      readback, next_action: "owned_readback" }, opts.supaUrl, opts.supaKey);
+    return { status: "unknown", error_class: errorClass };
+  };
+  const ownsHelper = (event) => event && event.status !== "cancelled" && isTravel(event.summary)
+    && event.description === `${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}${receipt.request_id}`
+    && travelRequestFingerprint(event) === receipt.request_fingerprint
+    && typeof event.id === "string" && /^[A-Za-z0-9_-]{1,1024}$/.test(event.id);
+  const readOptions = { accountRefHash: receipt.account_ref_hash, supaUrl: opts.supaUrl, supaKey: opts.supaKey,
+    ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}) };
+  let matches, source;
   try {
-    const events = await calendar.listOwnedEvents(uid, {
-      timeMin: new Date(opts.nowMs - TRAVEL_ORIGIN_LOOKBACK_MS).toISOString(),
-      timeMax: new Date(opts.nowMs + 7 * 86400000).toISOString(),
-      accountRefHash: receipt.account_ref_hash, supaUrl: opts.supaUrl, supaKey: opts.supaKey,
-      ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}),
-    });
-    const sources = events.filter((event) => event && event.id === ev.id && event.status !== "cancelled");
-    if (sources.length !== 1 || sourceEventVersion(sources[0]) !== receipt.source_event_version) return unknown;
-    matches = events.filter((event) => event && event.status !== "cancelled" && isTravel(event.summary)
-      && event.description === `${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}${receipt.request_id}`
-      && travelRequestFingerprint(event) === receipt.request_fingerprint
-      && typeof event.id === "string" && /^[A-Za-z0-9_-]{1,1024}$/.test(event.id));
+    if (receipt.provider_event_id) {
+      const helper = await calendar.getOwnedEvent(uid, receipt.provider_event_id, readOptions);
+      if (helper?.id !== receipt.provider_event_id || !ownsHelper(helper)) return failed("helper_mismatch");
+      matches = [helper];
+      source = await calendar.getOwnedEvent(uid, eventKey, readOptions);
+      if (source?.id !== eventKey) return failed("owned_read_error");
+    } else {
+      const events = await calendar.listOwnedEvents(uid, { ...readOptions,
+        timeMin: new Date(opts.nowMs - TRAVEL_ORIGIN_LOOKBACK_MS).toISOString(),
+        timeMax: new Date(opts.nowMs + 7 * 86400000).toISOString() });
+      matches = events.filter(ownsHelper);
+      if (matches.length !== 1) return failed("helper_mismatch", matches.length ? "ambiguous" : "absent");
+      const sources = events.filter((event) => event && event.id === eventKey);
+      if (sources.length !== 1) return failed("owned_read_error", "absent");
+      source = sources[0];
+    }
   } catch {
-    await saveTravelWriteReceipt(uid, eventKey, { ...receipt, readback: "error", next_action: "owned_readback" }, opts.supaUrl, opts.supaKey);
-    return unknown;
+    return failed("owned_read_error");
   }
-  const exact = matches.length === 1 && (!receipt.provider_event_id || matches[0].id === receipt.provider_event_id);
-  const verified = { ...receipt, ...(exact ? { phase: "readback", effect: "verified", provider_event_id: matches[0].id,
-    evidence_ref: `calendar-event:${travelHash([uid, matches[0].id])}`, error_class: null, next_action: "none" } : {}),
-  readback: exact ? "exact_one" : matches.length ? "ambiguous" : "absent" };
+  if (source.status === "cancelled") return failed("source_cancelled");
+  const freshVersion = sourceEventVersion(source);
+  if (freshVersion !== receipt.source_event_version) return failed("source_changed");
+  if (freshVersion !== ev.sourceEventVersion) return failed("source_view_mismatch");
+  if (priorProof) return { status: "already_verified" };
+  const verified = { ...receipt, phase: "readback", effect: "verified", provider_event_id: matches[0].id,
+    evidence_ref: `calendar-event:${travelHash([uid, matches[0].id])}`, error_class: null, next_action: "none", readback: "exact_one" };
   const saved = await saveTravelWriteReceipt(uid, eventKey, verified, opts.supaUrl, opts.supaKey);
-  return exact && saved ? { status: "verified" } : unknown;
+  return saved ? { status: "verified" } : unknown;
 }
 
 async function createTravelBlock(uid, ev, eventKey, leg, write, cal, opts) {
@@ -1003,6 +1019,12 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   }).work;
   let inserted = 0, verified = 0, checked = 0, skipped = 0, originQuestionsAsked = 0;
   const outboundReports = [];
+  const reconciliationErrors = {};
+  const noteReconciliationError = ({ error_class: errorClass }) => {
+    if (!errorClass) return false;
+    reconciliationErrors[errorClass] = (reconciliationErrors[errorClass] || 0) + 1;
+    return true;
+  };
   const writeOptions = { nowMs, supaUrl, supaKey, expectedCalendarAccountId, allowWebInitialScan,
     runtimeTrace: runtimeTrace({ tenantId: uid }, usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call-calendar" })) };
   const releaseAllowance = async (eventKey, state) => {
@@ -1025,11 +1047,14 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     const evKey = String(ev.id || `${ev.startMs}:${ev.summary || ""}`);
     let priorClaims = cal.kind === "composio" ? await readTravelClaims(uid, evKey, supaUrl, supaKey) : [];
     const retainedClaims = [];
+    let reconciliationFailed = false;
     for (const row of priorClaims || []) {
       const reconciliation = await reconcileTravelBlock(uid, ev, evKey, row.leg, cal, writeOptions, row.calendar_write_receipt);
+      if (noteReconciliationError(reconciliation)) reconciliationFailed = true;
       if (reconciliation.status === "verified") verified++;
       if (reconciliation.status !== "released") retainedClaims.push(row);
     }
+    if (reconciliationFailed) { skipped++; continue; }
     if (priorClaims !== null) priorClaims = retainedClaims;
     const priorGo = priorClaims && priorClaims.some((row) => row.leg === "go");
     const priorReturn = priorClaims && priorClaims.some((row) => row.leg === "return");
@@ -1225,6 +1250,10 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             {
               const plan = planTravelBlock(leaveMs, arriveMs, origin, dest, dest, expectedCalendarAccountId);
               const write = await createTravelBlock(uid, ev, evKey, "go", plan, cal, writeOptions);
+              if (noteReconciliationError(write)) {
+                if (write.duplicate) await releaseAllowance(evKey, allowanceState);
+                skipped++; continue;
+              }
               if (write.status === "created") {
                 inserted++;
                 outboundInserted = true;
@@ -1318,6 +1347,10 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     {
       const plan = planTravelBlock(retLeaveMs, retArriveMs, venue, home, home, expectedCalendarAccountId);
       const write = await createTravelBlock(uid, ev, evKey, "return", plan, cal, writeOptions);
+      if (noteReconciliationError(write)) {
+        if (write.duplicate) await releaseAllowance(evKey, returnAllowanceState);
+        skipped++; continue;
+      }
       if (write.status === "created") {
         inserted++;
         if (typeof _completeManagedAction === "function") {
@@ -1341,7 +1374,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     }
     void outboundInserted; // suppress unused warning — used for semantic clarity only
   }
-  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports };
+  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports,
+    ...(Object.keys(reconciliationErrors).length ? { reconciliationErrors } : {}) };
 }
 
 // PURE return-leg decision — mirrors travelDecision geometry for the post-event leg (venue→home).

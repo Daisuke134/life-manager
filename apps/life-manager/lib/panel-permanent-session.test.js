@@ -221,9 +221,20 @@ test("B3 rebound session cannot render page or claim OAuth/provider state", asyn
 
 test("B4 reconnect rejects account substitution and fake ACTIVE-but-disabled readback", async () => {
   const account = (id, extra = {}) => ({ id, user_id: "u1", toolkit: { slug: "googlecalendar" }, status: "INACTIVE", is_disabled: true, enabled: false, ...extra });
-  for (const readback of [account("B", { status: "ACTIVE", is_disabled: false, enabled: true }), account("A", { status: "ACTIVE", is_disabled: true, enabled: true })]) {
-    const sequence = [jsonResponse({ items: [account("A")] }), jsonResponse({}), jsonResponse({ items: [readback] })];
-    await assert.rejects(panelApi.composioCalendarStart({ uid: "u1", chatId: "101" }, { composioKey: "k", fetchImpl: async () => sequence.shift() }), /provider_readback_failed/);
+  for (const [readback, error] of [
+    [account("ca-other", { status: "ACTIVE", is_disabled: false, enabled: true }), /provider_account_mismatch/],
+    [account("ca-original", { status: "ACTIVE", is_disabled: true, enabled: true }), /provider_status_unknown/],
+  ]) {
+    const calls = [], sequence = [jsonResponse(account("ca-original")), jsonResponse({}), jsonResponse(readback)];
+    await assert.rejects(panelApi.composioCalendarStart({ uid: "u1", chatId: "101" }, {
+      connectedAccountId: "ca-original", composioKey: "k",
+      fetchImpl: async (url, init = {}) => { calls.push([String(url), init.method || "GET"]); return sequence.shift(); },
+    }), error);
+    assert.deepEqual(calls.map(([url, method]) => [new URL(url).pathname, method]), [
+      ["/api/v3.1/connected_accounts/ca-original", "GET"],
+      ["/api/v3/connected_accounts/ca-original/status", "PATCH"],
+      ["/api/v3.1/connected_accounts/ca-original", "GET"],
+    ]);
   }
 });
 

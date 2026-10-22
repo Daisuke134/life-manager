@@ -10,6 +10,98 @@ const { createHash } = require("node:crypto");
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const ACCOUNT_ID = "ca-selected-123";
 
+test("owned point GET uses the exact Hybrid account and direct proxy event, including a bare cancellation", async () => {
+  for (const cancelled of [false, true]) {
+    const uid = "hybrid-point-fixture", eventId = "event-point_20300101T000000Z";
+    const accountHash = createHash("sha256").update(JSON.stringify([uid, ACCOUNT_ID])).digest("hex");
+    const event = { id: eventId, status: cancelled ? "cancelled" : "confirmed" };
+    const proxyCalls = [], ledger = [];
+    const calendar = makeComposioCalendar({
+      apiKey: "fixture", supaUrl: "https://supabase.example", supaKey: "fixture",
+      readWebTravelControlStateImpl: async () => assert.fail("point read must not enter Web mutation controls"),
+      recordCall: async (_uid, tool, details) => { ledger.push({ tool, ...details }); return false; },
+      fetchImpl: async (input, init = {}) => {
+        const url = new URL(String(input));
+        assert.equal(["PATCH", "DELETE"].includes(init.method), false);
+        if (url.hostname === "supabase.example") {
+          assert.equal(url.searchParams.has("telegram_chat_id"), false);
+          return { ok: true, json: async () => [{ uid, telegram_chat_id: 123,
+            calendar_provider: "composio_gcal", calendar_connected_account_id: ACCOUNT_ID }] };
+        }
+        if (url.pathname.includes("/connected_accounts/")) return { ok: true, json: async () => ({
+          id: ACCOUNT_ID, user_id: uid, toolkit_slug: "googlecalendar", status: "ACTIVE" }) };
+        proxyCalls.push({ url: String(url), method: init.method, body: JSON.parse(init.body) });
+        return { ok: true, status: 200, json: async () => ({ status: 200, data: event }) };
+      },
+    });
+    assert.deepEqual(await calendar.getOwnedEvent(uid, eventId, { accountRefHash: accountHash }), event);
+    assert.deepEqual(proxyCalls, [{ url: "https://backend.composio.dev/api/v3.1/tools/execute/proxy", method: "POST",
+      body: { connected_account_id: ACCOUNT_ID, user_id: uid,
+        endpoint: `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, method: "GET" } }]);
+    assert.equal(ledger.length, 1);
+    assert.equal(ledger[0].outcome, "success");
+  }
+});
+
+test("owned point GET rejects missing or changed ownership before the event request", async () => {
+  for (const scenario of ["missing", "changed", "inactive", "wrong-tenant", "failed", "missing-hash", "invalid-id"]) {
+    let eventReads = 0;
+    const uid = "hybrid-point-fixture";
+    const accountHash = createHash("sha256").update(JSON.stringify([uid, ACCOUNT_ID])).digest("hex");
+    const calendar = makeComposioCalendar({ apiKey: "fixture", supaUrl: "https://supabase.example", supaKey: "fixture",
+      recordCall: () => false,
+      fetchImpl: async (input, init = {}) => {
+        const url = new URL(String(input));
+        assert.equal(["PATCH", "DELETE"].includes(init.method), false);
+        if (url.hostname === "supabase.example") return { ok: true, json: async () => scenario === "missing" ? [] : [{
+          uid, calendar_provider: "composio_gcal", calendar_connected_account_id: scenario === "changed" ? "ca-other" : ACCOUNT_ID }] };
+        if (url.pathname.includes("/connected_accounts/")) return { ok: scenario !== "failed", json: async () => ({
+          id: ACCOUNT_ID, user_id: scenario === "wrong-tenant" ? "another-tenant" : uid,
+          toolkit_slug: "googlecalendar", status: scenario === "inactive" ? "EXPIRED" : "ACTIVE" }) };
+        eventReads++;
+        throw new Error("unexpected event request");
+      },
+    });
+    await assert.rejects(() => calendar.getOwnedEvent(uid, scenario === "invalid-id" ? "../event" : "event-id",
+      { accountRefHash: scenario === "missing-hash" ? undefined : accountHash }), /calendar owned event read failed/);
+    assert.equal(eventReads, 0, scenario);
+  }
+});
+
+test("owned point GET separates proxy failure, upstream status, unreadable data and a different event ID", async () => {
+  const uid = "hybrid-point-fixture", eventId = "event-id";
+  const accountHash = createHash("sha256").update(JSON.stringify([uid, ACCOUNT_ID])).digest("hex");
+  const cases = [
+    { status: 404, data: { error: { message: "private provider response" } } },
+    { status: 410, data: { error: { errors: [{ reason: "deleted" }] } } },
+    { status: 500 }, { data: { id: eventId } }, { status: "200", data: { id: eventId } },
+    { status: 200, data: null }, { status: 200, data: [] }, { status: 200, data: { id: "other" } },
+    { status: 200, data: { response_data: { id: eventId } } },
+    { outerError: true, status: 200, data: { id: eventId } }, { unreadable: true }, { transportError: true },
+  ];
+  for (const item of cases) {
+    const ledger = [];
+    const calendar = makeComposioCalendar({ apiKey: "fixture", supaUrl: "https://supabase.example", supaKey: "fixture",
+      recordCall: (_uid, _tool, details) => { ledger.push(details); return true; },
+      fetchImpl: async (input) => {
+        const url = new URL(String(input));
+        if (url.hostname === "supabase.example") return { ok: true, json: async () => [{ uid,
+          calendar_provider: "composio_gcal", calendar_connected_account_id: ACCOUNT_ID }] };
+        if (url.pathname.includes("/connected_accounts/")) return { ok: true, json: async () => ({
+          id: ACCOUNT_ID, user_id: uid, toolkit_slug: "googlecalendar", status: "ACTIVE" }) };
+        if (item.transportError) throw new Error("private transport detail");
+        return { ok: !item.outerError, status: item.outerError ? 403 : 200,
+          json: async () => { if (item.unreadable) throw new Error("private parse detail"); return item; } };
+      },
+    });
+    await assert.rejects(() => calendar.getOwnedEvent(uid, eventId, { accountRefHash: accountHash }),
+      (error) => error.message === "calendar owned event read failed");
+    assert.equal(ledger.length, 1);
+    assert.equal(ledger[0].outcome, "unknown");
+    assert.equal(JSON.stringify(ledger).includes("private"), false);
+  }
+});
+
 test("owned Hybrid readback validates the saved exact ACTIVE account without binding backfill or Web controls", async () => {
   const calls = [];
   const uid = "hybrid-fixture";

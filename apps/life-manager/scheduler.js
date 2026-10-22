@@ -1286,6 +1286,7 @@ async function travelUserOnce(u, deps = {}) {
       _releaseManagedAction: deps.releaseManagedAction || (deps.fillTravel ? undefined : releaseManagedAction),
       gmailAccountId: u.gmail_account_id,
     });
+    if (r.reconciliationErrors) console.error(`[travel] reconciliation_held ${JSON.stringify(r.reconciliationErrors)}`);
     if (r.inserted || r.originQuestionsAsked) console.log(`[travel] uid=${u.uid.slice(0, 12)} inserted=${r.inserted} checked=${r.checked} origin_asks=${r.originQuestionsAsked || 0}`);
     if (!deps.suppressAutofillReport && u.notifications_enabled !== false && telegramToken && u.telegram_chat_id) {
       for (const report of r.outboundReports || []) {
