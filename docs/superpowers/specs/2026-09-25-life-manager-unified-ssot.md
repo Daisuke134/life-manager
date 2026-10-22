@@ -68,7 +68,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** CLD04のsource固定解除は公式configでpin無し・stagedなしを再確認するが、新buildはまだなく実行中コード982875d6の更新は未証明である。Cloud READMEの古いTODO参照を本節へ揃え、既存watch pathのmain更新→deployment metadata→health→自然Travel receiptを順に確かめる。FND04aはPR #8542/main f384bfd9とimmutable 20261023T010903-f384bfd9の存在を確認し、対象ownerの採用は別に確認する。FND01fの回収owner採用と自然PASSは既証明だが容量全体は未達、X provision ownerのprofile/fenceを保持した通常再開条件は引き続き確認対象とする。Capafy記事/live CTAは確認済み、exact Postiz ERRORは再送せず、新paid/netも未証明である。CLI失効token、legacy Calendar NULL/unknown、進行中effect/他owner leaseは保護する。
+**現在cursor:** FND06bはPR #8549の同head全13checksを確認しmain2090c4b6へ統合済み。CloudはPR #8546の全13checks後main331d915cへ統合し、同SHAの新deployment16f3cc58を通常経路で作成、build中でruntime/自然Travelは未証明。FND01fの16:57通常owner wakeはPASSし4 profileを更新、Coconalaはlease busyで保持、5 identityは既存resolverでprofile-owned/reachableを確認するが空き約11.3GBで一般floor未達。Capafy配信は新しい16:05 runのfenceが修正採用を阻害するためFND05aのexact公式照合を先行する。旧X ERRORとlegacy Calendar claimは再送/一括解除しない。新paid/netは未確認。
 
 - 順序判断: DaisのRyu案件優先指示に対し、既存案件18211957/直接DM10107358の履歴と最新3件の要望を確認する。対象が有料性的サービスの運営を促進する改修・納品であるため、その実装と送信は対応対象外として未実行を記録する。完了や納品済みへ置換せず、旧順=Ryu修正/1回送信→基盤復旧、新順=Ryu未実行を明記→独立するCLD04→残FND/EARN/EVOを継続とする。既存案件state/送信fenceは変更しない。
 
@@ -156,6 +156,12 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - FND04aの今回範囲: 既存runnerは共有model lease競合と両Codex home busyでprovider_started=false/exit75を返すが、summary/eventはfailedへ落とす。最小REDは既存busy fixtureでtyped deferの取り落としを再現し、既存runnerのsummary/event分類だけを直す。各attemptのprovider_startedが厳密falseかつ既存の構造化busy理由である場合に限定し、空attempt・欠測・mixed/実開始・quota・storage failureは同じ分類へ入れない。モデル/alias/profile順、deadline、provider lease、host admission、DB、result hint、旧effect fenceは変更しない。nested eventは親loopへ結び付くため、provider未開始だけで業務全体のno-effectを主張せず、effectful eventのunknownは保持する。関連RED→GREEN・既存busy/quota/failover tests・fresh read-only反証・exact CI/main・immutable採用を受け入れ、自然の該当busyが無ければ本番で未観測と記録する。現在PromptBase daily.shはagent-runnerを呼ばないため本patchをその失敗原因とはしない。
 - FND04a sourceは関連66 tests・18/191 contract・source-boundary・diff checkがPASSし、3 source/test filesをpushする。親effectful eventのunknown保持と、telemetry error混在をdeferへ入れない反例を含む。fresh primary反証は、exclusive deferral作成後の2回目上書きが別writerのsuccess/receiptを消すP1をメモリfixtureで再現する。この上書きだけを削り、event情報はevent側へ残す。競合回帰はRED→GREEN、最終関連67 tests＋45 subtests・18/191 contract・diff checkがPASSする。CIはOSS absorbed-source manifestのrunner固定hash不一致を検出する。対象1 mappingのsha256だけを実sourceへ更新し、source ID/分類/件数と既存255件baselineは維持する。exact CI/immutable/自然実行は未完。
 - 順序更新: 旧=FND01f CI/採用→FND04。新=FND01fの必須CI待ちと独立にFND04a sourceを進め、capacityの本番復旧はFND01fを先行する。理由はCI待ちを共有source調査の停止条件にせず、model競合の実証済み記録欠落を小さく閉じるため。進行中effect/他owner leaseは中断しない。
+
+**FND05a — Capafyの記事公開失敗と同runの公式成果を結ぶ。** 現在の直接blockerは `capafy-distribute-daily:18e0e593389334b0-45558`（release cbfc0ee3、slot 2026-10-23-h01m00、article instagram-reel-first-second-ja）のclaimed/effect_unknownである。16:05のstderrはcapafy_free_article.py::commit_and_pushのHEAD→main pushをfetch-firstで拒否したことを示す。wrapperはblockedを記録し、次wakeはpublished slotのverified result hint不足でも止まる。過去15:09のX ERRORと別runである。既存resolverをresolve無しで一度実行すると、公式GitHub commitとlive pageによるeffected/verified proofが得られるが、まだadmissionは変更しない。
+
+- 復旧: fresh read-only検証者がoccurrence manifest、exact event/release、commitの内容/同run artifact、公式page/CTA、resolverの照合範囲を反証する。対応が証明できる場合だけ登録済resolverの同occurrenceへresolveを一度実行し、同runのeffect fence/readback snapshotを読む。失効・不足はunknownのまま次の公式読取を進め、時刻の近さだけで別runへ帰属させない。旧X ERRORの再送、他occurrenceの解除、ledgerの手動書換えは行わない。replayは隔離fixture/closure readbackで追加effect0を確認する。
+- 再発原因: capafy_free_article.py::commit_and_pushと既存self_owned_article.pyの共有Git公開経路、全caller/既存checkout lockを比較する。実証済みfetch-first競合だけを最小REDで再現し、既存の安全な同期/競合処理があれば再利用する。force-push、履歴/他writer内容の破棄、回数だけ増やすretry、別publisherは作らない。解消不能な同一ファイル競合は正確なerrorとartifactを保持する。source所有は該当publisherと既存test、必要な共有helperだけであり、source変更前に具体的な最小案を本節へ追記する。
+- 受入: exact closureを公式snapshotとadmissionで確認→同occurrenceの追加effect0→対象ownerへ修正済main由来releaseをloaded-idleで採用→次の自然slotの新記事/Xの公式receiptを別々に読む。source受入と新paid/netは別である。現在cursor=独立proof検証と既存Git公開経路の比較。
 
 **FND05 — exact effect復旧と履歴増加を分ける**
 
