@@ -16,6 +16,10 @@ allow-listed regenerable artifact after an open-path probe confirms
   databases, credentials, cookies, source, and `state/*.jsonl` are preserved.
 - Unknown paths, active leases, symlinks, open paths, and probe errors are
   preserved and recorded.
+- `.cache/codex-runtimes`, `Library/Caches/camoufox`, and
+  `.cache/life-manager/camofox-browser` are executable/dependency installations,
+  including between runs. Preserve each root and every descendant even when
+  closed; a cache directory name does not authorize deleting an installation.
 - A registered worktree is a cleanup candidate only when its exact path still
   matches Git metadata, it has no native lock, managed lease, or `.anicca-keep`
   marker, tracked/untracked/ignored state is empty, HEAD is reachable from the
