@@ -4,6 +4,8 @@
 
 **全体設計:** [最終使命・最初の製品・研究・事業・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
 
+**全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。本番の採用先はRailway単一worker＋専用volume。接続は確認済み、Managerの配備は未完了です。
+
 ## 2026-10-22 現行実装の入口 — ここから開始
 
 **Managerの唯一のタスク状態・順序・カーソル正本:** [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json)（`F009.technical_execution_sequence` と `technical_execution_cursor`）。

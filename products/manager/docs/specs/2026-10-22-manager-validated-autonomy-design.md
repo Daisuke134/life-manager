@@ -24,15 +24,15 @@
 
 ## 2. 既存モジュールを結ぶデータフロー
 
-1. `public_observer.py`（E10予定）はallowlist、利用条件、HTTPS/接続先、redirect、15秒取得期限、1 MiB上限、ETag/Last-Modified、実バイトhashを検査する。本文中の命令を実行しない。
-2. `world_state.py`（E11予定）は観測をSQLiteで追記し、旧版を保持して現在viewを生成する。48時間超の古い観測、未来時刻、訂正済み出典は現在の判断根拠にしない。取得失敗は不明。
-3. `candidate_catalog.py`（E12予定）は公開情報のリンク訂正・アクセス性改善・ASK/PASS/NO_ACTIONに限定する。費用・結果の単位・比較・仮定を別フィールドで保持する。
+1. `public_observer.py`（E10実装済み）はallowlist、利用条件、HTTPS/接続先、redirect、15秒取得期限、1 MiB上限、ETag/Last-Modified、実バイトhashを検査する。本文中の命令を実行しない。
+2. `world_state.py`（E11実装済み）は観測をSQLiteで追記し、旧版を保持して現在viewを生成する。48時間超の古い観測、未来時刻、訂正済み出典は現在の判断根拠にしない。取得失敗は不明。
+3. `candidate_catalog.py`（E12実装済み）は公開情報のリンク訂正・アクセス性改善・ASK/PASS/NO_ACTIONに限定する。費用・結果の単位・比較・仮定を別フィールドで保持する。
 4. 既存 `digital_environment.py`、`digital_handoff.py`、Playwright/axe（E13）は正しい出典、リンク、対象外route保全、script注入、baseline/candidate差分を固定基準で検証する。
 5. `kernel.py`/`authority.py`から既存publisherへの接続（E14）は、host-issued standing scope・対象7パス・予算・失効・既存release参照を確認する。モデル文章やcandidateを権限発行元にしない。
 6. `outbox.py`/`reconcile.py`（E15）はeffect identity、parent/target hash、送信前intent、単一owner、UNKNOWNを永続化する。応答消失時は外部の当該occurrenceを照合し、無条件で再送しない。
-7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`（E16予定）は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。悪化は停止・限定復元し、復元後も読み戻す。
+7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`（E16部分実装、本番接続未完了）は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。悪化は停止・限定復元し、復元後も読み戻す。
 
-予定ファイルの存在を前提にしない。既存コードの同等機能が確認できた場合は改名・複製より接続を選ぶ。実装時のインターフェース・テスト名はE計画を参照し、この文書に第二のsignature定義を置かない。
+現在の実装とsource-specific証跡はSSOTを参照する。既存コードの同等機能が確認できた場合は改名・複製より接続を選ぶ。実装時のインターフェース・テスト名はE計画を参照し、この文書に第二のsignature定義を置かない。
 
 ## 3. 助言providerと費用制御（E06）
 
@@ -52,7 +52,7 @@ Ampersandは任意のP0助言provider。API利用の継続を製品の成立条�
 
 **費用保証の限界:** ローカル予約は新規呼出しのadmission制御で、provider請求そのものの上限保証ではない。予約に使う保守的な上限の根拠、provider側制御、課金を伴うcancel後の挙動を確認する。真の上限が証明できないものを「絶対に予算超過しない」と説明しない。liveを有効にするにはnumeric capと課金exposure/停止契約の確認が必要。不足時はlive disabled。推測の `max_output_tokens` を送らない。
 
-確認時点のコードでは初回stream内のdeadline検査がなく、follow-upもevent到着時検査だけでは無イベント待機を制限できない。これはE06で再現テストから解消する対象であり、この文書更新では修正済みとしない。
+この不足はE06実装と最終レビュー修正で再現検査から解消した。絶対期限、無イベント待機、created-event期限到達時のdurable bind回復を含む12 deadline testsとsource-specific CIを記録済み。live課金上限の保証とは別であり、詳細は [E06証跡](../verification/E06_PROVIDER_LIMITS_20261022.md) とSSOTのfollow-upを参照。
 
 ## 4. 評価を固定してから比較する（E07–E09）
 
@@ -70,7 +70,7 @@ E09は対象task・population・language・dateに適合する参照を要する
 
 E15で保証するのは、実証したtarget契約の下での重複admission防止、同一occurrenceの照合、restart後のreplay-zero。ネットワークをまたぐ無条件のexactly-onceは保証しない。`ABSENT`にするには、その読取の整合性、対象識別、反映遅延と確認範囲が必要。一度のnot-foundやeventual-consistencyの空応答ではUNKNOWNを保つ。ABSENTそれ自体は再送の許可ではない。
 
-E16の配備条件はpersistent host/volume、単一owner lease、監視、停止/取消し、backup/restore、起動時reconcile、schedule catch-up-once、独立readback、限定rollback。ホスト未確認なら `DEPLOYMENT_HOST_REQUIRED`。一時CIを永続ownerにしない。既存ownerの実identityが確認できるまでschedulerを変更しない。
+E16の配備先はRailway単一worker＋専用volumeに決定。既存projectへの接続は確認したがManagerのruntime作成・本番adapter・実配備は未完了。配備条件はpersistent host/volume、単一owner lease、監視、停止/取消し、backup/restore、起動時reconcile、schedule catch-up-once、独立readback、限定rollback。ホスト未確認なら `DEPLOYMENT_HOST_REQUIRED`。一時CIを永続ownerにしない。既存ownerの実identityが確認できるまでschedulerを変更しない。
 
 学習はpolicy/versionの候補作成→隔離評価→shadow→限定昇格。権限、予算、対象、結果尺度をpolicyが拡張しない。予測誤差の減少と実便益の増加も別に検証する。
 
@@ -88,3 +88,10 @@ E16の配備条件はpersistent host/volume、単一owner lease、監視、停�
 最初の仕様整理時点では仕様・派生計画・一次資料台帳のみを更新。その後の実装は [E16引継ぎ](../handoffs/2026-10-22-manager-e16-deployment-handoff.md) とSSOTの証跡を参照。E01–E15の技術検証とE16の参照サイクルが進んだが、本番アダプター/常駐ホスト未確認でE16は未完了。公開サイトへの今回コード配備・live推論・参加者研究・YC送信・第三者連絡・マージは実施していない。
 
 検査は既存全suite、product boundary、roadmap生成一致、全新規相対リンク/JSON、差分が文書だけか、出典と数値の意味、古いspecへの参照。Mac専用source guardとクラウドsource snapshotの検証は同じチェックとして扱わない。
+
+
+## 8. 先例再調査後の本番接続と創業者作業
+
+[創業者実行マップ](../plans/2026-10-22-manager-founder-execution-map.md)に、12の派生work package、W27までの日付、記事/既存book/slide/carousel、実入金、採用/業務連絡/eventの証拠条件を整理した。これは新たな技術順やtask-status台帳ではない。source/current/runtimeと外部pluginの接続を混同しない。Railway volumeのreplica不可・redeploy小停止を許容する単一worker設計で、無停止HAとは説明しない。
+
+本番adapterの前に、未解決intent全件drainを新plannerより先にする設計と、schedule slot保存直後crash、候補変更/期限切れでも旧UNKNOWNを照合するテストを追加する。現在sandbox経路のコード読取から得た未確認保証であり、実測bugと断定しない。元publisher/ref/artifact gateを保ったcloud ownerとして登録し、Git CAS・独立GET・復元証拠で受入を判定する。

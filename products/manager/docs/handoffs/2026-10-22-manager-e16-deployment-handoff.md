@@ -14,9 +14,13 @@
 
 証跡は `docs/verification/E06_*`〜`E16_*` とSSOTの各source commit/CI。現行ブランチは `research/manager-e01-e16-execution-20261022`、PRは [#8527](https://github.com/Daisuke134/life-manager/pull/8527)、baseは `research/manager-phase06-owned-public-good-20261022`。draft/unmergedの研究PRで、本番mainではない。クラウドでMac専用source guardは未合格、代替合格とは扱わない。
 
+## 2026-10-22 cloud-first選定更新
+
+実行先はRailwayの専用Python worker＋永続volumeに決定。既存life-manager projectへのread accessを確認した。Macのホスト情報待ちを再開条件にしない。既存production serviceの用途/ownerを調べて保全し、専用isolated stagingから始める。新worker/volume、本番adapter、費用/停止設定、main/immutable-release promotionと実機証拠は未完了なのでE16はBLOCKEDのまま。新しいfounder/収益/出版/採用/W27の依存付き作業は [実行マップ](../plans/2026-10-22-manager-founder-execution-map.md) を参照。
+
 ## ここからの順番
 
-1. [E16の本番要件と未実装パッチ](../verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md) を読み、canonical hostのloaded immutable release・既存owner・永続volumeを実際に確認。registryだけで稼働を推定しない。新規/競合schedulerを作らない。
+1. [E16の本番要件と未実装パッチ](../verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md) を読み、選定したRailwayの既存service用途/ownerと、Manager専用のloaded immutable release・owner・永続volumeを実際に確認。registryだけで稼働を推定しない。新規/競合schedulerを作らない。
 2. そのhost契約に合わせ、本番cycle adapterを既存ownerへ接続。元の `phase06_kernel_release.admit_owned` / publisher / official collectorを再利用し、元SOURCE_REFを今回研究branchへ書換えて権限チェックを迂回しない。private stateはsource/releaseの外。
 3. 通常のレビュー→main→immutable release→owner apply経路で、1回の7ファイルcanary→公式commit/parent/全body照合→別経路の公開GET→replay-zero→実hostの再起動/catch-up/限定rollbackを記録。その証跡が揃うまでE16はBLOCKED。
 4. E16後もF005→F006→F008→F009の受入は別判定。人への便益、持続効果、需要/顧客、モデル優位、YCや記事公開は、対応する実証なしにdoneにしない。

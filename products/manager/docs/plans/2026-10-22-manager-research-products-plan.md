@@ -138,7 +138,7 @@ The existing three-volume teaching proposal is a packaging view of these same ca
 
 ### YC and customer learning lane — existing U/Y tasks
 
-- [ ] Y001/Y002: Refresh the existing `docs/founder/Y001_MANAGER_PITCH_EN_JA.md` and current demo material with one customer/problem hypothesis, actual P2 prototype evidence, E01–E05 status, next E06 patch and known missing human/customer evidence. Keep the full mission as the long-term direction, not a claimed present capability.
+- [ ] Y001/Y002: Refresh the existing `docs/founder/Y001_MANAGER_PITCH_EN_JA.md` and current demo material with one customer/problem hypothesis, actual dated P2 prototype evidence, E01–E15 engineering status, next E16 runtime patch and known missing human/customer evidence. Keep the full mission as the long-term direction, not a claimed present capability.
 - [ ] U002: Collect the existing required five qualifying consented interviews across affected users/operators/supporters. Record the real current workflow, recurring failure, burden, workaround and who can authorize/pay; do not manufacture quotes or send messages without authorization. This is founder learning, not per-action Manager operation.
 - [ ] U003: Compare the current owned-navigation candidate with an operator's critical-journey maintenance problem and existing static checking/monitoring/manual alternatives. Select based on actual problem evidence; customer willingness to authorize/continue/pay is not inferred from desk research.
 - [ ] Y003 preparation: Read the live official YC application/questions before assembling answers; verify founder/account/logistics, real demo link, evidence dates and any time-sensitive requirements. W27 on-time deadline snapshot is 2026-11-02 20:00 PT = 2026-11-03 04:00 UTC = 13:00 JST; recheck before submission. Full science/book completion is not an application prerequisite.
@@ -146,4 +146,13 @@ The existing three-volume teaching proposal is a packaging view of these same ca
 
 ### Immediate work order without adding a second technical cursor
 
-The next product patch is E06. While E06–E08 execute in order, independent read-only E09 data and E16 host preparation, P01 source indexing, the first source-only chapter and U/Y founder preparation can proceed. Shared schemas, source manifests, publication branch, SSOT and runtime owner are serialized. No manuscript or YC milestone advances E status. No E unit test completes the original U/D/V/G field gate.
+The next product patch is E16: the selected Railway single-worker runtime and actual deployment proof. E01–E15 have source-specific receipts and must not be repeated. P01 source indexing, the first evidence-backed chapter/case study and U/Y application/customer/career preparation proceed alongside E16; W27 submission does not wait for a finished book or field RCT. Shared schemas, source manifests, publication branch, SSOT and runtime owner are serialized. No manuscript or YC milestone advances E status. No E unit test completes the original U/D/V/G field gate.
+
+
+## 2026-10-22 precedent-based founder execution update
+
+Use the [12-package execution map](2026-10-22-manager-founder-execution-map.md) and [new first-party research](../research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md). The first canonical engineering case uses the actual deadline-cancel/recovery/replay-zero regressions, dated source and limits. The initial foundation chapter remains “Prediction, intervention, and what counts as an improvement”; reuse that case as its example rather than starting another book. After source review, derive one EN/JA article pair, one existing-book chapter, 12 slides, 8 carousel panels and a 60–90-second slideshow from the same claim IDs. Source-only manuscripts may progress now; every actual public/paid/native artifact needs its own evidence.
+
+Follow the observed structure of Hamel's eval case/code/teaching, Chip Huyen's coherent book resources, Simon Willison's small working changes with notes/releases, and Jason Liu's OSS/problem-specific teaching. Do not copy text or transfer their customers, earnings or reputation to Manager. Jason's archived consulting content is not a current open offer. Preserve the original 65/33 publication package as a historical snapshot until live re-audited.
+
+Every content release has one relevant CTA, a canonical proof/code URL, channel identification, actual permalink/readback and correction route. Measure useful technical responses, qualified conversations, applications/interviews and verified payments separately from impressions/followers. Short form points to the source-backed long form; it does not drop limitations to promise welfare outcomes or guaranteed income.
