@@ -1483,7 +1483,7 @@ class HostDiskGovernor:
             return False
         if item.get("class") == "regenerable_output" and item.get("owner") == "worktree-dependencies":
             proof = item.get("dependency_identity")
-            return isinstance(proof, tuple) and self._worktree_dependency_identity(path) == proof
+            return isinstance(proof, tuple) and self._worktree_dependency_identity(path, deadline=deadline) == proof
         if item.get("class") == "regenerable_output" and item.get("owner") == "clang-module-cache":
             cache = _darwin_clang_cache(self.home)
             proof = item.get("clang_identity")
@@ -2178,7 +2178,7 @@ class HostDiskGovernor:
                 preserve("path_still_present")
                 continue
             if item.get("owner") == "zombie-worktree":
-                records = _worktree_records(self.home / WORKTREE_REPOSITORY_RELATIVE)
+                records = _worktree_records(self.home / WORKTREE_REPOSITORY_RELATIVE, deadline=deadline, clock=self.clock)
                 if records is None or any(
                     record.get("worktree") == str(Path(os.path.abspath(path)))
                     for record in records
@@ -2347,41 +2347,6 @@ class HostDiskGovernor:
         if expired():
             return candidates
         temporary = _readonly_temp_root()
-        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
-        records = (
-            _worktree_records(repository, deadline=deadline, clock=self.clock)
-            if _real_directory_fingerprint(self.home, repository) is not None else None
-        )
-        if records is not None:
-            for record in records:
-                if deadline is not None and self.clock() >= deadline:
-                    break
-                raw_path = record.get("worktree")
-                if not isinstance(raw_path, str):
-                    continue
-                path = Path(raw_path)
-                proof = self._worktree_identity(
-                    path, records=records, deadline=deadline
-                )
-                if proof is not None:
-                    candidates.append({
-                        "path": path,
-                        "class": "regenerable_output",
-                        "owner": "zombie-worktree",
-                        "discovery": "allowlisted",
-                        "worktree_identity": proof,
-                    })
-                else:
-                    dependencies = path / "apps/life-manager/node_modules"
-                    dependency_proof = self._worktree_dependency_identity(
-                        dependencies, records=records, deadline=deadline,
-                    )
-                    if dependency_proof is not None:
-                        candidates.append({
-                            "path": dependencies, "class": "regenerable_output",
-                            "owner": "worktree-dependencies", "discovery": "allowlisted",
-                            "dependency_identity": dependency_proof,
-                        })
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",
@@ -2459,6 +2424,45 @@ class HostDiskGovernor:
                             "class": "ephemeral",
                             "owner": "temporary-run",
                             "discovery": "allowlisted",
+                        })
+        # Resolve costly Git proofs after other artifact families so an
+        # exhausted worktree proof cannot hide browser/temporary candidates.
+        if expired():
+            return candidates
+        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+        records = (
+            _worktree_records(repository, deadline=deadline, clock=self.clock)
+            if _real_directory_fingerprint(self.home, repository) is not None else None
+        )
+        if records is not None:
+            for record in records:
+                if deadline is not None and self.clock() >= deadline:
+                    break
+                raw_path = record.get("worktree")
+                if not isinstance(raw_path, str):
+                    continue
+                path = Path(raw_path)
+                proof = self._worktree_identity(
+                    path, records=records, deadline=deadline
+                )
+                if proof is not None:
+                    candidates.append({
+                        "path": path,
+                        "class": "regenerable_output",
+                        "owner": "zombie-worktree",
+                        "discovery": "allowlisted",
+                        "worktree_identity": proof,
+                    })
+                else:
+                    dependencies = path / "apps/life-manager/node_modules"
+                    dependency_proof = self._worktree_dependency_identity(
+                        dependencies, records=records, deadline=deadline,
+                    )
+                    if dependency_proof is not None:
+                        candidates.append({
+                            "path": dependencies, "class": "regenerable_output",
+                            "owner": "worktree-dependencies", "discovery": "allowlisted",
+                            "dependency_identity": dependency_proof,
                         })
         return candidates
 

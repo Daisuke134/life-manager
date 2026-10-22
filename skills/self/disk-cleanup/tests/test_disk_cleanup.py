@@ -3327,8 +3327,39 @@ def test_expired_discovery_does_not_start_another_family(tmp_path: Path, monkeyp
     assert governor.discover_candidates(deadline=1.0) == []
 
 
-def test_worktree_git_proof_obeys_remaining_discovery_time(dependency_worktree, monkeypatch) -> None:
-    governor, repo, worktree, _cache, _evidence, _git = dependency_worktree
+def test_slow_worktree_proof_cannot_hide_browser_candidates(tmp_path: Path, monkeypatch) -> None:
+    temporary = tmp_path / "tmp"
+    temporary.mkdir()
+    clone_root = tmp_path / "X"
+    clone = clone_root / "com.google.Chrome.code_sign_clone/code_sign_clone.fixture"
+    clone.mkdir(parents=True)
+    repository = tmp_path / disk_cleanup.WORKTREE_REPOSITORY_RELATIVE
+    worktree = repository / ".worktrees/slow"
+    worktree.mkdir(parents=True)
+    clock = [0.0]
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", clock=lambda: clock[0])
+    monkeypatch.setattr(disk_cleanup, "_darwin_clang_cache", lambda _home: None)
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _root: (temporary,))
+    monkeypatch.setattr(disk_cleanup, "_browser_clone_roots", lambda _root: (clone_root,))
+    monkeypatch.setattr(governor, "_referenced_releases", lambda: frozenset())
+    monkeypatch.setattr(disk_cleanup, "_worktree_records", lambda *_args, **_kwargs: [{"worktree": str(worktree)}])
+
+    def slow_proof(_path, *, deadline=None, **_kwargs):
+        clock[0] = deadline
+        return None
+
+    monkeypatch.setattr(governor, "_worktree_identity", slow_proof)
+    monkeypatch.setattr(governor, "_worktree_dependency_identity", lambda *_args, **_kwargs: None)
+    for _ in range(2):
+        clock[0] = 0.0
+        candidates = governor.discover_candidates(deadline=5.0)
+        assert clone in [Path(item["path"]) for item in candidates]
+
+
+@pytest.mark.parametrize("owner", ["zombie-worktree", "worktree-dependencies"])
+def test_worktree_git_proof_obeys_remaining_discovery_time(dependency_worktree, monkeypatch, owner: str) -> None:
+    governor, repo, worktree, cache, _evidence, _git = dependency_worktree
     clock = [10.0]
     governor.clock = lambda: clock[0]
     original_run = subprocess.run
@@ -3344,9 +3375,10 @@ def test_worktree_git_proof_obeys_remaining_discovery_time(dependency_worktree, 
         return result
 
     monkeypatch.setattr(disk_cleanup.subprocess, "run", run)
-    assert governor._allowlisted_candidate(worktree, {
-        "class": "regenerable_output", "owner": "zombie-worktree",
-        "discovery": "allowlisted", "worktree_identity": (),
+    candidate, proof = (worktree, "worktree_identity") if owner == "zombie-worktree" else (cache, "dependency_identity")
+    assert governor._allowlisted_candidate(candidate, {
+        "class": "regenerable_output", "owner": owner,
+        "discovery": "allowlisted", proof: (),
     }, deadline=10.25) is False
     assert timeouts == pytest.approx([0.25, 0.05])
 
