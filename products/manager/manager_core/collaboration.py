@@ -29,11 +29,17 @@ def _bounded_text(value: object, maximum: int) -> str:
 class PublicFact:
     source: Source
     summary: str
+    source_kind: str = "PUBLIC_SOURCE_CLAIM"
 
     def __post_init__(self):
         if type(self.source) is not Source:
             raise ValueError("original typed, public and rights-cleared source required")
         _bounded_text(self.summary, 600)
+        if self.source.source_id.startswith("synthetic:"):
+            if self.source_kind != "SYNTHETIC_SCENARIO":
+                raise ValueError("fictional source must be explicitly labeled synthetic")
+        elif self.source_kind != "PUBLIC_SOURCE_CLAIM":
+            raise ValueError("actual public origin has not been verified by this type")
 
 
 @dataclass(frozen=True)
@@ -94,6 +100,7 @@ def render_prompt(context: PlannerContext) -> str:
         "purpose": context.goal,
         "evidence": [{
             "source_id": f.source.source_id,
+            "source_kind": f.source_kind,
             "source_url": f.source.url,
             "source_sha256": f.source.content_sha256,
             "retrieved_at": f.source.retrieved_at.isoformat(),
