@@ -1,6 +1,6 @@
 """ebook_article_daily.py -- slot-gated free aniccaai.com articles that sell The Anicca Reset.
 
-2026-10-16: both eBook Instagram lanes need a human to post (English Monk Instagram has no Postiz
+2026-10-16: both eBook Instagram lanes cannot publish (English Monk Instagram has no Postiz
 integration and Postiz refuses a new channel with 402; the Japanese lane's owner is fenced). Indie
 authors get free buyers from search with useful posts on the book's theme and one link to the
 book, so this lane copies line-sticker-articles (same publisher, PII gate, agent_runner compose,
@@ -8,8 +8,8 @@ ledger and fence shape) and needs no social account at all. aniccaai.com is the 
 every Life Manager product (Dais 2026-10-08).
 
 The model writes the article; code owns the slot, slug, the single checkout link (the product's
-destination_url from the marketing registry), the PII gate and the ledger. Best-effort: a failure
-is recorded and the next slot tries again, at most MAX_ATTEMPTS per slot.
+destination_url from the marketing registry), the PII gate and the ledger. A failure
+is recorded and exits nonzero; the next slot tries again, at most MAX_ATTEMPTS per slot.
 """
 from __future__ import annotations
 
@@ -97,19 +97,25 @@ def prompt_for(product: dict, recent_titles: list[str]) -> str:
 
 
 def compose(product: dict, recent_titles: list[str], state_root: Path, task_label: str) -> dict:
-    with tempfile.TemporaryDirectory(prefix=".article-compose-", dir=state_root) as temporary:
-        evidence = Path(temporary) / "evidence"
+    # Keep failed provider evidence in the runner's existing managed layout.
+    evidence_root = state_root / "agent-runner-evidence"
+    evidence_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    evidence_parent = evidence_root / "ebook-articles"
+    evidence_parent.mkdir(mode=0o700, exist_ok=True)
+    evidence = Path(tempfile.mkdtemp(prefix=f"{task_label}-", dir=evidence_parent))
+    descriptor = os.open(evidence / "launcher.stderr.log", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as diagnostic:
         done = subprocess.run(
             [sys.executable, str(AGENT_RUNNER), "--task-class", "composition-agent",
              "--prompt-stdin", "--schema", str(SCHEMA), "--evidence-dir", str(evidence),
              "--task-label", task_label, "--loop", task_label, "--workdir", str(REPO_ROOT)],
             input=prompt_for(product, recent_titles), text=True,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=300, check=False,
+            stdout=subprocess.DEVNULL, stderr=diagnostic, timeout=300, check=False,
         )
-        if done.returncode != 0:
-            raise RuntimeError(f"ebook_article_compose_failed:{done.returncode}")
-        summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
-        result = json.loads(Path(summary["result_path"]).read_text(encoding="utf-8"))
+    if done.returncode != 0:
+        raise RuntimeError(f"ebook_article_compose_failed:{done.returncode}:evidence={evidence}")
+    summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
+    result = json.loads(Path(summary["result_path"]).read_text(encoding="utf-8"))
     if not result.get("title", "").strip() or len(result.get("body", "")) < 400:
         raise RuntimeError("ebook_article_contract_invalid")
     return result
@@ -165,8 +171,9 @@ def main(argv: list[str] | None = None) -> int:
     args, _ = parser.parse_known_args(argv)
     state_root = Path(args.state_root).expanduser()
     state_root.mkdir(parents=True, exist_ok=True)
-    print(json.dumps({"ebook_article_daily": run(dt.datetime.now(dt.timezone.utc), state_root)}, ensure_ascii=False))
-    return 0
+    result = run(dt.datetime.now(dt.timezone.utc), state_root)
+    print(json.dumps({"ebook_article_daily": result}, ensure_ascii=False))
+    return 1 if result.get("status") == "failed" else 0
 
 
 if __name__ == "__main__":

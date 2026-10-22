@@ -95,11 +95,11 @@ def test_render_uses_stdin_then_downloads_and_hashes_receipt(tmp_path):
     assert calls[2][0] == [READY["LIFE_MANAGER_HEYGEN"], "video", "create", "-d", "-", "--wait"]
     assert json.loads(calls[2][1]["input"])["script"] == "Breathe."
     assert "Breathe." not in " ".join(calls[2][0])
-    assert calls[3][0] == [
+    assert calls[4][0] == [
         READY["LIFE_MANAGER_HEYGEN"], "video", "download", "video_12345678",
         "--output-path", str(output.with_name(f".{output.name}.part")),
     ]
-    assert calls[4][0] == [READY["LIFE_MANAGER_HEYGEN"], "user", "me", "get"]
+    assert calls[3][0] == [READY["LIFE_MANAGER_HEYGEN"], "user", "me", "get"]
     assert receipt["wallet_cost"]["cost_usd"] == "0.3"
     assert not output.with_name(f".{output.name}.part").exists()
 
@@ -138,7 +138,7 @@ def test_render_records_before_after_wallet_and_measured_cost(tmp_path):
     assert receipt["wallet_cost"] == expected
     assert [call[0][1:4] for call in calls] == [
         ["auth", "status"], ["user", "me", "get"], ["video", "create", "-d"],
-        ["video", "download", "video_12345678"], ["user", "me", "get"],
+        ["user", "me", "get"], ["video", "download", "video_12345678"],
     ]
     intent = json.loads(output.with_name(f".{output.name}.heygen-effect.json").read_text())
     assert intent["wallet_cost"] == expected
@@ -428,3 +428,40 @@ def test_replay_recovers_crash_after_output_rename_without_second_create(tmp_pat
     assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
     assert sum(args[2] == "download" for args in calls if len(args) > 2) == 1
     assert json.loads(intent.read_text())["state"] == "completed"
+
+
+def test_resuming_old_video_never_attributes_later_wallet_spend(tmp_path):
+    import hashlib
+    output = tmp_path / "old-video.mp4"
+    output.write_bytes(b"already-completed-video")
+    intent_path = tmp_path / "old-effect.json"
+    request = build_request("Breathe.", configuration(READY))
+    request_hash = hashlib.sha256(json.dumps(request, ensure_ascii=False, sort_keys=True,
+                                            separators=(",", ":")).encode()).hexdigest()
+    intent_path.write_text(json.dumps({
+        "schema_version": "marketing.heygen-effect.v1", "renderer_id": "heygen-avatar-iv",
+        "request_sha256": request_hash, "output": str(output),
+        "state": "provider_created", "video_id": "video_12345678",
+        "wallet_before": {"currency": "usd", "balance_usd": "11.78", "auto_reload": {
+            "enabled": True, "amount_usd": "10", "threshold_usd": "5",
+        }},
+    }))
+    calls = []
+    def execute(args, **kwargs):
+        calls.append(args)
+        if args[1:3] == ["auth", "status"]:
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:3] == ["video", "get"]:
+            return subprocess.CompletedProcess(args, 0, json.dumps({"data": {
+                "id": "video_12345678", "status": "completed",
+            }}), "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(8.28), "")
+        raise AssertionError("an existing generation must never be recreated")
+    receipt = render(script="Breathe.", output=output, intent_path=intent_path,
+                     environment=READY, executor=execute)
+    assert receipt["state"] == "reconciliation_required"
+    saved = json.loads(intent_path.read_text())
+    assert saved["state"] == "cost_reconciliation_required"
+    assert not saved.get("wallet_cost")
+    assert not any(args[1:4] == ["user", "me", "get"] for args in calls)

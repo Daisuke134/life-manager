@@ -1,0 +1,38 @@
+{
+  "observed_at": "2026-10-22T15:20:14.810549+00:00",
+  "run_id": "ai-monk-factory-recovery-20261023",
+  "owner_id": "codex-ai-monk-root",
+  "occurrence_id": "AM-14",
+  "base_sha": "cbfc0ee33c62f56de037a246ca0caac54a441af7",
+  "phase": "source_verified_runtime_pending",
+  "commands": [
+    "pytest test_postiz_video_pre_effect.py",
+    "pytest test_heygen_candidate.py",
+    "pytest test_ebook_article_daily.py",
+    "node --test ebook-distribute-daily.test.js"
+  ],
+  "focused_tests": {
+    "postiz": 5,
+    "heygen": 13,
+    "article": 16,
+    "ebook_owner_js": 24,
+    "all_passed": true
+  },
+  "effect": "no_new_video_or_post_dispatched",
+  "readback": {
+    "Postiz": "19 existing ebook publications in prior 7 days; none since October 21",
+    "HeyGen": "official completed video and exact scenes script/avatar/voice match"
+  },
+  "provider_receipt_id": "492ee7b0f41372ab6856594c9096ea6f",
+  "request_sha256": "4519ee11894303b3dce9316621a969334375669c333642c3163a4bf6690bf814",
+  "video_sha256": "7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566",
+  "wallet_cost_usd": null,
+  "current_wallet_balance_usd": "8.28",
+  "evidence_refs": [
+    "~/.local/state/life-manager/ebook/evidence/heygen-0be570-recovery-20261023/provider-scenes-proof.json",
+    "~/.local/state/life-manager/ebook/evidence/heygen-0be570-recovery-20261023/cost-readback.json"
+  ],
+  "error_class": "historical_per_video_cost_unavailable",
+  "retryable": false,
+  "next_action": "fresh review, main integration, immutable target adoption, preserve unknown cost and provider fences"
+}

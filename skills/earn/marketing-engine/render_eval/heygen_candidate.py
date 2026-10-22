@@ -219,6 +219,7 @@ def render(
             return {"renderer_id": "heygen-avatar-iv", "state": "setup_required",
                     "missing": ["heygen_wallet_above_auto_reload_threshold"],
                     "external_effects": []}
+    created_in_this_run = False
     try:
         descriptor = os.open(intent_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
@@ -260,6 +261,7 @@ def render(
                     "effect_key": request_sha256,
                     "external_effects": ["heygen_video_created"]}
     else:
+        created_in_this_run = True
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             json.dump({**expected, "state": "prepared", "wallet_before": wallet_before},
                       handle, ensure_ascii=False, sort_keys=True, indent=2)
@@ -299,6 +301,15 @@ def render(
             intent.update({"create_exit_code": create_exit_code,
                            "create_error_class": create_error_class})
         _write_json(intent_path, intent)
+        # Save this attempt's delta before a fallible download or later resume.
+        # A resume must never include unrelated spending since this request.
+        try:
+            wallet_after = _wallet_snapshot(executor, config["cli"])
+            intent.update(wallet_after=wallet_after,
+                          wallet_cost=_measured_wallet_cost(wallet_before, wallet_after))
+        except Exception as exc:
+            intent["wallet_after_error_class"] = type(exc).__name__
+        _write_json(intent_path, intent)
         if create_exit_code or provider_status != "completed":
             pending = {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
                        "video_id": video_id, "provider_status": provider_status or None,
@@ -321,19 +332,12 @@ def render(
         finally:
             if staging.exists():
                 staging.unlink()
-    try:
-        wallet_after = _wallet_snapshot(executor, config["cli"])
-    except Exception as exc:
-        _write_json(intent_path, {**expected, "state": "cost_reconciliation_required",
-                                  "video_id": video_id, "wallet_before": wallet_before,
-                                  "wallet_after_error_class": type(exc).__name__})
-        return {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
-                "video_id": video_id, "effect_key": request_sha256, "external_effects": []}
-    wallet_cost = _measured_wallet_cost(wallet_before, wallet_after)
-    if wallet_cost is None:
-        _write_json(intent_path, {**expected, "state": "cost_reconciliation_required",
-                                  "video_id": video_id, "wallet_before": wallet_before,
-                                  "wallet_after": wallet_after})
+    wallet_cost = intent.get("wallet_cost")
+    if not isinstance(wallet_cost, dict):
+        _write_json(intent_path, {**intent, "state": "cost_reconciliation_required",
+                                  "cost_reconciliation_reason": (
+                                      "wallet_delta_unavailable" if created_in_this_run
+                                      else "resumed_wallet_delta_not_attributable")})
         return {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
                 "video_id": video_id, "effect_key": request_sha256, "external_effects": []}
     receipt = _receipt(output, video_id, wallet_cost)

@@ -49,3 +49,28 @@ def test_read_only_postiz_preflight_failure_preserves_no_effect_marker(tmp_path,
         postiz_video._publish(args, "token", "caption")
 
     assert hint.exists() is True
+
+
+@pytest.mark.parametrize("integration,own_business", [
+    ("cmo5rwq2p00twn10yrsdglng3", True),
+    ("cmo5s4edx00vgn10ygnu34a0n", True),
+    ("unregistered-tiktok-route", False),
+])
+def test_ebook_tiktok_payload_uses_own_business_disclosure(tmp_path, integration, own_business):
+    media = tmp_path / "monk.mp4"
+    media.write_bytes(b"original-monk-video")
+    args = Namespace(image=[], video=media, title="Reflection",
+                     integration=integration, platform="tiktok")
+    captured = []
+    with (patch.object(postiz_video, "read_recent_posts", return_value=[]),
+          patch.object(postiz_video, "find_existing_post", return_value=None),
+          patch.object(postiz_video, "upload_video", return_value=("upload-1", "/uploads/monk.mp4")),
+          patch.object(postiz_video, "create_post", side_effect=lambda payload, key: captured.append(payload) or "post-1"),
+          patch.object(postiz_video, "read_publish_state", return_value={
+              "state": "PUBLISHED", "post_url": "https://www.tiktok.com/@monk_anicca/video/123",
+          }), patch.object(postiz_video.time, "sleep")):
+        assert postiz_video._publish(args, "token", "Our original reflection book") == 0
+    settings = captured[0]["posts"][0]["settings"]
+    assert settings["brand_organic_toggle"] is own_business
+    assert settings["brand_content_toggle"] is False
+    assert settings["video_made_with_ai"] is True
