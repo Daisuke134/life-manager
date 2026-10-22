@@ -114,7 +114,7 @@ class FakeInitialStream:
         return iter([NS(type="agent.session.created"),NS(type="agent.session.idle")])
     def get_final_result(self):
         return NS(output_text='{"decision":"ASK","reason":"check first","source_ids":[]}',
-                  session_id="sess_test")
+                  session_id="sess_12345678")
 
 
 class FakeCreate:
@@ -138,7 +138,7 @@ class FakeSessions:
             NS(id="turn_test",status=turn_status,usage=NS(input_tokens=17, output_tokens=11))]))
         self.events=NS(stream=lambda *args:FakeEventsStream(events or [
             NS(type="agent.session.turn.output_text.done",text='{"decision":"PASS","reason":"wait","source_ids":[]}'),
-            NS(type="agent.session.turn.completed",turn_id="turn_followup")]),
+            NS(type="agent.session.turn.completed",turn_id="turn_test")]),
             create=self.capture)
         self.sent=[]
     def capture(self,*args,**kwargs): self.sent.append((args,kwargs))
@@ -151,7 +151,7 @@ class SDKContractTests(unittest.TestCase):
     def test_create_readback_requires_completed_turn(self):
         s=FakeSessions()
         result=read_initial_turn(self.client(s),"fictional plan","advisory only")
-        self.assertEqual(result.session_id,"sess_test")
+        self.assertEqual(result.session_id,"sess_12345678")
         self.assertEqual(result.status,"completed")
         self.assertEqual(result.turn_id,"turn_test")
         self.assertIn("ASK",result.output_text)
@@ -166,19 +166,19 @@ class SDKContractTests(unittest.TestCase):
 
     def test_same_session_followup_is_one_idempotent_event(self):
         s=FakeSessions()
-        r=read_followup_turn(self.client(s),"sess_test","What about Monday?",key="followup-01")
-        self.assertEqual(r.session_id,"sess_test")
+        r=read_followup_turn(self.client(s),"sess_12345678","What about Monday?",key="followup-01")
+        self.assertEqual(r.session_id,"sess_12345678")
         self.assertIn("PASS",r.output_text)
         self.assertEqual(len(s.sent),1)
         args,kw=s.sent[0]
-        self.assertEqual(args,("sess_test",))
+        self.assertEqual(args,("sess_12345678",))
         self.assertEqual(kw["idempotency_key"],"followup-01")
         self.assertEqual(kw["events"][0]["type"],"agent.session.input.message")
 
     def test_same_session_fail_closed_no_final_turn(self):
         s=FakeSessions(events=[NS(type="agent.session.turn.output_text.done",text="Partial")])
         with self.assertRaises(SessionFailure):
-            read_followup_turn(self.client(s),"sess_test","hello",key="case-02")
+            read_followup_turn(self.client(s),"sess_12345678","hello",key="case-02")
 
     def test_no_tools_and_bad_key_rejected(self):
         for k in ["", "日本語", "hak_cyrillicх", "not-a-key", "hak_"]:
@@ -187,7 +187,7 @@ class SDKContractTests(unittest.TestCase):
 
     def test_followup_rejects_missing_retry_key(self):
         with self.assertRaises(ValueError):
-            read_followup_turn(self.client(FakeSessions()),"sess_test","hi",key="")
+            read_followup_turn(self.client(FakeSessions()),"sess_12345678","hi",key="")
 
 
 if __name__=="__main__":
