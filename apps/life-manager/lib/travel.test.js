@@ -205,27 +205,40 @@ test("legacy Calendar travel writes do not gain a Web-only popup reminder", asyn
 async function withTravelClaimStore(run) {
   const originalFetch = globalThis.fetch;
   const claims = new Set();
+  const rows = new Map();
   const deletes = [];
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(String(input));
     if (url.pathname !== "/rest/v1/lm_travel_log") throw new Error("unexpected test fetch");
     const body = init.body ? JSON.parse(init.body) : null;
     const eventKey = body?.event_key || url.searchParams.get("event_key")?.replace(/^eq\./, "");
-    const leg = body?.leg || url.searchParams.get("leg")?.replace(/^eq\./, "");
+    const leg = body?.leg || (url.searchParams.get("leg")?.startsWith("eq.") ? url.searchParams.get("leg").slice(3) : null);
     const key = `${eventKey}:${leg}`;
     if (init.method === "POST") {
       if (claims.has(key)) return { status: 409 };
       claims.add(key);
+      rows.set(key, structuredClone(body));
       return { status: 201 };
+    }
+    if (!init.method || init.method === "GET") return { ok: true, status: 200, json: async () =>
+      [...rows.values()].filter((row) => row.uid === url.searchParams.get("uid")?.replace(/^eq\./, "")
+        && row.event_key === eventKey && (!leg || row.leg === leg)).map((row) => structuredClone(row)) };
+    if (init.method === "PATCH") {
+      const row = rows.get(key);
+      const requestId = url.searchParams.get("calendar_write_receipt->>request_id")?.replace(/^eq\./, "");
+      const matched = row && row.calendar_write_receipt?.request_id === requestId;
+      if (matched) Object.assign(row, structuredClone(body));
+      return { ok: true, status: 200, json: async () => matched ? [structuredClone(row)] : [] };
     }
     if (init.method === "DELETE") {
       deletes.push(key);
       claims.delete(key);
+      rows.delete(key);
       return { status: 204 };
     }
     throw new Error("unexpected travel log method");
   };
-  try { await run({ claims, deletes }); }
+  try { await run({ claims, deletes, rows }); }
   finally { globalThis.fetch = originalFetch; }
 }
 
@@ -567,15 +580,23 @@ function makeUnknownGoCalendar(readback = () => []) {
     end: { dateTime: "2030-01-01T11:00:00+09:00" },
   };
   return {
-    calls, reads,
+    kind: "composio", calls, reads,
     async listEventsRaw(_uid, options) {
       reads.push(options);
       readCount++;
       return readCount === 1 ? [original] : readback(calls[0]?.args, original);
     },
-    async createEvent(_uid, args, options) {
+    async listOwnedEvents(_uid, options) {
+      reads.push({ ...options, strict: true });
+      return readback(calls[0]?.args, original);
+    },
+    async createEvent(uid, args, options) {
       calls.push({ args, options });
-      return { successful: false, effect: "unknown" };
+      const { createHash } = require("node:crypto");
+      await options.beforeDispatch({ account_ref_hash: createHash("sha256").update(JSON.stringify([uid, "ca-expected"])).digest("hex"),
+        command: "calendar.create" });
+      return { successful: false, effect: "unknown", writeReceipt: { phase: "response", effect: "unknown",
+        http_status: 200, error_class: "unconfirmed_response", provider_event_id: null } };
     },
   };
 }
@@ -584,7 +605,7 @@ function createdTravelRow(args) {
   const startMs = Date.parse(`${args.start_datetime}Z`);
   const durationMs = (args.event_duration_hour * 60 + args.event_duration_minutes) * 60000;
   return {
-    id: "travel-readback", summary: args.summary, location: args.location,
+    id: "travel-readback", summary: args.summary, location: args.location, description: args.description,
     start: { dateTime: new Date(startMs).toISOString() },
     end: { dateTime: new Date(startMs + durationMs).toISOString() },
     reminders: args.reminders,
@@ -596,6 +617,282 @@ const GO_TRAVEL_OPTIONS = {
   expectedCalendarAccountId: "ca-expected", supaUrl: "https://db.example", supaKey: "fixture",
   _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
 };
+
+async function withDurableTravelFixture(run) {
+  const { makeComposioCalendar } = require("./transport/calendar-composio.js");
+  const originalFetch = globalThis.fetch;
+  const uid = "hybrid-receipt-fixture";
+  const accountId = "ca-hybrid-fixture";
+  const source = { id: "synthetic-source", updated: "2030-01-01T00:00:00Z", summary: "Fixture meeting", location: "Fixture venue",
+    start: { dateTime: "2030-01-01T10:00:00Z" }, end: { dateTime: "2030-01-01T11:00:00Z" } };
+  const rows = new Map();
+  const creates = [];
+  const deletes = [];
+  const ledger = [];
+  const updates = [];
+  const state = { visible: true, response: "timeout", rejectPhase: null, wrongTenant: false,
+    extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
+    ledgerSaved: true, onDispatch: null, rejectDelete: false };
+  const clone = (value) => structuredClone(value);
+  const fetchImpl = async (input, init = {}) => {
+    const url = new URL(String(input));
+    const method = init.method || "GET";
+    const body = init.body && JSON.parse(init.body);
+    const response = (value, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => clone(value) });
+    if (url.hostname === "db.example") {
+      if (url.pathname.endsWith("/lm_users")) return response([{ uid, telegram_chat_id: 123,
+        calendar_provider: "composio_gcal", calendar_connected_account_id: accountId }]);
+      assert.equal(url.pathname, "/rest/v1/lm_travel_log");
+      const eventKey = body?.event_key || url.searchParams.get("event_key")?.replace(/^eq\./, "");
+      const leg = body?.leg || (url.searchParams.get("leg")?.startsWith("eq.") ? url.searchParams.get("leg").slice(3) : null);
+      const key = `${eventKey}:${leg}`;
+      if (method === "POST") {
+        if (rows.has(key)) { state.conflicts++; return response(null, 409); }
+        rows.set(key, clone(body));
+        return response(null, 201);
+      }
+      if (method === "PATCH") {
+        updates.push(clone(body.calendar_write_receipt));
+        if (body.calendar_write_receipt?.phase === state.rejectPhase) return response(null, 503);
+        const row = rows.get(key);
+        const requestId = url.searchParams.get("calendar_write_receipt->>request_id")?.replace(/^eq\./, "");
+        if (!row || row.uid !== uid || row.calendar_write_receipt?.request_id !== requestId) return response([]);
+        const phase = url.searchParams.get("calendar_write_receipt->>phase")?.replace(/^eq\./, "");
+        if (phase && row.calendar_write_receipt.phase !== phase) return response([]);
+        const effect = url.searchParams.get("calendar_write_receipt->>effect");
+        if (effect === "eq.unknown" && row.calendar_write_receipt.effect !== "unknown") return response([]);
+        Object.assign(row, clone(body));
+        return response([row]);
+      }
+      if (method === "DELETE") {
+        deletes.push(key);
+        if (state.rejectDelete) return response(null, 503);
+        const row = rows.get(key);
+        const requestId = url.searchParams.get("calendar_write_receipt->>request_id")?.replace(/^eq\./, "");
+        if (requestId) assert.equal(url.searchParams.get("calendar_write_receipt->>effect"), "eq.no_effect");
+        if (requestId && (row?.calendar_write_receipt?.request_id !== requestId
+          || row.calendar_write_receipt.effect !== "no_effect")) return response(null, 204);
+        rows.delete(key); return response(null, 204);
+      }
+      if (state.hideClaimReads-- > 0) return response([]);
+      return response([...rows.values()].filter((row) => row.uid === uid && row.event_key === eventKey && (!leg || row.leg === leg)));
+    }
+    assert.equal(url.hostname, "backend.composio.dev", "fixture must never reach another host");
+    if (url.pathname.includes("/connected_accounts/")) return response({ id: accountId,
+      user_id: state.wrongTenant ? "other-tenant" : uid, toolkit_slug: "googlecalendar", status: "ACTIVE" });
+    if (url.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST")) {
+      if (state.readError && creates.length) throw new Error("synthetic read failure");
+      return response({ successful: true, data: { items: [source, ...(state.visible ? creates.map((args) => ({
+        ...createdTravelRow(args), ...(state.omitMarker ? { description: "User-created travel" } : {}),
+      })) : []), ...state.extraRows] } });
+    }
+    assert.equal(url.pathname.endsWith("GOOGLECALENDAR_CREATE_EVENT"), true);
+    creates.push(clone(body.arguments));
+    state.phaseAtDispatch = clone(rows.get("synthetic-source:go")?.calendar_write_receipt);
+    if (state.onDispatch) await state.onDispatch();
+    if (state.response === "timeout") throw new Error("synthetic post-dispatch timeout");
+    if (state.response === "validation") return response({ error: "invalid parameters" }, 400);
+    if (state.response === "unclassified-4xx") return response({ error: "opaque rejection" }, 400);
+    return response({ successful: true, data: { id: "travel-readback" } });
+  };
+  globalThis.fetch = fetchImpl;
+  const calendar = makeComposioCalendar({ apiKey: "fixture", supaUrl: "https://db.example", supaKey: "fixture",
+    fetchImpl, recordCall: async (_uid, tool, details) => { ledger.push({ tool, ...details }); return state.ledgerSaved; } });
+  const options = { home: "Fixture home", mapsKey: "fixture", nowMs: Date.parse("2030-01-01T08:00:00Z"),
+    calendar, supaUrl: "https://db.example", supaKey: "fixture",
+    _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20 };
+  try { await run({ uid, source, rows, creates, deletes, ledger, updates, state, calendar, options }); }
+  finally { globalThis.fetch = originalFetch; }
+}
+
+test("CLD02 Hybrid unknown create is verified only by its durable owned marker receipt", async () => {
+  await withDurableTravelFixture(async (f) => {
+    const result = await fillTravel(f.uid, f.options);
+    assert.equal(result.verified, 1);
+    assert.equal(result.inserted, 0);
+    const receipt = f.rows.get("synthetic-source:go").calendar_write_receipt;
+    assert.equal(f.state.phaseAtDispatch.phase, "dispatching");
+    for (const field of ["request_id", "source_event_hash", "source_event_version", "request_fingerprint", "account_ref_hash"]) {
+      assert.match(receipt[field], /^[a-f0-9]{64}$/);
+    }
+    assert.equal(receipt.effect, "verified");
+    assert.equal(receipt.provider_event_id, "travel-readback");
+    assert.equal(receipt.readback, "exact_one");
+    assert.equal(receipt.leg, "go");
+    assert.equal(JSON.stringify(receipt).includes("Fixture venue"), false);
+    assert.equal(JSON.stringify(receipt).includes("Fixture meeting"), false);
+    assert.equal(JSON.stringify(receipt).includes("fixture-service"), false);
+    const createCost = f.ledger.find((entry) => entry.tool === "GOOGLECALENDAR_CREATE_EVENT");
+    assert.equal(createCost.travelWrite.request_id, receipt.request_id);
+    assert.equal(createCost.travelWrite.source_event_version, receipt.source_event_version);
+    assert.equal(createCost.travelWrite.account_ref_hash, receipt.account_ref_hash);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD02 claim409 reconciles a prior dispatch read-only, including a stop before response persistence", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.visible = false;
+    f.state.rejectPhase = "response";
+    await fillTravel(f.uid, f.options);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.phase, "dispatching");
+    f.state.rejectPhase = null;
+    // The normal cached view still lacks the helper; the owned readback sees the provider result.
+    const initialList = f.calendar.listEventsRaw;
+    f.calendar.listEventsRaw = async () => [structuredClone(f.source)];
+    f.state.visible = true;
+    f.state.hideClaimReads = 1; // simulate a concurrent insert after the initial claim read
+    const result = await fillTravel(f.uid, f.options);
+    f.calendar.listEventsRaw = initialList;
+    assert.equal(result.verified, 1);
+    assert.equal(f.state.conflicts, 1);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+    const replay = await fillTravel(f.uid, f.options);
+    assert.equal(replay.inserted, 0);
+    assert.equal(f.creates.length, 1);
+  });
+});
+
+test("CLD02 absent, ambiguous, missing-marker, wrong-tenant, or failed readback retains unknown without replay", async () => {
+  for (const scenario of ["absent", "ambiguous", "missing-marker", "wrong-tenant", "failed"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      await fillTravel(f.uid, f.options);
+      f.state.visible = scenario !== "absent";
+      f.state.omitMarker = scenario === "missing-marker";
+      f.state.wrongTenant = scenario === "wrong-tenant";
+      f.state.readError = scenario === "failed";
+      if (scenario === "ambiguous") f.state.extraRows = [createdTravelRow(f.creates[0])];
+      f.calendar.listEventsRaw = async () => [structuredClone(f.source)];
+      const result = await fillTravel(f.uid, f.options);
+      assert.equal(result.verified, 0, scenario);
+      assert.equal(result.inserted, 0, scenario);
+      assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "unknown", scenario);
+      assert.equal(f.creates.length, 1, scenario);
+      assert.deepEqual(f.deletes, [], scenario);
+    });
+  }
+});
+
+test("CLD02 dispatch requires durable proof, and old or changed-source claims remain fenced", async () => {
+  for (const scenario of ["pre-dispatch-stop", "legacy", "changed-source", "wrong-row-tenant"]) {
+    await withDurableTravelFixture(async (f) => {
+      if (scenario === "pre-dispatch-stop") f.state.rejectPhase = "dispatching";
+      if (scenario === "legacy") f.rows.set("synthetic-source:go", { uid: f.uid, event_key: f.source.id, leg: "go" });
+      if (scenario === "changed-source" || scenario === "wrong-row-tenant") {
+        f.state.visible = false;
+        await fillTravel(f.uid, f.options);
+        if (scenario === "changed-source") f.source.updated = "2030-01-01T00:01:00Z";
+        else f.rows.get("synthetic-source:go").uid = "another-tenant";
+      }
+      const before = f.creates.length;
+      const result = await fillTravel(f.uid, f.options);
+      assert.equal(result.inserted, 0, scenario);
+      assert.equal(result.verified, 0, scenario);
+      assert.equal(f.creates.length, before, scenario);
+      assert.deepEqual(f.deletes, [], scenario);
+    });
+  }
+});
+
+test("CLD02 a late unknown response cannot overwrite another wake's verified receipt", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.onDispatch = async () => {
+      const concurrent = await fillTravel(f.uid, f.options);
+      assert.equal(concurrent.verified, 1);
+      f.state.visible = false;
+    };
+    await fillTravel(f.uid, f.options);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD02 exact validation rejection releases its durable attempt; opaque rejection stays unknown", async () => {
+  for (const scenario of ["validation", "validation-ledger-failed", "unclassified-4xx"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      f.state.response = scenario.startsWith("validation") ? "validation" : scenario;
+      f.state.ledgerSaved = scenario !== "validation-ledger-failed";
+      await fillTravel(f.uid, f.options);
+      const receipt = f.updates.findLast((update) => update.phase === "response");
+      assert.equal(receipt.http_status, 400);
+      assert.equal(receipt.effect, scenario === "unclassified-4xx" ? "unknown" : "no_effect");
+      assert.equal(receipt.error_class, scenario === "unclassified-4xx" ? "unclassified_response" : "provider_validation");
+      assert.equal(f.deletes.length, scenario.startsWith("validation") ? 1 : 0);
+      if (scenario === "unclassified-4xx") {
+        const before = f.creates.length;
+        await fillTravel(f.uid, f.options);
+        assert.equal(f.creates.length, before);
+      }
+    });
+  }
+});
+
+test("CLD02 proven no-effect releases despite best-effort cost failure and retries a failed scoped delete", async () => {
+  for (const scenario of ["cost-failed", "delete-failed"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      f.state.response = "validation";
+      f.state.ledgerSaved = scenario !== "cost-failed";
+      f.state.rejectDelete = scenario === "delete-failed";
+      await fillTravel(f.uid, f.options);
+      if (scenario === "cost-failed") assert.equal(f.rows.has("synthetic-source:go"), false);
+      else assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "no_effect");
+      f.state.rejectDelete = false;
+      f.state.ledgerSaved = true;
+      f.state.response = "timeout";
+      f.calendar.listEventsRaw = async () => [structuredClone(f.source)];
+      await fillTravel(f.uid, f.options);
+      assert.equal(f.creates.length, 2, scenario);
+      assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "unknown", scenario);
+      await fillTravel(f.uid, f.options);
+      assert.equal(f.creates.length, 2, "an uncertain new attempt must stay fenced");
+    });
+  }
+});
+
+test("CLD02 official source revision overrides a stale ordinary reader before verifying its helper", async () => {
+  for (const scenario of ["changed", "cancelled", "absent"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      await fillTravel(f.uid, f.options);
+      const cached = structuredClone(f.source);
+      f.calendar.listEventsRaw = async () => [cached];
+      f.state.visible = true;
+      const ownedList = f.calendar.listOwnedEvents.bind(f.calendar);
+      f.calendar.listOwnedEvents = async (...args) => (await ownedList(...args))
+        .filter((event) => scenario !== "absent" || event.id !== f.source.id)
+        .map((event) => event.id !== f.source.id ? event : scenario === "changed"
+          ? { ...event, start: { dateTime: "2030-01-01T12:00:00Z" } }
+          : scenario === "cancelled" ? { ...event, status: "cancelled" } : event);
+      const result = await fillTravel(f.uid, f.options);
+      assert.equal(result.verified, 0, scenario);
+      assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "unknown", scenario);
+      assert.equal(f.creates.length, 1, scenario);
+      assert.deepEqual(f.deletes, [], scenario);
+    });
+  }
+});
+
+test("CLD02 an unresolved claim's reconciliation does not dispatch the Web reminder repair", async () => {
+  await withTravelClaimStore(async ({ deletes }) => {
+    const calendar = makeUnknownGoCalendar((args, original) => {
+      const helper = createdTravelRow(args);
+      helper.reminders = { useDefault: true };
+      return [original, helper];
+    });
+    let patches = 0;
+    calendar.patchEvent = async () => { patches++; return { successful: true, effect: "updated" }; };
+    await fillTravel("web-unknown-repair", { ...GO_TRAVEL_OPTIONS, calendar });
+    await fillTravel("web-unknown-repair", { ...GO_TRAVEL_OPTIONS, calendar });
+    assert.equal(patches, 0);
+    assert.equal(calendar.calls.length, 1);
+    assert.deepEqual(deletes, []);
+  });
+});
 
 test("Web initial scan repairs one Life Manager Travel duplicate's missing departure popup without creating another block", async () => {
   const eventRows = [
@@ -877,6 +1174,9 @@ test("strict readback after an unknown Composio create does not reuse cached pre
           uid: "tenant-cached", telegram_chat_id: null, calendar_provider: "composio_gcal",
           calendar_connected_account_id: "ca-expected",
         }] };
+        if (url.pathname.endsWith("/connected_accounts/ca-expected")) return { ok: true, status: 200, json: async () => ({
+          id: "ca-expected", user_id: "tenant-cached", toolkit_slug: "googlecalendar", status: "ACTIVE",
+        }) };
         const body = JSON.parse(init.body);
         providerCalls.push(body);
         if (url.pathname.endsWith("/GOOGLECALENDAR_EVENTS_LIST")) {
@@ -886,6 +1186,7 @@ test("strict readback after an unknown Composio create does not reuse cached pre
             const startMs = Date.parse(createArgs.start.dateTime);
             const endMs = Date.parse(createArgs.end.dateTime);
             items.push({ id: "created-after-write", summary: createArgs.summary, location: createArgs.location,
+              description: createArgs.description,
               start: { dateTime: new Date(startMs).toISOString() },
               end: { dateTime: new Date(endMs).toISOString() },
               reminders: createArgs.reminders });
