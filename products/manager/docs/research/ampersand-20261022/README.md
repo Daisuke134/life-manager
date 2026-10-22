@@ -26,7 +26,7 @@ does not show whether an authenticated account could use the model.
 | File | Public URL | Retrieval time, UTC | Bytes | SHA-256 |
 |---|---|---|---:|---|
 | Aggregate data | [life-combined-data.js](https://ampersand.humansand.ai/blog/life-combined-data.js?v=no-note-1) | 2026-10-21 23:33:45.463593 | 2,046 | `196aff6d814a702058528c8d158e32d00340dde40e0096b9553f364dd4f917f1` |
-| Chart configuration | [evaluations.js](https://ampersand.humansand.ai/blog/evaluations.js) | 2026-10-21 23:33:45.633121 | 63,968 | `f5160c6d396acb368a52f2358b16c112b645f7551a61c1de1cfac166f70bbc89` |
+| Chart configuration | [evaluations.js](https://ampersand.humansand.ai/blog/evaluations.js) | 2026-10-21 23:33:45.633121 | 63,968 | `f5160c6d396acb36852f2358b16c112b645f7551a61c1de1cfac166f70bbc89` |
 
 The retrieval timestamps are fixed provenance. Running the calculation again does
 not replace them with the current time. If the upstream file changes, the script
@@ -152,3 +152,13 @@ The user requested that newly researched material be saved as **files** and **no
 - [Prioritized implementation backlog and actual experiment record](IMPLEMENTATION_ORDER_AND_PROBE_RECORD.md) — detailed observation/planning/evaluation architecture, dependency gates and next actions.
 
 Publication manifest, generated blog artifact hashes, payment workflows, and the original 113-task Manager roadmap are deliberately unchanged by this extension. Keep study provenance, simulated data, model-provider claims, mathematical reanalysis, API trial evidence and independently measured human effects as separate classes. If future vendor evidence changes, add dated errata rather than silently rewriting this frozen public snapshot.
+
+## Follow-up: simulation, reality and suffering (2026-10-22)
+
+[Simulation and Reality: Reactions, Suffering, and Human Agency](SIMULATION_REALITY_SUFFERING.md) adds English/Japanese material, ten proposed synthetic tests, and ordered integration tasks. Distinguish reaction, self-report, material conditions, autonomy, and longer-term causal outcomes. Compare communication with removing environmental barriers; do not optimize agreement alone.
+
+A credential was subsequently supplied by the user. The earlier `BLOCKED_NO_API_KEY` entry above is a historical observation, **not the present blocker**. The current execution environment could not complete the external API preflight, and a browser execution check was blocked. The credential was not sent to any provider or stored in files. Authenticated requests, model inference, Persimmon simulations, and human interventions in this follow-up are all **0**. Credential validity and model availability remain unverified, not rejected.
+
+Code review also established that the existing `--smoke` path ends after session creation; it does not retrieve the completed answer. Extend and verify that readback before reporting a successful inference test. The proposed ten cases are NOT RUN, and the earlier mock-test report has not been rerun in this follow-up.
+
+No article publication or deployment was initiated. This repository is public: a manuscript stored here is not confidential. Credentials, actual participant profiles, and private conversations must remain outside Git.
