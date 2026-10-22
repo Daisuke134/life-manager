@@ -2,6 +2,8 @@
 
 唯一の状態正本は [tasks.json](../roadmap/tasks.json) のF009。技術順は既存E01→E16、次のカーソルはE16。E01–E15をやり直さない。原113件の69 done /41 todo /3 skippedは別の受入状態で、Eの実装件数を加算しない。
 
+**後続source実装:** 過去intent先行回収、checkpointで再利用できない送信境界、commitとdeliveryの分離、lag/hash-onlyでrollbackしない処理を追加した。[実装・684テスト・16ケース実測の記録](../verification/E16_RECOVERY_HARDENING_20261022.md)。本番host adapter/privileged bridge/volume/実canaryは未成立で、E16の状態は変わらない。
+
 ## 実装済みの範囲
 
 - E06: 同期providerの絶対期限、cancel/正確なturn読戻し、予算の未知状態保持。新しいlive推論なし。

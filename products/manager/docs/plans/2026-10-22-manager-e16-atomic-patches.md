@@ -7,6 +7,8 @@
 **Tech Stack:** 現core Python>=3.11、SQLite、GitHub既存publisher、Playwright/axe、既存python-pptx/FFmpeg/記事installer。追加runtimeは比較後に固定版とlicenseを確認。
 **Spec:** [製品仕様](../MANAGER_PRODUCT_SPEC.md)、[追加選択肢調査](../research/manager-options-additional-20261022/REPORT_JA.md)。
 
+**実行再開の記録:** 後続の継続指示でsource実装へ進んだ。PATCH-01、PATCH-02の送信境界と隔離比較、PATCH-04のcollector/typed deliveryを実装・P0検証した。実結果と残る本番条件は [recovery receipt](../verification/E16_RECOVERY_HARDENING_20261022.md) を参照。以下の未チェックを本番完了と読み替えず、既実装部分を再作成しない。PATCH-05/06とE16実配備の受入れは未達。
+
 ## Global constraints
 
 - 状態・依存・Eカーソルは既存 [tasks.json](../roadmap/tasks.json)。PATCH番号は派生実装単位であり、新task/進捗authorityではない。E16と原113件の状態をこの文書だけで進めない。
