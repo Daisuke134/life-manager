@@ -54,6 +54,26 @@ jobs:
                           t=turns.data[0]
                           print("TURN_STATUS_CLASS="+str(getattr(t,"status","UNKNOWN")))
                           print("TURN_HAS_USAGE="+str(getattr(t,"usage",None) is not None))
+                          exact=client.beta.agents.sessions.turns.retrieve(sid,t.id)
+                          print("EXACT_TURN_READBACK="+str(exact.id==t.id))
+                      page=client.beta.agents.sessions.items.list(sid,limit=5,order="desc")
+                      print("SAVED_ITEM_COUNT="+str(len(page.data)))
+                      print("SAVED_ITEM_PAGE_HAS_MORE="+str(page.has_more))
+                      print("SAVED_ITEM_IDS_START_WITH_ITEM="+str(all(
+                          isinstance(item.id,str) and item.id.startswith("item_")
+                          for item in page.data)))
+                      print("SAVED_ASSISTANT_MESSAGES="+str(sum(
+                          getattr(item,"type",None)=="message" and
+                          getattr(item,"role",None)=="assistant"
+                          for item in page.data)))
+                      content_types=set()
+                      for item in page.data:
+                          if getattr(item,"type",None)=="message":
+                              for c in getattr(item,"content",[]) or []:
+                                  kind=(c.get("type") if isinstance(c,dict)
+                                        else getattr(c,"type",None))
+                                  content_types.add(str(kind))
+                      print("SAVED_CONTENT_TYPES="+",".join(sorted(content_types)))
           except Exception as exc:
               print("E05_READONLY=ERROR")
               print("ERROR_CLASS="+type(exc).__name__)
