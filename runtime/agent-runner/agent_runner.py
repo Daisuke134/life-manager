@@ -112,17 +112,29 @@ def runtime_registry_path() -> Path:
     return release / "config" / "loop-registry.json"
 
 
+def provider_busy_deferral_reason(attempts: list[dict[str, Any]]) -> str | None:
+    if attempts and all(
+        row.get("provider_started") is False
+        and row.get("error_class") in {"provider_lease_busy", "codex_home_busy"}
+        and row.get("storage_failure") is None
+        and row.get("telemetry_error") is None
+        for row in attempts
+    ):
+        return attempts[-1]["error_class"]
+    return None
+
+
 def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
                        selected: dict[str, Any] | None, attempts: list[dict[str, Any]],
                        candidate_profile: str | None, registry_path: Path,
-                       release_sha: str) -> dict[str, Any]:
+                       release_sha: str, deferred_reason: str | None = None) -> dict[str, Any]:
     registry = validate_registry(json.loads(registry_path.read_text(encoding="utf-8")))
     entry = registry["loops"].get(loop_id)
     if not isinstance(entry, dict):
         raise ValueError(f"managed runtime event loop is absent from registry: {loop_id}")
     last = selected or (attempts[-1] if attempts else {})
     provider = str(last.get("provider") or "unavailable")
-    blocker = None if selected else str(last.get("error_class") or "runner_failed")
+    blocker = None if selected else (deferred_reason or str(last.get("error_class") or "runner_failed"))
     run_id = hashlib.sha256(str(evidence_dir.resolve()).encode()).hexdigest()[:24]
     storage_failure = last.get("storage_failure")
     if storage_failure is not None:
@@ -138,6 +150,7 @@ def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
         effect_class=entry["effect_class"],
         succeeded=selected is not None,
         blocker=blocker,
+        deferred=deferred_reason is not None,
         storage_failure=storage_failure,
     )
     path = Path(os.path.expanduser(entry["state_root"])) / "events.jsonl"
@@ -148,7 +161,7 @@ def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
 def attach_runtime_event(*, summary: dict[str, Any], loop_id: str,
                          evidence_dir: Path, selected: dict[str, Any] | None,
                          attempts: list[dict[str, Any]], registry_path: Path,
-                         release_sha: str) -> bool:
+                         release_sha: str, deferred_reason: str | None = None) -> bool:
     """Record observability without turning completed agent work into failure."""
     try:
         event = emit_runtime_event(
@@ -160,6 +173,7 @@ def attach_runtime_event(*, summary: dict[str, Any], loop_id: str,
                 "profile_alias"),
             registry_path=registry_path,
             release_sha=release_sha,
+            deferred_reason=deferred_reason,
         )
         summary.update({
             "runtime_event_id": event["event_id"],
@@ -1339,12 +1353,22 @@ def record_pre_provider_deferral(evidence_dir: Path, args: argparse.Namespace, r
     """Record only a fresh run's model-provider deferral, never a business no-effect claim."""
     try:
         evidence_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        atomic_json(evidence_dir / "summary.json", {
+        summary = {
             "version": 1, "status": "provider_deferred", "reason": reason,
             "attempt_count": 0, "provider_started": False,
             "loop": args.loop, "task_label": args.task_label, "task_class": args.task_class,
             "evidence_dir": str(evidence_dir), "finished_at": utc_now(),
-        }, exclusive=True)
+        }
+        atomic_json(evidence_dir / "summary.json", summary, exclusive=True)
+        release_sha = os.environ.get("LIFE_MANAGER_RELEASE_SHA", "").strip()
+        if release_sha:
+            attach_runtime_event(
+                summary=summary, loop_id=runtime_event_loop_id(args.loop),
+                evidence_dir=evidence_dir, selected=None, attempts=[],
+                registry_path=runtime_registry_path(), release_sha=release_sha,
+                deferred_reason=reason,
+            )
+            atomic_json(evidence_dir / "summary.json", summary)
     except OSError as error:
         print(f"agent-runner: deferral receipt unavailable ({type(error).__name__})", file=sys.stderr)
 
@@ -2234,6 +2258,9 @@ def run() -> int:
         ):
             break
 
+    deferred_reason = (
+        provider_busy_deferral_reason(attempts) if selected is None and not budget_blocked else None
+    )
     summary = {
         "version": 1,
         "started_at": started_at,
@@ -2245,7 +2272,9 @@ def run() -> int:
         "escalated": requires_explicit_escalation,
         "escalation_reason": escalation_reason,
         "input_warnings": [escalation_warning] if escalation_warning else [],
-        "status": "success" if selected else ("budget_blocked" if budget_blocked else "failed"),
+        "status": "success" if selected else (
+            "budget_blocked" if budget_blocked else "provider_deferred" if deferred_reason else "failed"
+        ),
         "budget": budget_blocked or last_budget,
         "selected_provider": selected["provider"] if selected else None,
         "selected_profile_alias": selected["profile_alias"] if selected else None,
@@ -2258,6 +2287,8 @@ def run() -> int:
         "result_path": selected["result_path"] if selected else None,
         "evidence_reclamation": retention,
     }
+    if deferred_reason:
+        summary["reason"] = deferred_reason
     release_sha = os.environ.get("LIFE_MANAGER_RELEASE_SHA", "").strip()
     if release_sha:
         attach_runtime_event(
@@ -2268,6 +2299,7 @@ def run() -> int:
             attempts=attempts,
             registry_path=runtime_registry_path(),
             release_sha=release_sha,
+            deferred_reason=deferred_reason,
         )
     summary = finish_evidence_run(evidence_dir, summary)
     print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
@@ -2275,10 +2307,7 @@ def run() -> int:
         os.close(lease_fd)
     if selected:
         return 0
-    home_busy_only = bool(attempts) and all(
-        row.get("error_class") == "codex_home_busy" for row in attempts
-    )
-    return 75 if budget_blocked or home_busy_only else 1
+    return 75 if budget_blocked or deferred_reason else 1
 
 
 if __name__ == "__main__":
