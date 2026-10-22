@@ -1019,7 +1019,7 @@
       "E15",
       "E16"
     ],
-    "technical_execution_cursor": "E14",
+    "technical_execution_cursor": "E15",
     "technical_execution_plan": "docs/plans/2026-10-22-manager-core-execution-plan.md",
     "acceptance_sequence": [
       "F005",
@@ -1050,7 +1050,8 @@
       "E10",
       "E11",
       "E12",
-      "E13"
+      "E13",
+      "E14"
     ],
     "technical_execution_receipts": {
       "E01": {
@@ -1243,6 +1244,16 @@
         "browser_total": 16,
         "result": "VERIFIED_STATIC_TECHNICAL_P0_NO_PUBLICATION",
         "evidence": "docs/verification/E13_CANDIDATE_VERIFICATION_20261022.md"
+      },
+      "E14": {
+        "status": "PASSED",
+        "source_commit": "a20f5046b4b141a17a8099901622b70054366f79",
+        "run_id": 39770340228,
+        "browser_run_id": 39770340090,
+        "full_suite_total": 641,
+        "focused_total": 7,
+        "result": "VERIFIED_INERT_OWNED_HANDOFF_P0_ORIGINAL_AUTHORITY_REQUIRED",
+        "evidence": "docs/verification/E14_OWNED_HANDOFF_20261022.md"
       }
     },
     "handoff_document": "docs/handoffs/2026-10-22-manager-e06-session-handoff.md",
