@@ -68,7 +68,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** FND01a/b/c、FND02/03、FND06a、CLD01/02/03aのsourceはPR #8529–#8537でmainへ統合する。監視はd6b740ceの自然terminal PASS、Capafy factory/配信は同SHAへqueued identityを保って採用する。factoryの自然PASSはno-workであり掲載/入金ではない。有償Coconala ownerも自然PASSだが納品/入金は別照合とする。空きは約8.7–10.9GBで振れ、開始条件を通る時間と再延期があり、容量全体の安定は未達。CLD02 migrationは公式履歴 `20261022125437`・idempotency key・列/有効constraint/RLSが一致し適用済み、再送0。Cloud runtimeは旧982875d6で配備未証明。CLD04のDB接続は単発公式restart後にauth/db/rest全healthy・Data API200で回復する。現在はRailway管理認証と修正版Cloud配備を進め、独立な有償案件readbackを継続する。Writerの既存unknownはpre-effect証明0/no_pre_effect_terminal1で保持する。進行中effect/他ownerのleaseは保護する。
+**現在cursor:** FND01a/b/c/e、FND02/03、FND06a、CLD01/02/03aのsourceはPR #8529–#8540でmainへ統合する。FND02bは96d37f32の自然Capafy factory/配信でdisk延期・effect not_applicable・queued identity保持・新scratch回収を確認する。FND02/03は191 jobsの現在状態とtyped clock、既存owner通知の公式readbackを確認し、明示history_gap5は未知のまま保持する。容量は約7.2GBで全体未達。FND01f idle回収のPR #8541はsource review済み・exact CI待ちとし、その間に独立なFND04aのmodel未開始busyの記録修正を進める。Cloud migrationは公式履歴20261022125437で適用済み、DBは単発公式restart後にauth/db/rest・Data APIが回復する。Railway管理認証は専用identity登録済みだが新profileがdisk floorで未開始、Cloud修正版の配備・自然Travelは未証明。有償ownerの自然PASS/no-workを納品/新paidへ置換しない。既存unknownと進行中effect/他owner leaseは保護する。
 
 primaryは本節、共有source、統合/受入/採用順を所有する。Local writerとCloud writerは別worktree/別ファイル所有で進められる。共有registry、credential、Calendar account、browser profile、release promotion、effect照合は該当leaseで直列化する。reviewerはfresh contextのread-onlyとし、現在UIで選択されたモデルを継承する。登録済agent数と稼働席・作業開始を混同しない。
 
@@ -145,6 +145,9 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - RED: `test_busy_profile_does_not_consume_provider_attempt_or_claim_effect`、`test_quota_defers_without_holding_finite_host_slot`、`test_live_holder_lease_is_never_stolen`。既存backoff/capを固定し、busyと本当のprovider failureを別分類する。
 - 実装: 既存の利用可能profile順とfinite deadlineへ戻す。全profile使用中/制限中ならtyped deferとnext_eligible_atを保存して資源を返す。hold中の他ownerをkillせず、モデルID/credential/CODEX_HOMEを業務側で新しく選ばない。sourceに既にある動作は再実装せず、その前後の取りこぼしだけ直す。
 - 受入: 同じprovider境界で無駄なeffect-unknownを新しく作らず、次のeligible自然wakeで処理とreceiptへ進む。実providerが呼ばれた可能性のある旧effectはFND05で照合する。
+
+- FND04aの今回範囲: 既存runnerは共有model lease競合と両Codex home busyでprovider_started=false/exit75を返すが、summary/eventはfailedへ落とす。最小REDは既存busy fixtureでtyped deferの取り落としを再現し、既存runnerのsummary/event分類だけを直す。各attemptのprovider_startedが厳密falseかつ既存の構造化busy理由である場合に限定し、空attempt・欠測・mixed/実開始・quota・storage failureは同じ分類へ入れない。モデル/alias/profile順、deadline、provider lease、host admission、DB、result hint、旧effect fenceは変更しない。nested eventは親loopへ結び付くため、provider未開始だけで業務全体のno-effectを主張せず、effectful eventのunknownは保持する。関連RED→GREEN・既存busy/quota/failover tests・fresh read-only反証・exact CI/main・immutable採用を受け入れ、自然の該当busyが無ければ本番で未観測と記録する。現在PromptBase daily.shはagent-runnerを呼ばないため本patchをその失敗原因とはしない。
+- 順序更新: 旧=FND01f CI/採用→FND04。新=FND01fの必須CI待ちと独立にFND04a sourceを進め、capacityの本番復旧はFND01fを先行する。理由はCI待ちを共有source調査の停止条件にせず、model競合の実証済み記録欠落を小さく閉じるため。進行中effect/他owner leaseは中断しない。
 
 **FND05 — exact effect復旧と履歴増加を分ける**
 
