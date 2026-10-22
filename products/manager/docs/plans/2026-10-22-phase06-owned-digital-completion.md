@@ -1,5 +1,13 @@
 # Phase 06 Digital Public-Good v2 Implementation Plan
 
+
+> **歴史的なPhase 06 v2スコープ移行と受け入れ方法の手順書（実装順ではない）**
+>
+> **唯一の現行実装順は E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。** 次はE01です。E01〜E16の[実装計画](2026-10-22-manager-core-execution-plan.md)を実行し、その証拠で **F005 → F006 → F008 → F009** を判定してください。
+>
+> 本書の「Task 1〜Task 3」はF004/F007の対象外化と台帳移行という**歴史的スコープ更新手順**です。現在の開発カーソルを上書きするものではありません。「Task 4〜Task 5」の証拠照合はE14〜E16の作業後のF受け入れ判定です。元の資金・屋内試験は未実施です。SSOTは `../roadmap/tasks.json` だけです。
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Do not treat the plan as evidence that anything changed. Follow RED → GREEN for each code change.
 
 **Goal:** Remove the obsolete third-party money and facility permissions from Manager's Phase06 critical path, and finish a verifiable first-party public-internet technical improvement loop without inventing human-benefit evidence.
@@ -38,7 +46,7 @@
 **Files:** Modify `docs/roadmap/tasks.json`, `docs/roadmap/ATOMIC_BACKLOG.md`; update legacy status assertions in `tests/test_backlog.py`, `test_phase06_unblocking.py`, `test_phase06_f001_u001.py`, `test_crossfield_research_20261021.py`, `test_phase06_internet_public_good.py`, `test_eba_landscape_sources.py`, `test_phase06_environment_atomic_plan.py`.
 **Interfaces:** F004/F007 `skipped`, F005/F006/F008/F009 `todo` pending actual proof. For each changed row, `scope_version=2` and `original_*` fields preserve prior wording/status/depends.
 - [ ] Verify RED from Task 1 and record the expected failure; restore baseline before editing if test does not fail.
-- [ ] Change only F004–F009. Retire old finance/facility obligations; F005 first-party release; F006 honest technical outcome evaluation; F008 second independently observed public-resource topic; F009 common-gate two-target report. F005 depends F003/K009; F008 depends F005/K010; F009 depends F006/F008. All other task statuses retained.
+- [ ] Change only F004–F009. Retire old finance/facility obligations; F005 first-party release; F006 honest technical outcome evaluation; F008 second independently observed public-resource topic; F009 common-gate two-target report. F005 depends K009; F008 depends F005/K010; F009 depends F006/F008. All other task statuses retained.
 - [ ] Replace historical tests' *registry-status assertions* with skipped+waiver+unchanged safety checks, not their unrelated finance/indoor validation logic.
 - [ ] Run `python scripts/make_roadmap.py`; `python scripts/make_roadmap.py --check`; test newly migrated contract and all existing tests. Verify no active task depends on retired F004/F007.
 - [ ] Commit manifest+generated view+tests, collect actual test command/outcome.
