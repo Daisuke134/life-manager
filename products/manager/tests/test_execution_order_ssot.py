@@ -32,13 +32,24 @@ class ExecutionOrderContract(unittest.TestCase):
         self.assertEqual(len(self.tasks),113)
         self.assertEqual(len(self.lookup),113)
         self.assertEqual(t["technical_execution_sequence"],EXPECTED)
-        # E01 must be completed before the next task becomes E02.
-        self.assertEqual(t["technical_execution_cursor"], "E02")
-        self.assertEqual(t["technical_execution_completed"], ["E01"])
-        r = t["technical_execution_receipts"]["E01"]
-        self.assertEqual(r["run_id"], 39727976132)
-        self.assertEqual(r["raw_sha256"], "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585")
-        self.assertEqual(r["result"], "VERIFIED_P0_NO_HUMAN_OUTCOME")
+        # The cursor is the next unfinished E task. Only a tested contiguous
+        # prefix of the immutable E order may be recorded as completed.
+        completed = t["technical_execution_completed"]
+        self.assertGreaterEqual(len(completed), 2)
+        self.assertEqual(completed, EXPECTED[:len(completed)])
+        self.assertLess(len(completed), len(EXPECTED))
+        self.assertEqual(t["technical_execution_cursor"], EXPECTED[len(completed)])
+        for stage in completed:
+            self.assertIn(stage, t["technical_execution_receipts"])
+            receipt = t["technical_execution_receipts"][stage]
+            self.assertGreater(receipt["run_id"], 0)
+            self.assertEqual(receipt["status"], "PASSED")
+            self.assertGreaterEqual(receipt["full_suite_total"], 512)
+        e01 = t["technical_execution_receipts"]["E01"]
+        self.assertEqual(e01["run_id"], 39727976132)
+        self.assertEqual(e01["raw_sha256"], "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585")
+        self.assertEqual(e01["result"], "VERIFIED_P0_NO_HUMAN_OUTCOME")
+        self.assertEqual(t["technical_execution_receipts"]["E02"]["run_id"], 39728515676)
         self.assertEqual(t["acceptance_sequence"],GATES)
         self.assertEqual(t["technical_execution_plan"],str(PLAN.relative_to(ROOT)))
         self.assertEqual(self.lookup["F004"]["status"],"skipped")
