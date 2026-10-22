@@ -162,6 +162,12 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 実装: owner/run/occurrence/release/slot/providerIDの一致するreadbackだけで登録resolverを呼ぶ。queued/claimed/releasedとeffect flagを別に読む。過去attempt由来でunknown flagが残る約38k行を、閉鎖済み履歴とみなして一括解除しない。既存公平なbatch/cursorを維持し、失敗する先頭一件が他ownerのreadbackを止める時だけ修復する。未解決行を削除せず、retention/index最適化は閉鎖済み行と実測遅延の因果がある場合だけ対象とする。
 - 受入: 一つのexact closure、同じresolverのreplayで追加effect0、次の自然業務の成果。receipt未取得は誤ったno-effectへ変えず、必要provider照合とownerを具体的に残す。
 
+**FND06b — CI未登録の瞬間を全成功と誤認しない。** PR #8547はhead 2e39120d47に対して16:37:11Zにmergeされ、そのheadの必須Security Scan 12 check runsは16:37:13Zにqueuedで登録される。既存merge-when-greenはCodeRabbitだけがpassの登録窓で、未登録CIが無いものとしてmergeするため、source acceptanceの84 tests/fresh reviewは通っていてもexact-head CI完了条件を満たさない。完了と報告せず同headの実CIを追い、失敗時は修正し、意図的な本番先行採用は行わない。
+
+- 修正所有: `bin/merge-when-green` と既存CIがdiscoverする `runtime/loop/tests/test_merge_when_green.py`。常時PR/mainを対象とする既存 `.github/workflows/sec-scan.yml` の同head・pull_request runが存在し、完了/成功を示すまで、登録済みchecksがpassでもmergeしない。その後も全checkのpending/fail/cancel拒否と`--match-head-commit`を維持する。job名/件数の第二リスト、待ち時間を成功へ変えるtimeout、新しいCI/scheduler、adminの迂回は追加しない。gh障害・欠測・別headのrunは待機、確認済みworkflow失敗は拒否する。
+- 最小RED/GREEN: fake ghによる外部通信0の実shell回帰で、CodeRabbit-only、workflow未登録/queued/別head/API失敗/失敗完了を拒否し、exact-head workflow成功かつ全checks成功の場合だけ指定headでmergeする。既存pending/fail/cancelも保持する。source-boundary・contract・fresh read-only反証・exact CIを受け入れる。未修正guardを新headのCI登録直後に再利用せず、primary自身が同head必須workflow完了と全checksを公式readbackで確認してから統合する。
+- 順序判断: 旧=CLD04/EARN01a CI→採用。新=既に統合されたEARN01aの同head CI追跡を維持→FND06bの再発防止を独立実装→各patchの通常採用。根拠は実際のCI登録時刻より早いmergeという基盤の再現で、他owner/effectを中断せずguardのsourceだけを直す。現在cursor=isolated RED→最小修正→関連GREEN/反証→exact CI/main。
+
 **FND06 — ソース採用と全job分類を完結する**
 
 - FND06a Capafyのqueued採用: factory/distribution両ownerはloaded-idle・旧a6da73dfで、read-only admissionには各queued1/effect_unknown0/reservation0がある。registryに既存 `reconcile_queued_release` が無いため、自動reconcilerがpending ownerを除外しFND03のpublisher時刻修正も採用できない。同じFIFO occurrenceを守る既存rebind実装へ両ownerだけをopt-inする。actual registryによるautomatic reconcileのRED→GREEN、既存running/unknown/予約保護testを使い、global slot・floor・fence・予約policyを変更しない。source統合を待つ間の採用も既存targeted loaded-idle applyで行い、queued identity・loaded argv/SHA・自然terminalを分けて確認する。
