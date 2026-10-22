@@ -78,8 +78,8 @@ class CrossFieldResearchContracts(unittest.TestCase):
         by_id={t["id"]:t for t in tasks}
         self.assertEqual(len(tasks),113)
         self.assertEqual(by_id["H005"]["status"],"skipped")
-        self.assertEqual(by_id["F004"]["status"],"blocked")
-        self.assertEqual(by_id["F007"]["status"],"blocked")
+        self.assertEqual(by_id["F004"]["status"],"skipped")
+        self.assertEqual(by_id["F007"]["status"],"skipped")
         self.assertEqual(by_id["F005"]["status"],"todo")
         self.assertEqual(by_id["F008"]["status"],"todo")
 
