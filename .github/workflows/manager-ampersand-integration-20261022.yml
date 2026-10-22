@@ -1,0 +1,75 @@
+name: Manager Ampersand Adapter and Research Trial
+on:
+  push:
+    branches: [research/manager-ampersand-integration-20261022]
+    paths:
+      - 'products/manager/manager_core/collaboration.py'
+      - 'products/manager/manager_core/ampersand_api.py'
+      - 'products/manager/tests/test_ampersand_integration.py'
+      - 'products/manager/scripts/phase_ampersand_lab.py'
+      - '.github/workflows/manager-ampersand-integration-20261022.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manager-ampersand-adapter-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Red or green - adapter contract tests
+        run: python -m unittest discover -s tests -p 'test_ampersand_integration.py' -v
+      - name: Compile integration script and enforce product boundary
+        run: |
+          python -m py_compile manager_core/collaboration.py manager_core/ampersand_api.py scripts/phase_ampersand_lab.py
+          python scripts/check_boundaries.py
+          python scripts/make_roadmap.py --check
+      - name: All existing Manager tests (no third-party write)
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-internet-eval.txt 'numpy==2.2.6' 'scipy==1.15.3'
+          python -m unittest discover -s tests -q
+
+  real-ampersand-lab:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[manager-ampersand-live]')
+    needs: offline-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ampersand documented client
+        run: python -m pip install --disable-pip-version-check --no-input 'openai==3.24.0'
+      - name: Bounded real read-only first turn, same-session follow-up and scored fixtures
+        env:
+          AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
+        run: |
+          python scripts/phase_ampersand_lab.py --live --max-sessions 3 --max-seconds 850
+      - name: Keep sanitized evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-ampersand-research-${{ github.sha }}
+          path: products/manager/output/ampersand-research/*.json
+          if-no-files-found: warn
+          retention-days: 21
