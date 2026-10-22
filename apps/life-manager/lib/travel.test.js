@@ -705,7 +705,7 @@ async function withDurableTravelFixture(run) {
           || row.calendar_write_receipt.effect !== "no_effect")) return response(null, 204);
         rows.delete(key); return response(null, 204);
       }
-      if (state.hideClaimReads-- > 0) return response([]);
+      if (eventKey && state.hideClaimReads-- > 0) return response([]);
       return response([...rows.values()].filter((row) => {
         if (row.uid !== uid || eventKey && row.event_key !== eventKey || leg && row.leg !== leg) return false;
         for (const [field, expected] of url.searchParams) {
