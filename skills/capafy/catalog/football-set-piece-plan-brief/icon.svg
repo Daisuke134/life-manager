@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Football Set-Piece Plan Brief icon</title>
+  <desc id="desc">A football pitch corner with a tactical clipboard.</desc>
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <path d="M72 410V102h368v308" fill="none" stroke="#d9f99d" stroke-width="18" stroke-linecap="round"/>
+  <path d="M72 102h368M72 256h368M256 102v308" fill="none" stroke="#d9f99d" stroke-width="10" opacity=".9"/>
+  <path d="M72 102c62 0 112 50 112 112" fill="none" stroke="#fbbf24" stroke-width="14"/>
+  <circle cx="256" cy="256" r="34" fill="none" stroke="#d9f99d" stroke-width="10"/>
+  <rect x="286" y="272" width="146" height="134" rx="16" fill="#f8fafc"/>
+  <rect x="326" y="250" width="66" height="34" rx="10" fill="#f8fafc"/>
+  <path d="M310 314h96M310 346h72M310 378h96" stroke="#102a43" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="130" cy="171" r="15" fill="#fbbf24"/>
+  <circle cx="198" cy="221" r="15" fill="#fbbf24"/>
+  <path d="M143 179l42 31" stroke="#fbbf24" stroke-width="10" stroke-linecap="round"/>
+</svg>
