@@ -1,5 +1,13 @@
 # Manager: validated autonomy and research products — design checkpoint
 
+
+> **旧研究ブランチの履歴資料 — 現行の実装順ではありません（2026-10-22）**
+>
+> こちらの計画は、F004/F007の廃止と実装順カーソルの統一より前の保存版です。**実行しないでください。** 現行の唯一のManagerタスク状態・順序は [SSOT](https://github.com/Daisuke134/life-manager/blob/research/manager-phase06-owned-public-good-20261022/products/manager/docs/roadmap/tasks.json) の F009実行カーソルを参照。正しい実装順は **E01→E02→E03→E04→E05→E06→E07→E08→E09→E10→E11→E12→E13→E14→E15→E16**。**F005→F006→F008→F009** は受け入れ判定。F004/F007は廃止・未実施です。
+>
+> [最新版E実装計画](https://github.com/Daisuke134/life-manager/blob/research/manager-phase06-owned-public-good-20261022/products/manager/docs/plans/2026-10-22-manager-core-execution-plan.md) · [最新版生成バックログ](https://github.com/Daisuke134/life-manager/blob/research/manager-phase06-owned-public-good-20261022/products/manager/docs/roadmap/ATOMIC_BACKLOG.md) · [統合PR #8526](https://github.com/Daisuke134/life-manager/pull/8526)
+
+
 Date: 2026-10-22 JST. This amends the engineering interpretation of `../MANAGER_PRODUCT_SPEC.md`, not the historical acceptance or status of `../roadmap/tasks.json`. Manager remains independent of Life Manager runtime, customers, databases, and credentials.
 
 ## Intent and release boundary
