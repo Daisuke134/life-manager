@@ -111,6 +111,8 @@ def render_prompt(context: PlannerContext) -> str:
     return (
         "RESEARCH-ONLY MANAGER COLLABORATION: ADVISORY only. "
         "Return exactly one JSON object with keys decision, reason, source_ids. "
+        "The reason must be concise, no more than 600 characters; "
+        "source_ids must be a list of unique valid citations. "
         "decision must be PASS, ASK or PROPOSE. PASS means NO_ACTION. "
         "This is a fictional advisory exercise: what would a good colleague SAY? "
         "Proposing an idea is NOT execution; ASK and PROPOSE are permitted. "
@@ -131,33 +133,67 @@ def render_prompt(context: PlannerContext) -> str:
     )
 
 
-def advisory_from_text(text: str, context: PlannerContext) -> AdvisoryResult:
-    """Parse provider text; no attempts to extract JSON from surrounding prose."""
-    if type(context) is not PlannerContext or type(text) is not str or len(text) > 5000:
-        raise ValueError("bounded provider text and typed context required")
+@dataclass(frozen=True)
+class ValidationFailure:
+    """Explicit provider-format/provenance failure, NOT policy PASS."""
+    kind: str
+    code: str
+    model_decision: None = None
+    proof_level: str = field(default="P0", init=False)
+    authorized_execution: bool = field(default=False, init=False)
+
+
+def _strict_pairs(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON field")
+        result[key] = value
+    return result
+
+
+def _no_nonfinite_constant(_: str):
+    raise ValueError("nonfinite JSON constant")
+
+
+def parse_advice(text: str, allowed_refs: frozenset[str]) -> AdvisoryResult | ValidationFailure:
+    """Provider's unconstrained text is hostile input, not an executable plan."""
+    if (type(text) is not str or not text.strip() or len(text) > 5000 or
+            type(allowed_refs) is not frozenset or
+            any(type(ref) is not str for ref in allowed_refs)):
+        return ValidationFailure("FORMAT_ERROR", "UNBOUNDED_OR_UNTYPED")
     try:
-        obj = json.loads(text)
-    except (ValueError, TypeError) as exc:
-        raise ValueError("invalid model JSON") from exc
+        obj = json.loads(text, object_pairs_hook=_strict_pairs,
+                         parse_constant=_no_nonfinite_constant)
+    except (ValueError, TypeError, UnicodeError):
+        return ValidationFailure("FORMAT_ERROR", "INVALID_JSON")
     if type(obj) is not dict or set(obj) != ADVICE_KEYS:
-        raise ValueError("unknown or missing model response fields")
+        return ValidationFailure("FORMAT_ERROR", "WRONG_FIELDS")
     decision = obj["decision"]
     if type(decision) is not str or decision not in DECISIONS:
-        raise ValueError("invalid decision class")
-    reason = _bounded_text(obj["reason"], MAX_REASON)
-    raw_ids = obj["source_ids"]
-    if (type(raw_ids) is not list or len(raw_ids) > MAX_FACTS or
-            any(type(s) is not str for s in raw_ids)):
-        raise ValueError("citation list is not a bounded list of strings")
-    if len(set(raw_ids)) != len(raw_ids):
-        raise ValueError("duplicate citations")
-    allowed = {f.source.source_id for f in context.facts}
-    if not set(raw_ids).issubset(allowed):
-        raise ValueError("made-up citation")
-    if decision == "PROPOSE" and not raw_ids:
-        raise ValueError("a proposed change must cite a public source")
-    return AdvisoryResult(decision, reason, tuple(raw_ids))
+        return ValidationFailure("FORMAT_ERROR", "UNSUPPORTED_DECISION")
+    try:
+        reason = _bounded_text(obj["reason"], MAX_REASON)
+    except (ValueError, TypeError):
+        return ValidationFailure("FORMAT_ERROR", "RATIONALE_OUT_OF_BOUNDS")
+    refs = obj["source_ids"]
+    if (type(refs) is not list or len(refs) > MAX_FACTS or
+            any(type(ref) is not str or not ref.strip() for ref in refs) or
+            len(set(refs)) != len(refs)):
+        return ValidationFailure("FORMAT_ERROR", "INVALID_SOURCE_IDS")
+    if not set(refs) <= allowed_refs or (decision == "PROPOSE" and not refs):
+        return ValidationFailure("PROVENANCE_ERROR", "CITATION_NOT_ALLOWED")
+    return AdvisoryResult(decision, reason, tuple(refs))
 
+
+def advisory_from_text(text: str, context: PlannerContext) -> AdvisoryResult:
+    """Strict compatibility parser; errors never upgrade scope or authority."""
+    if type(context) is not PlannerContext:
+        raise ValueError("typed PlannerContext required")
+    parsed = parse_advice(text, frozenset(f.source.source_id for f in context.facts))
+    if isinstance(parsed, ValidationFailure):
+        raise ValueError("untrusted provider output invalid: " + parsed.code)
+    return parsed
 
 def safe_advisory(text: str, context: PlannerContext) -> AdvisoryResult:
     """An untrusted or malformed reply is a safe NO_ACTION, never an attempt."""
