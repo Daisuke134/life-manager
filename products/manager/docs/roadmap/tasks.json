@@ -1019,7 +1019,7 @@
       "E15",
       "E16"
     ],
-    "technical_execution_cursor": "E01",
+    "technical_execution_cursor": "E02",
     "technical_execution_plan": "docs/plans/2026-10-22-manager-core-execution-plan.md",
     "acceptance_sequence": [
       "F005",
@@ -1036,7 +1036,27 @@
       "P06",
       "P07"
     ],
-    "sequence_contract": "E01-E16 = executable implementation steps; F005/F006/F008/F009 = after-E evidence acceptance gates; P01-P07 = separate editorial parallel track. No other authoritative cursor."
+    "sequence_contract": "E01-E16 = executable implementation steps; F005/F006/F008/F009 = after-E evidence acceptance gates; P01-P07 = separate editorial parallel track. No other authoritative cursor.",
+    "technical_execution_completed": [
+      "E01"
+    ],
+    "technical_execution_receipts": {
+      "E01": {
+        "result": "VERIFIED_P0_NO_HUMAN_OUTCOME",
+        "run_id": 39727976132,
+        "run_url": "https://github.com/Daisuke134/life-manager/actions/runs/39727976132",
+        "raw_sha256": "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585",
+        "source_run_id": 39713799676,
+        "artifact_id": 12398755518,
+        "module": "manager_core.evidence.load_verified_trial",
+        "acceptance_tests": 6,
+        "full_suite_total": 504,
+        "skipped": 5,
+        "status": "PASSED",
+        "observed_human_outcomes": "NOT_MEASURED",
+        "note": "Immutable original 14,759-byte Ampersand trial artifact and recalculated case metrics; no model deployment or human experiment."
+      }
+    }
   },
   {
     "section": "07. 研究発表・説明責任",
