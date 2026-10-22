@@ -109,8 +109,8 @@ class PublicInternetFieldContracts(unittest.TestCase):
     def test_existing_canonical_113_tasks_and_runtime_are_preserved(self):
         tasks=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
         self.assertEqual(len(tasks),113)
-        self.assertEqual({t["id"]:t["status"] for t in tasks}["F004"],"blocked")
-        self.assertEqual({t["id"]:t["status"] for t in tasks}["F007"],"blocked")
+        self.assertEqual({t["id"]:t["status"] for t in tasks}["F004"],"skipped")
+        self.assertEqual({t["id"]:t["status"] for t in tasks}["F007"],"skipped")
         from manager_core.config import DEFAULTS
         self.assertFalse(DEFAULTS.public_posting)
         self.assertFalse(DEFAULTS.money_transfer)
