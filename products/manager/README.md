@@ -10,7 +10,9 @@
 
 **全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。無料経路の第一候補は既存GitHub Actions＋稼働中Supabaseのprivate checkpointへ更新。Railwayは代替hostとして保全します。[ローカルCodexへの最新WIP引継ぎ](docs/handoffs/2026-10-22-manager-local-codex-handoff.md)に未レビュー差分と既知の新testエラーを記録しています。Managerの本番配備は未完了です。
 
-**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[canonical atomic patch A–F](https://github.com/Daisuke134/life-manager/blob/887e52f4ef0dfe6592359054df71f9d99e6b9de4/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md) は未実装の差分案で、状態正本を増やさない。E16/原113件の状態は変更していない。
+**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[canonical atomic patch A–F](https://github.com/Daisuke134/life-manager/blob/a69a8a4a66e5b2f032c13efcc6bef18c446cf448/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md) は未実装の差分案で、状態正本を増やさない。E16/原113件の状態は変更していない。
+
+**日本語章の実公開:** [人工社会を借りて、現実から学ぶ](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja)。公式掲載25件・事例7件、公開code/data、説得研究の訂正と再利用方針を解説。[source・deploy・独立公開確認](docs/verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)を参照。記事公開は人の便益やE16の本番配備を示すものではない。
 
 **Rothkoの当日調査:** [公式発表・固定公開codeの実行・再利用判断](docs/research/societies/ROTHKO_2026-10-22_JA.md)。Rothko本体、Radiantという接続先、公開benchmark、group alignmentの数値模型を区別します。
 

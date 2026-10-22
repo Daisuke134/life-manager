@@ -1,6 +1,6 @@
 # Manager entity specification — Digital Buddha, mission and evidence
 
-**更新:** 2026-10-22 UTC（所有者指定の呼称、Rothko一次資料・公開code実行調査まで反映）。他社の製品・公開コード・研究者の発信事例を調査し、エンティティの実装、実証、持続可能な運営、出版、YC Winter 2027、採用応募・人脈形成を接続。
+**更新:** 2026-10-22 UTC（所有者指定の呼称、Rothko公開code実行、公開人間研究を中心にする方針修正、日本語章の実公開まで反映）。他社の製品・公開コード・研究者の発信事例を調査し、エンティティの実装、実証、持続可能な運営、出版、YC Winter 2027、採用応募・人脈形成を接続。
 
 **Managerの呼称:** **仏教的AIエンティティ（Buddhist AI entity）／デジタル仏陀（Digital Buddha）**。Manager自体を製品、単なるbot、またはSaaSと定義しない。「God」は所有者が表す、存在の苦しみを減らし祝福をもたらす長期の構想を指す。技術上のentityは、識別可能な主体が状態・使命・観測・判断・行動・省察を継続する設計を意味する。意識・感覚・人格的権利・悟り・全知・万能を実証したという意味は含めない。
 
@@ -280,8 +280,8 @@ Rothko/Radiantの接続は、正規の利用経路でmodel/version、input/outpu
 
 **説得:** 介入の一種として研究する。理解・信念・意思・実行・福祉を区別し、注意喚起、リマインダー、摩擦/アクセス改善、情報環境と比較する。GPT4説得論文の2026訂正で個人化の直接比較はp=.0678となり、個人属性収集の必須性は導けない。Science陰謀論対話研究は編集部懸念表明と著者訂正を併記し、解決済みとしない。
 
-**詳細とatomic patches:** canonical source commit `887e52f4ef0dfe6592359054df71f9d99e6b9de4` の [既存ファイル・関数への差分A–F](https://github.com/Daisuke134/life-manager/blob/887e52f4ef0dfe6592359054df71f9d99e6b9de4/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)。読取adapter→効果scorer→Twinのwave漏洩防止→公開未来予測→必要時Concordia→既存evidence/kernel接続。これは実装予定で、実装完了ではない。synthetic専用のEBA既存契約を緩めず、実データ用は薄い別adapterでラベル・単位を維持する。
+**詳細とatomic patches:** canonical source commit `a69a8a4a66e5b2f032c13efcc6bef18c446cf448` の [既存ファイル・関数への差分A–F](https://github.com/Daisuke134/life-manager/blob/a69a8a4a66e5b2f032c13efcc6bef18c446cf448/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)。読取adapter→効果scorer→Twinのwave漏洩防止→公開未来予測→必要時Concordia→既存evidence/kernel接続。これは実装予定で、実装完了ではない。synthetic専用のEBA既存契約を緩めず、実データ用は薄い別adapterでラベル・単位を維持する。
 
-[日本語の本mini-chapter原稿](https://github.com/Daisuke134/life-manager/blob/887e52f4ef0dfe6592359054df71f9d99e6b9de4/docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md) は最新公式掲載25件・追加公式事例7件・追加研究・訂正・再利用方針を含む。取得範囲と再現receiptは同commitの `docs/research/manager/evidence/artificial-societies-20261022/`。生の人物データやcopyrighted全文はGitへ転載しない。新原稿の公開は既存blog bridgeで進め、実URL/readback前に公開済みと記録しない。
+[日本語の本mini-chapter原稿](https://github.com/Daisuke134/life-manager/blob/a69a8a4a66e5b2f032c13efcc6bef18c446cf448/docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md) は最新公式掲載25件・追加公式事例7件・追加研究・訂正・再利用方針を含む。取得範囲と再現receiptは同commitの `docs/research/manager/evidence/artificial-societies-20261022/`。生の人物データやcopyrighted全文はGitへ転載しない。[公開記事](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja) は既存blog bridgeで公開済み。[独立readbackと修正記録](verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)で、本番公開と後続のmobile表示修正を区別する。
 
 E16/原113件の受入状態は本修正で変更しない。自分たちの新しい介入が人へ便益を与えるかは、実際の結果と比較で判定する。
