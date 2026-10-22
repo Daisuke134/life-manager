@@ -6,6 +6,8 @@
 
 **全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。本番の採用先はRailway単一worker＋専用volume。接続は確認済み、Managerの配備は未完了です。
 
+**新規候補を追加した一次資料調査:** [OpenClaw/Khoj/n8n・DBOS/Restate・新arXiv論文・browser/exporter/hostの比較](docs/research/manager-options-additional-20261022/REPORT_JA.md)、[実ファイル・関数・テストを指定したatomic patch plan](docs/plans/2026-10-22-manager-e16-atomic-patches.md)。既知名の繰返しは新規件数に含めず、第三者実装は固定sourceの静的読取で、動作再現済みとは扱いません。
+
 ## 2026-10-22 現行実装の入口 — ここから開始
 
 **Managerの唯一のタスク状態・順序・カーソル正本:** [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json)（`F009.technical_execution_sequence` と `technical_execution_cursor`）。

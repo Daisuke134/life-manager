@@ -1,0 +1,126 @@
+{
+  "schema": "manager.additional_host_research.v1",
+  "checked_on": "2026-10-22",
+  "sources": [
+    {
+      "id": "HOST-1",
+      "url": "https://render.com/docs/disks",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Persistent Disks – Render Docs",
+      "scrape_id": "01a163e0-0511-747f-bc8a-ccdb93ddb48c",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-2",
+      "url": "https://render.com/docs/background-workers",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Background Workers – Render Docs",
+      "scrape_id": "01a163e0-04ba-77fc-a066-d0dd1f3bf6cc",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-3",
+      "url": "https://render.com/docs/workflows",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Intro to Render Workflows – Render Docs",
+      "scrape_id": "01a163e0-04ef-7509-b108-4bd1f969ca73",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-4",
+      "url": "https://docs.fly.io/volumes",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Fly Volumes - Fly.io",
+      "scrape_id": "01a163e0-0547-7538-b4c1-3b3e6def74d1",
+      "read_depth": "index_page_only",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-5",
+      "url": "https://modal.com/docs/guide/volumes",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Volumes | Modal Docs",
+      "scrape_id": "01a163e0-075c-704c-9e00-bd85cdff856a",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-6",
+      "url": "https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Sleeping and retrying · Cloudflare Workflows docs",
+      "scrape_id": "01a163e0-04ba-72a9-89d4-4ce8fb89227e",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-7",
+      "url": "https://developers.cloudflare.com/workflows/build/rules-of-workflows/",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Rules of Workflows · Cloudflare Workflows docs",
+      "scrape_id": "01a163e0-043a-74ef-927d-693dee1be3b9",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-8",
+      "url": "https://docs.fly.io/volumes/overview",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Fly Volumes overview - Fly.io",
+      "scrape_id": "01a163e0-f69a-7177-ba56-8077f9414bce",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-9",
+      "url": "https://docs.fly.io/volumes/snapshots",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Manage volume snapshots - Fly.io",
+      "scrape_id": "01a163e0-f722-70e9-a004-5806903558e5",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-10",
+      "url": "https://developers.cloudflare.com/workflows/build/trigger-workflows/",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "Trigger Workflows · Cloudflare Workflows docs",
+      "scrape_id": "01a163e0-f719-772f-9cae-4901d6a7fccc",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "HOST-11",
+      "url": "https://developers.cloudflare.com/workers/languages/python/how-python-workers-work/",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "How Python Workers Work · Cloudflare Workers docs",
+      "scrape_id": "01a163e0-f7d7-749f-a940-d8145669cbfc",
+      "read_depth": "full_page_retrieved_relevant_sections_read",
+      "scope": "Official platform contract only; no Manager deployment or performance measurement"
+    },
+    {
+      "id": "STDLIB-BACKUP",
+      "url": "https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup",
+      "checked_on": "2026-10-22",
+      "http_status": 200,
+      "title": "sqlite3 — DB-API 2.0 interface for SQLite databases — Python 3.15.1 documentation",
+      "scrape_id": "01a163e1-4fbd-726e-a667-0f564d9da6ce",
+      "read_depth": "direct_quote_query_API_and_example_only",
+      "scope": "Retrieved latest Python3.15 docs; backup introduced3.7, verify against runtime3.11 docs before code patch"
+    }
+  ]
+}

@@ -156,3 +156,8 @@ Use the [12-package execution map](2026-10-22-manager-founder-execution-map.md) 
 Follow the observed structure of Hamel's eval case/code/teaching, Chip Huyen's coherent book resources, Simon Willison's small working changes with notes/releases, and Jason Liu's OSS/problem-specific teaching. Do not copy text or transfer their customers, earnings or reputation to Manager. Jason's archived consulting content is not a current open offer. Preserve the original 65/33 publication package as a historical snapshot until live re-audited.
 
 Every content release has one relevant CTA, a canonical proof/code URL, channel identification, actual permalink/readback and correction route. Measure useful technical responses, qualified conversations, applications/interviews and verified payments separately from impressions/followers. Short form points to the source-backed long form; it does not drop limitations to promise welfare outcomes or guaranteed income.
+
+
+### Additional exporter and publishing evidence
+
+The [new primary-source comparison](../research/manager-options-additional-20261022/PUBLISHING_JA.md) and [atomic patches08–10](2026-10-22-manager-e16-atomic-patches.md) keep the P01 evidence index and P06 `docs/content/behavior-agi-20261022/storyboard.json` as the existing planned inputs. Use native python-pptx/Pillow/FFmpeg first; MyST DOCX/JATS and Slidev are conditional comparisons. Existing blog `media` accepts images only, and current native carousel lanes are six-panel/Anicca-specific. Explicit additive download artifacts and a separately checked Manager distribution lane are needed; a new CMS, renderer runtime or scheduler is not. No new artifact or publication was produced by this specification update.

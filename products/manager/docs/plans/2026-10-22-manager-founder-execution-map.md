@@ -124,3 +124,10 @@ E16本番前に次の追加crash-point検査を行う。これらは読取監査
 毎週一つの実装/失敗caseを固定し、再現とclaim indexを更新→英日記事→既存bookの章→12slides/8carousel/60–90秒slideshowへ展開する。公開経路は既存のWriter/配信loopを再利用し、外部公開の実行とreadbackは別のreceiptで示す。研究ノートを書いた段階でpublishedにはしない。
 
 週次30分で、sourceの鮮度、応募/顧客の返信、実利用、提案、入金/原価、継続、公開物の具体的な質問と訂正を見る。followers/viewsは到達の補助値。技術を理解した返信・適合会話・受注・継続とは分ける。イベント一件につき具体的質問3つと小さなdemoを用意し、得ていない紹介/登壇/参加を実績に書かない。
+
+
+## 10. 新しい一次資料からの置換候補とatomic作業
+
+[追加調査](../research/manager-options-additional-20261022/REPORT_JA.md)は前回の既知候補を繰り返さず、個人agent/業務workflow/永続実行/browser/6新論文/出版/hostを比較した。一般的なassistantやworkflowだけが必要ならOpenClaw/Khoj/n8n等を直接使う。Managerの差分を限定authority/正確なeffect/独立readback/実結果へ絞り、顧客がその差分を必要とするか検証する。記事/本/採用では既成技術から借りた部分と自分が実装・検証した部分を分ける。
+
+実装担当は [12 atomic patches](2026-10-22-manager-e16-atomic-patches.md) のfile/function/RED/verificationを使う。新しいtask authorityではなく、元の12実行パッケージとE16を具体化したもの。YCの期限・本人条件・元U/G依存・未確認売上を変更しない。
