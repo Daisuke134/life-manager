@@ -147,6 +147,9 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 **FND06 — ソース採用と全job分類を完結する**
 
+- FND06a Capafyのqueued採用: factory/distribution両ownerはloaded-idle・旧a6da73dfで、read-only admissionには各queued1/effect_unknown0/reservation0がある。registryに既存 `reconcile_queued_release` が無いため、自動reconcilerがpending ownerを除外しFND03のpublisher時刻修正も採用できない。同じFIFO occurrenceを守る既存rebind実装へ両ownerだけをopt-inする。actual registryによるautomatic reconcileのRED→GREEN、既存running/unknown/予約保護testを使い、global slot・floor・fence・予約policyを変更しない。source統合を待つ間の採用も既存targeted loaded-idle applyで行い、queued identity・loaded argv/SHA・自然terminalを分けて確認する。
+- FND06a source検証: actual registryを使う自動fleet reconcileの2 subtestは、両ownerの適用0をREDで再現する。registryへ既存opt-inを2行追加し、native rendererでfixtureを更新すると、apply/registry348 tests＋266 subtestsと18/191 loop-contractはPASS。targeted明示applyと自動fleetの差をfixtureで分離し、fence/running/予約の既存保護を維持する。
+
 - 対象: `bin/reconcile-agent-runner-release.sh`、`runtime/loop/lm_loop.py`の既存owner lock/loaded-idle apply、`runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`、`apps/life-manager/config/product-loop-catalog.json`、`config/loop-registry.json`。
 - RED: 実不一致に対する `test_reconcile_preserves_running_or_unknown_owner_and_records_pending_adoption`、`test_support_jobs_are_classified_without_becoming_revenue_products`。既存lock/skip挙動がPASSなら変更せず、残47の理由と次cursorを記録する。
 - 実装: 最新mainの対象patch digestとloaded argv/env/event SHAをowner別に比較する。running/effect_unknownの正当なskipを成功へ偽装せず、自然終了後に同ownerだけ採用する。79 unmappedは業務jobかsupport/control/browserかを実registryから分類し、補助jobを架空の売上agentへ増やさない。
