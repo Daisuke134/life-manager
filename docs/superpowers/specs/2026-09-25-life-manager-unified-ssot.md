@@ -1,6 +1,259 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
-## 現況監査とCapafy優先の統括cursor
+## Local / Cloud 全体復旧の現行spec・実行計画
+
+> **実行者へ:** 実装時は `superpowers:executing-plans` を用いて本節の原子的TODOを順に進める。primaryが逐次実行を所有し、独立したLocal/Cloudのファイル所有だけを並行できる。新しい判断・追加承認を待たず、ユーザーの既存scope/owner/spend-capを守る。
+
+**Goal:** Local全業務とCloudの顧客価値を復旧し、実成果・公式収益・評価付き改善まで既存システムを閉じる。
+**Architecture:** 既存のbounded worker、admission、durable state、exact receipt、owner限定の復旧とmain由来immutableを使う。Local/Cloudの業務coreは共通とし、再現済みの境界不具合を小さいpatchで直す。
+**Tech Stack:** 既存Python / Node.js、JSONL / SQLite、Supabase PostgreSQL、Railway、Composio / Google Calendar、Telegram、既存browser/model adapter。新しい依存基盤を前提にしない。
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` の本節。状態と実行順を別planへ複製しない。
+
+
+### 目的・今回の範囲・完了の意味
+
+Life Managerを、各業務がobserve → decide → act → official verify → persist → cleanup → 次の仕事を継続し、顧客に正しく成果を届け、実収益と費用を使って改善するシステムにする。Localの全業務と共有基盤、Cloudの移動予定作成・通知・継続稼働、meta loopの評価・自己修復・自己改善を対象にする。発話の「metal loop」はmeta loopとして扱い、mental careはCloudの既存機能として別に維持する。
+
+**今回の成果物は深い読み取り専用監査と、この正本のspec・patch計画・TODO更新。製品コード修正・本番deploy・予定作成・投稿・注文・送信・fence解除は今回行わない。** 実装に進む時は下表の先頭未完atomから進み、計画の保存やテスト成功を「全体修復済み」「稼いだ」と報告しない。
+
+「永久に故障しない」「全agentの利益が単調増加する」は、外部provider・審査・需要・有限資源を含む系では保証できない。実装する契約は、既知の失敗を再現する回帰検証、欠測を隠さない成果監視、同一effectの重複防止、期限とownerが明確な復旧、悪化した変更の復帰である。市場結果は独立して実測する。会社の既存US$10,000,000 MRR目標や各laneの目標を縮小しない。
+
+**TODO・順序・状態・現在cursorは本節だけが正本。** 下に残るC/R/DD/EDD-FLEET/E/H/Iや旧「現在cursor」は、証拠・既存受入条件・未完事項の参照索引であり別の実行順を持たない。既に完了したsource acceptance、C1のexact照合、旧E01の欠測net修正を未実装へ戻さない。新しいscheduler、別repoの業務実装、全providerの新frameworkを作らない。
+
+### 確認した事実と原因の確度
+
+監査baseは `ee03a2c7b6d180e5747828531129cc2edc102f42`。証拠の正本は [匿名化したLocal監査JSON](../../evidence/lm-foundation-audit-20261022.json)。個人予定の本文・正確な予定日時・住所・連絡先・credential・署名URLは保存しない。以下は取得時刻のsnapshotであり、観測窓が異なる数を同時状態・期間成功率へ変換しない。
+
+| 観測・一次証拠 | 確認事実 | 原因として言える範囲 |
+|---|---|---|
+| source catalog / registry / `lm-loop-contract` | 18業務group、191 managed jobs、112 mapped / 79 unmapped。14 customer_revenue、investment / financing / non_economic / aggregator各1 | 「20 agent」は製品の呼称と実行job数の混在。未登録の2業務を推測で増やさない。79件の分類不足はsource上で確定する |
+| 10/22 09:27:37Z、production immutableの `lm-loop status all --json` | managed191 = loaded-running36 / loaded-idle153 / disabled2。総304行にはretired97 / external15 / unmanaged1を含む | loadedやPIDだけでは成果を証明しない。latest-attempt blockerはdisk46 / effect_unknown43 / capacity9 / FIFO1 / admission unavailable1 / exit1が19 / exit75が2 / exit10が2 / none68 |
+| 同じstatusとinstalled argv/SHA | 144 jobsがbase SHA、47 jobsは別SHA。admission unknownを持つowner76、過去attempt由来で観測時にも `effect_unknown=1` が残るoccurrence合計38,785 | `current`指定と全owner採用は異なる。38,785は未照合のeffect flagを持つ行数であり、現在の注文数や重複投稿数ではない。owner単位のflagとexact occurrenceを区別する |
+| 10/22 09:31:38Z、自然health observer | healthy25 / running15 / failed58 / safely_fenced76 / effect_unknown3 / telemetry_gap14、計191。productivityは全191件 `health_history_timeout` | 現在状態を保持する修正は機能するが、期間の成果clockは取れていない。health分類とlaunchd分類は異なる |
+| read-only cProfile、09:29:38Z開始 | 履歴を含むsnapshot単独16.86秒、104 journal projections、約173万JSON decode。先の現況statusは11.58秒 | `lm_loop.py`のhealthが現況→履歴の二重snapshotを同じ30秒期限で実行し、履歴を毎回再集計する構造は確認済み。負荷条件の違う時刻の値を単純加算して再現時間とはしない |
+| 隔離した `money_liveness.evaluate()` probe | `status=failed` / receiptなしの新ledgerも `stale=false` | file mtimeによるfresh判定は確認できるが、公開や入金の成功判定ではない。現在の6監視laneだけでは全18業務を覆わない |
+| Data-volume `statvfs`、09:32:08Z | available=10,778,357,760 bytes。直近inventoryにはsize-budget-exhausted / permission-limited等の欠測がある | 最新値は10GiB境界付近、一般12GiB floor未満。最新attempt46件のdisk延期と現在値は同時刻ではない。全増加元を特定済みとはしない |
+| CFO B7、09:18:30Z、公式sourceの保存readback | 全18業務のcost-complete netはunknown。Coconala trailing revenue¥70,980、historical¥263,634。mobile MRR $20.34はsubscription snapshot。provenance=partial、ASC reporting-window receipt欠落 | 「売上が一度もない」は事実でない。一方、新規売上・銀行入金・費用後利益・全社MRRを証明できていない。費用欠測を0へ変えない |
+| Capafy公式保存readback、09:20:19Z | seller orders70、gross$102.75、creator earnings$76.18、paid_out$0。7日paid0 / gross$0 / trial3、30日paid10 / gross$27.90 | 新paid停滞は確認する。API verdict success、商品62掲載、無料利用、過去grossを成長や純利益へ読み替えない。将来の売上不振すべてをruntime故障のせいにしない |
+| Cloud公開health・DB・公式Calendar readback | route成功と通知receiptがある同じeventで、対応するTravel blockがない実例を確認する | 認証だけを原因にしない。Cloudの詳細は後述のCLD patchへ結ぶ。特定CREATE_EVENT失敗とのexact request joinは未取得として保持する |
+
+**公開証拠の識別子:** exact occurrenceはowner/runの構造として保存し、元snapshotと同じIDへ復元できる。秘密情報スキャンが生成実行識別子1件をgeneric-api-keyと誤判定するため、既存 `.gitleaksignore` へ当該過去commit/file/lineのexact fingerprintだけを追加する。検出ruleやpath全体の除外は変更しない。
+
+**既存sourceの使える部分:** `self-eval.mjs`のUNKNOWN保持、candidate boundary、Gigの同時A/B、Writerの戦略適用/keep/revert、Postiz identity/attribution、owner lockとexact effect resolverを再利用する。既存focused health4件、self-eval/candidate gate/record19件、loop contract18/191/errors0は今回PASSする。これは上記の本番欠落を否定しない。
+
+### To-Beの共通契約
+
+1. **一つの仕事を最後まで結ぶ。** job / owner / run / occurrence / release / phase / command / exit / effect / provider receipt / readback / evidence / error_class / retryable / next_actionを既存runtime eventとprovider receiptで辿れる。異なるrunのreceiptを時刻の近さだけでjoinしない。
+2. **生存・処理・成果・お金を分ける。** `running`、terminal pass、正式提出、公開、納品受領、paid、settlement、銀行入金、MRR、cost-complete netを別に表示する。観測ログが更新されても、最後のverified outcome clockは更新しない。
+3. **復旧を仕事として進める。** effect unknownはexact公式readbackを収集するcursor。no-dispatch証明がある時だけ登録resolverの該当分岐を使う。証明がない時はそのeffectだけ保留し、独立する観測・他ownerの業務を続ける。
+4. **資源を返す。** 既存bounded workerとadmissionを維持し、provider/model/browser/temporary artifactのownerと寿命を一致させる。共有cleanupを収益workerの混雑から守る。capacity数を上げるだけ、timeoutだけ延長、floorだけ低下、保護store削除で解決扱いしない。
+5. **修正を届かせる。** source修正ごとにmain→immutable→owner lock/idle確認→対象限定採用→同SHAの自然terminal→該当成果の公式readbackを確認する。他者の実行中ownerを一斉restartしない。replay検証は隔離fixtureまたは登録済read-only resolverで行い、実effectを再送しない。
+6. **改善を保持する。** 改善候補、適用SHA、baseline、入力cohort、評価窓、結果、KEEP/REVERT/INCONCLUSIVE、次回採用をdurableに保存する。quality-proxyのKEEPと経済成果の改善は異なる。測定不能を利益0にも成功にも変えない。
+7. **Cloudは同じ業務coreを使う。** Localとの差はsupervisor/state/secret/browser transport。Calendar作成の成功は、同tenant・同connected account・同source event/revisionの公式block readbackで受け入れる。Telegram成功はCalendar成功の代用にならない。
+
+### 方針の比較と採用
+
+**採用する単一案は、既存owner・runtime・receipt契約を残して、確認済みの境界不具合を小さいpatchで閉じる方式。** 最初から18業務を別々に再実装せず、共有修復を一度行い、各業務の最初の失敗境界だけを直す。CloudのCalendar不具合はLocalのdisk/モデル枠に依存しないため並行する。
+
+- best: 同じspend-capで自然業務が継続し、正しい納品・新paid・継続収入・費用後寄与が増え、勝った変更が次回へ残る。
+- base: 技術経路が復旧し、需要/価格/配信の実験結果はinconclusiveを保持して次の小実験へ進む。
+- worst: 外部審査/権限/需要/接続先の不確実さが残り、技術修復だけでは収益が増えない。独立した販売・価値検証を続ける。
+- 棄却案「全面作り直し」の最強論拠は複雑なlegacy契約を一度に簡素化できること。しかし、実際に存在する納品・売上・session・effect fence・provider ownershipを移し直す負担と再送リスクが大きい。
+- 棄却案「全枠/timeoutを拡大」の最強論拠は短期の処理量増加。しかし、実資源とprovider quotaを増やさず、誤った成功判定・未照合effectを直さない。
+- 自分が間違うとしたら最有力の筋は、個別修復の累積コストが既存契約を保った薄い共通実行経路への置換を上回る場合。各patchのRED再現時に具体的な重複だけを確認し、証拠なしの全面置換へ進まない。
+
+### 実行順・owner・依存関係
+
+**順序変更の理由:** 旧順はCapafy R04の自然配信→R05/R06→新paidを先頭とし、共通基盤の残件をR15へ置く。現在はDaisがLocal全体とCloud移動時間の基盤修復を明示し、現測でもdisk延期46・owner fence76・全191 productivity欠測・Cloudのroute成功/blockなしを確認する。共通の直接blockerとCloudの機能故障を先行する方が、独立する収益laneの再開を早める。
+
+**新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
+
+**現在cursor:** 調査・spec更新は完了対象、修復実装は未着手。次はFND01のfresh producer/容量証拠から最小REDを確定し、並行可能なCLD01のCalendar作成型契約を修復する。進行中provider effect、他者branch/lease、既存ownerの販売・納品を中断しない。
+
+primaryは本節、共有source、統合/受入/採用順を所有する。Local writerとCloud writerは別worktree/別ファイル所有で進められる。共有registry、credential、Calendar account、browser profile、release promotion、effect照合は該当leaseで直列化する。reviewerはfresh contextのread-onlyとし、現在UIで選択されたモデルを継承する。登録済agent数と稼働席・作業開始を混同しない。
+
+| TODO・状態 | 一つの検証可能な成果 | 依存 / 既存TODOへの接続 |
+|---|---|---|
+| [ ] FND01 | 実producerの容量増加と後始末を直し、blockedな次の業務wakeを通す | F1–F5/C2/R15。全18完了待ちにしない |
+| [ ] FND02 | 現在状態を残したまま、履歴clockを既存期限内に返す | C2/SH。FND01と独立なsource調査可 |
+| [ ] FND03 | 失敗ledger更新を成果復旧と誤判定しない監視を通す | DD12/EDD-FLEET。最初に既存6lane、次に全18の役割別coverage |
+| [ ] FND04 | model/profile競合・quotaとhost不足を区別し、安全な次回実行へ戻す | R04/brain_transport。既存profile leaseを維持 |
+| [ ] FND05 | 優先業務のexact未知effectを公式証拠で照合し、同じ原因の再生成を止める | C1の既完了は保持、現runは別occurrence |
+| [ ] FND06 | 修正が必要なownerへ同main由来SHAを安全に届ける | A15/通常promotion。全owner一斉更新はしない |
+| [ ] CLD01 | raw Composio / Google proxyのCalendar作成契約を揃える | Cloud Travelのsource型不一致。FNDに非依存 |
+| [ ] CLD02 | uncertain create / claim409を安全な公式再照合へ接続する | CLD01、既存travel claimとCalendar readerを再利用 |
+| [ ] CLD03 | source eventの変更・取消・時刻/route・通知を一貫させる | CLD02、既存DAILY/Web Travel契約 |
+| [ ] CLD04 | 配備SHA/設定・tenant・Cloud自然実行を確認する | Cloud機能patchごとに実施。Mac停止を破壊的試験に使わない |
+| [ ] EARN01 | 有償契約の正しい納品と、Capafy既存sellerの新paidを実現する | 該当FND blockerのみ。C5/R01–R08、Paid契約 |
+| [ ] EARN02 | 全18業務を下表の役割別成果まで一つずつ閉じる | DD12/C8/G01。既存ownerは並行継続 |
+| [ ] EARN03 | 注文/fee/refund/実費/入金/active subscriptionを同期間・同通貨で結ぶ | C3/T0/T3、CFO。販売前の完全台帳gateにはしない |
+| [ ] EVO01 | 各laneのlive成果を評価入力へ接続し、qualityと経済改善を分ける | 旧E02、既存Gig/Writer/marketing評価 |
+| [ ] EVO02 | 一変数の候補→自然適用→成熟評価→KEEP/REVERT→次回採用を完走する | C6/C9/R16。候補がwinnerでない時はbaseline維持 |
+| [ ] EVO03 | 自然失敗を回帰caseへ戻し、独立held-out/復旧/rollbackを確認する | 旧E03–E06/G02/G03。公開benchmarkは収益の先行gateにしない |
+
+### FND patchの実装指示
+
+各項目は同じ順で閉じる。実入力/記録を匿名化して最小REDを先に作る → 原因箇所の最小修正 → 関連GREEN → source/diff/契約review → exact-head CI → PR/main → 対象immutable採用 → 自然成果の公式readback。未再現の仮説を先に実装しない。以下の新テスト名は追加予定の受入名であり、既存テストと偽らない。
+
+**FND01 — 容量の再発をproducer責務で閉じる**
+
+- 対象: `skills/self/disk-cleanup/{host_inventory.py,disk_cleanup.py}`、`runtime/host/disk_admission.py`、`runtime/loop/lm_loop_run.py`。一時物を残すことが実証されたowner entrypointだけを追加対象にする。全巨大directoryを削除対象にしない。
+- 入力: `state/host-inventory{,-full}.json`、既存cleanup receipt、producerのowner/PID/run/path/allocated delta、open FD、現在のfloor/admission判定。過去のfree回復と今回の再減少を別windowで記録する。
+- RED: `test_owner_terminal_reclaims_only_closed_run_artifacts`、`test_partial_inventory_does_not_claim_full_recovery`。live profile/unknown effect/正式receiptを保持し、対象runの再生成可能一時物だけ回収する。既存 `runtime/host/tests/test_disk_admission.py` と `skills/self/disk-cleanup/tests/`へ、実際に再現する枝だけ追加する。
+- 実装: 一度のowner作業が増やした一時物をそのownerの既存finally/cleanupへ戻す。inventory欠測は次のbounded owner測定へ送る。immutable依存bundle/既存native保持方針を再利用し、保護storeは変更しない。floor変更は実測working setと既存契約が必要な時だけ検討し、目先のPASS目的で下げない。
+- 受入: 対象ownerの自然作業→終了→既存cleanupの回収と正式receipt保持、該当する次のeligible業務がdisk由来で失敗しないこと。全量サイズ確定/任意の空きGB/追加7日待機をgateにしない。未特定writerはowner/path/次probeを残す。
+
+**FND02 — 履歴再走査を毎回のhealthから外す**
+
+- 対象: `runtime/loop/lm_loop.py::{snapshot,collect_live,_last_event,_health_event_projection}`、`runtime/loop/runtime_event.py::append_runtime_event`、`runtime/loop/health.py`、`runtime/loop/tests/test_lm_loop_health.py`。新しい監視daemonは作らない。
+- RED: `test_health_current_and_history_share_one_collection`、`test_health_clocks_survive_rotation_and_long_cadence`、`test_clock_projection_detects_gap_without_false_healthy`。共有journal・日次/週次・rotation・遅い読取・不完全末尾・異なるreleaseのwriterを含め、現在状態を消さず、`started`をverified outcomeへ昇格しない。
+- 実装: まず現況/履歴の二重収集を単一collectionへ揃える。既存event journalを正本とし、writerの同じlock下で更新する再構築可能な小さいclock projectionを使い、読取はjournal identity/positionと照合する。混在旧writerや破損時はbounded catch-upと明示unknownへ落とす。正式journalを削除/改変しない。projection単体を効果証明に使わない。
+- 検証: 既存health4ケースを含む関連suite。今回の104 roots相当fixtureと現hostのread-only profileで既存30秒budget内に現在状態/時計を取得する。単なるdeadline延長、archiveを無制限に読む修正は採らない。自然observerでhistory_timeoutの解消を確認する。
+
+**FND03 — mtimeを成功の代用にしない**
+
+- 対象: `runtime/loop/money_liveness.py::{evaluate,messages}`、`config/money-liveness.json`、`runtime/loop/tests/test_money_liveness.py`。既存health observerと通知transportを再利用する。
+- RED: `test_failed_ledger_touch_does_not_recover_outcome`、`test_verified_receipt_advances_only_its_lane_clock`、`test_no_work_is_not_revenue_or_provider_failure`。今回の隔離probeをそのまま回帰化する。無関係な商品/別slotのreceipt、malformed/欠測、無料trial、単なるfactory log更新も成功へ数えない。
+- 実装: laneごとの既存official receipt reader/terminal schemaを読む。`last_attempt`、`last_verified_outcome`、`last_paid`を分離し、mtimeは診断値に残す。cadence・eligible work・provider審査待ちを尊重する。cooldownと送信失敗時の再試行を維持する。全18へはEARN02の役割に合う既存readerを段階的に接続する。
+- 受入: 自然失敗で正常復帰しない、次の本物の成果receiptで一度だけ復帰すること。通知テストはfake transport、実通知は既存ownerの自然動作で確認する。この会話のagentはTelegramへ進捗を送らない。
+
+**FND04 — host slotとmodel leaseを混同しない**
+
+- 対象: `runtime/agent-runner/agent_runner.py::{resolve_provider_profiles,acquire_provider_lease}`と既存Codex実行枝、`runtime/agent-runner/tests/{test_provider_lease.py,test_codex_account_failover.py}`、必要な場合だけ `runtime/host/resource_admission.py` とその既存test。
+- 入力: 最新実runのattempts.jsonl、provider_started、profile lease holder PID/start、quota/reset、host admission owner。旧R04の両Codex busy/Claude quotaは履歴として再利用し、今回の失敗原因をfresh入力で確認する。
+- RED: `test_busy_profile_does_not_consume_provider_attempt_or_claim_effect`、`test_quota_defers_without_holding_finite_host_slot`、`test_live_holder_lease_is_never_stolen`。既存backoff/capを固定し、busyと本当のprovider failureを別分類する。
+- 実装: 既存の利用可能profile順とfinite deadlineへ戻す。全profile使用中/制限中ならtyped deferとnext_eligible_atを保存して資源を返す。hold中の他ownerをkillせず、モデルID/credential/CODEX_HOMEを業務側で新しく選ばない。sourceに既にある動作は再実装せず、その前後の取りこぼしだけ直す。
+- 受入: 同じprovider境界で無駄なeffect-unknownを新しく作らず、次のeligible自然wakeで処理とreceiptへ進む。実providerが呼ばれた可能性のある旧effectはFND05で照合する。
+
+**FND05 — exact effect復旧と履歴増加を分ける**
+
+- 対象: `runtime/loop/fence_reconcile.py`、`runtime/host/resource_admission.py`、`config/loop-registry.json`の登録済 `effect_reconcile`、該当providerの既存adapter。優先対象はcritical_paid、Capafy配信、Writer、Cloudと競合する共有account。
+- RED: `test_historical_unknown_does_not_starve_other_owner_readback`、`test_resolver_refuses_nearby_or_wrong_run_receipt`、`test_pre_effect_failure_is_recorded_before_dispatch`。既存 `runtime/loop/tests/test_fence_reconcile.py`、`runtime/host/tests/test_resource_admission.py` とprovider resolver testへ置く。
+- 実装: owner/run/occurrence/release/slot/providerIDの一致するreadbackだけで登録resolverを呼ぶ。queued/claimed/releasedとeffect flagを別に読む。過去attempt由来でunknown flagが残る約38k行を、閉鎖済み履歴とみなして一括解除しない。既存公平なbatch/cursorを維持し、失敗する先頭一件が他ownerのreadbackを止める時だけ修復する。未解決行を削除せず、retention/index最適化は閉鎖済み行と実測遅延の因果がある場合だけ対象とする。
+- 受入: 一つのexact closure、同じresolverのreplayで追加effect0、次の自然業務の成果。receipt未取得は誤ったno-effectへ変えず、必要provider照合とownerを具体的に残す。
+
+**FND06 — ソース採用と全job分類を完結する**
+
+- 対象: `bin/reconcile-agent-runner-release.sh`、`runtime/loop/lm_loop.py`の既存owner lock/loaded-idle apply、`runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`、`apps/life-manager/config/product-loop-catalog.json`、`config/loop-registry.json`。
+- RED: 実不一致に対する `test_reconcile_preserves_running_or_unknown_owner_and_records_pending_adoption`、`test_support_jobs_are_classified_without_becoming_revenue_products`。既存lock/skip挙動がPASSなら変更せず、残47の理由と次cursorを記録する。
+- 実装: 最新mainの対象patch digestとloaded argv/env/event SHAをowner別に比較する。running/effect_unknownの正当なskipを成功へ偽装せず、自然終了後に同ownerだけ採用する。79 unmappedは業務jobかsupport/control/browserかを実registryから分類し、補助jobを架空の売上agentへ増やさない。
+- 受入: 変更した動作が必要なownerの同SHA自然成果を確認する。別patchを必要としない他ownerへ全体同期を強制しない。未managed1件はowner/導入元を確認し、勝手に削除しない。
+
+### Cloudの現況とCLD patchの実装指示
+
+[匿名化したCloud監査JSON](../../evidence/lm-cloud-travel-audit-20261022.json)は10/22 18:28–18:37 JSTのprovider観測と、primaryが再実行したoffline REDを保存する。公開 `/health` はHTTP200/build `982875d62eaa03f8e924b990c4bc80f521d8dcce`。このSHAは監査mainのancestorで、`scheduler.js`、`lib/{travel.js,transport/calendar-composio.js,travel-reminder.js,runtime-preferences.js,maybe-start-loops.js}`の6 blobsは一致する。従って以下のsource不具合は未配備branchだけの話ではない。既に含まれるTransit `numItineraries=1` とnegative-cache修正を再実装しない。
+
+**現在の欠落:** exact所有を確認したCalendar接続はACTIVE、必要scope/home/phone/bindingと既存automation設定が揃う。公式Calendar readは60予定/next pageなし/Travel helper6件。同一source event hash `1e2dbe554cc8` / `546670642c26` はroute success（2025秒/1620秒）・GO claim・T5通知receiptがあり、対応するTravel blockは0。未来の2予定でもroute/claimがありblock0を確認する。現在の欠落と、過去のcreate失敗/後からの削除は区別する。直近24時間の対象tenantのCREATE_EVENTは8/8 unknownだが、claimとexact joinするrequest/event-versionがなく、この8件を上の予定へ時刻だけで結ばない。
+
+実経路は `server.js → maybeStartLoops → startTravelLoop（30分）→ supaUsers → travelUserOnce → fillTravel → listEvents7d → origin → directionsRoute → claimTravel → createTravelBlock → Composio → reconcileTravelBlock`。T5は別の60秒reminder loopに属する。Calendar作成成功と通知成功を別に受け入れる。
+
+**CLD01 — Calendar作成の型をtransport境界で揃える**
+
+- source: `apps/life-manager/lib/transport/calendar-composio.js::{makeComposioCalendar,exec}`、caller `lib/travel.js::createTravelBlock`、`lib/transport/calendar-composio.test.js` / `lib/travel.test.js`。全 `send_updates` callerとproxy create/patch枝を先に検索する。
+- 一次契約: [公式Composio tool schema](https://backend.composio.dev/api/v3/tools/GOOGLECALENDAR_CREATE_EVENT) の `send_updates` はboolean/default=null。配備sourceはstring `"none"`を渡す。Web proxy側のGoogle APIはquery `sendUpdates="none"`で意味が異なる。
+- RED実測: synthetic `fillTravel`を実adapterへ通しfetchだけstubにすると、GO/RETURNの2 payloadがstring `none`となりboolean assertionでexit1。外部通信0、inserted0/verified0。既存Travel/transport/reminder76件はPASSし、この反例を捕捉しない。
+- 変更: 「参加者へ更新通知しない」という既存意味を保ち、raw Composio toolだけboolean `false`、Google proxyは文字列 `none`へ変換する。proxyへ文字列 `false`を送らず、raw toolにGoogle固有値を漏らさない。既存通知/請求/権限/宛先の契約を緩めない。
+- 最小追加test: `raw_create_uses_boolean_send_updates_false`、`web_proxy_create_and_reminder_patch_keep_sendUpdates_none`、`go_and_return_share_the_transport_contract`。GREEN後の自然作成は新しいeligible source eventで確認し、旧unknownを一括解除しない。
+
+**CLD02a — owned readbackとWeb制御を分離し、409から照合を続ける**
+
+- source: `lib/travel.js::{reconcileTravelBlock,claimTravel,fillTravel}`、`lib/transport/calendar-composio.js::selectedAccountId`、既存 `lib/panel-api.js::composioCalendarAccountStatus`と各test。
+- 確認不具合: `reconcileTravelBlock`は `expectedCalendarAccountId` がないTelegram/Hybridではunknown後のstrict readbackを行わない。durable claimは残り、次wakeの409は作成/再照合を進めない。
+- 変更: 保存済みbindingを同uid/toolkit/exact account/ACTIVEの公式readで検証し、その所有を確認したtransportから同eventのreadbackを行う。既存Web専用 `expectedCalendarAccountId` は `telegram_chat_id=null` とbilling guardも担うため、Hybridへそのまま渡して拒否/権限拡張を起こさない。既存helperを再利用し、認証/接続backfillをread-only照合の副作用にしない。
+- 最小追加test: Hybrid unknown→owned strict readback、claim409→read only、正確な生成helper1件→verified、0件/複数/別tenant/失敗→unknown、create/unclaimは0。物理destination/start/endだけではユーザー予定の誤帰属があり得るため、既存生成markerと保存したexact source/leg/request identityで証明する。旧claimの情報が不足する時は曖昧さを保持する。
+- 受入: 同一owned accountの公式Calendar readbackをreceiptへ保存し、同一source/revision/legの次wakeが重複createしない。**現在block0というabsenceだけでは旧unknownをno-effectへ解放しない。** providerの既知pre-dispatch validation responseが取れる時だけそのexact attemptのno-effectを認定する。
+
+**CLD02b — 次の失敗を診断できる証拠を作成前から残す**
+
+- source: `lib/travel.js::{claimTravel,createTravelBlock}`、`lib/transport/calendar-composio.js`の既存execute/recordOutcome、既存 `lm_travel_log` とusage/cost記録。永続claimが実在するため、必要なら新規 `apps/life-manager/migrations/2026-10-22-lm-travel-write-receipts.sql` と対応Postgres fixtureを追加する。既存Telegram leg/receipt、一意性、RLSと旧行を保持する。
+- 既存vocabularyを使う必須join: owner/run/occurrence/release、source event hash/version、leg、account参照hash、request fingerprint、phase/command、HTTP/provider error class、effect、provider event/receipt ID、readback/evidence、retryable/next_action。credential/住所/予定本文をlogへ複製しない。
+- 状態契約: claim→dispatch前記録→provider attempt→verified / exact no_effect / unknownをdurableに結ぶ。providerが作成を受理した可能性のあるtimeout・schema不明・`successful=false`を一律no-effectにしない。unknown8件の不足fieldを後から時刻で埋めない。旧行はunknownのまま保管し、個別readbackだけで進める。
+- 最小追加test: dispatch前停止、provider validation response、dispatch後timeout、応答保存前停止、duplicate claimant、source revision変更、他tenant、旧claim欠測。新createはprovider event ID/生成markerと一意にjoinでき、replayで追加effect0となることを確認する。safe retryはこの証拠が揃ったexact attemptだけに許す。
+
+**CLD03 — online/変更/取消/routeと予定を一致させる**
+
+- source: `lib/travel.js::{listEvents7d,fillTravel}`、必要時だけ `lib/calendar-interpreter.js::{onlineSignal,interpretCalendarEvent}`、`lib/travel-reminder.js`と既存test。推測住所や新分類frameworkは追加しない。
+- RED実測: Meet URLだけのsynthetic予定は正規化後1件残り、期待0でexit1。現在filterは `decision !== "no_call"` のみ。現在Calendarのonline5件が残り、route/no-route作業もある。**会場＋会議URLがある対面/hybrid予定は保持する。** `decision===online`だけの全除外はしない。
+- 最小追加test: online-only→route/provider呼出し0、会場＋会議URL→物理候補保持、明示online→route0。既存のall-day/取消、同会場、origin/home不足、timezone/DST/日跨ぎ、予定時刻/場所変更の関連ケースは既存testを使い、欠ける反例だけ追加する。
+- 変更/取消はLife Manager生成markerと同source revision/legに一致するblockだけを変更する。手書きTravelや別tenantの予定を変更しない。古いhelperの更新が必要なのにclaimが永久skipする枝はCLD02のdurable状態を使って照合する。T5は正しい現eventのleave時刻と選択channelへ一度だけ届ける。
+- 受入: 新しい自然eligible予定のGO/RETURN block、時刻/場所/所要時間、対応readback、次wakeで追加0。オンライン予定で不要な有料routeを発生させない。今回60件でnext pageが無いため、pagination改修を現在故障の前提にしない。
+
+**CLD04 — Cloudの配備・各機能・課金を別々に確かめる**
+
+- source: `scheduler.js::{startTravelLoop,travelUserOnce}`、`lib/{maybe-start-loops,runtime-preferences,travel-reminder}.js`、Webの既存calendar/billing/automation reader、`skills/earn/marketing-engine/registry/products/life-manager-cloud.json`。
+- 今回取得できないもの: Railway管理CLI/既存credentialは401/403。deployment ID・loaded env・全enabled flagは未取得。公開buildとsource blob一致、現在のprovider記録を、管理env完全確認の代わりと偽らない。必要な権限/credentialを正確に記録し、他のread-only経路を使う。再認証/設定変更は今回行わない。
+- 既存機能の事実: MENTAL send log206行/V1の3 family70行、最新10/21 22:41Zにprovider receiptあり（Telegram画面の再読取なし）。PHYSICAL scan89行、最新10/22 00:03Zだが予約/受診成果は未確認。diet/preceptsの古い記録だけで停止・故障を断定しない。各機能はeligibility/preferences/last_attempt/last_verified_outcomeを分けて確認する。
+- Web first-scanと継続automation/billing、Hybrid、Telegramなし、通知なし、home不足を既存の別branchとしてテストする。Web binding/billing guard、tenant分離、Steel/browser leaseを維持する。catalogのCloud `setup_required` を「すべて配備済み」に変えない。
+- 受入: 同一Cloud SHAとowned tenantで自然travel作成/通知/該当careを公式receiptで確認し、処理がMacのfilesystem/localhost/起動に依存しないcall pathとCloud-only自然実行の証拠を得る。監査のためにMac/稼働基盤を停止しない。phone-onlyの利用・再開等の既存CL01–CL05受入は該当製品範囲で保持するが、新しい固定日数の待機gateを作らない。
+- Cloud収益の現在Stripe readbackは未取得。`paid=true`、登録user数、10/15のMRR$0を現在有料顧客/MRRへ変換しない。既存Web funnelの `calendar_active → first_travel_block → checkout_created → trial_started → paid_invoice` を実customer/sourceで追い、fee/refund/route/Composio/hosting費用をEARN03へ結ぶ。技術修復、顧客価値、課金は別に完了判定する。
+
+### 全18業務の修復・成果マップ
+
+下表は09:27Zのlatest-attemptと既存entrypoint/契約を結ぶ。`none`はblocker欄の値で、事業成功の意味ではない。個別のexit1/10/75の根因は本文/receipt未調査のものを残し、タイムアウト延長等のpatchを先に発明しない。EARN02の各laneは「表の最初の阻害runのsummary/入力/標準errを読む→同runに対応する公式状態を取得→原因の最小RED→必要箇所だけ修復→下表の成果」を一つずつ実行する。
+
+| 業務・jobs | 現在の直接境界 / source入口 | 最終的に確認する成果 |
+|---|---|---|
+| gig-coconala / 7 | unknown2、disk1、capacity1、FIFO1。`skills/earn/gig/README.md`、registryの `hf-gig-*` / `runtime/loop/entry_dispatch.py` | buyerの依頼→成果物→buyerからのaccess/content確認→正式納品→payment/settlement。重複reply禁止と既存room制約を維持 |
+| gig-lancers / 7 | exit1が2、unknown2、capacity2。`skills/earn/lancers/scripts/{application-owner,negotiate-owner,paid-owner}` | proposal/contract/fundingから正しい納品・支払。送信件数だけで完了しない |
+| gig-crowdworks / 5 | capacity3、Paid exit75。`skills/earn/crowdworks/scripts/{application-owner,paid-owner}` | 同案件の要件/複数form/成果物/正式納品/受領/支払をjoin |
+| gig-mercor / 3 | application exit10、paid/report unknown2。`skills/mercor/SKILL.md`、`skills/earn/mercor/scripts/application-owner` | eligible応募→公式受付、契約/本人手続き境界、実業務/対価を分離。合否/雇用を捏造しない |
+| promptbase / 1 | latest exit1、event SHAとinstalled SHAが異なる。`skills/earn/promptbase/daily.sh` / 既存fence resolver | 同listingの承認・購入・返金・seller受取。新商品factoryとsell loop両方を確認 |
+| writer / 7 | disk3、unknown2。`skills/writer-agent/scripts/{claim-loop-owner,money-sync-owner}`、article既存owner | 有料記事/案件の正しい公開・配信・購入/納品対価。無料公開/品質KEEPを収益にしない |
+| affiliate / 6 | disk2、unknown1。`skills/affiliate/affiliate` | active提携/正しいCTA→顧客conversion→approved commission→payout。pendingは収入確定でない |
+| investment / 4 | unknown2、capacity1、exit1が1。`skills/alpaca-investment/run.py` | mode別broker order/fill/fee/実現損益。paper・元本・未実現益を顧客売上にしない。既存risk/spend-cap維持 |
+| agent-economy / 16 | disk8、unknown2。`runtime/loop/index.mjs` / registryの各market owner | 依頼適合→正しい受入/納品→公式award/payment/対価。自己送金/補助金を売上へ加えない |
+| job-hunter / 4 | disk2、unknown1、running1。`apps/job-search-loop/scripts/run-{health,inbox}.sh` / resident owner | 事実に基づく応募→公式confirmation→連絡/面接/offer/実収入。応募=売上としない |
+| fundraiser / 2 | exit75/exit1。`skills/fundraiser-agent/runtime/run.sh` / owned browser | eligible申請→公式受理→funding条件/入金。資金調達を顧客売上/MRRにしない |
+| connector / 1 | latest blockerなし。`skills/connector/run.sh` | 適切な接続/登録/Calendarと通知の正しいreceipt。直接売上を発明せず、会社/本人の機会成果を評価 |
+| self-build / 4 | disk1、他3はblockerなし。`skills/life-manager/self-build-daily.sh` / `apps/life-manager/scripts/life-manager-dev-daily.js` | 顧客需要→既存factoryの稼働商品→購入可能なoffer→実顧客の対価。コード生成/PRを売上としない |
+| mobile-apps / 23 | exit1が10、exit10が1、unknown1、capacity1。`apps/life-manager/scripts/mobile-app` / product registry | 実際の利用可能app/適切な訴求→native投稿→install→active subscription/paid invoice/refund。Postiz予約とASC入金を分離 |
+| ebook / 5 | unknown3。`apps/life-manager/scripts/ebook-distribute-daily.sh` / 既存factory | 正しい電子書籍access/checkout/delivery→外部paid/refund/Stripe settlement。公開導線と売上を別receiptで確認 |
+| capafy / 11 | unknown3、disk2、exit1が1。`skills/earn/capafy-marketing/` / `skills/self/capafy-loop/` | 既存FROZEN sellerのdemo→無料配信/CT→新paid→継続/手取。FROZEN商品は編集しない。新Agent供給と既存seller集客を両立 |
+| line-sticker / 3 | factory unknown1、readback disk1。`skills/earn/line-sticker/line-sticker-{factory,readback}.sh` | 同product IDの審査/承認/販売→有料販売/creator revenue。審査申請receiptは売上でない |
+| cfo / 3 | financial-report disk1、payout unknown1。`skills/cfo/run.sh` / `economic_attribution.py` | 公式source coverageと会社の収益/費用/入金の正しい区別。集約額を新たな売上に重複計上しない |
+
+### EARN / EVO patchの実装指示
+
+**EARN01/02 — 正しい仕事と販売を先に完走する。** 既存critical_paid契約に期限がある時は最優先する。販売pilotはCapafy R01–R08の既存導線/自社demo/登録CT/無料配信を継続する。各laneは上表の第一阻害runだけから始め、全商品/全channelを再監査し直さない。新しい配信案は同対象・同媒体・同目的の一次成功事例、確認済み成果、模倣する構成/テンポ/CTA、計測窓を先に固定する。適例がなければ穴を明示した小実験とし、未確認成果や他社素材を流用しない。注文/納品/公開を実際に止めるsource欠陥だけを最小REDで修正する。新paidが無い時は流入・価値説明・購入離脱・需要のどの観測が不足するかを記録し、同じ無成果投稿の量産へ逃げない。
+
+**EARN03 — 最小の公式経済入力をつなぐ。** 対象は `skills/cfo/economic_attribution.py` と既存 `skills/cfo/adapters/`、`apps/life-manager/scripts/cfo-hourly-local.js`、各providerの既存money reader。`test_unknown_fee_or_cost_never_becomes_positive_net`、`test_same_currency_period_and_external_receipt_are_required`、`test_financing_principal_self_payment_and_duplicate_receipts_are_excluded`を既存関連testでまず確認し、未表現の実欠落だけ追加する。CFOがcurrentなsourceを読めない場合は、そのreaderとjoinだけ直す。既存6時間freshness、通貨単位、refund/settlement/active subscription、総費用と推計寄与の区別を維持する。cost-complete net判定ができるまではunknownを保持し、許可済み無料配信や契約納品を止めない。
+
+**EVO01 — 評価器をlive成果へ接続する。** 対象は `runtime/loop/self-eval.mjs` / `index.mjs`、`skills/earn/gig/scripts/experiment_evaluator.py`、`skills/writer-agent/scripts/self_improve_control.py`、`skills/earn/marketing-engine/{identity/publication_ledger.py,measure/attribution_sweep.py,report/truth_pipeline.py}`。旧E01のUNKNOWN修正は完成済みで再実装しない。現在のWriter `evaluate_due()`には既存 `decision_metric=quality-proxy` のKEEP経路があるため、これを経済成果のKEEPと報告しない。Gigの既存min150/arm・14日・max400/armなどの実験契約を勝手に変更せず、その設定と成熟窓を使う。source actor/slot/creative/product/orderが唯一にjoinできない集計をcreative因果へ配賦しない。REDは `test_quality_proxy_keep_is_not_economic_improvement`、`test_unknown_live_cost_or_mixed_cohort_is_inconclusive`。既存field/receipt vocabularyを再利用する。
+
+**EVO02 — 実運用の一変更閉路を完成する。** `skills/writer-agent/scripts/writer_learning_experiment.py` のdurable strategy/manifest、GigのA/B cohort、既存marketingのexperiment/creative identityを使う。一つの変更、一つの目的指標、固定baseline、成熟窓、既存spend-cap、rollback artifact/hashを事前に固定し、候補生成→既存の適用契約→自然適用→公式成果→KEEP/REVERT/INCONCLUSIVE→次の自然wakeで採用version確認を行う。Writer/Gigの許可済みruntime戦略は既存manifest/cohort/hashと `writer_learning_experiment.py::promote` / `experiment_evaluator.py::assess_ab` のdurable state遷移を使い、source review/CI/mainや新しいcandidate gateを一律に追加しない。skill/prompt/docsのsource候補に限り、`apps/life-manager/eval/agent-contract/gate.js::decideCandidatePromotion` の既存immutable candidate boundaryと通常のreview/CI/main/promotionを通す。primaryによるruntime/基盤コード修正は自動候補の範囲外で、通常の開発手順で行う。credentials/permissions/scheduler/evaluator/provider effectを戦略候補が変更できない境界を維持する。REDは `test_decision_and_next_wake_use_the_same_strategy_hash` と `test_worse_or_unproven_candidate_keeps_baseline`。少数sampleで「改善した」と言わず、inconclusiveはbaselineを保ち追加観測/次候補へ進む。OpenEvolveのpaper/backtestを配信利益の実証にしない。新harness/API/GPU契約を先に導入しない。
+
+**EVO03 — 同じ失敗を次回の入力へ戻す。** `runtime/loop/{recovery-intent.mjs,recovery-supervisor.mjs,recovery-executor.mjs}`、`apps/life-manager/eval/{agent-contract,economic-autonomy}`と既存各laneの回帰suiteを使う。自然失敗の匿名traceを同じ入力/期待effect/receiptに固定し、tuningと独立held-outを分ける。自己修復はtyped intent→既存owner限定executor、効果不確実なものは照合へ送る。read-only replay/隔離fixtureで安全・費用・latency・rollbackを確認し、実providerへ故障注入しない。旧5公開syntheticケースのPASSは汎化・全社利益・AGIの証明でない。公開benchmark/他harness比較は別の未完研究として保持し、顧客成果の完了gateにしない。
+
+### patch実行時の最小検証コマンド
+
+以下は将来の実装時に対応patchのsourceへ実行するコマンドであり、今回未実装のGREENを主張する一覧ではない。新しいREDケースは上記の既存test fileに追加する。repo rootから実行し、providerの本番entrypointをテスト代わりに直起動しない。
+
+| patch | 最初に使う既存検証 |
+|---|---|
+| FND01 | `rtk proxy python3 -m pytest runtime/host/tests/test_disk_admission.py skills/self/disk-cleanup/tests/test_disk_cleanup.py skills/self/disk-cleanup/tests/test_host_inventory.py -q` |
+| FND02 | `rtk proxy python3 -m unittest runtime.loop.tests.test_lm_loop_health` |
+| FND03 | `rtk proxy python3 -m pytest runtime/loop/tests/test_money_liveness.py -q` |
+| FND04 | `rtk proxy python3 -m pytest runtime/agent-runner/tests/test_provider_lease.py runtime/agent-runner/tests/test_codex_account_failover.py -q` |
+| FND05 | `rtk proxy python3 -m unittest runtime.loop.tests.test_fence_reconcile`、該当provider登録adapterの既存fixture test |
+| FND06 | `rtk proxy python3 -m unittest runtime.loop.tests.test_reconcile_agent_runner_release_fleet_apply`、`rtk proxy ./bin/lm-loop-contract` |
+| CLD01–03 | `rtk proxy node --test apps/life-manager/lib/travel.test.js apps/life-manager/lib/transport/calendar-composio.test.js apps/life-manager/lib/travel-reminder.test.js` |
+| CLD04 | `rtk proxy node --test apps/life-manager/test/scheduler.test.js apps/life-manager/lib/runtime-preferences.test.js apps/life-manager/lib/maybe-start-loops.test.js` |
+| EARN01 / Capafy | `rtk proxy python3 -m pytest skills/earn/capafy-marketing/tests/test_capafy_distribute_fence_reconcile.py skills/earn/capafy-marketing/tests/test_capafy_distribute_daily.py -q` |
+| EARN03 | `rtk proxy python3 -m pytest skills/cfo/test_economic_attribution.py skills/cfo/test_marketplace_attribution.py skills/cfo/test_actual_cost_attribution.py -q` |
+| EVO01–03 | `rtk proxy node --test runtime/loop/__tests__/self-eval.test.mjs apps/life-manager/eval/agent-contract/gate.test.js apps/life-manager/eval/agent-contract/records.test.js`、変更したGig/Writerの既存experiment test |
+
+schema migrationが必要なCLD02は既存Postgres integration fixtureでclaimの一意性・状態遷移を確認する。実Cloud/Calendarで故障注入や盲目的なreplayは行わない。全体suiteを何度も回す代わりに、patchが変えた境界と通常CIを通す。
+
+### 全体の受入・継続と不足条件
+
+- **技術修復DONE:** 該当自然入力を処理し、正しい成果を公式readbackで確認し、durable stateと次のeligible transitionが一致する。source/CI/loadedだけでは未完。任意の連続3回・7日・全社監視100%等を新たなgateに足さない。
+- **経済成果DONE:** customer_revenue各laneは外部顧客の新しい対価を公式sourceで確認し、継続性・cost-complete netを別に追う。顧客判断/審査/settlementの待機は期限/owner/次観測を持つ。support/financing/investmentの役割を顧客売上へ混ぜない。
+- **自己改善DONE:** 同じ変更のbaseline→適用→成熟結果→判断→次回採用まで一つのreceipt chainで辿れる。改善が出なければbaseline維持/復帰が正しい成果であり、利益増の証明ではない。次の候補へ続ける。
+- **不足条件:** Railway管理readback権限、providerのexact receipt、顧客の契約/審査/本人手続き、市場の新paidなどは実在する不足として残す。技術判断の承認質問へ置き換えず、自所有の診断/修正と独立laneを進める。
+- **今回の文書受入:** source boundary、数/時刻/参照path/証拠整合、scope、残TODO一元化、fresh read-only反証、diff、exact-head CI、PR/mainとremote objectを確認する。本番修復完了とは区別する。文書のみの変更を理由に稼働ownerへ新releaseを強制しない。
+
+
+## 参照証拠 — 前回の現況監査とCapafy優先cursor
 
 **目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。C1のexact no-effect閉鎖と、C2の容量基準回復/現在状態保持/配信公開/factory自然提出は確認済み。C2の履歴clock・個別gap・永続容量安定は未完を保持し、business cursorはC5の既存sellerの配信・購入へ進める。C3の計測整備は売上行動の前提にしない。Daisの継続実行指示の範囲で実装・必要検証・通常反映を行い、全社/各laneの目標、未知の費用/真のMRR、benchmark/AGIの未証明を縮めない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
 
@@ -192,7 +445,7 @@ R06では occurrence `capafy-reel-daily:18e06608a8e9ede0-52600` がimmutable SHA
 
 比較の固定条件はHook Lab/同じoffer/記事連動X、controlは変更前の公開caption（h07m00）、treatmentは新loaded SHAからのHook Lab記事X投稿。割当単位=実post IDと元slot、成熟窓=最初の新公開から7日、既存無料cadence/既存subscription内/追加cash spend0。既存root/返信receiptとnative反応、公式hooklab_x訪問/paid/refundを観測し、自己probeを除く。これはランダム比較ではなく、shared CTにはReelsも混じるため1件のpaidを当該creativeへ配賦しない。sample不足/交絡はinconclusiveを保持し、7日paid0やreach不足なら単なる投稿量増ではなく次の導線/対象/構成の小実験へ進む。未確認の成果claim/CTA欠落が出れば既存gate/ownerで止める。source checkは最小のshell syntax/diffと通常CI、実受入は自然生成caption→native公開/登録CTA→成熟した市場結果。R04の旧fenceを迂回して投稿しない。C6自律閉路/因果比較/全18業務/benchmarkは本候補で完了扱いしない。
 
-### 収益優先原則と残るatomic TODOの正本
+### 参照証拠 — 収益優先原則と旧atomic TODO
 
 **優先原則:** Capafyを先頭pilotとし、実際の顧客獲得・購入・継続収入を増やす作業を最優先する。優先順は「購入可能な既存seller→無料の配信と明確なCTA→新paid→売れた施策の拡大」。reportの見栄え、CFO整理、費用按分の精密化、全社監視の完全性、benchmark整備を配信/販売開始の前提にしない。計測は既存の公式売上・既存CT・既存receiptから意思決定に必要な最小限を使い、売上不振を計測framework作りへ置き換えない。修復を先行させるのは、公開/購入/顧客対応を実際に止める障害、重複送信、確認済みの金銭漏れなど、そのままでは収益行動が失敗する根拠がある時だけ。未確認の利益/入金/成果を断定せず、既存spend-cap・FROZEN・effect fence・credential保護は維持する。
 

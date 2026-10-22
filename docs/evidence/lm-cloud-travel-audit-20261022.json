@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "scope": "読み取り専用監査。source/本番state/providerの変更0。",
+  "observed_at_jst": "2026-10-22 18:28-18:37",
+  "source_sha": "ee03a2c7b6d180e5747828531129cc2edc102f42",
+  "production": {
+    "health_http_status": 200,
+    "build_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+    "ancestor_of_source": true,
+    "same_blobs": [
+      "apps/life-manager/scheduler.js",
+      "apps/life-manager/lib/travel.js",
+      "apps/life-manager/lib/transport/calendar-composio.js",
+      "apps/life-manager/lib/travel-reminder.js",
+      "apps/life-manager/lib/runtime-preferences.js",
+      "apps/life-manager/lib/maybe-start-loops.js"
+    ],
+    "management_readback": "Railway CLI/既存credentialの401/403。deployment ID/loaded env/full enabled flagsは未取得。"
+  },
+  "tenant_checks": {
+    "private_profile_match": true,
+    "home_present": true,
+    "phone_present": true,
+    "calendar_binding_present": true,
+    "paid_flag": true,
+    "paid_flag_is_invoice_proof": false,
+    "call_enabled": true,
+    "notifications_enabled": true,
+    "daily_automation_enabled": true,
+    "composio_status": "ACTIVE",
+    "uid_and_toolkit_match": true,
+    "scopes_include": [
+      "calendar",
+      "calendar.events"
+    ],
+    "note": "連絡先・住所・個人予定の本文と正確な日時・uid・account ID・tokenは保存しない。"
+  },
+  "calendar_read": {
+    "provider": "Composio GOOGLECALENDAR_EVENTS_LIST",
+    "effect": "read_only",
+    "http_status": 200,
+    "raw_events": 60,
+    "next_page": false,
+    "travel_helpers": 6,
+    "missing_block_examples": [
+      {
+        "event_hash": "1e2dbe554cc8",
+        "transit_success_seconds": 2025,
+        "go_claim_present": true,
+        "matching_travel_blocks": 0,
+        "t5_receipt_present": true,
+        "event_relation_to_observation": "past_due"
+      },
+      {
+        "event_hash": "546670642c26",
+        "transit_success_seconds": 1620,
+        "go_claim_present": true,
+        "matching_travel_blocks": 0,
+        "t5_receipt_present": true,
+        "event_relation_to_observation": "past_due"
+      },
+      {
+        "event_hash": "5109312b70f7",
+        "transit_success_seconds": 1895,
+        "go_claim_present": true,
+        "matching_travel_blocks": 0,
+        "t5_receipt_present": null,
+        "event_relation_to_observation": "future"
+      },
+      {
+        "event_hash": "8e9b020ecb00",
+        "transit_success_seconds": 1895,
+        "go_claim_present": true,
+        "matching_travel_blocks": 0,
+        "t5_receipt_present": null,
+        "event_relation_to_observation": "future"
+      }
+    ],
+    "matching_contract": "同destinationと既存end-window。現在の欠落のみを示し、過去の作成成否やユーザー削除は未証明。"
+  },
+  "create_attempts": {
+    "window": "直近24時間/対象tenant",
+    "operation": "GOOGLECALENDAR_CREATE_EVENT",
+    "count": 8,
+    "unknown": 8,
+    "owner_id": "life-call-calendar",
+    "release_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+    "missing_exact_join_fields": [
+      "source_event_version",
+      "request_id",
+      "provider_event_id",
+      "error_class"
+    ],
+    "causality_to_missing_events": "unproven;時刻でjoinしない"
+  },
+  "official_contract": {
+    "url": "https://backend.composio.dev/api/v3/tools/GOOGLECALENDAR_CREATE_EVENT",
+    "method": "GET",
+    "http_status": 200,
+    "input_field": "send_updates",
+    "type": "boolean",
+    "default": null,
+    "source_value": "none",
+    "source_type": "string"
+  },
+  "offline_probes": {
+    "parent_reran": true,
+    "network_requests": 0,
+    "send_updates": {
+      "assert_expected": "boolean",
+      "observed_types": [
+        "string",
+        "string"
+      ],
+      "observed_values": [
+        "none",
+        "none"
+      ],
+      "payloads": 2,
+      "inserted": 0,
+      "verified": 0,
+      "exit_code": 1
+    },
+    "online_only": {
+      "assert_expected_normalized_physical_events": 0,
+      "observed": 1,
+      "exit_code": 1
+    },
+    "existing_travel_transport_reminder_tests": {
+      "passed": 76,
+      "failed": 0
+    }
+  },
+  "other_features": {
+    "mental": {
+      "send_log_rows": 206,
+      "v1_rows": 70,
+      "latest_v1_utc": "2026-10-21T22:41Z",
+      "provider_receipt_present": true,
+      "telegram_ui_readback": false
+    },
+    "physical": {
+      "scan_rows": 89,
+      "latest_utc": "2026-10-22T00:03Z",
+      "appointment_or_treatment_outcome": "unverified"
+    },
+    "diet": {
+      "latest_record": "2026-10-03",
+      "failure_inferred_from_age": false
+    },
+    "precepts": {
+      "latest_record": "2026-09-29",
+      "failure_inferred_from_age": false
+    },
+    "stripe_current_readback": "not_obtained",
+    "mac_independent_cycles": "not_proven_in_this_audit"
+  },
+  "limitations": [
+    "provider validation response body未取得",
+    "旧8attemptとclaim/source eventのexact join不能",
+    "Railway管理env/full deployment readback未取得",
+    "現在Stripe収益は未取得",
+    "60件/page欠落なしの今回にpaginationを根因としない"
+  ],
+  "mutations": {
+    "source": 0,
+    "calendar": 0,
+    "claim": 0,
+    "auth": 0,
+    "notification": 0,
+    "deployment": 0
+  }
+}
