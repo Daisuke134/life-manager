@@ -291,7 +291,7 @@ function makeComposioCalendar(opts = {}) {
           method: "POST",
           parameters: [{ name: "sendUpdates", value: String(args.send_updates || "none"), type: "query" }],
           body: reminderEvent,
-        } : args;
+        } : args && args.send_updates === "none" ? { ...args, send_updates: false } : args;
         return withCreateEffect(await execute(tool, uid, request,
           operationOpts.expectedCalendarAccountId, true,
           { allowWebInitialScan: operationOpts.allowWebInitialScan === true }));
