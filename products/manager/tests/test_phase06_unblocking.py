@@ -127,14 +127,14 @@ class PermissionReadinessTests(unittest.TestCase):
         self.assertIn("NOT_VERIFIED",raw)
         self.assertIn("NO_ACTION",raw)
 
-    def test_checklist_and_authority_not_falsely_untied(self):
+    def test_retired_registry_does_not_enable_third_party_authority(self):
         from manager_core.field_readiness import examine_authority_packet
         result=examine_authority_packet(self.data)
         self.assertTrue(all(not x["can_execute"] for x in result.values()))
         registry=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
         by={x["id"]:x["status"] for x in registry}
-        self.assertEqual(by["F004"],"blocked")
-        self.assertEqual(by["F007"],"blocked")
+        self.assertEqual(by["F004"],"skipped")
+        self.assertEqual(by["F007"],"skipped")
         self.assertEqual(by["F005"],"todo")
         self.assertEqual(by["F008"],"todo")
         self.assertEqual(by["F009"],"todo")
