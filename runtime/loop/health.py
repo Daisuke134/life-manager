@@ -15,6 +15,8 @@ from pathlib import Path
 
 SCHEMA_VERSION = "lm-loop.health.v1"
 HEALTH_HISTORY_TIMEOUT = "health_history_timeout"
+HEALTH_HISTORY_LIMITS = frozenset({HEALTH_HISTORY_TIMEOUT, "health_history_gap",
+                                   "health_history_incomplete", "health_history_busy"})
 SYSTEM_ROLES = frozenset({"platform", "control", "shared"})
 HEALTH_STATES = frozenset({
     "healthy", "running", "safely_fenced", "effect_unknown",
@@ -552,13 +554,17 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
                 "next_action": row.get("next_action"),
             },
         })
-        if row.get("health_history_status") == HEALTH_HISTORY_TIMEOUT:
-            jobs[-1]["facets"]["productivity"] = {
-                "status": "unknown", "reason": HEALTH_HISTORY_TIMEOUT,
-            }
-            if jobs[-1]["facets"]["revenue"]["status"] != "not_applicable":
+        history_status = row.get("health_history_status")
+        if history_status in HEALTH_HISTORY_LIMITS:
+            known = (row.get("health_clocks") or {}) if history_status == "health_history_gap" else {}
+            if not known.get("last_attempt"):
+                jobs[-1]["facets"]["productivity"] = {
+                    "status": "unknown", "reason": history_status,
+                }
+            if (jobs[-1]["facets"]["revenue"]["status"] != "not_applicable"
+                    and not (known.get("last_verified_effect") or known.get("last_success"))):
                 jobs[-1]["facets"]["revenue"] = {
-                    "status": "unknown", "reason": HEALTH_HISTORY_TIMEOUT,
+                    "status": "unknown", "reason": history_status,
                 }
     summary = {state: 0 for state in sorted(HEALTH_STATES)}
     for job in jobs:
@@ -678,7 +684,7 @@ def health_exit_code(value: dict) -> int:
     )
     return 1 if any(summary[name] for name in unsafe) or any(
         revenue_attention(job)
-        or job["facets"]["productivity"]["reason"] == HEALTH_HISTORY_TIMEOUT
+        or any(facet["reason"] in HEALTH_HISTORY_LIMITS for facet in job["facets"].values())
         for job in value["jobs"]) else 0
 
 
@@ -686,7 +692,7 @@ def revenue_attention(job: dict) -> bool:
     facet = job["facets"]["revenue"]
     # Missing optional history requests another snapshot, not a producer repair.
     return (facet["status"] in {"blocked", "unknown"}
-            and facet["reason"] != HEALTH_HISTORY_TIMEOUT)
+            and facet["reason"] not in HEALTH_HISTORY_LIMITS)
 
 
 def render_human(value: dict) -> str:
@@ -699,7 +705,7 @@ def render_human(value: dict) -> str:
         f"revenue_outage={sum(j['facets']['revenue']['status'] == 'blocked' for j in value['jobs'])}"
     )
     history_limited = sum(
-        job["facets"]["productivity"]["reason"] == HEALTH_HISTORY_TIMEOUT
+        any(facet["reason"] in HEALTH_HISTORY_LIMITS for facet in job["facets"].values())
         for job in value["jobs"])
     if history_limited:
         line += f" history_limited={history_limited}"

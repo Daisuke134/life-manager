@@ -10,6 +10,9 @@ import json
 import os
 import re
 import shutil
+import stat
+import tempfile
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from runtime.host.storage_failure import validate_storage_failure
@@ -47,6 +50,244 @@ SECRET = re.compile(
     r"(?i)(?:bearer\s+[A-Za-z0-9._~+/-]+|(?:token|secret|password|credential|api.?key|auth\.json)\s*[=:]|(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}|/" r"Users/)"
 )
 DEFAULT_MAX_BYTES = 16 * 1024 * 1024
+HEALTH_CATCHUP_BYTES = 256 * 1024
+HEALTH_PROJECTION_MAX_BYTES = 4 * 1024 * 1024
+HEALTH_CLOCKS = ("last_attempt", "last_success", "last_effect", "last_receipt", "last_verified_effect")
+
+
+def _health_bytes(value: dict) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+
+
+def _health_cursor(fd: int, offset: int) -> dict:
+    info = os.fstat(fd)
+    return {
+        "device": info.st_dev, "inode": info.st_ino, "offset": offset,
+        "modified_ns": info.st_mtime_ns,
+        "head": hashlib.sha256(os.pread(fd, min(offset, 128), 0)).hexdigest(),
+        "tail": hashlib.sha256(os.pread(fd, min(offset, 128), max(0, offset - 128))).hexdigest(),
+    }
+
+
+def _empty_health_projection() -> dict:
+    return {"version": 1, "reports": {}, "running": {}, "clocks": {}, "complete": True,
+            "unreadable_loops": {}}
+
+
+def _update_health_projection(value: dict, event: dict) -> None:
+    if event["phase"] not in {"execute", "report"}:
+        return
+    loop_id, timestamp = event["loop_id"], event["timestamp"]
+    clocks = value["clocks"].setdefault(loop_id, dict.fromkeys(HEALTH_CLOCKS))
+    clocks["last_attempt"] = timestamp
+    if event["phase"] == "report":
+        value["reports"][loop_id] = event
+        value["running"].pop(loop_id, None)
+        if event["status"] == "pass":
+            clocks["last_success"] = timestamp
+    elif event["status"] == "running" and event.get("job_id") is not None:
+        pid = event["run_id"].rsplit("-", 1)[-1]
+        # A job has one admitted execution; restarted PIDs must not accumulate forever.
+        value["running"][loop_id] = {pid: event}
+    if event["effect_class"] != "none":
+        if event["effect_status"] in {"started", "verified", "failed", "reconciled"}:
+            clocks["last_effect"] = timestamp
+        if event["phase"] == "report" and event["effect_status"] in {"verified", "reconciled"}:
+            clocks["last_verified_effect"] = timestamp
+    if event.get("provider_receipt_id") or event.get("official_readback_ref"):
+        clocks["last_receipt"] = timestamp
+
+
+def _project_health_lines(value: dict, lines: list[bytes]) -> None:
+    for line in lines:
+        if not line.strip():
+            continue
+        event = None
+        try:
+            event = json.loads(line)
+            validate_runtime_event(event)
+        except (ValueError, TypeError, UnicodeError):
+            loop_id = event.get("loop_id") if isinstance(event, dict) else None
+            affected = ({loop_id} if isinstance(loop_id, str) and SAFE_ID.fullmatch(loop_id)
+                        else set(value["clocks"]) | set(value["reports"]) | set(value["running"]))
+            for loop_id in affected:
+                value["reports"].pop(loop_id, None)
+                value["running"].pop(loop_id, None)
+                value["clocks"][loop_id] = dict.fromkeys(HEALTH_CLOCKS)
+                # Older backfill cannot prove what this newer unreadable record changed.
+                value.setdefault("unreadable_loops", {})[loop_id] = True
+            value["complete"] = False
+            continue
+        _update_health_projection(value, event)
+
+
+def _load_health_projection(path: Path) -> dict | None:
+    try:
+        fd = os.open(path.with_suffix(".health.json"), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > HEALTH_PROJECTION_MAX_BYTES:
+            raise ValueError("invalid health projection file")
+        raw = os.read(fd, HEALTH_PROJECTION_MAX_BYTES + 1)
+    finally:
+        os.close(fd)
+    value = json.loads(raw)
+    digest = value.pop("digest")
+    if (len(raw) > HEALTH_PROJECTION_MAX_BYTES or value.get("version") != 1
+            or digest != hashlib.sha256(_health_bytes(value)).hexdigest()
+            or type(value.get("complete")) is not bool):
+        raise ValueError("invalid health projection")
+    cursor = value["journal"]
+    if any(not SAFE_ID.fullmatch(loop_id) or invalid is not True
+           for loop_id, invalid in value.get("unreadable_loops", {}).items()):
+        raise ValueError("invalid unreadable health owners")
+    pending = value.get("backfill_next")
+    if pending is not None and (not isinstance(pending, str) or Path(pending).name != pending
+                                or not pending.startswith(f"{path.stem}-")
+                                or not pending.endswith(f"{path.suffix}.gz")):
+        raise ValueError("invalid health backfill cursor")
+    if (any(type(cursor[key]) is not int or cursor[key] < 0
+            for key in ("device", "inode", "offset", "modified_ns"))
+            or any(not SHA256.fullmatch(cursor[key]) for key in ("head", "tail"))):
+        raise ValueError("invalid health cursor")
+    for loop_id, clocks in value["clocks"].items():
+        if not SAFE_ID.fullmatch(loop_id) or set(clocks) != set(HEALTH_CLOCKS):
+            raise ValueError("invalid health clocks")
+        for timestamp in clocks.values():
+            if timestamp is not None and datetime.fromisoformat(timestamp.replace("Z", "+00:00")).tzinfo is None:
+                raise ValueError("naive health clock")
+    for loop_id, event in value["reports"].items():
+        validate_runtime_event(event)
+        if event["loop_id"] != loop_id or event["phase"] != "report" or loop_id not in value["clocks"]:
+            raise ValueError("invalid projected report")
+    for loop_id, events in value["running"].items():
+        for pid, event in events.items():
+            validate_runtime_event(event)
+            if (event["loop_id"] != loop_id or event["phase"] != "execute"
+                    or event["status"] != "running" or event.get("job_id") is None
+                    or event["run_id"].rsplit("-", 1)[-1] != pid or loop_id not in value["clocks"]):
+                raise ValueError("invalid projected running event")
+    return value
+
+
+def _backfill_health_archives(value: dict, path: Path, budget: int) -> bool:
+    archives = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}.gz"), reverse=True)
+    if value.get("backfill_next"):
+        archives = [archive for archive in archives if archive.name <= value["backfill_next"]]
+    older, complete = [], True
+    for archive in archives[:4]:
+        try:
+            with gzip.open(archive, "rb") as stream:
+                archived = stream.read(budget + 1)
+            if len(archived) > budget:
+                break
+            budget -= len(archived)
+            if archived and not archived.endswith(b"\n"):
+                complete = False
+                archived = archived[:archived.rfind(b"\n") + 1]
+            older.append(archived)
+        except (OSError, EOFError, zlib.error):
+            break
+    if len(older) < len(archives):
+        value["backfill_next"] = archives[len(older)].name
+        complete = False
+    else:
+        value.pop("backfill_next", None)
+    historical = _empty_health_projection()
+    for archived in reversed(older):
+        _project_health_lines(historical, archived.splitlines())
+    current_loops = set(value["reports"]) | set(value["running"])
+    unreadable = value.setdefault("unreadable_loops", {})
+    for loop_id, clocks in historical["clocks"].items():
+        if loop_id in unreadable:
+            continue
+        current = value["clocks"].setdefault(loop_id, dict.fromkeys(HEALTH_CLOCKS))
+        for name, timestamp in clocks.items():
+            if current[name] is None:
+                current[name] = timestamp
+    for loop_id, event in historical["reports"].items():
+        if loop_id not in unreadable:
+            value["reports"].setdefault(loop_id, event)
+    for loop_id, events in historical["running"].items():
+        if loop_id not in current_loops and loop_id not in unreadable:
+            value["running"][loop_id] = events
+    unreadable.update(historical["unreadable_loops"])
+    return complete and historical["complete"]
+
+
+def _health_projection_locked(fd: int, path: Path, *, budget: int, backfill: bool = False) -> dict:
+    size, corrupt = os.fstat(fd).st_size, False
+    try:
+        value = _load_health_projection(path)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError):
+        value, corrupt = None, True
+    matched = False
+    if value is not None and value["journal"]["offset"] <= size:
+        cursor = _health_cursor(fd, value["journal"]["offset"])
+        if value["journal"]["offset"] < size:
+            cursor["modified_ns"] = value["journal"]["modified_ns"]
+        matched = value["journal"] == cursor
+    offset = value["journal"]["offset"] if matched else 0
+    gap = corrupt or (value is not None and not matched) or size - offset > budget
+    if not matched or gap:
+        value = _empty_health_projection()
+        offset = max(0, size - budget)
+    data = os.pread(fd, min(budget, size - offset), offset)
+    if offset and (not matched or gap):
+        data = data.partition(b"\n")[2]
+    end = size if not data or data.endswith(b"\n") else size - len(data.rsplit(b"\n", 1)[-1])
+    if not matched and offset == 0:
+        # Bootstrap is bounded; normal reads use only the cursor delta and never open archives.
+        gap = not _backfill_health_archives(value, path, budget - len(data)) or gap
+    _project_health_lines(value, data[:len(data) - (size - end)].splitlines())
+    if matched and backfill and value.get("backfill_next"):
+        gap = not _backfill_health_archives(value, path, budget - len(data)) or gap
+    value["complete"] = value["complete"] and not gap
+    value["journal"] = _health_cursor(fd, end)
+    value["history_status"] = ("health_history_incomplete" if end != size else
+                               "health_history_gap" if not value["complete"] else None)
+    return value
+
+
+def read_runtime_health_projection(path: Path) -> dict:
+    """Read a verified cursor or a bounded journal delta; never modify runtime state."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return {**_empty_health_projection(), "history_status": "health_history_gap"}
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return {**_empty_health_projection(), "history_status": "health_history_gap"}
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return {**_empty_health_projection(), "history_status": "health_history_busy"}
+        return _health_projection_locked(fd, path, budget=HEALTH_CATCHUP_BYTES)
+    finally:
+        os.close(fd)
+
+
+def _write_health_projection(fd: int, path: Path, value: dict) -> None:
+    value.pop("history_status", None)
+    value["journal"] = _health_cursor(fd, os.fstat(fd).st_size)
+    value["digest"] = hashlib.sha256(_health_bytes(value)).hexdigest()
+    target = path.with_suffix(".health.json")
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(_health_bytes(value))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def redact_secrets(text: str) -> str:
@@ -431,16 +672,26 @@ def append_runtime_event(path: Path, event: dict) -> None:
     try:
         os.fchmod(fd, 0o600)
         fcntl.flock(fd, fcntl.LOCK_EX)
+        size = os.fstat(fd).st_size
+        completed_tail = False
+        if size:
+            os.lseek(fd, -1, os.SEEK_END)
+            if os.read(fd, 1) != b"\n":
+                _write_complete(fd, b"\n")
+                completed_tail = True
         if _contains_event_id(fd, event["event_id"]):
             os.fsync(fd)
+            if completed_tail:
+                projection = _health_projection_locked(fd, path, budget=2 * DEFAULT_MAX_BYTES, backfill=True)
+                try:
+                    _write_health_projection(fd, path, projection)
+                except OSError:
+                    pass
             return
+        projection = _health_projection_locked(fd, path, budget=2 * DEFAULT_MAX_BYTES, backfill=True)
         rotate_jsonl_locked(fd, path)
         size = os.fstat(fd).st_size
         try:
-            if size:
-                os.lseek(fd, -1, os.SEEK_END)
-                if os.read(fd, 1) != b"\n":
-                    _write_complete(fd, b"\n")
             _write_complete(fd, data)
         except OSError:
             # The existing writer lock excludes siblings; only this incomplete append is undone.
@@ -449,5 +700,11 @@ def append_runtime_event(path: Path, event: dict) -> None:
             raise
         # A complete record remains available if durability confirmation fails.
         os.fsync(fd)
+        _update_health_projection(projection, event)
+        try:
+            _write_health_projection(fd, path, projection)
+        except OSError:
+            # The journal is authoritative; a missed cache update is bounded reader catch-up.
+            pass
     finally:
         os.close(fd)

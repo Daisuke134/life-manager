@@ -19,7 +19,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import zlib
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -38,6 +37,7 @@ from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.loop_cleanup import release_is_reclaimed
 from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
+    read_runtime_health_projection,
 )
 from runtime.loop.health import (
     HEALTH_HISTORY_TIMEOUT, HealthTimeout, health_deadline, health_exit_code, project_health,
@@ -1679,6 +1679,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "diagnostic_missing_fields": missing_diagnostic_fields,
             "diagnostic_error": diagnostic_error,
             "health_clocks": event.get("_health_clocks"),
+            "health_history_status": event.get("_health_history_status"),
             "last_pass": event.get("timestamp"),
             "last_terminal_result": last_terminal_result,
             "effect_class": entry["effect_class"],
@@ -2095,122 +2096,6 @@ def _launchctl(*args: str) -> str:
 
 _HEALTH_EVENT_CACHE_KEY = object()
 _HEALTH_RUNNING_CACHE_KEY = object()
-HEALTH_HISTORY_EVENT_LIMIT = 50_000
-
-
-def _with_rotated_history(path: Path, lines: list[str]) -> list[str]:
-    """Prepend the newest rotated archives until the health history budget is full.
-
-    The shared journal rotates every ~15k lines (~16 h, 2026-10-18), which erased a daily
-    loop's last run from health and reported it as telemetry_gap "never".
-    """
-    # ponytail: the line budget covers ~2 days; weekly loops still read as a gap until clocks
-    # are persisted per loop instead of re-derived from journal history.
-    for archive in sorted(path.parent.glob("events-*.jsonl.gz"), reverse=True):
-        if len(lines) >= HEALTH_HISTORY_EVENT_LIMIT:
-            break
-        try:
-            with gzip.open(archive, "rt", encoding="utf-8") as stream:
-                lines = stream.read().splitlines() + lines
-        except (OSError, EOFError, UnicodeError, zlib.error):
-            break
-    return lines
-
-
-def _health_event_projection(
-    lines: list[str],
-) -> tuple[dict[str, dict], dict[tuple[str, str], dict]]:
-    reports: dict[str, dict] = {}
-    running_events: dict[tuple[str, str], dict] = {}
-    clocks_by_loop: dict[str, dict[str, str | None]] = {}
-    for line in reversed(lines[-HEALTH_HISTORY_EVENT_LIMIT:]):
-        if '"phase"' not in line or ('"report"' not in line and '"execute"' not in line):
-            continue
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if (not isinstance(value, dict)
-                or value.get("phase") not in {"execute", "report"}):
-            continue
-        loop_id = value.get("loop_id")
-        timestamp = value.get("timestamp")
-        if not isinstance(loop_id, str) or not isinstance(timestamp, str):
-            continue
-        clocks = clocks_by_loop.setdefault(loop_id, {
-            "last_attempt": None,
-            "last_success": None,
-            "last_effect": None,
-            "last_receipt": None,
-            # execute/started is written by every wake, even one an admission
-            # fence defers; revenue outage needs an effect that actually landed.
-            "last_verified_effect": None,
-        })
-        is_latest = value.get("phase") == "report" and loop_id not in reports
-        running_key = (loop_id, str(value.get("run_id", "")).rsplit("-", 1)[-1])
-        is_pid_bound_running = (
-            value.get("phase") == "execute"
-            and value.get("status") == "running"
-            and value.get("job_id") is not None
-            and loop_id not in reports
-            and running_key not in running_events
-        )
-        records_attempt = clocks["last_attempt"] is None
-        records_success = (
-            clocks["last_success"] is None
-            and value.get("phase") == "report"
-            and value.get("status") == "pass"
-        )
-        records_effect = (
-            clocks["last_effect"] is None
-            and value.get("effect_class") != "none"
-            and value.get("effect_status") in {
-                "started", "verified", "failed", "reconciled",
-            }
-        )
-        records_verified_effect = (
-            clocks["last_verified_effect"] is None
-            and value.get("phase") == "report"
-            and value.get("effect_class") != "none"
-            and value.get("effect_status") in {"verified", "reconciled"}
-        )
-        records_receipt = (
-            clocks["last_receipt"] is None
-            and (value.get("provider_receipt_id")
-                 or value.get("official_readback_ref"))
-        )
-        if not (is_latest or is_pid_bound_running or records_attempt or records_success
-                or records_effect or records_receipt or records_verified_effect):
-            continue
-        try:
-            validate_runtime_event(value)
-        except ValueError:
-            continue
-        if is_latest:
-            reports[loop_id] = value
-        if is_pid_bound_running:
-            running_events[running_key] = value
-        if records_attempt:
-            clocks["last_attempt"] = timestamp
-        if records_success:
-            clocks["last_success"] = timestamp
-        if records_effect:
-            clocks["last_effect"] = timestamp
-        if records_receipt:
-            clocks["last_receipt"] = timestamp
-        if records_verified_effect:
-            clocks["last_verified_effect"] = timestamp
-    projected_reports = {
-        loop_id: {**event, "_health_clocks": clocks_by_loop[loop_id]}
-        for loop_id, event in reports.items()
-    }
-    projected_running = {
-        key: {**event, "_health_clocks": clocks_by_loop[key[0]]}
-        for key, event in running_events.items()
-    }
-    return projected_reports, projected_running
-
-
 def _last_event(state_root: str, loop_id: str | None = None,
                 cache: dict[Path, dict[str | None, dict]] | None = None,
                 running_pid: str | None = None,
@@ -2236,25 +2121,30 @@ def _last_event(state_root: str, loop_id: str | None = None,
             if (not include_health_clocks
                     or (cached_event is not None and "_health_clocks" in cached_event)):
                 return cached_event
+    if include_health_clocks:
+        projection = read_runtime_health_projection(path)
+        history_status = projection["history_status"]
+        health_reports = {
+            key: {**event, "_health_clocks": projection["clocks"][key],
+                  **({"_health_history_status": history_status} if history_status else {})}
+            for key, event in projection["reports"].items()
+        }
+        health_running_events = {
+            (key, pid): {**event, "_health_clocks": projection["clocks"][key],
+                         **({"_health_history_status": history_status} if history_status else {})}
+            for key, events in projection["running"].items() for pid, event in events.items()
+        }
+        if cache is not None:
+            cache[path] = {**health_reports, _HEALTH_RUNNING_CACHE_KEY: health_running_events,
+                           _HEALTH_EVENT_CACHE_KEY: True}
+        if running_pid is not None:
+            return health_running_events.get((loop_id, str(running_pid)), health_reports.get(loop_id))
+        return health_reports.get(loop_id)
     reports: dict[str | None, dict] = {}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
         lines = []
-    health_reports: dict[str, dict] = {}
-    if include_health_clocks:
-        health_reports, health_running_events = _health_event_projection(
-            _with_rotated_history(path, lines))
-        if cache is not None:
-            cached = cache.setdefault(path, {})
-            cached.update(health_reports)
-            cached[_HEALTH_RUNNING_CACHE_KEY] = health_running_events
-            cached[_HEALTH_EVENT_CACHE_KEY] = True
-        if running_pid is not None:
-            return health_running_events.get(
-                (loop_id, str(running_pid)), health_reports.get(loop_id)
-            )
-        return health_reports.get(loop_id)
     running_reports = {}
     for line in reversed(lines):
         try:
@@ -2627,44 +2517,65 @@ def _attach_effect_unknown_diagnosis(rows: list[dict], registry: dict,
 
 
 def snapshot(registry: dict, target: str, *, include_effect_details: bool = True,
-             include_health_clocks: bool = False) -> list[dict]:
+             include_health_clocks: bool = False,
+             current_rows: list[dict] | None = None) -> list[dict]:
     admission_unknown_occurrences = _admission_effect_unknown_occurrences()
     admission_unknown_owners = set(admission_unknown_occurrences)
     resolved_effect_unknown_occurrences = _resolved_effect_unknown_occurrences()
-    if target != "all" and target in registry["loops"]:
-        selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
-        collect_options = {"full_inventory": False}
-        if include_health_clocks:
-            collect_options["include_health_clocks"] = True
-        loaded, disabled, events, releases, _ = collect_live(
-            selected_registry, **collect_options)
-        rows = status_rows(
-            selected_registry, loaded=loaded, disabled=disabled, events=events,
-            installed_releases=releases,
+    targeted = target != "all" and target in registry["loops"]
+    selected_registry = ({**registry, "loops": {target: registry["loops"][target]}}
+                         if targeted else registry)
+    options = {"full_inventory": False} if targeted else {}
+    loaded, disabled, events, releases, installed = collect_live(selected_registry, **options)
+
+    def project(events):
+        arguments = dict(
+            loaded=loaded, disabled=disabled, events=events, installed_releases=releases,
             admission_effect_unknown=admission_unknown_owners,
             admission_effect_unknown_occurrences=admission_unknown_occurrences,
             resolved_effect_unknown_occurrences=resolved_effect_unknown_occurrences,
-            include_effect_details=include_effect_details)
-        if not include_effect_details:
-            for row in rows:
-                row["admission_effect_unknown_details_omitted"] = True
-            return rows
-        return _attach_effect_unknown_diagnosis(rows, registry, admission_unknown_occurrences)
-    collect_options = {"include_health_clocks": True} if include_health_clocks else {}
-    loaded, disabled, events, releases, installed = collect_live(registry, **collect_options)
-    rows = resolver_rows(
-        registry, loaded=loaded, disabled=disabled, events=events,
-        installed_releases=releases, installed_labels=installed,
-        admission_effect_unknown=admission_unknown_owners,
-        admission_effect_unknown_occurrences=admission_unknown_occurrences,
-        resolved_effect_unknown_occurrences=resolved_effect_unknown_occurrences,
-        include_effect_details=include_effect_details)
-    selected = _select(rows, target)
+            include_effect_details=include_effect_details,
+        )
+        rows = (status_rows(selected_registry, **arguments) if targeted else
+                resolver_rows(selected_registry, installed_labels=installed, **arguments))
+        return _select(rows, target)
+
+    rows = project(events)
+    if current_rows is not None:
+        current_rows.extend(rows)
+    if include_health_clocks:
+        event_cache = {}
+        for loop_id, entry in selected_registry["loops"].items():
+            state_root = _state_root_from_plist(
+                Path.home() / "Library/LaunchAgents" / f"{entry['label']}.plist", entry["state_root"])
+            historical = _last_event(
+                state_root, loop_id, event_cache,
+                running_pid=(loaded.get(entry["label"]) or {}).get("pid")
+                if entry.get("cadence", {}).get("keep_alive") is True else None,
+                include_health_clocks=True,
+            )
+            current = events.get(loop_id, {})
+            if historical and current:
+                try:
+                    current_at = datetime.fromisoformat(current["timestamp"].replace("Z", "+00:00"))
+                    historical_at = datetime.fromisoformat(historical["timestamp"].replace("Z", "+00:00"))
+                    stale = (current_at > historical_at or (current_at == historical_at
+                             and current.get("event_id") != historical.get("event_id")))
+                except (KeyError, ValueError, TypeError, AttributeError):
+                    stale = True
+                if stale:
+                    historical = None
+            if historical:
+                events[loop_id] = historical
+            else:
+                events[loop_id] = {**current, "_health_clocks": None,
+                                  "_health_history_status": "health_history_gap"}
+        rows = project(events)
     if not include_effect_details:
-        for row in selected:
+        for row in rows:
             row["admission_effect_unknown_details_omitted"] = True
-        return selected
-    return _attach_effect_unknown_diagnosis(selected, registry, admission_unknown_occurrences)
+        return rows
+    return _attach_effect_unknown_diagnosis(rows, registry, admission_unknown_occurrences)
 
 
 def browser_resolution(registry: dict, target: str, *, browser_registry: str | None = None,
@@ -3331,16 +3242,12 @@ def main(argv: list[str] | None = None) -> int:
             }, sort_keys=True))
             return 2
         health_deadline_at = time.monotonic() + HEALTH_SNAPSHOT_TIMEOUT_SECONDS
-        current_rows = None
+        current_rows = []
         try:
             with health_deadline(HEALTH_SNAPSHOT_TIMEOUT_SECONDS):
-                current_rows = snapshot(
-                    registry, health_target or "all", include_effect_details=False,
-                    include_health_clocks=False,
-                )
                 rows = snapshot(
                     registry, health_target or "all", include_effect_details=False,
-                    include_health_clocks=True,
+                    include_health_clocks=True, current_rows=current_rows,
                 )
             value = project_health(
                 rows,
