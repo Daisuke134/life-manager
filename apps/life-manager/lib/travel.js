@@ -70,7 +70,10 @@ function providerFailureClass(response, providerStatus) {
   const status = Number(response && response.status);
   if (Number.isFinite(status) && status >= 400 && status < 500) return "provider_4xx";
   if (Number.isFinite(status) && status >= 500) return "provider_5xx";
-  if (providerStatus && providerStatus !== "OK") return "no_route";
+  if (providerStatus === "ZERO_RESULTS" || providerStatus === "NOT_FOUND") return "no_route";
+  if (providerStatus === "UNKNOWN_ERROR") return "provider_5xx";
+  if (["REQUEST_DENIED", "OVER_QUERY_LIMIT", "OVER_DAILY_LIMIT", "INVALID_REQUEST",
+    "MAX_WAYPOINTS_EXCEEDED", "MAX_ROUTE_LENGTH_EXCEEDED"].includes(providerStatus)) return "provider_4xx";
   return "network";
 }
 

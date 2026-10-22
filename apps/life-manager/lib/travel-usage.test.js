@@ -420,6 +420,111 @@ test("Google Directions 4xx response is recorded as paid failure work", async ()
   assert.equal(events[0].estimatedCostUsd, 0.005);
 });
 
+test("Google Directions body failures retain their class and suppress paid replay until the existing TTL", async (t) => {
+  const scenarios = [
+    ["ZERO_RESULTS", 200, "no_route", 86_400_000],
+    ["NOT_FOUND", 200, "no_route", 86_400_000],
+    ["UNKNOWN_ERROR", 200, "provider_5xx", 120_000],
+    ["REQUEST_DENIED", 200, "provider_4xx", 86_400_000],
+    ["OVER_QUERY_LIMIT", 200, "provider_4xx", 86_400_000],
+    ["OVER_DAILY_LIMIT", 200, "provider_4xx", 86_400_000],
+    ["INVALID_REQUEST", 200, "provider_4xx", 86_400_000],
+    ["MAX_WAYPOINTS_EXCEEDED", 200, "provider_4xx", 86_400_000],
+    ["MAX_ROUTE_LENGTH_EXCEEDED", 200, "provider_4xx", 86_400_000],
+    ["UNRECOGNIZED_STATUS", 200, "network", 120_000],
+    [undefined, 200, "network", 120_000],
+    ["UNKNOWN_ERROR", 400, "provider_4xx", 86_400_000],
+    ["UNKNOWN_ERROR", 429, "provider_4xx", 86_400_000],
+    ["ZERO_RESULTS", 503, "provider_5xx", 120_000],
+  ];
+  for (const [providerStatus, httpStatus, failureClass, ttlMs] of scenarios) {
+    await t.test(`${httpStatus}/${providerStatus}`, async () => {
+      const oldFetch = globalThis.fetch;
+      const events = [], store = new Map();
+      let now = 1_000, calls = 0;
+      globalThis.fetch = async () => {
+        calls += 1;
+        return calls === 1 ? { ok: httpStatus < 400, status: httpStatus,
+          json: async () => ({ status: providerStatus, routes: [], error_message: "fixture provider detail" }) }
+          : { ok: true, status: 200,
+            json: async () => ({ status: "OK", routes: [{ legs: [{ duration: { value: 600 } }] }] }) };
+      };
+      const options = { uid: "tenant-body-status", _routeCache: makeRouteCache({ store, now: () => now }),
+        _recordUsageEvent: async (event) => { events.push(event); return true; } };
+      const route = () => directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "fixture-key",
+        2_000_000_000_000, now, false, options);
+      try {
+        assert.equal(await route(), null);
+        assert.equal(events[0].outcome, "failure");
+        assert.equal(events[0].failureClass, failureClass);
+        assert.equal(events[0].providerUnits, 1);
+        assert.equal(store.size, 1);
+        const entry = [...store.values()][0];
+        assert.equal(entry.negative, true);
+        assert.equal(entry.failureClass, failureClass);
+        assert.equal(entry.ttlMs, ttlMs);
+        assert.equal(await route(), null);
+        assert.equal(events.at(-1).failureClass, failureClass);
+        assert.equal(events.at(-1).providerUnits, 0);
+        now += ttlMs - 1;
+        assert.equal(await route(), null);
+        assert.equal(calls, 1);
+        now += 2;
+        assert.equal((await route()).durationSeconds, 600);
+        assert.equal(calls, 2);
+        assert.equal(events.at(-1).outcome, "success");
+        assert.equal(JSON.stringify(events).includes("fixture provider detail"), false);
+      } finally {
+        globalThis.fetch = oldFetch;
+      }
+    });
+  }
+});
+
+test("Geocoding body failures use the existing transient or negative suppression window", async (t) => {
+  const scenarios = [
+    ["UNKNOWN_ERROR", "provider_5xx", 120_000],
+    ["REQUEST_DENIED", "provider_4xx", 1_800_000],
+    ["OVER_QUERY_LIMIT", "provider_4xx", 1_800_000],
+    ["OVER_DAILY_LIMIT", "provider_4xx", 1_800_000],
+    ["ZERO_RESULTS", "no_route", 1_800_000],
+    ["UNRECOGNIZED_STATUS", "network", 120_000],
+  ];
+  for (const [providerStatus, failureClass, ttlMs] of scenarios) {
+    await t.test(providerStatus, async () => {
+      const oldFetch = globalThis.fetch, oldNow = Date.now;
+      const events = [];
+      let now = 1_000, calls = 0;
+      Date.now = () => now;
+      globalThis.fetch = async () => {
+        calls += 1;
+        return { ok: true, status: 200, json: async () => calls === 1
+          ? { status: providerStatus, results: [], error_message: "fixture provider detail" }
+          : { status: "OK", results: [{ geometry: { location: { lat: 35.68, lng: 139.76 } } }] } };
+      };
+      const usage = { tenantId: "tenant-geocode-body-status", options: { _geocodeCacheStore: null,
+        _recordUsageEvent: async (event) => { events.push(event); return true; } } };
+      const geocode = () => geocodeAddress(`CLD03c1 fixture ${providerStatus}`, "fixture-key", usage);
+      try {
+        assert.equal(await geocode(), null);
+        assert.equal(events[0].failureClass, failureClass);
+        assert.equal(await geocode(), null);
+        now += ttlMs - 1;
+        assert.equal(await geocode(), null);
+        assert.equal(calls, 1);
+        now += 2;
+        assert.deepEqual(await geocode(), { lat: 35.68, lon: 139.76 });
+        assert.equal(calls, 2);
+        assert.equal(events.at(-1).outcome, "success");
+        assert.equal(JSON.stringify(events).includes("fixture provider detail"), false);
+      } finally {
+        globalThis.fetch = oldFetch;
+        Date.now = oldNow;
+      }
+    });
+  }
+});
+
 test("Geocoding 4xx is not replayed during negative TTL and a later valid response recovers", async () => {
   const oldFetch = globalThis.fetch;
   const oldNow = Date.now;
