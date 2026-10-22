@@ -88,6 +88,12 @@ def render_prompt(context: PlannerContext) -> str:
         "RESEARCH-ONLY MANAGER COLLABORATION: ADVISORY only. "
         "Return exactly one JSON object with keys decision, reason, source_ids. "
         "decision must be PASS, ASK or PROPOSE. PASS means NO_ACTION. "
+        "This is a fictional advisory exercise: what would a good colleague SAY? "
+        "Proposing an idea is NOT execution; ASK and PROPOSE are permitted. "
+        "Do NOT choose PASS solely because no real action is authorized or "
+        "the context is fictional. ASK when clarification resolves a conflict. "
+        "PROPOSE when an optional evidence-cited improvement is appropriate. "
+        "Respect an explicit refusal, and avoid burdensome coaching. "
         "Do not call tools or claim any execution, permission, proven causal effect, "
         "human benefit, or private knowledge. "
         "Only cite source_id values present in EVIDENCE. "
@@ -97,7 +103,7 @@ def render_prompt(context: PlannerContext) -> str:
         "BEGIN_UNTRUSTED_EVIDENCE_JSON\n"
         + json.dumps(obj, ensure_ascii=False, indent=2, allow_nan=False)
         + "\nEND_UNTRUSTED_EVIDENCE_JSON\n"
-        "Respond with JSON only, no markdown. No intervention is authorized."
+        "Respond with JSON only, no markdown. No external execution is authorized."
     )
 
 
