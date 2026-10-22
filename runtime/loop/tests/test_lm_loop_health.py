@@ -331,6 +331,81 @@ class LmLoopHealthTest(unittest.TestCase):
                 self.assertIsNone(lm_loop._last_event(directory, "old", cache, include_health_clocks=True))
                 self.assertIsNone(lm_loop._last_event(directory, "old", cache, include_health_clocks=True))
 
+    def test_new_verified_outcomes_recover_after_an_older_history_gap_and_can_age(self):
+        from datetime import timedelta
+        import runtime.loop.runtime_event as runtime_event
+
+        now = health.datetime.now(health.timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            for index in range(5):
+                old = build_runtime_event(
+                    loop_id="old", domain="system", run_id=f"old-{index}", release_sha="a" * 40,
+                    provider="deterministic", profile_alias=None, effect_class="none",
+                    succeeded=True, blocker=None,
+                )
+                with gzip.open(Path(directory, f"events-{index:04d}.jsonl.gz"), "wt") as stream:
+                    stream.write(json.dumps(old) + "\n")
+            for index in range(2):
+                event = build_runtime_event(
+                    loop_id="fresh", domain="earn", run_id=f"new-{index}", release_sha="b" * 40,
+                    provider="deterministic", profile_alias=None, effect_class="publish",
+                    succeeded=True, blocker=None, provider_receipt_id=f"receipt-{index}",
+                    official_readback_ref=f"lm-proof://fresh/new-{index}",
+                )
+                event.update(timestamp=(now + timedelta(minutes=index)).isoformat(), effect_status="verified")
+                append_runtime_event(path, event)
+                projected = runtime_event.read_runtime_health_projection(path)
+                self.assertFalse(projected["complete"])
+                self.assertEqual(projected["history_status"], "health_history_gap")
+                row = self.status_row(
+                    "fresh", admission_class="revenue", registered_cadence={"start_interval_seconds": 300},
+                    effect_class="publish", effect_status="verified", last_pass=event["timestamp"],
+                    provider_receipt_id=event["provider_receipt_id"],
+                    official_readback_ref=event["official_readback_ref"],
+                    health_clocks=projected["clocks"]["fresh"], health_history_status=projected["history_status"],
+                )
+                value = health.project_health([row])
+                self.assertEqual(value["jobs"][0]["facets"]["productivity"]["status"], "ok")
+                self.assertEqual(value["jobs"][0]["facets"]["revenue"]["status"], "ok")
+                self.assertEqual(health.health_exit_code(value), 0)
+            later_at = now + timedelta(hours=6)
+
+            class Later(health.datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return later_at
+
+            with patch.object(health, "datetime", Later):
+                aged = health.project_health([row])
+            self.assertEqual(aged["jobs"][0]["facets"]["revenue"]["status"], "blocked")
+            self.assertTrue(health.revenue_attention(aged["jobs"][0]))
+            self.assertEqual(health.health_exit_code(aged), 1)
+            with path.open("a") as stream:
+                stream.write('{"phase":"report"')
+            pending = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(pending["history_status"], "health_history_incomplete")
+            row["health_history_status"] = pending["history_status"]
+            self.assertEqual(health.project_health([row])["jobs"][0]["facets"]["revenue"]["status"], "unknown")
+
+    def test_known_attempt_does_not_invent_a_missing_revenue_clock(self):
+        now = health.datetime.now(health.timezone.utc).isoformat()
+        row = self.status_row(
+            "current", admission_class="revenue", registered_cadence={"start_interval_seconds": 300},
+            last_terminal_result="running", effect_class="publish", effect_status="started",
+            health_clocks={"last_attempt": now, "last_success": None, "last_effect": now,
+                           "last_receipt": None, "last_verified_effect": None},
+            health_history_status="health_history_gap",
+        )
+        value = health.project_health([row])
+        job = value["jobs"][0]
+        self.assertEqual(job["facets"]["productivity"]["status"], "ok")
+        self.assertEqual(job["facets"]["revenue"], {"status": "unknown", "reason": "health_history_gap"})
+        self.assertIsNone(job["clocks"]["last_success"])
+        self.assertFalse(health.revenue_attention(job))
+        self.assertEqual(health.health_exit_code(value), 1)
+        self.assertIn("history_limited=1", health.render_human(value))
+
     def test_health_clocks_survive_rotation_and_long_cadence(self):
         from datetime import timedelta
         import runtime.loop.runtime_event as runtime_event

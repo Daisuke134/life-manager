@@ -86,7 +86,8 @@ def _update_health_projection(value: dict, event: dict) -> None:
             clocks["last_success"] = timestamp
     elif event["status"] == "running" and event.get("job_id") is not None:
         pid = event["run_id"].rsplit("-", 1)[-1]
-        value["running"].setdefault(loop_id, {})[pid] = event
+        # A job has one admitted execution; restarted PIDs must not accumulate forever.
+        value["running"][loop_id] = {pid: event}
     if event["effect_class"] != "none":
         if event["effect_status"] in {"started", "verified", "failed", "reconciled"}:
             clocks["last_effect"] = timestamp
@@ -126,6 +127,11 @@ def _load_health_projection(path: Path) -> dict | None:
             or type(value.get("complete")) is not bool):
         raise ValueError("invalid health projection")
     cursor = value["journal"]
+    pending = value.get("backfill_next")
+    if pending is not None and (not isinstance(pending, str) or Path(pending).name != pending
+                                or not pending.startswith(f"{path.stem}-")
+                                or not pending.endswith(f"{path.suffix}.gz")):
+        raise ValueError("invalid health backfill cursor")
     if (any(type(cursor[key]) is not int or cursor[key] < 0
             for key in ("device", "inode", "offset", "modified_ns"))
             or any(not SHA256.fullmatch(cursor[key]) for key in ("head", "tail"))):
@@ -150,7 +156,47 @@ def _load_health_projection(path: Path) -> dict | None:
     return value
 
 
-def _health_projection_locked(fd: int, path: Path, *, budget: int) -> dict:
+def _backfill_health_archives(value: dict, path: Path, budget: int) -> bool:
+    archives = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}.gz"), reverse=True)
+    if value.get("backfill_next"):
+        archives = [archive for archive in archives if archive.name <= value["backfill_next"]]
+    older, complete = [], True
+    for archive in archives[:4]:
+        try:
+            with gzip.open(archive, "rb") as stream:
+                archived = stream.read(budget + 1)
+            if len(archived) > budget:
+                break
+            budget -= len(archived)
+            if archived and not archived.endswith(b"\n"):
+                complete = False
+                archived = archived[:archived.rfind(b"\n") + 1]
+            older.append(archived)
+        except (OSError, EOFError, zlib.error):
+            break
+    if len(older) < len(archives):
+        value["backfill_next"] = archives[len(older)].name
+        complete = False
+    else:
+        value.pop("backfill_next", None)
+    historical = _empty_health_projection()
+    for archived in reversed(older):
+        _project_health_lines(historical, archived.splitlines())
+    current_loops = set(value["reports"]) | set(value["running"])
+    for loop_id, clocks in historical["clocks"].items():
+        current = value["clocks"].setdefault(loop_id, dict.fromkeys(HEALTH_CLOCKS))
+        for name, timestamp in clocks.items():
+            if current[name] is None:
+                current[name] = timestamp
+    for loop_id, event in historical["reports"].items():
+        value["reports"].setdefault(loop_id, event)
+    for loop_id, events in historical["running"].items():
+        if loop_id not in current_loops:
+            value["running"][loop_id] = events
+    return complete
+
+
+def _health_projection_locked(fd: int, path: Path, *, budget: int, backfill: bool = False) -> dict:
     size, corrupt = os.fstat(fd).st_size, False
     try:
         value = _load_health_projection(path)
@@ -173,32 +219,14 @@ def _health_projection_locked(fd: int, path: Path, *, budget: int) -> dict:
     end = size if not data or data.endswith(b"\n") else size - len(data.rsplit(b"\n", 1)[-1])
     if not matched and offset == 0:
         # Bootstrap is bounded; normal reads use only the cursor delta and never open archives.
-        remaining = budget - len(data)
-        archives = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}.gz"), reverse=True)
-        older = []
-        for archive in archives[:4]:
-            try:
-                with gzip.open(archive, "rb") as stream:
-                    archived = stream.read(remaining + 1)
-                if len(archived) > remaining:
-                    gap = True
-                    break
-                remaining -= len(archived)
-                if archived and not archived.endswith(b"\n"):
-                    gap = True
-                    archived = archived[:archived.rfind(b"\n") + 1]
-                older.append(archived)
-            except (OSError, EOFError, zlib.error):
-                gap = True
-                break
-        gap = gap or len(older) != len(archives)
-        for archived in reversed(older):
-            _project_health_lines(value, archived.splitlines())
+        gap = not _backfill_health_archives(value, path, budget - len(data)) or gap
     _project_health_lines(value, data[:len(data) - (size - end)].splitlines())
+    if matched and backfill and value.get("backfill_next"):
+        gap = not _backfill_health_archives(value, path, budget - len(data)) or gap
     value["complete"] = value["complete"] and not gap
     value["journal"] = _health_cursor(fd, end)
-    value["history_status"] = ("health_history_gap" if not value["complete"] else
-                               "health_history_incomplete" if end != size else None)
+    value["history_status"] = ("health_history_incomplete" if end != size else
+                               "health_history_gap" if not value["complete"] else None)
     return value
 
 
@@ -626,7 +654,7 @@ def append_runtime_event(path: Path, event: dict) -> None:
         if _contains_event_id(fd, event["event_id"]):
             os.fsync(fd)
             return
-        projection = _health_projection_locked(fd, path, budget=2 * DEFAULT_MAX_BYTES)
+        projection = _health_projection_locked(fd, path, budget=2 * DEFAULT_MAX_BYTES, backfill=True)
         rotate_jsonl_locked(fd, path)
         size = os.fstat(fd).st_size
         try:

@@ -44,6 +44,59 @@ class RuntimeEventTest(unittest.TestCase):
             "lm-occurrence://example/older/claim",
         ])
 
+    def test_archive_bootstrap_preserves_the_latest_pid_bound_running_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            path.write_bytes(b"")
+            running = build_runtime_start_event(
+                loop_id="example", domain="system", run_id="current-123", release_sha="a" * 40,
+                provider="deterministic", profile_alias=None, effect_class="none", job_id="example",
+                owner_id="example", wake_id="current-123", occurrence_id="example:current-123",
+            )
+            with gzip.open(Path(directory, "events-0001.jsonl.gz"), "wt") as stream:
+                stream.write(json.dumps(BASE) + "\n" + json.dumps(running) + "\n")
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["running"]["example"]["123"], running)
+
+    def test_clock_projection_backfills_the_next_older_archive_without_overwriting_new_clocks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            for index in range(5):
+                event = {**BASE, "loop_id": "weekly" if index == 0 else "old",
+                         "effect_status": "verified", "event_id": f"{index:024x}"}
+                with gzip.open(Path(directory, f"events-{index:04d}.jsonl.gz"), "wt") as stream:
+                    stream.write(json.dumps(event) + "\n")
+            append_runtime_event(path, {**BASE, "timestamp": "2026-10-22T00:00:00+00:00"})
+            before = runtime_event.read_runtime_health_projection(path)
+            self.assertNotIn("weekly", before["clocks"])
+            with mock.patch.object(gzip, "open", wraps=gzip.open) as archives:
+                append_runtime_event(path, {**BASE, "event_id": "d" * 24,
+                                           "timestamp": "2026-10-22T00:01:00+00:00"})
+            self.assertEqual(archives.call_count, 1)
+            after = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(after["clocks"]["weekly"]["last_verified_effect"], BASE["timestamp"])
+            self.assertEqual(after["clocks"]["example"]["last_attempt"], "2026-10-22T00:01:00+00:00")
+            self.assertFalse(after["complete"])
+
+    def test_restarted_running_pids_stay_bounded_and_do_not_force_reindexing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            with mock.patch.object(runtime_event, "HEALTH_PROJECTION_MAX_BYTES", 4096):
+                for pid in range(30):
+                    event = build_runtime_start_event(
+                        loop_id="example", domain="system", run_id=f"run-{pid}", release_sha="a" * 40,
+                        provider="deterministic", profile_alias=None, effect_class="none", job_id="example",
+                        owner_id="example", wake_id=f"run-{pid}", occurrence_id=f"example:run-{pid}",
+                    )
+                    append_runtime_event(path, event)
+                with mock.patch.object(runtime_event, "_project_health_lines",
+                                       wraps=runtime_event._project_health_lines) as project:
+                    value = runtime_event.read_runtime_health_projection(path)
+                self.assertEqual(set(value["running"]["example"]), {"29"})
+                self.assertLess(path.with_suffix(".health.json").stat().st_size, 4096)
+                self.assertTrue(all(not call.args[1] for call in project.call_args_list))
+                self.assertIsNone(value["history_status"])
+
     def test_clock_projection_does_not_accept_an_unterminated_archived_event(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory, "events.jsonl")
