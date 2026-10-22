@@ -1,11 +1,20 @@
 # Manager — independent intervention research prototype
 
+**開始から最後まで:** [全Phase00〜12・残41件・依存・完成条件・出版/サイト/YCの並行線](docs/roadmap/START_TO_END_20261022.md)。原計画の末尾はPhase12/G006、現在地はE16です。
+
+**最新の再開入口:** [E16本番配備ゲートと残作業の引継ぎ](docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md)。E01–E15の実装・CI証跡は [tasks.json](docs/roadmap/tasks.json) に記録。E16は参照サイクルのテストまでで、常駐ホスト・永続状態・本番アダプターが未充足のため `DEPLOYMENT_HOST_REQUIRED`。今回のコードは未配備、人への便益は未測定、モデルの優位性も未証明です。
+
+**全体設計:** [最終使命・最初の製品・研究・事業・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
+
+**全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。本番の採用先はRailway単一worker＋専用volume。接続は確認済み、Managerの配備は未完了です。
+
+**新規候補を追加した一次資料調査:** [OpenClaw/Khoj/n8n・DBOS/Restate・新arXiv論文・browser/exporter/hostの比較](docs/research/manager-options-additional-20261022/REPORT_JA.md)、[実ファイル・関数・テストを指定したatomic patch plan](docs/plans/2026-10-22-manager-e16-atomic-patches.md)。既知名の繰返しは新規件数に含めず、第三者実装は固定sourceの静的読取で、動作再現済みとは扱いません。
 
 ## 2026-10-22 現行実装の入口 — ここから開始
 
 **Managerの唯一のタスク状態・順序・カーソル正本:** [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json)（`F009.technical_execution_sequence` と `technical_execution_cursor`）。
 
-**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは **E01**。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
+**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは**SSOTの `technical_execution_cursor` を参照**（実際の値はSSOTを参照）。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
 
 **F005 → F006 → F008 → F009** はEの後に証拠で確認する **Phase 06の受け入れ条件** で、Eより前に実装する順序ではありません。旧F004/F007の資金提供者・施設許可は必須ルートから除外、`skipped`（未実施）です。状態は **113件 = done 69 / todo 41 / blocked 0 / skipped 3**。技術的P1/P2と受益者へのP3/P4は別物で、後者は未測定です。
 

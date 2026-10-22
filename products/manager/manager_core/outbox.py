@@ -108,3 +108,127 @@ class DurableOutbox:
         with sqlite3.connect(self.path,timeout=15) as db:
             db.execute("UPDATE effects SET status=?,receipt_ref=? WHERE key=?",
                        (status,receipt_ref,key))
+
+
+@dataclass(frozen=True)
+class OwnedEffectRecord:
+    key: str
+    packet_json: str
+    expected_parent: str
+    status: str
+    receipt_ref: str | None
+    dispatch: bool = False
+
+
+class OwnedEffectJournal:
+    """Durable owned-release reservation, not an executor or authority issuer.
+
+    The host must call the original privileged admission and perform target Git
+    CAS using expected_parent. Reservation is committed BEFORE that call. Any
+    uncertain/crashed reservation is reconciled; it is never sent again here.
+    Persistent owner storage is required; ephemeral CI is not deployment storage.
+    """
+    def __init__(self,path):
+        self.path=str(path)
+        with sqlite3.connect(self.path,timeout=15) as db:
+            db.execute('''CREATE TABLE IF NOT EXISTS owned_effects(
+                key TEXT PRIMARY KEY,packet_json TEXT NOT NULL,expected_parent TEXT NOT NULL,
+                status TEXT NOT NULL,receipt_ref TEXT)''')
+            db.execute('''CREATE TABLE IF NOT EXISTS owned_deliveries(
+                key TEXT PRIMARY KEY,status TEXT NOT NULL,evidence_json TEXT NOT NULL)''')
+            db.execute('''CREATE TABLE IF NOT EXISTS owned_recovery_cursor(
+                kind TEXT PRIMARY KEY CHECK(kind IN ('occurrence','delivery')),
+                after_key TEXT NOT NULL)''')
+    def record(self,key):
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
+        return OwnedEffectRecord(*row) if row else None
+    def pending_records(self,limit=100,after_key=None):
+        """Bounded saved intents; reading never restores dispatch permission."""
+        if type(limit) is not int or not 1<=limit<=100:
+            raise ValueError('pending batch limit must be 1..100')
+        if after_key is not None and (type(after_key) is not str or not after_key):
+            raise ValueError('nonempty pagination key required')
+        with sqlite3.connect(self.path,timeout=15) as db:
+            rows=db.execute('''SELECT key,packet_json,expected_parent,status,receipt_ref
+                FROM owned_effects WHERE status!='PRESENT' AND key>?
+                ORDER BY key LIMIT ?''',(after_key or '',limit)).fetchall()
+        return tuple(OwnedEffectRecord(*row) for row in rows)
+    def delivery_record(self,key):
+        import json
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT evidence_json FROM owned_deliveries WHERE key=?',(key,)).fetchone()
+        return json.loads(row[0]) if row else None
+    def pending_deliveries(self,limit=100,after_key=None):
+        if type(limit) is not int or not 1<=limit<=100:
+            raise ValueError('delivery batch limit must be 1..100')
+        if after_key is not None and (type(after_key) is not str or not after_key):
+            raise ValueError('nonempty pagination key required')
+        with sqlite3.connect(self.path,timeout=15) as db:
+            rows=db.execute('''SELECT e.key,e.packet_json,e.expected_parent,e.status,e.receipt_ref
+                FROM owned_effects e LEFT JOIN owned_deliveries d ON d.key=e.key
+                WHERE e.status='PRESENT' AND (d.key IS NULL OR d.status!='VERIFIED')
+                AND e.key>? ORDER BY e.key LIMIT ?''',(after_key or '',limit)).fetchall()
+        return tuple(OwnedEffectRecord(*row) for row in rows)
+    def recovery_batch(self,kind):
+        if kind not in ('occurrence','delivery'):raise ValueError('unknown recovery kind')
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT after_key FROM owned_recovery_cursor WHERE kind=?',(kind,)).fetchone()
+        read=self.pending_records if kind=='occurrence' else self.pending_deliveries
+        records=read(after_key=row[0] if row else None)
+        # Cycle over unresolved rows as well; never equate cursor with progress
+        # on an external effect or allow writes while any row remains pending.
+        return records or read()
+    def complete_recovery_batch(self,kind,records):
+        if kind not in ('occurrence','delivery'):raise ValueError('unknown recovery kind')
+        if not records:return
+        with sqlite3.connect(self.path,timeout=15) as db:
+            db.execute('INSERT OR REPLACE INTO owned_recovery_cursor VALUES(?,?)',
+                       (kind,records[-1].key))
+    def save_delivery(self,key,evidence):
+        import json
+        from .models.source import _aware
+        record=self.record(key)
+        if (record is None or record.status!='PRESENT' or type(evidence) is not dict
+                or evidence.get('effect_key')!=key or evidence.get('receipt_ref')!=record.receipt_ref
+                or evidence.get('candidate_sha256')!=json.loads(record.packet_json)['candidate_sha256']
+                or evidence.get('status') not in ('VERIFIED','PENDING','REGRESSION','UNKNOWN')):
+            raise ValueError('delivery observation must bind exact saved occurrence')
+        _aware(datetime.fromisoformat(evidence['observed_at']))
+        serialized=json.dumps(evidence,sort_keys=True,allow_nan=False)
+        with sqlite3.connect(self.path,timeout=15) as db:
+            # Preserve historical verification; later live state is a different
+            # observation, never retroactively erase the prior delivered fact.
+            db.execute('''INSERT INTO owned_deliveries VALUES(?,?,?)
+                ON CONFLICT(key) DO UPDATE SET status=excluded.status,evidence_json=excluded.evidence_json
+                WHERE owned_deliveries.status!='VERIFIED' ''',(key,evidence['status'],serialized))
+    def reserve(self,packet,context,current,candidate,expected_parent,now,*,revoked=False):
+        import re
+        from .digital_handoff import validate_intent,canonical_bytes,admit_release
+        validate_intent(packet)
+        if type(expected_parent) is not str or not re.fullmatch('[0-9a-f]{40}',expected_parent):
+            raise ValueError('immutable target parent required')
+        serialized=canonical_bytes(packet).decode();key=packet['effect_key']
+        # Pure admission is necessary but not authentication. Actual platform
+        # identity/artifact checks remain in phase06_kernel_release.admit.
+        admitted=admit_release(packet,context,current,candidate,now,revoked=revoked)
+        with sqlite3.connect(self.path,timeout=15,isolation_level=None) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
+            if row:
+                if row[1]!=serialized or row[2]!=expected_parent:
+                    raise ValueError('reserved effect binding changed; reconcile only')
+                db.execute('COMMIT');return OwnedEffectRecord(*row)
+            status='DISPATCHING' if admitted['dispatch_deployment'] else 'ALREADY_PRESENT_UNRECONCILED'
+            db.execute('INSERT INTO owned_effects VALUES(?,?,?,?,NULL)',(key,serialized,expected_parent,status))
+            db.execute('COMMIT')
+        record=self.record(key)
+        from dataclasses import replace
+        return replace(record,dispatch=admitted['dispatch_deployment'])
+    def _present(self,key,receipt_ref):
+        # Called only after immutable occurrence validation by reconciler.
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
+            if row is None:raise ValueError('missing intent')
+            if row[0]=='PRESENT' and row[1]!=receipt_ref:raise ValueError('conflicting occurrence')
+            db.execute("UPDATE owned_effects SET status='PRESENT',receipt_ref=? WHERE key=?",(receipt_ref,key))

@@ -1,0 +1,29 @@
+{
+  "schema": "manager.public-source-config.v1",
+  "sources": [
+    {
+      "source_id": "govuk-accessibility",
+      "url": "https://www.gov.uk/help/accessibility-statement",
+      "license_id": "Open Government Licence v3.0; Crown copyright; attribution required",
+      "rights": "allowed_with_conditions",
+      "privacy_class": "public_nonpersonal",
+      "allowed_hosts": [
+        "www.gov.uk"
+      ],
+      "rights_source": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+      "use": "Read-only public institutional guidance; no personal case records or redistribution of excluded third-party material"
+    },
+    {
+      "source_id": "govuk-robots",
+      "url": "https://www.gov.uk/robots.txt",
+      "license_id": "Open Government Licence v3.0; Crown copyright; attribution required",
+      "rights": "allowed_with_conditions",
+      "privacy_class": "public_nonpersonal",
+      "allowed_hosts": [
+        "www.gov.uk"
+      ],
+      "rights_source": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+      "use": "Read-only stable site acquisition policy; OGL site content conditions and exclusions apply"
+    }
+  ]
+}

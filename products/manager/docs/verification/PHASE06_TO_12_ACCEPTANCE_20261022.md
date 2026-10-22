@@ -173,10 +173,10 @@
 |---|---|---|
 | repo 内で追加できる限定的な工程 | [統治憲章](../governance/PUBLIC_INTEREST_CHARTER_DRAFT.md)・[監査手順](../governance/INCIDENT_APPEAL_AND_AUDIT_PROCEDURE.md)の未採択ドラフトは追加済み。実 source/endpoint 確定後の provider-specific ingestion・public export は別工程。D001–D003 の専用結合契約は J で追加済み | 文書や汎用型の存在を実採択・全 engineering 完了と呼ばない。対象 format/役割が不明な部分を架空の本番接続として実装しない |
 | 設計と実条件を決めれば実装できる工程 | GrowthBook の実 owned route wiring、独立側の同意・assignment/露出の真正性を扱う実装、欠測・クラスター構造に適合する既存推定法、実地の電力積算・騒音時間指標の parser | 現コードは inert/synthetic または supplied-data analysis に限定。参加者実験を勝手に開始しない |
-| 実 evidence が不可欠な条件 | U002 面談、F004 資金、F007 施設、U004 登録/同意、D011 受領、D014 協働/倫理、実 outcome/害/追試、V006 数十案件、Y003 提出、Y005 接点、継続需要 | コード、文章、合成人数、URL/hash、自分で書いた approval では置き換えられない |
+| 実 evidence が不可欠な条件 | U002 面談、U004 登録/同意、D011 受領、D014 協働/倫理、実 outcome/害/追試、V006 数十案件、Y003 提出、Y005 接点、継続需要 | コード、文章、合成人数、URL/hash、自分で書いた approval では置き換えられない |
 | 運用の続き | 訂正・事故・異議への対応、資料の更新、別地域の coverage、利用や支援の実証 | 一度の pull request で永続完了とはしない |
 
-**D010、D013、Y001、Y002、Y004、Y007 は依存状態と実成果物を照合し、原受入れを満たすため sole ledger を done に更新済み。** 現在は69 done / 41 todo / 2 blocked / 1 scientifically skipped。残りの準備を「無価値」とはしないが、元の field/science 条件の完了には数えない。
+**D010、D013、Y001、Y002、Y004、Y007 は依存状態と実成果物を照合し、原受入れを満たすため sole ledger を done に更新済み。** 現行台帳は69 done / 41 todo / 0 blocked / 3 skipped（H005の科学的skipとF004/F007のretired track）です。F004資金/F007施設は初回digital releaseの必須条件ではなく、別途その研究を実施する場合にだけ実権限が必要です。残りの準備を「無価値」とはしないが、元の field/science 条件の完了には数えない。
 
 ## 5. この照合に使った検証
 
@@ -189,3 +189,6 @@
 本表は source guard、workflow、tasks.json、仕様、既存コードを変更しない。Life Manager の runtime、DB、credentials、個人データ、運用権限を借用しない。過去の scientific skipped を成功に読み替えない。
 
 最終ローカル統合検証では、実 DoWhy/GrowthBook 依存を含む **462 tests、0 failures/errors/skips** が成功した。上記450件の途中結果にあった生成ビューの不一致は原台帳からの再生成と `make_roadmap.py --check` で解消済み。公開・hosted CI の最終結果は I と対応 PR の証拠記録を参照する。
+
+
+最新の全工程/原41件の依存/旧EBA章との対応は [START_TO_END](../roadmap/START_TO_END_20261022.md) を参照。上の実験件数はそれぞれの履歴runであり、現在の全体test数や新しい実効果を示さない。

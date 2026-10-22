@@ -1,0 +1,40 @@
+name: Manager E09 observed public aggregate reference
+on:
+  push:
+    branches: [research/manager-e01-e16-execution-20261022]
+    paths:
+      - '.github/workflows/manager-e09-public-reference.yml'
+      - 'products/manager/scripts/phase_calibration_reference.py'
+      - 'products/manager/manager_core/error_calibration.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify scoped calibration contracts
+        run: python -m unittest discover -s tests -p 'test_calibrated_abstention.py' -v
+      - name: Fetch original aggregate bytes and reproduce reference result
+        run: python -m scripts.phase_calibration_reference --fetch-official --output /tmp/e09-reference.json
+      - name: Compare source-bound aggregate report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.phase_calibration_reference import assert_reference_report
+          expected=json.loads(Path('docs/verification/E09_OBSERVED_REFERENCE_20261022.json').read_text())
+          actual=json.loads(Path('/tmp/e09-reference.json').read_text())
+          assert_reference_report(actual, expected)
+          print('PASS official source bytes and scoped reference result match')
+          PY

@@ -46,27 +46,35 @@ def public_get(url):
         return body
 
 
-def live_snapshot():
-    manifest=json.loads(public_get(PUBLIC_BASE+'manifest.json'))
+def served_snapshot(*,get=None):
+    """Read a bounded current snapshot; mismatch is not itself a regression."""
+    get=get or public_get
+    manifest=json.loads(get(PUBLIC_BASE+'manifest.json'))
     # Validate the manifest before using even its page names to construct URLs.
     from manager_core.digital_handoff import _manifest
     _manifest(manifest)
-    bodies={name:public_get(PUBLIC_BASE+name) for name in manifest['files']}
+    bodies={name:get(PUBLIC_BASE+name) for name in manifest['files']}
+    return manifest,bodies
+
+
+def live_snapshot():
+    manifest,bodies=served_snapshot()
     verify_readback(manifest,bodies)
     return manifest,bodies
 
 
-def immutable_snapshot(commit):
+def immutable_snapshot(commit,*,get=None):
     """Read the exact seven-file bundle at one provider commit; no branch lookup."""
     if not isinstance(commit,str) or not re.fullmatch('[0-9a-f]{40}',commit):
         raise ValueError('immutable provider SHA required')
     base=f'https://raw.githubusercontent.com/{REPOSITORY}/{commit}/manager-support/'
-    raw=public_get(base+'manifest.json')
+    get=get or public_get
+    raw=get(base+'manifest.json')
     manifest=json.loads(raw)
     from manager_core.digital_handoff import _manifest
     _manifest(manifest)
     bodies={'manifest.json':raw}
-    bodies.update({name:public_get(base+name) for name in manifest['files']})
+    bodies.update({name:get(base+name) for name in manifest['files']})
     return manifest,bodies
 
 
@@ -130,6 +138,30 @@ def admit(site,checkout,audit_path,intent_path,output,now):
     result.update(changed_files=staged['changed_files'],commit_message=commit_message(packet))
     write_json(output,result)
     return result
+
+
+def admit_owned(context,assessment,standing_scope,prepared,checkout,audit_path,output,now):
+    """Host bridge: revalidate scope/source/artifact immediately before original admission.
+
+    No CLI/model input creates a scope. The separately privileged owner must
+    supply these typed host objects and the original GitHub workflow identity.
+    This function only stages; the platform still owns CAS commit/push.
+    """
+    from manager_core.digital_handoff import prepare_owned_change
+    validate_intent(prepared.packet)
+    if not datetime.fromisoformat(prepared.packet['created_at'])<=now<datetime.fromisoformat(prepared.packet['expires_at']):
+        raise PermissionError('original owned intent expired')
+    check=prepare_owned_change(context,assessment,standing_scope,now)
+    # Packet timestamps may differ; compare immutable bindings, then use fresh intent.
+    if (prepared.status!='PREPARED_PLATFORM_AUTHORITY_REQUIRED'
+            or check.status!=prepared.status or check.context_hash!=prepared.context_hash
+            or check.packet['effect_key']!=prepared.packet['effect_key']):
+        raise PermissionError('owned scope/context/artifact no longer eligible')
+    output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        intent=Path(tmp)/'intent.json';write_json(intent,check.packet)
+        return admit(Path(context.candidate_bundle),Path(checkout),Path(audit_path),intent,output,now)
 
 
 def render_explorer(report):

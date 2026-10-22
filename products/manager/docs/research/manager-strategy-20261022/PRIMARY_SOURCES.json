@@ -1,0 +1,831 @@
+{
+  "schema": "manager.strategy.primary-sources.v1",
+  "as_of_utc": "2026-10-22",
+  "baseline_commit": "1b7a8e5c234e4ce3c66366f34539e55844bcc0e5",
+  "purpose": "Decision-relevant evidence for the user-authorized Manager specification/plan update; not a task-status registry",
+  "source_bundle_count": 37,
+  "coverage": "Focused review of primary papers, official vendor/method pages, official upstream code and government/service research. Not exhaustive. Multiple pages/versions of a study are not independent studies.",
+  "read_depth_policy": "Passage-only, partial-PDF, README-only and actual code-interface inspection are explicitly labeled per record. No new upstream benchmark/model run or Radiant connection.",
+  "unknowns": [
+    "Independent Manager human/nonhuman welfare benefit",
+    "Customer demand and willingness to pay",
+    "Task-matched reference-data suitability for E09",
+    "Persistent runtime host/volume/owner for E16",
+    "Dollar cost of research retrievals; tool credits are not an observed settled USD charge"
+  ],
+  "sources": [
+    {
+      "title": "What Are Artificial Societies? Company and Method Explained / Method & Evaluation",
+      "url": "https://societies.ai/knowledge/what-are-artificial-societies",
+      "companion_urls": [
+        "https://societies.ai/eval"
+      ],
+      "published": "2026-09-18",
+      "updated": "2026-09-28",
+      "accessed": "2026-10-22",
+      "status": "Official vendor website; claims not independently validated",
+      "read_depth": "Knowledge article and evaluation page fetched; company/method, grounding, network, evaluation and limitations sections read. Linked January evaluation PDF not read.",
+      "supports": [
+        "Radiant is the product/platform of Artificial Societies, not a separate vendor.",
+        "Ground personas from observed or first-party data; connect them via relationships/influence; target opinion, communications and research decisions.",
+        "January vendor evaluation reports 86% distribution accuracy vs 91% human retest consistency; 95% of human ceiling is different from 95% absolute accuracy.",
+        "Teneo is a vendor-disclosed customer/case-study organization."
+      ],
+      "limits": [
+        "Self-published evaluation and customer stories are not independent prospective evidence.",
+        "Distribution matching and high consistency do not establish individual, subgroup, joint-distribution, network or intervention validity."
+      ],
+      "source_id": "simulation-BS01",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Artificial Societies Benchmark: A Validation Framework for Synthetic Research",
+      "url": "https://arxiv.org/abs/2609.30030",
+      "fulltext_url": "https://arxiv.org/html/2609.30030v2",
+      "canonical_id": "arxiv:2609.30030v2",
+      "authors": [
+        "Edoardo Chidichimo",
+        "Min Jun Jung",
+        "Felix P. S. Wallis",
+        "James K. He"
+      ],
+      "published": "2026-09-24",
+      "version_date": "2026-10-01",
+      "status": "arXiv preprint; vendor-affiliated authors, not independent validation of vendor product",
+      "read_depth": "Canonical metadata and arXiv submission history checked; v2 HTML methods §4, selected §5 results, discussion §6, conclusion §7 and data/code statement read. Indexed v1 passages also inspected; conclusions use exact v2 HTML.",
+      "supports": [
+        "Eleven tests across response processes, construct structure and external fidelity; twenty human sources and nine models.",
+        "Average distribution matching can coexist with subgroup, joint structure and intervention-effect failure.",
+        "Repeated same-condition draws must quantify synthetic noise before within-person counterfactual claims.",
+        "Human behavior validation is required when intended outcome is action, not stated intention."
+      ],
+      "limits": [
+        "Most tasks up to 512 people, source-specific exceptions.",
+        "Human sources public; possible contamination; exact model/settings scoped.",
+        "No validation of interacting social network dynamics; no direct evidence of avoided suffering.",
+        "84% of Twin profiles pass audit; results do not establish performance on excluded profiles."
+      ],
+      "source_id": "simulation-BS02",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Artificial Societies Benchmark — public code and license",
+      "url": "https://github.com/artificial-societies/artificial-societies-benchmark",
+      "readme_url": "https://github.com/artificial-societies/artificial-societies-benchmark/blob/main/README.md",
+      "license_url": "https://github.com/artificial-societies/artificial-societies-benchmark/blob/main/LICENSE",
+      "readme_blob_sha": "0342c47d7747a703df39488f6b33faed49a99b76",
+      "license_blob_sha": "cd0eebb855138750b821f253b88442ffaafb5f01",
+      "published": "2026-09-24 repository update displayed by GitHub organization page",
+      "status": "Public research software; code MIT, results/figures CC BY 4.0; source tasks retain original licenses",
+      "read_depth": "README and LICENSE fully read through GitHub connector. No repository code execution or metric implementation audit.",
+      "supports": [
+        "Reuse task specs, provider clients, parsers, metric/scoring scripts, uncertainty/coverage and missing-answer sensitivity design.",
+        "7,128 scorecard cells in native units; explicitly no omnibus score.",
+        "Raw human data/profiles/prompts/respondent-linked outputs and credentials excluded; acquire data from original providers."
+      ],
+      "limits": [
+        "Open code does not imply original human data unrestricted or turnkey reproduction.",
+        "MIT applies to code, not all questionnaire material or datasets."
+      ],
+      "source_id": "simulation-BS03",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Radiant for Claude — public connector README and license",
+      "url": "https://github.com/artificial-societies/radiant-claude-plugin",
+      "readme_url": "https://github.com/artificial-societies/radiant-claude-plugin/blob/main/README.md",
+      "license_url": "https://github.com/artificial-societies/radiant-claude-plugin/blob/main/LICENSE",
+      "readme_blob_sha": "0b6681b9593cc43395658979e79fffe1817b085d",
+      "published": "2026-10-08 repository update displayed by GitHub organization page",
+      "status": "Vendor documentation and MIT client plugin; hosted Radiant service not open-sourced",
+      "read_depth": "README and LICENSE fully read via GitHub. Remote MCP not connected, authenticated, called, tested or installed.",
+      "supports": [
+        "MCP endpoint documented as https://mcp.societies.ai/mcp; other assistants supporting remote MCP+OAuth, including ChatGPT/Codex, can connect.",
+        "22 documented tools: 17 read-only; 5 draft/interview/run tools, organization-scoped rights and daily spend limits.",
+        "Drafts expose exact credit cost; running survey/focus groups consumes credits.",
+        "Skills in this plugin work only in Claude, even though hosted MCP supports other clients."
+      ],
+      "limits": [
+        "Documentation only establishes integration feasibility; it does not establish Manager authentication, connection availability, product fit, pricing or behavior validity.",
+        "MIT wrapper license does not grant hosted service/data access.",
+        "Do not claim this session has connected Radiant."
+      ],
+      "source_id": "simulation-BS04",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Simile — Simulating human behavior",
+      "url": "https://www.simile.com/",
+      "published": null,
+      "accessed": "2026-10-22",
+      "status": "Undated official vendor homepage; self-reported validation and customer statements",
+      "read_depth": "Homepage fetched; validation/refresh/first-party data and customer testimony sections read.",
+      "supports": [
+        "Simile offers population/individual simulations and weekly human validation, >7,000 evaluations across subpopulations/use cases (vendor claim).",
+        "Tracks data freshness and recollects on detected drift; first-party loyalty/balance/telemetry data can train custom models (vendor claim).",
+        "CVS, Wealthfront, Itaú, Suntory, Gallup are customer/partner names on vendor page, not alternative simulation vendors."
+      ],
+      "limits": [
+        "Homepage claims are not independently audited outcomes or evidence of Manager demand.",
+        "No public evidence here of reduced suffering or reliable universal counterfactuals."
+      ],
+      "source_id": "simulation-BS05",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Building confidence in Simile",
+      "url": "https://www.simile.com/blog/confidence",
+      "published": "2026-08-25",
+      "status": "Vendor technical blog; evaluation self-published",
+      "read_depth": "Main methodological sections on TVD, features, confidence models, five-fold evaluation and decision-quality threshold read; no raw benchmark/code audited.",
+      "supports": [
+        "Predict question-level distribution error separately from the behavioral distribution.",
+        "~8,600 held-out production-like questions; 5-fold confidence evaluation keeps question text and entire experimental sample in the same fold.",
+        "AUROC 0.736 for CFT model vs 0.566 for basic features, on vendor benchmark; RMSE/r reported separately.",
+        "TVD 0.16 decision-quality threshold comes from ~2,750 internal ratings by fourteen raters, Fleiss kappa 0.75 over 410 multi-rated questions; not universal.",
+        "High-confidence 95% meeting the TVD threshold is a calibrated empirical category, not 95% correctness on all real decisions."
+      ],
+      "limits": [
+        "Confidence ranking or a vendor-chosen cutoff is not formal causal calibration or a guarantee under distribution shift.",
+        "Cannot compare Aaru AUROC 0.845 vs Simile 0.736 as head-to-head: different evaluation datasets."
+      ],
+      "source_id": "simulation-BS06",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Population simulation at the replication floor — full research and methodology",
+      "url": "https://aaru.com/publications/population-simulation-at-the-replication-floor-research",
+      "companion_urls": [
+        "https://aaru.com/publications/population-simulation-at-the-replication-floor-summary",
+        "https://aaru.com/"
+      ],
+      "published": "2026-09-24",
+      "status": "Vendor technical report/blog; no peer review or independent replication verified",
+      "read_depth": "Summary and research page fetched; evaluation inputs/cutoff/leakage controls, metrics, sampling adjustment, confidence and claimed behavior comparison read; no source microdata or model execution audited.",
+      "supports": [
+        "2,993 questions, 13,727 answer shares, nine industries, 186 studies; univariate answer-share accuracy is the explicit main evaluation.",
+        "Observed mean TVD 7.62 points and MAE 3.53 points; sampling-adjusted TVD 5.98 and MAE 2.78 are distinct quantities.",
+        "Adjustment subtracts expected sampling error, assumes design effect 1, imputes sample size 1,441.5 for 345 questions; not the same as statistical human/LLM calibration.",
+        "External retrieval restricted to pages stored at least one day before fieldwork; publisher domains/prediction markets excluded (vendor procedure).",
+        "Behavioral brand ranking 92.4% vs survey 77.8% is a vendor-reported separate purchase-panel comparison, not universal human accuracy."
+      ],
+      "limits": [
+        "Vendor text explicitly defers higher-order/row-level coherence evidence.",
+        "Repeated-survey error range is heterogeneous, not proof of human equivalence for every use.",
+        "Correlation r=0.970 is not 97% accuracy.",
+        "Reported comparison against Simile uses different benchmarks.",
+        "No independent proof of intervention or suffering-reduction validity."
+      ],
+      "source_id": "simulation-BS07",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Concordia — A library for generative social simulation",
+      "url": "https://github.com/google-deepmind/concordia",
+      "pinned_commit": "239f0e8275a55b186b99e133e06432cd681ff2e3",
+      "commit_date": "2026-10-20",
+      "readme_url": "https://github.com/google-deepmind/concordia/blob/239f0e8275a55b186b99e133e06432cd681ff2e3/README.md",
+      "license_url": "https://github.com/google-deepmind/concordia/blob/239f0e8275a55b186b99e133e06432cd681ff2e3/LICENSE",
+      "paper_url": "https://arxiv.org/abs/2312.03664",
+      "paper_title": "Generative agent-based modeling with actions grounded in physical, social, or digital space using Concordia",
+      "paper_date": "2023-12-06 (v1); index update 2023-12-15",
+      "status": "Public research framework, Apache-2.0; accompanying paper arXiv preprint",
+      "read_depth": "Pinned README fully read via GitHub; LICENSE lines 1–15 identify Apache-2.0; paper canonical title/authors/abstract inspected only. Framework not installed/run.",
+      "supports": [
+        "Reuse entity/components, memory/action selection, engine/run_loop, Game Master environment and standard LLM adapters.",
+        "Natural-language action is resolved by a Game Master into grounded environment outcomes.",
+        "Requires LLM API and embedder; results depend on selected model."
+      ],
+      "limits": [
+        "A construction framework does not establish human behavioral validity, calibration or intervention effects.",
+        "Pin versions and validate model/provider/configuration combinations separately."
+      ],
+      "source_id": "simulation-BS08",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "Finetuning LLMs for Human Behavior Prediction in Social Science Experiments",
+      "url": "https://aclanthology.org/2025.emnlp-main.1530/",
+      "pdf_url": "https://aclanthology.org/2025.emnlp-main.1530.pdf",
+      "canonical_id": "doi:10.18653/v1/2025.emnlp-main.1530",
+      "arxiv_id": "arxiv:2509.05830",
+      "authors": [
+        "Akaash Kolluri",
+        "Shengguang Wu",
+        "Joon Sung Park",
+        "Michael S. Bernstein"
+      ],
+      "published": "2025-11",
+      "status": "EMNLP 2025 conference proceedings; formal PDF and landing abstract disagree numerically",
+      "read_depth": "ACL metadata/abstract plus published PDF pages 1–8 of 16 read. arXiv indexed v2 methods/results passages read. Project site and GitHub README fully read. Appendices pages 9–16 not read; no code/model run.",
+      "code_url": "https://github.com/akaashkolluri/socrates",
+      "dataset_url": "https://huggingface.co/datasets/socratesft/SocSci210",
+      "project_url": "https://stanfordhci.github.io/socrates/",
+      "supports": [
+        "SocSci210 contains 2.9M responses / 400,491 participants / 210 experiments; unseen studies split 170 train / 40 test.",
+        "Published PDF table/arXiv: Qwen SFT Wasserstein distance 0.205→0.151 (26.3% relative reduction); GPT-4o base 0.174, relative reduction13.2%.",
+        "Individual response accuracy can worsen while distribution matching improves (Qwen 72.9→69.5).",
+        "Reuse public split metadata and SFT/DPO models as validation baselines; choose based on distribution vs individual target.",
+        "README uses LLaMA-Factory for finetuning; derived data/models retain their original source licenses; Llama and Qwen terms distinct."
+      ],
+      "limits": [
+        "ACL landing abstract says 36%/15%; actual published PDF, project table and arXiv body say 26%/13%; use versioned PDF/table not silently mix.",
+        "Project page BibTeX has arXiv2505.10839, inconsistent with official linked paper arXiv2509.05830.",
+        "No single unrestricted commercial license established; LICENSE path returned404 but README explicitly describes source terms.",
+        "US social-science experiments do not validate another country, minority subgroup, longitudinal life outcome or mental-health effect."
+      ],
+      "source_id": "simulation-BS09",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "LLM Agents Grounded in Self-Reports Enable General-Purpose Simulation of Individuals",
+      "url": "https://arxiv.org/abs/2411.10109",
+      "pdf_url": "https://arxiv.org/pdf/2411.10109v3",
+      "canonical_id": "arxiv:2411.10109v3",
+      "authors": [
+        "Joon Sung Park",
+        "Carolyn Q. Zou",
+        "Jonne Kamphorst",
+        "Niles Egan",
+        "Aaron Shaw",
+        "Benjamin Mako Hill",
+        "Carrie Cai",
+        "Meredith Ringel Morris",
+        "Percy Liang",
+        "Robb Willer",
+        "Michael S. Bernstein"
+      ],
+      "published": "2024-11-15 (v1)",
+      "version_date": "2026-06-28",
+      "status": "arXiv preprint, current v3; former 2024 title is not current title",
+      "read_depth": "Canonical arXiv page/history and exact v3 PDF pages1–12 of86 read; additional indexed methods passages. Remaining74 pages/supplement and public data/code permissions not audited.",
+      "supports": [
+        "1,052 Americans; two-hour interviews, structured surveys or combined grounding.",
+        "Held-out GSS normalized to two-week retest: interview83%, survey82%, combined86%, demographic-only74%. These are relative to retest, not absolute accuracy.",
+        "Five experimental replications: authors state design underpowered for comparing effect sizes; simulated effects larger and highly correlated, r0.91–0.99.",
+        "Self-reports can outperform demographic role prompts, but outcome reliability and task structure matter."
+      ],
+      "limits": [
+        "Survey/retest success is not generic behavior prediction or counterfactual identification.",
+        "Real interview burden, consent, source freshness and privacy remain; more data not automatically better.",
+        "No direct evidence of reduced suffering."
+      ],
+      "source_id": "simulation-BS10",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "The Illusion of Intervention: Your LLM-Simulated Experiment is an Observational Study",
+      "url": "https://arxiv.org/abs/2605.20767",
+      "fulltext_url": "https://arxiv.org/html/2605.20767v1",
+      "canonical_id": "arxiv:2605.20767v1",
+      "authors": [
+        "Victoria Lin",
+        "Taedong Yun",
+        "Maja Matarić",
+        "John Canny",
+        "Arthur Gretton",
+        "Alexander D'Amour"
+      ],
+      "published": "2026-05-20",
+      "status": "arXiv preprint v1; no journal/conference status established in checked canonical page",
+      "read_depth": "Canonical metadata and arXiv submission history checked; seven indexed in-body passages cover formal selection-bias framing, negative-control diagnosis, targeted confounder adjustment, OpinionQA/book/MovieLens results and limitations. Not full-paper/supplement reading.",
+      "supports": [
+        "Intervention text can shift unspecified latent persona attributes, creating different simulated populations under treatment/control.",
+        "Use invariant negative-control outcomes sensitive to omitted attributes to detect drift; compare distributions using TVD and uncertainty.",
+        "Adding generic demographics can increase selection bias; targeted task-specific confounders often reduce drift.",
+        "Demographic-only negative controls or refusal-dominated outputs can hide drift."
+      ],
+      "limits": [
+        "No observed negative-control difference is not proof of no confounding.",
+        "Prompt randomization, persona ID copying or temperature seeds do not establish real-human causal effects.",
+        "Mitigation is setting/model dependent, not a universal solved problem."
+      ],
+      "source_id": "simulation-BS11",
+      "research_lane": "simulation"
+    },
+    {
+      "title": "This human study did not involve human subjects: Validating LLM simulations as behavioral evidence",
+      "url": "https://arxiv.org/abs/2602.15785",
+      "fulltext_url": "https://arxiv.org/html/2602.15785v1",
+      "canonical_id": "arxiv:2602.15785v1",
+      "authors": [
+        "Jessica Hullman",
+        "David Broska",
+        "Huaman Sun",
+        "Aaron Shaw"
+      ],
+      "published": "2026-02-17",
+      "status": "arXiv preprint v1; methodological synthesis",
+      "read_depth": "Canonical metadata and arXiv submission history checked; indexed in-body passages from introduction, §5/PPI and assumptions, exploratory uses and limitations read. Not complete bibliography or all mathematical derivations.",
+      "supports": [
+        "Heuristic repair/finetuning and statistical calibration answer different questions.",
+        "PPI combines smaller human labeled sample with larger predicted sample, correcting inference rather than claiming all synthetic subjects interchangeable.",
+        "Assumes feature distributions match or valid importance weights; predictor independent from evaluation samples; human gold standard and target population sampling still matter.",
+        "Simulate-then-human-validate can prioritize hypotheses, replication studies and design stress tests."
+      ],
+      "limits": [
+        "Guarantees are method/assumption dependent, commonly consistency/asymptotic validity, not arbitrary prompt validity.",
+        "Precision gains depend on predictive informativeness and can be modest.",
+        "Confidence model predicting TVD and sampling-noise subtraction are not substitutes for human-grounded inferential calibration."
+      ],
+      "source_id": "simulation-BS12",
+      "research_lane": "simulation"
+    },
+    {
+      "name": "Inspect AI Task",
+      "url": "https://raw.githubusercontent.com/UKGovernmentBEIS/inspect_ai/c2fc3d9e3ff3fdc389be2933c6e3f9824648876e/src/inspect_ai/_eval/task/task.py",
+      "version": "0.3.283 / c2fc3d9e3ff3fdc389be2933c6e3f9824648876e",
+      "license": "MIT",
+      "maintenance": "Repository release commit dated 2026-10-21.",
+      "auxiliary_urls": [
+        "https://github.com/UKGovernmentBEIS/inspect_ai",
+        "https://raw.githubusercontent.com/UKGovernmentBEIS/inspect_ai/c2fc3d9e3ff3fdc389be2933c6e3f9824648876e/pyproject.toml"
+      ],
+      "read_depth": "Full task.py retrieved; inspected Task constructor and limit/checkpoint/scoring option docstrings. Full project metadata retrieved and read for Python/license.",
+      "interface": "Task(dataset, solver, scorer, epochs, turn_limit, token_limit, time_limit, working_limit, cost_limit, checkpoint, on_checkpoint, on_resume, version, metadata)",
+      "supports": "Reuse evaluation runner, versioned tasks, repeated samples, distinct scorers, log/checkpoint mechanics.",
+      "limitations": [
+        "Python >=3.11; package Beta.",
+        "cost_limit requires model cost configuration and applies per sample, not authoritative provider billing or Manager-wide reservation.",
+        "working_limit excludes some waits and can undercount; wall-clock time_limit must also be set.",
+        "on_checkpoint must be idempotent; restored state is not proof that external effects happened.",
+        "Inspected source is not evidence that Manager already imports/runs Inspect."
+      ],
+      "source_id": "systems-S01",
+      "research_lane": "systems"
+    },
+    {
+      "name": "GrowthBook Python SDK",
+      "url": "https://raw.githubusercontent.com/growthbook/growthbook-python/b8435855cf3a89316ba5144bd769f53b335cee5e/growthbook/growthbook.py",
+      "version": "3.2.2 / b8435855cf3a89316ba5144bd769f53b335cee5e",
+      "license": "MIT",
+      "maintenance": "Repository release commit dated 2026-10-19.",
+      "auxiliary_urls": [
+        "https://github.com/growthbook/growthbook-python",
+        "https://raw.githubusercontent.com/growthbook/growthbook-python/b8435855cf3a89316ba5144bd769f53b335cee5e/pyproject.toml",
+        "https://raw.githubusercontent.com/growthbook/growthbook-python/b8435855cf3a89316ba5144bd769f53b335cee5e/LICENSE"
+      ],
+      "read_depth": "Full client file retrieved; inspected GrowthBook constructor, eval_feature, run, tracking callbacks, in-memory dedupe and sticky cache. README and metadata read.",
+      "interface": "GrowthBook(attributes=..., on_experiment_viewed=..., features=...).run(Experiment(...)) -> Result; eval_feature(key) -> FeatureResult",
+      "supports": "Keep existing local deterministic assignment preparation; use the pinned SDK rather than build a randomizer.",
+      "limitations": [
+        "Python >=3.9.",
+        "Per-instance _tracked dedupe is in memory; _track logs callback exceptions and does not propagate a durable receipt.",
+        "Assignment/exposure is distinct from authorized intervention, observed outcome, causal estimate and welfare.",
+        "Existing Manager synthetic SDK integration disables network/tracking/plugins; no field assignment was verified in this research."
+      ],
+      "source_id": "systems-S02",
+      "research_lane": "systems"
+    },
+    {
+      "name": "DoWhy causal model",
+      "url": "https://raw.githubusercontent.com/py-why/dowhy/v0.14/dowhy/causal_model.py",
+      "version": "v0.14 / release commit 178ecc9c690a02f2801c1f70da2695f5744186cc",
+      "license": "MIT (repository and project metadata observed)",
+      "maintenance": "v0.14 release dated 2025-11-08 remains latest on inspected release page; main commit 9a0ec4a94f027ca6c024032aa2f696aaf7c6f1ff dated 2026-10-18.",
+      "auxiliary_urls": [
+        "https://github.com/py-why/dowhy/releases/tag/v0.14",
+        "https://github.com/py-why/dowhy",
+        "https://raw.githubusercontent.com/py-why/dowhy/9a0ec4a94f027ca6c024032aa2f696aaf7c6f1ff/dowhy/causal_model.py",
+        "https://raw.githubusercontent.com/py-why/dowhy/9a0ec4a94f027ca6c024032aa2f696aaf7c6f1ff/pyproject.toml"
+      ],
+      "read_depth": "Retrieved v0.14 causal_model.py and main causal_model.py; inspected constructor, identify_effect, estimate_effect and refute_estimate APIs and release notes.",
+      "interface": "CausalModel(data,treatment,outcome,graph/common_causes,...).identify_effect(...) -> estimand; estimate_effect(estimand,method_name,...); refute_estimate(estimand,estimate,method_name,...)",
+      "supports": "Keep existing causal_analysis.py v0.14 adapter and its CI/placebo/confounding diagnostics.",
+      "limitations": [
+        "Causal identification depends on the declared graph and assumptions; a refutation test is not authentication or proof all confounding is absent.",
+        "Causal inference cannot fix synthetic inputs, missing rights, wrong outcome units, missing reference outcomes or intervention-induced population drift.",
+        "Existing Manager output correctly remains SYNTHETIC_DIAGNOSTICS_ONLY/INCONCLUSIVE."
+      ],
+      "source_id": "systems-S03",
+      "research_lane": "systems"
+    },
+    {
+      "name": "Concordia entity interface",
+      "url": "https://raw.githubusercontent.com/google-deepmind/concordia/7128586aa8c1073bfa09dcb3781cea21e1a49229/concordia/typing/entity.py",
+      "version": "Existing Manager pin 7128586aa8c1073bfa09dcb3781cea21e1a49229; package 2.4.0",
+      "license": "Apache-2.0",
+      "maintenance": "Official repository inspected at current 239f0e8275a55b186b99e133e06432cd681ff2e3 dated 2026-10-20; current interface/setup also retrieved.",
+      "auxiliary_urls": [
+        "https://raw.githubusercontent.com/google-deepmind/concordia/7128586aa8c1073bfa09dcb3781cea21e1a49229/setup.py",
+        "https://github.com/google-deepmind/concordia",
+        "https://raw.githubusercontent.com/google-deepmind/concordia/239f0e8275a55b186b99e133e06432cd681ff2e3/concordia/typing/entity.py",
+        "https://raw.githubusercontent.com/google-deepmind/concordia/239f0e8275a55b186b99e133e06432cd681ff2e3/setup.py"
+      ],
+      "read_depth": "Full entity.py and setup.py at existing Manager pin and current ref retrieved; inspected ActionSpec validation, Entity.act/observe, Python requirement and license; README conceptual roles read.",
+      "interface": "Entity.act(ActionSpec) -> str; Entity.observe(str) -> None; Game Master/engine resolves intended actions within simulation.",
+      "supports": "Use only as the existing isolated fictional simulation interface, with explicit simulated provenance.",
+      "limitations": [
+        "Package 2.4.0 requires Python >=3.12, so retain separation from Manager's >=3.11 core.",
+        "The repository says it is not an officially supported Google product.",
+        "FLOAT validation merely calls float(action); host finite/range validation remains needed.",
+        "No real human fidelity or real external occurrence follows from a Game Master resolution.",
+        "Existing Manager island mock uses fictional agents, FastMockLanguageModel and DummyEmbedder; NOT human validation."
+      ],
+      "source_id": "systems-S04",
+      "research_lane": "systems"
+    },
+    {
+      "name": "Vending-Bench 2",
+      "url": "https://andonlabs.com/evals/vending-bench-2",
+      "version": "Live page captured 2026-10-22; benchmark citation year 2025",
+      "license": "No code/data reuse license verified from this page",
+      "read_depth": "Full official page read, including scoring, system prompt, setup, costs, failure conditions and ceiling discussion.",
+      "supports": "Long-horizon coherence, budgeting, inventory recovery, supplier failure and adversarial negotiation stress cases.",
+      "limitations": [
+        "One simulated year and final bank balance are not realized external revenue or welfare.",
+        "Supplier agents can be jailbroken and equations can be gamed; the page explicitly treats these as potential strategies.",
+        "Model API cost chart and simulated token charges use different stated accounting bases; do not equate them.",
+        "Dynamic leaderboard and model/date regression are vendor-reported, not independent field validation.",
+        "No benchmark was executed in this task."
+      ],
+      "source_id": "systems-S05",
+      "research_lane": "systems"
+    },
+    {
+      "name": "Andon Labs: Why we built Pion",
+      "url": "https://andonlabs.com/blog/why-we-built-pion",
+      "version": "Published 2026-09-14; captured 2026-10-22",
+      "license": "Research preview/waitlist; no OSS license or public SDK contract verified",
+      "read_depth": "Full official post read, including simulation-to-real limitations, real business deployments, profitability qualifications and access status.",
+      "supports": "Use incident taxonomy, persistent agent monitoring and resource-acquisition evidence distinctions as design references.",
+      "limitations": [
+        "Pion is not established by this evidence as a drop-in maintained OSS executor.",
+        "Authors state that their retail store and cafe were not profitable at publication; do not generalize a vending success to all businesses.",
+        "Vendor observations are not a controlled causal evaluation.",
+        "No Pion account, install, transaction or external deployment was performed."
+      ],
+      "source_id": "systems-S06",
+      "research_lane": "systems"
+    },
+    {
+      "name": "Project Vend phase two",
+      "url": "https://www.anthropic.com/research/project-vend-2",
+      "version": "Phase two report captured 2026-10-22; Sonnet 4.0 and 4.5 setup",
+      "license": "Public report; no implementation license verified",
+      "read_depth": "Full report read: architecture iteration, tools/procedures, profit figures descriptions, adversarial incidents, human support and limitations.",
+      "supports": "Evaluate procedures and narrower roles; retain adverse incidents and human-support burden alongside gross successes.",
+      "limitations": [
+        "The report explicitly says phase boundaries were not clean and architecture continued changing, so the before/after is not an isolated causal model effect.",
+        "Purchases still checked with a human and physical/human support remained substantial.",
+        "Reported profit margins do not by themselves establish full labor-inclusive net value or human welfare.",
+        "Additional CEO agent was often unhelpful; multi-agent proliferation is not justified by this evidence."
+      ],
+      "source_id": "systems-S07",
+      "research_lane": "systems"
+    },
+    {
+      "name": "SWE-Lancer",
+      "url": "https://openai.com/index/swe-lancer/",
+      "version": "Published 2025-02-18; update 2025-07-28 for dataset/results as of 2025-07-17",
+      "license": "Benchmark code/data license not verified here; old repository moved",
+      "auxiliary_urls": [
+        "https://github.com/openai/SWELancer-Benchmark",
+        "https://github.com/openai/preparedness"
+      ],
+      "read_depth": "Full official overview read. Old official repository README/status read: archived 2025-07-18 at 4afbde31ba075992ffd96209f6533de8e450becd, points to preparedness. Destination code and paper not read.",
+      "supports": "Reuse task/evaluator distinctions: independent code work evaluated with end-to-end tests; managerial choices evaluated against original managers' choices.",
+      "limitations": [
+        "Historical bounty-weighted task value is not autonomous agent cash actually earned.",
+        "Managerial proposal selection is not deployment success, realized business value or beneficiary outcome.",
+        "Updated dataset removed internet dependency to reduce execution variance; relevant to controlled evaluations, not a complete public execution loop.",
+        "Do not install the archived repository as the maintained integration target.",
+        "A license lookup on the old main/LICENSE returned 404; license remains unknown, not absent by inference."
+      ],
+      "source_id": "systems-S08",
+      "research_lane": "systems"
+    },
+    {
+      "name": "Temporal idempotency and durable execution",
+      "url": "https://temporal.io/blog/idempotency-and-durable-execution",
+      "version": "Published 2024-02-27; captured 2026-10-22",
+      "license": "Documentation/reference only; no new dependency recommended",
+      "read_depth": "Full official engineering post retrieved; read retry, idempotency key, pre-existing-state race, Workflow ID retention and external state sections.",
+      "supports": "Idempotent effect keys and authoritative storage uniqueness are required around retried side effects.",
+      "limitations": [
+        "Durable workflow replay does not make arbitrary external activity exactly once.",
+        "Check-before-create has a race if the original request continues after timeout.",
+        "Workflow ID dedupe is scoped to reuse policy and retention.",
+        "Temporal is a conceptual comparison only; current single-owner SQLite architecture does not need replacement."
+      ],
+      "source_id": "systems-S09",
+      "research_lane": "systems"
+    },
+    {
+      "name": "AWS transactional outbox pattern",
+      "url": "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html",
+      "version": "Live documentation captured 2026-10-22; no immutable version provided",
+      "license": "Documentation/reference only",
+      "read_depth": "Full official page retrieved; read intent, duplicate/ordering considerations and outbox transaction/queue implementation sections.",
+      "supports": "Persist state and effect intent atomically; relay/consumer operations must tolerate duplicates.",
+      "limitations": [
+        "A database transaction covers its database state/outbox rows, not arbitrary remote effects.",
+        "Queue FIFO/exactly-once wording must not be extended to HTTP writes, billing or autonomous real-world effects.",
+        "Service-spanning recovery needs explicit compensation/reconciliation semantics."
+      ],
+      "source_id": "systems-S10",
+      "research_lane": "systems"
+    },
+    {
+      "name": "GitHub repository contents API",
+      "url": "https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents",
+      "version": "Live docs captured 2026-10-22; URL parameter 2022-11-28 but returned code sample header 2026-03-10",
+      "license": "Official API documentation; repository/content rights remain separate",
+      "read_depth": "Full official page retrieved; read get content, create/update parameters, status codes, concurrency warning and response commit/content identifiers.",
+      "supports": "Use existing publisher with serial writes, expected blob SHA, returned commit/content identity and independent subsequent content readback.",
+      "limitations": [
+        "Updating requires SHA of the blob being replaced and concurrent create/update/delete operations can conflict.",
+        "No universal idempotency-key guarantee for arbitrary GitHub side effects is documented in the inspected endpoint.",
+        "Pin actual adapter API header; query parameter does not make this live documentation snapshot immutable.",
+        "A successful repository commit does not prove matching public served bytes or human benefit."
+      ],
+      "source_id": "systems-S11",
+      "research_lane": "systems"
+    },
+    {
+      "title": "Code for America: LA flexible interviews",
+      "url": "https://codeforamerica.org/news/think-big-start-small-how-implementing-flexible-interviews-improves-benefit-delivery/",
+      "publisher": "Code for America",
+      "published": "2021-12-22",
+      "read_at": "2026-10-22",
+      "read_depth": "Full web article, live fetch maxAge=0; service implementer's account",
+      "evidence": [
+        "Pilot consented messaging comparison: approval 61% treatment vs 58% control; mean determination 15 vs just under 19 days.",
+        "More than 80 hours shadowing/interviews preceded redesign; county trained 300+ workers; rollout planned for four weeks took many months.",
+        "Intervention changed access to a staffed flexible interview line, not merely wording or AI."
+      ],
+      "limits": [
+        "Implementer account; early pilot numbers differ from later paper and must not be treated as separate independent replications.",
+        "Does not measure subjective suffering or prove an AI tool effect."
+      ],
+      "source_id": "welfare-S01",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "Administrative Burden and Procedural Denials: Experimental Evidence from SNAP",
+      "url": "https://www.nber.org/papers/w31239",
+      "supporting_urls": [
+        "https://www.nber.org/system/files/working_papers/w31239/w31239.pdf",
+        "https://doi.org/10.1257/pol.20220701"
+      ],
+      "publisher": "Giannella, Homonoff, Rino and Somerville / NBER",
+      "published": "2023-05 working paper; 2024 journal version linked, not read",
+      "read_at": "2026-10-22",
+      "read_depth": "Full NBER record plus first 12 of 45 PDF pages (working paper May 2023); introduction, intervention, randomization and data limitations read; later results tables and appendix not read",
+      "evidence": [
+        "64,798 GetCalFresh applications randomized Oct 2020–May 2021; 48,557 treatment and 16,241 control.",
+        "Flexible interviews increased approvals by the 30-day deadline by 6.2 percentage points (13% relative); ever participating by five months +2.2pp; early approvals 14% to 27%.",
+        "All participants had already applied; about 2% without phone/email excluded, and repeat applications within 30 days excluded.",
+        "No intermediate interview/document submission outcomes; daily status observed for 90 days; reapplications only through GetCalFresh."
+      ],
+      "limits": [
+        "Working-paper version read; journal version not read.",
+        "Does not establish benefit in a different jurisdiction, different bottleneck, different product or non-applicant population.",
+        "S01 and S02 concern the same LA intervention; do not count as independent evidence."
+      ],
+      "source_id": "welfare-S02",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "Reducing Barriers to SNAP in Boulder County",
+      "url": "https://codeforamerica.org/success-stories/reducing-barriers-to-snap-in-boulder-county/",
+      "publisher": "Code for America",
+      "published": "No explicit publication date in extracted body; describes 2023 pilot and April 2024 adoption; metadata modified 2026-06-24",
+      "read_at": "2026-10-22",
+      "read_depth": "Full web article, live fetch",
+      "evidence": [
+        "Three-month RCT, N=1,554, compared mailed status quo to flexible interview option plus three texts.",
+        "Benefits arrived 3–4 days sooner; reported additional $100 benefits over initial six months; text delivery cost 97% lower than mailed notices.",
+        "Page says approval rate was '6–7% higher' without clarifying relative percentage versus percentage points in this article."
+      ],
+      "limits": [
+        "Implementer summary; no independent trial tables read.",
+        "Do not convert 6–7% into 6–7 percentage points.",
+        "Post-adoption 10% reduction in missed interviews is observational and separate from the RCT."
+      ],
+      "source_id": "welfare-S03",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "Decreasing SNAP denials due to incomplete information",
+      "url": "https://oes.gsa.gov/results/decreasing-snap-denials/",
+      "supporting_urls": [
+        "https://oes.gsa.gov/assets/abstracts/2310-decreasing-snap-denials-abstract.pdf"
+      ],
+      "publisher": "U.S. General Services Administration, Office of Evaluation Sciences",
+      "published": "Publication date not established; study Sep–Dec 2023",
+      "read_at": "2026-10-22",
+      "read_depth": "Full official web summary and all 4 PDF pages",
+      "evidence": [
+        "Randomized N=33,574; basic texts n=16,653, texts with redesigned uploader links n=16,921.",
+        "Incomplete-information denials 21.1% to 20.0%, -1.1pp, reported p=.012.",
+        "SNAP enrollment 43.3% to 43.8%, +0.5pp, p=.28: no detectable enrollment effect.",
+        "30.6% of intervention group uploaded a document via redesigned uploader, so link use alone did not ensure enrollment.",
+        "Implementation error meant most received 2 of 7 planned texts; admin data could not measure document upload via any method; bundled design cannot isolate text/access/UI effects."
+      ],
+      "limits": [
+        "Null finding is not proof of zero effect; state, design and delivery limit transportability.",
+        "Official HTML and PDF reproduce questionable confidence-interval text: enrollment +0.5pp but CI[-0.46,0.15]; do not silently repair or quote those CIs.",
+        "Outcome did not directly measure customer experience or suffering."
+      ],
+      "source_id": "welfare-S04",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "Measuring financial well-being: CFPB user guide",
+      "url": "https://files.consumerfinance.gov/f/201512_cfpb_financial-well-being-user-guide-scale.pdf",
+      "supporting_urls": [
+        "https://www.consumerfinance.gov/data-research/research-reports/financial-well-being-scale/"
+      ],
+      "publisher": "Consumer Financial Protection Bureau",
+      "published": "2015-12; landing page modified 2023-08-08",
+      "read_at": "2026-10-22",
+      "read_depth": "Full official landing page; first 10 of 31 PDF pages only",
+      "evidence": [
+        "Measures adult consumers' perceived financial security and freedom of choice; adult means 18+.",
+        "Standard scale 10 questions; 5-item variant trades sensitivity for brevity.",
+        "Multiple waves of psychometric testing with 15,000+ respondents; intended for comparisons and tracking."
+      ],
+      "limits": [
+        "Human financial construct, not general sentient welfare, diagnostic instrument or a causal design.",
+        "Guide pp12 onward, scoring details and researcher notes not read here; S06 gives official scoring essentials."
+      ],
+      "source_id": "welfare-S05",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "Quick Guide to CFPB Financial Well-Being Scale",
+      "url": "https://files.consumerfinance.gov/f/documents/201701_cfpb_FinancialWell-Being_Quick-Guide.pdf",
+      "publisher": "Consumer Financial Protection Bureau",
+      "published": "2017-01 indicated by source filename; not treated as independently dated in body",
+      "read_at": "2026-10-22",
+      "read_depth": "All 2 PDF pages",
+      "evidence": [
+        "Ten questions; all questions required; do not alter wording or response options.",
+        "Final score 0–100, requires age category and administration mode conversion, not raw sum.",
+        "No specific universal cutoff for good or bad financial well-being."
+      ],
+      "limits": [
+        "Use original official worksheet and validate extraction before automated scoring; retrieved OCR/table text includes inconsistent duplicate rows.",
+        "Not a measure of all harms, nonhuman welfare or counterfactual impact."
+      ],
+      "source_id": "welfare-S06",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "The World Health Organization-Five Well-Being Index (WHO-5)",
+      "url": "https://www.who.int/publications/m/item/WHO-UCN-MSD-MHE-2024.01",
+      "supporting_urls": [
+        "https://cdn.who.int/media/docs/default-source/mental-health/who-5_english-original4da539d6ed4b49389e3afe47cda2326a.pdf?sfvrsn=ed43f352_11&download=true"
+      ],
+      "publisher": "World Health Organization",
+      "published": "2024",
+      "read_at": "2026-10-22",
+      "read_depth": "Full official page and all 8 PDF pages",
+      "evidence": [
+        "Self-report mental well-being over past two weeks, five items scored 0–5; sum 0–25 multiplied by four to 0–100.",
+        "Score below 50 suggested as indication for further assessment, not diagnosis.",
+        "Document licensed CC BY-NC-SA 3.0 IGO; commercial requests referred to WHO copyright."
+      ],
+      "limits": [
+        "No automatic inference to animal or all-sentient experience.",
+        "For commercial embedding, check rights/license applicability before reuse; public availability alone does not authorize commercial use.",
+        "Mental well-being alone does not cover financial, physical, social or environmental welfare; no clinical interpretation by autonomous agent."
+      ],
+      "source_id": "welfare-S07",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "OECD Guidelines on Measuring Subjective Well-being (2025 Update), Chapter 1",
+      "url": "https://www.oecd.org/en/publications/oecd-guidelines-on-measuring-subjective-well-being-2025-update_9203632a-en/full-report/measuring-subjective-well-being_b4b53f27.html",
+      "publisher": "OECD",
+      "published": "2025-10-03",
+      "read_at": "2026-10-22",
+      "read_depth": "Full chapter retrieved; relevant sections on definition, survey design, modes, wording, samples, reporting and interpretation read; not whole book or cited underlying studies",
+      "evidence": [
+        "Subjective well-being comprises life evaluation, affect and eudaimonia; complements objective measures.",
+        "Use standardized wording/scales; question placement, survey mode, seasonality and cultural interpretation can affect responses.",
+        "Mode always reported; web/phone/in-person differences require attention.",
+        "Large population-monitoring samples recommended; mean plus distribution/subgroups, rather than mean alone.",
+        "Causal analyses must consider omitted variables, reverse causality, adaptation and shared method variance."
+      ],
+      "limits": [
+        "National-statistics sample guidance is not a power calculation for a startup pilot.",
+        "Human subjective reports; no justified interspecies utility conversion."
+      ],
+      "source_id": "welfare-S08",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "Apply to YC",
+      "url": "https://www.ycombinator.com/apply",
+      "publisher": "Y Combinator",
+      "published": "Live undated application page",
+      "read_at": "2026-10-22",
+      "read_depth": "Full page live fetch maxAge=0",
+      "evidence": [
+        "Winter 2027 batch Jan–Mar in San Francisco; in-person.",
+        "On-time deadline November 2, 8pm PT; decision by December 11; late applications considered without guaranteed response time.",
+        "YC invests as soon as accepted, before batch starts."
+      ],
+      "limits": [
+        "Time-sensitive snapshot; recheck before submission.",
+        "Deadline year inferred from explicit W27 cycle on same page: 2026-11-02 20:00 PT = 2026-11-03 04:00 UTC after U.S. DST ends."
+      ],
+      "source_id": "welfare-S09",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "YC Frequently Asked Questions",
+      "url": "https://www.ycombinator.com/faq",
+      "publisher": "Y Combinator",
+      "published": "Live undated FAQ",
+      "read_at": "2026-10-22",
+      "read_depth": "Full page live fetch maxAge=0; logistics, eligibility and application sections read",
+      "evidence": [
+        "YC says on average 40% of funded companies are just an idea and most have no revenue; this is YC's own statement, not an admission probability.",
+        "Solo founders can apply; incorporation not needed before applying; founders expected to work full-time if accepted.",
+        "Founding team should have skills to build the product itself; batch in-person SF.",
+        "One application per batch; pick one favorite idea."
+      ],
+      "limits": [
+        "Acceptance probabilities for this founder/project cannot be inferred.",
+        "Current $500k investment statement read but contractual equity/SAFE deal terms not examined; do not describe complete deal economics."
+      ],
+      "source_id": "welfare-S10",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "How to get startup ideas",
+      "url": "https://www.ycombinator.com/library/8g-how-to-get-startup-ideas",
+      "publisher": "Y Combinator / Jared Friedman",
+      "published": "Recorded for Startup School 2020 per page",
+      "read_at": "2026-10-22",
+      "read_depth": "Full transcript retrieved; problem selection, founder/market fit and business-size sections read",
+      "evidence": [
+        "Start from a problem rather than a solution in search of a problem.",
+        "Look at founder/market fit, path to a large business and what founders can execute with an advantage.",
+        "Passion can mislead when no clear path to a large business."
+      ],
+      "limits": [
+        "Practitioner advice, not causal proof, success forecast or a YC requirement."
+      ],
+      "source_id": "welfare-S11",
+      "research_lane": "welfare"
+    },
+    {
+      "title": "WOAH/OIE Terrestrial Animal Health Code, Chapter 7.1",
+      "url": "https://www.woah.org/fileadmin/Home/eng/Health_standards/tahc/current/chapitre_aw_introduction.pdf",
+      "publisher": "World Organisation for Animal Health",
+      "published": "Fetched PDF shows 2022 copyright, most recent adopted update 2019; URL says current but content is older",
+      "read_at": "2026-10-22",
+      "read_depth": "Full extracted chapter; source edition caveat retained",
+      "evidence": [
+        "Animal welfare means physical and mental state in conditions of living and dying.",
+        "Assessments combine animal health/function, preferences/motivations/aversions, affect and behavior/physiology.",
+        "Choosing and weighting elements involves value assumptions that should be explicit; measures should fit species/system and expert science."
+      ],
+      "limits": [
+        "Terrestrial animal standard chapter, not all sentient beings or a universal cross-species score.",
+        "Do not call this the verified latest 2026 edition merely because URL includes current."
+      ],
+      "source_id": "welfare-S12",
+      "research_lane": "welfare"
+    },
+    {
+      "source_id": "mission-ny-declaration",
+      "research_lane": "mission",
+      "title": "The New York Declaration on Animal Consciousness",
+      "url": "https://sites.google.com/nyu.edu/nydeclaration/declaration",
+      "published": "2024-04-19",
+      "accessed": "2026-10-22",
+      "status": "Scientific declaration by individual signatories, not an institutional statement or intervention trial",
+      "read_depth": "Full page retrieved; declaration introduction and three propositions read; signatory biographies not used",
+      "supports": [
+        "Scientific support for mammal/bird conscious experience and realistic possibility in other vertebrates and several invertebrate groups.",
+        "Uncertainty about sentience should inform welfare-risk decisions."
+      ],
+      "limits": [
+        "Does not establish a universal metric or all entities being sentient.",
+        "Does not validate a Manager animal-welfare intervention."
+      ]
+    },
+    {
+      "source_id": "startup-yc-essential",
+      "research_lane": "startup",
+      "title": "YC’s essential startup advice",
+      "url": "https://www.ycombinator.com/library/4D-yc-s-essential-startup-advice",
+      "published": null,
+      "accessed": "2026-10-22",
+      "status": "Official practitioner guidance, not a causal study or admission prediction",
+      "read_depth": "Full page retrieved and product launch, customer conversation, focus, unit economics and fundraising sections read; linked reference essays not all read",
+      "supports": [
+        "Launch a useful small product, talk with actual users and iterate.",
+        "Focus on one problem and real unit economics; valuation/fundraising is not success."
+      ],
+      "limits": [
+        "Advice is not evidence of Manager demand, ability to pay, market size or acceptance probability."
+      ]
+    }
+  ]
+}

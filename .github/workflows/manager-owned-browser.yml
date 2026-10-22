@@ -1,0 +1,34 @@
+name: Manager owned digital browser checks
+on:
+  push:
+    branches: [research/manager-e01-e16-execution-20261022]
+    paths: ['products/manager/**', '.github/workflows/manager-owned-browser.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Render owned bundle locally
+        working-directory: products/manager
+        run: |
+          python - <<'PY'
+          import os, json
+          from pathlib import Path
+          from manager_core.digital_environment import build_site
+          build_site(json.loads(Path('public_goods/service/catalog.json').read_text()), Path('output/service/site'), os.environ['GITHUB_SHA'])
+          PY
+      - run: npm --prefix products/manager/tests/e2e ci
+      - run: npx --prefix products/manager/tests/e2e playwright install --with-deps chromium
+      - run: npm --prefix products/manager/tests/e2e test

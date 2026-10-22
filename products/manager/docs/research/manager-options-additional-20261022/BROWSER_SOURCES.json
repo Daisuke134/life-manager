@@ -1,0 +1,585 @@
+{
+  "schema": "manager.new-browser-research.v1",
+  "research_date": "2026-10-22",
+  "manager": {
+    "root": "Local research workspace only; use immutable source URL/hash for reproduction.",
+    "remote": "https://github.com/Daisuke134/life-manager.git",
+    "commit": "ae06f4ccfa30b29e427f71d6413eba0858a34cf8",
+    "branch": "research/manager-e06-cloud-execution-20261022",
+    "read_only": true
+  },
+  "recommendation": "Reuse existing HTTP+Playwright+publisher+journal/readback now. Optional browser/connector adapters only when justified by UI-only or API integration need. No new browser execution owner.",
+  "pins": {
+    "browser-use": {
+      "repo": "browser-use/browser-use",
+      "license": "MIT",
+      "version": "0.13.13",
+      "commit": "aa093a843da5edbf323c0b4145c9b6a0db3ecde8",
+      "commit_date": "2026-10-17T11:53:21-07:00",
+      "files": [
+        {
+          "path": "pyproject.toml",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/pyproject.toml",
+          "git_blob": "ff6f1538abb84fd8f7ceaa532d7cc1cb4a8d58db",
+          "sha256": "a46b65c462a81297dbf9f4e6be2e4e8dd154161e5247b154d4ce5f045ed997a8"
+        },
+        {
+          "path": "browser_use/agent/views.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/agent/views.py",
+          "git_blob": "8c035b2e3ae1b28d81688a776ce1c846b13bf0f7",
+          "sha256": "f08c9e96df9e346ba87c0cd3ceb79a7d3a6c1f7764083a367ca8e10bb65c43ce"
+        },
+        {
+          "path": "browser_use/agent/service.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/agent/service.py",
+          "git_blob": "997c679cc14d0653bd87fa29a99ed1b91d110ac2",
+          "sha256": "b6b6943492b062754acd322f9f1d0a950e0ce30edebe53ac4392ede9b4796ba1"
+        },
+        {
+          "path": "browser_use/tools/service.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/tools/service.py",
+          "git_blob": "2e71dc4026d1e564b735e59d6a77dc5b20b9306a",
+          "sha256": "25746ddfe719c0a800b2b4fcc399aea4fc8be20c48b04ab4118841fd5419eb73"
+        },
+        {
+          "path": "browser_use/tools/registry/service.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/tools/registry/service.py",
+          "git_blob": "1f4e7838d073bf7f19df1a97f5fbb5b4521eab5e",
+          "sha256": "3517c114d622a415c9da48ede49b5b625c97a1169161478541c68a05b8ae495e"
+        },
+        {
+          "path": "browser_use/browser/profile.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/browser/profile.py",
+          "git_blob": "c5f4b737a1c459043295e630497f441b77f1d17e",
+          "sha256": "5b42a8285bab5116c08ec61cad643ed71b546cc9c82cfd77a7d7929330b40a47"
+        },
+        {
+          "path": "browser_use/browser/watchdogs/security_watchdog.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/browser/watchdogs/security_watchdog.py",
+          "git_blob": "1348be93eeca44818bdf9888ae218fcec4293dfc",
+          "sha256": "7d4aba8c663602f2fa506befe7a7b63a8074452e83c6706929b531953665f6ac"
+        },
+        {
+          "path": "browser_use/config.py",
+          "url": "https://github.com/browser-use/browser-use/blob/aa093a843da5edbf323c0b4145c9b6a0db3ecde8/browser_use/config.py",
+          "git_blob": "10909a131d9d88919bd7431a567b69729276d378",
+          "sha256": "9dd77f61b748864c969b0760f731380dcf18c057a2b9b6a0c11a246c5a598a2d"
+        }
+      ]
+    },
+    "stagehand": {
+      "repo": "browserbase/stagehand",
+      "license": "MIT",
+      "version": "SDK TypeScript 4.3.0; root monorepo package 4.0.0",
+      "commit": "6aec9d16a8f503d0e81f22b92ff15a01205c4db2",
+      "commit_date": "2026-10-21T19:18:47-07:00",
+      "files": [
+        {
+          "path": "packages/sdk-ts/package.json",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/sdk-ts/package.json",
+          "git_blob": "8231894d05a7616e3d5ec1577cab5e7af2234649",
+          "sha256": "40e693d5c459dc5ca7a99455408840abee72a0c0ce29093bfb59acb440ad2d55"
+        },
+        {
+          "path": "packages/sdk-ts/src/stagehand.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/sdk-ts/src/stagehand.ts",
+          "git_blob": "63cc3c9d24a6565bf113120f43535bbf92290e28",
+          "sha256": "deec25c755232acaf7c7ab6a86af7d23aabfd0e0d7bea6f032ea9bc703d92801"
+        },
+        {
+          "path": "packages/extension/services/actService.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/extension/services/actService.ts",
+          "git_blob": "01e10469bfb905767602950c2db75ce025d5f341",
+          "sha256": "e67fea018a6e710d024086a466d510e0eac96c3bad31ba18513a11563c62dc62"
+        },
+        {
+          "path": "packages/extension/services/cacheService.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/extension/services/cacheService.ts",
+          "git_blob": "fc33550073cb6e82960e67b8f230cdfc842c7b32",
+          "sha256": "6765890fdc455894d24886a2585946b84a7969eca0b52e54ff9c34e1860af6d7"
+        },
+        {
+          "path": "packages/sdk-ts/src/browser/localBrowser.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/sdk-ts/src/browser/localBrowser.ts",
+          "git_blob": "747d27a13bf1818aae1d785dd1234f55d61fb8be",
+          "sha256": "3c182931f75368979e5e2e65c41b0d37b3e0157821d9e16593e28f1971794b67"
+        },
+        {
+          "path": "packages/sdk-ts/src/browser/browserbaseSession.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/sdk-ts/src/browser/browserbaseSession.ts",
+          "git_blob": "d4c4d342cbd32cfa5992d1cfced9ea129d9f7f0d",
+          "sha256": "81ec02bcfaec4d77047f888e7063ae5d8e01bb6f5b8949bae233c7a9c249904f"
+        },
+        {
+          "path": "packages/examples/cookbooks/approve-form-submission/typescript/src/approval.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/examples/cookbooks/approve-form-submission/typescript/src/approval.ts",
+          "git_blob": "12c27915f68c1e9f05076445ab5079858e1bdb1f",
+          "sha256": "49df18839f7257c67740fb7e3fd2dab795aeec0359a5a67293efc29f6f9da611"
+        },
+        {
+          "path": "packages/examples/cookbooks/approve-form-submission/typescript/src/index.ts",
+          "url": "https://github.com/browserbase/stagehand/blob/6aec9d16a8f503d0e81f22b92ff15a01205c4db2/packages/examples/cookbooks/approve-form-submission/typescript/src/index.ts",
+          "git_blob": "de1c4e8356dac5c5a72a6d1c082b64b220763949",
+          "sha256": "0552ce429549f7238be2b2e086b73764e3fce4f1834770b726d4d1bc0af3cbf7"
+        }
+      ]
+    },
+    "skyvern": {
+      "repo": "Skyvern-AI/skyvern",
+      "license": "AGPL-3.0",
+      "version": "1.0.56",
+      "commit": "a59e8c4ce423ed38feef994bace51f7a0f996011",
+      "commit_date": "2026-10-22T09:18:14-04:00",
+      "files": [
+        {
+          "path": "pyproject.toml",
+          "url": "https://github.com/Skyvern-AI/skyvern/blob/a59e8c4ce423ed38feef994bace51f7a0f996011/pyproject.toml",
+          "git_blob": "ceb9dd79bb0402b65fd6684eb724b43000ced719",
+          "sha256": "1a28f35eed0d2d4e91b84f211fb2a27a71ed04209fcf8bbca65043c1e774739f"
+        },
+        {
+          "path": "skyvern/forge/sdk/workflow/models/block.py",
+          "url": "https://github.com/Skyvern-AI/skyvern/blob/a59e8c4ce423ed38feef994bace51f7a0f996011/skyvern/forge/sdk/workflow/models/block.py",
+          "git_blob": "56889186cb36271f376c6d986b4de00b3509c1d9",
+          "sha256": "7590b17637d2f8448512b4961288b254167e32d7aedbf876d5ab56f296b67394"
+        },
+        {
+          "path": "skyvern/forge/sdk/schemas/persistent_browser_sessions.py",
+          "url": "https://github.com/Skyvern-AI/skyvern/blob/a59e8c4ce423ed38feef994bace51f7a0f996011/skyvern/forge/sdk/schemas/persistent_browser_sessions.py",
+          "git_blob": "ac6ecb6757d177476ad7dae89f85e9dd03e1a0aa",
+          "sha256": "4506e0a246a6492972a442d98f90f40c7a693709f22847b9bd821018d79f40b9"
+        },
+        {
+          "path": "skyvern/webeye/real_browser_manager.py",
+          "url": "https://github.com/Skyvern-AI/skyvern/blob/a59e8c4ce423ed38feef994bace51f7a0f996011/skyvern/webeye/real_browser_manager.py",
+          "git_blob": "7419854bb2ac052da0aacb9259750ff892c061b0",
+          "sha256": "d575c78d5a04c4c0254c30739443de283972b1063ac5571373c57c5383b3588e"
+        },
+        {
+          "path": "skyvern/webeye/utils/dom.py",
+          "url": "https://github.com/Skyvern-AI/skyvern/blob/a59e8c4ce423ed38feef994bace51f7a0f996011/skyvern/webeye/utils/dom.py",
+          "git_blob": "69ed773a72628487484da03a6dcc6b8f0e217586",
+          "sha256": "70aabbc70b21cdb2efbe690745b4adae9a8dfaa3e726ace4d2f1a6f6c9a51775"
+        },
+        {
+          "path": "skyvern/forge/sdk/workflow/models/credential_release.py",
+          "url": "https://github.com/Skyvern-AI/skyvern/blob/a59e8c4ce423ed38feef994bace51f7a0f996011/skyvern/forge/sdk/workflow/models/credential_release.py",
+          "git_blob": "a26f3f9c4f3f4bd0aa837e2d95783e62228ad20b",
+          "sha256": "c8c8031739132d0b2755a469a8883fe1a7a0299e917ec4c31ddea205fe5b6807"
+        }
+      ]
+    },
+    "playwright-mcp": {
+      "repo": "microsoft/playwright-mcp",
+      "license": "Apache-2.0",
+      "version": "0.0.83; depends on playwright/core 1.64.0-alpha-1790635538000",
+      "commit": "ab6d67cbf8b619338f096980806fdbe29432cc4d",
+      "commit_date": "2026-10-19T08:31:50-07:00",
+      "files": [
+        {
+          "path": "package.json",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/ab6d67cbf8b619338f096980806fdbe29432cc4d/package.json",
+          "git_blob": "aa6fb89c9d259f9da9beef52ea5741343d4b0e5b",
+          "sha256": "624f0ba4d387028bbc734520142fbebb7075a88da8b623f4760adf76aa212f8b"
+        },
+        {
+          "path": "src/README.md",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/ab6d67cbf8b619338f096980806fdbe29432cc4d/src/README.md",
+          "git_blob": "4645766029be24380f88ef99e0337616a828f5da",
+          "sha256": "3d00272808ea1d6e079ae69638aa9f2b713309d0c082ee5d23aa6aa2d58587d5"
+        },
+        {
+          "path": "index.js",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/ab6d67cbf8b619338f096980806fdbe29432cc4d/index.js",
+          "git_blob": "75594c777c3663c82255873bfbdd385aff221071",
+          "sha256": "28c639173fb79f5cae1ed44519995cea0dd2aee2f4a48a2511f06f153802b946"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/ab6d67cbf8b619338f096980806fdbe29432cc4d/README.md",
+          "git_blob": "7cecc4144025919587399336dff41b0d3ba366ad",
+          "sha256": "b33aa71a13d655e96e6b736d0c9de1e5ddea52f205916ca20b876387ff830e87"
+        },
+        {
+          "path": "tests/click.spec.ts",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/ab6d67cbf8b619338f096980806fdbe29432cc4d/tests/click.spec.ts",
+          "git_blob": "a06cf3c70550a61cc9ca040777fcc5ef81a4e8ed",
+          "sha256": "57f512b5956927ce1bbab2d4b1c3d6a69c761b88c5875cc208667b52cbda716f"
+        }
+      ]
+    },
+    "playwright-core": {
+      "repo": "microsoft/playwright",
+      "license": "Apache-2.0",
+      "version": "additional current-source lifecycle read; not established as shipped dependency of MCP 0.0.83",
+      "commit": "ca7ca36145b84183cf423c2a099bd7e9cd8b1cb3",
+      "commit_date": "2026-10-21T21:20:25-07:00",
+      "files": [
+        {
+          "path": "packages/playwright-core/src/tools/mcp/program.ts",
+          "url": "https://github.com/microsoft/playwright/blob/ca7ca36145b84183cf423c2a099bd7e9cd8b1cb3/packages/playwright-core/src/tools/mcp/program.ts",
+          "git_blob": "acfbcbaa122e9e42dead99c2957860ca782c8cf8",
+          "sha256": "fbb55b36d66f45c19c7d7ba3845c24efc01dd5753dffc3c3dc71065db7577601"
+        },
+        {
+          "path": "packages/playwright-core/src/tools/mcp/browserFactory.ts",
+          "url": "https://github.com/microsoft/playwright/blob/ca7ca36145b84183cf423c2a099bd7e9cd8b1cb3/packages/playwright-core/src/tools/mcp/browserFactory.ts",
+          "git_blob": "e1c8e9246a74dd694d54f944e735ed8a7df6481d",
+          "sha256": "caec74a6213266758680fd8da001b015ea4f0cac6fda51b17242c8643d5a3b36"
+        }
+      ]
+    }
+  },
+  "documentation_sources": [
+    {
+      "title": "browser-use parameters",
+      "url": "https://docs.browser-use.com/open-source/customize/browser/all-parameters",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Stagehand v4 act",
+      "url": "https://docs.stagehand.dev/v4/basics/act",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Playwright MCP user profile",
+      "url": "https://playwright.dev/mcp/configuration/user-profile",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Skyvern browser sessions",
+      "url": "https://www.skyvern.com/docs/browsers.md",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Skyvern production",
+      "url": "https://www.skyvern.com/docs/developers/production.md",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "OpenAI Agents approvals",
+      "url": "https://openai.github.io/openai-agents-python/human_in_the_loop/",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "ADK resume",
+      "url": "https://adk.dev/runtime/resume/",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "ADK confirmation",
+      "url": "https://adk.dev/tools-custom/confirmation/",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Composio accounts",
+      "url": "https://docs.composio.dev/docs/auth-configuration/connected-accounts",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Composio multi-account",
+      "url": "https://docs.composio.dev/docs/authentication/managing-multiple-connected-accounts",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Composio connection webhook",
+      "url": "https://docs.composio.dev/reference/api-reference/webhook-events/composio_connected_account_activated",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Pipedream managed auth",
+      "url": "https://pipedream.com/docs/connect/managed-auth/quickstart",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Pipedream workflows",
+      "url": "https://pipedream.com/docs/connect/workflows",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    },
+    {
+      "title": "Pipedream license",
+      "url": "https://raw.githubusercontent.com/PipedreamHQ/pipedream/master/LICENSE",
+      "evidence_kind": "official_docs_live_fetch_not_pinned",
+      "read": true
+    }
+  ],
+  "claims": [
+    {
+      "id": "BU01",
+      "project": "browser-use",
+      "kind": "observed_code",
+      "claim": "Tools.act converts timeout to model-visible ActionResult with retry suggestion; no external occurrence classification in this general result",
+      "files": [
+        "browser_use/tools/service.py"
+      ],
+      "adoption": "do not use unrestricted agent retry at write boundary"
+    },
+    {
+      "id": "BU02",
+      "project": "browser-use",
+      "kind": "observed_code",
+      "claim": "multi_act stops remaining queue on error/done/terminates_sequence/URL or focus change",
+      "files": [
+        "browser_use/agent/service.py"
+      ],
+      "adoption": "reuse narrow registry/observation if necessary; not effect dedup"
+    },
+    {
+      "id": "ST01",
+      "project": "stagehand",
+      "kind": "observed_code",
+      "claim": "Cached sequence replays actions serially; on replay failure withCache falls back to execute, permitting already-run prefix before fallback",
+      "files": [
+        "packages/extension/services/actService.ts",
+        "packages/extension/services/cacheService.ts"
+      ],
+      "adoption": "observe or deterministic single operation; no cache/self-heal at irreversible boundary"
+    },
+    {
+      "id": "ST02",
+      "project": "stagehand",
+      "kind": "observed_code",
+      "claim": "create claims browser handle, ambiguous init invalidates; local persistent profile and cloud session release lifecycle implemented",
+      "files": [
+        "packages/sdk-ts/src/stagehand.ts",
+        "packages/sdk-ts/src/browser/localBrowser.ts",
+        "packages/sdk-ts/src/browser/browserbaseSession.ts"
+      ],
+      "adoption": "reuse lifecycle, do not custom-build competing browser owner"
+    },
+    {
+      "id": "SK01",
+      "project": "skyvern",
+      "kind": "observed_code",
+      "claim": "post-dispatch scheduled-navigation timeout skips click fallback; classification is not official provider receipt",
+      "files": [
+        "skyvern/webeye/utils/dom.py"
+      ],
+      "adoption": "add ambiguity regression test; keep UNKNOWN until occurrence readback"
+    },
+    {
+      "id": "SK02",
+      "project": "skyvern",
+      "kind": "observed_code",
+      "claim": "runnable id/generation owner checks and credential receiving-frame site checks exist",
+      "files": [
+        "skyvern/forge/sdk/schemas/persistent_browser_sessions.py",
+        "skyvern/forge/sdk/workflow/models/credential_release.py"
+      ],
+      "adoption": "reuse design/test precedent subject to AGPL; no whole platform adoption now"
+    },
+    {
+      "id": "CO01",
+      "project": "Composio",
+      "kind": "official_docs",
+      "claim": "Default account selection can choose most recently connected active account; explicit selection defaults false",
+      "source_url": "https://docs.composio.dev/docs/authentication/managing-multiple-connected-accounts",
+      "adoption": "pin account identity in any future adapter"
+    },
+    {
+      "id": "OA01",
+      "project": "OpenAI Agents SDK",
+      "kind": "official_docs",
+      "claim": "RunState restore is not authentication; application must atomically consume server-owned approval state and reconcile side effects before retry",
+      "source_url": "https://openai.github.io/openai-agents-python/human_in_the_loop/",
+      "adoption": "do not replace journal with SDK resume"
+    },
+    {
+      "id": "PD01",
+      "project": "Pipedream",
+      "kind": "official_license_text",
+      "claim": "Root repo uses Source Available License 1.0 with any commercial use included in Excluded Purpose; hosted API terms are separate",
+      "source_url": "https://raw.githubusercontent.com/PipedreamHQ/pipedream/master/LICENSE",
+      "adoption": "no MIT/OSS-copy assumption"
+    }
+  ],
+  "own_observations": [
+    {
+      "kind": "source_boundary",
+      "result": "canonical remote/root/branch/common-dir verified",
+      "manager_commit": "ae06f4ccfa30b29e427f71d6413eba0858a34cf8"
+    },
+    {
+      "kind": "novelty_rg",
+      "scope": [
+        "products/manager/docs/research",
+        "docs/research"
+      ],
+      "known": [
+        "browser-use/rl-env-use evaluation repository",
+        "direct Playwright/axe"
+      ],
+      "new_within_searched_manifests": [
+        "browser-use execution",
+        "Stagehand/Browserbase",
+        "Skyvern",
+        "Playwright MCP",
+        "Composio",
+        "Pipedream",
+        "Google ADK",
+        "OpenAI Agents SDK"
+      ]
+    },
+    {
+      "kind": "own_execution",
+      "performed": [
+        "read-only git clone",
+        "git metadata/blob hashes",
+        "rg/sed source reads",
+        "Firecrawl search/developer search/scrape",
+        "public GitHub metadata GET"
+      ],
+      "not_performed": [
+        "dependency installation",
+        "upstream code execution",
+        "Manager tests",
+        "browser execution",
+        "LLM calls",
+        "login/account mutation",
+        "submit/send",
+        "paid browser session",
+        "deploy"
+      ]
+    },
+    {
+      "kind": "retrieval_limit",
+      "url": "https://docs.skyvern.com/running-tasks/workflows/overview",
+      "observed_http_status": 404,
+      "recovery": "Read official https://www.skyvern.com/docs/llms.txt then current browsers.md and production.md"
+    },
+    {
+      "kind": "version_boundary",
+      "result": "MCP wrapper alpha dependency not proven to match additional playwright monorepo HEAD; source observations kept separate"
+    }
+  ],
+  "patch_candidates": [
+    {
+      "id": "B01",
+      "status": "proposal_not_implemented",
+      "current_need": true,
+      "files": [
+        "products/manager/tests/e2e/environment.spec.cjs",
+        "products/manager/tests/e2e/playwright.config.cjs"
+      ],
+      "functions": [
+        "per-page test loop"
+      ],
+      "change": "extend existing network/privacy gate from mental.html to all six pages; preserve retries=0 and fixed HTTP readback",
+      "tests": [
+        "owned-origin GET/HEAD only across desktop/mobile all routes",
+        "negative fixture same-origin POST",
+        "negative fixture third-party request/storage"
+      ],
+      "dependencies_added": []
+    },
+    {
+      "id": "B02",
+      "status": "reuse_existing_tests_now; conditional_future_adapter_delta_only",
+      "current_need": false,
+      "files": [
+        "products/manager/tests/test_owned_effect_recovery.py",
+        "products/manager/tests/test_digital_cycle_acceptance.py",
+        "products/manager/manager_core/owned_cycle.py",
+        "products/manager/manager_core/outbox.py",
+        "products/manager/manager_core/reconcile.py"
+      ],
+      "functions": [
+        "run_owned_cycle",
+        "OwnedEffectJournal.reserve",
+        "reconcile_owned"
+      ],
+      "change": "Reuse existing response-loss cycle test (effect committed then OSError, UNKNOWN writes=None, reconciliation and zero resend). Add only new adapter-specific partial-sequence or stale-generation fixture when such adapter exists; no duplicate current tests or fixture-gate relaxation.",
+      "tests": [
+        "UNKNOWN and zero replay until exact immutable occurrence",
+        "restart no second send",
+        "model or vendor success without occurrence cannot close fence"
+      ],
+      "dependencies_added": [],
+      "already_covered_tests": [
+        "CycleAcceptanceTests.test_lost_send_response_is_unknown_count_then_reconciled_without_resend",
+        "OwnedRecoveryTests.test_lost_response_reconciles_exact_commit_after_restart_replay_zero",
+        "CycleAcceptanceTests.test_active_owner_rejects_competing_worker"
+      ]
+    },
+    {
+      "id": "B03",
+      "status": "conditional_future_proposal",
+      "current_need": false,
+      "files": [
+        "products/manager/manager_core/public_observer.py",
+        "products/manager/manager_core/adapters/browser_observation.py (new only if justified)"
+      ],
+      "functions": [
+        "PublicSourceSpec",
+        "FetchedSnapshot",
+        "fetch_snapshot"
+      ],
+      "change": "separate browser-rendered observation provenance from HTTPS raw bytes; optional read-only existing Playwright or Stagehand observe/extract adapter",
+      "tests": [
+        "source text cannot request write",
+        "no credential state accepted",
+        "deadline/cost/source allowlist enforced",
+        "no P-level promotion"
+      ],
+      "dependencies_added": [
+        "none now; evaluate actual UI-only need before optional Stagehand"
+      ]
+    },
+    {
+      "id": "B04",
+      "status": "conditional_future_proposal",
+      "current_need": false,
+      "files": [
+        "future provider adapter and host identity config"
+      ],
+      "functions": [
+        "fixed account binding before external action reservation"
+      ],
+      "change": "pin Composio/Pipedream project/user/account/environment; separate webhook dedup from effect journal",
+      "tests": [
+        "latest connected account change cannot redirect dispatch",
+        "wrong project/user denied",
+        "token refresh failure no new login/account fallback",
+        "response loss remains UNKNOWN"
+      ],
+      "dependencies_added": []
+    }
+  ],
+  "maintained_metadata": {
+    "observed_on": "2026-10-22",
+    "all_eight_repositories_archived": false,
+    "pushed_at": {
+      "browser-use/browser-use": "2026-10-20T06:00:24Z",
+      "browserbase/stagehand": "2026-10-22T04:21:40Z",
+      "Skyvern-AI/skyvern": "2026-10-22T13:18:18Z",
+      "microsoft/playwright-mcp": "2026-10-22T00:03:07Z",
+      "openai/openai-agents-python": "2026-10-22T00:43:41Z",
+      "google/adk-python": "2026-10-22T10:12:03Z",
+      "ComposioHQ/composio": "2026-10-22T13:52:08Z",
+      "PipedreamHQ/pipedream": "2026-10-22T13:45:50Z"
+    },
+    "source_kind": "own public GitHub repository metadata GET; activity is not SLA"
+  },
+  "external_uncertainty": [
+    "no live authenticated browser or paid provider run",
+    "no deployed browser adapter",
+    "no independently measured live-site reliability",
+    "cloud trace/auth retention and pricing not verified",
+    "provider-side idempotency varies per action",
+    "SDK docs live and not all source versions pinned",
+    "AGPL/source-available integration suitability not determined"
+  ]
+}

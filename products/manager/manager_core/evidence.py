@@ -169,3 +169,105 @@ if __name__ == '__main__':
         raise SystemExit(f'EVIDENCE_INVALID: {error}')
     print(json.dumps({'records': len(records), 'ids': [r['id'] for r in records],
                       'validated': 'structure_only', 'manager_field_impact': 'not_measured'}, indent=2))
+
+# E01 — a narrowly pinned, reproducible real API research trial. This is
+# an immutable P0 artifact check, not a general participant evidence store.
+from hashlib import sha256 as _sha256
+
+_TRIAL_RUN_ID = 39713799676
+_TRIAL_SOURCE_COMMIT = "66997ea549f8d1373a7670b8a11add9af17613ea"
+_TRIAL_ARTIFACT_ID = 12398755518
+_TRIAL_RAW_SHA256 = "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585"
+_TRIAL_RAW_BYTES = 14759
+
+
+def load_verified_trial(path: Path, receipt: dict) -> dict:
+    """Validate original recorded research bytes AND derived aggregates.
+
+    Explicitly not evidence that provider's reported metrics are true, that
+    any fictional person is real, or that anyone was helped. Caller must
+    separately check GitHub workflow run identity/permissions.
+    """
+    path = Path(path)
+    if path.name != "ten_case_raw.json" and not path.is_file():
+        raise ValueError("missing actual P0 trial source")
+    if type(receipt) is not dict:
+        raise ValueError("typed provenance receipt required")
+    if (receipt.get("run_id") != _TRIAL_RUN_ID or
+        receipt.get("source_commit") != _TRIAL_SOURCE_COMMIT or
+        receipt.get("artifact_id") != _TRIAL_ARTIFACT_ID or
+        receipt.get("raw_sha256") != _TRIAL_RAW_SHA256 or
+        receipt.get("raw_bytes") != _TRIAL_RAW_BYTES or
+        receipt.get("recorded_as") != "P0_SYNTHETIC_ONLY" or
+        receipt.get("actual_people") != 0 or
+        receipt.get("actual_effects") != 0 or
+        receipt.get("settled_cost_usd", "MISSING") is not None):
+        raise ValueError("trial receipt does not match immutable observed metadata")
+    raw = path.read_bytes()
+    if len(raw) != _TRIAL_RAW_BYTES or _sha256(raw).hexdigest() != _TRIAL_RAW_SHA256:
+        raise ValueError("original trial bytes differ from pinned artifact")
+    try:
+        obj = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_keys,
+                         parse_constant=lambda _ : (_ for _ in ()).throw(
+                             ValueError("nonfinite JSON in research artifact")))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ValueError("invalid JSON source") from exc
+    if not isinstance(obj, dict) or obj.get("schema") != "manager.ampersand-p0-lab.v1":
+        raise ValueError("unexpected trial schema")
+    rows = obj.get("cases")
+    if not isinstance(rows, list) or len(rows) != 10:
+        raise ValueError("ten trial cases required")
+    names, sessions, turn_ids = set(), set(), set()
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("scenario"), str):
+            raise ValueError("invalid trial case")
+        if row["scenario"] in names or row.get("session_id") in sessions:
+            raise ValueError("duplicate scenario or session")
+        names.add(row["scenario"])
+        sessions.add(row.get("session_id"))
+        turn_ids.add(row.get("turn_id"))
+        if (not isinstance(row.get("session_id"), str) or
+            not row["session_id"].startswith("sess_") or
+            not isinstance(row.get("turn_id"), str) or
+            not row["turn_id"].startswith("turn_") or
+            row.get("kernel_action") != "NO_ACTION" or
+            row.get("kernel_audit_valid") is not True or
+            row.get("authorized_execution") is not False or
+            row.get("source_type") != "FICTIONAL_NOT_REAL_GOV_SOURCE" or
+            row.get("model_status") not in {"MODEL_ADVICE_P0", "INVALID_MODEL_OUTPUT"} or
+            row.get("model_decision") not in {"ASK", "PASS", "PROPOSE"}):
+            raise ValueError("unsupported trial evidence row")
+    if len(turn_ids) != 10:
+        raise ValueError("duplicate initial turns")
+    heldout = [r for r in rows if r.get("split") == "HELD_OUT_FROM_PROMPT_ITERATION"]
+    valid_split = {"PROMPT_DEVELOPMENT", "HELD_OUT_FROM_PROMPT_ITERATION"}
+    if any(r.get("split") not in valid_split for r in rows):
+        raise ValueError("unknown evaluation split")
+    followups = [r for r in rows if (
+        isinstance(r.get("followup"), dict) and
+        r["followup"].get("same_session") is True and
+        r["followup"].get("status") == "completed")]
+    expected = {
+        "model_sessions_created": len(sessions),
+        "model_scored": sum(r.get("model_matches_author") is not None for r in rows),
+        "model_matches_count": sum(r.get("model_matches_author") is True for r in rows),
+        "heldout_cases": len(heldout),
+        "heldout_model_scored": sum(r.get("model_matches_author") is not None for r in heldout),
+        "heldout_model_matches": sum(r.get("model_matches_author") is True for r in heldout),
+        "completed_followups": len(followups),
+        "completed_kernel_audits": sum(r.get("kernel_audit_valid") is True for r in rows),
+        "baseline_matches_count": sum(r.get("baseline_matches_author") is True for r in rows),
+    }
+    if any(type(obj.get(k)) is not int or obj[k] != v for k, v in expected.items()):
+        raise ValueError("reported model aggregates do not match individual cases")
+    if (obj.get("model") != "ampersand-v0.1" or
+        obj.get("auth_model_check") != "PASS" or
+        obj.get("evidence_level") != "P0_SYNTHETIC_ONLY" or
+        obj.get("real_human_outcome") != "NOT_MEASURED" or
+        obj.get("real_people") != 0 or
+        obj.get("real_world_effects") != 0 or
+        obj.get("exact_settled_cost_usd", "MISSING") is not None or
+        obj.get("production_enabled") is not False or
+        obj.get("blog_published") is not False):
+        raise ValueError("unsupported provider outcome/causal/production claim")
+    return obj

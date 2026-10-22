@@ -1,0 +1,16 @@
+# E06 provider budget, absolute deadlines and cancellation
+
+User-authorized implementation after the reviewed whole-product plan. Existing provider code was extended, not replaced. Current source identity is the GitHub commit containing this record; authoritative stage completion links the exact CI run in tasks.json.
+
+- RED: seven regression tests failed against the prior implementation, including the real no-event blocking read (3.001 seconds against a 0.75-second limit), missing initial cancellation, unverified turn identity, over-reservation exposure and loss of known usage status.
+- GREEN: 10 deadline/recovery regressions plus 14 existing budget tests. Whole product: 570 tests, OK, 5 optional-library skips. Boundary and roadmap checks pass.
+- A scoped POSIX alarm bounds the existing synchronous SDK's main-thread owner, including an iterator that produces no event. It complements the SDK transport timeout. Unsupported owners and pre-existing process alarms fail closed before sending; prior signal handler is restored. Non-session model probes share the global deadline.
+- Saved provider IDs are retained during both initial and follow-up streams. Deadline/transport failure with known IDs requests the documented cancellation event, then verifies the exact saved turn. Recovery has a separate five-second grace; without IDs the creation/event remains unknown and is not resubmitted. Cancellation acceptance is not terminal confirmation.
+- Numeric/nonfinite/boolean deadlines are validated before provider calls. Billing/usage remain distinct; missing usage never becomes zero, known usage is not downgraded by a later empty response, and observed token-priced exposure beyond a reservation prevents new reservations pending reconciliation.
+- Local admission reservations do not guarantee a provider-side invoice cap. Default live inference stays disabled without its existing numeric budget/durable owner configuration and verified charging/stop exposure. No billable inference, induced live network-loss experiment or authoritative billing settlement was performed here. Settled USD remains unknown, not zero.
+
+Ruling: the existing synchronous SDK is retained on the documented single-owner POSIX host; a main-thread process alarm avoids leaving a billable worker thread running after a timeout. Cost if wrong: non-POSIX or threaded hosting requires an explicitly reviewed async adapter, not an unbounded fallback.
+
+The Mac-only source guard remains unavailable on this cloud host; the isolated linked worktree is source development only. This commit does not deploy a Manager runtime or publish a site.
+
+Final independent review follow-up: a created event arriving exactly at expiry could interrupt before the initial session's durable bind; cancellation then could not claim the known session. Two regressions (clock expiry on first created event, real alarm during bind) failed before the fix. The bounded five-second recovery now repairs the observed initial request→session binding before cancellation. Both pass, total deadline tests12. If the durable journal itself remains unavailable beyond the grace, cancellation stays UNKNOWN; it is not reported stopped or free. No live billing experiment was performed.
