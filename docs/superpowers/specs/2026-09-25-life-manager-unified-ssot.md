@@ -195,6 +195,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 最小修復/所有: primaryはarticle-daily.sh、runtime/loop/lm_loop_run.py、既存article_fence_reconcile.pyと各既存tests、本specだけを所有する。同じWriter siblingのtyped no-effect形式を当該skip枝だけで書き、hostはarticle-daily/正規entrypoint/固定reason pending_resume_worker_owned/同occurrenceに限定して受理する。既存writer publication receiptと他owner/reasonは変更しない。旧1件は既存historical start-control gate-stop経路へexact allowlistを追加し、既存catch-upと同じ固定archive読取りと残存marker hashで検証する。新validator/新ledger/新scheduler/exit0一般緩和/遡及hint新造/元の別runの公開判定は作らない。
 - 受入: 実skip枝の隔離shell/host受理/旧archive proofを最小RED→GREENとし、wrong owner/entrypoint/reason、archive/event/log/marker改変・symlinkを拒否する。既存effect hint隔離・writer receipt・歴史proof・loop契約を関連検証し、fresh review/全CI/main→対象immutable採用を通す。その後のみ登録resolverで旧1件のproofを再読し一度resolve、同occurrence readback/replay追加effect0と次の自然wakeを確認する。新記事/売上/strategy採用は別に公式receiptで確認し、closureだけで完了扱いしない。
 
+- source受入進捗: 実skip枝/host受理は最小2RED→4GREEN、固定archive/marker経路は1RED→関連6GREEN、関連3ファイル全279PASS。初回の既存2失敗はsparse未展開と既存終了timing1件で、必要ファイル展開後の個別2PASS/全279PASSを確認する。bash構文/差分/source-boundary/loop契約18群191jobs errors0。変更コードの本番read-only proofは旧exact occurrenceのarchive/source/helper/log/元markerと一致し、provider呼出0/resolver0/DB write0。source16be1c1040をpushしfresh reviewへ渡す。CI/main/immutable採用/実解除/自然wakeは未実施。
+
 **FND05 — exact effect復旧と履歴増加を分ける**
 
 - 対象: `runtime/loop/fence_reconcile.py`、`runtime/host/resource_admission.py`、`config/loop-registry.json`の登録済 `effect_reconcile`、該当providerの既存adapter。優先対象はcritical_paid、Capafy配信、Writer、Cloudと競合する共有account。
