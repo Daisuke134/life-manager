@@ -109,6 +109,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 受入: 対象ownerの自然作業→終了→既存cleanupの回収と正式receipt保持、該当する次のeligible業務がdisk由来で失敗しないこと。全量サイズ確定/任意の空きGB/追加7日待機をgateにしない。未特定writerはowner/path/次probeを残す。
 
 - FND01採用状況: #8531の独立反証47 testsとbusy-slot実registry probeはPASS、#8533の独立反証13 testsと12連続削除失敗（詳細8/省略4/error12、例外本文非出力）はPASS。両PRの全exact-head CIとmain統合を確認する。これらを自然成果や容量全体の解決とは扱わない。
+- FND01c: FND01aのmain `23c6412524bbd3ab54dc1dbab3a17efce8dbab53` / immutable `20261022T200547-23c64125` へのwatchdog採用は、既存lock・loaded-idle・preflight/launchctl-safeで成功する。最初のrun receiptは `remove_failed=1 / protected_deletions=0` で、削除対象とerrnoが記録されず原因を断定できない。既存bounded `probe_errors` の記録境界を削除例外にも再利用し、owner/candidate/error_class/errno/operationを残す。削除allowlist・floor・外部effectは変えず、次の自然runで得るexact原因にだけ修復を絞る。新規root走査や手動大量削除は行わない。
+- FND01c検証: permission-denied fixtureで対象/errno欠落のREDを確認し、既存8件上限の診断へoperation付き削除例外を接続後、関連257 tests・loop-contract18/191/errors0・diff checkがPASSする。既存watchdogの後続自然receiptは `ok=true/errors=0/protected_deletions=0` になるが、先のremove_failedの対象/errnoは未取得として保持する。誤削除防止のsource採用と、一過性の削除例外の原因確定を混同しない。
 
 **FND02 — 履歴再走査を毎回のhealthから外す**
 
