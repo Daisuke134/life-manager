@@ -107,6 +107,15 @@ class AdviceContractTests(unittest.TestCase):
         self.assertNotIn("Authorization: Bearer", p)
 
 
+    def test_advisory_prompt_distinguishes_suggestion_from_execution(self):
+        p = render_prompt(context())
+        self.assertIn("Proposing an idea is NOT execution", p)
+        self.assertIn("Do NOT choose PASS solely because", p)
+        self.assertIn("Respect an explicit refusal", p)
+        self.assertIn("PROPOSE", p)
+
+
+
 class FakeInitialStream:
     def __enter__(self): return self
     def __exit__(self,*exc): return False
