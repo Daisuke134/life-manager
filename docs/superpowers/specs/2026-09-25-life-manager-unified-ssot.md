@@ -2815,7 +2815,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 - ebook-articlesは直近4枠compose_failed:1だがruntime exit0/pass。一時evidence削除とstderr破棄が原因診断を妨げる。修正対象は既存compose境界の証拠保持・失敗exitで、別agent/別schedulerは作らない。
 - task専用の再生成可能なNext build cache回収後、空き11.36GiBで既存revenue floor10GiBを満たす。閾値を下げず、他ownerのstore/cacheを触らない。
 
-**TODO順更新:** 旧順=`四fence照合→disclosure→render→IG→catalog`。新順=`(1) EN TikTokの旧HeyGen要求を無料read-onlyで照合し、独立して既存registryから実Postiz disclosureを修正 → (2) evidenceを失うarticle compose境界を修正 → (3) 修正sourceをfocused tests/PR/main/immutableへ反映し、EN loaded-idle ownerだけ採用 → (4) 既存08/21自然slotのPUBLISHED/URL/cost/流入を照合 → (5) 残る三fenceはexact official proofを個別回復 → (6) 無料枠ができた時だけInstagram接続 → (7) 新刊 The Art of AI Monks、OSS factory、subscription化`。理由はEN ownerのadmission fenceが既に解消しており、IGは30/30、HeyGenの旧未知要求とdisclosureが現在の実測blockerであるため。AI monk indexと英日4記事はproducts PR #551、main `d4380515c995abd0611987bedead436fbe432dcb`、Netlify success、75 records/48 sourcesを本番確認済み。全体企画の正本はproducts repo `docs/superpowers/specs/2026-10-21-ai-monk-avatar-field-guide.md`、Life Managerの運用TODO正本は本節とする。
+**TODO順更新:** 旧順=`四fence照合→disclosure→render→IG→catalog`。新順=`(1) EN TikTokの旧HeyGen要求を無料read-onlyで照合し、独立して既存registryから実Postiz disclosureを修正 → (2) evidenceを失うarticle compose境界を修正 → (3) 修正sourceをfocused tests/PR/main/immutableへ反映し、EN TikTokとebook-articlesのloaded-idle ownerだけ採用し、他三ownerは保持 → (4) 既存08/21自然slotのPUBLISHED/URL/cost/流入を照合 → (5) 残る三fenceはexact official proofを個別回復 → (6) 無料枠ができた時だけInstagram接続 → (7) 新刊 The Art of AI Monks、OSS factory、subscription化`。理由はEN ownerのadmission fenceが既に解消しており、IGは30/30、HeyGenの旧未知要求とdisclosureが現在の実測blockerであるため。AI monk indexと英日4記事はproducts PR #551、main `d4380515c995abd0611987bedead436fbe432dcb`、Netlify success、75 records/48 sourcesを本番確認済み。全体企画の正本はproducts repo `docs/superpowers/specs/2026-10-21-ai-monk-avatar-field-guide.md`、Life Managerの運用TODO正本は本節とする。
 
 **現在cursor:** AM-14 / S11.2–4。latest-main由来worktree `ai-monk-factory-recovery-20261023`、owner lease `codex-ai-monk-root`。旧HeyGen結果のread-only照合と、既存Postiz disclosureの最小修正を進める。日次配信復旧、注文、収益は未達として保持する。
 
@@ -22835,3 +22835,9 @@ Data volume空きは11:14:05Z watchdog receiptで`4,591,169,536` bytes（`df`表
 | 4 | Capafyの次の自然15分occurrenceを待つ。 | #3。DONE=Codex tool-less JSON draft、同一occurrenceに結び付くlive GitHub article/HTTP 200とPostiz `PUBLISHED` ID/permalink、duplicate 0。 |
 | 5 | 同一seller/sourceの公式行でviews、trials、paid orders、creator earningsを照合する。 | #4。DONE=source-attributed paid orderとearningsを確認する。無注文や帰属不明は0/unknownを混同しない。 |
 | 6 | paid orderがない場合、`/agent/agents/search`から同targetの成功例を一つ選び、成功URL・検証済み結果・勝ち筋を記録してdistributionの一変数実験を行う。 | #5。DONE=自然配信後の同source paid conversionで採否を判定し、勝ちvariantだけを次回に残す。 |
+
+### AI monk factoryの限定復旧・source検証
+
+productsの公開済みdatabase/4記事/Xに続き、S11の既存ownerを修復する。Postizは既存accountのbrand_organic_toggleを実送信へ反映し、自社eBookの英日TikTokだけtrue、third-party partnership=false、AI=trueを保持。HeyGenは初回createと同じ実行内のwallet deltaをdownload前に永続化し、resumeでは保存済み費用だけ再利用する。旧beforeと新afterを混ぜない。article composeは既存agent-runner-evidence管理下へ失敗証拠とlauncher stderrを保存し、CLIはfailed slotをexit1にする。
+
+source validationはPostiz5/5、HeyGen13/13、article16/16、JS eBook owner24/24 PASS。fresh read-only検証を経てPR/main/immutableへ反映する。旧HeyGen要求は公式scenesの台本・avatar・voice・locale・speedとrequest SHAが一致し、video `492ee7b0f41372ab6856594c9096ea6f` がcompletedである。個別費用は未取得。private evidenceは `~/.local/state/life-manager/ebook/evidence/heygen-0be570-recovery-20261023/`。本番sidecarをcost_reconciliation_requiredとしてID/証拠だけ回復し、costはnull・guardは維持する。三provider fenceを解除せず、新規HeyGen生成/課金設定変更も行わない。日次公開・注文・収益の完了とは判定しない。
