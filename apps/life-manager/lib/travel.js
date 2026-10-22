@@ -641,6 +641,7 @@ async function directionsRoute(src, dst, mapsKey, anchorAtMs = null, nowMs = Dat
     { fallbackOwnerId: "life-call-travel", fallbackRunId: `route-${routeId}` },
   ) };
   const allowanceState = options._allowanceState;
+  if (allowanceState) allowanceState.routeEventVersion = eventVersion;
   const usage = { tenantId: uid, options: usageOptions, eventVersion };
   const routeUsage = { tenantId: uid, options: usageOptions, eventVersion, failureClasses: [] };
   const transitDiagnostics = { fallbackReason: null };
@@ -793,6 +794,22 @@ function travelRequestFingerprint(event) {
     hasDeparturePopupReminder(event)]);
 }
 
+function travelRouteDecision(uid, write, receipt, supaKey) {
+  const context = write._routeDecision || {};
+  const kind = ["not_called", "filled", "online", "ask", "error", "unknown"].includes(context.resolverKind)
+    ? context.resolverKind : "unknown";
+  return {
+    schema_version: 1, request_id: receipt.request_id, leg: receipt.leg,
+    source_event_version: receipt.source_event_version, request_fingerprint: receipt.request_fingerprint,
+    resolver_kind: kind,
+    resolved_from: kind === "filled" && ["location_field", "description", "web_search"].includes(context.resolvedFrom)
+      ? context.resolvedFrom : null,
+    destination_hmac: addressDigest({ tenantId: uid, provider: "travel-destination-v1", address: write.destination, digestKey: supaKey }),
+    route_event_version: typeof context.routeEventVersion === "string" && OPAQUE_EVENT_VERSION.test(context.routeEventVersion)
+      ? context.routeEventVersion : null,
+  };
+}
+
 function travelClaimUrl(uid, eventKey, supaUrl, leg) {
   const url = new URL(`${supaUrl.replace(/\/+$/, "")}/rest/v1/lm_travel_log`);
   url.searchParams.set("uid", `eq.${uid}`);
@@ -847,7 +864,7 @@ async function readTravelOperationClaims(uid, helperIds, supaUrl, supaKey) {
   } catch { return null; }
 }
 
-async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, expectedPhase, priorReceipt) {
+async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, expectedPhase, priorReceipt, routeDecision) {
   try {
     const url = travelClaimUrl(uid, eventKey, supaUrl, receipt.leg);
     url.searchParams.set("calendar_write_receipt->>request_id", `eq.${priorReceipt?.request_id || receipt.request_id}`);
@@ -864,11 +881,13 @@ async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, 
     const response = await fetch(url.toString(), {
       method: "PATCH", headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`,
         "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify({ calendar_write_receipt: receipt }),
+      body: JSON.stringify({ calendar_write_receipt: receipt,
+        ...(routeDecision !== undefined ? { route_decision: routeDecision } : {}) }),
     });
     const rows = response.ok ? await response.json() : null;
     return Array.isArray(rows) && rows.length === 1 && rows[0].uid === uid && rows[0].event_key === eventKey
-      && rows[0].leg === receipt.leg && isDeepStrictEqual(rows[0].calendar_write_receipt, receipt);
+      && rows[0].leg === receipt.leg && isDeepStrictEqual(rows[0].calendar_write_receipt, receipt)
+      && (routeDecision === undefined || isDeepStrictEqual(rows[0].route_decision, routeDecision));
   } catch { return false; }
 }
 
@@ -1017,7 +1036,7 @@ async function cancelTravelBlock(uid, row, cal, opts) {
     if (binding.command !== "calendar.cancel" || binding.account_ref_hash !== prior.account_ref_hash) return false;
     const fresh = await cal.getOwnedEvent(uid, eventKey, readOptions);
     if (fresh.id !== eventKey || fresh.status !== "cancelled" || sourceEventVersion(fresh) !== receipt.source_event_version) return false;
-    durable = await saveTravelWriteReceipt(uid, eventKey, receipt, opts.supaUrl, opts.supaKey, undefined, prior);
+    durable = await saveTravelWriteReceipt(uid, eventKey, receipt, opts.supaUrl, opts.supaKey, undefined, prior, null);
     return durable;
   };
   let result;
@@ -1044,6 +1063,7 @@ async function updateTravelBlock(uid, ev, eventKey, leg, write, cal, opts, candi
     request_fingerprint: travelRequestFingerprint({ ...write, reminders: candidate.helper.reminders }),
     command: "calendar.update", phase: "dispatching", effect: "unknown", runtime_trace: opts.runtimeTrace,
     http_status: null, error_class: null, readback: null, evidence_ref: null, next_action: "owned_readback" };
+  const routeDecision = travelRouteDecision(uid, write, receipt, opts.supaKey);
   let durable = false;
   const beforeDispatch = async (binding) => {
     if (binding.account_ref_hash !== prior.account_ref_hash || binding.command !== "calendar.update") return false;
@@ -1051,7 +1071,7 @@ async function updateTravelBlock(uid, ev, eventKey, leg, write, cal, opts, candi
       supaUrl: opts.supaUrl, supaKey: opts.supaKey,
       ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}) });
     if (source.id !== eventKey || source.status === "cancelled" || sourceEventVersion(source) !== ev.sourceEventVersion) return false;
-    durable = await saveTravelWriteReceipt(uid, eventKey, receipt, opts.supaUrl, opts.supaKey, undefined, prior);
+    durable = await saveTravelWriteReceipt(uid, eventKey, receipt, opts.supaUrl, opts.supaKey, undefined, prior, routeDecision);
     return durable;
   };
   let result;
@@ -1084,7 +1104,8 @@ async function createTravelBlock(uid, ev, eventKey, leg, write, cal, opts) {
     http_status: null, error_class: "not_dispatched", provider_event_id: null,
     readback: null, evidence_ref: null, retryable: false, next_action: "owned_readback",
   } : null;
-  const claimed = await claimTravel(uid, eventKey, leg, opts.supaUrl, opts.supaKey, receipt);
+  const routeDecision = receipt ? travelRouteDecision(uid, write, receipt, opts.supaKey) : undefined;
+  const claimed = await claimTravel(uid, eventKey, leg, opts.supaUrl, opts.supaKey, receipt, routeDecision);
   if (!claimed) {
     if (!durable) return { status: "unknown", duplicate: true };
     const rows = await readTravelClaims(uid, eventKey, opts.supaUrl, opts.supaKey);
@@ -1128,13 +1149,14 @@ async function createTravelBlock(uid, ev, eventKey, leg, write, cal, opts) {
 // ATOMIC claim of a [Travel] leg (C-H1) — mirrors claimWake. INSERT relies on lm_travel_log
 // UNIQUE(uid,event_key,leg): 201 = first claimer (create the block); 409 = another run already claimed.
 // If supa is unconfigured, return true (don't block) — the in-memory gcal dedup still prevents obvious dups.
-async function claimTravel(uid, eventKey, leg, supaUrl, supaKey, writeReceipt = null) {
+async function claimTravel(uid, eventKey, leg, supaUrl, supaKey, writeReceipt = null, routeDecision) {
   if (!supaUrl || !supaKey) return true;
   const r = await fetch(`${supaUrl}/rest/v1/lm_travel_log`, {
     method: "POST",
     headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
     body: JSON.stringify({ uid, event_key: eventKey, leg,
-      ...(writeReceipt ? { calendar_write_receipt: writeReceipt } : {}) }),
+      ...(writeReceipt ? { calendar_write_receipt: writeReceipt } : {}),
+      ...(routeDecision !== undefined ? { route_decision: routeDecision } : {}) }),
   }).catch(() => null);
   return !!r && r.status === 201; // 201 inserted (claimed) | 409 duplicate (already created)
 }
@@ -1407,6 +1429,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       : { insert: false, origin: null, reason: "event-already-started" };
     let outboundInserted = false;
     let resolvedDest = ev.location; // tracks the agent-resolved venue for the return leg
+    let resolverKind = "not_called", resolvedFrom = null;
 
     if (!decision.insert) {
       skipped++;
@@ -1451,10 +1474,12 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
           // agent web-search the REAL venue address so a must-travel event still gets a block instead of a
           // silent skip — never-late beats clean code. (Lazy require avoids any load-order coupling.)
           try {
+            resolverKind = "error";
             const agentResolveLocation = _agentResolveLocation || require("./ask.js").agentResolveLocation;
             const res = await agentResolveLocation(ev, {
               home, mapsKey, geminiKey, uid, recordUsageEvent: _recordUsageEvent,
             });
+            resolverKind = ["filled", "online", "ask"].includes(res?.kind) ? res.kind : "unknown";
             if (res && res.kind === "online") {
               skipped++;
               await releaseAllowance(evKey, allowanceState);
@@ -1462,6 +1487,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             }
             if (res && res.kind === "filled" && res.location) {
               dest = res.location;
+              resolvedFrom = ["location_field", "description", "web_search"].includes(res.resolvedFrom) ? res.resolvedFrom : null;
+              delete allowanceState.routeEventVersion;
               if (travelDecision({ ...ev, location: dest }, previous, home, origin).insert) {
                 if (routeFn) {
                   try { route = await routeFn(origin, dest, mapsKey, ev.startMs, nowMs, false, routeOpts); }
@@ -1486,6 +1513,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
           } else {
             {
               const plan = planTravelBlock(leaveMs, arriveMs, origin, dest, dest, expectedCalendarAccountId);
+              plan._routeDecision = { resolverKind, resolvedFrom, routeEventVersion: allowanceState.routeEventVersion };
               const candidate = updatesNeeded.get("go");
               const write = candidate ? await updateTravelBlock(uid, ev, evKey, "go", plan, cal, writeOptions, candidate)
                 : await createTravelBlock(uid, ev, evKey, "go", plan, cal, writeOptions);
@@ -1589,6 +1617,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     const retArriveMs = retLeaveMs + retMins * 60000;
     {
       const plan = planTravelBlock(retLeaveMs, retArriveMs, venue, home, home, expectedCalendarAccountId);
+      plan._routeDecision = { resolverKind, resolvedFrom, routeEventVersion: returnAllowanceState.routeEventVersion };
       const candidate = updatesNeeded.get("return");
       const write = candidate ? await updateTravelBlock(uid, ev, evKey, "return", plan, cal, writeOptions, candidate)
         : await createTravelBlock(uid, ev, evKey, "return", plan, cal, writeOptions);
