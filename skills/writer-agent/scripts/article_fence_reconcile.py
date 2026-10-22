@@ -60,6 +60,38 @@ PUBLICATION_STATE = "gates/publication-state.json"   # publication-guard writes 
 WRITER_STATE_ROOT = Path.home() / ".local/state/life-manager/writer"
 SOURCE_REPO = Path.home() / "Projects/life-manager-main"
 HISTORICAL_GATE_STOP_PROOFS = {
+    # This occurrence dispatched nothing: start control left this pre-existing run
+    # with article-resume. Its exit 0 predated the typed no-effect result contract.
+    "article-daily:18dfc09cffeae8b8-61102": {
+        "stop_kind": "start_control_block",
+        "runtime_run_id": "18dfc09cffeae8b8-61102",
+        "writer_run_id": "20261018-194904",
+        "writer_run_role": "pre_existing_resume_worker_owned",
+        "release_sha": "bd67bc0adb238dabcb8c608309d1f3b63403b4d3",
+        "entrypoint": "skills/writer-agent/article-daily.sh",
+        "entrypoint_sha256": "05c5697edd6d4ada17aa2d45162e2a2509fe4501e845ec568856c52ac2402a71",
+        "helper_sha256": {
+            "skills/writer-agent/scripts/writer_owner_fence.py":
+                "fd28146f02987fe43e1a82548a2307e302b45ad09ef43c907fd5834c6a4298e5",
+        },
+        "events_archive": "events-20261020T050241988389Z.jsonl.gz",
+        "events_archive_sha256": "5fdb0b15d3eb0ef64e3fcaad9568b561dd78d5fb5a60e5f92afb9ad80e52c03a",
+        "start_event_id": "3a581164c1fdfae737be7782",
+        "terminal_event_id": "83bc68f6c71eb8479bc04dc2",
+        "event_hashes": {
+            "3a581164c1fdfae737be7782": "b2fe9556c1a64069a7e0005d6b6d49088130dbd110efe2df4b9509c24f32e0bc",
+            "83bc68f6c71eb8479bc04dc2": "0b501ede96b8657038f2d3412a4c98b429dabfd81347f4fa5561149b9efb2079",
+        },
+        "log_header": "=== article-daily run 2026-10-19 07:35:58 JST ===",
+        "article_log_segment_sha256": "28b1792ff2ed5595fdd59a4602552490720c01a933eefdd14bb14ab07087aa57",
+        "queued_at": 1792360804.324131,
+        "gate_error": "pending active-four run remains resume-worker-owned",
+        "gate_terminal": "=== article-daily start control: pending active-four run remains "
+                         "resume-worker-owned run=20261018-194904; no concurrent article "
+                         "2026-10-19 07:36:07 JST ===",
+        "pre_effect_marker_sha256": "bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd",
+        "evidence_ref": "writer://fence-reconciliation/article-daily-18dfc09cffeae8b8-61102.json",
+    },
     # 2026-10-10 12:02 JST: start control blocked on unclassified same-day run 20261010-001933
     # and exited 0 before generation (pre-#7602 BLOCK branch); no run dir was created.
     "article-daily:18dd0bf091a5d3d0-57499": {
@@ -261,7 +293,22 @@ def _historical_gate_stop_proof(
     if (now - queued_at < MIN_AGE_SECONDS
             or not math.isclose(queued_at, expected["queued_at"], abs_tol=0.001)):
         return None
-    event_lines = _jsonl_lines(writer_root / "events.jsonl")
+    if "events_archive" in expected:
+        archive_name = expected["events_archive"]
+        archive = writer_root / archive_name
+        if (Path(archive_name).name != archive_name
+                or archive.is_symlink() or not archive.is_file()):
+            return None
+        try:
+            archive_bytes = archive.read_bytes()
+            if hashlib.sha256(archive_bytes).hexdigest() != expected["events_archive_sha256"]:
+                return None
+            event_lines = [line for line in gzip.decompress(archive_bytes).decode("utf-8").splitlines()
+                           if line.strip()]
+        except (OSError, UnicodeError, EOFError):
+            return None
+    else:
+        event_lines = _jsonl_lines(writer_root / "events.jsonl")
     if event_lines is None or writer_root.is_symlink():
         return None
     matching_events = [line for line in event_lines if occurrence_id in line]
@@ -293,6 +340,19 @@ def _historical_gate_stop_proof(
         return None
     entrypoint_sha = hashlib.sha256(source.stdout).hexdigest()
     if entrypoint_sha != expected["entrypoint_sha256"]:
+        return None
+    try:
+        for path, digest in expected.get("helper_sha256", {}).items():
+            helper = subprocess.run(
+                ["git", "-C", str(source_repo), "show", f"{expected['release_sha']}:{path}"],
+                capture_output=True, timeout=10, check=False)
+            if helper.returncode != 0 or hashlib.sha256(helper.stdout).hexdigest() != digest:
+                return None
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if ("pre_effect_marker_sha256" in expected
+            and _read_host_pre_effect_marker_sha256(occurrence_id, writer_root)
+                != expected["pre_effect_marker_sha256"]):
         return None
 
     run_dir = writer_root / "runs" / expected["writer_run_id"]
@@ -394,6 +454,10 @@ def _historical_gate_stop_proof(
     }
     if run_tree is not None:
         proof["run_tree"] = run_tree
+    for key in ("events_archive", "events_archive_sha256", "helper_sha256",
+                "pre_effect_marker_sha256", "writer_run_role"):
+        if key in expected:
+            proof[key] = expected[key]
     return proof
 
 
@@ -932,13 +996,8 @@ def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, ru
     return result
 
 
-def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str | None:
-    """Verify the host's pre-effect marker survived this occurrence (lm_loop mobile marker shape).
-
-    lm-loop-run writes {"status":"pre_effect_failure","effect":0} before spawning article-daily.sh,
-    which deletes it only immediately before the foreground model pass. A start-control BLOCK exits
-    75 before that, without a run dir, so the surviving marker is the run's no-dispatch evidence.
-    """
+def _read_host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str | None:
+    """Read the private original marker; a caller must separately prove the terminal boundary."""
     run_id = occurrence_id.split(":", 1)[1]
     if not run_id or not run_id.replace("-", "").isalnum():
         return None
@@ -968,6 +1027,18 @@ def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+    return hashlib.sha256(data).hexdigest()
+
+
+def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str | None:
+    """Verify the surviving host marker and a non-zero terminal before model dispatch.
+
+    A successful exit alone never proves no effect. Historical exit-0 stops require the
+    separate exact source/event/log allowlist above as well as this original private marker.
+    """
+    marker_sha256 = _read_host_pre_effect_marker_sha256(occurrence_id, writer_root)
+    if marker_sha256 is None:
+        return None
     lines = _jsonl_lines(writer_root / "events.jsonl")
     try:
         events = [json.loads(line) for line in lines or [] if occurrence_id in line]
@@ -981,7 +1052,7 @@ def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str
             or terminals[0].get("provider_receipt_id") is not None
             or terminals[0].get("official_readback_ref") is not None):
         return None
-    return hashlib.sha256(data).hexdigest()
+    return marker_sha256
 
 
 DISPATCH_FILES = (PUBLICATION_STATE, "gates/platform-dispatch.jsonl", "gates/platform-dispatch-results.jsonl")
