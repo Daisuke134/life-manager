@@ -83,7 +83,7 @@ def scenario_context(row, now: datetime) -> PlannerContext:
         content_sha256=digest, retrieved_at=now,
         privacy_class="public_nonpersonal",
     )
-    return PlannerContext(goal, (PublicFact(src, fact),), observed_at=now)
+    return PlannerContext(goal, (PublicFact(src, fact, source_kind="SYNTHETIC_SCENARIO"),), observed_at=now)
 
 
 def run_lab(*, live: bool, max_sessions: int = 3,
