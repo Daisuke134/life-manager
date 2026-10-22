@@ -108,3 +108,9 @@ rootから`bash scripts/verify-source-boundary.sh`。cloudではcanonical `/home
 日本語で報告する。既存認証/既存plugin/正規CLI/ブラウザownerを実際に確認して使い、存在を推測してstopしない。認証を再収集したりログへ出したりしない。無料枠の既存部品を再利用し、まだ解ける実装/検証/復旧を「permission待ち」で放置しない。本物の外部拒否や権限不足が残る場合だけ、試した経路・実エラー・最小の必要操作を記録する。無許可の課金、破壊、他ownerの停止、秘密流出、証拠の捏造で解除しない。
 
 ユーザーは「主張/計画だけでなく実装を続ける」ことを求めている。Doneはゴールの実結果と真正な外部証拠で判定し、長期使命『苦しみを終わらせる』を単一releaseやYC採択で達成したとは宣言しない。
+
+## 2026-10-22 research strategy amendment — read before continuing research
+
+Latest owner steering questions making a tiny owned site the core of behavioral research. Adopt spec §21: reuse public human results/AS Benchmark/Twin/published RCT aggregates first; enterprise partnerships, private Rothko weights and NDAs are not initial research dependencies. Owned-site E16 remains an execution/readback/recovery canary, not human-behavior validity or welfare proof. Public research need not wait for E16 host completion.
+
+Canonical research/content commit `887e52f4ef0dfe6592359054df71f9d99e6b9de4`, PR #8550: `docs/research/manager/2026-10-22-open-behavior-reuse-plan.md` has planned atomic patches A–F and exact existing function/file targets. They are not implemented yet. Book mini-chapter and coverage manifests are in the same commit. Preserve E16 WIP and the known fixture-clock test failure above; this docs-only amendment does not fix or mask it. Do not merge the entire 580-file E16 branch to publish the article; the content uses a separate bounded main PR and existing blog publisher. Observe authoritative live publication status separately.

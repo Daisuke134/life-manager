@@ -123,3 +123,9 @@ For computer scientists, economists, policymakers, social scientists and founder
 4. Technical independent review before any empirical numbers are introduced; verify original article sources and open-weight/data redistribution rights.
 5. Source-vetted English manuscript then peer technical review; submit to editor/platform only with actual publishing permissions and source integrity readback.
 6. Keep final book mutable as versions; current document is the **book production outline**, not evidence that chapters or a whole finished book were written.
+
+## 2026-10-22 authorized Japanese mini-chapter
+
+The owner explicitly requested writing AND publishing the Artificial Societies chapter on the existing owned blog; this supersedes the earlier no-auto-posting heading for this article only. Other platforms and a whole finished book are not implied to be published.
+
+Mini-chapter between Parts I and II: **人工社会を借りて、現実から学ぶ――Rothko・説得研究・Managerの次の一歩**. Canonical source commit `887e52f4ef0dfe6592359054df71f9d99e6b9de4`, path `docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md`; content-only PR #8550. It covers all 25 current official publication entries, 7 official case studies, open benchmark/data routes, 2026 persuasion corrections, an original conceptual diagram and actual aggregate inspection limits. Integrate its source manifest and executable inspection companion into the book rather than copying raw third-party full texts. Published status requires the actual existing-blog receipt/readback.

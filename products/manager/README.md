@@ -10,6 +10,8 @@
 
 **全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。無料経路の第一候補は既存GitHub Actions＋稼働中Supabaseのprivate checkpointへ更新。Railwayは代替hostとして保全します。[ローカルCodexへの最新WIP引継ぎ](docs/handoffs/2026-10-22-manager-local-codex-handoff.md)に未レビュー差分と既知の新testエラーを記録しています。Managerの本番配備は未完了です。
 
+**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[canonical atomic patch A–F](https://github.com/Daisuke134/life-manager/blob/887e52f4ef0dfe6592359054df71f9d99e6b9de4/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md) は未実装の差分案で、状態正本を増やさない。E16/原113件の状態は変更していない。
+
 **Rothkoの当日調査:** [公式発表・固定公開codeの実行・再利用判断](docs/research/societies/ROTHKO_2026-10-22_JA.md)。Rothko本体、Radiantという接続先、公開benchmark、group alignmentの数値模型を区別します。
 
 **新規候補を追加した一次資料調査:** [OpenClaw/Khoj/n8n・DBOS/Restate・新arXiv論文・browser/exporter/hostの比較](docs/research/manager-options-additional-20261022/REPORT_JA.md)、[実ファイル・関数・テストを指定したatomic patch plan](docs/plans/2026-10-22-manager-e16-atomic-patches.md)。既知名の繰返しは新規件数に含めず、第三者実装は固定sourceの静的読取で、動作再現済みとは扱いません。
