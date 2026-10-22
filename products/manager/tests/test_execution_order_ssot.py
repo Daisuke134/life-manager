@@ -32,7 +32,13 @@ class ExecutionOrderContract(unittest.TestCase):
         self.assertEqual(len(self.tasks),113)
         self.assertEqual(len(self.lookup),113)
         self.assertEqual(t["technical_execution_sequence"],EXPECTED)
-        self.assertEqual(t["technical_execution_cursor"],"E01")
+        # E01 must be completed before the next task becomes E02.
+        self.assertEqual(t["technical_execution_cursor"], "E02")
+        self.assertEqual(t["technical_execution_completed"], ["E01"])
+        r = t["technical_execution_receipts"]["E01"]
+        self.assertEqual(r["run_id"], 39727976132)
+        self.assertEqual(r["raw_sha256"], "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585")
+        self.assertEqual(r["result"], "VERIFIED_P0_NO_HUMAN_OUTCOME")
         self.assertEqual(t["acceptance_sequence"],GATES)
         self.assertEqual(t["technical_execution_plan"],str(PLAN.relative_to(ROOT)))
         self.assertEqual(self.lookup["F004"]["status"],"skipped")
