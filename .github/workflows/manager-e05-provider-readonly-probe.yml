@@ -54,8 +54,16 @@ jobs:
                           t=turns.data[0]
                           print("TURN_STATUS_CLASS="+str(getattr(t,"status","UNKNOWN")))
                           print("TURN_HAS_USAGE="+str(getattr(t,"usage",None) is not None))
-                          exact=client.beta.agents.sessions.turns.retrieve(sid,t.id)
-                          print("EXACT_TURN_READBACK="+str(exact.id==t.id))
+                          import inspect
+                          print("SDK_TURN_RETRIEVE_SIGNATURE="+str(inspect.signature(
+                              client.beta.agents.sessions.turns.retrieve)))
+                          print("SDK_ITEM_LIST_SIGNATURE="+str(inspect.signature(
+                              client.beta.agents.sessions.items.list)))
+                          try:
+                              exact=client.beta.agents.sessions.turns.retrieve(sid,t.id)
+                              print("EXACT_TURN_READBACK="+str(exact.id==t.id))
+                          except TypeError:
+                              print("EXACT_TURN_POSITIONAL_SIGNATURE_UNSUPPORTED=True")
                       page=client.beta.agents.sessions.items.list(sid,limit=5,order="desc")
                       print("SAVED_ITEM_COUNT="+str(len(page.data)))
                       print("SAVED_ITEM_PAGE_HAS_MORE="+str(page.has_more))
