@@ -528,6 +528,7 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                 "host_admission_deferred:memory_headroom_low",
                 "host_admission_deferred:disk_headroom_unavailable",
                 "host_admission_deferred:disk_headroom_low",
+                "host_admission_deferred:disk_floor_low",
             }
             else "unknown"
         ),

@@ -490,7 +490,7 @@ class RuntimeEventTest(unittest.TestCase):
         self.assertEqual(event["effect_status"], "not_applicable")
 
     def test_disk_headroom_defer_has_no_external_effect(self):
-        for reason in ("disk_headroom_low", "disk_headroom_unavailable"):
+        for reason in ("disk_headroom_low", "disk_headroom_unavailable", "disk_floor_low"):
             with self.subTest(reason=reason):
                 event = build_runtime_event(
                     loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,

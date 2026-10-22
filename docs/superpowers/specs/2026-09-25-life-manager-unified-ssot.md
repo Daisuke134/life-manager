@@ -119,6 +119,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 実装: まず現況/履歴の二重収集を単一collectionへ揃える。既存event journalを正本とし、writerの同じlock下で更新する再構築可能な小さいclock projectionを使い、読取はjournal identity/positionと照合する。混在旧writerや破損時はbounded catch-upと明示unknownへ落とす。正式journalを削除/改変しない。projection単体を効果証明に使わない。
 - 検証: 既存health4ケースを含む関連suite。今回の104 roots相当fixtureと現hostのread-only profileで既存30秒budget内に現在状態/時計を取得する。単なるdeadline延長、archiveを無制限に読む修正は採らない。自然observerでhistory_timeoutの解消を確認する。
 
+- FND02b開始前延期の分類: 自然Capafyの`host_admission_deferred:disk_floor_low`はentrypoint開始前、同じadmission rowはqueued/effect_unknown=0だが、terminal eventはeffect_status=unknownになりhealthへ誤伝播する。`lm_loop_run.disk_deferred`のeffect0 receiptから`build_runtime_event`へ至る呼出しと、既存のpre-entrypoint no-effect allowlistに当該reasonが無いことを確認する。既存allowlistへexact reasonだけを追加する。既存runtime-event/healthの2 testを実builder経由で拡張しRED→GREEN、既存resource_effect_unknown/heartbeat不明はunknown保持を検証する。admission DB・provider fence・floor・slot・過去journalは変更せず、新immutableの自然延期で分類が直ることを確認する。 実際のdisk_floor_lowによる2 subtestのREDを確認後、既存allowlistへ1行追加し、runtime-event/health106 tests＋29 subtestsがPASSする。source採用前の自然結果は未証明。
+
 **FND03 — mtimeを成功の代用にしない**
 
 - 実行範囲: 既存6 laneの成果readerと通知判定を修復する。`capafy-daily-terminals.jsonl`のstarted/terminal、Capafy配信のslot別destinations、Writerのverified publication、商品別business-outcomes、marketing receiptのprovider readbackを再利用する。単なるmtimeは診断だけに残す。旧Capafy掲載台帳のdate-onlyを時刻精度の成果へ水増しせず、freshなCAP_FULL/DRAINEDはno-workとし、売上/公開へのRECOVEREDを送らない。商品が異なる成果を相互の復旧に使わない。既存cooldown/送信失敗retryを保ち、本番通知を手動送信しない。owner別のlast_attempt/last_verified_outcome/last_paidと欠測理由を返す。入金reader未接続のlast_paidはNoneのまま扱う。
