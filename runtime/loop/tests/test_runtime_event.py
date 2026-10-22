@@ -44,6 +44,121 @@ class RuntimeEventTest(unittest.TestCase):
             "lm-occurrence://example/older/claim",
         ])
 
+    def test_clock_projection_does_not_accept_an_unterminated_archived_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            path.write_bytes(b"")
+            with gzip.open(Path(directory, "events-20261001.jsonl.gz"), "wb") as stream:
+                stream.write(json.dumps({**BASE, "effect_status": "verified"}).encode())
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertNotIn("example", value["reports"])
+            self.assertEqual(value["history_status"], "health_history_gap")
+
+    def test_projection_failure_does_not_lose_the_durable_journal_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            event = {**BASE, "event_id": "d" * 24, "status": "fail"}
+            with mock.patch.object(runtime_event, "_write_health_projection",
+                                   side_effect=OSError(errno.ENOSPC, "fixture")):
+                append_runtime_event(path, event)
+            self.assertEqual(json.loads(path.read_text().splitlines()[-1]), event)
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"]["status"], "fail")
+            self.assertIsNone(value["history_status"])
+
+    def test_projection_write_holds_the_journal_lock_and_reader_defers(self):
+        import fcntl
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            real_write = runtime_event._write_health_projection
+
+            def write_locked(fd, path, value):
+                with path.open("rb") as contender:
+                    with self.assertRaises(BlockingIOError):
+                        fcntl.flock(contender.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.assertEqual(runtime_event.read_runtime_health_projection(path)["history_status"],
+                                 "health_history_busy")
+                return real_write(fd, path, value)
+
+            with mock.patch.object(runtime_event, "_write_health_projection", side_effect=write_locked):
+                append_runtime_event(path, BASE)
+            self.assertIsNone(runtime_event.read_runtime_health_projection(path)["history_status"])
+
+    def test_clock_projection_rejects_same_size_in_place_journal_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            event = {**BASE, "provider": "original-provider",
+                     "evidence_refs": ["lm-proof://" + "x" * 400]}
+            append_runtime_event(path, event)
+            content = path.read_bytes().replace(b"original-provider", b"modified-provider")
+            path.write_bytes(content)
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"]["provider"], "modified-provider")
+            self.assertEqual(value["history_status"], "health_history_gap")
+
+    def test_clock_projection_detects_gap_without_false_healthy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            bad = {**BASE, "event_id": "d" * 24, "run_id": "old-writer-failure",
+                   "status": "fail", "release_sha": "c" * 40}
+            # Old releases do not update the projection and can rotate in-place.
+            path.write_text(json.dumps(bad) + "\n")
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"]["status"], "fail")
+            self.assertEqual(value["history_status"], "health_history_gap")
+
+    def test_clock_projection_catches_up_old_writer_and_rejects_incomplete_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            bad = {**BASE, "event_id": "d" * 24, "run_id": "old-writer-failure",
+                   "status": "fail", "release_sha": "c" * 40}
+            with path.open("a") as stream:
+                stream.write(json.dumps(bad) + "\n" + '{"phase":"report"')
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"]["status"], "fail")
+            self.assertEqual(value["history_status"], "health_history_incomplete")
+            self.assertEqual(len(path.read_text().splitlines()), 3)
+
+    def test_clock_projection_corruption_uses_journal_and_never_promotes_started(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            started = {**BASE, "effect_status": "started", "status": "fail"}
+            append_runtime_event(path, started)
+            projection = path.with_name("events.health.json")
+            self.assertTrue(projection.is_file())
+            projection.write_text('{"version":1,"clocks":{"example":"2099-01-01"}}')
+            value = runtime_event.read_runtime_health_projection(path)
+            self.assertEqual(value["reports"]["example"]["status"], "fail")
+            self.assertIsNone(value["clocks"]["example"]["last_verified_effect"])
+            self.assertEqual(value["history_status"], "health_history_gap")
+
+    def test_clock_projection_uses_bounded_catchup_and_drops_stale_reports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            bad = {**BASE, "event_id": "d" * 24, "loop_id": "other", "status": "fail"}
+            with path.open("a") as stream:
+                stream.write((json.dumps(bad) + "\n") * 8)
+            with mock.patch.object(runtime_event, "HEALTH_CATCHUP_BYTES", 2048):
+                value = runtime_event.read_runtime_health_projection(path)
+            self.assertNotIn("example", value["reports"])
+            self.assertEqual(value["reports"]["other"]["status"], "fail")
+            self.assertEqual(value["history_status"], "health_history_gap")
+
+    def test_clock_projection_is_private_and_only_updated_under_journal_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, BASE)
+            projection = path.with_name("events.health.json")
+            self.assertEqual(projection.stat().st_mode & 0o777, 0o600)
+            before = projection.read_bytes()
+            append_runtime_event(path, BASE)
+            self.assertEqual(projection.read_bytes(), before)
+
     def test_valid_event_appends_one_private_jsonl_row(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.jsonl"

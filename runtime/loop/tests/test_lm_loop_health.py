@@ -15,6 +15,7 @@ import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import main as lm_loop_main
 import runtime.loop.health as health
 from runtime.loop.runtime_event import (
+    append_runtime_event,
     build_runtime_event,
     build_runtime_start_event,
     validate_runtime_event,
@@ -301,6 +302,109 @@ class LmLoopHealthTest(unittest.TestCase):
             {"runtime", "productivity", "effect_safety", "business", "recovery", "revenue"},
         )
 
+    def test_health_current_and_history_share_one_collection(self):
+        row = self.status_row("example")
+        output = io.StringIO()
+        with patch.object(lm_loop, "snapshot", return_value=[row]) as collect, \
+             redirect_stdout(output):
+            self.assertEqual(lm_loop_main(["health", "--json"]), 0)
+        self.assertEqual(collect.call_count, 1)
+        self.assertTrue(collect.call_args.kwargs["include_health_clocks"])
+
+    def test_bounded_history_miss_does_not_reuse_a_current_only_cache_entry(self):
+        import runtime.loop.runtime_event as runtime_event
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            first = build_runtime_event(
+                loop_id="old", domain="system", run_id="pass", release_sha="a" * 40,
+                provider="deterministic", profile_alias=None, effect_class="none",
+                succeeded=True, blocker=None,
+            )
+            append_runtime_event(path, first)
+            other = {**first, "loop_id": "other", "event_id": "d" * 24}
+            with path.open("a") as stream:
+                stream.write((json.dumps(other) + "\n") * 10)
+            cache = {}
+            self.assertIsNotNone(lm_loop._last_event(directory, "old", cache))
+            with patch.object(runtime_event, "HEALTH_CATCHUP_BYTES", 2048):
+                self.assertIsNone(lm_loop._last_event(directory, "old", cache, include_health_clocks=True))
+                self.assertIsNone(lm_loop._last_event(directory, "old", cache, include_health_clocks=True))
+
+    def test_health_clocks_survive_rotation_and_long_cadence(self):
+        from datetime import timedelta
+        import runtime.loop.runtime_event as runtime_event
+
+        weekly = build_runtime_event(
+            loop_id="weekly", domain="growth", run_id="weekly-pass",
+            release_sha="a" * 40, provider="deterministic", profile_alias=None,
+            effect_class="none", succeeded=True, blocker=None,
+        )
+        weekly["timestamp"] = (health.datetime.now(health.timezone.utc)
+                               - timedelta(days=6)).isoformat()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            append_runtime_event(path, weekly)
+            with patch.object(runtime_event, "_max_bytes", return_value=1):
+                for index in range(3):
+                    event = build_runtime_event(
+                        loop_id="hourly", domain="growth", run_id=f"hourly-{index}",
+                        release_sha="b" * 40, provider="deterministic", profile_alias=None,
+                        effect_class="none", succeeded=True, blocker=None,
+                    )
+                    append_runtime_event(path, event)
+            with patch.object(gzip, "open", side_effect=AssertionError("steady-state archive scan")):
+                latest = lm_loop._last_event(directory, "weekly", include_health_clocks=True)
+            self.assertEqual(latest["_health_clocks"]["last_success"], weekly["timestamp"])
+            self.assertNotIn("_health_history_status", latest)
+
+    def test_104_journal_clocks_use_the_durable_projection_without_reindexing(self):
+        import runtime.loop.runtime_event as runtime_event
+
+        with tempfile.TemporaryDirectory() as directory:
+            roots = []
+            for index in range(104):
+                root = Path(directory, str(index))
+                event = build_runtime_event(
+                    loop_id=f"job-{index}", domain="system", run_id="test-pass",
+                    release_sha="a" * 40, provider="deterministic", profile_alias=None,
+                    effect_class="none", succeeded=True, blocker=None,
+                )
+                append_runtime_event(root / "events.jsonl", event)
+                roots.append(root)
+            started = time.monotonic()
+            with patch.object(runtime_event, "_project_health_lines",
+                              wraps=runtime_event._project_health_lines) as project_lines, \
+                 patch.object(gzip, "open", side_effect=AssertionError("archive reindex")):
+                for index, root in enumerate(roots):
+                    latest = lm_loop._last_event(str(root), f"job-{index}", include_health_clocks=True)
+                    self.assertEqual(latest["_health_clocks"]["last_success"], latest["timestamp"])
+                    self.assertNotIn("_health_history_status", latest)
+            self.assertTrue(all(not call.args[1] for call in project_lines.call_args_list))
+            self.assertLess(time.monotonic() - started, lm_loop.HEALTH_SNAPSHOT_TIMEOUT_SECONDS)
+
+    def test_snapshot_exposes_current_rows_before_one_collection_history_timeout(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        loop_id = "compute-proxy"
+        registry["loops"] = {loop_id: registry["loops"][loop_id]}
+        event = build_runtime_event(
+            loop_id=loop_id, domain="system", run_id="failed", release_sha="a" * 40,
+            provider="deterministic", profile_alias=None, effect_class="none",
+            succeeded=False, blocker="entrypoint_exit_1",
+        )
+        current_rows = []
+        with patch.object(lm_loop, "collect_live", return_value=({}, {}, {loop_id: event}, {}, set())) as collect, \
+             patch.object(lm_loop, "_admission_effect_unknown_occurrences", return_value={}), \
+             patch.object(lm_loop, "_resolved_effect_unknown_occurrences", return_value=set()), \
+             patch.object(lm_loop, "_latest_harness_failure", return_value=None), \
+             patch.object(lm_loop, "_last_event", side_effect=health.HealthTimeout("history")):
+            with self.assertRaises(health.HealthTimeout):
+                lm_loop.snapshot(registry, loop_id, include_effect_details=False,
+                                 include_health_clocks=True, current_rows=current_rows)
+        self.assertEqual(collect.call_count, 1)
+        self.assertEqual(current_rows[0]["last_terminal_result"], "fail")
+        self.assertEqual(current_rows[0]["blocker"], "entrypoint_exit_1")
+
     def test_health_clocks_survive_a_newer_failed_runtime_event(self):
         loop_id = "agentmail-nudge"
 
@@ -422,15 +526,9 @@ class LmLoopHealthTest(unittest.TestCase):
                 "\n".join(json.dumps(row) for row in history) + "\n",
                 encoding="utf-8",
             )
-            original_read_text = Path.read_text
-            reads = []
-
-            def counted_read_text(path, *args, **kwargs):
-                reads.append(path)
-                return original_read_text(path, *args, **kwargs)
-
             cache = {}
-            with patch.object(Path, "read_text", new=counted_read_text):
+            with patch.object(lm_loop, "read_runtime_health_projection",
+                              wraps=lm_loop.read_runtime_health_projection) as reads:
                 first = lm_loop._last_event(
                     directory, "agentmail-nudge", cache,
                     include_health_clocks=True,
@@ -442,7 +540,7 @@ class LmLoopHealthTest(unittest.TestCase):
 
         self.assertEqual(first["loop_id"], "agentmail-nudge")
         self.assertEqual(second["loop_id"], "agentmail-reply")
-        self.assertEqual(len(reads), 1)
+        self.assertEqual(reads.call_count, 1)
 
     def test_health_clock_projection_reuses_shared_journal_for_running_pids(self):
         history = []
@@ -481,22 +579,10 @@ class LmLoopHealthTest(unittest.TestCase):
                 "\n".join(json.dumps(row) for row in history) + "\n",
                 encoding="utf-8",
             )
-            original_read_text = Path.read_text
-            reads = []
-
-            def counted_read_text(path, *args, **kwargs):
-                reads.append(path)
-                return original_read_text(path, *args, **kwargs)
-
             cache = {}
             selected = []
-            with (
-                patch.object(Path, "read_text", new=counted_read_text),
-                patch(
-                    "runtime.loop.lm_loop._health_event_projection",
-                    wraps=lm_loop._health_event_projection,
-                ) as project_history,
-            ):
+            with patch.object(lm_loop, "read_runtime_health_projection",
+                              wraps=lm_loop.read_runtime_health_projection) as reads:
                 for loop_id, pid in loop_pids:
                     selected.append(lm_loop._last_event(
                         directory,
@@ -507,8 +593,7 @@ class LmLoopHealthTest(unittest.TestCase):
                     ))
 
         self.assertEqual([event["phase"] for event in selected], ["execute", "execute"])
-        self.assertEqual(len(reads), 1)
-        self.assertEqual(project_history.call_count, 1)
+        self.assertEqual(reads.call_count, 1)
 
     def test_health_clocks_include_a_newer_running_execute_event(self):
         loop_id = "agentmail-nudge"
@@ -767,8 +852,7 @@ class LmLoopHealthTest(unittest.TestCase):
         output = io.StringIO()
 
         def slow_history(*_args, **kwargs):
-            if not kwargs.get("include_health_clocks"):
-                return rows
+            kwargs["current_rows"].extend(rows)
             time.sleep(0.5)
             return rows
 
@@ -801,21 +885,26 @@ class LmLoopHealthTest(unittest.TestCase):
     def test_missing_history_does_not_enqueue_repairs_for_current_healthy_owner(self):
         from runtime.loop.health_observer import observe_health
 
-        value = health.project_health([self.status_row(
-            "current-ok", admission_class="revenue",
-            registered_cadence={"start_interval_seconds": 3600},
-            health_history_status="health_history_timeout",
-        )])
-        self.assertEqual(health.health_exit_code(value), 1)
-        self.assertIn("history_limited=1", health.render_human(value))
-        with tempfile.TemporaryDirectory() as directory:
-            intents = []
-            result = observe_health(
-                value, Path(directory),
-                intent_builder=lambda job, run_id: intents.append(job),
-            )
-        self.assertEqual(intents, [])
-        self.assertEqual(result["recovery_intents"], [])
+        for history_status in ("health_history_timeout", "health_history_gap",
+                               "health_history_incomplete", "health_history_busy"):
+            with self.subTest(history_status=history_status):
+                value = health.project_health([self.status_row(
+                    "current-ok", admission_class="revenue",
+                    registered_cadence={"start_interval_seconds": 3600},
+                    health_history_status=history_status,
+                )])
+                self.assertEqual(value["jobs"][0]["facets"]["productivity"]["reason"], history_status)
+                self.assertEqual(health.health_exit_code(value), 1)
+                self.assertIn("history_limited=1", health.render_human(value))
+                self.assertFalse(health.revenue_attention(value["jobs"][0]))
+                with tempfile.TemporaryDirectory() as directory:
+                    intents = []
+                    result = observe_health(
+                        value, Path(directory),
+                        intent_builder=lambda job, run_id: intents.append(job),
+                    )
+                self.assertEqual(intents, [])
+                self.assertEqual(result["recovery_intents"], [])
 
     def test_health_deadline_cannot_be_swallowed_as_a_file_read_error(self):
         with patch.object(Path, "read_text", side_effect=health.HealthTimeout("deadline")):
@@ -893,8 +982,8 @@ class LmLoopHealthTest(unittest.TestCase):
             "target": None,
             "deadline_monotonic": 130.0,
         })
-        # Current and historical observations each consumed seven seconds.
-        self.assertEqual(project.call_args.kwargs["deadline_monotonic"] - clock.now, 16.0)
+        # Current state and history share the same seven-second collection.
+        self.assertEqual(project.call_args.kwargs["deadline_monotonic"] - clock.now, 23.0)
         self.assertEqual(json.loads(output.getvalue()), projected)
 
     def test_health_human_skill_and_loop_explain_surfaces(self):
@@ -1096,17 +1185,24 @@ class RevenueOutageTest(unittest.TestCase):
 
     def test_projection_records_verified_effect_only_from_reports(self):
         def event(ts, phase, status, effect_status):
-            return json.dumps({"loop_id": "lane", "timestamp": ts, "phase": phase,
-                               "status": status, "effect_class": "publish",
-                               "effect_status": effect_status})
-        lines = [
+            value = build_runtime_event(
+                loop_id="lane", domain="earn", run_id=f"run-{phase}-{status}",
+                release_sha="a" * 40, provider="deterministic", profile_alias=None,
+                effect_class="publish", succeeded=status == "pass", blocker=None,
+            )
+            return {**value, "timestamp": ts, "phase": phase,
+                    "status": status, "effect_status": effect_status}
+        events = [
             event("2026-10-16T01:00:00+00:00", "report", "pass", "verified"),
             event("2026-10-16T02:00:00+00:00", "execute", "running", "started"),
             event("2026-10-16T02:00:01+00:00", "report", "blocked", "unknown"),
         ]
-        with patch.object(lm_loop, "validate_runtime_event", return_value=None):
-            reports, _ = lm_loop._health_event_projection(lines)
-        clocks = reports["lane"]["_health_clocks"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "events.jsonl")
+            for value in events:
+                append_runtime_event(path, value)
+            latest = lm_loop._last_event(directory, "lane", include_health_clocks=True)
+        clocks = latest["_health_clocks"]
         self.assertEqual(clocks["last_effect"], "2026-10-16T02:00:00+00:00")
         self.assertEqual(clocks["last_verified_effect"], "2026-10-16T01:00:00+00:00")
 
