@@ -4,7 +4,7 @@ Run from any directory with Python 3 + reportlab, then run the marketing tests.
 from pathlib import Path
 from html import escape
 import json, hashlib
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -35,7 +35,8 @@ def para(text,kind='body'):
 d=data['en'];para(E(data['name']),'name');para(E(d['role']),'role')
 para(f'<link href="mailto:{data["email"]}">{data["email"]}</link> | <link href="https://aniccaai.com/about">aniccaai.com/about</link> | Updated {data["updated"]}','small')
 para(E(d['intro']));para(E(d['ownership']),'small')
-for section in d['sections']:
+for index,section in enumerate(d['sections']):
+    if index==1:story.append(PageBreak())
     story.append(Spacer(1,3));para(E(section['title']),'section')
     for item in section['items']:
         para(E(item['title']),'title');para(E(item['text']))
