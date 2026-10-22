@@ -8,48 +8,48 @@
       "source": "pages/en.html",
       "public_route": "/",
       "export_path": "index.html",
-      "sha256": "66fcd6c364a8a9660476ec9a74d0eb8945d11de6e1415d3b82b7844d2840de1a"
+      "sha256": "2d801a66cd44e60f7026ca589105b1cf15266cd32fc98136f489bd4206b58472"
     },
     {
       "source": "pages/en.html",
       "public_route": "/en",
       "export_path": "en.html",
-      "sha256": "66fcd6c364a8a9660476ec9a74d0eb8945d11de6e1415d3b82b7844d2840de1a"
+      "sha256": "2d801a66cd44e60f7026ca589105b1cf15266cd32fc98136f489bd4206b58472"
     },
     {
       "source": "pages/ja.html",
       "public_route": "/ja",
       "export_path": "ja.html",
-      "sha256": "f07a44fe8c52e77e6fd6c4a8253f24bcf333686ce91e5083b890a460cabc2971"
+      "sha256": "46369c87cc5b01f7b104f6967abe3fc731b1a47f2f4f210412cea32032356ec5"
     },
     {
       "source": "pages/products-en.html",
       "public_route": "/dais",
       "export_path": "dais.html",
-      "sha256": "f75364c8fa912e597ee2dbf0d33464ac8abbd6176a9f494f352575e81617fc36"
+      "sha256": "73c9fbd30ece9cbe798f3be8ddb606f1ce8c1e54f7dc6a75e673a897356eb177"
     },
     {
       "source": "pages/products.html",
       "public_route": "/dais/ja",
       "export_path": "dais/ja.html",
-      "sha256": "10695e99fdd14650a35d7e4b171f7d0cb3c6bcd59dd8c983de2fb2cd477ef8f3"
+      "sha256": "9e1e5b5d737590a6971df246d2de42fa39fb8e37da36f6e50af96b76864313bd"
     },
     {
       "source": "pages/life-manager-en.html",
       "public_route": "/lm",
       "export_path": "lm.html",
-      "sha256": "97c6a8ced7e785d37f8ab9310f29f38b136d7c5ca60fe080774ca427a4abf057"
+      "sha256": "d49deb6f996ea8aea648419abe09ec20ea96e60f9206c29ef7f492b8666babb2"
     },
     {
       "source": "pages/life-manager.html",
       "public_route": "/lm/ja",
       "export_path": "lm/ja.html",
-      "sha256": "e59c72a64efa5391397c32cda193a2f70cca8633d62bc8e74305787f0204dcfc"
+      "sha256": "5cf38d29a9711588d3286f1dcd1f5ba8daa80cb401c20c56742bed169abdd83d"
     },
     {
       "source": "assets/styles.css",
       "export_path": "assets/manager-site/styles.css",
-      "sha256": "d5bb6ef07edf5b69eb7e7db2e510c816a7d6074f0e253570cc93848ccf2490e1"
+      "sha256": "cd2236a71ec38caeb400f44f06deb883a3a4b2afe73436c404c4cfdfdd04325f"
     },
     {
       "source": "assets/writer-cta-url.js",
@@ -90,6 +90,24 @@
       "source": "assets/apps/6766485903.webp",
       "export_path": "assets/manager-site/apps/6766485903.webp",
       "sha256": "19d4dff6f96ffa00d6ecae1007d5d76178f306bcb18a6dfec32fdbf56419970c"
+    },
+    {
+      "source": "pages/about.html",
+      "public_route": "/about",
+      "export_path": "about.html",
+      "sha256": "df9f941197adcead656313e92f94ca8a6b8946ca226e9e1b876f7429ef2cf129"
+    },
+    {
+      "source": "pages/about-ja.html",
+      "public_route": "/about/ja",
+      "export_path": "about/ja.html",
+      "sha256": "b7870bb4915b82bfabc378c40011080ce0811e42429393fcc018217f0a0b90d3"
+    },
+    {
+      "source": "assets/public-resume.pdf",
+      "public_route": "/cv.pdf",
+      "export_path": "cv.pdf",
+      "sha256": "c3ac1048a4e60690d5ddec7620724e7a731212ff54077b8d53b73d7876fd106e"
     }
   ]
 }
