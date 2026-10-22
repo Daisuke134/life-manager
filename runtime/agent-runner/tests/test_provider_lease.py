@@ -1,5 +1,6 @@
 import errno
 import fcntl
+import io
 import json
 import os
 import signal
@@ -10,6 +11,7 @@ import time
 import unittest
 from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -718,27 +720,14 @@ class ProviderLeaseTest(unittest.TestCase):
         self.assertTrue(cache.exists())
 
     def test_contended_provider_lease_returns_75_without_launching_provider(self):
-        """Removing the rc 75 boundary must launch the stub provider and fail this test."""
+        """A lease deferral must not launch a provider or lose its parent event."""
         lock_path = self.root / "mercor.lock"
-        holder = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
-        self.addCleanup(lambda: os.close(holder))
-        fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        marker = self.root / "provider-launched"
         provider = self.root / "codex"
-        provider.write_text(
-            "#!/usr/bin/env python3\n"
-            "from pathlib import Path\n"
-            f"Path({str(marker)!r}).touch()\n"
-            "print('{\"result\": \"{\\\"status\\\":\\\"ok\\\"}\"}')\n",
-            encoding="utf-8",
-        )
-        provider.chmod(0o755)
         schema = self.root / "schema.json"
         schema.write_text('{"type":"object","required":["status"]}', encoding="utf-8")
         prompt = self.root / "prompt.txt"
         prompt.write_text("Return the bounded contract JSON only.\n", encoding="utf-8")
         auth_file = self.root / "codex-auth.json"
-        auth_file.write_text("{}", encoding="utf-8")
         config = self.root / "config.json"
         config.write_text(json.dumps({
             "version": 1,
@@ -756,21 +745,81 @@ class ProviderLeaseTest(unittest.TestCase):
                 {"provider": "codex", "model": "gpt-5.6-terra", "profile_alias": "fixture"}
             ]}},
         }), encoding="utf-8")
+        registry = self.root / "registry.json"
+        registry.write_text(json.dumps({"schema_version": 2, "loops": {"fixture-parent": {
+            "label": "ai.anicca.fixture-parent", "domain": "earn", "entrypoint": "bin/fixture",
+            "cadence": {"run_at_load": True}, "effect_class": "application",
+            "state_root": "~/state", "log_root": "~/logs",
+            "cleanup": {"max_runs": 10, "max_age_days": 7},
+            "provider_route": "shared-agent-runner",
+        }}}))
         env = {
-            **os.environ,
+            "HOME": str(self.root),
             "AGENT_RUNNER_CONFIG": str(config),
             "ANICCA_USAGE_LEDGER": str(self.root / "usage.jsonl"),
             "LIFE_MANAGER_PROVIDER_LEASE_PATH": str(lock_path),
+            "LIFE_MANAGER_LOOP_ID": "fixture-parent",
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            "LIFE_MANAGER_REGISTRY": str(registry),
         }
-        result = subprocess.run([
-            sys.executable, str(RUNNER), "--task-class", "tool-agent",
+        argv = [
+            str(RUNNER), "--task-class", "tool-agent",
             "--prompt-file", str(prompt), "--schema", str(schema),
             "--evidence-dir", str(self.root / "evidence"), "--task-label", "mercor",
             "--loop", "job-search", "--workdir", str(self.root),
-        ], env=env, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 75, result.stderr)
-        self.assertEqual(result.stderr, "LIFE_MANAGER_PROVIDER_LEASE_BUSY\n")
-        self.assertFalse(marker.exists(), "contended lease launched a provider")
+        ]
+        stderr = io.StringIO()
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(agent_runner, "acquire_provider_lease", side_effect=ProviderLeaseBusy), \
+                mock.patch.object(agent_runner, "run_provider_process") as launch, \
+                redirect_stdout(io.StringIO()), redirect_stderr(stderr):
+            status = agent_runner.run()
+        self.assertEqual(status, 75, stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "LIFE_MANAGER_PROVIDER_LEASE_BUSY\n")
+        launch.assert_not_called()
+        summary = json.loads((self.root / "evidence/summary.json").read_text())
+        self.assertEqual(summary["status"], "provider_deferred")
+        self.assertEqual(summary["reason"], "provider_lease_busy")
+        self.assertEqual(summary["attempt_count"], 0)
+        self.assertIs(summary["provider_started"], False)
+        self.assertFalse((self.root / "evidence/attempts.jsonl").exists())
+        events_path = self.root / "state/events.jsonl"
+        self.assertTrue(events_path.is_file(), "lease deferral lost its runtime event")
+        events = [json.loads(line) for line in events_path.read_text().splitlines()]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["loop_id"], "fixture-parent")
+        self.assertEqual(events[0]["status"], "blocked")
+        self.assertEqual(events[0]["blocker"], "provider_lease_busy")
+        self.assertTrue(events[0]["retryable"])
+        self.assertEqual(events[0]["effect_status"], "unknown")
+
+    def test_pre_provider_busy_preserves_receipt_replaced_while_event_attaches(self):
+        evidence_dir = self.root / "evidence"
+        receipt = {"status": "success", "provider_receipt_id": "fixture-receipt"}
+        args = mock.Mock(loop="fixture", task_label="fixture", task_class="tool-agent")
+
+        def another_writer_finishes(**_kwargs):
+            (evidence_dir / "summary.json").write_text(json.dumps(receipt))
+            return True
+
+        with mock.patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_SHA": "b" * 40}), \
+                mock.patch.object(agent_runner, "attach_runtime_event", side_effect=another_writer_finishes) as attach:
+            agent_runner.record_pre_provider_deferral(evidence_dir, args, "provider_lease_busy")
+        attach.assert_called_once()
+        self.assertEqual(json.loads((evidence_dir / "summary.json").read_text()), receipt)
+
+    def test_pre_provider_busy_preserves_existing_receipt_without_new_event(self):
+        evidence_dir = self.root / "evidence"
+        evidence_dir.mkdir()
+        summary = evidence_dir / "summary.json"
+        summary.write_text('{"status":"success"}\n')
+        args = mock.Mock(loop="fixture", task_label="fixture", task_class="tool-agent")
+        with mock.patch.object(agent_runner, "attach_runtime_event") as attach, \
+                redirect_stderr(io.StringIO()):
+            agent_runner.record_pre_provider_deferral(evidence_dir, args, "provider_lease_busy")
+        self.assertEqual(json.loads(summary.read_text()), {"status": "success"})
+        attach.assert_not_called()
 
 
 if __name__ == "__main__":

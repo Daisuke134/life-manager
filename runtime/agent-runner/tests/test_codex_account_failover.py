@@ -24,7 +24,8 @@ import agent_runner  # noqa: E402
 
 class CodexProfileBoundaryTest(unittest.TestCase):
     def _run_candidate_fixture(self, plan, include_claude, *, return_records=False,
-                               return_provider_options=False, fail_fast_provider_lease=True, bounded=False):
+                               return_provider_options=False, fail_fast_provider_lease=True, bounded=False,
+                               return_outcome=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates = [
@@ -182,17 +183,34 @@ class CodexProfileBoundaryTest(unittest.TestCase):
             if bounded:
                 env.update(LIFE_MANAGER_LOOP_ID="life-manager-disk-cleanup",
                            LIFE_MANAGER_RUN_ID="bound-run", LIFE_MANAGER_RELEASE_SHA="a"*40)
+            if return_outcome:
+                registry = root / "registry.json"
+                registry.write_text(json.dumps({"schema_version": 2, "loops": {"fixture-parent": {
+                    "label": "ai.anicca.fixture-parent", "domain": "earn",
+                    "entrypoint": "bin/fixture", "cadence": {"run_at_load": True},
+                    "effect_class": "publish", "state_root": "~/state", "log_root": "~/logs",
+                    "cleanup": {"max_runs": 10, "max_age_days": 7},
+                    "provider_route": "shared-agent-runner",
+                }}}))
+                env.update(LIFE_MANAGER_LOOP_ID="fixture-parent", LIFE_MANAGER_RELEASE_SHA="a"*40,
+                           LIFE_MANAGER_REGISTRY=str(registry))
             with mock.patch.object(agent_runner, "resolve_provider_profiles", return_value=candidates), \
+                    mock.patch.object(agent_runner, "acquire_provider_lease", return_value=None), \
                     mock.patch.object(agent_runner, "provider_process_env", side_effect=fixture_provider_env), \
                     mock.patch.object(agent_runner, "run_provider_process", side_effect=fake_provider_process), \
                     mock.patch.object(agent_runner, "ensure_evidence_capacity", return_value={}), \
                     mock.patch.object(agent_runner, "append_usage_event"), \
-                    mock.patch.object(agent_runner, "attach_runtime_event", return_value=True), \
+                    mock.patch.object(agent_runner, "attach_runtime_event", return_value=True,
+                                      side_effect=agent_runner.attach_runtime_event if return_outcome else None), \
                     mock.patch.object(agent_runner, "read_provider_capture", return_value=("", "", None)), \
                     mock.patch.dict(os.environ, env, clear=False), \
                     mock.patch.object(sys, "argv", argv), \
                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 status = agent_runner.run()
+            if return_outcome:
+                summary = json.loads((evidence_dir / "summary.json").read_text())
+                events = [json.loads(line) for line in (root / "state/events.jsonl").read_text().splitlines()]
+                return status, calls, summary, events
             if return_provider_options:
                 return status, calls, provider_options
 
@@ -565,6 +583,72 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         )
         settlements = [row for row in budget_events if row.get("type") == "settlement"]
         self.assertEqual([row["charged_tokens"] for row in settlements], [0, 0])
+
+    def test_all_codex_homes_busy_defers_and_keeps_parent_effect_unknown(self):
+        status, calls, summary, events = self._run_candidate_fixture(
+            {("codex", "acct1"): "busy", ("codex", "acct2"): "busy"},
+            False, return_outcome=True,
+        )
+        self.assertEqual(status, 75)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(summary["status"], "provider_deferred")
+        self.assertEqual(summary["reason"], "codex_home_busy")
+        self.assertIs(summary["provider_started"], False)
+        self.assertEqual(len(events), 1)
+        event = events[0]
+        self.assertEqual(event["loop_id"], "fixture-parent")
+        self.assertEqual(event["status"], "blocked")
+        self.assertEqual(event["blocker"], "codex_home_busy")
+        self.assertTrue(event["retryable"])
+        self.assertEqual(event["next_action"], "retry_after_eligibility")
+        self.assertEqual(event["effect_status"], "unknown")
+
+    def test_quota_or_mixed_started_attempts_do_not_become_busy_deferrals(self):
+        for first, second in (("quota", "quota"), ("quota", "busy"), ("busy", "quota")):
+            with self.subTest(first=first, second=second):
+                status, _, summary, events = self._run_candidate_fixture(
+                    {("codex", "acct1"): first, ("codex", "acct2"): second},
+                    False, return_outcome=True,
+                )
+                self.assertEqual(status, 1)
+                self.assertEqual(summary["status"], "failed")
+                self.assertEqual(events[0]["status"], "fail")
+                self.assertEqual(events[0]["effect_status"], "unknown")
+
+    def test_budget_block_after_busy_keeps_budget_outcome(self):
+        with mock.patch.dict(os.environ, {
+            "ANICCA_BUDGET_SCOPE_ID": "busy-then-budget-fixture",
+            "ANICCA_PASS_TOKEN_BUDGET": "1000",
+        }), mock.patch.object(agent_runner.TokenBudgetLedger, "reserve", side_effect=[
+            {"status": "reserved"}, {"status": "blocked"},
+        ]), mock.patch.object(agent_runner.TokenBudgetLedger, "settle", return_value={
+            "pass_consumed_after_tokens": 0, "daily_consumed_after_tokens": 0,
+        }):
+            status, calls, summary, events = self._run_candidate_fixture(
+                {("codex", "acct1"): "busy", ("codex", "acct2"): "busy"},
+                False, return_outcome=True,
+            )
+        self.assertEqual(status, 75)
+        self.assertEqual(calls, [("codex", "acct1", "busy")])
+        self.assertEqual(summary["status"], "budget_blocked")
+        self.assertEqual(events[0]["status"], "fail")
+        self.assertEqual(events[0]["effect_status"], "unknown")
+
+    def test_busy_deferral_requires_nonempty_strict_prelaunch_busy_attempts(self):
+        busy = {"provider_started": False, "error_class": "codex_home_busy"}
+        for attempts in (
+            [], [{}], [{"error_class": "codex_home_busy"}],
+            [{**busy, "provider_started": None}], [{**busy, "provider_started": 0}],
+            [{**busy, "provider_started": True}], [busy, {**busy, "provider_started": True}],
+            [{**busy, "error_class": "transient_quota"}],
+            [{**busy, "error_class": "codex_prelaunch_auth_missing"}],
+            [{**busy, "error_class": "storage_full"}],
+            [{**busy, "storage_failure": {}}],
+            [{**busy, "storage_failure": {"error_class": "storage_full"}}],
+            [{**busy, "telemetry_error": "fixture storage write failed"}],
+        ):
+            with self.subTest(attempts=attempts):
+                self.assertIsNone(agent_runner.provider_busy_deferral_reason(attempts))
 
     def test_fresh_unavailable_without_runtime_work_calls_claude_once(self):
         status, calls = self._run_candidate_fixture(
