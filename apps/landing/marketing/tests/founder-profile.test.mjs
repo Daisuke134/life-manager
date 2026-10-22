@@ -13,7 +13,7 @@ test('public profiles preserve evidence boundaries and only the public contact',
   assert.ok(existsSync(new URL(path,root)),'public profile must exist');
   const html=read(path);assert.match(html,/contact@aniccaai\.com/);assert.match(html,/href="\/cv\.pdf"/);
   assert.match(html,/1,042,763/);assert.match(html,/441,570/);
-  assert.doesNotMatch(html,/keiodaisuke|visa sponsorship|Three-month notice|TOEFL|staff members|Incorporated|JPY20|US\$1,000/i);
+  assert.doesNotMatch(html,/keiodaisuke|visa sponsorship|Three-month notice|staff members|Incorporated/i);
  }
  assert.match(read('pages/about.html'),/Solo Founder/);assert.match(read('pages/about.html'),/AI-assisted/);assert.match(read('pages/about.html'),/remain unvalidated/);
 });
@@ -41,4 +41,23 @@ test('overlay publishes byte-identical public PDF and profiles without removing 
 });
 test('tampered public PDF fails atomically before marketing files are written',()=>{
  const {cwd,result}=overlay(true);assert.notEqual(result.status,0);assert.equal(existsSync(join(cwd,'out/about.html')),false);assert.equal(existsSync(join(cwd,'out/en.html')),false);
+});
+test('public profile retains concrete enterprise delivery and conference achievements in both languages',()=>{
+ for(const file of ['about','about-ja']){
+  const html=read(`pages/${file}.html`);
+  for(const value of ['Agentforce','CRM','Databricks','ICLR 2026','https://www.youtube.com/watch?v=biHAQ6aSQuc'])assert.ok(html.includes(value),`${file} must retain ${value}`);
+ }
+ assert.match(read('pages/about.html'),/branches across Japan/);
+ assert.match(read('pages/about.html'),/Rio de Janeiro/);
+ assert.match(read('pages/about.html'),/contributed/i);
+ assert.doesNotMatch(read('pages/about.html'),/accepted (?:ICLR )?paper|ICLR paper acceptance/i);
+});
+
+test('full public track record retains verified growth, shipped products and research initiative',()=>{
+ const html=read('pages/about.html');
+ for(const term of ['JPY20 million','10%','six iOS apps','self-funded','HEARTBEAM','Fourier','autoencoder','weekly'])assert.ok(html.includes(term),`must retain ${term}`);
+});
+
+test('historical founder revenue is preserved with period and attribution, not recurring profit',()=>{
+ const html=read('pages/about.html');assert.match(html,/JPY200,000/);assert.match(html,/September 2026/);assert.match(html,/founder-reported/);assert.match(html,/without human intervention/);assert.doesNotMatch(html,/JPY200,000 (?:MRR|profit)/);
 });

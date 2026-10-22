@@ -36,3 +36,11 @@ Netlify functions, and money-path smoke/rollback. Publish only a reviewed immuta
 source revision through the existing publisher; coordinate its release lease and
 retain the current blog renderer/content pins. Inspect desktop/mobile preview,
 PDF links and public-only contact, then verify live routes and release identity.
+
+Track-record preservation: before updating, compare each accomplishment and link
+against the prior verified resume. Keep concrete delivery scope, contribution,
+conference representation, product launches and measured results. Do not replace
+these with generic job descriptions or remove them merely to fit one page. The
+public CV may span multiple pages. Preserve historical periods and attribution;
+conference attendance/reporting is not paper acceptance, team delivery is not
+sole authorship, and historical revenue is not recurring revenue or profit.
