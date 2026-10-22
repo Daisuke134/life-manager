@@ -241,6 +241,19 @@ class DurableSessionIntent(unittest.TestCase):
             with self.assertRaises(SessionConflict):
                 j.reserve_for_send("req_absent")
 
+    def test_actual_sdk_retrieve_signature_is_keyword_session_id(self):
+        # Official openai==3.24.0: turns.retrieve(turn_id, *, session_id=...).
+        # A two-positional-argument call must fail this test.
+        recorded = []
+        def retrieve(turn_id, *, session_id):
+            recorded.append((turn_id, session_id))
+            return SimpleNamespace(id=turn_id,status="completed",usage=None)
+        client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+            sessions=SimpleNamespace(turns=SimpleNamespace(retrieve=retrieve)))))
+        result=read_completed_turn(client,"sess_abcdefgh","turn_abcdefgh")
+        self.assertEqual(result.turn_id,"turn_abcdefgh")
+        self.assertEqual(recorded,[("turn_abcdefgh","sess_abcdefgh")])
+
     def test_read_saved_assistant_items_exact_turn_and_paginated(self):
         calls=[]
         def get_page(sid, **kwargs):
