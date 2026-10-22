@@ -46,27 +46,35 @@ def public_get(url):
         return body
 
 
-def live_snapshot():
-    manifest=json.loads(public_get(PUBLIC_BASE+'manifest.json'))
+def served_snapshot(*,get=None):
+    """Read a bounded current snapshot; mismatch is not itself a regression."""
+    get=get or public_get
+    manifest=json.loads(get(PUBLIC_BASE+'manifest.json'))
     # Validate the manifest before using even its page names to construct URLs.
     from manager_core.digital_handoff import _manifest
     _manifest(manifest)
-    bodies={name:public_get(PUBLIC_BASE+name) for name in manifest['files']}
+    bodies={name:get(PUBLIC_BASE+name) for name in manifest['files']}
+    return manifest,bodies
+
+
+def live_snapshot():
+    manifest,bodies=served_snapshot()
     verify_readback(manifest,bodies)
     return manifest,bodies
 
 
-def immutable_snapshot(commit):
+def immutable_snapshot(commit,*,get=None):
     """Read the exact seven-file bundle at one provider commit; no branch lookup."""
     if not isinstance(commit,str) or not re.fullmatch('[0-9a-f]{40}',commit):
         raise ValueError('immutable provider SHA required')
     base=f'https://raw.githubusercontent.com/{REPOSITORY}/{commit}/manager-support/'
-    raw=public_get(base+'manifest.json')
+    get=get or public_get
+    raw=get(base+'manifest.json')
     manifest=json.loads(raw)
     from manager_core.digital_handoff import _manifest
     _manifest(manifest)
     bodies={'manifest.json':raw}
-    bodies.update({name:public_get(base+name) for name in manifest['files']})
+    bodies.update({name:get(base+name) for name in manifest['files']})
     return manifest,bodies
 
 

@@ -134,6 +134,8 @@ class OwnedEffectJournal:
             db.execute('''CREATE TABLE IF NOT EXISTS owned_effects(
                 key TEXT PRIMARY KEY,packet_json TEXT NOT NULL,expected_parent TEXT NOT NULL,
                 status TEXT NOT NULL,receipt_ref TEXT)''')
+            db.execute('''CREATE TABLE IF NOT EXISTS owned_deliveries(
+                key TEXT PRIMARY KEY,status TEXT NOT NULL,evidence_json TEXT NOT NULL)''')
     def record(self,key):
         with sqlite3.connect(self.path,timeout=15) as db:
             row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
@@ -149,6 +151,37 @@ class OwnedEffectJournal:
                 FROM owned_effects WHERE status!='PRESENT' AND key>?
                 ORDER BY key LIMIT ?''',(after_key or '',limit)).fetchall()
         return tuple(OwnedEffectRecord(*row) for row in rows)
+    def delivery_record(self,key):
+        import json
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT evidence_json FROM owned_deliveries WHERE key=?',(key,)).fetchone()
+        return json.loads(row[0]) if row else None
+    def pending_deliveries(self,limit=100):
+        if type(limit) is not int or not 1<=limit<=100:
+            raise ValueError('delivery batch limit must be 1..100')
+        with sqlite3.connect(self.path,timeout=15) as db:
+            rows=db.execute('''SELECT e.key,e.packet_json,e.expected_parent,e.status,e.receipt_ref
+                FROM owned_effects e LEFT JOIN owned_deliveries d ON d.key=e.key
+                WHERE e.status='PRESENT' AND (d.key IS NULL OR d.status!='VERIFIED')
+                ORDER BY e.key LIMIT ?''',(limit,)).fetchall()
+        return tuple(OwnedEffectRecord(*row) for row in rows)
+    def save_delivery(self,key,evidence):
+        import json
+        from .models.source import _aware
+        record=self.record(key)
+        if (record is None or record.status!='PRESENT' or type(evidence) is not dict
+                or evidence.get('effect_key')!=key or evidence.get('receipt_ref')!=record.receipt_ref
+                or evidence.get('candidate_sha256')!=json.loads(record.packet_json)['candidate_sha256']
+                or evidence.get('status') not in ('VERIFIED','PENDING','REGRESSION','UNKNOWN')):
+            raise ValueError('delivery observation must bind exact saved occurrence')
+        _aware(datetime.fromisoformat(evidence['observed_at']))
+        serialized=json.dumps(evidence,sort_keys=True,allow_nan=False)
+        with sqlite3.connect(self.path,timeout=15) as db:
+            # Preserve historical verification; later live state is a different
+            # observation, never retroactively erase the prior delivered fact.
+            db.execute('''INSERT INTO owned_deliveries VALUES(?,?,?)
+                ON CONFLICT(key) DO UPDATE SET status=excluded.status,evidence_json=excluded.evidence_json
+                WHERE owned_deliveries.status!='VERIFIED' ''',(key,evidence['status'],serialized))
     def reserve(self,packet,context,current,candidate,expected_parent,now,*,revoked=False):
         import re
         from .digital_handoff import validate_intent,canonical_bytes,admit_release

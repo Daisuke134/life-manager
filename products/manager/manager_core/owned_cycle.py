@@ -18,6 +18,7 @@ from .digital_handoff import (prepare_owned_change,PublisherContext,REPOSITORY,S
 from .digital_environment import verify_bundle
 from .outbox import OwnedEffectJournal
 from .reconcile import reconcile_owned,reconcile_pending_owned,OwnedOccurrenceEvidence
+from .owned_public_collector import DeliveryObservation
 
 
 @dataclass(frozen=True)
@@ -95,9 +96,13 @@ class LocalGitCycleSandbox:
             ['git','-C',str(self.checkout),'show',commit+':'+n]) for n in ALLOWED_PATHS}
         return json.loads(bodies['manifest.json']),bodies
     def _publish_fixture(self,commit,*,regress=False):
-        _,bodies=self._bundle(commit);self.served.mkdir(parents=True,exist_ok=True)
+        manifest,bodies=self._bundle(commit);self.served.mkdir(parents=True,exist_ok=True)
         for name,body in bodies.items():(self.served/name).write_bytes(body)
         if regress:(self.served/'finance.html').write_bytes(b'fixture served regression')
+        # Fixture-only deployment binding. It is never a public provider receipt.
+        from .digital_handoff import digest
+        (self.served/'.sandbox-deployment.json').write_text(json.dumps(
+            dict(commit=commit,candidate_sha256=digest(manifest))))
     def _commit_cas(self,parent,message):
         self.git('add','--',*ALLOWED_PATHS)
         names=set(self.git('diff','--cached','--name-only').splitlines())
@@ -138,17 +143,80 @@ class LocalGitCycleSandbox:
             verify_readback(manifest,{n:(self.served/n).read_bytes() for n in manifest['files']})
             return True
         except (ValueError,OSError):return False
-    def rollback(self,packet,now):
+    def observe_delivery(self,packet,receipt_ref):
+        from .digital_handoff import digest
+        from .candidate_verification import _Safety
+        ref=str(self.served)
+        try:
+            if self.git('rev-parse','HEAD')!=receipt_ref:
+                return DeliveryObservation('UNKNOWN','TARGET_ADVANCED',ref)
+            binding=json.loads((self.served/'.sandbox-deployment.json').read_text())
+            if binding!=dict(commit=receipt_ref,candidate_sha256=digest(packet['candidate'])):
+                return DeliveryObservation('PENDING','DEPLOYMENT_NOT_BOUND',ref)
+            if json.loads((self.served/'manifest.json').read_bytes())!=packet['candidate']:
+                return DeliveryObservation('PENDING','DIFFERENT_SERVED_VERSION',ref)
+            bodies={name:(self.served/name).read_bytes() for name in packet['candidate']['files']}
+            try:verify_readback(packet['candidate'],bodies)
+            except ValueError:
+                # Hash difference alone is UNKNOWN. A bound completed fixture
+                # plus failure of the fixed HTML/CSP rubric is a regression.
+                for body in bodies.values():
+                    safety=_Safety();safety.feed(body.decode('utf-8'))
+                    if not safety.safe or not safety.csp:
+                        return DeliveryObservation('REGRESSION','BOUND_FIXED_HTML_RUBRIC_FAILURE',ref)
+                return DeliveryObservation('UNKNOWN','HASH_MISMATCH_ONLY',ref)
+            return DeliveryObservation('VERIFIED','EXACT_SERVED_CANDIDATE',ref)
+        except (ValueError,OSError):
+            return DeliveryObservation('UNKNOWN','DELIVERY_UNAVAILABLE',ref)
+    def rollback(self,packet,now,*,expected_commit):
         # Compare the current immutable candidate before restoring exactly seven
         # old bytes. Any independent target change stops recovery.
         parent=self.git('rev-parse','HEAD')
-        if self.manifest()!=packet['candidate']:raise PermissionError('rollback target moved')
+        if parent!=expected_commit or self.manifest()!=packet['candidate']:
+            raise PermissionError('rollback target moved')
         verify_bundle(Path(self.context.baseline_bundle),packet['baseline'])
         self.stage(self.context.baseline_bundle,now)
         commit=self._commit_cas(parent,'Sandbox bounded rollback '+packet['effect_key'])
         self._publish_fixture(commit)
         verify_bundle(self.checkout/'manager-support',packet['baseline'])
         return self.readback(packet['baseline'])
+
+
+def _cycle_result(status,writes=0,**extra):
+    return dict(status=status,writes=writes,deployed=False,proof_level='P0',
+                human_outcome='NOT_MEASURED',causal_support=False,**extra)
+
+
+def _observe_owned_delivery(state_store,host,record,now,*,writes=0):
+    packet=json.loads(record.packet_json)
+    observation=host.observe_delivery(packet,record.receipt_ref)
+    if type(observation) is not DeliveryObservation:
+        observation=DeliveryObservation('UNKNOWN','UNTYPED_DELIVERY',str(host.served))
+    state_store.journal.save_delivery(record.key,dict(status=observation.status,
+        effect_key=record.key,receipt_ref=record.receipt_ref,
+        candidate_sha256=packet['candidate_sha256'],observed_at=datetime.now(timezone.utc).isoformat(),
+        proof_ref=observation.proof_ref,proof_level='P0',reason=observation.reason))
+    base=dict(effect_key=record.key,receipt_ref=record.receipt_ref)
+    if observation.status=='VERIFIED':
+        return _cycle_result('VERIFIED_SANDBOX_TECHNICAL',writes,**base)
+    if observation.status=='REGRESSION' and not state_store.stopped():
+        state_store.stop()
+        try:recovered=host.rollback(packet,now,expected_commit=record.receipt_ref)
+        except Exception:recovered=False
+        return _cycle_result('ROLLED_BACK_SANDBOX_REGRESSION' if recovered else 'ROLLBACK_UNKNOWN',
+                             writes,rollback_writes=1 if recovered else None,**base)
+    return _cycle_result('UNKNOWN',writes,rollback_writes=0,reason=observation.reason,**base)
+
+
+def _recover_owned_deliveries(state_store,host,now):
+    for record in state_store.journal.pending_deliveries():
+        observed=_observe_owned_delivery(state_store,host,record,now)
+        if observed['status']!='VERIFIED_SANDBOX_TECHNICAL':
+            if state_store.stopped() and observed['status']=='UNKNOWN':continue
+            return observed
+    if not state_store.stopped() and state_store.journal.pending_deliveries(limit=1):
+        return _cycle_result('UNKNOWN',rollback_writes=0,reason='UNSCANNED_DELIVERY_BATCH')
+    return None
 
 
 def _dispatch_owned_locked(state_store,host,packet,now):
@@ -189,14 +257,15 @@ def dispatch_owned_once(state_store,host,packet,now):
         host.assert_offline()
         reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
         if state_store.journal.pending_records(limit=1):return dict(status='UNKNOWN',writes=0)
+        delivery=_recover_owned_deliveries(state_store,host,now)
+        if delivery is not None:return delivery
         if state_store.stopped():return dict(status='STOPPED_REGRESSION',writes=0)
         return _dispatch_owned_locked(state_store,host,packet,now)
 
 
 def run_owned_cycle(config,state_store,*,host=None,now=None):
     now=now or datetime.now(timezone.utc);_aware(now)
-    def result(status,writes=0,**extra):return {'status':status,'writes':writes,'deployed':False,
-        'proof_level':'P0','human_outcome':'NOT_MEASURED','causal_support':False,**extra}
+    result=_cycle_result
     # There is no production host adapter until the real owner, persistent
     # volume and promotion path have been observed. A caller flag cannot mint it.
     if type(host) is not LocalGitCycleSandbox:return result('DEPLOYMENT_HOST_REQUIRED')
@@ -207,6 +276,8 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         if state_store.journal.pending_records(limit=1):
             r=result('UNKNOWN',0,reason='PRIOR_OCCURRENCE_UNRESOLVED')
             state_store.append(r);return r
+        delivery=_recover_owned_deliveries(state_store,host,now)
+        if delivery is not None:state_store.append(delivery);return delivery
         if state_store.stopped():return result('STOPPED_REGRESSION')
         if not state_store.due(config,now):return result('NOT_DUE')
         prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
@@ -222,12 +293,6 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         # from the scheduling fixture clock. This is not a production timestamp.
         reconciled=reconcile_owned(state_store.journal,key,host.occurrence,datetime.now(timezone.utc))
         if reconciled.status!='PRESENT':r=result('UNKNOWN',writes)
-        elif host.readback(packet['candidate']):r=result('VERIFIED_SANDBOX_TECHNICAL',writes,effect_key=key,receipt_ref=reconciled.receipt_ref)
-        else:
-            state_store.stop()
-            try:recovered=host.rollback(packet,now)
-            except Exception:recovered=False
-            r=result('ROLLED_BACK_SANDBOX_REGRESSION' if recovered else 'ROLLBACK_UNKNOWN',writes,
-                     rollback_writes=1 if recovered else None)
+        else:r=_observe_owned_delivery(state_store,host,state_store.journal.record(key),now,writes=writes)
         # Native endpoint only; no invented welfare score or scalar promotion.
         state_store.append(r);return r
