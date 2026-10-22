@@ -1,0 +1,69 @@
+name: Manager roadmap source audit
+on:
+  push:
+    branches: [research/manager-roadmap-refinement-20261022]
+    paths: ['.github/workflows/manager-roadmap-source-audit-20261022.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 66997ea549f8d1373a7670b8a11add9af17613ea
+          path: manager-source
+          persist-credentials: false
+          sparse-checkout: |
+            products/manager
+            scripts/verify-source-boundary.sh
+            AGENTS.md
+            REVIEW.md
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: site-source
+          persist-credentials: false
+          sparse-checkout: |
+            apps/landing
+            .github/workflows
+            scripts
+            AGENTS.md
+      - uses: actions/checkout@v4
+        with:
+          repository: Daisuke134/anicca-products
+          ref: main
+          path: publishing-bridge
+          persist-credentials: false
+      - name: Record source identity and archive only relevant tracked text
+        run: |
+          python - <<'PY'
+          import json,subprocess,zipfile
+          from pathlib import Path
+          roots=['manager-source','site-source','publishing-bridge']
+          manifest={}
+          out=Path('audit-output'); out.mkdir()
+          with zipfile.ZipFile(out/'source-snapshot.zip','w',zipfile.ZIP_DEFLATED) as z:
+            for root in roots:
+              p=Path(root)
+              def git(*args): return subprocess.check_output(['git','-C',root,*args],text=True).strip()
+              files=git('ls-files').splitlines()
+              manifest[root]={'commit':git('rev-parse','HEAD'),'origin':git('remote','get-url','origin'),'file_count':len(files),'included':[]}
+              for name in files:
+                f=p/name
+                if not f.is_file() or f.suffix not in {'.py','.md','.json','.yml','.yaml','.js','.mjs','.ts','.tsx','.html','.toml','.txt','.sh'} or f.stat().st_size>400000: continue
+                if root=='manager-source' and not (name.startswith('products/manager/') or name in {'AGENTS.md','REVIEW.md','scripts/verify-source-boundary.sh'}): continue
+                if root=='manager-source' and any(x in name for x in ['/output/','/publication/','/node_modules/']): continue
+                if root=='site-source' and not (name.startswith('apps/landing/') or name.startswith('.github/workflows/') or ('manager' in name and name.startswith('scripts/'))): continue
+                if root=='publishing-bridge' and not (name.startswith('.github/') or name.startswith('scripts/') or name in {'package.json','README.md','AGENTS.md','wrangler.toml','wrangler.jsonc'}): continue
+                if any(x in name for x in ['/node_modules/','/.env','/credentials/','/secrets/']): continue
+                z.write(f,root+'/'+name); manifest[root]['included'].append(name)
+            z.writestr('SOURCE_MANIFEST.json',json.dumps(manifest,indent=2))
+          print(json.dumps({k:{'commit':v['commit'],'included':len(v['included'])} for k,v in manifest.items()},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-roadmap-source-audit
+          path: audit-output/source-snapshot.zip
+          retention-days: 7
