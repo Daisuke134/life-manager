@@ -4,6 +4,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION="$ROOT_DIR/migrations/2026-10-22-lm-travel-write-receipts.sql"
 UPDATE_MIGRATION="$ROOT_DIR/migrations/2026-10-23-lm-travel-update-receipts.sql"
 CANCEL_MIGRATION="$ROOT_DIR/migrations/2026-10-23-lm-travel-cancel-receipts.sql"
+DECISION_MIGRATION="$ROOT_DIR/migrations/2026-10-23-lm-travel-route-decisions.sql"
 TEST_TMP="$(mktemp -d /tmp/lm-travel-write-receipts-pg.XXXXXX)"
 unset PGHOSTADDR PGSERVICE PGSERVICEFILE PGPASSWORD PGUSER PGPORT
 export PGPASSFILE="$TEST_TMP/pgpass"
@@ -226,4 +227,94 @@ SET ROLE service_role;
 SELECT 1 FROM public.lm_travel_log LIMIT 1;
 RESET ROLE;
 SQL
-printf '%s\n' 'lm-travel-write-receipts-postgres: PASS legacy=1 unique=1 receipt_shape=1 update_shape=1 cancel_shape=1 scoped_cas=1 update_cas=1 cancel_cas=1 helper_index=1 pending_index=1 late_callback=1 tenant=1 rls=1 acl=1 telegram=1 rerun=1'
+"${PSQL[@]}" -c 'CREATE TABLE before_decision AS SELECT uid,event_key,leg,calendar_write_receipt FROM public.lm_travel_log' >/dev/null
+"${PSQL[@]}" -f "$DECISION_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$DECISION_MIGRATION" >/dev/null
+"${PSQL[@]}" >/dev/null <<'SQL'
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public'
+      AND table_name='lm_travel_log' AND column_name='route_decision' AND data_type='jsonb') THEN
+    RAISE EXCEPTION 'route_decision column missing';
+  END IF;
+  IF EXISTS (SELECT uid,event_key,leg,calendar_write_receipt FROM public.lm_travel_log
+      EXCEPT SELECT * FROM before_decision)
+    OR EXISTS (SELECT * FROM before_decision
+      EXCEPT SELECT uid,event_key,leg,calendar_write_receipt FROM public.lm_travel_log) THEN
+    RAISE EXCEPTION 'route decision migration rewrote existing rows';
+  END IF;
+END $$;
+CREATE TEMP TABLE receipt_fixture AS SELECT calendar_write_receipt AS receipt
+  FROM public.lm_travel_log WHERE uid='tenant-b' AND event_key='future' AND leg='go';
+CREATE TEMP TABLE update_fixture AS SELECT calendar_write_receipt AS receipt
+  FROM public.lm_travel_log WHERE uid='tenant-a' AND event_key='update-go' AND leg='go';
+CREATE TEMP TABLE cancel_fixture AS SELECT calendar_write_receipt AS receipt
+  FROM public.lm_travel_log WHERE uid='tenant-a' AND event_key='cancel-go' AND leg='go';
+CREATE TEMP TABLE decision_fixture AS SELECT jsonb_build_object(
+  'schema_version',1,'request_id',receipt->>'request_id','leg','go',
+  'source_event_version',receipt->>'source_event_version',
+  'request_fingerprint',receipt->>'request_fingerprint',
+  'resolver_kind','filled','resolved_from','description',
+  'destination_hmac',repeat('a',64),'route_event_version',repeat('b',64)) AS decision
+  FROM receipt_fixture;
+INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt,route_decision)
+SELECT 'tenant-a','decision-create','go',receipt,decision FROM receipt_fixture CROSS JOIN decision_fixture;
+DO $$ DECLARE invalid jsonb; n integer; old_decision jsonb; BEGIN
+  FOR invalid IN
+    SELECT decision - 'resolver_kind' FROM decision_fixture
+    UNION ALL SELECT decision || patch FROM decision_fixture CROSS JOIN (VALUES
+      ('{"schema_version":"1"}'::jsonb), ('{"request_id":null}'::jsonb),
+      ('{"request_id":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}'::jsonb),
+      ('{"leg":"return"}'::jsonb), ('{"source_event_version":null}'::jsonb),
+      ('{"source_event_version":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}'::jsonb),
+      ('{"request_fingerprint":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}'::jsonb),
+      ('{"resolver_kind":"invented"}'::jsonb), ('{"resolver_kind":null}'::jsonb),
+      ('{"resolver_kind":"ask","resolved_from":"description"}'::jsonb),
+      ('{"resolved_from":"private address"}'::jsonb), ('{"destination_hmac":null}'::jsonb),
+      ('{"destination_hmac":"private address"}'::jsonb), ('{"route_event_version":true}'::jsonb),
+      ('{"location":"private address"}'::jsonb)) AS patches(patch)
+    UNION ALL SELECT 'null'::jsonb
+  LOOP
+    BEGIN
+      INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt,route_decision)
+      SELECT 'tenant-a','invalid-decision','go',receipt,invalid FROM receipt_fixture;
+      RAISE EXCEPTION 'invalid route decision accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+  END LOOP;
+  BEGIN
+    INSERT INTO public.lm_travel_log(uid,event_key,leg,route_decision)
+    SELECT 'tenant-a','unbound-decision','go',decision FROM decision_fixture;
+    RAISE EXCEPTION 'route decision without receipt accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  SELECT route_decision INTO old_decision FROM public.lm_travel_log WHERE event_key='decision-create';
+  UPDATE public.lm_travel_log SET
+    calendar_write_receipt=(SELECT receipt FROM update_fixture),
+    route_decision=old_decision || jsonb_build_object('request_id',repeat('5',64),
+      'source_event_version',repeat('7',64),'request_fingerprint',repeat('6',64),
+      'resolver_kind','not_called','resolved_from',NULL,'route_event_version',NULL)
+    WHERE event_key='decision-create' AND calendar_write_receipt->>'request_id'=repeat('1',64);
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>1 THEN RAISE EXCEPTION 'atomic decision update failed'; END IF;
+  UPDATE public.lm_travel_log SET route_decision=old_decision
+    WHERE event_key='decision-create' AND calendar_write_receipt->>'request_id'=repeat('1',64);
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>0 THEN RAISE EXCEPTION 'late decision callback overwrote update'; END IF;
+  BEGIN
+    UPDATE public.lm_travel_log SET calendar_write_receipt=(SELECT receipt FROM cancel_fixture)
+      WHERE event_key='decision-create';
+    RAISE EXCEPTION 'cancel retained stale route decision';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE public.lm_travel_log SET calendar_write_receipt=(SELECT receipt FROM cancel_fixture),route_decision=NULL
+    WHERE event_key='decision-create' AND calendar_write_receipt->>'request_id'=repeat('5',64);
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>1 THEN RAISE EXCEPTION 'atomic decision cancel clear failed'; END IF;
+  IF EXISTS (SELECT 1 FROM public.lm_travel_log WHERE event_key='legacy' AND route_decision IS NOT NULL) THEN
+    RAISE EXCEPTION 'legacy route decision fabricated';
+  END IF;
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid='public.lm_travel_log'::regclass)
+    OR has_table_privilege('anon','public.lm_travel_log','UPDATE')
+    OR has_table_privilege('authenticated','public.lm_travel_log','UPDATE') THEN
+    RAISE EXCEPTION 'route decision changed access control';
+  END IF;
+END $$;
+SQL
+printf '%s\n' 'lm-travel-write-receipts-postgres: PASS legacy=1 unique=1 receipt_shape=1 update_shape=1 cancel_shape=1 scoped_cas=1 update_cas=1 cancel_cas=1 helper_index=1 pending_index=1 late_callback=1 tenant=1 rls=1 acl=1 telegram=1 rerun=1 decision_shape=1 decision_binding=1 decision_cas=1 cancel_clear=1 migration_preserves_rows=1'
