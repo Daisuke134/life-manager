@@ -694,7 +694,7 @@ def test_persistent_sqlite_lock_before_claim_records_typed_deferred_admission(tm
                              occurrence_id="browser-probe:wake-1") == 75
 
     assert json.loads(receipt.read_text()) == {
-        "status": "deferred", "effect": 0,
+        "status": "deferred", "effect": 0, "phase": "pre_enqueue",
         "reason": "resource_database_busy",
     }
     assert _terminal_outcome(
@@ -3101,6 +3101,125 @@ def test_main_cleans_terminal_scratch_only_after_effect_is_known(tmp_path, effec
         assert not (scratch / "set-001" / "01.png").exists()
     else:
         assert not scratch.exists()
+
+
+def test_new_wake_reclaims_only_its_pre_enqueue_scratch_while_old_fence_stays_unknown(
+        tmp_path, monkeypatch):
+    release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    admission_root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    admission.activate_durable_v2()
+    owner = "example-publisher"
+    old_occurrence = f"{owner}:old-run"
+    ticket, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue", occurrence_id=old_occurrence)
+    assert ticket is not None
+    claim, reason = admission.claim_durable("deterministic", owner, admission_class="revenue")
+    assert claim is not None
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False)
+    old_scratch = state / f"loop-tmp/{owner}/old-run"
+    old_scratch.mkdir(parents=True)
+    (old_scratch / "submit-response.json").write_text("old evidence")
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
+          patch.object(loop_runner, "_apply_lock", return_value=nullcontext()),
+          patch.object(loop_runner, "build_loop_command", return_value=["/bin/true"]),
+          patch.object(loop_runner, "_run_entrypoint_with_stderr_capture") as child,
+          patch.object(loop_runner, "_enqueue_recovery_intent"),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=False)):
+        assert lm_loop_run_main([owner, str(release)]) == 75
+    child.assert_not_called()
+    event = json.loads((state / "events.jsonl").read_text().splitlines()[-1])
+    assert event["effect_status"] == "unknown"
+    assert "resource_effect_unknown" in event["blocker"]
+    assert not (state / f"loop-tmp/{owner}/run-1").exists()
+    assert not (state / "scratch-cleanup-diagnostics/run-1.json").exists()
+    assert (old_scratch / "submit-response.json").read_text() == "old evidence"
+    with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
+        assert connection.execute(
+            "SELECT effect_unknown FROM occurrences WHERE occurrence_id=?", (old_occurrence,),
+        ).fetchone() == (1,)
+
+
+@pytest.mark.parametrize("case", [
+    "valid", "stale", "legacy", "post_start", "heartbeat", "wrong_type", "malformed",
+    "unsafe_mode", "symlink", "hardlink", "provider_receipt", "identity_rejected", "terminal_unsaved",
+    "wrong_phase", "wrong_reason", "event_receipt", "event_readback", "event_started", "browser_live", "relay_live",
+])
+def test_pre_enqueue_scratch_cleanup_requires_fresh_owned_no_dispatch_proof(tmp_path, case):
+    release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    scratch = state / "loop-tmp/example-publisher/run-1"
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, *, on_claimed, occurrence_id, **_kwargs):
+        value = {"status": "deferred", "effect": 0, "phase": "pre_enqueue",
+                 "reason": "resource_effect_unknown"}
+        if case == "legacy":
+            value.pop("phase")
+        if case == "wrong_phase":
+            value["phase"] = "post_claim"
+        if case == "wrong_reason":
+            value["reason"] = "resource_unrecognized_fixture"
+        if case == "heartbeat":
+            value["reason"] = "resource_heartbeat_unavailable"
+            value["heartbeat_subcause"] = "resource_heartbeat_claim_not_renewed"
+        if case == "wrong_type":
+            value["effect"] = False
+        if case == "provider_receipt":
+            value["provider_receipt_id"] = "existing-receipt"
+        receipt.write_text("[]" if case == "malformed" else json.dumps(value))
+        receipt.chmod(0o644 if case == "unsafe_mode" else 0o600)
+        if case == "stale":
+            os.utime(receipt, ns=(1, 1))
+        if case == "symlink":
+            target = receipt.with_name("other.json")
+            receipt.rename(target)
+            receipt.symlink_to(target)
+        if case == "hardlink":
+            os.link(receipt, receipt.with_name("other.json"))
+        if case == "post_start":
+            on_claimed(occurrence_id)
+        if case == "identity_rejected":
+            identity = scratch / "effect-identity.jsonl"
+            identity.write_text("invalid identity")
+            identity.chmod(0o600)
+        return 75
+
+    def terminal_event(**kwargs):
+        event = build_runtime_event(**kwargs)
+        if case == "event_receipt":
+            event["provider_receipt_id"] = "existing-receipt"
+        if case == "event_readback":
+            event["official_readback_ref"] = "lm-readback://existing"
+        if case == "event_started":
+            event["effect_status"] = "started"
+        return event
+
+    append_event = loop_runner.append_runtime_event
+    def save_event(path, event):
+        if case == "terminal_unsaved" and event.get("phase") == "report":
+            raise OSError(errno.ENOSPC, "fixture terminal unavailable")
+        append_event(path, event)
+
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
+          patch.object(loop_runner, "_apply_lock", return_value=nullcontext()),
+          patch.object(loop_runner, "build_loop_command", return_value=["/bin/true"]),
+          patch.object(loop_runner, "_run_admitted", side_effect=run_admitted),
+          patch.object(loop_runner, "append_runtime_event", side_effect=save_event),
+          patch.object(loop_runner, "build_runtime_event", side_effect=terminal_event),
+          patch.object(loop_runner, "_enqueue_recovery_intent"),
+          patch("runtime.loop.central_cleanup._diagnostic_relay_live", return_value=case == "relay_live"),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=case == "browser_live")):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 75
+    if case == "valid":
+        assert not scratch.exists()
+    elif case in {"browser_live", "relay_live"}:
+        assert scratch.is_dir()
+    else:
+        assert (scratch / ".terminal-unrecorded").is_file()
+    if case != "terminal_unsaved":
+        event = json.loads((state / "events.jsonl").read_text().splitlines()[-1])
+        assert event["effect_status"] == ("started" if case == "event_started" else "unknown")
 
 
 def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):

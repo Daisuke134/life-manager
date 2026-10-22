@@ -8,7 +8,8 @@
     "CLD01": "PR8530",
     "CLD02": "PR8535",
     "CLD03a": "PR8536",
-    "FND06a": "PR8537"
+    "FND06a": "PR8537",
+    "FND02b": "PR8539"
   },
   "local_adoption": {
     "release_sha": "d6b740ceadb17413c65c4cf875e6881fb39f8a29",
@@ -43,6 +44,32 @@
       "generated_at": "2026-10-22T13:21:23.151429+00:00",
       "job_count": 191,
       "telemetry_gap": 0
+    },
+    "pre_dispatch_deferral_recovery": {
+      "release_sha": "96d37f320df7b0a4cfb112eb699fbbe92d186d86",
+      "queue_identity_preserved": true,
+      "jobs": [
+        {
+          "loop_id": "capafy-loop-daily",
+          "run_id": "18e0def4e9c8f080-39479",
+          "last_terminal_result": "blocked",
+          "effect_status": "not_applicable",
+          "blocker": "host_admission_deferred:disk_floor_low",
+          "admission_effect_unknown": false,
+          "current_scratch_removed": true,
+          "cleanup_diagnostic_created": false
+        },
+        {
+          "loop_id": "capafy-distribute-daily",
+          "run_id": "18e0df004f47e820-44046",
+          "last_terminal_result": "blocked",
+          "effect_status": "not_applicable",
+          "blocker": "host_admission_deferred:disk_floor_low",
+          "admission_effect_unknown": false,
+          "current_scratch_removed": true,
+          "cleanup_diagnostic_created": false
+        }
+      ]
     }
   },
   "host": {
@@ -60,7 +87,7 @@
       10881548288,
       9848152064
     ],
-    "own_merged_worktrees_retired": 3,
+    "own_merged_worktrees_retired": 4,
     "activity_monitor_readback": "accessibility_permission_not_granted",
     "activity_monitor_process_mutations": 0,
     "codex_runtime_node_version": "v24.19.0",
@@ -111,7 +138,14 @@
     "post_restart_data_api_http": 200,
     "post_restart_data_api_seconds": 0.43,
     "post_restart_services_healthy": true,
-    "recovery_observed_at": "2026-10-22T13:25:57.828069+00:00"
+    "recovery_observed_at": "2026-10-22T13:25:57.828069+00:00",
+    "railway_authentication": {
+      "registry_pr": 14,
+      "registry_main": "45d74ae9b46ed742534bdb5ff17bda1e966c2c11",
+      "local_registry_applied": true,
+      "profile_started": false,
+      "guard_blocker": "disk_preflight"
+    }
   },
   "business": {
     "new_revenue_proven": false,
@@ -125,5 +159,5 @@
       "pending": 0
     }
   },
-  "recorded_at": "2026-10-22T13:31:30.097430+00:00"
+  "recorded_at": "2026-10-22T14:05:27.949580+00:00"
 }
