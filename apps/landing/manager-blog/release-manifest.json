@@ -11,7 +11,7 @@
     },
     {
       "path": "lib/render-manager-markdown.mjs",
-      "sha256": "2896d4799fdfd76bd65d0326371b62e84ff4d3e2840c3052428247782e1e96b1"
+      "sha256": "dbed7372d587c20332d4e8435a74770931a44ff36da7b96831e18b17680ce336"
     },
     {
       "path": "templates/manager-collection.tsx",
