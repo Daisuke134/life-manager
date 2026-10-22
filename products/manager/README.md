@@ -1,5 +1,7 @@
 # Manager — independent intervention research prototype
 
+**開始から最後まで:** [全Phase00〜12・残41件・依存・完成条件・出版/サイト/YCの並行線](docs/roadmap/START_TO_END_20261022.md)。原計画の末尾はPhase12/G006、現在地はE16です。
+
 **最新の再開入口:** [E16本番配備ゲートと残作業の引継ぎ](docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md)。E01–E15の実装・CI証跡は [tasks.json](docs/roadmap/tasks.json) に記録。E16は参照サイクルのテストまでで、常駐ホスト・永続状態・本番アダプターが未充足のため `DEPLOYMENT_HOST_REQUIRED`。今回のコードは未配備、人への便益は未測定、モデルの優位性も未証明です。
 
 **全体設計:** [最終使命・最初の製品・研究・事業・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。

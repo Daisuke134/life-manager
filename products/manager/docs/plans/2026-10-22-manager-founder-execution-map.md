@@ -131,3 +131,8 @@ E16本番前に次の追加crash-point検査を行う。これらは読取監査
 [追加調査](../research/manager-options-additional-20261022/REPORT_JA.md)は前回の既知候補を繰り返さず、個人agent/業務workflow/永続実行/browser/6新論文/出版/hostを比較した。一般的なassistantやworkflowだけが必要ならOpenClaw/Khoj/n8n等を直接使う。Managerの差分を限定authority/正確なeffect/独立readback/実結果へ絞り、顧客がその差分を必要とするか検証する。記事/本/採用では既成技術から借りた部分と自分が実装・検証した部分を分ける。
 
 実装担当は [12 atomic patches](2026-10-22-manager-e16-atomic-patches.md) のfile/function/RED/verificationを使う。新しいtask authorityではなく、元の12実行パッケージとE16を具体化したもの。YCの期限・本人条件・元U/G依存・未確認売上を変更しない。
+
+
+## 11. Phase12までの原計画を省略しない
+
+[開始から最後までの全工程](../roadmap/START_TO_END_20261022.md)に、全Phase00〜12、残41件のID/依存/受入れ、EBAの旧章番号との対応、P01〜P07/公式home更新をまとめた。現在はE16が技術カーソル。12package/12PATCHは原113件に加算しない。

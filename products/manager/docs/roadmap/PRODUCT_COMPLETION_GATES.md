@@ -4,13 +4,15 @@
 
 | Completion being claimed | Necessary evidence | Current review snapshot |
 |---|---|---|
-| Engineering E stage | Named tests, regression, source-specific CI and valid SSOT receipt | E01–E05 passed; E06 next |
+| Engineering E stage | Named tests, regression, source-specific CI and valid SSOT receipt | E01–E15 scoped implementation receipts; E16 active, production deployment incomplete |
 | Digital Autonomy v0.1 | E acceptance, scoped real occurrence, persistent single owner/state, readback/replay-zero/rollback | Not deployed as a complete autonomous loop |
 | Phase06 v2 | F005/F006/F008/F009 actual owned-public-digital evidence | Pending acceptance; technical scope only |
 | Product demand | Qualifying real problem/user evidence, useful trial and willingness to continue/pay | Unvalidated |
 | Human/nonhuman benefit | Appropriate authentic outcome, units, rights, comparison, costs/harms | NOT_MEASURED for Manager human benefit; no nonhuman benefit evidence |
 | Causal generality | Suitable causal estimate and external replication under changed conditions | NOT_ESTABLISHED |
 | YC / publication | Actual submission receipt / live artifact readback respectively | Preparation is not completion |
+
+**Full remaining scope:** [Phase00–12 and all41 remaining task IDs](START_TO_END_20261022.md). Canonical task state is69 done/41 todo/3 skipped; E16 is active. Original welfare/science gates below are distinct from the finite v0.1 digital release.
 
 ## Current checkpoint — 2026-10-22 JST
 
