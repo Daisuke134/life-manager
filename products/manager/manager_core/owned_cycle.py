@@ -114,6 +114,7 @@ class LocalGitCycleSandbox:
         return stage_release(Path(site),self.checkout,self.source_audit)
     def send(self,packet,parent,now):
         if self.git('rev-parse','HEAD')!=parent:raise PermissionError('target moved')
+        verify_bundle(Path(self.context.candidate_bundle),packet['candidate'])
         self.stage(self.context.candidate_bundle,now)
         commit=self._commit_cas(parent,commit_message(packet));self._publish_fixture(commit,regress=self.regress_served)
         return commit
@@ -140,6 +141,7 @@ class LocalGitCycleSandbox:
         # old bytes. Any independent target change stops recovery.
         parent=self.git('rev-parse','HEAD')
         if self.manifest()!=packet['candidate']:raise PermissionError('rollback target moved')
+        verify_bundle(Path(self.context.baseline_bundle),packet['baseline'])
         self.stage(self.context.baseline_bundle,now)
         commit=self._commit_cas(parent,'Sandbox bounded rollback '+packet['effect_key'])
         self._publish_fixture(commit)

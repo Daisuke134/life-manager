@@ -98,3 +98,14 @@ class CycleAcceptanceTests(unittest.TestCase):
                                                'proof_level':'P0','human_outcome':'NOT_MEASURED'})
             self.assertIsNone(s.learning.sandbox_technical_observations()[0]['writes'])
             self.assertEqual(s.learning.active(),'fixed-policy')
+
+    def test_candidate_changed_after_assessment_is_denied_before_fixture_commit(self):
+        from test_candidate_verification import mutate
+        with TemporaryDirectory() as tmp:
+            c,s,h,g=self.prepare(tmp);send=h.send
+            def replace_candidate(*args):
+                mutate(h.context.candidate_bundle,'finance.html',lambda b:b+b'changed after assessment')
+                return send(*args)
+            h.send=replace_candidate
+            self.assertEqual(run_owned_cycle(c,s,host=h,now=NOW)['status'],'UNKNOWN')
+            self.assertEqual(g.git('rev-list','--count','HEAD'),'1')
