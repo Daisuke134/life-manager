@@ -295,6 +295,155 @@ def test_publish_pushes_when_remote_moved_ahead(tmp_path: Path) -> None:
     assert "publish free article capafy-slide-maker-2026-10-04" in log
 
 
+@pytest.fixture
+def concurrent_publication(tmp_path):
+    module = load()
+    git = module._load_self_owned_module()._git
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    landing = tmp_path / "landing"
+    _init_repo(landing)
+    git(landing, "remote", "add", "origin", str(remote))
+    git(landing, "push", "origin", "main")
+    other = tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    git(other, "config", "user.email", "other@example.com")
+    git(other, "config", "user.name", "Other Writer")
+    draft = tmp_path / "article-en.md"
+    draft.write_text(_draft(), encoding="utf-8")
+    relative = "apps/landing/data/research/concurrent-article.json"
+
+    def advance(path="OTHER.md", text="other writer\n"):
+        target = other / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        git(other, "add", "--", path)
+        git(other, "commit", "-m", f"other writer: {path}")
+        git(other, "push", "origin", "main")
+
+    def publish():
+        return module.publish(
+            draft_path=draft, slug="concurrent-article", cta_url=CTA_URL,
+            landing_root=landing, remote="origin", branch="main",
+            base_url="https://aniccaai.com", date="2026-10-23", retries=1,
+            fetch=lambda url: f"<h1>Slide Maker turns any outline into a deck</h1> {CTA_URL}",
+        )
+
+    return module, git, remote, landing, relative, advance, publish
+
+
+@pytest.mark.parametrize("resume", [False, True])
+def test_publish_recovers_remote_advance_after_sync(concurrent_publication, monkeypatch, resume):
+    module, git, remote, landing, relative, advance, publish = concurrent_publication
+    if resume:
+        article = module.build_free_article(
+            _draft(), slug="concurrent-article", date="2026-10-23", cta_url=CTA_URL,
+        )
+        module.write_free_article(landing, article)
+        git(landing, "add", "--", relative)
+        git(landing, "commit", "-m", "interrupted article commit")
+    pushes = []
+
+    def raced_git(root, *args):
+        if root == landing and args[0] == "push":
+            pushes.append(args)
+            if len(pushes) == 1:
+                advance()
+        return git(root, *args)
+
+    monkeypatch.setattr(module._load_self_owned_module(), "_git", raced_git)
+    result = publish()
+    assert result["status"] == "published"
+    assert len(pushes) == 2
+    assert result["commit"] == git(remote, "rev-parse", "main") == git(landing, "rev-parse", "HEAD")
+    assert json.loads(git(remote, "show", f"main:{relative}"))["markdown"] == _draft().strip()
+    assert git(remote, "show", "main:OTHER.md") == "other writer"
+    # The rebase preserves both writers and never duplicates the article commit.
+    assert len(git(remote, "log", "--format=%H", "main", "--", relative).splitlines()) == 1
+
+
+@pytest.mark.parametrize("error", ["remote: Permission denied", "fatal: Could not resolve host"])
+def test_publish_does_not_retry_non_rejection_errors(concurrent_publication, monkeypatch, error):
+    module, git, remote, landing, relative, advance, publish = concurrent_publication
+    soa = module._load_self_owned_module()
+    after_push = []
+
+    def refused_git(root, *args):
+        if root == landing and (after_push or args[0] == "push"):
+            after_push.append(args)
+        if root == landing and args[0] == "push":
+            raise soa.SelfOwnedInvariant(error)
+        return git(root, *args)
+
+    monkeypatch.setattr(soa, "_git", refused_git)
+    with pytest.raises(soa.SelfOwnedInvariant, match=error):
+        publish()
+    assert len(after_push) == 1
+    assert (landing / relative).exists()
+    assert git(landing, "status", "--porcelain") == ""
+
+
+def test_publish_stops_after_second_remote_rejection(concurrent_publication, monkeypatch):
+    module, git, remote, landing, relative, advance, publish = concurrent_publication
+    pushes = []
+
+    def always_raced_git(root, *args):
+        if root == landing and args[0] == "push":
+            pushes.append(args)
+            advance(path=f"OTHER-{len(pushes)}.md")
+        return git(root, *args)
+
+    monkeypatch.setattr(module._load_self_owned_module(), "_git", always_raced_git)
+    with pytest.raises(module._load_self_owned_module().SelfOwnedInvariant, match=r"\[rejected\]"):
+        publish()
+    assert len(pushes) == 2
+    assert git(remote, "show", "main:OTHER-1.md") == "other writer"
+    assert git(remote, "show", "main:OTHER-2.md") == "other writer"
+    assert (landing / relative).exists()
+
+
+def test_publish_preserves_conflicting_rebase_for_owner_recovery(concurrent_publication, monkeypatch):
+    module, git, remote, landing, relative, advance, publish = concurrent_publication
+    commands = []
+
+    def conflict_git(root, *args):
+        if root == landing:
+            commands.append(args)
+            if args[0] == "push":
+                advance(path=relative, text='{"other": "immutable article"}\n')
+        return git(root, *args)
+
+    monkeypatch.setattr(module._load_self_owned_module(), "_git", conflict_git)
+    with pytest.raises(module._load_self_owned_module().SelfOwnedInvariant):
+        publish()
+    assert sum(args[0] == "push" for args in commands) == 1
+    assert json.loads(git(remote, "show", f"main:{relative}")) == {"other": "immutable article"}
+    assert git(landing, "show", f"ORIG_HEAD:{relative}")
+    assert git(landing, "diff", "--name-only", "--diff-filter=U") == relative
+    assert (landing / ".git/rebase-merge").is_dir()
+    assert not any(args[0] in {"reset", "clean"} or "--abort" in args or "--force" in args for args in commands)
+
+
+def test_push_recovery_does_not_abort_preexisting_rebase(concurrent_publication, monkeypatch):
+    module, git, remote, landing, relative, advance, publish = concurrent_publication
+    soa = module._load_self_owned_module()
+    (landing / "OTHER.md").write_text("local conflicting text\n", encoding="utf-8")
+    git(landing, "add", "OTHER.md")
+    git(landing, "commit", "-m", "local writer")
+    advance(text="remote conflicting text\n")
+    with pytest.raises(soa.SelfOwnedInvariant):
+        git(landing, "pull", "--rebase", "origin", "main")
+    rebase = landing / ".git/rebase-merge"
+    original_head = git(landing, "rev-parse", "HEAD")
+    original_state = {p.name: p.read_bytes() for p in rebase.iterdir() if p.is_file()}
+    advance(path="AFTER-REBASE.md")
+    with pytest.raises(soa.SelfOwnedInvariant):
+        module._push_with_rebase_retry(landing, remote="origin", branch="main")
+    assert git(landing, "rev-parse", "HEAD") == original_head
+    assert {p.name: p.read_bytes() for p in rebase.iterdir() if p.is_file()} == original_state
+    assert git(landing, "diff", "--name-only", "--diff-filter=U") == "OTHER.md"
+
+
 # D7 (SSOT 2026-10-15): one real output image per article when the run directory has one.
 IMG = "https://uploads.postiz.com/abc123.png"
 

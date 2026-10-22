@@ -151,6 +151,22 @@ def _safe_read_json(path: Path):
         return None
 
 
+def _push_with_rebase_retry(root: Path, *, remote: str, branch: str) -> dict:
+    """Recover one explicit remote advance, preserving conflicts for the owner."""
+    soa = _load_self_owned_module()
+    try:
+        soa._git(root, "push", remote, f"HEAD:refs/heads/{branch}")  # noqa: SLF001
+    except soa.SelfOwnedInvariant as error:
+        if not re.search(r"!\s+\[rejected\].*\((?:fetch first|non-fast-forward)\)", str(error)):
+            raise
+        # The remote can advance even after commit_and_push's initial pull.
+        # As in the existing Zenn publisher, only that rejection gets one retry.
+        # Never abort a shared checkout's rebase or retry an ambiguous failure.
+        soa._git(root, "pull", "--rebase", remote, branch)  # noqa: SLF001
+        soa._git(root, "push", remote, f"HEAD:refs/heads/{branch}")  # noqa: SLF001
+    return {"commit": soa._git(root, "rev-parse", "HEAD"), "pushed": True}  # noqa: SLF001
+
+
 def commit_and_push(landing_root: Path, relative_path: str, *, message: str, remote: str, branch: str) -> dict:
     soa = _load_self_owned_module()
     root = Path(landing_root).resolve()
@@ -173,9 +189,7 @@ def commit_and_push(landing_root: Path, relative_path: str, *, message: str, rem
     # every later run fail non-fast-forward for three days). Replay our one
     # commit on top of the remote before pushing; the worktree is clean here.
     soa._git(root, "pull", "--rebase", remote, branch)  # noqa: SLF001
-    commit = soa._git(root, "rev-parse", "HEAD")  # noqa: SLF001
-    soa._git(root, "push", remote, f"HEAD:refs/heads/{branch}")  # noqa: SLF001
-    return {"commit": commit, "pushed": True}
+    return _push_with_rebase_retry(root, remote=remote, branch=branch)
 
 
 def verify_live(markup: str, *, title: str, cta_url: str) -> None:
@@ -213,7 +227,6 @@ def publish(
     article = build_free_article(markdown_text, slug=slug, date=date, cta_url=cta_url,
                                  title_must_contain=title_must_contain)
     write_result = write_free_article(landing_root, article)
-    soa = _load_self_owned_module()
     root = Path(landing_root).resolve()
     if write_result["status"] == "staged":
         commit_result = commit_and_push(
@@ -224,8 +237,7 @@ def publish(
     else:
         # Already committed by a prior (possibly interrupted) attempt. A push
         # with nothing new is a harmless no-op, so re-running it is safe.
-        soa._git(root, "push", remote, f"HEAD:refs/heads/{branch}")  # noqa: SLF001
-        commit_result = {"commit": soa._git(root, "rev-parse", "HEAD"), "pushed": True}  # noqa: SLF001
+        commit_result = _push_with_rebase_retry(root, remote=remote, branch=branch)
 
     live_url = f"{base_url.rstrip('/')}/blog/{slug}"
     fetch = fetch or _default_fetch
