@@ -244,7 +244,7 @@ def read_completed_turn(client: Any, session_id: str, turn_id: str) -> SessionEv
         not re.fullmatch(r"turn_[A-Za-z0-9_-]{4,128}", turn_id)):
         raise ValueError("bounded session and exact turn identifiers required")
     try:
-        saved = client.beta.agents.sessions.turns.retrieve(session_id, turn_id)
+        saved = client.beta.agents.sessions.turns.retrieve(turn_id, session_id=session_id)
     except Exception as exc:
         raise SessionFailure("cannot independently read exact saved turn") from exc
     if getattr(saved, "id", None) != turn_id:
@@ -318,7 +318,7 @@ def read_saved_assistant_items(
         if not rows:
             raise SessionFailure("nonterminal empty saved item page")
         next_cursor = get(rows[-1], "id")
-        if next_cursor == cursor or next_cursor in seen and next_cursor != get(rows[-1], "id"):
+        if next_cursor == cursor:
             raise SessionFailure("stalled provider item cursor")
         cursor = next_cursor
     raise SessionFailure("incomplete bounded saved item scan")
