@@ -28,3 +28,39 @@ class Reconciler:
         if status in ("PRESENT","ABSENT"):
             self.outbox._set_status(key,status,ref if status=="PRESENT" else None)
         return ReconcileResult(status,ref if status=="PRESENT" else None)
+
+
+@dataclass(frozen=True)
+class OwnedOccurrenceEvidence:
+    """Collector output; fixture dictionaries alone are not authenticated proof."""
+    receipt: dict
+    committed_manifest: dict
+    committed_bodies: dict
+    parent_commit: str
+    parent_manifest: dict
+    parent_bodies: dict
+
+
+def reconcile_owned(journal,key,read_occurrence,observed_at):
+    """Read-only exact occurrence reconciliation; no absence authorizes retry.
+
+    Production collector must fetch exact public GitHub commit/parent/file GETs
+    using the existing collector. Offline collectors prove only contract logic.
+    Transient missing data, branch lag and errors all stay UNKNOWN.
+    """
+    import json
+    from .digital_handoff import validate_commit_receipt
+    record=journal.record(key)
+    if record is None:raise ValueError('owned intent not reserved')
+    if record.status=='PRESENT':return ReconcileResult('PRESENT',record.receipt_ref)
+    try:
+        evidence=read_occurrence(key)
+        if type(evidence) is not OwnedOccurrenceEvidence:return ReconcileResult('UNKNOWN',None)
+        if evidence.parent_commit!=record.expected_parent:return ReconcileResult('UNKNOWN',None)
+        validate_commit_receipt(json.loads(record.packet_json),evidence.receipt,evidence.committed_manifest,
+            observed_at,committed_bodies=evidence.committed_bodies,parent_commit=evidence.parent_commit,
+            parent_manifest=evidence.parent_manifest,parent_bodies=evidence.parent_bodies)
+        ref=evidence.receipt['sha'];journal._present(key,ref)
+        return ReconcileResult('PRESENT',ref)
+    except Exception:
+        return ReconcileResult('UNKNOWN',None)

@@ -108,3 +108,63 @@ class DurableOutbox:
         with sqlite3.connect(self.path,timeout=15) as db:
             db.execute("UPDATE effects SET status=?,receipt_ref=? WHERE key=?",
                        (status,receipt_ref,key))
+
+
+@dataclass(frozen=True)
+class OwnedEffectRecord:
+    key: str
+    packet_json: str
+    expected_parent: str
+    status: str
+    receipt_ref: str | None
+    dispatch: bool = False
+
+
+class OwnedEffectJournal:
+    """Durable owned-release reservation, not an executor or authority issuer.
+
+    The host must call the original privileged admission and perform target Git
+    CAS using expected_parent. Reservation is committed BEFORE that call. Any
+    uncertain/crashed reservation is reconciled; it is never sent again here.
+    Persistent owner storage is required; ephemeral CI is not deployment storage.
+    """
+    def __init__(self,path):
+        self.path=str(path)
+        with sqlite3.connect(self.path,timeout=15) as db:
+            db.execute('''CREATE TABLE IF NOT EXISTS owned_effects(
+                key TEXT PRIMARY KEY,packet_json TEXT NOT NULL,expected_parent TEXT NOT NULL,
+                status TEXT NOT NULL,receipt_ref TEXT)''')
+    def record(self,key):
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
+        return OwnedEffectRecord(*row) if row else None
+    def reserve(self,packet,context,current,candidate,expected_parent,now,*,revoked=False):
+        import re
+        from .digital_handoff import validate_intent,canonical_bytes,admit_release
+        validate_intent(packet)
+        if type(expected_parent) is not str or not re.fullmatch('[0-9a-f]{40}',expected_parent):
+            raise ValueError('immutable target parent required')
+        serialized=canonical_bytes(packet).decode();key=packet['effect_key']
+        # Pure admission is necessary but not authentication. Actual platform
+        # identity/artifact checks remain in phase06_kernel_release.admit.
+        admitted=admit_release(packet,context,current,candidate,now,revoked=revoked)
+        with sqlite3.connect(self.path,timeout=15,isolation_level=None) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
+            if row:
+                if row[1]!=serialized or row[2]!=expected_parent:
+                    raise ValueError('reserved effect binding changed; reconcile only')
+                db.execute('COMMIT');return OwnedEffectRecord(*row)
+            status='DISPATCHING' if admitted['dispatch_deployment'] else 'ALREADY_PRESENT_UNRECONCILED'
+            db.execute('INSERT INTO owned_effects VALUES(?,?,?,?,NULL)',(key,serialized,expected_parent,status))
+            db.execute('COMMIT')
+        record=self.record(key)
+        from dataclasses import replace
+        return replace(record,dispatch=admitted['dispatch_deployment'])
+    def _present(self,key,receipt_ref):
+        # Called only after immutable occurrence validation by reconciler.
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
+            if row is None:raise ValueError('missing intent')
+            if row[0]=='PRESENT' and row[1]!=receipt_ref:raise ValueError('conflicting occurrence')
+            db.execute("UPDATE owned_effects SET status='PRESENT',receipt_ref=? WHERE key=?",(receipt_ref,key))
