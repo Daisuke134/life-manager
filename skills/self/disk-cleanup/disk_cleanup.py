@@ -1873,7 +1873,8 @@ class HostDiskGovernor:
             reasons[reason] = reasons.get(reason, 0) + 1
 
         def record_probe_error(
-            item: dict, candidate: Path, error_path: Path, error: OSError | None,
+            item: dict, candidate: Path, error_path: Path, error: Exception | None,
+            *, operation: str | None = None,
         ) -> None:
             nonlocal probe_error_count
             probe_error_count += 1
@@ -1885,6 +1886,7 @@ class HostDiskGovernor:
                 "path": self._diagnostic_path(error_path),
                 "error_class": type(error).__name__ if error is not None else None,
                 "errno": getattr(error, "errno", None) if error is not None else None,
+                **({"operation": operation} if operation is not None else {}),
             })
 
         for item in candidates:
@@ -2136,6 +2138,7 @@ class HostDiskGovernor:
                     path.unlink()
             except (OSError, subprocess.SubprocessError) as error:
                 result["errors"] += 1
+                record_probe_error(item, path, path, error, operation="remove")
                 preserve("worktree_remove_timeout" if isinstance(error, subprocess.TimeoutExpired)
                          else "remove_failed")
                 continue
