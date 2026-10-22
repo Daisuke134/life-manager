@@ -125,16 +125,20 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
 }
 
 async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWrite = false) {
+  const durableUpdate = tool === "GOOGLECALENDAR_PATCH_EVENT"
+    && (opts.travelWriteContext != null || typeof opts.beforeDispatch === "function");
+  const command = durableUpdate ? "calendar.update" : "calendar.create";
   let dispatched = false;
   let accountHash = null;
   const finish = async (effect, result = { successful: false }, errorClass = null, httpStatus = null) => {
-    const id = result?.data?.id;
-    const writeReceipt = { phase: dispatched ? "response" : "claimed", command: "calendar.create",
+    const id = durableUpdate ? args?.event_id : result?.data?.id;
+    const writeReceipt = { phase: dispatched ? "response" : "claimed", command,
       effect, account_ref_hash: accountHash, http_status: httpStatus, error_class: errorClass,
       provider_event_id: typeof id === "string" && /^[A-Za-z0-9_-]{1,1024}$/.test(id) ? id : null,
       readback: null, evidence_ref: null, retryable: false,
       next_action: effect === "created" || effect === "updated" || effect === "no_effect" ? "none" : "owned_readback" };
-    const costReceiptSaved = await recordOutcome(effect === "created" || effect === "updated" ? "success"
+    const costReceiptSaved = durableUpdate && errorClass === "invalid_update_request" ? false
+      : await recordOutcome(effect === "created" || effect === "updated" ? "success"
       : effect === "no_effect" ? "failure" : "unknown", writeReceipt);
     return { effect, result, writeReceipt, costReceiptSaved };
   };
@@ -145,15 +149,40 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
     && typeof args.event_id === "string" && args.event_id.length > 0
     && args.reminders && typeof args.reminders === "object" && !Array.isArray(args.reminders)
     && Object.keys(args).every((field) => ["calendar_id", "event_id", "reminders", "send_updates"].includes(field));
-  const proxyOperation = proxyCreate || proxyReminderPatch;
+  const proxyOperation = proxyCreate || proxyReminderPatch || durableUpdate;
+  if (durableUpdate) {
+    const context = opts.travelWriteContext;
+    if (!context || context.schema_version !== 1 || context.phase !== "dispatching"
+      || context.command !== command || context.effect !== "unknown" || context.retryable !== false
+      || !["go", "return"].includes(context.leg) || !context.runtime_trace
+      || typeof context.runtime_trace !== "object" || Array.isArray(context.runtime_trace)
+      || !["request_id", "source_event_hash", "source_event_version", "request_fingerprint", "account_ref_hash",
+        "marker_request_id", "prior_request_fingerprint"].every((field) => typeof context[field] === "string" && /^[a-f0-9]{64}$/.test(context[field]))
+      || context.request_id === context.marker_request_id
+      || typeof opts.beforeDispatch !== "function" || typeof opts.expectedEtag !== "string"
+      || opts.expectedEtag.length > 1024 || !/^"[^"\x00-\x20\x7f]+"$/.test(opts.expectedEtag)
+      || !args || args.calendar_id !== "primary" || typeof args.event_id !== "string"
+      || !/^[A-Za-z0-9_-]{1,1024}$/.test(args.event_id) || context.provider_event_id !== args.event_id
+      || typeof args.summary !== "string" || typeof args.location !== "string"
+      || typeof args.start?.dateTime !== "string" || typeof args.end?.dateTime !== "string"
+      || !Number.isFinite(Date.parse(args.start.dateTime)) || !(Date.parse(args.end.dateTime) > Date.parse(args.start.dateTime))
+      || WEB_TRAVEL_UID_RE.test(String(uid || "")) && opts.expectedCalendarAccountId == null) {
+      return finish("no_effect", undefined, "invalid_update_request");
+    }
+  }
   if (opts.ownedReadAccountRef && tool !== "GOOGLECALENDAR_EVENTS_LIST") throw new Error("owned readback is read only");
   let connectedAccountId;
-  try { connectedAccountId = await selectedAccountId(uid, apiKey, opts); }
+  try { connectedAccountId = durableUpdate && !WEB_TRAVEL_UID_RE.test(String(uid || ""))
+    ? await ownedAccountId(uid, apiKey, { ...opts, ownedReadAccountRef: opts.travelWriteContext.account_ref_hash })
+    : await selectedAccountId(uid, apiKey, opts); }
   catch (error) {
     if (effectAwareWrite) return finish("no_effect", undefined, "account_binding_unavailable");
     throw error;
   }
   if (connectedAccountId) accountHash = accountRefHash(uid, connectedAccountId);
+  if (durableUpdate && accountHash !== opts.travelWriteContext.account_ref_hash) {
+    return finish("no_effect", undefined, "account_binding_unavailable");
+  }
   if (tool !== "GOOGLECALENDAR_EVENTS_LIST" && opts.expectedCalendarAccountId != null
     && WEB_TRAVEL_UID_RE.test(String(uid || ""))) {
     let state = null;
@@ -175,7 +204,13 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
   let result;
   let response;
   try {
-    const requestBody = proxyCreate
+    const requestBody = durableUpdate ? {
+      user_id: uid, connected_account_id: connectedAccountId,
+      endpoint: GOOGLE_CALENDAR_EVENTS_ENDPOINT + "/" + encodeURIComponent(args.event_id), method: "PATCH",
+      parameters: [{ name: "If-Match", value: opts.expectedEtag, type: "header" },
+        { name: "sendUpdates", value: "none", type: "query" }],
+      body: { summary: args.summary, start: args.start, end: args.end, location: args.location },
+    } : proxyCreate
       ? { ...args, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}) }
       : proxyReminderPatch ? {
         endpoint: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.event_id)}`,
@@ -186,7 +221,7 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
       }
         : { user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args };
     if (typeof opts.beforeDispatch === "function") {
-      const durable = await opts.beforeDispatch({ account_ref_hash: accountHash, command: "calendar.create" });
+      const durable = await opts.beforeDispatch({ account_ref_hash: accountHash, command });
       if (durable !== true) return finish("unknown", undefined, "receipt_not_durable");
     }
     dispatched = true;
@@ -205,6 +240,16 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
     try { proxied = await response.json(); }
     catch {
       return finish("unknown", undefined, "unreadable_response", response.status || null);
+    }
+    if (durableUpdate) {
+      const outerStatus = Number.isInteger(response.status) ? response.status : null;
+      const upstreamStatus = proxied?.status;
+      const numericUpstream = Number.isInteger(upstreamStatus) && upstreamStatus >= 100 && upstreamStatus <= 599;
+      const outerSuccess = response.ok === true && outerStatus >= 200 && outerStatus < 300;
+      const rejected = outerSuccess && numericUpstream && upstreamStatus >= 400 && upstreamStatus < 500;
+      return finish(rejected ? "no_effect" : "unknown", undefined,
+        rejected ? "provider_validation" : "unconfirmed_response",
+        outerSuccess && numericUpstream ? upstreamStatus : outerStatus);
     }
     const upstreamStatus = Number(proxied && proxied.status) || 0;
     const proxyStatus = Number(response && response.status) || 0;
@@ -283,6 +328,7 @@ function makeComposioCalendar(opts = {}) {
       const context = extraOpts.travelWriteContext;
       const travelWrite = context ? Object.fromEntries([
         "request_id", "source_event_hash", "source_event_version", "request_fingerprint", "leg",
+        ...(context.command === "calendar.update" ? ["marker_request_id", "prior_request_fingerprint"] : []),
       ].map((field) => [field, context[field]])) : null;
       if (travelWrite && receipt) Object.assign(travelWrite, receipt);
       try { return await ledger(uid, tool, { outcome, runtimeTrace: trace, ...(travelWrite ? { travelWrite } : {}) }) === true; }
@@ -413,12 +459,17 @@ function makeComposioCalendar(opts = {}) {
       } catch { return withCreateEffect({ effect: "unknown", result: { successful: false } }); }
     },
     async patchEvent(uid, args, operationOpts = {}) {
-      if (!key) return { successful: false };
+      const durableUpdate = operationOpts.travelWriteContext != null || typeof operationOpts.beforeDispatch === "function";
+      if (!key && !durableUpdate) return { successful: false };
       const expectedCalendarAccountId = operationOpts.expectedCalendarAccountId;
-      const effectAwareWrite = expectedCalendarAccountId != null;
+      const effectAwareWrite = durableUpdate || expectedCalendarAccountId != null;
       try {
         const result = await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args, expectedCalendarAccountId,
-          effectAwareWrite, { allowWebInitialScan: operationOpts.allowWebInitialScan === true });
+          effectAwareWrite, { allowWebInitialScan: operationOpts.allowWebInitialScan === true,
+            ...(durableUpdate ? { travelWriteContext: operationOpts.travelWriteContext,
+              beforeDispatch: operationOpts.beforeDispatch, expectedEtag: operationOpts.expectedEtag,
+              supaUrl: operationOpts.supaUrl || opts.supaUrl, supaKey: operationOpts.supaKey || opts.supaKey } : {}) });
+        if (durableUpdate) return withCreateEffect(result);
         if (!result || !result.effect) return result;
         return { ...(result.result || {}), effect: result.effect, successful: result.effect === "updated" };
       } catch { return { successful: false, ...(effectAwareWrite ? { effect: "unknown" } : {}) }; }

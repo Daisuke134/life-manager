@@ -10,6 +10,170 @@ const { createHash } = require("node:crypto");
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const ACCOUNT_ID = "ca-selected-123";
 
+function durableUpdateFixture(uid = "hybrid-update-fixture") {
+  const accountHash = createHash("sha256").update(JSON.stringify([uid, ACCOUNT_ID])).digest("hex");
+  const state = { uid, writes: [], dispatches: [], ledger: [], stages: [],
+    user: { uid, telegram_chat_id: uid === UID ? null : 123,
+      calendar_provider: "composio_gcal", calendar_connected_account_id: ACCOUNT_ID },
+    account: { id: ACCOUNT_ID, user_id: uid, toolkit_slug: "googlecalendar", status: "ACTIVE" },
+    controls: { dailyAutomationEnabled: true, billingEntitled: true, disconnectPending: false, enablePending: false },
+    response: { ok: true, status: 200, body: { status: 200, data: { id: "travel-helper-1" } } },
+    args: { calendar_id: "primary", event_id: "travel-helper-1", summary: "[Travel] changed",
+      start: { dateTime: "2030-01-01T09:30:00Z", timeZone: "UTC" },
+      end: { dateTime: "2030-01-01T10:00:00Z", timeZone: "UTC" }, location: "Fixture venue",
+      description: "original marker must survive", reminders: { useDefault: true }, attendees: [] },
+  };
+  state.options = { expectedEtag: '"etag-before"',
+    ...(uid === UID ? { expectedCalendarAccountId: ACCOUNT_ID } : {}),
+    travelWriteContext: { schema_version: 1, request_id: "1".repeat(64), marker_request_id: "2".repeat(64),
+      source_event_hash: "3".repeat(64), source_event_version: "4".repeat(64), request_fingerprint: "5".repeat(64),
+      prior_request_fingerprint: "6".repeat(64), account_ref_hash: accountHash, provider_event_id: "travel-helper-1",
+      leg: "go", phase: "dispatching", command: "calendar.update", effect: "unknown", retryable: false,
+      runtime_trace: { schema_version: 1, status: "unlinked" } },
+    beforeDispatch: async (details) => { state.stages.push("dispatch"); state.dispatches.push(details); return true; },
+  };
+  state.calendar = makeComposioCalendar({ apiKey: "fixture-key", supaUrl: "https://supabase.example", supaKey: "fixture-service",
+    readWebTravelControlStateImpl: async () => state.controls,
+    recordCall: async (_uid, tool, details) => { state.ledger.push({ tool, ...details }); return true; },
+    fetchImpl: async (input, init = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === "supabase.example") {
+        assert.equal(init.method || "GET", "GET");
+        if (uid !== UID) assert.equal(url.searchParams.has("telegram_chat_id"), false);
+        return { ok: true, json: async () => state.user ? [state.user] : [] };
+      }
+      if (url.pathname.includes("/connected_accounts/")) {
+        state.stages.push("account");
+        return { ok: true, json: async () => state.account };
+      }
+      state.stages.push("provider");
+      state.writes.push({ url: String(url), method: init.method, body: JSON.parse(init.body) });
+      if (state.response.transportError) throw new Error("private transport detail");
+      return { ok: state.response.ok, status: state.response.status, json: async () => {
+        if (state.response.unreadable) throw new Error("private response detail");
+        return state.response.body;
+      } };
+    },
+  });
+  state.patch = () => state.calendar.patchEvent(uid, state.args, state.options);
+  return state;
+}
+
+test("durable Travel update PATCH preserves the helper marker and waits for owned readback", async (t) => {
+  for (const uid of ["hybrid-update-fixture", UID]) await t.test(uid === UID ? "Web return" : "Hybrid go", async () => {
+    const f = durableUpdateFixture(uid);
+    if (uid === UID) f.options.travelWriteContext.leg = "return";
+    const result = await f.patch();
+    assert.equal(result.effect, "unknown");
+    assert.equal(result.successful, false);
+    assert.deepEqual(f.stages, ["account", "dispatch", "provider"]);
+    assert.deepEqual(f.dispatches, [{ account_ref_hash: f.options.travelWriteContext.account_ref_hash, command: "calendar.update" }]);
+    assert.deepEqual(f.writes, [{ url: "https://backend.composio.dev/api/v3.1/tools/execute/proxy", method: "POST", body: {
+      user_id: uid, connected_account_id: ACCOUNT_ID,
+      endpoint: "https://www.googleapis.com/calendar/v3/calendars/primary/events/travel-helper-1", method: "PATCH",
+      parameters: [{ name: "If-Match", value: '"etag-before"', type: "header" },
+        { name: "sendUpdates", value: "none", type: "query" }],
+      body: { summary: "[Travel] changed", start: f.args.start, end: f.args.end, location: "Fixture venue" },
+    } }]);
+    assert.equal(result.writeReceipt.command, "calendar.update");
+    assert.equal(result.writeReceipt.phase, "response");
+    assert.equal(result.writeReceipt.provider_event_id, "travel-helper-1");
+    assert.equal(result.writeReceipt.next_action, "owned_readback");
+    assert.equal(result.writeReceipt.retryable, false);
+    assert.equal(f.ledger[0].outcome, "unknown");
+    assert.equal(f.ledger[0].travelWrite.marker_request_id, "2".repeat(64));
+    assert.equal(f.ledger[0].travelWrite.prior_request_fingerprint, "6".repeat(64));
+  });
+});
+
+test("durable Travel update rejects unsafe etags and receipt inputs before dispatch", async (t) => {
+  const scenarios = [
+    ["missing etag", f => { delete f.options.expectedEtag; }],
+    ["empty etag", f => { f.options.expectedEtag = ""; }],
+    ["wildcard etag", f => { f.options.expectedEtag = "*"; }],
+    ["header injection", f => { f.options.expectedEtag = '"etag"\r\nInjected: true'; }],
+    ["different helper", f => { f.options.travelWriteContext.provider_event_id = "other-helper"; }],
+    ["invalid helper", f => { f.args.event_id = "../other"; f.options.travelWriteContext.provider_event_id = "../other"; }],
+    ["missing account hash", f => { delete f.options.travelWriteContext.account_ref_hash; }],
+    ["wrong command", f => { f.options.travelWriteContext.command = "calendar.create"; }],
+    ["old effect", f => { f.options.travelWriteContext.effect = "verified"; }],
+    ["invalid request", f => { f.options.travelWriteContext.request_id = "private source detail"; }],
+    ["missing marker", f => { delete f.options.travelWriteContext.marker_request_id; }],
+    ["invalid prior fingerprint", f => { f.options.travelWriteContext.prior_request_fingerprint = "not-a-hash"; }],
+    ["reused marker", f => { f.options.travelWriteContext.marker_request_id = f.options.travelWriteContext.request_id; }],
+    ["missing callback", f => { delete f.options.beforeDispatch; }],
+    ["missing context", f => { delete f.options.travelWriteContext; }],
+  ];
+  for (const [name, change] of scenarios) await t.test(name, async () => {
+    const f = durableUpdateFixture();
+    change(f);
+    const result = await f.patch();
+    assert.equal(result.successful, false);
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.dispatches.length, 0);
+    assert.equal(JSON.stringify(f.ledger).includes("private"), false);
+  });
+});
+
+test("durable Travel update revalidates tenant ACTIVE account and existing Web controls", async (t) => {
+  const scenarios = [
+    ["missing binding", f => { f.user = null; }],
+    ["changed binding", f => { f.user.calendar_connected_account_id = "ca-other"; }],
+    ["changed hash", f => { f.options.travelWriteContext.account_ref_hash = "a".repeat(64); }],
+    ["other tenant", f => { f.account.user_id = "other-owner"; }],
+    ["inactive", f => { f.account.status = "EXPIRED"; }],
+    ["Web pause", f => { f.controls.dailyAutomationEnabled = false; }],
+    ["Web Telegram row", f => { f.user.telegram_chat_id = 123; }],
+  ];
+  for (const [name, change] of scenarios) await t.test(name, async () => {
+    const f = durableUpdateFixture(name.startsWith("Web") ? UID : undefined);
+    change(f);
+    assert.equal((await f.patch()).effect, "no_effect");
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.dispatches.length, 0);
+  });
+});
+
+test("durable Travel update requires a successful durable dispatch callback", async (t) => {
+  for (const throws of [false, true]) await t.test(throws ? "callback throws" : "CAS lost", async () => {
+    const f = durableUpdateFixture();
+    f.options.beforeDispatch = async () => { if (throws) throw new Error("private CAS detail"); return false; };
+    const result = await f.patch();
+    assert.equal(result.effect, "unknown");
+    assert.equal(result.writeReceipt.error_class, "receipt_not_durable");
+    assert.equal(result.writeReceipt.provider_event_id, "travel-helper-1");
+    assert.equal(f.writes.length, 0);
+    assert.equal(JSON.stringify(f.ledger).includes("private"), false);
+  });
+});
+
+test("durable Travel update keeps the known helper fenced unless the proxy proves an upstream rejection", async (t) => {
+  const scenarios = [
+    ["412", { ok: true, status: 200, body: { status: 412 } }, "no_effect"],
+    ["400", { ok: true, status: 200, body: { status: 400 } }, "no_effect"],
+    ["outer 500", { ok: false, status: 500, body: { status: 412 } }, "unknown"],
+    ["outer 401", { ok: false, status: 401, body: { status: 412 } }, "unknown"],
+    ["string status", { ok: true, status: 200, body: { status: "412" } }, "unknown"],
+    ["missing status", { ok: true, status: 200, body: { data: { id: "travel-helper-1" } } }, "unknown"],
+    ["other helper", { ok: true, status: 200, body: { status: 200, data: { id: "other-helper" } } }, "unknown"],
+    ["unreadable", { ok: true, status: 200, unreadable: true }, "unknown"],
+    ["timeout", { transportError: true }, "unknown"],
+  ];
+  for (const [name, response, effect] of scenarios) await t.test(name, async () => {
+    const f = durableUpdateFixture();
+    f.response = response;
+    const result = await f.patch();
+    assert.equal(result.effect, effect);
+    assert.equal(result.successful, false);
+    assert.equal(result.writeReceipt.command, "calendar.update");
+    assert.equal(result.writeReceipt.provider_event_id, "travel-helper-1");
+    assert.equal(result.writeReceipt.next_action, effect === "no_effect" ? "none" : "owned_readback");
+    assert.equal(f.writes.length, 1);
+    assert.equal(f.dispatches.length, 1);
+    assert.equal(JSON.stringify(f.ledger).includes("private"), false);
+  });
+});
+
 test("owned point GET uses the exact Hybrid account and direct proxy event, including a bare cancellation", async () => {
   for (const cancelled of [false, true]) {
     const uid = "hybrid-point-fixture", eventId = "event-point_20300101T000000Z";
