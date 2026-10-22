@@ -88,14 +88,6 @@ EXACT_CACHE_ROOTS = {
     "bun-cache": "Library/Caches/bun",
     "burrito-cache": "Library/Caches/burrito_file_cache",
     "codex-cache": "Library/Caches/Codex",
-    "codex-runtime-cache": ".cache/codex-runtimes",
-    # Camoufox's downloaded SDK (not a profile) lives at platformdirs.user_cache_dir("camoufox").
-    "camoufox-sdk-cache": "Library/Caches/camoufox",
-    # Camofox is an optional, checksum-pinned fallback fetched by
-    # skills/camofox-browser/fetch.sh.  The complete tree is disposable:
-    # fetch.sh recreates it before use and the runtime never stores provider
-    # session state inside this cache.
-    "camofox-browser-cache": ".cache/life-manager/camofox-browser",
     "daily-driver-cache": ".cache/life-manager-daily-driver",
     "ffmpeg-cache": "Library/Caches/ffmpeg-static-nodejs",
     "google-cache": "Library/Caches/Google",
@@ -1129,6 +1121,8 @@ class HostDiskGovernor:
         parts = relative.parts
         protected_roots = {
             ".claude", ".codex", ".config/ai", ".openclaw/state", ".openclaw/identity",
+            ".cache/codex-runtimes", "Library/Caches/camoufox",
+            ".cache/life-manager/camofox-browser",
             ".openclaw/workspace", ".cloak", "anicca-rtdash", "anicca-monk-factory",
         }
         text = "/".join(parts)
@@ -1956,7 +1950,7 @@ class HostDiskGovernor:
             # safe to drop is that nothing references it, checked during discovery.
             # A regular file has no descendants; os.walk(file) reports ENOTDIR.
             whole_tree_is_the_unit = path.is_file() or item.get("owner") in {
-                "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
+                "browser", "codex-app-updater", "whisper-model-cache",
                 "release-retention", "zombie-worktree", "clang-module-cache", "worktree-dependencies",
                 "test-canary",
             } | set(EXACT_CACHE_ROOTS)

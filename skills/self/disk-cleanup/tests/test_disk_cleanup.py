@@ -89,7 +89,6 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
         "uv-cache": ".cache/uv",
         "bun-cache": "Library/Caches/bun",
         "burrito-cache": "Library/Caches/burrito_file_cache",
-        "codex-runtime-cache": ".cache/codex-runtimes",
         "ffmpeg-cache": "Library/Caches/ffmpeg-static-nodejs",
         "npm-cache": ".npm/_cacache",
         "google-cache": "Library/Caches/Google",
@@ -119,7 +118,7 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
     assert len(result["reclaimed_candidates"]) == 8
-    assert result["reclaimed_candidates_omitted"] == 1
+    assert result["reclaimed_candidates_omitted"] == 0
 
 
 @pytest.mark.parametrize("condition", ["closed", "open", "compiler", "changed"])
@@ -2017,7 +2016,45 @@ def test_open_codex_sparkle_installation_generation_is_preserved(tmp_path: Path)
     assert result["preserved_reasons"] == {"open": 1}
 
 
-def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("owner", "relative", "executable"), (
+    ("codex-runtime-cache", ".cache/codex-runtimes",
+     "codex-primary-runtime/dependencies/node/bin/node"),
+    ("camoufox-sdk-cache", "Library/Caches/camoufox",
+     "Camoufox.app/Contents/MacOS/camoufox"),
+    ("camofox-browser-cache", ".cache/life-manager/camofox-browser",
+     "pinned/source/server.js"),
+))
+def test_closed_runtime_installations_survive_cleanup(
+    tmp_path: Path, monkeypatch, owner, relative, executable,
+) -> None:
+    installation = tmp_path / relative
+    binary = installation / executable
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"installed runtime")
+    temporary = tmp_path / "tmp"
+    temporary.mkdir()
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
+    governor = HostDiskGovernor(
+        home=tmp_path, state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1),
+    )
+    candidates = [item for item in governor.discover_candidates()
+                  if item["path"] == installation]
+    governor.sweep(candidates)
+    assert binary.is_file()
+    assert binary.read_bytes() == b"installed runtime"
+    # Discovery from an older policy must not authorize the installed tree either.
+    stale = governor.sweep([{
+        "path": path, "class": "regenerable_output", "owner": owner,
+        "discovery": "allowlisted",
+    } for path in (installation, binary)])
+    assert binary.is_file()
+    assert binary.read_bytes() == b"installed runtime"
+    assert stale["reclaimed"] == 0
+    assert stale["preserved_reasons"] == {"protected_path": 2}
+
+
+def test_discovery_includes_only_regenerable_download_caches(tmp_path: Path) -> None:
     for relative in (
         ".cache/codex-runtimes",
         ".cache/whisper",
@@ -2030,10 +2067,10 @@ def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path:
 
     owners = {item["owner"]: Path(item["path"]) for item in governor.discover_candidates()}
 
-    assert owners["codex-runtime-cache"] == tmp_path / ".cache/codex-runtimes"
+    assert "codex-runtime-cache" not in owners
     assert owners["whisper-model-cache"] == tmp_path / ".cache/whisper"
-    assert owners["camofox-browser-cache"] == tmp_path / ".cache/life-manager/camofox-browser"
-    assert owners["camoufox-sdk-cache"] == tmp_path / "Library/Caches/camoufox"
+    assert "camofox-browser-cache" not in owners
+    assert "camoufox-sdk-cache" not in owners
     assert owners["swiftpm-cache"] == tmp_path / "Library/Caches/org.swift.swiftpm"
 
 
@@ -2081,64 +2118,6 @@ def test_xcode_derived_data_is_exact_and_requires_closed_lsof(tmp_path: Path) ->
     assert closed_result["protected_deletions"] == 0
 
 
-def test_camoufox_sdk_cache_requires_closed_lsof_before_reclaim(tmp_path: Path) -> None:
-    cache = tmp_path / "Library/Caches/camoufox"
-    executable = cache / "Camoufox.app/Contents/MacOS/camoufox"
-    executable.parent.mkdir(parents=True)
-    executable.write_bytes(b"browser-sdk")
-    (cache / "GeoLite2-City.mmdb").write_bytes(b"database")
-    (cache / "version.json").write_text("{}")
-
-    open_governor = HostDiskGovernor(
-        home=tmp_path,
-        state_dir=tmp_path / "state",
-        lsof=lambda _path: "open",
-        usage=lambda: (0, 1),
-    )
-    open_candidates = [
-        item for item in open_governor.discover_candidates()
-        if item["owner"] == "camoufox-sdk-cache"
-    ]
-    assert len(open_candidates) == 1
-    open_result = open_governor.sweep(open_candidates)
-    assert cache.exists()
-    assert open_result["preserved_reasons"] == {"open": 1}
-
-    closed_governor = HostDiskGovernor(
-        home=tmp_path,
-        state_dir=tmp_path / "state",
-        lsof=lambda _path: "confirmed-closed",
-        usage=lambda: (0, 1),
-    )
-    closed_candidates = [
-        item for item in closed_governor.discover_candidates()
-        if item["owner"] == "camoufox-sdk-cache"
-    ]
-    closed_result = closed_governor.sweep(closed_candidates)
-    assert not cache.exists()
-    assert closed_result["errors"] == 0
-
-
-def test_closed_camofox_fallback_cache_with_source_is_reclaimed(tmp_path: Path) -> None:
-    cache = tmp_path / ".cache/life-manager/camofox-browser"
-    source = cache / "pinned/source"
-    source.mkdir(parents=True)
-    (source / "server.js").write_bytes(b"x" * 32)
-    governor = HostDiskGovernor(
-        home=tmp_path,
-        state_dir=tmp_path / "state",
-        lsof=lambda _path: "confirmed-closed",
-        usage=lambda: (0, 1),
-    )
-
-    candidates = [item for item in governor.discover_candidates()
-                  if item["owner"] == "camofox-browser-cache"]
-    result = governor.sweep(candidates)
-
-    assert not cache.exists()
-    assert result["reclaimed"] == 32
-
-
 def test_open_whisper_cache_is_preserved(tmp_path: Path) -> None:
     cache = tmp_path / ".cache/whisper"
     cache.mkdir(parents=True)
@@ -2156,26 +2135,6 @@ def test_open_whisper_cache_is_preserved(tmp_path: Path) -> None:
 
     assert cache.exists()
     assert result["preserved_reasons"] == {"open": 1}
-
-
-def test_closed_exact_runtime_cache_with_source_named_dependency_is_reclaimed(tmp_path: Path) -> None:
-    cache = tmp_path / ".cache/codex-runtimes"
-    dependency = cache / "dependencies/source"
-    dependency.mkdir(parents=True)
-    (dependency / "payload.bin").write_bytes(b"x" * 32)
-    governor = HostDiskGovernor(
-        home=tmp_path,
-        state_dir=tmp_path / "state",
-        lsof=lambda _path: "confirmed-closed",
-        usage=lambda: (0, 1),
-    )
-
-    candidates = [item for item in governor.discover_candidates()
-                  if item["owner"] == "codex-runtime-cache"]
-    result = governor.sweep(candidates)
-
-    assert not cache.exists()
-    assert result["reclaimed"] == 32
 
 
 def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
