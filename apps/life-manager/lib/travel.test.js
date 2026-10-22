@@ -661,7 +661,7 @@ async function withDurableTravelFixture(run) {
     extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
     ledgerSaved: true, onDispatch: null, rejectDelete: false, pointReads: [], pointSource: null,
     pointHelper: null, pointFailure: null, patchResponse: "success", patchVisible: true, onPatch: null,
-    phaseAtPatch: null };
+    phaseAtPatch: null, telegramChatId: 123 };
   const clone = (value) => structuredClone(value);
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -669,7 +669,7 @@ async function withDurableTravelFixture(run) {
     const body = init.body && JSON.parse(init.body);
     const response = (value, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => clone(value) });
     if (url.hostname === "db.example") {
-      if (url.pathname.endsWith("/lm_users")) return response([{ uid, telegram_chat_id: 123,
+      if (url.pathname.endsWith("/lm_users")) return response([{ uid, telegram_chat_id: state.telegramChatId,
         calendar_provider: "composio_gcal", calendar_connected_account_id: accountId }]);
       assert.equal(url.pathname, "/rest/v1/lm_travel_log");
       const eventKey = body?.event_key || url.searchParams.get("event_key")?.replace(/^eq\./, "");
@@ -1567,5 +1567,28 @@ test("CLD03b2 a source changed during route planning prevents dispatch", async (
     assert.equal(f.patches.length, 0);
     assert.equal(f.creates.length, 1);
     assert.deepEqual(f.deletes, []);
+  });
+});
+
+
+test("CLD03b2 target fingerprint preserves the helper reminder when account selection becomes explicit", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    assert.equal(createdTravelRow(f.creates[0]).reminders, undefined);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    f.state.telegramChatId = null;
+    const options = { ...f.options, expectedCalendarAccountId: "ca-hybrid-fixture" };
+    const result = await fillTravel(f.uid, options);
+    assert.equal(result.updated, 1);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.equal(f.state.pointHelper.reminders, undefined);
+    assert.equal(f.patches.length, 1);
+    const replay = await fillTravel(f.uid, options);
+    assert.equal(replay.updated || 0, 0);
+    assert.equal(f.patches.length, 1);
+    assert.equal(f.creates.length, 1);
   });
 });

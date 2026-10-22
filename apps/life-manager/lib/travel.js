@@ -922,7 +922,8 @@ async function updateTravelBlock(uid, ev, eventKey, leg, write, cal, opts, candi
   const receipt = { ...prior, request_id: travelHash([uid, eventKey, leg, randomUUID()]),
     marker_request_id: prior.marker_request_id || prior.request_id,
     prior_request_fingerprint: travelRequestFingerprint(candidate.helper),
-    source_event_version: ev.sourceEventVersion, request_fingerprint: travelRequestFingerprint(write),
+    source_event_version: ev.sourceEventVersion,
+    request_fingerprint: travelRequestFingerprint({ ...write, reminders: candidate.helper.reminders }),
     command: "calendar.update", phase: "dispatching", effect: "unknown", runtime_trace: opts.runtimeTrace,
     http_status: null, error_class: null, readback: null, evidence_ref: null, next_action: "owned_readback" };
   let durable = false;
