@@ -82,6 +82,65 @@ class DurableSessionIntent(unittest.TestCase):
         self.assertEqual(result.input_tokens,10)
         self.assertEqual(result.status,"completed")
 
+    def test_create_journal_claimed_before_network_and_never_blind_retried(self):
+        from manager_core.ampersand_api import read_initial_turn
+        with TemporaryDirectory() as d:
+            j = SessionJournal(Path(d) / "state.sqlite")
+            calls = []
+            def broken_create(**kwargs):
+                calls.append(kwargs)
+                raise RuntimeError("simulated lost response after possible create")
+            sessions = SimpleNamespace(create=broken_create)
+            client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
+            with self.assertRaises(SessionFailure):
+                read_initial_turn(client, "fictional test", journal=j, request_id="req_lost")
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0]["metadata"]["manager_request_id"], "req_lost")
+            self.assertEqual(j.get("req_lost").status, "UNKNOWN")
+
+    def test_unknown_provider_creation_is_not_repeated(self):
+        from manager_core.ampersand_api import read_initial_turn
+        with TemporaryDirectory() as d:
+            j = SessionJournal(Path(d) / "state.sqlite")
+            calls = []
+            def broken_create(**kwargs):
+                calls.append(kwargs)
+                raise RuntimeError("simulated network lost")
+            client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=
+                SimpleNamespace(create=broken_create))))
+            with self.assertRaises(SessionFailure):
+                read_initial_turn(client, "fictional test", journal=j, request_id="req_retry")
+            with self.assertRaises(SessionFailure):
+                read_initial_turn(client, "fictional test", journal=j, request_id="req_retry")
+            self.assertEqual(len(calls), 1)
+
+    def test_successful_provider_creation_binds_exact_returned_id(self):
+        from manager_core.ampersand_api import read_initial_turn
+        class Stream:
+            def __enter__(self): return self
+            def __exit__(self, *x): return None
+            def __iter__(self):
+                yield SimpleNamespace(type="agent.session.idle")
+            def get_final_result(self):
+                return SimpleNamespace(session_id="sess_12345678", output_text="ok")
+        calls=[]
+        def create(**kw):
+            calls.append(kw)
+            return SimpleNamespace(with_result_collection=lambda: Stream())
+        turn=SimpleNamespace(id="turn_12345678",status="completed",usage=SimpleNamespace(
+            input_tokens=11,output_tokens=4))
+        sessions=SimpleNamespace(
+            create=create,
+            turns=SimpleNamespace(list=lambda *args,**kwargs: SimpleNamespace(data=[turn])))
+        client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
+        with TemporaryDirectory() as d:
+            j=SessionJournal(Path(d)/"state.sqlite")
+            result=read_initial_turn(client,"fictional test",journal=j,request_id="req_success")
+            self.assertEqual(result.session_id,"sess_12345678")
+            self.assertEqual(j.get("req_success").status,"BOUND")
+            self.assertEqual(j.get("req_success").session_id,"sess_12345678")
+            self.assertEqual(calls[0]["metadata"]["manager_request_id"],"req_success")
+
     def test_missing_session_and_invalid_ids_fail_closed(self):
         with TemporaryDirectory() as d:
             j=SessionJournal(Path(d)/"state.sqlite")
