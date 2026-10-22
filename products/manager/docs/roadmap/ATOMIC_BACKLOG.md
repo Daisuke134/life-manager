@@ -2,7 +2,7 @@
 
 Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 69 · Todo: 41 · Blocked: 2 · Skipped: 1
+Total: 113 · Done: 69 · Todo: 41 · Blocked: 0 · Skipped: 3
 
 ✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -109,12 +109,12 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `F001` | K014 | 現実の行動には権限が必要と説明する | finance/environment各候補にoperator, rights, metric, feasibilityを記入 | 必須権限がなくてもpilot可能と主張しない |
 | ✅ `F002` | F001, L010 | 一次アウトカムと副作用を事前固定する | pilot/PREREGISTRATION.mdにunit/comparator/n/duration/outcome | 「成功した後に指標を選ぶ」ことを禁止 |
 | ✅ `F003` | F002 | 仮想テストと現実証明を分離する | finance read-only adapterと初期fixtureを実装 | 公開送金/公開台帳を第三者でreadbackできる |
-| ⛔ `F004` | F003, K007 | 予算・運営者承諾を確認する | 実行主体の明示的な権限と厳密な限度を持つ | 権限/資金/第三者事前同意が揃うまではblocked **外部条件:** 資金の管理主体、明示承認、受益と評価の公開性が必要 |
-| ⬜ `F005` | F004, K009 | 現実の公開receiptを照合する | 限定的な初回の実行と外部独立読み戻し | 実行の事実P1と状態変化P2まで独立確認 |
-| ⬜ `F006` | F005, K011 | 因果効果・費用・害を報告する | primary outcome+CI+null evidenceのレポート | P3/P4に届かないものは明示し、sample数不足はinconclusive |
-| ⛔ `F007` | F001 | 環境への操作権限と公開センサーの限界を理解する | 公開屋内センサー＋設備所有者の承諾を得る | 器具制御と観測には所有者の許諾が必須 **外部条件:** 適切な共有施設、屋内センサー、管理者の明示承認 |
-| ⬜ `F008` | F007, K010 | 外気や自然変動との交絡を理解する | 曝露を許可された条件で変更し独立屋内センサーで比較 | PM2.5と電力/騒音の両方を記録 |
-| ⬜ `F009` | F006, F008 | 汎用性を実証するには領域間再現が必要と学ぶ | 二領域の評価レポートを同じ形式で生成 | 同じkernelで安全不変条件を維持したP2+を両領域で示す |
+| ⏭️ `F004` | F003, K007 | 資金管理者の許可待ちをManager開発の前提にしない | 旧・第三者の資金管理者承認と寄付予算取得の実地試験を必須ルートから廃止。所有サイトの情報環境改善へ移行 | 旧試験は未実施のまま履歴へ保存。実送金や外部資金確保を完了と主張せず、依存経路から除外 **Waiver (not completed):** 2026-10-22 founder-requested scope revision: external finance operators, transfers and allocated funds are not prerequisites for first-party digital Manager. Original finance field trial retired, NOT completed. |
+| ⬜ `F005` | F003, K009 | 所有する公開デジタル環境の実更新と外部readbackを区別する | Manager所有の公式情報案内ページを限定公開し、実際の提供者commitと配信中のSHA256を独立照合 | 提供者receipt P1＋公開ページ外部GET P2＋NO_ACTION replay-zeroと他のパス不変。人の便益はNOT_MEASURED |
+| ⬜ `F006` | F005, K011 | 公開コンテンツの状態変化と人の苦しみの減少を混同しない | 公開ページ変化、初期状態、比較対象、欠測、費用、害を版付きで報告。人間アウトカムと因果効果の未測定を明示 | P1/P2出典・SHA・時刻を確認。利用者のP3/P4はNOT_MEASURED、標本がないのに信頼区間を捏造しない |
+| ⏭️ `F007` | F001 | 屋内設備介入なしに情報アクセス環境を改善する | 旧・共有屋内施設やセンサーの取得・操作権限の確保を必須ルートから廃止。所有オンライン案内面の改善へ移行 | 旧屋内試験は未実施のまま履歴保存。屋内の曝露・疾患改善を主張せず、F008の依存を解除 **Waiver (not completed):** 2026-10-22 founder-requested scope revision: physical facilities and indoor sensors are unnecessary prerequisites to a first-party digital environmental intervention. Original indoor field trial retired, NOT completed. |
+| ⬜ `F008` | F005, K010 | 対象の異なる所有オンライン環境の変化を別々に観測する | 金融案内とは別の公開情報アクセス面で改善を確認し、固有URL・SHA・独立GET・差分・復元可能性を記録 | 異なる2ページで外部読み戻しP2。室内センサーも施設許可も要求せず、人への因果効果は未測定 |
+| ⬜ `F009` | F006, F008 | ひとつの共通カーネルで異なる情報アクセス面を監査する | 所有サイト上の対象2件のP2証拠、共通NO_ACTION・公開release・検証・限界を統合レポートにまとめる | 同一kernelと独立GETで対象2件を証明。人への便益はNOT_MEASURED、2ページを独立した人間試験と数えない |
 
 ## 07. 研究発表・説明責任
 
