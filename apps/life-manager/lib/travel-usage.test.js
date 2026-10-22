@@ -436,8 +436,11 @@ test("Google Directions body failures retain their class and suppress paid repla
     ["UNKNOWN_ERROR", 400, "provider_4xx", 86_400_000],
     ["UNKNOWN_ERROR", 429, "provider_4xx", 86_400_000],
     ["ZERO_RESULTS", 503, "provider_5xx", 120_000],
+    ["non-json", 429, "provider_4xx", 86_400_000, true],
+    ["non-json", 503, "provider_5xx", 120_000, true],
+    ["non-json", 200, "network", 120_000, true],
   ];
-  for (const [providerStatus, httpStatus, failureClass, ttlMs] of scenarios) {
+  for (const [providerStatus, httpStatus, failureClass, ttlMs, invalidJson = false] of scenarios) {
     await t.test(`${httpStatus}/${providerStatus}`, async () => {
       const oldFetch = globalThis.fetch;
       const events = [], store = new Map();
@@ -445,7 +448,10 @@ test("Google Directions body failures retain their class and suppress paid repla
       globalThis.fetch = async () => {
         calls += 1;
         return calls === 1 ? { ok: httpStatus < 400, status: httpStatus,
-          json: async () => ({ status: providerStatus, routes: [], error_message: "fixture provider detail" }) }
+          json: async () => {
+            if (invalidJson) throw new SyntaxError("fixture provider detail");
+            return { status: providerStatus, routes: [], error_message: "fixture provider detail" };
+          } }
           : { ok: true, status: 200,
             json: async () => ({ status: "OK", routes: [{ legs: [{ duration: { value: 600 } }] }] }) };
       };
@@ -489,8 +495,11 @@ test("Geocoding body failures use the existing transient or negative suppression
     ["OVER_DAILY_LIMIT", "provider_4xx", 1_800_000],
     ["ZERO_RESULTS", "no_route", 1_800_000],
     ["UNRECOGNIZED_STATUS", "network", 120_000],
+    ["non-json-429", "provider_4xx", 1_800_000, 429, true],
+    ["non-json-503", "provider_5xx", 120_000, 503, true],
+    ["non-json-200", "network", 120_000, 200, true],
   ];
-  for (const [providerStatus, failureClass, ttlMs] of scenarios) {
+  for (const [providerStatus, failureClass, ttlMs, httpStatus = 200, invalidJson = false] of scenarios) {
     await t.test(providerStatus, async () => {
       const oldFetch = globalThis.fetch, oldNow = Date.now;
       const events = [];
@@ -498,9 +507,12 @@ test("Geocoding body failures use the existing transient or negative suppression
       Date.now = () => now;
       globalThis.fetch = async () => {
         calls += 1;
-        return { ok: true, status: 200, json: async () => calls === 1
-          ? { status: providerStatus, results: [], error_message: "fixture provider detail" }
-          : { status: "OK", results: [{ geometry: { location: { lat: 35.68, lng: 139.76 } } }] } };
+        return { ok: calls > 1 || httpStatus < 400, status: calls > 1 ? 200 : httpStatus, json: async () => {
+          if (calls === 1 && invalidJson) throw new SyntaxError("fixture provider detail");
+          return calls === 1
+            ? { status: providerStatus, results: [], error_message: "fixture provider detail" }
+            : { status: "OK", results: [{ geometry: { location: { lat: 35.68, lng: 139.76 } } }] };
+        } };
       };
       const usage = { tenantId: "tenant-geocode-body-status", options: { _geocodeCacheStore: null,
         _recordUsageEvent: async (event) => { events.push(event); return true; } } };

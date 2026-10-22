@@ -299,7 +299,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
   }
   try {
     const r = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${p}`);
-    const j = await r.json();
+    const j = r.ok === false ? {} : await r.json();
     const accepted = r.ok !== false && j.status === "OK" && j.routes && j.routes[0]
       && j.routes[0].legs && j.routes[0].legs[0];
     if (!accepted) noteProviderFailure(usage, providerFailureClass(r, j.status));
@@ -410,7 +410,7 @@ async function geocodeAddress(addr, mapsKey, usage = {}) {
     try {
       const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${mapsKey}`;
       const response = await fetch(u);
-      const j = await response.json();
+      const j = response.ok === false ? {} : await response.json();
       const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
       const providerSucceeded = response && response.ok !== false && j && j.status === "OK";
       const candidate = providerSucceeded && loc ? { lat: loc.lat, lon: loc.lng } : null;
