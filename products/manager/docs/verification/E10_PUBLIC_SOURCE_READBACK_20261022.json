@@ -1,0 +1,33 @@
+{
+  "schema": "manager.e10.readonly-source.v1",
+  "stable_source": {
+    "source_id": "govuk-robots",
+    "url": "https://www.gov.uk/robots.txt",
+    "collected_at": "2026-10-22T11:06:55.645419+00:00",
+    "bytes": 1097,
+    "body_sha256": "459835d29527b9c00f00f6af00f45c73a909af1944e81fefa153f585e1857305",
+    "etag": "\"6ad9c6df-449\"",
+    "last_modified": "Thu, 22 Oct 2026 08:18:39 GMT",
+    "transport_scope": "PLATFORM_TLS_HTTPS_READONLY",
+    "second_fetch_changed": false
+  },
+  "primary_accessibility_page": {
+    "url": "https://www.gov.uk/help/accessibility-statement",
+    "body_hashes": [
+      "33003d40873bec8cf051b0c058ca847f92214501324b557cbcc8c2f57e93769d",
+      "66f3c5ef61ddb8bfd84a752e1fe0c6aac77b655c7f9a8ac1738cda0ef5f350a0"
+    ],
+    "body_bytes": [
+      83281,
+      83281
+    ],
+    "raw_bytes_changed": true,
+    "inspected_difference": "Public anti-CSRF and CSP nonce metadata; raw hashes retained, not normalized into false equality.",
+    "actual_licence_footer_present": true
+  },
+  "rights_source": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+  "licence_scope": "GOV.UK site OGL conditions; exclusions remain separate",
+  "proof_level": "P0",
+  "human_outcome": "NOT_MEASURED",
+  "limitation": "TLS source acquisition is not source-truth/PII authentication; DNS preflight is not proxy address pinning."
+}

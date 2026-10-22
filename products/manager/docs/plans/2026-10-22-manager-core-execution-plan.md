@@ -135,7 +135,7 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 ## E10 — Public-source observer with bounded acquisition
 
 **Files:** Create `manager_core/public_observer.py`, `config/public-sources.json`, `tests/test_public_observer.py`. **Depends:** E03. **Maps:** F001/F002 support,U005.
-**Interfaces:** `fetch_snapshot(spec: PublicSourceSpec, now: datetime, transport) -> ObservedSnapshot | FetchFailure`.
+**Interfaces:** `fetch_snapshot(spec: PublicSourceSpec, now: datetime, transport) -> FetchedSnapshot | FetchFailure`; `FetchedSnapshot.observation` is the existing `ObservedSnapshot`, with exact bytes and HTTP/cache metadata retained separately. Neither wrapper nor hash authenticates truth or grants execution.
 - [ ] RED tests unchanged ETag304, redirect to private IP, unapproved domain, >1MiB, timeout15s, empty body, malformed timestamp, rights not allowed, byte-hash mismatch.
 - [ ] Run RED with local HTTP fixture; never send sensitive input to a scrape provider.
 - [ ] Implement HTTPS host/IP and redirect validation, source rights, UTC/hash, conditional fetch and bounded body. Retain facts only from original official pages; retrieval error creates explicit missing observation.
