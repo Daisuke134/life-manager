@@ -632,7 +632,7 @@ async function withDurableTravelFixture(run) {
   const updates = [];
   const state = { visible: true, response: "timeout", rejectPhase: null, wrongTenant: false,
     extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
-    ledgerSaved: true, onDispatch: null };
+    ledgerSaved: true, onDispatch: null, rejectDelete: false };
   const clone = (value) => structuredClone(value);
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -664,7 +664,16 @@ async function withDurableTravelFixture(run) {
         Object.assign(row, clone(body));
         return response([row]);
       }
-      if (method === "DELETE") { deletes.push(key); rows.delete(key); return response(null, 204); }
+      if (method === "DELETE") {
+        deletes.push(key);
+        if (state.rejectDelete) return response(null, 503);
+        const row = rows.get(key);
+        const requestId = url.searchParams.get("calendar_write_receipt->>request_id")?.replace(/^eq\./, "");
+        if (requestId) assert.equal(url.searchParams.get("calendar_write_receipt->>effect"), "eq.no_effect");
+        if (requestId && (row?.calendar_write_receipt?.request_id !== requestId
+          || row.calendar_write_receipt.effect !== "no_effect")) return response(null, 204);
+        rows.delete(key); return response(null, 204);
+      }
       if (state.hideClaimReads-- > 0) return response([]);
       return response([...rows.values()].filter((row) => row.uid === uid && row.event_key === eventKey && (!leg || row.leg === leg)));
     }
@@ -801,7 +810,7 @@ test("CLD02 a late unknown response cannot overwrite another wake's verified rec
   });
 });
 
-test("CLD02 exact validation rejection releases only after its durable cost evidence; opaque rejection stays unknown", async () => {
+test("CLD02 exact validation rejection releases its durable attempt; opaque rejection stays unknown", async () => {
   for (const scenario of ["validation", "validation-ledger-failed", "unclassified-4xx"]) {
     await withDurableTravelFixture(async (f) => {
       f.state.visible = false;
@@ -812,12 +821,58 @@ test("CLD02 exact validation rejection releases only after its durable cost evid
       assert.equal(receipt.http_status, 400);
       assert.equal(receipt.effect, scenario === "unclassified-4xx" ? "unknown" : "no_effect");
       assert.equal(receipt.error_class, scenario === "unclassified-4xx" ? "unclassified_response" : "provider_validation");
-      assert.equal(f.deletes.length, scenario === "validation" ? 1 : 0);
-      if (scenario !== "validation") {
+      assert.equal(f.deletes.length, scenario.startsWith("validation") ? 1 : 0);
+      if (scenario === "unclassified-4xx") {
         const before = f.creates.length;
         await fillTravel(f.uid, f.options);
         assert.equal(f.creates.length, before);
       }
+    });
+  }
+});
+
+test("CLD02 proven no-effect releases despite best-effort cost failure and retries a failed scoped delete", async () => {
+  for (const scenario of ["cost-failed", "delete-failed"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      f.state.response = "validation";
+      f.state.ledgerSaved = scenario !== "cost-failed";
+      f.state.rejectDelete = scenario === "delete-failed";
+      await fillTravel(f.uid, f.options);
+      if (scenario === "cost-failed") assert.equal(f.rows.has("synthetic-source:go"), false);
+      else assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "no_effect");
+      f.state.rejectDelete = false;
+      f.state.ledgerSaved = true;
+      f.state.response = "timeout";
+      f.calendar.listEventsRaw = async () => [structuredClone(f.source)];
+      await fillTravel(f.uid, f.options);
+      assert.equal(f.creates.length, 2, scenario);
+      assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "unknown", scenario);
+      await fillTravel(f.uid, f.options);
+      assert.equal(f.creates.length, 2, "an uncertain new attempt must stay fenced");
+    });
+  }
+});
+
+test("CLD02 official source revision overrides a stale ordinary reader before verifying its helper", async () => {
+  for (const scenario of ["changed", "cancelled", "absent"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.visible = false;
+      await fillTravel(f.uid, f.options);
+      const cached = structuredClone(f.source);
+      f.calendar.listEventsRaw = async () => [cached];
+      f.state.visible = true;
+      const ownedList = f.calendar.listOwnedEvents.bind(f.calendar);
+      f.calendar.listOwnedEvents = async (...args) => (await ownedList(...args))
+        .filter((event) => scenario !== "absent" || event.id !== f.source.id)
+        .map((event) => event.id !== f.source.id ? event : scenario === "changed"
+          ? { ...event, start: { dateTime: "2030-01-01T12:00:00Z" } }
+          : scenario === "cancelled" ? { ...event, status: "cancelled" } : event);
+      const result = await fillTravel(f.uid, f.options);
+      assert.equal(result.verified, 0, scenario);
+      assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "unknown", scenario);
+      assert.equal(f.creates.length, 1, scenario);
+      assert.deepEqual(f.deletes, [], scenario);
     });
   }
 });

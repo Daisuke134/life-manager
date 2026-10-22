@@ -31,7 +31,7 @@ DO $$ BEGIN
         AND (calendar_write_receipt->>'readback' IS NULL OR calendar_write_receipt->>'readback' IN ('exact_one','absent','ambiguous','error'))
         AND (calendar_write_receipt->>'evidence_ref' IS NULL OR calendar_write_receipt->>'evidence_ref' ~ '^calendar-event:[a-f0-9]{64}$')
         AND coalesce(calendar_write_receipt->>'retryable','')='false'
-        AND coalesce(calendar_write_receipt->>'next_action','') IN ('owned_readback','persist_cost_receipt','none')
+        AND coalesce(calendar_write_receipt->>'next_action','') IN ('owned_readback','release_claim','none')
         AND (calendar_write_receipt->>'phase'<>'claimed' OR (calendar_write_receipt->>'effect'='unknown'
           AND calendar_write_receipt->>'account_ref_hash' IS NULL))
         AND (calendar_write_receipt->>'phase'<>'dispatching' OR (calendar_write_receipt->>'effect'='unknown'

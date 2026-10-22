@@ -41,6 +41,11 @@ function travelHash(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+function sourceEventVersion(event) {
+  return travelHash([event.id, event.etag, event.updated, event.sequence, event.status,
+    event.start, event.end, event.summary, event.location, event.description, event.recurringEventId, event.originalStartTime]);
+}
+
 function eventVersionMeta(usage) {
   const eventVersion = usage && usage.eventVersion;
   return typeof eventVersion === "string" && OPAQUE_EVENT_VERSION.test(eventVersion)
@@ -172,8 +177,7 @@ async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { stri
     id: e.id || "",                                   // C-H1: stable per-event key for the atomic claim ledger
     summary: e.summary || "",
     location: e.location || "",
-    sourceEventVersion: travelHash([e.id, e.etag, e.updated, e.sequence, e.status,
-      e.start, e.end, e.summary, e.location, e.description, e.recurringEventId, e.originalStartTime]),
+    sourceEventVersion: sourceEventVersion(e),
     ...(isTravel(e.summary) && (e.description === LIFE_MANAGER_TRAVEL_DESCRIPTION
       || String(e.description || "").startsWith(`${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}`)
         && OPAQUE_EVENT_VERSION.test(String(e.description).slice(`${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}`.length)))
@@ -825,12 +829,18 @@ async function saveTravelWriteReceipt(uid, eventKey, receipt, supaUrl, supaKey, 
 async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, receipt) {
   const unknown = { status: "unknown" };
   if (!receipt || receipt.schema_version !== 1 || receipt.leg !== leg
-    || receipt.source_event_hash !== travelHash([uid, eventKey]) || receipt.source_event_version !== ev.sourceEventVersion
+    || receipt.source_event_hash !== travelHash([uid, eventKey])
+    || !OPAQUE_EVENT_VERSION.test(receipt.request_id || "")) return unknown;
+  if (receipt.effect === "no_effect" && receipt.phase === "response" && receipt.command === "calendar.create"
+    && ["provider_validation", "account_binding_unavailable", "web_automation_paused"].includes(receipt.error_class)) {
+    return await unclaimTravel(uid, eventKey, leg, opts.supaUrl, opts.supaKey, receipt.request_id)
+      ? { status: "released" } : unknown;
+  }
+  if (receipt.source_event_version !== ev.sourceEventVersion
     || ![receipt.request_id, receipt.request_fingerprint, receipt.account_ref_hash].every((value) => OPAQUE_EVENT_VERSION.test(value || ""))
     || !["dispatching", "response", "readback"].includes(receipt.phase)
     || typeof calendar.listOwnedEvents !== "function") return unknown;
   if (receipt.effect === "verified" || receipt.effect === "created") return { status: "already_verified" };
-  if (receipt.effect === "no_effect") return { status: "already_no_effect" };
   let matches;
   try {
     const events = await calendar.listOwnedEvents(uid, {
@@ -839,6 +849,8 @@ async function reconcileTravelBlock(uid, ev, eventKey, leg, calendar, opts, rece
       accountRefHash: receipt.account_ref_hash, supaUrl: opts.supaUrl, supaKey: opts.supaKey,
       ...(opts.expectedCalendarAccountId ? { expectedCalendarAccountId: opts.expectedCalendarAccountId } : {}),
     });
+    const sources = events.filter((event) => event && event.id === ev.id && event.status !== "cancelled");
+    if (sources.length !== 1 || sourceEventVersion(sources[0]) !== receipt.source_event_version) return unknown;
     matches = events.filter((event) => event && event.status !== "cancelled" && isTravel(event.summary)
       && event.description === `${LIFE_MANAGER_TRAVEL_DESCRIPTION}${TRAVEL_RECEIPT_MARKER}${receipt.request_id}`
       && travelRequestFingerprint(event) === receipt.request_fingerprint
@@ -892,16 +904,14 @@ async function createTravelBlock(uid, ev, eventKey, leg, write, cal, opts) {
     : result?.effect === "unknown" || result?.successful !== true ? "unknown" : "created";
   if (receipt) {
     const response = { ...receipt, ...(result?.writeReceipt || {}), phase: "response", effect: status,
-      next_action: status === "created" || status === "no_effect" && result?.costReceiptSaved === true ? "none"
-        : status === "no_effect" ? "persist_cost_receipt" : "owned_readback" };
+      next_action: status === "created" ? "none" : status === "no_effect" ? "release_claim" : "owned_readback" };
     // A missing dispatch/response contract cannot authorize clearing a durable fence.
     if (!result?.writeReceipt || result.writeReceipt.error_class === "receipt_not_durable"
       || !await saveTravelWriteReceipt(uid, eventKey, response, opts.supaUrl, opts.supaKey)) status = "unknown";
     else receipt = response;
     if (status === "unknown") return reconcileTravelBlock(uid, ev, eventKey, leg, cal, opts, receipt);
   }
-  return { status, ...(receipt ? { requestId: receipt.request_id,
-    retainClaim: status === "no_effect" && result?.costReceiptSaved !== true } : {}) };
+  return { status, ...(receipt ? { requestId: receipt.request_id } : {}) };
 }
 
 // Returns { inserted, verified, checked, skipped }. home = lm_users.home_address (may be null → first-of-day
@@ -926,7 +936,10 @@ async function claimTravel(uid, eventKey, leg, supaUrl, supaKey, writeReceipt = 
 async function unclaimTravel(uid, eventKey, leg, supaUrl, supaKey, requestId) {
   if (!supaUrl || !supaKey) return false;
   const url = travelClaimUrl(uid, eventKey, supaUrl, leg);
-  if (requestId) url.searchParams.set("calendar_write_receipt->>request_id", `eq.${requestId}`);
+  if (requestId) {
+    url.searchParams.set("calendar_write_receipt->>request_id", `eq.${requestId}`);
+    url.searchParams.set("calendar_write_receipt->>effect", "eq.no_effect");
+  }
   const response = await fetch(url.toString(), {
     method: "DELETE",
     headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, Prefer: "return=minimal" },
@@ -1007,11 +1020,14 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // C-H1: atomic claim key per (event, leg). Prefer the gcal event id (stable + unique). Fallback to
     // startMs:summary (NOT startMs alone — two different same-user events can share a start time, FIND-001).
     const evKey = String(ev.id || `${ev.startMs}:${ev.summary || ""}`);
-    const priorClaims = cal.kind === "composio" ? await readTravelClaims(uid, evKey, supaUrl, supaKey) : [];
+    let priorClaims = cal.kind === "composio" ? await readTravelClaims(uid, evKey, supaUrl, supaKey) : [];
+    const retainedClaims = [];
     for (const row of priorClaims || []) {
       const reconciliation = await reconcileTravelBlock(uid, ev, evKey, row.leg, cal, writeOptions, row.calendar_write_receipt);
       if (reconciliation.status === "verified") verified++;
+      if (reconciliation.status !== "released") retainedClaims.push(row);
     }
+    if (priorClaims !== null) priorClaims = retainedClaims;
     const priorGo = priorClaims && priorClaims.some((row) => row.leg === "go");
     const priorReturn = priorClaims && priorClaims.some((row) => row.leg === "return");
     const goReconciliationPending = priorGo && !["created", "verified"].includes(
@@ -1232,7 +1248,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
                 }
               } else if (write.status === "no_effect") {
                 skipped++;
-                if (!write.retainClaim) await unclaimTravel(uid, evKey, "go", supaUrl, supaKey, write.requestId);
+                await unclaimTravel(uid, evKey, "go", supaUrl, supaKey, write.requestId);
                 await releaseAllowance(evKey, allowanceState);
               } else {
                 skipped++;
@@ -1313,7 +1329,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
         }
       } else if (write.status === "no_effect") {
         skipped++;
-        if (!write.retainClaim) await unclaimTravel(uid, evKey, "return", supaUrl, supaKey, write.requestId);
+        await unclaimTravel(uid, evKey, "return", supaUrl, supaKey, write.requestId);
         await releaseAllowance(evKey, returnAllowanceState);
       } else {
         skipped++;

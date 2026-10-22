@@ -40,6 +40,9 @@ INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt)
 SELECT 'tenant-a','future','go',receipt FROM receipt_fixture;
 INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt)
 SELECT 'tenant-b','future','go',receipt FROM receipt_fixture;
+INSERT INTO public.lm_travel_log(uid,event_key,leg,calendar_write_receipt)
+SELECT 'tenant-a','no-effect','go',receipt || jsonb_build_object('phase','response','effect','no_effect',
+  'error_class','account_binding_unavailable','next_action','release_claim') FROM receipt_fixture;
 DO $$ DECLARE n integer; invalid jsonb; BEGIN
   IF (SELECT count(*) FROM public.lm_travel_log WHERE event_key='legacy' AND calendar_write_receipt IS NULL) <> 2 THEN
     RAISE EXCEPTION 'legacy rows changed';
