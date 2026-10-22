@@ -162,7 +162,7 @@ async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { stri
     ...(strict ? { strict: true } : {}),
     ...(expectedCalendarAccountId ? { expectedCalendarAccountId } : {}),
   });
-  return items.filter((e) => interpretCalendarEvent(e).decision !== "no_call").map((e) => ({
+  return items.filter((e) => !["no_call", "online"].includes(interpretCalendarEvent(e).decision)).map((e) => ({
     id: e.id || "",                                   // C-H1: stable per-event key for the atomic claim ledger
     summary: e.summary || "",
     location: e.location || "",

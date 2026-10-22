@@ -135,6 +135,31 @@ test("shared event reader carries the expected account into its Calendar operati
   assert.equal(bounds.expectedCalendarAccountId, "ca-expected");
 });
 
+test("CLD03 online-only events make no route, origin, allowance, or Calendar write while hybrid venues remain eligible", async () => {
+  const base = { id: "synthetic-mode", summary: "Fixture meeting", start: { dateTime: "2030-01-01T10:00:00Z" },
+    end: { dateTime: "2030-01-01T11:00:00Z" } };
+  for (const [scenario, fields] of Object.entries({
+    url: { location: "https://meet.google.com/fixture" },
+    conference: { conferenceData: { entryPoints: [{ uri: "https://meet.google.com/fixture" }] } },
+    explicit: { location: "オンライン: https://example.com/ticket" },
+    hybrid: { location: "Fixture Hall", hangoutLink: "https://meet.google.com/fixture" },
+  })) {
+    let routes = 0, origins = 0, allowances = 0, writes = 0;
+    const calendar = { listEventsRaw: async () => [{ ...base, ...fields }],
+      createEvent: async () => { writes++; return { successful: true }; } };
+    const options = { calendar, home: "Fixture home", mapsKey: "fixture", nowMs: Date.parse("2030-01-01T08:00:00Z"),
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => { routes++; return isReturn ? null : 20; },
+      _agentResolveLocation: async () => { origins++; return { kind: "place", address: "Fixture Hall" }; },
+      _askTravelOrigin: async () => { origins++; },
+      _reserveManagedAction: async () => { allowances++; return { allowed: true }; } };
+    const events = await listEvents7d("fixture", "fixture", options.nowMs, calendar);
+    assert.equal(events.length, scenario === "hybrid" ? 1 : 0, scenario);
+    await fillTravel("fixture", options);
+    if (scenario === "hybrid") { assert.ok(routes > 0); assert.equal(writes, 1); }
+    else assert.deepEqual({ routes, origins, allowances, writes }, { routes: 0, origins: 0, allowances: 0, writes: 0 }, scenario);
+  }
+});
+
 test("shared event reader exposes only an ownership flag for Life Manager Travel blocks", async () => {
   const events = await listEvents7d("uid-web", "unused", Date.parse("2030-01-01T08:00:00+09:00"), {
     async listEventsRaw() { return [{
