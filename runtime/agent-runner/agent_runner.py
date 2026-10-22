@@ -1368,7 +1368,6 @@ def record_pre_provider_deferral(evidence_dir: Path, args: argparse.Namespace, r
                 registry_path=runtime_registry_path(), release_sha=release_sha,
                 deferred_reason=reason,
             )
-            atomic_json(evidence_dir / "summary.json", summary)
     except OSError as error:
         print(f"agent-runner: deferral receipt unavailable ({type(error).__name__})", file=sys.stderr)
 

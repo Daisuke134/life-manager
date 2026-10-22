@@ -793,7 +793,21 @@ class ProviderLeaseTest(unittest.TestCase):
         self.assertEqual(events[0]["blocker"], "provider_lease_busy")
         self.assertTrue(events[0]["retryable"])
         self.assertEqual(events[0]["effect_status"], "unknown")
-        self.assertEqual(summary["runtime_event_id"], events[0]["event_id"])
+
+    def test_pre_provider_busy_preserves_receipt_replaced_while_event_attaches(self):
+        evidence_dir = self.root / "evidence"
+        receipt = {"status": "success", "provider_receipt_id": "fixture-receipt"}
+        args = mock.Mock(loop="fixture", task_label="fixture", task_class="tool-agent")
+
+        def another_writer_finishes(**_kwargs):
+            (evidence_dir / "summary.json").write_text(json.dumps(receipt))
+            return True
+
+        with mock.patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_SHA": "b" * 40}), \
+                mock.patch.object(agent_runner, "attach_runtime_event", side_effect=another_writer_finishes) as attach:
+            agent_runner.record_pre_provider_deferral(evidence_dir, args, "provider_lease_busy")
+        attach.assert_called_once()
+        self.assertEqual(json.loads((evidence_dir / "summary.json").read_text()), receipt)
 
     def test_pre_provider_busy_preserves_existing_receipt_without_new_event(self):
         evidence_dir = self.root / "evidence"
