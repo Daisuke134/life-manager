@@ -1,0 +1,49 @@
+{
+  "updated": "2026-10-22",
+  "name": "Daisuke Narita",
+  "email": "contact@aniccaai.com",
+  "en": {
+    "role": "Solo Founder & Researcher",
+    "intro": "I run Anicca as a one-person business. I build AI agents and consumer apps, and investigate how technology can help reduce suffering. My work connects research on attention with population simulation, evaluation and useful everyday products.",
+    "ownership": "I lead product direction, evaluation priorities, AI-assisted development, releases and marketing. The results below are project engineering evidence, not claims of unaided coding or peer-reviewed research.",
+    "sections": [
+      {"title":"Manager: research in progress", "items":[
+        {"title":"Synthetic people, intact households", "text":"A saved Rhode Island population-synthesis run generated 1,042,763 synthetic people in 441,570 households from U.S. Census data. Output checks found no membership errors, orphan records, duplicate IDs or copied-attribute mismatches.", "links":[["Population results","https://aniccaai.com/blog/manager-household-population-results-en"]]},
+        {"title":"Measured demographic reconstruction", "text":"Across 41 held-out U.S. regions, mean six-cell age-by-poverty total variation distance fell from 0.014348 to 0.008881, a 38.1% reduction against an independence baseline. 29 regions improved and 12 worsened. Inputs and targets share the same Census source; this is not independent validation of human behavior.", "links":[["Results and limitations","https://aniccaai.com/blog/manager-population-reconstruction-results-en"]]},
+        {"title":"Evidence boundaries", "text":"Manager remains an isolated research project, separate from Life Manager production. Human behavior, causal effects and welfare benefits remain unvalidated. The long-term ambition is to understand how changes to shared conditions could reduce suffering.", "links":[["Research articles","https://aniccaai.com/blog/c/research"]]}
+      ]},
+      {"title":"Founder-led products", "items":[
+        {"title":"Life Manager", "text":"An open-source proactive-agent product, with workflows for finding work, proposals, client replies, deliverables and payment tracking. I own direction, releases and go-to-market; development uses AI assistance. The goal is an AI that can help cover a person's financial needs.", "links":[["Life Manager","https://aniccaai.com/lm"],["Source code","https://github.com/Daisuke134/life-manager"]]},
+        {"title":"Anicca, Honne and consumer apps", "text":"Anicca supports daily affirmation routines. Honne helps interpret pasted conversations and suggest replies. I own product decisions, AI-assisted development, App Store releases and marketing. The product catalogue links the published apps.", "links":[["Explore the products","https://aniccaai.com/dais"]]}
+      ]},
+      {"title":"Professional and research background", "items":[
+        {"title":"Mitsubishi UFJ Information Technology", "text":"Enterprise AI-agent implementation, behavior and response-quality investigation, and prompt and context improvements. Contributed research summaries and conference reporting."},
+        {"title":"Institute for Advanced Consciousness Studies", "text":"Research Consultant; a one-month internship in November-December 2024 in Santa Monica. Research focused on awareness of mind-wandering through real-time auditory feedback.", "links":[["Institute profile","https://advancedconsciousness.org/daisuke-narita/"]]},
+        {"title":"Earlier experience", "text":"Research internship at Toshiba, applying machine learning to wearable-sensor data. Marketing internship at A10 Lab, working with advertising creatives and customer support."},
+        {"title":"Education and research", "text":"Graduate research at Nara Institute of Science and Technology on EEG-based mind-wandering detection, including work at ATR. Studied political science in the Faculty of Law at Keio University."}
+      ]}
+    ]
+  },
+  "ja": {
+    "role": "一人で事業を運営する創業者・研究者",
+    "intro": "Aniccaを一人で運営しています。AIエージェントや日常で使えるアプリをつくり、テクノロジーによって苦しみを減らす方法を探究しています。注意に関する研究から、人口シミュレーション、評価、実際のプロダクトへと取り組みを広げています。",
+    "ownership": "プロダクトの方向性、評価の優先順位、AIを活用した開発、リリース、マーケティングを担っています。以下はプロジェクトの実装・評価結果であり、すべてを手作業で実装したという主張や、査読済み研究の成果ではありません。",
+    "sections": [
+      {"title":"Manager：研究開発の現在地", "items":[
+        {"title":"世帯のつながりを保つ合成人口", "text":"米国国勢調査のデータを用いたロードアイランド州の保存済み実験で、441,570世帯・1,042,763人の合成人口を生成しました。出力検査では、世帯メンバーの不整合、孤立レコード、ID重複、複製属性の不一致は見つかりませんでした。", "links":[["人口生成の結果（英語）","https://aniccaai.com/blog/manager-household-population-results-en"]]},
+        {"title":"人口統計の復元精度を測る", "text":"評価用に分けた米国41地域で、年齢×貧困の6区分の平均全変動距離は0.014348から0.008881へ低下しました。独立性を仮定する基準比で38.1%改善し、29地域で改善、12地域で悪化しました。入力と比較対象は同じ国勢調査に由来し、人間の行動の独立した検証ではありません。", "links":[["結果と限界（英語）","https://aniccaai.com/blog/manager-population-reconstruction-results-en"]]},
+        {"title":"確認できたことと、これからのこと", "text":"ManagerはLife Managerの本番運用とは分離した研究プロジェクトです。人間の行動、介入の因果効果、幸福への効果は未検証です。共有する環境や条件を変えることで苦しみを減らせるかを理解することが、長期的な目標です。", "links":[["研究記事","https://aniccaai.com/blog/c/research"]]}
+      ]},
+      {"title":"開発・運営しているプロダクト", "items":[
+        {"title":"Life Manager", "text":"仕事の発見、提案、顧客への返信、納品物の作成、支払いの追跡に取り組むオープンソースのAIエージェント製品です。方向性、リリース、販売を担い、開発にはAIを活用しています。個人の経済的なニーズを支えられるAIを目指しています。", "links":[["Life Manager","https://aniccaai.com/lm/ja"],["ソースコード","https://github.com/Daisuke134/life-manager"]]},
+        {"title":"Anicca・Honneなどのアプリ", "text":"Aniccaは日々のアファメーションを支援するアプリです。Honneは貼り付けた会話の解釈や返信案をサポートします。製品の意思決定、AIを活用した開発、App Storeでの公開、マーケティングを担っています。公開済みアプリは製品一覧から確認できます。", "links":[["製品一覧","https://aniccaai.com/dais/ja"]]}
+      ]},
+      {"title":"職務・研究の背景", "items":[
+        {"title":"三菱UFJインフォメーションテクノロジー", "text":"企業向けAIエージェントの実装、挙動・回答品質の調査、プロンプトやコンテキストの改善に従事。研究の要約や学会報告にも携わっています。"},
+        {"title":"Institute for Advanced Consciousness Studies", "text":"Research Consultant。2024年11〜12月にサンタモニカで約1か月のインターンシップ。リアルタイムの聴覚フィードバックを通じたマインドワンダリングへの気づきを研究しました。", "links":[["研究所のプロフィール（英語）","https://advancedconsciousness.org/daisuke-narita/"]]},
+        {"title":"これまでの経験", "text":"東芝の研究インターンシップで、ウェアラブルセンサーデータへの機械学習の適用に取り組みました。エーテンラボでは、広告クリエイティブやカスタマーサポートに携わりました。"},
+        {"title":"学びと研究", "text":"奈良先端科学技術大学院大学で、EEGを用いたマインドワンダリングの検出を研究し、ATRでも研究に取り組みました。慶應義塾大学法学部で政治学を学びました。"}
+      ]}
+    ]
+  }
+}
