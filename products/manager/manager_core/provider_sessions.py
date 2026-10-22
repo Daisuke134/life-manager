@@ -258,3 +258,53 @@ class SessionJournal:
                 raise SessionConflict("not the current session writer")
 
         self._txn(action)
+
+
+def reconcile_session_pages(
+    journal: SessionJournal, request_id: str, fetch_page,
+    *, page_limit: int = 100, max_pages: int = 50,
+) -> Intent:
+    """Exhaustively scan session list by after cursor; never create effects.
+
+    fetch_page(after, limit) must return provider JSON page with
+    data:list, has_more:bool. Any malformed, truncated, looping or
+    failed page raises SessionConflict, retaining UNKNOWN state. A complete
+    absence is still UNKNOWN because provider list freshness does not prove
+    no creation occurred after a request timeout.
+    """
+    _check(request_id, _REQUEST_ID, "request ID")
+    if (type(journal) is not SessionJournal or not callable(fetch_page)
+            or type(page_limit) is not int or not 1 <= page_limit <= 100
+            or type(max_pages) is not int or not 1 <= max_pages <= 100):
+        raise ValueError("typed journal, paginator and finite budget required")
+    if journal.get(request_id).status == "BOUND":
+        return journal.get(request_id)
+    after = None
+    cursors = set()
+    rows = []
+    for _ in range(max_pages):
+        try:
+            response = fetch_page(after, page_limit)
+        except Exception as exc:
+            raise SessionConflict("provider session scan failed; keep UNKNOWN") from exc
+        if (type(response) is not dict or type(response.get("data")) is not list
+                or type(response.get("has_more")) is not bool):
+            raise SessionConflict("malformed provider page; keep UNKNOWN")
+        items = response["data"]
+        if len(items) > page_limit:
+            raise SessionConflict("oversized provider page; keep UNKNOWN")
+        for item in items:
+            if type(item) is not dict or type(item.get("id")) is not str:
+                raise SessionConflict("provider session without ID; keep UNKNOWN")
+            _check(item["id"], _SESSION_ID, "provider session ID")
+        rows.extend(items)
+        if not response["has_more"]:
+            return journal.reconcile(request_id, rows)
+        if not items:
+            raise SessionConflict("nonterminal empty provider page; keep UNKNOWN")
+        cursor = items[-1]["id"]
+        if cursor in cursors or cursor == after:
+            raise SessionConflict("stalled provider pagination; keep UNKNOWN")
+        cursors.add(cursor)
+        after = cursor
+    raise SessionConflict("incomplete bounded provider scan; keep UNKNOWN")
