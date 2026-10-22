@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "capafy_x_post.py"
 
@@ -59,3 +61,42 @@ def test_agent_name_from_slug() -> None:
     module = load_module()
     assert module.agent_name("hook-lab") == "Hook Lab"
     assert module.agent_name("tiktok-script-pro") == "TikTok Script Pro"
+
+
+@pytest.mark.parametrize(("body", "expected_body"), [
+    ("日" * 54 + "a" * 154, "日" * 54 + "a" * 140 + "…"),
+    ("a" * 300, "a" * 248 + "…"),
+    ("日" * 200, "日" * 124 + "…"),
+    ("🎥" * 140, "🎥" * 124 + "…"),
+], ids=["observed-mixed-292", "ascii", "cjk", "emoji"])
+def test_search_caption_fits_weighted_limit_without_cutting_search_cta(body, expected_body):
+    module = load_module()
+    assert module.search_caption(body, "Hook Lab") == expected_body + '\n\nSearch "Hook Lab" on Capafy.'
+
+
+def test_search_caption_keeps_exact_limit_unchanged():
+    module = load_module()
+    body = "日" * 125
+    assert module.search_caption(body, "Hook Lab") == body + '\n\nSearch "Hook Lab" on Capafy.'
+
+
+def test_search_caption_url_like_prefix_and_space_passes_payload_preflight():
+    module = load_module()
+    caption = module.search_caption("a" * 239 + "https:// " + "b" * 248, "Hook Lab")
+    assert caption.endswith('Search "Hook Lab" on Capafy.')
+    module.build_payload(integration_id="int-1", caption=caption, scheduled_at="fixture")
+
+
+def test_search_caption_rejects_an_unfittable_search_cta():
+    module = load_module()
+    with pytest.raises(ValueError, match="CTA"):
+        module.search_caption("Body", "x" * 281)
+
+
+def test_oversized_nonsearch_caption_is_rejected_before_http(monkeypatch):
+    module = load_module()
+    def unexpected_http():
+        pytest.fail("HTTP client loaded for an oversized caption")
+    monkeypatch.setattr(module, "_load_http_postiz_client", unexpected_http)
+    with pytest.raises(ValueError, match="280 weighted"):
+        module.main(["--caption", "日" * 141, "--integration-id", "int-1", "--api-key", "fixture"])
