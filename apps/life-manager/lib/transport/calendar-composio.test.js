@@ -5,9 +5,88 @@ const test = require("node:test");
 const { getCalendar } = require("./index.js");
 const { makeComposioCalendar } = require("./calendar-composio.js");
 const { fillTravel } = require("../travel.js");
+const { createHash } = require("node:crypto");
 
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const ACCOUNT_ID = "ca-selected-123";
+
+test("owned Hybrid readback validates the saved exact ACTIVE account without binding backfill or Web controls", async () => {
+  const calls = [];
+  const uid = "hybrid-fixture";
+  const accountHash = createHash("sha256").update(JSON.stringify([uid, ACCOUNT_ID])).digest("hex");
+  const calendar = makeComposioCalendar({
+    apiKey: "fixture-key", supaUrl: "https://supabase.example", supaKey: "fixture-service",
+    recordCall: () => false,
+    readWebTravelControlStateImpl: async () => assert.fail("readback must not enter Web mutation controls"),
+    fetchImpl: async (input, init = {}) => {
+      const url = new URL(String(input));
+      calls.push({ url, method: init.method || "GET", body: init.body && JSON.parse(init.body) });
+      if (url.hostname === "supabase.example") {
+        assert.equal(url.searchParams.has("telegram_chat_id"), false);
+        return { ok: true, json: async () => [{ uid, telegram_chat_id: 123,
+          calendar_provider: "composio_gcal", calendar_connected_account_id: ACCOUNT_ID }] };
+      }
+      if (url.pathname.endsWith(`/connected_accounts/${ACCOUNT_ID}`)) {
+        return { ok: true, json: async () => ({ id: ACCOUNT_ID, user_id: uid, toolkit_slug: "googlecalendar", status: "ACTIVE" }) };
+      }
+      assert.equal(url.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST"), true);
+      const body = JSON.parse(init.body);
+      assert.equal(body.connected_account_id, ACCOUNT_ID);
+      return { ok: true, json: async () => ({ successful: true, data: body.arguments.pageToken
+        ? { items: [{ id: "second" }] } : { items: [{ id: "first" }], nextPageToken: "page-2" } }) };
+    },
+  });
+  const items = await calendar.listOwnedEvents(uid, { accountRefHash: accountHash,
+    timeMin: "2030-01-01T00:00:00Z", timeMax: "2030-01-08T00:00:00Z" });
+  assert.deepEqual(items.map((item) => item.id), ["first", "second"]);
+  assert.equal(calls.some((call) => ["PATCH", "DELETE"].includes(call.method)), false);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 2);
+});
+
+test("owned readback rejects missing, changed, inactive, or another tenant's account before reading Calendar", async () => {
+  for (const scenario of ["missing", "changed", "inactive", "wrong-tenant", "failed"]) {
+    let eventReads = 0;
+    const uid = "hybrid-fixture";
+    const accountHash = createHash("sha256").update(JSON.stringify([uid, ACCOUNT_ID])).digest("hex");
+    const calendar = makeComposioCalendar({
+      apiKey: "fixture", supaUrl: "https://supabase.example", supaKey: "fixture", recordCall: () => false,
+      fetchImpl: async (input, init = {}) => {
+        const url = new URL(String(input));
+        assert.equal(["PATCH", "DELETE"].includes(init.method), false);
+        if (url.hostname === "supabase.example") return { ok: true, json: async () => scenario === "missing" ? [] : [{
+          uid, calendar_provider: "composio_gcal", calendar_connected_account_id: scenario === "changed" ? "ca-other" : ACCOUNT_ID,
+        }] };
+        if (url.pathname.includes("/connected_accounts/")) return { ok: scenario !== "failed", json: async () => ({
+          id: ACCOUNT_ID, user_id: scenario === "wrong-tenant" ? "another-tenant" : uid,
+          toolkit_slug: "googlecalendar", status: scenario === "inactive" ? "EXPIRED" : "ACTIVE",
+        }) };
+        eventReads++;
+        throw new Error("unexpected Calendar read");
+      },
+    });
+    await assert.rejects(calendar.listOwnedEvents(uid, { accountRefHash: accountHash }));
+    assert.equal(eventReads, 0, scenario);
+  }
+});
+
+test("durable dispatch cannot bypass the existing Web null-Telegram ownership guard", async () => {
+  let providerCalls = 0;
+  let dispatches = 0;
+  const calendar = makeComposioCalendar({ apiKey: "fixture", supaUrl: "https://supabase.example", supaKey: "fixture",
+    recordCall: () => true,
+    fetchImpl: async (input) => {
+      if (new URL(String(input)).hostname !== "supabase.example") { providerCalls++; throw new Error("unexpected provider request"); }
+      return { ok: true, json: async () => [{ uid: UID, telegram_chat_id: 123,
+        calendar_provider: "composio_gcal", calendar_connected_account_id: ACCOUNT_ID }] };
+    },
+  });
+  const result = await calendar.createEvent(UID, { summary: "Synthetic travel" }, {
+    expectedCalendarAccountId: ACCOUNT_ID, beforeDispatch: async () => { dispatches++; return true; },
+  });
+  assert.equal(result.effect, "no_effect");
+  assert.equal(dispatches, 0);
+  assert.equal(providerCalls, 0);
+});
 
 function fixture(controlState) {
   controlState = { billingEntitled: true, ...controlState };
