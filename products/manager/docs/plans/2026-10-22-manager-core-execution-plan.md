@@ -3,7 +3,7 @@
 
 > **CURRENT IMPLEMENTATION ORDER — 2026-10-22 / Manager technical track**
 >
-> **E01 → E02 → E03 → E04 → E05 → E06 → [E07 → E08 → E09 and E10 → E11 in parallel] → E12 → E13 → E14 → E15 → E16.**
+> **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16.**
 >
 > **F005 → F006 → F008 → F009 are acceptance gates, not the executable task order.** Evaluate them using actual evidence from their relevant E tasks, never pretend they are already done or put them ahead of E01. F004 and F007 are retired as mandatory external finance/facility prerequisites and remain `skipped` (not completed) in the task registry.
 >
@@ -203,6 +203,6 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 
 ## Order, parallelism and completion
 
-First E01→E02→E03→E04→E05→E06. E07→E08→E09 can proceed in parallel with E10→E11 after the shared types settle. Then E12→E13→E14→E15→E16. Content production may run in parallel using only frozen reviewed results. Do not parallel-write shared schema, ledger, publishing branch or authority state.
+**Single active cursor:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16. The original evaluation/observation streams can be developed by independent workers when their shared interfaces are stable, but the project-wide completion cursor is strictly the ordered E list in `../roadmap/tasks.json`; never present parallel work as a second authoritative sequence. **After E verification, assess F005 → F006 → F008 → F009 as acceptance gates**, not new engineering tasks. Content P01–P07 is a separate editorial lane and does not move the E cursor. Do not parallel-write shared schema, ledger, publishing branch or authority state.
 
 The detailed simulator, actual beneficiary, cross-domain, outreach and governance gates remain in the Phase06–12 acceptance plan. Finishing E16 is a finite technical product release, not a declaration that Manager eliminated suffering or all 113 original tasks are complete.
