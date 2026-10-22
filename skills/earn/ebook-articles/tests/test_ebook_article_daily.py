@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -84,6 +85,32 @@ class Run(unittest.TestCase):
             entry = MODULE.run(dt.datetime(2026, 10, 17, 12, 5, tzinfo=JST), Path(temporary))
             self.assertEqual(entry, {"state": "not_due"})
             self.assertFalse((Path(temporary) / "article-ledger.json").exists())
+
+
+class ComposeDiagnostics(unittest.TestCase):
+    def test_failed_compose_retains_evidence_and_launcher_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary)
+            observed = {}
+            def failed(args, **kwargs):
+                evidence = Path(args[args.index("--evidence-dir") + 1])
+                evidence.mkdir(parents=True, exist_ok=True)
+                (evidence / "summary.json").write_text('{"state":"failed"}')
+                observed["path"] = evidence
+                if hasattr(kwargs.get("stderr"), "write"):
+                    kwargs["stderr"].write("agent-runner: provider unavailable\n")
+                return subprocess.CompletedProcess(args, 1)
+            with patch.object(MODULE.subprocess, "run", side_effect=failed):
+                with self.assertRaisesRegex(RuntimeError, "compose_failed:1"):
+                    MODULE.compose(MODULE.load_product("ebook-en"), [], state, "ebook-article-test")
+            evidence = observed["path"]
+            self.assertTrue((evidence / "summary.json").is_file())
+            self.assertIn("provider unavailable", (evidence / "launcher.stderr.log").read_text())
+
+    def test_cli_reports_failed_slot_with_nonzero_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(MODULE, "run", return_value={"status": "failed", "error": "compose_failed:1"}):
+                self.assertEqual(MODULE.main(["--state-root", temporary]), 1)
 
 
 class FenceProof(unittest.TestCase):
