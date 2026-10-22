@@ -222,6 +222,22 @@ class SDKContractTests(unittest.TestCase):
         with self.assertRaises(SessionFailure):
             read_followup_turn(self.client(s),"sess_12345678","hello",key="case-02")
 
+    def test_followup_rejects_wrong_or_missing_turn_id(self):
+        for wrong in (None, "turn_wrong"):
+            events=[
+                NS(type="agent.session.turn.output_text.done", text='{"decision":"PASS","reason":"Wait","source_ids":[]}'),
+                NS(type="agent.session.turn.completed", turn_id=wrong),
+            ]
+            with self.subTest(wrong=wrong), self.assertRaises(SessionFailure):
+                read_followup_turn(self.client(FakeSessions(events=events)),
+                                   "sess_12345678", "Now?", key="scenario-03")
+
+    def test_followup_rejects_cancelled_turn(self):
+        events=[NS(type="agent.session.turn.cancelled", turn_id="turn_test")]
+        with self.assertRaises(SessionFailure):
+            read_followup_turn(self.client(FakeSessions(events=events)),
+                               "sess_12345678", "Now?", key="scenario-04")
+
     def test_no_tools_and_bad_key_rejected(self):
         for k in ["", "日本語", "hak_cyrillicх", "not-a-key", "hak_"]:
             self.assertFalse(valid_api_key(k))
