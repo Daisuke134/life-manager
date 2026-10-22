@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 
 from manager_core.provider_sessions import SessionJournal, SessionConflict, reconcile_session_pages, reconcile_provider_sessions
-from manager_core.ampersand_api import read_completed_turn, SessionFailure
+from manager_core.ampersand_api import read_completed_turn, read_saved_assistant_items, SessionFailure
 
 
 def digest(x):
@@ -240,6 +240,44 @@ class DurableSessionIntent(unittest.TestCase):
             self.assertEqual(status.status,"UNKNOWN")
             with self.assertRaises(SessionConflict):
                 j.reserve_for_send("req_absent")
+
+    def test_read_saved_assistant_items_exact_turn_and_paginated(self):
+        calls=[]
+        def get_page(sid, **kwargs):
+            after=kwargs.get("after")
+            calls.append(after)
+            if after is None:
+                return SimpleNamespace(data=[SimpleNamespace(
+                    id="item_11111111",type="message",turn_id="turn_other",
+                    role="assistant",content=[{"type":"output_text","text":"wrong"}])],
+                    has_more=True)
+            return SimpleNamespace(data=[SimpleNamespace(
+                id="item_22222222",type="message",turn_id="turn_abcdefgh",
+                role="assistant",content=[{"type":"output_text","text":"correct"}])],
+                has_more=False)
+        turn=SimpleNamespace(id="turn_abcdefgh",status="completed",
+                             usage=SimpleNamespace(input_tokens=2,output_tokens=3))
+        sessions=SimpleNamespace(
+            turns=SimpleNamespace(retrieve=lambda sid,tid:turn),
+            items=SimpleNamespace(list=get_page))
+        client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
+        result=read_saved_assistant_items(client,"sess_abcdefgh","turn_abcdefgh")
+        self.assertEqual(result,("correct",))
+        self.assertEqual(calls,[None,"item_11111111"])
+
+    def test_saved_items_incomplete_pagination_keeps_unknown(self):
+        turn=SimpleNamespace(id="turn_abcdefgh",status="completed",
+                             usage=None)
+        item=SimpleNamespace(id="item_abcdefgh",type="message",
+                             turn_id="turn_abcdefgh",role="assistant",
+                             content=[{"type":"output_text","text":"partial"}])
+        sessions=SimpleNamespace(
+            turns=SimpleNamespace(retrieve=lambda sid,tid:turn),
+            items=SimpleNamespace(list=lambda sid,**kw:
+                SimpleNamespace(data=[item],has_more=True)))
+        client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
+        with self.assertRaises(SessionFailure):
+            read_saved_assistant_items(client,"sess_abcdefgh","turn_abcdefgh",max_pages=2)
 
     def test_missing_session_and_invalid_ids_fail_closed(self):
         with TemporaryDirectory() as d:
