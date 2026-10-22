@@ -142,6 +142,7 @@ test("CLD03 online-only events make no route, origin, allowance, or Calendar wri
     url: { location: "https://meet.google.com/fixture" },
     conference: { conferenceData: { entryPoints: [{ uri: "https://meet.google.com/fixture" }] } },
     explicit: { location: "オンライン: https://example.com/ticket" },
+    explicitParenthesis: { location: "オンライン（Zoom）", hangoutLink: "https://meet.google.com/fixture" },
     hybrid: { location: "Fixture Hall", hangoutLink: "https://meet.google.com/fixture" },
   })) {
     let routes = 0, origins = 0, allowances = 0, writes = 0;

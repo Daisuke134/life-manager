@@ -11,7 +11,7 @@ function selfResponse(event) {
 function onlineSignal(event) {
   const location = String(event.location || "").trim();
   if (event.online === true || event.isOnline === true
-    || /^(?:オンライン|online)(?:\s*$|\s*[:：-]\s*|\s+)/i.test(location)) return true;
+    || /^(?:オンライン|online)(?:\s*$|\s*[:：（(-]\s*|\s+)/i.test(location)) return true;
   if (location && !/^https?:\/\//i.test(location)) return false;
   const urls = [event.hangoutLink, location]
     .concat(((event.conferenceData || {}).entryPoints || []).map((entry) => entry && entry.uri))

@@ -10,6 +10,9 @@ test("a physical venue keeps hybrid conference events offline unless explicitly 
   assert.equal(interpretCalendarEvent(event).decision, "offline");
   assert.equal(interpretCalendarEvent({ ...event, location: "オンライン: Fixture Hall" }).decision, "online");
   assert.equal(interpretCalendarEvent({ ...event, online: true }).decision, "online");
+  for (const location of ["オンライン（Zoom）", "online (Meet)"]) {
+    assert.equal(interpretCalendarEvent({ ...event, location }).decision, "online", location);
+  }
 });
 
 test("declined and tentative invitations never call", () => {

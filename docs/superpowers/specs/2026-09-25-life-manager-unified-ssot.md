@@ -189,6 +189,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - RED実測: Meet URLだけのsynthetic予定は正規化後1件残り、期待0でexit1。現在filterは `decision !== "no_call"` のみ。現在Calendarのonline5件が残り、route/no-route作業もある。**会場＋会議URLがある対面/hybrid予定は保持する。** `decision===online`だけの全除外はしない。
 - CLD03a実装範囲: `listEvents7d`の実callerはtravel作成/再照合とWeb Travel表示であり、T5のreaderとは別であることを確認する。既存interpreterのonline判定をオンライン専用（URLだけ/場所なしのconference/明示online）へ絞り、物理会場＋conference URLはofflineとして保持した上で、Travel readerからonlineを除外する。新しい分類frameworkやLLM呼出しを増やさない。作成・route・origin質問・課金予約0の反例と、hybridの既存物理route維持を検証する。
 - CLD03a source検証: online-onlyがreaderに残る反例と、物理会場＋conferenceがonlineへ誤分類される反例の2 REDを確認する。既存interpreterとTravel filterだけを変更し、関連15 files/282 tests、18/191 loop-contract、source/agent契約とOSS境界を確認する。場所/時刻変更後の既存helper修復、Cloud配備、自然予定の成果はこのsource検証で完了扱いしない。
+- CLD03a独立反証: 明示 `オンライン（Zoom）`＋conferenceが非URL会場へ誤分類され、T5のrouteを増やす反例を採用する。既存online区切りへ全角/半角の開き括弧を加える最小修正をRED→GREENで行う。`events.js`/T5/ask/panel/evalの実callerも関連検証に含める。電話候補の増加はsource反証では成立しないが、実電話の成果を主張しない。
+- CLD03a反証修正後: 明示online括弧の追加REDを確認し、既存正規表現の区切りだけを修正する。構文検証と関連18 files/356 testsはPASS。新しい分類層や電話処理の置換を追加しない。
 - 最小追加test: online-only→route/provider呼出し0、会場＋会議URL→物理候補保持、明示online→route0。既存のall-day/取消、同会場、origin/home不足、timezone/DST/日跨ぎ、予定時刻/場所変更の関連ケースは既存testを使い、欠ける反例だけ追加する。
 - 変更/取消はLife Manager生成markerと同source revision/legに一致するblockだけを変更する。手書きTravelや別tenantの予定を変更しない。古いhelperの更新が必要なのにclaimが永久skipする枝はCLD02のdurable状態を使って照合する。T5は正しい現eventのleave時刻と選択channelへ一度だけ届ける。
 - 受入: 新しい自然eligible予定のGO/RETURN block、時刻/場所/所要時間、対応readback、次wakeで追加0。オンライン予定で不要な有料routeを発生させない。今回60件でnext pageが無いため、pagination改修を現在故障の前提にしない。
