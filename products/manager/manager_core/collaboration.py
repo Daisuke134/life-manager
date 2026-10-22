@@ -4,7 +4,7 @@ This module never grants execution, estimates causal effects, writes to a provid
 or turns model text into authority. Model predictions remain P0.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import json
 
@@ -62,11 +62,28 @@ class AdvisoryResult:
     reason: str
     source_ids: tuple[str, ...]
     status: str = "MODEL_ADVICE_P0"
-    # These positive claims are deliberately impossible to construct.
-    proof_level: str = "P0"
-    human_outcome: str = "NOT_MEASURED"
-    causal_support: bool = False
-    authorized_execution: bool = False
+    # Provider and application callers cannot mint welfare or action proof
+    # through constructor parameters or dataclasses.replace.
+    proof_level: str = field(default="P0", init=False)
+    human_outcome: str = field(default="NOT_MEASURED", init=False)
+    causal_support: bool = field(default=False, init=False)
+    authorized_execution: bool = field(default=False, init=False)
+
+
+def advisory_receipt(value: AdvisoryResult) -> dict:
+    """Serialized, host-owned P0 receipt; no user/model-supplied privilege flags."""
+    if type(value) is not AdvisoryResult:
+        raise ValueError("validated AdvisoryResult required")
+    return {
+        "decision": value.decision,
+        "reason": value.reason,
+        "source_ids": list(value.source_ids),
+        "status": value.status,
+        "proof_level": "P0",
+        "human_outcome": "NOT_MEASURED",
+        "causal_support": False,
+        "authorized_execution": False,
+    }
 
 
 def render_prompt(context: PlannerContext) -> str:
