@@ -23029,3 +23029,23 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 **採用する研究順:** AS Benchmark既存採点 → 公開人間データ／公開RCT集約 → baseline比較 → 公開未来イベントの事前固定予測 → 必要時のみConcordia等 → 既存実行先で実行動・持続・害・費用を測定。私有Rothko weights、企業提携、個票NDA、新規仮想都市は初期依存から外す。利用条件を確認したTwinと配布予測・公開集約から開始する。これはE16/runtimeの配備完了や、人間への便益を宣言する変更ではない。
 
 **参照差分計画:** `docs/research/manager/2026-10-22-open-behavior-reuse-plan.md` に既存ファイル・関数とatomic patch A–Fを記載。研究資料であり別のタスク状態正本を作らない。新章は `docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md`、一次資料coverageは同evidenceディレクトリ。掲載25件と追加事例7件の取得範囲・購読壁・2026訂正を明示。既存公開経路のcontent-only更新で掲載し、公開URL/ハッシュは実readback後に記録する。
+
+### Claude全体現測と残TODO — 2026-10-23 00:00 UTC
+
+**範囲:** Daisの「全体を今見てspecを更新し、残りを示せ」に対する読み取り専用の現測。primaryの実行順表（FND/CLD/EARN/EVO）と現在cursorは変更しない。下の残TODOは同表の番号へ対応付ける。
+
+**現測（2026-10-22 23:44Z〜23:58Z、本番 `~/loops/current` = `20261023T083953-b19e4e5b`）:**
+- 容量: 空き約5GiB（`df -g /`）。収益floor 10GiB・一般12GiBの両方を下回る。swap使用5.1GB/6GB、`corespotlightd` 2.67GB（10/16の27GB再現ではない）。本節より前の最終記録（約10.4GB）から約5GB減っており、増加writerは未特定（`du` 全量計測は時間切れで未取得）。
+- Coconala: 最後の`status=applied`は`~/gig/applied.jsonl`で10/19 14:23Z、以後3.5日応募0。過去7日の応募49件はすべてそれ以前。A/B `coconala-bid-budget-lower-bound-v1`はarm付き行が未観測（10/19時点の直近8件は予算下限なし/見積依頼で対象外、30日174件中66件が範囲予算）。
+- Capafy: `capafy-hourly-reconcile.json` 21:07Z、gross $102.75 / 70 orders / 有料32・試用74で9/29以降不変。Hook Grader（2455220100）は公開済み、7日views 65。Free Clip Map→Hook Lab（hooklab_free）は7日20 / Clip Map views 1,147 = 約1.7%で、SSOTのhand-off基準3%未満。
+- PromptBase: `promptbase-sales.json` 10/20 19:20Z、sales 0 / $0。Annual Report Risk Change Briefは10/18提出、審査結果未読み戻し。
+- 記事公開（稼働中）: `capafy-distribute`はself-owned-landingへ約30分毎に無料SEO記事を公開（10/23 03:22–06:36 JSTに8本）。#8392で追加したTikTok Script Proキーワードのページも公開され、`https://aniccaai.com/blog/tiktok-script-for-personal-trainers` はHTTP 200。TSPキーワード残は20→50へ補充済み（Hook Lab 71 / YSW 12は10/19時点）。
+- admission DB: 読み取り時に `database is locked` で集計不能。延期件数は未取得として残す（0とみなさない）。
+
+**残TODO（優先順、上表への対応）:**
+1. FND01: 空き5GiBの増加writerを特定し、収益floor 10GiBへ戻す。Coconala応募・Capafy工場など収益ownerはこのfloorで止まる。primaryが進行中の清掃予算修正（#8563/#8565）の自然receiptと、10/22→10/23の約5GB減の発生元を照合する。
+2. EARN01（Coconala）: floor回復後、`hf-gig-apply-direct`の自然応募再開を`applied.jsonl`で確認し、A/B arm付き行の初観測を記録する。
+3. EARN01（Capafy）: 3%未満のhand-offに従い、Hook Labへ渡す新しい無料Agentを工場へ投入する（既存free seller・FROZEN sellerは変更しない）。試用4件の課金転換を追う。
+4. EARN02（PromptBase）: 審査結果と販売をSales tabで読み戻す。
+5. FND04/FND05/FND06、CLD03d2b/CLD04: primaryの現在cursorどおり継続する。
+6. 未解決の権限境界: `killall corespotlightd`はClaudeのauto-mode classifierで拒否される。容量の主因が再び同processになった時だけ、primaryが記録したActivity Monitor「終了」経路を使う。
