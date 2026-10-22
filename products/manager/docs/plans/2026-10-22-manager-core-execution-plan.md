@@ -242,3 +242,10 @@ A passing synthetic contract is not a passing empirical/live acceptance. If an E
 For each completed E receipt record actual source commit, source-specific CI URL, focused/full test totals and skips, evidence scope, independent readbacks where required, live-not-run fields, unresolved limitations and cost unknowns. Do not write a receipt referring to a future CI run. The snapshot itself does not contain a release receipt for Digital Autonomy v0.1.
 
 After E16, assess F005→F006→F008→F009 with the actual released occurrences. U/D/V/G original tasks retain their own dependencies and field requirements. YC preparation Y and editorial P can proceed independently within their authorization, but no interview, application, public post or beneficiary is fabricated.
+
+
+### E13–E16 implementation boundary recorded 2026-10-22
+
+E13 uses a dedicated `candidate_verification.py` wrapper around the existing renderer/manifest/release guard so the established publisher stays unchanged. E14 adds the typed host bridge into the original publisher; it does not change its SOURCE_REF. E15 adds a separate owned reservation table while preserving the generic fixture-only fence. These are implementation-location rulings, not broader authority.
+
+E16's reference cycle and fail-closed preflight are implemented in `owned_cycle.py` / `scripts/run_owned_digital_cycle.py`. They currently support **only an offline local-Git sandbox**, with P0 receipts and separate served files. Production adapter/scheduler integration remains unfinished pending actual owner/volume identity. See [the E16 gate and remaining exact order](../verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md). E16 must remain the active cursor; do not reinterpret passing reference tests as deployment or complete the original acceptance gates.
