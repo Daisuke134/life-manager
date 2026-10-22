@@ -9,7 +9,7 @@ from manager_core.provider_budget import (
     cancel_and_reconcile,
 )
 from manager_core.provider_sessions import SessionJournal
-from manager_core.ampersand_api import read_initial_turn, SessionFailure
+from manager_core.ampersand_api import read_initial_turn, read_followup_turn, SessionFailure
 
 
 class BudgetContract(unittest.TestCase):
@@ -113,6 +113,45 @@ class BudgetContract(unittest.TestCase):
         self.assertEqual(r.status,"SILENT_COMPLETED")
         self.assertEqual(r.output_text,"")
         self.assertEqual(r.proof_level,"P0")
+
+    def test_followup_reserves_budget_before_api_event_submit(self):
+        class NoEvents:
+            calls=0
+            def stream(self,*args): return self
+            def create(self,*args,**kwargs):
+                self.calls+=1
+                raise AssertionError("should not post when budget exhausted")
+        with TemporaryDirectory() as tmp:
+            ledger=BudgetLedger(Path(tmp)/"b.sqlite",cap_usd=Decimal("0.010000"))
+            events=NoEvents()
+            client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(events=events))))
+            with self.assertRaises(BudgetExceeded):
+                read_followup_turn(client,"sess_abcdefgh","any short fictional update",
+                    key="budget-01",budget_ledger=ledger,
+                    budget_run_id="turn_A",upper_usd=Decimal("0.020000"))
+            self.assertEqual(events.calls,0)
+
+    def test_followup_silent_completion_is_not_invalid_provider_output(self):
+        class Stream:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def __iter__(self):
+                yield SimpleNamespace(type="agent.session.turn.completed",
+                                     turn_id="turn_abcdefgh")
+        calls=[]
+        turn=SimpleNamespace(id="turn_abcdefgh",status="completed",usage=None)
+        sessions=SimpleNamespace(
+            events=SimpleNamespace(stream=lambda sid:Stream(),
+                                   create=lambda sid,**kwargs:calls.append(kwargs)),
+            turns=SimpleNamespace(list=lambda sid,**kwargs:
+                                  SimpleNamespace(data=[turn])))
+        client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
+        res=read_followup_turn(client,"sess_abcdefgh","No extra help needed",
+            key="silent-01",allow_silent_completion=True)
+        self.assertEqual(res.status,"SILENT_COMPLETED")
+        self.assertEqual(res.output_text,"")
+        self.assertEqual(len(calls),1)
 
     def test_cancellation_request_requires_actual_status_readback(self):
         from hashlib import sha256
