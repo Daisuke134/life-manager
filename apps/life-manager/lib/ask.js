@@ -268,7 +268,7 @@ const submittedAnswers = new WeakSet();
 const submitted = (result) => { submittedAnswers.add(result); return result; };
 
 function resolveMemoKey(event, uid) {
-  return JSON.stringify([uid || "", event.id || "", event.updated || event.etag || "", event.summary || "",
+  return JSON.stringify([uid || "", event.id || "", event.sourceEventVersion || event.updated || event.etag || "", event.summary || "",
     event.location || "", event.description || "", (event.start || {}).dateTime || ""]);
 }
 

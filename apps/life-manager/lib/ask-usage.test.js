@@ -228,6 +228,32 @@ test("location resolve is not repeated for the same event version until it chang
   } finally { globalThis.fetch = oldFetch; Date.now = oldNow; }
 });
 
+test("location resolve memo follows the normalized source event version", async () => {
+  const oldFetch = globalThis.fetch;
+  let geminiCalls = 0;
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /generativelanguage/);
+    geminiCalls++;
+    return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [
+      { functionCall: { name: "submit_answer", args: { online: false, confident: false } } },
+    ] } }] }) };
+  };
+  const opts = { geminiKey: "fixture", mapsKey: "", uid: "tenant-normalized-memo", recordUsageEvent: async () => true };
+  const event = { id: "ev-normalized-memo", summary: "Meeting", location: "Venue",
+    sourceEventVersion: "a".repeat(64), startIso: "2030-01-02T12:00:00+09:00",
+    startMs: Date.parse("2030-01-02T12:00:00+09:00"), endMs: Date.parse("2030-01-02T13:00:00+09:00") };
+  try {
+    assert.deepEqual(await agentResolveLocation(event, opts), { kind: "ask" });
+    await agentResolveLocation(event, opts);
+    assert.equal(geminiCalls, 1, "the same normalized version reuses its answer");
+    const changed = { ...event, sourceEventVersion: "b".repeat(64) };
+    assert.deepEqual(await agentResolveLocation(changed, opts), { kind: "ask" });
+    assert.equal(geminiCalls, 2, "a source version change must resolve again without raw Calendar fields");
+    await agentResolveLocation(changed, opts);
+    assert.equal(geminiCalls, 2, "the new normalized version is memoized too");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
 test("a transient Gemini failure is not memoized: the next tick resolves again", async () => {
   const oldFetch = globalThis.fetch;
   const replies = [
