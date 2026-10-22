@@ -1701,3 +1701,83 @@ test("CLD03b3 a cancellation 412 retains its claim and remains read-only across 
     assert.deepEqual(f.deletes, []);
   });
 });
+
+
+test("CLD03b3 restoration before dispatch preserves the prior proof and performs no DELETE", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    const before = structuredClone(f.rows.get("synthetic-source:go").calendar_write_receipt);
+    f.source.status = "cancelled";
+    const get = f.calendar.getOwnedEvent;
+    let sourceReads = 0;
+    f.calendar.getOwnedEvent = async (...args) => {
+      if (args[1] === f.source.id && ++sourceReads === 2) return { ...f.source, status: "confirmed" };
+      return get(...args);
+    };
+    const result = await fillTravel(f.uid, f.options);
+    assert.equal(result.cancelled || 0, 0);
+    assert.deepEqual(result.reconciliationErrors, { cancel_not_dispatched: 1 });
+    assert.equal(sourceReads, 2);
+    assert.equal(f.cancellations.length, 0);
+    assert.deepEqual(f.rows.get("synthetic-source:go").calendar_write_receipt, before);
+  });
+});
+
+test("CLD03b3 pending cancellation reconciles even when the complete weekly list fails", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.status = "cancelled";
+    f.state.cancelResponse = "timeout";
+    f.state.cancelVisible = false;
+    await fillTravel(f.uid, f.options);
+    f.state.pointHelper = { id: "travel-readback", status: "cancelled" };
+    f.calendar.listEventsRaw = async () => { throw new Error("synthetic partial weekly list"); };
+    const result = await fillTravel(f.uid, f.options);
+    assert.equal(result.cancelled, 1);
+    assert.deepEqual(result.reconciliationErrors, { calendar_list_incomplete: 1 });
+    assert.equal(f.cancellations.length, 1);
+    assert.equal(f.creates.length, 1);
+  });
+});
+
+test("CLD03b3 a late cancel response cannot overwrite or recount another wake's verified tombstone", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.status = "cancelled";
+    let nested;
+    f.state.onCancel = async () => {
+      f.state.onCancel = null;
+      f.state.pointHelper = { id: "travel-readback", status: "cancelled" };
+      nested = await fillTravel(f.uid, f.options);
+    };
+    const outer = await fillTravel(f.uid, f.options);
+    assert.equal(nested.cancelled, 1);
+    assert.equal(outer.cancelled || 0, 0);
+    assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.equal(f.cancellations.length, 1);
+    assert.equal((await fillTravel(f.uid, f.options)).cancelled || 0, 0);
+  });
+});
+
+test("CLD03b3 an unknown create for a cancelled source remains its own operation fence", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.visible = false;
+    await fillTravel(f.uid, f.options);
+    const row = f.rows.get("synthetic-source:go");
+    const requestId = row.calendar_write_receipt.request_id;
+    f.source.status = "cancelled";
+    f.state.visible = true;
+    const result = await fillTravel(f.uid, f.options);
+    assert.equal(result.cancelled || 0, 0);
+    assert.deepEqual(result.reconciliationErrors, { source_cancelled: 1 });
+    assert.equal(row.calendar_write_receipt.command, "calendar.create");
+    assert.equal(row.calendar_write_receipt.effect, "unknown");
+    assert.equal(row.calendar_write_receipt.request_id, requestId);
+    assert.equal(f.cancellations.length, 0);
+    assert.equal(f.creates.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
