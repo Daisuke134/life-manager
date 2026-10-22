@@ -631,7 +631,7 @@ function createdTravelRow(args) {
   const startMs = Date.parse(`${args.start_datetime}Z`);
   const durationMs = (args.event_duration_hour * 60 + args.event_duration_minutes) * 60000;
   return {
-    id: "travel-readback", summary: args.summary, location: args.location, description: args.description,
+    id: "travel-readback", etag: '"fixture-helper-v1"', summary: args.summary, location: args.location, description: args.description,
     start: { dateTime: new Date(startMs).toISOString() },
     end: { dateTime: new Date(startMs + durationMs).toISOString() },
     reminders: args.reminders,
@@ -656,10 +656,12 @@ async function withDurableTravelFixture(run) {
   const deletes = [];
   const ledger = [];
   const updates = [];
+  const patches = [];
   const state = { visible: true, response: "timeout", rejectPhase: null, wrongTenant: false,
     extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
     ledgerSaved: true, onDispatch: null, rejectDelete: false, pointReads: [], pointSource: null,
-    pointHelper: null, pointFailure: null };
+    pointHelper: null, pointFailure: null, patchResponse: "success", patchVisible: true, onPatch: null,
+    phaseAtPatch: null };
   const clone = (value) => structuredClone(value);
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -684,10 +686,10 @@ async function withDurableTravelFixture(run) {
         const row = rows.get(key);
         const requestId = url.searchParams.get("calendar_write_receipt->>request_id")?.replace(/^eq\./, "");
         if (!row || row.uid !== uid || row.calendar_write_receipt?.request_id !== requestId) return response([]);
-        const phase = url.searchParams.get("calendar_write_receipt->>phase")?.replace(/^eq\./, "");
-        if (phase && row.calendar_write_receipt.phase !== phase) return response([]);
-        const effect = url.searchParams.get("calendar_write_receipt->>effect");
-        if (effect === "eq.unknown" && row.calendar_write_receipt.effect !== "unknown") return response([]);
+        for (const [field, expected] of url.searchParams) {
+          if (!field.startsWith("calendar_write_receipt->>") || !expected.startsWith("eq.")) continue;
+          if (String(row.calendar_write_receipt[field.split("->>")[1]]) !== expected.slice(3)) return response([]);
+        }
         Object.assign(row, clone(body));
         return response([row]);
       }
@@ -710,14 +712,25 @@ async function withDurableTravelFixture(run) {
     if (url.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST")) {
       if (state.readError && creates.length) throw new Error("synthetic read failure");
       return response({ successful: true, data: { items: [source, ...(state.visible ? creates.map((args) => ({
-        ...createdTravelRow(args), ...(state.omitMarker ? { description: "User-created travel" } : {}),
+        ...(state.pointHelper || createdTravelRow(args)), ...(state.omitMarker ? { description: "User-created travel" } : {}),
       })) : []), ...state.extraRows] } });
     }
     if (url.pathname.endsWith("/tools/execute/proxy")) {
-      assert.equal(body.method, "GET", "reconciliation must never update or delete Calendar events");
       assert.equal(body.connected_account_id, accountId);
       assert.equal(body.user_id, uid);
       const eventId = decodeURIComponent(new URL(body.endpoint).pathname.split("/").at(-1));
+      if (body.method === "PATCH") {
+        assert.equal(eventId, "travel-readback");
+        patches.push(clone(body));
+        state.phaseAtPatch = clone([...rows.values()].find((row) => row.calendar_write_receipt?.provider_event_id === eventId)?.calendar_write_receipt);
+        if (state.onPatch) await state.onPatch();
+        if (state.patchResponse === "precondition") return response({ status: 412, data: {} });
+        const helper = { ...(state.pointHelper || createdTravelRow(creates[0])), ...body.body, etag: '"fixture-helper-v2"' };
+        if (state.patchVisible) state.pointHelper = helper;
+        if (state.patchResponse === "timeout") throw new Error("synthetic patch timeout");
+        return response({ status: 200, data: helper });
+      }
+      assert.equal(body.method, "GET", "only the durable update path may patch a known helper");
       state.pointReads.push(eventId);
       if (state.pointFailure === "unreadable") throw new Error("synthetic point read failure");
       if (state.pointFailure === 404 || state.pointFailure === 410) return response({ status: state.pointFailure, data: {} });
@@ -740,7 +753,7 @@ async function withDurableTravelFixture(run) {
   const options = { home: "Fixture home", mapsKey: "fixture", nowMs: Date.parse("2030-01-01T08:00:00Z"),
     calendar, supaUrl: "https://db.example", supaKey: "fixture",
     _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20 };
-  try { await run({ uid, source, rows, creates, deletes, ledger, updates, state, calendar, options }); }
+  try { await run({ uid, source, rows, creates, deletes, ledger, updates, patches, state, calendar, options }); }
   finally { globalThis.fetch = originalFetch; }
 }
 
@@ -1386,4 +1399,41 @@ test("strict readback after an unknown Composio create does not reuse cached pre
     assert.equal(claims.has("event-cached-write:go"), true);
     assert.deepEqual(deletes, []);
   });
+});
+
+
+test("CLD03b2 changed GO and RETURN update the same owned helper and replay without writes", async () => {
+  for (const leg of ["go", "return"]) {
+    await withDurableTravelFixture(async (f) => {
+      f.state.response = "success";
+      const options = { ...f.options,
+        _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => (isReturn ? "return" : "go") === leg ? 20 : null };
+      assert.equal((await fillTravel(f.uid, options)).inserted, 1, leg);
+      const row = f.rows.get(`synthetic-source:${leg}`);
+      const before = structuredClone(row.calendar_write_receipt);
+      f.source.updated = "2030-01-01T00:02:00Z";
+      f.source.location = "Changed fixture venue";
+      f.source.start.dateTime = "2030-01-01T12:00:00Z";
+      f.source.end.dateTime = "2030-01-01T13:00:00Z";
+      const result = await fillTravel(f.uid, options);
+      assert.equal(result.updated, 1, leg);
+      assert.equal(result.inserted, 0, leg);
+      assert.equal(f.creates.length, 1, leg);
+      assert.equal(f.patches.length, 1, leg);
+      assert.equal(f.state.phaseAtPatch.command, "calendar.update");
+      assert.equal(f.state.phaseAtPatch.effect, "unknown");
+      assert.equal(row.calendar_write_receipt.effect, "verified");
+      assert.equal(row.calendar_write_receipt.provider_event_id, before.provider_event_id);
+      assert.equal(row.calendar_write_receipt.marker_request_id, before.request_id);
+      assert.equal(row.calendar_write_receipt.prior_request_fingerprint, before.request_fingerprint);
+      assert.notEqual(row.calendar_write_receipt.request_id, before.request_id);
+      assert.match(f.state.pointHelper.description, new RegExp(before.request_id + "$"));
+      assert.deepEqual(f.deletes, []);
+      const replay = await fillTravel(f.uid, options);
+      assert.equal(replay.updated || 0, 0, leg);
+      assert.equal(replay.inserted, 0, leg);
+      assert.equal(f.patches.length, 1, leg);
+      assert.equal(f.creates.length, 1, leg);
+    });
+  }
 });
