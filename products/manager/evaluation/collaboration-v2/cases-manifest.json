@@ -1,0 +1,11 @@
+{
+  "schema": "manager.collaboration-cases.freeze.v1",
+  "evaluator_version": "collaboration-v2.0",
+  "provider_calls_before_freeze": 0,
+  "hashes": {
+    "cases.json": "1d5a176a3fb5cacb10bc36fbf2eb5dcc05452995561d26ffd71ddcd73c1d7a30",
+    "rubric.md": "d5cec8f9e7ad6d61ed6061a92b93293f4c8389001b609c8ed26b3a3358fd7225",
+    "schema.json": "2001844c874a0edca735e54a3003269abfb83534ec3e5bef695fc4d468b9942b"
+  },
+  "baseline_source_sha256": "2e9dfd701f942377f9278c3e20aabf7d6975708b460d01b7a71edc21bbe1be3e"
+}
