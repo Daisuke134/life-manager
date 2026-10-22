@@ -14,7 +14,7 @@ import sqlite3
 import subprocess
 from .models.source import _aware
 from .digital_handoff import (prepare_owned_change,PublisherContext,REPOSITORY,SOURCE_REF,WORKFLOW,
-                              ALLOWED_PATHS,commit_message,admit_release,verify_readback,validate_intent)
+                              ALLOWED_PATHS,commit_message,admit_release,verify_readback,validate_intent,plan_release)
 from .digital_environment import verify_bundle
 from .outbox import OwnedEffectJournal
 from .reconcile import reconcile_owned,reconcile_pending_owned,OwnedOccurrenceEvidence
@@ -187,7 +187,7 @@ def _cycle_result(status,writes=0,**extra):
                 human_outcome='NOT_MEASURED',causal_support=False,**extra)
 
 
-def _observe_owned_delivery(state_store,host,record,now,*,writes=0):
+def _observe_owned_delivery(state_store,host,record,now,*,writes=0,allow_rollback=True):
     packet=json.loads(record.packet_json)
     observation=host.observe_delivery(packet,record.receipt_ref)
     if type(observation) is not DeliveryObservation:
@@ -199,7 +199,7 @@ def _observe_owned_delivery(state_store,host,record,now,*,writes=0):
     base=dict(effect_key=record.key,receipt_ref=record.receipt_ref)
     if observation.status=='VERIFIED':
         return _cycle_result('VERIFIED_SANDBOX_TECHNICAL',writes,**base)
-    if observation.status=='REGRESSION' and not state_store.stopped():
+    if observation.status=='REGRESSION' and allow_rollback and not state_store.stopped():
         state_store.stop()
         try:recovered=host.rollback(packet,now,expected_commit=record.receipt_ref)
         except Exception:recovered=False
@@ -208,12 +208,17 @@ def _observe_owned_delivery(state_store,host,record,now,*,writes=0):
     return _cycle_result('UNKNOWN',writes,rollback_writes=0,reason=observation.reason,**base)
 
 
-def _recover_owned_deliveries(state_store,host,now):
-    for record in state_store.journal.pending_deliveries():
-        observed=_observe_owned_delivery(state_store,host,record,now)
+def _recover_owned_deliveries(state_store,host,now,*,allow_rollback=True):
+    batch=state_store.journal.recovery_batch('delivery');blocking=None
+    for record in batch:
+        observed=_observe_owned_delivery(state_store,host,record,now,allow_rollback=allow_rollback)
         if observed['status']!='VERIFIED_SANDBOX_TECHNICAL':
+            if observed['status'] in ('ROLLED_BACK_SANDBOX_REGRESSION','ROLLBACK_UNKNOWN'):
+                blocking=observed;continue
             if state_store.stopped() and observed['status']=='UNKNOWN':continue
-            return observed
+            if blocking is None:blocking=observed
+    state_store.journal.complete_recovery_batch('delivery',batch)
+    if blocking is not None:return blocking
     if not state_store.stopped() and state_store.journal.pending_deliveries(limit=1):
         return _cycle_result('UNKNOWN',rollback_writes=0,reason='UNSCANNED_DELIVERY_BATCH')
     return None
@@ -230,7 +235,12 @@ def _dispatch_owned_locked(state_store,host,packet,now):
         return result(record.status,receipt_ref=record.receipt_ref)
     # Direct runtime callers must not bypass the current scope/assessment.
     prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
-    if prepared.packet!=packet:return result('NO_ACTION',reason=prepared.reason)
+    if prepared.packet is None:return result('NO_ACTION',reason=prepared.reason)
+    # Recompute immutable bindings at the ORIGINAL creation time. Fresh scope
+    # checks must not renew its lease or require an identical dispatch clock.
+    original=plan_release(prepared.packet['baseline'],prepared.packet['candidate'],
+                          datetime.fromisoformat(packet['created_at']))
+    if original!=packet:return result('NO_ACTION',reason='PREPARED_PACKET_CHANGED')
     context=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit'],'1')
     current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
     try:
@@ -256,8 +266,9 @@ def dispatch_owned_once(state_store,host,packet,now):
         if not acquired:return dict(status='OWNER_BUSY',writes=0)
         host.assert_offline()
         reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
-        if state_store.journal.pending_records(limit=1):return dict(status='UNKNOWN',writes=0)
-        delivery=_recover_owned_deliveries(state_store,host,now)
+        pending=bool(state_store.journal.pending_records(limit=1))
+        delivery=_recover_owned_deliveries(state_store,host,now,allow_rollback=not pending)
+        if pending:return dict(status='UNKNOWN',writes=0)
         if delivery is not None:return delivery
         if state_store.stopped():return dict(status='STOPPED_REGRESSION',writes=0)
         return _dispatch_owned_locked(state_store,host,packet,now)
@@ -273,10 +284,11 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         if not acquired:return result('OWNER_BUSY')
         host.assert_offline()
         reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
-        if state_store.journal.pending_records(limit=1):
+        pending=bool(state_store.journal.pending_records(limit=1))
+        delivery=_recover_owned_deliveries(state_store,host,now,allow_rollback=not pending)
+        if pending:
             r=result('UNKNOWN',0,reason='PRIOR_OCCURRENCE_UNRESOLVED')
             state_store.append(r);return r
-        delivery=_recover_owned_deliveries(state_store,host,now)
         if delivery is not None:state_store.append(delivery);return delivery
         if state_store.stopped():return result('STOPPED_REGRESSION')
         if not state_store.due(config,now):return result('NOT_DUE')

@@ -18,6 +18,26 @@ class DispatchReplayTests(unittest.TestCase):
         packet = prepare_owned_change(host.context, host.assessment, host.scope, NOW).packet
         return config, store, host, git, packet
 
+    def test_valid_packet_can_be_dispatched_after_clock_advances(self):
+        with TemporaryDirectory() as tmp:
+            conf, store, host, git, packet = self.prepare(tmp)
+            with patch.object(host, 'send', wraps=host.send) as send:
+                result = owned_cycle.dispatch_owned_once(store, host, packet, NOW + timedelta(seconds=1))
+                self.assertEqual(result['status'], 'SUBMITTED')
+                self.assertEqual(result['writes'], 1)
+                send.assert_called_once()
+
+    def test_original_packet_lease_is_not_renewed_by_fresh_preparation(self):
+        from dataclasses import replace
+        with TemporaryDirectory() as tmp:
+            conf, store, host, git, packet = self.prepare(tmp)
+            host.scope = replace(host.scope, expires_at=NOW + timedelta(days=1))
+            with patch.object(host, 'send', wraps=host.send) as send:
+                result = owned_cycle.dispatch_owned_once(store, host, packet,
+                                                        NOW + timedelta(hours=6, seconds=1))
+                self.assertEqual(result['status'], 'NO_ACTION')
+                send.assert_not_called()
+
     def test_replayed_step_result_cannot_reuse_dispatch_permission(self):
         with TemporaryDirectory() as tmp:
             conf, store, host, git, packet = self.prepare(tmp)

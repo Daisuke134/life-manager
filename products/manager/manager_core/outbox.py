@@ -136,6 +136,9 @@ class OwnedEffectJournal:
                 status TEXT NOT NULL,receipt_ref TEXT)''')
             db.execute('''CREATE TABLE IF NOT EXISTS owned_deliveries(
                 key TEXT PRIMARY KEY,status TEXT NOT NULL,evidence_json TEXT NOT NULL)''')
+            db.execute('''CREATE TABLE IF NOT EXISTS owned_recovery_cursor(
+                kind TEXT PRIMARY KEY CHECK(kind IN ('occurrence','delivery')),
+                after_key TEXT NOT NULL)''')
     def record(self,key):
         with sqlite3.connect(self.path,timeout=15) as db:
             row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
@@ -156,15 +159,32 @@ class OwnedEffectJournal:
         with sqlite3.connect(self.path,timeout=15) as db:
             row=db.execute('SELECT evidence_json FROM owned_deliveries WHERE key=?',(key,)).fetchone()
         return json.loads(row[0]) if row else None
-    def pending_deliveries(self,limit=100):
+    def pending_deliveries(self,limit=100,after_key=None):
         if type(limit) is not int or not 1<=limit<=100:
             raise ValueError('delivery batch limit must be 1..100')
+        if after_key is not None and (type(after_key) is not str or not after_key):
+            raise ValueError('nonempty pagination key required')
         with sqlite3.connect(self.path,timeout=15) as db:
             rows=db.execute('''SELECT e.key,e.packet_json,e.expected_parent,e.status,e.receipt_ref
                 FROM owned_effects e LEFT JOIN owned_deliveries d ON d.key=e.key
                 WHERE e.status='PRESENT' AND (d.key IS NULL OR d.status!='VERIFIED')
-                ORDER BY e.key LIMIT ?''',(limit,)).fetchall()
+                AND e.key>? ORDER BY e.key LIMIT ?''',(after_key or '',limit)).fetchall()
         return tuple(OwnedEffectRecord(*row) for row in rows)
+    def recovery_batch(self,kind):
+        if kind not in ('occurrence','delivery'):raise ValueError('unknown recovery kind')
+        with sqlite3.connect(self.path,timeout=15) as db:
+            row=db.execute('SELECT after_key FROM owned_recovery_cursor WHERE kind=?',(kind,)).fetchone()
+        read=self.pending_records if kind=='occurrence' else self.pending_deliveries
+        records=read(after_key=row[0] if row else None)
+        # Cycle over unresolved rows as well; never equate cursor with progress
+        # on an external effect or allow writes while any row remains pending.
+        return records or read()
+    def complete_recovery_batch(self,kind,records):
+        if kind not in ('occurrence','delivery'):raise ValueError('unknown recovery kind')
+        if not records:return
+        with sqlite3.connect(self.path,timeout=15) as db:
+            db.execute('INSERT OR REPLACE INTO owned_recovery_cursor VALUES(?,?)',
+                       (kind,records[-1].key))
     def save_delivery(self,key,evidence):
         import json
         from .models.source import _aware

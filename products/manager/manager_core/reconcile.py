@@ -72,5 +72,8 @@ def reconcile_pending_owned(journal,read_occurrence,observed_at):
     Callers must keep dispatch blocked while any pending records remain,
     including records beyond this batch. Missing evidence is never absence.
     """
-    return tuple(reconcile_owned(journal,record.key,read_occurrence,observed_at)
-                 for record in journal.pending_records())
+    batch=journal.recovery_batch('occurrence')
+    results=tuple(reconcile_owned(journal,record.key,read_occurrence,observed_at)
+                  for record in batch)
+    journal.complete_recovery_batch('occurrence',batch)
+    return results
