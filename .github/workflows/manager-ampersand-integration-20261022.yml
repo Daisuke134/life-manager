@@ -56,6 +56,8 @@ jobs:
           python -m pip install --disable-pip-version-check -r requirements-internet-eval.txt 'numpy==2.2.6' 'scipy==1.15.3'
           python -m unittest discover -s tests -q
 
+  # Only this reviewed research branch and an explicitly tagged push can incur
+  # bounded Ampersand token usage; publication and third-party tools are disabled.
   real-ampersand-lab:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[manager-ampersand-live]')
     needs: offline-contract
