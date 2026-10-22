@@ -1493,6 +1493,7 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
     for loop_id in ("life-manager-release-reconciler", "life-manager-recovery-supervisor",
+                    "browser-recycle-idle",
                     "life-manager-disk-cleanup", "life-manager-health-observer",
                     "capafy-loop-healthcheck", "hf-reddit-loop-healthcheck",
                     "lm-fence-reconciler"):
@@ -4911,6 +4912,7 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
         "from runtime.loop import lm_loop_run; "
         "from runtime.loop.lm_loop_run import _run_admitted; "
         "lm_loop_run.disk_free_bytes=lambda _path: 3*1024**3; "
+        "lm_loop_run._producer_gate=lambda *_args, **_kwargs: None; "
         f"entry={entry!r}; command=[sys.executable,'-c',{child!r}]; "
         f"sys.exit(_run_admitted(command,entry,'example',os.environ.copy(),"
         f"pathlib.Path({str(receipt)!r})))"

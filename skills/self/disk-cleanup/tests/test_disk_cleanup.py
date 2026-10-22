@@ -80,6 +80,35 @@ def test_closed_regenerable_artifact_is_reclaimed(tmp_path: Path, monkeypatch) -
     assert replay["reclaimed_candidates_omitted"] == 0
 
 
+def test_removal_failure_records_candidate_and_errno(tmp_path: Path, monkeypatch) -> None:
+    candidate = tmp_path / "Library/Caches/pip"
+    candidate.mkdir(parents=True)
+    artifact = candidate / "payload"
+    artifact.write_bytes(b"regenerable")
+    governor = HostDiskGovernor(
+        home=tmp_path, state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1),
+    )
+
+    def denied(_path):
+        raise PermissionError(errno.EACCES, "fixture access denied")
+
+    monkeypatch.setattr(governor, "_remove_tree", denied)
+    result = governor.sweep([{
+        "path": candidate, "class": "regenerable_output", "owner": "pip-cache",
+        "discovery": "allowlisted",
+    }])
+
+    assert artifact.read_bytes() == b"regenerable"
+    assert result["preserved_reasons"] == {"remove_failed": 1}
+    assert result["probe_errors"] == [{
+        "owner": "pip-cache", "candidate": "Library/Caches/pip",
+        "path": "Library/Caches/pip", "error_class": "PermissionError",
+        "errno": errno.EACCES, "operation": "remove",
+    }]
+    assert json.loads((tmp_path / "state/last-receipt.json").read_text())["probe_errors"] == result["probe_errors"]
+
+
 def test_closed_package_download_caches_are_discovered_and_reclaimed(
     tmp_path: Path,
 ) -> None:
