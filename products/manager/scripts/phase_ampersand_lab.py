@@ -12,6 +12,7 @@ research report, beneficiary outcome assessment or authorization grants.
 from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 import json
 import os
@@ -37,6 +38,7 @@ from manager_core.models.source import Source
 from manager_core.kernel import ManagerKernel
 from manager_core.audit import AuditTrail
 from manager_core.provider_sessions import SessionJournal
+from manager_core.provider_budget import BudgetLedger, BudgetExceeded
 
 OUTPUT = Path("output/ampersand-research/report.json")
 # Purely fictional examples: no assertion that any target URL was actually fetched.
@@ -134,7 +136,7 @@ def run_lab(*, live: bool, max_sessions: int = 3,
         # workspace that loses intent state on restart. A real persistent host
         # with one stable run ID must be configured by the execution owner.
         journal_raw = os.environ.get("MANAGER_AMPERSAND_JOURNAL_PATH", "")
-        run_id = os.environ.get("MANAGER_AMPERSAND_RUN_ID") or os.environ.get("GITHUB_RUN_ID", "")
+        trial_id = os.environ.get("MANAGER_AMPERSAND_RUN_ID") or os.environ.get("GITHUB_RUN_ID", "")
         if not journal_raw or not Path(journal_raw).is_absolute():
             raise SessionFailure("durable absolute session journal path required for live provider calls")
         journal_path = Path(journal_raw).resolve()
@@ -143,9 +145,31 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                 journal_path.is_relative_to(Path("/tmp")) or
                 not journal_path.parent.exists()):
             raise SessionFailure("journal must reside on an existing durable volume outside repository and tmp")
-        if not re.fullmatch(r"[A-Za-z0-9_-]{1,70}", run_id):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,70}", trial_id):
             raise SessionFailure("stable unique trial run ID required")
+        cap_raw = os.environ.get("MANAGER_AMPERSAND_MAX_TOTAL_USD")
+        call_raw = os.environ.get("MANAGER_AMPERSAND_MAX_CALL_USD")
+        if not cap_raw or not call_raw:
+            raise SessionFailure("explicit total and per-call budget limits required")
+        try:
+            cap_usd, per_call_usd = Decimal(cap_raw), Decimal(call_raw)
+            if (not cap_usd.is_finite() or not per_call_usd.is_finite()
+                    or cap_usd <= 0 or per_call_usd <= 0 or per_call_usd > cap_usd):
+                raise ValueError("invalid positive budget")
+            budget = BudgetLedger(
+                journal_path.with_name(journal_path.stem + "-budget.sqlite"),
+                cap_usd=cap_usd,
+            )
+            # Validate this reservation ceiling before ANY provider request.
+            # It reserves a conservative estimate, not an API-enforced output cap.
+            if budget.available_usd() < per_call_usd:
+                raise BudgetExceeded("provider budget insufficient for one call")
+        except (InvalidOperation, ValueError, BudgetExceeded) as exc:
+            raise SessionFailure("invalid or exhausted provider budget") from exc
         journal = SessionJournal(journal_path)
+        result["budget_cap_usd"] = str(cap_usd)
+        result["budget_reserved_per_call_usd"] = str(per_call_usd)
+        result["budget_cost_is_authoritative"] = False
         api_key = os.environ.get("AMPERSAND_API_KEY", "")
         if not valid_api_key(api_key):
             raise SessionFailure(
@@ -168,7 +192,12 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                         initial = read_initial_turn(
                             client, render_prompt(c), DEFAULT_INSTRUCTIONS,
                             journal=journal,
-                            request_id=f"manager_{run_id}_{row[0].replace('-', '_')}")
+                            request_id=f"manager_{trial_id}_{row[0].replace('-', '_')}",
+                            budget_ledger=budget,
+                            budget_run_id=f"session_{trial_id}_{row[0].replace('-', '_')}",
+                            upper_usd=per_call_usd,
+                            deadline_monotonic=start + max_seconds,
+                            allow_silent_completion=True)
                         result["model_sessions_created"] += 1
                         record["session_id"] = initial.session_id
                         record["turn_id"] = initial.turn_id
@@ -188,11 +217,11 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                         # only verified chain digest in this public P0 report.
                         with tempfile.TemporaryDirectory(prefix="manager-p0-audit-") as d:
                             audit = AuditTrail(Path(d) / "audit.sqlite")
-                            run_id = "synthetic-advice-" + row[0]
+                            audit_run_id = "synthetic-advice-" + row[0]
                             audited = ManagerKernel(None, None, audit).review_public_advice(
-                                run_id, c, initial.output_text)
-                            record["kernel_audit_valid"] = audit.verify_chain(run_id)
-                            record["kernel_audit_digest"] = audit.trace(run_id)[-1]["hash"]
+                                audit_run_id, c, initial.output_text)
+                            record["kernel_audit_valid"] = audit.verify_chain(audit_run_id)
+                            record["kernel_audit_digest"] = audit.trace(audit_run_id)[-1]["hash"]
                             record["kernel_decision"] = audited.decision
                             if not record["kernel_audit_valid"]:
                                 raise SessionFailure("advisory P0 audit chain broken")
@@ -206,7 +235,12 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                             followup = read_followup_turn(
                                 client, initial.session_id, followup_prompt,
                                 key="manager-fictional-goal-update-v1",
-                                journal=journal, writer_id=f"manager_{run_id}")
+                                journal=journal, writer_id=f"manager_{trial_id}",
+                                budget_ledger=budget,
+                                budget_run_id=f"followup_{trial_id}",
+                                upper_usd=per_call_usd,
+                                deadline_monotonic=start + max_seconds,
+                                allow_silent_completion=True)
                             record["followup"] = {
                                 "same_session": followup.session_id == initial.session_id,
                                 "turn_id": followup.turn_id,
@@ -216,7 +250,7 @@ def run_lab(*, live: bool, max_sessions: int = 3,
                                 "output_tokens": followup.output_tokens,
                                 "provider_response_not_real_outcome": True,
                             }
-                    except (SessionFailure, ValueError) as exc:
+                    except (SessionFailure, BudgetExceeded, ValueError) as exc:
                         # Do not leak request, headers, credentials or raw exception string.
                         record["model_status"] = "UNKNOWN_OR_REJECTED"
                         record["error_class"] = type(exc).__name__
@@ -224,6 +258,9 @@ def run_lab(*, live: bool, max_sessions: int = 3,
         except SessionFailure:
             result["auth_model_check"] = "BLOCKED_OR_FAILED"
             result["provider_failure_without_effects"] = True
+    if live:
+        result["budget_available_after_run_usd"] = str(budget.available_usd())
+        result["budget_reserved_not_authoritative_spend"] = True
     scored = [c for c in result["cases"] if c["model_matches_author"] is not None]
     result["model_scored"] = len(scored)
     result["model_matches_count"] = sum(c["model_matches_author"] for c in scored)
@@ -258,7 +295,7 @@ def main(argv=None) -> int:
     try:
         d=run_lab(live=args.live, max_sessions=args.max_sessions,
                   max_seconds=args.max_seconds, output=args.output)
-    except (ValueError, SessionFailure) as exc:
+    except (ValueError, SessionFailure, BudgetExceeded) as exc:
         print("RESULT=BLOCKED_OR_INVALID_INPUT")
         print("ERROR_CLASS=" + type(exc).__name__)
         return 2
