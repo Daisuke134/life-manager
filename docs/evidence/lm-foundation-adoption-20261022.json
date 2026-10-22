@@ -1,0 +1,129 @@
+{
+  "source": {
+    "FND01a": "PR8529",
+    "FND01b": "PR8531",
+    "FND01c": "PR8533",
+    "FND02": "PR8532",
+    "FND03": "PR8534",
+    "CLD01": "PR8530",
+    "CLD02": "PR8535",
+    "CLD03a": "PR8536",
+    "FND06a": "PR8537"
+  },
+  "local_adoption": {
+    "release_sha": "d6b740ceadb17413c65c4cf875e6881fb39f8a29",
+    "health_observer": {
+      "natural_run_id": "18e0d91c70697300-49513",
+      "terminal": "pass",
+      "terminal_at": "2026-10-22T12:18:09.667257+00:00"
+    },
+    "capafy": [
+      {
+        "owner_id": "capafy-loop-daily",
+        "apply_ok": true,
+        "queue_identity_preserved": true,
+        "effect_unknown_before": 0,
+        "effect_unknown_after": 0
+      },
+      {
+        "owner_id": "capafy-distribute-daily",
+        "apply_ok": true,
+        "queue_identity_preserved": true,
+        "effect_unknown_before": 0,
+        "effect_unknown_after": 0
+      }
+    ],
+    "capafy_factory_natural": {
+      "terminal": "pass",
+      "outcome": "no_work",
+      "new_publication_proven": false,
+      "new_paid_proven": false
+    },
+    "health_observer_latest": {
+      "generated_at": "2026-10-22T13:21:23.151429+00:00",
+      "job_count": 191,
+      "telemetry_gap": 0
+    }
+  },
+  "host": {
+    "swap_total_mib": 9216,
+    "indexer": "com.apple.corespotlightd",
+    "footprint_top_mem": "27G",
+    "footprint_top_cmprs": "27G",
+    "metrics_non_additive": true,
+    "signal_exit_code": 1,
+    "old_process_still_present": true,
+    "signal_failure_stderr_preserved": false,
+    "capacity_recovered": false,
+    "available_bytes_samples": [
+      8693248000,
+      10881548288,
+      9848152064
+    ],
+    "own_merged_worktrees_retired": 3,
+    "activity_monitor_readback": "accessibility_permission_not_granted",
+    "activity_monitor_process_mutations": 0,
+    "codex_runtime_node_version": "v24.19.0",
+    "codex_runtime_node_exit_code": 0,
+    "ui_quit_sent": true,
+    "ui_force_quit_sent": false,
+    "indexer_old_pid_absent": true,
+    "indexer_new_pid": 64830,
+    "indexer_after_mem": "47M",
+    "indexer_after_cmprs": "28M",
+    "indexer_recovery_verified": true
+  },
+  "cloud": {
+    "build": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+    "source_adoption_proven": false,
+    "migration_sent": true,
+    "error_counts": {
+      "statement_timeout": 17,
+      "client_reset": 3,
+      "dynamic_shared_area_attach_failed": 1
+    },
+    "database_root_cause": "unconfirmed",
+    "migration_verified": true,
+    "migration_receipt": "20261022125437",
+    "official_health_samples": [
+      {
+        "order": 1,
+        "auth": "UNHEALTHY",
+        "db": "UNHEALTHY",
+        "rest": "ACTIVE_HEALTHY"
+      },
+      {
+        "order": 2,
+        "auth": "ACTIVE_HEALTHY",
+        "db": "ACTIVE_HEALTHY",
+        "rest": "UNHEALTHY"
+      }
+    ],
+    "data_api_error": "PGRST002",
+    "restart_sent": true,
+    "schema_reload_sent": true,
+    "schema_reload_accepted": true,
+    "schema_reload_recovered_rest": false,
+    "restart_http_status": 200,
+    "restart_requested_at": "2026-10-22T13:22:07.819455+00:00",
+    "restart_last_project_status": "ACTIVE_HEALTHY",
+    "restart_recovery_verified": true,
+    "post_restart_data_api_http": 200,
+    "post_restart_data_api_seconds": 0.43,
+    "post_restart_services_healthy": true,
+    "recovery_observed_at": "2026-10-22T13:25:57.828069+00:00"
+  },
+  "business": {
+    "new_revenue_proven": false,
+    "net_profit_proven": false,
+    "coconala_paid_direct_natural": {
+      "terminal": "pass",
+      "observed": 0,
+      "actionable": 0,
+      "effect": 0,
+      "failed": 0,
+      "pending": 0
+    }
+  },
+  "recorded_at": "2026-10-22T13:31:30.097430+00:00"
+}
