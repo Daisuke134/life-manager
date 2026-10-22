@@ -1019,7 +1019,7 @@
       "E15",
       "E16"
     ],
-    "technical_execution_cursor": "E06",
+    "technical_execution_cursor": "E07",
     "technical_execution_plan": "docs/plans/2026-10-22-manager-core-execution-plan.md",
     "acceptance_sequence": [
       "F005",
@@ -1042,7 +1042,8 @@
       "E02",
       "E03",
       "E04",
-      "E05"
+      "E05",
+      "E06"
     ],
     "technical_execution_receipts": {
       "E01": {
@@ -1116,6 +1117,23 @@
         "no_duplicate_creation_on_unknown": "OFFLINE_VERIFIED",
         "api_cost_settled": null,
         "beneficiary_outcome": "NOT_MEASURED"
+      },
+      "E06": {
+        "status": "PASSED",
+        "result": "P0_PROVIDER_BUDGET_DEADLINE_CANCEL_CONTRACT_VERIFIED",
+        "source_commit": "49f2d438ac5c8a10390b7947c98c83b5a9397314",
+        "run_id": 39765675373,
+        "run_url": "https://github.com/Daisuke134/life-manager/actions/runs/39765675373",
+        "full_suite_total": 570,
+        "skipped": 5,
+        "focused_deadline_tests": 10,
+        "existing_budget_tests": 14,
+        "live_inference": "NOT_RUN",
+        "induced_live_network_loss": "NOT_RUN",
+        "settled_usd": null,
+        "human_outcome": "NOT_MEASURED",
+        "runtime_constraint": "Synchronous deadline-enabled provider requires POSIX main-thread owner; unsupported/conflicting timers fail closed.",
+        "verification": "docs/verification/E06_PROVIDER_LIMITS_20261022.md"
       }
     },
     "handoff_document": "docs/handoffs/2026-10-22-manager-e06-session-handoff.md",
