@@ -1,5 +1,10 @@
 # Manager — independent intervention research prototype
 
+## 次の新セッションの入口（2026-10-22、引き継ぎスナップショット）
+
+**[Manager E06再開・実証状況・評価ギャップ・新セッションのプロンプト](docs/handoffs/2026-10-22-manager-e06-session-handoff.md)** を最初に読む。保存時のSSOTでは E01–E05 が PASSED、次の順番は E06、E06–E16が未完了。最新状態の唯一の正本は [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json) の F009実行カーソル。**人への純便益は未測定、Ampersandの独立ベンチマーク優位は未証明**。この情報は完了証拠でもproduction deployでもない。
+
+
 
 ## 2026-10-22 現行実装の入口 — ここから開始
 
