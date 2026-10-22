@@ -1545,7 +1545,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
 
     // returnDecision is PURE; pass events[i+1] as the "next" hint.
     const returnHelperId = updatesNeeded.get("return")?.helper.id;
-    const retDecision = returnDecision(ev, returnHelperId ? events.slice(i + 1).find((event) => event.id !== returnHelperId) : events[i + 1], home);
+    const retDecision = returnDecision({ ...ev, location: resolvedDest }, returnHelperId ? events.slice(i + 1).find((event) => event.id !== returnHelperId) : events[i + 1], home);
     if (!retDecision.insert) {
       skipped++;
       continue;

@@ -168,6 +168,35 @@ function rawEv({ summary, location, startH, endH }) {
 // Node's module cache makes direct monkey-patching of the export the simplest approach here.
 const travelModule = require("./travel.js");
 
+test("resolved home alias suppresses RETURN routing while preserving the outbound trip", async () => {
+  const alias = "Fixture Home Alias";
+  const cal = makeFakeCalendar([
+    { ...rawEv({ summary: "Previous meeting", location: VENUE2, startH: 12, endH: 13 }), id: "resolved-home-prior" },
+    { ...rawEv({ summary: "Home visit", location: alias, startH: 14, endH: 15 }), id: "resolved-home-current" },
+  ]);
+  const routes = [];
+  const result = await fillTravel("tenant-resolved-home-return", {
+    home: HOME,
+    mapsKey: "fixture-maps-key",
+    geminiKey: "fixture-gemini-key",
+    nowMs: ms(13),
+    calendar: cal,
+    _directionsMinutes: async (src, dst, _key, _anchor, _now, departureMode) => {
+      routes.push({ src, dst, departureMode: !!departureMode });
+      return dst === alias ? null : 25;
+    },
+    _agentResolveLocation: async () => ({ kind: "filled", location: HOME, resolvedFrom: "location_field" }),
+  });
+
+  assert.equal(routes.filter((route) => route.departureMode).length, 0,
+    "resolved home must not trigger a home-to-home RETURN route");
+  assert.equal(routes.length, 2, "only the initial and resolved outbound route are needed");
+  assert.equal(result.inserted, 1);
+  assert.equal(cal._created.length, 1);
+  assert.equal(cal._created[0].location, HOME);
+  assert.ok(cal._created[0].summary.includes(VENUE2.slice(0, 5)), "the required outbound trip remains");
+});
+
 // ── Integration (a): last event of day → return [Travel] block created at ev.endMs ──────────────
 test("[INTEGRATION][FIND-002](a) last event of day → fillTravel creates a return [Travel] block starting at ev.endMs", async () => {
   // Single physical event, no subsequent event.
