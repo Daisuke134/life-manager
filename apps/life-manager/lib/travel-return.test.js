@@ -168,6 +168,56 @@ function rawEv({ summary, location, startH, endH }) {
 // Node's module cache makes direct monkey-patching of the export the simplest approach here.
 const travelModule = require("./travel.js");
 
+const resolvedAlias = "Fixture Venue Alias";
+for (const [index, fixture] of [
+  {
+    name: "resolved venue preserves the trip from a prior venue to home",
+    previous: VENUE2, resolved: HOME,
+    routes: [[VENUE2, resolvedAlias, false], [VENUE2, HOME, false]],
+    helperStartMs: ms(14) - 30 * 60000,
+  },
+  {
+    name: "resolved venue already at home needs neither GO nor RETURN",
+    previous: null, resolved: HOME,
+    routes: [[HOME, resolvedAlias, false]], helperStartMs: null,
+  },
+  {
+    name: "resolved venue already at an external venue keeps its independent RETURN",
+    previous: VENUE2, resolved: VENUE2,
+    routes: [[VENUE2, resolvedAlias, false], [VENUE2, HOME, true]], helperStartMs: ms(15),
+  },
+].entries()) {
+  test(fixture.name, async () => {
+    const cal = makeFakeCalendar([
+      ...(fixture.previous ? [{ ...rawEv({ summary: "Previous meeting", location: fixture.previous,
+        startH: 12, endH: 13 }), id: "resolved-venue-prior" }] : []),
+      { ...rawEv({ summary: "Fixture meeting", location: resolvedAlias, startH: 14, endH: 15 }),
+        id: "resolved-venue-current" },
+    ]);
+    const routes = [];
+    const result = await fillTravel(`tenant-resolved-venue-${index}`, {
+      home: HOME, mapsKey: "fixture-maps-key", geminiKey: "fixture-gemini-key",
+      nowMs: ms(13), calendar: cal,
+      _directionsMinutes: async (src, dst, _key, _anchor, _now, departureMode) => {
+        routes.push([src, dst, !!departureMode]);
+        return dst === resolvedAlias ? null : 25;
+      },
+      _agentResolveLocation: async () => ({ kind: "filled", location: fixture.resolved,
+        resolvedFrom: "location_field" }),
+    });
+
+    assert.deepEqual(routes, fixture.routes, "only the required journeys are routed");
+    const expectedWrites = fixture.helperStartMs == null ? 0 : 1;
+    assert.equal(result.inserted, expectedWrites);
+    assert.equal(cal._created.length, expectedWrites);
+    if (expectedWrites) {
+      assert.equal(cal._created[0].location, HOME);
+      assert.equal(cal._created[0].start_datetime,
+        new Date(fixture.helperStartMs).toISOString().replace(/\.\d{3}Z$/, ""));
+    }
+  });
+}
+
 // ── Integration (a): last event of day → return [Travel] block created at ev.endMs ──────────────
 test("[INTEGRATION][FIND-002](a) last event of day → fillTravel creates a return [Travel] block starting at ev.endMs", async () => {
   // Single physical event, no subsequent event.
