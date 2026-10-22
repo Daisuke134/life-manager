@@ -1,6 +1,10 @@
 """TDD contracts for optional Ampersand collaboration, entirely offline."""
 import json
 import unittest
+import tempfile
+from pathlib import Path
+from manager_core.audit import AuditTrail
+from manager_core.kernel import ManagerKernel
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace as NS
 
@@ -113,6 +117,35 @@ class AdviceContractTests(unittest.TestCase):
         self.assertIn("Do NOT choose PASS solely because", p)
         self.assertIn("Respect an explicit refusal", p)
         self.assertIn("PROPOSE", p)
+
+
+
+class KernelAdvisoryIntegrationTests(unittest.TestCase):
+    def test_kernel_logs_p0_public_advice_without_outbox_or_execution(self):
+        class DenyAllOutbox:
+            def execute(self,*args,**kwargs): raise AssertionError("Must never execute")
+        with tempfile.TemporaryDirectory() as directory:
+            audit = AuditTrail(Path(directory)/"audit.sqlite")
+            kernel = ManagerKernel(DenyAllOutbox(), None, audit)
+            response = '{"decision":"ASK","reason":"Clarify the conflict","source_ids":[]}'
+            result = kernel.review_public_advice("case-advisory-001",context(),response)
+            self.assertEqual(result.decision,"ASK")
+            self.assertEqual(result.proof_level,"P0")
+            self.assertFalse(result.authorized_execution)
+            self.assertTrue(audit.verify_chain("case-advisory-001"))
+            stages = [event["stage"] for event in audit.trace("case-advisory-001")]
+            self.assertIn("proposal",stages)
+            self.assertNotIn("execution",stages)
+            self.assertNotIn("authorization",stages)
+
+    def test_kernel_invalid_model_reply_is_no_action_with_public_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            audit = AuditTrail(Path(directory)/"audit.sqlite")
+            result = ManagerKernel(None,None,audit).review_public_advice(
+                "case-invalid-002",context(), '{"execute":true}')
+            self.assertEqual(result.status, "INVALID_MODEL_OUTPUT")
+            self.assertEqual(result.decision, "PASS")
+            self.assertTrue(audit.verify_chain("case-invalid-002"))
 
 
 
