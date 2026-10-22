@@ -1,12 +1,8 @@
 # Manager — independent intervention research prototype
 
-**2026-10-22 全体設計更新:** [Managerの最終使命・最初の製品・研究・事業・YCの関係](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶべきこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[既存E計画の具体的な残パッチ](docs/plans/2026-10-22-manager-core-execution-plan.md#2026-10-22-strategy-review-addendum--same-e-order-concrete-remaining-patches)。仕様更新でありE06完了・配備・便益実証ではない。旧節の状態より `tasks.json` を優先する。
+**最新の再開入口:** [E16本番配備ゲートと残作業の引継ぎ](docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md)。E01–E15の実装・CI証跡は [tasks.json](docs/roadmap/tasks.json) に記録。E16は参照サイクルのテストまでで、常駐ホスト・永続状態・本番アダプターが未充足のため `DEPLOYMENT_HOST_REQUIRED`。今回のコードは未配備、人への便益は未測定、モデルの優位性も未証明です。
 
-## 次の新セッションの入口（2026-10-22、引き継ぎスナップショット）
-
-**[Manager E06再開・実証状況・評価ギャップ・新セッションのプロンプト](docs/handoffs/2026-10-22-manager-e06-session-handoff.md)** を最初に読む。保存時のSSOTでは E01–E05 が PASSED、次の順番は E06、E06–E16が未完了。最新状態の唯一の正本は [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json) の F009実行カーソル。**人への純便益は未測定、Ampersandの独立ベンチマーク優位は未証明**。この情報は完了証拠でもproduction deployでもない。
-
-
+**全体設計:** [最終使命・最初の製品・研究・事業・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
 
 ## 2026-10-22 現行実装の入口 — ここから開始
 

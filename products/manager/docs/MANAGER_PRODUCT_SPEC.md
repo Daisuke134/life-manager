@@ -5,7 +5,7 @@
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
-**確認時点のスナップショット:** E01–E05 PASSED、次はE06。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
+**確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16は参照サイクルまで検証し、本番ホスト/永続状態/本番アダプター未充足で `DEPLOYMENT_HOST_REQUIRED`。Digital Autonomy v0.1は未配備。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 

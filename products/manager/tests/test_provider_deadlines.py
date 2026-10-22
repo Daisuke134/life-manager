@@ -51,6 +51,37 @@ class ProviderDeadlineTests(unittest.TestCase):
             self.assertEqual(len(posted),1)
             self.assertEqual(posted[0]['events'],[{'type':'agent.session.input.cancel'}])
 
+    def test_created_ids_at_deadline_are_bound_before_cancel(self):
+        clock=[100.0];posted=[]
+        def events():
+            clock[0]=200.0
+            yield NS(type='agent.session.created',session_id='sess_abcdefgh',turn_id='turn_abcdefgh')
+        with TemporaryDirectory() as tmp:
+            journal=SessionJournal(Path(tmp)/'journal.sqlite')
+            with patch('time.monotonic',side_effect=lambda:clock[0]),self.assertRaises(SessionFailure):
+                read_initial_turn(client_for(events,posted),'fictional',journal=journal,
+                                  request_id='initial_edge',deadline_monotonic=120.0)
+            self.assertEqual(journal.get('initial_edge').session_id,'sess_abcdefgh')
+            self.assertEqual(len(posted),1)
+
+    def test_alarm_during_initial_bind_recovers_known_ids_for_cancel(self):
+        posted=[]
+        def events():
+            yield NS(type='agent.session.created',session_id='sess_abcdefgh',turn_id='turn_abcdefgh')
+        with TemporaryDirectory() as tmp:
+            journal=SessionJournal(Path(tmp)/'journal.sqlite');bind=journal.bind;calls=[]
+            def interrupted_bind(*args):
+                calls.append(args)
+                if len(calls)==1:threading.Event().wait(3)
+                return bind(*args)
+            start=time.monotonic()
+            with patch.object(journal,'bind',side_effect=interrupted_bind),self.assertRaises(SessionFailure):
+                read_initial_turn(client_for(events,posted),'fictional',journal=journal,
+                                  request_id='initial_bind_alarm',deadline_monotonic=start+.05)
+            self.assertLess(time.monotonic()-start,.75)
+            self.assertEqual(journal.get('initial_bind_alarm').session_id,'sess_abcdefgh')
+            self.assertEqual(len(posted),1)
+
     def test_stream_without_events_has_bounded_transport_wait(self):
         posted=[]
         def blocked():

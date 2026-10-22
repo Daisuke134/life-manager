@@ -73,11 +73,18 @@ def observe_event(event):
 
 
 def _cancel(state):
-    if not state.get('session_id') or not state.get('turn_id') or state['journal'] is None:
+    if not state.get('session_id') or state['journal'] is None:
         return 'UNKNOWN_CREATION_OR_TURN'
     from .provider_budget import cancel_and_reconcile
     try:
         with _alarm(time.monotonic()+5):
+            # A deadline can interrupt the created-event handler before its
+            # durable bind (including during SQLite I/O). Retain observed IDs
+            # and repair that binding inside the bounded cancellation grace.
+            if state.get('initial_request_id') is not None:
+                state['journal'].bind(state['initial_request_id'],state['session_id'])
+            if not state.get('turn_id'):
+                return 'UNKNOWN_CREATION_OR_TURN'
             receipt=cancel_and_reconcile(state['client'],state['journal'],
                 state['session_id'],state['turn_id'],event_key=state['cancel_key'],
                 writer_id=state['writer_id'])
@@ -99,7 +106,8 @@ def bounded_provider_call(function):
         state={'client':args[0] if args else kwargs['client'],
                'journal':kwargs.get('journal'),'deadline':deadline,
                'writer_id':kwargs.get('writer_id') or 'initial_'+suffix,
-               'cancel_key':'cancel_'+suffix}
+               'cancel_key':'cancel_'+suffix,
+               'initial_request_id':kwargs.get('request_id') if function.__name__=='read_initial_turn' else None}
         if function.__name__=='read_followup_turn':
             state['session_id']=args[1] if len(args)>1 else kwargs.get('session_id')
         token=_active.set(state)
