@@ -7,7 +7,8 @@ route once you are out the door, and asks before telling anyone you are late.
 
 | You are working on | Read |
 |---|---|
-| ★ daily organ — wake calls, travel blocks, live location, route, late notice ★ | `docs/superpowers/specs/2026-08-01-lm-daily-organ-design.md` — **the order of work lives there** |
+| Current TODO order, Local/Cloud recovery and deployment | [Unified SSOT](../../docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md), especially CLD04 for deployment and runtime verification |
+| ★ daily organ — wake calls, travel blocks, live location, route, late notice ★ | `docs/superpowers/specs/2026-08-01-lm-daily-organ-design.md` — background design |
 | platform (finance, marketing, runtime migration, panel) | `docs/superpowers/specs/2026-07-29-life-manager-finance-marketing-platform-design.md` |
 
 This repository (`Daisuke134/life-manager`) is canonical. External copies of

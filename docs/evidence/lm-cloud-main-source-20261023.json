@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-22T16:25:18.236345+00:00",
+  "provider": "Railway",
+  "account_matches_private_ssot": true,
+  "project_id": "f9c524cb-ba4a-43bb-9639-ff736afd9ec1",
+  "environment_id": "039eb0fd-b017-458f-947d-f3f55a0b3c04",
+  "service_id": "ca978c74-639a-4fa1-af22-9cdd53c3f615",
+  "repo": "Daisuke134/life-manager",
+  "branch": "main",
+  "source_before_commit": "cab43203e2d80c3600ed53754377565920df6845",
+  "main_at_preparation": "1dbf2b502d9f0733e91b6f53a6ecd2ab86675da1",
+  "cloud_app_tree": "36ff7e1e4efcb2f426ef049f14429adfc4edb154",
+  "cloud_tree_equals_tested_cbfc": true,
+  "baseline_success_deployment": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
+  "baseline_deployment_commit": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+  "baseline_can_redeploy": true,
+  "baseline_can_rollback": true,
+  "staged_readback": {
+    "project": {
+      "id": "f9c524cb-ba4a-43bb-9639-ff736afd9ec1",
+      "name": "Anicca"
+    },
+    "environment": {
+      "id": "039eb0fd-b017-458f-947d-f3f55a0b3c04",
+      "name": "production"
+    },
+    "staged": {
+      "patchId": "cb5edb93-3b1a-4c47-bed6-0beeec3a71da",
+      "status": "STAGED",
+      "changeCount": 1,
+      "message": null,
+      "createdAt": "2026-10-22T15:48:01.017Z",
+      "updatedAt": "2026-10-22T15:48:01.017Z"
+    },
+    "destructive": false,
+    "resources": [
+      {
+        "kind": "service",
+        "id": "ca978c74-639a-4fa1-af22-9cdd53c3f615",
+        "name": "life-call",
+        "action": "update",
+        "changes": [
+          {
+            "path": "services.ca978c74-639a-4fa1-af22-9cdd53c3f615.source.commitSha",
+            "displayName": "Commit Sha",
+            "type": "removed",
+            "from": "cab43203e2d80c3600ed53754377565920df6845",
+            "to": "",
+            "destructive": false
+          }
+        ]
+      }
+    ],
+    "sharedVariables": [],
+    "privateNetworkDisabled": null
+  },
+  "production_applied": true,
+  "legacy_null_claims_preserved": true,
+  "calendar_writes_by_operator": 0,
+  "workflow_id": "commitChanges/039eb0fd-b017-458f-947d-f3f55a0b3c04/cb5edb93-3b1a-4c47-bed6-0beeec3a71da",
+  "current_source": {
+    "repo": "Daisuke134/life-manager",
+    "branch": "main",
+    "rootDirectory": "/",
+    "commitSha": null
+  },
+  "current_staged": null,
+  "watch_patterns": [
+    "apps/life-manager/**"
+  ],
+  "new_build_observed": false,
+  "runtime_adoption_verified": false,
+  "next_action": "Merge the Cloud README canonical TODO correction through the existing watched path, then inspect official deployment metadata and public health."
+}
