@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { getCalendar } = require("./index.js");
 const { makeComposioCalendar } = require("./calendar-composio.js");
+const { fillTravel } = require("../travel.js");
 
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const ACCOUNT_ID = "ca-selected-123";
@@ -55,6 +56,66 @@ function fixture(controlState) {
     }),
   };
 }
+
+test("raw_create_uses_boolean_send_updates_false", async () => {
+  for (const [input, expected] of [["none", false], [false, false], [true, true], [null, null], [undefined, undefined]]) {
+    const f = fixture({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false });
+    const args = Object.freeze({ summary: "Travel fixture", ...(input === undefined ? {} : { send_updates: input }) });
+    const result = await f.calendar.createEvent(UID, args);
+
+    assert.equal(result.effect, "created");
+    assert.equal(f.providerCalls.length, 1);
+    assert.equal(f.providerCalls[0].path, "/api/v3/tools/execute/GOOGLECALENDAR_CREATE_EVENT");
+    assert.equal(f.providerCalls[0].body.connected_account_id, ACCOUNT_ID);
+    assert.equal(f.providerCalls[0].body.arguments.send_updates, expected);
+    assert.equal(args.send_updates, input);
+  }
+});
+
+test("web_proxy_create_and_reminder_patch_keep_sendUpdates_none", async () => {
+  for (const sendUpdates of ["none", false]) {
+    const f = fixture({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false });
+    const reminders = { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] };
+    const created = await f.calendar.createEvent(UID, {
+      summary: "Travel fixture", start_datetime: "2030-01-01T00:00:00",
+      event_duration_minutes: 25, reminders, send_updates: sendUpdates,
+    }, { expectedCalendarAccountId: ACCOUNT_ID });
+    const patched = await f.calendar.patchEvent(UID, {
+      calendar_id: "primary", event_id: "travel-existing", reminders, send_updates: sendUpdates,
+    }, { expectedCalendarAccountId: ACCOUNT_ID });
+
+    assert.equal(created.effect, "created");
+    assert.equal(patched.effect, "updated");
+    assert.equal(f.providerCalls.length, 2);
+    assert.deepEqual(f.providerCalls.map((call) => call.body.method), ["POST", "PATCH"]);
+    for (const call of f.providerCalls) {
+      assert.equal(call.path, "/api/v3.1/tools/execute/proxy");
+      assert.equal(call.body.connected_account_id, ACCOUNT_ID);
+      assert.deepEqual(call.body.parameters, [{ name: "sendUpdates", value: "none", type: "query" }]);
+    }
+  }
+});
+
+test("go_and_return_share_the_transport_contract", async () => {
+  const f = fixture({ dailyAutomationEnabled: true, disconnectPending: false, enablePending: false });
+  const result = await fillTravel(UID, {
+    home: "Fixture home", mapsKey: "fixture-key", nowMs: Date.parse("2030-01-01T08:00:00Z"),
+    calendar: { ...f.calendar, listEventsRaw: async () => [{
+      id: "fixture-event", summary: "Fixture meeting", location: "Fixture venue",
+      start: { dateTime: "2030-01-01T10:00:00Z" }, end: { dateTime: "2030-01-01T11:00:00Z" },
+    }] },
+    _directionsMinutes: async () => 10,
+  });
+
+  assert.equal(result.inserted, 2);
+  assert.equal(f.providerCalls.length, 2);
+  assert.deepEqual(f.providerCalls.map((call) => call.body.arguments.location), ["Fixture venue", "Fixture home"]);
+  for (const call of f.providerCalls) {
+    assert.equal(call.path, "/api/v3/tools/execute/GOOGLECALENDAR_CREATE_EVENT");
+    assert.equal(call.body.connected_account_id, ACCOUNT_ID);
+    assert.equal(call.body.arguments.send_updates, false);
+  }
+});
 
 test("Web Calendar create and patch make no provider call while paused or pending", async () => {
   for (const controlState of [
