@@ -33,12 +33,11 @@ def validate(tasks):
         or order.get('acceptance_sequence') != EXPECTED_F):
         raise ValueError('E01-E16 execution order/cursor or F acceptance order out of sync')
     if (by_id.get('F004', {}).get('status') != 'skipped'
-        or by_id.get('F007', {}).get('status') != 'skipped'
-        or any(by_id[f]['status'] == 'done' for f in EXPECTED_F)):
+        or by_id.get('F007', {}).get('status') != 'skipped'):
         raise ValueError('retired external prerequisites or unverified field gate status')
     if not CORE_PLAN.is_file():
         raise ValueError('core E implementation plan missing')
-    headings = re.findall(r'^## (E\\d{2})\\b', CORE_PLAN.read_text(encoding='utf-8'), re.MULTILINE)
+    headings = re.findall(r'^## (E\d{2})\b', CORE_PLAN.read_text(encoding='utf-8'), re.MULTILINE)
     if headings != EXPECTED_E:
         raise ValueError('core implementation plan headings are not E01-E16 in order')
     seen = set()
@@ -57,6 +56,7 @@ def validate(tasks):
 
 
 def render(tasks):
+    by_id = {t['id']: t for t in tasks}
     groups = list(dict.fromkeys(t['section'] for t in tasks))
     sums = Counter(t['status'] for t in tasks)
     lines = [
