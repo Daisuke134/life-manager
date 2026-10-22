@@ -109,8 +109,14 @@ def read_initial_turn(client: Any, prompt: str,
             ensure_ascii=False, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf8")
-        journal.begin(request_id, sha256(identity).hexdigest())
-        journal.reserve_for_send(request_id)  # RESERVED→UNKNOWN before HTTP
+        from .provider_sessions import SessionConflict
+        try:
+            journal.begin(request_id, sha256(identity).hexdigest())
+            journal.reserve_for_send(request_id)  # RESERVED→UNKNOWN before HTTP
+        except SessionConflict as exc:
+            raise SessionFailure(
+                "provider creation already attempted or uncertain; reconcile before retry"
+            ) from exc
         # Official SessionCreate allows metadata and preserves it in list.
         create_kwargs["metadata"] = {"manager_request_id": request_id}
     try:
