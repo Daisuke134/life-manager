@@ -128,6 +128,17 @@ def read_initial_turn(client: Any, prompt: str,
                 if index >= 4000:
                     raise SessionFailure("event budget exceeded")
                 typ = getattr(event, "type", "")
+                if journal is not None and typ == "agent.session.created":
+                    session = getattr(event, "session", None)
+                    early_id = getattr(event, "session_id", None)
+                    if early_id is None:
+                        early_id = (session.get("id") if isinstance(session, dict)
+                                    else getattr(session, "id", None))
+                    if (isinstance(early_id, str) and
+                            re.fullmatch(r"sess_[A-Za-z0-9_-]{4,128}", early_id)):
+                        # Identity becomes durable before the potentially
+                        # minutes-long stream proceeds; no retry on crash.
+                        journal.bind(request_id, early_id)
                 if typ in ("agent.session.idle", "agent.session.failed",
                            "agent.session.requires_action"):
                     state = typ
