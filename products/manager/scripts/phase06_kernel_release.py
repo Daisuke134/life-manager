@@ -132,6 +132,30 @@ def admit(site,checkout,audit_path,intent_path,output,now):
     return result
 
 
+def admit_owned(context,assessment,standing_scope,prepared,checkout,audit_path,output,now):
+    """Host bridge: revalidate scope/source/artifact immediately before original admission.
+
+    No CLI/model input creates a scope. The separately privileged owner must
+    supply these typed host objects and the original GitHub workflow identity.
+    This function only stages; the platform still owns CAS commit/push.
+    """
+    from manager_core.digital_handoff import prepare_owned_change
+    validate_intent(prepared.packet)
+    if not datetime.fromisoformat(prepared.packet['created_at'])<=now<datetime.fromisoformat(prepared.packet['expires_at']):
+        raise PermissionError('original owned intent expired')
+    check=prepare_owned_change(context,assessment,standing_scope,now)
+    # Packet timestamps may differ; compare immutable bindings, then use fresh intent.
+    if (prepared.status!='PREPARED_PLATFORM_AUTHORITY_REQUIRED'
+            or check.status!=prepared.status or check.context_hash!=prepared.context_hash
+            or check.packet['effect_key']!=prepared.packet['effect_key']):
+        raise PermissionError('owned scope/context/artifact no longer eligible')
+    output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        intent=Path(tmp)/'intent.json';write_json(intent,check.packet)
+        return admit(Path(context.candidate_bundle),Path(checkout),Path(audit_path),intent,output,now)
+
+
 def render_explorer(report):
     """Static view of an independently collected report; no trackers/forms."""
     details=[('Technical evidence',report['technical_proof']),

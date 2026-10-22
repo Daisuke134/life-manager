@@ -68,6 +68,15 @@ class ManagerKernel:
         })
         return result
 
+    def prepare_owned_change(self, context, assessment, standing_scope, now):
+        from .digital_handoff import prepare_owned_change
+        result=prepare_owned_change(context,assessment,standing_scope,now)
+        self.audit.append(result.run_id,'authorization',{
+            'status':result.status,'reason':result.reason,
+            'grant_id':result.scope_id,'content_hash':result.context_hash,
+            'benefit_status':'NOT_MEASURED','proof_level':'P0'})
+        return result
+
     def prepare_digital_release(self, run_id, baseline, candidate, now):
         """Plan an inert handoff; only the separate owned CI job can publish.
 

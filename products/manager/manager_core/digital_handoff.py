@@ -186,3 +186,65 @@ def validate_commit_receipt(packet, receipt, committed_manifest, observed_at, *,
             'reconciled_existing_occurrence':timestamp < created or packet['decision']=='NO_ACTION',
             'committed_at':timestamp.isoformat(),'observed_at':observed_at.isoformat(),
             'human_outcome':'NOT_MEASURED','causal_effect_verified':False}
+
+
+@dataclass(frozen=True)
+class OwnedChangeContext:
+    """Host-owned source/bundle bindings; never parsed from model advice."""
+    run_id: str
+    planner: object
+    baseline_bundle: object
+    candidate_bundle: object
+    criteria: object
+
+
+@dataclass(frozen=True)
+class OwnedReleaseIntent:
+    status: str
+    run_id: str
+    reason: str
+    packet: dict | None = None
+    context_hash: str | None = None
+    scope_id: str | None = None
+    scope_expires_at: str | None = None
+    # Construction is not authority; privileged platform checks remain required.
+    @property
+    def authorized_execution(self):return False
+
+
+def prepare_owned_change(context,assessment,standing_scope,now):
+    """Recompute static verification; emit an inert intent, never a write grant."""
+    from dataclasses import asdict
+    from .authority import OwnedDigitalScope
+    from .collaboration import PlannerContext
+    from .candidate_verification import TechnicalCriteria,TechnicalAssessment,verify_candidate,_load
+    _aware(now)
+    if type(context) is not OwnedChangeContext:raise ValueError('host-owned context required')
+    run=context.run_id
+    if type(run) is not str or not run.strip() or len(run)>256:raise ValueError('bounded run ID required')
+    def no(reason):return OwnedReleaseIntent('NO_ACTION',run,reason)
+    if type(standing_scope) is not OwnedDigitalScope:return no('MISSING_HOST_SCOPE')
+    if type(context.planner) is not PlannerContext or type(context.criteria) is not TechnicalCriteria:
+        return no('INVALID_HOST_CONTEXT')
+    scope=standing_scope;c=context.criteria
+    if c.at>now or context.planner.observed_at>now:return no('FUTURE_CONTEXT')
+    if type(assessment) is not TechnicalAssessment:return no('UNVERIFIED_ASSESSMENT')
+    facts={f.source.source_id:f.source for f in context.planner.facts}
+    try:
+        for ref in c.candidate.source_refs:
+            facts[ref].require_fresh(now,48)
+            if facts[ref] not in c.official_sources:return no('CONTEXT_SOURCE_CHANGED')
+    except (KeyError,ValueError):return no('INVALID_SOURCE_BINDING')
+    recomputed=verify_candidate(context.baseline_bundle,context.candidate_bundle,c)
+    if recomputed!=assessment or assessment.status!='VERIFIED_TECHNICAL':return no('UNVERIFIED_OR_UNCHANGED')
+    if (not scope.allows(c.candidate.target,now) or len(assessment.changed_paths)>scope.max_changed_files
+            or not set(assessment.changed_paths)<=scope.allowed_paths):return no('OUTSIDE_HOST_SCOPE')
+    before,_=_load(context.baseline_bundle);after,_=_load(context.candidate_bundle)
+    packet=plan_release(before,after,now)
+    bindings={'run_id':run,'goal':context.planner.goal,'observed_at':context.planner.observed_at.isoformat(),
+              'facts':[{'source':{**asdict(f.source),'retrieved_at':f.source.retrieved_at.isoformat()},'summary':f.summary}
+                       for f in context.planner.facts],
+              'assessment':asdict(assessment),'scope_id':scope.scope_id,
+              'scope_expires_at':scope.expires_at.isoformat()}
+    return OwnedReleaseIntent('PREPARED_PLATFORM_AUTHORITY_REQUIRED',run,'ORIGINAL_PUBLISHER_GATES_REQUIRED',
+                              packet,digest(bindings),scope.scope_id,scope.expires_at.isoformat())
