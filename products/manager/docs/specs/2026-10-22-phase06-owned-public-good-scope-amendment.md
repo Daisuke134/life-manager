@@ -6,6 +6,8 @@
 **User decision:** Stop treating money-holder approvals and indoor facility access as prerequisites to building Manager; replace this dependency with a permission-independent first wedge that can genuinely be built and measured.
 **Boundary:** Historical acceptance is versioned, never retroactively claimed as satisfied. Superseding scope is not evidence that an earlier finance/physical experiment occurred.
 
+**Execution-order SSOT:** `../roadmap/tasks.json` / F009 `technical_execution_sequence` and `technical_execution_cursor` fixes **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** as the sole sequential engineering track. **F005 → F006 → F008 → F009** are evidence acceptance checks after E implementation, not a second earlier queue. F004/F007 skipped but not done. [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md) has atomic file/test steps.
+
 ## What changes
 
 **Old F004** — requires outside financial administrator, budget and approval for third-party transfers — is **retired/waived**. No funds are needed to develop Manager's public-information intervention. Historical `original_*` fields preserve the old status and original acceptance. Owner authorization for edits to Anicca's own properties remains a real, separately checked capability.
