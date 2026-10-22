@@ -14,7 +14,7 @@
 
 Life Managerを、各業務がobserve → decide → act → official verify → persist → cleanup → 次の仕事を継続し、顧客に正しく成果を届け、実収益と費用を使って改善するシステムにする。Localの全業務と共有基盤、Cloudの移動予定作成・通知・継続稼働、meta loopの評価・自己修復・自己改善を対象にする。発話の「metal loop」はmeta loopとして扱い、mental careはCloudの既存機能として別に維持する。
 
-**今回の成果物は深い読み取り専用監査と、この正本のspec・patch計画・TODO更新。製品コード修正・本番deploy・予定作成・投稿・注文・送信・fence解除は今回行わない。** 実装に進む時は下表の先頭未完atomから進み、計画の保存やテスト成功を「全体修復済み」「稼いだ」と報告しない。
+**現行scopeは、監査済み計画の逐次実装・必要な検証・main統合・immutable反映・自然実行と公式成果の確認まで。** ユーザーの「one by one until end」を実行指示として、下表の先頭未完atomから完了まで進める。進行中の他owner、既存effect fence、spend-capを維持し、計画の保存やテスト成功を「全体修復済み」「稼いだ」と報告しない。
 
 「永久に故障しない」「全agentの利益が単調増加する」は、外部provider・審査・需要・有限資源を含む系では保証できない。実装する契約は、既知の失敗を再現する回帰検証、欠測を隠さない成果監視、同一effectの重複防止、期限とownerが明確な復旧、悪化した変更の復帰である。市場結果は独立して実測する。会社の既存US$10,000,000 MRR目標や各laneの目標を縮小しない。
 
@@ -68,7 +68,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** 調査・spec更新は完了対象、修復実装は未着手。次はFND01のfresh producer/容量証拠から最小REDを確定し、並行可能なCLD01のCalendar作成型契約を修復する。進行中provider effect、他者branch/lease、既存ownerの販売・納品を中断しない。
+**現在cursor:** FND01を実行中。専用worktree `lm-foundation-fnd01-20261022` / branch `fix/lm-foundation-fnd01-20261022` はmain `a6da73df89c02ed626b0f9cb5195bf7f1df05d18` 由来。fresh producer/容量証拠と既存cleanup経路を照合し、実際の不足枝だけをRED→GREENへ進める。独立担当はread-only容量観測を所有する。進行中provider effect、他者branch/lease、既存ownerの販売・納品を中断しない。
 
 primaryは本節、共有source、統合/受入/採用順を所有する。Local writerとCloud writerは別worktree/別ファイル所有で進められる。共有registry、credential、Calendar account、browser profile、release promotion、effect照合は該当leaseで直列化する。reviewerはfresh contextのread-onlyとし、現在UIで選択されたモデルを継承する。登録済agent数と稼働席・作業開始を混同しない。
 
@@ -98,6 +98,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 **FND01 — 容量の再発をproducer責務で閉じる**
 
 - 対象: `skills/self/disk-cleanup/{host_inventory.py,disk_cleanup.py}`、`runtime/host/disk_admission.py`、`runtime/loop/lm_loop_run.py`。一時物を残すことが実証されたowner entrypointだけを追加対象にする。全巨大directoryを削除対象にしない。
+- 実行規律: `using-superpowers` → `executing-plans` / `systematic-debugging` / `test-driven-development`、Ponytail fullを使う。TODO状態の複製ledgerは作らず、本節を更新する。native worktree toolがないため既存 `.worktrees` 下にGit linked worktreeを作り、owner leaseとsource-boundaryを確認する。Astra skillのmodel強制はUI継承指示と衝突するため適用せず、現在のモデルを継承する。
 - 入力: `state/host-inventory{,-full}.json`、既存cleanup receipt、producerのowner/PID/run/path/allocated delta、open FD、現在のfloor/admission判定。過去のfree回復と今回の再減少を別windowで記録する。
 - RED: `test_owner_terminal_reclaims_only_closed_run_artifacts`、`test_partial_inventory_does_not_claim_full_recovery`。live profile/unknown effect/正式receiptを保持し、対象runの再生成可能一時物だけ回収する。既存 `runtime/host/tests/test_disk_admission.py` と `skills/self/disk-cleanup/tests/`へ、実際に再現する枝だけ追加する。
 - 実装: 一度のowner作業が増やした一時物をそのownerの既存finally/cleanupへ戻す。inventory欠測は次のbounded owner測定へ送る。immutable依存bundle/既存native保持方針を再利用し、保護storeは変更しない。floor変更は実測working setと既存契約が必要な時だけ検討し、目先のPASS目的で下げない。
