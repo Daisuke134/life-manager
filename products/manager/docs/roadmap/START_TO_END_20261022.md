@@ -1,5 +1,7 @@
 # Manager — 開始からPhase12までの全工程と残41件
 
+**呼称更新:** 主体は仏教的AIエンティティ／デジタル仏陀（Digital Buddha）。Digital Autonomy v0.1はその限定能力のreleaseであり、主体自体を製品と定義しない。原taskの名称・ID・依存・件数は履歴と受入契約のため保持する。[現行の主体定義](../MANAGER_PRODUCT_SPEC.md)に従う。
+
 2026-10-22 UTC。これは [tasks.json](tasks.json) の状態・依存を説明する派生view。状態の正本を増やさない。確認baselineは `2b9a7b78b4845f6ac7022f969244dc0d1596bddf`。原113件は **69 done / 41 todo / 3 skipped / 0 blocked**、技術の現在地は **E16、本番配備前**。完了は各taskの限定した受入れであり、全科学・顧客需要・人の便益の検証済みという意味ではない。
 
 ユーザーの意図は、E16で止めず、評価・実証・領域横断・出版・公式サイト・仕事/YC・統治まで最後まで進めること。以下に全13章、残41件の全ID/受入れ/依存、並行レーンと各完成判定を示す。今回の文書/サイト原稿更新で実証taskをdoneへ進めない。
@@ -145,7 +147,7 @@ flowchart LR
 ## 5. 元113件、E16段、P7段、12PATCHの数え方
 
 - **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。69/41/3はこの母数だけ。
-- **E01–E16**: 同じ製品の技術実装順と検証receipt。原113件への追加16件ではない。E01–E15実装receipt済み、E16は参照P0合格・本番未配備。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
+- **E01–E16**: 同じエンティティの技術実装順と検証receipt。原113件への追加16件ではない。E01–E15実装receipt済み、E16は参照P0合格・本番未配備。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
 - **P01–P07**: editorial parallel track。元Phase00の **P001–P006とは別表記・別意味**。P01 evidence index→P02英日package→P03既存installer公開、P04既存home更新、P05本の章/HTML/EPUB、P06slide/carousel/manga源、P07editor/release receipts。原稿・storyboard・rendered artifact・live公開・読者・売上は別証拠。E cursorもC002/Y008も自動更新しない。
 - **PATCH-01–12**: E16/出版/創業者作業を実ファイル・関数・RED検査へ分解した派生実装単位。新台帳でない。01→02→04→05→06がE16技術線（pending intent先行回収、dispatch権限非replay/既成runtime比較、official occurrenceとdelivery別回収、特権publisher bridge、host/backup/restore）。03は既成製品baseline文書、07→08→09/10は権利/証拠→記事章deck→download/render、11は同じcaseの職務/顧客/YC、12は真正な結果だけをscorecardへ戻す。
 - **創業者マップの12実行パッケージ**も上記タスクの横断view。同じ「12」でもPATCHとは別の粒度であり、さらに12件を加算しない。
@@ -160,7 +162,7 @@ flowchart LR
 | Gate0 一次研究 | Rの限定受入れdone | 新しい主張はその原典・権利・限界を追加検証 |
 | Gate1 科学再現 | **UNMET**。H/S件数がdoneでも解除されない | 既知RCT因果効果とtask-conditioned heldout人間モデル忠実度の独立検証。H005免除は科学成功ではない。ただし厳密HeartSteps再現を初回v0.1配備のmandatory前提へ戻さない |
 | Gate2 kernel/MVP | Kのoffline受入れはdone、U005 todo | U003根拠と公開Proof Explorerの真正なprovenance/readback |
-| Digital Autonomy v0.1 / Phase06 v2 | 有限な所有デジタル範囲の技術製品 | E16本番adapter/単一owner/永続volume/正規source昇格/限定canary/official exact occurrence/独立GET/restart/catch-up/replay-zero/rollback、F005–F009の技術証拠。費用・制限・P3/P4未測定を提示 |
+| Digital Autonomy v0.1 / Phase06 v2 | 所有デジタル範囲に限定した最初の能力release | E16本番adapter/単一owner/永続volume/正規source昇格/限定canary/official exact occurrence/独立GET/restart/catch-up/replay-zero/rollback、F005–F009の技術証拠。費用・制限・P3/P4未測定を提示 |
 | 元Gate3/4 welfare / cross-domain | 真正な人間・非人間純便益・因果一般化は未証明 | U/D/Vの原受入れ、比較・費用・害・独立追試。P2の2ページを2人間field試験と数えない |
 | Gate5 trusted durable system | 統治code/文書準備、採択/独立運用はtodo | Gの実責任者、憲章採択、監査/事故/異議/停止、異地域実証、原価/持続性 |
 | PMF・収益・公開・採用・YC | 各々独立の有限成果 | 実継続利用/支払、対象期間coverageと公式receipt、live公開/訂正、公式応募/offer、YC提出/採択を別々に照合 |
@@ -169,7 +171,7 @@ flowchart LR
 
 長期使命は **End suffering; enable flourishing for all welfare-bearing beings**。人間だけに限定せず、非人間も視野に入れる方向であり、現状でその福祉測定・一般化・苦しみの完全解消を達成したという能力主張ではない。全113原タスク、書籍、YC、資金調達が完了しても全世界の苦しみを終えたとは宣言できない。技術release、最初の支払済pilot、反復利用、本の完成/公開/売上、job offer、YC採択にはそれぞれ終了条件がある。G006の運用的棚卸しも将来versionへ続く。
 
-根拠: [現仕様の使命/有限製品](../MANAGER_PRODUCT_SPEC.md)、[finite completion](../MANAGER_PRODUCT_SPEC.md)、[completion gates](PRODUCT_COMPLETION_GATES.md)。
+根拠: [現仕様の使命/限定能力release](../MANAGER_PRODUCT_SPEC.md)、[finite completion](../MANAGER_PRODUCT_SPEC.md)、[completion gates](PRODUCT_COMPLETION_GATES.md)。
 
 ## 7. E実装の始点から現在地まで
 
@@ -237,7 +239,7 @@ flowchart LR
 
 ## 10. どこで何を完成と呼べるか
 
-1. **技術release:** E16とPhase06 v2の実機/P1/P2受入れ。有限のv0.1製品。
+1. **技術release:** E16とPhase06 v2の実機/P1/P2受入れ。限定能力のv0.1 release。
 2. **最初の利用価値:** Uの実利用・比較・費用/害・継続/支払意思。入金は真の決済sourceで別確認。
 3. **領域横断と評価:** D/Vの実結果・独立再現。新benchmarkを入れたことと、妥当性を実証したことを分ける。
 4. **教材/発信:** 実原稿→render→公開readback→訂正/読者/売上を別判定。専門家としての評価は質と再現性の積重ねで示す。

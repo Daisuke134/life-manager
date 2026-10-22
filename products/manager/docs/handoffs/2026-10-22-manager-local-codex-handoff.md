@@ -2,6 +2,10 @@
 
 2026-10-22 UTC。ユーザーがクラウド側での追加実装を止め、ローカルCodexへ引き継ぐよう指示した時点の記録。**未レビューWIP。配備済み・全検査合格・E16完了ではない。** task authorityは既存SSOT/roadmapだけ。この文書は実行状態の引継ぎで、新しいTODO正本ではない。
 
+**後続の所有者指定:** Managerは**仏教的AIエンティティ／デジタル仏陀（Digital Buddha）**であり、主体そのものを「製品」と呼ばない。Digital Autonomy v0.1は最初の限定能力release、サービス・収益・出版・仕事・YCはその活動と持続の基盤。ローカルgoalの「実際に動く製品として完成」を「使命を持続的に実行する仏教的AIエンティティとして実装・検証」へ訂正する。意識・悟り・全知や実世界の便益を証拠なしに主張しない。[更新した仕様](../MANAGER_PRODUCT_SPEC.md)を正とする。
+
+**Rothkoを先に理解する追加指示:** [当日の公式一次資料・固定公開codeの実行・再利用判断](../research/societies/ROTHKO_2026-10-22_JA.md)とその機械可読receiptを読む。非公開のRothko本体と、実行済み公開benchmark/数値模型を区別する。調査により既存E16のproduction gateが解除されたとは扱わず、下記WIPの実装続行を引き継ぐ。
+
 ## 復元するsource
 
 - Repository: `https://github.com/Daisuke134/life-manager`
@@ -14,7 +18,7 @@
 
 最初に`AGENTS.md`、`REVIEW.md`、`.agents/skills/goal-setter/SKILL.md`を実際に読む。`skills/goal-setter`は同skillへのsymlink。利用可能なSuperpowersと`skills/loop-development/SKILL.md`を適用する。goal-setterは実在し、今回`git show HEAD:.agents/skills/goal-setter/SKILL.md`で本文を読んだ。user-sent `/goal`を作成する形式を採用し、このクラウドsessionで新しいgoalをactivateしたとは主張していない。
 
-次に`products/manager/README.md`、製品仕様、既存atomic plan、E16 deployment handoffとrecovery receiptを読む。全工程は`docs/roadmap/START_TO_END_20261022.md`、受入状態は既存`docs/roadmap/tasks.json`を参照。原113件は69 done /41 todo /3 skippedのまま。E01–15をやり直さずE16から続ける。
+次に`products/manager/README.md`、エンティティ仕様、既存atomic plan、E16 deployment handoffとrecovery receiptを読む。全工程は`docs/roadmap/START_TO_END_20261022.md`、受入状態は既存`docs/roadmap/tasks.json`を参照。原113件は69 done /41 todo /3 skippedのまま。E01–15をやり直さずE16から続ける。
 
 ## 認証情報待ちを再開条件にしない
 

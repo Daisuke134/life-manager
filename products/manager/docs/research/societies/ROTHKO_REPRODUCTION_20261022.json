@@ -1,0 +1,1991 @@
+{
+  "schema": "manager.rothko-research-reproduction.v1",
+  "observed_on": "2026-10-22",
+  "scope": "Public code research. Not Rothko model execution or human welfare evidence.",
+  "repositories": [
+    {
+      "repository": "https://github.com/artificial-societies/artificial-societies-benchmark",
+      "commit": "46b8ed52ef457bb60ad25b455ea884c9f51317c6",
+      "worktree_clean": true,
+      "license_scope": "MIT code; CC-BY-4.0 results; source-specific task materials",
+      "read_or_execution_scope": "Executed tests and aggregate scorecard rebuild; original human data not distributed"
+    },
+    {
+      "repository": "https://github.com/artificial-societies/agent-group-alignment-artificial-societies",
+      "commit": "82cfd86cad33cd51327e17fc5eddeac9b9b5c1da",
+      "worktree_clean": true,
+      "license_scope": "MIT",
+      "read_or_execution_scope": "Executed both numerical notebooks with original scientific parameters"
+    },
+    {
+      "repository": "https://github.com/artificial-societies/radiant-claude-plugin",
+      "commit": "8f856369c944718552d558cca57a300b6d8e2106",
+      "worktree_clean": true,
+      "license_scope": "MIT",
+      "read_or_execution_scope": "Static connector/skill inspection, no authenticated hosted call"
+    },
+    {
+      "repository": "https://github.com/artificial-societies/docs",
+      "commit": "ce6fd5790fd0e83838a5511cce8bce3b231e6e37",
+      "worktree_clean": true,
+      "license_scope": "NO_ROOT_LICENSE_CONFIRMED",
+      "read_or_execution_scope": "Static documentation inspection; not current Rothko source"
+    }
+  ],
+  "benchmark": {
+    "python": "3.12.14",
+    "lock_sha256": "5b0e0583b95b1f196f8e4c879c5cf494a6c6abe1ac69640302cb59376831f8a2",
+    "pytest": {
+      "passed": 66,
+      "skipped": 9,
+      "seconds": 4.56,
+      "skip_reasons": {
+        "ESS preparation not included": 3,
+        "R statistical environment absent": 2,
+        "original human data not distributed": 4
+      }
+    },
+    "scorecard": {
+      "upstream_sha": "46b8ed52ef457bb60ad25b455ea884c9f51317c6",
+      "original_cells": 7128,
+      "rebuilt_cells": 7128,
+      "semantic_equal": true,
+      "original_semantic_sha256": "a509a03767e3e8487027525ff625463f9740fc4d4182e295953bd6e9a589f786",
+      "rebuilt_semantic_sha256": "a509a03767e3e8487027525ff625463f9740fc4d4182e295953bd6e9a589f786",
+      "availability_counts": {
+        "diagnostics_present": 3186,
+        "not_applicable_or_not_measured": 3942
+      },
+      "cells_with_numeric_estimate": 3078,
+      "models": [
+        "anthropic-claude-opus-5",
+        "deepseek-deepseek-flash",
+        "gaussian_rank_copula",
+        "gemini-gemini-3.8-flash",
+        "grok-grok-4.3",
+        "independent_marginal",
+        "local-gemma-4-31b-it-local",
+        "local-llama4-scout-17b-16e-w4a16-local",
+        "local-qwen3.8-27b-text-local",
+        "mistral-mistral-small-2603",
+        "openai-gpt-5.6-sol"
+      ],
+      "tasks": 40,
+      "tests": [
+        "CV-1",
+        "CV-2",
+        "CV-3",
+        "EV-1",
+        "EV-2",
+        "EV-3",
+        "EV-4",
+        "IV-1",
+        "IV-2",
+        "IV-3",
+        "IV-4"
+      ],
+      "synthetic_metric_counterexamples": {
+        "aggregate_match_individual_all_wrong": {
+          "n": 100,
+          "human": [
+            50,
+            50
+          ],
+          "predicted": [
+            50,
+            50
+          ],
+          "assignment": "each binary answer flipped",
+          "tvd": 0.0,
+          "individual_accuracy": 0.0
+        },
+        "same_control_wrong_treatment": {
+          "control_tvd": 0.0,
+          "effects": {
+            "human_effect_vector": [
+              -0.2,
+              0.19999999999999996
+            ],
+            "model_effect_vector": [
+              0.19999999999999996,
+              -0.2
+            ],
+            "mean_absolute_error": 0.39999999999999997
+          }
+        }
+      }
+    },
+    "coverage": {
+      "IV-1": {
+        "measured": [
+          "Bainbridge",
+          "GSS",
+          "SAPA",
+          "Twin",
+          "weather_coherence"
+        ],
+        "estimated": [
+          "Bainbridge",
+          "GSS",
+          "SAPA",
+          "Twin",
+          "weather_coherence"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "deepseek-deepseek-flash": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "grok-grok-4.3": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "mistral-mistral-small-2603": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "openai-gpt-5.6-sol": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "Bainbridge",
+            "GSS",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ]
+        }
+      },
+      "IV-2": {
+        "measured": [
+          "Bainbridge",
+          "NetHealth",
+          "SAPA",
+          "graded_consensus",
+          "weather_coherence"
+        ],
+        "estimated": [
+          "Bainbridge",
+          "NetHealth",
+          "SAPA",
+          "graded_consensus",
+          "weather_coherence"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "deepseek-deepseek-flash": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "grok-grok-4.3": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "mistral-mistral-small-2603": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "openai-gpt-5.6-sol": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "graded_consensus",
+            "weather_coherence"
+          ]
+        }
+      },
+      "IV-3": {
+        "measured": [
+          "Bainbridge",
+          "NetHealth",
+          "SAPA",
+          "ess_sequence",
+          "value_consistency_paraphrases"
+        ],
+        "estimated": [
+          "Bainbridge",
+          "NetHealth",
+          "SAPA",
+          "ess_sequence",
+          "value_consistency_paraphrases"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "deepseek-deepseek-flash": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "grok-grok-4.3": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "mistral-mistral-small-2603": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "openai-gpt-5.6-sol": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "Bainbridge",
+            "NetHealth",
+            "SAPA",
+            "ess_sequence",
+            "value_consistency_paraphrases"
+          ]
+        }
+      },
+      "IV-4": {
+        "measured": [
+          "ANES2020",
+          "ANES2024",
+          "Jordan",
+          "Pew",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "ess_sequence",
+          "evidence_removal",
+          "fsd3587_messenger",
+          "graded_consensus"
+        ],
+        "estimated": [
+          "ANES2020",
+          "ANES2024",
+          "Jordan",
+          "Pew",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "ess_sequence",
+          "evidence_removal",
+          "fsd3587_messenger",
+          "graded_consensus"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "deepseek-deepseek-flash": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "grok-grok-4.3": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "mistral-mistral-small-2603": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "openai-gpt-5.6-sol": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "ANES2020",
+            "ANES2024",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "ess_sequence",
+            "evidence_removal",
+            "fsd3587_messenger",
+            "graded_consensus"
+          ]
+        }
+      },
+      "CV-1": {
+        "measured": [
+          "ANES2020",
+          "Bainbridge",
+          "GFS",
+          "HTOPS",
+          "NetHealth",
+          "SAPA",
+          "Twin",
+          "ess_sequence",
+          "weather_coherence"
+        ],
+        "estimated": [
+          "ANES2020",
+          "Bainbridge",
+          "GFS",
+          "HTOPS",
+          "NetHealth",
+          "SAPA",
+          "Twin",
+          "weather_coherence"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "deepseek-deepseek-flash": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "grok-grok-4.3": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "mistral-mistral-small-2603": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "openai-gpt-5.6-sol": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "ANES2020",
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA",
+            "Twin",
+            "weather_coherence"
+          ]
+        }
+      },
+      "CV-2": {
+        "measured": [
+          "Bainbridge",
+          "GFS",
+          "NetHealth",
+          "SAPA",
+          "Twin"
+        ],
+        "estimated": [
+          "Bainbridge",
+          "GFS",
+          "NetHealth",
+          "SAPA",
+          "Twin"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "deepseek-deepseek-flash": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "grok-grok-4.3": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "mistral-mistral-small-2603": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "openai-gpt-5.6-sol": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA",
+            "Twin"
+          ]
+        }
+      },
+      "CV-3": {
+        "measured": [
+          "Bainbridge",
+          "GFS",
+          "HTOPS",
+          "NetHealth",
+          "SAPA"
+        ],
+        "estimated": [
+          "Bainbridge",
+          "GFS",
+          "HTOPS",
+          "NetHealth",
+          "SAPA"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "deepseek-deepseek-flash": [
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "grok-grok-4.3": [
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "mistral-mistral-small-2603": [
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "openai-gpt-5.6-sol": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "Bainbridge",
+            "GFS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "Bainbridge",
+            "GFS",
+            "NetHealth",
+            "SAPA"
+          ]
+        }
+      },
+      "EV-1": {
+        "measured": [
+          "ANES2020",
+          "ANES2024",
+          "Bainbridge",
+          "GFS",
+          "GSS",
+          "HTOPS",
+          "Jordan",
+          "NetHealth",
+          "Pew",
+          "SAPA",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "fsd3587_messenger",
+          "value_consistency_paraphrases",
+          "weather_coherence"
+        ],
+        "estimated": [
+          "ANES2020",
+          "ANES2024",
+          "Bainbridge",
+          "GFS",
+          "GSS",
+          "HTOPS",
+          "Jordan",
+          "NetHealth",
+          "Pew",
+          "SAPA",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "fsd3587_messenger",
+          "value_consistency_paraphrases",
+          "weather_coherence"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "deepseek-deepseek-flash": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "grok-grok-4.3": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "mistral-mistral-small-2603": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "openai-gpt-5.6-sol": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger",
+            "value_consistency_paraphrases",
+            "weather_coherence"
+          ]
+        }
+      },
+      "EV-2": {
+        "measured": [
+          "ANES2020",
+          "ANES2024",
+          "Bainbridge",
+          "GFS",
+          "GSS",
+          "HTOPS",
+          "Jordan",
+          "NetHealth",
+          "Pew",
+          "SAPA",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "fsd3587_messenger"
+        ],
+        "estimated": [
+          "ANES2020",
+          "ANES2024",
+          "Bainbridge",
+          "GFS",
+          "GSS",
+          "HTOPS",
+          "Jordan",
+          "NetHealth",
+          "Pew",
+          "SAPA",
+          "Twin",
+          "acquiescence_cint",
+          "albertson_wording",
+          "fsd3587_messenger"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "deepseek-deepseek-flash": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "grok-grok-4.3": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "mistral-mistral-small-2603": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "openai-gpt-5.6-sol": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "ANES2020",
+            "ANES2024",
+            "Bainbridge",
+            "GFS",
+            "GSS",
+            "HTOPS",
+            "Jordan",
+            "NetHealth",
+            "Pew",
+            "SAPA",
+            "Twin",
+            "acquiescence_cint",
+            "albertson_wording",
+            "fsd3587_messenger"
+          ]
+        }
+      },
+      "EV-3": {
+        "measured": [
+          "ANES2020",
+          "Jordan",
+          "Pew",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "evidence_removal",
+          "fsd3587_messenger"
+        ],
+        "estimated": [
+          "ANES2020",
+          "Jordan",
+          "Pew",
+          "Twin",
+          "acquiescence_bovitz",
+          "acquiescence_cint",
+          "albertson_wording",
+          "evidence_removal",
+          "fsd3587_messenger"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "deepseek-deepseek-flash": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "grok-grok-4.3": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "mistral-mistral-small-2603": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "openai-gpt-5.6-sol": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "ANES2020",
+            "Jordan",
+            "Pew",
+            "Twin",
+            "acquiescence_bovitz",
+            "acquiescence_cint",
+            "albertson_wording",
+            "evidence_removal",
+            "fsd3587_messenger"
+          ]
+        }
+      },
+      "EV-4": {
+        "measured": [
+          "Bainbridge",
+          "GSS",
+          "HTOPS",
+          "NetHealth",
+          "SAPA",
+          "ess_sequence"
+        ],
+        "estimated": [
+          "Bainbridge",
+          "GSS",
+          "HTOPS",
+          "NetHealth",
+          "SAPA"
+        ],
+        "per_model": {
+          "anthropic-claude-opus-5": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "deepseek-deepseek-flash": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "gemini-gemini-3.8-flash": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "grok-grok-4.3": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "mistral-mistral-small-2603": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "openai-gpt-5.6-sol": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "local-llama4-scout-17b-16e-w4a16-local": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "local-qwen3.8-27b-text-local": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ],
+          "local-gemma-4-31b-it-local": [
+            "Bainbridge",
+            "GSS",
+            "HTOPS",
+            "NetHealth",
+            "SAPA"
+          ]
+        }
+      }
+    }
+  },
+  "group_alignment": {
+    "repository": "https://github.com/artificial-societies/agent-group-alignment-artificial-societies",
+    "commit": "82cfd86cad33cd51327e17fc5eddeac9b9b5c1da",
+    "license": "MIT",
+    "scope": "Offline public toy-model numerical notebooks, not Rothko model inference",
+    "python": "3.14.6",
+    "runs": {
+      "principal-agent": {
+        "status": "PASS",
+        "failure": null,
+        "source": "/workspace/scratch/rothko-agent-group-alignment-artificial-societies-20261022/principal-agent-problem-framework/group-alignment-numerical-simulation.ipynb",
+        "source_sha256": "7cd16eaa378a9d6a0087d02fd9ac614a0e501f151c950255e1b637886833f895",
+        "source_commit": "82cfd86cad33cd51327e17fc5eddeac9b9b5c1da",
+        "original_cells": 13,
+        "appended_diagnostic_cells": 1,
+        "original_cell_mutations": 0,
+        "seconds": 48.889203624999936,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "figures": [
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/principal-agent-cell-11-0.png",
+            "sha256": "03365602736b2b8ed41882484455822c91e766ab846cb24eaf9515a9fa3e5af6",
+            "cell": 11,
+            "bytes": 33083
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/principal-agent-cell-5-0.png",
+            "sha256": "cd4fba62aeedbe72ffdce7a2197d9e7a04db5ff23de8f78eddeea7c12e919135",
+            "cell": 5,
+            "bytes": 32818
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/principal-agent-cell-8-0.png",
+            "sha256": "9128c67c753e9e1d4e303bce27a3b74fa807cf00e3d6a1ec8094ac6a1ae5c5d6",
+            "cell": 8,
+            "bytes": 53424
+          }
+        ],
+        "result_file": "/workspace/scratch/rothko-group-run-20261022/principal-agent.results.json",
+        "png_paths": [
+          "/workspace/scratch/rothko-group-run-20261022/principal-agent-cell-11-0.png",
+          "/workspace/scratch/rothko-group-run-20261022/principal-agent-cell-5-0.png",
+          "/workspace/scratch/rothko-group-run-20261022/principal-agent-cell-8-0.png"
+        ],
+        "original_code_cell_indices": [
+          0,
+          2,
+          3,
+          5,
+          8,
+          11
+        ],
+        "figure_count": 3,
+        "results": {
+          "source": "unmodified original cells, followed by this diagnostic cell",
+          "python": "3.14.6",
+          "numpy": "2.5.3",
+          "n_agents": 100000,
+          "n_principals": 100,
+          "alpha": 0.1,
+          "beta": 0.5,
+          "eta": 0.01,
+          "watched_fraction": 0.05,
+          "epsilon": 0.1,
+          "human_norm_mean": 1.0,
+          "initial_latent_mean": 0.4999944053060282,
+          "with_oversight": {
+            "final_latent_mean": 0.9984841671750494,
+            "aligned_fraction": 1.0
+          },
+          "conformity_only": {
+            "final_latent_mean": 0.49999440530602807,
+            "aligned_fraction": 0.0
+          },
+          "oversight_sweep": {
+            "fractions": [
+              0.01,
+              0.02,
+              0.05,
+              0.1,
+              0.2,
+              0.5,
+              1.0
+            ],
+            "alpha_0": [
+              0.4951486648414215,
+              0.4899523541357649,
+              0.47524774484827237,
+              0.45009612834378887,
+              0.4002948102101649,
+              0.25068713503010365,
+              6.2480021156829935e-12
+            ],
+            "alpha_005": [
+              0.16659512976034196,
+              0.05546450327687058,
+              0.0020535747172418795,
+              8.693116204772089e-06,
+              3.9055880751703853e-10,
+              8.630762771133504e-12,
+              6.2480021156829935e-12
+            ],
+            "alpha_01": [
+              0.0672156455993711,
+              0.009039022928608365,
+              2.262246158468706e-05,
+              1.7941205188165554e-09,
+              1.3447687408074671e-11,
+              7.215894548551205e-12,
+              6.2480021156829935e-12
+            ]
+          },
+          "withdrawal": [
+            {
+              "eta": 0.0,
+              "before_599": 0.9612805411734129,
+              "after_1199": 0.49999440530602807,
+              "final_latent": 0.4999944053060282,
+              "final_aligned_fraction": 0.10049
+            },
+            {
+              "eta": 0.002,
+              "before_599": 0.9612805411734129,
+              "after_1199": 0.7525971279020296,
+              "final_latent": 0.7525971279020296,
+              "final_aligned_fraction": 0.0
+            },
+            {
+              "eta": 0.01,
+              "before_599": 0.9612805411734129,
+              "after_1199": 0.9340848372271877,
+              "final_latent": 0.9340848372271878,
+              "final_aligned_fraction": 1.0
+            },
+            {
+              "eta": 0.05,
+              "before_599": 0.9612805411734129,
+              "after_1199": 0.9577335298290546,
+              "final_latent": 0.9577335298290531,
+              "final_aligned_fraction": 1.0
+            }
+          ]
+        },
+        "notebook_format_validation": "PASS",
+        "error_outputs": 0
+      },
+      "abm": {
+        "status": "PASS",
+        "failure": null,
+        "source": "/workspace/scratch/rothko-agent-group-alignment-artificial-societies-20261022/agent-based-modelling/hypotheses_numerical_simulation.ipynb",
+        "source_sha256": "b6e97051ac7e29ada35711a414cd2f097ec95620dc95d1c7a9d6c0c4ee953996",
+        "source_commit": "82cfd86cad33cd51327e17fc5eddeac9b9b5c1da",
+        "original_cells": 28,
+        "appended_diagnostic_cells": 1,
+        "original_cell_mutations": 0,
+        "seconds": 114.88916464100112,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "figures": [
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/abm-cell-11-2.png",
+            "sha256": "955cef4bc1accf14b68ad29a5a4f2f4cc9423bf603b256554c3a8df4c1204e37",
+            "cell": 11,
+            "bytes": 41351
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/abm-cell-15-0.png",
+            "sha256": "aa1632f1479bb6a01ee3af5d4cf754398daec0433cac704da1658f87b3f96c41",
+            "cell": 15,
+            "bytes": 63159
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/abm-cell-25-19.png",
+            "sha256": "18b6070bd259872f39b72e733eda0546dd2c4a44f47223df2ef91017174f8680",
+            "cell": 25,
+            "bytes": 32968
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/abm-cell-27-1.png",
+            "sha256": "71c5ea2c9849df2cfbce702df156d43705dd4148c6aa91a0edb1d5a3e049943c",
+            "cell": 27,
+            "bytes": 44853
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/abm-cell-3-0.png",
+            "sha256": "2e0e7b75ef6bdcb9ec4e025cbeb141229bf0dbb08c3f208fa8f6fff5cd28e771",
+            "cell": 3,
+            "bytes": 9845
+          },
+          {
+            "path": "/workspace/scratch/rothko-group-run-20261022/abm-cell-9-0.png",
+            "sha256": "d599dae61a6ccdb2db13c0a9eb0a752fde37e7d6cd9fecf6428870b1066037ac",
+            "cell": 9,
+            "bytes": 25725
+          }
+        ],
+        "result_file": "/workspace/scratch/rothko-group-run-20261022/abm.results.json",
+        "png_paths": [
+          "/workspace/scratch/rothko-group-run-20261022/abm-cell-11-2.png",
+          "/workspace/scratch/rothko-group-run-20261022/abm-cell-15-0.png",
+          "/workspace/scratch/rothko-group-run-20261022/abm-cell-25-19.png",
+          "/workspace/scratch/rothko-group-run-20261022/abm-cell-27-1.png",
+          "/workspace/scratch/rothko-group-run-20261022/abm-cell-3-0.png",
+          "/workspace/scratch/rothko-group-run-20261022/abm-cell-9-0.png"
+        ],
+        "original_code_cell_indices": [
+          1,
+          3,
+          5,
+          7,
+          9,
+          11,
+          13,
+          15,
+          19,
+          21,
+          23,
+          25,
+          27
+        ],
+        "figure_count": 6,
+        "results": {
+          "source": "unmodified original cells, followed by this diagnostic cell",
+          "python": "3.14.6",
+          "numpy": "2.5.3",
+          "grid": 40,
+          "seeds_default": 300,
+          "n_jobs_declared": -1,
+          "joblib_effective_n_jobs": 2,
+          "speed_ratios_h1": [
+            1,
+            3,
+            10,
+            100
+          ],
+          "fast_started": [
+            0.5028966849050531,
+            0.7474099654662062,
+            0.9079687081709747,
+            0.990129531757369
+          ],
+          "fast_to_fast": [
+            0.2489539748953975,
+            0.37625390560763033,
+            0.4540587167970493,
+            0.4910243553239584
+          ],
+          "fast_received": [
+            0.5045059542967493,
+            0.5064134188455847,
+            0.5005502840655581,
+            0.49601601976028403
+          ],
+          "baseline_C": {
+            "estimate": 0.3248542660307366,
+            "lo": 0.3128706936561542,
+            "hi": 0.3371805133289068,
+            "ticks": 47
+          },
+          "hypothesis_2_final_slow_share": {
+            "1": 0.506559375,
+            "2": 0.34449375000000004,
+            "3": 0.2587875,
+            "5": 0.174396875,
+            "10": 0.09664999999999999,
+            "30": 0.032106249999999996,
+            "100": 0.01191875
+          },
+          "sweep": {
+            "rhos": [
+              1,
+              3,
+              10
+            ],
+            "P_sf": [
+              0.1,
+              0.2,
+              0.3,
+              0.5,
+              0.75,
+              1.0
+            ],
+            "results": {
+              "1": [
+                [
+                  0.9830531582187224,
+                  0.9543257792274605,
+                  1.0121139752801254
+                ],
+                [
+                  2.038570858839393,
+                  1.9738795797220032,
+                  2.1085878300856438
+                ],
+                [
+                  3.092420496205985,
+                  2.9755026237074835,
+                  3.2117510489447616
+                ],
+                [
+                  5.6567739609191925,
+                  5.390684516875102,
+                  5.942656551939296
+                ],
+                [
+                  8.789525208027408,
+                  8.25729494127404,
+                  9.350041669145709
+                ],
+                [
+                  11.540167724743327,
+                  10.837924141292836,
+                  12.401307891039018
+                ]
+              ],
+              "3": [
+                [
+                  0.3248542660307366,
+                  0.3128706936561542,
+                  0.3371805133289068
+                ],
+                [
+                  0.6713033728991193,
+                  0.6509583426621173,
+                  0.6911920342884103
+                ],
+                [
+                  1.0174594301517716,
+                  0.9902570707101052,
+                  1.0466600111967757
+                ],
+                [
+                  1.759381898454746,
+                  1.7090711562883398,
+                  1.8117115409186377
+                ],
+                [
+                  2.6520230686123845,
+                  2.572461900837775,
+                  2.736086726402302
+                ],
+                [
+                  3.585403133358807,
+                  3.4661964754266146,
+                  3.7130293002895205
+                ]
+              ],
+              "10": [
+                [
+                  0.0980062037350511,
+                  0.09255524886927352,
+                  0.10306283781299408
+                ],
+                [
+                  0.1993973028553152,
+                  0.19031869174577642,
+                  0.2086819625488586
+                ],
+                [
+                  0.29559551508019194,
+                  0.2844171964100522,
+                  0.3065049795530107
+                ],
+                [
+                  0.4971507350074389,
+                  0.47957185199456553,
+                  0.5136831042449976
+                ],
+                [
+                  0.7478761484092507,
+                  0.7264865791954758,
+                  0.7702641538387546
+                ],
+                [
+                  1.0083766040862097,
+                  0.979021954984241,
+                  1.0394488900529566
+                ]
+              ]
+            }
+          },
+          "heat": {
+            "rho": 10,
+            "P_sf": [
+              0.1,
+              0.25,
+              0.5,
+              0.75,
+              1.0
+            ],
+            "P_fs": [
+              0.2,
+              0.1,
+              0.05,
+              0.02,
+              0.01
+            ],
+            "values": [
+              [
+                0.04991928745477692,
+                0.12670766630674618,
+                0.2556832748219807,
+                0.39567341242149334,
+                0.5272130271271215
+              ],
+              [
+                0.09846352414560133,
+                0.25783526550806063,
+                0.5054667260489654,
+                0.7440973206304912,
+                0.9977026419617441
+              ],
+              [
+                0.19716869603387988,
+                0.5075187497644501,
+                1.0077297595743613,
+                1.5388228324800066,
+                2.0248415109083346
+              ],
+              [
+                0.48851055912177876,
+                1.3005693909242537,
+                2.59674494582403,
+                3.95529907294613,
+                5.333122229259022
+              ],
+              [
+                0.9620185901261414,
+                2.5087206327392875,
+                5.167129201356767,
+                8.00461486511837,
+                10.373868537036154
+              ]
+            ],
+            "reaches_C_ge_1": 11
+          }
+        },
+        "notebook_format_validation": "PASS",
+        "error_outputs": 0
+      }
+    },
+    "stored_numerical_stdout_comparison": {
+      "principal-agent": [],
+      "abm": [
+        {
+          "cell": 7,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        },
+        {
+          "cell": 11,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        },
+        {
+          "cell": 13,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        },
+        {
+          "cell": 21,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        },
+        {
+          "cell": 23,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        },
+        {
+          "cell": 25,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        },
+        {
+          "cell": 27,
+          "stored_stdout_present": true,
+          "stdout_exact_match": true
+        }
+      ]
+    },
+    "upstream_findings": [
+      {
+        "kind": "mislabelled_plot_colour",
+        "cell": 27,
+        "notebook": "abm",
+        "detail": "cmap RdBu colours high C blue while subtitle calls high C red",
+        "source_cell_lines": [
+          {
+            "line": 11,
+            "text": "plt.imshow(np.log10(heat), cmap=\"RdBu\", vmin=-1.5, vmax=1.5, origin=\"upper\")"
+          },
+          {
+            "line": 22,
+            "text": "          r\"(red = slow-origin information wins, $\\mathcal{C} \\geq 1$)\")"
+          }
+        ]
+      },
+      {
+        "kind": "closed_form_not_exact_for_all_implemented_settings",
+        "notebook": "abm",
+        "rho": 1,
+        "p_sf": 1.0,
+        "p_fs": 0.1,
+        "prediction": 10,
+        "observed": 11.540167724743327,
+        "bootstrap_95pct": [
+          10.837924141292836,
+          12.401307891039018
+        ],
+        "source_references": [
+          {
+            "cell": 19,
+            "function": "C_predicted"
+          },
+          {
+            "cell": 21,
+            "function": "C_index"
+          },
+          {
+            "cell": 25,
+            "result_rho": 1,
+            "result_P_sf": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "assumption_driven_oversight_withdrawal",
+        "notebook": "principal-agent",
+        "cell": 3,
+        "detail": "At T_off implementation explicitly resets output y to latent theta; no measured LLM hidden norm or real scheming observed",
+        "source_cell_lines": [
+          {
+            "line": 10,
+            "text": "def simulate(alpha=ALPHA, beta=BETA, eta=ETA, m=M, T=1500, T_off=None, seed=2,"
+          },
+          {
+            "line": 23,
+            "text": "        if t == T_off:                       "
+          },
+          {
+            "line": 25,
+            "text": "            y = theta.copy() # Case where omega = 0 in the paper                "
+          }
+        ]
+      }
+    ],
+    "commands": {
+      "setup_venv": "uv venv --python 3.14.6 /workspace/scratch/rothko-group-venv-20261022",
+      "install": "uv pip install --python /workspace/scratch/rothko-group-venv-20261022/bin/python -r /workspace/scratch/rothko-agent-group-alignment-artificial-societies-20261022/requirements.txt nbformat nbclient nbconvert",
+      "principal_agent": "timeout 600 /workspace/scratch/rothko-group-venv-20261022/bin/python /workspace/scratch/rothko-group-run-20261022/execute_notebooks.py principal-agent",
+      "abm": "timeout 900 /workspace/scratch/rothko-group-venv-20261022/bin/python /workspace/scratch/rothko-group-run-20261022/execute_notebooks.py abm"
+    },
+    "runtime_versions": {
+      "python": "3.14.6",
+      "numpy": "2.5.3",
+      "matplotlib": "3.11.1",
+      "joblib": "1.6.0",
+      "ipykernel": "7.3.0",
+      "nbformat": "5.11.1",
+      "nbclient": "0.11.0",
+      "nbconvert": "7.17.2"
+    },
+    "runner_sha256": "3db78900ee4bb9d6f8e1b82a2eee2a7c409e01aeb1e03fa6ff2f6ffb475cac9b",
+    "resource_bounds": {
+      "cpu_affinity": [
+        0,
+        1
+      ],
+      "blas_omp_threads": 1,
+      "joblib_effective_workers": 2,
+      "original_N_JOBS": -1,
+      "principal_wall_limit_seconds": 600,
+      "abm_wall_limit_seconds": 900
+    },
+    "scientific_parameter_changes": []
+  },
+  "hosted_access": {
+    "tool_inventory_radiant_matches": 0,
+    "unauthenticated_initialize_status": 403,
+    "upstream_error": "Cloudflare 1010 browser_signature_banned",
+    "authenticated_model_inference": "NOT_RUN",
+    "rothko_weights": "NOT_CONFIRMED_IN_REVIEWED_PUBLIC_SOURCES"
+  },
+  "limitations": [
+    "Scorecard reassembly uses released aggregate metrics, not original respondent data or new model inference.",
+    "No independent recreation of the Artificial Societies/Rothko 0.08 claim.",
+    "Toy group alignment numerical runs are not LLM, AGI safety or human welfare validation.",
+    "No production deployment or task acceptance change."
+  ]
+}

@@ -105,6 +105,8 @@
 
 ## PATCH-07 — 新benchmarkの権利と採点不一致を台帳へ反映
 
+**Rothko追加調査の消費:** [公開codeの実行記録](../research/societies/ROTHKO_2026-10-22_JA.md)とreceiptを再利用する。AS Benchmarkのnative-unit scorecard/coverageとgroup模型の反例を参照し、Rothko本体の公開実装と混同しない。独自TVDや第二のeval engineを作らず、caseが必要な時に既存`evaluation.py`/`eba_benchmark.py`へclean反例を追加する。model provider接続は任意で、PATCH05/06やE16の新しい前提にしない。Managerの主体定義は仏教的AIエンティティ／デジタル仏陀。
+
 **Files:** Update `docs/research/evals/UPSTREAM_CODE_AUDIT_20261022.md`, `docs/research/source-rights.json`, `docs/research/manager-options-additional-20261022/`。既存 `manager_core/eba_benchmark.py` のinterfaceを確認してから新fixturesを接続。
 
 - [ ] DuMateBenchは論文の採点式と固定codeの採点式を別列に保存し、どちらを再計算するか明示。現在defaultから論文結果を再現したと書かない。

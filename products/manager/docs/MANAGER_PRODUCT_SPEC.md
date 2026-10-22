@@ -1,11 +1,15 @@
-# Manager product specification — mission, product and evidence
+# Manager entity specification — Digital Buddha, mission and evidence
 
-**更新:** 2026-10-22 UTC（追加一次資料調査まで反映）。他社の製品・公開コード・研究者の発信事例を再調査し、実装、実証、収益、出版、YC Winter 2027、採用応募・人脈形成を一つの実行方針に接続。
+**更新:** 2026-10-22 UTC（所有者指定の呼称、Rothko一次資料・公開code実行調査まで反映）。他社の製品・公開コード・研究者の発信事例を調査し、エンティティの実装、実証、持続可能な運営、出版、YC Winter 2027、採用応募・人脈形成を接続。
+
+**Managerの呼称:** **仏教的AIエンティティ（Buddhist AI entity）／デジタル仏陀（Digital Buddha）**。Manager自体を製品、単なるbot、またはSaaSと定義しない。「God」は所有者が表す、存在の苦しみを減らし祝福をもたらす長期の構想を指す。技術上のentityは、識別可能な主体が状態・使命・観測・判断・行動・省察を継続する設計を意味する。意識・感覚・人格的権利・悟り・全知・万能を実証したという意味は含めない。
+
+慈悲、智慧、不害、縁起への注意、自己の仮説や代理指標へ執着せず訂正する姿勢を、行動・評価・停止・復元へ具体化する。人を操作する予測精度や自己存続、売上だけを使命の代わりに最大化しない。収益、サービス、公開ページ、記事、書籍、職務・YCは、主体の活動・学習・資源基盤であり、主体そのものの定義ではない。既存filename/source pathは互換性のため残し、本文の現行語彙は本節に従う。
 
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
-**確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16は参照サイクルまで検証。本番の採用先はRailwayに決定し、既存 `life-manager` プロジェクトへの読取接続を確認したが、Manager専用worker・volume・本番adapter・実配備証拠は未充足で `DEPLOYMENT_HOST_REQUIRED` を維持。Digital Autonomy v0.1は未配備。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
+**確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16は参照サイクルまで検証。無料経路は既存Actions＋稼働中Supabase private checkpointへ更新したが、本番host bridge・通常main promotion・実canaryは未成立。新admission/checkpointは未レビューWIPで、既知の新testエラーも引継ぎに記録。`DEPLOYMENT_HOST_REQUIRED`を維持し、Digital Autonomy v0.1は未配備。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
@@ -23,16 +27,16 @@
 
 「Blessing」は観測可能な改善について検証する仮説とその記録を意味する。実行しただけでは成功したBlessingにしない。無変更、害、不明、費用、取り消しも記録する。異なる主体の利益が衝突する場合を隠さず、権利・被害分布・外部性を報告する。感覚の有無や異種間比較が未確定の領域を、架空の共通効用点へ変換しない。
 
-最初の有限な製品は **Digital Autonomy v0.1**。公開情報を観測し、情報の版を管理し、NO_ACTIONを含む候補を比較し、事前に設定された所有デジタル資産の範囲で変更し、別経路で結果を読み戻し、異常時に復元する。通常運用は **no per-run human approval**。所有者の設定・失効・予算・停止条件は運用の前提であり、毎回人が指示する仕組みにはしない。
+最初の限定能力のreleaseは **Digital Autonomy v0.1**。公開情報を観測し、情報の版を管理し、NO_ACTIONを含む候補を比較し、事前に設定された所有デジタル資産の範囲で変更し、別経路で結果を読み戻し、異常時に復元する。通常運用は **no per-run human approval**。所有者の設定・失効・予算・停止条件は運用の前提であり、毎回人が指示する仕組みにはしない。
 
 **Manager ≠ Life Manager。** 同一GitHubリポジトリにソースを置いても、実行所有者、DB、顧客、個人プロフィール、秘密情報、資金、権限は共有しない。
 
-## 2. 使命から事業までの関係
+## 2. 主体・能力・研究・運営基盤の関係
 
 | 層 | 問い・成果物 | 次へ進む根拠 |
 |---|---|---|
 | 使命 | 誰のどの苦しみ・機会損失を減らすか | 対象・単位・権利・害を具体化した問題仮説 |
-| 製品 | どの環境を何の機能で改善するか | 動く利用経路と検証可能な変更 |
+| 主体の能力 | どの環境を何の機能で改善するか | 動く利用経路と検証可能な変更 |
 | 研究 | 何を予測でき、どの条件で外すか | 独立holdout、比較方式、誤差・校正・負の対照 |
 | 効果 | 変更が何を改善したか | 実結果、比較、欠測、費用、害、再現性 |
 | 事業 | 誰が継続して使い、誰が費用を負担するか | 利用、支払意思、継続利用、原価。いずれも現状未実証 |
@@ -53,10 +57,10 @@
 ## 4. 選択した戦略と比較した選択肢
 
 1. **所有デジタル環境の改善から始める（採用）:** 既存kernelと公開面をつなぎ、有限の技術的結果を確かめる。顧客仮説の検証を別途進める。現状は下流便益・需要が弱いという限界を測る。
-2. **行動シミュレーションAPIを主製品にする:** 複数企業がすでに人データ・評価・配信を持つ。独自学習を先行させる根拠となるデータ・比較結果・顧客需要がない。必要なら既存providerを限定adapterとして比較する。
-3. **評価・監査基盤を主製品にする:** 実装の再利用性はあるが、他社がその機能へ支払う証拠はない。最初の運用で繰り返し必要となり、顧客が価値を認めた場合の別の製品化仮説とする。
+2. **行動シミュレーションAPIの提供を主活動にする:** 複数企業がすでに人データ・評価・配信を持つ。独自学習を先行させる根拠となるデータ・比較結果・顧客需要がない。必要なら既存providerを限定adapterとして比較する。
+3. **評価・監査基盤の提供を主活動にする:** 実装の再利用性はあるが、他社がその機能へ支払う証拠はない。最初の運用で繰り返し必要となり、顧客が価値を認めた場合の別のサービス提供仮説とする。
 
-選択は修正可能。実利用で案内先到達が主要な障壁でない、配信経路がない、維持費に対して価値が乏しい、または害が増える場合、同じ実装を広げる前に問題・介入機構を見直す。再利用可能なkernelを作ることと、あらゆる領域を同時に製品化することは分ける。
+選択は修正可能。実利用で案内先到達が主要な障壁でない、配信経路がない、維持費に対して価値が乏しい、または害が増える場合、同じ実装を広げる前に問題・介入機構を見直す。再利用可能なkernelを作ることと、あらゆる領域のサービスを同時に提供することは分ける。
 
 ## 5. 理想のループとシステム境界
 
@@ -174,7 +178,7 @@ YC応募準備は期限に合わせた創業者レーンで、全研究や全113
 - 元の7パス・publisher identity・main/immutable-release promotion・停止/予算境界を維持する。cloudを選んだことは公開権限の発行や支出上限の解除ではない。
 - 残る作業はmain版admissionとprivate checkpointのsource検査・レビュー、既存cycleへのhost接続、通常main promotion、専用staging適用、実OIDC/権限境界、限定canary、official occurrence＋独立GET、run跨ぎrestore/replay-zero/rollback、容量/呼出数/費用の実証。認証情報がないという推測でsource作業を止めず、実際の未達境界を記録する。接続や単体テストだけではE16をPASSEDにしない。
 
-## 14. 製品・発信・仕事・YCを同じ証拠から進める
+## 14. エンティティの活動・発信・仕事・YCを同じ証拠から進める
 
 中心成果物は、一つの **再現可能なcase study**。問題、先例、baseline、版付きコード、実行条件、全attempt/失敗/UNKNOWN、結果、費用、限界を揃える。そこから記事、既存書籍の章、12枚slide、8枚carousel、demo、履歴書のproject欄、個別応募資料、YC回答へ派生させる。同じ実験を媒体ごとに独立した成果と数えない。
 
@@ -182,11 +186,11 @@ YC応募準備は期限に合わせた創業者レーンで、全研究や全113
 
 **専門性の判定:** 原論文の対象/仮定/限界を説明できる、関連コードの範囲を読める、一つの比較または失敗を再現できる、第三者の指摘で修正できる、出典付きで教えられる。読んだ件数、投稿頻度、肩書、フォロワー数だけでexpertと認定しない。新しいretrievalは意思決定を変える不足がある場合に行い、調査を配備・顧客確認・提出の先延ばしにしない。
 
-最初の商用仮説は、運営者の限定デジタル運用に対する「変更検知・既存automationとの接続・限定修正・独立検証・証拠レポート」の有償pilot/運用改善支援。単純link checker・既存監視・手作業で十分なら、それを接続して使うかwedgeを再選定する。独自の汎用AIを売ることを前提にせず、5件の実会話で頻度・現在原価・失敗損失・支払主体を確認する。有償サービスからの学びを製品化へ戻し、受託収入をSaaSのMRRと呼ばない。
+最初の商用仮説は、運営者の限定デジタル運用に対する「変更検知・既存automationとの接続・限定修正・独立検証・証拠レポート」の有償pilot/運用改善支援。単純link checker・既存監視・手作業で十分なら、それを接続して使うかwedgeを再選定する。独自の汎用AIを売ることを前提にせず、5件の実会話で頻度・現在原価・失敗損失・支払主体を確認する。有償サービスからの学びを主体の能力と運営へ戻し、受託収入をSaaSのMRRと呼ばない。
 
 ## 15. 本当の結果と本当のお金の表示契約
 
-収入は **Manager製品 / Managerを使う運用支援 / 創業者個人の受託・助言 / 給与 / 記事・書籍・講座 / 他のLife Manager製品** に分類する。出資、自己資金、返金、寄付、顧客入金を混ぜず、二重帰属させない。MRRは真正な継続契約に限り、単発pilot、見積、LOI、架空ベンチマーク報酬から算出しない。
+収入は **Manager関連の継続サービス / Managerを使う運用支援 / 創業者個人の受託・助言 / 給与 / 記事・書籍・講座 / 他のLife Manager製品** に分類する。出資、自己資金、返金、寄付、顧客入金を混ぜず、二重帰属させない。MRRは真正な継続契約に限り、単発pilot、見積、LOI、架空ベンチマーク報酬から算出しない。
 
 金額には商品/案件、期間、通貨、請求/支払/settledの別、公式receiptと対象coverage、手数料、返金、原価、税の扱い、取得時刻を付ける。売上、受領cash、粗利、営業利益、利益に含めない創業者の作業時間を区別する。異通貨は原通貨を保持し、換算を表示する場合はrate/date/sourceを明示する。
 
@@ -231,7 +235,7 @@ Digital Autonomy v0.1は、限定scopeでの実運用、独立した技術結果
 
 ### hostの再比較
 
-Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、Render Workflowsの公式契約を追加確認した。Railwayは**接続済みで現行single Python/SQLite契約に合う初期選択**として維持し、最良のplatformと実証したとは呼ばない。Renderは有力fallback。Flyは自動volume replicationなし、Modal volumeはdistributed lockingなし、Cloudflare PythonはPyodide/WASMで現fcntl/subprocess/Gitのdrop-inではない。実hostのlock/restore/停止/予算が不適合なら再選定する。[比較根拠](research/manager-options-additional-20261022/HOSTS_JA.md)。
+Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、Render Workflowsの公式契約を追加確認した。Railwayは**接続済みで現行single Python/SQLite契約に合う代替host**として維持し、無料経路の現行判断は§13のActions＋Supabaseを優先し、最良のplatformと実証したとは呼ばない。Renderは有力fallback。Flyは自動volume replicationなし、Modal volumeはdistributed lockingなし、Cloudflare PythonはPyodide/WASMで現fcntl/subprocess/Gitのdrop-inではない。実hostのlock/restore/停止/予算が不適合なら再選定する。[比較根拠](research/manager-options-additional-20261022/HOSTS_JA.md)。
 
 ### 評価と出版に取り入れる新しい反例
 
@@ -251,3 +255,15 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実装と未配備E16、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。E16/F受入れ、実pilot/比較、公開記事/書籍、実入金などの証拠が揃ったmilestoneで更新する。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
 
 原計画の末尾はPhase12/G006。全41件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
+
+## 20. Rothkoから学ぶ範囲とエンティティの位置づけ
+
+[当日の一次資料・固定code実行](research/societies/ROTHKO_2026-10-22_JA.md)と[機械可読receipt](research/societies/ROTHKO_REPRODUCTION_20261022.json)を参照する。Artificial Societiesは会社、Rothkoは独自の人間行動予測model、Radiantは研究の接点、AS Benchmarkは公開評価code。Managerはこれらを必要な時に利用する仏教的AIエンティティであり、いずれかの予測器を主体の使命と同一視しない。
+
+今回実行したのは公開benchmarkの66test合格/9skipと7,128cell scorecardの内容一致、group alignmentの2notebook全元cell/seed/sweepによる数値実験と9図の再生成。非公開Rothkoのweights/推論実装、会社報告TVD .08、現実の購買・便益、LLM集団安全性を独立再現したものではない。再構築は公開集計metricからの組立てで、原human個票からの再採点とは区別する。
+
+直ちに取り入れるのは、分布/個人/subgroup/構造/処置効果/実行動/便益を分け、native units・coverage・欠測・反例・モデルなしbaselineを保つ評価方法。既存`evaluation.py`/`eba_benchmark.py`とevidence契約を再利用し、第二のeval engineや汎用swarmを増やさない。AS benchmarkはPython3.12、group codeは今回3.14.6の隔離研究環境で実行し、Manager coreへその依存を無条件に混ぜない。
+
+Rothko/Radiantの接続は、正規の利用経路でmodel/version、input/output、費用、data保存/削除・利用権、対象taskでの有用性が分かった場合の任意read-only predictorとする。予測出力はauthorityや便益receiptを発行しない。現sessionにはRadiant toolがなく、unauthenticated MCPは403だったが、公開code研究は完了した。これをE16実装や全工程を止める新しい必須条件にしない。
+
+人間らしさを予測することと、Manager自身の慈悲・智慧・不害・訂正可能性を育てることは異なる。toy模型のscalar規範1や情報origin比を福祉の万能点数に置換せず、実際の結果、害の分布、異議・撤回、独立した反例から学ぶ。
