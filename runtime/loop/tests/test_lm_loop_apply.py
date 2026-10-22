@@ -5774,6 +5774,13 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertEqual(proof['occurrence_id'], occurrence)
         self.assertEqual(proof['evidence_refs'], [f'lm-event://{owner}/{run_id}/' + 'a' * 24])
 
+        terminal['evidence_refs'][-1] = f'lm-no-effect://{owner}/{occurrence}/receipt_reused'
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, 'claimed', [terminal],
+        )
+        self.assertEqual(reason, 'ok')
+        self.assertEqual(proof['occurrence_id'], occurrence)
+
         contradictory_terminals = [
             {**terminal, 'provider_receipt_id': 'post-1'},
             {**terminal, 'official_readback_ref': 'postiz://posts/post-1'},

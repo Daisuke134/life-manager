@@ -2452,6 +2452,27 @@ def _write_no_effect_result(path, **overrides):
     return value
 
 
+def test_ebook_reused_receipt_is_a_no_effect_result_only_for_its_exact_owner(tmp_path):
+    hint = tmp_path / 'entrypoint-result.json'
+    entrypoint = 'apps/life-manager/scripts/ebook-distribute-daily.sh'
+    owners = ('ebook-en-tiktok-daily', 'ebook-en-instagram-daily',
+              'ebook-ja-tiktok-daily', 'ebook-ja-instagram-daily')
+    for owner in owners:
+        occurrence = f'{owner}:receipt-reuse'
+        _write_no_effect_result(hint, owner_id=owner, occurrence_id=occurrence,
+                                reason='receipt_reused')
+        assert loop_runner._verified_terminal_effect_result(hint, owner, occurrence, entrypoint) == (
+            'not_applicable', f'lm-no-effect://{owner}/{occurrence}/receipt_reused',
+        )
+        assert loop_runner._verified_terminal_effect_result(
+            hint, owner, f'{owner}:another', entrypoint) is None
+    owner = 'unrelated-owner'
+    occurrence = f'{owner}:receipt-reuse'
+    _write_no_effect_result(hint, owner_id=owner, occurrence_id=occurrence,
+                            reason='receipt_reused')
+    assert loop_runner._verified_terminal_effect_result(hint, owner, occurrence, entrypoint) is None
+
+
 def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoint(tmp_path):
     hint = tmp_path / 'entrypoint-result.json'
     _write_no_effect_result(hint)
