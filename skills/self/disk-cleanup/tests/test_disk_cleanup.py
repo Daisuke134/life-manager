@@ -3264,6 +3264,131 @@ def test_full_inventory_marker_write_failure_falls_back_to_fast_inventory(
     assert result["storage_next_action"] == "retry_full_inventory"
 
 
+@pytest.mark.parametrize("full_inventory", [False, True])
+def test_discovery_deadline_leaves_time_for_fresh_open_probes(
+    tmp_path: Path, monkeypatch, full_inventory: bool,
+) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "capafy-hf-npm.discovery-budget"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_bytes(b"generated cache")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.delenv("LIFE_MANAGER_DISK_INVENTORY_FAST", raising=False)
+    monkeypatch.delenv("EMERGENCY_GUARD_FULL_PASS", raising=False)
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", lambda **_kwargs: {
+        "coverage": {"mount_count": 1, "root_count": 1, "gaps": []},
+    })
+    clock = [0.0]
+    probes = []
+
+    def lsof(path: Path) -> str:
+        probes.append(path)
+        clock[0] += 0.1
+        return "confirmed-closed"
+
+    governor = HostDiskGovernor(
+        home=tmp_path, state_dir=tmp_path / "state", lsof=lsof,
+        usage=lambda: (12 * GiB, 100 * GiB), clock=lambda: clock[0],
+    )
+    monkeypatch.setattr(governor, "_full_inventory_due", lambda: full_inventory)
+
+    def discover_candidates(*, deadline=None) -> list[dict]:
+        clock[0] = deadline
+        return [{"path": candidate, "class": "ephemeral",
+                 "owner": "temporary-run", "discovery": "allowlisted"}]
+
+    monkeypatch.setattr(governor, "discover_candidates", discover_candidates)
+    result = governor.run_once()
+
+    assert not candidate.exists()
+    assert probes == [candidate, candidate]
+    assert result["reclaimed"] > 0
+    assert result["errors"] == result["protected_deletions"] == 0
+    assert result["sweep_start_remaining_ms"] > (
+        disk_cleanup.LSOF_TIMEOUT_SECONDS * 1000 + result["post_sweep_reserve_ms"]
+    )
+    assert result["phase_elapsed_ms"]["total_before_receipt"] <= 55000
+
+
+@pytest.mark.parametrize("expired_at_entry", [True, False])
+def test_expired_discovery_does_not_start_another_family(tmp_path: Path, monkeypatch, expired_at_entry: bool) -> None:
+    clock = [1.0 if expired_at_entry else 0.0]
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", clock=lambda: clock[0])
+
+    def clang_cache(_home):
+        assert not expired_at_entry, "expired discovery must not begin its first probe"
+        clock[0] = 1.0
+        return None
+
+    monkeypatch.setattr(disk_cleanup, "_darwin_clang_cache", clang_cache)
+    monkeypatch.setattr(governor, "_referenced_releases", lambda: (
+        _ for _ in ()
+    ).throw(AssertionError("expired discovery must not start the next family")))
+    assert governor.discover_candidates(deadline=1.0) == []
+
+
+def test_worktree_git_proof_obeys_remaining_discovery_time(dependency_worktree, monkeypatch) -> None:
+    governor, repo, worktree, _cache, _evidence, _git = dependency_worktree
+    clock = [10.0]
+    governor.clock = lambda: clock[0]
+    original_run = subprocess.run
+    timeouts = []
+
+    def run(command, **kwargs):
+        remaining = 10.25 - clock[0]
+        assert remaining > 0
+        assert 0 < kwargs["timeout"] <= remaining
+        timeouts.append(kwargs["timeout"])
+        result = original_run(command, **kwargs)
+        clock[0] += min(0.2, remaining)
+        return result
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", run)
+    assert governor._allowlisted_candidate(worktree, {
+        "class": "regenerable_output", "owner": "zombie-worktree",
+        "discovery": "allowlisted", "worktree_identity": (),
+    }, deadline=10.25) is False
+    assert timeouts == pytest.approx([0.25, 0.05])
+
+
+def test_worktree_record_read_cannot_spend_removal_reserve(tmp_path: Path, monkeypatch) -> None:
+    candidate = tmp_path / "Projects/life-manager-main/.worktrees/fixture"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_bytes(b"generated cache")
+    clock = [0.0]
+    governor = HostDiskGovernor(
+        home=tmp_path, state_dir=tmp_path / "state", clock=lambda: clock[0],
+        lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1),
+    )
+    monkeypatch.setattr(governor, "_worktree_identity", lambda *_args, **_kwargs: ("proof",))
+
+    def records(*_args, **_kwargs):
+        clock[0] = 50.0
+        return []
+
+    monkeypatch.setattr(disk_cleanup, "_worktree_records", records)
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", lambda *_args, **_kwargs: (
+        _ for _ in ()
+    ).throw(AssertionError("no removal command may start without its reserve")))
+    result = governor.sweep([{
+        "path": candidate, "class": "regenerable_output", "owner": "zombie-worktree",
+        "discovery": "allowlisted", "worktree_identity": ("proof",),
+    }], deadline=55.0, post_sweep_reserve_seconds=5.0, write_receipt=False)
+    assert candidate.exists()
+    assert result["reclaimed"] == result["errors"] == result["protected_deletions"] == 0
+    assert result["budget_exhaustion_stages"] == {"after_worktree_record_probe": 1}
+
+
+def test_dependency_proof_does_not_read_git_after_checkout_proof_fails(dependency_worktree, monkeypatch) -> None:
+    governor, repo, _worktree, cache, _evidence, _git = dependency_worktree
+    records = disk_cleanup._worktree_records(repo)
+    monkeypatch.setattr(governor, "_worktree_identity", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(disk_cleanup, "_run_git", lambda *_args, **_kwargs: (
+        _ for _ in ()
+    ).throw(AssertionError("failed checkout proof must not start another Git read")))
+    assert governor._worktree_dependency_identity(cache, records=records) is None
+
+
 def test_run_once_fast_inventory_uses_remaining_sweep_budget_after_discovery(
     tmp_path: Path, monkeypatch
 ) -> None:
