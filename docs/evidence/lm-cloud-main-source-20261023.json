@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-22T15:48:01Z",
+  "observed_at": "2026-10-22T16:25:18.236345+00:00",
   "provider": "Railway",
   "account_matches_private_ssot": true,
   "project_id": "f9c524cb-ba4a-43bb-9639-ff736afd9ec1",
@@ -55,7 +55,21 @@
     "sharedVariables": [],
     "privateNetworkDisabled": null
   },
-  "production_applied": false,
+  "production_applied": true,
   "legacy_null_claims_preserved": true,
-  "calendar_writes_by_operator": 0
+  "calendar_writes_by_operator": 0,
+  "workflow_id": "commitChanges/039eb0fd-b017-458f-947d-f3f55a0b3c04/cb5edb93-3b1a-4c47-bed6-0beeec3a71da",
+  "current_source": {
+    "repo": "Daisuke134/life-manager",
+    "branch": "main",
+    "rootDirectory": "/",
+    "commitSha": null
+  },
+  "current_staged": null,
+  "watch_patterns": [
+    "apps/life-manager/**"
+  ],
+  "new_build_observed": false,
+  "runtime_adoption_verified": false,
+  "next_action": "Merge the Cloud README canonical TODO correction through the existing watched path, then inspect official deployment metadata and public health."
 }
