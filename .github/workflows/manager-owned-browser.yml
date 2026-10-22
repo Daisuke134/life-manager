@@ -24,10 +24,10 @@ jobs:
         working-directory: products/manager
         run: |
           python - <<'PY'
-          import os
+          import os, json
           from pathlib import Path
-          from manager_core.digital_environment import build_site, load_catalog
-          build_site(load_catalog(Path('public_goods/service/catalog.json')), Path('output/service/site'), os.environ['GITHUB_SHA'])
+          from manager_core.digital_environment import build_site
+          build_site(json.loads(Path('public_goods/service/catalog.json').read_text()), Path('output/service/site'), os.environ['GITHUB_SHA'])
           PY
       - run: npm --prefix products/manager/tests/e2e ci
       - run: npx --prefix products/manager/tests/e2e playwright install --with-deps chromium
