@@ -12,7 +12,7 @@ Raw copyrighted full texts, medical individual records, free-text participant pr
 
 ## Reproduce the aggregate inspection
 
-Use Python's standard library, no new model inference or API subscription. Download the official Nature supplement and Source Data into a private directory, checking the expected hashes in `reuse.json` / the values below. No original Source Data bytes are redistributed here.
+Use Python's standard library, with no model inference, network access, or API subscription. Place the official Nature supplement and three Source Data workbooks in an explicit private directory, checking the pinned sizes and hashes in `reuse.json`. The inspector reads that existing manifest as the only pin authority; it has no URL or hash override. No original Source Data bytes are redistributed here.
 
 | Filename | Official MediaObjects suffix under DOI 10.1038/s41586-026-10742-x | SHA256 |
 |---|---|---|
@@ -21,13 +21,17 @@ Use Python's standard library, no new model inference or API subscription. Downl
 | `fig2.xlsx` | `41586_2026_10742_MOESM5_ESM.xlsx` | `c129c1f3ba5485cf2449685ac5143e98c989c28d2c531ef4f8c40f0874b0d548` |
 | `fig3.xlsx` | `41586_2026_10742_MOESM6_ESM.xlsx` | `67c6c957b51ce5f2fcbe93985672ffe9d7d49e4b26c946c7413c90c4f8c8a0d7` |
 
-Official base URL: `https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41586-026-10742-x/MediaObjects/`.
+Official base URL: `https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41586-026-10742-x/MediaObjects/`. The supplement PDF URL is also recorded in `reuse.json`.
 
 ```sh
+python products/manager/scripts/inspect_external_behavior_benchmark.py /absolute/private/input-directory
+# Compatibility entrypoint; accepts the same positional directory from any current directory.
 python docs/research/manager/evidence/artificial-societies-20261022/inspect_source_data.py /absolute/private/input-directory
 ```
 
-Observed: 3,356 directed contrast rows, 70 study identifiers, 8 published model/human summary rows. The script spot-checks the published GPT-4 raw/adjusted correlation values and prints file hashes. The pooled diagnostic correlation is about .80515, distinct from the authors' published raw .85079. Dependent contrasts, random-reference repetitions, attenuation adjustment and study-cluster uncertainty make those different analyses. This is an aggregate inspection; no fresh predictions, independent trial, original confidence-interval replication, or new human benefit.
+The CLI verifies all four file sizes and hashes before opening any workbook. A missing or mismatched file returns exit 2 with a sanitized error on stderr and no success JSON. Success prints finite aggregate JSON. It reports public source URLs and hashes, counts, published GPT-4 summaries, and the existing dependent-row diagnostics; it omits the input path, study identifiers, condition labels, and raw rows. The PDF is hash-verified only. All sheets from the three acquired workbooks are listed as inventory, while strict row analysis covers only Fig1 panelA and panelB.
+
+Verified against the pinned private snapshot on 2026-10-22: 70 studies, 3,356 directed rows, 129 study×outcome blocks, 1,678 unordered pairs, 1,572 published rows, 1,784 unpublished rows, and 8 panelB rows. The receipt also declares 469 distinct treatment effects; that count is not 469 independent replications. The published GPT-4 adjusted correlation is .9151266459087334 and raw correlation is .8507895015768856. The naive pooled directed-row correlation is .8051489088799295; it is not the authors' published raw value. The rows are dependent within study and outcome; this check does not reproduce random-reference repetitions, attenuation adjustment, study-cluster uncertainty, or the original confidence intervals. No fresh prediction, independent trial, original-method replication, or new human benefit is measured.
 
 ## Publication preservation and verification
 
