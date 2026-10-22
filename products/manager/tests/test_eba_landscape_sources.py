@@ -70,8 +70,8 @@ class BenchmarkAtlasContracts(unittest.TestCase):
             self.assertIn(keyword,plan)
         t=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
         self.assertEqual(len(t),113)
-        self.assertEqual({x["id"]:x["status"] for x in t}["F004"],"blocked")
-        self.assertEqual({x["id"]:x["status"] for x in t}["F007"],"blocked")
+        self.assertEqual({x["id"]:x["status"] for x in t}["F004"],"skipped")
+        self.assertEqual({x["id"]:x["status"] for x in t}["F007"],"skipped")
 
 
 if __name__ == "__main__":
