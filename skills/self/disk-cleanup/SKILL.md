@@ -20,14 +20,9 @@ allow-listed regenerable artifact after an open-path probe confirms
   `.cache/life-manager/camofox-browser` are executable/dependency installations,
   including between runs. Preserve each root and every descendant even when
   closed; a cache directory name does not authorize deleting an installation.
-- A registered worktree is a cleanup candidate only when its exact path still
-  matches Git metadata, it has no native lock, managed lease, or `.anicca-keep`
-  marker, tracked/untracked/ignored state is empty, HEAD is reachable from the
-  locally cached `origin/main`, and the global open-path probe confirms no open
-  file or working directory beneath it. Recheck those facts immediately before
-  using ordinary `git worktree remove` and confirm the path and registration
-  are gone afterward. Never unlock, force-remove, or prune; preserve on any
-  missing ref, timeout, mismatch, dirty state, lease, marker, or open path.
+- worktreeの候補判定・identity再検証・期限切れleaseの扱い・通常remove
+  → `disk_cleanup.py` の `HostDiskGovernor._worktree_identity()` と `sweep()` を参照する。
+  active lease・保護対象・不明な状態は保持し、force-remove/pruneを行わない。
 - iOS Simulator runtimes, images, device data, and dyld caches remain outside
   the cleanup allow-list, including when no device is booted.
 - Generic `/private/tmp` directories, including `cfo-*`, remain unknown and
@@ -84,10 +79,9 @@ allow-listed regenerable artifact after an open-path probe confirms
   the cursor once only after the sweep's fresh free-space reading meets 2 GiB.
   Cursor writes do not consume the terminal receipt reserve, and the receipt
   records cursor-write failures separately from deletion errors.
-- The shared runner and producer wrappers do not defer a wake because free
-  bytes are low, cannot be measured, or the exact cleanup-owned low-space
-  recovery signal exists. They continue to honor other operator-authored
-  `disk-writers.stop` records. A real write failure remains an operation error,
+- producerの容量admission・残量floor・復旧ownerの例外・停止flag判定
+  → `runtime/host/disk_admission.py` を正本として参照する。
+  A real write failure remains an operation error,
   not a threshold admission result. Structured `ENOSPC` receipts are guaranteed
   only on paths that implement them; do not assume every producer classifies a
   failed state write as `ENOSPC`.
@@ -108,6 +102,9 @@ allow-listed regenerable artifact after an open-path probe confirms
   timeout is a preserve/error result and never advances the full-pass marker.
 - Receipts are bounded and the high-volume cleanup ledger is rotated before it
   can consume the reserve.
+- 自然receiptの`phase_elapsed_ms`は候補発見前・発見・cursor保存・sweep・後処理・receipt保存前合計の所要msを持つ。
+  `sweep_start_remaining_ms`と`post_sweep_reserve_ms`を残し、`budget_exhaustion_stages`は時間切れ位置ごとの件数を示す。
+  既存の削除判断・`preserved_reasons`・保護・予算を維持し、未計測の原因を推測で確定しない。
 
 ## Local installation
 
@@ -160,7 +157,7 @@ python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py \
 
 管理下stdioは `runtime/host/bounded_output.py` の有限relayで保存する。raw診断は1MiB segment/backup1、structured recordは別の16MiB上限。`storage-policy.json` はowner上限と登録owner数で分割するhost上限を持つ。agent-runnerの既存次wake preflightが、summary完了・host marker・EOF receipt・positive closed proofを満たすrelay診断だけを回収する。親result・usage・JSONLは保持する。terminal保存後も生存relayのscratchは保持し、終了後の既存GCに委ねる。
 
-cleanup実行成功と容量回復は別。receipt identityを現在のcleanup owner/run/occurrence/releaseと照合してCLIへ表示する。inventoryの増加量は観測値であり削除許可ではない。実ENOSPC/EDQUOTだけをtyped failureにし、外部処理前と証明できたscratch allocationだけ既存reconcileへ接続する。fresh cleanup・persisted failure identity・actual writeが必要で、空き容量の数値floorはproducer停止条件にしない。unknown effectは公式readbackまで再送しない。
+cleanup実行成功と容量回復は別。receipt identityを現在のcleanup owner/run/occurrence/releaseと照合してCLIへ表示する。inventoryの増加量は観測値であり削除許可ではない。実ENOSPC/EDQUOTだけをtyped failureにし、外部処理前と証明できたscratch allocationだけ既存reconcileへ接続する。fresh cleanup・persisted failure identity・actual writeが必要で、容量admissionの停止条件 → 上記Safety contractを参照する。unknown effectは公式readbackまで再送しない。
 
 ## 削除直前の証拠
 

@@ -3273,6 +3273,8 @@ def test_run_once_fast_inventory_uses_remaining_sweep_budget_after_discovery(
     (candidate / "payload").write_bytes(b"generated cache")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
     monkeypatch.setenv("LIFE_MANAGER_DISK_INVENTORY_FAST", "1")
+    monkeypatch.setenv("LIFE_MANAGER_DISK_WATCHDOG", "1")
+    monkeypatch.setattr(disk_cleanup, "cleanup_run_binding", lambda *_args: None)
     monkeypatch.setattr(
         disk_cleanup,
         "collect_host_inventory",
@@ -3303,6 +3305,13 @@ def test_run_once_fast_inventory_uses_remaining_sweep_budget_after_discovery(
     assert not candidate.exists()
     assert result["reclaimed"] > 0
     assert result["inventory_mode"] == "fast"
+    assert result["phase_elapsed_ms"]["discovery"] == 15000
+    assert result["sweep_start_remaining_ms"] == 40000
+    assert result["budget_exhaustion_stages"] == {}
+    persisted = json.loads((tmp_path / "state" / "last-unbound-receipt.json").read_text())
+    assert persisted["phase_elapsed_ms"] == result["phase_elapsed_ms"]
+    assert persisted["sweep_start_remaining_ms"] == 40000
+    assert persisted["budget_exhaustion_stages"] == {}
 
 
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
@@ -3348,6 +3357,9 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
 
     assert candidate.exists()
     assert result["preserved_reasons"] == {"probe-budget-exhausted": 1}
+    assert result["budget_exhaustion_stages"] == {"before_candidate": 1}
+    assert result["phase_elapsed_ms"]["discovery"] == 105000
+    assert result["sweep_start_remaining_ms"] == 0
     assert not (tmp_path / "state" / "host-inventory-full.at").exists()
 
 
@@ -3676,6 +3688,8 @@ def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monk
 
     assert candidate.exists()
     assert result["preserved_reasons"] == {"probe-budget-exhausted": 1}
+    assert result["budget_exhaustion_stages"] == {"after_initial_open_probe": 1}
+    assert result["phase_elapsed_ms"]["sweep"] == 71000
     assert not (tmp_path / "state" / "host-inventory-full.at").exists()
 
 
