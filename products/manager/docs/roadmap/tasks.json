@@ -1019,7 +1019,7 @@
       "E15",
       "E16"
     ],
-    "technical_execution_cursor": "E10",
+    "technical_execution_cursor": "E11",
     "technical_execution_plan": "docs/plans/2026-10-22-manager-core-execution-plan.md",
     "acceptance_sequence": [
       "F005",
@@ -1046,7 +1046,8 @@
       "E06",
       "E07",
       "E08",
-      "E09"
+      "E09",
+      "E10"
     ],
     "technical_execution_receipts": {
       "E01": {
@@ -1188,6 +1189,21 @@
         "human_behavior_calibration": "NOT_ESTABLISHED",
         "human_outcome": "NOT_MEASURED",
         "verification": "docs/verification/E09_SCOPED_CALIBRATION_20261022.md"
+      },
+      "E10": {
+        "status": "PASSED",
+        "result": "BOUNDED_PUBLIC_HTTPS_OBSERVER_AND_ACTUAL_READONLY_SOURCE_RECHECK",
+        "source_commit": "b32d91a7debf6a50275cd665525a18629d818982",
+        "run_id": 39768236749,
+        "run_url": "https://github.com/Daisuke134/life-manager/actions/runs/39768236749",
+        "full_suite_total": 611,
+        "skipped": 5,
+        "focused_tests": 12,
+        "live_source_readback": "GOVUK_HTTPS_READONLY_AND_STABLE_ROBOTS_RECHECK",
+        "dynamic_nonce_difference": "PRESERVED_NOT_NORMALIZED",
+        "source_truth_authentication": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "verification": "docs/verification/E10_PUBLIC_OBSERVER_20261022.md"
       }
     },
     "handoff_document": "docs/handoffs/2026-10-22-manager-e06-session-handoff.md",
