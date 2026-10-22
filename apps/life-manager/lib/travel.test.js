@@ -657,11 +657,13 @@ async function withDurableTravelFixture(run) {
   const ledger = [];
   const updates = [];
   const patches = [];
+  const cancellations = [];
   const state = { visible: true, response: "timeout", rejectPhase: null, wrongTenant: false,
     extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
     ledgerSaved: true, onDispatch: null, rejectDelete: false, pointReads: [], pointSource: null,
     pointHelper: null, pointFailure: null, patchResponse: "success", patchVisible: true, onPatch: null,
-    phaseAtPatch: null, telegramChatId: 123 };
+    phaseAtPatch: null, telegramChatId: 123, cancelResponse: "success", cancelVisible: true,
+    phaseAtCancel: null, onCancel: null, hideSource: false };
   const clone = (value) => structuredClone(value);
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -704,14 +706,23 @@ async function withDurableTravelFixture(run) {
         rows.delete(key); return response(null, 204);
       }
       if (state.hideClaimReads-- > 0) return response([]);
-      return response([...rows.values()].filter((row) => row.uid === uid && row.event_key === eventKey && (!leg || row.leg === leg)));
+      return response([...rows.values()].filter((row) => {
+        if (row.uid !== uid || eventKey && row.event_key !== eventKey || leg && row.leg !== leg) return false;
+        for (const [field, expected] of url.searchParams) {
+          if (!field.startsWith("calendar_write_receipt->>")) continue;
+          const value = String(row.calendar_write_receipt?.[field.split("->>")[1]]);
+          if (expected.startsWith("eq.") && value !== expected.slice(3)) return false;
+          if (expected.startsWith("in.(") && !expected.slice(4, -1).split(",").includes(value)) return false;
+        }
+        return true;
+      }));
     }
     assert.equal(url.hostname, "backend.composio.dev", "fixture must never reach another host");
     if (url.pathname.includes("/connected_accounts/")) return response({ id: accountId,
       user_id: state.wrongTenant ? "other-tenant" : uid, toolkit_slug: "googlecalendar", status: "ACTIVE" });
     if (url.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST")) {
       if (state.readError && creates.length) throw new Error("synthetic read failure");
-      return response({ successful: true, data: { items: [source, ...(state.visible ? creates.map((args) => ({
+      return response({ successful: true, data: { items: [...(state.hideSource ? [] : [source]), ...(state.visible ? creates.map((args) => ({
         ...(state.pointHelper || createdTravelRow(args)), ...(state.omitMarker ? { description: "User-created travel" } : {}),
       })) : []), ...state.extraRows] } });
     }
@@ -719,6 +730,15 @@ async function withDurableTravelFixture(run) {
       assert.equal(body.connected_account_id, accountId);
       assert.equal(body.user_id, uid);
       const eventId = decodeURIComponent(new URL(body.endpoint).pathname.split("/").at(-1));
+      if (body.method === "DELETE") {
+        cancellations.push(clone(body));
+        state.phaseAtCancel = clone([...rows.values()].find((row) => row.calendar_write_receipt?.provider_event_id === eventId)?.calendar_write_receipt);
+        if (state.onCancel) await state.onCancel();
+        if (state.cancelResponse === "precondition") return response({ status: 412, data: {} });
+        if (state.cancelVisible) state.pointHelper = { id: eventId, status: "cancelled" };
+        if (state.cancelResponse === "timeout") throw new Error("synthetic cancel timeout");
+        return response({ status: 204 });
+      }
       if (body.method === "PATCH") {
         assert.equal(eventId, "travel-readback");
         patches.push(clone(body));
@@ -753,7 +773,7 @@ async function withDurableTravelFixture(run) {
   const options = { home: "Fixture home", mapsKey: "fixture", nowMs: Date.parse("2030-01-01T08:00:00Z"),
     calendar, supaUrl: "https://db.example", supaKey: "fixture",
     _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20 };
-  try { await run({ uid, source, rows, creates, deletes, ledger, updates, patches, state, calendar, options }); }
+  try { await run({ uid, source, rows, creates, deletes, ledger, updates, patches, cancellations, state, calendar, options }); }
   finally { globalThis.fetch = originalFetch; }
 }
 
@@ -1590,5 +1610,94 @@ test("CLD03b2 target fingerprint preserves the helper reminder when account sele
     assert.equal(replay.updated || 0, 0);
     assert.equal(f.patches.length, 1);
     assert.equal(f.creates.length, 1);
+  });
+});
+
+
+test("CLD03b3 official source cancellation cancels only its owned GO or RETURN and replays without writes", async () => {
+  for (const leg of ["go", "return"]) await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    const options = { ...f.options, _directionsMinutes: async (_a, _b, _c, _d, _e, isReturn) => (isReturn ? "return" : "go") === leg ? 20 : null };
+    assert.equal((await fillTravel(f.uid, options)).inserted, 1);
+    const before = structuredClone(f.rows.get(`synthetic-source:${leg}`).calendar_write_receipt);
+    f.source.status = "cancelled";
+    const result = await fillTravel(f.uid, options);
+    assert.equal(result.cancelled, 1, leg);
+    assert.equal(result.inserted, 0);
+    assert.equal(f.cancellations.length, 1);
+    assert.equal(f.cancellations[0].method, "DELETE");
+    assert.equal("body" in f.cancellations[0], false);
+    assert.equal(f.state.phaseAtCancel.command, "calendar.cancel");
+    assert.equal(f.state.phaseAtCancel.effect, "unknown");
+    const receipt = f.rows.get(`synthetic-source:${leg}`).calendar_write_receipt;
+    assert.equal(receipt.effect, "verified");
+    assert.equal(receipt.marker_request_id, before.request_id);
+    assert.equal(receipt.prior_request_fingerprint, before.request_fingerprint);
+    assert.notEqual(receipt.request_id, before.request_id);
+    assert.equal(receipt.provider_event_id, before.provider_event_id);
+    assert.deepEqual(f.deletes, []);
+    assert.equal((await fillTravel(f.uid, options)).cancelled || 0, 0);
+    assert.equal(f.cancellations.length, 1);
+    assert.equal(f.creates.length, 1);
+  });
+});
+
+test("CLD03b3 unknown cancellation remains discoverable after both events leave the normal reader", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.status = "cancelled";
+    f.state.cancelResponse = "timeout";
+    f.state.cancelVisible = false;
+    assert.equal((await fillTravel(f.uid, f.options)).cancelled || 0, 0);
+    const row = f.rows.get("synthetic-source:go");
+    assert.equal(row.calendar_write_receipt.command, "calendar.cancel");
+    assert.equal(row.calendar_write_receipt.effect, "unknown");
+    f.state.visible = false;
+    f.state.hideSource = true;
+    assert.equal((await fillTravel(f.uid, f.options)).cancelled || 0, 0);
+    assert.equal(f.cancellations.length, 1, "unknown is read-only, never a DELETE replay");
+    f.state.pointHelper = { id: "travel-readback", status: "cancelled" };
+    assert.equal((await fillTravel(f.uid, f.options)).cancelled, 1);
+    assert.equal(row.calendar_write_receipt.effect, "verified");
+    assert.equal((await fillTravel(f.uid, f.options)).cancelled || 0, 0);
+    assert.equal(f.cancellations.length, 1);
+    assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD03b3 legacy, edited, inaccessible, active, and CAS-lost helpers receive no cancellation", async () => {
+  for (const scenario of ["legacy", "edited", 404, 410, "active", "cas"]) await withDurableTravelFixture(async (f) => {
+    f.source.status = "confirmed";
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    const row = f.rows.get("synthetic-source:go");
+    const before = structuredClone(row.calendar_write_receipt);
+    f.source.status = scenario === "active" ? "confirmed" : "cancelled";
+    if (scenario === "legacy") row.calendar_write_receipt = null;
+    if (scenario === "edited") f.state.pointHelper = { ...createdTravelRow(f.creates[0]), description: "User-edited" };
+    if (typeof scenario === "number") f.state.pointFailure = scenario;
+    if (scenario === "cas") f.state.rejectPhase = "dispatching";
+    await fillTravel(f.uid, f.options);
+    assert.equal(f.cancellations.length, 0, String(scenario));
+    assert.deepEqual(f.deletes, []);
+    assert.deepEqual(row.calendar_write_receipt, scenario === "legacy" ? null : before);
+  });
+});
+
+test("CLD03b3 a cancellation 412 retains its claim and remains read-only across wakes", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.status = "cancelled";
+    f.state.cancelResponse = "precondition";
+    const result = await fillTravel(f.uid, f.options);
+    assert.equal(result.cancelled || 0, 0);
+    const row = f.rows.get("synthetic-source:go");
+    assert.equal(row.calendar_write_receipt.effect, "no_effect");
+    assert.equal(row.calendar_write_receipt.next_action, "owned_readback");
+    assert.equal((await fillTravel(f.uid, f.options)).cancelled || 0, 0);
+    assert.equal(f.cancellations.length, 1);
+    assert.deepEqual(f.deletes, []);
   });
 });
