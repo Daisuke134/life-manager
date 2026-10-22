@@ -1,5 +1,17 @@
 # Manager — independent intervention research prototype
 
+
+## 2026-10-22 現行実装の入口 — ここから開始
+
+**Managerの唯一のタスク状態・順序・カーソル正本:** [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json)（`F009.technical_execution_sequence` と `technical_execution_cursor`）。
+
+**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは **E01**。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
+
+**F005 → F006 → F008 → F009** はEの後に証拠で確認する **Phase 06の受け入れ条件** で、Eより前に実装する順序ではありません。旧F004/F007の資金提供者・施設許可は必須ルートから除外、`skipped`（未実施）です。状態は **113件 = done 69 / todo 41 / blocked 0 / skipped 3**。技術的P1/P2と受益者へのP3/P4は別物で、後者は未測定です。
+
+**古い2026-10-21記事、54分解、旧Finance/Indoorの記述は歴史的な記録です。現在の作業順を上書きしません。** 表示用は [自動生成バックログ](docs/roadmap/ATOMIC_BACKLOG.md)、現行の範囲は [Phase06 v2修正仕様](docs/specs/2026-10-22-phase06-owned-public-good-scope-amendment.md) を参照。
+
+
 ## October 22 — Phase06 through Phase12 implementation and publication
 
 The current completion pass connects the existing kernel to the owned CI release
@@ -16,7 +28,7 @@ and a [recorded real-code NO_ACTION demonstration](docs/demos/README.md).
 The reviewed article package contains 63 articles and the existing 29 media files;
 publication is through the established owned-blog bridge with independent readback.
 
-The [single task registry](docs/roadmap/tasks.json) remains authoritative: **69 done / 41 todo / 2 blocked / 1 scientifically skipped**. The final local suite passed **462 tests**, including actual optional-library execution.
+The [single task registry](docs/roadmap/tasks.json) remains authoritative: **69 done / 41 todo / 0 blocked / 3 skipped (F004/F007 retired, H005 scientifically waived)**. The final local suite passed **462 tests**, including actual optional-library execution.
 [Phase06–12 acceptance coverage](docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md)
 distinguishes completed original tasks from implemented preparation. Original
 financial/site authority, consented interviews, real cohorts and independently

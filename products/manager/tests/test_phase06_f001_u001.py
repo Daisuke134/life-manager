@@ -80,8 +80,8 @@ class DiscoveryContractTests(unittest.TestCase):
         for x in ("K001","K014","S008"):
             self.assertEqual(t[x]["status"],"done")
         self.assertEqual(t["H005"]["status"],"skipped")
-        self.assertEqual(t["F004"]["status"],"blocked")
-        self.assertEqual(t["F007"]["status"],"blocked")
+        self.assertEqual(t["F004"]["status"],"skipped")
+        self.assertEqual(t["F007"]["status"],"skipped")
 
 if __name__ == "__main__":
     unittest.main()

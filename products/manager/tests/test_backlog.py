@@ -67,8 +67,8 @@ class BacklogTest(unittest.TestCase):
         by_id={t['id']:t for t in tasks}
         for task_id in ('F004', 'F005', 'F006', 'F007', 'F008', 'F009'):
             self.assertNotEqual(by_id[task_id]['status'],'done',task_id)
-        self.assertEqual(by_id['F004']['status'],'blocked')
-        self.assertEqual(by_id['F007']['status'],'blocked')
+        self.assertEqual(by_id['F004']['status'],'skipped')
+        self.assertEqual(by_id['F007']['status'],'skipped')
         demo=json.loads((ROOT/'docs/verification/PHASE05_OFFLINE_DEMO_RESULTS.json').read_text(encoding='utf8'))
         self.assertEqual(demo['field_beneficiary_improvements_verified'],0)
         self.assertEqual(demo['scientific_gate1'],'UNMET')

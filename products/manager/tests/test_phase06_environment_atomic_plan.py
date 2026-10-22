@@ -60,8 +60,8 @@ class AtomicStructuralInterventionPlanContracts(unittest.TestCase):
         tasks=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
         by={t["id"]:t for t in tasks}
         self.assertEqual(len(by),113)
-        self.assertEqual(by["F004"]["status"],"blocked")
-        self.assertEqual(by["F007"]["status"],"blocked")
+        self.assertEqual(by["F004"]["status"],"skipped")
+        self.assertEqual(by["F007"]["status"],"skipped")
         self.assertEqual(by["F005"]["status"],"todo")
         self.assertEqual(by["F006"]["status"],"todo")
         self.assertEqual(by["F008"]["status"],"todo")

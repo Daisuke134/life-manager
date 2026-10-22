@@ -1,0 +1,49 @@
+name: Manager SSOT Derived Backlog Regeneration
+on:
+  push:
+    branches: [research/manager-phase06-owned-public-good-20261022]
+    paths: ['.github/workflows/manager-regenerate-execution-view-20261022.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: manager-ssot-view-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  regenerate-view:
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-phase06-owned-public-good-20261022'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/manager-phase06-owned-public-good-20261022
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate view from sole Manager task SSOT and E-core plan
+        working-directory: products/manager
+        run: |
+          python scripts/make_roadmap.py
+          python scripts/make_roadmap.py --check
+      - name: Assert only one generated view changes and commit to research branch
+        run: |
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          diff=subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
+          allowed=['products/manager/docs/roadmap/ATOMIC_BACKLOG.md']
+          assert all(path in allowed for path in diff), f'unexpected edit: {diff}'
+          print('SSOT_GENERATED_VIEW_ONLY=' + ','.join(diff))
+          PY
+          git add -- products/manager/docs/roadmap/ATOMIC_BACKLOG.md
+          if git diff --cached --quiet; then
+            echo "SSOT_VIEW_ALREADY_MATCHES"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "docs(manager): regenerate SSOT-derived E-first execution-order view"
+            git push origin HEAD:refs/heads/research/manager-phase06-owned-public-good-20261022
+          fi
