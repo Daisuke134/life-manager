@@ -141,6 +141,28 @@ class DurableSessionIntent(unittest.TestCase):
             self.assertEqual(j.get("req_success").session_id,"sess_12345678")
             self.assertEqual(calls[0]["metadata"]["manager_request_id"],"req_success")
 
+    def test_live_lab_requires_persistent_journal_before_provider_network(self):
+        import os
+        from unittest.mock import patch
+        from scripts.phase_ampersand_lab import run_lab
+        with TemporaryDirectory() as d:
+            with patch.dict(os.environ,
+                            {"AMPERSAND_API_KEY": "hak_ExampleValidASCII123",
+                             "MANAGER_AMPERSAND_RUN_ID": "trial-01"},
+                            clear=True):
+                with self.assertRaisesRegex(SessionFailure,"journal"):
+                    run_lab(live=True, max_sessions=1,
+                            output=Path(d)/"report.json")
+
+    def test_followup_requires_writer_identity_when_journal_present(self):
+        from manager_core.ampersand_api import read_followup_turn
+        with TemporaryDirectory() as d:
+            j=SessionJournal(Path(d)/"state.sqlite")
+            j.begin("req-a",digest("body"));j.bind("req-a","sess_abcdefgh")
+            with self.assertRaises(ValueError):
+                read_followup_turn(None,"sess_abcdefgh","Hi",key="next-01",
+                                   journal=j,writer_id=None)
+
     def test_missing_session_and_invalid_ids_fail_closed(self):
         with TemporaryDirectory() as d:
             j=SessionJournal(Path(d)/"state.sqlite")
