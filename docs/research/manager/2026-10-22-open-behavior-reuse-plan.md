@@ -27,7 +27,7 @@ Slice Aだけは2026-10-22にmain基点の専用worktreeで実装・検証した
 
 | 順 | ファイル・接続点 | 最小変更 | 完了を示す検証 |
 |---|---|---|---|
-| A | 実装: `products/manager/scripts/inspect_external_behavior_benchmark.py`、`products/manager/tests/test_external_behavior_benchmark.py`。旧companionは委譲entrypoint | 固定 `reuse.json` pinsを先に照合し、Fig1 panelA/Bをstrict analysis。他の取得sheetはinventory、PDFはhashのみ。原データはprivate、出力は集計のみ | 22 synthetic tests、最適化時のhash failure、sanitized CLI、実snapshot 70/3356/129/1678・group counts・GPT-4 summaries・4 hashes照合済。新規推論ではない |
+| A | 実装: `products/manager/scripts/inspect_external_behavior_benchmark.py`、`products/manager/tests/test_external_behavior_benchmark.py`。旧companionは委譲entrypoint | 固定 `reuse.json` pinsを先に照合し、Fig1 panelA/Bをstrict analysis。他の取得sheetはinventory、PDFはhashのみ。原データはprivate、出力は集計のみ | 23 synthetic tests。全4ファイルfixtureで同じ長さの改変を作り、`python -O` のinternal API child processがparse前の `SOURCE_HASH_MISMATCH` を返すことを確認。CLIのsanitized error/empty stdout/exit 2は別に確認。実snapshot 70/3356/129/1678・group counts・GPT-4 summaries・4 hashes照合済。新規推論ではない |
 | B (未実装) | 新 `manager_core/external_behavior_eval.py`、対応するfocused test | AS upstreamの効果採点と既存 `evaluation.py::total_variation/brier_score` を意味が適合する場合に再利用。効果量は単位を保持し、無効果・train-only平均・固定modelを比較。相関／回帰／区間は既存SciPy/statsmodels等を使う | 研究丸ごとのsplitとcluster単位の不確実性。欠測≠0、効果方向・MAE・較正・選択損失。`eba_benchmark.py::score_suite` のsynthetic契約は緩めない |
 | C (未実装) | 新 `scripts/twin_wave4_eval.py`、対応するfocused test | 公式QuestionID/mappingでwave1–3のみ入力。既存 `phase04_socsci_individual.py::evaluate_predictions` の分母・split設計を参考にする。まず配布出力を再採点 | wave4回答・full_persona漏洩を検出。個人/分布/subgroup/coverageを別表示。新規推論は小subsetで費用計測後 |
 | D (未実装) | 新 `scripts/public_event_forecast.py` と予測記録schema | 決算説明会の公開先例を模倣。公開前入力cutoff・対象・採点法・モデル・予測hashを固定し、後日公開記録で採点 | cutoff後情報混入と後出し予測変更を検出。過去質問等の強いbaseline、欠測と失敗を報告。個人の非公開属性は不要 |
@@ -36,7 +36,7 @@ Slice Aだけは2026-10-22にmain基点の専用worktreeで実装・検証した
 
 ### Slice A の検証済み範囲
 
-`python -B -m unittest discover -s products/manager/tests -p 'test_external_behavior_benchmark.py' -v` は22 testsがpass。合成OOXMLでshared/inline strings、必須cell/header、hash前倒し、重複・逆方向・完全比較graph・study group、Fig3等の空panel inventoryを検査した。実データを使った一度の照合では70 studies、3,356 directed rows、129 study×outcome blocks、1,678 unordered pairs、published/unpublished 1,572/1,784、panelB 8 rows、4つのmanifest hash、公開GPT-4 raw/adjusted correlationを確認した。canonical CLIとlegacy entrypointは別current directoryから同一JSONを出した。source-boundary guardはクラウドhostにcanonical pathがないためFAILのまま記録し、変更していない。
+`python -B -m unittest discover -s products/manager/tests -p 'test_external_behavior_benchmark.py' -v` は23 testsがpass。合成OOXMLでshared/inline strings、必須cell/header、hash前倒し、重複・逆方向・完全比較graph・study group、Fig3等の空panel inventoryを検査した。SHA-256照合は、同じ長さを保った合成supplement改変を含む全4ファイルfixtureで、`python -O` child processからinternal APIにfixture metadataを渡して `SOURCE_HASH_MISMATCH` を直接確認し、CLIのsanitized errorは別に検査した。実データを使った一度の照合では70 studies、3,356 directed rows、129 study×outcome blocks、1,678 unordered pairs、published/unpublished 1,572/1,784、panelB 8 rows、4つのmanifest hash、公開GPT-4 raw/adjusted correlationを確認した。canonical CLIとlegacy entrypointは別current directoryから同一JSONを出した。source-boundary guardはクラウドhostにcanonical pathがないためFAILのまま記録し、変更していない。
 
 この結果は歴史的released aggregatesのinspectionである。3356行を独立試験とみなさず、receipt記載の469 distinct effectsも469件の独立複製を意味しない。原著のrandom-reference/attenuation/cluster uncertaintyを再現したとは主張しない。過去論文でのLLM学習 exposure はstudy単位holdoutだけでは排除できないため、歴史データ評価と、将来結果を見る前に予測を固定するD sliceは別の証拠として扱う。
 

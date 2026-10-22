@@ -400,7 +400,19 @@ class ExternalBehaviorBenchmarkTests(unittest.TestCase):
 
     def test_a_tampered_source_is_rejected_by_its_byte_pin(self) -> None:
         input_dir, nature, _ = make_snapshot(self)
-        (input_dir / "fig1.xlsx").write_bytes(b"tampered and not a workbook")
+        source_name = "supplement.pdf"
+        original = (input_dir / source_name).read_bytes()
+        tampered = bytes([original[0] ^ 1]) + original[1:]
+        (input_dir / source_name).write_bytes(tampered)
+
+        pin = next(
+            row
+            for row in nature["execution_receipt"]["files"]
+            if row["name"] == source_name
+        )
+        self.assertEqual(len(tampered), len(original))
+        self.assertEqual(len(tampered), pin["bytes"])
+        self.assertNotEqual(hashlib.sha256(tampered).hexdigest(), pin["sha256"])
 
         self.assert_inspection_error(
             "SOURCE_HASH_MISMATCH", lambda: inspector.inspect_snapshot(input_dir, nature)
@@ -563,22 +575,72 @@ class ExternalBehaviorBenchmarkTests(unittest.TestCase):
             "MISSING_CELL", lambda: inspector.inspect_snapshot(input_dir, nature)
         )
 
-    def test_cli_hash_failure_is_sanitized_even_under_optimization(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="private-benchmark-input-") as directory:
-            private_dir = Path(directory)
-            (private_dir / "supplement.pdf").write_bytes(b"wrong source")
-            process = subprocess.run(
-                [sys.executable, "-B", "-O", str(SCRIPT), str(private_dir)],
-                cwd=private_dir,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+    def test_optimized_child_reports_same_length_hash_mismatch(self) -> None:
+        input_dir, nature, _ = make_snapshot(self)
+        source_name = "supplement.pdf"
+        original = (input_dir / source_name).read_bytes()
+        tampered = bytes([original[0] ^ 1]) + original[1:]
+        (input_dir / source_name).write_bytes(tampered)
+        pin = next(
+            row
+            for row in nature["execution_receipt"]["files"]
+            if row["name"] == source_name
+        )
+        self.assertEqual(len(tampered), pin["bytes"])
+        self.assertNotEqual(hashlib.sha256(tampered).hexdigest(), pin["sha256"])
 
+        metadata_path = input_dir / "synthetic-metadata.json"
+        metadata_path.write_text(json.dumps(nature), encoding="utf-8")
+        child_code = "\n".join(
+            [
+                "import json",
+                "import sys",
+                "from pathlib import Path",
+                "sys.path.insert(0, sys.argv[3])",
+                "import inspect_external_behavior_benchmark as inspector",
+                "try:",
+                "    inspector.inspect_snapshot(Path(sys.argv[1]), ",
+                "        json.loads(Path(sys.argv[2]).read_text(encoding='utf-8')))",
+                "except inspector.InspectionError as error:",
+                "    print(error.code)",
+                "else:",
+                "    print('INSPECTION_OK')",
+            ]
+        )
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                "-O",
+                "-c",
+                child_code,
+                str(input_dir),
+                str(metadata_path),
+                str(SCRIPT.parent),
+            ],
+            cwd=input_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(process.returncode, 0, process.stderr)
+        self.assertEqual(process.stdout, "SOURCE_HASH_MISMATCH\n")
+        self.assertEqual(process.stderr, "")
+
+    def test_cli_sanitizes_invalid_snapshot_errors(self) -> None:
+        input_dir, _, _ = make_snapshot(self)
+        process = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT), str(input_dir)],
+            cwd=input_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         self.assertEqual(process.returncode, 2)
         self.assertEqual(process.stdout, "")
         self.assertEqual(process.stderr.strip(), "ERROR SNAPSHOT_INVALID")
-        self.assertNotIn(str(private_dir), process.stderr)
+        self.assertNotIn(str(input_dir), process.stderr)
         self.assertNotIn("study", process.stderr.lower())
 
     def test_legacy_entrypoint_delegates_from_an_unrelated_working_directory(self) -> None:
