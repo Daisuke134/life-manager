@@ -98,6 +98,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 **FND01 — 容量の再発をproducer責務で閉じる**
 
 - FND01d host原因の限定復旧: `top`のMEM/CMPRSはuser501の `corespotlightd` PID48584で各27GBを2回示し、RSS上位だけの観測では圧縮分を見落とす。start identityはFri Oct16 09:24:59、PPID1、safe GUI readbackは `com.apple.corespotlightd` と公式program/同PIDを示す。lsofはCoreSpotlight metadata主体、vmmap summaryは20秒timeoutのため根拠に使わない。空き約8.7GB/9GB swapとmanaged producerのdisk延期を分けて記録する。fresh read-only反証、同PID/start/UID、GUI preflightを確認後、同serviceへ一度だけsafe SIGTERMを送り通常再起動を待つ候補を採る。metadata削除・索引の恒久停止・SIGKILL・Mac/loginwindow/app-server restartは行わない。事後footprint・swap/free・実業務wakeで受け入れ、即時のswap縮小や永久解決を先に断定しない。新しいdaemon/schedulerは追加しない。
+- FND01d実測結果: fresh Codex検証は同PID/start/UIDとMEM/CMPRS各27Gを独立確認する。公式plistはEnablePressuredExit=trueで、正常終了/再起動は保証しない。直前のGUI preflightと同一性確認後のsafe SIGTERMはexit1、旧PIDが存続する。元のstderrを保存できていないため拒否理由は断定しない。追加のsignal0はlaunchctlがinvalid signal/exit64を返し、permission診断として使えない。別経路の強制終了・再送は行わず、容量/実業務の未達を維持する。fresh Git garbageは約12MBで、容量解決として無関係なGit削除/GCへ広げない。
 
 - 対象: `skills/self/disk-cleanup/{host_inventory.py,disk_cleanup.py}`、`runtime/host/disk_admission.py`、`runtime/loop/lm_loop_run.py`。一時物を残すことが実証されたowner entrypointだけを追加対象にする。全巨大directoryを削除対象にしない。
 - 原因を絞ったpatch: 直近watchdogの `codex-runtime-cache` 回収receiptと、インストール済app-tools launcherが参照する `.cache/codex-runtimes/.../node` を照合する。未統合PR #7674 / #7671には実行環境を保護する既存最小案がある。3 roots（`.cache/codex-runtimes`、`Library/Caches/camoufox`、`.cache/life-manager/camofox-browser`）をdownload cacheから除外し、既存protected prefixへ加える。closed FDは将来の起動に必要なインストールを削除してよい証拠にならない。既存テストの誤った「closedなら削除」期待をREDで反転する。runtime/cacheの誤分類は確認するが、空きの約3GiB変動や全job不調の唯一原因とはしない。
@@ -194,6 +195,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 受入: 新しい自然eligible予定のGO/RETURN block、時刻/場所/所要時間、対応readback、次wakeで追加0。オンライン予定で不要な有料routeを発生させない。今回60件でnext pageが無いため、pagination改修を現在故障の前提にしない。
 
 **CLD04 — Cloudの配備・各機能・課金を別々に確かめる**
+
+- CLD04 DB境界: Supabaseのexact production SSOTのprojectは公式GETで一致/ACTIVE_HEALTHYだが、公式service healthはauth/dbをUNHEALTHY、restをACTIVE_HEALTHYと返す。認証付きRESTは最小1行でもTTFB約11.6秒、claims一覧/最小管理SQLはtimeout、管理SQLではHTTP544も観測する。公式metricsは500、過去20分のPostgresログ32件にはstatement timeout17件、client reset3件、dynamic shared area attach失敗1件がある。認証なしgateway401やRailway health200をDB正常の証拠にしない。migrationはまだ送信しない。shared projectの可用性へ影響するため、fresh read-only反証と所有/現在healthを確認してから、既存providerの公式project restartを一度だけ行う候補を採る。データ/旧claim/費用記録を削除せず、scale/plan変更や新spendは行わない。再起動応答が不確実なら再POSTせず、公式project/health/最小読取で照合する。復旧後にslow query/metricsを読み、必要な原因修正とCLD02 migration/配備へ戻る。
 
 - source: `scheduler.js::{startTravelLoop,travelUserOnce}`、`lib/{maybe-start-loops,runtime-preferences,travel-reminder}.js`、Webの既存calendar/billing/automation reader、`skills/earn/marketing-engine/registry/products/life-manager-cloud.json`。
 - 今回取得できないもの: Railway管理CLI/既存credentialは401/403。deployment ID・loaded env・全enabled flagは未取得。公開buildとsource blob一致、現在のprovider記録を、管理env完全確認の代わりと偽らない。必要な権限/credentialを正確に記録し、他のread-only経路を使う。再認証/設定変更は今回行わない。
