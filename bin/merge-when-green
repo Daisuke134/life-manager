@@ -17,6 +17,15 @@ for _ in $(seq 1 "$tries"); do
     *" fail "*|*" cancel "*) echo "merge-when-green: #$pr has a failed check; not merging" >&2; exit 2 ;;
     *" pending "*) sleep "$poll"; continue ;;
   esac
+  # CodeRabbit may pass before GitHub registers the mandatory workflow's jobs.
+  workflow="$(gh run list --workflow sec-scan.yml --commit "$head" --event pull_request --limit 1 \
+    --json headSha,status,conclusion \
+    --jq '.[0] | select(. != null) | "\(.headSha) \(.status) \(.conclusion)"' 2>/dev/null)" || workflow=""
+  case "$workflow" in
+    "$head completed success") ;;
+    "$head completed "*) echo "merge-when-green: #$pr mandatory workflow did not succeed; not merging" >&2; exit 2 ;;
+    *) echo "merge-when-green: #$pr waiting for mandatory workflow on $head" >&2; sleep "$poll"; continue ;;
+  esac
   exec gh pr merge "$pr" "$@" --match-head-commit "$head"
 done
 echo "merge-when-green: #$pr checks still running after $tries polls; not merging" >&2
