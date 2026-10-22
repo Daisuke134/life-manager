@@ -38,3 +38,5 @@ jobs:
           python scripts/check_boundaries.py
       - name: Entire existing Manager suite
         run: python -m unittest discover -s tests -q
+
+# E01 source evidence preserved at immutable GitHub artifact 12398755518.
