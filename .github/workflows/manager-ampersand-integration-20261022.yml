@@ -38,6 +38,19 @@ jobs:
           python -m py_compile manager_core/collaboration.py manager_core/ampersand_api.py scripts/phase_ampersand_lab.py
           python scripts/check_boundaries.py
           python scripts/make_roadmap.py --check
+      - name: Real offline fixture baseline and no-effects report
+        run: |
+          python scripts/phase_ampersand_lab.py --max-sessions 10
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/ampersand-research/report.json').read_text())
+          assert len(r['cases']) == 10 and r['model_scored'] == 0
+          assert r['model_sessions_created'] == 0
+          assert r['real_world_effects'] == 0 and r['real_people'] == 0
+          assert all(c['model_status']=='NOT_CALLED' for c in r['cases'])
+          print('OFFLINE_RESEARCH_REPORT=PASS')
+          PY
       - name: All existing Manager tests (no third-party write)
         run: |
           python -m pip install --disable-pip-version-check -r requirements-internet-eval.txt 'numpy==2.2.6' 'scipy==1.15.3'
