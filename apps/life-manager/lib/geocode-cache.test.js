@@ -231,7 +231,7 @@ test("failed provider responses never return or persist coordinates from their b
   const oldFetch = globalThis.fetch;
   const scenarios = [
     { name: "http-503", ok: false, status: 503, providerStatus: "REQUEST_DENIED", failureClass: "provider_5xx" },
-    { name: "provider-rejected", ok: true, status: 200, providerStatus: "REQUEST_DENIED", failureClass: "no_route" },
+    { name: "provider-rejected", ok: true, status: 200, providerStatus: "REQUEST_DENIED", failureClass: "provider_4xx" },
   ];
   try {
     for (const scenario of scenarios) {
