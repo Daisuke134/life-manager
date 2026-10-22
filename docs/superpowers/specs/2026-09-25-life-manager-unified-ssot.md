@@ -22540,3 +22540,71 @@ Data volume空きは11:14:05Z watchdog receiptで`4,591,169,536` bytes（`df`表
 | 4 | Capafyの次の自然15分occurrenceを待つ。 | #3。DONE=Codex tool-less JSON draft、同一occurrenceに結び付くlive GitHub article/HTTP 200とPostiz `PUBLISHED` ID/permalink、duplicate 0。 |
 | 5 | 同一seller/sourceの公式行でviews、trials、paid orders、creator earningsを照合する。 | #4。DONE=source-attributed paid orderとearningsを確認する。無注文や帰属不明は0/unknownを混同しない。 |
 | 6 | paid orderがない場合、`/agent/agents/search`から同targetの成功例を一つ選び、成功URL・検証済み結果・勝ち筋を記録してdistributionの一変数実験を行う。 | #5。DONE=自然配信後の同source paid conversionで採否を判定し、勝ちvariantだけを次回に残す。 |
+
+### Capafy動画・OSS配布の旧snapshot — 2026-10-21 12:20 UTC（superseded）
+
+目的: Capafyの実測済みwinnerを使って有料注文へつながる配信を増やし、Life ManagerのGitHub利用者・starsを増やす。目標の10,000 starsと各事業$10,000 MRRは未達の目標であり、投稿数・閲覧・累計grossを達成扱いしない。TODO/順序の正本はこのSSOTだけとする。
+
+As-Is (同じproduction receipt):
+- Daisuke134/life-managerは8 stars / 2 forks (gh repo view, 2026-10-21 12:20Z); 10,000 starsまで9,992。比較用の成功例は[OpenClaw](https://github.com/openclaw/openclaw):同時刻のGitHub readbackで392,647 stars / 82,541 forks。模倣するのはREADMEの最初に起動方法・短い説明・制約を置く仕組みで、starsの原因をREADMEに帰属させない。
+- Capafy official seller receiptは2026-10-21T11:33:06Z。累計gross $102.75、creator earnings $76.18、non-trial units 32、free-trial units 74、paid-out $0.00、settlement balance $59.00、refunds $0.00。active subscription joinがないためnet/settled MRRはunknown。
+- 同receiptの30日source rows: Hook Labは235 views / 4 paid orders / $7.96 gross;その4件はhotから。登録済みsocial CT (hooklab_x, hooklab_ig, hooklab_blog)は合計6 views / 0 paid。TikTok Script Proは202 views / 3 orders / $13.97 gross; 2件はsearch ($3.98)、1件はGoogle referrer ($9.99)、registered social CTは6 views / 0 paid。これは同期間の観測であり、配信の因果効果ではない。
+- capafy-distribute-dailyは11:55:57ZにCodex draft・記事公開・Postiz X readbackを同じoccurrenceでpass/reconciledにした。記事=https://aniccaai.com/blog/tiktok-script-for-course-creators。投稿実績は配信完了であり、注文や収益ではない。
+- capafy-reel-dailyの直近Postiz readbackはrun 18e06608a8e9ede0-52600, provider receipt cmvhf45h10lcfrq0y87qq4hb6, loaded SHA 726123ea, 2026-10-21 01:12:59Z。現行sourceのspec_from_outputはgeneric openerを促し、caption()は「Hook Labを検索」とだけ案内する。X向けの登録済みCT replyとTikTok向けCTはない。Instagram/TikTok/Carouselの次回slotは既存ownerが管理し、予約済み投稿は上書き・再送しない。
+- Foundation: PR #8501の12-GiB ballast threshold修正はmain 0d94a1c9へmerge済み。12:06:16ZのData-volume空き12.61 GiBは一般producer floor 12 GiBを約0.61 GiB上回るだけで、長期安定の証明ではない。12:09:51Zにfactory occurrence capafy-loop-daily:18e06be983078308-83931をCapafy official publish-list + run-start snapshotでeffected=falseと確認し、そのexact fenceを閉鎖済み。次の自然factory terminalは未確認。
+- lm-loop doctorのreadbackはmissing entrypoints 0 / unmanaged label 1 (ai.anicca.provision-browser.tiktok.hooklab)。capafy-ig-account-managerとcapafy-outcome-monitorには古いresource_effect_unknown claimが残り、IG marketing ownerはdisabled。18 user-facing capabilitiesすべての自然成功・注文を今回確認したわけではない。
+
+成功例を先に調査: [PictoryのAI script-generator短編](https://www.youtube.com/watch?v=8dxSOdnkAlk)はYouTube metadataで59秒、2,997,338 views、50 likes (2025-04-21公開、2026-10-21取得)。公開captionを取得して構成だけを分析した。確認できる成功結果はviewsで、sales/conversion/organic-onlyは不明。模倣する仕組みは「白紙の悩み→画面上の入力→実出力を数拍で見せる→一つのCTA」。同動画の文言・音声・素材は再利用しない。Hook Labでは自分たちの保存済みreal input/outputを見せ、viral/売上効能を主張しない。
+
+TODO順変更: 旧cursor=ballast修正→容量回復→Capafy adoption→自然記事/X→seller readback→勝ち例実験。新cursor=(1)既存Capafy reelの実出力先行・登録済みCT・platform別CTA修正→(2)main releaseから次の自然reel slotを予約・readback→(3)成熟後の同一seller source views/orders/revenue照合→(4)無注文ならhookだけを一変数で再実験→(5)残るfence/disabled ownerとheadroomを修復→(6)短いREADME・clean-install契約→(7)一つの低コストOSS配布実験とstars/clone/install/first-run計測。理由: blockerだったballast deadbandとfactory fenceは修正済み、現行の直接的な売上gapはsocial CTが購入に結び付かず、reel CTAがsourceを区別できないこと。配信量を増やす前に売上を追える一件を作る。
+
+旧cursorは後続の12:52 UTC cursorに置換済み。この下のTODOは実行しない。
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | skills/earn/capafy-marketing/scripts/capafy_reel_daily.py::hook_lab_output/spec_from_output/caption/scheduleを更新する。入力=選択nicheとHook Labの実output、Pictoryの「白紙→入力→結果→CTA」構成、既存registered CT。出力=冒頭で実結果を見せる25秒以内のoriginal script、X root+hooklab_x self-reply、IGの既存hooklab_ig導線、TikTok/Carouselは未登録CTを捏造しない検索CTA。予約済みPostiz項目は触らない。 | focused regression: python3 -m pytest -q skills/earn/capafy-marketing/tests/test_capafy_reel_daily.py; git diff --check; exact-head CI。DONE=新しいhook、platform別CTA、CTなしTikTok時のhonest behaviorをtestが固定し、mainへmerge。 |
+| 2 | merged SHAのimmutable releaseでcapafy-reel-dailyだけを対象採用し、既存scheduled postsを読み戻してから次の自然wakeを待つ。 | #1。DONE=新SHAから一度だけ実行し、X/IG/TikTokのprovider receiptを同occurrenceへ結び、重複0。未登録TikTok CTを使わず、existing TikTok warmup gateを維持。 |
+| 3 | capafy-hourly-reconcileの同一agent・同一期間でsource別views/trials/paid/grossを再読する。 | #2後にconversion maturity windowを置く。DONE=registered CTごとのofficial rowsを記録。購入なしは0;欠測/未成熟はunknown。 |
+| 4 | #3でsocial CTが0 paidのままなら、Hook Lab winnerを維持し、videoのhookだけを一変数で変えて次natural slotを試す。 | DONE=同じCTA/尺/対象で成熟したofficial paid rowsを比較し、採否とサンプル数を記録。 |
+| 5 | capafy-ig-account-manager/capafy-outcome-monitorのexact old occurrenceを各ownerの公式readbackで照合し、可能なものだけfence解決、disabled IG ownerの既存stop理由を確認する。 | DONE=owner別terminal/official effectを分離して記録。effect unknownは推測解除しない。 |
+| 6 | README.md/README.ja.mdをcommand-firstへ短縮し、macOS install/inspect command、Codex-only runtime境界、provider setup要件、timestamp付きCapafy snapshot、10k-star目標を示す。 | node --test test/startup-context.test.mjs; disposable LIFE_MANAGER_HOMEでdependency installを省いたisolated bootstrap readback。DONE=英日両方の最初の画面に実行入口と限界があり、test pass。fresh external Mac/Codex OAuthの完全自動runは未達として明記。 |
+| 7 | README merge後、成功例のcommand-first mechanismを使う無料のrepo-distribution slotを一件公開し、UTMまたはsource tagでGitHub visit→clone→install→first-runを記録する。 | DONE=投稿provider receiptと公開先、stars/forks、install/first-run sourceを同じwindowで計測。starsは結果であり投稿数は代理指標にしない。 |
+
+このcursorでは広告費を使わず、個人credentialを公開artifactへ含めない。Capafy grossをLife Managerのnet profit/MRRと呼ばず、Codex以外のpipeline inferenceを有効化しない。
+
+### Capafy収益・OSS配布の最新cursor — 2026-10-21 12:52 UTC
+
+目的: Capafyの既存draftを重複作成せずに掲載まで進め、実注文をsource別に増やす。同時にLife Managerのinstall体験と公開証拠を整え、GitHub starsと継続利用を増やす。10,000 starsと各事業$10,000 MRRは目標であり、未達。
+
+As-Is:
+- GitHub APIのreadbackは8 stars / 2 forks。10,000 starsまで9,992。READMEの先頭をcommand-firstに短縮するが、stars増加の因果とは扱わない。
+- Capafy seller snapshot (2026-10-21 12:16:41Z): cumulative gross $102.75、creator earnings $76.18、non-trial units 32、free-trial units 74、seller orders / all units 70 / 106、refunds $0、paid out $0、statement ending balance $59、payable $0。active subscription joinがなくMRRはunknown。
+- 同snapshotの30-day source rows: Hook Lab 236 views / 4 paid orders / $7.96 gross; 4件ともhot source。registered social CTは6 views / 0 paid。TikTok Script Pro 202 views / 3 orders / $13.97 gross; search 2 / $3.98、Google referrer 1 / $9.99、registered social CT 6 views / 0 paid。source attributionは因果証明ではない。
+- Factory run capafy-loop-daily:18e08b0f45ac2bb8-71648 は2026-10-21 12:32:36Zにentrypoint_exit_1、effect=unknownで終了。公式Capafy API readbackではagent 8093774827 / version 2112884034971136000 / title TikTok LIVE Selling Run-of-Show がagent_status=draft, platform_status=0, package_uploaded=false, is_confirmed_skills=false, is_confirmed_config_keys=false。CP1のinvalid pricing tab / disabled confirmationで失敗し、掲載receiptなし。
+- 同occurrenceのadmission DB rowは現在state=released, effect_unknown=0で、active fence rowは存在しない。一方runtime eventはeffect=unknown, provider_receipt_id=null, next_action=official_readback_requiredのまま。capafy_factory_fence_reconcile.pyは「occurrence is not an effect_unknown row」を返し、このeventを現状のまま照合できない。reconcilerのreconcile()は新規/更新hitの一般経路でplatform_statusを1に限定せず、status=0 draftでもverified=true, effected=trueを組み立て得る。source fileのSHA256は現immutable release 554a8718とmain checkoutで同一。別releaseに潜む差分ではなく、source acceptance上の欠陥。
+- 同日のproduction inventoryはCAP_FULL、online 62 / unlisted 5 / rejected 2 / publishable 0、actionなしだった。共有source checkout branch capafy/nhl-goalie-matchup-brief-20261014にuntracked catalog folder一式 (LISTING.md, SKILL.md, icon.svg/png, test/case1.md)があり、failed-run runtime workspaceにも元SKILL.md, listing-config.json, icon.pngが残る。共有checkoutは編集せず、正確なsourceを専用worktreeへ復旧した。listing-config.jsonのedit_urlはruntime専用URLなのでsourceへコピーしていない。復旧後、専用worktreeからの公式read-only inventoryはCAP_FULL下でもagent 8093774827/version 2112884034971136000をaction=resume_draftとして選択。productionはまだrelease 554a8718のためCAP_FULL/actionなし。
+- 12:56:00Zの次natural wrapper runはHEALTHY-IDLE: CAP_FULL / offline build already claimed today / agent spend=0 / platform write=0で終了。lm-loop eventのeffect欄はunknownだが、同一occurrenceのowner logはno platform writeを記録し、provider receiptなし。売上/掲載には数えない。
+- product success precedentはCapafy winner-family parent TikTok Script Pro (agent 2844813315)。12:16 seller source rowは202 views / 3 orders / $13.97 grossで、search 2件/$3.98、Google referrer 1件/$9.99。これはshort-video scriptsの隣接実績で、LIVE run-of-showの直接成績ではない。candidate-opportunitiesもwinner_clone指定だが、LIVE-specific paid proofは未確認。
+- 12:30 UTC開始のCodex self-fix (capafy-loop-daily:550c65e7b25b6deae6d3d0bb) は15分でrc=124, timed_out=true、成果・修復receiptなし。12:45 UTC時点のowner statusはtransient_timeout, effect unknown, provider receiptなし。
+- skills/self/capafy-loop/capafy-loop-daily.shのruntime promptにclaude-pという古い誤記が残るが、確認した実行のselected providerはCodex。全pipeline inferenceはCodexのみとする。
+- Source worktree codex/capafy-video-readme-growth-20261021ではHook Lab短編改稿、Pictory構成調査、英日README各46行、sanitized seller evidence artifact、復旧catalogを作成済み。reel tests 6件、startup-context 22件、install-isolation 2件、repository URL migration、factory fence tests 55件、inventory-status tests 55件、Codex-only policy tests 2件、listing lint、runtime config comparison、resume_draft decision、lm-loop-contract、git diff --checkはpass。変更は未commit/unmergedで、productionは未反映。fresh外部Macでの完全無人初回収益runと全agentの自然成功は未証明。
+- fresh read-only reviewでは、公開snapshotの数値はcanonical SSOTと一致したが、2026-10-21 12:16:41Zのraw provider receipt/source rowsはrepoにないため独立provider照合未完。README/evidenceはoperator-reported sanitized snapshotと明記し、private receipt digestをprovider signature扱いしない。
+- 成功例は[Pictory AI script-generator short](https://www.youtube.com/watch?v=8dxSOdnkAlk)。59秒 / 2,997,338 views / 50 likesを確認。sales/conversion/organic-onlyは不明。模倣するのは「白紙の悩み→画面上の入力→実出力→一つのCTA」の構成だけで、文言・素材は使わない。
+
+TODO順変更: 旧順序は(1)reel修正→(2)release→(3)seller測定→(4)hook実験→(5)owner cleanup→(6)README→(7)OSS配布。新順序は(1)draftを閉じないfence fix→(2)Codex-only prompt誤記→(3)CAP_FULL内の同一draft resume候補復旧→(4)source acceptance/main/release→(5)Capafy自然CP1/CP3→(6)Reel自然配信とsource売上→(7)README経由OSS配布→(8)全agentのclean-host/eval/settled-revenue coverage。理由: 既存draftのstatus=0をpublish完了扱いできるresolver欠陥、Codex-only promptの誤記、未commit source branchが判明したため。raw seller snapshotはoperator-reportedとして公開し、receipt検証がないことを明示する。Codex以外は使わない。
+
+現在cursor = 4 — #1-3はsource branchで完成しfocused tests pass。PR/main/releaseとowner adoptionが未完。
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | skills/self/capafy-loop/test_capafy_factory_fence_reconcile.pyでplatform_status=0 draftがcloseされない回帰テストを追加し、skills/self/capafy-loop/capafy_factory_fence_reconcile.py::reconcileを最小修正。 | Local DONE: RED確認後、focused suite 55 passed。 |
+| 2 | skills/self/capafy-loop/capafy-loop-daily.shのinternal PROMPT表記をCodexへ修正し、Codex-only policyを確認。 | Local DONE: bash -n pass、runtime/agent-runner/tests/test_codex_only_policy.py 2 passed。Capafy商品のcustomer-facing hosted model設定とは別の設定。 |
+| 3 | 共有checkoutを編集せず復旧catalogを専用worktreeに追加し、internal demand noteを隣接winner・LIVE-specific gap・売上測定に限定。 | Local DONE: listing lint pass、build_config出力の非secret fields 14項目がruntime configと一致、inventory_status.pyはCAP_FULL下でexact action resume_draft:8093774827を選択。 |
+| 4 | 全変更を最新origin/mainへrebaseし、README.md/README.ja.md/evidence、Capafy fence/prompt/catalog、Capafy Reel改稿をfocused test後にPR/mainへ統合し、main由来immutable releaseを作る。 | startup-context 22 passed、install-isolation 2 passed、repo URL migration pass、reel tests 6 passed、factory fence 55 passed、Codex policy 2 passed、listing lint/config compare pass、lm-loop-contractとgit diff --checkが必要。DONE=PR checks/review/merge + immutable release SHA。 |
+| 5 | new releaseからcapafy-loop-dailyだけをtarget applyし、次のnatural runでsame agent/versionをresumeする。予約外のnew listingを作らない。 | #4。DONE=8093774827/version 2112884034971136000がplatform_status=1, skills/config confirmed, package_uploaded=trueとなり、official review/listing receiptを保存。 |
+| 6 | new releaseからcapafy-reel-dailyだけを採用し、予約済みPostiz itemを保ち、次natural Reel slotを実行する。 | #4。DONE=同じoccurrenceにX/IG/TikTok receipt/permalinkがjoinし、duplicate=0。 |
+| 7 | conversion maturity後、capafy-hourly-reconcileでsource別views/trials/paid/gross/creator earningsを再読する。social order=0なら同target/CTA/尺でhookだけ一変数を変える。 | #5-6。DONE=official same-source paid rowか明確な0/unknown、variant/sample countを記録。 |
+| 8 | README変更反映後、同target/medium/purposeのOSS star獲得成功例を調べ、見つからなければ一つのfree measurable repo slotを実行する。 | DONE=参照URL、勝ち筋、投稿receipt、stars/forks、source-tagged visit→clone→install→first-runを記録。 |
+| 9 | 全20 agentをcatalog rowごとにfresh-host setup、Codex natural terminal、provider receipt、settled revenue、eval/benchmark coverageで照合し、未達sourceを修正する。 | DONE=20/20 owner別自然terminal、公式receipt、revenue/zero evidence、eval gate、clean Mac初回installのhuman boundaryを確定。 |
+
+このcursorはCapafyの個人credentialやraw seller account dataをpublic artifactへ含めない。累計grossをMRR/net profitへ読み替えず、synthetic eval passをlive revenueと混同しない。

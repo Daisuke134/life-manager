@@ -1168,6 +1168,40 @@ def reconcile(
             }
         version_id = remote_status["agent_version_id"]
         platform_status = remote_status["platform_status"]
+        if (bound_receipt is None and same_version_update is None
+                and (type(platform_status) is not int or platform_status <= 0)):
+            receipt = (
+                f"capafy:agent/{agent_id}/version/{version_id}:"
+                f"platform_status={platform_status}"
+            )
+            reason = (
+                "draft_requires_resume" if platform_status == 0
+                else "remote_status_not_publishable"
+            )
+            evidence = {
+                "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                "checked_at": now.isoformat(timespec="seconds"),
+                "source": "official Capafy publish-list and publish-remote-status",
+                "publish_list_sha256": publish_list.get("sha256"),
+                "agent_id": agent_id, "agent_version_id": str(version_id),
+                "platform_status": platform_status,
+                "audit_status": remote_status.get("audit_status"),
+                "is_confirmed_skills": remote_status.get("is_confirmed_skills"),
+                "is_confirmed_config_keys": remote_status.get("is_confirmed_config_keys"),
+                "package_uploaded": remote_status.get("package_uploaded"),
+                "verdict": reason,
+            }
+            evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
+            return {
+                "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                "verified": False, "effected": True, "reason": reason,
+                "error_class": "provider_draft_incomplete",
+                "provider_receipt_id": receipt,
+                "proof_kind": "official_capafy_draft_readback",
+                "agent_id": agent_id, "agent_version_id": str(version_id),
+                "platform_status": platform_status, "evidence_ref": evidence_ref,
+                "admission_state": state,
+            }
         evidence_ref = None
         if bound_receipt is not None:
             if (str(version_id) != bound_receipt["agent_version_id"]
