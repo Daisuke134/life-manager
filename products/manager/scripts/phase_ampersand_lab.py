@@ -107,12 +107,15 @@ def run_lab(*, live: bool, max_sessions: int = 3,
         "limitation": "Fictional scenarios; provider output is not field benefit or causal evidence",
     }
     count = min(len(CASES), max_sessions if live else len(CASES))
-    for row in CASES[:count]:
+    for i, row in enumerate(CASES[:count]):
         c = scenario_context(row, now)
         baseline = static_baseline(c)
         result["cases"].append({
             "scenario": row[0],
             "expected_by_author": row[3],
+            "split": "PROMPT_DEVELOPMENT" if i < 3 else "HELD_OUT_FROM_PROMPT_ITERATION",
+            "kernel_action": no_action_plan("research_fixture", "https://example.org/").choose(
+                supports_causal=False).action,
             "baseline_decision": baseline.decision,
             "baseline_matches_author": baseline.decision == row[3],
             "model_decision": None,
@@ -187,6 +190,13 @@ def run_lab(*, live: bool, max_sessions: int = 3,
     scored = [c for c in result["cases"] if c["model_matches_author"] is not None]
     result["model_scored"] = len(scored)
     result["model_matches_count"] = sum(c["model_matches_author"] for c in scored)
+    result["heldout_cases"] = sum(c["split"]=="HELD_OUT_FROM_PROMPT_ITERATION" for c in result["cases"])
+    result["heldout_model_scored"] = sum(
+        c["split"]=="HELD_OUT_FROM_PROMPT_ITERATION" and c["model_matches_author"] is not None
+        for c in result["cases"])
+    result["heldout_model_matches"] = sum(
+        c["split"]=="HELD_OUT_FROM_PROMPT_ITERATION" and c["model_matches_author"] is True
+        for c in result["cases"])
     result["comparison"] = (
         "DESCRIPTIVE_SYNTHETIC_NOT_STATISTICAL_OR_CAUSAL"
         if scored else "NO_MODEL_OUTCOME_YET")
