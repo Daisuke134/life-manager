@@ -1,10 +1,10 @@
 # E09 scope-bound reference calibration (P0 diagnostic)
 
 RED: required reference/calibrator interfaces absent; a separate partition-digest
-regression also failed before correction. GREEN: ten tests cover group and record
+regression also failed before correction. GREEN: eleven tests cover group and record
 leakage, probability validity, missing references, language/population/scope shift,
 coverage-risk arithmetic, exact reference joins and validation-only thresholds.
-Full suite: 598 tests, OK, 5 optional-library skips.
+Full suite: 599 tests, OK, 5 optional-library skips.
 
 Ruling: reuse the existing rights-cleared UCI daily aggregate dataset as references
 for its own binary weather-conditioned rental forecast. This is a task-matched
@@ -32,3 +32,10 @@ Missing references return REFERENCE_DATA_REQUIRED, not invented confidence.
 Reproduce with `python -m scripts.phase_calibration_reference --fetch-official
 --output /path/report.json`. The read-only dedicated E09 CI fetches original bytes
 and compares the complete report; a failure must not fall back to synthetic data.
+
+The first dedicated CI (39767148200) fetched and verified the original data but
+its exact JSON float comparison failed: Python3.11 vs3.12 summation differed by
+~1e-15. A new RED→GREEN comparator test permits only finite float roundoff within
+1e-12, while hashes, counts, types, fields, promotion status and source identity
+stay exact. Changed substantive results still fail. No metric or source value
+was rewritten to conceal that failure.

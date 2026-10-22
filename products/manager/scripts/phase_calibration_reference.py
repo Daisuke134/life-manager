@@ -78,6 +78,22 @@ def run_reference(body):
           'The model is never used to score human benefit or authorize an owned digital change.'])
 
 
+def assert_reference_report(actual,expected):
+    """Exact evidence identities; allow only 1e-12 cross-Python float roundoff."""
+    from math import isclose,isfinite
+    if type(actual) is not type(expected):raise ValueError('reference report type changed')
+    if isinstance(expected,dict):
+        if set(actual)!=set(expected):raise ValueError('reference report fields changed')
+        for key in expected:assert_reference_report(actual[key],expected[key])
+    elif isinstance(expected,list):
+        if len(actual)!=len(expected):raise ValueError('reference report length changed')
+        for a,e in zip(actual,expected):assert_reference_report(a,e)
+    elif type(expected) is float:
+        if not isfinite(actual) or not isclose(actual,expected,rel_tol=1e-12,abs_tol=1e-12):
+            raise ValueError('reference metric differs beyond numerical roundoff')
+    elif actual!=expected:raise ValueError('reference identity/count/status changed')
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     source=parser.add_mutually_exclusive_group(required=True)

@@ -65,6 +65,16 @@ class CalibratedAbstentionTests(unittest.TestCase):
         b=fit_error_calibrator(rows[:1],rows[1:],scope=SCOPE)
         self.assertNotEqual(a.reference_hash,b.reference_hash)
 
+    def test_report_comparison_tolerates_roundoff_but_not_changed_evidence(self):
+        from scripts.phase_calibration_reference import assert_reference_report
+        actual={'source_hash':'abc','risk':.2409337384067183,'count':366,'status':'DENIED'}
+        expected={'source_hash':'abc','risk':.2409337384067195,'count':366,'status':'DENIED'}
+        assert_reference_report(actual,expected)
+        for field,value in (('source_hash','wrong'),('risk',.3),('count',365),('status','PROMOTED')):
+            changed=dict(actual);changed[field]=value
+            with self.subTest(field=field),self.assertRaises(ValueError):
+                assert_reference_report(changed,expected)
+
     def test_validation_threshold_does_not_use_test_labels(self):
         c=fitted();before=c.threshold
         r=ref('one','test',.8,0);e=c.predict_error(PredictionCase('one',SCOPE,'en',r.distribution))

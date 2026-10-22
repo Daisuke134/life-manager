@@ -32,8 +32,9 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from scripts.phase_calibration_reference import assert_reference_report
           expected=json.loads(Path('docs/verification/E09_OBSERVED_REFERENCE_20261022.json').read_text())
           actual=json.loads(Path('/tmp/e09-reference.json').read_text())
-          assert actual == expected, 'reference result changed; do not invent missing data'
+          assert_reference_report(actual, expected)
           print('PASS official source bytes and scoped reference result match')
           PY
