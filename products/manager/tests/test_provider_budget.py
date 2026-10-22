@@ -153,6 +153,22 @@ class BudgetContract(unittest.TestCase):
         self.assertEqual(res.output_text,"")
         self.assertEqual(len(calls),1)
 
+    def test_live_lab_fails_before_network_without_budget_limit(self):
+        import os
+        from unittest.mock import patch
+        from scripts.phase_ampersand_lab import run_lab
+        with TemporaryDirectory(dir=Path.home()) as d:
+            journal_path=Path(d)/"journal.sqlite"
+            with patch.dict(os.environ,{
+                "AMPERSAND_API_KEY":"hak_ExampleValidASCII123",
+                "MANAGER_AMPERSAND_RUN_ID":"test_budget_01",
+                "MANAGER_AMPERSAND_JOURNAL_PATH":str(journal_path),
+            },clear=True):
+                with patch("scripts.phase_ampersand_lab.make_client",
+                           side_effect=AssertionError("provider must not be called")):
+                    with self.assertRaisesRegex(SessionFailure,"budget"):
+                        run_lab(live=True,max_sessions=1,output=Path(d)/"result.json")
+
     def test_cancellation_request_requires_actual_status_readback(self):
         from hashlib import sha256
         with TemporaryDirectory() as tmp:
