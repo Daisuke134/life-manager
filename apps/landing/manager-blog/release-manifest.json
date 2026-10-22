@@ -3,7 +3,7 @@
   "modules": [
     {
       "path": "scripts/integrate.mjs",
-      "sha256": "6883d05d3e4e81ac3e107278118261f3c685750d4a8433d905e7212fbacb2589"
+      "sha256": "10820fc45824cb474958cabf229983afbcf1d18d705df0831cab99298273c93f"
     },
     {
       "path": "scripts/package-contract.mjs",
@@ -15,7 +15,7 @@
     },
     {
       "path": "templates/manager-collection.tsx",
-      "sha256": "e5d9596ff0e73bbcc64feb9c0a607225e6bcaaafa707a967b902ae47f85256be"
+      "sha256": "ebc4d10419cc6d5f38d005fa194c4ac08e999312d0cb58585bbd104c7f443442"
     }
   ]
 }

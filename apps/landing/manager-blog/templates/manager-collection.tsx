@@ -3,7 +3,7 @@ import path from "path";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 
-type Entry = { slug: string; title: string; description?: string; lang: "en" | "ja"; series_order?: number };
+type Entry = { slug: string; title: string; date: string; description?: string; lang: "en" | "ja"; series_order?: number };
 const url = "https://aniccaai.com/blog/manager";
 export const metadata = {
   title: "Manager Research & Build Notes | Anicca",
@@ -13,7 +13,7 @@ export const metadata = {
 export default function ManagerCollection() {
   const folder = path.join(process.cwd(), "data", "research");
   const posts: Entry[] = fs.readdirSync(folder).filter(f => /^manager-.*\.json$/.test(f)).map(f => JSON.parse(fs.readFileSync(path.join(folder, f), "utf8"))).filter(p => p.project === "Manager");
-  posts.sort((a, b) => (a.series_order ?? 999) - (b.series_order ?? 999) || a.slug.localeCompare(b.slug));
+  posts.sort((a, b) => b.date.localeCompare(a.date) || (a.series_order ?? 999) - (b.series_order ?? 999) || a.slug.localeCompare(b.slug));
   return <main className="bg-cream">
     <JsonLd data={{ "@context": "https://schema.org", "@type": "CollectionPage", name: "Manager", url, mainEntity: { "@type": "ItemList", numberOfItems: posts.length, itemListElement: posts.map((p,i) => ({ "@type": "ListItem", position: i+1, name: p.title, url: `https://aniccaai.com/blog/${p.slug}` })) } }} />
     <section className="mx-auto max-w-4xl px-5 pt-32 pb-20">
@@ -24,7 +24,7 @@ export default function ManagerCollection() {
       {([['en','English','english'],['ja','日本語','japanese']] as const).map(([lang,label,id]) => <section key={lang} id={id} className="mt-14 scroll-mt-8">
         <h2 className="font-display text-3xl text-ink">{label}</h2>
         <ul className="mt-6 divide-y divide-bone border-y border-bone">{posts.filter(p => p.lang === lang).map(p => <li key={p.slug} className="py-6">
-          <Link href={`/blog/${p.slug}`} className="group block"><h3 className="font-display text-2xl leading-snug text-ink group-hover:underline">{p.title}</h3><p className="mt-3 text-base leading-relaxed text-ink-soft">{p.description}</p></Link>
+          <Link href={`/blog/${p.slug}`} className="group block"><time dateTime={p.date}>{p.date}</time><h3 className="font-display text-2xl leading-snug text-ink group-hover:underline">{p.title}</h3><p className="mt-3 text-base leading-relaxed text-ink-soft">{p.description}</p></Link>
         </li>)}</ul>
       </section>)}
     </section>
