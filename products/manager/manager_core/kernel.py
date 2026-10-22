@@ -33,6 +33,41 @@ class ManagerKernel:
         self.authority=authority
         self.audit=audit
 
+    def review_public_advice(self, run_id, context, model_response):
+        """Audit a bounded provider proposal as P0; never call outbox or adapter.
+
+        This is the only bridge from collaborator inference into the kernel.
+        It does not establish causal support, authority, or execution eligibility.
+        """
+        from .collaboration import PlannerContext, safe_advisory
+        if type(context) is not PlannerContext:
+            raise ValueError("typed public context required")
+        result = safe_advisory(model_response, context)
+        for fact in context.facts:
+            source = fact.source
+            self.audit.append(run_id, "source", {
+                "source_id": source.source_id,
+                "source_url": source.url,
+                "license_id": source.license_id,
+                "rights": source.rights,
+                "content_hash": source.content_sha256,
+                "privacy_class": source.privacy_class,
+                "retrieved_at": source.retrieved_at.isoformat(),
+            })
+        self.audit.append(run_id, "proposal", {
+            "status": result.status,
+            "decision": result.decision,
+            "reason": "PROPOSAL_ONLY_NO_EXECUTION",
+            "proof_level": "P0",
+            "benefit_status": "NOT_MEASURED",
+        })
+        self.audit.append(run_id, "decision", {
+            "status": "NO_ACTION",
+            "decision": "NO_ACTION",
+            "proof_level": "P0",
+        })
+        return result
+
     def prepare_digital_release(self, run_id, baseline, candidate, now):
         """Plan an inert handoff; only the separate owned CI job can publish.
 
