@@ -1142,7 +1142,15 @@
         "settled_usd": null,
         "human_outcome": "NOT_MEASURED",
         "runtime_constraint": "Synchronous deadline-enabled provider requires POSIX main-thread owner; unsupported/conflicting timers fail closed.",
-        "verification": "docs/verification/E06_PROVIDER_LIMITS_20261022.md"
+        "verification": "docs/verification/E06_PROVIDER_LIMITS_20261022.md",
+        "review_followup": {
+          "source_commit": "79655022aad93d38bfcad90bc891f3ddc247c11a",
+          "run_id": 39771542330,
+          "status": "PASSED",
+          "regressions": "created-event expiry and alarm during initial durable bind; bounded cancellation binding recovery",
+          "focused_deadline_total": 12,
+          "full_suite_total": 661
+        }
       },
       "E07": {
         "status": "PASSED",
@@ -1265,6 +1273,26 @@
         "focused_total": 8,
         "result": "VERIFIED_PERSISTENT_INTENT_AND_LOCAL_GIT_RECOVERY_P0",
         "evidence": "docs/verification/E15_OWNED_RECOVERY_20261022.md"
+      },
+      "E16": {
+        "status": "BLOCKED",
+        "source_commit": "79655022aad93d38bfcad90bc891f3ddc247c11a",
+        "run_id": 39771542330,
+        "full_suite_total": 661,
+        "focused_total": 10,
+        "result": "VERIFIED_REFERENCE_CYCLE_P0_DEPLOYMENT_HOST_REQUIRED",
+        "blocker": "DEPLOYMENT_HOST_REQUIRED",
+        "production_adapter_implemented": false,
+        "deployed": false,
+        "human_outcome": "NOT_MEASURED",
+        "evidence": "docs/verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md",
+        "handoff": "docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md",
+        "remaining_evidence": [
+          "verified existing loaded owner and persistent volume",
+          "production cycle adapter integrated through normal promotion",
+          "one target-CAS canary and official immutable occurrence plus independent served readback",
+          "actual host restart/catch-up/rollback and replay-zero"
+        ]
       }
     },
     "handoff_document": "docs/handoffs/2026-10-22-manager-e06-session-handoff.md",
