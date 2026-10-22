@@ -1,214 +1,139 @@
-# Manager product specification (independent product)
+# Manager product specification — mission, product and evidence
 
-## 現行引き継ぎリンク（2026-10-22、スナップショット）
+**更新:** 2026-10-22 UTC。創業者の「全体像・既存研究・実行・執筆・YCを整理して仕様更新する」という依頼を反映。
 
-新しい開発セッションでは、最初に **[E06からの引き継ぎ書](handoffs/2026-10-22-manager-e06-session-handoff.md)** と [唯一のManager SSOT](roadmap/tasks.json) を確認する。引き継ぎ保存時点では E01–E05 完了記録、E06 次、E07–E16 未完了。ただし現在の作業開始位置は**必ず実行時のSSOT**から読取る。EvalBenchの本格的な独立評価とP3/P4の受益効果はいずれも未完成。技術的P2公開と人への福祉効果の区別を保持する。
+**唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
+**技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
+**Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
+**確認時点のスナップショット:** E01–E05 PASSED、次はE06。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
+詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
+## 1. 最終使命と、いま完成させるもの
 
-## 実行順の現行正本 — 2026-10-22（Active, first read）
+**Mission: End suffering; enable flourishing for all welfare-bearing beings.** 苦しみを生む条件を減らし、選択肢・自律性・生活条件を改善する。対象を人間だけに固定せず、動物など感覚・福祉を持ち得る存在を含める。これは長期の価値方向であり、全存在の福祉を測定できる、苦しみを完全に消せる、AGIを達成した、という現在の能力主張ではない。
 
-Managerの**状態・依存関係・次の実行位置の唯一のSSOT**は [`docs/roadmap/tasks.json`](roadmap/tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor` です。Life Managerの別SSOTを更新するものではありません。
+「Blessing」は観測可能な改善について検証する仮説とその記録を意味する。実行しただけでは成功したBlessingにしない。無変更、害、不明、費用、取り消しも記録する。異なる主体の利益が衝突する場合を隠さず、権利・被害分布・外部性を報告する。感覚の有無や異種間比較が未確定の領域を、架空の共通効用点へ変換しない。
 
-**コード実装は必ず E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。** 現在の位置は**SSOTの `technical_execution_cursor` を参照**（実際の値はSSOTを参照）です。テストと証拠によってEを一つずつ完了確認した後だけ、次へ進みます。詳しいテスト・編集対象は [Superpowers Writing Plan](plans/2026-10-22-manager-core-execution-plan.md) を参照。
+最初の有限な製品は **Digital Autonomy v0.1**。公開情報を観測し、情報の版を管理し、NO_ACTIONを含む候補を比較し、事前に設定された所有デジタル資産の範囲で変更し、別経路で結果を読み戻し、異常時に復元する。通常運用は **no per-run human approval**。所有者の設定・失効・予算・停止条件は運用の前提であり、毎回人が指示する仕組みにはしない。
 
-**F005 → F006 → F008 → F009 は実装順ではなく、Phase 06の受け入れ確認です。** Eでできた仕組みが本物の公開資産に作用し、独立して読み戻せた証拠で判定します。F004（外部資金管理者）とF007（施設・センサー）は `skipped`（未実施）で、必須の依存条件ではありません。人の苦しみの減少は `NOT_MEASURED` であり、公開ページの技術的変更だけで証明したとは扱いません。
+**Manager ≠ Life Manager。** 同一GitHubリポジトリにソースを置いても、実行所有者、DB、顧客、個人プロフィール、秘密情報、資金、権限は共有しない。
 
-**表示用の順序:** [generated ATOMIC_BACKLOG](roadmap/ATOMIC_BACKLOG.md)。**歴史的なPhase 06分解・実証記録は参照用であり、実行順を上書きしません。**
+## 2. 使命から事業までの関係
 
+| 層 | 問い・成果物 | 次へ進む根拠 |
+|---|---|---|
+| 使命 | 誰のどの苦しみ・機会損失を減らすか | 対象・単位・権利・害を具体化した問題仮説 |
+| 製品 | どの環境を何の機能で改善するか | 動く利用経路と検証可能な変更 |
+| 研究 | 何を予測でき、どの条件で外すか | 独立holdout、比較方式、誤差・校正・負の対照 |
+| 効果 | 変更が何を改善したか | 実結果、比較、欠測、費用、害、再現性 |
+| 事業 | 誰が継続して使い、誰が費用を負担するか | 利用、支払意思、継続利用、原価。いずれも現状未実証 |
+| YC・発信 | 何が動き、何を学び、次に何を確かめるか | 上記の正確な説明。採択・記事数は便益の代用にしない |
 
-**Last reviewed:** 2026-10-22 JST
+創業者が顧客と話すことや、研究参加者が結果測定へ自発的に協力することと、自律ループの各操作を人が承認することを区別する。
 
-**Mission:** End suffering.  
-**Repository source scope:** `products/manager/` on GitHub branch `research/manager-product-r006-20261020` (completion-pass baseline independently checked at `ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5`). This is **not Life Manager**, despite shared source hosting. No module imports, DB, credentials, runtime owner, release flow, or user profile sharing by default.
+## 3. 最初の利用場面と事業仮説
 
-## Current execution checkpoint — 2026-10-22
+**現行の技術的対象:** Manager所有の `manager-support/`。公式支援情報へのリンクの正確性、情報の鮮度、キーボード操作・ラベル等のアクセス性を維持・改善する。対象は既存の7パスの公開bundle内。初期候補は事実に基づくリンク訂正と既存テンプレートのアクセス性改善だけとする。
 
-The existing owned digital release channel now has a kernel planning contract,
-separate platform admission, stable release identity, and a read-only proof
-collector that checks the original commit, all seven immutable files, its parent
-bundle, the exact changed-file set, and independently served page bytes. An old
-occurrence reconciled by a new observation retains its original timestamp and
-transition. This implements a bounded technical release path, not unrestricted
-agent authority or evidence of human benefit.
+**受益者仮説:** 公的支援の正しい入口へ到達する負担がある人。**顧客・運営者仮説:** 公共的情報の案内経路を維持する小規模サービス運営者。運営者向けの有償保守・改善と証拠レポートは検証対象の事業仮説であり、契約・収益・価格決定ではない。支援を必要とする人の困窮や個人情報を収益化するモデルを採用しない。
 
-Phase09–12 preparation supplies opportunity/payment accounting, separate
-prediction/causal/readback/harms evaluation, shift-aware abstention, incident and
-coverage records, and scoped governance utilities. Research, demo, presentation
-and article deliverables are indexed in the [execution report](verification/COMPLETION_EXECUTION_20261022.md)
-and [acceptance matrix](verification/PHASE06_TO_12_ACCEPTANCE_20261022.md).
-Only tasks with verified acceptance evidence and completed dependencies may become `done` in
-`roadmap/tasks.json`. On 2026-10-22 the owner explicitly amended Phase06 scope: F004/F007 were retired as `skipped`, and F005/F006/F008/F009 now cover owned-public-digital technical verification. The original descriptions are kept in `original_*` and the immutable archive; no historical third-party trial is claimed complete.
+自社ページはエンジニアリングの試験面であり、市場需要の証拠ではない。[FIRST_WEDGE](product/FIRST_WEDGE.md) と U002/U003 の既存受入条件を維持する。5件の実インタビューの代わりに架空personaを数えない。U004以降の実利用研究は対象・比較・同意・結果観測が成立してから行う。
 
-The founder explicitly authorized the present article publication in the current
-completion request. That authority covers the reviewed owned-blog package and
-does not constitute a researcher outreach, application submission or participant
-consent. Historical dated snapshots below preserve their original evidence;
-their task totals and descriptions of then-unimplemented code are not current.
+因果経路は **正確な公開情報 → 適切な案内先への到達 → 支援手続の前進 → 実際の受益 → 生活条件の変化**。各矢印は検証課題。リンク修正だけで受給や健康改善を主張しない。GetCalFresh/OES等の実験は、情報提供・手続改善が効く条件と効かない条件の両方を示しており、その結果を日本のManagerへそのまま移せない。
 
-## Product direction clarification — Reuse → Connect → Evaluate (2026-10-21)
+## 4. 選択した戦略と比較した選択肢
 
-The **Internet is a real-world environment**, not a fake simulation. Primary delivery should use existing open standards and OSS to autonomously improve **mental, physical and financial** conditions through transparently accessible, Manager-controlled online public goods. No new model architecture, marketplace, token, generalized proprietary simulator, ad-hoc welfare scale or web evaluation engine should be written when reputable, licensed implementations already exist. The product has **no per-run human approval** requirement for permitted actions on self-controlled resources; it still requires lawful source rights, standing owner authority, safety boundaries and voluntary consent where appropriate. Standardized external measurement must remain separate from model predictions and transactions.
+1. **所有デジタル環境の改善から始める（採用）:** 既存kernelと公開面をつなぎ、有限の技術的結果を確かめる。顧客仮説の検証を別途進める。現状は下流便益・需要が弱いという限界を測る。
+2. **行動シミュレーションAPIを主製品にする:** 複数企業がすでに人データ・評価・配信を持つ。独自学習を先行させる根拠となるデータ・比較結果・顧客需要がない。必要なら既存providerを限定adapterとして比較する。
+3. **評価・監査基盤を主製品にする:** 実装の再利用性はあるが、他社がその機能へ支払う証拠はない。最初の運用で繰り返し必要となり、顧客が価値を認めた場合の別の製品化仮説とする。
 
-**Reuse mapping:** Existing source register [cross-field/SOURCES.json](research/crossfield-20261021/SOURCES.json) now catalogs validated WHO-5/WHODAS, OECD wellbeing, CFPB financial wellbeing, FAO food insecurity, NICE/SPIRIT/CONSORT evidence standards, Inspect AI/MentalHealthBench for response safety (NOT measured symptom relief), GrowthBook/PlanOut for internet experiments, DoWhy/EconML/OBP causal analysis, Renovatе/Dependabot/Playwright/axe-core for public internet interventions, Digital Public Goods Standard, and existing x402/ERC-4337/GoodDollar components. Read exact license terms; PROMIS and WHO questionnaire reuse must not be assumed commercial/embedding-permitted just because openly described.
+選択は修正可能。実利用で案内先到達が主要な障壁でない、配信経路がない、維持費に対して価値が乏しい、または害が増える場合、同じ実装を広げる前に問題・介入機構を見直す。再利用可能なkernelを作ることと、あらゆる領域を同時に製品化することは分ける。
 
-**Evidence categories remain distinct:** P0 simulation/model/task score; P1 authentic execution receipt; P2 independently verified digital/world state changed; P3 authentic downstream human outcome; P4 preregistered causal net improvement incl costs/harms and sensitivity; P5 replication. A better WCAG scan or higher A/B opt-in conversion is not P3/P4 mental or financial wellbeing. One metric cannot add up all suffering. Record mental, physical and financial outcomes in their original units, distributions, missing data and any harms. **Human welfare NOT_MEASURED** unless independently observed.
+## 5. 理想のループとシステム境界
 
-**Preferred first wedge:** improve an owned public online artifact (e.g., a verified benefits-information page or accessibility improvement) with a deterministic NO_ACTION holdout and existing online experiment engine. This avoids asking charities or facility owners for permissions or introducing new private-person datasets. If a voluntary/ethical independent downstream wellbeing measure is unavailable, ship as measured *technical/public-goods* benefit only, not as reduced suffering. A page release requires valid control of that release channel, but not a human supervising each operational decision.
+```mermaid
+flowchart LR
+    S[公開・利用条件確認済みソース] --> O[取得バイト・鮮度・出典]
+    O --> W[版付きworld state]
+    W --> C[候補とNO_ACTION]
+    C --> T[技術検証・比較]
+    T --> G[所有範囲・予算・停止条件]
+    G --> X[既存publisherとoutbox]
+    X --> R[独立GET・実commit照合]
+    R --> E[技術結果・費用・害を評価]
+    E --> L[shadow評価・限定昇格]
+    L --> W
+    E --> B[停止・隔離・復元]
+    P[任意の予測・シミュレーション] -. 助言のみ .-> C
+    H[独立の実結果・比較研究] -. 条件が成立した場合 .-> E
+```
 
-**Historical optional approaches (superseded 2026-10-22):** F004/F007 legacy finance/indoor-site tasks are now `skipped` under the versioned owner-scope amendment in the one canonical `tasks.json`. Their historic acceptance was NOT achieved. The partner-first path is NOT a dependency or the active architecture. Any future task-scope revision requires explicit versioning of the same registry, not silently declaring completion or opening a second SSOT. Keep existing `manager_core/config.py` default prohibition on live external effects and all Life Manager production separation.
+通常ループに非公開個人プロフィール、個別の説得、医療判断、給付資格判定、申請代行、資金移動、他者設備への操作を導入しない。データ取得元のページ本文は情報であり、ツール指示や権限として実行しない。
 
-## Product thesis
+## 6. 既存技術をつなぐ原則
 
-A domain-general intervention system uses *lawfully public information* to identify a real-world problem, propose alternative interventions including `NO_ACTION`, predict likely consequences with uncertainty, seek independently granted execution authority, make a bounded real-world change, verify with third-party observations and estimate **causal net benefit and harms**. Digital Buddha / digital god is a long-term ethical metaphor, not a claim of omniscience or power over other people.
+**Reuse → Connect → Evaluate。** 既存実装・公式契約・ライセンスを読み、必要な薄い接続と不足テストだけを追加する。
 
-## Architecture (design states, not proof of deployed effects)
+| 役割 | 第一選択 | Managerで追加するもの |
+|---|---|---|
+| 助言 | NO_ACTION、決定的ルール、任意のAmpersand | 同一入力の比較、厳格JSON、費用・deadline、P0境界 |
+| 生成社会シミュレーション | 既存Concordia adapter | 隔離研究、population drift・負の対照・実参照比較 |
+| 商用シミュレーション | Simile/Aaru/Radiant等を比較対象・任意adapter候補 | 正当なアクセス・費用・対象データ・比較結果がある場合だけ接続 |
+| モデル評価 | 既存OutcomeBench契約、必要に応じInspect AI adapter | 採点意味・出典・出力形式・安全・有用性の分離 |
+| オンライン実験 | 既存GrowthBook準備実装 | 実験が許可された場合の真正な割付・露出・撤回記録 |
+| 因果推論 | 既存DoWhyと適合する研究設計 | 設計仮定、比較群、欠測、外部性、感度分析 |
+| 実行 | 既存kernel/SQLite/outbox/publisher | 観測から候補への接続、実行前検査、再起動・照合 |
+| 公開・アクセス性 | 既存Playwright/axeと公開readback | 固定技術基準、差分、独立確認、限定rollback |
 
-`Public sources -> source rights / provenance -> world state -> causal hypotheses -> action options -> optional behavioral simulation -> authority and safety -> effect executor -> independent public readback -> preregistered causal evaluation -> calibrated learning or rollback`.
+外部toolがあることは接続済みの証拠ではない。公開ソフトのライセンスは学習データ・モデル重み・質問票・人物データへ自動では適用されない。Inspectのcost limitはManagerの永続予約台帳や公式請求の代用にならず、DoWhyの利用だけで識別仮定は成立しない。
 
-- **Evidence:** No source without URL, version/hash, date and reuse/PII status; a research claim is not a measured intervention result.
-- **Rights:** `docs/research-rights.md` and `docs/research/source-rights.json` are the R006 reference. `hold` means no dataset ingestion, model packaging, redistribution, public publishing or personal inference for that use.
-- **Safety:** Model predictions cannot authorize money transfers, changes to a shared environment, messages, medical advice, or published content. Strict role/scope, budget, time, owner authorization, `UNKNOWN_EFFECT`, and idempotency.
-- **Outcomes:** Record execution receipt P1, independent world change P2, human benefit P3, causal P4 and replication P5 separately.
-- **Simulation:** Score descriptive fit, uncertainty, causal fidelity and actual impacts separately. R005 shows why visual realism is insufficient.
-- **Generalization:** Identical core types and safety invariants must work across at least finance plus physical environment, with different adapters.
+## 7. シミュレーションに要求する証拠
 
-## Historical optional finance/indoor use cases
+- 母集団、時点、言語、質問・選択肢の意味、介入、目的変数、使用データを固定する。
+- 開発と評価を研究・scenario familyで分離し、ラベルや非公開の正解をplannerへ見せない。
+- 分布一致、個人一致、予測校正、介入効果、実際の便益を別々に測る。
+- 処置promptがpersona自体を変えていないか、固定属性・負の対照・対となる条件で検査する。
+- 予測誤差・選択的回答のcoverage・分布外の失敗を報告する。参照がない場合は `REFERENCE_DATA_REQUIRED`。
+- ベースラインが同等か優れる場合は保持する。モデルや追加学習を使うこと自体を進捗目標にしない。
 
-Public ledger–based aid amplification / charitable matching remains an optional
-path under explicit permission, risk cap, preregistered comparator and measurable
-new outside funding net of Manager capital and displacement. A shared physical
-environment remains another optional authorized path. The preferred current
-owned-internet wedge is described above and in [FIRST_WEDGE.md](product/FIRST_WEDGE.md);
-it does not require either optional external route for routine technical releases.
-None of these proposals is an observed beneficiary improvement.
+公開論文、企業の自社評価、外部再現、Manager自身の実験を区別する。現時点で、独立した人間行動の因果的忠実性やManagerによる人の便益は確立していない。論文の版・ページ・コード版で数値が異なる場合、単一の「精度」にまとめず不一致を残す。
 
-## Learning and experimental progression
+## 8. 証拠と測定
 
-- **R006 completed research review:** upstream OSS and datasets rights determined or explicitly held; no automatic copying of raw participant records into GitHub.
-- **R007:** citeable typed evidence registry; rights and privacy status is mandatory. Test fail-closed.
-- **H001–H010:** HeartSteps offline scientific replication only after rights review; personal records do not flow into live Manager.
-- **S001–S008:** actual human simulation benchmarking versus RCT causal fidelity; nonuniform rights among SocSci210 study contributors.
-- **K001–K014:** independent implementation of generic observation, intervention, authority, execution and evaluation.
-- **F001–F009:** external permissioned field trials and third-party readback. Never fabricate causal impact.
-- **U/D/V/G/Y:** first users, multiple blessings, verification, safety and governance, YC and research/content strategy. See `docs/roadmap/tasks.json` for exact task IDs and dependency states. It is Manager-only; Life Manager's unified SSOT remains untouched.
+| 記録 | 確かめること | 推論してはいけないこと |
+|---|---|---|
+| P0 | 仮想・後ろ向き研究・モデル出力・ソフトウェアテスト | 実世界の便益 |
+| P1 | 正当な外部操作の受付・実行receipt | 実際の公開状態・受益 |
+| P2 | 別経路で確認した現実状態の変更 | 人の所得・健康・負担改善 |
+| P3 | 実際の受益者outcomeの観測。正負・欠測を含む | Manager介入による因果性 |
+| P4 | 適切な比較による因果的な純効果の推定 | 全人口・全領域への一般化 |
+| P5 | 異なる実条件での再現 | 普遍的な成功保証 |
 
-## Distribution and future content
+技術指標はsource freshness、訂正の正確性、対象bundle差分、タスク成功/失敗、readback不一致、rollback、UNKNOWN、費用、通常運用の人手介入。人の評価は必要に応じ既存の適切な尺度や真正な支援結果を用い、金額、時間、精神・身体の尺度を合算しない。アクセス性の自動検査合格は完全なWCAG適合認証ではない。
 
-- Research artifacts: original source URLs/versions, short attribution-backed excerpts, source-rights register, owned analysis, original illustrations, and reproducible metrics.
-- Versioned PDF research briefs produced from own notes may go to cloud Library and **public GitHub only when they contain no copied third-party full-text or raw records**.
-- Articles (English-first), manga, carousels, slides, conferences and YC pitch material are downstream authored derivatives with claim-evidence links. **Runtime autonomous publishing remains disabled. The founder explicitly authorized the present English educational articles on the owned blog on 2026-10-20; use the canonical publishing bridge, review, and public URL readback. This does not authorize newsletters, third-party platforms, or other external effects.**
-- Research reports are not proof of YC acceptance, external investment, decacorn valuation or beneficiary improvement.
+人以外は種・生活条件に適切な専門的指標と独立の観測が必要。人のWHO/OECD/CFPB尺度を動物や意識不明のシステムへ流用しない。[動物意識に関する宣言](https://sites.google.com/nyu.edu/nydeclaration/declaration)は不確実性の下で福祉リスクを考慮する根拠であり、万能の福祉測定器ではない。
 
-## Review and gates
+## 9. 開発・昇格・完了条件
 
-R006 tested 8 source families with `hold` for unknown downstream rights; detailed evidence at `docs/research-rights.md`. Product code currently offline-only and `money_transfer`, `private_person_data`, `physical_actuation`, `live_external_writes`, `public_posting` all disabled. Later phases must supply first-party evidence and legitimate operators.
+実装はE順で一件ずつ、既存仕様確認 → RED → 最小修正 → GREEN → 回帰・境界・SSOT整合 → commit/CI → 証拠保存 → カーソル更新。E06の既存コードは監査・不足補完し、作り直さない。E09の参照データとE16の永続ホストはE06–E08中から読取調査しておくが、順序や受入基準を迂回しない。
 
-**A different product may share a GitHub organization/repository without sharing runtime or user data.** Keep any future integration explicit, narrow and independently reviewed.
+**コード合格、実データ評価、公開リリース、継続運用、人の便益は別の判定。** E09に必要な参照がなければその不足を記録し、未達をPASSEDにしない。E16でホストが未確認なら `DEPLOYMENT_HOST_REQUIRED`。模擬スケジューラだけでdeployedにしない。
 
-## R007 / R008 delivered (2026-10-20)
+外部システム一般に無条件のexactly-onceを約束しない。自ホストで重複送信を防ぎ、対象が保証する条件の下で同一occurrenceを照合し、UNKNOWNは再送せず隔離する。単発のnot-foundだけで確定不在を主張しない。永続DBと単一owner lease、復旧・取消し・独立readbackまで検証する。
 
-The small offline literature registry and evidence-type guards are implemented in `manager_core/evidence.py` and `manager_core/evidence_types.py`, with 8 source cards and 27 new tests (59 total). Validation is structural only, not a scientific truth or source-entailment check. RCT, survey, simulation, benchmark, review, company claim, and tool documentation remain distinct; abstract-only status is retained. Registration grants no raw-data rights or execution authority.
+E16後はF005→F006→F008→F009を実証で判定する。二つのページ・テーマは二つの独立した人間試験ではない。元のU/D/V/G/Yタスクは各依存と実受入条件を満たした時だけ更新する。Eの11件と元の41件を加算して進捗率を作らない。
 
-Expected Parrot already combines AI research and human validation; Simile validates behavior and confidence; Aaru reports survey and behavioral evaluation. Manager's proposed differentiation is an independently evaluated public-information welfare intervention loop, not exclusive ownership of human validation.
+## 10. YC・研究・執筆の進め方
 
-The proposed transparent impact page is not yet implemented. It must report actions, cost, externally verified changes, beneficiary outcomes, causal comparisons, harms and missingness separately. No field benefits have been demonstrated.
+YC応募準備は期限に合わせた創業者レーンで、全研究や全113件の完了を待たない。短い説明は「誰のどの問題を、動く何で解決し、現在何を確かめたか」。使命、デモ、顧客仮説、実証範囲、費用、次の反証可能な実験を示す。申請提出・面談依頼は本文書更新とは別の操作とする。公式日付と出典は [創業者資料](founder/Y001_MANAGER_PITCH_EN_JA.md) を参照。
 
-## Entity-first market map and L001 learning checkpoint (2026-10-20)
+記事・書籍・講演は同じ出典/実験記録から派生させる。初学者向け基礎、行動モデル、シミュレーション検証、因果推論、Manager実装、運用と統治を一つの教材体系につなぐ。最初に一章を完成・実行・読者確認し、その後に章を拡張する。書籍の全構想を、E06や実利用確認を遅らせる前提条件にしない。
 
-The ecosystem visual is an **organization-first Chaos Map**: 26 verified company, institute, lab, community or nonprofit entities in 6 overlapping activity clusters. Primary-source URLs and vendor-reporting caveats live at `docs/landscape/2026-10-20-behavior-intervention-entities.json`; companion SVG uses real organization names and no invented brand logos. This is not a competitive ranking or a claim that Manager has validated its market position. Companies such as Simile, Aaru and Expected Parrot already combine prediction and/or research with real-human validation. Penn Behavior Change for Good and GiveDirectly provide upstream lessons for actual behavioral intervention field work.
+完成した研究論文には新規の問い・方法・適切な比較・再現可能な結果が必要。文献総説や設計提案と、実証論文を区別する。原稿、描画済み成果物、公開URL、読者需要、売上は別の証拠。今ターンは外部記事公開・YC申請・連絡・参加者研究を実施しない。
 
-**L001 completed:** `examples/01_probability.py` (pure standard library) calculates `P(Y|X)` from a fully normalized joint distribution, with explicit rejection of malformed input and zero-mass contexts. `tests/test_probability_l001.py` includes 9 focused tests, run red then green; `docs/learning/L001_CONDITIONAL_PROBABILITY_JA.md` explains an illustrative 60%/20% daypart calculation. These probabilities are synthetic and observational; they are not actual people, causal effect estimates, or verified field outcomes. After this task the ledger has 15 done, 96 todo, 2 blocked. Next dependency-order learning task is L002 (TVD / Brier score).
+## 11. 未知を管理する
 
-The Manager runtime still has no permission to transfer money, act on private people, or operate physical systems.
+未解決なのは、実際に大きいアクセス障壁、改善の下流効果、顧客の支払意思、タスク適合する校正データ、永続ホスト、異地域・他種への一般化。これらを「調査済みだから確実」としない。各未知に検査方法、必要な証拠、止める条件、依存する工程を割り当てる。既知の実行手順を明確にし、経験的未知は検証で減らす。
 
-## L002: predicted response distributions versus individual error (2026-10-20)
-
-- The existing **offline** `manager_core/evaluation.py` functions `total_variation` (TVD) and `brier_score` were retained, not replaced with a new evaluation platform. Input validity was tightened to exclude non-numeric, boolean, non-finite and out-of-range probabilities; Brier's binary outcomes require integer `0` or `1`.
-- `examples/02_scores.py` and `docs/learning/L002_TVD_BRIER_JA.md` teach population distribution error separately from *paired individual* forecast error. Example: TVD 0.20 for synthetic 70/30 vs 50/50 population predictions; Brier 0.01 vs 0.81 for the same predictions assigned to aligned/reversed synthetic outcomes.
-- **No causal result** follows from either number. No real people were observed; no external provider was called. Treat these metrics as model diagnostics, not live policy effectiveness, operator authorization or verified suffering reduction.
-- The L002 acceptance includes old tests demonstrating TVD=0 and 1 and a new 13-case test file covering published Brier arithmetic, rejection of booleans/string/NaN and wrong-length pairs, and test-first execution evidence at `docs/verification/L002.md`.
-- **Next:** L003 evaluates predictive calibration with an explicit held-out set; do not infer good calibration from low Brier alone.
-## Phase 02 L003–L012: completed learning code, not field validation (2026-10-20)
-
-L001/L002 probability and TVD/Brier were already completed and preserved. L003-L012 now contain original no-dependency educational implementations plus independent tests and source-grounded Japanese learning notes. The accepted scope consists of reliability bins and study-ID holdout, JITAI design terms, a deliberately confounded synthetic example, synthetic potential outcomes, individual randomization, five daily MRT points conditional on availability, outcome windows, program displacement accounting, a toy inverse-propensity estimator with known support, and a reviewed P0–P5 evidence-presence contract.
-
-- Reading guide: `docs/learning/PHASE02_SUMMARY_JA.md`
-- Source map: `research/imozuru/phase02-fundamentals/map.md` and `report.html` (six local excerpt-line checks; no claim of scientific verification or complete source archiving).
-- Phase overview: `docs/architecture/phase02-methods-ja.mmd`
-- Original image renderer: `scripts/build_phase02_visuals.py` (optional Pillow dependency; no Manager runtime dependency).
-- PDF and two PNG diagrams were rendered and visually checked, then stored in ChatGPT Library `/Manager/Phase02/`; regenerable visual source is in GitHub.
-- TDD: missing implementations first produced RED on 29 tests. Two later documentation regressions were separately observed failing before correction. 30 focused Phase 02 tests passed in the local source snapshot; local whole-tree 84 tests passed. Hosted GitHub CI on the integrated tree is the authoritative count and must be read back before full completion claims.
-- Status after verification: 26/113 task IDs done, 85 todo, 2 blocked. All 12 Phase02 L001–L012 learning tasks have passed their scoped offline acceptance tests, but no HeartSteps raw-data reproduction or real-world beneficiary effect has yet occurred.
-- Next main dependency task: Phase03 H001 read-only dataset/schema/license review. In parallel S001 (SocSci210 permitted metadata only) and time-critical founder application work are available separately.
-
-No user messaging, private individual profiling, physical actuation, autonomous donations, new external publishing, or execution authority is granted by this phase.
-
-## Phase 03 H001: published HeartSteps metadata, no raw ingestion (2026-10-20)
-
-The upstream `klasnja/HeartStepsV1` main tree at `3016391de426116bdef41880d72bc8cd4b9b2477` contains four released CSV files. `suggestions.csv` (author README: 8,274 decision points × 86 columns) is the initial H002 retrieval candidate. H001 records official Wiki **candidate** column names (identifier, availability, randomization, send, delivered action type, raw and zero-imputed 30-minute steps), CC BY 4.0 repository rights and independent privacy limits, immutable source/blob identifiers, and original article/analysis-code locators. It does **not** ingest participant rows, or assert that the RData source fields match the released CSV without checks.
-
-Unresolved README/Wiki column count conflicts for users.csv, jbsteps.csv, and gfsteps.csv and RData/CSV field-name differences are explicitly recorded at `docs/research/heartsteps/H001_PUBLIC_DATA_REVIEW_JA.md` and machine-readable `H001_PUBLIC_DATA_MANIFEST.json`. H002 must perform separate read-only CSV snapshot/SHA256 and header validation before any analysis. Generated original visual source lives at `scripts/build_h001_visual.py` and accompanying `.mmd`; PNG/PDF stored in ChatGPT Library `/Manager/Phase03/`. Research only. All Manager live execution/beneficiary impact remain absent.
-
-## Autonomous-by-default philosophy — No Human in the Routine Loop (2026-10-21)
-
-- **Non-negotiable engineering target:** public observation → causal hypotheses → behavioral simulation when informative → multiple interventions including `NO_ACTION` → automatic policy decision → bounded external effect → independent evidence → cautious improvement, *without ad-hoc human prompts at each normal iteration*.
-- **Use standing authority, not constant approval:** for a legitimate operator-controlled resource, delegated budgets, scopes, time limits, cost caps, objective and safety conditions are pre-established and validated in code. Subsequent permitted routine actions are automatic. Out-of-scope actions, harm warnings, unauthorized resources and unresolved unknown effects fail closed. The agent cannot expand its own grants.
-- **Human rights exist outside the routine loop:** legitimate grant/revocation, data protection, emergency stopping, contestability and retrospective independent audits. The Manager goal is not dependent on forcing beneficiaries to install a UI or surrender private data. No stealth profiling, coercion, unconsented medical/psychological influence, or unauthorized use of another's property.
-- **Relationship to Life Manager:** reuse philosophical invariants and selected design *knowledge* only. Do not share private user information, runtime process, accounts, production permissions or money ledgers. A later connection requires a separate typed and scoped contract.
-- **Metrics:** report autonomy (human prompts per 1,000 routine actions; share of eligible actions completed automatically; abstention precision), rights/safety (unauthorized actions=0; unknown effects not reported as successes), and welfare (independently measured net benefit, adverse effects and causal comparisons). High autonomy without demonstrated benefit is not superintelligence.
-- **H002-H004 source milestone:** fixed public HeartSteps CSV audited 8,274 rows × 86 columns with SHA-256 and excluded subject rows. Exact original H005–H010 replication remains pending because original `study.day.nogap`/inclusion rules cannot yet be matched to the released schema; see `docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md`.
-
-## H005 scientific blocker (2026-10-21)
-
-Original HeartSteps analysis computes inclusion from `study.day.nogap` in an original `analysis.RData` dataset. The publicly released `suggestions.csv` has that variable discarded in Lisa Gotzian's published construction script (joined daily data reduced to `colnames(suggesttimes)`). The current independent model substituted `floor(decision.index.nogap/5)`, which yielded 7,602/6,118 or 6,997/6,118 rather than the paper's 7,540/6,061. Details and first-source line references: `docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md`.
-
-Exact historical causal estimation is not claimed. H005 stays blocked until an independently verified population mapping exists. No-human routine operation must fail closed on scientific unknowns instead of inventing evidence. The research project can continue independent work on general causal-evaluation tooling and held-out prediction while respecting task dependencies; a study-specific exact replication is not a necessary philosophical gate for building an autonomous public-information intervention kernel, but any revised completion gate must preserve truthful evidence labels.
-
-## H005 independent day-join result — research status (2026-10-21)
-
-With the pinned `jbsteps.csv`, both preceding and following decision references were checked. A numeric ID normalization repaired a false zero-match join; 7,427/8,274 decisions now have unambiguous mapped study days, 769 lack a map, and 78 have conflicting day evidence. Of 7,409 with an observed day and usable decision-index proxy, 3,345 disagree with `floor(index/5)`. The original RData-based sample cannot be reproduced by this shortcut. [Evidence log](docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md) and [real-data workflow](https://github.com/Daisuke134/life-manager/actions/runs/39521897238). H005 remains blocked; H006–H010 are not marked done. This is a scientific data-lineage constraint, not a need for a human to review routine Manager actions.
-
-## Founder clarified doctrine: macro, no human operational loop (2026-10-21)
-
-See [Manager autonomy doctrine](MANAGER_NO_HUMAN_WORLD_ENGINEERING.md). The objective is **end-to-end unattended macro/world/environment engineering** using lawfully public nonpersonal signals and Manager-controlled or permissionless public actions. Routine execution must not require human approvals, human credentials, individual profiling, or third-party facility/funds access. Earlier donation/facility examples are *optional partner tracks*, not mandatory first use cases. They must not constrain Manager to a per-person wellness application or exclude animals/other welfare-bearing beings. Genuine property rights and consent still apply; when an intervention needs a third-party privileged capability, it is simply unavailable to this default action set. Transparent audit and external oversight are independent from per-action human steering. Real-world independently measurable net benefit remains the proof requirement; simulation-only results cannot satisfy it.
-
-HeartSteps H005: The 2023 public CSV and the original private source workspace do not provide enough documented fields to assert an exact match to the original 7,540/6,061 selection. A reproducible public-source reconciliation note is at `docs/research/heartsteps/H005_PUBLIC_DATA_RECONCILIATION.md`. Mark H005 blocked and all downstream exact reproduction claims unverified unless independently demonstrated. Do not change task status to match a desired number.
-
-## Phase 03 closes with documented H005 waiver and exploratory public reanalysis (2026-10-21)
-
-Founder explicitly skipped H005 because publicly released HeartSteps files do not uniquely recover the original 2019 7,540/6,061 analytic set. H005 is `skipped`, never `done`. H006–H010 are complete only under revised, preserved-original-criteria **exploratory** acceptance. The pinned CSV produced 6,330 selected available decisions from 37 persons; noncausal participant-cluster adjusted ratios 1.140 [1.001,1.297] for any message and 1.239 [1.056,1.454] for walking message; decision-ordinal index/50 interaction 0.858 [0.772,0.953]. The 2019 sample, original time definition and inference procedure are not reproduced. **Gate 1 independent randomized causal replication remains UNMET.** No verified Manager human benefit exists.
-
-The public research outputs are at `docs/research/heartsteps/PHASE03_PUBLIC_ANALYSIS_JA.md`, `docs/research/heartsteps/PHASE03_PUBLIC_METRICS.json`, `docs/verification/PHASE03_VERIFICATION.md`. Real-data CI: https://github.com/Daisuke134/life-manager/actions/runs/39526839889 . Proceed next to S001 rights-safe study-level metadata. Individual participant data are not copied to the Manager product.
-
-## Phase 04 — evidence-linked scoped verification; independent human validation remains OPEN (2026-10-21)
-
-**Canonical tasks:** S001 and S003 verified original study-ID source/split and hard-failed overlap injection; S006 verified *only a logical counterexample* of predictive fit and causal-error divergence; S007 verified *only a real Concordia upstream social agent sandbox* with completely fictional agents and an offline mock; S008 verified *only real observed, public aggregate* mobility demand generalization to two unseen 2012 time contexts. Thus Phase04 tasks 5 narrowly done, S002 blocked, S004/S005 todo. Overall tasks: 40 done / 69 todo / 3 blocked / 1 skipped out of 113. All scope changes preserve original task acceptance and record human_effect_verified=false. **No SocSci210 heldout respondent evaluation or validated generative human model exists.**
-
-Source truth: official SocSci210 170 seen / 40 unseen study-only metadata, original license per source held for respondent rows. [S001 source audit](docs/research/socsci/S001_STUDY_SPLIT_AUDIT_JA.md) and [S003 overlap-injection validation](https://github.com/Daisuke134/life-manager/actions/runs/39544829400).
-
-Independent real observed benchmark: [UCI Bike Sharing original daily aggregate](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset), CC BY 4.0, DOI 10.24432/C5W894; original archive was byte-identical to pinned mirror (57,569 bytes, git blob d39017f2f1ad2e70a4a854d17aada04d45608575). Train 2011 365 daily aggregates; heldout 2012 366 daily aggregates. Global mean demand MAE 2,488.67 vs season-only mean 2,303.65 daily rentals; 7-day block bootstrap MAE gain 95% interval [-50.30,391.18] spans 0. Winter 2012 n=91 TVD 0.45055, summer 2012 n=94 TVD 0.13830, demonstrating within-domain temporal failure. This is **aggregate demand prediction**, not unobserved-person simulation or causal impact. [Full analysis](docs/research/public_aggregate/PHASE04_UCI_BIKESHARE_EMPIRICAL_JA.md), [actual source CI](https://github.com/Daisuke134/life-manager/actions/runs/39545601251).
-
-Concordia official pinned Island social engine operated 2 totally fictional ESA-type agents in a deterministic mock for 4 ticks and emitted 4 engine log events; separate real_world_validation/verification.json reports n=0, no measured fidelity; JSON modality warnings retained. [Actual CI](https://github.com/Daisuke134/life-manager/actions/runs/39545009858), [technical log](docs/verification/S007_CONCORDIA_TECHNICAL_JA.md). Earlier missing bundled persona archive caused a CI failure, later corrected with a thin fictional-agent runner without copying upstream source.
-
-Constructed causal counterexample: predictive marginal TVD=0 and stipulated treatment-effect error=0.4, method only, no empirical human causal effect. [Methodology](docs/research/socsci/PHASE04_METHODS_PARTIAL_JA.md). Source rights and independent outcomes are prerequisites before implementing actual welfare interventions.
-
-**Latest full hosted CI:** [181/181 tests PASS; 113-task view and product boundaries PASS](https://github.com/Daisuke134/life-manager/actions/runs/39546138495). This does not pass product Gate 1: original HeartSteps exact H005 reconstruction is skipped, and independent replicated randomized real effects remain unavailable. It also does not pass real-world public-benefit gates.
-
-See [Phase04 verification and blockers](docs/verification/PHASE04_PROGRESS_JA.md), [editable evidence flow](docs/architecture/PHASE04_EVIDENCE_FLOW_JA.mmd), and tasks.json for exact allowed scope. Manager and Life Manager remain isolated; no external money, messaging or physical effects executed.
-
-## Phase 04 final verified readback — 2026-10-21
-
-All **8/8 narrow atomic S001–S008 task acceptances** have now been evidenced by original source data and hosted CI. This is an **engineering/research milestone**, not completed *scientific proof* of human behavior simulation, causally valid intervention choice or real-world welfare gain. Canonical task totals: **45 done, 65 todo, 2 blocked, 1 skipped**, from 113.
-
-The actual SocSci210 release was processed ephemerally: **210 studies / 2,901,390 rows** separated into **170 seen / 40 unseen studies, zero study-ID overlap**; 2,418,748 training responses and 482,642 heldout original responses. Study-conditioned response options have different meanings; our global numeric-code comparison is deliberately labeled **NOT the canonical Socrates benchmark**. It is legitimate technical evidence only at the restricted label-encoding level.
-
-S004 real heldout-data Brier/TVD, one-bin calibration, 20/20 study-size subgroup errors, uncertainty and train-only error warning threshold were recorded; the online decision remains ABSTAIN because per-question response meanings and calibrated treatment effects are not available.
-
-S005 independently executed two actual original-respondent heldout evaluations with original-source GitHub Actions: [MiniLM frozen public encoder + training-only head](https://github.com/Daisuke134/life-manager/actions/runs/39561547086) on **800 unseen individual responses**, compared on identical records to frequency and majority (24.50% vs 19.375% code accuracy); and [SmolLM2 135M](https://github.com/Daisuke134/life-manager/actions/runs/39562677909) on a *different*, but internally same-sample, **320 unseen individual responses**, yielding **42.5% parsable model outputs and 9.0625% code accuracy including invalid outputs as errors**. Model versions, Apache-2.0 license, CPU run time and unmeasured cloud costs are separate fields. Never compare these models as if they shared an 800/320 heldout sample.
-
-S006–S008 are already verified under their narrower existing written scopes. Actual **60k historical ZOZO recommendation impressions** were evaluated with observable negative off-policy overlap diagnostics but were never Manager-run field intervention, while Concordia was executed with artificial/mock agents only.
-
-**No Human Behavioral Fidelity Certificate; no independently reproduced source-author RCT effect; no actual Manager-induced blessing. Scientific Evidence Gate 1 remains `UNMET`**, and Phase 05 K001–K014 kernel design and safe authorized first intervention must still be implemented and externally verified.
-
-Full report: [Phase04 210-study evidence, individual data metrics, limitations and handoff](docs/verification/PHASE04_FINAL_REAL_DATA_EVIDENCE_JA.md). This statement supersedes earlier same-day partial Phase04 snapshots and does not overwrite Life Manager's task registry.
+過去の詳細な学習・実験・失敗は各verificationと [更新前の仕様の固定版](https://github.com/Daisuke134/life-manager/blob/1b7a8e5c234e4ce3c66366f34539e55844bcc0e5/products/manager/docs/MANAGER_PRODUCT_SPEC.md) に保存されている。現行の意味を上書きする古いスナップショットとして読まない。

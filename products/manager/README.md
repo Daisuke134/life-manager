@@ -1,5 +1,7 @@
 # Manager — independent intervention research prototype
 
+**2026-10-22 全体設計更新:** [Managerの最終使命・最初の製品・研究・事業・YCの関係](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶべきこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[既存E計画の具体的な残パッチ](docs/plans/2026-10-22-manager-core-execution-plan.md#2026-10-22-strategy-review-addendum--same-e-order-concrete-remaining-patches)。仕様更新でありE06完了・配備・便益実証ではない。旧節の状態より `tasks.json` を優先する。
+
 ## 次の新セッションの入口（2026-10-22、引き継ぎスナップショット）
 
 **[Manager E06再開・実証状況・評価ギャップ・新セッションのプロンプト](docs/handoffs/2026-10-22-manager-e06-session-handoff.md)** を最初に読む。保存時のSSOTでは E01–E05 が PASSED、次の順番は E06、E06–E16が未完了。最新状態の唯一の正本は [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json) の F009実行カーソル。**人への純便益は未測定、Ampersandの独立ベンチマーク優位は未証明**。この情報は完了証拠でもproduction deployでもない。

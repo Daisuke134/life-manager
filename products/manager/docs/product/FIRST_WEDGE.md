@@ -1,5 +1,7 @@
 # First wedge: access to official financial support
 
+> **Current interpretation, 2026-10-22:** This remains a provisional technical wedge, not verified demand or U003 completion. F004/F007 have been retired as `skipped` under Phase06 v2; older text below about preserving unresolved original finance/facility prerequisites is historical. No such partner is required for the owned digital loop. The long-term customer hypothesis is an operator paying to maintain a critical public-service journey; validate its actual recurring problem, existing alternatives, authority and willingness to pay before expanding the product. Five qualifying U002 interviews remain the existing acceptance requirement; no synthetic personas count. See [current product spec](../MANAGER_PRODUCT_SPEC.md) and [primary-source findings, including a null enrollment result](../research/manager-strategy-20261022/REPORT_JA.md).
+
 **Decision status: PROVISIONAL — U003 is not complete.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a technical selection for the existing owned public surface. Five consented interviews required by U002 have not been evidenced, and no service operator or beneficiary cohort has been enrolled. The original Phase06 funding and indoor-environment acceptance conditions remain unchanged.
 
 ## Who could benefit, and what Manager would change

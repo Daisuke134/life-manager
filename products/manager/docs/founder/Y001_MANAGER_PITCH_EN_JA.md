@@ -1,6 +1,6 @@
 # Manager: English pitch with Japanese support
 
-**Y001 draft for YC W27 preparation.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a truthful product narrative and evidence ledger, not an application submission. No application deadline, interview date or presentation booking has been verified or asserted.
+**Y001 draft for YC W27 preparation.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a truthful product narrative and evidence ledger, not an application submission. The official W27 deadline was rechecked on 2026-10-22; no application submission, interview or presentation booking is claimed.
 
 ## One sentence
 
@@ -46,7 +46,7 @@ Managerは、公的支援へのアクセスを改善し、何が変わったか�
 | Causal net benefit and replication | Not established | “Requires a credible comparator, costs and harms, uncertainty, and replication.” |
 | Users, customers, revenue and product-market fit | No verified customer, revenue or conversion evidence is provided by this package | State as unvalidated; do not invent a user count, revenue number, pipeline or forecast. |
 | Five consented interviews / selected first wedge | No qualifying interview evidence in this package; U003 remains provisional | “A candidate use case to validate with beneficiaries and operators.” |
-| Real funding or indoor-environment interventions | Original permission/funding/site gates remain unresolved in the baseline | Do not imply a page release completed the original transfer or indoor-environment tasks. |
+| Real funding or indoor-environment interventions | F004/F007 are retired/skipped in current Phase06 v2, not completed; no corresponding real transfer/facility intervention is claimed | These are optional future scopes, not prerequisites to the first owned-digital product. |
 
 The product evidence categories are [P0 simulation/model score; P1 authentic receipt; P2 independently observed state change; P3 authentic human outcome; P4 causal net improvement; P5 replication](../MANAGER_PRODUCT_SPEC.md). The current public-delivery claim is **P2 artifact only**. A published artifact is real, but it is not P3 or P4 human benefit.
 
@@ -72,6 +72,22 @@ This is not an exclusivity claim. For example, [Simile's official site](https://
 
 ## Publication and reuse checks
 
-The short pitch can be reused with its evidence sentence and timestamp. Update factual status only when a new receipt or independently verified outcome exists. A newly passing test must not retroactively change the 2026-10-21 baseline. Remove no uncertainty merely to shorten a slide. YC W27 is the planning context from the task registry; this artifact does not verify eligibility, deadlines, admission, an interview or an application submission.
+The short pitch can be reused with its evidence sentence and timestamp. Update factual status only when a new receipt or independently verified outcome exists. A newly passing test must not retroactively change the 2026-10-21 baseline. Remove no uncertainty merely to shorten a slide. YC W27 is the planning context from the task registry; this artifact does not verify founder eligibility, admission, an interview or an application submission; the deadline is a time-sensitive official-page snapshot below.
 
 Y001's one-liner, beneficiary/customer hypothesis and truthful evidence level are now drafted in English and Japanese. Y003 application submission, Y005 conversations, U002 interviews and U003 final selection remain separate work. Primary-source retrieval details are in [the source registry](../research/COMPLETION_PRIMARY_SOURCES_20261022.json).
+
+## 2026-10-22 alignment: mission, product and application readiness
+
+Long-term mission: reduce avoidable suffering and support flourishing for welfare-bearing beings. The first finite product is Digital Autonomy v0.1: maintaining and improving an owned public-information journey with scoped autonomous execution, independent readback and rollback. There is no claim of achieved AGI, independently validated human behavior simulation or reduced suffering.
+
+A tighter customer hypothesis is an operator maintaining a critical public-service information journey. Beneficiaries and paying operators need not be the same. This remains unvalidated: interviews, use, willingness to pay, revenue and retention have not been established by a literature review. The first owned site provides a technical test surface, not customer traction. See [current spec](../MANAGER_PRODUCT_SPEC.md) and [the source-backed strategy review](../research/manager-strategy-20261022/REPORT_JA.md).
+
+### Official YC snapshot and preparation
+
+- Source read live on 2026-10-22: [YC apply](https://www.ycombinator.com/apply) and [FAQ](https://www.ycombinator.com/faq).
+- Winter 2027 batch: January–March 2027, in person in San Francisco.
+- Page's on-time deadline: November 2 at 8pm PT. Year inferred from the W27 cycle: **2026-11-02 20:00 America/Los_Angeles = 2026-11-03 04:00 UTC = 13:00 JST**. Recheck the page before submitting; daylight-saving conversion uses the actual date.
+- The page says on-time decisions by December 11 (2026 inferred from cycle); late applications may be considered without guaranteed response timing. These are the official page's statements, not a promised response or acceptance for Manager.
+- An idea-stage application is possible; all E/U/V/G tasks, a book or a welfare RCT need not be complete first. Use truthful evidence and a working demo rather than hypothetical users or simulation scores described as impact.
+
+Next preparation: one buyer/problem hypothesis, actual observed customer pain if interviews occur, current demo/evidence sentence, build status, costs/known unknowns, founder logistics, and a concrete next experiment. Submission remains Y003; outreach remains Y005. This document update sends neither.

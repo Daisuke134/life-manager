@@ -1,5 +1,17 @@
 # Manager — completion gates, blessings, and scale (source of truth is tasks.json)
 
+> **Current gates, 2026-10-22:** The authoritative state is [tasks.json](tasks.json). E01→E16 is the technical sequence; F005→F006→F008→F009 are subsequent Phase06 evidence acceptance. F004/F007 are skipped, not required partner/finance/facility gates. E16 requires real persistent-host deployment and independent readback; no P3/P4 claim follows. Scientific Gate 1 remains UNMET; a historical exact HeartSteps replication is not reintroduced as a mandatory first owned-digital deployment condition. U/D/V/G original acceptance remains distinct. Earlier dated text below is historical; use [current spec](../MANAGER_PRODUCT_SPEC.md) for active meaning.
+
+| Completion being claimed | Necessary evidence | Current review snapshot |
+|---|---|---|
+| Engineering E stage | Named tests, regression, source-specific CI and valid SSOT receipt | E01–E05 passed; E06 next |
+| Digital Autonomy v0.1 | E acceptance, scoped real occurrence, persistent single owner/state, readback/replay-zero/rollback | Not deployed as a complete autonomous loop |
+| Phase06 v2 | F005/F006/F008/F009 actual owned-public-digital evidence | Pending acceptance; technical scope only |
+| Product demand | Qualifying real problem/user evidence, useful trial and willingness to continue/pay | Unvalidated |
+| Human/nonhuman benefit | Appropriate authentic outcome, units, rights, comparison, costs/harms | NOT_MEASURED for Manager human benefit; no nonhuman benefit evidence |
+| Causal generality | Suitable causal estimate and external replication under changed conditions | NOT_ESTABLISHED |
+| YC / publication | Actual submission receipt / live artifact readback respectively | Preparation is not completion |
+
 ## Current checkpoint — 2026-10-22 JST
 
 The current [acceptance matrix](../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md)
