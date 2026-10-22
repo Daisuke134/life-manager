@@ -24,7 +24,27 @@
 
 実サイト390px幅で文書幅460pxとなることを確認。原因は科学的版情報として載せた40桁commit IDのinline code。配信側の既存先例であるTailwind `break-all`の一時的DOM実験では、文字列を保持したまま文書幅が390pxへ収まった。初期の独立previewには独自の折返しCSSがあり、この本番style差を捉えられなかった。
 
-Canonical修正PR [life-manager #8552](https://github.com/Daisuke134/life-manager/pull/8552)はrendererのinline classとそのmodule hashだけを変更する。本文、図、fenced code、installer/checksum、content pinは保持。既存11 tests、67記事/34mediaのhash検証、全67記事の旧新renderer差分、fresh独立review 0 findingsを確認。最終のmain統合・code pin更新・本番390/1280pxの読戻しは、完了後に追記する。
+Canonical修正PR [life-manager #8552](https://github.com/Daisuke134/life-manager/pull/8552)はrendererのinline classとそのmodule hashだけを変更する。本文、図、fenced code、installer/checksum、content pinは保持。既存11 tests、67記事/34mediaのhash検証、全67記事の旧新renderer差分、fresh独立review 0 findingsを確認。以下の正常なmain統合・code pin更新・本番390/1280pxの読戻しまで完了した。
+
+この修正の初回Security Scan run39822885257は12ジョブ・PR上14checksが全成功した後も、全体REST状態が`in_progress`のまま残った。通常cancelは409「not in progress」、rerunは403「already running」、公式force-cancelも409となり、これはcredential不足とは記録していない。sourceと受入条件を変えずPRをreopenし、同じhead `8ed373b79b16e0ffb313b959fec52b4569a5d4b3`の[新しい実行run39826084015](https://github.com/Daisuke134/life-manager/actions/runs/39826084015)が正常完了した。元の不整合をPASSに書き換えず、新実行の成功・全14checks合格を確認し、既存`bin/merge-when-green`でmainへ統合した。
+
+## 最終公開と本番の独立確認
+
+- Canonical code revision: `9a60b49e4bd4d288a491f0fb026af74e933c7eba`（PR #8552のmain統合）。配備済み旧codeとのmodule差分がrenderer class/hashだけであること、installerがbyte-identicalであることを再確認。
+- Content revision: `a69a8a4a66e5b2f032c13efcc6bef18c446cf448`を保持。最新の配信側landing treeへこの正確な2pinsで既存installerを適用するdry-runも成功。
+- Publishing bridge: [anicca-products #557](https://github.com/Daisuke134/anicca-products/pull/557)、main `5741efa4a50f22a317f75ca09c16aaefec8b4d06`。既存2workflowのcode pinだけを更新。Landing PR build run39827890715と全登録checksの成功後、exact headを固定して統合。
+- [Netlify Deploy run39828574157](https://github.com/Daisuke134/anicca-products/actions/runs/39828574157)はbuild/deploy/決済経路smoke/全後処理までSUCCESS。
+- 18:12:59UTCの未認証public GETで[release.json](https://aniccaai.com/blog/manager/release.json)の両revision、67記事/34mediaのmanifest、旧65記事/33media保持、一覧リンク、図bytesのhashを照合。記事本文は、固定sourceから既存installerでstageしたrendererによる**描画HTML全体と完全一致**。12主節・52参照URL・18,441文字表示も確認。
+- 描画HTML SHA256: `021f32b9f6ba12ddd44f5273faf7cbd420419225ea9e33148a181f812b39e125`。
+
+同時刻のclean Chromium確認（DOMへのclass injectionなし）:
+
+| viewport | 文書幅 | 40桁IDの表示 | 結果 |
+|---:|---:|---|---|
+| 390px | 390px | 全文字保持、computed `word-break: break-all` | 横はみ出し解消 |
+| 1280px | 1280px | 全文字保持、computed `word-break: break-all` | 横はみ出しなし |
+
+スマホの該当ID部分とPCの実画面も確認した。これは記事公開・表示の検証であり、E16本番サイクル、A–F実装、人間への介入・便益の実証ではない。
 
 ## 設計と引継ぎ
 
