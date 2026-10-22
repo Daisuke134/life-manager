@@ -19,21 +19,22 @@ test('integrates only Manager, preserves legacy code and is repeatable', async()
  const business=await fs.readFile(path.join(root,'lib/blog-business.mjs'),'utf8');
  assert.match(business,/p === 'manager'/);assert.match(business,/'line-stickers'/);
  const first=await fs.readFile(path.join(root,'app/blog/page.tsx'),'utf8');
- assert.ok(first.indexOf('aria-labelledby="latest-heading"')<first.indexOf(' {groups.map('));
- const corpus=[{slug:'manager-new-en',project:'Manager',date:'2026-10-22'},{slug:'other',project:'Anicca',date:'2026-10-21'}];
- const feed=Function('corpus',first.match(/const posts=(.*?);/)[0]+'return posts;')(corpus);
- assert.deepEqual(feed,corpus);assert.match(first,/href="\/blog\/manager"/);
+ assert.doesNotMatch(first,/latest-heading|Latest articles|const posts=|ArticleList/);
+ assert.match(first,/<h1>Explore by topic\.<\/h1>/);
+ assert.match(first,/Choose an area to explore the work behind Anicca\./);
+ assert.match(first,/groups\.map/);assert.match(first,/href="\/blog\/archive\/1"/);
+ assert.match(first,/href="\/blog\/manager"/);
+ assert.match(first,/const corpus=loadAllBlogPosts\(\)/);
+ assert.match(first,/articles=corpus\.filter/);
 
  await integrateManagerBlog(root);assert.equal(await fs.readFile(path.join(root,'app/blog/page.tsx'),'utf8'),first);
  assert.match(await fs.readFile(path.join(root,'app/blog/manager/page.tsx'),'utf8'),/English/);
  await fs.rm(root,{recursive:true});
 });
-test('main feed includes Manager and precedes topic directory; collection is date-first with visible dates',async()=>{
+test('Manager collection stays date-first with visible original dates',async()=>{
  const source=await fs.readFile(new URL('../templates/manager-collection.tsx',import.meta.url),'utf8');
  const sort=source.match(/posts.sort\((.*?)\);/s)[1];
  const posts=[{date:'2026-10-10',series_order:1,slug:'old'},{date:'2026-10-22',series_order:99,slug:'new'}];
  posts.sort(Function('return '+sort)());assert.deepEqual(posts.map(p=>p.slug),['new','old']);
  assert.match(source,/<time dateTime=\{p.date\}>\{p.date\}<\/time>/);
- const script=await fs.readFile(new URL('../scripts/integrate.mjs',import.meta.url),'utf8');
- assert.match(script,/const posts=corpus.slice\(0,24\)/);
 });
