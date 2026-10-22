@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from manager_core.provider_sessions import SessionJournal, SessionConflict, reconcile_session_pages
+from manager_core.provider_sessions import SessionJournal, SessionConflict, reconcile_session_pages, reconcile_provider_sessions
 from manager_core.ampersand_api import read_completed_turn, SessionFailure
 
 
@@ -207,6 +207,29 @@ class DurableSessionIntent(unittest.TestCase):
             with self.assertRaises(SessionConflict):
                 reconcile_session_pages(j,"req_duplicate",fetch)
             self.assertEqual(j.get("req_duplicate").status,"UNKNOWN")
+
+    def test_sdk_list_paginator_reconciles_exact_matching_session_metadata(self):
+        requested=[]
+        class Page:
+            def __init__(self, rows, more):
+                self.data=rows
+                self.has_more=more
+        def list_pages(*,limit,order,after=None):
+            requested.append((limit,order,after))
+            if after is None:
+                return Page([SimpleNamespace(id="sess_aaaaaaaa",
+                    metadata={"manager_request_id":"other"})],True)
+            return Page([SimpleNamespace(id="sess_bbbbbbbb",
+                metadata={"manager_request_id":"req_actual"})],False)
+        with TemporaryDirectory() as d:
+            journal=SessionJournal(Path(d)/"s.sqlite")
+            journal.begin("req_actual",digest("original body"))
+            journal.mark_unknown("req_actual")
+            client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(list=list_pages))))
+            status=reconcile_provider_sessions(client,journal,"req_actual")
+            self.assertEqual(status.session_id,"sess_bbbbbbbb")
+            self.assertEqual(requested,[(100,"desc",None),(100,"desc","sess_aaaaaaaa")])
 
     def test_absent_session_never_causes_another_create(self):
         with TemporaryDirectory() as d:
