@@ -169,6 +169,36 @@ class BudgetContract(unittest.TestCase):
                     with self.assertRaisesRegex(SessionFailure,"budget"):
                         run_lab(live=True,max_sessions=1,output=Path(d)/"result.json")
 
+    def test_followup_deadline_sends_cancel_and_reconciles(self):
+        from hashlib import sha256
+        from unittest.mock import patch
+        class Stream:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def __iter__(self):
+                yield SimpleNamespace(type="agent.session.turn.output_text.delta",
+                                      turn_id="turn_abcdefgh",delta="partial")
+        posted=[]
+        sessions=SimpleNamespace(
+            events=SimpleNamespace(
+                stream=lambda sid:Stream(),
+                create=lambda sid,**kwargs:posted.append(kwargs)),
+            turns=SimpleNamespace(retrieve=lambda turn_id,*,session_id:
+                                  SimpleNamespace(id=turn_id,status="cancelled")))
+        client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
+        with TemporaryDirectory() as d:
+            journal=SessionJournal(Path(d)/"journal.sqlite")
+            journal.begin("req_deadline",sha256(b"fictional").hexdigest())
+            journal.bind("req_deadline","sess_abcdefgh")
+            with patch("time.monotonic",side_effect=[100.0,200.0]):
+                with self.assertRaises(SessionFailure):
+                    read_followup_turn(client,"sess_abcdefgh","fictional",
+                        key="case-01",journal=journal,writer_id="writer-01",
+                        deadline_monotonic=120.0)
+            self.assertEqual(len(posted),2)
+            self.assertEqual(posted[1]["events"],
+                             [{"type":"agent.session.input.cancel"}])
+
     def test_cancellation_request_requires_actual_status_readback(self):
         from hashlib import sha256
         with TemporaryDirectory() as tmp:
