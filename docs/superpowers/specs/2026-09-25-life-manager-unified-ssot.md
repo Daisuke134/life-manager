@@ -117,6 +117,9 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - FND01c: FND01aのmain `23c6412524bbd3ab54dc1dbab3a17efce8dbab53` / immutable `20261022T200547-23c64125` へのwatchdog採用は、既存lock・loaded-idle・preflight/launchctl-safeで成功する。最初のrun receiptは `remove_failed=1 / protected_deletions=0` で、削除対象とerrnoが記録されず原因を断定できない。既存bounded `probe_errors` の記録境界を削除例外にも再利用し、owner/candidate/error_class/errno/operationを残す。削除allowlist・floor・外部effectは変えず、次の自然runで得るexact原因にだけ修復を絞る。新規root走査や手動大量削除は行わない。
 - FND01c検証: permission-denied fixtureで対象/errno欠落のREDを確認し、既存8件上限の診断へoperation付き削除例外を接続後、関連257 tests・loop-contract18/191/errors0・diff checkがPASSする。既存watchdogの後続自然receiptは `ok=true/errors=0/protected_deletions=0` になるが、先のremove_failedの対象/errnoは未取得として保持する。誤削除防止のsource採用と、一過性の削除例外の原因確定を混同しない。
 
+- FND01f容量不足時のidle回収: CrowdWorksは既存4時間条件を超え、lease無し・同profile/UUIDを確認後に既存ownerを一度起動して通常更新する。新PID/UUIDとowner PASSを確認するが、空き容量は約9.49GBで回復しない。Coconala/Capafy/Lancers/LINEの4 profileもreachable・lease無しで、uptime約3時間のため現行条件では保持される。通常MAX_AGE=4時間は維持し、既存producer disk floorを下回ることが確認できる時だけ、既存browser-recycle-idleの登録実行間隔3600秒を回収年齢の下限として再利用する。新しいfloor/cooldown knobを作らず、情報不明なら通常基準へ戻す。lease取得後にageと圧力を再確認し、直前に更新されたbrowser、busy lease、Dais/provisionは保持する。新daemon/生kill/credential複製は追加しない。source所有は既存recyclerとそのtestsだけ。REDは3h/低容量の回収、通常容量では4h維持、fresh/不明/busy/excluded保持。既存guard経路の通常終了・runtime readback・容量/次の業務wakeで受け入れ、swap解放や収益は先に断定しない。
+- 順序更新: 旧順FND01eのCI/採用→FND04。新順FND01eのCI/採用と独立にFND01f→FND04。理由は現在のdisk floorが全収益ownerとCloud新規profileを直接止め、4つの非使用browserを確認するため。進行中provider effectや既存leaseは中断しない。現在cursorはFND01f source、FND01eはexact-head CI待ち。
+
 **FND02 — 履歴再走査を毎回のhealthから外す**
 
 - 対象: `runtime/loop/lm_loop.py::{snapshot,collect_live,_last_event,_health_event_projection}`、`runtime/loop/runtime_event.py::append_runtime_event`、`runtime/loop/health.py`、`runtime/loop/tests/test_lm_loop_health.py`。新しい監視daemonは作らない。
