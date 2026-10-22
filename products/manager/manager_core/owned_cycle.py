@@ -14,7 +14,7 @@ import sqlite3
 import subprocess
 from .models.source import _aware
 from .digital_handoff import (prepare_owned_change,PublisherContext,REPOSITORY,SOURCE_REF,WORKFLOW,
-                              ALLOWED_PATHS,commit_message,admit_release,verify_readback)
+                              ALLOWED_PATHS,commit_message,admit_release,verify_readback,validate_intent)
 from .digital_environment import verify_bundle
 from .outbox import OwnedEffectJournal
 from .reconcile import reconcile_owned,reconcile_pending_owned,OwnedOccurrenceEvidence
@@ -151,6 +151,48 @@ class LocalGitCycleSandbox:
         return self.readback(packet['baseline'])
 
 
+def _dispatch_owned_locked(state_store,host,packet,now):
+    """Called only within the owner lock; checkpointable output is data only."""
+    validate_intent(packet)
+    key=packet['effect_key']
+    def result(status,writes=0,**extra):
+        return dict(status=status,writes=writes,effect_key=key,**extra)
+    record=state_store.journal.record(key)
+    if record is not None:
+        return result(record.status,receipt_ref=record.receipt_ref)
+    # Direct runtime callers must not bypass the current scope/assessment.
+    prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
+    if prepared.packet!=packet:return result('NO_ACTION',reason=prepared.reason)
+    context=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit'],'1')
+    current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
+    try:
+        admit_release(packet,context,current,packet['candidate'],now)
+        record=state_store.journal.reserve(packet,context,current,packet['candidate'],host.git('rev-parse','HEAD'),now)
+    except PermissionError:return result('NO_ACTION',reason='TARGET_MOVED_OR_NOT_ADMITTED')
+    if not record.dispatch:return result(record.status,receipt_ref=record.receipt_ref)
+    try:host.send(packet,record.expected_parent,now)
+    except Exception:return result('UNKNOWN',None)
+    return result('SUBMITTED',1)
+
+
+def dispatch_owned_once(state_store,host,packet,now):
+    """Fresh journal lookup, admission, reserve and send in one locked step.
+
+    Never checkpoint a reserve's temporary dispatch flag separately from send.
+    This public entry also preserves pending recovery, stop and scope gates.
+    """
+    _aware(now)
+    if type(host) is not LocalGitCycleSandbox:
+        return dict(status='DEPLOYMENT_HOST_REQUIRED',writes=0)
+    with state_store.owner_lock() as acquired:
+        if not acquired:return dict(status='OWNER_BUSY',writes=0)
+        host.assert_offline()
+        reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
+        if state_store.journal.pending_records(limit=1):return dict(status='UNKNOWN',writes=0)
+        if state_store.stopped():return dict(status='STOPPED_REGRESSION',writes=0)
+        return _dispatch_owned_locked(state_store,host,packet,now)
+
+
 def run_owned_cycle(config,state_store,*,host=None,now=None):
     now=now or datetime.now(timezone.utc);_aware(now)
     def result(status,writes=0,**extra):return {'status':status,'writes':writes,'deployed':False,
@@ -170,19 +212,12 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
         if prepared.packet is None:
             r=result('NO_ACTION',reason=prepared.reason);state_store.append(r);return r
-        packet=prepared.packet;key=packet['effect_key'];record=state_store.journal.record(key);writes=0
-        if record is None:
-            context=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit'],'1')
-            current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
-            try:admitted=admit_release(packet,context,current,packet['candidate'],now)
-            except PermissionError:
-                r=result('NO_ACTION',reason='TARGET_MOVED_OR_NOT_ADMITTED');state_store.append(r);return r
-            record=state_store.journal.reserve(packet,context,current,packet['candidate'],host.git('rev-parse','HEAD'),now)
-            if admitted['dispatch_deployment'] and record.dispatch:
-                try:host.send(packet,record.expected_parent,now);writes=1
-                except Exception:
-                    r=result('UNKNOWN',None);state_store.append(r);return r
-        else:packet=json.loads(record.packet_json)
+        packet=prepared.packet;key=packet['effect_key']
+        dispatched=_dispatch_owned_locked(state_store,host,packet,now);writes=dispatched['writes']
+        if dispatched['status'] in ('UNKNOWN','NO_ACTION'):
+            r=result(dispatched['status'],writes,reason=dispatched.get('reason'))
+            state_store.append(r);return r
+        record=state_store.journal.record(key);packet=json.loads(record.packet_json)
         # Git fixture commit timestamps come from the actual Git clock, distinct
         # from the scheduling fixture clock. This is not a production timestamp.
         reconciled=reconcile_owned(state_store.journal,key,host.occurrence,datetime.now(timezone.utc))
