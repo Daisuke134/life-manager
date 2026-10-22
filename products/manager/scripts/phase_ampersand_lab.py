@@ -19,6 +19,10 @@ from pathlib import Path
 import sys
 import time
 
+# Script entry point runs from products/manager but Python otherwise adds only
+# scripts/ to sys.path. Reuse the package in this checkout, not a global install.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from manager_core.ampersand_api import (
     DEFAULT_INSTRUCTIONS, MODEL, SessionFailure, make_client,
     read_initial_turn, read_followup_turn, valid_api_key,
