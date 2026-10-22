@@ -1,5 +1,17 @@
 # Manager product specification (independent product)
 
+
+## 実行順の現行正本 — 2026-10-22（Active, first read）
+
+Managerの**状態・依存関係・次の実行位置の唯一のSSOT**は [`docs/roadmap/tasks.json`](roadmap/tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor` です。Life Managerの別SSOTを更新するものではありません。
+
+**コード実装は必ず E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。** 現在の位置は **E01** です。テストと証拠によってEを一つずつ完了確認した後だけ、次へ進みます。詳しいテスト・編集対象は [Superpowers Writing Plan](plans/2026-10-22-manager-core-execution-plan.md) を参照。
+
+**F005 → F006 → F008 → F009 は実装順ではなく、Phase 06の受け入れ確認です。** Eでできた仕組みが本物の公開資産に作用し、独立して読み戻せた証拠で判定します。F004（外部資金管理者）とF007（施設・センサー）は `skipped`（未実施）で、必須の依存条件ではありません。人の苦しみの減少は `NOT_MEASURED` であり、公開ページの技術的変更だけで証明したとは扱いません。
+
+**表示用の順序:** [generated ATOMIC_BACKLOG](roadmap/ATOMIC_BACKLOG.md)。**歴史的なPhase 06分解・実証記録は参照用であり、実行順を上書きしません。**
+
+
 **Last reviewed:** 2026-10-22 JST
 
 **Mission:** End suffering.  
@@ -20,9 +32,8 @@ prediction/causal/readback/harms evaluation, shift-aware abstention, incident an
 coverage records, and scoped governance utilities. Research, demo, presentation
 and article deliverables are indexed in the [execution report](verification/COMPLETION_EXECUTION_20261022.md)
 and [acceptance matrix](verification/PHASE06_TO_12_ACCEPTANCE_20261022.md).
-Only original acceptances with completed dependencies may become `done` in
-`roadmap/tasks.json`. F004/F007 and dependent field tasks retain their original
-requirements; no scope amendment is inferred from this implementation.
+Only tasks with verified acceptance evidence and completed dependencies may become `done` in
+`roadmap/tasks.json`. On 2026-10-22 the owner explicitly amended Phase06 scope: F004/F007 were retired as `skipped`, and F005/F006/F008/F009 now cover owned-public-digital technical verification. The original descriptions are kept in `original_*` and the immutable archive; no historical third-party trial is claimed complete.
 
 The founder explicitly authorized the present article publication in the current
 completion request. That authority covers the reviewed owned-blog package and
@@ -40,7 +51,7 @@ The **Internet is a real-world environment**, not a fake simulation. Primary del
 
 **Preferred first wedge:** improve an owned public online artifact (e.g., a verified benefits-information page or accessibility improvement) with a deterministic NO_ACTION holdout and existing online experiment engine. This avoids asking charities or facility owners for permissions or introducing new private-person datasets. If a voluntary/ethical independent downstream wellbeing measure is unavailable, ship as measured *technical/public-goods* benefit only, not as reduced suffering. A page release requires valid control of that release channel, but not a human supervising each operational decision.
 
-**Historical optional approaches:** F004/F007 legacy finance/indoor-site tasks remain blocked in the one canonical `tasks.json` until their original actual acceptance conditions are met. Their previous partner-first recommendations are optional pathways, **not the default architecture**. Any future task-scope revision requires explicit versioning of the same registry, not silently declaring completion or opening a second SSOT. Keep existing `manager_core/config.py` default prohibition on live external effects and all Life Manager production separation.
+**Historical optional approaches (superseded 2026-10-22):** F004/F007 legacy finance/indoor-site tasks are now `skipped` under the versioned owner-scope amendment in the one canonical `tasks.json`. Their historic acceptance was NOT achieved. The partner-first path is NOT a dependency or the active architecture. Any future task-scope revision requires explicit versioning of the same registry, not silently declaring completion or opening a second SSOT. Keep existing `manager_core/config.py` default prohibition on live external effects and all Life Manager production separation.
 
 ## Product thesis
 
