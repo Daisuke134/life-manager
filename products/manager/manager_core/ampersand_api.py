@@ -258,3 +258,67 @@ def read_completed_turn(client: Any, session_id: str, turn_id: str) -> SessionEv
     if len(output) > 16000:
         raise SessionFailure("saved provider output exceeds research limits")
     return SessionEvidence(session_id, turn_id, output, "completed", *tokens)
+
+
+def read_saved_assistant_items(
+    client: Any, session_id: str, turn_id: str,
+    *, limit: int = 100, max_pages: int = 50,
+) -> tuple[str, ...]:
+    """Read only saved assistant messages belonging to one completed turn.
+
+    Do not treat an SSE event or another turn's response as final readback.
+    Empty tuple means the completed turn has no supported text items; E06
+    distinguishes legitimate silence from transport failure.
+    """
+    read_completed_turn(client, session_id, turn_id)
+    if (type(limit) is not int or not 1 <= limit <= 100 or
+            type(max_pages) is not int or not 1 <= max_pages <= 50):
+        raise ValueError("finite session item pagination budget required")
+    def get(obj, key):
+        return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
+    messages = []
+    cursor = None
+    seen = set()
+    for _ in range(max_pages):
+        kwargs = {"limit": limit, "order": "asc"}
+        if cursor is not None:
+            kwargs["after"] = cursor
+        try:
+            page = client.beta.agents.sessions.items.list(session_id, **kwargs)
+        except Exception as exc:
+            raise SessionFailure("cannot independently retrieve saved turn items") from exc
+        rows, more = get(page, "data"), get(page, "has_more")
+        if type(rows) is not list or type(more) is not bool or len(rows) > limit:
+            raise SessionFailure("malformed provider item page")
+        for row in rows:
+            item_id = get(row, "id")
+            if (type(item_id) is not str or not item_id.startswith("item_") or
+                    item_id in seen):
+                raise SessionFailure("provider item identity is missing or repeated")
+            seen.add(item_id)
+            if get(row, "turn_id") != turn_id or get(row, "type") != "message":
+                continue
+            if get(row, "role") != "assistant":
+                continue
+            content = get(row, "content")
+            if type(content) is not list:
+                raise SessionFailure("assistant message content shape unsupported")
+            for chunk in content:
+                kind = get(chunk, "type")
+                raw = get(chunk, "text")
+                if kind in ("output_text", "text"):
+                    if type(raw) is not str:
+                        raise SessionFailure("assistant response text unsupported")
+                    if raw:
+                        messages.append(raw)
+        if not more:
+            if sum(len(m) for m in messages) > 16000:
+                raise SessionFailure("saved response exceeds research limits")
+            return tuple(messages)
+        if not rows:
+            raise SessionFailure("nonterminal empty saved item page")
+        next_cursor = get(rows[-1], "id")
+        if next_cursor == cursor or next_cursor in seen and next_cursor != get(rows[-1], "id"):
+            raise SessionFailure("stalled provider item cursor")
+        cursor = next_cursor
+    raise SessionFailure("incomplete bounded saved item scan")
