@@ -241,6 +241,31 @@ class DurableSessionIntent(unittest.TestCase):
             with self.assertRaises(SessionConflict):
                 j.reserve_for_send("req_absent")
 
+    def test_created_session_id_is_persisted_before_long_stream_finishes(self):
+        from manager_core.ampersand_api import read_initial_turn
+        with TemporaryDirectory() as d:
+            journal=SessionJournal(Path(d)/"evidence.sqlite")
+            class CreatedThenLost:
+                def __enter__(self): return self
+                def __exit__(self,*a): return False
+                def __iter__(self):
+                    yield SimpleNamespace(type="agent.session.created",
+                                          session=SimpleNamespace(id="sess_created01"))
+                    # Immediately after this event, session identity must be
+                    # safely durable even if generation/stream now disconnects.
+                    self_instance=journal.get("req_early")
+                    if self_instance.status != "BOUND":
+                        raise AssertionError("session id not persisted before stream loss")
+                    raise RuntimeError("lost stream after creation")
+            client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(
+                    create=lambda **kw:SimpleNamespace(
+                        with_result_collection=lambda:CreatedThenLost())))))
+            with self.assertRaises(SessionFailure):
+                read_initial_turn(client,"fictional",journal=journal,request_id="req_early")
+            self.assertEqual(journal.get("req_early").status,"BOUND")
+            self.assertEqual(journal.get("req_early").session_id,"sess_created01")
+
     def test_actual_sdk_retrieve_signature_is_keyword_session_id(self):
         # Official openai==3.24.0: turns.retrieve(turn_id, *, session_id=...).
         # A two-positional-argument call must fail this test.
