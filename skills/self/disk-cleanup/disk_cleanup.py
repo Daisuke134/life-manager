@@ -1852,6 +1852,7 @@ class HostDiskGovernor:
         post_sweep_reserve_seconds: int = POST_SWEEP_RESERVE_SECONDS,
     ) -> dict[str, object]:
         free_before, _ = self.usage()
+        budget_exhaustion_stages: dict[str, int] = {}
         result: dict[str, object] = {
             "tier": classify_tier(free_before),
             "evaluated": len(candidates),
@@ -1861,6 +1862,7 @@ class HostDiskGovernor:
             "errors": 0,
             "protected_deletions": 0,
             "cleanup_pid": os.getpid(),
+            "budget_exhaustion_stages": budget_exhaustion_stages,
             "reclaimed_candidates": [],
             "reclaimed_candidates_omitted": 0,
         }
@@ -1868,9 +1870,12 @@ class HostDiskGovernor:
         probe_errors: list[dict[str, object]] = []
         probe_error_count = 0
 
-        def preserve(reason: str) -> None:
+        def preserve(reason: str, *, stage: str | None = None) -> None:
             result["preserved"] += 1
             reasons[reason] = reasons.get(reason, 0) + 1
+            if reason == "probe-budget-exhausted":
+                label = stage or "unspecified"
+                budget_exhaustion_stages[label] = budget_exhaustion_stages.get(label, 0) + 1
 
         def record_probe_error(
             item: dict, candidate: Path, error_path: Path, error: Exception | None,
@@ -1892,7 +1897,7 @@ class HostDiskGovernor:
         for item in candidates:
             path = Path(item["path"]).expanduser()
             if deadline is not None and self.clock() >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="before_candidate")
                 continue
             if item.get("class") not in {"ephemeral", "regenerable_output"}:
                 preserve("unknown_class")
@@ -1922,16 +1927,16 @@ class HostDiskGovernor:
                     if store_state == "descendant_probe_error":
                         record_probe_error(item, path, path, None)
                     result["errors"] += store_state == "descendant_probe_error"
-                    preserve(store_state)
+                    preserve(store_state, stage="immutable_store_probe")
                     continue
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + post_sweep_reserve_seconds >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="before_initial_open_probe")
                 continue
             if self.lsof is _default_lsof:
                 _open_paths.cache_clear()
             state = self.lsof(path)
             if deadline is not None and self.clock() >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="after_initial_open_probe")
                 continue
             if state != "confirmed-closed":
                 result["errors"] += state == "probe-error"
@@ -1965,13 +1970,13 @@ class HostDiskGovernor:
             )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
-                preserve(descendant_state)
+                preserve(descendant_state, stage="initial_descendant_probe")
                 continue
             if deadline is not None and self.clock() >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="after_initial_descendant_probe")
                 continue
             if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="before_size_probe")
                 continue
             if item.get("owner") in {"release-retention", "zombie-worktree"}:
                 # Walking a 1.2GiB release to size it costs the whole budget, and the
@@ -1982,7 +1987,7 @@ class HostDiskGovernor:
             else:
                 before = _bytes(path, deadline=deadline, clock=self.clock)
                 if before is None:
-                    preserve("probe-budget-exhausted")
+                    preserve("probe-budget-exhausted", stage="size_probe")
                     continue
                 if (
                     item.get("owner") in {"codex-app-updater", "clang-module-cache", "test-canary"}
@@ -1992,7 +1997,7 @@ class HostDiskGovernor:
                     preserve("path_identity_changed")
                     continue
                 if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
-                    preserve("probe-budget-exhausted")
+                    preserve("probe-budget-exhausted", stage="after_size_probe")
                     continue
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
                 path, deadline=deadline,
@@ -2003,16 +2008,16 @@ class HostDiskGovernor:
             )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
-                preserve(descendant_state)
+                preserve(descendant_state, stage="final_descendant_probe")
                 continue
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + post_sweep_reserve_seconds >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="before_final_open_probe")
                 continue
             if self.lsof is _default_lsof:
                 _open_paths.cache_clear()
             state = self.lsof(path)
             if deadline is not None and self.clock() >= deadline:
-                preserve("probe-budget-exhausted")
+                preserve("probe-budget-exhausted", stage="after_final_open_probe")
                 continue
             if state != "confirmed-closed":
                 result["errors"] += state == "probe-error"
@@ -2060,13 +2065,13 @@ class HostDiskGovernor:
                         preserve(state)
                         continue
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
-                        preserve("probe-budget-exhausted")
+                        preserve("probe-budget-exhausted", stage="after_worktree_open_probe")
                         continue
                     if self._worktree_identity(path, deadline=deadline) != identity:
                         preserve("path_identity_changed")
                         continue
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
-                        preserve("probe-budget-exhausted")
+                        preserve("probe-budget-exhausted", stage="after_worktree_identity_recheck")
                         continue
                     repository = self.home / WORKTREE_REPOSITORY_RELATIVE
                     records = _worktree_records(repository) or []
@@ -2110,7 +2115,7 @@ class HostDiskGovernor:
                         preserve("path_identity_changed")
                         continue
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
-                        preserve("probe-budget-exhausted")
+                        preserve("probe-budget-exhausted", stage="before_dependency_remove")
                         continue
                     parent_fd = self._open_real_directory(path.parent)
                     try:
@@ -2400,7 +2405,8 @@ class HostDiskGovernor:
         return candidates
 
     def run_once(self) -> dict[str, object]:
-        deadline = self.clock() + GOVERNOR_BUDGET_SECONDS
+        started = self.clock()
+        deadline = started + GOVERNOR_BUDGET_SECONDS
         free_before, _ = self.usage()
         health = self._checked_bootstrap_health()
         if health.get("status") not in {"ok", "not-applicable"}:
@@ -2445,7 +2451,9 @@ class HostDiskGovernor:
             recovery = self._reconcile_stale_sparkle_updaters(sparkle_root)
             for key in updater_recovery:
                 updater_recovery[key] += recovery[key]
+        discovery_started = self.clock()
         candidates = self.discover_candidates(deadline=deadline)
+        discovery_finished = self.clock()
         candidate_count = len(candidates)
         candidate_start = self._candidate_start_index(candidate_count)
         candidate_next = (candidate_start + 1) % candidate_count if candidate_count else 0
@@ -2470,12 +2478,14 @@ class HostDiskGovernor:
                 cursor_status = "failed"
             else:
                 cursor_status = "persisted"
+        sweep_started = self.clock()
         result = self.sweep(
             candidates,
             write_receipt=False,
             deadline=deadline,
             post_sweep_reserve_seconds=post_sweep_reserve_seconds,
         )
+        sweep_finished = self.clock()
         if cursor_errors:
             free_after_sweep = result.get("free_after")
             if (
@@ -2576,6 +2586,20 @@ class HostDiskGovernor:
             else "inspect_preserved_candidates" if result["capacity_recovery"]["status"] != "met"
             else "continue_bounded_retention")
         result["ok"] = _cleanup_terminal_ok(result)
+        finished = self.clock()
+        result["phase_elapsed_ms"] = {
+            name: round(max(0.0, end - start) * 1000)
+            for name, start, end in (
+                ("before_discovery", started, discovery_started),
+                ("discovery", discovery_started, discovery_finished),
+                ("cursor", discovery_finished, sweep_started),
+                ("sweep", sweep_started, sweep_finished),
+                ("after_sweep", sweep_finished, finished),
+                ("total_before_receipt", started, finished),
+            )
+        }
+        result["sweep_start_remaining_ms"] = round(max(0.0, deadline - sweep_started) * 1000)
+        result["post_sweep_reserve_ms"] = post_sweep_reserve_seconds * 1000
         receipt_status = self._receipt(result)
         if receipt_status is not None:
             result["receipt_persistence"] = receipt_status
