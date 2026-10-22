@@ -1,4 +1,4 @@
-"""article-daily's result hint can only come from article-run-complete.py, never the model."""
+"""The wrapper owns no-effect hints; only the completion producer owns effect hints, never the model."""
 import json
 import os
 import subprocess
@@ -17,6 +17,33 @@ ENTRYPOINT = "skills/writer-agent/article-daily.sh"
 
 
 class ResultHintIsolation(unittest.TestCase):
+    def test_pending_worker_branch_returns_private_no_effect_without_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            hint = root / "entrypoint-result.json"
+            log = root / "run.log"
+            dispatched = root / "dispatched"
+            wrapper = (ROOT / ENTRYPOINT).read_text(encoding="utf-8")
+            start = wrapper.index('case "$START_ACTION" in\n')
+            end = wrapper.index('\nesac', start) + len('\nesac')
+            harness = root / "harness.sh"
+            harness.write_text(
+                '#!/usr/bin/env bash\nset -uo pipefail\n'
+                f'LOG={log}\nSTART_ACTION=skip-pending-worker\nSTART_RUN_ID={RUN}\n'
+                + wrapper[start:end] + f'\ntouch {dispatched}\n', encoding="utf-8")
+            env = {k: v for k, v in os.environ.items() if not k.startswith("LIFE_MANAGER_")}
+            env.update({"LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+                        "LIFE_MANAGER_OCCURRENCE_ID": OCC})
+            result = subprocess.run(["bash", str(harness)], env=env, timeout=10)
+            self.assertEqual(result.returncode, 0)
+            self.assertFalse(dispatched.exists())
+            self.assertEqual(json.loads(hint.read_text()), {
+                "schema_version": 1, "kind": "life_manager_no_effect_result",
+                "status": "verified_no_effect", "effect": 0, "owner_id": "article-daily",
+                "occurrence_id": OCC, "reason": "pending_resume_worker_owned",
+            })
+            self.assertEqual(hint.stat().st_mode & 0o777, 0o600)
+
     def run_wrapper(self, root: Path, *, complete: bool) -> tuple[int, Path]:
         article_root = root / "skills/writer-agent"
         (article_root / "scripts").mkdir(parents=True)

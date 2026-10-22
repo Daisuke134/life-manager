@@ -2452,6 +2452,32 @@ def _write_no_effect_result(path, **overrides):
     return value
 
 
+def test_writer_pending_worker_no_effect_is_scoped_to_exact_owner_entrypoint_and_reason(tmp_path):
+    hint = tmp_path / 'entrypoint-result.json'
+    owner = 'article-daily'
+    occurrence = f'{owner}:pending-worker'
+    entrypoint = 'skills/writer-agent/article-daily.sh'
+    valid = dict(owner_id=owner, occurrence_id=occurrence, reason='pending_resume_worker_owned')
+    _write_no_effect_result(hint, **valid)
+    assert loop_runner._verified_terminal_effect_result(hint, owner, occurrence, entrypoint) == (
+        'not_applicable', f'lm-no-effect://{owner}/{occurrence}/pending_resume_worker_owned')
+    for overrides in ({'owner_id': 'article-resume'}, {'occurrence_id': 'article-daily:other'},
+                      {'reason': 'daily_limit_reached'}, {'reason': 'pii_gate_blocked'},
+                      {'effect': False}):
+        _write_no_effect_result(hint, **(valid | overrides))
+        assert loop_runner._verified_terminal_effect_result(hint, owner, occurrence, entrypoint) is None
+    _write_no_effect_result(hint, **valid)
+    assert loop_runner._verified_terminal_effect_result(
+        hint, owner, occurrence, 'skills/writer-agent/scripts/article-resume-pending.sh') is None
+    assert loop_runner._verified_terminal_effect_result(hint, 'article-resume', occurrence, entrypoint) is None
+    capafy = 'capafy-distribute-daily'
+    _write_no_effect_result(hint, owner_id=capafy, occurrence_id=f'{capafy}:pending-worker',
+                            reason='pending_resume_worker_owned')
+    assert loop_runner._verified_terminal_effect_result(
+        hint, capafy, f'{capafy}:pending-worker',
+        'skills/earn/capafy-marketing/capafy-distribute-daily.sh') is None
+
+
 def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoint(tmp_path):
     hint = tmp_path / 'entrypoint-result.json'
     _write_no_effect_result(hint)

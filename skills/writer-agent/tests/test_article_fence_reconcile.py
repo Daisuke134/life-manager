@@ -5,6 +5,7 @@ deferred (resource_effect_unknown) for 10 days; the run had published to note an
 time window is used only to PAIR a fence with a publish, never to infer that nothing happened.
 """
 
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -688,6 +689,73 @@ def test_start_control_block_rejects_a_segment_that_began_generation(tmp_path, m
                          resolve=True, now=START_BLOCK_QUEUED_AT + 3600,
                          writer_root=writer_root, source_repo=source_repo)
     assert result["status"] == "inconclusive" and called == []
+
+
+def _archived_start_block_fixture(tmp_path, monkeypatch, m):
+    root, source = _start_block_fixture(tmp_path, monkeypatch, m)
+    pinned = m.HISTORICAL_GATE_STOP_PROOFS[START_BLOCK_OCCURRENCE]
+    archive = root / "events-fixture.jsonl.gz"
+    archive.write_bytes(gzip.compress((root / "events.jsonl").read_bytes()))
+    (root / "events.jsonl").write_text("", encoding="utf-8")
+    marker = root / "loop-tmp" / OWNER / pinned["runtime_run_id"] / "entrypoint-result.json"
+    marker.parent.mkdir(parents=True, mode=0o700)
+    marker.write_text('{"effect":0,"status":"pre_effect_failure"}', encoding="utf-8")
+    marker.chmod(0o600)
+    pinned.update({"events_archive": archive.name,
+                   "events_archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+                   "pre_effect_marker_sha256": hashlib.sha256(marker.read_bytes()).hexdigest(),
+                   "helper_sha256": {pinned["entrypoint"]: pinned["entrypoint_sha256"]}})
+    return root, source, archive, marker
+
+
+def test_historical_start_stop_binds_archive_and_surviving_marker(tmp_path, monkeypatch):
+    m = _load()
+    root, source, archive, marker = _archived_start_block_fixture(tmp_path, monkeypatch, m)
+    proof = m._historical_gate_stop_proof(
+        START_BLOCK_OCCURRENCE, START_BLOCK_QUEUED_AT, writer_root=root, source_repo=source,
+        now=START_BLOCK_QUEUED_AT + 3600)
+    assert proof is not None
+    assert proof["events_archive"] == archive.name
+    assert proof["pre_effect_marker_sha256"] == hashlib.sha256(marker.read_bytes()).hexdigest()
+
+
+def test_archived_start_stop_refuses_modified_or_linked_evidence(tmp_path, monkeypatch):
+    for case in ("archive", "events", "log", "helper", "marker", "marker-mode",
+                 "archive-link", "marker-link", "marker-parent-link", "effect-identity"):
+        m = _load()
+        case_root = tmp_path / case
+        case_root.mkdir()
+        root, source, archive, marker = _archived_start_block_fixture(case_root, monkeypatch, m)
+        pinned = m.HISTORICAL_GATE_STOP_PROOFS[START_BLOCK_OCCURRENCE]
+        if case == "archive":
+            archive.write_bytes(archive.read_bytes() + b"changed")
+        elif case == "events":
+            archive.write_bytes(gzip.compress(gzip.decompress(archive.read_bytes()).replace(
+                b'"exit_code": 0', b'"exit_code": 1')))
+            pinned["events_archive_sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
+        elif case == "log":
+            (root / "logs/article-daily.log").write_text("changed")
+        elif case == "helper":
+            pinned["helper_sha256"][pinned["entrypoint"]] = "0" * 64
+        elif case == "marker":
+            marker.write_text('{"effect":1,"status":"pre_effect_failure"}')
+        elif case == "marker-mode":
+            marker.chmod(0o644)
+        elif case in {"archive-link", "marker-link"}:
+            path = archive if case == "archive-link" else marker
+            target = path.with_suffix(".saved")
+            path.rename(target)
+            path.symlink_to(target)
+        elif case == "marker-parent-link":
+            parent = marker.parent
+            target = parent.with_name("saved-scratch")
+            parent.rename(target)
+            parent.symlink_to(target, target_is_directory=True)
+        else:
+            (marker.parent / "effect-identity.jsonl").write_text("{}\n")
+        assert m._historical_gate_stop_proof(
+            START_BLOCK_OCCURRENCE, START_BLOCK_QUEUED_AT, writer_root=root, source_repo=source,
+            now=START_BLOCK_QUEUED_AT + 3600) is None, case
 
 
 # --- article-resume: historical no-dispatch from official readbacks (2026-10-12) ---

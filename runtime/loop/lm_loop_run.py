@@ -143,6 +143,7 @@ NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
 NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
+    "article-daily": "skills/writer-agent/article-daily.sh",
     "capafy-distribute-daily": "skills/earn/capafy-marketing/capafy-distribute-daily.sh",
 }
 # Owners that report only a verified no-effect result, never a verified effect:
@@ -1096,7 +1097,8 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
     if loop_id in NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS:
         if entrypoint != NO_EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
             return None
-        allowed_reasons = {"daily_limit_reached", "pii_gate_blocked"}
+        allowed_reasons = ({"pending_resume_worker_owned"} if loop_id == "article-daily"
+                           else {"daily_limit_reached", "pii_gate_blocked"})
     elif entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
     elif entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":

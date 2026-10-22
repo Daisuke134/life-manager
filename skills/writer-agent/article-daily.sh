@@ -431,6 +431,19 @@ case "$START_ACTION" in
     ;;
   skip-pending-worker)
     echo "=== article-daily start control: pending active-four run remains resume-worker-owned run=$START_RUN_ID; no concurrent article $(date '+%F %T %Z') ===" >>"$LOG"
+    # No model or publisher was dispatched by this occurrence; the existing run belongs
+    # to article-resume. Report the same typed no-effect contract as that sibling.
+    if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ] && [ -n "${LIFE_MANAGER_OCCURRENCE_ID:-}" ]; then
+      RESULT_HINT_TMP="$(mktemp "$LIFE_MANAGER_RESULT_HINT_PATH.XXXXXX")" || exit 1
+      if ! (umask 077 && jq -cn --arg occurrence_id "$LIFE_MANAGER_OCCURRENCE_ID" \
+        '{schema_version:1,kind:"life_manager_no_effect_result",status:"verified_no_effect",
+          effect:0,owner_id:"article-daily",occurrence_id:$occurrence_id,
+          reason:"pending_resume_worker_owned"}' >"$RESULT_HINT_TMP") \
+        || ! mv -f -- "$RESULT_HINT_TMP" "$LIFE_MANAGER_RESULT_HINT_PATH"; then
+        rm -f -- "$RESULT_HINT_TMP"
+        exit 1
+      fi
+    fi
     exit 0
     ;;
   resume-generation)
