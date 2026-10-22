@@ -1,0 +1,113 @@
+{
+  "schema": "manager.phase06-v1-archive.v1",
+  "snapshot_commit": "de8656444c132fe2c51b7ed79f007724ce152d2a",
+  "task_registry_blob_sha": "4fc30e02e7ebb3226e3e199beb4d1a956c1c6123",
+  "source": "products/manager/docs/roadmap/tasks.json",
+  "captured_at": "2026-10-22",
+  "purpose": "Immutable review history, NOT current acceptance or a new task registry",
+  "rows": [
+    {
+      "section": "06. 現実の介入と独立した効果評価",
+      "id": "F004",
+      "depends": [
+        "F003",
+        "K007"
+      ],
+      "learn": "予算・運営者承諾を確認する",
+      "change": "実行主体の明示的な権限と厳密な限度を持つ",
+      "verify": "権限/資金/第三者事前同意が揃うまではblocked",
+      "status": "blocked",
+      "external": "資金の管理主体、明示承認、受益と評価の公開性が必要",
+      "implementation_evidence": [
+        "docs/architecture/PHASE06_DIGITAL_CROSS_DOMAIN_CONTRACT.md"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    {
+      "section": "06. 現実の介入と独立した効果評価",
+      "id": "F005",
+      "depends": [
+        "F004",
+        "K009"
+      ],
+      "learn": "現実の公開receiptを照合する",
+      "change": "限定的な初回の実行と外部独立読み戻し",
+      "verify": "実行の事実P1と状態変化P2まで独立確認",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/digital_handoff.py",
+        "scripts/phase06_kernel_release.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    {
+      "section": "06. 現実の介入と独立した効果評価",
+      "id": "F006",
+      "depends": [
+        "F005",
+        "K011"
+      ],
+      "learn": "因果効果・費用・害を報告する",
+      "change": "primary outcome+CI+null evidenceのレポート",
+      "verify": "P3/P4に届かないものは明示し、sample数不足はinconclusive",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/causal_analysis.py",
+        "docs/verification/INDEPENDENT_FINANCIAL_OUTCOME_PROTOCOL.md"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    {
+      "section": "06. 現実の介入と独立した効果評価",
+      "id": "F007",
+      "depends": [
+        "F001"
+      ],
+      "learn": "環境への操作権限と公開センサーの限界を理解する",
+      "change": "公開屋内センサー＋設備所有者の承諾を得る",
+      "verify": "器具制御と観測には所有者の許諾が必須",
+      "status": "blocked",
+      "external": "適切な共有施設、屋内センサー、管理者の明示承認",
+      "implementation_evidence": [
+        "pilot/SECOND_DIGITAL_ENVIRONMENT_SAFETY.md"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    {
+      "section": "06. 現実の介入と独立した効果評価",
+      "id": "F008",
+      "depends": [
+        "F007",
+        "K010"
+      ],
+      "learn": "外気や自然変動との交絡を理解する",
+      "change": "曝露を許可された条件で変更し独立屋内センサーで比較",
+      "verify": "PM2.5と電力/騒音の両方を記録",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/physical_outcomes.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    {
+      "section": "06. 現実の介入と独立した効果評価",
+      "id": "F009",
+      "depends": [
+        "F006",
+        "F008"
+      ],
+      "learn": "汎用性を実証するには領域間再現が必要と学ぶ",
+      "change": "二領域の評価レポートを同じ形式で生成",
+      "verify": "同じkernelで安全不変条件を維持したP2+を両領域で示す",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "docs/architecture/PHASE06_DIGITAL_CROSS_DOMAIN_CONTRACT.md"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    }
+  ]
+}
