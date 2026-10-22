@@ -181,6 +181,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - source: `lib/travel.js::{claimTravel,createTravelBlock}`、`lib/transport/calendar-composio.js`の既存execute/recordOutcome、既存 `lm_travel_log` とusage/cost記録。永続claimが実在するため、必要なら新規 `apps/life-manager/migrations/2026-10-22-lm-travel-write-receipts.sql` と対応Postgres fixtureを追加する。既存Telegram leg/receipt、一意性、RLSと旧行を保持する。
 - 既存vocabularyを使う必須join: owner/run/occurrence/release、source event hash/version、leg、account参照hash、request fingerprint、phase/command、HTTP/provider error class、effect、provider event/receipt ID、readback/evidence、retryable/next_action。credential/住所/予定本文をlogへ複製しない。
 - 状態契約: claim→dispatch前記録→provider attempt→verified / exact no_effect / unknownをdurableに結ぶ。providerが作成を受理した可能性のあるtimeout・schema不明・`successful=false`を一律no-effectにしない。unknown8件の不足fieldを後から時刻で埋めない。旧行はunknownのまま保管し、個別readbackだけで進める。
+- CLD02独立反証の修正: no-effect後のDELETE失敗は、次wakeで同request_id/effect限定の解除を再開する。既存cost ledgerはbest-effortのまま保持し、その保存失敗を新しいCalendar再開gateにしない（費用不明を0/保存済みにはしない）。unknown/legacy/verifiedは解除しない。owned readbackで取得したsource自身も保存revisionと一致することを確認し、通常readerの古いcacheだけで旧helperをverifiedにしない。不在/取消/変更はunknownを維持する。
+- CLD02 source検証: 独立reviewで残存no-effect claimの永久skipと古いsource cacheによる誤verifiedを再現する。追加2 testのREDを確認し、同attemptのscoped DELETE再開と取得済みowned sourceのrevision比較でGREENにする。修正後の関連8 Node files/133 tests、隔離Postgres fixture（release_claim状態を含む）、18/191 loop-contract、agent/source boundaryを確認する。本番migration・配備・自然Calendar成果は未証明のまま維持する。
 - 最小追加test: dispatch前停止、provider validation response、dispatch後timeout、応答保存前停止、duplicate claimant、source revision変更、他tenant、旧claim欠測。新createはprovider event ID/生成markerと一意にjoinでき、replayで追加effect0となることを確認する。safe retryはこの証拠が揃ったexact attemptだけに許す。
 
 **CLD03 — online/変更/取消/routeと予定を一致させる**
@@ -198,7 +200,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 **CLD04 — Cloudの配備・各機能・課金を別々に確かめる**
 
 - source: `scheduler.js::{startTravelLoop,travelUserOnce}`、`lib/{maybe-start-loops,runtime-preferences,travel-reminder}.js`、Webの既存calendar/billing/automation reader、`skills/earn/marketing-engine/registry/products/life-manager-cloud.json`。
-- 今回取得できないもの: Railway管理CLI/既存credentialは401/403。deployment ID・loaded env・全enabled flagは未取得。公開buildとsource blob一致、現在のprovider記録を、管理env完全確認の代わりと偽らない。必要な権限/credentialを正確に記録し、他のread-only経路を使う。再認証/設定変更は今回行わない。
+- 今回取得できないもの: Railway管理CLI/既存credentialは401/403。deployment ID・loaded env・全enabled flagは未取得。公開buildとsource blob一致、現在のprovider記録を、管理env完全確認の代わりと偽らない。修復ではSSOTの同account既存tokenを公式config lock下で戻してCLI更新を一度試すが、whoamiはunauthorized・CLIはtokenを消去する。失効理由をinvalid_grantと推測せず、同tokenを反復投入しない。次は専有identityの正規login経路と容量preflightを確認する。秘密値や他ownerのsessionを複製しない。
 - 既存機能の事実: MENTAL send log206行/V1の3 family70行、最新10/21 22:41Zにprovider receiptあり（Telegram画面の再読取なし）。PHYSICAL scan89行、最新10/22 00:03Zだが予約/受診成果は未確認。diet/preceptsの古い記録だけで停止・故障を断定しない。各機能はeligibility/preferences/last_attempt/last_verified_outcomeを分けて確認する。
 - Web first-scanと継続automation/billing、Hybrid、Telegramなし、通知なし、home不足を既存の別branchとしてテストする。Web binding/billing guard、tenant分離、Steel/browser leaseを維持する。catalogのCloud `setup_required` を「すべて配備済み」に変えない。
 - 受入: 同一Cloud SHAとowned tenantで自然travel作成/通知/該当careを公式receiptで確認し、処理がMacのfilesystem/localhost/起動に依存しないcall pathとCloud-only自然実行の証拠を得る。監査のためにMac/稼働基盤を停止しない。phone-onlyの利用・再開等の既存CL01–CL05受入は該当製品範囲で保持するが、新しい固定日数の待機gateを作らない。
