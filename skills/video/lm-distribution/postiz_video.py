@@ -77,6 +77,24 @@ def postiz_resolve_override(resolve_ip: str | None):
         socket.getaddrinfo = original
 
 
+def registered_own_business(integration: str) -> bool:
+    """Use the existing account declaration for this exact TikTok route."""
+    accounts = Path(__file__).resolve().parents[2] / "earn/marketing-engine/registry/accounts"
+    matches = []
+    for account_path in accounts.glob("*.json"):
+        account = json.loads(account_path.read_text(encoding="utf-8"))
+        if account.get("platform") == "tiktok" and account.get("publisher_integration_id") == integration:
+            matches.append(account)
+    if not matches:
+        return False
+    if len(matches) != 1:
+        raise PostizError("TikTok integration has ambiguous account declarations")
+    value = (matches[0].get("publisher_settings") or {}).get("brand_organic_toggle", False)
+    if not isinstance(value, bool):
+        raise PostizError("TikTok own-business declaration must be boolean")
+    return value
+
+
 def build_payload(
     *,
     integration: str,
@@ -88,6 +106,7 @@ def build_payload(
     platform: str = "tiktok",
     upload_ids: list[str] | None = None,
     upload_paths: list[str] | None = None,
+    own_business: bool = False,
 ) -> dict:
     if (upload_ids is None) != (upload_paths is None):
         raise PostizError("Postiz upload ids/paths must be supplied together")
@@ -129,7 +148,7 @@ def build_payload(
             "comment": True,
             "autoAddMusic": "yes",
             "brand_content_toggle": False,
-            "brand_organic_toggle": False,
+            "brand_organic_toggle": own_business,
             "video_made_with_ai": True,
             "content_posting_method": "DIRECT_POST",
         }
@@ -639,6 +658,7 @@ def read_caption(caption_file: Path, *, carousel: bool = False) -> str:
 
 
 def _publish(args, api_key: str, caption: str) -> int:
+    own_business = registered_own_business(args.integration) if args.platform == "tiktok" else False
     if args.image:
         if args.platform not in ("instagram", "tiktok"):
             raise PostizError("carousel images require Instagram or TikTok")
@@ -668,6 +688,7 @@ def _publish(args, api_key: str, caption: str) -> int:
             upload_paths=upload_paths,
             now_iso=datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             platform=args.platform,
+            own_business=own_business,
         )
         post_id = create_post(payload, api_key)
         state = {"state": "QUEUE", "post_url": None}
@@ -734,6 +755,7 @@ def _publish(args, api_key: str, caption: str) -> int:
         upload_path=upload_path,
         now_iso=datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         platform=args.platform,
+        own_business=own_business,
     )
     post_id = create_post(payload, api_key)
     state = {"state": "QUEUE", "post_url": None}
