@@ -308,3 +308,40 @@ def reconcile_session_pages(
         cursors.add(cursor)
         after = cursor
     raise SessionConflict("incomplete bounded provider scan; keep UNKNOWN")
+
+
+def reconcile_provider_sessions(
+    client, journal: SessionJournal, request_id: str,
+    *, page_limit: int = 100, max_pages: int = 50,
+) -> Intent:
+    """Use documented SDK session-list pagination for read-only reconciliation.
+
+    The provider API lists sessions with limit/order/after, and session items
+    carry metadata. This adapter does not create a session, retry a turn, or
+    conclude a missing ID means the provider had no side effect.
+    """
+    def fetch(after: str | None, limit: int) -> dict:
+        kwargs = {"limit": limit, "order": "desc"}
+        if after is not None:
+            kwargs["after"] = after
+        try:
+            page = client.beta.agents.sessions.list(**kwargs)
+        except Exception as exc:
+            raise SessionConflict("provider session list failed; no retry") from exc
+        def get(obj, name):
+            return obj.get(name) if isinstance(obj, dict) else getattr(obj, name, None)
+        rows = get(page, "data")
+        more = get(page, "has_more")
+        if type(rows) is not list or type(more) is not bool:
+            raise SessionConflict("unexpected provider page schema")
+        result = []
+        for row in rows:
+            ident = get(row, "id")
+            meta = get(row, "metadata")
+            if type(ident) is not str or (meta is not None and type(meta) is not dict):
+                raise SessionConflict("unsupported provider session record")
+            result.append({"id": ident, "metadata": meta or {}})
+        return {"data": result, "has_more": more}
+    return reconcile_session_pages(
+        journal, request_id, fetch, page_limit=page_limit, max_pages=max_pages
+    )
