@@ -94,6 +94,30 @@ class SessionJournal:
             (request_id,),
         ).fetchone()
 
+    def get(self, request_id: str) -> Intent:
+        """Read-only status; never authorize retry from returned data."""
+        _check(request_id, _REQUEST_ID, "request ID")
+        with sqlite3.connect(self.path, timeout=15) as db:
+            return self._as_intent(self._get(db, request_id))
+
+    def reserve_for_send(self, request_id: str) -> Intent:
+        """One atomic transition BEFORE the first possible HTTP side effect.
+
+        If a process crashes after marking UNKNOWN but before the provider call,
+        the next process must reconcile it rather than risk two creations.
+        """
+        _check(request_id, _REQUEST_ID, "request ID")
+
+        def action(db):
+            row = self._get(db, request_id)
+            if row is None or row[2] != "RESERVED":
+                raise SessionConflict("creation already attempted or not reserved")
+            db.execute("UPDATE amp_sessions SET status='UNKNOWN' WHERE request_id=?",
+                       (request_id,))
+            return self._as_intent(self._get(db, request_id))
+
+        return self._txn(action)
+
     def begin(self, request_id: str, body_hash: str) -> Intent:
         _check(request_id, _REQUEST_ID, "request ID")
         _check(body_hash, _SHA, "canonical request body SHA-256")
