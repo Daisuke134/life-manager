@@ -50,7 +50,6 @@
     "ae59030aeab5a73fd013c9b8311f7d0b6f9ffc17": 3
   },
   "owners_with_admission_unknown": 76,
-  "historical_unknown_occurrences_in_status": 38785,
   "health": {
     "source": "/Users/anicca/.local/state/life-manager/health-observer/latest.json",
     "sha256": "f36d465cd5fb927645db340108046ac94464f5adcb1e2a334c3ae4a53583bbf4",
@@ -6966,5 +6965,7 @@
     "status",
     "all",
     "--json"
-  ]
+  ],
+  "unresolved_effect_unknown_occurrences_in_status": 38785,
+  "unresolved_effect_unknown_meaning": "過去attempt由来で、観測時もeffect_unknown=1が残るoccurrence。現在の注文数や重複投稿数ではなく、閉鎖済み履歴でもない。"
 }

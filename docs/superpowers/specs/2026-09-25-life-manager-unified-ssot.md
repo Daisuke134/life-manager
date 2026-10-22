@@ -28,7 +28,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 |---|---|---|
 | source catalog / registry / `lm-loop-contract` | 18業務group、191 managed jobs、112 mapped / 79 unmapped。14 customer_revenue、investment / financing / non_economic / aggregator各1 | 「20 agent」は製品の呼称と実行job数の混在。未登録の2業務を推測で増やさない。79件の分類不足はsource上で確定する |
 | 10/22 09:27:37Z、production immutableの `lm-loop status all --json` | managed191 = loaded-running36 / loaded-idle153 / disabled2。総304行にはretired97 / external15 / unmanaged1を含む | loadedやPIDだけでは成果を証明しない。latest-attempt blockerはdisk46 / effect_unknown43 / capacity9 / FIFO1 / admission unavailable1 / exit1が19 / exit75が2 / exit10が2 / none68 |
-| 同じstatusとinstalled argv/SHA | 144 jobsがbase SHA、47 jobsは別SHA。admission unknownを持つowner76、status内の歴史的unknown occurrence合計38,785 | `current`指定と全owner採用は異なる。38,785は未処理の現在注文数や重複投稿数ではない。owner単位のflagとexact occurrenceを区別する |
+| 同じstatusとinstalled argv/SHA | 144 jobsがbase SHA、47 jobsは別SHA。admission unknownを持つowner76、過去attempt由来で観測時にも `effect_unknown=1` が残るoccurrence合計38,785 | `current`指定と全owner採用は異なる。38,785は未照合のeffect flagを持つ行数であり、現在の注文数や重複投稿数ではない。owner単位のflagとexact occurrenceを区別する |
 | 10/22 09:31:38Z、自然health observer | healthy25 / running15 / failed58 / safely_fenced76 / effect_unknown3 / telemetry_gap14、計191。productivityは全191件 `health_history_timeout` | 現在状態を保持する修正は機能するが、期間の成果clockは取れていない。health分類とlaunchd分類は異なる |
 | read-only cProfile、09:29:38Z開始 | 履歴を含むsnapshot単独16.86秒、104 journal projections、約173万JSON decode。先の現況statusは11.58秒 | `lm_loop.py`のhealthが現況→履歴の二重snapshotを同じ30秒期限で実行し、履歴を毎回再集計する構造は確認済み。負荷条件の違う時刻の値を単純加算して再現時間とはしない |
 | 隔離した `money_liveness.evaluate()` probe | `status=failed` / receiptなしの新ledgerも `stale=false` | file mtimeによるfresh判定は確認できるが、公開や入金の成功判定ではない。現在の6監視laneだけでは全18業務を覆わない |
@@ -127,7 +127,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 - 対象: `runtime/loop/fence_reconcile.py`、`runtime/host/resource_admission.py`、`config/loop-registry.json`の登録済 `effect_reconcile`、該当providerの既存adapter。優先対象はcritical_paid、Capafy配信、Writer、Cloudと競合する共有account。
 - RED: `test_historical_unknown_does_not_starve_other_owner_readback`、`test_resolver_refuses_nearby_or_wrong_run_receipt`、`test_pre_effect_failure_is_recorded_before_dispatch`。既存 `runtime/loop/tests/test_fence_reconcile.py`、`runtime/host/tests/test_resource_admission.py` とprovider resolver testへ置く。
-- 実装: owner/run/occurrence/release/slot/providerIDの一致するreadbackだけで登録resolverを呼ぶ。queued/claimed/releasedとeffect flagを別に読む。38kの歴史行を一括解除しない。既存公平なbatch/cursorを維持し、失敗する先頭一件が他ownerのreadbackを止める時だけ修復する。未解決行を削除せず、retention/index最適化は閉鎖済み行と実測遅延の因果がある場合だけ対象とする。
+- 実装: owner/run/occurrence/release/slot/providerIDの一致するreadbackだけで登録resolverを呼ぶ。queued/claimed/releasedとeffect flagを別に読む。過去attempt由来でunknown flagが残る約38k行を、閉鎖済み履歴とみなして一括解除しない。既存公平なbatch/cursorを維持し、失敗する先頭一件が他ownerのreadbackを止める時だけ修復する。未解決行を削除せず、retention/index最適化は閉鎖済み行と実測遅延の因果がある場合だけ対象とする。
 - 受入: 一つのexact closure、同じresolverのreplayで追加effect0、次の自然業務の成果。receipt未取得は誤ったno-effectへ変えず、必要provider照合とownerを具体的に残す。
 
 **FND06 — ソース採用と全job分類を完結する**
