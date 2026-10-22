@@ -70,7 +70,7 @@ class DurableSessionIntent(unittest.TestCase):
         page=SimpleNamespace(id="turn_actual",status="completed",usage=SimpleNamespace(
             input_tokens=10,output_tokens=4))
         client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=SimpleNamespace(
-            turns=SimpleNamespace(retrieve=lambda sid,tid:page)))))
+            turns=SimpleNamespace(retrieve=lambda tid,*,session_id:page)))))
         with self.assertRaises(SessionFailure):
             read_completed_turn(client,"sess_abcdefgh","turn_other")
         page.id="turn_actual";page.status="failed"
@@ -271,7 +271,7 @@ class DurableSessionIntent(unittest.TestCase):
         turn=SimpleNamespace(id="turn_abcdefgh",status="completed",
                              usage=SimpleNamespace(input_tokens=2,output_tokens=3))
         sessions=SimpleNamespace(
-            turns=SimpleNamespace(retrieve=lambda sid,tid:turn),
+            turns=SimpleNamespace(retrieve=lambda tid,*,session_id:turn),
             items=SimpleNamespace(list=get_page))
         client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
         result=read_saved_assistant_items(client,"sess_abcdefgh","turn_abcdefgh")
@@ -285,7 +285,7 @@ class DurableSessionIntent(unittest.TestCase):
                              turn_id="turn_abcdefgh",role="assistant",
                              content=[{"type":"output_text","text":"partial"}])
         sessions=SimpleNamespace(
-            turns=SimpleNamespace(retrieve=lambda sid,tid:turn),
+            turns=SimpleNamespace(retrieve=lambda tid,*,session_id:turn),
             items=SimpleNamespace(list=lambda sid,**kw:
                 SimpleNamespace(data=[item],has_more=True)))
         client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
