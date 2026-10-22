@@ -205,5 +205,44 @@
     ],
     "other_attempt_receipt_not_reused": true,
     "next_action": "Obtain video-specific official Billing/Usage receipt; retain null cost and guard"
+  },
+  "natural_article_retry": {
+    "observed_at": "2026-10-22T16:13:36.557184+00:00",
+    "owner_id": "ebook-articles",
+    "run_id": "18e0e59f2d703ec8-48635",
+    "release_sha": "1dbf2b502d9f0733e91b6f53a6ecd2ab86675da1",
+    "queue_sequence": 800614,
+    "manual_resend": false,
+    "compose_status": "success",
+    "compose_attempts": 1,
+    "slot": "2026-10-23@01",
+    "ledger": {
+      "attempts": 1,
+      "product_id": "ebook-en",
+      "status": "published",
+      "url": "https://aniccaai.com/blog/ebook-en-2026-10-23-01",
+      "title": "The “What Is Here?” Pause for a Noisy Moment",
+      "commit": "afffb6c50901ba3e925923d89a29cc6328bbd387"
+    },
+    "http": {
+      "status": 200,
+      "url": "https://aniccaai.com/blog/ebook-en-2026-10-23-01",
+      "title": "The “What Is Here?” Pause for a Noisy Moment | Anicca Articles",
+      "h1": "The “What Is Here?” Pause for a Noisy Moment"
+    },
+    "official_deploy_run": "https://github.com/Daisuke134/anicca-products/actions/runs/39811116468",
+    "official_deploy_conclusion": "success",
+    "video_daily_publication_restored": false
+  },
+  "ja_tiktok_diagnosis": {
+    "occurrence_id": "ebook-ja-tiktok-daily:18dfbf4b313011a8-82806",
+    "reused_job": "marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c",
+    "provider_receipt_id": "cmvf5cw4503uemw0y3fmvizy7",
+    "official_state": "PUBLISHED",
+    "new_provider_dispatch_in_later_claim": false,
+    "official_integration_and_caption_and_upload_match": true,
+    "historical_url_mismatch_actor_unknown": true,
+    "fence_held": true,
+    "next_action": "Persist exact occurrence proof through existing reconciliation contract; never resend to discover state"
   }
 }
