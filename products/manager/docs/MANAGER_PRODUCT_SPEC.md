@@ -163,14 +163,16 @@ YC応募準備は期限に合わせた創業者レーンで、全研究や全113
 
 ## 13. 採用するクラウド構成
 
-**Railway上の単一Python worker＋専用永続volumeを採用。Mac miniへの移行を必須としない。** このチャットの開発環境からGitHubとRailwayを操作し、運用プログラムはRailwayで動かす。開発環境のprovider secret一覧が空でも、別の接続済みpluginによるRailwayアクセスがないとは判断しない。
+**追加支出なしの第一経路を、既存GitHub Actions＋既存Supabaseのprivate checkpointへ更新する。** ユーザーの無料経路で継続する指示と、接続済みアカウントの実読取りによる変更。Mac miniや新しい長期tokenの提供を再開条件にしない。開発環境のsecret一覧と各pluginの認証は別で、既存認証を使って確認・実装を進める。
 
 - 確認済み: Railwayの既存 `life-manager` project、既存production serviceとSUCCESS deploymentの記録。読取時点でvolumeなし。この既存serviceが今回のManagerだとは認定せず、役割・実source・ownerを調べる。
-- 新規の予定: `manager-owned-digital-worker` という専用serviceと `/data/manager` の永続状態。名前・pathは構成上の決定であり、作成済みという主張ではない。既存serviceは上書きせず、最初はisolated stagingで検証する。
-- 最初は1 worker/1 replica、既存SQLite/outbox/lock、起動時reconcileとcatch-up-once、backup/restore。volume付きserviceのreplica/再deploy制約を踏まえ、無停止や分散exactly-onceを約束しない。
-- SupabaseへのDB移行をE16の前提にしない。確認できたManager接続側の既存Supabase projectはINACTIVE。共有DB・認証等が実際に必要になった時に既存製品を比較し、別の移行として設計する。
+- public repositoryのstandard Actions runnerと既存`GITHUB_TOKEN`を再利用する。低頻度wakeは時刻保証を持たず、既存cadenceのcatch-up-onceで扱う。公開artifact/cacheへprivate journalを置かない。
+- Primary Supabase接続に既存`life-manager-staging-20260808`（`ulhsqqkyejzvqgoyjwte`）のACTIVE_HEALTHYを実確認した。Managerという接続名の旧INACTIVE projectとは別。既存33 tables/他ownerは保全し、専用table/functionだけを追加する。SQLite/outboxの形式を維持し、整合backup bytesをprivate rowへ保存する。
+- 自律runの認証はGitHub OIDCを標準joseで検証する薄いEdge adapter。署名、audience、immutable repository/owner IDs、main、固定workflow、event、run/attempt、source/workflow SHAを照合する。pluginのOAuthをrunnerへコピーしない。remote lease/revision CASが成立し、送信予約のremote保存を確認してから既存publisherへ進む。欠損/応答不明/古いlocal stateをblank DBへ置換しない。
+- [Actionsの無料条件](https://docs.github.com/en/billing/concepts/product-billing/github-actions)と[Supabase Free枠](https://supabase.com/pricing)を確認した。既存orgの実plan/消費残量や無制限無料稼働は未認定。Freeにautomatic backupは含まれない。新しい有料project/plan、Railway resource、subscriptionの作成はしない。
+- Railwayは代替のpersistent-volume hostとして残す。[Freeは$0/月+$1/月credit](https://docs.railway.com/pricing/plans)でTrialと別だが、既存workspaceの実planは未確認。paid workspaceのcreditを無料保証と読み替えない。既存serviceは変更しない。
 - 元の7パス・publisher identity・main/immutable-release promotion・停止/予算境界を維持する。cloudを選んだことは公開権限の発行や支出上限の解除ではない。
-- 残る作業は本番adapter、具体的なruntime owner、volume、予算/監視、release、限定canary、official occurrence＋独立GET、restart/replay-zero/rollbackの実証。プラットフォーム接続や計画図だけではE16をPASSEDにしない。
+- 残る作業はmain版admissionとprivate checkpointのsource検査・レビュー、既存cycleへのhost接続、通常main promotion、専用staging適用、実OIDC/権限境界、限定canary、official occurrence＋独立GET、run跨ぎrestore/replay-zero/rollback、容量/呼出数/費用の実証。認証情報がないという推測でsource作業を止めず、実際の未達境界を記録する。接続や単体テストだけではE16をPASSEDにしない。
 
 ## 14. 製品・発信・仕事・YCを同じ証拠から進める
 

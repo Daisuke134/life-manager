@@ -78,6 +78,8 @@
 
 ## PATCH-05 — workerから既存の特権publisherへ接続する
 
+**無料経路への実装更新:** 既存public Actions jobをownerとし、自動発行GITHUB_TOKENを元publisherで使う。Supabase Primary接続の稼働中life-manager stagingを実確認済み。新しい長期credentialの提示待ちは不要。v1の正確な過去証跡を維持するversioned v2/main/SHA admissionを先に実装し、次に既存cycleへ接続する。研究branchを本番allowlistへ追加しない。
+
 **Files:** Create `manager_core/owned_platform_host.py`, `tests/test_owned_platform_host.py`; Modify `scripts/run_owned_digital_cycle.py`、`scripts/phase06_kernel_release.py::admit_owned` と `.github/workflows/manager-phase06-service.yml` の必要最小bridge。
 **Current evidence:** 現workflow_dispatchには入力がなく、workflowはCLI `admit`を呼び、`admit_owned`は未接続。Railwayへ置くだけでは候補を既存publisherへ渡せない。接続済みChatGPT pluginの認証がRailwayへ自動で渡るとも扱わない。
 **Produces:** workerはproposal/effect keyを送るだけ。特権jobが同一の固定source/artifactを再構築・照合し、scopeとassessmentを再検証し、元の7-file guard/CASを実行。hostのconstructorやenv flagは権限ではない。
@@ -89,6 +91,8 @@
 - [ ] GREEN unit/contract→レビュー→通常promotion→1canary→official readback→replay-zero。Commitと配備証拠は別。
 
 ## PATCH-06 — host設定・backup・restoreを実物で検証
+
+**無料経路への実装更新:** Railway resourceを先に作る代わりに `manager_core/owned_checkpoint.py`、`tests/test_owned_checkpoint.py`、`deploy/owned-digital/state-gateway/`、`deploy/owned-digital/20261022_private_checkpoint.sql` を使う。既存SQLite Backup API→private Supabase rowのremote lease/revision CASを最小adapterで接続。GitHub OIDCの検証は標準jose固定版。source内/公開artifactへのprivate state保存、missing時blank DB、保存不明後の再送、旧snapshotの不存在扱いは禁止。schema/functionはmainにpromotion後、既存stagingへ限定適用し、実OIDCと権限境界・run跨ぎ復旧を検証する。Docker/Railway専用configは代替hostを選んだ場合の後続へ移し、無料経路の前提にしない。
 
 **Files:** Create `deploy/owned-digital/Dockerfile`, `deploy/owned-digital/railway.json`, `scripts/backup_owned_cycle.py`, `tests/test_owned_state_recovery.py`; Modify CLIのpreflight/loop入口。Render/Flyのconfigを同時に量産しない。
 **Produces:** immutable source binding、private `/data/manager`、単一owner、SIGTERM graceful stop、budget/stop/health metadata。backupはstdlib `sqlite3.Connection.backup`を使う。

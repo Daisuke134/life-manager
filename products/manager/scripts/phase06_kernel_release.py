@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
@@ -113,14 +114,25 @@ def prepare(site,output,now):
     return packet
 
 
+def source_checkout_commit():
+    """Read the source checkout, never a packet's claim about its revision."""
+    return subprocess.check_output(['git','-C',str(ROOT.parents[1]),'rev-parse','HEAD'],
+                                   text=True).strip()
+
+
 def admit(site,checkout,audit_path,intent_path,output,now):
     packet=json.loads(intent_path.read_text())
     validate_intent(packet)
-    expected_workflow=f'{REPOSITORY}/{WORKFLOW}@{SOURCE_REF}'
+    expected_workflow=f'{REPOSITORY}/{WORKFLOW}@{packet["ref"]}'
     if os.environ.get('GITHUB_WORKFLOW_REF')!=expected_workflow:
         raise PermissionError('publisher workflow identity mismatch')
+    if packet['schema']=='manager.digital-handoff.v2':
+        if (os.environ.get('GITHUB_EVENT_NAME') not in ('workflow_dispatch','schedule') or
+                source_checkout_commit()!=packet['candidate']['source_commit']):
+            raise PermissionError('main owner event or immutable source checkout mismatch')
     context=PublisherContext(os.environ.get('GITHUB_REPOSITORY'),os.environ.get('GITHUB_REF'),
-                             WORKFLOW,os.environ.get('GITHUB_SHA'),os.environ.get('GITHUB_RUN_ID'))
+                             WORKFLOW,os.environ.get('GITHUB_SHA'),os.environ.get('GITHUB_RUN_ID'),
+                             os.environ.get('GITHUB_WORKFLOW_SHA'))
     # Verify both actual directories; caller-provided hashes never suffice.
     current_dir=checkout/'manager-support'
     current=json.loads((current_dir/'manifest.json').read_text())
@@ -151,8 +163,8 @@ def admit_owned(context,assessment,standing_scope,prepared,checkout,audit_path,o
     validate_intent(prepared.packet)
     if not datetime.fromisoformat(prepared.packet['created_at'])<=now<datetime.fromisoformat(prepared.packet['expires_at']):
         raise PermissionError('original owned intent expired')
-    check=prepare_owned_change(context,assessment,standing_scope,now)
-    # Packet timestamps may differ; compare immutable bindings, then use fresh intent.
+    check=prepare_owned_change(context,assessment,standing_scope,now,schema=prepared.packet['schema'])
+    # Packet timestamps may differ; compare bindings and keep the original lease.
     if (prepared.status!='PREPARED_PLATFORM_AUTHORITY_REQUIRED'
             or check.status!=prepared.status or check.context_hash!=prepared.context_hash
             or check.packet['effect_key']!=prepared.packet['effect_key']):
@@ -160,7 +172,7 @@ def admit_owned(context,assessment,standing_scope,prepared,checkout,audit_path,o
     output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
-        intent=Path(tmp)/'intent.json';write_json(intent,check.packet)
+        intent=Path(tmp)/'intent.json';write_json(intent,prepared.packet)
         return admit(Path(context.candidate_bundle),Path(checkout),Path(audit_path),intent,output,now)
 
 
