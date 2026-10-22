@@ -6,7 +6,9 @@
     "FND02": "PR8532",
     "FND03": "PR8534",
     "CLD01": "PR8530",
-    "CLD02": "PR8535"
+    "CLD02": "PR8535",
+    "CLD03a": "PR8536",
+    "FND06a": "PR8537"
   },
   "local_adoption": {
     "release_sha": "d6b740ceadb17413c65c4cf875e6881fb39f8a29",
@@ -53,7 +55,11 @@
       10881548288,
       9848152064
     ],
-    "own_merged_worktrees_retired": 2
+    "own_merged_worktrees_retired": 3,
+    "activity_monitor_readback": "accessibility_permission_not_granted",
+    "activity_monitor_process_mutations": 0,
+    "codex_runtime_node_version": "v24.19.0",
+    "codex_runtime_node_exit_code": 0
   },
   "cloud": {
     "build": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
@@ -86,7 +92,15 @@
   },
   "business": {
     "new_revenue_proven": false,
-    "net_profit_proven": false
+    "net_profit_proven": false,
+    "coconala_paid_direct_natural": {
+      "terminal": "pass",
+      "observed": 0,
+      "actionable": 0,
+      "effect": 0,
+      "failed": 0,
+      "pending": 0
+    }
   },
-  "recorded_at": "2026-10-22T13:12:08.354085+00:00"
+  "recorded_at": "2026-10-22T13:20:09.855546+00:00"
 }
