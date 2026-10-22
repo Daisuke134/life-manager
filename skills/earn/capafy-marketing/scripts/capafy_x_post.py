@@ -35,6 +35,8 @@ from pathlib import Path
 MARKETING_ENGINE_PUBLISH_DIR = (
     Path(__file__).resolve().parents[3] / "earn" / "marketing-engine" / "publish"
 )
+sys.path.insert(0, str(MARKETING_ENGINE_PUBLISH_DIR.parent / "intel"))
+from ebook_case_study import X_LIMIT, x_weighted_length  # noqa: E402
 
 
 def _load_http_postiz_client():
@@ -45,6 +47,8 @@ def _load_http_postiz_client():
 
 
 def build_payload(*, integration_id: str, caption: str, scheduled_at: str) -> dict:
+    if x_weighted_length(caption) > X_LIMIT:
+        raise ValueError(f"X caption exceeds {X_LIMIT} weighted characters")
     return {
         "type": "draft",
         "date": scheduled_at,
@@ -75,7 +79,19 @@ def search_caption(caption: str, name: str) -> str:
     text = re.sub(r"(https?://)?[\w.-]+\.(com|ai|io|net|org)/\S*", "", caption)
     lines = [line.rstrip(" :\u2014-") for line in text.splitlines()]
     body = "\n".join(line for line in lines if line.strip()).strip()
-    return f'{body}\n\nSearch "{name}" on Capafy.'
+    suffix = f'\n\nSearch "{name}" on Capafy.'
+    if x_weighted_length(body + suffix) <= X_LIMIT:
+        return body + suffix
+    if x_weighted_length("…" + suffix) > X_LIMIT:
+        raise ValueError("X search CTA leaves no room within the weighted limit")
+    low, high = 0, len(body)
+    while low < high:
+        end = (low + high + 1) // 2
+        if x_weighted_length(body[:end] + "…" + suffix) <= X_LIMIT:
+            low = end
+        else:
+            high = end - 1
+    return body[:low].rstrip() + "…" + suffix
 
 
 def extract_post_id(create_response) -> str:
