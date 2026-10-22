@@ -679,3 +679,21 @@ test("route event versions bind timezone and arrival/departure routing direction
   assert.deepEqual(events.map((event) => event.meta.event_version), versions);
   assert.equal(JSON.stringify(events).includes("calendar-private-event"), false);
 });
+
+
+test("Google transit missing duration emits exactly one failed usage record", async () => {
+  const oldFetch = globalThis.fetch;
+  const events = [];
+  globalThis.fetch = async () => ({ ok: true, status: 200,
+    json: async () => ({ status: "OK", routes: [{ legs: [{}] }] }) });
+  try {
+    const result = await directionsRoute("geo:40.730,-73.930", "geo:40.740,-73.980", "fixture-key",
+      2_000_000_000_000, 1_000, false, { uid: "tenant-missing-duration", _routeCache: null,
+        _recordUsageEvent: async (event) => { events.push(event); return true; } });
+    assert.equal(result, null);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].outcome, "failure");
+    assert.equal(events[0].failureClass, "network");
+    assert.equal(events[0].providerUnits, 1);
+  } finally { globalThis.fetch = oldFetch; }
+});

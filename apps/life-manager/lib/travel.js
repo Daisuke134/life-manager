@@ -300,8 +300,8 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
   try {
     const r = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${p}`);
     const j = r.ok === false ? {} : await r.json();
-    const accepted = r.ok !== false && j.status === "OK" && j.routes && j.routes[0]
-      && j.routes[0].legs && j.routes[0].legs[0];
+    const durationSeconds = j.routes?.[0]?.legs?.[0]?.duration?.value;
+    const accepted = r.ok !== false && j.status === "OK" && Number.isFinite(durationSeconds) && durationSeconds >= 0;
     if (!accepted) noteProviderFailure(usage, providerFailureClass(r, j.status));
     await emitUsage(usage.options, {
       tenantId: usage.tenantId || "anonymous", provider: "google_maps", feature: "directions",
@@ -311,7 +311,7 @@ async function legacyTransitMinutes(src, dst, mapsKey, arriveByMs, nowMs = Date.
       meta: { ...routeMeta, sku: "Directions", pricing_basis: "list_price_after_free_cap" },
     });
     if (!accepted) return null;
-    return minutesFromSeconds(j.routes[0].legs[0].duration.value);
+    return minutesFromSeconds(durationSeconds);
   } catch {
     noteProviderFailure(usage, "network");
     await emitUsage(usage.options, {
