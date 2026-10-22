@@ -64,3 +64,13 @@ def reconcile_owned(journal,key,read_occurrence,observed_at):
         return ReconcileResult('PRESENT',ref)
     except Exception:
         return ReconcileResult('UNKNOWN',None)
+
+
+def reconcile_pending_owned(journal,read_occurrence,observed_at):
+    """Recover one bounded batch from saved bindings, without fresh authority.
+
+    Callers must keep dispatch blocked while any pending records remain,
+    including records beyond this batch. Missing evidence is never absence.
+    """
+    return tuple(reconcile_owned(journal,record.key,read_occurrence,observed_at)
+                 for record in journal.pending_records())

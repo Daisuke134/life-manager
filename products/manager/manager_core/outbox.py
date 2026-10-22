@@ -138,6 +138,17 @@ class OwnedEffectJournal:
         with sqlite3.connect(self.path,timeout=15) as db:
             row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
         return OwnedEffectRecord(*row) if row else None
+    def pending_records(self,limit=100,after_key=None):
+        """Bounded saved intents; reading never restores dispatch permission."""
+        if type(limit) is not int or not 1<=limit<=100:
+            raise ValueError('pending batch limit must be 1..100')
+        if after_key is not None and (type(after_key) is not str or not after_key):
+            raise ValueError('nonempty pagination key required')
+        with sqlite3.connect(self.path,timeout=15) as db:
+            rows=db.execute('''SELECT key,packet_json,expected_parent,status,receipt_ref
+                FROM owned_effects WHERE status!='PRESENT' AND key>?
+                ORDER BY key LIMIT ?''',(after_key or '',limit)).fetchall()
+        return tuple(OwnedEffectRecord(*row) for row in rows)
     def reserve(self,packet,context,current,candidate,expected_parent,now,*,revoked=False):
         import re
         from .digital_handoff import validate_intent,canonical_bytes,admit_release

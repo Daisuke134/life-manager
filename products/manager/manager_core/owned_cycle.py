@@ -17,7 +17,7 @@ from .digital_handoff import (prepare_owned_change,PublisherContext,REPOSITORY,S
                               ALLOWED_PATHS,commit_message,admit_release,verify_readback)
 from .digital_environment import verify_bundle
 from .outbox import OwnedEffectJournal
-from .reconcile import reconcile_owned,OwnedOccurrenceEvidence
+from .reconcile import reconcile_owned,reconcile_pending_owned,OwnedOccurrenceEvidence
 
 
 @dataclass(frozen=True)
@@ -119,7 +119,9 @@ class LocalGitCycleSandbox:
         commit=self._commit_cas(parent,commit_message(packet));self._publish_fixture(commit,regress=self.regress_served)
         return commit
     def occurrence(self,key):
-        message='Manager release: effect '+key+' source '+self.assessment_source()
+        # Look up the saved effect independently of the current candidate.
+        # reconcile_owned validates the full message/source against its packet.
+        message='Manager release: effect '+key+' source '
         commit=self.git('log','-1','--format=%H','--fixed-strings','--grep='+message)
         if not commit:return None
         parent=self.git('rev-parse',commit+'^');manifest,bodies=self._bundle(commit);old,oldb=self._bundle(parent)
@@ -159,6 +161,10 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
     with state_store.owner_lock() as acquired:
         if not acquired:return result('OWNER_BUSY')
         host.assert_offline()
+        reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
+        if state_store.journal.pending_records(limit=1):
+            r=result('UNKNOWN',0,reason='PRIOR_OCCURRENCE_UNRESOLVED')
+            state_store.append(r);return r
         if state_store.stopped():return result('STOPPED_REGRESSION')
         if not state_store.due(config,now):return result('NOT_DUE')
         prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
@@ -168,7 +174,9 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         if record is None:
             context=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit'],'1')
             current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
-            admitted=admit_release(packet,context,current,packet['candidate'],now)
+            try:admitted=admit_release(packet,context,current,packet['candidate'],now)
+            except PermissionError:
+                r=result('NO_ACTION',reason='TARGET_MOVED_OR_NOT_ADMITTED');state_store.append(r);return r
             record=state_store.journal.reserve(packet,context,current,packet['candidate'],host.git('rev-parse','HEAD'),now)
             if admitted['dispatch_deployment'] and record.dispatch:
                 try:host.send(packet,record.expected_parent,now);writes=1
