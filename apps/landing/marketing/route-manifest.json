@@ -8,19 +8,19 @@
       "source": "pages/en.html",
       "public_route": "/",
       "export_path": "index.html",
-      "sha256": "e2b14adc21f930f05211868b08dcef26cd3948b41a33eae901b85c9115b5d2f1"
+      "sha256": "66fcd6c364a8a9660476ec9a74d0eb8945d11de6e1415d3b82b7844d2840de1a"
     },
     {
       "source": "pages/en.html",
       "public_route": "/en",
       "export_path": "en.html",
-      "sha256": "e2b14adc21f930f05211868b08dcef26cd3948b41a33eae901b85c9115b5d2f1"
+      "sha256": "66fcd6c364a8a9660476ec9a74d0eb8945d11de6e1415d3b82b7844d2840de1a"
     },
     {
       "source": "pages/ja.html",
       "public_route": "/ja",
       "export_path": "ja.html",
-      "sha256": "91232d0f89d64f50e6ece8d79a774d5df2a318457d2ad951ab8932beed7b1414"
+      "sha256": "f07a44fe8c52e77e6fd6c4a8253f24bcf333686ce91e5083b890a460cabc2971"
     },
     {
       "source": "pages/products-en.html",
@@ -49,7 +49,7 @@
     {
       "source": "assets/styles.css",
       "export_path": "assets/manager-site/styles.css",
-      "sha256": "c86e1c3bf448f737bcf900f6a2a18b9e8ff7cdd30f4e888f902077d84100b12d"
+      "sha256": "3f7e309a04dfba3cbcd44dec239d0e3406f57803a901b7a638e88027f8bbcddc"
     },
     {
       "source": "assets/writer-cta-url.js",
