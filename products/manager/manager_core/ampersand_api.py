@@ -168,3 +168,32 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
     if type(completed_turn_id) is not str or getattr(turn, "id", None) != completed_turn_id:
         raise SessionFailure("concurrent writer or missing/mismatched saved turn")
     return SessionEvidence(session_id, turn.id, response, "completed", *_usage(turn))
+
+
+def read_completed_turn(client: Any, session_id: str, turn_id: str) -> SessionEvidence:
+    """Read back the exact persisted provider turn, never latest by assumption.
+
+    Provider endpoint: GET /agents/sessions/{session_id}/turns/{turn_id}.
+    The optional SDK transport is injected so this is unit-testable; output
+    text is not invented if the turn's saved object lacks a text field.
+    """
+    if (type(session_id) is not str or
+        not re.fullmatch(r"sess_[A-Za-z0-9_-]{4,128}", session_id) or
+        type(turn_id) is not str or
+        not re.fullmatch(r"turn_[A-Za-z0-9_-]{4,128}", turn_id)):
+        raise ValueError("bounded session and exact turn identifiers required")
+    try:
+        saved = client.beta.agents.sessions.turns.retrieve(session_id, turn_id)
+    except Exception as exc:
+        raise SessionFailure("cannot independently read exact saved turn") from exc
+    if getattr(saved, "id", None) != turn_id:
+        raise SessionFailure("readback does not match requested provider turn")
+    if getattr(saved, "status", None) != "completed":
+        raise SessionFailure("saved provider turn is missing or non-completed")
+    tokens = _usage(saved)
+    output = getattr(saved, "output_text", None)
+    if not isinstance(output, str):
+        output = ""
+    if len(output) > 16000:
+        raise SessionFailure("saved provider output exceeds research limits")
+    return SessionEvidence(session_id, turn_id, output, "completed", *tokens)
