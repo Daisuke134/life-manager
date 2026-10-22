@@ -4,6 +4,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const { claimTravel, fillTravel, listEvents7d, travelDecision } = require("./travel.js");
+const { addressDigest } = require("./geocode-cache.js");
 
 const HOME = "新宿区南元町15-27";
 const ms = (h) => Date.parse(`2026-06-20T${String(h).padStart(2, "0")}:00:00+09:00`);
@@ -674,12 +675,13 @@ async function withDurableTravelFixture(run) {
   const updates = [];
   const patches = [];
   const cancellations = [];
+  const claimWrites = [], claimPatches = [];
   const state = { visible: true, response: "timeout", rejectPhase: null, wrongTenant: false,
     extraRows: [], omitMarker: false, readError: false, hideClaimReads: 0, conflicts: 0, phaseAtDispatch: null,
     ledgerSaved: true, onDispatch: null, rejectDelete: false, pointReads: [], pointSource: null,
     pointHelper: null, pointFailure: null, patchResponse: "success", patchVisible: true, onPatch: null,
     phaseAtPatch: null, telegramChatId: 123, cancelResponse: "success", cancelVisible: true,
-    phaseAtCancel: null, onCancel: null, hideSource: false };
+    phaseAtCancel: null, onCancel: null, hideSource: false, omitDecisionRepresentation: false };
   const clone = (value) => structuredClone(value);
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -694,11 +696,13 @@ async function withDurableTravelFixture(run) {
       const leg = body?.leg || (url.searchParams.get("leg")?.startsWith("eq.") ? url.searchParams.get("leg").slice(3) : null);
       const key = `${eventKey}:${leg}`;
       if (method === "POST") {
+        claimWrites.push(clone(body));
         if (rows.has(key)) { state.conflicts++; return response(null, 409); }
         rows.set(key, clone(body));
         return response(null, 201);
       }
       if (method === "PATCH") {
+        claimPatches.push({ body: clone(body), conditions: Object.fromEntries(url.searchParams) });
         updates.push(clone(body.calendar_write_receipt));
         if (body.calendar_write_receipt?.phase === state.rejectPhase) return response(null, 503);
         const row = rows.get(key);
@@ -709,6 +713,11 @@ async function withDurableTravelFixture(run) {
           if (String(row.calendar_write_receipt[field.split("->>")[1]]) !== expected.slice(3)) return response([]);
         }
         Object.assign(row, clone(body));
+        if (state.omitDecisionRepresentation && Object.hasOwn(body, "route_decision")) {
+          const returned = clone(row);
+          delete returned.route_decision;
+          return response([returned]);
+        }
         return response([row]);
       }
       if (method === "DELETE") {
@@ -789,9 +798,80 @@ async function withDurableTravelFixture(run) {
   const options = { home: "Fixture home", mapsKey: "fixture", nowMs: Date.parse("2030-01-01T08:00:00Z"),
     calendar, supaUrl: "https://db.example", supaKey: "fixture",
     _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20 };
-  try { await run({ uid, source, rows, creates, deletes, ledger, updates, patches, cancellations, state, calendar, options }); }
+  try { await run({ uid, source, rows, creates, deletes, ledger, updates, patches, cancellations, claimWrites, claimPatches, state, calendar, options }); }
   finally { globalThis.fetch = originalFetch; }
 }
+
+test("CLD03d2b fallback atomically claims only the final resolver and real route evidence", async () => {
+  await withDurableTravelFixture(async (f) => {
+    const destination = "Resolved fixture venue";
+    f.source.description = "Private fixture venue description";
+    const versions = [];
+    const cache = { getByEvent: async (_uid, version, purpose) => {
+      versions.push({ version, purpose });
+      return { hit: true, value: purpose === "go" && versions.filter((entry) => entry.purpose === "go").length === 2
+        ? { provider: "google", durationSeconds: 1200 } : null };
+    } };
+    const result = await fillTravel(f.uid, { ...f.options, _directionsMinutes: undefined, _routeCache: cache,
+      geminiKey: "fixture", _agentResolveLocation: async () => ({ kind: "filled", location: destination,
+        resolvedFrom: "description", prompt: f.source.description }) });
+    assert.equal(result.verified, 1);
+    const row = f.rows.get("synthetic-source:go"), receipt = row.calendar_write_receipt;
+    assert.deepStrictEqual(row.route_decision, {
+      schema_version: 1, request_id: receipt.request_id, leg: "go", source_event_version: receipt.source_event_version,
+      request_fingerprint: receipt.request_fingerprint, resolver_kind: "filled", resolved_from: "description",
+      destination_hmac: addressDigest({ tenantId: f.uid, provider: "travel-destination-v1", address: destination, digestKey: "fixture" }),
+      route_event_version: versions[1].version,
+    });
+    assert.notEqual(versions[0].version, versions[1].version);
+    assert.deepStrictEqual(f.claimWrites[0].route_decision, row.route_decision);
+    assert.ok(f.claimPatches.every(({ body }) => !Object.hasOwn(body, "route_decision")));
+    assert.equal(JSON.stringify(row).includes(destination), false);
+    assert.equal(JSON.stringify(row).includes(f.source.description), false);
+    assert.equal(f.creates.length, 1);
+    assert.equal(f.patches.length, 0);
+    assert.equal(f.cancellations.length, 0);
+  });
+});
+
+test("CLD03d2b an unobserved reroute cannot reuse a failed route version or untrusted provenance", async () => {
+  await withDurableTravelFixture(async (f) => {
+    let routes = 0;
+    const result = await fillTravel(f.uid, { ...f.options, geminiKey: "fixture",
+      _directionsRoute: async (_from, _to, _key, _anchor, _now, _departure, opts) => {
+        if (++routes === 1) { opts._allowanceState.routeEventVersion = "a".repeat(64); return null; }
+        return { provider: "google", durationSeconds: 1200 };
+      },
+      _agentResolveLocation: async () => ({ kind: "filled", location: "Resolved fixture venue", resolvedFrom: "Private address" }) });
+    assert.equal(result.verified, 1);
+    const decision = f.rows.get("synthetic-source:go").route_decision;
+    assert.ok(decision);
+    assert.strictEqual(decision.route_event_version, null);
+    assert.strictEqual(decision.resolved_from, null);
+    assert.equal(decision.resolver_kind, "filled");
+  });
+});
+
+test("CLD03d2b independent RETURN retains only allowlisted resolver observations", async () => {
+  for (const [expected, resolve] of [
+    ["ask", async () => ({ kind: "ask", resolvedFrom: "description" })],
+    ["unknown", async () => ({ kind: "Private unexpected result", resolvedFrom: "description" })],
+    ["error", async () => { throw new Error("Private resolver failure"); }],
+  ]) await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, { ...f.options, geminiKey: "fixture", _agentResolveLocation: resolve,
+      _directionsMinutes: async (_a, _b, _c, _d, _e, isReturn) => isReturn ? 20 : null });
+    const decision = f.rows.get("synthetic-source:return").route_decision;
+    assert.ok(decision);
+    assert.equal(decision.resolver_kind, expected);
+    assert.strictEqual(decision.resolved_from, null);
+    assert.equal(decision.destination_hmac, addressDigest({ tenantId: f.uid, provider: "travel-destination-v1",
+      address: f.options.home, digestKey: "fixture" }));
+    assert.equal(f.rows.has("synthetic-source:go"), false);
+    assert.equal(f.creates.length, 1);
+    assert.equal(JSON.stringify(decision).includes("Private"), false);
+  });
+});
 
 test("CLD02 Hybrid unknown create is verified only by its durable owned marker receipt", async () => {
   await withDurableTravelFixture(async (f) => {
@@ -1464,6 +1544,8 @@ test("CLD03b2 changed GO and RETURN update the same owned helper and replay with
       assert.equal((await fillTravel(f.uid, options)).inserted, 1, leg);
       const row = f.rows.get(`synthetic-source:${leg}`);
       const before = structuredClone(row.calendar_write_receipt);
+      const beforeDecision = structuredClone(row.route_decision);
+      assert.ok(beforeDecision);
       f.source.updated = "2030-01-01T00:02:00Z";
       f.source.location = "Changed fixture venue";
       f.source.start.dateTime = "2030-01-01T12:00:00Z";
@@ -1480,6 +1562,22 @@ test("CLD03b2 changed GO and RETURN update the same owned helper and replay with
       assert.equal(row.calendar_write_receipt.marker_request_id, before.request_id);
       assert.equal(row.calendar_write_receipt.prior_request_fingerprint, before.request_fingerprint);
       assert.notEqual(row.calendar_write_receipt.request_id, before.request_id);
+      assert.deepStrictEqual(row.route_decision, {
+        schema_version: 1, request_id: row.calendar_write_receipt.request_id, leg,
+        source_event_version: row.calendar_write_receipt.source_event_version,
+        request_fingerprint: row.calendar_write_receipt.request_fingerprint,
+        resolver_kind: "not_called", resolved_from: null,
+        destination_hmac: addressDigest({ tenantId: f.uid, provider: "travel-destination-v1",
+          address: leg === "go" ? f.source.location : options.home, digestKey: "fixture" }),
+        route_event_version: null,
+      });
+      assert.notEqual(row.route_decision.source_event_version, beforeDecision.source_event_version);
+      const dispatch = f.claimPatches.find(({ body }) => body.calendar_write_receipt.command === "calendar.update"
+        && body.calendar_write_receipt.phase === "dispatching");
+      assert.deepStrictEqual(dispatch.body.route_decision, row.route_decision);
+      assert.equal(dispatch.conditions["calendar_write_receipt->>request_id"], `eq.${before.request_id}`);
+      assert.ok(f.claimPatches.filter(({ body }) => body.calendar_write_receipt.command === "calendar.update"
+        && body.calendar_write_receipt.phase !== "dispatching").every(({ body }) => !Object.hasOwn(body, "route_decision")));
       assert.match(f.state.pointHelper.description, new RegExp(before.request_id + "$"));
       assert.deepEqual(f.deletes, []);
       const replay = await fillTravel(f.uid, options);
@@ -1487,6 +1585,7 @@ test("CLD03b2 changed GO and RETURN update the same owned helper and replay with
       assert.equal(replay.inserted, 0, leg);
       assert.equal(f.patches.length, 1, leg);
       assert.equal(f.creates.length, 1, leg);
+      assert.deepStrictEqual(row.route_decision, dispatch.body.route_decision);
     });
   }
 });
@@ -1538,6 +1637,8 @@ test("CLD03b2 failed dispatch CAS preserves the old proof and sends no PATCH", a
     f.state.response = "success";
     await fillTravel(f.uid, f.options);
     const before = structuredClone(f.rows.get("synthetic-source:go").calendar_write_receipt);
+    const beforeDecision = structuredClone(f.rows.get("synthetic-source:go").route_decision);
+    assert.ok(beforeDecision);
     f.source.updated = "2030-01-01T00:02:00Z";
     f.source.start.dateTime = "2030-01-01T12:00:00Z";
     f.source.end.dateTime = "2030-01-01T13:00:00Z";
@@ -1545,9 +1646,26 @@ test("CLD03b2 failed dispatch CAS preserves the old proof and sends no PATCH", a
     const result = await fillTravel(f.uid, f.options);
     assert.deepEqual(result.reconciliationErrors, { update_not_dispatched: 1 });
     assert.deepEqual(f.rows.get("synthetic-source:go").calendar_write_receipt, before);
+    assert.deepStrictEqual(f.rows.get("synthetic-source:go").route_decision, beforeDecision);
     assert.equal(f.patches.length, 0);
     assert.equal(f.creates.length, 1);
     assert.deepEqual(f.deletes, []);
+  });
+});
+
+test("CLD03d2b update dispatch requires matching route-decision representation", async () => {
+  await withDurableTravelFixture(async (f) => {
+    f.state.response = "success";
+    await fillTravel(f.uid, f.options);
+    f.source.updated = "2030-01-01T00:02:00Z";
+    f.source.start.dateTime = "2030-01-01T12:00:00Z";
+    f.source.end.dateTime = "2030-01-01T13:00:00Z";
+    f.state.omitDecisionRepresentation = true;
+    const result = await fillTravel(f.uid, f.options);
+    assert.deepStrictEqual(result.reconciliationErrors, { update_not_dispatched: 1 });
+    assert.equal(f.patches.length, 0);
+    assert.equal(f.creates.length, 1);
+    assert.deepStrictEqual(f.deletes, []);
   });
 });
 
@@ -1558,16 +1676,20 @@ test("CLD03b2 a late update response cannot overwrite or recount a verified oper
     f.source.updated = "2030-01-01T00:02:00Z";
     f.source.start.dateTime = "2030-01-01T12:00:00Z";
     f.source.end.dateTime = "2030-01-01T13:00:00Z";
-    let nested;
+    let nested, nestedDecision;
     f.state.onPatch = async () => {
       f.state.onPatch = null;
       f.state.pointHelper = { ...createdTravelRow(f.creates[0]), ...f.patches[0].body, etag: '\"fixture-helper-v2\"' };
       nested = await fillTravel(f.uid, f.options);
+      nestedDecision = structuredClone(f.rows.get("synthetic-source:go").route_decision);
     };
     const outer = await fillTravel(f.uid, f.options);
     assert.equal(nested.updated, 1);
     assert.equal(outer.updated || 0, 0);
     assert.equal(f.rows.get("synthetic-source:go").calendar_write_receipt.effect, "verified");
+    assert.ok(nestedDecision);
+    assert.deepStrictEqual(f.rows.get("synthetic-source:go").route_decision, nestedDecision);
+    assert.equal(nestedDecision.request_id, f.rows.get("synthetic-source:go").calendar_write_receipt.request_id);
     assert.equal(f.patches.length, 1);
     assert.equal(f.creates.length, 1);
     assert.deepEqual(f.deletes, []);
@@ -1653,6 +1775,7 @@ test("CLD03b3 official source cancellation cancels only its owned GO or RETURN a
     const options = { ...f.options, _directionsMinutes: async (_a, _b, _c, _d, _e, isReturn) => (isReturn ? "return" : "go") === leg ? 20 : null };
     assert.equal((await fillTravel(f.uid, options)).inserted, 1);
     const before = structuredClone(f.rows.get(`synthetic-source:${leg}`).calendar_write_receipt);
+    assert.ok(f.rows.get(`synthetic-source:${leg}`).route_decision);
     f.source.status = "cancelled";
     const result = await fillTravel(f.uid, options);
     assert.equal(result.cancelled, 1, leg);
@@ -1668,6 +1791,11 @@ test("CLD03b3 official source cancellation cancels only its owned GO or RETURN a
     assert.equal(receipt.prior_request_fingerprint, before.request_fingerprint);
     assert.notEqual(receipt.request_id, before.request_id);
     assert.equal(receipt.provider_event_id, before.provider_event_id);
+    assert.strictEqual(f.rows.get(`synthetic-source:${leg}`).route_decision, null);
+    const dispatch = f.claimPatches.find(({ body }) => body.calendar_write_receipt.command === "calendar.cancel"
+      && body.calendar_write_receipt.phase === "dispatching");
+    assert.strictEqual(dispatch.body.route_decision, null);
+    assert.equal(dispatch.conditions["calendar_write_receipt->>request_id"], `eq.${before.request_id}`);
     assert.deepEqual(f.deletes, []);
     assert.equal((await fillTravel(f.uid, options)).cancelled || 0, 0);
     assert.equal(f.cancellations.length, 1);
