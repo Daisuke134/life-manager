@@ -141,3 +141,14 @@ here. Its SHA-256 was
 Only the analysis script, aggregate record, this explanation, and the four
 original figures belong to this research task. No product runtime, external
 account, experiment participant, or publishing configuration was changed here.
+
+## Future article and book library (2026-10-22; GitHub storage only)
+
+The user requested that newly researched material be saved as **files** and **not published** to the blog automatically. The following additive materials extend this independently reproducible recalculation without replacing the frozen source record:
+
+- [Japanese long-form book chapter](BOOK_CHAPTER_DEEP_DIVE_JA.md) — fundamentals, Persimmon, CORO math, honest evaluation, Simile/Aaru/Andon comparison, Manager implications.
+- [English long-form book chapter](BOOK_CHAPTER_DEEP_DIVE_EN.md) — chapter-length bilingual companion for later adaptation into published content.
+- [Read-only Ampersand API protocol probe](ampersand_readonly_probe.py) with [12 offline contract tests](test_ampersand_readonly_probe.py). In the current runtime, authenticated inference is **BLOCKED_NO_API_KEY**; the mock's 12 passing tests only establish safe request/validation behavior.
+- [Prioritized implementation backlog and actual experiment record](IMPLEMENTATION_ORDER_AND_PROBE_RECORD.md) — detailed observation/planning/evaluation architecture, dependency gates and next actions.
+
+Publication manifest, generated blog artifact hashes, payment workflows, and the original 113-task Manager roadmap are deliberately unchanged by this extension. Keep study provenance, simulated data, model-provider claims, mathematical reanalysis, API trial evidence and independently measured human effects as separate classes. If future vendor evidence changes, add dated errata rather than silently rewriting this frozen public snapshot.
