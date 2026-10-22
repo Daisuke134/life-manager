@@ -2557,8 +2557,10 @@ def snapshot(registry: dict, target: str, *, include_effect_details: bool = True
             current = events.get(loop_id, {})
             if historical and current:
                 try:
-                    stale = datetime.fromisoformat(current["timestamp"].replace("Z", "+00:00")) > datetime.fromisoformat(
-                        historical["timestamp"].replace("Z", "+00:00"))
+                    current_at = datetime.fromisoformat(current["timestamp"].replace("Z", "+00:00"))
+                    historical_at = datetime.fromisoformat(historical["timestamp"].replace("Z", "+00:00"))
+                    stale = (current_at > historical_at or (current_at == historical_at
+                             and current.get("event_id") != historical.get("event_id")))
                 except (KeyError, ValueError, TypeError, AttributeError):
                     stale = True
                 if stale:

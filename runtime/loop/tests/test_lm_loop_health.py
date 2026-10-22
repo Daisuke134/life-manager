@@ -468,17 +468,19 @@ class LmLoopHealthTest(unittest.TestCase):
             succeeded=False, blocker="entrypoint_exit_1",
         )
         current["timestamp"] = "2026-10-22T00:01:00+00:00"
-        stale = {**current, "status": "pass", "blocker": None, "event_id": "a" * 24,
-                 "run_id": "older", "timestamp": "2026-10-22T00:00:00+00:00"}
-        with patch.object(lm_loop, "collect_live", return_value=({}, {}, {loop_id: current}, {}, set())), \
-             patch.object(lm_loop, "_admission_effect_unknown_occurrences", return_value={}), \
-             patch.object(lm_loop, "_resolved_effect_unknown_occurrences", return_value=set()), \
-             patch.object(lm_loop, "_latest_harness_failure", return_value=None), \
-             patch.object(lm_loop, "_last_event", return_value=stale):
-            rows = lm_loop.snapshot(registry, loop_id, include_effect_details=False, include_health_clocks=True)
-        self.assertEqual(rows[0]["last_terminal_result"], "fail")
-        self.assertEqual(rows[0]["run_id"], "failed")
-        self.assertEqual(rows[0]["health_history_status"], "health_history_gap")
+        for timestamp in ("2026-10-22T00:00:00+00:00", current["timestamp"]):
+            with self.subTest(projection_timestamp=timestamp):
+                stale = {**current, "status": "pass", "blocker": None, "event_id": "a" * 24,
+                         "run_id": "older", "timestamp": timestamp}
+                with patch.object(lm_loop, "collect_live", return_value=({}, {}, {loop_id: current}, {}, set())), \
+                     patch.object(lm_loop, "_admission_effect_unknown_occurrences", return_value={}), \
+                     patch.object(lm_loop, "_resolved_effect_unknown_occurrences", return_value=set()), \
+                     patch.object(lm_loop, "_latest_harness_failure", return_value=None), \
+                     patch.object(lm_loop, "_last_event", return_value=stale):
+                    rows = lm_loop.snapshot(registry, loop_id, include_effect_details=False, include_health_clocks=True)
+                self.assertEqual(rows[0]["last_terminal_result"], "fail")
+                self.assertEqual(rows[0]["run_id"], "failed")
+                self.assertEqual(rows[0]["health_history_status"], "health_history_gap")
 
     def test_snapshot_exposes_current_rows_before_one_collection_history_timeout(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
