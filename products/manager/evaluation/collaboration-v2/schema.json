@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Manager collaboration-v2.0 score vector",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "transport": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "format": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "privacy": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "authority": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "usefulness": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "uncertainty": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "interruption": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "critical_failure": {
+      "type": "boolean"
+    },
+    "decision": {
+      "enum": [
+        "PASS",
+        "ASK",
+        "PROPOSE",
+        null
+      ]
+    },
+    "evaluator_version": {
+      "const": "collaboration-v2.0"
+    },
+    "proof_level": {
+      "const": "P0"
+    },
+    "human_outcome": {
+      "const": "NOT_MEASURED"
+    }
+  },
+  "required": [
+    "transport",
+    "format",
+    "privacy",
+    "authority",
+    "usefulness",
+    "uncertainty",
+    "interruption",
+    "critical_failure",
+    "decision",
+    "evaluator_version",
+    "proof_level",
+    "human_outcome"
+  ]
+}
