@@ -22855,3 +22855,11 @@ Data volume空きは11:14:05Z watchdog receiptで`4,591,169,536` bytes（`df`表
 運用状態・残TODOの正本は上記S11を参照。source PRは[#8544](https://github.com/Daisuke134/life-manager/pull/8544)、main SHA=`1dbf2b502d9f0733e91b6f53a6ecd2ab86675da1`、CI run=`39804008989`、13 checks PASS。focused testsはPostiz5、HeyGen13、article16、JS eBook owner24の計58件PASS。fresh source/runtime read-only reviewは残存指摘0。
 
 sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳細の公式readback・適用・sidecar before/afterは `~/.local/state/life-manager/ebook/evidence/` に保存する。公開receiptにはcredential、投稿本文、provider capability URLを含めない。source・loaded release・旧video IDの回復は確認済み。記事の自然公開は上記receiptで確認する。僧侶動画の新規PUBLISHED・個別生成費用・注文・収益は未確認として区別する。
+
+### Manager研究方針の修正：公開研究を先に再利用する — 2026-10-22
+
+**所有者指示:** 自作の小さなサイトを人間行動予測・介入評価の主な証拠にせず、他者の公開研究・コード・データを先に借りる。Managerの呼称は仏教的AIエンティティ／デジタル仏陀。公開・実行の接点を主体そのものと同一視しない。
+
+**採用する研究順:** AS Benchmark既存採点 → 公開人間データ／公開RCT集約 → baseline比較 → 公開未来イベントの事前固定予測 → 必要時のみConcordia等 → 既存実行先で実行動・持続・害・費用を測定。私有Rothko weights、企業提携、個票NDA、新規仮想都市は初期依存から外す。利用条件を確認したTwinと配布予測・公開集約から開始する。これはE16/runtimeの配備完了や、人間への便益を宣言する変更ではない。
+
+**参照差分計画:** `docs/research/manager/2026-10-22-open-behavior-reuse-plan.md` に既存ファイル・関数とatomic patch A–Fを記載。研究資料であり別のタスク状態正本を作らない。新章は `docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md`、一次資料coverageは同evidenceディレクトリ。掲載25件と追加事例7件の取得範囲・購読壁・2026訂正を明示。既存公開経路のcontent-only更新で掲載し、公開URL/ハッシュは実readback後に記録する。
