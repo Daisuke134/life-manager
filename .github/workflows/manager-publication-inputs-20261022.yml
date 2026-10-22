@@ -1,0 +1,48 @@
+name: Manager publication inputs audit
+on:
+  push:
+    branches: [research/manager-roadmap-refinement-20261022]
+    paths: ['.github/workflows/manager-publication-inputs-20261022.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 66997ea549f8d1373a7670b8a11add9af17613ea
+          path: manager
+          persist-credentials: false
+          sparse-checkout: |
+            docs/research/manager/publication/2026-10-19
+            products/manager/publication
+      - uses: actions/checkout@v4
+        with:
+          ref: ff6bafe8758da0cbb287111b41342097e92b1d7d
+          path: marketing
+          persist-credentials: false
+          sparse-checkout: |
+            apps/landing/marketing
+      - name: Archive tracked approved content inputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile,subprocess,json
+          out=Path('audit-output');out.mkdir()
+          counts={}
+          with zipfile.ZipFile(out/'publication-inputs.zip','w',zipfile.ZIP_DEFLATED) as z:
+            for root,prefixes in [('manager',('docs/research/manager/publication/2026-10-19/','products/manager/publication/')),('marketing',('apps/landing/marketing/',))]:
+              names=subprocess.check_output(['git','-C',root,'ls-files'],text=True).splitlines();counts[root]=0
+              for name in names:
+                p=Path(root)/name
+                if name.startswith(prefixes) and p.is_file() and p.stat().st_size<10000000:
+                  z.write(p,root+'/'+name);counts[root]+=1
+          print(json.dumps(counts))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-publication-inputs
+          path: audit-output/publication-inputs.zip
+          retention-days: 7
