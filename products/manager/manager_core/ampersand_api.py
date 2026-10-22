@@ -165,6 +165,6 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
         raise SessionFailure("follow-up output exceeds research limit")
     turn = _latest_completed_turn(client, session_id)
     # An event may be about a different turn when multiple writers are active.
-    if completed_turn_id and getattr(turn, "id", None) != completed_turn_id:
-        raise SessionFailure("concurrent writer or mismatched saved turn")
+    if type(completed_turn_id) is not str or getattr(turn, "id", None) != completed_turn_id:
+        raise SessionFailure("concurrent writer or missing/mismatched saved turn")
     return SessionEvidence(session_id, turn.id, response, "completed", *_usage(turn))
