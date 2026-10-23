@@ -23111,6 +23111,8 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 **補助skill:** `ParthJadhav/app-store-screenshots` の公式READMEを確認。実スクリーンショットからストア画像を作るエディタで、アプリ内アニメーション用ではない。新版と配信の先頭作業を妨げない範囲で後続へ利用する。`rosssark-motion-skill` は添付画像の名前だけで配布元未特定のため、任意の同名packageを導入しない。
 
+**24h学習入力の契約修正:** 稼働releaseには24h viewsからfamilyを選ぶ処理があるが、native collectorは`locale`を出力せず、carouselの`product_id`もnullになる。consumerが両方の完全一致を要求するため、7つのcarousel laneすべてで利用familyが空になる。既存のproduct別配信receipt・pack→family・Postiz post ID・integration・platform・公開時刻の一致から同一投稿を結び、collectorに無いproduct/localeはそのreceiptのlaneから確定する。collectorが値を持つ場合の矛盾は引き続き除外する。24h/measured/in_window、最低3投稿、重複と曖昧性の除外、7日間の再掲防止は保持する。`growth/mobile-feedback-20261023`で実collector形状の回帰testが変更前は空配列で失敗し、変更後は選択・rotation計36 testsとsource-boundary/diff check PASS。原データを変えないread-only replayで、6 laneが各3 familyを比較でき、Anicca英語TikTokではlisticle 388.1 views/7投稿、question-hook 244.3/7投稿、myth-vs-fact 254/4投稿を得る。小標本の過去24h平均であり、因果効果や売上増加を証明しない。残るAnicca英語2は最低件数に満たず比較を留保する。別の評価台帳・collector・schedulerは追加しない。原データの書換えや公開投稿はこの修正の検証に使わない。
+
 ### FND01/FND06 容量の実測：旧release固定とworktree返却 — 2026-10-23 Claude
 
 - 空きは5GiB→13GiB（anicca-productsの統合済み・clean・24h未更新・使用process0のworktree 7本をforce無しで返却し2,994MB、同時間帯の他ownerの回収を含む）→swap 6.8→8.2GBの増加で7GiBへ戻る。空きの振れはswap（`corespotlightd` 2.7GB・`mds_stores` 1.3GB）が主因。
