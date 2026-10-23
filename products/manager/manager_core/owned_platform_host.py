@@ -343,25 +343,32 @@ class GitHubActionsCycleHost:
         if self.manifest()!=packet['candidate']:
             raise PermissionError('latest candidate bundle changed; reconcile only')
         evidence=collect_owned_occurrence(packet['candidate_effect_key'],journal,self._now())
+        relative_paths={name.removeprefix('manager-support/') for name in ALLOWED_PATHS}
         if (type(evidence) is not OwnedOccurrenceEvidence or
                 evidence.receipt.get('sha')!=packet['candidate_commit'] or
                 evidence.parent_commit!=packet['parent_commit'] or
                 evidence.committed_manifest!=packet['candidate'] or
                 evidence.parent_manifest!=packet['baseline'] or
-                set(evidence.parent_bodies)!=set(ALLOWED_PATHS) or
-                set(evidence.committed_bodies)!=set(ALLOWED_PATHS)):
+                set(evidence.parent_bodies)!=relative_paths or
+                set(evidence.committed_bodies)!=relative_paths):
             raise PermissionError('exact saved candidate and immutable parent unavailable')
         verify_readback(packet['baseline'],{
-            name.removeprefix('manager-support/'):raw
-            for name,raw in evidence.parent_bodies.items()
-            if name!='manager-support/manifest.json'})
-        if json.loads(evidence.parent_bodies['manager-support/manifest.json'])!=packet['baseline']:
+            name:raw for name,raw in evidence.parent_bodies.items()
+            if name!='manifest.json'})
+        if json.loads(evidence.parent_bodies['manifest.json'])!=packet['baseline']:
             raise PermissionError('immutable rollback baseline manifest changed')
         if (packet['candidate_effect_key']!=journal.latest_present_record().key or
                 journal.latest_present_record().receipt_ref!=packet['candidate_commit']):
             raise PermissionError('rollback is not the latest saved candidate receipt')
 
-        for name,raw in evidence.parent_bodies.items():
+        repository_parent_bodies={
+            'manager-support/'+name:raw for name,raw in evidence.parent_bodies.items()}
+        repository_candidate_bodies={
+            'manager-support/'+name:raw for name,raw in evidence.committed_bodies.items()}
+        if (set(repository_parent_bodies)!=set(ALLOWED_PATHS) or
+                set(repository_candidate_bodies)!=set(ALLOWED_PATHS)):
+            raise PermissionError('rollback path conversion widened')
+        for name,raw in repository_parent_bodies.items():
             destination=self.checkout/name
             if (destination.is_symlink() or not destination.is_file() or
                     destination.parent.is_symlink()):
@@ -369,12 +376,12 @@ class GitHubActionsCycleHost:
             destination.write_bytes(raw)
         self._git('add','--',*ALLOWED_PATHS)
         expected_paths={name for name in ALLOWED_PATHS
-                        if evidence.committed_bodies[name]!=evidence.parent_bodies[name]}
+                        if repository_candidate_bodies[name]!=repository_parent_bodies[name]}
         staged=set(self._git('diff','--cached','--name-only','-z').split('\x00'))-{''}
         if not expected_paths or staged!=expected_paths:
             raise PermissionError('staged rollback paths differ from saved baseline')
         tree=self._git('write-tree')
-        for name,raw in evidence.parent_bodies.items():
+        for name,raw in repository_parent_bodies.items():
             indexed=self._run_cli_bytes(['git','-C',str(self.checkout),'show',':'+name])
             if indexed!=raw:
                 raise PermissionError('staged rollback bytes differ from immutable baseline')
@@ -385,7 +392,7 @@ class GitHubActionsCycleHost:
                 '-c','user.email=41898282+github-actions[bot]@users.noreply.github.com',
                 'commit-tree',tree,'-p',packet['candidate_commit'],'-F',str(message_path))
         self._validate_rollback_commit(commit,packet['candidate_commit'],tree,
-                                       expected_paths,packet,evidence.parent_bodies)
+                                       expected_paths,packet,repository_parent_bodies)
         self._rollback_window(packet)
         if self._git('rev-parse','HEAD')!=packet['candidate_commit']:
             raise PermissionError('rollback local parent moved')
@@ -458,18 +465,19 @@ class GitHubActionsCycleHost:
                 self.manifest()!=original['candidate']):
             return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'CANDIDATE_BINDING_CHANGED'}
         evidence=collect_owned_occurrence(record.key,state_store.journal,self._now())
+        relative_paths={name.removeprefix('manager-support/') for name in ALLOWED_PATHS}
         if (type(evidence) is not OwnedOccurrenceEvidence or
                 evidence.receipt.get('sha')!=record.receipt_ref or
                 evidence.parent_commit!=record.expected_parent or
                 evidence.committed_manifest!=original['candidate'] or
                 evidence.parent_manifest!=original['baseline'] or
-                set(evidence.parent_bodies)!=set(ALLOWED_PATHS)):
+                set(evidence.parent_bodies)!=relative_paths or
+                set(evidence.committed_bodies)!=relative_paths):
             return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'IMMUTABLE_PARENT_UNAVAILABLE'}
         verify_readback(original['baseline'],{
-            name.removeprefix('manager-support/'):raw
-            for name,raw in evidence.parent_bodies.items()
-            if name!='manager-support/manifest.json'})
-        if json.loads(evidence.parent_bodies['manager-support/manifest.json'])!=original['baseline']:
+            name:raw for name,raw in evidence.parent_bodies.items()
+            if name!='manifest.json'})
+        if json.loads(evidence.parent_bodies['manifest.json'])!=original['baseline']:
             return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'IMMUTABLE_PARENT_CHANGED'}
         packet=plan_owned_rollback(original,record.receipt_ref,record.expected_parent,
                                    self._now(),controller_sha=env['GITHUB_SHA'])
