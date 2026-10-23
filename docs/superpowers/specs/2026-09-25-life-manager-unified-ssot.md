@@ -196,26 +196,27 @@ owner: 既存Cloud Travel primary。対象: `apps/life-manager/lib/travel.js、�
 
 owner: 各行の既存job owner。対象: `catalog/registryの既存entrypoint・各provider reader。新しい共通frameworkは作らない`。最新terminalは04:13:06Z status snapshotで、期間成功率ではない。 14業務はcustomer_revenue、investment/fundraiser/connector/CFOはそれぞれ実現損益/資金調達/接続/財務coverageで評価する。各Bは直近1件の次操作であり、診断完了を業務全体DONEへ置換しない。実原因が確定した時だけ同ownerの最小修正atomを追加し、既存役割別受入まで進める。
 
-| 状態・ID | 最新terminal | 次の1操作 | 完了条件 | 依存 |
+| 状態・ID | 業務terminal / 対象jobの直接観測 | 次の1操作 | 完了条件 | 依存 |
 |---|---|---|---|---|
-| [ ] B01 | pass2 / blocked4 / running1、成果は要公式照合 | gig-coconala / hf-gig-paid-direct: 既存の対応対象Paid案件1件の納品receiptと未納品物を公式talkroomで照合 | 同clientの納品済み/未済・未納品物・次の1操作が確定。他clientの証拠と共有しない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B02 | blocked5 / running1 / fail1、成果は要公式照合 | gig-lancers / lancers-revenue-paid: capacity延期の既存有償案件1件を公式work itemと照合 | 同契約の次工程とownerが確定し、共有accountの他ownerを中断しない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B03 | blocked3 / running1 / fail1、成果は要公式照合 | gig-crowdworks / crowdworks-revenue-reply: 最新exit75のphaseと公式message/契約stateを1件結ぶ | 未返信/受注済み/未送信をexact receiptで区別し、闇雲な再送をしない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B04 | blocked3、成果は要公式照合 | gig-mercor / mercor-revenue-paid: 旧unknownを持つ有償work item1件の公式状態を読む | 当該案件の受注/提出/受領と既存fenceの対応が確定 | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B05 | fail1、成果は要公式照合 | promptbase / promptbase-loop-daily: 最新exit1のcaller/input/terminalを1件復元 | 根拠のある原因と最小修正箇所が確定。現dailyがrunnerを呼ばない事実を維持 | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B06 | blocked6 / pass1、成果は要公式照合 | writer / writer-money-sync: 既公開記事1件の販売/購読receiptを既存money readerへ照合 | 公開と有料購入を分け、同商品/通貨/期間の公式対価を記録 | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B07 | running3 / blocked3、成果は要公式照合 | affiliate / affiliate-loop: 旧unknownを持つ公開1件を公式pageとregistered ctへ照合 | 公開の有無と同じtracked destinationを確定。公開だけをconversionへしない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B08 | pass1 / blocked2 / fail1、成果は要公式照合 | investment / investment-strategy-validation: 最新exit1のvalidation入力/結果を1件復元 | 原因と次の安全なvalidationが確定。元本/未実現増加を売上へしない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B09 | running6 / blocked10、成果は要公式照合 | agent-economy / x402-settlement-recorder: disk延期中の既存settlement候補1件を公式chain receiptへ照合 | 外部payment/自己資金/資金移動を区別し、同txを重複計上しない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B10 | fail1 / blocked3、成果は要公式照合 | job-hunter / job-search-daily: 最新exit2の失敗境界と入力を1件特定 | source/設定/認証のどこかを証拠で特定し、再応募の有無を公式readbackで保持 | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B11 | blocked1 / running1、成果は要公式照合 | fundraiser / fundraiser: 次eligible候補1件の公式application stateを照合 | 未提出/審査/採択を区別し、獲得資金を売上へ加えない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B12 | pass1、成果は要公式照合 | connector / hf-connector-daily: 最新passに対応する接続成果receiptを1件再照合 | 接続先/owner/同runが一致。passを営業売上の代用にしない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B13 | blocked3 / pass1、成果は要公式照合 | self-build / life-manager-selfbuild: disk延期後の自然build1件を既存product registryへ結ぶ | 同productのartifact/検証/登録receiptが一致し、source生成だけを販売にしない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B14 | fail5 / pass12 / blocked4 / running2、成果は要公式照合 | mobile-apps / life-manager-anicca-ai-youtube: 最新exit1の投稿1件をprovider requestと公式公開状態へ結ぶ | 未送信/公開済み/不明と最初の故障境界を確定。他4件の失敗も同じ手順で別ID化 | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B15 | blocked4 / pass1、成果は要公式照合 | ebook / ebook-ja-instagram-daily: 旧unknownの同投稿receiptをofficial publicationへ照合 | 既存完成asset/投稿receiptを再利用し、再生成/再投稿を重複課金しない | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B16 | running1 / fail1 / blocked6 / pass3、成果は要公式照合 | capafy / capafy-distribute-daily: 最新exit1のslotを既存公開/ct receiptへ照合 | 同slotの公開済み/未済を確定し、旧X ERRORを再送しない。販売済み商品の改変なし | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B17 | running1 / blocked2、成果は要公式照合 | line-sticker / line-sticker-factory-hourly: 既存factory unknownの同作品/申請を公式storeで照合 | 作品ID・審査状態・同runを結び、重複申請なし | S03が必要なlaneのみ。動いているownerは妨げない |
-| [ ] B18 | blocked3、成果は要公式照合 | cfo / life-manager-cfo-hourly: 延期中の次自然CFO snapshotを公式source coverageと照合 | 18業務のverified/partial/unknownと観測窓を保持し、欠測netを0にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B01 | pass2 / blocked4 / running1 ; 対象job=blockerなし/exit0 | gig-coconala / hf-gig-paid-direct: 既存の対応対象Paid案件1件の納品receiptと未納品物を公式talkroomで照合 | 同clientの納品済み/未済・未納品物・次の1操作が確定。他clientの証拠と共有しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B02 | blocked5 / running1 / fail1 ; 対象job=entrypoint_exit_1/exit1 | gig-lancers / lancers-revenue-paid: 最新exit1のterminalと未照合有償案件1件を公式work itemへ結ぶ | 同契約の次工程とownerが確定し、共有accountの他ownerを中断しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B03 | blocked3 / running1 / fail1 ; 対象job=host_admission_deferred:resource_capacity_busy/exit75 | gig-crowdworks / crowdworks-revenue-reply: capacity延期/exit75のphaseと公式message/契約stateを1件結ぶ | 未返信/受注済み/未送信をexact receiptで区別し、闇雲な再送をしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B04 | blocked3 ; 対象job=host_admission_deferred:resource_effect_unknown/exit75 | gig-mercor / mercor-revenue-paid: 旧unknownを持つ有償work item1件の公式状態を読む | 当該案件の受注/提出/受領と既存fenceの対応が確定 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B05 | fail1 ; 対象job=entrypoint_exit_1/exit1 | promptbase / promptbase-loop-daily: 最新exit1のcaller/input/terminalを1件復元 | 根拠のある原因と最小修正箇所が確定。現dailyがrunnerを呼ばない事実を維持 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B06 | blocked6 / pass1 ; 対象job=host_admission_deferred:disk_floor_low/exit75 | writer / writer-money-sync: 既公開記事1件の販売/購読receiptを既存money readerへ照合 | 公開と有料購入を分け、同商品/通貨/期間の公式対価を記録 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B07 | running3 / blocked3 ; 対象job=host_admission_deferred:resource_effect_unknown/exit75 | affiliate / affiliate-loop: 旧unknownを持つ公開1件を公式pageとregistered ctへ照合 | 公開の有無と同じtracked destinationを確定。公開だけをconversionへしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B08 | pass1 / blocked2 / fail1 ; 対象job=entrypoint_exit_1/exit1 | investment / investment-strategy-validation: 最新exit1のvalidation入力/結果を1件復元 | 原因と次の安全なvalidationが確定。元本/未実現増加を売上へしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B09 | running6 / blocked10 ; 対象job=host_admission_deferred:resource_effect_unknown/exit75 | agent-economy / x402-settlement-recorder: resource_effect_unknownの既存settlement候補1件を公式chain receiptへ照合 | 外部payment/自己資金/資金移動を区別し、同txを重複計上しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B10 | fail1 / blocked3 ; 対象job=entrypoint_exit_2/exit2 | job-hunter / job-search-daily: 最新exit2の失敗境界と入力を1件特定 | source/設定/認証のどこかを証拠で特定し、再応募の有無を公式readbackで保持 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B11 | blocked1 / running1 ; 対象job=host_admission_deferred:resource_capacity_busy/exit75 | fundraiser / fundraiser: 次eligible候補1件の公式application stateを照合 | 未提出/審査/採択を区別し、獲得資金を売上へ加えない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B12 | pass1 ; 対象job=blockerなし/exit0 | connector / life-manager-connector-native: 最新passに対応する接続成果receiptを1件再照合 | 接続先/owner/同runが一致。passを営業売上の代用にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B13 | blocked3 / pass1 ; 対象job=host_admission_deferred:disk_floor_low/exit75 | self-build / life-manager-selfbuild: disk延期後の自然build1件を既存product registryへ結ぶ | 同productのartifact/検証/登録receiptが一致し、source生成だけを販売にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B14 | fail5 / pass12 / blocked4 / running2 ; 対象job=entrypoint_exit_1/exit1 | mobile-apps / life-manager-anicca-ai-youtube: 最新exit1の投稿1件をprovider requestと公式公開状態へ結ぶ | 未送信/公開済み/不明と最初の故障境界を確定。他4件の失敗も同じ手順で別ID化 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B15 | blocked4 / pass1 ; 対象job=host_admission_deferred:resource_effect_unknown/exit75 | ebook / ebook-ja-instagram-daily: 旧unknownの同投稿receiptをofficial publicationへ照合 | 既存完成asset/投稿receiptを再利用し、再生成/再投稿を重複課金しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B16 | running1 / fail1 / blocked6 / pass3 ; 対象job=entrypoint_exit_1/exit1 | capafy / capafy-distribute-daily: 最新exit1のslotを既存公開/ct receiptへ照合 | 同slotの公開済み/未済を確定し、旧X ERRORを再送しない。販売済み商品の改変なし | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B17 | running1 / blocked2 ; 対象job=host_admission_deferred:resource_effect_unknown/exit75 | line-sticker / line-sticker-factory-hourly: 既存factory unknownの同作品/申請を公式storeで照合 | 作品ID・審査状態・同runを結び、重複申請なし | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B18 | blocked3 ; 対象job=host_admission_deferred:disk_floor_low/exit75 | cfo / life-manager-cfo-hourly: 延期中の次自然CFO snapshotを公式source coverageと照合 | 18業務のverified/partial/unknownと観測窓を保持し、欠測netを0にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+
 
 #### E — 新paidの公式原本・財務（6件）
 
