@@ -381,3 +381,11 @@ def test_real_goal_monitor_normal_mode_still_fails_closed_before_report(tmp_path
     ]
     assert not fixture["downstream"].exists()
     assert not (fixture["state_home"] / "state/capafy-goal-monitor.json").exists()
+
+
+def test_report_kind_falls_back_to_loop_id_when_env_absent() -> None:
+    # lm-loop registry entries carry no env, so the hourly loop must derive its kind
+    # from LIFE_MANAGER_LOOP_ID or it silently runs the morning path (no reconcile).
+    source = MONITOR.read_text(encoding="utf-8")
+    assert "capafy-goal-monitor-hourly) REPORT_KIND=hourly" in source
+    assert "capafy-goal-monitor-daily-close) REPORT_KIND=daily_close" in source

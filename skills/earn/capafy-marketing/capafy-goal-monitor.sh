@@ -205,7 +205,14 @@ fi
 
 # Hourly runs refresh the seller ledger before building the monitor snapshot so
 # that the persisted report refers to this same run's reconcile.
-REPORT_KIND="${CAPAFY_REPORT_KIND:-morning}"
+REPORT_KIND="${CAPAFY_REPORT_KIND:-}"
+if [ -z "$REPORT_KIND" ]; then
+  case "${LIFE_MANAGER_LOOP_ID:-}" in
+    capafy-goal-monitor-hourly) REPORT_KIND=hourly ;;
+    capafy-goal-monitor-daily-close) REPORT_KIND=daily_close ;;
+    *) REPORT_KIND=morning ;;
+  esac
+fi
 RECONCILE_RC=0
 if [ "$REPORT_KIND" = "hourly" ]; then
   "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_web_token_refresh.py" \
