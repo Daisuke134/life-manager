@@ -73,10 +73,11 @@ class BacklogTest(unittest.TestCase):
         self.assertEqual(demo['field_beneficiary_improvements_verified'],0)
         self.assertEqual(demo['scientific_gate1'],'UNMET')
 
-    def test_waived_h005_preserves_unmet_causal_replication(self):
+    def test_blocked_h005_preserves_unmet_causal_replication(self):
         tasks=json.loads((ROOT/'docs/roadmap/tasks.json').read_text(encoding='utf8'))
         by_id={t['id']:t for t in tasks}
-        self.assertEqual(by_id['H005']['status'],'skipped')
+        self.assertEqual(by_id['H005']['status'],'blocked')
+        self.assertIn('2019 HeartSteps',by_id['H005']['blocker_reason'])
         self.assertNotIn('H005',by_id['H006']['depends'])
         self.assertTrue(all(by_id[f'H{i:03d}']['status']=='done' for i in range(6,11)))
         self.assertTrue(all(by_id[f'H{i:03d}'].get('original_verify') for i in range(6,11)))

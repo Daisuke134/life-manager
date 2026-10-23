@@ -16,12 +16,14 @@ and a [recorded real-code NO_ACTION demonstration](docs/demos/README.md).
 The reviewed article package contains 63 articles and the existing 29 media files;
 publication is through the established owned-blog bridge with independent readback.
 
-The [single task registry](docs/roadmap/tasks.json) remains authoritative: **69 done / 41 todo / 2 blocked / 1 scientifically skipped**. The final local suite passed **462 tests**, including actual optional-library execution.
+The [single task registry](docs/roadmap/tasks.json) remains authoritative: **69 done / 41 todo / 3 blocked / 0 skipped**. The final local suite passed **462 tests**, including actual optional-library execution.
 [Phase06–12 acceptance coverage](docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md)
 distinguishes completed original tasks from implemented preparation. Original
 financial/site authority, consented interviews, real cohorts and independently
 measured human outcomes remain required for their respective field tasks. A
 public artifact or an offline test is not evidence of reduced suffering.
+
+**October 23 update:** H005 is `blocked`, not reproduced: the original 2019 study-calendar exclusions cannot be established from the public release. The previously approved waiver still lets independent H006–H010 exploratory research stand without promoting it to the original RCT's causal replication. D014 now has a metadata-only disclosure preflight with 15 local synthetic tests; real partner/ethics/consent and publication review are still missing. No private records, authorization or external welfare outcome is claimed.
 
 Sections dated October 20–21 below are historical checkpoints; their counts and
 then-current implementation statements are superseded by the current registry.
