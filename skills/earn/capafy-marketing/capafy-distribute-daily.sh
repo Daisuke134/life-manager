@@ -135,6 +135,7 @@ case "$CAPAFY_SKILL_SLUG" in
   tiktok-script-pro) CAPAFY_CT=tiktok_blog; X_CT=tiktok_x ;;
   youtube-script-writer) CAPAFY_CT=youtube_blog; X_CT=youtube_x ;;
   slide-maker) CAPAFY_CT=slides_blog; X_CT=slides_x ;;
+  tiktok-series-continuity-planner) CAPAFY_CT=tiktok_series_blog; X_CT=tiktok_series_x ;;
 esac
 CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${CAPAFY_CT}"
 X_CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${X_CT}"
