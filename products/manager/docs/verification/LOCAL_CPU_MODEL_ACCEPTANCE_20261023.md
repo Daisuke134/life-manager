@@ -28,3 +28,13 @@ llama.cpp, mistral.rs and ONNX Runtime GenAI were compared from primary docs. Re
 ## Flexible model policy
 
 Keep the mission and evidence standards; adapt model family, size, quantization, runtime and training recipe to observed capability, rights, RAM, latency and actual resources. GPU availability or one4Bcandidate is not a universal entry gate. Inference GGUF and training base/tokenizer/adapter artifacts are different; inference success does not certify trainability or benefit. Existing-model quality, grounded behavior evaluation, licensed supervision and heldout comparison still determine whether to train and promote.
+
+## CPU training dependencies and assets prepared, not trained
+
+An isolated private environment now imports torch2.8.0+cpu,transformers4.56.2,peft0.17.1,trl0.23.1,datasets4.1.1 andaccelerate1.10.1. `pip check` passed; CUDA is unavailable and no NVIDIA/triton/quantization/training extras were installed. An8×8 CPU BF16 identity matrix multiplication passed. This is not a model forward/backward, memory-fit result or training acceptance.
+
+The native [Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B/tree/c1899de289a04d12100db370d81485cdf75e47ca) safetensors base and tokenizer/config/license allowlist were downloaded privately at revision `c1899de289a04d12100db370d81485cdf75e47ca`. Actual weight1,503,300,328bytes/SHA256 `f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b`; actual Apache2.0 LICENSE SHA256 `832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e`. This is distinct from a quantized GGUF inference artifact. No model load or optimizer step has run.
+
+[NVIDIA HelpSteer2](https://huggingface.co/datasets/nvidia/HelpSteer2/tree/990b2711a36180dd19d9c94b8627844866f8982a) revision `990b2711a36180dd19d9c94b8627844866f8982a` quality train/validation and dedicated human-preference gzip files were acquired with pinned size/SHA256 and gzip CRC verification. The official card declares CC BY4.0; no independent LICENSE file was found. Third-party prompt rights/privacy are not universally guaranteed. Responses are model-written and human-rated, not human-written therapy or demonstrated behavior outcomes. Raw files stay outside Git; subset/rights/split/scoring acceptance remains pending.
+
+Current V003 depends on V002. Dependency installation, public labels and a small potential LoRA recipe do not waive that gate. First fix the offline evaluation contract and record the specific baseline deficit; preserve evaluation-only INTIMA and a sealed final test. Training, own-adapter benefit and promotion remain NOT_RUN/NOT_MEASURED. No additional paid resources were provisioned; infrastructure cost remains UNKNOWN.
