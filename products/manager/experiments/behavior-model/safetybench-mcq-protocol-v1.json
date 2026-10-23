@@ -1,0 +1,109 @@
+{
+  "schema": "manager.safetybench-mcq-protocol.v1",
+  "source_revision": "960833692a1ec82b191ff3e902daca7993c35cc1",
+  "dataset_card_revision": "70538631943dc1517ae9bb0733251809f4445d0e",
+  "artifacts": {
+    "questions": {
+      "bytes": 5110687,
+      "sha256": "517648d44a68c79e5d46a284837d673c578fa53a45785c83407cd8358602c547",
+      "path": "opensource_data/test_en.json",
+      "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/opensource_data/test_en.json"
+    },
+    "answers": {
+      "bytes": 729736,
+      "sha256": "a26ec13deeb551d68f71d61dd269d05dd43c24e6b22d8be3b93788ee10cf8615",
+      "path": "opensource_data/test_answers_en.json",
+      "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/opensource_data/test_answers_en.json"
+    },
+    "scorer": {
+      "bytes": 1743,
+      "sha256": "46dce139f1807be2170fde1b16aac129b5184603ca9d1d751c03fd57ac9c8544",
+      "path": "eva.py",
+      "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/eva.py"
+    },
+    "code_license": {
+      "bytes": 1065,
+      "sha256": "d33dbec11dfcde5970d43c1a502b62e7d7dccec1f181266a0809a92409244a91",
+      "path": "LICENSE",
+      "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/LICENSE"
+    },
+    "repository_readme": {
+      "bytes": 4536,
+      "sha256": "1bc8b6c3a793bee2fc1688b1c2240050b82aa333411dd85240f396b999e97b39",
+      "path": "README.md",
+      "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/README.md"
+    },
+    "dataset_card": {
+      "bytes": 2209,
+      "sha256": "6835d19b015dd0a04b3a2413d78d69c7609d99e9193ff305e1eba9a5f40d6aed",
+      "path": "README.md",
+      "url": "https://huggingface.co/datasets/thu-coai/SafetyBench/blob/70538631943dc1517ae9bb0733251809f4445d0e/README.md"
+    }
+  },
+  "rights_record_id": "safetybench-mcq-private-evaluation-v1",
+  "rights_record_sha256": "07e6beea0bf5570a9b1fab8153c80306dde7a1f29159125109b6b03e16648fd4",
+  "assignment": {
+    "count": 11435,
+    "category_counts": {
+      "Offensiveness": 1805,
+      "Unfairness and Bias": 1904,
+      "Physical Health": 1149,
+      "Mental Health": 1566,
+      "Illegal Activities": 1778,
+      "Ethics and Morality": 1934,
+      "Privacy and Property": 1299
+    },
+    "option_counts": {
+      "2": 5223,
+      "3": 445,
+      "4": 5767
+    },
+    "selection": "All source rows, exact source order and ID join; no subsets, balancing or deduplication"
+  },
+  "prediction_schema": "manager.safetybench-recorded-predictions.v1",
+  "states": [
+    "VALID",
+    "INVALID_PARSE",
+    "REFUSAL",
+    "FAILED",
+    "UNKNOWN",
+    "NOT_RUN",
+    "ABSTAIN"
+  ],
+  "controls": {
+    "no_action": "ABSTAIN for every assigned ID; no semantic answer and no refusal",
+    "first_option_rule": "Prospectively fixed index0 on every assigned ID independent of gold or question; VALID; no tuning or alternate rule"
+  },
+  "metrics": {
+    "native_accuracy_percent": "Exact index equality; 100 * correct / ALL assigned gold; all-gold per-category denominator; zero for absent category",
+    "conditional_accuracy": "correct / valid_scored; null at zero valid denominator",
+    "valid_coverage": "valid_scored / assigned",
+    "missing_predictions": "NOT_RUN, retained in all-gold denominator",
+    "refusal": "Explicit supplied status only; never inferred or safety success"
+  },
+  "membership": "SHA256 of sorted-key compact UTF-8 JSON list in source order: case_id,category,question_sha256,option_sha256,answer",
+  "export": "Aggregate metadata only; no per-row IDs, question, options, gold or predictions. Producer name/version hashes only; declared provenance unauthenticated.",
+  "retrieved_at_basis": "LOCAL_BYTES_VERIFIED_AT: aware local content-verification time, not HTTP retrieval time",
+  "limitations": {
+    "proof_level": "P0",
+    "human_welfare_status": "NOT_MEASURED",
+    "adoption": "HOLD",
+    "can_execute": false,
+    "pressure": null,
+    "dependency": null,
+    "response_harm": null,
+    "clinical_validity": null,
+    "behavior_change": null,
+    "benchmark_exposure": "PUBLIC_EXPOSED_NOT_PRISTINE",
+    "pretraining_contamination": "UNKNOWN",
+    "person_study_time_split": "UNAVAILABLE",
+    "generalization": "UNKNOWN",
+    "interpretation": "MCQ key agreement only; no model advantage, free-response annotation, independent holdout, execution permission or human benefit"
+  },
+  "code_adaptation": {
+    "function": "eva_res",
+    "scope": "Equality/count/category formula only; Python sum replaces NumPy; complete MIT notice in THIRD_PARTY_NOTICES.md",
+    "source_url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/eva.py",
+    "source_sha256": "46dce139f1807be2170fde1b16aac129b5184603ca9d1d751c03fd57ac9c8544"
+  }
+}
