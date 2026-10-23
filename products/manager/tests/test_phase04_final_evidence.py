@@ -24,7 +24,7 @@ class Phase04ReceiptChecks(unittest.TestCase):
             self.assertTrue(row.get("scope_override"))
             self.assertTrue(row.get("verification_scope"))
             self.assertFalse(row["human_effect_verified"])
-        self.assertEqual(self.reg["H005"]["status"],"skipped")
+        self.assertEqual(self.reg["H005"]["status"],"blocked")
 
     def test_real_40_study_data_with_no_participants_committed(self):
         z=self.full

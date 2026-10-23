@@ -77,7 +77,7 @@ class CrossFieldResearchContracts(unittest.TestCase):
         tasks=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
         by_id={t["id"]:t for t in tasks}
         self.assertEqual(len(tasks),113)
-        self.assertEqual(by_id["H005"]["status"],"skipped")
+        self.assertEqual(by_id["H005"]["status"],"blocked")
         self.assertEqual(by_id["F004"]["status"],"blocked")
         self.assertEqual(by_id["F007"]["status"],"blocked")
         self.assertEqual(by_id["F005"]["status"],"todo")

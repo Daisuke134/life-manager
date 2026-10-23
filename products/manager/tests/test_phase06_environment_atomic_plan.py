@@ -66,7 +66,7 @@ class AtomicStructuralInterventionPlanContracts(unittest.TestCase):
         self.assertEqual(by["F006"]["status"],"todo")
         self.assertEqual(by["F008"]["status"],"todo")
         self.assertEqual(by["F009"]["status"],"todo")
-        self.assertEqual(by["H005"]["status"],"skipped")
+        self.assertEqual(by["H005"]["status"],"blocked")
 
 
 if __name__=="__main__":

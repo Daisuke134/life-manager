@@ -1,8 +1,8 @@
 # Manager — atomic learning & engineering backlog
 
-Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
+Status: 2026-10-23 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 69 · Todo: 41 · Blocked: 2 · Skipped: 1
+Total: 113 · Done: 69 · Todo: 41 · Blocked: 3 · Skipped: 0
 
 ✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -63,7 +63,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `H002` | H001 | スナップショット/再現性/ハッシュを理解する | 公開suggestions.csvをread-only取得、SHA256/コミットID保存 | data/rawはgitignore; manifestにrowcount 8,274とSHA256 **外部条件:** GitHubの公開ファイルを取得できる実行経路が必要 |
 | ✅ `H003` | H002 | 実データ型・欠測を理解する | scripts/inspect_heartsteps.pyでヘッダ/行数のみ出力 | 個人データの行が表示されない; 8,274 rows照合 |
 | ✅ `H004` | H003 | decision pointとavailabilityの意味を理解する | スキーマからdecision/time/availability/action列を同定 | 出典のcodebookと列名が完全一致; 不明列はunknown |
-| ⏭️ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない **Waiver (not completed):** Founder-authorized 2026-10-21: public release cannot unambiguously reconstruct the original 2019 paper's analytic 7,540/6,061 decision population. Do not force-fit missing study-day data or treatment codes. |
+| ⛔ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない |
 | ✅ `H006` | H004, L007 | 個別データの記述統計と因果推定を分離する | 計測可能な公開CSVの6,330介入可能時点で記述統計と通知別件数を集計 | 8,274入力→6,330有効時点、平均220.42・SD436.78、欠測・割付頻度を再計算し、因果とは表示しない。 |
 | ✅ `H007` | H006, L008 | 重複観測の相関と既知の割付確率を学ぶ | 公開CSVの探索的関連分析に参加者クラスタ頑健回帰と95%区間を適用 | 37人の反復測定にクラスタ頑健標準誤差を適用。単純な独立観測CIだけは使用しない。 |
 | ✅ `H008` | H007 | weighted-centered least squares等の公開研究手法を理解する | 公開CSVの非同一サブセットで送信/非送信と歩行通知/非送信の調整関連比と95%区間を計算 | 送信関連比1.140 [1.001,1.297]、歩行関連比1.239 [1.056,1.454]。元2019年RCTの完全再現と表示しない。 |

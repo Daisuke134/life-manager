@@ -11,9 +11,9 @@ class Phase04HonestAcceptance(unittest.TestCase):
         return {row["id"]: row for row in json.loads(
             (ROOT / "docs/roadmap/tasks.json").read_text(encoding="utf-8"))}
 
-    def test_waived_phase03_and_soc_sci_data_hold_are_unchanged(self):
+    def test_blocked_phase03_and_soc_sci_data_hold_are_unchanged(self):
         t = self.tasks()
-        self.assertEqual(t["H005"]["status"], "skipped")
+        self.assertEqual(t["H005"]["status"], "blocked")
         self.assertEqual(t["S002"]["status"], "done")
         self.assertTrue(t["S002"].get("original_verify"))
         self.assertFalse(t["S002"]["human_effect_verified"])

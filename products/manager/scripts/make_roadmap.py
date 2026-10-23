@@ -39,7 +39,7 @@ def render(tasks):
     sums = Counter(t['status'] for t in tasks)
     lines = [
       '# Manager — atomic learning & engineering backlog', '',
-      'Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
+      'Status: 2026-10-23 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
       f"Total: {len(tasks)} · Done: {sums['done']} · Todo: {sums['todo']} · Blocked: {sums['blocked']} · Skipped: {sums['skipped']}", '',
       '✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.', '',
       'Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.', '',
