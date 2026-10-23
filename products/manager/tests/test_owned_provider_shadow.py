@@ -86,6 +86,203 @@ def client_for(output='{"decision":"PROPOSE","reason":"Repair the cited link.","
 
 
 class OwnedProviderShadowTests(unittest.TestCase):
+    def prepared_fixture(self, root):
+        checkout, workspace, patches = make_catalog_fixture(root)
+        now = datetime.now(timezone.utc)
+        with patches[0], patches[1], patches[2], patches[3]:
+            prepared = planner.plan_catalog_change(checkout, workspace, SOURCE_COMMIT,
+                                                  now, run_id="123")
+        self.assertIsNotNone(prepared)
+        return prepared, workspace, datetime.now(timezone.utc)
+
+    def test_prepared_shadow_never_replans(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prepared, workspace, now = self.prepared_fixture(root)
+            before = {str(p.relative_to(workspace)): p.read_bytes()
+                      for name in ("baseline", "candidate")
+                      for p in (workspace / name).iterdir() if p.is_file()}
+            _, checkpoint = self.owner(root)
+            client, sessions = client_for()
+            with patch.object(planner, "plan_catalog_change", side_effect=AssertionError("replanned")):
+                result = shadow.compare_prepared_catalog_shadow(checkpoint, prepared,
+                    now=now, run_id="123", enabled=True, client_factory=lambda: client,
+                    cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
+                    deadline_monotonic=monotonic()+10)
+            self.assertEqual(result["status"], "COMPARED_P0")
+            self.assertEqual(sessions.create_count, 1)
+            self.assertEqual(before, {str(p.relative_to(workspace)): p.read_bytes()
+                for name in ("baseline", "candidate")
+                for p in (workspace / name).iterdir() if p.is_file()})
+            compared_at = datetime.fromisoformat(result["compared_at"])
+            self.assertEqual(compared_at.utcoffset(), timedelta(0))
+            self.assertLessEqual(now, compared_at)
+
+    def test_initial_request_hash_preserves_existing_journal_identity(self):
+        from manager_core import ampersand_api as api
+        from manager_core.provider_sessions import SessionJournal
+        prompt = "公開資料を比較してください。"
+        canonical = json.dumps({"model": api.MODEL, "instructions": api.DEFAULT_INSTRUCTIONS,
+            "input": prompt, "environment": {"type": "none"}}, ensure_ascii=False,
+            sort_keys=True, separators=(",", ":")).encode("utf8")
+        with TemporaryDirectory() as tmp:
+            journal = SessionJournal(Path(tmp) / "journal.sqlite")
+            client, sessions = client_for()
+            api.read_initial_turn(client, prompt, journal=journal, request_id="hash_test")
+            self.assertEqual(api.initial_request_body_hash(prompt), sha256(canonical).hexdigest())
+            self.assertEqual(journal.get("hash_test").body_hash, api.initial_request_body_hash(prompt))
+            self.assertNotEqual(api.initial_request_body_hash(prompt, "Other instructions"),
+                                api.initial_request_body_hash(prompt))
+            self.assertEqual(sessions.create_count, 1)
+
+    def test_prepared_disabled_invalid_scope_deadline_and_unsupported_do_not_initialize_provider(self):
+        from manager_core import owned_provider_shadow as shadow
+        with patch.object(shadow, "CheckpointedProvider", side_effect=AssertionError("provider initialized")):
+            result = shadow.compare_prepared_catalog_shadow(None, object(), now=None,
+                run_id=None, enabled=False, client_factory=object(), cap_usd="bad",
+                upper_usd="bad", deadline_monotonic=None)
+            self.assertEqual((result["status"], result["reason"]), ("SKIPPED", "DISABLED"))
+            with self.assertRaises(ValueError):
+                shadow.compare_prepared_catalog_shadow(None, None, now=None, run_id="123",
+                    enabled=1, deadline_monotonic=monotonic()+10)
+            with TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                prepared, _, now = self.prepared_fixture(root)
+                context, assessment, scope = prepared
+                _, checkpoint = self.owner(root)
+                client, sessions = client_for()
+                factory_calls = []
+                def factory():
+                    factory_calls.append(True)
+                    return client
+                kwargs = dict(now=now, run_id="123", enabled=True, client_factory=factory,
+                    cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
+                    deadline_monotonic=monotonic()+10)
+                cases = [(None, {}, "NO_CANDIDATE"), ("cue", {}, "UNSUPPORTED_CONTEXT"),
+                    ((context, assessment, object()), {}, "UNSUPPORTED_CONTEXT"),
+                    ((replace(context, criteria=object()), assessment, scope), {}, "UNSUPPORTED_ACTION"),
+                    (prepared, {"now": scope.expires_at}, "CONTEXT_REVALIDATION_FAILED"),
+                    (prepared, {"deadline_monotonic": monotonic()-1}, "DEADLINE_EXPIRED")]
+                for value, changes, reason in cases:
+                    with self.subTest(reason=reason):
+                        result = shadow.compare_prepared_catalog_shadow(checkpoint, value, **(kwargs | changes))
+                        self.assertEqual((result["status"], result["reason"]), ("SKIPPED", reason))
+                invalid = [{"enabled": 1}, {"run_id": "0"}, {"run_id": 123},
+                    {"now": now.replace(tzinfo=None)}, {"deadline_monotonic": float("nan")},
+                    {"deadline_monotonic": True}, {"cap_usd": Decimal("NaN")},
+                    {"upper_usd": Decimal("Infinity")}, {"cap_usd": 1},
+                    {"upper_usd": Decimal("0")}, {"cap_usd": Decimal("100.000001")},
+                    {"upper_usd": Decimal("0.0000001")}, {"client_factory": "bad"}]
+                for changes in invalid:
+                    with self.subTest(changes=changes), self.assertRaises(ValueError):
+                        shadow.compare_prepared_catalog_shadow(checkpoint, prepared, **(kwargs | changes))
+                result = shadow.compare_prepared_catalog_shadow(checkpoint, prepared,
+                    **(kwargs | {"client_factory": None, "cap_usd": None, "upper_usd": None}))
+                self.assertEqual(result["reason"], "PROVIDER_NOT_CONFIGURED")
+                with self.assertRaises(CheckpointUnavailable):
+                    shadow.compare_prepared_catalog_shadow(None, prepared, **kwargs)
+                self.assertEqual(factory_calls, [])
+                self.assertEqual(sessions.create_count, 0)
+
+    def test_prepared_prior_intent_does_not_initialize_provider_or_require_send_configuration(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prepared, _, now = self.prepared_fixture(root)
+            _, checkpoint = self.owner(root)
+            client, sessions = client_for()
+            kwargs = dict(now=now, run_id="123", enabled=True, deadline_monotonic=monotonic()+10)
+            first = shadow.compare_prepared_catalog_shadow(checkpoint, prepared,
+                client_factory=lambda: client, cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"), **kwargs)
+            calls = []
+            with patch.object(shadow, "CheckpointedProvider", side_effect=AssertionError("initialized")):
+                prior = shadow.compare_prepared_catalog_shadow(checkpoint, prepared,
+                    client_factory=lambda: calls.append(True), **kwargs)
+            self.assertEqual(prior["reason"], "PRIOR_INTENT_RECONCILIATION_REQUIRED")
+            self.assertEqual(prior["operation_id"], first["operation_id"])
+            self.assertEqual(calls, [])
+            self.assertEqual(sessions.create_count, 1)
+
+    def test_prepared_provider_state_read_failure_fences_without_repair_or_create(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prepared, _, now = self.prepared_fixture(root)
+            _, checkpoint = self.owner(root)
+            with sqlite3.connect(checkpoint.db) as db:
+                db.execute("CREATE TABLE amp_sessions (private_marker TEXT)")
+            client, sessions = client_for()
+            calls = []
+            with patch.object(shadow, "CheckpointedProvider", side_effect=AssertionError("initialized")), \
+                    self.assertRaisesRegex(CheckpointUnavailable,
+                        "^invalid private provider state; reconcile only$"):
+                shadow.compare_prepared_catalog_shadow(checkpoint, prepared, now=now, run_id="123",
+                    enabled=True, client_factory=lambda: calls.append(True) or client,
+                    cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
+                    deadline_monotonic=monotonic()+10)
+            self.assertTrue(checkpoint.broken)
+            with sqlite3.connect(checkpoint.db) as db:
+                self.assertEqual([row[1] for row in db.execute("PRAGMA table_info(amp_sessions)")],
+                                 ["private_marker"])
+                self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='budget_policy'").fetchone())
+            self.assertEqual(calls, [])
+            self.assertEqual(sessions.create_count, 0)
+
+    def test_prepared_factory_failure_is_static_and_creates_no_provider_state(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prepared, _, now = self.prepared_fixture(root)
+            _, checkpoint = self.owner(root)
+            def factory():
+                raise OSError("PRIVATE_FACTORY_ERROR")
+            with patch.object(shadow, "CheckpointedProvider", side_effect=AssertionError("initialized")):
+                result = shadow.compare_prepared_catalog_shadow(checkpoint, prepared, now=now,
+                    run_id="123", enabled=True, client_factory=factory, cap_usd=Decimal("0.05"),
+                    upper_usd=Decimal("0.03"), deadline_monotonic=monotonic()+10)
+            self.assertEqual((result["status"], result["reason"]), ("UNKNOWN", "PROVIDER_TRANSPORT_UNKNOWN"))
+            self.assertNotIn("PRIVATE_FACTORY_ERROR", json.dumps(result))
+            with sqlite3.connect(checkpoint.db) as db:
+                self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='amp_sessions'").fetchone())
+
+    def test_public_projection_is_fixed_and_never_echoes_private_fields(self):
+        from manager_core import owned_provider_shadow as shadow
+        keys = {"schema", "status", "reason", "run_id", "compared_at", "operation_id",
+            "context_sha256", "baseline_digest", "candidate_digest", "baseline_decisions",
+            "model_status", "model_decision", "model_comparison", "proof_level",
+            "authorized_execution", "causal_support", "human_outcome", "action_writes", "settled_cost_usd"}
+        with TemporaryDirectory() as tmp:
+            result, _, _, _, _ = self.run_shadow(Path(tmp))
+            result["model_advice"]["reason"] = "PRIVATE_REASON_MARKER"
+            result["provider"]["session_id"] = "PRIVATE_PROVIDER_MARKER"
+            result["unknown"] = "PRIVATE_UNKNOWN_MARKER"
+            public = shadow.public_catalog_shadow_summary(result)
+            self.assertEqual(set(public), keys)
+            self.assertNotIn("PRIVATE_", json.dumps(public))
+            self.assertEqual(public["baseline_decisions"], {"no_action": "PASS", "rules": "PROPOSE"})
+            self.assertEqual(public["model_decision"], "PROPOSE")
+            for changes in ({"reason": "PRIVATE_REASON"}, {"authorized_execution": True},
+                    {"action_writes": False}, {"settled_cost_usd": 0},
+                    {"context_sha256": "PRIVATE_HASH"}, {"run_id": "0"},
+                    {"compared_at": "PRIVATE_TIME"}, {"model_status": "PASS"},
+                    {"model_comparison": {"rules_same_decision": 1}}):
+                with self.subTest(changes=changes), self.assertRaisesRegex(
+                        ValueError, "^invalid catalog shadow record$"):
+                    shadow.public_catalog_shadow_summary(result | changes)
+            invalid = result | {"model_status": "INVALID_MODEL_OUTPUT"}
+            invalid.pop("model_advice")
+            invalid["model_comparison"] = None
+            public = shadow.public_catalog_shadow_summary(invalid)
+            self.assertEqual(public["model_status"], "INVALID_MODEL_OUTPUT")
+            self.assertIsNone(public["model_decision"])
+            self.assertEqual(public["model_comparison"],
+                {"no_action_same_decision": None, "rules_same_decision": None})
+            skipped = shadow.public_catalog_shadow_summary(shadow._record("SKIPPED", "DISABLED", "123"))
+            self.assertEqual(set(skipped), keys)
+            self.assertIsNone(skipped["compared_at"])
+            self.assertEqual(skipped["baseline_decisions"], {"no_action": None, "rules": None})
+
     def owner(self, root, cap=Decimal("0.05")):
         raw, _ = snapshot(root / "seed")
         gateway = MemoryGateway(raw)
@@ -399,11 +596,22 @@ class OwnedProviderShadowTests(unittest.TestCase):
                  patch.object(planner, "_read_current_page_reference", return_value=(reference, reference_bytes)):
                 gateway, checkpoint = self.owner(root)
                 client, sessions = client_for()
-                from manager_core.owned_provider_shadow import run_catalog_shadow
+                from manager_core.owned_provider_shadow import run_catalog_shadow, compare_prepared_catalog_shadow
                 with fixture_patches[0], fixture_patches[1], fixture_patches[2], fixture_patches[3]:
-                    result = run_catalog_shadow(checkpoint, client, checkout, workspace, SOURCE_COMMIT,
-                        run_id="123", enabled=True, cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
+                    prepared = planner.plan_catalog_change(checkout, workspace, SOURCE_COMMIT,
+                        datetime.now(timezone.utc), run_id="123")
+                    calls = []
+                    direct = compare_prepared_catalog_shadow(checkpoint, prepared,
+                        now=datetime.now(timezone.utc), run_id="123", enabled=True,
+                        client_factory=lambda: calls.append(True) or client,
+                        cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
                         deadline_monotonic=monotonic()+10)
+                    self.assertEqual(direct["reason"], "UNSUPPORTED_ACTION")
+                    self.assertEqual(calls, [])
+                    with patch.object(planner, "plan_catalog_change", return_value=prepared):
+                        result = run_catalog_shadow(checkpoint, client, checkout, workspace, SOURCE_COMMIT,
+                            run_id="123", enabled=True, cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
+                            deadline_monotonic=monotonic()+10)
             self.assertEqual(result["status"], "SKIPPED")
             self.assertEqual(result["reason"], "UNSUPPORTED_ACTION")
             self.assertEqual(sessions.create_count, 0)
