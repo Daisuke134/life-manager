@@ -224,6 +224,17 @@ test("campaign first-time downloads distinguish explicit zero from a redownload-
   });
 });
 
+test("official Page view rows count in app totals, unique views, and daily metrics", () => {
+  const honne = PRODUCTS.find((product) => product.app_id === "6759667221");
+  const downloads = [{ Date: "2026-10-20", "App Apple Identifier": honne.app_id, "Download Type": "First-time download", Counts: "1" }];
+  const engagement = [{ Date: "2026-10-20", "App Apple Identifier": honne.app_id, Event: "Page view", "Page Type": "Product page", Counts: "6", "Unique Counts": "5" }];
+  const result = summarize(honne, downloads, engagement, []);
+
+  assert.equal(result.metrics.product_page_views.value, 6);
+  assert.equal(result.metrics.unique_product_page_views.value, 5);
+  assert.equal(result.daily_metrics[0].metrics.product_page_views.value, 6);
+});
+
 test("ASC daily metrics keep date-level zeros measured and leave absent report dates missing", () => {
   const anicca = PRODUCTS[0];
   const downloads = [
