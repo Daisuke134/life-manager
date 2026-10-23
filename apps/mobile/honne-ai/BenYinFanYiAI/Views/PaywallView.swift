@@ -5,6 +5,13 @@ struct PaywallView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(\.dismiss) private var dismiss
     @State private var appeared = false
+    @State private var selectedPackage: Package?
+    @State private var trialEligibleProducts: Set<String> = []
+
+    /// Hard paywall: no close button, no swipe-down; leaves only after purchase or restore.
+    var isHard: Bool = false
+    /// Called once premium is active. Defaults to dismissing the sheet.
+    var onUnlocked: (() -> Void)? = nil
 
     private var privacyPolicyURL: URL {
         URL(string: "https://daisuke134.github.io/rork--ai/privacy-policy.html")!
@@ -30,19 +37,70 @@ struct PaywallView: View {
             .navigationTitle("プレミアム")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("閉じる") { dismiss() }
+                if !isHard {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("閉じる") { dismiss() }
+                    }
                 }
             }
             .task {
                 await subscriptionService.fetchOfferings()
+                await loadPlans()
             }
             .onAppear {
                 withAnimation(.spring(response: 0.6)) { appeared = true }
             }
         }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .presentationDragIndicator(isHard ? .hidden : .visible)
+        .interactiveDismissDisabled(isHard)
+    }
+
+    private var packages: [Package] {
+        subscriptionService.offerings?.current?.availablePackages ?? []
+    }
+
+    private func loadPlans() async {
+        let available = packages
+        if selectedPackage == nil {
+            selectedPackage = available.first { $0.packageType == .annual } ?? available.first
+        }
+        guard !available.isEmpty else { return }
+        let eligibility = await Purchases.shared.checkTrialOrIntroDiscountEligibility(packages: available)
+        trialEligibleProducts = Set(eligibility.compactMap { package, status in
+            status.status == .eligible ? package.storeProduct.productIdentifier : nil
+        })
+    }
+
+    // Free-trial length in the store's own unit ("3日間", "1か月間"), only when the product has one and this user is eligible.
+    private func trialPeriod(_ package: Package?) -> String? {
+        guard let product = package?.storeProduct,
+              trialEligibleProducts.contains(product.productIdentifier),
+              let intro = product.introductoryDiscount,
+              intro.paymentMode == .freeTrial else { return nil }
+        let period = intro.subscriptionPeriod
+        switch period.unit {
+        case .day: return "\(period.value)日間"
+        case .week: return "\(period.value)週間"
+        case .month: return "\(period.value)か月間"
+        case .year: return "\(period.value)年間"
+        @unknown default: return nil
+        }
+    }
+
+    private func annualSavingsPercent(_ annual: Package) -> Int? {
+        let base = packages.first { $0.packageType == .weekly } ?? packages.first { $0.packageType == .monthly }
+        guard let base else { return nil }
+        let periodsPerYear: Decimal = base.packageType == .weekly ? 52 : 12
+        return PlanPricing.annualSavingsPercent(
+            annual: annual.storeProduct.price,
+            periodPrice: base.storeProduct.price,
+            periodsPerYear: periodsPerYear
+        )
+    }
+
+    private func unlock() {
+        if let onUnlocked { onUnlocked() } else { dismiss() }
     }
 
     private var premiumHeader: some View {
@@ -96,17 +154,37 @@ struct PaywallView: View {
             if subscriptionService.isLoading {
                 ProgressView()
                     .padding(40)
-            } else if let offerings = subscriptionService.offerings,
-                      let current = offerings.current {
-                ForEach(current.availablePackages, id: \.identifier) { package in
-                    PackageCard(package: package) {
-                        Task {
-                            let success = await subscriptionService.purchase(package: package)
-                            if success { dismiss() }
-                        }
+            } else if !packages.isEmpty {
+                ForEach(packages, id: \.identifier) { package in
+                    PackageCard(
+                        package: package,
+                        isSelected: selectedPackage?.identifier == package.identifier,
+                        savingsPercent: package.packageType == .annual ? annualSavingsPercent(package) : nil,
+                        trialPeriod: trialPeriod(package)
+                    ) {
+                        selectedPackage = package
                     }
                 }
-            } else if subscriptionService.errorMessage != nil {
+
+                Button {
+                    guard let package = selectedPackage else { return }
+                    Task {
+                        let success = await subscriptionService.purchase(package: package)
+                        if success { unlock() }
+                    }
+                } label: {
+                    Text(trialPeriod(selectedPackage).map { "\($0)無料で始める" } ?? "続ける")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.accentColor)
+                        .clipShape(.rect(cornerRadius: 14))
+                }
+                .disabled(selectedPackage == nil || subscriptionService.isLoading)
+                .accessibilityIdentifier("paywall_cta")
+            } else {
+                // No plans (load error or empty offering): always offer a retry so the hard paywall never dead-ends.
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.title2)
@@ -115,7 +193,10 @@ struct PaywallView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button("再試行") {
-                        Task { await subscriptionService.fetchOfferings() }
+                        Task {
+                            await subscriptionService.fetchOfferings()
+                            await loadPlans()
+                        }
                     }
                     .font(.subheadline.weight(.semibold))
                 }
@@ -135,7 +216,10 @@ struct PaywallView: View {
 
     private var restoreButton: some View {
         Button {
-            Task { await subscriptionService.restorePurchases() }
+            Task {
+                await subscriptionService.restorePurchases()
+                if subscriptionService.isPremium { unlock() }
+            }
         } label: {
             Text("購入を復元")
                 .font(.subheadline)
@@ -187,10 +271,13 @@ struct FeatureRow: View {
 
 struct PackageCard: View {
     let package: Package
-    let onPurchase: () -> Void
+    let isSelected: Bool
+    let savingsPercent: Int?
+    let trialPeriod: String?
+    let onSelect: () -> Void
 
     var body: some View {
-        Button(action: onPurchase) {
+        Button(action: onSelect) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
@@ -198,7 +285,7 @@ struct PackageCard: View {
                             .font(.headline)
 
                         if isAnnual {
-                            Text("おすすめ")
+                            Text(savingsPercent.map { "\($0)%お得" } ?? "おすすめ")
                                 .font(.caption2.weight(.bold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
@@ -208,9 +295,11 @@ struct PackageCard: View {
                         }
                     }
 
-                    Text(packageDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if !packageDescription.isEmpty {
+                        Text(packageDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Spacer()
@@ -225,7 +314,7 @@ struct PackageCard: View {
             }
             .padding(16)
             .background(
-                isAnnual
+                isSelected
                     ? Color.accentColor.opacity(0.08)
                     : Color(.secondarySystemGroupedBackground)
             )
@@ -233,8 +322,8 @@ struct PackageCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(
-                        isAnnual ? Color.accentColor.opacity(0.3) : Color(.separator).opacity(0.3),
-                        lineWidth: 1
+                        isSelected ? Color.accentColor : Color(.separator).opacity(0.3),
+                        lineWidth: isSelected ? 2 : 1
                     )
             )
         }
@@ -247,6 +336,7 @@ struct PackageCard: View {
 
     private var packageTitle: String {
         switch package.packageType {
+        case .weekly: return "週額プラン"
         case .monthly: return "月額プラン"
         case .annual: return "年額プラン"
         default: return package.storeProduct.localizedTitle
@@ -254,18 +344,34 @@ struct PackageCard: View {
     }
 
     private var packageDescription: String {
+        let trial = trialPeriod.map { "\($0)無料、その後" } ?? ""
         switch package.packageType {
-        case .monthly: return "1ヶ月ごとの自動更新・いつでもキャンセル可能"
-        case .annual: return "1年ごとの自動更新・月額換算で50%お得"
-        default: return ""
+        case .weekly: return trial + "1週間ごとの自動更新・いつでもキャンセル可能"
+        case .monthly: return trial + "1ヶ月ごとの自動更新・いつでもキャンセル可能"
+        case .annual:
+            let perWeek = package.storeProduct.localizedPricePerWeek.map { "・週あたり\($0)" } ?? ""
+            return trial + "1年ごとの自動更新" + perWeek
+        default: return trial
         }
     }
 
     private var pricePeriod: String {
         switch package.packageType {
+        case .weekly: return "/週"
         case .monthly: return "/月"
         case .annual: return "/年"
         default: return ""
         }
+    }
+}
+
+enum PlanPricing {
+    // Annual vs a year of the shorter plan, as a whole percent; nil when annual is not cheaper.
+    static func annualSavingsPercent(annual: Decimal, periodPrice: Decimal, periodsPerYear: Decimal) -> Int? {
+        let yearOfPeriods = periodPrice * periodsPerYear
+        guard yearOfPeriods > 0, annual < yearOfPeriods else { return nil }
+        let percent = NSDecimalNumber(decimal: (1 - annual / yearOfPeriods) * 100).doubleValue
+        let rounded = Int(percent.rounded())
+        return rounded > 0 ? rounded : nil
     }
 }
