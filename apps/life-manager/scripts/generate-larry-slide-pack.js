@@ -156,10 +156,12 @@ function readCreativeMetricsForFamilies(dataDir, candidates, lane, postedHistory
     try { metric = JSON.parse(line); } catch { continue; }
     const providerPostId = metric?.postiz_id;
     const publication = publicationsByPostId.get(providerPostId);
+    // Native collectors omit locale and may not know the product. The exact
+    // post/integration receipt supplies that lane identity; reject conflicts.
     if (!publication
-        || metric.product_id !== lane.productId
+        || (metric.product_id != null && metric.product_id !== lane.productId)
         || metric.platform !== lane.platform
-        || metric.locale !== lane.locale
+        || (metric.locale != null && metric.locale !== lane.locale)
         || metric.integration_id !== lane.integrationId
         || metric.target_age_hours !== 24
         || metric.checkpoint_status !== "measured"
