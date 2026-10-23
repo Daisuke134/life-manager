@@ -211,50 +211,39 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
 
 def _child_environment_for_owner(
         loop_id: str, base: dict[str, str], home: Path | None = None) -> dict[str, str]:
-    """Scope the canonical data root and Postiz credential to eBook owners."""
+    """Read private Postiz credentials only for their exact runtime owners."""
     environment = dict(base)
-    if loop_id not in EBOOK_POSTIZ_LOOP_IDS:
+    metrics_owner = loop_id == "life-manager-tiktok-metrics"
+    if loop_id not in EBOOK_POSTIZ_LOOP_IDS and not metrics_owner:
         return environment
 
-    # The eBook entrypoint stores its render/object/ledger data beneath the shared
-    # Life Manager data root. Do not inherit an arbitrary manager-level override.
-    environment["LM_DATA_DIR"] = str(
-        Path(home or Path.home()).expanduser() / ".local/state/life-manager"
-    )
-    from runtime.host.local_profile import load_host_profile
-    profile = load_host_profile(home=home)
-    environment["LM_RUNTIME_TENANT_ID"] = (
-        profile["tenant_id"] if profile else EBOOK_RUNTIME_TENANT_ID
-    )
-
-    # eBook renderers discover ffmpeg, ffprobe, and fontconfig through PATH.
-    # launchd's default PATH omits Homebrew binaries.
-    if loop_id in EBOOK_POSTIZ_LOOP_IDS:
+    environment.pop("LM_POSTIZ_API_KEY", None)
+    if metrics_owner:
+        environment.pop("LM_TELEGRAM_BOT_TOKEN", None)
+        environment.pop("LM_TELEGRAM_ALERT_CHAT_ID", None)
+    else:
+        # eBook assets belong to the shared data root, not an inherited override.
+        environment["LM_DATA_DIR"] = str(
+            Path(home or Path.home()).expanduser() / ".local/state/life-manager"
+        )
+        from runtime.host.local_profile import load_host_profile
+        profile = load_host_profile(home=home)
+        environment["LM_RUNTIME_TENANT_ID"] = (
+            profile["tenant_id"] if profile else EBOOK_RUNTIME_TENANT_ID
+        )
         inherited_path = environment.get("PATH") or os.defpath
-        path_entries = inherited_path.split(os.pathsep)
-        if "/opt/homebrew/bin" not in path_entries:
+        if "/opt/homebrew/bin" not in inherited_path.split(os.pathsep):
             environment["PATH"] = os.pathsep.join(("/opt/homebrew/bin", inherited_path))
-
-    if loop_id in EBOOK_POSTIZ_LOOP_IDS:
-        # HeyGen's CLI telemetry must not gate the provider command on PostHog DNS.
         environment["HEYGEN_NO_ANALYTICS"] = "1"
-        # The CLI lives under the user's local bin, which is intentionally not
-        # added to every eBook owner's PATH.
         if not str(environment.get("LIFE_MANAGER_HEYGEN", "")).strip():
             environment["LIFE_MANAGER_HEYGEN"] = str(
                 (home or Path.home()).expanduser() / ".local/bin/heygen"
             )
+        # launchctl setenv is lost on reboot; an explicit closed gate still wins.
+        environment.setdefault("LM_EBOOK_PUBLISHING_ENABLED", "true")
+        if environment.get("LM_EBOOK_PUBLISHING_ENABLED") != "true":
+            return environment
 
-    # Ignore any inherited alias. The credential SSOT is the only source for eBook
-    # publisher authentication. Do not even pass it to the child while publishing
-    # is disabled.
-    environment.pop("LM_POSTIZ_API_KEY", None)
-    # `launchctl setenv` is lost on every reboot, which silently closed publishing
-    # (entrypoint_exit_1) after each kernel-panic restart. Default open; an explicit
-    # non-"true" value set in the manager still closes it.
-    environment.setdefault("LM_EBOOK_PUBLISHING_ENABLED", "true")
-    if environment.get("LM_EBOOK_PUBLISHING_ENABLED") != "true":
-        return environment
     private = (home or Path.home()) / ".local/share/anicca"
     credentials = private / "credentials.json"
     try:
@@ -281,6 +270,22 @@ def _child_environment_for_owner(
         if (not api_key or len(api_key) > 4096
                 or any(ord(character) < 33 or ord(character) > 126 for character in api_key)):
             return environment
+        if metrics_owner:
+            telegram = [row for row in payload.get("credentials", [])
+                        if isinstance(row, dict) and row.get("service") == "telegram-life-manager"]
+            if len(telegram) != 1:
+                return environment
+            values = {"LM_TELEGRAM_BOT_TOKEN": telegram[0].get("bot_token"),
+                      "LM_TELEGRAM_ALERT_CHAT_ID": telegram[0].get("chat_id")}
+            for key, value in values.items():
+                if not isinstance(value, str):
+                    return environment
+                value = value.strip()
+                if (not value or len(value) > 4096
+                        or any(ord(character) < 33 or ord(character) > 126 for character in value)):
+                    return environment
+                values[key] = value
+            environment.update(values)
     except (OSError, AttributeError, TypeError, ValueError):
         return environment
 
