@@ -21,13 +21,12 @@ const path = require("node:path");
 
 const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
-const { generateSlidePackCandidates } = require("../lib/marketing-slide-pack-factory.js");
+const { COPY_SOURCE_HASH, generateSlidePackCandidates } = require("../lib/marketing-slide-pack-factory.js");
 const { selectSlidePack } = require("../lib/marketing-slide-pack-rotation.js");
 const { marketingVideoDaySlots, marketingVideoDueSlots } = require("../lib/honne-ja-shadow-schedule.js");
 const { JA_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { JA_LARRY_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 
-const MIN_POOL_SIZE = 4;
 const MIN_DAYS_BETWEEN_REPEAT = 7;
 const MIN_FAMILY_METRIC_POSTS = 3;
 const MAX_PUBLICATION_TIME_SKEW_MS = 180_000;
@@ -305,39 +304,51 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   let candidates = readPool(pool);
   let selectable = filterCandidatesForLane(candidates, lane, objectStore);
 
-  const available = selectSlidePack({
-    candidates: addCandidateCopyHashes(selectable, objectStore),
+  const selectionOptions = {
     postedHistory: initialPostedHistory,
     integrationRef: lane.integrationRef,
     minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT,
     now: nowIso,
+  };
+  const copyHashed = addCandidateCopyHashes(selectable, objectStore);
+  const currentAvailable = selectSlidePack({
+    ...selectionOptions,
+    candidates: copyHashed.filter((candidate) => candidate?.copySourceHash === COPY_SOURCE_HASH),
   });
-  // Total inventory can exceed the warm-up floor while every pack is still
-  // inside the no-repeat window. Refill once through the same gated factory.
-  if (selectable.length < MIN_POOL_SIZE || !available) {
+  const available = currentAvailable || selectSlidePack({ ...selectionOptions, candidates: copyHashed });
+  // Legacy stock must not suppress new copy. Refill once only when current
+  // copy has no eligible pack; keep old stock as a fallback.
+  if (!currentAvailable) {
     const rejected = [];
-    const generated = await generateCandidates({
-      objectStore,
-      workspaceDir,
-      imageCacheDir,
-      tenantId,
-      productId: lane.productId,
-      locale: lane.locale,
-      platform: lane.platform,
-      accountId: lane.accountId,
-      integrationRef: lane.integrationRef,
-      rendererId: lane.renderer,
-      packFormat: lane.packFormat,
-      form: lane.form,
-      lastSlideRole: lane.lastSlideRole,
-      variantSeed: dueSlot,
-      ...(resolveBackground ? { resolveBackground } : {}),
-      // launchd hands Mobile jobs the managed venv python (Pillow lives there, not in the release python).
-      ...(env.LIFE_MANAGER_PYTHON ? { python: env.LIFE_MANAGER_PYTHON } : {}),
-      now,
-      onRejected: (info) => rejected.push(info),
-    });
-    const existingRefs = new Set(candidates.map((c) => c.packRef));
+    let generated;
+    try {
+      generated = await generateCandidates({
+        objectStore,
+        workspaceDir,
+        imageCacheDir,
+        tenantId,
+        productId: lane.productId,
+        locale: lane.locale,
+        platform: lane.platform,
+        accountId: lane.accountId,
+        integrationRef: lane.integrationRef,
+        rendererId: lane.renderer,
+        packFormat: lane.packFormat,
+        form: lane.form,
+        lastSlideRole: lane.lastSlideRole,
+        variantSeed: dueSlot,
+        ...(resolveBackground ? { resolveBackground } : {}),
+        // launchd hands Mobile jobs the managed venv python (Pillow lives there, not in the release python).
+        ...(env.LIFE_MANAGER_PYTHON ? { python: env.LIFE_MANAGER_PYTHON } : {}),
+        now,
+        onRejected: (info) => rejected.push(info),
+      });
+    } catch (error) {
+      if (!available) throw error;
+      process.stderr.write(`${JSON.stringify({ slide_pack_refill_failed: error.message })}\n`);
+      generated = [];
+    }
+    const existingRefs = new Set(candidates.map((c) => c?.packRef));
     const fresh = generated.filter((c) => !existingRefs.has(c.packRef));
     appendPool(pool, fresh);
     candidates = candidates.concat(fresh);
@@ -353,14 +364,12 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: slotReceipt.providerPostId };
   }
   const metrics = readCreativeMetricsForFamilies(dataDir, selectable, lane, postedHistory);
+  const finalCandidates = addCandidateCopyHashes(selectable, objectStore);
+  const finalSelectionOptions = { ...selectionOptions, postedHistory, metrics };
   const selected = selectSlidePack({
-    candidates: addCandidateCopyHashes(selectable, objectStore),
-    postedHistory,
-    integrationRef: lane.integrationRef,
-    metrics,
-    minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT,
-    now: nowIso,
-  });
+    ...finalSelectionOptions,
+    candidates: finalCandidates.filter((candidate) => candidate?.copySourceHash === COPY_SOURCE_HASH),
+  }) || selectSlidePack({ ...finalSelectionOptions, candidates: finalCandidates });
   if (!selected) {
     throw new Error(`${lane.name} slide pack rotation has no unposted candidate available for this slot`);
   }
@@ -391,7 +400,6 @@ if (require.main === module) {
 module.exports = {
   MIN_DAYS_BETWEEN_REPEAT,
   MIN_FAMILY_METRIC_POSTS,
-  MIN_POOL_SIZE,
   poolPath,
   readCreativeMetricsForFamilies,
   readPool,
