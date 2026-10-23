@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-23T16:01:25.323475+00:00",
+  "source_review_sha": "307e86d77f37ebe02eeee7b55cdf36ebd4fe9f7c",
+  "scope": "Read-only public GET, official Railway MCP, Git source inspection. This is readiness evidence, not business completion.",
+  "public_pages": [
+    {
+      "url": "https://life-call-production.up.railway.app/maritime?lang=en",
+      "observed_at": "2026-10-23T16:01:24.659187+00:00",
+      "http_status": 200,
+      "final_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+      "response_sha256": "d1b418885714deb84561f2a12cf21f7d59f067b72ab37797e4440ee2e77f5c50",
+      "canonical_urls": [],
+      "email_forms": [
+        {
+          "method": "post",
+          "action": "/auth/maritime/email"
+        }
+      ],
+      "input_fields": [
+        {
+          "name": "email",
+          "type": "email",
+          "required": null
+        }
+      ],
+      "disclosures": {
+        "early_pilot": true,
+        "hosted_cycle_unverified": true,
+        "daily_email_is_design_intent": true,
+        "retention_after_account_deletion": true,
+        "revenue_not_guaranteed": true,
+        "telegram_optional": true
+      }
+    },
+    {
+      "url": "https://life-call-production.up.railway.app/maritime?lang=ja",
+      "observed_at": "2026-10-23T16:01:24.659355+00:00",
+      "http_status": 200,
+      "final_url": "https://life-call-production.up.railway.app/maritime?lang=ja",
+      "response_sha256": "ac3b15bcd5142634425fca0ebb2eae2862d9ad95c5f76d45772237e3d9847125",
+      "canonical_urls": [],
+      "email_forms": [
+        {
+          "method": "post",
+          "action": "/auth/maritime/email"
+        }
+      ],
+      "input_fields": [
+        {
+          "name": "email",
+          "type": "email",
+          "required": null
+        }
+      ],
+      "disclosures": {
+        "early_pilot": true,
+        "hosted_cycle_unverified": true,
+        "daily_email_is_design_intent": true,
+        "retention_after_account_deletion": true,
+        "revenue_not_guaranteed": true,
+        "telegram_optional": true
+      }
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
+      "observed_at": "2026-10-23T16:01:24.659418+00:00",
+      "http_status": 200,
+      "final_url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
+      "response_sha256": "d93b21aab83648ade2ad4ece7d2a19f7d0a1647f331349b355a6015f27e23f42",
+      "canonical_urls": [
+        "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en"
+      ],
+      "title_present": true,
+      "hosted_work_report_unverified": true,
+      "pilot_links": [
+        "https://life-call-production.up.railway.app/maritime?source=aniccaai&utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1",
+        "https://life-call-production.up.railway.app/maritime?lang=en"
+      ],
+      "retention_policy_links": [
+        "https://maritime.sh/privacy"
+      ]
+    },
+    {
+      "url": "https://life-call-production.up.railway.app/health",
+      "observed_at": "2026-10-23T16:01:24.659457+00:00",
+      "http_status": 200,
+      "final_url": "https://life-call-production.up.railway.app/health",
+      "response_sha256": "0d4f8e73fba36273151063cf97f56ace3b362475ce9a13d2eaede8cc83835312",
+      "response": {
+        "ok": true,
+        "service": "life-call",
+        "ws": "/ws",
+        "build": "3c07308015c41de9399f08c40b17ba9e5df135e7"
+      }
+    }
+  ],
+  "production": {
+    "provider": "Railway",
+    "official_readback_at": "2026-10-23T15:59:50Z",
+    "project_id": "f9c524cb-ba4a-43bb-9639-ff736afd9ec1",
+    "environment_id": "039eb0fd-b017-458f-947d-f3f55a0b3c04",
+    "loaded_source_sha": "3c07308015c41de9399f08c40b17ba9e5df135e7",
+    "services": [
+      {
+        "name": "life-call",
+        "service_id": "ca978c74-639a-4fa1-af22-9cdd53c3f615",
+        "active_deployment_id": "7a2defb2-594d-410f-83c3-e8fd2743c073",
+        "deployment_status": "SUCCESS",
+        "state": "online",
+        "running_replicas": 1,
+        "total_replicas": 1
+      },
+      {
+        "name": "money-printer-worker",
+        "service_id": "7568c101-558a-4704-9956-dd523c5bb3d4",
+        "active_deployment_id": "367179b2-ab34-455b-af77-6ab6faccfd23",
+        "deployment_status": "SUCCESS",
+        "state": "online",
+        "running_replicas": 1,
+        "total_replicas": 1
+      }
+    ],
+    "pending_work_count": 0,
+    "issues_count": 0,
+    "loaded_sha_is_ancestor_of_source_review_sha": true,
+    "apps_life_manager_paths_changed_between_loaded_and_review_sha": [],
+    "source_comparison_command": "git diff --name-only 3c07308015c41de9399f08c40b17ba9e5df135e7 307e86d77f37ebe02eeee7b55cdf36ebd4fe9f7c -- apps/life-manager",
+    "worker_email_enabled": null,
+    "pilot_max_users": null,
+    "flags_reason": "Railway OAuth list-variables returned valuesRedacted=true. Names are present; values are unknown. Historical Oct 21 values are not current evidence."
+  },
+  "pull_requests": [
+    {
+      "url": "https://github.com/Daisuke134/life-manager/pull/8492",
+      "state": "MERGED",
+      "head_sha": "37fe04c691967d1b295833a99829145392538528",
+      "merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+      "merged_at": "2026-10-21T10:12:48Z"
+    },
+    {
+      "url": "https://github.com/Daisuke134/anicca-products/pull/537",
+      "state": "OPEN",
+      "is_draft": true,
+      "head_sha": "42aac79aa29012ab018a138fe295943269967210",
+      "checks": "Landing and CodeRabbit SUCCESS",
+      "note": "The article URL is live despite this older draft remaining open. Do not merge or redeploy blindly to remedy the obsolete 404 observation."
+    }
+  ],
+  "hosted_counts": {
+    "observed_at": null,
+    "enrollments": null,
+    "executions": null,
+    "completed_work_events": null,
+    "report_sent_events": null,
+    "verified_external_manager_users": null,
+    "official_distinct_users": null,
+    "reason": "No fresh configured Runtime PG aggregate readback obtained. Existing maritime-week1-export.js reads the historical current-status-20261021.json and does not query the DB. Existing Railway CLI whoami --json exited 1, so no SSH/DB query or auth change was attempted. OAuth variable values are withheld. Historical zeroes are not current counts.",
+    "prior_evidence_ref": "docs/evidence/maritime/current-status-20261021.json"
+  },
+  "source_gaps": {
+    "T17_5": {
+      "status": "not_implemented_at_source_review_sha",
+      "provider_runtime_module_exists": false,
+      "planned_module": "apps/life-manager/lib/maritime-manager-provider-runtime.js",
+      "prepare_publish_capability_references_present": false,
+      "reconcile_capabilities": [
+        "maritime.manager.provision",
+        "maritime.manager.cycle",
+        "maritime.manager.report"
+      ],
+      "cycle_result_contract": "Artifact-only: providerSnapshotRef must be null and providerReceiptRefs must be empty.",
+      "smallest_source_path": "Reuse existing transactional continuation/resolveReconciliationAndEnqueue. Add the planned central prepare/publish builders, receipt verifiers and adapters plus both worker reconciliation capabilities. Keep official tenant-bound readiness and publish effects as separate operational steps."
+    },
+    "hosted_cycle": "Owner PKCE, explicit retention consent, tenant-bound provider readiness, actual work/result/report/stop and provider receipts have not been freshly verified by this audit."
+  },
+  "competition": {
+    "formal_submission_receipt": null,
+    "formal_submission_status": "unknown_pending_root_readback",
+    "root_official_sources_readback_at": "2026-10-23T15:57:00Z",
+    "root_report": "Public home/Terms still show no project form/cutoff; incoming organizer email instructions and replies to existing inquiry threads were not found. This audit did not submit or message organizers.",
+    "official_urls": [
+      "https://competition.maritime.sh/",
+      "https://competition.maritime.sh/terms"
+    ]
+  },
+  "distribution": {
+    "team_handoff_status": "sent",
+    "handoff_url": "https://dais-45u3124.slack.com/archives/C0CBLBGSBJN/p1792770959141529",
+    "x_distribution_owner": "root coordinating existing X identities after team notice",
+    "x_publication_receipts": null,
+    "interpretation": "A sent internal handoff is not a published X post, user activation, competition receipt or revenue."
+  },
+  "audit_effects": {
+    "deployments": 0,
+    "runtime_jobs": 0,
+    "provider_publish": 0,
+    "public_posts": 0,
+    "formal_submissions": 0,
+    "model_calls": 0,
+    "auth_changes": 0,
+    "private_values_logged": 0
+  }
+}
