@@ -159,7 +159,7 @@ def _write_json(path: Path, value: dict) -> None:
             pass
 
 
-def _receipt(output: Path, video_id: str, wallet_cost: dict) -> dict:
+def _receipt(output: Path, video_id: str, wallet_cost: dict | None) -> dict:
     return {
         "renderer_id": "heygen-avatar-iv",
         "state": "rendered",
@@ -244,6 +244,9 @@ def render(
         if output.exists():
             require(output.is_file() and not output.is_symlink() and output.stat().st_size > 0,
                     "HeyGen recovered output invalid")
+            if intent.get("output_sha256") is not None:
+                require(hashlib.sha256(output.read_bytes()).hexdigest() == intent["output_sha256"],
+                        "HeyGen recovered output differs")
         try:
             provider_status = _video_status(executor, config["cli"], video_id)
         except Exception as exc:
@@ -318,7 +321,8 @@ def render(
             if create_exit_code:
                 pending.update({"error_class": create_error_class, "exit_code": create_exit_code})
             return pending
-    if not output.exists():
+    downloaded = not output.exists()
+    if downloaded:
         if staging.exists():
             staging.unlink()
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -328,16 +332,26 @@ def render(
                 [config["cli"], "video", "download", video_id, "--output-path", str(staging)],
             )
             require(staging.is_file() and staging.stat().st_size > 0, "HeyGen download produced no video")
+            if intent.get("output_sha256") is not None:
+                require(hashlib.sha256(staging.read_bytes()).hexdigest() == intent["output_sha256"],
+                        "HeyGen recovered output differs")
             staging.replace(output)
         finally:
             if staging.exists():
                 staging.unlink()
     wallet_cost = intent.get("wallet_cost")
     if not isinstance(wallet_cost, dict):
+        receipt = _receipt(output, video_id, None)
         _write_json(intent_path, {**intent, "state": "cost_reconciliation_required",
+                                  "wallet_cost": None, "provider_receipt_id": video_id,
+                                  "output_sha256": receipt["sha256"],
                                   "cost_reconciliation_reason": (
                                       "wallet_delta_unavailable" if created_in_this_run
                                       else "resumed_wallet_delta_not_attributable")})
+        if not created_in_this_run:
+            receipt.update(cost_reconciliation_required=True,
+                           external_effects=["heygen_video_downloaded"] if downloaded else [])
+            return receipt
         return {"renderer_id": "heygen-avatar-iv", "state": "reconciliation_required",
                 "video_id": video_id, "effect_key": request_sha256, "external_effects": []}
     receipt = _receipt(output, video_id, wallet_cost)
