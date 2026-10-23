@@ -8,7 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
-- [Codex / Maritime source] claim: T17 trusted provider-chain＋T18.9 report slice。専用branch feat/maritime-provider-chain-20261023 / .worktrees/maritime-provider-chain-20261023のprovider-runtime/tests・runtime-up/tests・report/tests、およびT17 capability限定のruntime-job-store参照検証/testsを所有。本番作用なし。BOARD/SSOTはreadback担当が所有し、旧 .worktrees/maritime-provider-runtime-20261021 のdirty docsは保持する。
+- [Codex / Maritime source] claim: T17 trusted provider-chain＋T18.9 report slice。専用branch feat/maritime-provider-chain-20261023 / .worktrees/maritime-provider-chain-20261023のprovider-runtime/tests・runtime-up/tests・report/tests、およびT17 capability限定のruntime-job-store・runtime/contracts/common-record.cjs参照検証/testsを所有。本番作用なし。BOARD/SSOTはreadback担当が所有し、旧 .worktrees/maritime-provider-runtime-20261021 のdirty docsは保持する。
 - [Codex / Maritime readback] claim: 専用branch docs/maritime-live-readback-20261023で2026-10-23のlive evidence・統合SSOTのMaritime現在checkpoint・BOARD記録のみを所有。T17実装・provider/runtime・投稿・提出はroot/別ownerが所有。
 - [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
