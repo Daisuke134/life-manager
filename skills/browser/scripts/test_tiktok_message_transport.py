@@ -27,7 +27,7 @@ class FakeCDP:
         self.identity = identity
         self.exact_before = exact_before
         self.after = after or self._context(editor_empty=True, exact_message=True,
-                                            message_found=True)
+                                            message_found=True, enter_guard_status="passed")
         self.route = route
         self.before_sequence = list(before_sequence or [])
         self.after_sequence = list(after_sequence or [])
@@ -62,6 +62,9 @@ class FakeCDP:
             "message_found": False,
             "message_delivery_state": None,
             "message_delivery_blocked": False,
+            "send_ready": True,
+            "enter_guard_armed": False,
+            "enter_guard_status": None,
         }
         row.update(updates)
         return row
@@ -113,7 +116,7 @@ class FakeCDP:
             if self.pre_enter_sequence:
                 return self.pre_enter_sequence.pop(0)
             return self._context(editor_empty=False, editor_matches=True,
-                                 editor_focused=True)
+                                 editor_focused=True, enter_guard_armed=True)
         if "TIKTOK_AFTER" in expression:
             self.after_reads += 1
             if self.after_sequence:
@@ -306,6 +309,7 @@ class TikTokMessageTransportTest(unittest.TestCase):
         fake.pre_enter_sequence = [fake._context(
             frame_path="/not-messages", recipient_bound=False,
             editor_empty=False, editor_matches=True,
+            exact_message=True, message_found=True,
         )]
 
         result = self.send(self.payload(), fake, send=True)
@@ -314,6 +318,35 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertEqual(result["effect"], 0)
         self.assertTrue(result["retry_safe"])
         self.assertEqual(sum(call[0] == "key" for call in fake.calls), 0)
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["attempting", "not_sent"])
+
+    def test_filled_readback_cannot_mark_wrong_context_as_sent(self):
+        fake = FakeCDP(filled_sequence=[FakeCDP()._context(
+            frame_path="/not-messages", recipient_bound=False,
+            editor_empty=False, editor_matches=True,
+            exact_message=True, message_found=True,
+        )])
+
+        result = self.send(self.payload(), fake, send=True)
+
+        self.assertEqual(result["status"], "composer_fill_mismatch")
+        self.assertFalse(any(call[0] == "key" for call in fake.calls))
+        ledger = self.project_root / "delivery/tiktok-message-effects.jsonl"
+        self.assertFalse(ledger.exists())
+
+    def test_event_guard_block_before_keydown_records_no_effect(self):
+        fake = FakeCDP(after=FakeCDP()._context(
+            editor_empty=False, exact_message=False, message_found=False,
+            enter_guard_status="blocked_before_keydown",
+        ))
+
+        result = self.send(self.payload(), fake, send=True)
+
+        self.assertEqual(result["status"], "pre_send_context_changed")
+        self.assertEqual(result["effect"], 0)
+        self.assertTrue(result["retry_safe"])
         rows = [json.loads(line) for line in
                 (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
         self.assertEqual([row["state"] for row in rows], ["attempting", "not_sent"])

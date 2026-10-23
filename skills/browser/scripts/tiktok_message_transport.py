@@ -87,8 +87,75 @@ def _composer_ready(value: dict) -> bool:
     )
 
 
-def _messages_dom_expression(candidate: str, message: str, marker: str, *, focus: bool = False) -> str:
+def _messages_dom_expression(candidate: str, message: str, marker: str, *, focus: bool = False,
+                             arm_enter_guard: bool = False) -> str:
     focus_action = "if (composerReady) editor.focus();" if focus else ""
+    enter_guard_action = ""
+    if arm_enter_guard:
+        enter_guard_action = '''
+      if (sendReady && !exactMessage && !messageDeliveryBlocked) {
+        let guardState = 'armed';
+        const readCurrent = () => {
+          const liveFrame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
+          const liveDoc = liveFrame?.contentDocument;
+          let liveUrl = null;
+          try { liveUrl = liveDoc?.location?.href ? new URL(liveDoc.location.href) : null; } catch (_) {}
+          const liveEditor = liveDoc?.querySelector(__EDITOR__);
+          const liveList = liveDoc?.querySelector('[data-e2e="dm-new-message-list"]');
+          const liveHeaders = [...(liveDoc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
+          const liveHandles = liveHeaders.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
+          const liveText = (liveList?.innerText || '').trim();
+          const liveBusy = !!liveList?.matches('[aria-busy="true"]')
+            || !!liveList?.querySelector('[aria-busy="true"],[role="progressbar"],[data-e2e*="loading"],[class*="Loading"]')
+            || /loading|読み込み中/i.test(liveText);
+          const liveEmpty = /no messages|メッセージはありません/i.test(liveText);
+          const liveLoaded = !!liveList && !liveBusy && (!!liveText || liveEmpty);
+          const liveNodes = liveList ? [...liveList.querySelectorAll('*')].filter(node => !liveEditor || !node.contains(liveEditor)) : [];
+          const duplicateVisible = normalise(liveList?.innerText) === normalise(__MESSAGE__)
+            || liveNodes.some(node => normalise(node.innerText) === normalise(__MESSAGE__));
+          const context = liveFrame === frame && liveDoc === doc
+            && liveUrl?.origin === 'https://www.tiktok.com' && liveUrl?.pathname === '/messages'
+            && liveDoc?.readyState === 'complete' && liveHandles.includes(__CANDIDATE__)
+            && liveEditor === editor && liveLoaded;
+          const composer = context && liveDoc?.activeElement === editor
+            && normalise(editor.innerText) === normalise(__MESSAGE__) && !duplicateVisible;
+          return {context, composer};
+        };
+        const enterGuard = event => {
+          if (event.key !== 'Enter' && event.code !== 'Enter') return;
+          const live = readCurrent();
+          if (event.type === 'keydown') {
+            if (!live.composer) {
+              guardState = 'blocked_before_keydown';
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            } else {
+              guardState = 'keydown_passed';
+            }
+          } else {
+            if (guardState === 'blocked_before_keydown') {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            } else if (guardState === 'keydown_passed') {
+              guardState = live.context ? 'passed' : 'context_changed_after_keydown';
+              if (!live.context) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              }
+            }
+            doc.removeEventListener('keydown', enterGuard, true);
+            doc.removeEventListener('keyup', enterGuard, true);
+          }
+          doc.defaultView.__lmTikTokEnterGuard = guardState;
+        };
+        doc.defaultView.__lmTikTokEnterGuard = guardState;
+        doc.addEventListener('keydown', enterGuard, true);
+        doc.addEventListener('keyup', enterGuard, true);
+        enterGuardArmed = true;
+      }
+        '''.replace("__MESSAGE__", json.dumps(message)).replace(
+            "__CANDIDATE__", json.dumps(candidate),
+        ).replace("__EDITOR__", json.dumps(EDITOR))
     return f'''/* {marker} */ (() => {{
       const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
       const doc = frame?.contentDocument;
@@ -102,17 +169,27 @@ def _messages_dom_expression(candidate: str, message: str, marker: str, *, focus
       const conversationLoaded = !!messageList && !listBusy && (!!listText || explicitEmpty);
       const normalise = value => (value || '').replace(/\\s+/g, ' ').trim();
       const messageNodes = messageList
-        ? [messageList, ...messageList.querySelectorAll('*')].filter(node => !editor || !node.contains(editor))
+        ? [...messageList.querySelectorAll('*')].filter(node => !editor || !node.contains(editor))
         : [];
-      const matchedMessage = messageNodes.find(node => normalise(node.innerText) === normalise({json.dumps(message)})) || null;
-      let messageDeliveryState = '';
-      for (let node = matchedMessage; node; node = node.parentElement) {{
-        const state = (node.getAttribute('data-status') || '').trim().toLowerCase();
-        if (state) {{ messageDeliveryState = state; break; }}
-        if (node === messageList) break;
-      }}
-      const messageDeliveryBlocked = ['failed', 'error', 'pending', 'sending', 'queued', 'canceled', 'cancelled', 'undelivered'].includes(messageDeliveryState);
-      const exactMessage = !!matchedMessage && !messageDeliveryBlocked;
+      const matchingMessages = messageNodes.filter(node => normalise(node.innerText) === normalise({json.dumps(message)}));
+      const listExactMessage = !!messageList && normalise(messageList.innerText) === normalise({json.dumps(message)});
+      const statusNodes = matchingMessages.length > 0
+        ? matchingMessages
+        : (listExactMessage ? [messageList, ...messageList.querySelectorAll('[data-status]')] : []);
+      const blockedStates = ['failed', 'error', 'pending', 'sending', 'queued', 'canceled', 'cancelled', 'undelivered'];
+      const messageDeliveryStates = statusNodes.map(matched => {{
+        for (let node = matched; node; node = node.parentElement) {{
+          const state = (node.getAttribute('data-status') || '').trim().toLowerCase();
+          if (state) return state;
+          if (node === messageList) break;
+        }}
+        return '';
+      }});
+      const messageDeliveryBlocked = messageDeliveryStates.some(state => blockedStates.includes(state));
+      const messageDeliveryState = messageDeliveryStates.find(state => blockedStates.includes(state))
+        || messageDeliveryStates.find(Boolean) || '';
+      const messageFound = matchingMessages.length > 0 || listExactMessage;
+      const exactMessage = messageFound && !messageDeliveryBlocked;
       const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
       const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
       const recipientBound = handles.includes({json.dumps(candidate)});
@@ -121,20 +198,28 @@ def _messages_dom_expression(candidate: str, message: str, marker: str, *, focus
       const frameValid = !!frame && frameUrl?.origin === 'https://www.tiktok.com'
         && frameUrl?.pathname === '/messages' && doc?.readyState === 'complete';
       const editorEmpty = !!editor && !(editor.innerText || '').trim();
+      const editorMatches = !!editor && normalise(editor.innerText) === normalise({json.dumps(message)});
+      const editorFocused = !!editor && doc?.activeElement === editor;
       const composerReady = frameValid && recipientBound && conversationLoaded && editorEmpty;
+      const sendReady = frameValid && recipientBound && conversationLoaded && editorMatches && editorFocused;
+      let enterGuardArmed = false;
       {focus_action}
+      {enter_guard_action}
       return {{url: location.href, frame_url: frameUrl?.href || null,
         recipient_bound: recipientBound, recipient_handles: handles,
         frame_present: !!frame, frame_origin: frameUrl?.origin || null,
         frame_path: frameUrl?.pathname || null, frame_ready_state: doc?.readyState || null,
         editor: !!editor, editor_empty: editorEmpty,
-        editor_matches: !!editor && normalise(editor.innerText) === normalise({json.dumps(message)}),
-        editor_focused: !!editor && doc?.activeElement === editor,
+        editor_matches: editorMatches,
+        editor_focused: editorFocused,
         composer_ready: composerReady,
-        exact_message: exactMessage, message_found: !!matchedMessage,
+        send_ready: sendReady,
+        exact_message: exactMessage, message_found: messageFound,
         message_delivery_state: messageDeliveryState || null,
         message_delivery_blocked: messageDeliveryBlocked,
-        conversation_loaded: conversationLoaded, explicit_empty_state: explicitEmpty}};
+        conversation_loaded: conversationLoaded, explicit_empty_state: explicitEmpty,
+        enter_guard_armed: enterGuardArmed,
+        enter_guard_status: doc?.defaultView?.__lmTikTokEnterGuard || null}};
     }})()'''
 
 
@@ -378,7 +463,10 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
                     _message_context_ready(row)
                     and bool(row.get("recipient_handles"))
                     and row.get("recipient_bound") is not True
-                ) or row.get("message_delivery_blocked") is True
+                ) or (
+                    _message_context_ready(row)
+                    and row.get("message_delivery_blocked") is True
+                )
             ),
             wait=wait,
         )
@@ -387,17 +475,23 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             result["status"] = "composer_unreadable"
             return result
         result["official_url"] = before.get("url")
-        if before.get("message_delivery_blocked") is True:
-            if not prior or prior[-1].get("state") not in {"attempting", "unknown"}:
-                _append(ledger, result, "unknown")
-            result.update(status="message_delivery_unconfirmed", retry_safe=False)
-            return result
         if not before_ready:
+            if (_message_context_ready(before)
+                    and before.get("message_delivery_blocked") is True):
+                if not prior or prior[-1].get("state") not in {"attempting", "unknown"}:
+                    _append(ledger, result, "unknown")
+                result.update(status="message_delivery_unconfirmed", retry_safe=False)
+                return result
             result["status"] = (
                 "composer_recipient_binding_failed"
                 if before.get("recipient_handles") and before.get("recipient_bound") is not True
                 else "composer_hydration_timeout"
             )
+            return result
+        if before.get("message_delivery_blocked") is True:
+            if not prior or prior[-1].get("state") not in {"attempting", "unknown"}:
+                _append(ledger, result, "unknown")
+            result.update(status="message_delivery_unconfirmed", retry_safe=False)
             return result
         if before.get("exact_message") is True and before.get("recipient_bound") is True:
             result.update(status="deduplicated_exact_official_readback", exact_readback=True,
@@ -427,6 +521,11 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         cdp_client.insert(target, message)
         filled_expression = _messages_dom_expression(candidate, message, "TIKTOK_FILLED")
         filled = cdp_client.evaluate(target, filled_expression)
+        if (not isinstance(filled, dict) or not _message_context_ready(filled)
+                or filled.get("editor") is not True or filled.get("editor_matches") is not True
+                or filled.get("editor_focused") is not True):
+            result["status"] = "composer_fill_mismatch"
+            return result
         if isinstance(filled, dict) and filled.get("message_delivery_blocked") is True:
             _append(ledger, result, "unknown")
             result.update(status="message_delivery_unconfirmed", retry_safe=False)
@@ -436,16 +535,14 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             result.update(status="deduplicated_exact_official_readback", exact_readback=True,
                           retry_safe=False)
             return result
-        if (not isinstance(filled, dict) or not _message_context_ready(filled)
-                or filled.get("editor") is not True or filled.get("editor_matches") is not True
-                or filled.get("editor_focused") is not True):
-            result["status"] = "composer_fill_mismatch"
-            return result
 
         _append(ledger, result, "attempting")
         try:
+            pre_enter_expression = _messages_dom_expression(
+                candidate, message, "TIKTOK_PRE_ENTER", arm_enter_guard=True,
+            )
             pre_enter = cdp_client.evaluate(
-                target, _messages_dom_expression(candidate, message, "TIKTOK_PRE_ENTER"),
+                target, pre_enter_expression,
             )
         except Exception:
             try:
@@ -454,7 +551,17 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
                 result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
             result.update(status="pre_send_context_unreadable", retry_safe=True)
             return result
-        if isinstance(pre_enter, dict) and pre_enter.get("message_delivery_blocked") is True:
+        if (not isinstance(pre_enter, dict) or not _message_context_ready(pre_enter)
+                or pre_enter.get("editor") is not True or pre_enter.get("editor_matches") is not True
+                or pre_enter.get("editor_focused") is not True
+                or pre_enter.get("send_ready") is not True):
+            try:
+                _append(ledger, result, "not_sent")
+            except Exception as error:
+                result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
+            result.update(status="pre_send_context_changed", retry_safe=True)
+            return result
+        if pre_enter.get("message_delivery_blocked") is True:
             try:
                 _append(ledger, result, "unknown")
             except Exception as error:
@@ -466,14 +573,12 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             result.update(status="deduplicated_exact_official_readback", exact_readback=True,
                           retry_safe=False)
             return result
-        if (not isinstance(pre_enter, dict) or not _message_context_ready(pre_enter)
-                or pre_enter.get("editor") is not True or pre_enter.get("editor_matches") is not True
-                or pre_enter.get("editor_focused") is not True):
+        if pre_enter.get("enter_guard_armed") is not True:
             try:
                 _append(ledger, result, "not_sent")
             except Exception as error:
                 result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
-            result.update(status="pre_send_context_changed", retry_safe=True)
+            result.update(status="pre_send_guard_unavailable", retry_safe=True)
             return result
 
         result.update(effect=1, retry_safe=False)
@@ -495,7 +600,10 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
                     and row.get("editor_empty") is True
                     and row.get("exact_message") is True
                 ),
-                terminal=lambda row: row.get("message_delivery_blocked") is True,
+                terminal=lambda row: (
+                    row.get("message_delivery_blocked") is True
+                    or row.get("enter_guard_status") == "blocked_before_keydown"
+                ),
                 wait=wait,
             )
             result["post_send_readback_attempts"] = after_attempts
@@ -513,6 +621,15 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
                  and after.get("recipient_bound") is True
                  and after.get("editor_empty") is True
                  and after.get("exact_message") is True)
+        if (not exact and isinstance(after, dict)
+                and after.get("enter_guard_status") == "blocked_before_keydown"):
+            try:
+                _append(ledger, result, "not_sent")
+            except Exception as error:
+                result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
+            result.update(effect=0, status="pre_send_context_changed", exact_readback=False,
+                          retry_safe=True)
+            return result
         result["exact_readback"] = exact
         result["status"] = ("sent_exact_official_readback" if exact
                             else "send_unknown_reconcile_required")
