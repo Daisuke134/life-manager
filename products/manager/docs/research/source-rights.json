@@ -450,6 +450,63 @@
       },
       "risk": "Generic published candidate preference is not response safety, clinical competence, behavior change or human welfare. AI-assisted eligibility screening is not human annotation or legal approval.",
       "unresolved": "Third-party source rights/privacy, paraphrase and pretraining contamination and person/time/transfer validity remain unverified. The train proposal is NOT_READY; this scope permits no training or product activation."
+    },
+    {
+      "id": "xstest-mistral-refusal-private",
+      "name": "XSTest exact Mistral original response refusal evaluation",
+      "kind": "constructed public benchmark prompts, model responses and nonidentifying categorical annotations",
+      "license_expression": "CC-BY-4.0; completion original-license exception; annotation scope not individually explicit",
+      "source_url": "https://github.com/paul-rottger/xstest/tree/d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d",
+      "license_evidence_url": "https://github.com/paul-rottger/xstest/blob/d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d/LICENSE",
+      "license_evidence_sha": "d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "commercial_evaluation": "allowed_with_conditions",
+        "commercial_training": "hold",
+        "product_use": "hold",
+        "raw_redistribution": "hold"
+      },
+      "artifact": {
+        "revision": "d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d",
+        "files": {
+          "model_completions/xstest_v2_completions_mistralinstruct.csv": {
+            "bytes": 371935,
+            "sha256": "6a146b65a5b96ec8249729bc2db459697175125998d7cbbcc88f7688ecf31dad"
+          },
+          "evaluation/automated_evaluation_labels/xstest_v2_completions_mistralinstruct_streval.csv": {
+            "bytes": 379544,
+            "sha256": "a1ad24b837a13380a88f9748b39663add74cd992d5841db782271490dcbb41d3"
+          }
+        },
+        "role": "private_exact_original_response_refusal_judge_evaluation_only",
+        "publication": "metadata_only"
+      },
+      "operating_ruling": "CONDITIONAL_PRIVATE_EVALUATION_ONLY: root extends the existing same-response comparison to local-only judge calibration; no comprehensive grant or new participant authorization inferred.",
+      "license_review": {
+        "repository_license": "CC-BY-4.0",
+        "completion_exception": "Original model licenses per README",
+        "original_model_card": "Mistral-7B-Instruct-v0.1 Apache-2.0 declaration at ec5deb64f2c6e6fa90c1abf74a91d5c93a9669ca",
+        "model_specific_license_file": "ABSENT_AT_REVIEWED_REVISION",
+        "annotation_per_column_scope": "NOT_EXPLICIT",
+        "third_party_rights": "NOT_GUARANTEED"
+      },
+      "attribution": {
+        "creators": [
+          "XSTest authors (Röttger et al., 2024)"
+        ],
+        "paper_url": "https://aclanthology.org/2024.naacl-long.301/",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "changes": "Local Qwen judge, modified explicit instruction/JSON quoting/strict parser, source hash binding and cumulative stop budget; original text and human gold unchanged."
+      },
+      "requirements": [
+        "Use only exact Mistral original450 responses and their original human final labels.",
+        "Keep original text and row-level annotations private; no training/SFT/DPO/few-shot/retrieval/product use or raw redistribution.",
+        "Do not infer full output/annotation rights from base-model Apache; keep annotation scope uncertainty.",
+        "Human gold stays host-side; never place annotation/final_label or released labels in model messages.",
+        "Constructed public test source/nonidentifying categorical labels are the classification basis, not a guarantee of universal absence of personal content.",
+        "No Meta/OpenAI completions or released GPT labels are adopted."
+      ]
     }
   ]
 }
