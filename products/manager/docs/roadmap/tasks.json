@@ -1619,12 +1619,28 @@
     "learn": "寄付者由来の純増と拠出原資を分ける",
     "change": "金融介入評価に資金元・外部寄付・総費用の分類を実装",
     "verify": "自分で出したマッチング予算を外部から生まれた利益として加算しない",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "manager_core/program_funding.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "ACCEPTED_SOURCE_CLASSIFICATION_ONLY",
+    "completion_evidence": [
+      "manager_core/program_funding.py",
+      "tests/test_program_funding.py",
+      "docs/verification/D001_D002_SOURCE_ACCEPTANCE_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T06:20:45.828602+00:00",
+      "result": "FUNDING_ORIGIN_AND_COST_CLASSIFICATION_IMPLEMENTED",
+      "scope": "SOURCE_CONTRACT_P0_ONLY",
+      "source_commit": "e5b2f0638c2f31c838cd85b591dd5dcdfebef175",
+      "module_sha256": "6b1c7896101434347a3b6b2d7b23ab8e0dac3c256d56b05674b9c5ece2dab890",
+      "live_funding_observed": false,
+      "deployed_main_runtime": false,
+      "human_outcome": "NOT_MEASURED",
+      "independent_review": "SOURCE_CONTRACT_ZERO_FINDINGS"
+    }
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
