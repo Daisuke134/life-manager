@@ -1,0 +1,9 @@
+Version 1.9.6
+
+Notification taps open the message shown in the notification. Paywall loading and package selection have been corrected for the Anicca offering.
+
+The Sign Out button in Settings now asks for confirmation, calls the existing sign-out flow, returns to onboarding, and closes Settings. Device permission settings are preserved.
+
+The app does not request an App Store rating during onboarding or on first launch. The current policy requires at least three distinct days of use and a subsequent value moment, such as favoriting an affirmation or reading three different affirmations in a session.
+
+Purchase presentation: monthly and annual packages are shown when available in the Anicca offering. In Variant B, the Lifetime option is shown only when the device's first preferred language begins with Japanese (ja) and a Lifetime package is available. This condition uses the device language, not the App Store storefront country. Product availability and prices come from the store offering.

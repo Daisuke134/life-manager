@@ -1083,3 +1083,6 @@ ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-pub
 8dacc657fc04b35a000d08c48471af541bab5a1d:docs/evidence/lm-foundation-audit-20261022.json:generic-api-key:6059
 # Public fixture SHA-256 effect identity independently reproduced from its exact source commit.
 9ea03355acbcb8e251e3f4c79df6ca16da8a09f9:products/manager/docs/verification/E16_RECOVERY_REVIEW_20261022.md:generic-api-key:51
+# Public digital-release effect SHA256 identifiers; exact historical fingerprints only.
+17d400f225ab4ee320daae337b2e866e0c32884a:products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json:generic-api-key:64
+17d400f225ab4ee320daae337b2e866e0c32884a:products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json:generic-api-key:191

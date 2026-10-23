@@ -1,3 +1,2 @@
-- You can now close the paywall and try Anicca for free
-- Added a one-time Lifetime purchase option (Japan)
-- Stability improvements
+- Fixed notification taps opening a different message.
+- Improved paywall loading and subscription plan selection.
