@@ -371,6 +371,165 @@
       },
       "risk": "Finite candidate preference is not safety, clinical competence, behavior change or human welfare. AI content RETAIN does not certify rights/privacy; final16 was AI-QC exposed before dev scoring and is not fully blind. Fit and benefit remain unknown.",
       "unresolved": "Conditional private-purpose rights decision is recorded by actual root AI engineering/research reviewer using existing AI QC plus metadata/source-binding review; historical manual/root pending is resolved only for this bounded purpose, not by new human/raw review. Exact reviewed source integration, accepted scientific protocol, immutable external code/CI/runtime resources and G6 execution remain pending; G7 evaluation remains separately pending. Per-row contributor consent/third-party rights, absence of PII, QC reviewer identity, clinical appropriateness, paraphrase/pretraining contamination, transfer and future model legal classification are not certified. Stop/quarantine/version if a concrete retained27 problem emerges; no silent substitution. No full V002/V003, live or human-benefit acceptance follows."
+    },
+    {
+      "id": "helpsteer2-private-fixed-adapter-eval24-v1",
+      "name": "NVIDIA HelpSteer2 exact dev8 and final16: conditional private fixed-adapter original-candidate comparison",
+      "kind": "public exact-original-response annotations; conditionally accepted private offline evaluation purpose only",
+      "status": "CONDITIONALLY_ACCEPTED_PRIVATE_PURPOSE_PENDING_EXACT_SOURCE_INTEGRATION",
+      "purpose": "PRIVATE_FIXED_ADAPTER_ORIGINAL_CANDIDATE_EVALUATION_ONLY",
+      "role_acceptance": {
+        "status": "CONDITIONALLY_ACCEPTED_PRIVATE_PURPOSE_PENDING_EXACT_SOURCE_INTEGRATION",
+        "accepted_by": "Codex root AI engineering/research reviewer within the owner's standing authorization to complete the agent/model work; not a human legal, ethics, IRB or participant-consent signature.",
+        "accepted_at_utc": "2026-10-23T19:47:06.592037+00:00",
+        "decision_reason": "I conditionally accept exact shared-manifest development8 and final16 private original-candidate base/fixed-adapter NLL comparison and host-scoring against published original preference labels. This is a separate evaluation purpose from the unchanged train27 conditional record and old dev8-only record. Evidence: pinned NVIDIA HelpSteer2 CC BY4.0 card and prior legalcode/artifact-specific audit, native Qwen3 Apache2 notices, pre-existing AI eligibility QC metadata/exposure record, immutable shared manifest7547ff63f7c06f8196689b3890288417154012d71e9609d0a3db232eeb0f182e and frozen parent scientific protocoleb2e585321d954d507af52b1bf71db9eb3b7ae3150273484909b6aeeae48a53d. I read the complete evaluation preparation report and pending new record, plus prior actual training-purpose ruling. I accept the existing AI QC with metadata/source-binding review and residual risks for this finite private evaluation; no new raw-text manual/human review, fresh legal audit, final preference inspection or target-model scoring has occurred.",
+        "risk_acceptance": "AI_ENGINEERING_REVIEW_ACCEPTS_EXISTING_QC_FOR_PRIVATE_PURPOSE. Per-row ShareGPT/Scale rights/consent/privacy, pretraining/paraphrase contamination, semantic/person/study/time independence and future weights classification remain UNKNOWN; no blanket third-party clearance or absence of PII is certified. Final16 content-QC exposure is preserved; it is not pristine or humanblind. Recorded target-model-unscored/train-unused/selection-unused status must be reaffirmed before G7. No concrete evaluation-case blocker was identified in the existing reviewed QC/rights evidence; any newly identified concrete issue requires stop/quarantine/new reviewed version rather than silent replacement.",
+        "root_content_review_resolution": {
+          "status": "AI_ENGINEERING_REVIEW_ACCEPTS_EXISTING_QC_FOR_PRIVATE_PURPOSE",
+          "basis": "AI_ENGINEERING_REVIEW_ACCEPTS_EXISTING_QC_FOR_PRIVATE_PURPOSE. Per-row ShareGPT/Scale rights/consent/privacy, pretraining/paraphrase contamination, semantic/person/study/time independence and future weights classification remain UNKNOWN; no blanket third-party clearance or absence of PII is certified. Final16 content-QC exposure is preserved; it is not pristine or humanblind. Recorded target-model-unscored/train-unused/selection-unused status must be reaffirmed before G7. No concrete evaluation-case blocker was identified in the existing reviewed QC/rights evidence; any newly identified concrete issue requires stop/quarantine/new reviewed version rather than silent replacement.",
+          "human_raw_text_manual_review_performed": false,
+          "fresh_legal_audit_or_final_preference_inspection_performed": false,
+          "historical_pending_preserved": true
+        },
+        "decision_receipt": {
+          "private_evidence_name": "root-purpose-rights-decision.md",
+          "sha256": "d3e24df1088b389788e05a09440c2fb485d53b14392d3a2a1bfbb920beaf156a"
+        },
+        "exact_source_integration_condition": "Exact shared manifest7547ff63f7c06f8196689b3890288417154012d71e9609d0a3db232eeb0f182e and frozen parenteb2e585321d954d507af52b1bf71db9eb3b7ae3150273484909b6aeeae48a53d only. Old training recordf41063b9ae281bc5bc1677655cb5a5997b1c9b5de8857ac180480176d71a1be5 and old dev record0b76b970e877dc17a6fc21c18979c9c7efaf4e1e6053c01a9c13577ee2920a41 remain raw/canonical unchanged; altered manifest/purpose requires fresh assessment.",
+        "execution_authority": "This purpose ruling is not scientific source/code adoption, model import/scoring authority or actual G7. Final prospective evaluation protocol/rights must be independently reviewed/frozen before actual training/adapter selection/scoring. Actual saved adapter, immutable source/CI/review, private0400 external binding and one separate900s/6GiB/CPU2/no-network own-process-group evaluation attempt require later actual G7. Scientific protocol points to fixed parent/manifest/new rights; future code/adapter/CI/G7 config points one-way to that protocol, never reverse-pin future hashes. One actual G7 decision covers fixed runtime stages without repeated user permission. All behavior-change/suffering-reduction/safety/clinical/generalization/AGI/live/adoption claims remain HOLD or NOT_MEASURED/can_executeFalse. Counts/statuses do not change from this purpose ruling.\n"
+      },
+      "license_expression": "CC-BY-4.0",
+      "source_url": "https://huggingface.co/datasets/nvidia/HelpSteer2/tree/990b2711a36180dd19d9c94b8627844866f8982a",
+      "license_evidence_url": "https://huggingface.co/datasets/nvidia/HelpSteer2/blob/990b2711a36180dd19d9c94b8627844866f8982a/README.md",
+      "license_evidence_sha": "990b2711a36180dd19d9c94b8627844866f8982a",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "commercial_evaluation": "hold",
+        "commercial_training": "hold",
+        "product_use": "hold",
+        "raw_redistribution": "hold",
+        "private_fixed_adapter_evaluation": "allowed_with_conditions",
+        "live_use": "hold",
+        "public_weights_release": "hold"
+      },
+      "permission_scope_note": "Actual root AI engineering/research conditional evaluation-purpose decision recorded with real actor/UTC/private receipt SHA. study_read/local_research/private_fixed_adapter_evaluation are allowed_with_conditions solely for exact shared-manifest dev8+final16 original-two-candidate private comparison and host-scoring, subject to exact reviewed source integration. This is separate from unchanged train27 and dev8 grants. Commercial evaluation/training, product/live and raw/public-weight redistribution remain HOLD. Scientific source/code/CI/resources/actual saved adapter/external0400 G7 execution remain pending. No human legal/ethics/IRB/consent signature or universal rights/privacy clearance.",
+      "requirements": [
+        "Actual root conditional evaluation-purpose decision and AI_ENGINEERING_REVIEW_ACCEPTS_EXISTING_QC_FOR_PRIVATE_PURPOSE are recorded with real actor/UTC/reason/risk and receipt SHA. Existing AI QC plus metadata/source-binding review is accepted for this finite private purpose; no new raw-text human/manual review, fresh legal audit, final preference inspection or target-model scoring occurred. Exact source/scientific adoption and actual G7 remain pending; ordinary root engineering scope judgment, no invented universal human/lawyer/IRB requirement.",
+        "Use only exact manifest development8 and final16 in their frozen order, two unedited original responses per pair. Reconstruct preference labels and quality joins from pinned original source with sign-to-choice checks at authorized host-scoring; no caller gold, final chosen values, justification or new raw case bodies in source.",
+        "No training, preprocessing for training, few-shot, retrieval, new generation, raw redistribution, public weights, product or live use. Store raw data, per-ID preference/scalars, adapter and detailed receipts privately outside Git; stdout/source/public exports aggregate only.",
+        "Inherit pinned NVIDIA HelpSteer2 CC BY4 card and prior legalcode audit truthfully; CC BY has no noncommercial-only or blanket private-reuse prohibition, but grants only rights the licensor can grant and excludes privacy/publicity rights. No fresh fetch, legal review or universal third-party clearance is claimed.",
+        "Preserve ShareGPT/Scale provenance and unknown row-level rights/consent/privacy, pretraining/paraphrase contamination and QC limits. AI eligibility QC of all56 prompts/112 responses exposed final16; this is neither pristine nor humanblind. Final16 model-unscored, optimizer-unused and selection-unused history is only per recorded metadata and must be reaffirmed before G7.",
+        "Retain NVIDIA/HelpSteer2, source/card/revision, CC BY4 link, requested paper citations and extraction/hash/tokenization/comparison changes in private provenance. Preserve Qwen3-0.6B Apache2 native license/notice provenance by frozen parent reference. No endorsement or base relicensing is inferred; later sharing requires review for that actual artifact.",
+        "Keep old source-rights records and their raw/canonical bytes unchanged, including conditionally accepted training record f41063b9ae281bc5bc1677655cb5a5997b1c9b5de8857ac180480176d71a1be5 and old strict8 dev protocol/purpose. Training permission does not imply evaluation permission.",
+        "Actual conditional purpose decision is recorded; finalize rights/manifest and independently review before freezing the evaluation scientific protocol. This rights record pins manifest and already-frozen training protocol only, never the future evaluation consumer protocol hash. Later actual adapter inventory, final code/source/CI/G7/resource pins belong to independent root-owned0400 execution config/receipt pointing to scientific protocol SHA one-way.",
+        "Only one recipe and saved/fsynced/inventoried adapter, fixed before any target-model dev/final scoring. No run/adapter/threshold selection from dev/final results, retry, resume or resource extension. Different experiment requires a new version and distinct purpose-appropriate holdout.",
+        "One separate evaluation attempt under cumulative900s/6GiB own-process-group RSS polling/CPU2/no-network bounds starts before hashing/load/scoring. Preserve partial/failed/interrupted coverage and unknowns; no unknown-to-zero conversion. This is a prospective budget, not measured fit/cost or a kernel hard cap.",
+        "If a concrete rights/privacy/content problem emerges, stop/quarantine and use a new reviewed version; do not silently substitute cases or rewrite historical records. Exact original preference agreement is not human benefit, safety, clinical ability, suffering reduction, generalization, AGI or live acceptance."
+      ],
+      "attribution": {
+        "creators": [
+          "NVIDIA"
+        ],
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "source_card_url": "https://huggingface.co/datasets/nvidia/HelpSteer2/blob/990b2711a36180dd19d9c94b8627844866f8982a/README.md",
+        "requested_citations": [
+          {
+            "title": "HelpSteer2: Open-source dataset for training top-performing reward models",
+            "url": "https://arxiv.org/abs/2406.08673"
+          },
+          {
+            "title": "HelpSteer2-Preference: Complementing Ratings with Preferences",
+            "url": "https://arxiv.org/abs/2410.01257"
+          }
+        ],
+        "changes": "No source text edits. Frozen dev8/final16 extraction, original quality/preference joins, native token masks, same-candidate base/fixed-adapter NLL and shorter-rule/NO_ACTION aggregate comparisons only after separate source/scientific and G7 execution acceptance; no scoring occurred in preparation."
+      },
+      "artifact": {
+        "revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+        "role": "private_fixed_adapter_original_candidate_evaluation_only",
+        "publication": "aggregate_only_per_id_private",
+        "manifest": {
+          "path": "products/manager/experiments/behavior-model/helpsteer2-train27-manifest-v1.json",
+          "bytes": 59611,
+          "sha256": "7547ff63f7c06f8196689b3890288417154012d71e9609d0a3db232eeb0f182e"
+        },
+        "frozen_training_protocol": {
+          "path": "products/manager/experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json",
+          "bytes": 31365,
+          "sha256": "eb2e585321d954d507af52b1bf71db9eb3b7ae3150273484909b6aeeae48a53d"
+        },
+        "inherited_bindings": {
+          "source_artifacts_pointer": "/source_artifacts",
+          "base_model_and_assets_pointers": [
+            "/model_id",
+            "/model_revision",
+            "/model_files"
+          ],
+          "packages_pointer": "/packages",
+          "meaning": "The frozen training protocol supplies existing source4, native base/tokenizer8 and package pins. This creates no training/evaluation authorization and copies no new registry."
+        },
+        "exact_development_preference_rows_1based": [
+          5609,
+          5999,
+          3783,
+          5396,
+          6863,
+          1039,
+          4200,
+          4365
+        ],
+        "exact_final_preference_rows_1based": [
+          9017,
+          8892,
+          8716,
+          9006,
+          8917,
+          8722,
+          8847,
+          9008,
+          9035,
+          8963,
+          9001,
+          9032,
+          8964,
+          8728,
+          8743,
+          9012
+        ],
+        "membership_and_hashes": "Only /development8 and /final16 of pinned manifest; no new membership registry or final chosen values."
+      },
+      "license_review": {
+        "declaration": "dataset_card",
+        "independent_license_file": "ABSENT",
+        "cc_by_4_legalcode": "REVIEWED",
+        "third_party_privacy_rights": "NOT_GUARANTEED",
+        "card_cached_file": {
+          "private_evidence_name": "README.md",
+          "bytes": 24960,
+          "sha256": "835effb9e7d9cd0e8b7b8c1816d1d97a8961a036543108e4a0b6a5e22712ff7b"
+        },
+        "legalcode_url": "https://creativecommons.org/licenses/by/4.0/legalcode.txt",
+        "legalcode_receipt": {
+          "private_evidence_name": "cc-by-4.0-legalcode.receipt.json",
+          "bytes": 624,
+          "sha256": "9e5e8418f3a6540b515bb4c50465dcc6973af0c1a43140374b5efe4ed4b8d41b"
+        },
+        "legalcode_recorded_bytes": 18657,
+        "legalcode_recorded_sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+        "conditional_reuse_ruling": "Actual root AI engineering/research reviewer conditionally accepts exact private original-candidate evaluation based on inherited declared CC BY4/Apache and prior artifact-specific audit within licensor authority. No fresh legal review, human opinion or universal third-party/privacy clearance; exact source/scientific and actual G7 execution remain separate pending.",
+        "public_attribution_page_required_for_private_storage": false,
+        "future_weights_legal_classification": "UNKNOWN_NOT_DECIDED",
+        "evidence_scope": "Inherited from prior helpsteer2-private-training-rights-readiness.md and unchanged canonical training record. Card/legalcode hashes and independent LICENSE absence are recorded historical evidence, not new retrieval/review."
+      },
+      "inherited_records": {
+        "old_dev_record_id": "helpsteer2-candidates",
+        "training_record_id": "helpsteer2-private-exploratory-sft-train27-v1",
+        "training_record_canonical_sha256": "f41063b9ae281bc5bc1677655cb5a5997b1c9b5de8857ac180480176d71a1be5",
+        "training_decision_not_evaluation_grant": true
+      },
+      "risk": "ShareGPT/Scale per-row rights/privacy and consent remain UNKNOWN, as do paraphrase/pretraining contamination and person/study/time/semantic-family generalization. Final16 content-QC exposure and preference/quality-based preselection preclude pristine-blind claims. AI QC is not human annotation/legal clearance.",
+      "unresolved": "Actual conditional evaluation-purpose decision is recorded using existing AI QC and metadata/source-binding review with residual risk; historical pending purpose metadata is preserved privately. Exact reviewed scientific source integration/freeze, immutable implementation/test/review/CI, actual saved adapter inventory and external0400 G7 execution/resources remain pending. Per-row ShareGPT/Scale rights/consent/privacy, contamination, semantic/person/study/time independence and future weights classification remain UNKNOWN; no PII absence certified. Final16 QC exposure preserved and recorded model-unscored/train-unused/selection-unused status requires G7 reaffirmation. Stop/quarantine/new reviewed version for concrete issues; no source/task/count change or ML authority follows."
     }
   ]
 }
