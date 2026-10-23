@@ -1,3 +1,4 @@
+import plistlib
 import json
 import hashlib
 import errno
@@ -61,6 +62,7 @@ class CutLoopReleaseTest(unittest.TestCase):
         home = Path(fixture.name)
         agents = home / "agents"
         agents.mkdir()
+        (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
         protected = home / "protected-releases.json"
         protected.write_text("[]")
         self.enterContext(mock.patch.dict(os.environ, {
@@ -322,6 +324,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             loops = root / "loops"
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             npm = root / "npm"
             npm.write_text("#!/bin/sh\nmkdir -p node_modules\nprintf '{}\\n' > node_modules/.package-lock.json\n")
             npm.chmod(0o755)
@@ -488,6 +491,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm.chmod(0o755)
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
 
             env = {
                 **os.environ,
@@ -678,6 +682,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm.chmod(0o755)
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
@@ -935,6 +940,7 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.source_repo = self.root / "source"
         for path in (self.releases, self.agents, self.source_repo):
             path.mkdir(parents=True)
+        (self.agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
         self.protected = self.root / "protected-releases.json"
         self.protected.write_text("[]")
         self.enterContext(mock.patch.dict(os.environ, {

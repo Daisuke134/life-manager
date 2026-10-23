@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import pwd
 import plistlib
 import re
 import shlex
@@ -405,14 +406,38 @@ def cleanup_run_binding(env: dict, release_root: Path) -> dict | None:
             "occurrence_id": occurrence_id, "release_sha": sha}
 
 
+def default_launch_agents_dir() -> Path:
+    """The real user's LaunchAgents, never $HOME's: agent runners give children a private HOME."""
+    configured = os.environ.get("LIFE_MANAGER_LAUNCH_AGENTS_DIR")
+    if configured:
+        return Path(configured).expanduser()
+    return Path(pwd.getpwuid(os.getuid()).pw_dir) / "Library" / "LaunchAgents"
+
+
 def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
+    """Releases launchd may start. Raises OSError rather than return a partial inventory.
+
+    An empty answer from a missing, empty or unreadable directory once let keep=1 delete
+    every release 116 labels still pointed at (2026-10-24).
+    """
     protected = set()
     base = releases_root.resolve()
-    for plist_path in agents_dir.glob("*.plist"):
+    if not agents_dir.is_dir():
+        raise OSError(f"launchd agents directory is missing: {agents_dir}")
+    plist_paths = list(agents_dir.glob("*.plist"))
+    if not plist_paths:
+        raise OSError(f"launchd agents directory has no plists: {agents_dir}")
+    for plist_path in plist_paths:
         try:
             with plist_path.open("rb") as handle:
                 plist = plistlib.load(handle)
-        except Exception:
+        except Exception as error:
+            try:
+                raw = plist_path.read_bytes()
+            except OSError:
+                raw = None
+            if raw is None or str(base).encode() in raw or b"loops/releases" in raw:
+                raise OSError(f"unreadable launchd plist: {plist_path.name}") from error
             continue
         if not isinstance(plist, dict):
             continue
@@ -809,6 +834,9 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
         with _source_reclaim_lock(current, deadline), _release_cut_lock(current):
             protected, _references = _bundle_references(releases, current, agents, bundles, deadline)
             protected |= loaded_release_roots(agents, releases) | open_release_roots(releases)
+            pins = releases / ".pins"
+            if pins.is_dir():
+                protected |= {(releases / pin.name).resolve() for pin in pins.iterdir()}
             result = gc_releases(releases, current, keep=keep, protected=protected)
             result["protected_release_count"] = len(protected)
             bundle_result = _gc_dependency_bundles(releases, current, agents, bundles, deadline)
@@ -1215,8 +1243,7 @@ def main() -> int:
     loops_root = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser()
     releases = loops_root / "releases"
     current = loops_root / "current"
-    agents = Path(os.environ.get(
-        "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+    agents = default_launch_agents_dir()
     if sys.argv[1:] == ["--release-gc-only"]:
         try:
             result = release_gc(releases, current, agents,
