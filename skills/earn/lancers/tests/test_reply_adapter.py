@@ -381,3 +381,23 @@ def test_classify_observation_error_recognizes_human_verification(tmp_path):
     assert adapter.classify_observation_error(error) == {
         "reason": "human_verification_required"
     }
+
+
+def test_unready_account_logs_the_exact_diagnostic(monkeypatch, tmp_path, capsys):
+    # 2026-10-19..23: every negotiate wake failed with a bare account_unavailable while the
+    # work-sync owner read the same dashboard as ready; the reason was never recorded.
+    import contextlib
+    import pytest
+    tick = adapter_module.work_sync.application_tick
+    monkeypatch.setattr(tick, "account_lock", lambda _path: contextlib.nullcontext())
+    monkeypatch.setattr(tick, "_open_owned_page", lambda: ("browser", "page"))
+    monkeypatch.setattr(tick, "_production_account_ready", lambda _page: False)
+    monkeypatch.setattr(tick, "_production_account_diagnostic", lambda _page: {
+        "ready": False, "reason": "http_non_200", "http_status": 405,
+        "final_route_category": "unavailable", "login_form_count": None, "exception_type": None,
+    })
+    monkeypatch.setattr(adapter_module.work_sync, "_cleanup", lambda page, browser: None)
+    adapter = adapter_module.LancersReplyAdapter(tmp_path / "reply" / "state.json")
+    with pytest.raises(adapter_module.work_sync.SourceFailure, match="account_unavailable"):
+        adapter._open()
+    assert '"http_status": 405' in capsys.readouterr().err
