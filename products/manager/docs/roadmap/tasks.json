@@ -1545,12 +1545,34 @@
     "learn": "証明可能な最小単位の選び方",
     "change": "docs/product/FIRST_WEDGE.mdで、所有デジタル案内経路と運営者の保守課題を既存代替・費用・権限・結果観測と比較し、最初の利用場面を選定する",
     "verify": "実行主体・測定可能な結果・費用上限・代替案と断念理由を記載",
-    "status": "todo",
+    "status": "done",
     "external": "オペレーターの協力が得られない場合は候補変更",
     "implementation_evidence": [
       "docs/product/FIRST_WEDGE.md"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "ACCEPTED_OWNED_TECHNICAL_FIRST_USE_SELECTION_ONLY",
+    "completion_evidence": [
+      "docs/product/FIRST_WEDGE.md",
+      "docs/product/U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md",
+      "docs/product/DIGITAL_ENVIRONMENT_SURFACE_INVENTORY.md",
+      "docs/verification/E16_DEPLOYED_ACCEPTANCE_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T11:13:12.608350+00:00",
+      "result": "OWNED_INFORMATION_MAINTENANCE_FIRST_TECHNICAL_USE_SELECTED",
+      "scope": "EXISTING_OWNER_SCOPE_TECHNICAL_SELECTION_ONLY",
+      "operator": "EXISTING_DAISUKE134_OWNER_AUTHORIZED_PUBLISHER",
+      "incremental_paid_spend_ceiling_jpy": 0,
+      "actual_operating_cost": "UNKNOWN",
+      "current_market_demand_validated": false,
+      "willingness_to_pay_verified": false,
+      "human_study_cooperation_obtained": false,
+      "scheduled_model_inference_enabled": false,
+      "new_execution_authority_granted": false,
+      "causal_support": false,
+      "human_outcome": "NOT_MEASURED",
+      "independent_review": "R1_ZERO_FINDINGS_SOURCE_SPEC_PASS"
+    }
   },
   {
     "section": "08. 最初の受益者と製品市場適合の検証",

@@ -1,12 +1,12 @@
-# Manager — Phase12までの全工程と残32件
+# Manager — Phase12までの全工程と残31件
 
-**2026-10-23 現在:** 原113件は **78 done / 32 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
+**2026-10-23 現在:** 原113件は **79 done / 31 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
 
 **D003受入更新:** [PR8670](https://github.com/Daisuke134/life-manager/pull/8670)の通常main統合・公開packetの実readback・独立reviewを確認し、資金移動と別の受益報告の接続だけを受入。送金・人の便益・因果効果は未検証のまま。[限定受入receipt](../verification/D003_PUBLIC_SOURCE_CONNECTION_20261023.md)。
 
 **D011受入更新:** [PR8675](https://github.com/Daisuke134/life-manager/pull/8675)の通常main統合・独立review・実source照合後、公開OSS成果物と別のplatform Paidの照合だけを受入。事前募集・銀行着金・Manager所得増・D012の純額は未検証。[限定受入receipt](../verification/D011_PUBLIC_SOURCE_CONNECTION_20261023.md)。
 
-**U002受入更新:** [公開実面談5件の匿名課題整理](../product/U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md)を、歴史的な英国の支援アクセス問題の根拠として限定受入。運営者・受益者・支援者を覆い、同意・rights・公表methodsと個別発言の結合の限界を保存。自前面談0件、現在の日本の需要・Managerへの利用／支払／協力・人の便益は未確認。次はU003の実選定。
+**U002/U003受入更新:** [公開実面談5件の匿名課題整理](../product/U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md)を歴史的な英国の支援アクセス問題として受入し、[U003の最初の運用対象](../product/FIRST_WEDGE.md)を実ownerの既存情報経路の技術保守へ選定した。各原条件と独立reviewを確認。自前面談0件、現在の日本の需要・Managerへの利用／支払／人対象研究の協力・人の便益は未確認。次はU004/U005とAI接続。
 
 主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは、人のapp/chat/messenger操作や対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働くこと。BobaのMessages/iMessage/webにはUIがあり、この意味のno UIの先例とはしない。実行試験の7パスは主体全体の完成像ではない。
 
@@ -38,16 +38,16 @@ flowchart LR
 | 05. Manager汎用カーネル | 14 | 14 | 0 | 0 |
 | 06. 現実の介入と独立した効果評価 | 9 | 7 | 0 | 2 |
 | 07. 研究発表・説明責任 | 2 | 1 | 1 | 0 |
-| 08. 最初の受益者・利用課題・継続利用の検証 | 8 | 2 | 6 | 0 |
+| 08. 最初の受益者・利用課題・継続利用の検証 | 8 | 3 | 5 | 0 |
 | 09. 領域横断の祝福・成果証拠 | 16 | 6 | 10 | 0 |
 | 10. ベンチマーク・一般化・自己改善 | 6 | 0 | 6 | 0 |
 | 11. YC・研究者ネットワーク・英語発信 | 8 | 5 | 3 | 0 |
 | 12. 長期運用と統治 | 6 | 0 | 6 | 0 |
-| **合計** | **113** | **78** | **32** | **3** |
+| **合計** | **113** | **79** | **31** | **3** |
 
 Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない。Fの4件は所有デジタルP2、D001/D002は研究branchのP0 source契約であり本番送金ではない。H005/F004/F007は未実施のskippedで、Gate1独立RCT再現はUNMET。
 
-## 2. 残る32件の全ID・実施内容・依存・既存ファイル
+## 2. 残る31件の全ID・実施内容・依存・既存ファイル
 
 一覧は元のPhase順。C/Yは本体優先の後段に保留する。実施内容・verify・dependsは台帳から転記した。†はその依存もtodo。準備コードや文書の存在だけでdoneにはせず、各verifyを個別に満たす。
 
@@ -57,13 +57,12 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 |---|---|---|---|---|
 | C002 | 英語記事/日本語要約/漫画/スライド候補を内部生成 | F006 | 投稿は別承認までdisabled。固有名/日時を創作しない | `docs/verification/BLOG_PUBLICATION_20261022.md` |
 
-### 08. 最初の受益者・利用課題・継続利用の検証（残6）
+### 08. 最初の受益者・利用課題・継続利用の検証（残5）
 
 | ID | 実施内容 | 台帳の依存 | 完了の確認 | 既存ファイル |
 |---|---|---|---|---|
-| U003 | docs/product/FIRST_WEDGE.mdで、所有デジタル案内経路と運営者の保守課題を既存代替・費用・権限・結果観測と比較し、最初の利用場面を選定する | U002 | 実行主体・測定可能な結果・費用上限・代替案と断念理由を記載 | `docs/product/FIRST_WEDGE.md` |
-| U004 | pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定 | U003†、F002 | 実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない | `pilot/FIRST_STUDY.md`、`pilot/RESEARCH_PROTOCOLS_20261022.sha256` |
-| U005 | 公開データだけの読み取り専用Proof Explorerを作る | U003†、K010 | 第三者が元URLから同じ観測事実を再確認し、P0/P1/P2を誤表示しない | `docs/product/PROOF_EXPLORER.md`、`scripts/phase06_kernel_release.py` |
+| U004 | pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定 | U003、F002 | 実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない | `pilot/FIRST_STUDY.md`、`pilot/RESEARCH_PROTOCOLS_20261022.sha256` |
+| U005 | 公開データだけの読み取り専用Proof Explorerを作る | U003、K010 | 第三者が元URLから同じ観測事実を再確認し、P0/P1/P2を誤表示しない | `docs/product/PROOF_EXPLORER.md`、`scripts/phase06_kernel_release.py` |
 | U006 | 許可されたパイロットの外部receiptと観測をケースに保存 | U004†、F005 | 1件以上の実介入を第三者の公開データで確認し、未知状態を成功にしない | `manager_core/outcome_bench.py` |
 | U007 | 人の便益・費用・置換効果の事前登録済み比較レポートを作る | U006†、F006 | 一次指標の効果量と不確実性を示し、未測定は未測定と報告 | `manager_core/causal_analysis.py` |
 | U008 | 協力者に成果レポートを提示し継続利用の意思と運用費を記録 | U007†、U002 | 実際の有料/支援コミットまたは継続利用意向の出典付き記録。収益未確認はUNKNOWN。対象期間・商品・口座の公式source coverageを照合してゼロ件と確定した場合だけ0を記録し、単発pilotをMRRにしない | `manager_core/governance.py` |
@@ -134,13 +133,13 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 7. **D016/K014→V001→V002→V003→V004→V005→V006**。**K007/V001→G001→G002**、**G002/V006→G003→G004→G005→G006**。G001はV001までが依存で、全V006後にしか開始不可というgraphではない。元V/G全件をE16の前提にしない。
 8. **Y002(done)→Y003** と **Y004(done)→Y005** は技術線/全113件の完了待ちではない。W27提出は本人情報/内容確認と公式提出確認、接点は承認された対象・内容と実送信/返信/拒否記録が必要。現行既存資料の締切記録は2026-11-03 13:00 JST、今回新規Web再確認はしていない。
 
-台帳上、未完了依存のないtodoは **C002/U003/D005/D012/D014/Y003/Y005** の7件。C002と応募・新規連絡は本体優先の後段へ保留。公開資料で進められるsource／設計と、実利用・協働・便益等の現実条件を区別し、各原verifyに照合する。「graphでready」は実行権限や成果の代替ではない。
+台帳上、未完了依存のないtodoは **C002/U004/U005/D005/D012/D014/Y003/Y005** の8件。C002と応募・新規連絡は本体優先の後段へ保留。公開資料で進められるsource／設計と、実利用・協働・便益等の現実条件を区別し、各原verifyに照合する。「graphでready」は実行権限や成果の代替ではない。
 
-**現在不足する実記録と接続先:** [spec §1.3.1](../MANAGER_PRODUCT_SPEC.md)。D005の[公開source監査と研究codeの品質flag修復](../verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)は準備の前進で、原D005/D006や有効な校正済測定の受入にはしない。U002は上記公開研究の課題整理として受入したが、U003以降の現対象・実利用・研究協力を供給しない。D012の費用・労働時間・分母、D014の実協働も未確認である。
+**現在不足する実記録と接続先:** [spec §1.3.1](../MANAGER_PRODUCT_SPEC.md)。D005の[公開source監査と研究codeの品質flag修復](../verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)は準備の前進で、原D005/D006や有効な校正済測定の受入にはしない。U002/U003は上記の課題整理と技術運用対象の選定として受入したが、U004以降の実対象・実利用・研究協力を供給しない。D012の費用・労働時間・分母、D014の実協働も未確認である。
 
 ## 5. 元113件、E16段、P7段、12PATCHの数え方
 
-- **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。78/32/3はこの母数だけ。
+- **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。79/31/3はこの母数だけ。
 - **E01–E16**: 同じエンティティの技術実装順と検証receipt。原113件への追加16件ではない。E01–E16の実装receipt済み、E16は所有7パスの限定P2能力として実配備・復旧受入済み。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
 - **P01–P07**: editorial parallel track。元Phase00の **P001–P006とは別表記・別意味**。P01 evidence index→P02英日package→P03既存installer公開、P04既存home更新、P05本の章/HTML/EPUB、P06slide/carousel/manga源、P07editor/release receipts。原稿・storyboard・rendered artifact・live公開・読者・売上は別証拠。E cursorもC002/Y008も自動更新しない。
 - **PATCH-01–12**: E16/出版/創業者作業を実ファイル・関数・RED検査へ分解した派生実装単位。新台帳でない。01→02→04→05→06がE16技術線（pending intent先行回収、dispatch権限非replay/既成runtime比較、official occurrenceとdelivery別回収、特権publisher bridge、host/backup/restore）。03は既成製品baseline文書、07→08→09/10は権利/証拠→記事章deck→download/render、11は同じcaseの職務/顧客/YC、12は真正な結果だけをscorecardへ戻す。
@@ -240,4 +239,4 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 5. **採用/YC:** 実提出、面談、offer、採択を各providerの実結果で判定。
 6. **持続運用:** Gの採択・監査・実接続・持続性を検証し、G006は以降も定期更新する。
 
-残32件を含む原113件の記録上の終了と、世界の苦しみの終焉は同じ判定ではない。失敗・害・未測定・不公平を残し、次versionの検証を続ける。
+残31件を含む原113件の記録上の終了と、世界の苦しみの終焉は同じ判定ではない。失敗・害・未測定・不公平を残し、次versionの検証を続ける。
