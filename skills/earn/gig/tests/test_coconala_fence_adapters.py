@@ -907,6 +907,7 @@ def _scoped_setup(tmp_path, monkeypatch):
                         lambda *, owner_id, intent_root: None)
     monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [])
     monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    monkeypatch.setattr(wrapper, "_owner_has_claimed_occurrence", lambda owner_id: False)
     _bound_intent(tmp_path, "1", "prepared", None, STARTED - 86400 * 60)  # legacy, before the occurrence
     return wrapper
 
@@ -928,7 +929,7 @@ def test_released_occurrence_closes_when_every_intent_since_it_is_bound_and_sett
     occurrence_id, state, proof = calls[0]
     assert (occurrence_id, state) == (OCCURRENCE, "released")
     assert proof["unresolved_irreversible"] == 0 and proof["scanned_intents"] == 2
-    assert proof["scope_since_unix"] == STARTED
+    assert proof["scope_since_unix"] == STARTED and proof["occurrence_bound_intents"] == 0
     assert json.loads(capsys.readouterr().out.strip().splitlines()[-1])["occurrence_id"] == OCCURRENCE
 
 
@@ -936,15 +937,30 @@ def test_released_occurrence_closes_when_every_intent_since_it_is_bound_and_sett
     ("prepared", "18dff4af2b0af010-88923", OCCURRENCE),  # its own attempt, unsettled
     ("confirmed", "18dff4af2b0af010-88923", None),       # unbound: owner unknown
     ("confirmed", None, None),                           # unbound, dated by mtime
+    # A claimer that predates the occurrence it claimed still writes this occurrence's id.
+    ("prepared", "18dfc0000000000-1", OCCURRENCE),
 ])
 def test_unsettled_or_unbound_intent_since_the_occurrence_keeps_it(
         tmp_path, monkeypatch, state, run_id, occurrence) -> None:
     wrapper = _scoped_setup(tmp_path, monkeypatch)
     _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
-    _bound_intent(tmp_path, "3", state, run_id, STARTED + 3700, occurrence)
+    _bound_intent(tmp_path, "3", state, run_id,
+                  STARTED - 600 if run_id == "18dfc0000000000-1" else STARTED + 3700, occurrence)
 
     def never(*_args, **_kwargs):
         raise AssertionError("an intent written since the occurrence may be its own attempt")
+
+    monkeypatch.setattr(wrapper, "_resolve_settled", never)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+
+
+def test_live_claim_on_the_owner_keeps_released_fences(tmp_path, monkeypatch) -> None:
+    wrapper = _scoped_setup(tmp_path, monkeypatch)
+    _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
+    monkeypatch.setattr(wrapper, "_owner_has_claimed_occurrence", lambda owner_id: True)
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("a live claim may be writing an intent concurrently")
 
     monkeypatch.setattr(wrapper, "_resolve_settled", never)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
