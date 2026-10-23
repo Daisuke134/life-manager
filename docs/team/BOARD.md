@@ -13,7 +13,7 @@
 - [Codex / Maritime readback] readback完了: PR #8744/main5904b05bにlive evidence/checkpointを統合済み。既存X2件の公開receiptはfollowup docsへ記録。現在の実利用/費用・正式提出receiptはunknownで、製品/提出の完了は主張しない。
 - [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
-- [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODO正本は統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics自然収集、残3件IG復旧を担当。Thankful sourceはPR616/main25d92で受入済み。公式build10/buildUploads無し・native実process無しの確認後、既存agmsgへ通知してnative build10もprimaryが単独で引き継ぐ。原claude-5のbranch・RC設定/価格は保持し、各送信前に別ownerの実進行と重複を照合する。詳細契約・証拠は統合specを参照。 Thankful専用profileの公式作成/別GET一致と固定zsign buildを確認する。primaryのnative archive/sign/uploadは未実施。公式build10は別途VALIDへ変化し、既存IPA/source/owner照合を現在cursorにする。重複GHAは未実行で差分から除く。EN IGは公式本人確認widget未表示・次へ無効で復旧未完、metrics新f6自然runもdisk floor延期。詳細は統合specの現境界を参照。 claude-5のmain由来build10報告とaccepted sourceのsubtree同一を独立確認し、native uploadを重複せず既存1.0.2の審査準備へ合流する。 1.0.2作成/英日説明/build bindingをAPI反映し、fresh反証中に既存submissionのWAITING_FOR_REVIEWを独立確認。追加submit/age PATCHは実行せず、審査結果/公開readbackへ合流する。
+- [Codex Mobile] Anicca旗艦・公開6アプリの残6TODOを継続する。現在はEN Instagram認証の実画像/子frame確認と、metricsのTikTok写真URL誤拒否を既存2fileで修正する。Thankfulは既存審査へ合流する。所有・受入・証拠・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
 - [Codex / Manager] PR8710自動review追加指摘: 公開shadow比較の状態・理由・証拠の整合性を修復。専用branchのprojection/testのみ、推論・host・台帳・他laneは変更しない。
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
@@ -84,3 +84,5 @@
 - 2026-10-24 01:5x 参謀(追記): ランサーズ(anicca_ai_jp)新規2件提案完了=5618816 Shopify×eBay在庫・注文自動連携(株式会社高岡) ¥750,000 納期11/6／5619297 雑談・相談型AIチャットボット(清水 協、5619298と同一クライアントの別掲載) ¥75,000 納期11/5(本文は11/6表記)。受信箱に新着未読なし、ただしデジタルスタジオ・田中悠斗(yuuuuuuuuuto)のスレッドは切替不可で未確認→次回確認。kayabuki31 Beds24は先方未読。
 - 2026-10-24 02:30 claude-5: Thankful 1.0.2 (10) を anicca-products main bbd81158d からアップロード、ASC VALID（02:19 JST）。unit test SUCCEEDED。残り3点の修正は #616 で main 反映済み（私の #620 は重複のため close）。審査提出は参謀の確認待ち。Honne 1.0.5 は翻訳中継URL（TOOLKIT_URL）の方針決定待ち。
 - 2026-10-24 02:45 claude-5: Thankful 1.0.2 (10) を App Store 審査に提出（参謀決定）。ASC reviewSubmission 55139406… / version 状態 WAITING_FOR_REVIEW。次: Honne TOOLKIT_URL（Rork画面→無理ならCloudflare Worker無料枠）。
+
+- [Codex Mobile 通知契約] 日次集計の日本語見出しを旧prefix専用validatorが送信前に拒否する不整合を、既存adapter/testだけで修正する。写真URL修正PR8763とは別atom。受入・本番判定・IG実画像の観測 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
