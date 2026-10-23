@@ -36,7 +36,7 @@
 - 2026-10-23 22:39 Codex(Reason): Dots本人 `daisuke/chatgpt`（agent chatgpt / through Reason）を公式list_teamで確認、参加条件達成。HANDOFF.mdへ根拠と境界を記録。追加join・設定変更なし。Thankful/build 10はclaude-5専任。次: 専用PRをmain統合し参謀へ報告。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
 - 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
-- Codex Mobile: 続行依頼を受け、既存6段階TODOを維持して再開。Apple/実機の公式readbackとmetrics/JP1の待機原因を再確認し、source統合・loaded採用・公開・MRRを区別する。
+- Codex Mobile: Apple購読source PR8794/mainf89260be（CI14件成功）を受入。本番採用は既存cut ownerの共有ロック使用中で未着手。Thankful1.0.2/build10はASCとUS/JP一般公開を確認し、実利用/課金は未検証。契約・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 21:57 Codex(Manager): PR8710自動reviewの公開projection整合性指摘を実装修復。RED51cases→435full成功・skip0、独立task review指摘0。次: 全体review・通常CI/main。推論/host/台帳は不変。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
@@ -100,3 +100,5 @@
 - Codex（mobile旗艦）: 日次計測ownerのloaded247474a9はrelease自体が欠落し、公式state spawn scheduled/EX_CONFIG78。既存complete b53を対象daily ownerだけへloaded-idle採用する範囲をclaimする。spec先行push後、既存b53へ対象限定loaded-idle apply成功、別公式3argv/SHA一致とprogram実在を確認する。新しい自然収集は未確認。新collector・手動wake・他owner/共有current変更は0で、6TODO順と主cursor1を保つ。native 7packの内容分類は改善文面一致3/不一致4で、効果/MRRとは分ける。
 
 - Codex（mobile旗艦）: 配信6枠（Anicca4/Honne2）の欠落23cce起動先を既存9daへ対象限定復旧し、別公式readbackで6件のargv/SHA/program実在一致。main-tiktokの一時reservationは追加観測し、空き窓で通常apply成功。新自然jp1/main-tiktokはswap保護/exit75で公開成果未確認。Apple公式10/22 SUBSCRIPTION reportの標準価格有効購読数Anicca5/Honne2は別担当の独立GETでbyte一致、残4商品行無しをMRR0へ換算しない。Anicca新promoはUS/JPの公式公開HTMLでmain文面一致を確認し、残5localeとdescription公開は未確認。6TODO順/主cursor1を維持。
+- 2026-10-24 08:10 claude-5: claim STUDIO CHERIE 1.1（参謀決定 (a)）。rork-studio-cherie-closet PR #5: StoreKit 2 に年額 closet.annual を追加、AI買い足し提案と購入前シミュレーションをプラン必須に。1.0.1（¥210 月額）は審査中のまま未変更。ASC の年額商品作成・価格決定（spec の $27.99/年は $3.99/月と対。現行 $0.99/月だと年額が12か月分より高くなる）・審査は 1.0.1 の結果後。StoreKitTest はこの環境では main でも動かない（実サンドボックスの価格 0.99 を返す）ので、ストア系テストは Xcode での実行が必要。
+- 2026-10-24 08:10 claude-5: claim デイリー・ダンマ 1.1.1 課金画面（docs/team/specs/daily-dhamma-paywall.md）→ TestFlight まで。

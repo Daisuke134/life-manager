@@ -817,16 +817,19 @@ class AscSalesReportMissing(Exception):
         self.reason = reason
 
 
-def fetch_asc_sales_rows(env: dict[str, str], report_date: str) -> list[dict[str, str]]:
-    """Fetch one day's account-wide ASC Sales Report (every app of the vendor)."""
+def fetch_asc_sales_rows(
+    env: dict[str, str], report_date: str, *, report_type: str = "SALES"
+) -> list[dict[str, str]]:
+    """Fetch one day's account-wide Sales or Subscription Summary report."""
+    version = {"SALES": "1_1", "SUBSCRIPTION": "1_3"}[report_type]
     headers = {**_asc_headers(env), "Accept": "application/a-gzip"}
     query = urllib.parse.urlencode({
         "filter[frequency]": "DAILY",
         "filter[reportDate]": report_date,
         "filter[reportSubType]": "SUMMARY",
-        "filter[reportType]": "SALES",
+        "filter[reportType]": report_type,
         "filter[vendorNumber]": env["ASC_VENDOR_NUMBER"],
-        "filter[version]": "1_1",
+        "filter[version]": version,
     })
     try:
         payload = _http_bytes(
@@ -897,6 +900,48 @@ def collect_asc_sales(
     """
     rows, provenance = read_asc_sales_report(env, business_date)
     return asc_sales_source(rows, app_id, business_date, evidence_dir, provenance)
+
+
+def collect_asc_subscriptions(
+    env: dict[str, str], app_id: str, business_date: str, evidence_dir: Path,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Keep Apple's standard-price active counts; no report/app rows is unknown."""
+    requested_business_date = business_date
+    try:
+        report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
+    except AscSalesReportMissing as error:
+        if error.reason != "report_not_available_yet":
+            raise
+        business_date = (dt.date.fromisoformat(business_date) - dt.timedelta(days=1)).isoformat()
+        report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
+    fields = {
+        "subscription_id": "Subscription Apple ID",
+        "standard_subscription_duration": "Standard Subscription Duration",
+        "customer_price": "Customer Price",
+        "customer_currency": "Customer Currency",
+        "active_standard_price_subscriptions": "Active Standard Price Subscriptions",
+    }
+    rows = [{key: row.get(column) for key, column in fields.items()}
+            for row in report if row.get("App Apple ID") == app_id]
+    evidence = {"app_id": app_id, "business_date": business_date,
+                "requested_business_date": requested_business_date, "rows": rows}
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"{app_id}-subscriptions-{business_date}.json"
+    evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
+    if not rows:
+        return None, evidence
+    compact = []
+    for row in rows:
+        value = row["active_standard_price_subscriptions"]
+        raw = str(value).strip() if value is not None else ""
+        if not raw.isascii() or not raw.isdecimal():
+            raise ValueError("invalid Active Standard Price Subscriptions")
+        compact.append({**row, "active_standard_price_subscriptions": int(raw)})
+    return {"app_id": app_id, "business_date": business_date,
+            "requested_business_date": requested_business_date, "rows": compact,
+            "active_standard_price_subscriptions": sum(
+                row["active_standard_price_subscriptions"] for row in compact),
+            "evidence_path": str(evidence_path)}, evidence
 
 
 def backfill_asc_sales(
@@ -1157,6 +1202,21 @@ def collect_snapshot(
             sources["app_store_sales"] = unavailable_source(error.reason, error=str(error))
         except Exception as error:
             sources["app_store_sales"] = unavailable_source(
+                "provider_query_failed", error=f"{type(error).__name__}: {error}"
+            )
+        try:
+            subscriptions, subscription_evidence = collect_asc_subscriptions(
+                env, config["asc_app_id"], business_date,
+                DEFAULT_EVIDENCE / business_date / product_id,
+            )
+            source = (available_source(subscriptions) if subscriptions is not None
+                      else unavailable_source("no_app_rows"))
+            source["evidence_sha256"] = _json_hash(subscription_evidence)
+            sources["app_store_subscriptions"] = source
+        except AscSalesReportMissing as error:
+            sources["app_store_subscriptions"] = unavailable_source(error.reason, error=str(error))
+        except Exception as error:
+            sources["app_store_subscriptions"] = unavailable_source(
                 "provider_query_failed", error=f"{type(error).__name__}: {error}"
             )
         if config.get("analytics") == "mixpanel":
