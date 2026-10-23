@@ -29,16 +29,18 @@
 **Files:** Modify `products/manager/manager_core/owned_provider_shadow.py`; Test `products/manager/tests/test_owned_provider_shadow.py`. Only these two tracked paths belong to implementer.
 **Interfaces:** Consume existing `_record`, `public_catalog_shadow_summary`, `_validated_result`, and offline `run_shadow` fixture. Preserve public function signature/output19keys. Produce one private status/reason mapping (all-reasons set, if retained, is derived), plus consistency checks on already parsed public values. Do not call `_validated_result` from projection.
 
-- [ ] **Step 1: Write meaningful failing tests.** Add `test_public_projection_rejects_inconsistent_status_reason`, `test_public_projection_requires_completed_comparison_evidence`, `test_public_projection_rejects_model_evidence_on_noncompared_results` using valid existing comparison fixture and isolated dictionary mutations.
+- [x] **Step 1: Write meaningful failing tests.** Add `test_public_projection_rejects_inconsistent_status_reason`, `test_public_projection_requires_completed_comparison_evidence`, `test_public_projection_rejects_model_evidence_on_noncompared_results` using valid existing comparison fixture and isolated dictionary mutations.
   - Mismatches include COMPARED_P0/DISABLED; COMPARED_P0/PROVIDER_TRANSPORT_UNKNOWN; UNKNOWN/MODEL_RESPONSE_PARSED; SKIPPED/PRIOR_INTENT_RECONCILIATION_REQUIRED. Assert the exact static ValueError.
   - Completed record requires non-None UTC compared_at, operation_id/context_sha256/baseline_digest/candidate_digest, no_action/rules baseline decisions, and model_status. Remove each independently. MODEL_ADVICE_P0 requires model decision and both exact comparison booleans; assert rejection of missing and inverted comparisons. INVALID_MODEL_OUTPUT accepts absent/None model_advice/model_comparison only.
   - Valid SKIPPED/DISABLED and UNKNOWN/PROVIDER_TRANSPORT_UNKNOWN records still project. Attach completed time, model_status, model_advice, or comparison evidence independently to otherwise valid non-compared records and require rejection. Prepared baseline/hash fields without model evidence remain accepted.
   - Existing privacy test modifies private reason/provider ID and unknown markers; it must continue to pass with fixed output keys and no markers.
-- [ ] **Step 2: Actual RED.** Run only the three named tests against unchanged production source and save actual nonzero log/exit.
-- [ ] **Step 3: Minimal implementation.** Follow design's exact mapping and invariants. Preserve absent/None compatibility, enum/type/date/hash checks, current returned field names, and all P0 flags.
-- [ ] **Step 4: GREEN.** Run new tests plus `env PYTHONPATH=.:tests python -m unittest test_owned_provider_shadow test_owned_catalog_shadow_results test_owned_checkpoint -v`; full `python -B -m unittest discover -s tests -v` once after source change; Manager boundaries and diff check. No skips/xfail/retries/timeouts added.
-- [ ] **Step 5: Commit explicit two paths.** Report actual commands/logs/counts and HEAD to private task-1-report.md; root owns metadata, reviews, CI, push and normal main integration.
+- [x] **Step 2: Actual RED.** Run only the three named tests against unchanged production source and save actual nonzero log/exit.
+- [x] **Step 3: Minimal implementation.** Follow design's exact mapping and invariants. Preserve absent/None compatibility, enum/type/date/hash checks, current returned field names, and all P0 flags.
+- [x] **Step 4: GREEN.** Run new tests plus `env PYTHONPATH=.:tests python -m unittest test_owned_provider_shadow test_owned_catalog_shadow_results test_owned_checkpoint -v`; full `python -B -m unittest discover -s tests -v` once after source change; Manager boundaries and diff check. No skips/xfail/retries/timeouts added.
+- [x] **Step 5: Commit explicit two paths.** Report actual commands/logs/counts and HEAD to private task-1-report.md; root owns metadata, reviews, CI, push and normal main integration.
 
 ## Self-review
 
 The design's status/reason, required completed evidence, decision/boolean consistency, noncompared metadata, and public/privacy/restore constraints all have tests. No new interface is left undefined; no implementation body is prescribed. This is source validation only; original registry remains80/30/3.
+
+Task1 source and task review complete at71bccc3c8: actual RED3/51failures; GREEN3/focused47/full435, skip0; spec/qualityPASS0findings. Final whole-branch review, official CI and normal main integration are pending.
