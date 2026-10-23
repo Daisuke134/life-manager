@@ -3,7 +3,11 @@
 All GitHub CLI boundaries are patched in tests. No test proves real OIDC,
 GitHub authority, provider writes, or public delivery.
 """
+from dataclasses import FrozenInstanceError, replace
 from datetime import timedelta
+from decimal import Decimal
+import sqlite3
+from time import monotonic
 import json
 from pathlib import Path
 import shlex
@@ -44,7 +48,7 @@ def github_environment(**changes):
     return value
 
 
-def platform_fixture(root, *, context_values=True, audit=True):
+def platform_fixture(root, *, context_values=True, audit=True, catalog_shadow=None):
     root = Path(root)
     model_root = root / 'models'
     model_root.mkdir(parents=True, exist_ok=True)
@@ -87,12 +91,253 @@ def platform_fixture(root, *, context_values=True, audit=True):
     host = GitHubActionsCycleHost(
         checkpoint, pages.root, audit_path if audit else None,
         context=candidate_context, assessment=candidate_assessment,
-        scope=candidate_scope,
+        scope=candidate_scope, catalog_shadow=catalog_shadow,
     )
     return CycleConfig('platform-fixture-owner', 60), store, host, gateway, context, assessment, scope, pages
 
 
 class GitHubActionsCycleHostTests(unittest.TestCase):
+    def test_prepared_shadow_uses_exact_selected_and_prebound_tuple_once(self):
+        from manager_core import owned_catalog_planner as planner, owned_provider_shadow as shadow
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        from test_owned_provider_shadow import OwnedProviderShadowTests, client_for
+        for prebound in (False, True):
+            for decision in ('PASS', 'ASK', 'PROPOSE'):
+                with self.subTest(prebound=prebound, decision=decision), TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    selected, _, now = OwnedProviderShadowTests().prepared_fixture(root/'catalog')
+                    client, sessions = client_for(output=json.dumps(dict(
+                        decision=decision, reason='Compare the cited link.', source_ids=['official:livelihood'])))
+                    closed = []
+                    client.close = lambda: closed.append(True)
+                    settings = CatalogShadowSettings(monotonic()+120, lambda: client,
+                                                     Decimal('0.05'), Decimal('0.03'))
+                    _, store, host, *_ = platform_fixture(root/'host', context_values=False,
+                                                         catalog_shadow=settings)
+                    if prebound:
+                        host.context, host.assessment, host.scope = selected
+                    context, assessment, scope = selected
+                    before = {p: p.read_bytes() for bundle in (context.baseline_bundle, context.candidate_bundle)
+                              for p in bundle.iterdir() if p.is_file()}
+                    seen, results = [], []
+                    actual_compare = shadow.compare_prepared_catalog_shadow
+                    def compare(checkpoint, prepared, **kwargs):
+                        self.assertIs(checkpoint, host.checkpoint)
+                        for actual, expected in zip(prepared, selected):
+                            self.assertIs(actual, expected)
+                        self.assertEqual(store.journal.pending_records(), ())
+                        seen.append(prepared)
+                        result = actual_compare(checkpoint, prepared, **kwargs)
+                        results.append(result)
+                        return result
+                    with patch.dict('os.environ', github_environment(), clear=True), \
+                         patch.object(planner, 'plan_catalog_change', return_value=selected) as select, \
+                         patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=compare) as comparator, \
+                         patch.object(host, '_now', return_value=now):
+                        returned = host.prepare_candidate(now)
+                    self.assertIs(returned, seen[0])
+                    if not prebound:
+                        self.assertIs(returned, selected)
+                    self.assertEqual(select.call_count, 0 if prebound else 1)
+                    self.assertEqual(comparator.call_count, 1)
+                    self.assertIs(host._catalog_shadow_result, results[0])
+                    self.assertEqual(results[0]['model_advice']['decision'], decision)
+                    self.assertEqual(sessions.create_count, 1)
+                    self.assertEqual(closed, [True])
+                    self.assertEqual(before, {p: p.read_bytes() for p in before})
+
+    def test_shadow_off_and_ineligible_paths_initialize_nothing(self):
+        from manager_core import owned_catalog_planner as planner, owned_provider_shadow as shadow
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        for mode in ('off', 'absent', 'unsupported', 'invalid_deadline'):
+            with self.subTest(mode=mode), TemporaryDirectory() as tmp:
+                calls = []
+                settings = None if mode == 'off' else CatalogShadowSettings(
+                    float('nan') if mode == 'invalid_deadline' else monotonic()+120,
+                    client_factory=lambda: calls.append('factory'),
+                    cap_usd=Decimal('0.05'), upper_usd=Decimal('0.03'))
+                _, _, host, *_ = platform_fixture(Path(tmp), context_values=mode != 'absent',
+                                                  catalog_shadow=settings)
+                if mode == 'unsupported':
+                    host.context = replace(host.context, criteria=object())
+                with patch.dict('os.environ', github_environment(), clear=True), \
+                     patch.object(planner, 'plan_catalog_change', return_value=None), \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', wraps=shadow.compare_prepared_catalog_shadow) as compare, \
+                     patch.object(shadow, 'CheckpointedProvider', side_effect=AssertionError('provider initialized')), \
+                     patch.object(host, '_now', return_value=NOW):
+                    value = host.prepare_candidate(NOW)
+                self.assertEqual(calls, [])
+                if mode in ('off', 'invalid_deadline'):
+                    compare.assert_not_called()
+                    self.assertIsNone(host._catalog_shadow_result)
+                elif mode == 'absent':
+                    self.assertEqual(value, (None, None, None))
+                    self.assertIsNone(compare.call_args.args[1])
+                    self.assertEqual(host._catalog_shadow_result['reason'], 'NO_CANDIDATE')
+                else:
+                    self.assertEqual(host._catalog_shadow_result['reason'], 'UNSUPPORTED_ACTION')
+                with sqlite3.connect(host.checkpoint.db) as db:
+                    self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='amp_sessions'").fetchone())
+
+    def test_shadow_deadline_only_shortens_and_publisher_uses_fresh_time(self):
+        from manager_core import owned_provider_shadow as shadow, owned_catalog_planner as planner
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        from scripts import phase06_kernel_release as release
+        for remaining, initial_deadline, expected in ((100, 1120, 1080), (300, 1120, 1120),
+                                                       (1000, 2000, 1480)):
+            with self.subTest(remaining=remaining), TemporaryDirectory() as tmp:
+                settings = CatalogShadowSettings(initial_deadline, client_factory=lambda: self.fail('factory'))
+                with patch('manager_core.owned_platform_host.monotonic', return_value=1000):
+                    conf, store, host, _, context, assessment, scope, _ = platform_fixture(
+                        Path(tmp), context_values=False, catalog_shadow=settings)
+                scope = replace(scope, expires_at=NOW+timedelta(seconds=remaining))
+                selected = (context, assessment, scope)
+                clock = {'now': NOW, 'monotonic': 1100}
+                actual = shadow.compare_prepared_catalog_shadow
+                def compare(*args, **kwargs):
+                    self.assertEqual(kwargs['deadline_monotonic'], expected)
+                    result = actual(*args, **kwargs)
+                    clock.update(now=scope.expires_at+timedelta(seconds=1), monotonic=1601)
+                    return result
+                with patch.dict('os.environ', github_environment(), clear=True), \
+                     patch.object(planner, 'plan_catalog_change', return_value=selected) as select, \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=compare), \
+                     patch('manager_core.owned_platform_host.monotonic', side_effect=lambda: clock['monotonic']), \
+                     patch.object(shadow.time, 'monotonic', side_effect=lambda: clock['monotonic']), \
+                     patch.object(host, '_now', side_effect=lambda: clock['now']), \
+                     patch.object(release, 'source_checkout_commit', return_value='b'*40), \
+                     patch.object(host, 'send_owned') as send:
+                    result = run_owned_cycle(conf, store, host=host, now=NOW)
+                self.assertEqual(result['status'], 'NO_ACTION')
+                send.assert_not_called()
+                select.assert_called_once()
+                self.assertIs(host.scope, scope)
+                bounds = []
+                with patch.dict('os.environ', github_environment(), clear=True), \
+                     patch('manager_core.owned_platform_host.monotonic', return_value=1100), \
+                     patch.object(host, '_now', return_value=NOW-timedelta(seconds=100)), \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=lambda *a, **k: bounds.append(k['deadline_monotonic']) or {}):
+                    host.prepare_candidate(NOW)
+                self.assertEqual(bounds, [expected])
+                with self.assertRaises(FrozenInstanceError):
+                    settings.deadline_monotonic = 9999
+                self.assertNotIn('factory', repr(settings))
+
+    def test_shadow_closes_client_on_compared_unknown_budget_and_checkpoint_failure(self):
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        from manager_core.owned_checkpoint import CheckpointUnavailable
+        from test_owned_provider_shadow import OwnedProviderShadowTests, client_for
+        from manager_core import owned_provider_shadow as shadow
+        from manager_core.owned_provider import CheckpointedProvider
+        for outcome in ('compared', 'unknown', 'budget', 'checkpoint'):
+            with self.subTest(outcome=outcome), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                prepared, _, now = OwnedProviderShadowTests().prepared_fixture(root/'catalog')
+                client, sessions = client_for(create_error=OSError('transport') if outcome == 'unknown' else None)
+                events = []
+                def close():
+                    events.append('close')
+                    raise RuntimeError('PRIVATE_CLEANUP_MARKER')
+                client.close = close
+                def factory():
+                    events.append('factory')
+                    return client
+                settings = CatalogShadowSettings(monotonic()+120, factory, Decimal('0.05'), Decimal('0.03'))
+                _, _, host, *_ = platform_fixture(root/'host', catalog_shadow=settings)
+                host.context, host.assessment, host.scope = prepared
+                if outcome == 'budget':
+                    CheckpointedProvider(host.checkpoint, cap_usd=Decimal('0.04'))
+                failure = CheckpointUnavailable('original checkpoint failure')
+                with patch.dict('os.environ', github_environment(), clear=True), \
+                     patch.object(host, '_now', return_value=now):
+                    if outcome == 'checkpoint':
+                        with patch.object(host.checkpoint, 'save', side_effect=failure), self.assertRaises(CheckpointUnavailable) as caught:
+                            host.prepare_candidate(now)
+                        self.assertIs(caught.exception, failure)
+                        self.assertNotIn('PRIVATE_CLEANUP_MARKER', str(caught.exception))
+                        self.assertIsNone(host._catalog_shadow_result)
+                    else:
+                        host.prepare_candidate(now)
+                        self.assertEqual(host._catalog_shadow_result['status'],
+                                         {'compared': 'COMPARED_P0', 'unknown': 'UNKNOWN', 'budget': 'SKIPPED'}[outcome])
+                        self.assertNotIn('PRIVATE_CLEANUP_MARKER', json.dumps(host._catalog_shadow_result))
+                        if outcome == 'compared':
+                            saved = host._catalog_shadow_result
+                            with patch.object(shadow.CheckpointedProvider, '__init__', side_effect=AssertionError('replayed provider')):
+                                host.prepare_candidate(now)
+                            self.assertEqual(host._catalog_shadow_result, saved)
+                self.assertEqual(events, ['factory', 'close'])
+                self.assertEqual(sessions.create_count, 0 if outcome in ('budget', 'checkpoint') else 1)
+
+    def test_shadow_closes_client_on_interrupt_and_preserves_helper_errors(self):
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        from manager_core import owned_provider_shadow as shadow
+        from types import SimpleNamespace
+        for error in (KeyboardInterrupt(), RuntimeError('helper programming failure')):
+            with self.subTest(error=type(error).__name__), TemporaryDirectory() as tmp:
+                events = []
+                def close():
+                    events.append('close')
+                    raise RuntimeError('PRIVATE_CLEANUP_MARKER')
+                client = SimpleNamespace(close=close)
+                def factory():
+                    events.append('factory')
+                    return client
+                _, _, host, *_ = platform_fixture(Path(tmp), catalog_shadow=CatalogShadowSettings(
+                    monotonic()+120, factory))
+                def interrupted(*args, **kwargs):
+                    kwargs['client_factory']()
+                    raise error
+                with patch.dict('os.environ', github_environment(), clear=True), \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=interrupted), \
+                     patch.object(host, '_now', return_value=NOW), \
+                     self.assertRaises(type(error)) as caught:
+                    host.prepare_candidate(NOW)
+                self.assertIs(caught.exception, error)
+                self.assertEqual(events, ['factory', 'close'])
+                self.assertIsNone(host._catalog_shadow_result)
+
+    def test_advice_unknown_does_not_block_independent_publisher(self):
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        from manager_core.owned_checkpoint import CheckpointUnavailable
+        from manager_core import owned_provider_shadow as shadow
+        from scripts import phase06_kernel_release as release
+        import manager_core.owned_public_collector as collector
+        from test_owned_checkpoint_order import OwnedCheckpointOrderTests
+        for fenced in (False, True):
+            with self.subTest(fenced=fenced), TemporaryDirectory() as tmp:
+                conf, store, host, *_ = platform_fixture(Path(tmp), catalog_shadow=CatalogShadowSettings(monotonic()+120))
+                events = []
+                parent = host._git('rev-parse', 'HEAD')
+                failure = CheckpointUnavailable('advice checkpoint fence')
+                actual = release.admit_owned
+                def admitted(*args, **kwargs):
+                    events.append('admit')
+                    self.assertEqual(host._catalog_shadow_result['status'], 'UNKNOWN')
+                    return actual(*args, **kwargs)
+                def compare(*args, **kwargs):
+                    self.assertEqual(store.journal.pending_records(), ())
+                    if fenced:
+                        raise failure
+                    return {'status': 'UNKNOWN'}
+                with patch.dict('os.environ', github_environment(), clear=True), \
+                     patch.object(release, 'source_checkout_commit', return_value='b'*40), \
+                     patch.object(release, 'admit_owned', side_effect=admitted), \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=compare), \
+                     patch.object(collector, 'collect_owned_occurrence', return_value=None), \
+                     OwnedCheckpointOrderTests().local_cli_boundary(host, events, parent), \
+                     patch.object(host, '_now', return_value=NOW):
+                    if fenced:
+                        with self.assertRaises(CheckpointUnavailable) as caught:
+                            run_owned_cycle(conf, store, host=host, now=NOW)
+                        self.assertIs(caught.exception, failure)
+                    else:
+                        result = run_owned_cycle(conf, store, host=host, now=NOW)
+                        self.assertEqual(result['writes'], 1)
+                self.assertEqual(events, [] if fenced else ['admit', 'push', 'dispatch'])
+                if fenced:
+                    self.assertEqual(store.journal.pending_records(), ())
+
     def test_canonical_remote_helper_accepts_only_two_exact_https_spellings(self):
         from manager_core.owned_platform_host import is_canonical_remote, PAGES_REMOTE
         self.assertEqual(PAGES_REMOTE, 'https://github.com/Daisuke134/life-manager.git')

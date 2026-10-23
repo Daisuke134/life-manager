@@ -52,8 +52,12 @@ An explicitly approved host may add the optional direct SDK dependency with
 `python -m pip install -r requirements-ampersand.txt` from `products/manager`.
 The adapter checks installed distribution metadata and accepts exactly
 `openai==3.24.0` before constructing a client. This file pins only the direct
-SDK dependency; it does not lock transitive packages or install the SDK in CI
-or in the scheduled owner.
+SDK dependency; it does not lock transitive packages.
+The trusted workflow installs it only for an effective catalog-shadow dispatch,
+before creating fresh private runner state or invoking the lease-owning CLI.
+The installer receives no API key.
+Default, scheduled, and control operations do not install this optional SDK;
+source tests use local fakes without installing it or making model calls.
 
 The `manager_core.owned_provider.CheckpointedProvider` callable adapter can
 connect an already acquired `PrivateCheckpoint` to the optional Ampersand
@@ -86,40 +90,85 @@ the writer fence and reserved exposure.
 
 ## Opt-in catalog provider shadow
 
-`manager_core.owned_provider_shadow.run_catalog_shadow` compares the two frozen
-advisory baselines with one provider response for a verified `CORRECT_LINK` or
-`IMPROVE_ACCESSIBILITY` catalog candidate. Call it only inside the lifecycle
-that already acquired the exact `PrivateCheckpoint`; this helper does not
-acquire or release that lease and does not create a provider client:
+The trusted main workflow offers `catalog_shadow` (boolean, default `false`)
+with optional string inputs `ampersand_max_total_usd` and
+`ampersand_max_call_usd` (both default blank).
+Effective enablement requires exactly `workflow_dispatch`, `operation=run-once`,
+and `catalog_shadow=true`.
+The same condition gates the SDK installer, `MANAGER_CATALOG_SHADOW_ENABLED`,
+and the cycle-step `AMPERSAND_API_KEY` secret; every other case receives
+`false` and an empty key.
+A schedule, an omitted or false flag, or `stop`, `rollback`, or `resume` keeps
+comparison and client/provider initialization OFF.
+Preflight also remains OFF.
+This adds no owner or writer: the existing verify dependency, trusted-main
+identity, concurrency, CLI invocation, operation allowlist, and publisher
+permissions remain the authority.
 
-```python
-result = run_catalog_shadow(
-    checkpoint, existing_client, pages_checkout, fresh_private_workspace,
-    main_source_sha,
-    run_id=workflow_run_id,
-    enabled=True,   # call only after an explicit owner opt-in
-    cap_usd=Decimal("0.05"),
-    upper_usd=Decimal("0.03"),
-    deadline_monotonic=absolute_monotonic_deadline,
-)
-```
+The money inputs reach `MANAGER_AMPERSAND_MAX_TOTAL_USD` and
+`MANAGER_AMPERSAND_MAX_CALL_USD` as raw strings without numeric fallbacks.
+Blank or invalid money leaves the send configuration `None`; it never implies
+a zero-dollar or example allowance.
+Both values must be finite Decimals in `(0, 100]`, represent exact microdollars,
+and satisfy per-call upper bound <= cumulative cap.
+A valid key and both valid limits create an inert client factory; parsing
+configuration does not construct an SDK client or provider.
+These reservations are cumulative in the existing private ledger and stay
+charged until separate settlement.
+They do not replenish per workflow run, rotate caps, or establish settled cost.
+A changed persisted cap or exhausted ledger may still create one SDK client:
+the accepted helper creates the client and `CheckpointedProvider` before
+durable budget admission, then refuses a new model session on budget failure.
+Static invalid configuration creates neither client nor provider.
 
-The call reuses the public catalog planner, source and browser validation,
-`prepare_owned_change` for inert revalidation, public prompt renderer, existing
-checkpointed session/budget adapter, and the unchanged collaboration baseline
-functions. A current-page cue, missing candidate, stale or synthetic context,
-unsupported action, expired deadline, budget refusal, or prior provider intent
-does not create a new model session. Uncertain planning or provider transport
-is reported as `UNKNOWN`; checkpoint fencing and interruption propagate to the
-existing owner.
+`OwnedPlatformHost.prepare_candidate` calls the existing catalog planner once and sends
+the exact prepared `(context, assessment, scope)` tuple to
+`manager_core.owned_provider_shadow.compare_prepared_catalog_shadow` under its
+already acquired `PrivateCheckpoint`.
+The comparison does not replan, refresh scope, or acquire a second lease.
+It compares the two frozen advisory baselines with one provider response for
+a verified `CORRECT_LINK` or `IMPROVE_ACCESSIBILITY` candidate.
+The standalone `run_catalog_shadow` helper remains available to callers that
+already supply a client and acquired checkpoint; the host uses the prepared
+comparison path instead.
 
-Records use `manager.catalog-shadow.v1` and remain P0 advisory comparisons.
-They include no publisher packet or execution authority, write no catalog or
-publisher state, and cannot establish causal support or human benefit. Source
-and candidate hashes identify the proposal; model advice cannot change its
-baseline or candidate bytes. Provider usage is not settled cost. This source
-change adds no workflow enablement, schedule, secret, SDK install, live model
-call, or deployment action.
+Saved `manager.catalog-shadow.v1` comparisons replay from the same private
+checkpoint without a new model send, even if send configuration is absent.
+Replay still requires a current supported candidate, valid scope, and unexpired
+time window: deadline checks precede saved-result lookup.
+A prior uncertain provider intent stays UNKNOWN and is not automatically resent.
+Ordinary comparison `UNKNOWN`, `SKIPPED`, or model `PASS`/`ASK`/`PROPOSE` does not
+control the candidate or independent publisher admission.
+`CheckpointUnavailable` follows the existing owner fence.
+Comparison may consume an already committed cadence slot, so a later attempt
+may be `NOT_DUE`.
+
+The comparison window is at most 120 seconds from `run_once` entry and can
+only shorten during preparation or replay.
+It is also bounded by the existing 600-second host lifetime and the remaining
+prepared scope lifetime, each reserving 120 seconds for the publisher.
+That reserve is code policy, not a guarantee that publication will finish.
+The SDK request timeout is 30 seconds; the provider retains its absolute
+deadline and bounded cancellation grace.
+The workflow job timeout remains 13 minutes.
+The host attempts each successfully created SDK client's `close()` exactly once
+on every comparison exit, including budget refusal, uncertainty, interruption,
+and checkpoint failure.
+An ordinary close exception is suppressed without replacing an active fence;
+a close attempt does not prove successful cleanup.
+
+Only the allowlisted nested `catalog_shadow` projection is added to the public
+summary; the existing three public artifact paths remain unchanged.
+Private comparison records, session/budget journals, and `cycle.sqlite` remain
+in the existing private checkpoint snapshot.
+Public advice remains P0: `authorized_execution=False`, `causal_support=False`,
+`human_outcome='NOT_MEASURED'`, `action_writes=0`, and `settled_cost_usd=None`.
+There is no publisher packet or additional execution authority in that summary;
+model advice cannot change baseline or candidate bytes.
+Source contracts and local fake-client tests establish this connection, not live
+provider inference, cancellation behavior, human benefit, or row4 live utility.
+Live activation, dispatch, deployment, and authoritative provider readback remain
+separate operational acceptance; this source change performs none of them.
 
 Final-text readback follows the pinned OpenAI SDK 3.24.0 result collector: it
 joins `output_text` blocks from completed assistant messages whose phase is

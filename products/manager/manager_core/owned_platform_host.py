@@ -5,7 +5,10 @@ seven-path release guard and protected Pages deployment workflow. Constructing
 this Python object proves no identity; only the original GitHub OIDC gateway
 and trusted workflow provide platform authentication.
 """
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
+from math import isfinite
 import json
 import os
 from pathlib import Path
@@ -13,6 +16,7 @@ import re
 import subprocess
 from tempfile import TemporaryDirectory
 from time import monotonic
+from typing import Any, Callable
 
 from .digital_handoff import (
     ALLOWED_PATHS, MAIN_REF, REPOSITORY, WORKFLOW, OwnedChangeContext,
@@ -27,6 +31,9 @@ _CANONICAL_REMOTES = (PAGES_REMOTE, PAGES_REMOTE.removesuffix('.git'))
 PAGES_BRANCH = 'refs/heads/gh-pages'
 PAGES_WORKFLOW_ID = '307239134'
 MAX_HOST_SECONDS = 600
+CATALOG_SHADOW_MAX_SECONDS = 120
+CATALOG_SHADOW_PUBLISH_RESERVE_SECONDS = 120
+CATALOG_SHADOW_REQUEST_TIMEOUT_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 15
 SHA_RE = re.compile(r'[0-9a-f]{40}\Z')
 POSITIVE_RE = re.compile(r'[1-9][0-9]*\Z')
@@ -41,6 +48,16 @@ class CatalogSelectionUnavailable(RuntimeError):
     """Fixed selector could not establish a safe new-candidate decision."""
 
 
+@dataclass(frozen=True)
+class CatalogShadowSettings:
+    """Inert optional comparison settings; the client remains lazy and private."""
+
+    deadline_monotonic: float
+    client_factory: Callable[[], Any] | None = field(default=None, repr=False)
+    cap_usd: Decimal | None = None
+    upper_usd: Decimal | None = None
+
+
 class GitHubActionsCycleHost:
     """The only live adapter accepted by ``run_owned_cycle``.
 
@@ -50,7 +67,8 @@ class GitHubActionsCycleHost:
     """
 
     def __init__(self, checkpoint, checkout, source_audit_path, *,
-                 context=None, assessment=None, scope=None):
+                 context=None, assessment=None, scope=None,
+                 catalog_shadow: CatalogShadowSettings | None = None):
         if type(checkpoint) is not PrivateCheckpoint:
             raise TypeError('exact private checkpoint session required')
         if context is not None and type(context) is not OwnedChangeContext:
@@ -65,6 +83,12 @@ class GitHubActionsCycleHost:
             raise TypeError('source audit path required')
         if not isinstance(checkout, (str, os.PathLike)):
             raise TypeError('canonical gh-pages checkout path required')
+        if catalog_shadow is not None and type(catalog_shadow) is not CatalogShadowSettings:
+            raise TypeError('typed catalog shadow settings required')
+        self._catalog_shadow = catalog_shadow
+        self._catalog_shadow_result: dict | None = None
+        self._catalog_shadow_deadline = (catalog_shadow.deadline_monotonic
+                                         if catalog_shadow is not None else None)
         self.checkpoint = checkpoint
         self.checkout = Path(checkout).absolute()
         self.source_audit_path = (Path(source_audit_path).absolute()
@@ -75,12 +99,7 @@ class GitHubActionsCycleHost:
         self._started_at = monotonic()
 
     def prepare_candidate(self, now):
-        """Return fixed typed candidate data after the shared recovery gates.
-
-        A complete prebound tuple is retained for the existing unit contracts.
-        Otherwise selection is imported lazily and can only use committed code,
-        the existing Pages checkout, and the actual runner identity.
-        """
+        """Return the exact fixed tuple after the shared recovery gates."""
         from .candidate_verification import TechnicalAssessment
         from .authority import OwnedDigitalScope
         if self.context is not None or self.assessment is not None or self.scope is not None:
@@ -88,30 +107,68 @@ class GitHubActionsCycleHost:
                     (self.assessment is not None and type(self.assessment) is not TechnicalAssessment) or \
                     (self.scope is not None and type(self.scope) is not OwnedDigitalScope):
                 raise PermissionError('owned candidate unavailable')
-            if self.context is not None and self.assessment is not None and self.scope is not None:
-                return self.context, self.assessment, self.scope
-            raise PermissionError('incomplete owned candidate binding')
-        from .owned_catalog_planner import plan_catalog_change
-        env = os.environ
-        run_id, source_sha = env.get('GITHUB_RUN_ID'), env.get('GITHUB_SHA')
-        planning = self.checkpoint.db.parent / 'planning'
-        self.source_audit_path = planning / 'source-audit.json'
+            if self.context is None or self.assessment is None or self.scope is None:
+                raise PermissionError('incomplete owned candidate binding')
+            selected = (self.context, self.assessment, self.scope)
+        else:
+            from .owned_catalog_planner import plan_catalog_change
+            env = os.environ
+            run_id, source_sha = env.get('GITHUB_RUN_ID'), env.get('GITHUB_SHA')
+            planning = self.checkpoint.db.parent / 'planning'
+            self.source_audit_path = planning / 'source-audit.json'
+            try:
+                selected = plan_catalog_change(self.checkout, planning, source_sha, now, run_id=run_id)
+            except Exception:
+                # Selection uncertainty leaves recovery under the existing owner.
+                raise CatalogSelectionUnavailable('fixed catalog selection unavailable') from None
+            if selected is not None:
+                if type(selected) is not tuple or len(selected) != 3:
+                    raise CatalogSelectionUnavailable('fixed catalog selection unavailable')
+                context, assessment, scope = selected
+                if (type(context) is not OwnedChangeContext or type(assessment) is not TechnicalAssessment or
+                        type(scope) is not OwnedDigitalScope):
+                    raise CatalogSelectionUnavailable('fixed catalog selection unavailable')
+                self.context, self.assessment, self.scope = selected
+        self._compare_prepared_catalog_shadow(selected)
+        return selected if selected is not None else (None, None, None)
+
+    def _compare_prepared_catalog_shadow(self, prepared: tuple | None) -> None:
+        settings = self._catalog_shadow
+        deadline = self._catalog_shadow_deadline
+        if (settings is None or type(deadline) not in (int, float) or
+                not isfinite(deadline)):
+            return
+        from .owned_provider_shadow import compare_prepared_catalog_shadow
+        m, now = monotonic(), self._now()
+        deadline = min(deadline, self._started_at + MAX_HOST_SECONDS -
+                       CATALOG_SHADOW_PUBLISH_RESERVE_SECONDS)
+        if prepared is not None:
+            deadline = min(deadline, m + (prepared[2].expires_at - now).total_seconds() -
+                           CATALOG_SHADOW_PUBLISH_RESERVE_SECONDS)
+        self._catalog_shadow_deadline = deadline
+        clients = []
+
+        def client_factory():
+            client = settings.client_factory()
+            clients.append(client)
+            return client
+
         try:
-            selected = plan_catalog_change(self.checkout, planning, source_sha, now, run_id=run_id)
-        except Exception:
-            # Mismatch/audit/browser uncertainty blocks a new send but leaves
-            # the already-restored journal available to the cycle owner.
-            raise CatalogSelectionUnavailable('fixed catalog selection unavailable') from None
-        if selected is None:
-            return None, None, None
-        if type(selected) is not tuple or len(selected) != 3:
-            raise CatalogSelectionUnavailable('fixed catalog selection unavailable')
-        context, assessment, scope = selected
-        if (type(context) is not OwnedChangeContext or type(assessment) is not TechnicalAssessment or
-                type(scope) is not OwnedDigitalScope):
-            raise CatalogSelectionUnavailable('fixed catalog selection unavailable')
-        self.context, self.assessment, self.scope = context, assessment, scope
-        return context, assessment, scope
+            result = compare_prepared_catalog_shadow(
+                self.checkpoint, prepared, now=now, run_id=os.environ['GITHUB_RUN_ID'],
+                enabled=True,
+                client_factory=client_factory if settings.client_factory is not None else None,
+                cap_usd=settings.cap_usd, upper_usd=settings.upper_usd,
+                deadline_monotonic=deadline,
+            )
+            self._catalog_shadow_result = result
+        finally:
+            for client in clients:
+                try:
+                    client.close()
+                except Exception:
+                    # Cleanup uncertainty must not replace the checkpoint fence.
+                    pass
 
     def _environment(self, *, require_release=False):
         env = os.environ
