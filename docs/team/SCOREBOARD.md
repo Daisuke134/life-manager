@@ -13,6 +13,16 @@
 | Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-23T11:07:54Z |
 | PromptBase 売上 | 0件 / $0.0 | `promptbase-sales.json` observed_at 2026-10-23T08:52:15Z |
 
+## 2026-10-23 夜（参謀依頼）
+
+| 項目 | 値 | 時刻 | 出典 |
+|---|---|---|---|
+| Grok for Startups 提出 | 提出済み | 22:32 JST | 参謀(daisuke/cursor) の Reason 報告 2026-10-23。`ledger/APPLICATIONS.md` には未記載（照合未了） |
+| Coconala 提案 5338722 | applied ¥10,000 | 22:02 JST | `~/gig/applied.jsonl` requestId=5338722 status=applied |
+| Coconala 提案 5338965 | applied ¥30,000 | 22:02 JST | `~/gig/applied.jsonl` requestId=5338965 status=applied |
+| Coconala 提案 5341300 | applied ¥80,000 | 22:02 JST | `~/gig/applied.jsonl` requestId=5341300 status=applied |
+| 今夜の売上 | ¥0 | 23:00 JST 時点 | 参謀の Reason 報告。ローカルの Coconala 売上台帳（`~/gig/earnings.jsonl`）は 9/27 で停止のため未照合 |
+
 ## 売上 / MRR
 
 | 項目 | 値 | 更新(JST) | 出典 |
