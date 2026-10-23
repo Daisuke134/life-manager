@@ -22,6 +22,11 @@ _SOURCE_LINK=re.compile(re.escape(SOURCE_REPO)+r'/tree/[0-9a-f]{40}/products/man
 CURRENT_PAGE_VERSION='owned-digital-technical-v2'
 CURRENT_PAGE_W3C_URL='https://www.w3.org/TR/wai-aria-1.2/#aria-current'
 _CURRENT_PAGE_TARGETS=frozenset({'finance.html','mental.html'})
+_CURRENT_PAGE_NAV_HREFS=('index.html','finance.html','mental.html','physical.html','proof.html')
+_CURRENT_PAGE_NAV_START=re.compile(
+    r'<a href="(index\.html|finance\.html|mental\.html|physical\.html|proof\.html)"'
+    r'(?: aria-current="page")?>\Z'
+)
 
 
 @dataclass(frozen=True)
@@ -118,28 +123,53 @@ class _CurrentNavigation(HTMLParser):
     def __init__(self,target):
         super().__init__(convert_charrefs=True)
         self.target=target
+        self.htmls=self.html_ends=self.bodies=self.body_ends=0
         self.headers=self.header_ends=self.navs=self.nav_ends=0
         self.header_depth=self.nav_depth=0
         self.header_navs=[]
         self.self_links=[]
         self.current=[]
+        self.nav_hrefs=[]
+        self.nav_anchor_text=[]
+        self.nav_shape_valid=True
         self.duplicate_attributes=False
         self.malformed=False
         self.structure=[]
         self.text=''
 
     def handle_starttag(self,tag,attrs):
+        parent=self.structure[-1] if self.structure else None
         counts={}
         for key,_ in attrs:counts[key]=counts.get(key,0)+1
         if any(count>1 for count in counts.values()):self.duplicate_attributes=True
         values={key:value for key,value in attrs}
         if 'aria-current' in counts:self.current.append((tag,values.get('aria-current'),self.nav_depth>0))
+        if self.nav_depth:
+            if parent!='nav' or tag!='a':
+                self.nav_shape_valid=False
+            else:
+                raw=self.get_starttag_text() or ''
+                match=_CURRENT_PAGE_NAV_START.fullmatch(raw)
+                if match is None:
+                    self.nav_shape_valid=False
+                    self.nav_hrefs.append('')
+                else:
+                    self.nav_hrefs.append(match.group(1))
+                self.nav_anchor_text.append('')
         if tag not in self._VOID:self.structure.append(tag)
+        if tag=='html':
+            self.htmls+=1
+            if parent is not None:self.nav_shape_valid=False
+        if tag=='body':
+            self.bodies+=1
+            if parent!='html':self.nav_shape_valid=False
         if tag=='header':
             self.headers+=1
+            if parent!='body':self.nav_shape_valid=False
             self.header_depth+=1
         if tag=='nav':
             self.navs+=1
+            if parent!='header':self.nav_shape_valid=False
             if self.header_depth:
                 self.header_navs.append(tuple(attrs))
             if self.nav_depth:
@@ -153,6 +183,16 @@ class _CurrentNavigation(HTMLParser):
                 offset=sum(len(part) for part in lines[:line-1])+column
                 self.self_links.append((tuple(attrs),self.get_starttag_text(),offset))
 
+    def handle_data(self,data):
+        if not self.nav_depth:return
+        if self.structure and self.structure[-1]=='a' and self.nav_anchor_text:
+            self.nav_anchor_text[-1]+=data
+        elif data.strip():
+            self.nav_shape_valid=False
+
+    def handle_comment(self,data):
+        if self.nav_depth:self.nav_shape_valid=False
+
     def handle_endtag(self,tag):
         if not self.structure or self.structure[-1]!=tag:
             self.malformed=True
@@ -162,6 +202,8 @@ class _CurrentNavigation(HTMLParser):
             self.nav_ends+=1
             self.nav_depth-=1
             if self.nav_depth<0:self.malformed=True
+        if tag=='body':self.body_ends+=1
+        if tag=='html':self.html_ends+=1
         if tag=='header':
             self.header_ends+=1
             self.header_depth-=1
@@ -183,13 +225,17 @@ def _current_navigation(body,target):
         parser.close()
     except (UnicodeError,ValueError):
         return 'INVALID',None
-    if (parser.malformed or parser.structure or parser.duplicate_attributes or parser.headers!=1 or parser.header_ends!=1
+    if (parser.malformed or parser.structure or parser.duplicate_attributes or not parser.nav_shape_valid
+            or parser.nav_hrefs!=list(_CURRENT_PAGE_NAV_HREFS)
+            or len(parser.nav_anchor_text)!=len(_CURRENT_PAGE_NAV_HREFS)
+            or any(not label.strip() for label in parser.nav_anchor_text)
+            or parser.htmls!=1 or parser.html_ends!=1 or parser.bodies!=1 or parser.body_ends!=1
+            or parser.headers!=1 or parser.header_ends!=1
             or parser.navs!=1 or parser.nav_ends!=1 or parser.header_depth!=0 or parser.nav_depth!=0
             or len(parser.header_navs)!=1 or len(parser.self_links)!=1):
         return 'INVALID',None
     nav_attrs=parser.header_navs[0]
-    labels=[value for key,value in nav_attrs if key=='aria-label']
-    if len(labels)!=1 or labels[0]!='主な案内':return 'INVALID',None
+    if nav_attrs!=(('aria-label','主な案内'),):return 'INVALID',None
     attrs,raw,offset=parser.self_links[0]
     hrefs=[value for key,value in attrs if key=='href']
     currents=[value for key,value in attrs if key=='aria-current']

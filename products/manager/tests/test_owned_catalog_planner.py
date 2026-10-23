@@ -103,6 +103,32 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
             bodies["mental.html"] = mental.encode("utf-8")
             self.assertIsNone(planner.find_current_page_opportunity(bodies))
 
+    def test_current_page_selector_rejects_balanced_nested_navigation_interactives(self):
+        with TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / "manager-support"
+            build_site(catalog(), bundle, SHA)
+            original = bodies_from(bundle)
+            old = '<a href="finance.html">生活費・仕事・借入</a>'
+            mutations = {
+                "button_parent": '<button>' + old + '</button>',
+                "anchor_parent": '<a href="index.html">' + old + '</a>',
+                "button_child": '<a href="finance.html"><button>生活費・仕事・借入</button></a>',
+            }
+            for name, malformed in mutations.items():
+                with self.subTest(name=name):
+                    bodies = dict(original)
+                    text = bodies["finance.html"].decode("utf-8")
+                    self.assertEqual(text.count(old), 1)
+                    bodies["finance.html"] = text.replace(old, malformed, 1).encode("utf-8")
+                    self.assertIsNone(planner.find_current_page_opportunity(bodies))
+
+    def test_current_page_selector_accepts_the_real_flat_five_link_header_nav(self):
+        with TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / "manager-support"
+            build_site(catalog(), bundle, SHA)
+            bodies = bodies_from(bundle)
+            self.assertEqual(planner.find_current_page_opportunity(bodies).target_path, "finance.html")
+
     def test_current_page_selector_fails_closed_on_ambiguous_or_wrong_navigation(self):
         with TemporaryDirectory() as tmp:
             bundle = Path(tmp) / "manager-support"

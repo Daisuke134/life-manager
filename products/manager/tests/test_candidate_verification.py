@@ -130,6 +130,28 @@ class CandidateVerificationTests(unittest.TestCase):
             self.assertFalse(result.authorized_execution)
             self.assertEqual(result.human_outcome,'NOT_MEASURED')
 
+    def test_current_page_verifier_rejects_balanced_nested_navigation_interactives(self):
+        from dataclasses import replace
+        old='<a href="finance.html">生活費・仕事・借入</a>'.encode()
+        current='<a href="finance.html" aria-current="page">生活費・仕事・借入</a>'.encode()
+        mutations={
+            'button_parent':('<button>'.encode()+old+'</button>'.encode(),
+                             '<button>'.encode()+current+'</button>'.encode()),
+            'anchor_parent':('<a href="index.html">'.encode()+old+'</a>'.encode(),
+                             '<a href="index.html">'.encode()+current+'</a>'.encode()),
+            'button_child':('<a href="finance.html"><button>生活費・仕事・借入</button></a>'.encode(),
+                            '<a href="finance.html" aria-current="page"><button>生活費・仕事・借入</button></a>'.encode()),
+        }
+        for name,(malformed_before,malformed_after) in mutations.items():
+            with self.subTest(name=name),TemporaryDirectory() as tmp:
+                before,after,criteria=setup_current_page(Path(tmp))
+                mutate(before,'finance.html',lambda body:body.replace(old,malformed_before,1))
+                mutate(after,'finance.html',lambda body:body.replace(current,malformed_after,1))
+                baseline=replace(criteria.official_sources[0],content_sha256=
+                                 sha256((before/'finance.html').read_bytes()).hexdigest())
+                criteria=replace(criteria,official_sources=(baseline,criteria.official_sources[1]))
+                self.assertEqual(verify_candidate(before,after,criteria).status,'DENIED')
+
     def test_current_page_cue_rejects_unrelated_text_links_attributes_and_other_pages(self):
         mutations={
             'unrelated_attribute': lambda root: mutate(root,'finance.html',
