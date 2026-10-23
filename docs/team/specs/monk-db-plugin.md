@@ -52,7 +52,7 @@ Rules: store `license` per record; never mix NC content into anything paid; ND c
 | Other free MCP directories | Official MCP Registry (`mcp-publisher`, GitHub sign-in), Smithery, mcp.so, Glama, PulseMCP, MuseDirectory.dev, Cursor directory, LobeHub | GitHub OAuth (mostly) | Light or none |
 | Grok / xAI | Remote MCP is usable via the xAI API `mcp` tool; no public directory yet | none | none |
 
-Contact email for all forms: **keiodaisuke@gmail.com** (team rule).
+Contact email for all forms: use the private service configuration in the local credentials store.
 
 ## 4. Distribution plan
 
