@@ -138,7 +138,7 @@ def test_regular_producer_runs_at_floor_or_unknown_free_space(
     assert calls and calls[0][1] == ["/bin/true"]
 
 
-@pytest.mark.parametrize("loop_id", ("life-manager-disk-cleanup", "lm-fence-reconciler", "browser-recycle-idle"))
+@pytest.mark.parametrize("loop_id", ("life-manager-disk-cleanup", "lm-fence-reconciler", "browser-recycle-idle", "warmup-flip-daily"))
 def test_control_plane_runs_below_disk_floor(monkeypatch, loop_id):
     guard = load_guard()
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", loop_id)
