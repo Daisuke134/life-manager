@@ -269,6 +269,13 @@ def settings(release: Path) -> tuple[dict, dict[str, str]]:
     return manifest, resolve(table)
 
 
+def coconala_notification_environment(release: Path, loop_id: str) -> dict[str, str]:
+    if not loop_id.startswith("hf-gig-") or loop_id not in coconala_jobs().values():
+        return {}
+    _, table = settings(release)
+    return {key: table[key] for key in ("GIG_GOG_ACCOUNT", "GIG_NOTIFY_EMAIL")}
+
+
 def release_dir(sha: str) -> Path:
     return RELEASE_ROOT / sha
 

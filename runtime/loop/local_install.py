@@ -15,6 +15,7 @@ from pathlib import Path
 from runtime.host.local_profile import HOST_ENVIRONMENT_KEYS, host_environment, load_host_profile, prepare_host
 from runtime.loop.local_fleet import build_fleet_manifest
 from runtime.loop.lm_loop_apply import _loaded_arguments, _loaded_environment, build_apply_plan
+from skills.earn.gig.scripts.gig_release import coconala_notification_environment
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -109,6 +110,9 @@ def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str
         binding_matches = (not environment.get("LIFE_MANAGER_HOST_PROFILE") or all(
             _loaded_environment(probe.stdout).get(key) == value
             for key, value in environment.items() if key in HOST_ENVIRONMENT_KEYS))
+        binding_matches = binding_matches and all(
+            _loaded_environment(probe.stdout).get(key, "") == value
+            for key, value in coconala_notification_environment(release_root, owner).items())
         if probe.returncode == 0 and _loaded_arguments(probe.stdout) == arguments and binding_matches:
             # Source identity is already installed. Running keep-alive owners
             # must not be restarted just to declare the installer successful.

@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import plistlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -437,6 +438,119 @@ def test_managed_activation_installs_unloaded_job_and_preserves_loaded_busy_owne
         else:
             assert command[1:] == ["apply", "--loaded-idle-only"]
     assert json.loads(capsys.readouterr().out)["status"] == "waiting"
+
+
+def _configured_email_fixture(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(SCRIPT.parent))
+    from coconala_onboarding import configure_email
+    from skills.earn.gig.scripts import gig_release as canonical_release
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("LIFE_MANAGER_HOST_PROFILE", raising=False)
+    for module in (gig_release, canonical_release):
+        monkeypatch.setattr(module, "OVERRIDES", home / ".config/anicca/gig/install.json")
+    configure_email(home, "owner@example.test")
+
+
+def _coconala_release_fixture(tmp_path):
+    release = tmp_path / "release"
+    for relative in ("config/loop-registry.json", "apps/life-manager/config/product-loop-catalog.json"):
+        target = release / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((gig_release.REPO_ROOT / relative).read_text())
+    return release
+
+
+def test_managed_activation_keeps_configured_email_in_every_coconala_plist(tmp_path, monkeypatch, capsys):
+    from runtime.loop import lm_loop_apply
+
+    _configured_email_fixture(tmp_path, monkeypatch)
+    release = _coconala_release_fixture(tmp_path)
+    registry = json.loads((release / "config/loop-registry.json").read_text())["loops"]
+    generated = {}
+    monkeypatch.setattr(lm_loop_apply, "_managed_node", lambda *_: "/fixture/bin/node")
+
+    def run(command, **kwargs):
+        if command[0].endswith("launchctl-safe"):
+            return SimpleNamespace(returncode=0 if command[1] == "preflight" else 113,
+                                   stdout="", stderr="Could not find service")
+        assert command == [str(release / "bin/lm-loop"), "apply"]
+        owner = kwargs["env"]["LIFE_MANAGER_APPLY_TARGET"]
+        with monkeypatch.context() as launch:
+            for key, value in kwargs["env"].items():
+                launch.setenv(key, value)
+            generated[owner] = plistlib.loads(lm_loop_apply._plist(
+                owner, registry[owner], release, "a" * 40,
+            ))["EnvironmentVariables"]
+        return SimpleNamespace(returncode=0, stdout=json.dumps([{
+            "ok": True, "label": registry[owner]["label"],
+        }]), stderr="")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+
+    assert gig_release.activate_managed_jobs(release, set(gig_release.coconala_jobs(release)), False) == 0
+    assert set(generated) == {
+        "hf-gig-apply-direct", "hf-gig-reply-detector", "hf-gig-storefront-direct",
+        "hf-gig-paid-direct", "hf-gig-daily-report", "hf-gig-apply-evidence-gc", "hf-gig-browser",
+    }
+    for environment in generated.values():
+        assert environment.get("GIG_GOG_ACCOUNT") == "owner@example.test"
+        assert environment.get("GIG_NOTIFY_EMAIL") == "owner@example.test"
+    for owner in ("hf-gig-apply-reconcile", "article-daily"):
+        environment = plistlib.loads(lm_loop_apply._plist(
+            owner, registry[owner], release, "a" * 40,
+        ))["EnvironmentVariables"]
+        assert "GIG_GOG_ACCOUNT" not in environment
+        assert "GIG_NOTIFY_EMAIL" not in environment
+    assert "owner@example.test" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("previous", [None, "previous@example.test", "owner@example.test"])
+@pytest.mark.parametrize("running", [False, True])
+def test_same_release_reconciles_changed_email_without_restarting_running_owner(tmp_path, monkeypatch, previous, running):
+    from runtime.loop import lm_loop_apply
+
+    _configured_email_fixture(tmp_path, monkeypatch)
+    release = _coconala_release_fixture(tmp_path)
+    registry = json.loads((release / "config/loop-registry.json").read_text())["loops"]
+    owner = "hf-gig-paid-direct"
+    monkeypatch.setattr(lm_loop_apply, "_managed_node", lambda *_: "/fixture/bin/node")
+    loaded = plistlib.loads(lm_loop_apply._plist(owner, registry[owner], release, "a" * 40))
+    for key in ("GIG_GOG_ACCOUNT", "GIG_NOTIFY_EMAIL"):
+        if previous is None:
+            loaded["EnvironmentVariables"].pop(key, None)
+        else:
+            loaded["EnvironmentVariables"][key] = previous
+    printed = "arguments = {\n" + "\n".join(loaded["ProgramArguments"]) + "\n}\nenvironment = {\n"
+    printed += "\n".join(f"{key} => {value}" for key, value in loaded["EnvironmentVariables"].items()) + "\n}\n"
+    applied = []
+    generated = []
+
+    def run(command, **kwargs):
+        if command[0].endswith("launchctl-safe"):
+            return SimpleNamespace(returncode=0, stdout=printed, stderr="")
+        applied.append(command)
+        assert command == [str(release / "bin/lm-loop"), "apply", "--loaded-idle-only"]
+        row = {"ok": True, "label": registry[owner]["label"]}
+        if running:
+            row["skipped"] = "loaded-running"
+        else:
+            generated.append(plistlib.loads(lm_loop_apply._plist(
+                owner, registry[owner], release, "a" * 40,
+            ))["EnvironmentVariables"])
+        return SimpleNamespace(returncode=0, stdout=json.dumps([row]), stderr="")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+    changed = previous != "owner@example.test"
+    assert gig_release.activate_managed_jobs(release, {registry[owner]["label"]}, False) == (2 if running and changed else 0)
+    assert len(applied) == int(changed)
+    if changed and not running:
+        assert generated[0]["GIG_GOG_ACCOUNT"] == "owner@example.test"
+        assert generated[0]["GIG_NOTIFY_EMAIL"] == "owner@example.test"
+    else:
+        assert generated == []
 
 
 def test_managed_activation_never_treats_a_failed_probe_as_a_new_job(tmp_path, monkeypatch):
