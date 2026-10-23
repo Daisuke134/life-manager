@@ -1,0 +1,170 @@
+{
+  "schema_version": "anicca.ai-monk-completed-asset-production.v1",
+  "purpose": "完成済みの同一HeyGen動画を取得し、費用未照合を保持したままmain由来immutable版で準備済みにする。",
+  "source_pr": "https://github.com/Daisuke134/life-manager/pull/8611",
+  "source_head": "05ceea8b37bffd21d6001b6bdfa3b4dc2a087800",
+  "main_commit": "c0f10e13fcc9c35fe2a3e5feed986b1c136280a5",
+  "source_ci": {
+    "run_id": 39895807440,
+    "conclusion": "success",
+    "checks": 13
+  },
+  "candidate_release": "20261023T124548-c0f10e13",
+  "release_paths": "ALL",
+  "events": [
+    {
+      "run_id": "ebook-run.0be57011d69ed7b038a3f8a0",
+      "owner_id": "ebook-en-tiktok-daily",
+      "occurrence_id": null,
+      "release_sha": "fb0b5d5d3b70e9907b66ba7263c954cca4d71a53",
+      "phase": "existing_asset_recovery",
+      "checked_at": "2026-10-23T03:41:57.000777+00:00",
+      "commands": [
+        {
+          "operation": [
+            "auth",
+            "status"
+          ],
+          "exit_code": 0
+        },
+        {
+          "operation": [
+            "video",
+            "get"
+          ],
+          "exit_code": 0
+        },
+        {
+          "operation": [
+            "video",
+            "download"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "provider_receipt_id": "492ee7b0f41372ab6856594c9096ea6f",
+      "cost_usd": null,
+      "renderer_sha256": "43debc970c05f2c6942b06f10e4d50c7f527f4b37268300da8874a34722aad42",
+      "readback": {
+        "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+        "status": "completed"
+      },
+      "receipt_state": "render_reconciliation_required",
+      "sidecar_state": "cost_reconciliation_required",
+      "request_unchanged": true,
+      "video_id_unchanged": true,
+      "cost_still_null": true,
+      "asset_exists": true,
+      "asset_bytes": 19987948,
+      "asset_sha256": "7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566",
+      "media": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "audio"
+          },
+          {
+            "codec_type": "video",
+            "width": 1080,
+            "height": 1920
+          }
+        ],
+        "format": {
+          "duration": "13.200000",
+          "size": "19987948"
+        }
+      },
+      "status": "asset_downloaded_cost_unreconciled",
+      "exit_code": 0,
+      "effect": {
+        "new_generations": 0,
+        "posts": 0,
+        "downloads": 1
+      },
+      "retryable": false,
+      "next_action": "promote_reviewed_asset_reuse_source"
+    },
+    {
+      "run_id": "ebook-run.0be57011d69ed7b038a3f8a0",
+      "owner_id": "ebook-en-tiktok-daily",
+      "occurrence_id": null,
+      "release_sha": "c0f10e13fcc9c35fe2a3e5feed986b1c136280a5",
+      "phase": "existing_asset_readiness",
+      "checked_at": "2026-10-23T03:47:07.816271+00:00",
+      "commands": [
+        {
+          "operation": [
+            "auth",
+            "status"
+          ],
+          "exit_code": 0
+        },
+        {
+          "operation": [
+            "video",
+            "get"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "provider_receipt_id": "492ee7b0f41372ab6856594c9096ea6f",
+      "cost_usd": null,
+      "renderer_sha256": "20030e4b67d7c11c36de4457613507ee8c650b5dd24df73fba95538d8a716ce8",
+      "readback": {
+        "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+        "status": "completed"
+      },
+      "receipt_state": "rendered",
+      "sidecar_state": "cost_reconciliation_required",
+      "request_unchanged": true,
+      "video_id_unchanged": true,
+      "cost_still_null": true,
+      "asset_exists": true,
+      "asset_bytes": 19987948,
+      "asset_sha256": "7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566",
+      "media": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "audio"
+          },
+          {
+            "codec_type": "video",
+            "width": 1080,
+            "height": 1920
+          }
+        ],
+        "format": {
+          "duration": "13.200000",
+          "size": "19987948"
+        }
+      },
+      "status": "asset_ready_cost_unreconciled",
+      "exit_code": 0,
+      "effect": {
+        "new_generations": 0,
+        "posts": 0,
+        "downloads": 0
+      },
+      "retryable": false,
+      "next_action": "await_capacity_and_exact_owner_publication"
+    }
+  ],
+  "visual_sample": {
+    "seconds": [
+      0,
+      6,
+      12
+    ],
+    "observation": "写真に近い僧侶avatarの口・手・表情の変化を確認。文字起こしは行わない。",
+    "audio_transcription_performed": false
+  },
+  "limits": [
+    "manualな素材回復であり、自然ownerの実行や投稿完了の証拠ではない。",
+    "HeyGen個別費用はnull。新規生成guardと残る3投稿fenceを保持する。",
+    "新規生成・投稿は各phaseで0回。既存動画のdownloadは最初のphaseだけ1回。",
+    "EN ownerへの新release採用・自然PUBLISHED・売上は未確認。"
+  ]
+}
