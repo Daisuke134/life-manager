@@ -8,7 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from skills.earn.lancers.tests.test_create_package import _FakeTick
+from skills.earn.lancers.tests.test_create_package import (
+    _FakeTick, B3_CONTEXT, _b3_pending_case, _b3_readback_browser, _b3_runtime,
+)
 from skills.earn.lancers.tests.test_storefront_offer_reads_catalog import _private_catalog, _private_product
 
 
@@ -473,3 +475,77 @@ def test_created_id_save_rejects_input_changed_between_reads(tmp_path, monkeypat
             module._save_created_portfolio(path, state, "88001", intent)
     assert _json(path) == changed
     assert _json(state.with_name("listing.json"))["pending_create"] == intent
+
+
+def test_b3_portfolio_create_records_context_and_one_last_creation(tmp_path, monkeypatch):
+    _b3_runtime(monkeypatch)
+    case = _first_portfolio(tmp_path, monkeypatch)
+    pending = []
+    ensure = case.module._ensure_portfolio
+
+    def observe_pending(*args):
+        if args[-1] == case.key:
+            pending.append(_json(case.ledger))
+        return ensure(*args)
+
+    monkeypatch.setattr(case.module, "_ensure_portfolio", observe_pending)
+    assert case.module.run(True, case.path, case.state)["ok"] is True
+
+    assert len(pending) == 1 and pending[0].get("pending_create_context") == B3_CONTEXT
+    ledger = _json(case.ledger)
+    assert ledger.get("last_creation", {}).get("intent") == pending[0]["pending_create"]
+    assert ledger["last_creation"].get("context") == B3_CONTEXT
+    assert ledger["last_creation"].get("external_id") == "88001"
+    assert "pending_create" not in ledger and "pending_create_context" not in ledger
+    assert ledger["observed_at"] == "2026-01-02T03:04:05Z"
+    assert case.calls.created == [case.key]
+
+
+def test_b3_pending_portfolio_restores_target_without_future_portfolio_gate(tmp_path, monkeypatch):
+    case = _b3_pending_case(tmp_path, kind="portfolio")
+    title = case.product["portfolio"]["title_stem"] + "ました"
+    page = Page([Link(title, "/profile/other-seller/portfolio_popup/88001")])
+    tick, calls = _b3_readback_browser(case, monkeypatch, page=page)
+    before = _json(case.path)
+    receipt = _json(case.ledger)
+
+    result = case.module.run(True, case.path, case.state)
+
+    assert result["ok"] is True
+    assert _json(case.path) == before | {"portfolio": before["portfolio"] | {"external_id": "88001"}}
+    ledger = _json(case.ledger)
+    assert ledger.get("last_creation", {}).get("intent") == case.intent
+    assert ledger["last_creation"].get("context") == B3_CONTEXT
+    assert ledger["last_creation"].get("external_id") == "88001"
+    assert ledger["observed_at"] == receipt["observed_at"]
+    assert _json(case.path)["software_portfolio"]["external_id"] == ""
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+@pytest.mark.parametrize("failure", ["other-seller", "cleanup"])
+def test_b3_pending_portfolio_holds_without_attaching_unverified_id(tmp_path, monkeypatch, failure):
+    case = _b3_pending_case(tmp_path, kind="portfolio")
+    title = case.product["portfolio"]["title_stem"] + "ました"
+    seller = "different-seller" if failure == "other-seller" else "other-seller"
+    page = Page([Link(title, f"/profile/{seller}/portfolio_popup/88001")])
+    tick, calls = _b3_readback_browser(case, monkeypatch, page=page, cleanup=failure != "cleanup")
+    before, ledger = case.path.read_bytes(), case.ledger.read_bytes()
+
+    result = case.module.run(True, case.path, case.state)
+
+    assert result["ok"] is False and result.get("next_action") == "official_readback_required"
+    if failure == "cleanup":
+        assert result.get("verified") is not True and result.get("portfolio_external_id") == "88001"
+        saved_id = _json(case.path)["portfolio"]["external_id"]
+        assert saved_id in {"", "88001"}
+        current = _json(case.ledger)
+        pending = (current.get("pending_create") == case.intent
+                   and current.get("pending_create_context") == case.context)
+        last = current.get("last_creation", {})
+        assert pending or (isinstance(last, dict) and last.get("intent") == case.intent
+                           and last.get("context") == case.context and last.get("external_id") == "88001")
+        if not saved_id:
+            assert pending
+    else:
+        assert case.path.read_bytes() == before and case.ledger.read_bytes() == ledger
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
