@@ -171,31 +171,20 @@ founder証言ではLife Managerはapproximately $1,000の収益を生み出し�
 
 ### ローカルloopを確認・運用する
 
-Apple Silicon / Intel Macで、Life Manager全体のhost設定とschedulerを導入する入口です。
+別のMacから使う公開入口は次です。全18業務の導入コマンドと不足条件を表示します。
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager local
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager list
 ```
 
-既存のmain由来immutable releaseと`lm-loop`を使い、全191 managed jobを導入します。
-product catalog外の79共通job、別管理のdisk watchdogとMercor browserも対象です。
-稼働中の既存ownerを維持し、旧ownerの終了待ちは`waiting`で表示します。
-他人のcredential・session・顧客向けprovisionerはコピーせず、Mac Miniへの中継も使いません。
-導入済みは、公式提出・公開・納品・売上の成功を意味しません。
+Coconalaの導入・再開は、同じ入口で`list`を`coconala`へ変えます。診断だけなら末尾に
+`coconala preflight`を渡します。引数なしは既存のブラウザ設定画面を開きます。
+既存checkoutはorigin・cleanなmainを検証してから更新し、別branchや未commitの変更は保護します。
+`LIFE_MANAGER_CHECKOUT`で別の導入先を指定できます。
 
-jobを登録せず依存と本人用設定だけ準備する場合は、末尾を`local prepare`へ変えます。
-clone済みなら`./install.sh local plan`がHOMEを変更せず全agent・job・不足条件・外部ownerを表示します。
-`./install.sh local apply --release /absolute/release`で完全releaseを再利用でき、
-`--agent gig-coconala`で一業務に限定できます。
-
-モデルを使うjobには、本人のaccountで`codex login`を行います。Agent Economyの初期stateも本人用に作成し、資金の移動は行いません。
-`./install.sh list`はproviderの設定案内を表示します。Coconala・Connector・Fundraiser・Job Hunterの
-個別設定経路を維持します。10業務の完全なguided provider setupは未完成です。
-全体installerはhostの導入を担当し、本人account・KYC・publication profile・公式loginは各業務の要件です。
-別人のMac実機、Intel実機、本人接続後の全業務成果は未確認として保持します。
-
-既存checkoutはorigin・cleanなmain・mainへの包含を確認して更新し、`LIFE_MANAGER_CHECKOUT`で導入先を指定します。
-引数なしは既存の設定画面、`coconala`はCoconalaの個別導入へ進みます。
+現時点でCoconalaとJob HunterはApple Silicon限定です。catalogの`command: null`は公開installer未完成で、
+`guided`も全jobの常駐開始を意味しません。本人のaccount・SMS・本人確認・審査は各公式providerで完了します。
+全18業務やIntel Macでの稼働確認は未完です。
 
 一度cloneし、独立したAgent Economy citizenを準備して、daemonを入れずにruntimeを確認できます。
 

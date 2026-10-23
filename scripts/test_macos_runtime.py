@@ -130,47 +130,6 @@ def test_source_does_not_probe_or_change_python(tmp_path):
     assert box.log() == ""
 
 
-@pytest.mark.parametrize("gog_present", [False, True])
-def test_full_host_prepare_installs_only_missing_gmail_tool(tmp_path, gog_present):
-    box = RuntimeSandbox(tmp_path)
-    script = box.copy_script("scripts/install-local.sh")
-    box.copy_script("scripts/macos-runtime.sh")
-    python = box.python(box.home / ".local/share/life-manager/venv/bin/python")
-    box.env["LIFE_MANAGER_PYTHON"] = str(python)
-    for name in ("node", "npm", "jq", "ffmpeg", "fc-list"):
-        box.executable(box.bin / name, "#!/bin/bash\nexit 0\n")
-    box.brew()
-    if gog_present:
-        box.executable(box.bin / "gog", "#!/bin/bash\nexit 0\n")
-    result = subprocess.run(["/bin/bash", str(script), "prepare"], env=box.env,
-                            capture_output=True, text=True, timeout=10)
-    assert result.returncode == 0, result.stderr
-    assert ("brew install gogcli" in box.log()) is not gog_present
-    assert "brew install jq" not in box.log()
-
-
-def test_compatible_node_and_npm_do_not_install_dependencies(tmp_path):
-    box = RuntimeSandbox(tmp_path)
-    box.executable(box.bin / "node", "#!/bin/bash\nexit 0\n")
-    box.executable(box.bin / "npm", "#!/bin/bash\nexit 0\n")
-    result = box.run_helper('lm_ensure_node')
-    assert result.returncode == 0, result.stderr
-    assert "brew " not in box.log()
-
-
-def test_old_node_is_replaced_by_selected_homebrew_node(tmp_path):
-    box = RuntimeSandbox(tmp_path)
-    box.executable(box.bin / "node", "#!/bin/bash\nexit 1\n")
-    box.executable(box.bin / "npm", "#!/bin/bash\nexit 0\n")
-    brew = box.brew(on_path=False)
-    new_node = box.executable(brew.parent / "node", "#!/bin/bash\nexit 0\n")
-    box.executable(brew.parent / "npm", "#!/bin/bash\nexit 0\n")
-    result = box.run_helper('lm_ensure_node; command -v node')
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == str(new_node)
-    assert "brew install node" in box.log()
-
-
 @pytest.mark.parametrize("variable", ["LIFE_MANAGER_PYTHON", "PYTHON"])
 def test_compatible_explicit_python_needs_no_homebrew(tmp_path, variable):
     box = RuntimeSandbox(tmp_path)

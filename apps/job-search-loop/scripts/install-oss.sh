@@ -2,16 +2,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
-if [[ -z "${JOB_SEARCH_PYTHON:-}" ]]; then
-  for job_search_prepared_python in \
-      "${XDG_DATA_HOME:-$HOME/.local/share}/anicca/job-search/venv/bin/python" \
-      "$HOME/.local/share/life-manager/venv/bin/python"; do
-    if [[ -x "$job_search_prepared_python" ]]; then
-      export JOB_SEARCH_PYTHON="$job_search_prepared_python"
-      break
-    fi
-  done
-fi
 source "$SCRIPT_DIR/runtime-paths.sh"
 COMMAND="${1:-auto}"
 [[ "$#" -eq 0 ]] || shift
@@ -21,10 +11,9 @@ usage() {
 }
 
 preflight() {
-  local darwin=false arm64=false architecture_supported=false python_ready=false codex_cli=false codex_authenticated=false cloakbrowser=false disk_headroom=false
+  local darwin=false arm64=false python_ready=false codex_cli=false codex_authenticated=false cloakbrowser=false disk_headroom=false
   [[ "$(uname -s 2>/dev/null)" == "Darwin" ]] && darwin=true
   [[ "$(uname -m 2>/dev/null)" == "arm64" ]] && arm64=true
-  case "$(uname -m 2>/dev/null)" in arm64|x86_64) architecture_supported=true ;; esac
   "$JOB_SEARCH_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 13))' >/dev/null 2>&1 && python_ready=true
   if command -v codex >/dev/null 2>&1; then
     codex_cli=true
@@ -33,36 +22,33 @@ preflight() {
   for candidate in "$HOME"/.cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium(N); do
     [[ -x "$candidate" ]] && cloakbrowser=true && break
   done
-  if $cloakbrowser; then
-    "$JOB_SEARCH_PYTHON" -c 'from cloakbrowser.config import check_platform_available; check_platform_available()' >/dev/null 2>&1 || cloakbrowser=false
-  fi
   local required_kib="${JOB_SEARCH_OSS_REQUIRED_KIB:-524288}"
   df -Pk "$HOME" 2>/dev/null | awk -v required="$required_kib" 'NR==2 {found=1; ok=($4 >= required)} END {exit !(found && ok)}' && disk_headroom=true
   local readiness_status=blocked code=2
-  if $darwin && $architecture_supported && $python_ready && $codex_cli && $codex_authenticated && $cloakbrowser && $disk_headroom; then
+  if $darwin && $arm64 && $python_ready && $codex_cli && $codex_authenticated && $cloakbrowser && $disk_headroom; then
     readiness_status=ready
     code=0
   fi
-  printf '{"status":"%s","darwin":%s,"arm64":%s,"architecture_supported":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s,"disk_headroom":%s}\n' \
-    "$readiness_status" "$darwin" "$arm64" "$architecture_supported" "$python_ready" "$codex_cli" "$codex_authenticated" "$cloakbrowser" "$disk_headroom"
+  printf '{"status":"%s","darwin":%s,"arm64":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s,"disk_headroom":%s}\n' \
+    "$readiness_status" "$darwin" "$arm64" "$python_ready" "$codex_cli" "$codex_authenticated" "$cloakbrowser" "$disk_headroom"
   return "$code"
 }
 
 prepare() {
-  [[ "$(uname -s)" == "Darwin" ]] || {
-    print -u2 "[job-hunter] requires macOS"
+  [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]] || {
+    print -u2 "[job-hunter] requires Apple Silicon macOS"
     return 2
   }
-  case "$(uname -m)" in arm64|x86_64) ;; *) print -u2 "[job-hunter] unsupported CPU"; return 2 ;; esac
-  source "$JOB_SEARCH_REPO_ROOT/scripts/macos-runtime.sh"
-  export LIFE_MANAGER_PYTHON="${LIFE_MANAGER_PYTHON:-$JOB_SEARCH_PYTHON}"
-  lm_ensure_python
-  local venv="${XDG_DATA_HOME:-$HOME/.local/share}/anicca/job-search/venv"
-  if ! _lm_select_python "$venv/bin/python"; then
-    "$LM_PYTHON" -m venv --clear "$venv"
+  if ! command -v brew >/dev/null 2>&1; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
   fi
-  export JOB_SEARCH_PYTHON="$venv/bin/python"
-  "$venv/bin/python" -c 'from cloakbrowser.config import check_platform_available; check_platform_available()' >/dev/null 2>&1 || "$venv/bin/pip" install cloakbrowser==0.5.6
+  if ! "$JOB_SEARCH_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 13))' >/dev/null 2>&1; then
+    brew install python@3.14
+  fi
+  local venv="${XDG_DATA_HOME:-$HOME/.local/share}/anicca/job-search/venv"
+  [[ -x "$venv/bin/python" ]] || "$JOB_SEARCH_PYTHON" -m venv "$venv"
+  "$venv/bin/python" -c 'import cloakbrowser' >/dev/null 2>&1 || "$venv/bin/pip" install cloakbrowser
   if ! command -v codex >/dev/null 2>&1; then
     local installer
     installer="$(mktemp -t codex-install.XXXXXX)"
@@ -71,8 +57,7 @@ prepare() {
     rm -f "$installer"
   fi
   if ! command -v gog >/dev/null 2>&1; then
-    lm_ensure_homebrew
-    "$LM_BREW" install gogcli
+    brew install gogcli
   fi
   if ! codex login status >/dev/null 2>&1; then
     codex login
@@ -211,7 +196,7 @@ start_setup() {
   local install_args=(--profile "$JOB_SEARCH_PROFILE" --provider auto --scheduler none)
   [[ "$replace" == "0" ]] || install_args+=(--replace-profile)
   "$SCRIPT_DIR/install-local.sh" "${install_args[@]}" >/dev/null
-  "$SCRIPT_DIR/install-launchd.sh" --browser-only || return "$?"
+  "$SCRIPT_DIR/install-launchd.sh" --browser-only
   local ready=false
   for _ in {1..30}; do
     if curl -fsS --max-time 3 http://localhost:9222/json/version >/dev/null 2>&1; then
@@ -282,7 +267,7 @@ finished() {
     print '{"status":"blocked","missing":["gmail_or_telegram"]}'
     return 2
   fi
-  "$SCRIPT_DIR/install-launchd.sh" || return "$?"
+  "$SCRIPT_DIR/install-launchd.sh"
   record_state activated
   "$JOB_SEARCH_PYTHON" - "$connector_receipt" <<'PY'
 import json,sys
@@ -314,10 +299,6 @@ PY
 
 stop_or_uninstall() {
   local uninstall="$1" domain="gui/$(id -u)"
-  if [[ -n "${LIFE_MANAGER_HOST_PROFILE:-}" || -f "$HOME/.config/life-manager/host.json" ]]; then
-    "$SCRIPT_DIR/install-launchd.sh" "--$uninstall"
-    return "$?"
-  fi
   for label in ai.anicca.job-search-browser ai.anicca.job-search-daily ai.anicca.job-search-inbox ai.anicca.job-search-learning ai.anicca.job-search-health; do
     "$JOB_SEARCH_LAUNCHCTL" bootout "$domain/$label" >/dev/null 2>&1 || true
     [[ "$uninstall" == "uninstall" ]] && rm -f "$JOB_SEARCH_LAUNCH_AGENT_DIR/$label.plist"
@@ -326,7 +307,7 @@ stop_or_uninstall() {
 }
 
 case "$COMMAND" in
-  auto) if [[ -f "$JOB_SEARCH_INSTALL_CONFIG" ]]; then finished; else start_setup "$@"; fi ;;
+  auto) [[ -f "$JOB_SEARCH_INSTALL_CONFIG" ]] && finished || start_setup "$@" ;;
   preflight) preflight ;;
   prepare) prepare ;;
   start) start_setup "$@" ;;

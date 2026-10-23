@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -12,11 +11,6 @@ from runtime.loop.entry_dispatch import command_for, command_with_browser_lease
 
 
 class EntryDispatchTest(unittest.TestCase):
-    def test_bridge_uses_managed_node_on_intel_or_custom_tool_paths(self):
-        with patch.dict(os.environ, {"LIFE_MANAGER_RUNTIME_NODE": "/usr/local/bin/node"}):
-            command = command_for("money-printer-symphony-bridge", Path("/release"), Path("/home"))
-        self.assertEqual(command[0], "/usr/local/bin/node")
-
     def test_marketing_owner_weekly_no_longer_has_a_handwritten_dispatch(self):
         with self.assertRaisesRegex(ValueError, 'no dispatch command'):
             command_for('marketing-owner-weekly', Path('/release'), Path('/home'))

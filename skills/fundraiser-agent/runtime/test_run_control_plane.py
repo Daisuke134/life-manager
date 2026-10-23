@@ -24,9 +24,8 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     bin_dir.mkdir()
     # Keep the shared gate's OS-owner-home policy scan inside this fixture.
     (bin_dir / "sitecustomize.py").write_text(
-        'import os, pwd, shutil\nfrom types import SimpleNamespace\n'
+        'import os, pwd\nfrom types import SimpleNamespace\n'
         'pwd.getpwuid = lambda uid: SimpleNamespace(pw_dir=os.environ["HOME"])\n'
-        'shutil.disk_usage = lambda path: SimpleNamespace(free=64 * 1024**3)\n'
     )
     host_state = home / ".local/state/life-manager/state"
     if operator_stop:
@@ -268,46 +267,3 @@ def test_tab_transport_failure_does_not_recover_or_retry_inside_pass(tmp_path):
     assert result.returncode == 2
     assert json.loads(captured.read_text()) == {"calls": 1, "failure_returned": True}
     assert not recovery_calls.exists()
-
-
-@pytest.mark.parametrize("selection", ["runtime", "legacy", "path"])
-def test_personal_node_reaches_both_preflights_without_dispatch(tmp_path, selection):
-    node_bin = tmp_path / "personal-bin"
-    node_bin.mkdir()
-    node_calls = tmp_path / "node.calls"
-    nodes = {name: node_bin / filename for name, filename in (
-        ("runtime", "managed node"), ("legacy", "legacy node"), ("path", "node"),
-    )}
-    for name, path in nodes.items():
-        path.write_text(
-            "#!/bin/sh\n"
-            f"printf '%s\\t%s\\t%s\\n' '{name}' \"$*\" \"$PATH\" >>\"$NODE_CALLS\"\n"
-            "if [ \"$1\" = --input-type=module ]; then\n"
-            " cat >/dev/null\n"
-            " printf 'fixture-context\\nfixture-digest\\n'\n"
-            "else\n exit 2\nfi\n"
-        )
-        path.chmod(0o755)
-    result, cli_calls = _run(
-        tmp_path, free_kib=4 * 1024 * 1024,
-        guard_script="#!/bin/sh\necho http://localhost:9333\nexit 0\n",
-        extra_env={
-            "PATH": f"{node_bin}:{os.environ['PATH']}",
-            "LIFE_MANAGER_RUNTIME_NODE": str(nodes["runtime"]) if selection == "runtime" else "",
-            "LIFE_MANAGER_NODE": str(nodes["legacy"]) if selection != "path" else "",
-            "NODE_CALLS": str(node_calls), "FIXTURE_NODE_BIN": str(node_bin),
-            # Prevent the failing pre-change wrapper from reaching a real Node.
-            "BASH_FUNC_node%%": '() { case ":$PATH:" in *":$FIXTURE_NODE_BIN:"*) command node "$@";; *) return 2;; esac; }',
-        },
-    )
-    assert result.returncode == 2
-    assert node_calls.exists(), "wrapper ignored the personal Node runtime/PATH"
-    observed = [line.split("\t", 2) for line in node_calls.read_text().splitlines()]
-    assert [row[0] for row in observed] == [selection, selection]
-    assert observed[0][1].startswith("--input-type=module ")
-    assert "verify-deck.mjs" in observed[1][1]
-    assert all(row[2].split(os.pathsep)[0] == str(node_bin) for row in observed)
-    assert not cli_calls.exists()
-    marker_path, = (tmp_path / "home/.local/state/life-manager/fundraiser/effect-markers").glob("*.json")
-    marker = json.loads(marker_path.read_text())
-    assert (marker["phase"], marker["effect"]) == ("pre_effect", 0)

@@ -2,7 +2,7 @@
 
 > **Current onboarding boundary:** the Coconala package is a public beta. The public
 > Terminal command, dependency/Codex preparation, dedicated browser, official account
-> gates, seven-job managed activation, zero-listing Storefront publisher, `gog` email and clean-HOME
+> gates, six-job activation, zero-listing Storefront publisher, `gog` email and clean-HOME
 > contract are implemented. Independent clean-Mac full E2E acceptance is still open. The
 > owner completes Coconala's official account/SMS/eKYC/bank ceremony. Sales and bank arrival
 > remain receipt-based outcomes, never guaranteed setup results.
@@ -10,7 +10,7 @@
 ### Product status
 
 This is the only marketplace money loop currently offered as a one-command OSS public beta.
-All four business lanes and their three supporting jobs use the shared managed runtime. `gog` email onboarding
+All four business lanes and their two supporting jobs are public. `gog` email onboarding
 has real send/inbox readback and the clean-HOME Terminal contract is verified. Upwork,
 Mercor, and other marketplace loops are not advertised as installable
 OSS products yet, even where internal components exist.
@@ -35,7 +35,7 @@ OSS products yet, even where internal components exist.
    information, required consents, smartphone eKYC, and bank registration.
 5. The owner returns to Terminal and runs the same command once. Life Manager attaches
    to the same browser session, receives no password, and verifies every official state.
-6. Life Manager installs Browser, Apply, Reply, Storefront, Paid, Daily Report, and Evidence GC from a complete main-derived immutable release. Existing running owners remain in place until idle; partial adoption returns `waiting` rather than completing onboarding.
+6. Life Manager starts Browser, Apply, Reply, Storefront, Paid, and Release Watcher.
 7. Storefront imports existing listings or creates the first truthful listing when the
    official count is zero; the other lanes then operate without ordinary approval gates.
 
@@ -51,8 +51,6 @@ Manager reports use the existing `gog` Gmail transport after Google OAuth and a 
 send/inbox readback; SMTP and Telegram are not part of the public default.
 Using that same Gmail address for Coconala signup avoids entering two addresses. If an
 authenticated Gmail account already exists in `gog`, setup asks no email question.
-
-The canonical registry owns cadence and release adoption. The public installer does not restore the retired legacy release watcher or register Paid twice. Apple Silicon and Intel are accepted only when the installed CloakBrowser package provides a build for the runtime platform; a separate Intel hardware acceptance is still pending.
 
 ### Deferred external acceptance
 
@@ -74,18 +72,17 @@ replays, `tests/` the tests.
 
 | lane | job label | every | what it does |
 |---|---|---|---|
-| apply | `ai.anicca.hf-gig-apply-direct` | 300s | Reads the public job board, proves which postings the installed AI/Mac/tool system can deliver, and submits an application with a proposal. |
+| apply | `ai.anicca.hf-gig-apply-direct` | 60s | Reads the public job board, proves which postings the installed AI/Mac/tool system can deliver, and submits an application with a proposal. |
 | storefront | `ai.anicca.hf-gig-storefront-direct` | 1800s (one full pass per wake) | Reads the seller's own listings and their view/inquiry counts, and edits the ones people look at and never contact. |
-| negotiate | `ai.anicca.hf-gig-reply-detector` | 300s | Watches talkrooms opened *before* purchase and answers the buyer's questions and estimate requests with two independent workers. |
-| paid | `ai.anicca.hf-gig-paid-direct` | 900s | Works orders that have been paid for: reads the requirement, builds or reviews the deliverable, and decides whether it is good enough to hand over. |
+| negotiate | `ai.anicca.hf-gig-reply-detector` | continuous, 30s discovery | Watches talkrooms opened *before* purchase and answers the buyer's questions and estimate requests with two independent workers. |
+| paid | `ai.anicca.hf-gig-paid-direct` | 300s | Works orders that have been paid for: reads the requirement, builds or reviews the deliverable, and decides whether it is good enough to hand over. |
 
-Three more jobs support them:
+Two more jobs support them:
 
 | job label | what it does |
 |---|---|
 | `ai.anicca.hf-gig-browser` | Keeps one Chromium alive on a debugging port. All four lanes share it, because the login lives in its profile. |
-| `ai.anicca.hf-gig-daily-report` | Produces the daily outcome report at the registry calendar time. |
-| `ai.anicca.hf-gig-apply-evidence-gc` | Reclaims eligible application evidence every six hours without deleting effect fences. |
+| `ai.anicca.hf-gig-release-watch` | Fast-forwards this checkout to `origin/main` and moves idle lanes onto the new code. |
 
 The AI system is the delivery workforce. The owner's personal free time, manual skill,
 sleep, health, or workload does not cap Coconala throughput. Independent profitable work

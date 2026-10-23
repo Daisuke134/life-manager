@@ -2,9 +2,6 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
-
-import pytest
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -196,62 +193,3 @@ def test_owner_stops_after_failed_profile_readback_without_retrying(tmp_path):
         "status": "pre_effect_failure",
         "effect": 0,
     }
-
-
-@pytest.mark.parametrize("explicit_gog", [False, True])
-def test_reply_owner_passes_personal_gog_to_snapshot_and_kernel(tmp_path, explicit_gog):
-    home = tmp_path / "home"
-    home.mkdir()
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    calls = tmp_path / "calls.jsonl"
-    python = bin_dir / "python-mock"
-    python.write_text(
-        f"#!{sys.executable}\n"
-        "import json, os, sys\n"
-        "from pathlib import Path\n"
-        "args = sys.argv[1:]\n"
-        "with open(os.environ['CALLS'], 'a') as handle:\n"
-        " handle.write(json.dumps(args) + '\\n')\n"
-        "if args[0] == '-c':\n"
-        " print('fixture@example.test')\n"
-        "elif len(args) > 1 and args[1] == 'acquire':\n"
-        " print(json.dumps({'ws':'fixture-page','token':'fixture','generation':1}))\n"
-        "elif '--output' in args:\n"
-        " Path(args[args.index('--output') + 1]).write_text('{}')\n"
-    )
-    python.chmod(0o755)
-    resolver = bin_dir / "resolver.py"
-    resolver.write_text(
-        "import json\n"
-        "print(json.dumps({'reachable':True,'http_status':200,"
-        "'websocket_url_valid':True,'endpoint':'fixture-browser'}))\n"
-    )
-    jq = bin_dir / "jq"
-    jq.write_text("#!/bin/sh\ncase \"$2\" in .ws) echo fixture-page;; .token) echo fixture;; .generation) echo 1;; esac\n")
-    jq.chmod(0o755)
-    path_gog = bin_dir / "gog"
-    path_gog.write_text("#!/bin/sh\nexit 99\n")
-    path_gog.chmod(0o755)
-    selected_gog = tmp_path / "personal gog"
-    selected_gog.write_text("#!/bin/sh\nexit 99\n")
-    selected_gog.chmod(0o755)
-    result = subprocess.run(
-        ["/bin/zsh", str(ROOT / "skills/earn/mercor/scripts/reply-owner")],
-        env={
-            **os.environ, "HOME": str(home), "PATH": f"{bin_dir}:{os.environ['PATH']}",
-            "CALLS": str(calls), "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
-            "LIFE_MANAGER_PYTHON": str(python), "LIFE_MANAGER_LEASE_PYTHON": str(python),
-            "LIFE_MANAGER_BROWSER_RESOLVER_PYTHON": sys.executable,
-            "LIFE_MANAGER_BROWSER_RESOLVER": str(resolver),
-            "JOB_SEARCH_GOG": str(selected_gog) if explicit_gog else "",
-        }, capture_output=True, text=True, check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    observed = [json.loads(line) for line in calls.read_text().splitlines()]
-    stages = [args for args in observed if "--gog" in args]
-    assert len(stages) == 2
-    expected = str(selected_gog if explicit_gog else path_gog)
-    assert [args[args.index('--gog') + 1] for args in stages] == [expected, expected]
-    assert stages[0][:2] == ["-m", "job_search_loop.mercor_reply_snapshot"]
-    assert stages[1][0].endswith("/reply_kernel.py")

@@ -2,41 +2,21 @@
 
 ## 別Macへ配布するLocal製品の実行契約
 
-目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
+目的は、友人のMacで公開コマンドからLife Managerを導入し、本人のaccount・private stateで各業務を継続実行すること。既存の業務core、catalog、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
 
-現測sourceは`4171151fccbf380d1656d2e0abbd97adbb079e24`。ユーザーの「全20agent」は製品全体の範囲を意味し、18件のproduct catalogを範囲の上限にしない。英語READMEの現版は18 user-facing＋Host Stewardの19記載で、日本語版は18記載という資料差がある。未確認の20件目を捏造せず、全README named agent・191 managed jobs・external_labels 15件・別installerのdisk-watchdogを漏れなく照合する。catalogの112 jobs以外の79 jobsにもsystem_role=control/shared/platformがあり、移植対象に含める。既存browser identity、Codex acct2、自己build checkout名等のMac Mini前提を、当人のhost bindingへ分離する。
+現測sourceは`fb0b5d5d3b70e9907b66ba7263c954cca4d71a53`。catalogは18業務であり、「20 agent」に合わせて未登録業務を捏造しない。10業務のlocal commandがnullで、全業務のpublic installは未完成。Coconalaのprepare/preflightはvenvのPythonを一貫して使わず、Homebrewを`/opt/homebrew`へ固定する。共通bootstrapにも同じPython解決問題と既存checkoutのorigin/branchを検証せず更新する境界がある。
 
-**順序変更:** 旧順=MAC01→MAC02→MAC03。新順=完了済みMAC01を保持→MAC04の全fleet coverageと当人host binding→MAC02のCoconala全lane→MAC03の全agentへ適用→MAC05の別home/Intel・Apple Silicon受入。理由は、個別installerだけを増やしても79共通jobs・別経路watchdog・Dais固有設定が抜け、全体が別Macへ移らないことを実コードで確認するため。既存ownerのFND/CLD/EARN/EVOは並行継続し、稼働中owner・browser lease・未確定effectを中断/再送しない。
+**順序変更:** 旧順=既存FND/CLD/EARN/EVO。新順=独立するMAC01の公開導入経路修復→MAC02のCoconala導入→MAC03の残る個別業務製品化を進め、既存ownerのFND/CLD/EARN/EVOは並行継続する。理由は友人の別Mac導入をユーザーが明示し、この入口が全業務に共通するため。稼働中owner・browser lease・未確定effectを中断/再送しない。
 
 | TODO・状態 | 完了条件 |
 |---|---|
-| [x] MAC01 | 公開bootstrapが既存checkoutを検証し、利用可能なPythonを選び、全catalogの導入状況と選択した個別installerへ到達する。PR #8602/main `7d03e61b4f30fc1588c71f7bb56aa7f7f043d305`、独立最終review ship、CI13項目成功、公開5 files HTTP200/同review code hashを確認する。全体移植の完了ではない |
-| [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。既存catalogの全7job（Apply/Reply/Storefront/Paid/Report/GC/browser）を既存lm-loopとmain由来immutableへ結び、移管済みlaneをlegacy manifestへ二重登録しない。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
-| [ ] MAC03 | gig-lancers→gig-crowdworks→gig-mercor→promptbase→writer→affiliate→self-build→ebook→capafy→line-stickerと既存8業務・Host Steward・共通supportを同じhost導入へ結び、各業務のaccount/host要件・自然実行・公式成果を一つずつ確認する |
-| [ ] MAC04 | README named agent、191 managed jobs、external/別installerの全coverageを一つの既存導入経路へ結ぶ。当人のruntime、source checkout、private profile、browser binding、認証席だけを解決し、Mac Miniの値や他人の接続先を使わない |
-| [ ] MAC05 | 空の別home・異なるusername/source path・Intel/Apple Siliconで導入と各entrypointの依存を確認し、当人の設定後に全ownerの継続実行を確認する。plist生成だけを実業務稼働としない。友人Macのlive access/本人接続がない部分は具体的な未確認として残す |
+| [ ] MAC01 | 公開bootstrapが既存checkoutを検証し、利用可能なPythonを選び、全catalogの導入状況と選択した個別installerへ到達する。空のprivate homeを使う隔離検証、CI、main統合、公開raw readbackを確認する |
+| [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
+| [ ] MAC03 | gig-lancers→gig-crowdworks→gig-mercor→promptbase→writer→affiliate→self-build→ebook→capafy→line-stickerのpublic installerを既存実装へ結び、各業務のaccount/host要件・自然実行・公式成果を一つずつ確認する。guidedの他8業務も同じ基準で検証する |
 
 source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを含む36件、catalog/plan50件、公開bootstrap7件、OSS/source境界をPASSする。既存Gig関連を含む78件もPASSする。独立reviewがJob Hunterへの選択Python欠落と、設定画面用旧venvが更新されない境界を実証するため、その2ケースもREDで再現し共通入口で修復する。PRは#8602、source先行headは`0d5cd4bbe43c37e8f98dd4ca59dffb854f942a5f`。Coconalaのlegacy導入はApply/Reply/Storefrontだけであり、Paid/Report/GCを含む全jobの導入はMAC02の残件として保持する。
 
-現在cursor=MAC04。所有worktree=`.worktrees/local-fleet-portability-20261023`、branch=`feat/local-fleet-portability-20261023`、primary=`codex-local-fleet-portability`。前worktreeは統合・process/lease/dirty/ancestry確認後に削除済み。source/隔離検証の成功だけで全agentや友人Macの稼働完了とは報告しない。設計は既存runtimeを再利用し、user/host設定と導入adapterだけを分離する方式をprimaryが採る。別Mac用の第二業務実装やMac Miniへの中継は作らない。
-
-### MAC04のhost設定と導入インターフェース
-
-最終差分reviewのImportant1件: 本人hostのsource checkout=Aが正しくloadedでも、別checkout BからのCoconala再設定がinstaller制御値でAを上書きしてwaitingへ戻る。cut用source指定は維持し、applyのpersistent bindingは本人host値を優先する。generated/loaded argvと他bindingが一致する隔離再現で、不要なapplyとbrowser restartが0であることを確認する。
-
-復元watcherは現token_budgetのreservation/settlement（event_idで照合、settlementのcharged_tokens）と現hf-gig owner名を読む。未settleの予約・別業務・重複settlementは実消費へ加算せず、旧counter形式も保持する。最終成果30時間前/直近Apply600k消費をREDで再現し、消費0として空回りを見逃す復元時の旧schema前提を修復する。 Coconala再開の実apply_targets fixtureはRED→GREEN、関連32件PASS。現schemaのwatcher反例もRED→GREEN、全4件PASS。
-
-Mercorの実callerはLEASE_PYTHONでwebsockets依存moduleを呼ぶため、新Macのhost bindingはLIFE_MANAGER_LEASE_PYTHONにも同じ本人venvを渡す。全体installerは既存Job Hunterと同じHomebrew gogcliを未導入時だけ準備する。本人Gmail OAuthは別の必要条件であり、binary導入を認証成功にしない。 Mercor/Fundraiser wrapperとruntime依存の関連33件、host/operator30件をprimaryでもPASSする。最終headのreview/CI/main統合を次cursorとする。
-
-追加cursor: active wrapperの限定照合で、Mercor Replyの`/opt/homebrew/bin/gog`固定、Fundraiserの本人PATH上書き、gig-outcome-watchのPython固定とhelper欠落を検出する。前2件は既存の本人tool解決順へ揃え、最後はGit tree/履歴/実呼出を確認して既存helper再利用または不足を明示する。いずれもprovider送信や本番job実行を伴わない隔離検証を使い、欠落helperのエラーを`ok: no alerts`へ置換しない。watcherが参照する2 helperはGit履歴93b6bab427に存在するため既存実装を復元し、現在のcanonical telemetry path、GIG_STATE_DIR、daily_verdictの既存settled/evidence条件へ揃える。missing helper/本人Python/未確認成果の3 RED→3 GREEN、gateway retirement8件とshell構文がPASSする。最終差分reviewはこの修復後のheadを対象にする。
-
-追加受入: 初回MacでAgent Economyのcitizen/wallet/genesisが未作成のままjobだけ登録される境界を閉じる。全体またはAgent Economy選択時だけ、検証済みimmutable release内の既存install.shをdeps=0/daemon=0で呼び、本人のprivate runtime homeとtenantへ初期状態を作る。新しいwallet実装・資金移動・別daemon登録は追加しない。本人host環境のLIFE_MANAGER_HOMEを同じrootへ束縛し、compute-proxyとAgent Economyのinstance参照を一致させる。同SHAの再導入は既存releaseを再利用し、別pathで稼働する同SHA/同runtime/同host ownerは実際のloaded pathを記録して保持する。CIで再現したSQLite待機テストの余分なsleepは、retryと独立したsubprocess待機の共有mock混入を調べ、retry回数・deferred receiptの検証を弱めずに観測を分離する。
-
-`./install.sh local`はprepare→main由来完全releaseの作成（current維持）→全managed jobと別管理watchdog/Mercor browserの対象限定導入を進める。`./install.sh local plan`はregistry全体・catalog・別installerを照合し、side effectなしでcoverageと不足を返す。`./install.sh local prepare`は本人HOMEのprivate host設定・browser registry・agent runner設定・各jobのstate/log directoryだけを準備し、認証値やsessionをコピーしない。`./install.sh local apply --release PATH`はmain由来の完全immutable releaseを検証し、既存`lm-loop apply`へ委譲する。全jobを列挙した事実・導入済み・自然稼働・provider成果は別に返す。external labelsは他ownerの管理範囲として明示し、顧客向けprovisionerを勝手に複製しない。
-
-host設定は`~/.config/life-manager/host.json`。実行中に別HOMEの設定を拒否し、runtime Python/Node、source checkout、private env/agent config/browser registryの参照を全managed jobへ渡す。既存本人設定と既存browser leaseを上書きせず、設定がない既存Mac Miniは従来の経路を維持する。Codexのrouting/modelは既存runtime設定を保持し、本人HOMEに存在する認証席だけを使用する。venv Pythonのsymlinkをbase Pythonへ解決しない。eBookのtenantはhost設定がある場合のみ本人host IDへ束縛する。
-
-実装済みsource: 全fleet manifest、private host binding、全191 plistへの本人runtime/config注入、venv path保持、`local plan/prepare/install/apply`、既存watchdogとMercor browserへの限定委譲、Coconala全7jobのcanonical activationを追加する。隔離HOMEのfocused検証35件とloop-contract（18/191/errors0）がPASSする。Coconalaの個別focused55件は担当検証でPASS、primary再検証中。独立review初回のBlocking3件（installer制御envの誤比較、Reply/Paidのvenv喪失、死んだPythonを持つreleaseの再利用）をREDで再現して修復する。既存JobHunterのcheckout直指しへ戻る統合欠陥も、本人host設定時は同じimmutable経路へ修復する。HOME alias・明示host path・Node/npm・再実行時venv・Intel managed Nodeの回帰を追加し、関連94 unittest、64 pytest、apply199件がPASSする。9a2517658bではCI13項目も成功する。後続JobHunter/Intel修正の差分reviewとCIは進行中。現在cursorはMAC04の差分review/最新CI/main統合。全providerのguided setup、友人Mac/Intel実機、自然業務と公式成果は未完で、MAC02–05の完了チェックを入れない。Symphonyは現registryではretired labelであり、現191jobのactive blockerに含めない。再有効化時のartifact/Erlang/Cloud tenant依存は別件である。既存JobHunterのcustom browser port追従はこのpatchで受入済みにせず、MAC03/05へ残す。最終修復では同SHA releaseの再利用・実loaded path readback、HOME alias再prepare、reconciler source checkout束縛、Agent Economy初期stateとcompute-proxyのhome一致を確認する。関連247 unittest、既存citizen bootstrap6件、retry分離2件と隔離HOMEで既存installerの初回/replay（同wallet・本人tenant・daemon登録0）がPASSする。最終source 1fd6f0cbの独立read-only reviewは指摘0件/SHIPで、別checkout再開/apply0と限定45 unittestを確認する。watcher現schemaの4件はprimary再現の証明範囲とし、独立再実行とは数えない。最新head CI/main統合は未完。
+現在cursor=MAC01/MAC02の追加2ケースを含む検証→独立再review→CI→main公開readback。所有worktree=`.worktrees/mac-product-command-20261023`、branch=`fix/mac-product-command-20261023`、primary=`codex-mac-product-command`。source/隔離検証の成功だけで全18業務や友人Macの稼働完了とは報告しない。
 
 ## Local / Cloud 全体復旧の現行spec・実行計画
 

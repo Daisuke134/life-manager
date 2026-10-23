@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
-GOG="${JOB_SEARCH_GOG:-$(command -v gog 2>/dev/null || true)}"
 LEASE_PYTHON="${LIFE_MANAGER_LEASE_PYTHON:-/usr/bin/python3}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:?LIFE_MANAGER_STATE_ROOT is required}"
 LEASE_SCRIPT="$ROOT/skills/browser/scripts/cdp_context_lease.py"
@@ -70,7 +69,7 @@ if [[ -z "$ACCOUNT" ]]; then
 fi
 if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
   -m job_search_loop.mercor_reply_snapshot --ws "$WS" --gmail-account "$ACCOUNT" \
-  --gog "$GOG" --output "$SNAPSHOT"; then
+  --gog /opt/homebrew/bin/gog --output "$SNAPSHOT"; then
   pre_effect_failure
   exit 75
 fi
@@ -96,4 +95,4 @@ fi
   --telegram-database "$STATE_ROOT/telegram-outbox.sqlite3" \
   --telegram-env-file "$HOME/.config/anicca/job-search/telegram.env" -- \
   --snapshot "$SNAPSHOT" --state-root "$STATE_ROOT" --gmail-account "$ACCOUNT" \
-  --gog "$GOG"
+  --gog /opt/homebrew/bin/gog

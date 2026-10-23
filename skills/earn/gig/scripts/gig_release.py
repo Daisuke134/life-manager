@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""Install the Coconala catalog through the shared immutable release/runtime.
+"""Cut a release of this checkout and publish it for the coconala launchd jobs.
 
-Activation covers all catalog jobs, including Paid, Report, evidence GC and the
-browser. It uses main-derived complete releases without moving shared current.
-Existing busy owners and uncertain effects remain under the common runtime's
-fences. Legacy rendering/GC helpers remain for historical release references;
-the public installer does not activate that second manifest.
+A lane never runs from a working tree: a git checkout changes under a job that
+is mid-pass, so every lane runs from an immutable copy under
+``~/gig/releases/life-manager/<sha>``.  The launchd definitions use the stable
+``~/gig/releases/life-manager/current`` path; publishing atomically moves that
+symlink after the immutable release has been built.
 
-    gig_release.py build                 # prepare a complete main release
-    gig_release.py activate              # install new jobs and reconcile idle jobs
+The jobs themselves are data -- ``config/launchd-jobs.json`` -- rendered against
+per-machine values from ``~/.config/anicca/gig/install.json``. That is what lets
+a Mac that has never run this loop install the same four jobs, and lets this one
+keep the exact paths its lanes already use.
+
+launchd runs the definition it loaded, not the file on disk.  Activation loads
+the stable definition once.  Later watcher deploys only move ``current``; the
+next natural process start resolves the new release without a plist reload.
+
+    gig_release.py build                 # release the current HEAD
+    gig_release.py activate              # build if needed, then switch idle lanes
     gig_release.py activate --jobs ai.anicca.hf-gig-browser
     gig_release.py status
-    gig_release.py stop
-    gig_release.py uninstall
 """
 
 from __future__ import annotations
@@ -47,6 +54,14 @@ PIN_PATTERN = re.compile(r"(?P<pid>[1-9][0-9]*)-(?P<sha>[0-9a-f]{40})")
 PUBLISH_LOCK = RELEASE_ROOT / ".publish.lock"
 LAUNCHD_PREFLIGHT = REPO_ROOT / "skills" / "_shared" / "lib" / "launchd_preflight.py"
 LAUNCHD_PREFLIGHT_RECEIPT = Path.home() / ".local/state/life-manager/launchd-control-plane-preflight.json"
+# The legacy Coconala bootstrap owns exactly these three unmigrated business lanes. Browser and
+# release-watcher activation are explicit; unrelated product jobs must never be
+# pulled in merely because they share the repository manifest.
+COCONALA_BUSINESS_LANES = {
+    "ai.anicca.hf-gig-apply-direct",
+    "ai.anicca.hf-gig-storefront-direct",
+    "ai.anicca.hf-gig-reply-detector",
+}
 # These legacy Upwork jobs are retired until account-bound authorization and a
 # funded-contract readback open the managed Paid-owner gate. Keeping them in
 # the historical manifest preserves source compatibility, but explicit release
@@ -84,7 +99,7 @@ JOB_PROCESS_MARKERS = {
 
 
 def activation_labels(requested_jobs: set[str] | None) -> set[str]:
-    labels = set(requested_jobs) if requested_jobs is not None else set(coconala_jobs())
+    labels = set(requested_jobs) if requested_jobs is not None else set(COCONALA_BUSINESS_LANES)
     retired = labels & RETIRED_PROVIDER_LABELS
     if retired:
         raise ValueError(
@@ -92,109 +107,6 @@ def activation_labels(requested_jobs: set[str] | None) -> set[str]:
             + ", ".join(sorted(retired))
         )
     return labels
-
-
-def coconala_jobs(repo_root: Path | None = None) -> dict[str, str]:
-    root = repo_root or REPO_ROOT
-    catalog = json.loads((root / "apps/life-manager/config/product-loop-catalog.json").read_text())
-    registry = json.loads((root / "config/loop-registry.json").read_text())["loops"]
-    product = next(row for row in catalog["loops"] if row["id"] == "gig-coconala")
-    return {registry[owner]["label"]: owner for owner in product["job_ids"]}
-
-
-def _runtime_environment() -> dict[str, str]:
-    if str(REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(REPO_ROOT))
-    from runtime.host.local_profile import host_environment
-    return host_environment()
-
-
-def _complete_main_release(path: Path, sha: str, python: str) -> bool:
-    try:
-        receipt = json.loads((path / "RELEASE.json").read_text())
-        return (receipt.get("sha") == sha
-                and receipt.get("provenance") == "ancestor-of-origin-main"
-                and receipt.get("release_paths") == "ALL"
-                and receipt.get("runtime_python") == python
-                and Path(python).is_file() and os.access(python, os.X_OK))
-    except (OSError, ValueError):
-        return False
-
-
-def managed_release(sha: str) -> Path:
-    """Reuse or cut the canonical complete release, leaving shared current alone."""
-    git("merge-base", "--is-ancestor", sha, "origin/main")
-    python = _runtime_environment().get("LIFE_MANAGER_RUNTIME_PYTHON", sys.executable)
-    releases = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser() / "releases"
-    for candidate in sorted(releases.glob("*"), reverse=True):
-        if candidate.is_dir() and not candidate.is_symlink() and _complete_main_release(candidate, sha, python):
-            return candidate.resolve()
-    result = subprocess.run(
-        ["/bin/bash", str(REPO_ROOT / "bin/cut-loop-release.sh"), sha],
-        env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(REPO_ROOT),
-             "LOOPS_ACTIVATE_CURRENT": "0", "LOOPS_RELEASE_PATHS": "",
-             "LOOPS_RUNTIME_PYTHON": python},
-        capture_output=True, text=True, check=True,
-    )
-    match = re.search(r"^release -> (.+)  \([^\n]+; current unchanged\)$", result.stdout, re.MULTILINE)
-    if not match:
-        raise ValueError("canonical release path was not acknowledged")
-    release = Path(match.group(1)).resolve()
-    if release.parent != releases.resolve() or not _complete_main_release(release, sha, python):
-        raise ValueError("Coconala requires a complete immutable main release")
-    return release
-
-
-def activate_managed_jobs(release: Path, wanted: set[str], dry_run: bool) -> int:
-    jobs = coconala_jobs(release)
-    if wanted - jobs.keys():
-        raise ValueError("requested job is outside the Coconala catalog")
-    owners = [jobs[label] for label in sorted(wanted, key=lambda label: (not label.endswith("hf-gig-browser"), label))]
-    if dry_run:
-        print(json.dumps({"status": "planned", "jobs": owners, "release": str(release)}))
-        return 0
-    if str(REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(REPO_ROOT))
-    from runtime.loop.local_install import apply_targets
-
-    try:
-        results = apply_targets(release, owners, {
-            "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable,
-            "LIFE_MANAGER_SOURCE_REPO": str(REPO_ROOT),
-            "LIFE_MANAGER_APPLY_REQUIRE_CURRENT": "0",
-            **_runtime_environment(),
-        }, runner=subprocess.run)
-    except RuntimeError as error:
-        print(json.dumps({"status": "blocked", "error": str(error)}))
-        return 75
-    if {row.get("label") for row in results} != wanted or any(row.get("ok") is not True for row in results):
-        raise ValueError("Coconala owner readback does not match the requested jobs")
-    waiting = any(row.get("skipped") for row in results)
-    print(json.dumps({"status": "waiting" if waiting else "ready", "jobs": len(results), "results": results}))
-    return 2 if waiting else 0
-
-
-def stop_managed_jobs(uninstall: bool) -> int:
-    safe = str(REPO_ROOT / "bin/launchctl-safe")
-    check = subprocess.run([safe, "preflight"], capture_output=True, text=True)
-    if check.returncode:
-        return 75
-    jobs = coconala_jobs()
-    environment = {**os.environ, "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable}
-    for label in sorted(jobs, key=lambda label: (label.endswith("hf-gig-browser"), label)):
-        result = subprocess.run([str(REPO_ROOT / "bin/lm-loop"), "stop", jobs[label]],
-                                env=environment, capture_output=True, text=True)
-        rows = json.loads(result.stdout)
-        if (not isinstance(rows, list) or len(rows) != 1
-                or rows[0].get("label") != label
-                or (rows[0].get("return_code") != 0 and not re.search(
-                    r"could not find service|service not found|\babsent\b",
-                    rows[0].get("detail", ""), re.IGNORECASE))):
-            raise ValueError(f"Coconala stop readback failed: {label}")
-        if uninstall:
-            (LAUNCH_AGENTS / f"{label}.plist").unlink(missing_ok=True)
-    print(json.dumps({"status": "uninstall" if uninstall else "stop", "jobs": len(jobs), "private_state": "preserved"}))
-    return 0
 
 
 def git(*args: str, cwd: Path = REPO_ROOT) -> str:
@@ -629,47 +541,59 @@ def activate(job: dict, table: dict[str, str], release: Path, dry_run: bool,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=("build", "activate", "status", "stop", "uninstall"))
+    parser.add_argument("command", choices=("build", "activate", "status"))
     parser.add_argument("--sha", help="release this commit instead of HEAD")
-    parser.add_argument("--jobs", help="comma-separated labels; default is the complete Coconala catalog")
-    parser.add_argument("--dry-run", action="store_true", help="print target jobs, build/load nothing")
+    parser.add_argument("--jobs", help="comma-separated labels; default is the four lanes")
+    parser.add_argument("--dry-run", action="store_true", help="print the plists, load nothing")
     args = parser.parse_args()
 
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+    sha = git("rev-parse", args.sha or "HEAD")
+
+    if args.command == "status":
+        if not require_control_plane():
+            print("launchd readback unavailable; no loaded/not-loaded conclusion is safe")
+            return 75
+        print(f"control-plane pass receipt={LAUNCHD_PREFLIGHT_RECEIPT}")
+        for job in manifest["jobs"]:
+            argv = loaded_program(job["label"])
+            script = next((a for a in argv if a.endswith((".py", ".sh"))), "(not loaded)")
+            print(f"{job['lane']:11s} {job['label']:36s} {script}")
+        return 0
+
+    release = build(sha)
+    print(f"release {sha[:12]} -> {release}")
+    if args.command == "build":
+        return 0
+
+    if not args.dry_run:
+        publish(release)
     requested_jobs = (
         {label.strip() for label in args.jobs.split(",")} if args.jobs else None
     )
     try:
         wanted = activation_labels(requested_jobs)
-        if wanted - coconala_jobs().keys():
-            raise ValueError("requested job is outside the Coconala catalog")
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 2
-    try:
-        if args.command in {"stop", "uninstall"}:
-            return stop_managed_jobs(args.command == "uninstall")
-        if args.command == "status":
-            if not require_control_plane():
-                return 75
-            for owner in coconala_jobs().values():
-                result = subprocess.run([str(REPO_ROOT / "bin/lm-loop"), "status", owner],
-                                        env={**os.environ, "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable},
-                                        capture_output=True, text=True)
-                print(result.stdout, end="")
-                if result.returncode:
-                    return result.returncode
-            return 0
-        if args.command == "activate" and args.dry_run:
-            return activate_managed_jobs(REPO_ROOT, wanted, True)
-        sha = git("rev-parse", args.sha or "HEAD")
-        release = managed_release(sha)
-        if args.command == "build":
-            print(json.dumps({"release": str(release), "sha": sha}))
-            return 0
-        return activate_managed_jobs(release, wanted, False)
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-        print(str(error), file=sys.stderr)
+    _, table = settings(CURRENT_RELEASE)
+    if not args.dry_run and not require_control_plane():
+        return 75
+    failed = [job["label"] for job in manifest["jobs"] if job["label"] in wanted
+              and not activate(
+                  job, table, release, args.dry_run,
+                  skip_busy=skip_busy_for_requested_activation(
+                      job["label"], requested_jobs,
+                  ),
+              )]
+    if failed:
+        print(f"not activated: {', '.join(failed)}")
         return 1
+    removed = collect_old_releases()
+    if removed:
+        print(f"collected {len(removed)} old releases")
+    return 0
 
 
 if __name__ == "__main__":

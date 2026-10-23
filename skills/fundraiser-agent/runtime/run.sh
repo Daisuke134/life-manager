@@ -137,8 +137,7 @@ if ! acquire_run_lock "$LOCK_DIR"; then
 fi
 trap 'release_run_lock "$LOCK_DIR"; release_browser' EXIT
 
-export PATH="${PATH:-/usr/bin:/bin}:/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-NODE="${LIFE_MANAGER_RUNTIME_NODE:-${LIFE_MANAGER_NODE:-$(command -v node 2>/dev/null || true)}}"
+export PATH="/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export LIFE_MANAGER_REPO="$REPO_ROOT"
 export FUNDRAISER_RUN_ID="$RUN_ID"
 export FUNDRAISER_OCCURRENCE_ID="$OCCURRENCE_ID"
@@ -162,7 +161,7 @@ export FUNDRAISER_TELEGRAM_SENDER="$SENDER"
 export FUNDRAISER_TELEGRAM_PHOTO_SENDER="$PHOTO_SENDER"
 export FUNDRAISER_CAPTCHA_MODE="existing-capsolver-only"
 
-CONTEXT_META="$("$NODE" --input-type=module - "$REPO_ROOT" <<'NODE'
+CONTEXT_META="$(node --input-type=module - "$REPO_ROOT" <<'NODE'
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -180,7 +179,7 @@ export FUNDRAISER_CONTEXT_DIGEST="$(printf '%s\n' "$CONTEXT_META" | sed -n '2p')
 }
 
 export FUNDRAISER_VERIFIED_DECK="$REPO_ROOT/fundraising/application-kit/deck.pdf"
-"$NODE" "$REPO_ROOT/skills/fundraiser-agent/runtime/verify-deck.mjs" \
+node "$REPO_ROOT/skills/fundraiser-agent/runtime/verify-deck.mjs" \
   "$REPO_ROOT/.agents/startup-context.json" \
   "$REPO_ROOT/fundraising/application-kit/assets.json" \
   "$REPO_ROOT/fundraising/application-kit/deck.pdf.receipt.json" \
