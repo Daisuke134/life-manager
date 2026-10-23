@@ -86,3 +86,4 @@
 - 2026-10-24 02:45 claude-5: Thankful 1.0.2 (10) を App Store 審査に提出（参謀決定）。ASC reviewSubmission 55139406… / version 状態 WAITING_FOR_REVIEW。次: Honne TOOLKIT_URL（Rork画面→無理ならCloudflare Worker無料枠）。
 
 - [Codex Mobile 通知契約] 日次集計の日本語見出しを旧prefix専用validatorが送信前に拒否する不整合を、既存adapter/testだけで修正する。写真URL修正PR8763とは別atom。受入・本番判定・IG実画像の観測 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
+- 2026-10-24 04:40 claude-5: Honne 1.0.5 (202610240347) を App Store 審査に提出、ASC WAITING_FOR_REVIEW。内容: ハードペイウォール（#8711）、ランタイム値注入と利用規約=Apple標準EULA（#8764）、翻訳中継 aniccaai.com/api/honne/llm/object（anicca-products #623/#625、本番200/トークンなし401、OpenRouter deepseek-v4.1-flash、30回/IP/日・1000回/日）。AIService→本番の通しテスト PASS。キーは Capafy の OpenRouter 流用（売上が立ったら分離）。
