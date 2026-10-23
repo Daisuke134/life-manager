@@ -18,7 +18,7 @@ E01–E16は[限定実稼働能力の総合受入](E16_DEPLOYED_ACCEPTANCE_20261
 
 ## F009 — 共通kernelの統合
 
-**受入: 未判定。** F006／F008受入後、共通kernelと独立した外部readback、NO_ACTION／replay、限界を統合して判定する。
+**受入: PHASE06_DIGITAL_TECHNICAL_P2。** F006／F008を個別受入後、同じdigital_handoff／owned_cycle／owned_platform_host／owned_public_collector／phase06_kernel_release、main-only Actions publisherと私有checkpointによる2テーマのP1/P2を統合した。配備43ファイルは研究full CI sourceとblob一致。初期NO_ACTION、各NOT_DUE、UNKNOWN回収、STOP／限定rollback／resume／最後のfresh replay-zeroと、source別テスト、費用・害・欠測を別の欄で保持。2ページは同一site／owner／bundleであり、領域横断の人への因果便益を示さない。U/D/V/Gの元依存と未達条件をそのまま残す。
 
 ## 全項目で保持する境界
 
