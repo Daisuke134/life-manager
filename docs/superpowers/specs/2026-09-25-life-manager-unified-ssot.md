@@ -223,7 +223,7 @@ runtime契約: _production_account_diagnosticのpublic signatureと診断schema�
 
 - [x] READY-A-RED: 別account/欠損・破損bindingで通常HTTP200とWAF成功のreadyを拒否することを先に再現する。binding不足はgoto/solver0。本人一致だけが通り、ロード中→正のsummaryは進む。login/challenge/曖昧/timeoutと診断非漏洩、既存WAF errorの保持を既存fakeだけで確認する。実private/browser/providerは0。指定2testへ29ケースを追加し、primaryは26 failed/106 passed（8.62s）を再現する。失敗は本人summaryの未観測または不一致/不足bindingでもreadyになる経路に限り、既存103ケースを維持する。production source差分は0、次cursorはREADY-A-GREENとする。
 - [x] READY-A-GREEN: source2filesの最少変更でworkerの担当132件とdiscovery/reply/paid/target-cleanup71件がPASSする。primaryのbrowser-attachを含む関連6filesでは195 passed/2 failed（9.55s）となり、残る2件は旧fixtureにbindingとsummaryが無い既存ready期待である。追加所有をtest_browser_attach_lock.pyの該当fixtureに限り、既存HTTP/URL/login/WAFのassertを維持し、有効な隔離bindingと本人summaryを与える。primaryは関連7files211件PASS（10.24s）、source2filesのAST/source-boundary/diff PASSを確認する。WAF solver/task/fenceと全ready callerのsolve有効化は変更せず、実private/browser/provider/CAPSolver/loop操作は0。次cursorはREADY-A-SHIPとする。
-- [ ] READY-A-SHIP: commit/push→独立read-only review/既存CI→main/公式source一致を確認する。accepted main由来の同じcodeで本人private bindingと公式mypageのread-only probeを行う。owner activationや全業務/別Macの成功とはしない。
+- [x] READY-A-SHIP: PR #8762/head0a11be85650822f3cb68068e299a5b13f9de96c8をmain ead527c7e0af3f0fe734fa318e78c88147341a09へ統合する。独立read-only reviewはblocking0、関連211件と独立fake4件がPASS。workflow39998877081は初回12項目成功後、Ubuntu動画ライブラリ取得で停滞するMonk項目だけを再試行しattempt2 successとなる。GitHub公式source2/test3のblob全5一致を確認する。main由来immutable 20261024T031321-ead527c7の共通診断は公式mypage HTTP200/dashboard/login0/ready=True、本人binding変更0、専用page close=True、終了後guard holder無し。solve_aws_waf=Falseで読み取り確認し、業務owner activationや全業務/別Macの成功とはしない。確認harnessのstdin未実行、guard入口未明示、identity join不足は成功証拠に含めず、正規guardを明示したラッパーと登録identity/ownerから実行する最終probeだけを採用する。次cursorはB3-REDとする。
 
 INPUTS-B2のSHIP受入: PR #8758/head5476999f26a9c6344fb8b6468f9594cadb7fa4b1、workflow39995180239は全13checks成功、既知snapshot blocking1の独立再reviewはblocking0（差替え拒否catalog有無10件、正常保存12件、receipt復旧2件の実関数probe）。main2dc5178399bb57d684363c23cc5c3a2d2f1f5d64へ統合し、GitHub公式source/test blob全2一致を確認する。関連355testsの成功とsource受入であり、B3/公開INSTALL/READY-B/実provider成果は未完。
 
@@ -257,7 +257,25 @@ B3の実行経路診断: 登録済みstorefront effect_reconcileはpending中に
 
 B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
 
-- [ ] B3-READBACK: READY-A受入後、pendingだけ残りreceipt/実IDが未保存の場合を既存公式一覧候補と_publicの内容照合へ接続する。0件/曖昧/本人不一致で再createやeffect0へ戻さない。kernelのheld fenceへ同owner/occurrenceの実targetを結合する。現在cursor=READY-A-RED。
+- [ ] B3-READBACK: READY-A受入後、pendingだけ残りreceipt/実IDが未保存の場合を既存公式一覧候補と_publicの内容照合へ接続する。0件/曖昧/本人不一致で再createやeffect0へ戻さない。kernelのheld fenceへ同owner/occurrenceの実targetを結合する。現在cursor=B3-RED。
+
+#### B3のbounded実装計画
+
+目的・範囲: 出品/portfolio作成の結果が不明なwakeを、再createせず公式対象の読み取り確認で復旧する。登録済みeffect_reconcileから同owner/occurrenceの実targetだけを照合し、本人private入力のID復元後に既存kernel resolverへ返す。将来の未作成portfolio全体を完了条件にせず、既存full-roster fallbackとB1/B2のcore intent/hashを保持する。
+
+所有: workerはstorefront_offer.py、storefront_effect_reconcile.py、既存test_create_package.py、test_portfolio_readback.py、test_storefront_effect_reconcile.pyの必要箇所だけ。primaryは本仕様/CI/統合/本番受入。shared kernel、browser lifecycle/registry、host admission、CAPSolver、業務送信/実create/実fence解除は変更・実行しない。別ownerの編集を戻さず、既存helperを使い、新しいstore/framework/journalを作らない。
+
+ledger契約: 同じlisting.jsonにcore pending_createと別のpending_create_contextをatomic保存する。contextは実際に注入されるLIFE_MANAGER_LOOP_ID/LIFE_MANAGER_OCCURRENCE_ID/LIFE_MANAGER_RELEASE_SHAから、正しいowner・owner prefixのoccurrence・40桁SHAを満たす時だけ保存する。manual/不完全envを別occurrenceへ結び付けない。公式実IDの保存とpending解除では、同じledgerのlast_creation 1件へintent/context/external_idを残してから同じatomic writeでpending/contextを解除する。receipt書込はcontext/last_creationを保持する。core内容hashへoccurrenceを混ぜず、確認済みIDの再保存とENOSPC再試行をidempotentにする。
+
+readback契約: providerを変更しないcreation-readback入口を既存offerへ加え、既存account lock/owned page/READY-A gateを使う。expected sellerと本人の一致を要求する。listingは既存_inventory_managementだけで全state/件数/paginationを確認し、publishedの正確なtitle候補1件と_public aligned=Trueを要求する。portfolioは既存の一意readbackを再利用する。known target IDは同じIDだけ、catalogは同じfamily projection/cursorだけを確認・保存する。0件/複数/内容不一致/本人不一致/入力変更/cleanup失敗はholdし、create/apply/profile更新や他familyのcanonical上書きをしない。画像が任意の作成に画像存在を捏造しない。run_inventoryを呼んでlockを再取得しない。
+
+最少readback protocol: ok=True/action=creation_readback/kind/external_id/intent_sha256/readback_sha256/contextだけを返す。intent_sha256はprivate core intentのcanonical digest、readback_sha256は確認した公式target/URL/内容のdigestとする。raw account/DOM/例外本文を出さない。--occurrence指定時はledger contextがそのowner/occurrenceに一致する場合だけ通し、legacy/unscoped pendingをfence解除の証拠にしない。standaloneのpending復旧も同じ内部readbackから本人IDだけを戻し、kernel fenceを解除しない。
+
+resolve契約: --resolve無しはprivate ID/ledger/fenceを変更しない。--resolveは既存resolve_unknown_occurrenceのofficial_readback callback内で同じaccount lockを取り、fresh proofと現在のintent/context/raw入力を再検証し、既存の保存helperでIDを復元してからproofを返す。proof_type=official_creation_matches_owner_intent、owner/occurrenceと公式target/readbackのfingerprintをprovider_receipt_idへ結合する。local保存後のresolver失敗はlast_creationから同じtargetを再確認できる。pending無しかつ該当last_creation無しの場合の既存full-roster proofは保持する。ローカル保存だけでverifiedやeffect0にしない。
+
+- [ ] B3-RED: 既存public run/create/reconcile入口でpending未知ID→公式1件→ID復元、same owner/occurrence proof、dry-run無変更、local保存後resolver失敗→同target再確認、context不足/別occurrence/別seller/0件/重複/内容不一致/入力差替え/ENOSPC/cleanupを最少fakeで先に失敗再現する。将来portfolio ID不足でtarget proofを妨げず、create/apply/profile/実HTTPは0とする。
+- [ ] B3-GREEN: 同じ失敗testsを最少実装で通し、B1/B2/owner/reconcile registryの既存関連testsを確認する。
+- [ ] B3-SHIP: commit/push→独立read-only review→既存CI→main/公式sourceを受け入れる。本人の実target復旧はINSTALL/READYの自然実行で確認し、source成功を本番成果としない。公開INSTALL/READY-B/別Mac/10,000 starsは残す。
 
 #### Lancers本人入力の実装計画
 
