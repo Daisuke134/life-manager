@@ -27,3 +27,12 @@
 | 事前固定/登録 | 未実施 | 全欄の成立後、新v2 hash manifestと適用する登録を開始前に固定 |
 
 空欄がある間は募集・割付・介入を開始しない。将来のmanifestは`pilot/BEHAVIOR_TRANSFORMATION_PROTOCOL_V2.sha256`とし、全欄成立前に受入済みのhashや登録番号を創作しない。公開既存研究のoffline解析は、当該source利用条件の範囲で別途進められる。
+
+
+## 公開既存研究の有限offline再利用案との関係
+
+[Step-by-Step公表集計のsource-specific protocol案](STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md)は、既公表Table3効果・欠測仮定のretrospective auditを候補とする。rootの条件付用途/有限offline技術適用判断とfresh AI technical review R1/source再照合は、同案§4の実receiptにより実施済み。同じ別context AI reviewerの実R2は0 findings/0 blocking、Nit FIXED（私有receipt `task-1-review-r2.md` SHA-256 `79710ab80c7f3bae0a6614b9b2628215a01627a3c6e422435fd553df1aa786fc`）。source統合およびD014/D015 source/task受入は **PENDING**。これは実施済みの新規研究や公開原個票の独立再解析ではない。
+
+このsource案は本v2の対象行動・需要・測定権利・検出力・実施協力・独立した適用判断・媒体・同意/停止・登録の空欄を埋めない。**本v2はDRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、U004はtodo。** 原著の569人は歴史的なsource母集団で、Manager参加者数へ加算しない。旧FIRST_STUDYや120世帯/58日、旧manifest/hashを置き換えない。
+
+公開非個人集計を読む限定活動に提携/NDA/新規募集/原参加者への再同意を普遍的に要求せず、必要な条件をsource/用途ごとに判断する。その技術設計の受入と、新規参加者を含む本v2の実同意・適用判断・必要な実在する役割、U006/U007の実結果の受入は別である。[offline停止/復旧追補案](STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md#5-offline停止復旧)も限定proposalで、臨床承認・実害ゼロ・Manager便益を意味しない。新しい受入済みprotocol hash/登録番号は未発行。

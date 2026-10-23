@@ -32,6 +32,9 @@ Digital Buddha／Transparent Godは所有者の長期構想・呼称として保
 | [Brittonら、meditation adverse effects／2021](https://pmc.ncbi.nlm.nih.gov/articles/PMC8845498/) | side effect83%を『83%が害を受けた』と書かない。負の生活機能影響は別分母。非瞑想対照がなく、一般的な因果リスク率ではない | 不調の具体的な質問、持続、機能悪化、停止。悪化を覚りへの進歩と決め付けない |
 | [Tagalidouら、humor training／BMC Psychiatry 2019](https://bmcpsychiatry.biomedcentral.com/articles/10.1186/s12888-019-2075-x) | 37人の小規模RCT。主要/副次outcomeの群×時点効果はいずれも有意でない。後付けの群内改善でRCTのnullを補わない | comedyは本人の希望する探索的な表現手段。苦しみを軽視する笑いや確立治療の主張にしない |
 
+
+**Mindful Student Studyのsource内不一致に関する追記案（限定訂正）:** 原著abstractに依拠した従前の試験期CORE-OM引用「−.14［−.22,−.06］」を履歴として残す。[公開原著XML](https://www.ebi.ac.uk/europepmc/webservices/rest/PMC5813792/fullTextXML)、版 `PMC5813792.2`（取得UTC `2026-10-23T19:53:09.738365+00:00`、SHA-256 `6ee6aa4fc5a76a4bdadecb9186debe9f470cc541e10d28e8f81c4155fafb0506`）の本文/Table3では、−.14［−.22,−.06］は**post-intervention**、主要な**examination periodは−.25［−.34,−.16］**である。abstractと本文/Table3のtimepoint/estimate対応の内部不一致を保持し、今後primary試験期を引用する場合はTable3へ結ぶ。standardized β−.44［−.60,−.29］とも別の量で、こちらを独自の再解析値やManager効果としない。この追記案だけで他研究・scope・task状態は変更しない。
+
 説得研究、COM-B/BCT/BCIO、HeartSteps/MRT等は[主仕様§1.2.1–1.2.3](../MANAGER_PRODUCT_SPEC.md)から再利用する。説得は理解・選択・実行を支える手段で、従順さ・宗教的同意・会話時間・依存を最大化しない。欺瞞、圧力、秘密の心理profiling、個別の政治判断を狙う最適化、他者にさせることによる権限迂回は採用しない。no UIは無告知・無同意の意味ではない。
 
 ## 4. モデルはいつ作るか

@@ -910,6 +910,116 @@
       },
       "risk": "ShareGPT/Scale per-row rights/privacy and consent remain UNKNOWN, as do paraphrase/pretraining contamination and person/study/time/semantic-family generalization. Final16 content-QC exposure and preference/quality-based preselection preclude pristine-blind claims. AI QC is not human annotation/legal clearance.",
       "unresolved": "Actual conditional evaluation-purpose decision is recorded using existing AI QC and metadata/source-binding review with residual risk; historical pending purpose metadata is preserved privately. Exact reviewed scientific source integration/freeze, immutable implementation/test/review/CI, actual saved adapter inventory and external0400 G7 execution/resources remain pending. Per-row ShareGPT/Scale rights/consent/privacy, contamination, semantic/person/study/time independence and future weights classification remain UNKNOWN; no PII absence certified. Final16 QC exposure preserved and recorded model-unscored/train-unused/selection-unused status requires G7 reaffirmation. Stop/quarantine/new reviewed version for concrete issues; no source/task/count change or ML authority follows."
+    },
+    {
+      "id": "who-step-by-step-published-effects-v1",
+      "name": "Cuijpers et al. (2022) guided Step-by-Step RCT — published Table3 aggregate effects only",
+      "kind": "Published article aggregate effects; restricted participant dataset is a separate excluded artifact",
+      "license_expression": "CC-BY-4.0",
+      "source_url": "https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1004025",
+      "license_evidence_url": "https://journals.plos.org/plosmedicine/article/file?id=10.1371/journal.pmed.1004025&type=manuscript",
+      "license_evidence_sha": "sha256:dcb633928041f081770bb18158fa3dde1af1bfda9095d122baf1c1754ffa574c",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "hold",
+        "model_training": "hold",
+        "participant_intervention": "hold",
+        "live_use": "hold",
+        "publication": "hold"
+      },
+      "proposal_status": "ACTUAL_CONDITIONAL_PURPOSE_AUTHORIZATION_SOURCE_INTEGRATION_PENDING",
+      "decision": {
+        "purpose_status": "ACTUAL_CONDITIONAL_ACCEPTANCE",
+        "root_actor": "/root",
+        "decided_at": "2026-10-23T20:11:35.036894+00:00",
+        "private_root_receipt_basename": "root-purpose-and-technical-applicability-decision.md",
+        "root_receipt_sha256": "1d79b26cd6e3423d9b49ca4621f59d9b110917a9b9b6aeed1672325c8d4af31a",
+        "fresh_technical_review_status": "ACTUALLY_PERFORMED_ONE_NIT_ZERO_BLOCKING",
+        "fresh_review_actor": "/root/public_behavior_protocol_task_review",
+        "private_review_receipt_basename": "task-1-review.md",
+        "review_receipt_sha256": "2cbaf08fcc2fcb4c544eafc8be69c7b204eb0b63e244fad0558d92982d592732",
+        "fresh_source_readback_status": "ACTUAL_3_GET_RAW_HASH_MATCH_36_OF_36_VALUES",
+        "fresh_source_readback_actor": "/root/public_behavior_protocol_task_review",
+        "source_get_receipts": [
+          {
+            "id": "step-plos",
+            "url": "https://journals.plos.org/plosmedicine/article/file?id=10.1371/journal.pmed.1004025&type=manuscript",
+            "request_started_utc": "2026-10-23T20:05:26.668211+00:00",
+            "completed_utc": "2026-10-23T20:05:27.526739+00:00",
+            "status": 200,
+            "bytes": 112382,
+            "sha256": "dcb633928041f081770bb18158fa3dde1af1bfda9095d122baf1c1754ffa574c",
+            "declared_raw_hash_match": true
+          },
+          {
+            "id": "step-dataverse-metadata",
+            "url": "https://ssh.datastations.nl/api/datasets/:persistentId/?persistentId=doi:10.17026/dans-zey-hjpk",
+            "request_started_utc": "2026-10-23T20:05:27.526758+00:00",
+            "completed_utc": "2026-10-23T20:05:28.903655+00:00",
+            "status": 200,
+            "bytes": 6214,
+            "sha256": "0df93c326c84f7de3c2ec69fbe9ef97a818fd0a8a249705cace82422142cbf8e",
+            "declared_raw_hash_match": true
+          },
+          {
+            "id": "mindful-europepmc",
+            "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC5813792/fullTextXML",
+            "request_started_utc": "2026-10-23T20:05:28.903697+00:00",
+            "completed_utc": "2026-10-23T20:05:31.342838+00:00",
+            "status": 200,
+            "bytes": 103271,
+            "sha256": "6ee6aa4fc5a76a4bdadecb9186debe9f470cc541e10d28e8f81c4155fafb0506",
+            "declared_raw_hash_match": true
+          }
+        ],
+        "final_delta_review_status": "PENDING",
+        "source_integration_status": "PENDING",
+        "d014_d015_source_adoption_and_status_acceptance": "PENDING"
+      },
+      "requirements": [
+        "study_read/local_research are conditionally authorized by the actual root purpose ruling only after exact reviewed source integration. Source/task adoption remains pending; no publication or live authority is granted. Article CC BY 4.0 permissions are distinguished from this narrower operating purpose.",
+        "Attribute Cuijpers et al., PLOS Medicine (2022), DOI 10.1371/journal.pmed.1004025; link original source and CC BY 4.0; identify extraction/metadata normalization and changes.",
+        "Pin article XML corpus /1/pmed.1004025.xml, retrieval UTC, SHA-256 and Table3 DOI. No paper figure, questionnaire items, course book or audio is reproduced by this scope.",
+        "Keep PHQ-9 and WHODAS, posttest and three-month follow-up separate. Retain B/SE/Hedges g/CI and RFLB bounds with their assumptions. Unknown timepoint observed/missing counts remain null.",
+        "Treat trial assignment counts 283/286=569 and lost-to-follow-up definition as author-reported historical source evidence. They are not Manager participants or an independently rerun RCT.",
+        "DANS dataset DOI 10.17026/dans-zey-hjpk v1.0 uses a separate DANS Licence; official metadata marks SbS_Syrian_Anonymized_Final.tab restricted with access request. Do not retrieve participant files or infer dataset rights from the article license.",
+        "No new participant contact, intervention, record linkage, questionnaire administration, model training, clinical service, live action or publication is authorized by this record.",
+        "Actual root conditional purpose/technical-applicability ruling and fresh separate-context AI source/cell review are recorded with their exact private receipt basenames/hashes and GET UTCs. Sole Nit is author-corrected; final independent delta check and exact source integration remain pending. No human/clinical/IRB/partner endorsement is inferred.",
+        "Preserve author-reported serious-event relatedness and unknown costs without inferring zero risk or net benefit. Keep raw estimation reproduction NOT_PERFORMED and Manager welfare NOT_MEASURED."
+      ],
+      "attribution": {
+        "creators": "Cuijpers et al.",
+        "work": "Effects of a WHO-guided digital health intervention for depression in Syrian refugees in Lebanon: A randomized controlled trial",
+        "doi": "10.1371/journal.pmed.1004025",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "changes": "Extract/normalize published Table3 numerical findings and methods metadata only; no participant-level calculation"
+      },
+      "artifact": {
+        "version": "PLOS corpus article XML /1/pmed.1004025.xml",
+        "table_doi": "10.1371/journal.pmed.1004025.t003",
+        "retrieved_at": "2026-10-23T19:53:09.737066+00:00",
+        "sha256": "dcb633928041f081770bb18158fa3dde1af1bfda9095d122baf1c1754ffa574c",
+        "role": "published_aggregate_effect_audit_conditionally_authorized_source_integration_pending",
+        "data_reproduction": "AUTHOR_REPORTED_NOT_INDEPENDENTLY_REPRODUCED",
+        "independent_numeric_verification": "ACTUAL_36_OF_36_PUBLISHED_VALUES_MATCH; raw statistical reproduction remains NOT_PERFORMED"
+      },
+      "risk": "Substantial differential attrition, MAR/MNAR assumptions, guided multicomponent and context-specific delivery. Published source capability is not independent raw-data replication or Manager benefit.",
+      "unresolved": "Final independent delta check, exact source integration, root source-adoption receipt/version hash and D014/D015 status acceptance remain pending. Institutional applicability UNKNOWN, approval/exemption NOT_OBTAINED and clinical approval NOT_GRANTED. Restricted raw data/code, instrument/material rights and new-study readiness remain separate.",
+      "purpose_scope": {
+        "allowed_only": "Attributed retrospective extraction/verification of already published nonpersonal Step-by-Step Table3 effect/uncertainty/methods metadata",
+        "effective_only_after": "Exact reviewed final source integration and root adoption/readback; current private bundle does not perform integration",
+        "permissions_are_scoped_conditions": "CC BY 4.0 is the actual article license; product/training/live/publication HOLDs limit this authorized purpose and are not claimed license prohibitions",
+        "excluded_artifacts_and_actions": [
+          "Restricted DANS participant files",
+          "Questionnaire/course/audio/media reuse",
+          "Any model training from this article or linked artifacts; existing other-source rights remain unchanged",
+          "New participant intervention or clinical service",
+          "Private-record access/linkage",
+          "Publication/live action"
+        ]
+      }
     }
   ]
 }
