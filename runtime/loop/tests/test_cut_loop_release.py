@@ -1049,6 +1049,25 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertEqual(result["reclaimed_bytes"], 0)
         self.assertEqual(self.commands, [])
 
+    def test_release_gc_only_rejects_empty_agents_without_releases(self):
+        bundle = self._bundle()
+        for path in self.agents.iterdir():
+            path.unlink()
+        code, result = self._gc()
+        self.assertTrue(bundle.exists(), "empty launchd inventory allowed bundle removal")
+        self.assertEqual(code, 1, result)
+        self.assertEqual(result["dependency_bundles"]["status"], "reference_or_lock_unavailable")
+
+    def test_release_gc_only_rejects_missing_agents_without_releases(self):
+        bundle = self._bundle()
+        for path in self.agents.iterdir():
+            path.unlink()
+        self.agents.rmdir()
+        code, result = self._gc()
+        self.assertTrue(bundle.exists(), "missing launchd inventory allowed bundle removal")
+        self.assertEqual(code, 1, result)
+        self.assertEqual(result["dependency_bundles"]["status"], "reference_or_lock_unavailable")
+
     def test_release_gc_only_preserves_current_bundle(self):
         bundle = self._bundle()
         release = self._release(bundle)
