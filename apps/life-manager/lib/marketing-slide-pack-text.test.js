@@ -82,6 +82,14 @@ test("slide copy rejects an unconfigured local family", async () => {
   await assert.rejects(generateSlideCopy({ familyId: "unknown-family", locale: "ja", variantSeed: "slot" }), /family unknown-family is not configured/);
 });
 
+test("removing a Japanese hook line break does not make it a new hook", async () => {
+  const options = { familyId: "question-hook", locale: "ja", variantSeed: "same-seed" };
+  const first = await generateSlideCopy(options);
+  assert.ok(first.hook.includes("\n"));
+  const next = await generateSlideCopy({ ...options, avoidTexts: [first.hook.replace(/\s+/g, "")] });
+  assert.notEqual(next.hook, first.hook);
+});
+
 test("familyForStyleHint deterministically maps a style hint to a configured local family", () => {
   const family = familyForStyleHint("5 affirmations to tell yourself every morning", "en");
   assert.ok(Object.keys(FAMILY_BRIEFS_BY_LOCALE.en).includes(family));

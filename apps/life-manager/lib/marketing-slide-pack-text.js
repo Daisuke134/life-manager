@@ -127,7 +127,7 @@ function seedNumber(seed, label) {
 }
 
 function pickScene(scenes, familyId, seed, avoidTexts) {
-  const normalize = (text) => String(text).replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  const normalize = (text) => String(text).replace(/\s+/g, "").toLocaleLowerCase();
   const used = new Set(avoidTexts.map(normalize));
   const candidates = scenes.flatMap((scene) => scene[familyId].map((hook) => ({ hook, body: scene.body })));
   const start = seedNumber(seed, "hook") % candidates.length;
