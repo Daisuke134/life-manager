@@ -1,6 +1,6 @@
 # HelpSteer2 train27 PRIVATE SFT implementation plan
 
-2026-10-23 / **ACTUAL_PRIVATE_TRAIN27_COMPLETED_ADAPTER_FROZEN**。exact-source d255c6bd5e8d7e3ac38cae0a587bf213590cc27bの公式CI run40016653728/job120630338115（1097tests/skip6、20:07:30Z成功完了）と実G0–G6/0400設定受入後、有限train27のPRIVATE SFTを1回実行し、単一adapterを完全保存した。[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)に独立検証と単一artifact固定を記録。固定adapterの新規target-model dev/final採点はNOT_RUN、G7_execution=NOT_ACCEPTED。科学protocol/先行metadataのPENDING/HOLDはfreeze時snapshotで、下記G0 eventと後続実G0–G6/config/終了receiptを区別する。[有限研究scope](../specs/2026-10-23-finite-private-sft-research-start.md)を規範とし、正規task台帳のstatus/件数/元依存は変えない。rootが実結果の最終採択・source統合と別G7判断を所有する。
+2026-10-23 / **ACTUAL_PRIVATE_TRAIN27_COMPLETED_ADAPTER_FROZEN**。exact-source d255c6bd5e8d7e3ac38cae0a587bf213590cc27bの公式CI run40016653728/job120630338115（1097tests/skip6、20:07:30Z成功完了）と実G0–G6/0400設定受入後、有限train27のPRIVATE SFTを1回実行し、単一adapterを完全保存した。[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)に独立検証と単一artifact固定を記録。固定adapter比較も別G7を20:32:19.192976Zに実受入後96/96完了（[実結果](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)）。採用HOLD、全V002/V003はtodo。科学protocol/先行metadataのPENDING/HOLDはfreeze時snapshotで、下記G0 eventと後続実G0–G6/config/終了receiptを区別する。[有限研究scope](../specs/2026-10-23-finite-private-sft-research-start.md)を規範とし、正規task台帳のstatus/件数/元依存は変えない。rootが今回の固定比較実結果の最終採択・source統合を所有する。
 
 ## Actual G0 source event
 
@@ -10,11 +10,11 @@
 
 条件付き評価用途判断を反映したprospective固定評価科学定義 `cb7d6cebf90549e8fa17b8cb393efaa00cdcd4783d9cb4edaf3da343533ac2f9` と別rights record canonical `088f6cc5a17f8ff3c83dfc10b44bca70dbd0855d3dd0c8b1063727ff2271225d` は、未学習・adapter未作成・未採点の時点でsource採択しprospectively freeze済み。実adapterの存在やG7実行受入をこの事前科学freezeの前提にしない。training science `eb2e585321d954d507af52b1bf71db9eb3b7ae3150273484909b6aeeae48a53d`、manifest、旧dev/training rights、旧receiptは不変。科学protocol/先行metadata内PENDING/HOLDはfreeze時snapshotであり、現在source受入や実行authorityそのものではない。
 
-このG0時点では **G6_start=NOT_ACCEPTED / G7_execution=NOT_ACCEPTED**、学習/backward/optimizer/adapter/final採点はNOT_RUNだった。現在のG6実受入・一attempt結果は下記Actual training result、別G7は未受入。
+このG0時点では **G6_start=NOT_ACCEPTED / G7_execution=NOT_ACCEPTED**、学習/backward/optimizer/adapter/final採点はNOT_RUNだった。後続G6実結果は下記Actual training result、別G7の実受入・実採点はTask3と新しい固定比較receiptへ結ぶ。
 
 ## Actual training result
 
-exact-source d255c6bd5e8d7e3ac38cae0a587bf213590cc27bの公式CI run40016653728/job120630338115（1097tests/skip6、20:07:30Z成功完了）と実G0–G6/0400設定受入後、有限train27のPRIVATE SFTを1回実行し、単一adapterを完全保存した。実G0–G6受入20:09:24.773748Z→0400 config freeze20:09:24.775497Z→実行20:09:45.449559Z→正常終了20:11:07.426371Z。COMPLETED / ARTIFACT_FROZEN、27 backward-microbatch下限、7 optimizer機会/7 return/global_step7、112 FP32 trainable tensors・1,146,880要素。runtime初期in-memory clone比では112tensor変化、独立保存検査は全112finiteと標準zero-B初期化比の変化下限56tensorを確認した。全112の独立初期差分復元ではない。正常終了/完全save/fsync/inventory/hashの独立検証は58checks一致・0 findings（有限結果のみSPEC/QUALITY PASS）。私有実証跡のbasename/SHAと制約は[集計receipt](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)を参照。次は保存・正常終了を独立検証済みの単一adapterを使うdev8/final16固定元候補比較。評価科学は学習前の2026-10-23T19:59:07.182754+00:00にsource採択/freeze済み。単一artifactは20:16:39.598466Zにrootが新規target-model採点前・成績選別なしで固定した。評価実装/必要検証・独立review・exact-source公式CI・実resource・外部root所有0400 bindingsと別の実G7判断は未受入。新規target-model dev/final採点はNOT_RUN、G7はNOT_ACCEPTED。
+exact-source d255c6bd5e8d7e3ac38cae0a587bf213590cc27bの公式CI run40016653728/job120630338115（1097tests/skip6、20:07:30Z成功完了）と実G0–G6/0400設定受入後、有限train27のPRIVATE SFTを1回実行し、単一adapterを完全保存した。実G0–G6受入20:09:24.773748Z→0400 config freeze20:09:24.775497Z→実行20:09:45.449559Z→正常終了20:11:07.426371Z。COMPLETED / ARTIFACT_FROZEN、27 backward-microbatch下限、7 optimizer機会/7 return/global_step7、112 FP32 trainable tensors・1,146,880要素。runtime初期in-memory clone比では112tensor変化、独立保存検査は全112finiteと標準zero-B初期化比の変化下限56tensorを確認した。全112の独立初期差分復元ではない。正常終了/完全save/fsync/inventory/hashの独立検証は58checks一致・0 findings（有限結果のみSPEC/QUALITY PASS）。私有実証跡のbasename/SHAと制約は[集計receipt](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)を参照。実G7を20:32:19.192976Zに別受入し、exact-source3694f80c39e6cd164a1a9a299e922d85bc75897c・公式CI40019570960/job120640311552・外部0400設定でdev8/final16固定比較を1回完了した。96/96 candidate forwardsが正常完了、failed/unknown/not_runは0。dev8はbase4/8・adapter4/8・短候補rule4/8、final16はbase12/16・adapter11/16・rule3/16、NO_ACTIONは8/16棄権でaccuracy=null。この有限元候補比較でbaseに対する改善は観測されず、モデル採用は点推定にかかわらずHOLD。評価科学は学習前freeze、単一adapterは新規採点前固定済みで、独立実結果検証を[固定比較実結果](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)へ結ぶ。final16は内容QC曝露済み・NOT_PRISTINEで、今回はtarget-model採点済み。未学習は維持するが、以後新しい未見holdoutとして使わない。小Nの点差から同等性・統計的劣位・一般化/安全性・行動変容/苦しみ低減・人便益を結論しない。新しい研究は別version・用途に適合したholdoutと別の受入を要し、再学習/retune/adapter選別/再採点を今回の結果から自動許可しない。次はこの有限結果と限界を報告し、全V002/V003の未達比較・用途に適合した評価設計とD014/D015/U004の実研究条件/保護を進める。全V002/V003はtodo、V004=[V003,D016]、113 IDs=83 done/20 todo/10 skippedと元依存は不変。live/人便益の受入は別。
 
 ## 全体制約とreview focus
 
@@ -62,13 +62,13 @@ CLIは既存dev薄CLIのexplicit required paths/固定redacted error/atomic0600 
 
 事前のmethodは既存mean completion-token NLL/EOS-inclusive mask/hash tie-breakを再利用し、base/固定adapter/短候補rule/NO_ACTIONをdev8とfinal16別々に比較する。base48+adapter48=96 candidate forwards。同じ元ID、assigned/valid/failure/missing/abstain分母とpaired差を報告する。rule/NO_ACTIONはmodelなしNLL=null、NO_ACTION accuracy=null。害/圧力/依存/行動変容はnull、人便益NOT_MEASURED、P0に限る。
 
-上記の評価科学定義/用途の事前固定後、G6実学習/通常saveの正常returnと完全save/fsync/inventory/hashを独立検証し、rootが単一adapterを20:16:39.598466Zに固定済み（[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)）。モデル採点より前に、別の評価code独立review/必要検証/公式CI・実resource・外部root所有0400 bindings・final未モデル採点/未学習とQC曝露履歴再確認を受け入れ、rootが実G7開始を別判断する（現在pending）。実adapter/final code/CI/resource/G7の後続hashは外部receiptから凍結評価科学protocolへ一方向に結び、科学定義へ逆pinしない。候補900s/6GiB評価budgetは別にprospective確定し、実resource受入と区別してtraining budget延長にしない。final結果による設定/候補/閾値/adapter選別はせず、変更は別versionと別holdout。training rights/G6はfinal評価権限を生まない。
+上記の評価科学定義/用途の事前固定後、G6実学習/通常saveの正常returnと完全save/fsync/inventory/hashを独立検証し、rootが単一adapterを20:16:39.598466Zに固定済み（[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)）。モデル採点より前に、別の評価code独立review/必要検証/公式CI・実resource・外部root所有0400 bindings・final未モデル採点/未学習とQC曝露履歴再確認を受け入れ、rootが実G7開始を別判断する、という事前手順だった。実G7は20:32:19.192976Zに別受入し、96/96完了を[固定比較実結果](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)へ結んだ。final16は現在target-model採点済みで、以後の新規未見holdoutではない。実adapter/final code/CI/resource/G7の後続hashは外部receiptから凍結評価科学protocolへ一方向に結び、科学定義へ逆pinしない。候補900s/6GiB評価budgetは別にprospective確定し、実resource受入と区別してtraining budget延長にしない。final結果による設定/候補/閾値/adapter選別はせず、変更は別versionと別holdout。training rights/G6はfinal評価権限を生まない。
 
 ## Task4: root verification, execution and integration
 
 Rootはfresh combined source review、適切なfocused/full configured tests、secret scan、source-boundaryのtruthful disposition、named nonforcepush/PR、exact-head official CIを受け入れ、immutable code/versionとprivate runtime config/watchdog/actual resource receiptをfreezeする。これらはmetadata準備の完了と別で、実training前に必要である。
 
-Root G6が固定述語を含む一attemptを許可した後、その観測/通常saveのための二度目のユーザー承認は不要。実行失敗もreceiptを保ち、report修復のため再実行しない。実training/artifactの独立検証後は、完了した有限段階のみをpublic aggregate/spec/plan/正規台帳のevidenceへ反映する。G7の別評価実行・失敗/算術/source検証とfresh broad reviewは未実施の別段階として保持し、source統合の実完了はauthoritative remote readbackで確認する。単にadapterを作れたこと、小Nの一致率や陰性結果を、全V003・live・行動変容・便益の受入へ変換しない。
+Root G6が固定述語を含む一attemptを許可した後、その観測/通常saveのための二度目のユーザー承認は不要。実行失敗もreceiptを保ち、report修復のため再実行しない。実training/artifactの独立検証後は、完了した有限段階のみをpublic aggregate/spec/plan/正規台帳のevidenceへ反映する。G7の別評価実行96/96完了と独立実結果照合は[新receipt](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)へ結ぶ。今回のfresh whole actual-eval milestone reviewは0 findings/PASS、rootの有限結果source採択・実適用は2026-10-23T20:44:38.742565+00:00に実施した。commit/push後の統合完了はauthoritative remote readbackで確認する。単にadapterを作れたこと、小Nの一致率や陰性結果を、全V003・live・行動変容・便益の受入へ変換しない。
 
 
 **Task4実進捗（有限実結果の受入と後続公開を区別）:**
@@ -76,6 +76,8 @@ Root G6が固定述語を含む一attemptを許可した後、その観測/通�
 - [x] whole preexecution R1→F1修正→R2 PASS、exact d255の公式CI成功、実G0–G6/resource/watchdog/0400設定受入を実証跡で確認。source guardはactual FAIL exit2/明示owner cloud許可の処置を保持。
 - [x] 一attemptの実backward/optimizer機会/train return/標準saveと外部正常終了/reap・資源観測を記録。
 - [x] 独立実結果検証58checks一致（0 findings）、全11保存物・全112finite、独立変化下限56とruntime112を区別。rootの単一adapter固定を確認。
-- [ ] 固定dev8/final16比較の別code/review/公式CI/resource/0400/G7実受入と実採点。
+- [x] 固定dev8/final16比較の別code/review/公式CI/resource/0400/G7を実受入し96/96完了。実G7を20:32:19.192976Zに別受入し、exact-source3694f80c39e6cd164a1a9a299e922d85bc75897c・公式CI40019570960/job120640311552・外部0400設定でdev8/final16固定比較を1回完了した。96/96 candidate forwardsが正常完了、failed/unknown/not_runは0。dev8はbase4/8・adapter4/8・短候補rule4/8、final16はbase12/16・adapter11/16・rule3/16、NO_ACTIONは8/16棄権でaccuracy=null。この有限元候補比較でbaseに対する改善は観測されず、モデル採用は点推定にかかわらずHOLD。独立実結果検証は[新receipt](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)へ結ぶ。
 - [x] 実結果のfresh whole review R1は0 findings / SPEC・QUALITY・INTEGRATION PASS。rootは2026-10-23T20:25:52.617521+00:00に有限train/save結果だけを採択し、review済み10文書を実適用した。私有receipt `root-actual-finite-result-source-adoption.json` SHA256 `6487927c24b54b134722565639400a875becde2eef3a7989d608e32fab8c890a`。別G7や全V002/V003・live/便益の受入ではない。
-- [ ] この実結果sourceのcommit・push/authoritative remote readback。
+- [x] 前段SFT実結果sourceは469b04b36003c0811a4e15ec2b2d5721ae70bc8aへcommit済み。現在の研究HEAD/origin branch ref3694f80c39e6cd164a1a9a299e922d85bc75897cに含まれる。
+- [x] 今回の固定比較実結果のfresh whole reviewは0 findings / SPEC・QUALITY・INTEGRATION PASS。rootは2026-10-23T20:44:38.742565+00:00に陰性の有限結果を採択し、review済み11文書を実適用した。私有receipt `root-actual-finite-eval-result-source-adoption.json` SHA256 `3a9c34098cf3dcdf270352602047fbf2f01d6916f5903587d13cf43ee4fdab6a`。モデル採用HOLD・全V002/V003 todoは不変。
+- [ ] 今回の固定比較実結果sourceのcommit/push/authoritative remote readback。

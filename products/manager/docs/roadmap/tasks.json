@@ -2276,7 +2276,8 @@
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py",
-      "docs/verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md"
+      "docs/verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md",
+      "docs/verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md"
     ],
     "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
     "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
