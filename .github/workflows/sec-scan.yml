@@ -48,6 +48,11 @@ jobs:
           apps/lancers-revenue/tests/test_persona_facts_in_planner.py
           apps/lancers-revenue/tests/test_form_failures_name_themselves.py
           apps/lancers-revenue/tests/test_telegram_report.py
+      - name: Verify browser lease ownership and tab preservation
+        run: >-
+          python3 -m pytest -q
+          skills/browser/tests/test_guard_legacy_lease.py
+          skills/browser/scripts/test_browser_guard_empty_lease.py
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py' --durations 15
       - name: Verify bounded storage, real syscall failures, and recurrence
