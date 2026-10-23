@@ -194,6 +194,43 @@ SUBSTACK_TERMINAL = re.compile(r"article-resume: run=(\S+) rc=(\d+) deterministi
 SUBSTACK_HOST = re.compile(r"[a-z0-9-]+\.substack\.com")
 TOUCHED_KEYS = ("writer_run_id", "pair", "draft_id", "host")
 HISTORICAL_RESUME_CATCHUP_PROOFS = {
+    # 2026-10-20 06:04 JST: catch-up exec'd article-daily.sh; run 20261019-210430 stopped in 14 s
+    # with "prepublication-finish: skip reason=missing-article-ja.md" and no dispatch files.
+    "article-resume:18e00a32b6c907c0-21320": {
+        "writer_run_id": "20261019-210430",
+        "queued_at": 1792443847.589477,
+        "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+        "entrypoint_sha256": {
+            "skills/writer-agent/scripts/article-resume-pending.sh":
+                "28a40e7618173905538ca875cc59cd9a52b9ea4e9710574598f2df74fa027684",
+            "skills/writer-agent/article-daily.sh":
+                "05c5697edd6d4ada17aa2d45162e2a2509fe4501e845ec568856c52ac2402a71",
+        },
+        "events_archive": "events-20261020T050241988389Z.jsonl.gz",
+        "event_hashes": [   # start, terminal
+            "11447d8d5aa09d363072b54b4d8a30d8cafe21ab37624efef265d01c788b7975",
+            "0bd9c01c4776a87a4a889326ddb4bea8103c2a8a8446a27bab054047e06a7b7c",
+        ],
+        "catchup_hour_utc": ("2026-10-19T21:00:00+00:00", "2026-10-19T22:00:00+00:00"),
+        "resume_log_line": "article-resume: missed daily schedule catch-up date=2026-10-20 hour=06",
+        "resume_log_previous_line": (
+            'article-resume: pass {"at":"2026-10-19T21:04:25Z",'
+            '"occurrence_id":"article-resume:18e00a32b6c907c0-21320","pid":21414,'
+            '"branch":"start","run_ids":[]}'
+        ),
+        "article_log_segment": ("=== article-daily run 2026-10-20 06:04:29 JST ===",
+                                "=== article-daily done rc=1 2026-10-20 06:04:43 JST ==="),
+        "article_log_segment_sha256": "2960d57ecb00a8bfb34fa41f1efcb136a381d2fe87ee0449b4cef1b9771aa0c4",
+        "run_artifacts": {
+            "gates/generation-state.json": "214ab8df172acf90ac1a6b3726ed37c2e96ec912c02f8fecab4270bb4573002b",
+            "gates/product-selection.json": "5a2b054caabe42fcec001652bc7cd182583a3aeebb4bdc3496ac57cbe97c2208",
+        },
+        # The run wrote no draft, so the owner listings have no title to search; the hash-bound
+        # segment above ends at the pre-publication stop instead.
+        "no_drafts_stop_line": ("=== article-daily: generation incomplete before publication state; "
+                                "same-run generation reconciler owns run=20261019-210430 "
+                                "2026-10-20 06:04:43 JST ==="),
+    },
     # 2026-10-12 06:05 JST: catch-up exec'd article-daily.sh; run 20261011-210544 ended
     # provider-failed-ambiguous with publication-blocker "no staging or publishing attempted".
     "article-resume:18dd959f92920ff0-56630": {
@@ -941,8 +978,18 @@ def _historical_resume_catchup_proof(occurrence_id: str, queued_at: float, *, wr
         if stamp is not None and queued_at <= stamp <= until + PAIR_WINDOW_SECONDS:
             return "writer_ledger_row_in_window"
 
-    readback = absence_readback(run_dir, queued_at, until)
-    destinations = (readback or {}).get("destinations") or {}
+    stop_line = expected.get("no_drafts_stop_line")
+    if stop_line is not None:
+        segment = daily_log[starts[0]:ends[0] + 1]
+        drafts = [name for name in ("article-ja.md", "article-en.md", "x-post-ja.txt")
+                  if os.path.lexists(run_dir / name)]
+        if drafts or stop_line not in segment:
+            return "catchup_no_drafts_proof_mismatch"
+        destinations = {pair: {"status": "absent", "reason": "run_produced_no_drafts"}
+                        for pair in ABSENCE_DESTINATIONS}
+    else:
+        readback = absence_readback(run_dir, queued_at, until)
+        destinations = (readback or {}).get("destinations") or {}
     not_absent = [pair for pair in ABSENCE_DESTINATIONS
                   if (destinations.get(pair) or {}).get("status") != "absent"]
     if not_absent:

@@ -1269,7 +1269,19 @@ def test_resume_catchup_proof_is_pinned_to_the_measured_occurrence():
     assert pinned["release_sha"] == "6f25bb2e95e9efbea58a0d8f04b4cc6eefbea7d2"
     assert pinned["entrypoint_sha256"]["skills/writer-agent/scripts/article-resume-pending.sh"] == \
         "5134fab95ab2b3056789ff7a1ed51383f5f0baf36baed81b32090c00369bf299"
-    assert list(m.HISTORICAL_RESUME_CATCHUP_PROOFS) == [CATCHUP_OCC]
+    assert sorted(m.HISTORICAL_RESUME_CATCHUP_PROOFS) == sorted(
+        [CATCHUP_OCC, "article-resume:18e00a32b6c907c0-21320"])
+
+
+def test_no_drafts_catchup_proof_is_pinned_and_opt_in():
+    # 2026-10-20 06:04 JST catch-up run 20261019-210430 wrote no draft, so the owner listings
+    # had no title to search; only this measured entry may use the no-drafts stop line.
+    m = _load()
+    pinned = m.HISTORICAL_RESUME_CATCHUP_PROOFS["article-resume:18e00a32b6c907c0-21320"]
+    assert pinned["writer_run_id"] == "20261019-210430"
+    assert pinned["release_sha"] == "baac8c681314edd1fc430199f30da410d31a4c1c"
+    assert pinned["no_drafts_stop_line"].endswith("run=20261019-210430 2026-10-20 06:04:43 JST ===")
+    assert "no_drafts_stop_line" not in m.HISTORICAL_RESUME_CATCHUP_PROOFS[CATCHUP_OCC]
 
 
 # 2026-10-18: article-resume:18df6fc53500b510-26567 took the WAIT -> self-heal path (no publisher),
