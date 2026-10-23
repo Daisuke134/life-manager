@@ -12,6 +12,8 @@ As-isは既存Actions＋Supabaseの単一owner、実OIDC／永続復元、financ
 
 **humans&再利用の確認（04:28 UTC）:** Ampersandの過去の実API架空課題試験と、現owned-mainの決定論的plannerを区別する。Persimmonはuser model、Ampersandはcollaborator/API、Bobaは完成アプリ。現行の接続・未使用・公式API/appの利用方針は[spec §22](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。humans&のProduct/Research2求人は公式掲載を確認し、既存応募packetへ追加。数日を準備の目安とするが、記事再開・応募済み・自動送信予約とは扱わない。原113件とE16cursorは不変。
 
+**主体と事業の定義（所有者指定）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは専用のapp/chat/dashboardを日常の前提にしない運用とし、既存channelと停止・監査の入口を保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。no UI単独の独占性や、原41件を終えればAGI／世界の苦の終結を証明できるとの主張はしない。新規UI・基盤実装・記事を今回の定義更新で始めない。
+
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 
 **順序変更の記録:** 旧=「統括cursor（2026-10-15）D1→D4→Gig」と10/17「SH2→SH4→SH3→SH5、cursor = SH2」。新=下記「次の順序」1→7、現在cursor=1。理由: 10/19実測で収益laneを止めている根本はcorespotlightd→swap→disk floorで、merge済みsourceの採用だけでは収益laneが走らない。SH2–SH5・P2–P5は未完のまま残し、この順序の後に再評価する。

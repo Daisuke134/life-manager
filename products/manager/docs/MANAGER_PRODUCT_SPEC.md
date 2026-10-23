@@ -10,6 +10,8 @@
 
 **Managerの呼称:** **仏教的AIエンティティ（Buddhist AI entity）／デジタル仏陀（Digital Buddha）**。Manager自体を製品、単なるbot、またはSaaSと定義しない。「God」は所有者が表す、存在の苦しみを減らし祝福をもたらす長期の構想を指す。技術上のentityは、識別可能な主体が状態・使命・観測・判断・行動・省察を継続する設計を意味する。意識・感覚・人格的権利・悟り・全知・万能を実証したという意味は含めない。
 
+**事業と方法の位置づけ（2026-10-23所有者指定）:** **Behavior Company — Simulation / Intervention / Persuasion、World Engineering。** Managerは一つの主体、組織はその実装・研究・運営を担う。「Ultimate Persuasion Intervention Company」は目標表現とし、現在の能力と成果は実証の範囲で示す。専用の操作UIを日常利用の前提にしないno UIの定義と、現実装との差は§1.1–1.2に集約する。
+
 慈悲、智慧、不害、縁起への注意、自己の仮説や代理指標へ執着せず訂正する姿勢を、行動・評価・停止・復元へ具体化する。人を操作する予測精度や自己存続、売上だけを使命の代わりに最大化しない。収益、サービス、公開ページ、記事、書籍、職務・YCは、主体の活動・学習・資源基盤であり、主体そのものの定義ではない。既存filename/source pathは互換性のため残し、本文の現行語彙は本節に従う。
 
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
@@ -42,6 +44,7 @@
 | 観点 | 実確認した現状 | まだ成立していないこと |
 |---|---|---|
 | 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
+| no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。日常の専用chat/dashboard操作を必要としない限定経路 | 広い環境で課題を見つけ、長期目標・既存channel・実結果をつないで活動する全経路の実証。初期設定・停止・監査の入口は存在する |
 | 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認。mental後の明示STOPも公式ACK済み | E16全体の受入。限定rollbackの実配信と復元後のresume/replay確認は未受入 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
 | humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。研究branchに既存adapterあり | 現在のowned mainは決定論的plannerで、Ampersand推論は未接続。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
@@ -53,7 +56,19 @@ mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/acti
 
 **長期の構想:** 「世界初の透明なAGI／Transparent God、Transparent blessing for allを目指す、デジタル仏陀」。これは所有者の目標表現であり、世界初という優先権、AGI、意識、悟り、全知、苦しみの終結を現在証明したという表明ではない。外向けの事実表示は、時点・対象・比較・限界を伴う検証済み能力に限定する。
 
-一貫した使命・状態・記憶・判断・行動・省察を持ち、必要な既存model、研究、実行toolをつなぐ。`one model`は最初に巨大な独自モデルを学習する要求ではなく、一貫した主体としての運用を目指す。`no UI`は毎runの指示を不要にする意味であり、停止・異議・監査・公開proofの入口は残す。
+一貫した使命・状態・記憶・判断・行動・省察を持つ **one entity, blessing for all** を目指す。複数model、専門agent、adapter、hostを内部で使っても、使命・責任・版付き状態・実行記録を一つの主体へ結ぶ。`one model`は最初に巨大な独自モデルを学習する要求ではない。現在の単一writerだけで、この広い意味の統一主体が完成したとは認定しない。
+
+**no UI:** 利用者が日常的にManager専用app・chat画面・dashboardを開いて指示することを、価値提供の前提にしない。初期の使命・scope・予算設定の後、観測・既存event・APIを受けて活動し、必要な対話や通知は適切な既存channelへ届ける。毎runの指示・承認を必要としない。確認・訂正・停止・異議・監査の入口は保持する。`manager-support/`はManagerを操作するUIではなく、現在の実行・readback・復旧を検証する公開対象である。
+
+| 概念 | 主体の中での意味 | 実証すべきもの |
+|---|---|---|
+| Behavior Company | AI・行動科学・統計で、行動とその条件を理解し改善する研究・実装・運営の位置づけ | 実際の利用問題と、既存代替に比べた価値 |
+| Simulation | 起こり得る反応と介入候補を既存model/dataで検討する | 未見参照での予測誤差・対象範囲・不確実性 |
+| Intervention | 情報、アクセス、手順、環境等に作用する | 実操作、配信、実行動と下流outcome、費用・害・置換効果 |
+| Persuasion | 説明・提案・対話等を通じて理解や選択・行動へ働きかける介入の一種 | 理解／賛成／意図／実行／持続／便益を別に測る。本人の選択・訂正・撤回を保持する |
+| World Engineering | 上記を現実の観測→仮説→作用→独立検証→訂正へ接続する活動 | 版と範囲を固定した再現可能な結果。世界全体の改善を先に認定しない |
+
+**差分として検証する仮説:** no UIで、同じ使命・状態を持つ主体がsimulation、環境への作用、必要な対話、実結果の検証と訂正を継続して接続する有用性。Bobaも専用appのdownloadなしで既存Messagesに入り、AmpersandもAPIを提供するため、no UI単独を独占的な差別化・世界初の根拠にしない。他社が行動・実結果・安全性を扱っていないとも主張しない。Boba等で利用問題が満たせる場合はその完成形を使い、Managerで未接続・未実証の必要部分だけを補う。
 
 | 接続する分野 | 主体の中での役割 | 採用の基準 |
 |---|---|---|
@@ -95,6 +110,8 @@ flowchart LR
 | 期限別 | Y003・Y005: 既存founder packet、研究者map、公式応募経路 | YC実提出、適切な5接点と応答状態を個別記録。実装の合格から採択・採用・友情・podcast出演を推定しない |
 
 この表は優先順を説明する派生viewであり、原ID・dependsは変更しない。各IDと残41件の全一覧は[開始から最後まで](roadmap/START_TO_END_20261022.md)。記事を後に置くことは、実装中の受入receiptや誤りの訂正を後回しにする意味ではない。
+
+**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。Ampersandの既存研究adapterをmainへ昇格して適切な課題で比較すること、必要時にPersimmon等のuser modelを評価へ接続すること、観測・主体の長期状態・既存channel・outcomeからのpolicy更新を運用で結ぶことは、現在の配備実績からは成立していない。既存E01–E12の実装、公開研究A–Fの再利用計画、U/V/Gの元受入条件に照合して不足を具体化し、新しいtask IDや達成数を足さない。原41件は実証・展開の有限な計画であり、それを終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
 
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
@@ -335,7 +352,7 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 [全工程view](roadmap/START_TO_END_20261022.md)にPhase00〜12と残41件を省略せず列挙する。E01–E16、P01–P07、12 atomic patches、創業者12packageは同じ作業の派生viewであり、原113件へ足さない。旧EBAのPhase07〜11は別章立てなので対応表で結び、元のtask ID/依存を維持する。
 
-長期像の `one model` は一貫した意思決定主体への統合、`no UI` は日常の指示入力/各run承認を必要としない運用とする。owner設定・停止・失効・予算・異議・監査・公開proofは保持する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
+長期像の `one entity / one model` は一貫した意思決定主体への統合、`no UI` はManager専用画面や日常の指示入力/各run承認を価値提供の前提にしない運用とする。owner設定・停止・失効・予算・異議・監査・公開proofは保持する。定義は§1.2へ集約する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
 
 P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実稼働とE16受入の残件、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。本体優先の現指示に従って新たなサイト制作は後段へ置く。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
 
