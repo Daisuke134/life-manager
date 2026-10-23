@@ -8,6 +8,11 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[3]
+SHADOW_CONDITION = (
+    "github.event_name == 'workflow_dispatch' && "
+    "github.event.inputs.operation == 'run-once' && "
+    "github.event.inputs.catalog_shadow == 'true'"
+)
 
 
 class OwnedWorkflowContractTests(unittest.TestCase):
@@ -28,7 +33,17 @@ class OwnedWorkflowContractTests(unittest.TestCase):
             script.append(line[10:])
         return '\n'.join(script) + '\n'
 
-    def _run_publish_script(self, operation, *, cli_status=0):
+    def _workflow_step(self, name):
+        workflow = (ROOT / '.github/workflows/manager-phase06-service.yml').read_text()
+        lines = workflow.splitlines()
+        marker = '      - name: ' + name
+        self.assertIn(marker, lines)
+        start = lines.index(marker)
+        end = next((i for i in range(start + 1, len(lines))
+                    if lines[i].startswith('      - ')), len(lines))
+        return '\n'.join(lines[start:end])
+
+    def _run_publish_script(self, operation, *, cli_status=0, shadow_env=None):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
@@ -41,7 +56,13 @@ class OwnedWorkflowContractTests(unittest.TestCase):
             #!/usr/bin/env python3
             import json, os, pathlib, sys
             if len(sys.argv) > 1 and sys.argv[1] == 'scripts/run_owned_digital_cycle.py':
-                pathlib.Path(os.environ['CLI_CALL_LOG']).write_text(json.dumps(sys.argv[1:]))
+                with open(os.environ['CLI_CALL_LOG'], 'a') as log:
+                    log.write(json.dumps(sys.argv[1:]) + '\\n')
+                names = ('GITHUB_EVENT_NAME', 'MANAGER_CATALOG_SHADOW_ENABLED',
+                         'AMPERSAND_API_KEY', 'MANAGER_AMPERSAND_MAX_TOTAL_USD',
+                         'MANAGER_AMPERSAND_MAX_CALL_USD')
+                pathlib.Path(os.environ['CLI_ENV_LOG']).write_text(
+                    json.dumps({name: os.environ.get(name) for name in names}))
                 raise SystemExit(int(os.environ.get('MOCK_CLI_STATUS', '0')))
             if len(sys.argv) > 1 and sys.argv[1] == '-':
                 sys.stdin.read()
@@ -65,9 +86,20 @@ class OwnedWorkflowContractTests(unittest.TestCase):
             'GITHUB_WORKSPACE': str(workspace),
             'GITHUB_OUTPUT': str(output),
             'CLI_CALL_LOG': str(log),
+            'CLI_ENV_LOG': str(root / 'cli-env.json'),
             'SUMMARY_CALLED': str(summary_called),
             'MOCK_CLI_STATUS': str(cli_status),
         })
+        # Concrete Actions-evaluated values only; this harness is not an
+        # interpreter for GitHub expression language. Never inherit a real key.
+        env.update({
+            'GITHUB_EVENT_NAME': 'workflow_dispatch',
+            'MANAGER_CATALOG_SHADOW_ENABLED': 'false',
+            'AMPERSAND_API_KEY': '',
+            'MANAGER_AMPERSAND_MAX_TOTAL_USD': '',
+            'MANAGER_AMPERSAND_MAX_CALL_USD': '',
+        })
+        env.update(shadow_env or {})
         return subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', self._publish_script()],
                               cwd=ROOT, env=env, text=True, capture_output=True), root
 
@@ -112,6 +144,80 @@ class OwnedWorkflowContractTests(unittest.TestCase):
                 ])
                 self.assertTrue((root / 'summary-called').exists())
                 self.assertIn('status=NO_ACTION', (root / 'github-output').read_text())
+
+    def test_shadow_dispatch_gate_is_exact_and_sdk_install_precedes_lease(self):
+        workflow = (ROOT / '.github/workflows/manager-phase06-service.yml').read_text()
+        self.assertRegex(
+            workflow, r"      catalog_shadow:\n        description: [^\n]+\n"
+            r"        required: false\n        default: false\n        type: boolean")
+        for name in ('ampersand_max_total_usd', 'ampersand_max_call_usd'):
+            with self.subTest(input=name):
+                self.assertRegex(workflow, name + r":\n        description: [^\n]+\n"
+                                 r"        required: false\n        default: ''\n        type: string")
+        installer = self._workflow_step('Install optional advisory SDK before lease acquisition')
+        cycle = self._workflow_step('Restore, reconcile, and run one trusted main cycle')
+        self.assertIn('        if: ' + SHADOW_CONDITION, installer.splitlines())
+        self.assertIn('        working-directory: source/products/manager', installer)
+        self.assertIn('        run: python -m pip install -r requirements-ampersand.txt', installer)
+        self.assertNotIn('env:', installer)
+        self.assertNotIn('API_KEY', installer)
+        self.assertEqual(workflow.count('python -m pip install -r requirements-ampersand.txt'), 1)
+        self.assertLess(workflow.index(installer), workflow.index(
+            '      - name: Create fresh private runner state root'))
+        self.assertLess(workflow.index(installer), workflow.index(cycle))
+        self.assertEqual((ROOT / 'products/manager/requirements-ampersand.txt').read_text().strip(),
+                         'openai==3.24.0')
+        self.assertIn("MANAGER_CATALOG_SHADOW_ENABLED: ${{ " + SHADOW_CONDITION +
+                      " && 'true' || 'false' }}", cycle)
+        self.assertIn("AMPERSAND_API_KEY: ${{ " + SHADOW_CONDITION +
+                      " && secrets.AMPERSAND_API_KEY || '' }}", cycle)
+        self.assertEqual(workflow.count('secrets.AMPERSAND_API_KEY'), 1)
+        for env, name in (('MANAGER_AMPERSAND_MAX_TOTAL_USD', 'ampersand_max_total_usd'),
+                          ('MANAGER_AMPERSAND_MAX_CALL_USD', 'ampersand_max_call_usd')):
+            with self.subTest(env=env):
+                self.assertIn(env + ': ${{ github.event.inputs.' + name + ' }}', cycle)
+        self.assertIn('    needs: verify', workflow)
+        self.assertIn('    timeout-minutes: 13', workflow)
+
+    def test_shadow_schedule_and_controls_remain_off_with_one_writer(self):
+        # The exact shared expressions above establish the Actions gate. These
+        # literal cases exercise only the real shell with evaluated env values.
+        workflow = (ROOT / '.github/workflows/manager-phase06-service.yml').read_text()
+        self.assertEqual(workflow.count(SHADOW_CONDITION), 3)
+        cases = (
+            ('workflow_dispatch', 'run-once', 'true', True),
+            ('schedule', 'run-once', 'true', False),
+            ('workflow_dispatch', 'run-once', None, False),
+            ('workflow_dispatch', 'run-once', 'false', False),
+            ('workflow_dispatch', 'stop', 'true', False),
+            ('workflow_dispatch', 'rollback', 'true', False),
+            ('workflow_dispatch', 'resume', 'true', False),
+        )
+        for event, operation, flag, enabled in cases:
+            with self.subTest(event=event, operation=operation, flag=flag):
+                # Neither install nor secrets is admitted in any disabled case.
+                resolved = {
+                    'GITHUB_EVENT_NAME': event,
+                    'MANAGER_CATALOG_SHADOW_ENABLED': 'true' if enabled else 'false',
+                    'AMPERSAND_API_KEY': 'fake-test-key' if enabled else '',
+                    'MANAGER_AMPERSAND_MAX_TOTAL_USD': '',
+                    'MANAGER_AMPERSAND_MAX_CALL_USD': '',
+                }
+                result, root = self._run_publish_script(operation, shadow_env=resolved)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads((root / 'cli-env.json').read_text()), resolved)
+                calls = (root / 'cli-call.json').read_text().splitlines()
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(json.loads(calls[0]), [
+                    'scripts/run_owned_digital_cycle.py', operation,
+                    '--state-store', str(root / 'manager-owned-state'),
+                    '--pages-checkout', str(root / 'workspace/pages'),
+                ])
+                failed, failed_root = self._run_publish_script(
+                    operation, cli_status=2, shadow_env=resolved)
+                self.assertEqual(failed.returncode, 2, failed.stderr)
+                self.assertEqual(len((failed_root / 'cli-call.json').read_text().splitlines()), 1)
+                self.assertFalse((failed_root / 'summary-called').exists())
 
     def test_unknown_operation_is_rejected_before_cli_or_summary_side_effects(self):
         for operation in ('', 'STOP', 'run-once; touch pwned', 'rollback --receipt sha'):

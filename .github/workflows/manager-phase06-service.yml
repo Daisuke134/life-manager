@@ -18,6 +18,21 @@ on:
           - stop
           - rollback
           - resume
+      catalog_shadow:
+        description: Compare the prepared catalog candidate with optional P0 advice
+        required: false
+        default: false
+        type: boolean
+      ampersand_max_total_usd:
+        description: Cumulative reservation cap in USD (blank leaves sends unconfigured)
+        required: false
+        default: ''
+        type: string
+      ampersand_max_call_usd:
+        description: Per-call reservation upper bound in USD (blank leaves sends unconfigured)
+        required: false
+        default: ''
+        type: string
   schedule:
     - cron: '17 * * * *'
 permissions:
@@ -103,6 +118,10 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium
+      - name: Install optional advisory SDK before lease acquisition
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'run-once' && github.event.inputs.catalog_shadow == 'true'
+        working-directory: source/products/manager
+        run: python -m pip install -r requirements-ampersand.txt
       - name: Create fresh private runner state root
         run: |
           test ! -e "$RUNNER_TEMP/manager-owned-state"
@@ -113,6 +132,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MANAGER_RELEASE_ENABLED: 'true'
+          MANAGER_CATALOG_SHADOW_ENABLED: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'run-once' && github.event.inputs.catalog_shadow == 'true' && 'true' || 'false' }}
+          AMPERSAND_API_KEY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'run-once' && github.event.inputs.catalog_shadow == 'true' && secrets.AMPERSAND_API_KEY || '' }}
+          MANAGER_AMPERSAND_MAX_TOTAL_USD: ${{ github.event.inputs.ampersand_max_total_usd }}
+          MANAGER_AMPERSAND_MAX_CALL_USD: ${{ github.event.inputs.ampersand_max_call_usd }}
           MANAGER_OPERATION: ${{ github.event_name == 'schedule' && 'run-once' || github.event.inputs.operation || 'run-once' }}
         shell: bash
         run: |
