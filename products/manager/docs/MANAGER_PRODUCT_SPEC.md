@@ -406,7 +406,7 @@ E16/原113件の受入状態は本修正で変更しない。自分たちの新�
 |---|---|---|
 | [Persimmon](https://persimmon.humansand.ai/blog/persimmon.html)／[model card](https://persimmon.humansand.ai/blog/persimmon-model-card.html) | 人物profile・setting・会話historyから、利用者の応答候補を生成するuser model。研究・評価preview、playground/APIの案内あり | 直接推論は未確認。`/docs/`の未認証GETはsign-inへ到達し、認証済APIの利用条件・実動作は今回未検証。利用可能な場合に限り既存評価へ薄く接続し、応答を人の実際の信念や介入効果としない。初期依存にはしない |
 | [Ampersand](https://ampersand.humansand.ai/blog/)／[API docs](https://ampersand.humansand.ai/docs/) | 協働するAI側。Agents APIがagent設定・session履歴・turn/event・tool requestsを扱う。`ampersand-v0.1`、公式Python例は`openai==3.24.0` | 過去の実API研究と既存adapterを再利用し、PR8650でcheckpoint-bound P0 callableをmain統合。定期実行のplannerは決定論的で、モデル呼出しは未接続。独自協働modelや別のAgents SDKを作らず、適切な課題でルール／NO_ACTIONと比較する |
-| [Boba発表](https://boba.humansand.ai/blog/)／[完成アプリ](https://boba.app/) | Ampersandを使う個人・group向けアプリ。目標の継続、memory、reminders/calendar、web research、email、予約等を案内。browser/login操作はalpha。SMS/RCS/iMessageとwebへの導線 | 未試用・未接続。日常の予定調整・follow-up等が目的なら完成アプリを直接使う比較を先に置き、同じchat/reminder/calendar UIを再実装しない。組込み用Boba API/SDKは今回確認できておらず、存在を前提にしない |
+| [Boba発表](https://boba.humansand.ai/blog/)／[完成アプリ](https://boba.app/) | Ampersandを使う個人・group向けアプリ。目標の継続、memory、reminders/calendar、web research、email、予約等を案内。browser/login操作はalpha。SMS/RCS/iMessageとwebへの導線 | 未試用・未接続。UIのある完成アプリとしてmemory・目標継続・tool利用を学ぶ。Manager本体のno UIという提供形をBobaへ置き換えず、chat/reminder/calendar UIを再実装しない。UI利用が適した別の補助用途では直接利用を比較する。組込み用Boba API/SDKは今回確認できておらず、存在を前提にしない |
 
 学習先の人名も出典と役割で保持する。[会社の公式紹介](https://humansand.ai/)は **Georges Harik** と **Eric Zelikman** をco-founderと記載。Persimmon cardは **Manya Bansal／Alexis Ross**（data/training/eval）、**Joey Hong**（post-training）、**Niloofar Mireshghallah**（Trickle Test等）、**Yuan Lu**（API）、**Eric Zelikman**（profile eval/playground/modeling）を挙げる。名前・所属や製品利用を知人関係・提携・推薦と扱わず、具体的な再現結果と技術的な問いを今後の接点にする。
 
@@ -423,7 +423,7 @@ E16/原113件の受入状態は本修正で変更しない。自分たちの新�
 1. **既存コードを使い、実行経路を結ぶ。** adapter/session/budgetとcheckpoint-bound callableのmain昇格はPR8650、既定OFFの公開context・安定operation ID・同条件baselineを使うshadow callerはPR8660で完了。SDK整合性修正もPR8665でmain統合済み。次は適切な実課題、固定依存・既存予算・実比較を通常の経路で結ぶ。scheduled inference済みと先に記録せず、E16の固定技術基準の変更にmodel呼出しを必須化しない。
 2. **hosted会話管理を使う。** session ID・turn・SSE・保存済stateのreadback・同一eventのidempotency等は[公式guide](https://ampersand.humansand.ai/docs/GUIDES.html#recovery)を再利用。外部tool実行は既存Manager outboxへ接続する。公式guide自身が、APIのidempotencyだけでは外部の二重送信・二重決済を防げず、結果不明時は宛先を先に照合するよう説明している。
 3. **モデルの価値を測る。** 発言／非発言、目標達成、割込負担、情報の共有先、費用を固定し、既存ルール・NO_ACTION・未見課題と比較。simulationのjudgeや満足度だけで実行動・便益を認定しない。既存の比較・採点契約を使い、第二のeval engineを作らない。
-4. **完成アプリとの重複を避ける。** Bobaで解ける利用問題なら直接利用を優先。Managerに必要な差分は、特定の使命・観測・限定操作・独立readback・結果比較・害と費用・訂正をつなぐこととして検証する。他社にそれらが一切ないという主張はしない。
+4. **完成アプリとの重複を避ける。** Bobaから協働・memory・tool利用を学び、UIが適した別の補助用途では直接利用を比較する。Managerの通常提供形はno UIを維持する。必要な差分は、特定の使命・観測・限定操作・独立readback・結果比較・害と費用・訂正を、人の操作や対話なしに接続することとして検証する。他社にそれらが一切ないという主張はしない。
 
 Boba発表の100万超messages、利用例、290完了survey・29%回答率・70%love/25%likeは会社報告で、独立試験やManagerの結果ではない。本文の家族対話は明示的なsimulation例。アプリ頁は無料・card不要と案内するが、Ampersand APIは別料金で、今回確認した公開価格は入力$1.00／cache入力$0.20／出力（reasoning込み）$5.20 per 1M tokens。アカウント残高・settled usage・利用地域・継続無料を確認したとはしない。予約やemail等の案内がある完成アプリを、単なるchat demoと説明しない。
 

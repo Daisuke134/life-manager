@@ -72,3 +72,6 @@ Manager本体を先に進めるため、既存Ampersand adapterを、既存の�
 - exact-headは15成功／1意図したpublisher skip。[Manager verify39931015467](https://github.com/Daisuke134/life-manager/actions/runs/39931015467)、[checkpoint contract39931015460](https://github.com/Daisuke134/life-manager/actions/runs/39931015460)、[必須Security Scan39931015539](https://github.com/Daisuke134/life-manager/actions/runs/39931015539)はいずれも成功。Manager source境界・loop contract・product範囲gitleaksも成功した。
 
 追加したのはsourceと契約検証である。定期plannerは決定論的のまま、新しいlive Ampersand推論／cancel、SDK runtime install、課金確定、scheduled inference、人の便益を受入れたとはしない。元の実行receipt／UNKNOWN／nullを書き換えず、原113件の75 done／35 todo／3 skippedも維持する。
+
+
+研究source同期 `d1b441bd458802db36401813bfe8dc6524856093`は[公式CI39932106390](https://github.com/Daisuke134/life-manager/actions/runs/39932106390)で09:28:59 UTCに成功した。E01 contract6件、P0 advisory21件、既存workflowのManager suite928件（6 skip、失敗0）、113件の台帳不変、Manager source境界を確認した。後の`d84c0b337`はmainと同じ実装計画2ファイルだけを追加した文書commitで、このrunのtested headへ付け替えない。本追記も文書更新であり、新しい実推論や作用を追加していない。
