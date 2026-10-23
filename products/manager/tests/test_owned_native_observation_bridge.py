@@ -59,6 +59,10 @@ class NativeObservationBridgeTests(unittest.TestCase):
                 self.assertIs(type(p2.native_value), int)
                 self.assertGreater(p2.native_value, 0)
                 self.assertEqual(p2.human_outcome, 'NOT_MEASURED')
+                self.assertEqual(p2.native_value,sum(
+                    len(raw) for url,raw in urls.items()
+                    if url.startswith(collector_fixtures.PUBLIC_BASE) and
+                    url!=collector_fixtures.PUBLIC_BASE+'manifest.json'))
 
     def test_current_missing_does_not_overwrite_a_historical_verified_native_snapshot(self):
         collector = importlib.import_module('manager_core.owned_public_collector')
@@ -83,9 +87,16 @@ class NativeObservationBridgeTests(unittest.TestCase):
             self.assertNotEqual(current['evidence']['status'],'VERIFIED')
             rows=learner.native_technical_observations(effect_key=packet['effect_key'])
             p2=[row for row in rows if row.proof_level=='P2']
-            self.assertEqual(len(p2),1)
-            self.assertEqual((p2[0].observed_at,p2[0].native_value,p2[0].status),
-                             (old_at,456,'VERIFIED'))
+            self.assertEqual(len(p2),2)
+            historical=[row for row in p2 if row.observed_at==old_at]
+            missing=[row for row in p2 if row.observed_at==observed_at]
+            self.assertEqual(len(historical),1)
+            self.assertEqual((historical[0].native_value,historical[0].status),
+                             (456,'VERIFIED'))
+            self.assertEqual(len(missing),1)
+            self.assertEqual((missing[0].native_value,missing[0].status),
+                             (None,'UNKNOWN'))
+            self.assertEqual(missing[0].missing_reason,'DELIVERY_UNCONFIRMED')
 
     def test_v2_current_delivery_persists_p2_only_after_receipt_deployment_and_bytes_match(self):
         collector=importlib.import_module('manager_core.owned_public_collector')
@@ -142,6 +153,11 @@ class NativeObservationBridgeTests(unittest.TestCase):
                                       workflow_commit='b'*40)
             journal.reserve(packet,publisher,baseline,candidate,parent,at)
             journal._present(packet['effect_key'],receipt)
+            learner=PolicyLearner(journal.path)
+            learner.record_native_technical_observation(NativeTechnicalObservation(
+                packet['effect_key'],packet['candidate_sha256'],receipt,committed_at,
+                'owned.pages.commit_occurrence','commit_occurrence','VERIFIED','P1',1,None,
+                'NOT_MEASURED',(receipt_data['html_url'],)))
             def get(url):
                 self.assertIn(url,urls)
                 return urls[url]
@@ -149,14 +165,32 @@ class NativeObservationBridgeTests(unittest.TestCase):
                  patch.object(phase06_kernel_release,'public_get',side_effect=get):
                 result=collector.collect_owned_delivery(packet['effect_key'],journal,at)
             self.assertEqual((result['status'],result['proof_level']),('VERIFIED','P2'))
-            observations=PolicyLearner(journal.path).native_technical_observations()
-            self.assertEqual(len(observations),1)
-            observation=observations[0]
+            observations=learner.native_technical_observations()
+            self.assertEqual(len(observations),2)
+            observation,= [row for row in observations if row.proof_level=='P2']
             self.assertEqual((observation.effect_key,observation.candidate_sha256,
                               observation.receipt_ref,observation.measure_id,
                               observation.proof_level,observation.status),
                              (packet['effect_key'],packet['candidate_sha256'],receipt,
                               'owned.pages.served_bundle_bytes','P2','VERIFIED'))
+
+            urls[PUBLIC_BASE+'finance.html'] += b' served bytes no longer match manifest'
+            missing_at=at+timedelta(seconds=1)
+            with patch.object(collector,'collect_owned_occurrence',return_value=occurrence), \
+                 patch.object(phase06_kernel_release,'public_get',side_effect=get):
+                missing=collector.collect_owned_delivery(packet['effect_key'],journal,missing_at)
+            self.assertEqual((missing['status'],missing['reason']),('UNKNOWN','HASH_MISMATCH_ONLY'))
+            observations=learner.native_technical_observations()
+            missing_row,= [row for row in observations
+                           if row.proof_level=='P2' and row.observed_at==missing_at]
+            self.assertIsNone(missing_row.native_value)
+            self.assertEqual(missing_row.status,'UNKNOWN')
+            self.assertEqual(missing_row.missing_reason,'HASH_MISMATCH_ONLY')
+            summary=cycle_cli.public_summary({
+                'status':'UNKNOWN','proof_level':'P2','deployed':True,
+                'effect_key':packet['effect_key'],'receipt_ref':receipt},
+                store=CycleStore(tmp))
+            self.assertEqual(summary['positive_canary'],'NOT_RUN')
 
     def test_injected_provider_fixture_never_enters_native_p1_or_p2_store(self):
         collector = importlib.import_module('manager_core.owned_public_collector')
@@ -171,6 +205,22 @@ class NativeObservationBridgeTests(unittest.TestCase):
             result = collector.collect_current_owned_delivery(journal, observed_at, get=fixture_get)
             self.assertEqual(result['evidence']['proof_level'], 'P0')
             self.assertEqual(PolicyLearner(journal.path).native_technical_observations(), [])
+
+    def test_invalid_saved_receipt_creates_no_native_observation_identity(self):
+        collector=importlib.import_module('manager_core.owned_public_collector')
+        with TemporaryDirectory() as tmp:
+            packet,journal,receipt,observed_at,target_url,urls=(
+                collector_fixtures.PublicCollectorTests().prepare_v1_current_fixture(tmp))
+            detail_url=f'https://api.github.com/repos/{REPOSITORY}/commits/{receipt}'
+            broken=json.loads(urls[detail_url]);broken['html_url']='https://example.invalid/other'
+            urls[detail_url]=json.dumps(broken).encode()
+            def get(url):
+                self.assertIn(url,urls)
+                return urls[url]
+            with patch.object(phase06_kernel_release,'public_get',side_effect=get):
+                current=collector.collect_current_owned_delivery(journal,observed_at)
+            self.assertNotEqual(current['evidence'].get('proof_level'),'P2')
+            self.assertEqual(PolicyLearner(journal.path).native_technical_observations(),[])
 
     def test_explorer_projection_reads_bound_store_and_omits_private_fields(self):
         with TemporaryDirectory() as tmp:

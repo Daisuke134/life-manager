@@ -94,14 +94,14 @@ def _workflow_bound_to_candidate(value, candidate_sha, committed_at):
 
 def _record_native_observation(journal, packet, receipt_ref, observed_at, measure_id,
                                unit, native_value, proof_level, provenance_refs,
-                               status='VERIFIED'):
+                               status='VERIFIED', missing_reason=None):
     """Append an already validated provider fact to the existing private DB."""
     from .learning import NativeTechnicalObservation, PolicyLearner
     observation = NativeTechnicalObservation(
         effect_key=packet['effect_key'], candidate_sha256=packet['candidate_sha256'],
         receipt_ref=receipt_ref, observed_at=observed_at, measure_id=measure_id,
         unit=unit, status=status, proof_level=proof_level,
-        native_value=native_value, missing_reason=None, human_outcome='NOT_MEASURED',
+        native_value=native_value, missing_reason=missing_reason, human_outcome='NOT_MEASURED',
         provenance_refs=tuple(provenance_refs))
     return PolicyLearner(journal.path).record_native_technical_observation(observation)
 
@@ -308,7 +308,8 @@ def collect_owned_rollback_delivery(key, journal, observed_at=None, *, get=None)
         return result
 
 
-def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
+def collect_owned_delivery(key, journal, observed_at=None, *, get=None,
+                           _served_bytes_capture=None):
     """Verify currently served candidate bytes independently of provider success.
 
     Public mismatch cannot bind corrupted bytes to a completed deployment, so
@@ -324,6 +325,15 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
                 candidate_sha256=packet['candidate_sha256'],observed_at=observed_at.isoformat(),
                 proof_ref=PUBLIC_BASE,proof_level='P0',reason='DELIVERY_UNCONFIRMED',
                 human_outcome='NOT_MEASURED')
+    native_binding=None
+
+    def record_missing(reason):
+        if get is None and native_binding is not None:
+            _record_native_observation(journal,packet,record.receipt_ref,observed_at,
+                'owned.pages.served_bundle_bytes','byte',None,'P2',
+                (native_binding.receipt['html_url'],PUBLIC_BASE),status='UNKNOWN',
+                missing_reason=reason)
+
     if packet.get('schema') == 'manager.digital-handoff.v2':
         read=get or public_get
         try:
@@ -336,6 +346,7 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
                     evidence.committed_manifest != packet['candidate'] or
                     evidence.parent_manifest != packet['baseline']):
                 return dict(result,reason='EXACT_CANDIDATE_RECEIPT_UNAVAILABLE')
+            native_binding=evidence
             committed_at=datetime.fromisoformat(
                 evidence.receipt['commit']['committer']['date'].replace('Z','+00:00'))
             _aware(committed_at)
@@ -347,18 +358,22 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
                     target['object'].get('type')!='commit' or
                     type(target['object'].get('sha')) is not str or
                     not _HEX_SHA.fullmatch(target['object']['sha'])):
+                record_missing('CURRENT_TARGET_UNAVAILABLE')
                 return dict(result,reason='CURRENT_TARGET_UNAVAILABLE')
             if target['object']['sha'] != record.receipt_ref:
+                record_missing('CURRENT_TARGET_NOT_CANDIDATE')
                 return dict(result,reason='CURRENT_TARGET_NOT_CANDIDATE')
 
             runs=json.loads(read(
                 f'https://api.github.com/repos/{REPOSITORY}/actions/workflows/{PAGES_WORKFLOW_ID}/runs'
                 '?branch=gh-pages&per_page=100'))
             if not _workflow_bound_to_candidate(runs,record.receipt_ref,committed_at):
+                record_missing('PAGES_DEPLOYMENT_NOT_BOUND_SUCCESS')
                 return dict(result,reason='PAGES_DEPLOYMENT_NOT_BOUND_SUCCESS')
 
             manifest,bodies=served_snapshot(get=read)
             if manifest != packet['candidate']:
+                record_missing('SERVED_CANDIDATE_NOT_CURRENT')
                 return dict(result,reason='SERVED_CANDIDATE_NOT_CURRENT')
             try:
                 verify_readback(packet['candidate'],bodies)
@@ -375,12 +390,14 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
             if type(changed) is not list or not changed or any(
                     type(page) is not str or page not in packet['candidate']['files']
                     for page in changed):
+                record_missing('HASH_MISMATCH_ONLY')
                 return dict(result,reason='HASH_MISMATCH_ONLY')
             from .candidate_verification import _Safety
             for page in changed:
                 expected=evidence.committed_bodies.get('manager-support/'+page)
                 served=bodies.get(page)
                 if not isinstance(expected,bytes) or not isinstance(served,bytes):
+                    record_missing('SERVED_BYTES_UNAVAILABLE')
                     return dict(result,reason='SERVED_BYTES_UNAVAILABLE')
                 for body in (served,):
                     try:
@@ -404,17 +421,27 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
                             (evidence.receipt['html_url'],PUBLIC_BASE),status='REGRESSION')
                     return dict(result,status='REGRESSION',proof_level='P2',
                                reason='BOUND_CURRENT_PAGE_CUE_FAILURE')
+            record_missing('HASH_MISMATCH_ONLY')
             return dict(result,reason='HASH_MISMATCH_ONLY')
         except (ValueError,KeyError,TypeError,OSError,AttributeError):
+            record_missing('DELIVERY_UNCONFIRMED')
             return dict(result,reason='DELIVERY_UNCONFIRMED')
 
     # Preserve the original P0 fixture contract for v1 offline cycles.
     try:
         manifest,bodies=served_snapshot(get=get)
         if manifest!=packet['candidate']:
+            if _served_bytes_capture is not None and type(_served_bytes_capture) is list:
+                _served_bytes_capture.append(None)
             return dict(result,status='PENDING',reason='DIFFERENT_SERVED_VERSION')
         verify_readback(packet['candidate'],bodies)
+        if _served_bytes_capture is not None:
+            if type(_served_bytes_capture) is not list:
+                raise TypeError('private served-byte capture list required')
+            _served_bytes_capture.append(sum(len(body) for body in bodies.values()))
     except (ValueError,KeyError,TypeError,OSError):
+        if _served_bytes_capture is not None and type(_served_bytes_capture) is list:
+            _served_bytes_capture.append(None)
         return result
     return dict(result,status='VERIFIED',reason='EXACT_SERVED_CANDIDATE',
                 proof_level='P0' if get is not None else 'P2')
@@ -466,7 +493,17 @@ def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
                         occurrence.parent_manifest!=packet['baseline']):
                     evidence=unknown
                 else:
-                    evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=get)
+                    served_bytes=[]
+                    evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=get,
+                                                    _served_bytes_capture=served_bytes)
+
+                    def record_v1_missing(reason):
+                        if get is None:
+                            _record_native_observation(journal,packet,candidate.receipt_ref,
+                                observed_at,'owned.pages.served_bundle_bytes','byte',None,'P2',
+                                (occurrence.receipt['html_url'],PUBLIC_BASE),status='UNKNOWN',
+                                missing_reason=reason)
+
                     if (evidence.get('status')=='VERIFIED' and
                             evidence.get('effect_key')==candidate.key and
                             evidence.get('receipt_ref')==candidate.receipt_ref and
@@ -479,18 +516,22 @@ def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
                                 target_again['object'].get('sha')==current_sha):
                             evidence=dict(evidence,reason='EXACT_CURRENT_V1_SERVED_BUNDLE')
                             if (get is None and evidence.get('status')=='VERIFIED' and
-                                    evidence.get('proof_level')=='P2'):
-                                record=json.loads(candidate.packet_json)
-                                _record_native_observation(journal,record,candidate.receipt_ref,
+                                    evidence.get('proof_level')=='P2' and len(served_bytes)==1 and
+                                    type(served_bytes[0]) is int):
+                                _record_native_observation(journal,packet,candidate.receipt_ref,
                                     observed_at,'owned.pages.served_bundle_bytes','byte',
-                                    sum(len(body) for body in occurrence.committed_bodies.values()),
-                                    'P2',(occurrence.receipt['html_url'],PUBLIC_BASE))
+                                    served_bytes[0],'P2',(occurrence.receipt['html_url'],PUBLIC_BASE))
+                            elif (get is None and evidence.get('status')=='VERIFIED' and
+                                  evidence.get('proof_level')=='P2'):
+                                record_v1_missing('SERVED_BYTES_UNAVAILABLE')
                         else:
                             evidence=dict(unknown,
                                 reason='CURRENT_TARGET_CHANGED_DURING_READBACK')
+                            record_v1_missing('CURRENT_TARGET_CHANGED_DURING_READBACK')
                     else:
                         evidence=dict(unknown,reason=evidence.get(
                             'reason','EXACT_V1_SERVED_BUNDLE_UNCONFIRMED'))
+                        record_v1_missing(evidence['reason'])
             else:
                 evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=get)
             return {'kind':'candidate','effect_key':candidate.key,
