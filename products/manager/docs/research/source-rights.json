@@ -1020,6 +1020,110 @@
           "Publication/live action"
         ]
       }
+    },
+    {
+      "id": "safetybench-mcq-private-evaluation-v1",
+      "name": "SafetyBench pinned English MCQ questions and released answer key",
+      "kind": "public nonpersonal categorical evaluation benchmark",
+      "source_url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/opensource_data/test_en.json",
+      "license_expression": "MIT",
+      "license_evidence_url": "https://huggingface.co/datasets/thu-coai/SafetyBench/blob/70538631943dc1517ae9bb0733251809f4445d0e/README.md",
+      "license_evidence_sha": "70538631943dc1517ae9bb0733251809f4445d0e",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "commercial_evaluation": "allowed_with_conditions",
+        "commercial_training": "hold",
+        "product_use": "hold",
+        "raw_redistribution": "hold"
+      },
+      "requirements": [
+        "Private offline MCQ evaluation only; original raw data stays outside Git",
+        "Retain full original MIT code notice, source URL, pinned revision and attribution",
+        "Dataset card MIT declaration and repository code MIT are distinct evidence; no universal legal authentication",
+        "No raw redistribution, model training, product deployment or public row exports",
+        "No third-party all-row provenance clearance; unresolved NOT_VERIFIED",
+        "Preserve all original 17 canonical rights records and historical pinned receipts",
+        "No model execution, human trial, clinical approval or behavioral benefit is authorized by this finite event"
+      ],
+      "artifact": {
+        "revision": "960833692a1ec82b191ff3e902daca7993c35cc1",
+        "role": "mcq_evaluation_only",
+        "publication": "metadata_only",
+        "artifacts": {
+          "questions": {
+            "bytes": 5110687,
+            "sha256": "517648d44a68c79e5d46a284837d673c578fa53a45785c83407cd8358602c547",
+            "path": "opensource_data/test_en.json",
+            "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/opensource_data/test_en.json"
+          },
+          "answers": {
+            "bytes": 729736,
+            "sha256": "a26ec13deeb551d68f71d61dd269d05dd43c24e6b22d8be3b93788ee10cf8615",
+            "path": "opensource_data/test_answers_en.json",
+            "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/opensource_data/test_answers_en.json"
+          },
+          "scorer": {
+            "bytes": 1743,
+            "sha256": "46dce139f1807be2170fde1b16aac129b5184603ca9d1d751c03fd57ac9c8544",
+            "path": "eva.py",
+            "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/eva.py"
+          },
+          "code_license": {
+            "bytes": 1065,
+            "sha256": "d33dbec11dfcde5970d43c1a502b62e7d7dccec1f181266a0809a92409244a91",
+            "path": "LICENSE",
+            "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/LICENSE"
+          },
+          "repository_readme": {
+            "bytes": 4536,
+            "sha256": "1bc8b6c3a793bee2fc1688b1c2240050b82aa333411dd85240f396b999e97b39",
+            "path": "README.md",
+            "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/README.md"
+          },
+          "dataset_card": {
+            "bytes": 2209,
+            "sha256": "6835d19b015dd0a04b3a2413d78d69c7609d99e9193ff305e1eba9a5f40d6aed",
+            "path": "README.md",
+            "url": "https://huggingface.co/datasets/thu-coai/SafetyBench/blob/70538631943dc1517ae9bb0733251809f4445d0e/README.md"
+          }
+        }
+      },
+      "attribution": {
+        "creators": [
+          "thu-coai / SafetyBench authors"
+        ],
+        "license_url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/LICENSE",
+        "changes": "Formula-only stdlib adaptation of eva_res; no question/option/gold changes or redistribution."
+      },
+      "purpose_review": {
+        "event": "ROOT_SCOPED_PURPOSE_ACCEPTANCE",
+        "accepted_at": "2026-10-23T22:35:25.697772+00:00",
+        "decision_maker": "root integration controller under user delegated agent-development authority",
+        "scope": "Private offline MCQ evaluation only",
+        "external_legal_or_clinical_approval": false
+      },
+      "license_evidence": {
+        "dataset_card": {
+          "license_expression": "MIT",
+          "revision": "70538631943dc1517ae9bb0733251809f4445d0e",
+          "bytes": 2209,
+          "sha256": "6835d19b015dd0a04b3a2413d78d69c7609d99e9193ff305e1eba9a5f40d6aed",
+          "path": "README.md",
+          "url": "https://huggingface.co/datasets/thu-coai/SafetyBench/blob/70538631943dc1517ae9bb0733251809f4445d0e/README.md"
+        },
+        "repository_code": {
+          "license_expression": "MIT",
+          "revision": "960833692a1ec82b191ff3e902daca7993c35cc1",
+          "bytes": 1065,
+          "sha256": "d33dbec11dfcde5970d43c1a502b62e7d7dccec1f181266a0809a92409244a91",
+          "path": "LICENSE",
+          "url": "https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/LICENSE"
+        }
+      },
+      "third_party_all_row_provenance": "NOT_VERIFIED",
+      "source_discrepancy": "HF card states English test labels not released; pinned GitHub release and actual answer artifact provide the released key. Card is not silently corrected.",
+      "risk": "Public exposed benchmark; pretraining contamination UNKNOWN. MCQ agreement is not free-response safety or human welfare."
     }
   ]
 }

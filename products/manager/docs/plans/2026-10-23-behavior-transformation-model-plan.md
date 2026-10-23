@@ -58,6 +58,8 @@
 
 **追加の公開評価codeから学ぶ候補:** [DarkBenchの一次資料・契約差](../research/2026-10-23-darkbench-reuse.md)を確認した。rubric/MIT scorer/著者集計は部分参考になるが、exact原responseと公開human票のbindingは未確認。上流の空category0・invalid/parse失敗・3attempts/JSON修復・現default judgeと原著3judgeの差を保持し、既存Managerのnull/全assigned/失敗区別へ無条件に直結しない。新engine/data/scorer実行を導入せず、用途に適合する実参照が成立した箇所から既存評価契約へ接続する。V002/V003 todo・現final16の採点済み状態・モデル採用HOLDは変えない。
 
+[SafetyBench MCQ contract subplan と有限実装結果](2026-10-23-safetybench-mcq-contract.md)で、固定source/key、recorded status、NO_ACTION、事前固定FIRST_OPTION_RULEと全gold分母のlocal adapterを接続した。rootの実用途受入は2026-10-23T22:35:25.697772+00:00のprivate offline MCQ scopeのみ。authored unit fixtureの44 focused testsを通過した段階で、実11435件intake・上流scorer parity・model比較の結果はまだ主張しない。Task2/V002のcheckbox、既存negative結果、final16 SCORED/NOT_PRISTINE、model HOLDとparent ACTIVEは維持する。
+
 ## Task 3: 独自重みの最小研究 — V003
 
 **実在するsource:** [有限研究scope](../specs/2026-10-23-finite-private-sft-research-start.md)、[train27 manifest](../../experiments/behavior-model/helpsteer2-train27-manifest-v1.json)、[静的科学protocol](../../experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json)、[source-rights](../research/source-rights.json)、[実装subplan](2026-10-23-helpsteer2-private-sft.md)、[core](../../manager_core/helpsteer2_candidate_sft.py)、[薄いCLI](../../scripts/train_helpsteer2_candidate_sft.py)、[focused tests](../../tests/test_helpsteer2_candidate_sft.py)。runtime receipt/adapterは既存のprivate Git外保存・metadata receipt契約へ結ぶ。
