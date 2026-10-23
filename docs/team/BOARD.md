@@ -35,3 +35,4 @@
 - 2026-10-23 20:10 参謀(Reason調整): 割当=claude-2 LINEスタンプ工場復旧(set-042申請/038修正)、claude-5 SCOREBOARD.md作成、claude-3 資金調達・機会パイプライン。claude-1作業中、claude-4待機。
 - 2026-10-23 20:12 claude-5: docs/team/SCOREBOARD.md 作成（売上/MRR・受託・ASC・LINEスタンプ・資金調達・OSS、各行に更新JSTと出典）。BOARDルールに正本1行追加。Anicca日別ユニットは一次出典未記録と明記。次: ASC readbackで日別ユニットの出典差し替え。
 - 2026-10-23 20:46 claude-5: SCOREBOARDのAnicca日別をASC Sales Report APIで実測に差し替え（新規DL 10/18–22 = 1・2・0・1・0、10/18に再DL1）。依頼文の値と一致を確認。次: 未割当タスク待ち。
+- 2026-10-23 21:00 claude-5: Thankful PaywallView改修に着手（docs/team/specs/thankful-paywall.md、anicca-products branch fix/thankful-paywall-gate-20261023）。無料Proバグは#580で修正済みを確認。範囲=ゲート・ストア価格表示・表示タイミング・×遅延→TestFlightまで。RC設定/価格・審査提出は触らない。
