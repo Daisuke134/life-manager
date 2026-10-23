@@ -247,23 +247,20 @@ Only these two exact commit/path/rule/line fingerprints are added to
 enabled. The introducing commit is on another fetched branch, so changing
 only this PR's current tree cannot remove the historical findings.
 
-## モバイル日次集計CI: 権限条件の説明文
+## Fresh Mac installer CI: historical authority-control prose
 
-PR #8775の現行tree検査は成功するが、full-history検査は別の取得済みbranch
-`research/manager-e06-cloud-execution-20261022`にあるcommit
-`a6f8deaf743033dae21132be54d27223293b09f7`の
-`products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:22`
-を`generic-api-key`として1件検出する。同commitは今回のmobile source変更ではない。
+PR #8776's workflow `40018436759` passes the current-tree scan and TruffleHog,
+but the full-history scan reports one `generic-api-key` finding at commit
+`a6f8deaf743033dae21132be54d27223293b09f7`,
+`products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:22`.
+An independent read-only review reproduces the finding from that line alone.
+The candidate consists of four ordinary lowercase words separated by slashes,
+describing authority controls; it is not authentication material. Adding spaces
+around those separators in memory removes the finding. No credential is read,
+used, or rotated for this adjudication.
 
-独立したread-only検証は、当該行と同objectのcharter §§1–3を読み、権限の範囲・予算・
-有効期限・取消しという4条件を区別する英語の説明文と判定する。代入構文や引用された
-認証値は無く、名詞列はcharter §2の権限付与条件に対応する。provider認証試験や
-credentialへのアクセスは行わず、実credentialの有効性や別用途の不存在までは主張しない。
-primaryのgitleaks 8.30.1による同commit限定scanも、同じcommit/path/rule/lineの
-fingerprint1件だけを再現する。検出値の原文はこの記録へ複製しない。
-
-既存手順に従い、この1件のexact fingerprintだけを`.gitleaksignore`へ追加する。
-rule/path全体の除外、検査無効化、history rewriteは行わず、他のcommit/path/rule/line
-と現行tree・full-history検査を維持する。根拠はprivateの
-`goal-resume/gitleaks-history-fresh-classification.md`と
-`goal-resume/gitleaks-exact-history-red.json`に保存する。
+The commit exists only on another fetched research branch. Its document is
+absent from this PR's current tree, so rewriting the current tree cannot remove
+the historical finding. Only this exact commit/path/rule/line fingerprint is
+recorded in `.gitleaksignore`. Scanner rules, path allowlists, current-tree
+scanning, and detection of findings at new locations remain unchanged.
