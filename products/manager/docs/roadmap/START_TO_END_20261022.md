@@ -70,7 +70,7 @@
 
 1. main受入済みsourceを研究branchへ同期しCI確認。既定OFFのhost/CLI接続は別のsource差分。
 2. rootの限定V001設計受入後、V002で権利・用途別split・既存benchmark/公開結果・NO_ACTION/ルール/既存モデル比較と人手照合を別受入。
-3. V003開始はV002別受入と不足・利用権・最終manifest・実compute/予算・別判断が必要。現scopeを満たせない用途は先に別改訂を審査し、その後既存base/PEFT/TRLで最小SFT/LoRA。実パイロット全体の完了を待たない。
+3. 有限train27 PRIVATE SFTは[別scope](../specs/2026-10-23-finite-private-sft-research-start.md)の実G0–G6・exact-source CI/resource/0400受入後、標準base/PEFT/TRLで一attempt学習/単一adapter完全保存を完了し[独立検証済み](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)。評価科学は学習前freeze、単一artifactは新規採点前固定済み。次のdev8/final16固定比較はNOT_RUN/G7未受入で、評価code/review/公式CI/resource/外部0400と別実判断を要する。全V002/V003の比較・未見/一般化/安全性と元依存はtodoのまま。実パイロット全体の完了をoffline研究の一律前提にしない。
 4. 並行してD014→D015、U004の対象/比較/保護/測定を実条件で固定。草案の存在でU004をdoneにしない。U006→U007→U008で実結果/持続/継続意思を確認。
 5. D016はD015/U007の真正な結果を統合。V004はV003/D016を満たして隔離→shadow→適切な限定運用。
 6. V005第三者再現→V006実案件。G001/G002有限設計doneは[receipt](../verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に記録済みのroot実受入により発効済み。実依存K007/V001→G001→G002を確認し、運営UNADOPTED・実外部監査NOT_PERFORMEDを維持。G003はG002/V006後、以後G004→G005→G006。

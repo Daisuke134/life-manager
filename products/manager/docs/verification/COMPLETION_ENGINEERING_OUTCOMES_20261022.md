@@ -1,5 +1,7 @@
 # D010–D012 / V001–V006 / G001–G006 engineering evidence
 
+**2026-10-23 現在の有限モデル研究追記:** [PRIVATE train27 SFT実結果](HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)は、実G0–G6/公式CI/config受入後の一attempt学習・単一adapter完全保存/独立検証を記録する。COMPLETED/ARTIFACT_FROZEN、27 backward下限、7 optimizer機会/7 return/global_step7、112finite FP32 tensors。runtime変化112と独立zero-B比の変化下限56を区別する。固定adapterの新規dev8/final16採点はNOT_RUN/G7未受入。全V002/V003はtodo、113件=83 done/20 todo/10 skipped・元依存と下記の歴史的実装/原受入条件は不変。行動変容・便益/一般化・live採用は未受入。
+
 検証日: 2026-10-22 UTC。対象は独立製品 **Manager** のローカル engineering preparation。
 実入金、実際の第三者監査、臨床成果、因果的厚生改善、複数地域での実証完了を示す記録ではない。
 タスクの唯一の状態台帳は既存の `../roadmap/tasks.json`。この文書は状態台帳を追加・置換しない。
