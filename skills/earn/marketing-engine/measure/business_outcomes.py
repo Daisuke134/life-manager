@@ -906,7 +906,14 @@ def collect_asc_subscriptions(
     env: dict[str, str], app_id: str, business_date: str, evidence_dir: Path,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Keep Apple's standard-price active counts; no report/app rows is unknown."""
-    report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
+    requested_business_date = business_date
+    try:
+        report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
+    except AscSalesReportMissing as error:
+        if error.reason != "report_not_available_yet":
+            raise
+        business_date = (dt.date.fromisoformat(business_date) - dt.timedelta(days=1)).isoformat()
+        report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
     fields = {
         "subscription_id": "Subscription Apple ID",
         "standard_subscription_duration": "Standard Subscription Duration",
@@ -916,7 +923,8 @@ def collect_asc_subscriptions(
     }
     rows = [{key: row.get(column) for key, column in fields.items()}
             for row in report if row.get("App Apple ID") == app_id]
-    evidence = {"app_id": app_id, "business_date": business_date, "rows": rows}
+    evidence = {"app_id": app_id, "business_date": business_date,
+                "requested_business_date": requested_business_date, "rows": rows}
     evidence_dir.mkdir(parents=True, exist_ok=True)
     evidence_path = evidence_dir / f"{app_id}-subscriptions-{business_date}.json"
     evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
@@ -929,7 +937,8 @@ def collect_asc_subscriptions(
         if not raw.isascii() or not raw.isdecimal():
             raise ValueError("invalid Active Standard Price Subscriptions")
         compact.append({**row, "active_standard_price_subscriptions": int(raw)})
-    return {"app_id": app_id, "business_date": business_date, "rows": compact,
+    return {"app_id": app_id, "business_date": business_date,
+            "requested_business_date": requested_business_date, "rows": compact,
             "active_standard_price_subscriptions": sum(
                 row["active_standard_price_subscriptions"] for row in compact),
             "evidence_path": str(evidence_path)}, evidence

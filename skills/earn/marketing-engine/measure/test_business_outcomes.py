@@ -624,6 +624,35 @@ class AscSubscriptionSourceTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-22", Path(directory))
 
+    def test_unpublished_date_uses_previous_day_once_and_preserves_both_dates(self):
+        pending = outcomes.AscSalesReportMissing("report_not_available_yet", NOT_YET)
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=[pending, self.subscription_rows()]) as fetch:
+            data, evidence = outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-23", Path(directory))
+            self.assertIn("2026-10-22", data["evidence_path"])
+            self.assertEqual(json.loads(Path(data["evidence_path"]).read_text()), evidence)
+        self.assertEqual(fetch.call_args_list, [mock.call({}, "2026-10-23", report_type="SUBSCRIPTION"),
+                                              mock.call({}, "2026-10-22", report_type="SUBSCRIPTION")])
+        self.assertEqual((data["requested_business_date"], data["business_date"]), ("2026-10-23", "2026-10-22"))
+        self.assertEqual((evidence["requested_business_date"], evidence["business_date"]), ("2026-10-23", "2026-10-22"))
+        self.assertEqual(data["active_standard_price_subscriptions"], 2)
+
+    def test_pending_previous_day_stays_unknown_without_unbounded_retry(self):
+        pending = outcomes.AscSalesReportMissing("report_not_available_yet", NOT_YET)
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=pending) as fetch:
+            with self.assertRaises(outcomes.AscSalesReportMissing):
+                outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-23", Path(directory))
+        self.assertEqual(fetch.call_count, 2)
+
+    def test_other_report_errors_never_fall_back_to_older_date(self):
+        for reason in ("apple_no_sales_for_date", "report_not_found"):
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as directory, \
+                 mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=outcomes.AscSalesReportMissing(reason, reason)) as fetch:
+                with self.assertRaises(outcomes.AscSalesReportMissing):
+                    outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-23", Path(directory))
+                self.assertEqual(fetch.call_count, 1)
+
     def snapshot(self, directory, subscription_rows, *, analytics_fails=False):
         def fetch(env, date, **kwargs):
             if kwargs.get("report_type") == "SUBSCRIPTION":
