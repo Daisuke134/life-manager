@@ -165,6 +165,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Cover both the PR head and merge result, including criss-cross history.
+      - name: Select covering PR history
+        id: trufflehog-range
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base="$(git merge-base --all "$BASE_SHA" "$HEAD_SHA")"
+          if [[ "$base" == *$'\n'* ]]; then
+            base=""
+          fi
+          printf 'base=%s\n' "$base" >> "$GITHUB_OUTPUT"
+
       # The action scans Git in both cases; select the covering range once.
       - name: TruffleHog all refs
         if: github.event_name == 'workflow_dispatch'
@@ -178,7 +192,7 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.pull_request.base.sha || github.event.before }}
+          base: ${{ steps.trufflehog-range.outputs.base || github.event.before }}
           head: HEAD
           extra_args: --only-verified
 
