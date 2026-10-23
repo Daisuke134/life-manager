@@ -48,13 +48,13 @@ primaryは既存CLI拡張を選ぶ。独立した新CLI/packageは起動入口�
 
 **Interfaces:** `factory_plan.build_plan(config: dict, script: str) -> dict`。CLIは２入力fileを読むだけでこの関数へ渡す。state_rootは展開・正規化して出力するだけ。request SHAは既存と同じUTF-8/ensure_ascii=False/sort_keys=True/separators=(",", ":")のSHA256。
 
-- [ ] EN/JA入力で要求・SHA・利用者投稿先が一致し、state_root未作成のままであるtestを先に書く。
-- [ ] 不正language/type/未知field・credential値・不正ID/URL/相対state root/空または長すぎる台本の拒否を最小のparametrized testで確認する。
-- [ ] CLI実経路で上記設定を渡し、HTTP/subprocessを失敗させるfixtureでも成功し、環境credentialを出力しないtestを先に書く。
-- [ ] 対応testを実行し、機能が未実装で失敗することを確認する。import errorだけのREDにはせず、CLIの欠落または期待動作のassertで確認する。
-- [ ] workerは標準ライブラリと既存builderで最小実装する。primaryは既存argparseへの接続と、設定例/台本を渡す実行例・未実施範囲をREADMEへ追加する。
-- [ ] 設定例にはplaceholderだけを使い、実integrationやcredentialを含めない。EN/JAの成功・失敗・隔離・zero-effect境界をGREENにする。
-- [ ] `rtk proxy env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=skills/earn/marketing-engine python3 -m pytest -q skills/earn/marketing-engine/test_factory_plan.py skills/earn/marketing-engine/render_eval/test_heygen_candidate.py skills/earn/marketing-engine/publish/test_intent_cli.py`を実行する。Expected: 関連全件PASS。
+- [x] EN/JA入力で要求・SHA・利用者投稿先が一致し、state_root未作成のままであるtestを先に書く。
+- [x] 不正language/type/未知field・credential値・不正ID/URL/相対state root/空または長すぎる台本の拒否を最小のparametrized testで確認する。
+- [x] CLI実経路で上記設定を渡し、HTTP/subprocessを失敗させるfixtureでも成功し、環境credentialを出力しないtestを先に書く。
+- [x] 対応testを実行し、機能が未実装で失敗することを確認する。import errorだけのREDにはせず、CLIの欠落または期待動作のassertで確認する。
+- [x] workerは標準ライブラリと既存builderで最小実装する。primaryは既存argparseへの接続と、設定例/台本を渡す実行例・未実施範囲をREADMEへ追加する。
+- [x] 設定例にはplaceholderだけを使い、実integrationやcredentialを含めない。EN/JAの成功・失敗・隔離・zero-effect境界をGREENにする。
+- [x] `rtk proxy env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=skills/earn/marketing-engine python3 -m pytest -q skills/earn/marketing-engine/test_factory_plan.py skills/earn/marketing-engine/render_eval/test_heygen_candidate.py skills/earn/marketing-engine/publish/test_intent_cli.py`を実行する。Expected: 関連全件PASS。
 - [ ] primaryが差分を確認し、source-boundary/diff check後commit/push、remote object一致を確認する。
 
 ## Task 2: 公開source受入と未完条件の保持
@@ -68,3 +68,5 @@ primaryは既存CLI拡張を選ぶ。独立した新CLI/packageは起動入口�
 
 - 既存linked worktreeを再利用する。新しいcheckoutやdependency installを増やさず、既存CLI helpとpublish intent関連7 testsのPASSを基準にする。
 - userのNo-human-loopとUIモデル選択を優先し、skillの承認待ち・モデル固定・無関係な全suiteは追加しない。独立作業の並行指示に従いbounded workerとprimaryで所有を分け、全差分reviewを保持する。
+
+- CLIのEN/JA成功assertは2 RED（argparse exit2）、pure plannerは39 RED（空plan/未検証）を先に観測する。統合した関連３filesはprimary/workerとも67 PASS。Loop Contract18業務/191jobs/errors0、OSSとdiffもPASS。whole-branch fresh reviewは進行中で、CI/main/releaseは未完。
