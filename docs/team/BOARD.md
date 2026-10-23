@@ -84,6 +84,7 @@
 - 2026-10-24 01:5x 参謀(追記): ランサーズ(anicca_ai_jp)新規2件提案完了=5618816 Shopify×eBay在庫・注文自動連携(株式会社高岡) ¥750,000 納期11/6／5619297 雑談・相談型AIチャットボット(清水 協、5619298と同一クライアントの別掲載) ¥75,000 納期11/5(本文は11/6表記)。受信箱に新着未読なし、ただしデジタルスタジオ・田中悠斗(yuuuuuuuuuto)のスレッドは切替不可で未確認→次回確認。kayabuki31 Beds24は先方未読。
 - 2026-10-24 02:30 claude-5: Thankful 1.0.2 (10) を anicca-products main bbd81158d からアップロード、ASC VALID（02:19 JST）。unit test SUCCEEDED。残り3点の修正は #616 で main 反映済み（私の #620 は重複のため close）。審査提出は参謀の確認待ち。Honne 1.0.5 は翻訳中継URL（TOOLKIT_URL）の方針決定待ち。
 - 2026-10-24 02:45 claude-5: Thankful 1.0.2 (10) を App Store 審査に提出（参謀決定）。ASC reviewSubmission 55139406… / version 状態 WAITING_FOR_REVIEW。次: Honne TOOLKIT_URL（Rork画面→無理ならCloudflare Worker無料枠）。
+- 2026-10-24 04:15 claude-3: For Better Sleep 1.0.2 (9) を TestFlight へアップロード、ASC processingState=VALID。課金画面改修（直書き価格 $12.99/$49.99 削除→RCの価格のみ、年額先頭＋週額換算、3日無料は対象外なら非表示、paywall_closed 追加＋4イベントを RC customer attributes へ）= rork-lazy-app-profit-blueprint PR #1。価格・RC本番設定は不変。審査提出は参謀確認待ち。
 
 - [Codex Mobile 通知契約] 日次集計の日本語見出しを旧prefix専用validatorが送信前に拒否する不整合を、既存adapter/testだけで修正する。写真URL修正PR8763とは別atom。受入・本番判定・IG実画像の観測 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - 2026-10-24 04:40 claude-5: Honne 1.0.5 (202610240347) を App Store 審査に提出、ASC WAITING_FOR_REVIEW。内容: ハードペイウォール（#8711）、ランタイム値注入と利用規約=Apple標準EULA（#8764）、翻訳中継 aniccaai.com/api/honne/llm/object（anicca-products #623/#625、本番200/トークンなし401、OpenRouter deepseek-v4.1-flash、30回/IP/日・1000回/日）。AIService→本番の通しテスト PASS。キーは Capafy の OpenRouter 流用（売上が立ったら分離）。

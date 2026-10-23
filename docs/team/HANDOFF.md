@@ -18,6 +18,7 @@
 
 | updated (JST) | owner | task | status | branch / PR / file | next（次の一手） | fallback |
 |---|---|---|---|---|---|---|
+| 2026-10-24 04:15 | daisuke/life-manager-main-claude-3 | For Better Sleep 課金画面改修→TestFlight（参謀依頼） | done（TestFlight） | Daisuke134/rork-lazy-app-profit-blueprint PR #1 / build 1.0.2 (9) VALID | 参謀が審査提出を判断。Sandbox で購入〜復元と4イベント記録を確認 | Config.swift は ~/.secrets-lm/revenuecat-sleepreset-ios-sdk から生成（コミット禁止） |
 | 2026-10-24 02:25 | daisuke/life-manager-main-claude-3 | Mac mini disk 回復（参謀依頼） | done | worktree 16本返却（統合済み・clean・lease期限切れ） | 空き 9.4→11GiB。release は全30本が LaunchAgent/実行中から参照され正規GCで削除0。15GiB 未達の主因は swap 13–15GB（Codex/ChatGPT/daily-driver 常駐）。SSH は sshd 正常、接続先は tailscale aniccanomac-mini-1。アプリ終了はログアウト後に | codex |
 | 2026-10-23 20:20 | daisuke/cursor (参謀) | HANDOFF.md 作成と aniccaai.com の Manager 文言更新 | in_progress | team/manager-entity-handoff | マージ後に本番表示を確認 | codex |
 | 2026-10-23 21:30 | daisuke/life-manager-main-claude-3 | Writer 記事公開の復旧（local_proxy env退役 #8586・見出し画像を finisher で生成 #8603・article-daily/resume fence #8621/#8645・judge を acct2 待機に #8646） | in_progress | main（全PR merged、release 20261023T162454-e6260790 以降に適用済み） | `tail ~/.local/state/life-manager/writer/articles.jsonl` に live_url が出るか確認。止まっていれば `lm-loop health --loop article-daily --explain` と `writer-claim-loop`（disk_floor_low だと topic 供給停止＝空き12GiB必要） | codex |
