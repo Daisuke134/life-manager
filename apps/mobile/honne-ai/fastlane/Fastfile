@@ -34,7 +34,9 @@ platform :ios do
 
   desc "Build and upload to TestFlight"
   lane :beta do
-    settings = runtime_settings
+    # Passed through the environment (xcodebuild expands $(VAR) from it), so the values never
+    # appear on the xcodebuild command line or in build/logs.
+    runtime_settings.each { |name, value| ENV[name] = value }
     api_key = app_store_connect_api_key(
       key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID", ""),
       issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID", ""),
@@ -51,7 +53,7 @@ platform :ios do
       scheme: "BenYinFanYiAI",
       configuration: "Release",
       export_method: "app-store",
-      xcargs: "#{settings.map { |k, v| "#{k}=#{v.shellescape}" }.join(' ')} -allowProvisioningUpdates -authenticationKeyPath '#{File.expand_path(ENV.fetch("APP_STORE_CONNECT_KEY_FILE", "~/.local/share/life-manager/private/app-store-connect-key.p8"))}' -authenticationKeyID #{ENV.fetch("APP_STORE_CONNECT_KEY_ID", "")} -authenticationKeyIssuerID #{ENV.fetch("APP_STORE_CONNECT_ISSUER_ID", "")}",
+      xcargs: "-allowProvisioningUpdates -authenticationKeyPath '#{File.expand_path(ENV.fetch("APP_STORE_CONNECT_KEY_FILE", "~/.local/share/life-manager/private/app-store-connect-key.p8"))}' -authenticationKeyID #{ENV.fetch("APP_STORE_CONNECT_KEY_ID", "")} -authenticationKeyIssuerID #{ENV.fetch("APP_STORE_CONNECT_ISSUER_ID", "")}",
       derived_data_path: "build",
       output_directory: "build/ipa",
       buildlog_path: "build/logs"
