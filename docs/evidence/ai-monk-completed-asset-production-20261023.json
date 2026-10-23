@@ -483,5 +483,77 @@
     "provider_mutations": 0,
     "private_evidence_sha256": "15f043307f6a56aadaf97a9de842edabc6bbcdf1c089f4fe22ce66e9ae126142",
     "remaining": "video_idに結び付く公式費用・通貨・transaction ID"
+  },
+  "english_coalescing_production_adoption": {
+    "checked_at": "2026-10-23T05:10:54.757806+00:00",
+    "run_id": "manual-en-coalescing-adoption-20261023",
+    "owner_id": "ebook-en-tiktok-daily",
+    "occurrence_id": null,
+    "release_sha": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+    "phase": "loaded_release_readback",
+    "command": "target-only native apply --loaded-idle-only using main-derived full immutable; current unchanged",
+    "exit_code": 0,
+    "effect": "owner_release_updated",
+    "provider_receipt_id": null,
+    "readback": {
+      "installed_matches_loaded": true,
+      "loaded_release_environment_matches": true,
+      "idle": true,
+      "install_event_id": "ce3b736c5a17f6d732bdc5f1",
+      "launchctl_response_sha256": "9921616113f75f4a18131a5923599fcee646b2ea2218c4be93dea7c8a2c90846",
+      "queued_occurrences": 159,
+      "effect_unknown_occurrences": 0,
+      "coalescing_execution_verified_in_production": false,
+      "free_bytes": 8900206592,
+      "required_revenue_free_bytes": 10737418240
+    },
+    "counts": [
+      {
+        "state": "cancelled",
+        "effect_unknown": 0,
+        "count": 100
+      },
+      {
+        "state": "queued",
+        "effect_unknown": 0,
+        "count": 159
+      },
+      {
+        "state": "released",
+        "effect_unknown": 0,
+        "count": 3777
+      }
+    ],
+    "error_class": "disk_floor_low",
+    "retryable": true,
+    "next_action": "native_existing_slot_run_when_native_disk_floor_met",
+    "effects": {
+      "new_generations": 0,
+      "posts": 0
+    },
+    "source_acceptance": {
+      "pr": "https://github.com/Daisuke134/life-manager/pull/8628",
+      "head": "2c065b285c168285baa36ad6b355a641a249eb5d",
+      "merge": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+      "ci_checks_success": 13,
+      "mandatory_scan_run_id": 39903308636,
+      "source_tests": 643,
+      "source_subtests": 210,
+      "fresh_review_findings": 0,
+      "fresh_review_tests": 122,
+      "independent_fixtures": [
+        "159_orphaned_wakes_history_retained",
+        "single_concurrent_claim",
+        "other_owner_fifo_preserved"
+      ]
+    },
+    "release_verification": {
+      "provenance": "ancestor-of-origin-main",
+      "release_paths": "ALL",
+      "writable_entries": 0,
+      "regular_files": 9323,
+      "source_byte_match": true,
+      "current_selector_changed": false
+    }
   }
 }
