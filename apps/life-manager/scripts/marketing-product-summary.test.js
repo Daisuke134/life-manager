@@ -1,5 +1,72 @@
 "use strict";
-const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test"); const { importContentObject } = require("../lib/content-object-store.js"); const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview } = require("./marketing-product-summary.js");
+const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test"); const { importContentObject } = require("../lib/content-object-store.js"); const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview, sendSummary } = require("./marketing-product-summary.js");
+const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
+const { buildMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
+
+async function summaryDeliveryFixture(t) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-summary-delivery-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const summary = persistAniccaDaily(dataDir, "2026-10-23", "2026-10-23T19:19:22.638Z");
+  const summaryRef = importContentObject(summary.file, { objectDir: path.join(dataDir, "objects") }).ref;
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload: { lane: "marketing-product-summary-anicca", product: "anicca-ios", locale: "ja", platform: "multi", status: "summary", period: "daily", observed_at: summary.snapshot.observed_at, summary_ref: summaryRef } });
+  const store = createMarketingLocalLedger({ dataDir });
+  await store.enqueueJob({ ...job, available_at: "2026-01-01T00:00:00.000Z" });
+  const id = { tenantId: job.tenant_id, jobId: job.job_id };
+  const worker = { ...id, capability: job.capability, workerId: "fixture-worker", leaseSeconds: 120 };
+  const claim = await store.claimJob(worker);
+  const env = { LM_TELEGRAM_BOT_TOKEN: "fixture-token", LM_TELEGRAM_ALERT_CHAT_ID: "fixture-chat" };
+  const sent = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.equal(url, "https://api.telegram.org/botfixture-token/sendMessage");
+    sent.push(JSON.parse(options.body).text);
+    return { json: async () => ({ ok: true, result: { message_id: 708 } }) };
+  });
+  return { dataDir, summary, store, id, worker, claim, env, sent };
+}
+
+test("a retained summary retries the same known no-effect job and never resends its receipt", async (t) => {
+  const f = await summaryDeliveryFixture(t);
+  await f.store.failJob({ ...f.worker, attempt: f.claim.attempt, errorCode: "CAPABILITY_EXECUTION_FAILED", unknownEffect: false });
+  const result = await sendSummary({ ...f.summary, created: false }, f.env, f.dataDir);
+  assert.equal(result.message_id, 708);
+  assert.equal((await f.store.readJob(f.id)).status, "completed");
+  assert.equal((await f.store.readJob(f.id)).attempt, 2);
+  assert.equal((await f.store.readReceipt(f.id)).message_id, 708);
+  assert.deepEqual(f.sent, [f.summary.snapshot.message]);
+  assert.equal((await sendSummary({ ...f.summary, created: false }, f.env, f.dataDir)).created, false);
+  assert.equal(f.sent.length, 1);
+});
+
+test("retained summary recovery preserves running, unknown and retry-limit fences", async (t) => {
+  for (const state of ["running", "unknown", "exhausted"]) await t.test(state, async (t) => {
+    const f = await summaryDeliveryFixture(t);
+    if (state !== "running") {
+      await f.store.failJob({ ...f.worker, attempt: f.claim.attempt, errorCode: "fixture_failure", unknownEffect: state === "unknown" });
+      if (state === "exhausted") for (let i = 0; i < 2; i++) {
+        await f.store.retryJob(f.id);
+        const claim = await f.store.claimJob(f.worker);
+        await f.store.failJob({ ...f.worker, attempt: claim.attempt, errorCode: "fixture_failure", unknownEffect: false });
+      }
+    }
+    const before = await f.store.readJob(f.id);
+    assert.equal((await sendSummary({ ...f.summary, created: false }, f.env, f.dataDir)).created, false);
+    assert.deepEqual(await f.store.readJob(f.id), before);
+    assert.deepEqual(f.sent, []);
+  });
+});
+
+test("summary delivery cannot report success without a durable Telegram receipt", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-summary-no-receipt-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const summary = persistAniccaDaily(dataDir, "2026-10-23", "2026-10-23T19:19:22.638Z");
+  summary.snapshot.message = "Invalid sender：送信前に拒否する本文";
+  fs.writeFileSync(summary.file, JSON.stringify(summary.snapshot));
+  t.mock.method(globalThis, "fetch", async () => { assert.fail("invalid summary must not reach the provider"); });
+  await assert.rejects(sendSummary(summary, { LM_TELEGRAM_BOT_TOKEN: "fixture-token", LM_TELEGRAM_ALERT_CHAT_ID: "fixture-chat" }, dataDir), /marketing product summary receipt unavailable/);
+  const jobs = fs.readFileSync(path.join(dataDir, "marketing/jobs.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line).job);
+  assert.equal(jobs.at(-1).status, "failed");
+  assert.equal(jobs.at(-1).unknown_effect, false);
+});
 
 test("attribution coverage joins product totals while keeping activation and retention unavailable", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-attribution-summary-")); const day = "2026-08-23"; const objectDir = path.join(dataDir, "objects");

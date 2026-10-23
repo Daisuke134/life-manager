@@ -220,10 +220,23 @@ function persistWeeklyReview(dataDir, reportDay, observedAt) {
 }
 
 async function sendSummary(result, env, dataDir) {
-  if (!result.created) return { created: false, reason: "summary_replay" }; const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const summaryRef = objectStore.import(result.file).ref;
+  const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const summaryRef = objectStore.import(result.file).ref;
   const route = SUMMARY_ROUTES[result.snapshot.product_id]; if (!route) throw new Error("marketing product summary route is unavailable");
-  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload: { lane: route.lane, product: result.snapshot.product_id, locale: route.locale, platform: "multi", status: "summary", period: result.snapshot.period, observed_at: result.snapshot.observed_at, summary_ref: summaryRef } }); const store = createMarketingLocalLedger({ dataDir }); const queued = await store.enqueueJob({ jobId: job.job_id, tenantId: job.tenant_id, loopId: job.loop_id, capability: job.capability, effectClass: job.effect_class, effectKey: job.effect_key, inputRefs: job.input_refs, maxAttempts: job.max_attempts, availableAt: new Date().toISOString() }); if (!queued.created) return { created: false, reason: "telegram_replay" };
-  const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId: "marketing-product-summary", leaseSeconds: 120 }); if (!claim) throw new Error("marketing product summary job is not claimable"); await executeCapabilityJob(claim, { workerId: "marketing-product-summary", handlers: { [job.capability]: (candidate) => executeMarketingLivenessJob(candidate, { secretProvider: { get: async () => env.LM_TELEGRAM_BOT_TOKEN }, chatProvider: { get: async () => env.LM_TELEGRAM_ALERT_CHAT_ID }, snapshotProvider: { get: async (_tenantId, ref) => JSON.parse(fs.readFileSync(objectStore.resolve(ref), "utf8")) } }) }, heartbeatJob: (input) => store.heartbeatJob(input), completeJob: (input) => store.completeJob(input), failJob: (input) => store.failJob(input), leaseSeconds: 120 }); const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id }); return { created: true, message_id: receipt?.message_id, summary_ref: summaryRef };
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload: { lane: route.lane, product: result.snapshot.product_id, locale: route.locale, platform: "multi", status: "summary", period: result.snapshot.period, observed_at: result.snapshot.observed_at, summary_ref: summaryRef } }); const store = createMarketingLocalLedger({ dataDir });
+  const identity = { tenantId: job.tenant_id, jobId: job.job_id };
+  if (!result.created && !await store.readJob(identity)) return { created: false, reason: "summary_replay" };
+  const queued = await store.enqueueJob({ jobId: job.job_id, tenantId: job.tenant_id, loopId: job.loop_id, capability: job.capability, effectClass: job.effect_class, effectKey: job.effect_key, inputRefs: job.input_refs, maxAttempts: job.max_attempts, availableAt: new Date().toISOString() });
+  if (!queued.created) {
+    const prior = queued.job;
+    if (prior.status !== "failed" || prior.unknown_effect !== false || prior.attempt >= prior.max_attempts || await store.readReceipt(identity)) return { created: false, reason: "telegram_replay" };
+    await store.retryJob(identity);
+  }
+  const claim = await store.claimJob({ ...identity, capability: job.capability, workerId: "marketing-product-summary", leaseSeconds: 120 }); if (!claim) throw new Error("marketing product summary job is not claimable"); await executeCapabilityJob(claim, { workerId: "marketing-product-summary", handlers: { [job.capability]: (candidate) => executeMarketingLivenessJob(candidate, { secretProvider: { get: async () => env.LM_TELEGRAM_BOT_TOKEN }, chatProvider: { get: async () => env.LM_TELEGRAM_ALERT_CHAT_ID }, snapshotProvider: { get: async (_tenantId, ref) => JSON.parse(fs.readFileSync(objectStore.resolve(ref), "utf8")) } }) }, heartbeatJob: (input) => store.heartbeatJob(input), completeJob: (input) => store.completeJob(input), failJob: (input) => store.failJob(input), leaseSeconds: 120 }); const receipt = await store.readReceipt(identity);
+  if (!receipt) {
+    const state = await store.readJob(identity);
+    throw Object.assign(new Error("marketing product summary receipt unavailable"), { unknownEffect: state?.unknown_effect === true });
+  }
+  return { created: true, message_id: receipt.message_id, summary_ref: summaryRef };
 }
 
 module.exports = { latestDaily, persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistProductDaily, persistWeeklyReview, sendSummary };
