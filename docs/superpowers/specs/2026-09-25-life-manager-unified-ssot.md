@@ -297,6 +297,8 @@ lane適用: browser ownerを既存apply_targetsから先に扱い、既存with-b
 - [x] INSTALL-GREEN: 薄い入口の初回実装で担当3files220 PASSを確認する。JSON配列productのAttributeErrorを追加1件でREDにして既存readerの再利用で修復し、workerは関連12files421 PASS/31 subtests（16.64s）とlocal identity12 PASS（0.69s）を確認する。primaryのfresh read-only reviewは対話loginの案内非表示1件をblockingとし、公式Codex CLIのURL表示とbrowser起動失敗時の待機契約で根拠を確認する。隔離fake executableの実subprocessでURL非表示を1 failed（0.36s）にしてから、対話loginだけstdout/stderrを本人端末へ継承し、statusの捕捉とselected CODEX_HOMEを保持する。最終primaryの入口/owner/create/local_installの4filesは241 PASS/31 subtests（9.93s）、既存product onboardingは47 PASS。shell/AST/compile/JSON/source-boundary/diffをPASSし、実通信・実private・browser・host操作は0とする。reviewの修正再確認後にSHIPへ進む。
 - [ ] INSTALL-SHIP: 外部向けの短い手順とcatalog commandを更新し、commit/push→必要review/既存CI→main/公式readbackへ反映する。fresh read-only reviewは対話loginの修正後にblocking0とし、追加回帰を一時HOME/実通信禁止で独立1 PASS（0.32s）にする。main追加分は既存SSOTとteam docsのみで通常mergeし、保護対象memory/state差分0を確認する。本人実機でのaccepted immutableによる導入、READY-B、自然terminal/公式成果、別Mac/10,000 starsは残し、mock成功を全7jobsの本番成功にしない。
 
+INSTALLのCI診断: PR #8772/head1abeaca17f9dc34da58874e12da1bfa91e732b7bのworkflow40012531602でWeb CTAが失敗する。既存catalog list CLI testが未導入入口数10件を固定期待し、Lancers追加後の実9件を拒否するため、同じ8filesを一時HOMEで121 PASS/1 FAILに再現する。期待値を9件へ更新し、公開Lancers commandの一致も確認する。同じ8filesは122 PASSへ戻り、production sourceや未充足業務の成功判定は変更しない。更新headの全CIを受け入れてからmergeする。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
