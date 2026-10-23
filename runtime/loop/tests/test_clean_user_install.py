@@ -528,8 +528,6 @@ class CleanUserInstallTest(unittest.TestCase):
             self.assertTrue(refs)
             self.assertTrue(all(value.startswith("secret://") for value in refs))
 
-            readme = (release / "README.md").read_text()
-            self.assertIn("### Use it — cloud", readme)
             self.assertTrue((release / "LICENSE").is_file())
 
             notices = (release / "THIRD_PARTY_NOTICES.md").read_text()

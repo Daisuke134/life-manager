@@ -149,6 +149,49 @@ def test_full_host_prepare_installs_only_missing_gmail_tool(tmp_path, gog_presen
     assert "brew install jq" not in box.log()
 
 
+@pytest.mark.parametrize("auth", ["existing", "login", "failed", "unconfirmed", "prepare"])
+def test_full_host_install_authenticates_before_registering_jobs(tmp_path, auth):
+    box = RuntimeSandbox(tmp_path)
+    script = box.copy_script("scripts/install-local.sh")
+    box.copy_script("scripts/macos-runtime.sh")
+    python = box.python(box.home / ".local/share/life-manager/venv/bin/python")
+    box.env["LIFE_MANAGER_PYTHON"] = str(python)
+    box.env["SANDBOX_AUTH"] = auth
+    box.env["SANDBOX_AUTH_FILE"] = str(tmp_path / "authenticated")
+    if auth == "existing":
+        (tmp_path / "authenticated").touch()
+    for name in ("node", "npm", "jq", "ffmpeg", "fc-list", "gog"):
+        box.executable(box.bin / name, "#!/bin/bash\nexit 0\n")
+    box.executable(box.bin / "codex", '''#!/bin/bash
+printf 'codex %s\n' "$*" >> "$SANDBOX_CALLS"
+if [ "$*" = 'login status' ]; then
+  [ -f "$SANDBOX_AUTH_FILE" ]; exit $?
+fi
+[ "$*" = login ] || exit 94
+[ "$SANDBOX_AUTH" != failed ] || exit 1
+if [ "$SANDBOX_AUTH" = login ]; then
+  printf authenticated > "$SANDBOX_AUTH_FILE"
+fi
+''')
+    command = "prepare" if auth == "prepare" else "install"
+    result = subprocess.run(["/bin/bash", str(script), command], env=box.env,
+                            capture_output=True, text=True, timeout=10)
+    dispatched = f"-m runtime.loop.local_install {command}" in box.log()
+    if auth in {"failed", "unconfirmed"}:
+        assert result.returncode != 0
+        assert not dispatched
+    else:
+        assert result.returncode == 0, result.stderr
+        assert dispatched
+    if auth == "prepare":
+        assert "codex " not in box.log()
+    elif auth == "existing":
+        assert "codex login status" in box.log()
+        assert "codex login\n" not in box.log()
+    else:
+        assert "codex login\n" in box.log()
+
+
 def test_compatible_node_and_npm_do_not_install_dependencies(tmp_path):
     box = RuntimeSandbox(tmp_path)
     box.executable(box.bin / "node", "#!/bin/bash\nexit 0\n")
@@ -156,6 +199,21 @@ def test_compatible_node_and_npm_do_not_install_dependencies(tmp_path):
     result = box.run_helper('lm_ensure_node')
     assert result.returncode == 0, result.stderr
     assert "brew " not in box.log()
+
+
+def test_full_host_prepare_refuses_incomplete_browser_dependencies(tmp_path):
+    box = RuntimeSandbox(tmp_path)
+    script = box.copy_script("scripts/install-local.sh")
+    box.copy_script("scripts/macos-runtime.sh")
+    python = box.python(box.home / ".local/share/life-manager/venv/bin/python")
+    box.env.update(LIFE_MANAGER_PYTHON=str(python), SANDBOX_IMPORTS_MISSING="1")
+    for name in ("node", "npm", "jq", "ffmpeg", "fc-list", "gog"):
+        box.executable(box.bin / name, "#!/bin/bash\nexit 0\n")
+    result = subprocess.run(["/bin/bash", str(script), "prepare"], env=box.env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0
+    assert "-m runtime.loop.local_install" not in box.log()
+    assert "codex " not in box.log()
 
 
 def test_old_node_is_replaced_by_selected_homebrew_node(tmp_path):

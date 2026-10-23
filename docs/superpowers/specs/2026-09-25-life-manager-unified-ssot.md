@@ -1,5 +1,37 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## README整理とMac導入の継続修復
+
+**目的・範囲:** READMEを初めて使う人が用途とMac導入をすぐ理解できる長さへ整理し、公開bootstrapから本人のMacで起動する経路の再現済み不具合を修復する。人気公開repoの実READMEとinstallerを一次資料として比較する。WebMCP/ハッカソン、個別運用履歴、内部owner名は入口から外し、必要な詳細は既存docsへ案内する。既存MAC02–05の全agent・本人設定・自然実行の受入範囲は維持し、別Mac実機やprovider成果を隔離テストで代用しない。他sessionのworktree、production browser、進行中effectは変更しない。
+
+**Daisの追加要件:** READMEは内部報告ではなく、背景知識のない外部利用者へ書く。Localの導入条件はChatGPT subscription（Plusで十分）とスリープしないMac/Mac miniを先に示す。内部owner名、same-core/host-adapter説明、運用受入履歴、会社名のform入力規則は本文に置かない。個別serviceの本人loginと追加provider条件は必要時の詳細guideへ案内する。獲得目標は実利用に基づくGitHub 10,000 stars。公式repo APIの開始snapshotは8 starsで、README変更だけを10,000達成と扱わない。今回の入口と導入の反映後、実利用・導入成功・starsを測りながら成長を継続する。
+
+**完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
+
+**順序・現在cursor:** 既存MAC01とMAC04 source受入を保持し、README-MAC-01（比較・入口整理）とREADME-MAC-02（公開導入の呼出し境界診断・修復）を並行、統合後に既存MAC02–05へ戻る。理由は、前回の共通installerがPR #8617でmainへ入っており、再実装せず公開入口と残る停止点を直すため。所有worktree=`.worktrees/readme-mac-product-20261023`、branch=`fix/readme-mac-product-20261023`、owner=`codex-readme-mac-product`。旧portability worktreeは別ownerのleaseを維持する。
+
+- [x] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。英日各52行、導入コマンドは26行目。内部情報を本文へ強制する旧assertを削除し、metadata/旧URL禁止は保持する。North StarはTHESISへ移設する。
+- [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
+- [ ] README-MAC-03: focused/context/contract、review、CI、main、公開readbackを確認し残る実機条件を記録する。
+
+現在cursor=README-MAC-03、PR #8666。primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASS、migration/shell/diff/loop contractもPASS。独立read-only reviewとCIを確認してからmainへ統合する。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
+
+独立reviewはcode/doc head `7485228e62`で0 findings/SHIP、installer28/context20/リンク42件とURL・shell・diffを再確認する。Intel macOS14/Python3.14の全requirements wheel解決もexit0で、実機検証とは分ける。CIはcatalog全18名称を英日READMEへ要求する旧assertだけが失敗するため、名前一覧の移設先`docs/agents.md`へ参照を揃える。catalog構造・runtime・financial契約のassertは保持する。
+
+CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件を検出する。公開文書のsender欄をprivate設定参照へ置き換える最小修復だけを追加し、個人アドレスをchat/logへ再出力せず、PII scanner/allowlistは緩めない。mainの並行変更は通常mergeで取り込み、他ownerの内容を維持する。追加差分reviewは一覧参照の移設とSSOTについて0 findings/SHIP、該当Web CTA一式122件もPASS。
+
+同じCIのclean-user archive testには、旧READMEのCloud見出しをexact一致させるassertが残る。見出し2行の読み取り/assertだけを削除し、公開archiveのmanifest・secret reference・license・third-party契約は維持する。新しい`docs/team/README.md`の「唯一の正本」はこの統合SSOTと競合するため、上位の既存作業順・本依頼のTODO正本を維持し、team boardには連携記録だけを残す。
+
+**導入の再現対象:** `scripts/install-local.sh`はCodex CLIの存在だけで全job登録へ進み、本人の認証を確認しない。同じrepoのCoconala `prepare`は`codex login status`→必要時のみ公式`codex login`→再確認を実装している。この既存方式を全体`install`にも適用し、未認証・login失敗・成功応答だけで認証状態が変わらない場合はjob登録前に止める。既存認証は再loginしない。`prepare`とread-only `plan`はloginを開始しない。隔離fixtureで登録開始の有無を検証し、実account/sessionは操作しない。
+
+**確認した証拠:** 追加5ケースは旧実装で4 fail/1 pass（認証確認がなく、失敗・未確認でも登録開始）、修正後は全PASS。既存を含むinstaller27件、public bootstrap10件、host/fleet/install36件の計73件がPASS。loop contractは18 products/192 registry jobs/113 mapped/errors0で、旧specの191/112は当時のsnapshotである。最初の検証はruntime venvの既存`site-packages/scripts`がrepoのnamespaceを隠して2 import errorsとなるため、開発用Python3.14とunittest discoverで同bootstrapを実行し10件PASSを確認した。runtime依存やCIをこのために変更していない。
+
+**空環境の追加不具合:** 新規venvへ現`requirements-runtime.txt`全体を実際にinstallするとpipはexit0だが、既存Coconala installerと同じimport smokeが`ModuleNotFoundError: bs4`でexit1になる。Mercor/Coconalaが使う`websockets`は現解決結果ではweb3由来で入るが、`beautifulsoup4`は入らない。既存使用ライブラリ`beautifulsoup4==4.14.3`を共通runtimeへ追加し、pip後・認証/登録前に既存5 importの最小smokeを行う。不完全な依存で登録へ進まない隔離回帰を追加する。新しい業務機能や依存frameworkは作らない。
+
+追加回帰は旧実装で1 fail、修正後はinstaller関連28件PASS。空venvで更新した全requirementsのinstall exit0と5 imports exit0も確認する。READMEの比較はn8n 208,370/OpenHands 91,618/Open Interpreter 68,640/AutoGPT 187,713 starsの公式repo/README/installerに基づく。starsはREADMEによる成長因果の証拠とはしない。英日READMEは各52行、Quick startは冒頭、比較根拠と移設先は`docs/readme-references.md`。公式repo trafficの観測窓合計はclones=84,297/unique=4,515、views=66/unique=31で、自分たちのCI/automationと外部利用者を分離できないため実利用人数やconversion rateとは扱わない。
+
+**現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
@@ -3210,7 +3242,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **TODO順更新:** 旧順=`四fence照合→disclosure→render→IG→catalog`。新順=`(1) EN TikTokの旧HeyGen要求を無料read-onlyで照合し、独立して既存registryから実Postiz disclosureを修正 → (2) evidenceを失うarticle compose境界を修正 → (3) 修正sourceをfocused tests/PR/main/immutableへ反映し、EN TikTokとebook-articlesのloaded-idle ownerだけ採用し、他三ownerは保持 → (4) 既存08/21自然slotのPUBLISHED/URL/cost/流入を照合 → (5) 残る三fenceはexact official proofを個別回復 → (6) 無料枠ができた時だけInstagram接続 → (7) 新刊 The Art of AI Monks、OSS factory、subscription化`。理由はEN ownerのadmission fenceが既に解消しており、IGは30/30、HeyGenの旧未知要求とdisclosureが現在の実測blockerであるため。AI monk indexと英日4記事はproducts PR #551、main `d4380515c995abd0611987bedead436fbe432dcb`、Netlify success、75 records/48 sourcesを本番確認済み。全体企画の正本はproducts repo `docs/superpowers/specs/2026-10-21-ai-monk-avatar-field-guide.md`、Life Managerの運用TODO正本は本節とする。
 
-**現在cursor:** AM-14 / S11.4は完成済み英語動画の通常FIFO/admission待ち、独立source cursorはAM-15cのpublisher利用者context設計である。既存manual3回は子の投稿処理前に延期し、新規生成0/投稿0を保持する。PR8643/main d8008b39のEN deterministic分類は正規採用済みで、既存queue identity/sequence/優先順は維持する。08:46 UTCの明示RO transactionはfree14,342,651,904Bで10GiB下限を満たすが、finite10/10・agent4/4・通常順40/48・予約なし・queue1/unknown0、FIFO許可falseであり4回目を要求しない。容量不足の古いsnapshotを現在状態と扱わない。JA TikTok/Instagram旧fenceはexact official proofとreplay cleanで閉じ、写実avatar sourceはPR8651/main/固定版まで受入済み。JA2ownerはdisabled/unloadedを維持し、水彩配信を再開しない。HeyGenのlist_rate USD0.516667はcash debitを証明せずwallet_cost=null/別slot新規生成guardを保持する。AM-15a offline planとAM-15b local render入口はmain由来固定版まで受入済みだが、publisher接続、事前USD cap、実生成/日次投稿、旧費用照合、EN Instagram残fence/未接続30/30、実購入/paid納品/利益、Factory MCP/subscription/他者導入は未完。日本語書籍告知の販売URLはnative返信2113556550073921584で補完し、投稿と送客/注文を分ける。運用TODO正本は本節、公開商品の正本はproducts field guideとする。
+**現在cursor:** AM-14 / S11.4は完成済み英語動画の通常FIFO/admission待ち、独立source cursorはAM-15cのpublisher利用者context設計である。既存manual3回は子の投稿処理前に延期し、新規生成0/投稿0を保持する。PR8643/main d8008b39のEN deterministic分類は正規採用済みで、既存queue identity/sequence/優先順は維持する。09:10 UTCの明示RO transactionはfree12,170,477,568Bで10GiB下限を満たすが、finite10/10・agent4/4・予約なし・対象queue0/unknown0、待機全体38件であり4回目を要求しない。前snapshotの順位40/48を現在順位と扱わない。容量不足の古いsnapshotを現在状態と扱わない。JA TikTok/Instagram旧fenceはexact official proofとreplay cleanで閉じ、写実avatar sourceはPR8651/main/固定版まで受入済み。JA2ownerはdisabled/unloadedを維持し、水彩配信を再開しない。HeyGenのlist_rate USD0.516667はcash debitを証明せずwallet_cost=null/別slot新規生成guardを保持する。AM-15a offline planとAM-15b local render入口はmain由来固定版まで受入済みだが、publisher接続、事前USD cap、実生成/日次投稿、旧費用照合、EN Instagram残fence/未接続30/30、実購入/paid納品/利益、Factory MCP/subscription/他者導入は未完。日本語書籍告知の販売URLはnative返信2113556550073921584で補完し、投稿と送客/注文を分ける。運用TODO正本は本節、公開商品の正本はproducts field guideとする。
 
 **AM-14既存動画の本番実行契約:** 新規生成0、video492ee7b0f41372ab6856594c9096ea6f/slot2026-10-08T23:00:00.000Z/media SHA7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566を維持する。native runnerのfresh manual ID・通常admission・owner lock・Postiz disclosureを使い、実際のclaimが同要求の場合だけ1回投稿する。古いnormal FIFOは削除/force-clearせず、既存取消APIのeffect-free条件・各行のidentity・将来予定の有無を検証して正規取消可否を判断する。今回だけのUI検証用/private/tmp/ai-monk-ui-check-20261023/node_modules内typescript、lucide-react、tailwindcss、react-domは再生成可能で非稼働・保護storeなし・open handleなしを再確認後に回収する。next内のmemoryを含む親全体は触らない。source/package lock/公式動画/receiptは保持し、前後容量をprivate evidenceへ保存する。実行後は公式Postiz PUBLISHED/対象account/投稿URLを照合し、source受入やexit0を公開成功と混同しない。
 
@@ -3239,6 +3271,12 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 **AM-15b順序と範囲:** 旧source cursor=AM-15a offline plan受入。新source cursor=AM-15b local実行入口の設計→利用者設定のrender接続→既存publisherへの利用者context接続。理由はAM-15aがPR8654/main247474a9と結果記録PR8656/main5db7ca64で受入済みであり、provider呼出なしのsource実装/隔離testsはEN通常admission・未知費用照合・Xリンク補完の進行を待たずに進められるため。EN/JA既存owner・unknown fence・容量floor・共有current・cadence・既存投稿は変更しない。実生成/投稿の受入は正規admission/費用ガードと公式receiptが揃うまで未完を保持する。実装計画正本 → docs/superpowers/plans/2026-10-23-ai-monk-factory-local-execution.md。
 
 **AM-15b source検証:** 初期CLI2件argparse2/helper期待assertのRED、追加37境界REDからGREENにする。account lock待機前のdisk許可を使う反例もREDで再現し、既存gateをlock取得後/未確定要求確認後/renderer直前へ置く。関連4files111 PASS（新規44/既存67）、Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。live provider/credential読取0。利用者configは既存builderへ渡し、同じhost dataのlock/pending sidecarを共有する。whole-branch fresh reviewerは指摘0件、独立111 PASS。PR8658のexact head04b8d8be5c59f7a256cc2dc319d53747dae151aaは全13checks/sec-scan39925919453成功後、main dfa0dc02e8ad240ccb854466aff92c61218159c2へ統合する。main由来ALL固定版20261023T174411-dfa0dc02は11,370entryの書込bit0、主要8fileがreview済みhead/mainのGit bytes両方と一致する。実固定版のfactory/render helpはexit0、既存host disk helper実呼出は許可true/provider_calls0/network禁止で、render entry自体は呼ばない。空き14,338,805,760B、共有currentは20261023T170529-247474a9をRO確認しactivationしない。private release proof SHA f8a9191d2b53561e8c635e9b4f943b80914fe1beaf85aeae8bd4fb433e0b3596。source/固定版の受入まで完了し、実生成/投稿/費用確定/売上の受入とは区別する。次は既存IntentStore/PostizAdapterへ接続するAM-15cの利用者contextで、未知費用guard・停止owner・正規admissionを維持する。
+
+**AM-15c publisher接続契約:** v1 configは維持し、別の厳密な投稿JSONと単一PublishContextを既存create/shadow/preflight/Postiz操作/route/reconcileへ渡す。default registry/Hook Labは変更せず、単一host DB・platform/integration由来account ID・run固定intent・既存asset承認とeffect fenceを使う。既存registry integration/handleとの衝突、素材/生成sidecar改変、未承認、別slot/本文の同run再実行を拒否する。providerの再実装や新schedulerは作らない。実装順はcontext伝播とFactory入口を並行→関連RED/GREEN→fresh review/CI/main/固定版であり、実生成/投稿/売上とsource受入を分ける。利用者publisher/MCP/subscription/事前USD capは未完を保持する。具体入力・所有・検証正本 → docs/superpowers/plans/2026-10-23-ai-monk-factory-publisher-context.md。
+
+**AM-15c source検証中:** 利用者contextと既存publisherへのCLI接続を実装する。context未実装15件/Factory入口欠落のREDと、別intentへのpublish_key付替え反例REDを確認し、共有store原本との完全一致で修復する。関連14files209件＋環境credentialを渡さない実CLI prepare1件がPASS、default registry/Hook Lab・既存approval/media拒否は保持する。live provider/credential/browserは0。whole-branch fresh review/CI/main/固定版、実配信/費用上限/売上は未完。
+
+**AM-15c review修復:** fresh reviewerは旧head c7e328dcの独立210 PASSと追加指摘0の範囲を確認し、同一epochのtimezone表記差によるslot二重予約1件を検出する。+09:00/+00:00/.000Zの3 RED後、Factory境界でUTC ISOへ正規化しroot38 PASS。修正後review/exact CI/main/固定版は未完である。旧headのPII CIは別main仕様書のpersonal_gmail1件で、当変更範囲のscanは0件。検査を緩めずownerと是正する。
 
 **AI Monk新刊の実注文readback:** 2026-10-23T08:30:14.240912+00:00のStripe公式GETで既存live account identity、英日２product/price、product作成時刻以降のcompleted Checkout全pageを照合する。completed session0/新刊英語SKU paid0/日本語SKU paid0、provider write/self-purchase0。公開・Checkout有効化を売上と扱わず、paid納品・実購入・手数料/返金/settlement後利益は未実証のまま残す。日本語書籍X告知後の再照合でも同じ0件で、campaign送客や利益は推測しない。private evidence SHAa69301a6e2e86b1dbb1d77274c852e838839159a9c61f8e36fc25836029e87ee。
 

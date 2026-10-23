@@ -100,7 +100,7 @@ python3 bin/lm factory plan --config my-monk.config.json --script my-script.txt
 
 この段階ではstate directoryの作成、認証、voiceや連携のprovider照合、動画生成、投稿を行わない。
 有効な計画の出力は公開や収益の証明ではない。実生成は次のcommandから行う。
-投稿の実行入口、費用上限と照合、他ユーザー向け導入、Factory MCPと
+費用上限と照合、他ユーザー向け導入、Factory MCPと
 hosted subscriptionは残る作業である。
 Databaseを検索するAI Monk Index CLI/MCPとは別の機能として扱う。
 
@@ -132,9 +132,50 @@ HeyGenのlockと費用sidecarは、host共通の`LM_DATA_DIR/marketing/ebook`に
 この入口には生成前のUSD費用上限保証がない。既存wallet/auto-reload閾値の確認と
 費用差分/unknownガードの範囲を超えて、上限内に収まるとは説明しない。
 
-このcommandは投稿しない。利用者の投稿先・disclosure・caption・商品URL・asset承認を
-既存publisherへ渡す接続、実課金/実投稿/日次自動運転/実売上、Factory MCPと
-hosted subscriptionは残る作業である。
+このcommandは投稿しない。投稿先と素材確認記録は次の入口から既存publisherへ渡す。
+実課金/実投稿/日次自動運転/実売上、Factory MCPとhosted subscriptionは残る作業である。
+
+
+### 生成済み動画の投稿を進める
+
+`examples/ai-monk-factory.publication.example.json`をコピーし、自分のnative handle、
+本文、CTA、追跡token、timezone付き投稿時刻、既存の素材確認IDを設定する。
+投稿時刻はUTCへ正規化し、時差や小数秒の表記を変えても同じ投稿枠として扱う。
+configの商品URLとcaption中の販売URLは完全一致させ、追跡tokenをそのURLに含める。
+例の`publish_enabled`はfalseで、公開する場合は自分の連携を確認してtrueへ変える。
+API keyは既存の`POSTIZ_API_KEY`環境設定を使い、どちらのJSONへも保存しない。
+
+```sh
+python3 bin/lm factory publish --config my-monk.config.json --script my-script.txt --publication my-publication.json --run-id first-video --operation prepare
+```
+
+prepareは生成要求SHA/完成receipt/素材SHAを照合し、変更できないintentと共有slotを保存する。
+外部providerを呼ばず、素材確認を自動作成しない。戻り値のproduct_id/account_id/approvals_pathと
+intentにあるasset_pathを使い、実際の素材確認に基づく既存`publish approve`の記録を作る。
+ownerの確認は自分または実際に委任した確認者の記録とし、人間が確認していない素材を
+人間の確認済みと記載しない。確認ID・素材SHA・商品・accountが一致しない場合は止まる。
+
+shadowは素材/media/確認記録を検査する。route-checkは公式integrationの本人handle・provider・
+disabled状態を照合する。各upload/draft/promoteの直前にも同じ検査を行う。
+
+```sh
+python3 bin/lm factory publish --config my-monk.config.json --script my-script.txt --publication my-publication.json --run-id first-video --operation shadow
+python3 bin/lm factory publish --config my-monk.config.json --script my-script.txt --publication my-publication.json --run-id first-video --operation route-check
+python3 bin/lm factory publish --config my-monk.config.json --script my-script.txt --publication my-publication.json --run-id first-video --operation upload --production
+python3 bin/lm factory publish --config my-monk.config.json --script my-script.txt --publication my-publication.json --run-id first-video --operation draft --production
+python3 bin/lm factory publish --config my-monk.config.json --script my-script.txt --publication my-publication.json --run-id first-video --operation promote --production
+```
+
+状態はhost共通の`marketing/ebook/factory`へ保存する。利用者state_root/projectを変えても
+同じintegrationは同じaccount ID/DBを使う。既存Dais registryと衝突する連携/handleは拒否し、
+既存owner経路を使う。別名から停止accountや費用fenceを迂回しない。
+同runの台本・設定・本文・日時・出力の変更と、同account/同slotの別intentは拒否する。
+再試行は同run/同入力を使い、unknown/rejectedの操作を再送せず公式readbackを続ける。
+
+promoteの成功はscheduledで、PUBLISHEDや売上ではない。`status`で保存状態を読み、
+`postiz-readback`で公式postを取得し、公開済みのnative証拠JSONを用意し、`--operation reconcile --post post.json --native native.json`で照合する。Instagram native証拠の自動収集はこの入口にない。
+status/readbackのexit0も公開成功を意味しない。個別の費用未確定状態を保持し、実注文・納品・
+手数料/返金後の利益は別の公式証拠で確認する。
 
 ## Files
 

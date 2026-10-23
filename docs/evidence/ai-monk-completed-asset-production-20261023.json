@@ -1433,5 +1433,53 @@
     "private_evidence_sha256": "d1e627daa37112489ceceb8ecabd5d91bd2afb0fb583f7809b14e18611a7ec1c",
     "manual_attempt_count": 3,
     "fourth_manual_requested": false
+  },
+  "native_capacity_after_ja_link_recovery": {
+    "recorded_at": "2026-10-23T09:10:44.048859+00:00",
+    "owner_id": "ebook-en-tiktok-daily",
+    "release_sha": "247474a9df537bc863a2b970a91df8d9111af576",
+    "operation": "read_only_capacity_snapshot",
+    "target_resource_class": "deterministic",
+    "database_open_mode": "ro",
+    "production_state_mutations": 0,
+    "occupied_total": 10,
+    "finite_cap": 10,
+    "occupied_agent": 4,
+    "agent_cap": 4,
+    "revenue_resource_cap": 5,
+    "legacy_present": false,
+    "live_v1_waiters": [],
+    "uncertain_owner_markers": [],
+    "pure_capacity_available": false,
+    "free_bytes": 12170477568,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": true,
+    "target_occurrences": [
+      {
+        "state": "cancelled",
+        "effect_unknown": 0,
+        "count": 262
+      },
+      {
+        "state": "released",
+        "effect_unknown": 0,
+        "count": 3779
+      }
+    ],
+    "target_queue_count": 0,
+    "target_claimed_or_unknown": 0,
+    "target_queue_rank": null,
+    "target_next_eligible_at": null,
+    "target_cooldown_remaining_seconds": null,
+    "target_queued_resource_class": null,
+    "target_has_valid_reservation": false,
+    "ordered_resource_waiters": 38,
+    "queue_head_owner": "life-manager-selfbuild",
+    "fifo_eligible_without_reservation": false,
+    "eligible_for_one_native_attempt": false,
+    "private_evidence_file": "ai-monk-native-capacity-readonly-20261023-1792746643954499000.json",
+    "private_evidence_sha256": "bddae6f7bfde86e695bab783ddad40d1e125c7c62acbc2ef9b3e7b368828c10a",
+    "manual_attempt_count": 3,
+    "fourth_manual_requested": false
   }
 }
