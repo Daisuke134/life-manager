@@ -1246,35 +1246,24 @@
     "private_evidence_sha256": "8d41bf02e050851f2b8ba25b942f3409865dbd5e22b93959fbedfebabd9e2507"
   },
   "new_ai_monk_books_paid_checkout_readback": {
-    "recorded_at": "2026-10-23T08:30:14.240912+00:00",
-    "provider": "Stripe",
-    "account_identity_match": true,
-    "livemode": true,
-    "created_gte": 1792682932,
+    "observed_at": "2026-10-23T09:52:24.438790+00:00",
     "scope_complete": true,
-    "completed_session_pages": 1,
-    "completed_sessions_observed": 0,
-    "paid_orders": 0,
-    "per_sku": {
-      "art_of_ai_monks_en_v1": {
-        "paid_checkout_count": 0,
-        "line_item_amount_minor": 0,
-        "currency": "usd"
-      },
-      "art_of_ai_monks_ja_v1": {
-        "paid_checkout_count": 0,
-        "line_item_amount_minor": 0,
-        "currency": "usd"
-      }
+    "stripe_account_verified": true,
+    "start_at_product_creation": 1792682932,
+    "completed_sessions_scanned": 0,
+    "pages": 1,
+    "paid_orders": {
+      "art_of_ai_monks_en_v1": 0,
+      "art_of_ai_monks_ja_v1": 0
     },
-    "cash_settlement_verified": false,
-    "fees_refunds_profit_verified": false,
+    "paid_sessions": [],
     "provider_writes": 0,
     "self_purchase": false,
-    "private_evidence_sha256": "a69301a6e2e86b1dbb1d77274c852e838839159a9c61f8e36fc25836029e87ee",
-    "private_evidence_file": "ai-monk-book-paid-orders-after-ja-x-20261023.json",
-    "after_ja_x_post_id": "cmvkoqikc2huxlh0yjbzwnayu",
-    "campaign_attribution_verified": false
+    "fees_refunds_settlement_profit": "not_verified",
+    "campaign_attribution": "not_verified",
+    "after_link_recovery_reply": "https://x.com/selawmqt/status/2113556550073921584",
+    "private_evidence_file": "ai-monk-book-paid-orders-after-ja-link-recovery-20261023.json",
+    "private_evidence_sha256": "0f716552938bc547d182c794f01a5a20ebb043d2ebeedbecdc0a17c4a9ec18a4"
   },
   "factory_user_config_offline_acceptance": {
     "source_pr": "https://github.com/Daisuke134/life-manager/pull/8654",
@@ -1481,5 +1470,161 @@
     "private_evidence_sha256": "bddae6f7bfde86e695bab783ddad40d1e125c7c62acbc2ef9b3e7b368828c10a",
     "manual_attempt_count": 3,
     "fourth_manual_requested": false
+  },
+  "factory_user_config_publication_source_acceptance": {
+    "observed_at": "2026-10-23T09:57:37.783771+00:00",
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8668",
+    "reviewed_source_head": "77632fce80a4f910831b6e8f4a5b2d2ae39172f1",
+    "merged_pr_head": "cc907b387f9e0b2b9d50aa8f28e1e25da4a35106",
+    "main_commit": "7c63b4e32f7c564aa31662b7d74f6eed18abbda0",
+    "candidate_release": "/Users/anicca/loops/releases/20261023T185527-7c63b4e3",
+    "release_manifest": {
+      "sha": "7c63b4e32f7c564aa31662b7d74f6eed18abbda0",
+      "ref": "7c63b4e32f7c564aa31662b7d74f6eed18abbda0",
+      "provenance": "ancestor-of-origin-main",
+      "cut_at": "2026-10-23T09:56:27Z",
+      "repo": "https://github.com/Daisuke134/life-manager.git",
+      "state_root": "set per loop by its launchd job, not by this release",
+      "capacity_required_bytes": 319565824,
+      "runtime_python": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+      "runtime_python_cache_tag": "cpython-314",
+      "release_paths": "ALL"
+    },
+    "critical_source_hashes": {
+      "skills/earn/marketing-engine/bin/lm": "abcc1572254c74d176808f74188eef6ea505dea0bcb9dc0b00e7d05d70190f42",
+      "skills/earn/marketing-engine/factory_publish.py": "3c99da8a29270f856da03b46e385fd234030b56a10c69bcdf919fc5b05416485",
+      "skills/earn/marketing-engine/factory_render.py": "91efc107ebf467073a53ebf42e0c6398c1da9a8b9d1bc518117dc9563393ca25",
+      "skills/earn/marketing-engine/factory_plan.py": "4c56be4231a0b1a0f24f54ceebda4be8cbb0002afc481bbd8a9cda5a91dbf183",
+      "skills/earn/marketing-engine/publish/publication_context.py": "9ec4aa9a33c9036785df9681cb4935aa0c3750bbda1193d76888a1f32307a33f",
+      "skills/earn/marketing-engine/publish/publish_cli.py": "7528ca07a6ad4bb630cdd0ca414d8718dfca1449ab9b5fd589c9e7f2b7302c8a",
+      "skills/earn/marketing-engine/publish/preflight.py": "6811766b408ea5371fe0f2c25f57d81365b8bfcc633486644021d904b6a2c85c",
+      "skills/earn/marketing-engine/publish/intent_store.py": "466ee0cc23b6d390d2f2d7a27230c1eba7de0eb8bf38427f89b4b0d7f2149250",
+      "skills/earn/marketing-engine/publish/postiz_adapter.py": "f06e86a8fea4850896f015e1727c847fdb7282498fe2c6178fc54ee0fe9aeed1",
+      "skills/earn/marketing-engine/publish/approval_store.py": "624c6161afbe86c5d3cef2e02706b7fc99f292bbab03f8b2cad40969a9af9447",
+      "runtime/host/disk_admission.py": "214054f51c7730a712405e0e112f8a0a8f57437ee4b1cddf344c0823d83ef85e",
+      "skills/earn/marketing-engine/README.md": "9d84dcc6277f718f63b7def89772ccad946921992fea43a90ab3d6b95d2fd59a",
+      "skills/earn/marketing-engine/examples/ai-monk-factory.config.example.json": "1a44e3e2721b5dbfdf4e235a5c3e87194318010eb10a3b20296738adb02fce0c",
+      "skills/earn/marketing-engine/examples/ai-monk-factory.publication.example.json": "59901595d102fec4181d41dd0f1ff5d3490f1b8a225e523c496a3a39b6b38a68"
+    },
+    "critical_source_matches_review_pr_and_main": true,
+    "sealed_entry_count": 11410,
+    "writable_entries": 0,
+    "cli_help_runs": [
+      {
+        "argv": [
+          "python3",
+          "skills/earn/marketing-engine/bin/lm",
+          "factory",
+          "--help"
+        ],
+        "exit_code": 0,
+        "stdout_sha256": "327c0842a2419aff2a324b699b1e6c73ab84ad88ea3c9774cdd8537015dc4d18",
+        "network_attempts": 0,
+        "child_attempts": 0
+      },
+      {
+        "argv": [
+          "python3",
+          "skills/earn/marketing-engine/bin/lm",
+          "factory",
+          "publish",
+          "--help"
+        ],
+        "exit_code": 0,
+        "stdout_sha256": "97fe7f48d1c81aedc4ed897200d60b7efce01439a0becc5924a3a34d5c0bbb3e",
+        "network_attempts": 0,
+        "child_attempts": 0
+      }
+    ],
+    "current_readonly": "/Users/anicca/loops/releases/20261023T182457-409c568f",
+    "current_mutated_by_this_operation": false,
+    "live_render_invoked": false,
+    "live_publisher_invoked": false,
+    "provider_calls": 0,
+    "new_generation": 0,
+    "new_publication": 0,
+    "limits": [
+      "Only fixed CLI help paths executed; actual provider operations remain uninvoked",
+      "Existing cash-cost uncertainty and production daily publication remain unresolved",
+      "No claim of live user generation/publication, paid delivery, revenue, Factory MCP or hosted subscription"
+    ],
+    "checks": {
+      "exact_head_success": 13,
+      "sec_scan_run": "39934650965",
+      "initial_related_tests_passed": 210,
+      "post_timezone_fix_factory_tests_passed": 38,
+      "new_timezone_red_cases": 3,
+      "fresh_read_only_findings": 0,
+      "blocking_findings": 0,
+      "loop_contract_businesses": 18,
+      "loop_contract_jobs": 192,
+      "loop_contract_errors": 0
+    },
+    "private_evidence_file": "ai-monk-factory-publisher-release-proof-20261023.json",
+    "private_evidence_sha256": "cdcc60ae246b378e0e66816066a7ecc50c23c962c3a25d8ded5c4bd79236dcf8",
+    "remaining": [
+      "Unknown cash cost reconciliation",
+      "Pre-render USD cap",
+      "Actual daily generation and publication",
+      "Actual paid orders and paid delivery",
+      "Other-user installation",
+      "Factory MCP",
+      "Hosted subscription"
+    ]
+  },
+  "new_ai_monk_books_paid_checkout_readback_history": [
+    {
+      "recorded_at": "2026-10-23T08:30:14.240912+00:00",
+      "provider": "Stripe",
+      "account_identity_match": true,
+      "livemode": true,
+      "created_gte": 1792682932,
+      "scope_complete": true,
+      "completed_session_pages": 1,
+      "completed_sessions_observed": 0,
+      "paid_orders": 0,
+      "per_sku": {
+        "art_of_ai_monks_en_v1": {
+          "paid_checkout_count": 0,
+          "line_item_amount_minor": 0,
+          "currency": "usd"
+        },
+        "art_of_ai_monks_ja_v1": {
+          "paid_checkout_count": 0,
+          "line_item_amount_minor": 0,
+          "currency": "usd"
+        }
+      },
+      "cash_settlement_verified": false,
+      "fees_refunds_profit_verified": false,
+      "provider_writes": 0,
+      "self_purchase": false,
+      "private_evidence_sha256": "a69301a6e2e86b1dbb1d77274c852e838839159a9c61f8e36fc25836029e87ee",
+      "private_evidence_file": "ai-monk-book-paid-orders-after-ja-x-20261023.json",
+      "after_ja_x_post_id": "cmvkoqikc2huxlh0yjbzwnayu",
+      "campaign_attribution_verified": false
+    }
+  ],
+  "english_natural_terminal_after_coalescing": {
+    "terminal_at": "2026-10-23T08:50:22.706275Z",
+    "run_id": "18e11c756a6563c8-86238",
+    "occurrence_id": "ebook-en-tiktok-daily:18e11c756a6563c8-86238",
+    "release_sha": "247474a9df537bc863a2b970a91df8d9111af576",
+    "exit_code": 0,
+    "status": "pass",
+    "effect_class": "none",
+    "effect_status": "not_applicable",
+    "provider_receipt_id": null,
+    "official_readback_ref": null,
+    "reason": "render_not_ready",
+    "render_setup_reason": "prior_heygen_effect_unresolved",
+    "render_result_file": "marketing/ebook/runs/ebook-run.52ae9b0b656abd4e96fa4a2d.json",
+    "queue_sequence": 811613,
+    "latest_occurrence_state": "released",
+    "prior_manual_occurrences": "cancelled by existing coalescing contract; individual SQL update time not audited",
+    "queue_at_0945": 0,
+    "claimed_unknown_at_0945": 0,
+    "new_publication_verified": false,
+    "next_action": "Reconcile original completed HeyGen video cash cost through official readback; no fourth manual or new generation/resend"
   }
 }
