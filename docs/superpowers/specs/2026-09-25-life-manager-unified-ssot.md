@@ -99,7 +99,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 **一次証拠:** [baseline run 39889933473](https://github.com/Daisuke134/life-manager/actions/runs/39889933473) は成功・735秒。最長 `Loop control contracts` はcheckout149秒、unittest441秒（984 tests / runner内438.650秒）、後段pytest117秒。releaseテストは実sourceから10か所でcutを起動し、各cutがoriginをfetchする。これはnetwork依存の実コード証拠であり、441秒の内訳はまだ未計測。
 
-**実行順・現在cursor:** baseline/呼出し経路確認済み → releaseテストのローカルGit fixtureとshallow checkoutの安全性検証 → 最小修正/関連検証 → fresh read-only review → PR/CI → main/通常CIで比較 → 自所有worktree返却。現在はfixtureのネットワーク依存と履歴要件を検証する。テスト削除・検査skip・全履歴scannerの弱化、新依存・cache基盤の追加は行わない。
+**実行順・現在cursor:** baseline/呼出し経路確認済み → releaseテストのローカルGit fixtureとshallow checkoutの安全性検証 → 最小修正/関連検証 → fresh read-only review → PR/CI → main/通常CIで比較 → 自所有worktree返却。fixtureをPRのHEADへ固定し、外部fetchをlocal bare originへ置換する。shallow checkout→shared bare fixture→local fetchはPASS。変更前に既存bytecodeテストへSHA一致を加えるとmainとPRの不一致でRED、変更後18 tests/7 subtestsとsecurity契約5 testsはGREEN。現在は既存984 unittestを実行し、fresh reviewとGitHubでの実測へ進む。テスト削除・検査skip・全履歴scannerの弱化、新依存・cache基盤の追加は行わない。
 
 ### FND patchの実装指示
 
