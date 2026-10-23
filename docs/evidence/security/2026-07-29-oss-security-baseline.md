@@ -228,3 +228,21 @@ as evidence for this finding.
 Only this exact commit/path/rule/line fingerprint is added to `.gitleaksignore`.
 No rule, path, directory, or new finding is suppressed; current-tree and
 full-history scans remain enabled. No credential rotation is indicated.
+
+## Mobile release CI: public effect identifiers
+
+The full-history scan in GitHub Actions run `39904613742` reports two
+`generic-api-key` findings at commit `17d400f225ab4ee320daae337b2e866e0c32884a`,
+`products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json`,
+lines 64 and 191. Both fields are `effect_key` identifiers in public digital
+release receipts, not authentication material.
+
+The producer in `products/manager/manager_core/digital_handoff.py` derives
+`effect_key` as the SHA256 of the canonical public release identity
+(repository, ref, workflow, target, candidate manifest, and allowed paths).
+The source contains no signing or provider token in that identity. The two
+values have the expected 64-hex shape and neither matches a registered secret.
+Only these two exact commit/path/rule/line fingerprints are added to
+`.gitleaksignore`; current-tree scanning and detection at new locations remain
+enabled. The introducing commit is on another fetched branch, so changing
+only this PR's current tree cannot remove the historical findings.
