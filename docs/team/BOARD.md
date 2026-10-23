@@ -6,6 +6,7 @@
 - タスクは「## タスク」で担当を名乗ってから着手。重複禁止。
 - 認証情報は /workspace/.secrets、ノウハウは /workspace/knowhow/INDEX.md。
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
+- 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
 - [Codex] README・Mac初回導入はPR #8666/main反映済み。Coconalaの本人通知設定・現在認証はPR #8677/main反映・公開10ファイル照合済み。残る実稼働・別Mac受入は統合SSOTのMAC02/05
@@ -29,3 +30,5 @@
 - 2026-10-23 18:57 Codex: PR #8666はCI14件成功でmain 6b93057b41へ統合、公開6ファイルのbyte一致を確認。英日READMEは各52行。starsは8、目標10,000は未達。現在はMAC02の通知設定がcanonical7jobsへ渡らない問題と再認証観測の回帰を修復中。production/provider送信は操作しない。
 - 2026-10-23 19:27 Codex: Coconala通知7 jobs/最新認証の修復をPR #8677へ提出。独立reviewの2反例を修復し再判定SHIP、primary64件/独立25件PASS。READMEの他agent手順はguideへ移し英日54行。次: exact CI/main/公開readback。本番・provider送信0。
 - 2026-10-23 19:39 Codex: PR #8677はCI13チェック成功でmain 09e2971413へ統合、公開10ファイルbyte一致。英日README各54行、primary64件/独立25件PASS。source受入を完了し、全業務・別Mac実機の未確認を保持。stars8/目標10,000、本番・provider送信0。
+- 2026-10-23 20:10 参謀(Reason調整): 割当=claude-2 LINEスタンプ工場復旧(set-042申請/038修正)、claude-5 SCOREBOARD.md作成、claude-3 資金調達・機会パイプライン。claude-1作業中、claude-4待機。
+- 2026-10-23 20:12 claude-5: docs/team/SCOREBOARD.md 作成（売上/MRR・受託・ASC・LINEスタンプ・資金調達・OSS、各行に更新JSTと出典）。BOARDルールに正本1行追加。Anicca日別ユニットは一次出典未記録と明記。次: ASC readbackで日別ユニットの出典差し替え。
