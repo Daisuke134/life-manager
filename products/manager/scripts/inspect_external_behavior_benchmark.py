@@ -526,8 +526,8 @@ def _source_metadata(
     return files, inventory
 
 
-def inspect_snapshot(input_dir: Path, nature: dict[str, Any]) -> dict[str, Any]:
-    """Validate pinned bytes, then inspect only Fig1 panelA and panelB aggregates."""
+def load_validated_snapshot(input_dir: Path, nature: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return private validated panelA rows and the legacy aggregate report."""
     if not isinstance(input_dir, Path) or not isinstance(nature, dict):
         _fail("INVALID_ARGUMENT")
     pins = _metadata_pins(nature)
@@ -561,7 +561,7 @@ def inspect_snapshot(input_dir: Path, nature: dict[str, Any]) -> dict[str, Any]:
     published_gpt4 = _validate_panel_b(panel_b_rows, receipt.get("published_panelB_summaries"))
     source_files, inventory = _source_metadata(nature, pins, actual_inventory)
 
-    return {
+    report = {
         "schema_version": 1,
         "source": {
             "doi": nature["doi"],
@@ -603,6 +603,13 @@ def inspect_snapshot(input_dir: Path, nature: dict[str, Any]) -> dict[str, Any]:
             "source_bytes": "Original source data bytes are not redistributed by this inspector.",
         },
     }
+    return panel_a_rows, report
+
+
+def inspect_snapshot(input_dir: Path, nature: dict[str, Any]) -> dict[str, Any]:
+    """Validate pinned bytes, then inspect only Fig1 panelA and panelB aggregates."""
+    _rows, report = load_validated_snapshot(input_dir, nature)
+    return report
 
 
 def _load_repository_nature() -> dict[str, Any]:
