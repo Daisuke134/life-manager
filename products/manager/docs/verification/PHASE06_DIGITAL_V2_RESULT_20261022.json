@@ -1,6 +1,6 @@
 {
   "schema": "manager.phase06-digital-v2-result.v1",
-  "report_version": 1,
+  "report_version": 2,
   "created_at": "2026-10-23T05:10:04.421349+00:00",
   "report_role": "Versioned occurrence evidence report; task statuses only in ../roadmap/tasks.json. Filename follows the 2026-10-22 scope amendment; observations are dated 2026-10-23 UTC.",
   "scope_version": 2,
@@ -61,7 +61,6 @@
       "target_url": "https://daisuke134.github.io/life-manager/manager-support/finance.html",
       "criterion": "Add aria-current=\"page\" only to the unique self-navigation anchor; no WCAG-compliance or observed usability claim.",
       "source_commit": "324671052ad9d5517ca63e35094028d5d9b06bb3",
-      "effect_key": "629fd21a6c63f93cc2d45bb2b017ef5e31dd1c2a993ad675331872427c54179e",
       "candidate_sha256": "e443bbcd1762b8ce960c51d2fdcaa999df15b55a917a832ce1bad5b104aade59",
       "first_cycle": {
         "run_id": 39892782613,
@@ -181,14 +180,14 @@
         },
         "sample_confidence_interval": null
       },
-      "human_outcome": "NOT_MEASURED"
+      "human_outcome": "NOT_MEASURED",
+      "effect_sha256": "629fd21a6c63f93cc2d45bb2b017ef5e31dd1c2a993ad675331872427c54179e"
     },
     {
       "topic": "mental",
       "target_url": "https://daisuke134.github.io/life-manager/manager-support/mental.html",
       "criterion": "Add aria-current=\"page\" only to the unique self-navigation anchor; no WCAG-compliance or observed usability claim.",
       "source_commit": "eca775c9fbb002d59452c1cce37d853f4cf124d9",
-      "effect_key": "818e60caa8b4f64183f162483f54d0cbc4112fdddf531bdcc2668e268a2d0d07",
       "candidate_sha256": "3dc4df6507e1fc95d06c9414af65b62dc76cab9c7e26f25e17c40c1e34d8a4ba",
       "first_cycle": {
         "run_id": 39898014550,
@@ -308,7 +307,8 @@
         },
         "sample_confidence_interval": null
       },
-      "human_outcome": "NOT_MEASURED"
+      "human_outcome": "NOT_MEASURED",
+      "effect_sha256": "818e60caa8b4f64183f162483f54d0cbc4112fdddf531bdcc2668e268a2d0d07"
     }
   ],
   "comparators": {
@@ -418,5 +418,11 @@
     "No room, sensor, financial-transfer, private-profile or third-party inbox authority is created."
   ],
   "narrative_evidence": "E16_CLOUD_EXECUTION_20261023.md",
-  "scope_amendment": "../specs/2026-10-22-phase06-owned-public-good-scope-amendment.md"
+  "scope_amendment": "../specs/2026-10-22-phase06-owned-public-good-scope-amendment.md",
+  "corrections": [
+    {
+      "reason": "The public deterministic operation digest is named effect_sha256 in this report to distinguish it from authentication credentials. Historical v1 uses effect_key; values and receipt bindings are unchanged.",
+      "prior_source_commit": "17d400f225ab4ee320daae337b2e866e0c32884a"
+    }
+  ]
 }
