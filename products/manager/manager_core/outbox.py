@@ -285,6 +285,8 @@ class OwnedEffectJournal:
                 db.execute("ALTER TABLE owned_rollbacks ADD COLUMN delivery_status TEXT NOT NULL DEFAULT 'UNKNOWN'")
             if 'delivery_json' not in rollback_columns:
                 db.execute('ALTER TABLE owned_rollbacks ADD COLUMN delivery_json TEXT')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_owned_effect_receipt ON owned_effects(receipt_ref,status)')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_owned_rollback_receipt ON owned_rollbacks(receipt_ref,status)')
     def record(self,key):
         with sqlite3.connect(self.path,timeout=15) as db:
             row=db.execute('SELECT key,packet_json,expected_parent,status,receipt_ref FROM owned_effects WHERE key=?',(key,)).fetchone()
@@ -403,6 +405,38 @@ class OwnedEffectJournal:
             row=db.execute('''SELECT key,packet_json,expected_parent,status,receipt_ref
                 FROM owned_effects ORDER BY rowid DESC LIMIT 1''').fetchone()
         return OwnedEffectRecord(*row) if row and row[3]=='PRESENT' else None
+
+    def has_owned_history(self):
+        with sqlite3.connect(self.path,timeout=15) as db:
+            return (db.execute('SELECT 1 FROM owned_effects LIMIT 1').fetchone() is not None or
+                    db.execute('SELECT 1 FROM owned_rollbacks LIMIT 1').fetchone() is not None)
+
+    def record_for_receipt(self,receipt_ref):
+        """Resolve one current Pages SHA to its unique saved candidate receipt."""
+        import re
+        if type(receipt_ref) is not str or not re.fullmatch('[0-9a-f]{40}',receipt_ref):
+            return None
+        with sqlite3.connect(self.path,timeout=15) as db:
+            rows=db.execute('''SELECT key,packet_json,expected_parent,status,receipt_ref
+                FROM owned_effects WHERE receipt_ref=? AND status='PRESENT' LIMIT 2''',
+                (receipt_ref,)).fetchall()
+        if len(rows)!=1:return None
+        from .digital_handoff import validate_intent
+        row=rows[0];packet=json.loads(row[1]);validate_intent(packet)
+        return OwnedEffectRecord(*row) if packet.get('schema')=='manager.digital-handoff.v2' else None
+
+    def rollback_for_receipt(self,receipt_ref):
+        """Resolve one current Pages SHA to its unique saved rollback receipt."""
+        import re
+        if type(receipt_ref) is not str or not re.fullmatch('[0-9a-f]{40}',receipt_ref):
+            return None
+        with sqlite3.connect(self.path,timeout=15) as db:
+            rows=db.execute('''SELECT key,packet_json,status,receipt_ref,delivery_status,delivery_json
+                FROM owned_rollbacks WHERE receipt_ref=? AND status='PRESENT' LIMIT 2''',
+                (receipt_ref,)).fetchall()
+        if len(rows)!=1:return None
+        validate_owned_rollback(json.loads(rows[0][1]))
+        return OwnedRollbackRecord(*rows[0])
 
     def rollback_record(self,key):
         with sqlite3.connect(self.path,timeout=15) as db:

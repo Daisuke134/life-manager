@@ -284,6 +284,10 @@ class GitHubActionsCycleHost:
             raise ValueError('saved platform occurrence required')
         return collect_owned_delivery(key, journal)
 
+    def observe_current_delivery(self, journal):
+        from .owned_public_collector import collect_current_owned_delivery
+        return collect_current_owned_delivery(journal,self._now())
+
     def _rollback_window(self, packet):
         from .outbox import validate_owned_rollback
         env=self._environment(require_release=True)

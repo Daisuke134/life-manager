@@ -15,6 +15,7 @@ from manager_core.digital_handoff import REPOSITORY, PUBLIC_BASE
 from manager_core.digital_handoff import MAIN_REF, WORKFLOW, PublisherContext, plan_release
 from manager_core.digital_environment import PAGES
 from manager_core.reconcile import OwnedOccurrenceEvidence
+from test_digital_handoff import manifest
 from manager_core.owned_cycle import run_owned_cycle
 from manager_core.reconcile import reconcile_owned
 
@@ -230,3 +231,72 @@ class PublicCollectorTests(unittest.TestCase):
                     self.assertEqual(result['proof_level'],'P2')
                 if expected != 'REGRESSION':
                     self.assertNotIn(result['status'],('REGRESSION',))
+
+    def test_current_target_resamples_candidate_even_when_historical_delivery_is_verified(self):
+        collector=importlib.import_module('manager_core.owned_public_collector')
+        from manager_core.outbox import OwnedEffectJournal
+        from manager_core.digital_handoff import MAIN_REF,WORKFLOW,PublisherContext,plan_release
+
+        baseline=manifest('a'*40,'old')
+        candidate=manifest('b'*40,'candidate')
+        packet=plan_release(baseline,candidate,NOW,schema='manager.digital-handoff.v2')
+        with TemporaryDirectory() as tmp:
+            journal=OwnedEffectJournal(Path(tmp)/'cycle.sqlite')
+            publisher=PublisherContext(REPOSITORY,MAIN_REF,WORKFLOW,'b'*40,'123',workflow_commit='b'*40)
+            journal.reserve(packet,publisher,baseline,candidate,'c'*40,NOW)
+            journal._present(packet['effect_key'],'d'*40)
+            journal.save_delivery(packet['effect_key'],{
+                'status':'VERIFIED','effect_key':packet['effect_key'],'receipt_ref':'d'*40,
+                'candidate_sha256':packet['candidate_sha256'],'observed_at':NOW.isoformat(),
+                'proof_ref':PUBLIC_BASE,'proof_level':'P2','reason':'EXACT_DEPLOYED_CANDIDATE',
+                'human_outcome':'NOT_MEASURED'})
+            target_url=f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/gh-pages'
+            calls=[]
+            def get(url):
+                calls.append(url)
+                if url==target_url:
+                    return json.dumps({'ref':'refs/heads/gh-pages',
+                        'object':{'type':'commit','sha':'d'*40}}).encode()
+                raise AssertionError(f'unexpected current-target request: {url}')
+            regression={'status':'REGRESSION','effect_key':packet['effect_key'],
+                'receipt_ref':'d'*40,'candidate_sha256':packet['candidate_sha256'],
+                'observed_at':NOW.isoformat(),'proof_ref':PUBLIC_BASE,'proof_level':'P2',
+                'reason':'BOUND_CURRENT_PAGE_CUE_FAILURE','human_outcome':'NOT_MEASURED'}
+            with patch.object(collector,'collect_owned_delivery',return_value=regression) as observe:
+                result=collector.collect_current_owned_delivery(
+                    journal,NOW,get=get)
+            self.assertEqual(result['kind'],'candidate')
+            self.assertEqual(result['evidence'],regression)
+            self.assertEqual(calls,[target_url])
+            observe.assert_called_once_with(packet['effect_key'],journal,NOW,get=get)
+
+    def test_current_target_rollback_receipt_selects_rollback_p2_collector(self):
+        collector=importlib.import_module('manager_core.owned_public_collector')
+        from manager_core.outbox import OwnedEffectJournal,plan_owned_rollback
+        from manager_core.digital_handoff import MAIN_REF,WORKFLOW,PublisherContext,plan_release
+
+        baseline=manifest('a'*40,'old')
+        candidate=manifest('b'*40,'candidate')
+        original=plan_release(baseline,candidate,NOW,schema='manager.digital-handoff.v2')
+        with TemporaryDirectory() as tmp:
+            journal=OwnedEffectJournal(Path(tmp)/'cycle.sqlite')
+            publisher=PublisherContext(REPOSITORY,MAIN_REF,WORKFLOW,'b'*40,'123',workflow_commit='b'*40)
+            journal.reserve(original,publisher,baseline,candidate,'c'*40,NOW)
+            journal._present(original['effect_key'],'d'*40)
+            rollback=plan_owned_rollback(original,'d'*40,'c'*40,NOW,controller_sha='b'*40)
+            journal.reserve_rollback(rollback,NOW)
+            journal._rollback_present(rollback['effect_key'],'e'*40)
+            target_url=f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/gh-pages'
+            def get(url):
+                self.assertEqual(url,target_url)
+                return json.dumps({'ref':'refs/heads/gh-pages',
+                    'object':{'type':'commit','sha':'e'*40}}).encode()
+            expected={'status':'VERIFIED','effect_key':rollback['effect_key'],
+                'receipt_ref':'e'*40,'baseline_sha256':rollback['baseline_sha256'],
+                'observed_at':NOW.isoformat(),'proof_ref':PUBLIC_BASE,'proof_level':'P2',
+                'reason':'EXACT_DEPLOYED_PARENT_BASELINE','human_outcome':'NOT_MEASURED'}
+            with patch.object(collector,'collect_owned_rollback_delivery',return_value=expected) as observe:
+                result=collector.collect_current_owned_delivery(journal,NOW,get=get)
+            self.assertEqual(result['kind'],'rollback')
+            self.assertEqual(result['evidence'],expected)
+            observe.assert_called_once_with(rollback['effect_key'],journal,NOW,get=get)

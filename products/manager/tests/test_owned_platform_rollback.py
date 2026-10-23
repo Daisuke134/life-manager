@@ -208,13 +208,38 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
     def test_trusted_resume_clears_stop_only_after_recovery_and_checkpoints(self):
         from scripts import run_owned_digital_cycle as cli
         from scripts import phase06_kernel_release as release
+        from manager_core.owned_platform_host import GitHubActionsCycleHost
+        from manager_core.outbox import plan_owned_rollback
 
         with TemporaryDirectory() as tmp:
             root=Path(tmp)
-            _,store,host,gateway,_,_,_,pages=platform_fixture(root)
+            _,store,host,gateway,context,_,_,pages=platform_fixture(root)
+            packet=plan_release(
+                json.loads((context.baseline_bundle/'manifest.json').read_text()),
+                json.loads((context.candidate_bundle/'manifest.json').read_text()),
+                NOW,schema='manager.digital-handoff.v2')
+            parent=host._git('rev-parse','HEAD')
+            self._save_original_receipt(store,packet,'d'*40,parent)
+            verified={'status':'VERIFIED','effect_key':packet['effect_key'],
+                'receipt_ref':'d'*40,'candidate_sha256':packet['candidate_sha256'],
+                'observed_at':NOW.isoformat(),'proof_ref':'https://example.test/',
+                'proof_level':'P2','reason':'EXACT_DEPLOYED_CANDIDATE',
+                'human_outcome':'NOT_MEASURED'}
+            store.journal.save_delivery(packet['effect_key'],verified)
+            rollback=plan_owned_rollback(packet,'d'*40,parent,NOW,controller_sha='b'*40)
+            store.journal.reserve_rollback(rollback,NOW)
+            store.journal._rollback_present(rollback['effect_key'],'e'*40)
+            rollback_verified={'status':'VERIFIED','effect_key':rollback['effect_key'],
+                'receipt_ref':'e'*40,'baseline_sha256':rollback['baseline_sha256'],
+                'observed_at':NOW.isoformat(),'proof_ref':'https://example.test/',
+                'proof_level':'P2','reason':'EXACT_DEPLOYED_PARENT_BASELINE',
+                'human_outcome':'NOT_MEASURED'}
+            store.journal.save_rollback_delivery(rollback['effect_key'],rollback_verified)
             store.stop()
             host.checkpoint.save()
             host.checkpoint.release()
+            current={'kind':'rollback','effect_key':rollback['effect_key'],
+                     'receipt_ref':'e'*40,'evidence':rollback_verified}
             context={'run_id':'123','attempt':'1','source_sha':'b'*40,
                      'runner_temp':root,'pages_root':pages.root}
             with patch.dict('os.environ',github_environment(),clear=True), \
@@ -223,7 +248,8 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
                  patch.object(cli,'PrivateCheckpoint',side_effect=lambda **kwargs:
                               PrivateCheckpoint(gateway,**kwargs)), \
                  patch.object(release,'source_checkout_commit',return_value='b'*40), \
-                 patch.object(cli,'_recover_owned_deliveries',return_value=None):
+                 patch.object(cli,'_recover_owned_deliveries',return_value=None), \
+                 patch.object(GitHubActionsCycleHost,'observe_current_delivery',return_value=current):
                 code,summary=cli.run_control('resume',root/'unused',pages.root)
             self.assertEqual(code,0,summary)
             self.assertEqual(summary['status'],'RESUMED_BY_OWNER')
@@ -257,6 +283,97 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
             db_path=checkpoint.acquire(root/'verify-stop-control')
             restored=CycleStore(db_path.parent)
             self.assertTrue(restored.stopped())
+
+    def test_later_current_regression_overrides_historical_p2_without_erasing_it(self):
+        from scripts import run_owned_digital_cycle as cli
+        from scripts import phase06_kernel_release as release
+        from manager_core.owned_platform_host import GitHubActionsCycleHost
+
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            conf,store,host,gateway,_,_,_,pages=platform_fixture(root)
+            packet,_,receipt,_=self._install_candidate_commit(host,store,stop=False)
+            verified={'status':'VERIFIED','effect_key':packet['effect_key'],
+                'receipt_ref':receipt,'candidate_sha256':packet['candidate_sha256'],
+                'observed_at':NOW.isoformat(),
+                'proof_ref':'https://daisuke134.github.io/life-manager/manager-support/',
+                'proof_level':'P2','reason':'EXACT_DEPLOYED_CANDIDATE',
+                'human_outcome':'NOT_MEASURED'}
+            store.journal.save_delivery(packet['effect_key'],verified)
+            current_regression={'kind':'candidate','effect_key':packet['effect_key'],
+                'receipt_ref':receipt,'evidence':dict(verified,status='REGRESSION',
+                    reason='BOUND_CURRENT_PAGE_CUE_FAILURE',observed_at=datetime.now(timezone.utc).isoformat())}
+
+            with patch.dict('os.environ',github_environment(),clear=True), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(host,'observe_current_delivery',return_value=current_regression):
+                first=run_owned_cycle(conf,store,host=host,now=NOW)
+            self.assertEqual(first['status'],'STOPPED_REGRESSION')
+            self.assertTrue(store.stopped())
+            self.assertEqual(store.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+            host.checkpoint.save();host.checkpoint.release()
+
+            checkpoint=PrivateCheckpoint(gateway,run_id='123',run_attempt='1')
+            db_path=checkpoint.acquire(root/'later-cycle-private')
+            restored=CycleStore(db_path.parent)
+            resumed=GitHubActionsCycleHost(checkpoint,host.checkout,host.source_audit_path)
+            with patch.dict('os.environ',github_environment(),clear=True), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(resumed,'observe_current_delivery',return_value=current_regression), \
+                 patch.object(resumed,'prepare_candidate',side_effect=AssertionError('stopped cycle planned')) as prepare, \
+                 patch.object(resumed,'send_owned',side_effect=AssertionError('stopped cycle sent')) as send:
+                later=run_owned_cycle(conf,restored,host=resumed,now=NOW)
+            self.assertEqual(later['status'],'STOPPED_REGRESSION')
+            self.assertTrue(restored.stopped())
+            self.assertEqual(restored.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+            prepare.assert_not_called();send.assert_not_called()
+            checkpoint.save();checkpoint.release()
+
+            control_context={'run_id':'123','attempt':'1','source_sha':'b'*40,
+                             'runner_temp':root,'pages_root':pages.root}
+            with patch.dict('os.environ',github_environment(),clear=True), \
+                 patch.object(cli,'_check_main_context',return_value=control_context), \
+                 patch.object(cli,'_private_fresh_root',return_value=root/'resume-after-regression'), \
+                 patch.object(cli,'PrivateCheckpoint',side_effect=lambda **kwargs:
+                              PrivateCheckpoint(gateway,**kwargs)), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(GitHubActionsCycleHost,'observe_current_delivery',return_value=current_regression):
+                code,summary=cli.run_control('resume',root/'unused',pages.root)
+            self.assertEqual(code,2)
+            self.assertEqual(summary['status'],'UNKNOWN')
+
+            checkpoint=PrivateCheckpoint(gateway,run_id='123',run_attempt='1')
+            db_path=checkpoint.acquire(root/'verify-regression-stop')
+            finally_restored=CycleStore(db_path.parent)
+            self.assertTrue(finally_restored.stopped())
+            self.assertEqual(finally_restored.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+
+    def test_current_delivery_unknown_preserves_p2_without_stop_or_send(self):
+        from scripts import phase06_kernel_release as release
+
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            conf,store,host,_,_,_,_,_=platform_fixture(root)
+            packet,_,receipt,_=self._install_candidate_commit(host,store,stop=False)
+            verified={'status':'VERIFIED','effect_key':packet['effect_key'],
+                'receipt_ref':receipt,'candidate_sha256':packet['candidate_sha256'],
+                'observed_at':NOW.isoformat(),'proof_ref':'https://example.test/',
+                'proof_level':'P2','reason':'EXACT_DEPLOYED_CANDIDATE',
+                'human_outcome':'NOT_MEASURED'}
+            store.journal.save_delivery(packet['effect_key'],verified)
+            current={'kind':'candidate','effect_key':packet['effect_key'],
+                'receipt_ref':receipt,'evidence':dict(verified,status='UNKNOWN',proof_level='P0',
+                    reason='PAGES_DEPLOYMENT_NOT_BOUND_SUCCESS')}
+            with patch.dict('os.environ',github_environment(),clear=True), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(host,'observe_current_delivery',return_value=current), \
+                 patch.object(host,'prepare_candidate',side_effect=AssertionError('unknown health planned')) as prepare, \
+                 patch.object(host,'send_owned',side_effect=AssertionError('unknown health sent')) as send:
+                result=run_owned_cycle(conf,store,host=host,now=NOW)
+            self.assertEqual(result['status'],'UNKNOWN')
+            self.assertFalse(store.stopped())
+            self.assertEqual(store.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+            prepare.assert_not_called();send.assert_not_called()
 
     def test_resume_refuses_uncertain_occurrence_without_clearing_stop(self):
         from scripts import run_owned_digital_cycle as cli
@@ -431,6 +548,7 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
                 from scripts import phase06_kernel_release as release
                 with patch.dict('os.environ',github_environment(),clear=True), \
                      patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                     patch.object(host,'observe_current_delivery',return_value=None), \
                      patch.object(collector,'collect_owned_delivery',return_value=observation):
                     result=run_owned_cycle(CycleConfig('platform-fixture-owner',60),store,
                                            host=host,now=NOW)

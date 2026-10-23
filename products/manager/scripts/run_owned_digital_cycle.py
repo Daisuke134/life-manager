@@ -267,11 +267,16 @@ def run_control(control, state_store, pages_checkout):
                     from manager_core.owned_cycle import _occurrence_reader
                     from manager_core.reconcile import reconcile_pending_owned
                     from datetime import datetime,timezone
-                    rollback=host.reconcile_pending_rollbacks(store)
-                    if (rollback is not None and rollback.get('status')=='UNKNOWN'):
+                    if not store.stopped():
+                        report={'status':'CONTROL_STOP_REQUIRED','writes':0}
+                    else:
+                        rollback=host.reconcile_pending_rollbacks(store)
+                    if (store.stopped() and rollback is not None and
+                            rollback.get('status')=='UNKNOWN'):
                         report={'status':'UNKNOWN','writes':None,
                                 'reason':'ROLLBACK_RECONCILIATION_PENDING'}
-                    else:
+                    elif store.stopped() and not (rollback is not None and
+                            rollback.get('status')=='UNKNOWN'):
                         reader=_occurrence_reader(store,host)
                         reconcile_pending_owned(store.journal,reader,datetime.now(timezone.utc))
                         if store.journal.pending_records(limit=1):
@@ -285,26 +290,35 @@ def run_control(control, state_store, pages_checkout):
                                 report={'status':'UNKNOWN','writes':None,
                                         'reason':'DELIVERY_RECONCILIATION_PENDING'}
                             else:
-                                latest_rollback=store.journal.latest_rollback_record()
-                                if (latest_rollback is not None and latest_rollback.status=='PRESENT' and
-                                        latest_rollback.delivery_status=='VERIFIED'):
-                                    if host.current_parent()!=latest_rollback.receipt_ref:
-                                        report={'status':'UNKNOWN','writes':None,
-                                                'reason':'ROLLBACK_TARGET_MOVED'}
-                                    else:
-                                        from manager_core.owned_public_collector import collect_owned_rollback_delivery
-                                        current=collect_owned_rollback_delivery(
-                                            latest_rollback.key,store.journal,host._now())
-                                        if (current.get('status')!='VERIFIED' or
-                                                current.get('proof_level')!='P2'):
-                                            report={'status':'UNKNOWN','writes':None,
-                                                    'reason':'ROLLBACK_DELIVERY_NOT_CURRENT'}
-                                        else:
-                                            store.resume()
-                                            report={'status':'RESUMED_BY_OWNER','writes':0}
-                                else:
+                                current=host.observe_current_delivery(store.journal)
+                                valid=(type(current) is dict and
+                                       current.get('kind') in ('candidate','rollback') and
+                                       type(current.get('evidence')) is dict and
+                                       current['evidence'].get('status')=='VERIFIED' and
+                                       current['evidence'].get('proof_level')=='P2')
+                                evidence=current.get('evidence') if type(current) is dict else None
+                                if valid and current['kind']=='candidate':
+                                    saved=store.journal.record(current.get('effect_key'))
+                                    valid=(saved is not None and saved.status=='PRESENT' and
+                                        saved.receipt_ref==current.get('receipt_ref') and
+                                        evidence.get('effect_key')==saved.key and
+                                        evidence.get('receipt_ref')==saved.receipt_ref and
+                                        evidence.get('candidate_sha256')==
+                                            json.loads(saved.packet_json).get('candidate_sha256'))
+                                elif valid:
+                                    saved=store.journal.rollback_record(current.get('effect_key'))
+                                    valid=(saved is not None and saved.status=='PRESENT' and
+                                        saved.receipt_ref==current.get('receipt_ref') and
+                                        evidence.get('effect_key')==saved.key and
+                                        evidence.get('receipt_ref')==saved.receipt_ref and
+                                        evidence.get('baseline_sha256')==
+                                            json.loads(saved.packet_json).get('baseline_sha256'))
+                                if valid:
                                     store.resume()
                                     report={'status':'RESUMED_BY_OWNER','writes':0}
+                                else:
+                                    report={'status':'UNKNOWN','writes':None,
+                                            'reason':'CURRENT_DELIVERY_NOT_VERIFIED_P2'}
                 elif not store.stopped():
                     report={'status':'CONTROL_STOP_REQUIRED','writes':0}
                 else:

@@ -382,3 +382,41 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
         return result
     return dict(result,status='VERIFIED',reason='EXACT_SERVED_CANDIDATE',
                 proof_level='P0' if get is not None else 'P2')
+
+
+def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
+    """Observe only the saved occurrence named by the current Pages target SHA.
+
+    Historical delivery rows remain immutable facts. This bounded current-SHA
+    lookup is the monitoring cursor; it never scans or reopens older releases.
+    """
+    from scripts.phase06_kernel_release import public_get
+    observed_at=observed_at or datetime.now(timezone.utc);_aware(observed_at)
+    if not journal.has_owned_history():
+        return None
+    read=get or public_get
+    target_url=f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/gh-pages'
+    unknown={'status':'UNKNOWN','observed_at':observed_at.isoformat(),
+        'proof_ref':PUBLIC_BASE,'proof_level':'P0','reason':'CURRENT_TARGET_UNAVAILABLE',
+        'human_outcome':'NOT_MEASURED'}
+    try:
+        target=json.loads(read(target_url))
+        if (type(target) is not dict or target.get('ref')!='refs/heads/gh-pages' or
+                type(target.get('object')) is not dict or target['object'].get('type')!='commit' or
+                type(target['object'].get('sha')) is not str or
+                not _HEX_SHA.fullmatch(target['object']['sha'])):
+            return {'kind':'unmatched','evidence':dict(unknown,reason='CURRENT_TARGET_UNAVAILABLE')}
+        current_sha=target['object']['sha']
+        candidate=journal.record_for_receipt(current_sha)
+        if candidate is not None:
+            evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=read)
+            return {'kind':'candidate','effect_key':candidate.key,
+                    'receipt_ref':candidate.receipt_ref,'evidence':evidence}
+        rollback=journal.rollback_for_receipt(current_sha)
+        if rollback is not None:
+            evidence=collect_owned_rollback_delivery(rollback.key,journal,observed_at,get=read)
+            return {'kind':'rollback','effect_key':rollback.key,
+                    'receipt_ref':rollback.receipt_ref,'evidence':evidence}
+        return {'kind':'unmatched','evidence':dict(unknown,reason='CURRENT_TARGET_NOT_SAVED_RECEIPT')}
+    except (ValueError,KeyError,TypeError,OSError,AttributeError):
+        return {'kind':'unmatched','evidence':unknown}

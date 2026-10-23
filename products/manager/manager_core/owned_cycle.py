@@ -266,6 +266,49 @@ def _observe_owned_delivery(state_store,host,record,now,*,writes=0,allow_rollbac
     return _cycle_result('UNKNOWN',writes,rollback_writes=0,reason=observation.reason,**base)
 
 
+def _monitor_current_platform_delivery(state_store,host):
+    """Sample the receipt named by current Pages SHA without reopening history."""
+    try:current=host.observe_current_delivery(state_store.journal)
+    except Exception:
+        return _cycle_result('UNKNOWN',0,reason='CURRENT_DELIVERY_UNAVAILABLE')
+    if current is None:
+        return None
+    if type(current) is not dict or current.get('kind') not in ('candidate','rollback','unmatched'):
+        return _cycle_result('UNKNOWN',0,reason='CURRENT_DELIVERY_UNTYPED')
+    evidence=current.get('evidence')
+    if type(evidence) is not dict or evidence.get('status') not in (
+            'VERIFIED','PENDING','REGRESSION','UNKNOWN'):
+        return _cycle_result('UNKNOWN',0,reason='CURRENT_DELIVERY_UNTYPED')
+    kind=current['kind'];key=current.get('effect_key');receipt=current.get('receipt_ref')
+    if kind=='candidate':
+        record=state_store.journal.record(key) if type(key) is str else None
+        if (record is None or record.status!='PRESENT' or record.receipt_ref!=receipt or
+                evidence.get('effect_key')!=key or evidence.get('receipt_ref')!=receipt or
+                evidence.get('candidate_sha256')!=json.loads(record.packet_json).get('candidate_sha256')):
+            return _cycle_result('UNKNOWN',0,reason='CURRENT_CANDIDATE_BINDING_UNCONFIRMED')
+    elif kind=='rollback':
+        record=state_store.journal.rollback_record(key) if type(key) is str else None
+        if (record is None or record.status!='PRESENT' or record.receipt_ref!=receipt or
+                evidence.get('effect_key')!=key or evidence.get('receipt_ref')!=receipt or
+                evidence.get('baseline_sha256')!=json.loads(record.packet_json).get('baseline_sha256')):
+            return _cycle_result('UNKNOWN',0,reason='CURRENT_ROLLBACK_BINDING_UNCONFIRMED')
+    elif evidence.get('status')!='UNKNOWN':
+        return _cycle_result('UNKNOWN',0,reason='CURRENT_TARGET_NOT_SAVED_RECEIPT')
+
+    status=evidence['status'];proof=evidence.get('proof_level')
+    reason=evidence.get('reason','CURRENT_DELIVERY_UNCONFIRMED')
+    if (kind=='candidate' and status=='REGRESSION' and proof=='P2' and
+            reason in ('BOUND_FIXED_HTML_CSP_FAILURE','BOUND_CURRENT_PAGE_CUE_FAILURE')):
+        state_store.stop()
+        return _cycle_result('STOPPED_REGRESSION',0,proof_level='P2',reason=reason,
+                             effect_key=key,receipt_ref=receipt)
+    if status=='VERIFIED' and proof=='P2':
+        return None
+    return _cycle_result('UNKNOWN',0,proof_level=proof if proof in ('P0','P2') else 'P0',
+                         reason=reason,effect_key=key if type(key) is str else None,
+                         receipt_ref=receipt if type(receipt) is str else None)
+
+
 def _recover_owned_deliveries(state_store,host,now,*,allow_rollback=True):
     batch=state_store.journal.recovery_batch('delivery');blocking=None
     for record in batch:
@@ -376,14 +419,19 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         if not acquired:return result('OWNER_BUSY')
         if platform:host.assert_session(state_store)
         else:host.assert_offline()
+        rollback=None
         if platform:
             rollback=host.reconcile_pending_rollbacks(state_store)
+        occurrence_reader=_occurrence_reader(state_store,host)
+        reconcile_pending_owned(state_store.journal,occurrence_reader,datetime.now(timezone.utc))
+        if platform:
+            current=_monitor_current_platform_delivery(state_store,host)
+            if current is not None:
+                return current
             if rollback is not None and rollback.get('status')=='UNKNOWN':
                 return result('UNKNOWN',None,
                               reason=rollback.get('reason','ROLLBACK_RECONCILIATION_PENDING'),
                               receipt_ref=rollback.get('receipt_ref'))
-        occurrence_reader=_occurrence_reader(state_store,host)
-        reconcile_pending_owned(state_store.journal,occurrence_reader,datetime.now(timezone.utc))
         pending=bool(state_store.journal.pending_records(limit=1))
         delivery=_recover_owned_deliveries(state_store,host,now,
             allow_rollback=(not platform and not pending))
