@@ -22,6 +22,8 @@ source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを�
 
 ### MAC04のhost設定と導入インターフェース
 
+追加cursor: active wrapperの限定照合で、Mercor Replyの`/opt/homebrew/bin/gog`固定、Fundraiserの本人PATH上書き、gig-outcome-watchのPython固定とhelper欠落を検出する。前2件は既存の本人tool解決順へ揃え、最後はGit tree/履歴/実呼出を確認して既存helper再利用または不足を明示する。いずれもprovider送信や本番job実行を伴わない隔離検証を使い、欠落helperのエラーを`ok: no alerts`へ置換しない。watcherが参照する2 helperはGit履歴93b6bab427に存在するため既存実装を復元し、現在のcanonical telemetry path、GIG_STATE_DIR、daily_verdictの既存settled/evidence条件へ揃える。missing helper/本人Python/未確認成果の3 RED→3 GREEN、gateway retirement8件とshell構文がPASSする。最終差分reviewはこの修復後のheadを対象にする。
+
 追加受入: 初回MacでAgent Economyのcitizen/wallet/genesisが未作成のままjobだけ登録される境界を閉じる。全体またはAgent Economy選択時だけ、検証済みimmutable release内の既存install.shをdeps=0/daemon=0で呼び、本人のprivate runtime homeとtenantへ初期状態を作る。新しいwallet実装・資金移動・別daemon登録は追加しない。本人host環境のLIFE_MANAGER_HOMEを同じrootへ束縛し、compute-proxyとAgent Economyのinstance参照を一致させる。同SHAの再導入は既存releaseを再利用し、別pathで稼働する同SHA/同runtime/同host ownerは実際のloaded pathを記録して保持する。CIで再現したSQLite待機テストの余分なsleepは、retryと独立したsubprocess待機の共有mock混入を調べ、retry回数・deferred receiptの検証を弱めずに観測を分離する。
 
 `./install.sh local`はprepare→main由来完全releaseの作成（current維持）→全managed jobと別管理watchdog/Mercor browserの対象限定導入を進める。`./install.sh local plan`はregistry全体・catalog・別installerを照合し、side effectなしでcoverageと不足を返す。`./install.sh local prepare`は本人HOMEのprivate host設定・browser registry・agent runner設定・各jobのstate/log directoryだけを準備し、認証値やsessionをコピーしない。`./install.sh local apply --release PATH`はmain由来の完全immutable releaseを検証し、既存`lm-loop apply`へ委譲する。全jobを列挙した事実・導入済み・自然稼働・provider成果は別に返す。external labelsは他ownerの管理範囲として明示し、顧客向けprovisionerを勝手に複製しない。
