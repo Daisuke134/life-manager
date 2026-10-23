@@ -1,6 +1,7 @@
 """Authored CLP contracts; native dependencies are replaced only at their boundary."""
 from contextlib import contextmanager, redirect_stdout
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import importlib
 import io
@@ -67,6 +68,7 @@ class LocalModelTests(unittest.TestCase):
             pin = {'path': write('evidence.json', b'{"accepted":true}'),
                    'sha256': sha256(b'{"accepted":true}').hexdigest()}
             outputs = {name: str(private / (name + '.json')) for name in self.m.OUTPUT_KEYS}
+            outputs['terminal_receipt'] = str(private / 'execution-receipt.json')
             config_path = private / 'config.json'
             config = dict(kind='manager.safetybench-local-qwen3-clp-execution.v1',
                 acceptance_status='ACCEPTED_ONE_OFFLINE_SAFETYBENCH_CLP_ATTEMPT_WITH_TERMINAL_FINALIZATION',
@@ -86,7 +88,17 @@ class LocalModelTests(unittest.TestCase):
                 config_path.write_bytes(canonical(config))
                 config_path.chmod(0o400)
             freeze()
-            with patch.object(self.m, 'SCOPE_SHA256', pin['sha256']), patch.object(self.m, 'AUDIT_SHA256', pin['sha256']), patch.object(self.m, 'WATCHDOG_SHA256', pin['sha256']), patch.object(
+            monitor_started = datetime.now(timezone.utc) - timedelta(seconds=0.1)
+            running = dict(started_at=monitor_started.isoformat(), argv=config['argv'], cwd=str(ROOT),
+                wall_limit_seconds=10800, observed_process_group_rss_limit_bytes=6442450944,
+                poll_sleep_seconds=0.05,
+                rss_basis='sampled sum /proc statm RSS for own process group; scan time adds to poll sleep; shared mappings may count more than once',
+                status='RUNNING', peak_group_rss_bytes=0, terminate_sent=False, kill_sent=False,
+                retry_count=0, human_benefit='NOT_MEASURED', own_pid=54321, own_process_group=54321)
+            write('execution-receipt.json', canonical(running))
+            def identity():
+                return {'pid': 54321, 'pgid': 54321, 'sid': 54321, 'parent_argv': config['wrapper_argv']}
+            with patch.object(self.m, '_monitor_identity', side_effect=identity), patch.object(self.m, 'SCOPE_SHA256', pin['sha256']), patch.object(self.m, 'AUDIT_SHA256', pin['sha256']), patch.object(self.m, 'WATCHDOG_SHA256', pin['sha256']), patch.object(
                     self.m, '_native_metadata', return_value=(science['packages'], config['native_source'])), patch('pathlib.Path.cwd', return_value=ROOT):
                 validated = self.m.validate_configuration(config_path, mode='infer', code_version=VERSION)
                 yield validated, config, config_path, dataset, freeze
@@ -322,6 +334,9 @@ class LocalModelTests(unittest.TestCase):
             config['argv'] = self.m.execution_argv(config, path, 'infer')
             config['finalize_argv'] = self.m.execution_argv(config, path, 'finalize')
             config['wrapper_argv'][0] = str(interpreter)
+            monitor_path = Path(config['output_paths']['terminal_receipt'])
+            monitor = json.loads(monitor_path.read_bytes()); monitor['argv'] = config['argv']
+            monitor_path.write_bytes(canonical(monitor))
             freeze()
             with patch.object(self.m.sys, 'executable', str(interpreter)):
                 validated = self.m.validate_configuration(path, mode='infer', code_version=VERSION)
@@ -339,6 +354,78 @@ class LocalModelTests(unittest.TestCase):
             self.test_finalization_binds_terminal_and_reap()
         finally:
             del self._torn_finalizer_tail
+
+    def test_active_monitor_admits_cli_and_entry_revalidation(self):
+        spec = importlib.util.spec_from_file_location('local_cli_monitor', ROOT / 'scripts/evaluate_safetybench_local_model.py')
+        cli = importlib.util.module_from_spec(spec); spec.loader.exec_module(cli)
+        with self.fixture() as (_, config, path, _, _):
+            monitor_path = Path(config['output_paths']['terminal_receipt'])
+            before = monitor_path.read_bytes()
+            output = io.StringIO()
+            with patch.object(self.m, '_native_backend', return_value=(Tokenizer(), lambda ids: (1., 0., -1., -2.))), redirect_stdout(output):
+                status = cli.main(['--mode', 'infer', '--execution-config-path', str(path), '--code-version', VERSION])
+            self.assertEqual(status, 0)
+            self.assertEqual(json.loads(output.getvalue())['completed'], 7)
+            self.assertEqual(monitor_path.read_bytes(), before)
+
+    def test_monitor_foreign_old_and_tampered_fail_before_backend(self):
+        with self.fixture() as (validated, config, _, _, _):
+            path = Path(config['output_paths']['terminal_receipt'])
+            running = json.loads(path.read_bytes())
+            changes = [('status', 'EXITED_SUCCESS'), ('own_pid', 54322), ('own_process_group', 54322),
+                ('argv', []), ('cwd', '/foreign'), ('wall_limit_seconds', True),
+                ('retry_count', 1), ('terminate_sent', True), ('poll_sleep_seconds', 1.),
+                ('started_at', '2000-01-01T00:00:00'), ('started_at', '2999-01-01T00:00:00+00:00'),
+                ('reaped', True), ('returncode', 0)]
+            with patch.object(self.m, '_native_backend', side_effect=AssertionError('must not reach native')):
+                for key, value in changes:
+                    path.write_bytes(canonical(dict(running, **{key: value})))
+                    self.reject(self.m.run_local, configuration=validated)
+                for payload in (b'{malformed', b'{}', b'{"status":"RUNNING","status":"RUNNING"}'):
+                    path.write_bytes(payload)
+                    self.reject(self.m.run_local, configuration=validated)
+                path.write_bytes(canonical(running)); path.chmod(0o644)
+                self.reject(self.m.run_local, configuration=validated)
+            path.chmod(0o600); path.write_bytes(canonical(running))
+            for identity in ({'pid': 54321, 'pgid': 54322, 'sid': 54321, 'parent_argv': config['wrapper_argv']},
+                             {'pid': 54321, 'pgid': 54321, 'sid': 54322, 'parent_argv': config['wrapper_argv']},
+                             {'pid': 54321, 'pgid': 54321, 'sid': 54321, 'parent_argv': ['foreign']}):
+                with patch.object(self.m, '_monitor_identity', return_value=identity):
+                    self.reject(self.m.run_local, configuration=validated)
+            self.assertFalse(Path(config['output_paths']['assignment']).exists())
+
+    def test_monitor_startup_wait_is_missing_only_and_bounded(self):
+        with self.fixture() as (validated, config, _, _, _):
+            path = Path(config['output_paths']['terminal_receipt'])
+            payload = path.read_bytes(); path.unlink()
+            clock = [0.]
+            sleeps = []
+            def advance(seconds):
+                self.assertEqual(seconds, 0.01)
+                sleeps.append(seconds); clock[0] += seconds
+                if len(sleeps) == 2:
+                    path.write_bytes(payload); path.chmod(0o600)
+            with patch.object(self.m.time, 'monotonic', side_effect=lambda: clock[0]), patch.object(self.m.time, 'sleep', side_effect=advance):
+                admitted = self.m.validate_configuration(Path(validated['_configuration_path']), mode='infer', code_version=VERSION)
+            self.assertEqual(admitted, validated)
+            self.assertEqual(len(sleeps), 2)
+            path.unlink(); clock[0] = 0.
+            def late(seconds):
+                clock[0] = 1.1
+                path.write_bytes(payload); path.chmod(0o600)
+            with patch.object(self.m.time, 'monotonic', side_effect=lambda: clock[0]), patch.object(self.m.time, 'sleep', side_effect=late), patch.object(self.m, '_native_backend', side_effect=AssertionError('must not reach native')):
+                self.reject(self.m.run_local, configuration=validated)
+            path.unlink(); clock[0] = 0.; sleeps.clear()
+            def absent(seconds):
+                sleeps.append(seconds); clock[0] += seconds
+            with patch.object(self.m.time, 'monotonic', side_effect=lambda: clock[0]), patch.object(self.m.time, 'sleep', side_effect=absent):
+                self.reject(self.m.run_local, configuration=validated)
+            self.assertLessEqual(sum(sleeps), 1.0000001)
+            self.assertGreaterEqual(sum(sleeps), .99)
+            path.write_bytes(b'{malformed'); path.chmod(0o600)
+            with patch.object(self.m.time, 'sleep', side_effect=AssertionError('present bad receipt must fail immediately')):
+                self.reject(self.m.run_local, configuration=validated)
+            self.assertFalse(Path(config['output_paths']['assignment']).exists())
 
     def test_native_forward_arguments(self):
         # Fake only the optional native library boundary; exercise real native setup/forward.

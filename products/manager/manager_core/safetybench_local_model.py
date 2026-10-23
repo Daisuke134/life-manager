@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import stat
 import sys
+import time
 
 from . import safetybench_mcq as mcq
 from .helpsteer2_candidate_sft import PrivateCheckpoint, _path, _digest_file, _fsync_directory
@@ -142,6 +143,53 @@ def execution_argv(config, path, mode):
     return argv
 
 
+def _monitor_identity():
+    # Narrow OS boundary: unchanged monitor uses start_new_session=True.
+    parent_argv = Path('/proc', str(os.getppid()), 'cmdline').read_bytes().split(b'\0')
+    _require(parent_argv[-1] == b'')
+    return {'pid': os.getpid(), 'pgid': os.getpgrp(), 'sid': os.getsid(0),
+            'parent_argv': [part.decode('utf-8') for part in parent_argv[:-1]]}
+
+
+def _active_monitor(config):
+    path = Path(config['output_paths']['terminal_receipt'])
+    _require(path.name == 'execution-receipt.json')
+    # Popen precedes the monitor's atomic RUNNING publication. Wait only for
+    # initial absence, inside the same outer budget; present bad evidence fails.
+    deadline = time.monotonic() + 1.0
+    waited = False
+    while True:
+        _require(not waited or time.monotonic() <= deadline)
+        try:
+            payload = _private(path, file=True, mode=0o600).read_bytes()
+            break
+        except FileNotFoundError:
+            remaining = deadline - time.monotonic()
+            _require(remaining > 0)
+            time.sleep(min(0.01, remaining))
+            waited = True
+    receipt = mcq._parse(payload)
+    _require(type(receipt) is dict and set(receipt) == {
+        'started_at', 'argv', 'cwd', 'wall_limit_seconds', 'observed_process_group_rss_limit_bytes',
+        'poll_sleep_seconds', 'rss_basis', 'status', 'peak_group_rss_bytes', 'terminate_sent',
+        'kill_sent', 'retry_count', 'human_benefit', 'own_pid', 'own_process_group'})
+    _require(receipt['status'] == 'RUNNING' and receipt['argv'] == config['argv'] and receipt['cwd'] == config['cwd'])
+    for key, expected in (('wall_limit_seconds', 10800), ('observed_process_group_rss_limit_bytes', 6442450944), ('retry_count', 0)):
+        _require(type(receipt[key]) is int and receipt[key] == expected)
+    _require(type(receipt['peak_group_rss_bytes']) is int and receipt['peak_group_rss_bytes'] >= 0)
+    _require(type(receipt['poll_sleep_seconds']) is float and receipt['poll_sleep_seconds'] == 0.05)
+    _require(receipt['terminate_sent'] is False and receipt['kill_sent'] is False and receipt['human_benefit'] == 'NOT_MEASURED')
+    _require(receipt['rss_basis'] == 'sampled sum /proc statm RSS for own process group; scan time adds to poll sleep; shared mappings may count more than once')
+    at = datetime.fromisoformat(receipt['started_at'])
+    _require(at.tzinfo is not None and at.utcoffset().total_seconds() == 0)
+    _require(at.timestamp() <= datetime.now(timezone.utc).timestamp() + 1.0)
+    identity = _monitor_identity()
+    _require(type(receipt['own_pid']) is int and type(receipt['own_process_group']) is int)
+    _require(receipt['own_pid'] > 1 and receipt['own_pid'] == receipt['own_process_group']
+             == identity['pid'] == identity['pgid'] == identity['sid'])
+    _require(identity['parent_argv'] == config['wrapper_argv'])
+
+
 @_static
 def validate_configuration(path: Path, *, mode: str, code_version: str) -> dict:
     path = _private(path, file=True, mode=0o400)
@@ -189,7 +237,7 @@ def validate_configuration(path: Path, *, mode: str, code_version: str) -> dict:
         _require(item not in protected and item not in output_set)
         _require(not any(item.is_relative_to(p) for p in protected if p.is_dir()))
         output_set.add(item)
-        if mode == 'infer' or name in ('producer_receipt', 'envelope', 'result'):
+        if (mode == 'infer' and name != 'terminal_receipt') or name in ('producer_receipt', 'envelope', 'result'):
             _require(not item.exists())
     # The interpreter alone may use the existing venv symlink spelling.
     python = Path(config['python_path'])
@@ -200,6 +248,8 @@ def validate_configuration(path: Path, *, mode: str, code_version: str) -> dict:
     _require(config['argv'] == execution_argv(config, path, 'infer'))
     _require(config['finalize_argv'] == execution_argv(config, path, 'finalize'))
     _require(config['wrapper_argv'] == [str(python), config['wrapper_source']['path'], str(path)])
+    if mode == 'infer':
+        _active_monitor(config)
     config['_configuration_path'] = str(path)
     return config
 

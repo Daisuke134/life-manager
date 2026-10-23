@@ -44,6 +44,14 @@ Infer is one attempt. Finalization is terminal reconciliation and one existing
 scorer call with no ML imports, not a second model attempt or a resume route.
 Any CLI failure prints only `SAFETYBENCH_LOCAL_MODEL_UNAVAILABLE` and exits 2.
 
+Infer requires fresh producer artifacts and wrapper-reap evidence, plus the
+unchanged monitor's existing private RUNNING receipt bound to this child,
+isolated process group/session and actual parent wrapper argv. Popen precedes
+that atomic receipt, so admission waits only for initial absence, for at most
+one second inside the same outer budget; present invalid evidence fails
+immediately. CLI validation and producer entry both check this handoff. The
+producer never creates or modifies monitor evidence.
+
 The strict config uses kind `manager.safetybench-local-qwen3-clp-execution.v1`,
 acceptance status
 `ACCEPTED_ONE_OFFLINE_SAFETYBENCH_CLP_ATTEMPT_WITH_TERMINAL_FINALIZATION`,
