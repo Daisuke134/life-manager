@@ -46,7 +46,7 @@
 - docs/evidence/ai-monk-factory-web-production-20261023.json
 
 ## 現在cursor・未達
-この公開workspace/local plan受入は完了する。無料plugin ZIP v0.1.1も公開するが、ChatGPT/Codex公式directory掲載、Museサービス特定、実生成/投稿/native確認、売上/他者無人収益/USD10K MRRは未達として扱う。次は直接install可能な配布導線。公式掲載の通常Google SSOは既存persistent contextで通過し、OpenAI MFA passkeyに留まる。指定cua-driver skill不在でnative UIは未操作とし、掲載済みと呼ばない。API成功や生成fixtureを実収益の証拠に置換しない。
+この公開workspace/local plan受入は完了する。無料plugin ZIP v0.1.1も公開するが、ChatGPT/Codex公式directory掲載、Museサービス特定、実生成/投稿/native確認、売上/他者無人収益/USD10K MRRは未達として扱う。Codex repo pluginの公開導入とCLI v0.4.3のGitHub Release/公開URL導入/実stdio6toolは受入済み。次は掲載・販売条件の残る境界。公式掲載の通常Google SSOは既存persistent contextで通過し、OpenAI MFA passkeyに留まる。指定cua-driver skill不在でnative UIは未操作とし、掲載済みと呼ばない。API成功や生成fixtureを実収益の証拠に置換しない。
 
 ## 優先順の更新
-旧順はDatabase→Factory Web→plugin。Daisの明示指示に従い、Database→CLI→plugin配布・販売条件確認→Factory完成形へ変更する。進行中のplugin catalog反映を中断せず閉じ、CLIの最新研究機能/snapshotとの配布整合を次cursorとする。本計画の完了は初期workspace/local planの範囲。利用者TikTok接続→制作投稿自動化のSaaSは将来の未完事項として保持し、現在は追加実装しない。
+旧順はDatabase→Factory Web→plugin。Daisの明示指示に従い、Database→CLI→plugin配布・販売条件確認→Factory完成形へ変更する。plugin catalog/公開導入案内とCLI v0.4.3配布整合は完了し、残TODO正本をproductsの docs/superpowers/plans/2026-10-23-ai-monk-plugin-marketplace.md に戻す。本計画の完了は初期workspace/local planの範囲。利用者TikTok接続→制作投稿自動化のSaaSは将来の未完事項として保持し、現在は追加実装しない。
