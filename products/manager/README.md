@@ -59,3 +59,5 @@ python scripts/check_boundaries.py
 順序・状態の正本は [Life Manager統合SSOT](../../docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md)
 です。研究・出版・応募・売上の記録を、人間への便益や持続的な効果の証明に
 読み替えません。
+
+実運用の現在地は [2026-10-23 cloud実行receipt](docs/verification/E16_CLOUD_EXECUTION_20261023.md) を参照してください。gateway/main runtime、初回非公開状態移行、実OIDC復元・更新・解放を確認済みです。初回NO_ACTIONと別fresh runnerのNOT_DUE／重複公開0件を実証しました。正のcanary・停止/復旧・native観測の受入れは継続中です。

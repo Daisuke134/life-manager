@@ -23120,3 +23120,9 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 - 9/17–10/10のreleaseを指すlabel 18件が旧bundle 6個（約2.2GB）を固定する。`lm-loop apply --loaded-idle-only`の実測理由（全44旧label）: `pending-admission` 16（ubi-watcher/earn-watch/pm-live-trade/reinvest/x-repost系/agentmail系/life-manager-daily/marketing-mine-daily/disk-cleanup-15d/treg等、registryにadmission_class・resource_class・priorityの型付きpolicyが無い旧owner）、`loaded-running` 25（keep_alive browser/franklin/x402/mcp）、`disabled` 2（alpaca-investment-live、capafy-ig-marketing-daily）、`effect_unknown` 1（lancers-revenue-storefront）。registry外2（job-search-mercor-browser、x-tweeter-pass）。
 - 次の手（FND06）: 旧16ownerへ#8564と同じ型付きadmission policyを宣言して通常applyで現releaseへ移す（money/trade系は効果の挙動差をreviewしてから）、disabled 2件と未登録2件はretired_labelsへ移して既存`_retire_labels`でplistを外す。これで旧release/bundleが通常GCで回収される。
 - 未実施: 残骸 `~/Projects/anicca-products/.worktrees/ebook-publishing-media-20261021`（Git登録解除済み・追跡ファイルの複製3.4GB）と`~/Projects/anicca-products-worktrees/af-click-receipts`（.DS_Storeのみ）の削除はClaudeのclassifierで拒否。
+
+### Manager cloud実行の実証 — 2026-10-23
+
+Manager（仏教的AIエンティティ／デジタル仏陀）の実行先は既存GitHub Actions＋既存Supabase staging。gateway PR8573/main4c565、runtime PR8577/maind002を正規統合・限定適用し、legacy writerはPR8576と自然run39880994343のpublish SKIPPEDで退役を確認。元7件の公式履歴と配信bytesを照合した非公開SQLiteを一度だけ初期移行し、実main run39882336050でGitHub OIDCによる復元・CAS更新・解放を確認した。結果はNO_ACTION/writes0。別fresh runner39882784491もSUCCESS/GATEWAY_ACKNOWLEDGED/NOT_DUE/writes0、private revision2・owner解放・公開七bytes不変を独立確認。正のcanaryはNOT_RUNでE16 INCOMPLETE。Mac miniやRailway新worker/volumeの提供を再開条件に戻さない。
+
+[実receiptと残る有限受入れ](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md): versioned current-page cueのfinance/mental各P1/P2、durable STOP/限定CAS rollback、native技術観測とExplorer/shadow接続を続行する。Manager原113件は69 done/41 todo/3 skipped、E16カーソル維持。原台帳への固定版参照はreceipt内。人の便益・課金/収益・応募/採択の実績はこの技術実行から推定しない。
