@@ -1,0 +1,4 @@
+# Anicca apps
+- [Anicca](https://aniccaai.com/affirmation-app-faq): Daily affirmation cards, self-care themes and reminders for everyday reflection. App Store: https://apps.apple.com/us/app/daily-affirmations-anicca/id6755129214
+- [Thankful](https://aniccaai.com/thankful-faq): Write three gratitude entries, read daily affirmations and track your journaling streak. App Store: https://apps.apple.com/us/app/thankful-gratitude-journal/id6759514159
+- [Honne](https://aniccaai.com/honne-faq): Paste a conversation to explore AI-generated interpretations and possible replies. These are suggestions, not facts about someone's feelings. App Store: https://apps.apple.com/us/app/honne/id6759667221
