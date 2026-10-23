@@ -96,3 +96,5 @@
 - 2026-10-24 06:34 Codex（mobile旗艦）: Anicca Store copyの事実整合はPR8786/mainffff0cbd、CI14件・fresh review軽微1件修正/重大0で受入済み。ASCの既存7locale/14resource/21fieldを同mainの文面へ反映し、別公式GETで完全一致/対象外fieldとbuild808維持を確認する。公開HTMLの新promo表示は未確認で、description公開は1.9.6公開後。通知4jobは同ID/attempt2でreceiptと送信先本文一致4/4、次自然runの再送ゼロと全6商品の同期間baselineが残る。Era指定/6TODO順と実機Lifetime動画→再提出の主cursorを維持する。
 
 - Codex（mobile旗艦）: 日次計測ownerのloaded247474a9はrelease自体が欠落し、公式state spawn scheduled/EX_CONFIG78。既存complete b53を対象daily ownerだけへloaded-idle採用する範囲をclaimする。spec先行push後、既存b53へ対象限定loaded-idle apply成功、別公式3argv/SHA一致とprogram実在を確認する。新しい自然収集は未確認。新collector・手動wake・他owner/共有current変更は0で、6TODO順と主cursor1を保つ。native 7packの内容分類は改善文面一致3/不一致4で、効果/MRRとは分ける。
+
+- Codex（mobile旗艦）: 日次ownerと同じ起動先欠落を既存配信6枠で公式確認する。Anicca4/Honne2のloaded23cce9dcは実在せず、6件ともnot running。最新mainを取り込んだ同branchでspec先行更新し、既存9da02124の対象契約確認後に1ownerずつ既存loaded-idle採用を進める。account/slot/cadence/queue/fenceと共有currentを保持し、自然公開receipt未取得を保つ。
