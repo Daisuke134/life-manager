@@ -582,6 +582,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_boot_panic_evidence_runs_once_when_the_aqua_session_loads(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertEqual(registry["loops"]["boot-panic-evidence"], {
+            # borrow/deterministic/support: without a typed admission contract a queued row
+            # kept the label fenced on a deleted release (2026-10-24).
+            "admission_class": "borrow",
             "cadence": {"run_at_load": True},
             "cleanup": {"max_age_days": 30, "max_runs": 20},
             "domain": "system",
@@ -589,7 +592,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "entrypoint": "runtime/host/boot_panic_collector.py",
             "label": "ai.anicca.boot-panic-evidence",
             "log_root": "~/.local/state/life-manager/boot-panic-evidence/logs",
+            "priority": "support",
             "provider_route": "deterministic",
+            "resource_class": "deterministic",
             "state_root": "~/.local/state/life-manager/boot-panic-evidence",
             "system_role": "control",
         })
