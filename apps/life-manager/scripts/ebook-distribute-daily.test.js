@@ -13,7 +13,7 @@ const { buildMarketingVideoPublicationJob } = require("../lib/marketing-video-pu
 
 const ROOT = path.resolve(__dirname, "../../..");
 const PACK = JSON.parse(fs.readFileSync(
-  path.join(ROOT, "skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json"), "utf8",
+  path.join(ROOT, "skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-anicca-monk.json"), "utf8",
 ));
 const PACK_EN = JSON.parse(fs.readFileSync(
   path.join(ROOT, "skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json"), "utf8",
@@ -33,8 +33,14 @@ test("each Japanese eBook publisher owner resolves one matching account and loca
   });
 
   assert.equal(instagram.account.language, "ja");
+  assert.equal(PACK.pack_id, "ebook-ja-anicca-monk");
+  assert.equal(PACK.renderer_id, "heygen-avatar-iv");
+  assert.equal(instagram.target.renderer_id, "heygen-avatar-iv");
+  assert.equal(instagram.target.job_format_id, "ebook-avatar-iv");
   assert.equal(instagram.target.integration_id, instagram.integrationId);
   assert.equal(tiktok.account.language, "ja");
+  assert.equal(tiktok.target.renderer_id, "heygen-avatar-iv");
+  assert.equal(tiktok.target.job_format_id, "ebook-avatar-iv");
   assert.equal(tiktok.target.integration_id, tiktok.integrationId);
   assert.deepEqual(Object.keys(JOBS).sort(), [
     "ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily",
@@ -67,6 +73,44 @@ test("English HeyGen owner resolves the approved active Monk TikTok route", () =
   assert.equal(selected.setup_required, false);
   assert.equal(selected.target.integration_id, "cmo5rwq2p00twn10yrsdglng3");
   assert.equal(selected.integrationId, "cmo5rwq2p00twn10yrsdglng3");
+});
+
+test("Japanese avatar routes reject a different product or an incorrect pinned pack hash", () => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-ja-pack-pin-"));
+  try {
+    for (const relative of [
+      "config/loop-registry.json",
+      "config/marketing-destinations.json",
+      "skills/earn/marketing-engine/registry/accounts/tiktok.obou_anicca.json",
+      "skills/earn/marketing-engine/registry/accounts/instagram.obou_anicca.json",
+      "skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-anicca-monk.json",
+    ]) {
+      const destination = path.join(temporaryRoot, relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, relative), destination);
+    }
+    const contractPath = path.join(temporaryRoot, "config/marketing-destinations.json");
+    const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+    for (const target of contract.targets.filter((row) => row.product_id === "ebook-ja")) {
+      target.approved_pack_ref = `object://sha256/${"0".repeat(64)}`;
+    }
+    fs.writeFileSync(contractPath, JSON.stringify(contract));
+
+    for (const ownerId of ["ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"]) {
+      const lane = JOBS[ownerId];
+      const input = { ownerId, platform: lane.platform, accountId: lane.accountId };
+      assert.throws(
+        () => selectTarget({ ...input, root: ROOT, pack: { ...PACK, product_id: "ebook-en" } }),
+        /owner does not match its locale pack or account/,
+      );
+      assert.throws(
+        () => selectTarget({ ...input, root: temporaryRoot, pack: PACK }),
+        /does not pin the exact approved pack/,
+      );
+    }
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 test("English Monk publishing uses the requested two daily slots", () => {
@@ -463,7 +507,7 @@ test("manual slot override requires a manual occurrence identity", async () => {
   }
 });
 
-test("renderer receives scoped HeyGen environment only for the English eBook", async () => {
+test("avatar renderers receive scoped HeyGen environment without publisher or unrelated secrets", async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-env-"));
   const fakePython = path.join(temporaryRoot, "fake-python");
   const capturedKeys = [
@@ -513,13 +557,13 @@ test("renderer receives scoped HeyGen environment only for the English eBook", a
     assert.equal(english.LM_POSTIZ_API_KEY, null);
     assert.equal(english.PRIVATE_UNRELATED_SECRET, null);
 
-    const japanese = await captureRendererEnvironment(
-      "ebook-ja-tiktok-daily", "2026-10-08T12:30:00+09:00",
-    );
-    assert.equal(japanese.LIFE_MANAGER_HEYGEN, null);
-    assert.equal(japanese.HEYGEN_NO_ANALYTICS, null);
-    assert.equal(japanese.LM_POSTIZ_API_KEY, null);
-    assert.equal(japanese.PRIVATE_UNRELATED_SECRET, null);
+    for (const ownerId of ["ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"]) {
+      const japanese = await captureRendererEnvironment(ownerId, "2026-10-08T12:30:00+09:00");
+      assert.equal(japanese.LIFE_MANAGER_HEYGEN, path.join(temporaryRoot, "bin/heygen"));
+      assert.equal(japanese.HEYGEN_NO_ANALYTICS, "1");
+      assert.equal(japanese.LM_POSTIZ_API_KEY, null);
+      assert.equal(japanese.PRIVATE_UNRELATED_SECRET, null);
+    }
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }

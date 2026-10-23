@@ -293,7 +293,7 @@ def _validate_account(row: dict, path: pathlib.Path, products: dict, renderers: 
     if "watercolor-monk" in row["allowed_renderer_ids"]:
         require(row["product_id"] == "ebook-ja", "watercolor renderer is restricted to ebook-ja")
     if "heygen-avatar-iv" in row["allowed_renderer_ids"]:
-        require(row["product_id"] == "ebook-en", "HeyGen renderer is restricted to ebook-en")
+        require(row["product_id"] in {"ebook-en", "ebook-ja"}, "HeyGen renderer is restricted to ebook products")
 
 
 def load_registry(engine: pathlib.Path) -> Registry:

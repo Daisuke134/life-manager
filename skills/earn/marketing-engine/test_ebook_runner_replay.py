@@ -45,6 +45,7 @@ def test_render_and_telegram_replay_each_external_effect_once(tmp_path, monkeypa
 
     def render(**kwargs):
         nonlocal renders
+        assert kwargs["language"] == "en"
         renders += 1
         output.write_bytes(b"video")
         return {"renderer_id": "heygen-avatar-iv", "state": "rendered",

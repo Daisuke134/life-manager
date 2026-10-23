@@ -142,7 +142,42 @@ class ProductRegistryTest(unittest.TestCase):
             if "watercolor-monk" in formats:
                 self.assertEqual(account["product_id"], "ebook-ja")
             if "heygen-avatar-iv" in formats:
-                self.assertEqual(account["product_id"], "ebook-en")
+                self.assertIn(account["product_id"], {"ebook-en", "ebook-ja"})
+        for account_id in ("tiktok.obou_anicca", "instagram.obou_anicca"):
+            self.assertIn("heygen-avatar-iv", registry.accounts[account_id]["allowed_renderer_ids"])
+        self.assertIn("ja", registry.renderers["heygen-avatar-iv"]["languages"])
+
+    def test_japanese_avatar_pack_preserves_routes_and_uses_native_japanese_voice(self):
+        packs = load_ebook_packs(ENGINE)
+        self.assertIn("ebook-ja-anicca-monk", packs)
+        pack = packs["ebook-ja-anicca-monk"]
+        self.assertEqual((pack["product_id"], pack["language"], pack["renderer_id"]),
+                         ("ebook-ja", "ja", "heygen-avatar-iv"))
+        self.assertEqual(pack["heygen"], {
+            "avatar_id": "ce6ef33ff2d0484dabf8a13ce059bbe8",
+            "avatar_name": "Wise Buddhist Monk",
+            "voice_id": "662e1397965c484e8f65fa58c77effde",
+            "voice_name": "Satoshi",
+        })
+        self.assertEqual(pack["destination_url"], "https://aniccaai.com/achan")
+        self.assertEqual(pack["price"], {"amount": 1580, "currency": "JPY"})
+        self.assertEqual(pack["slots_jst"], ["07:00", "12:30", "20:00"])
+        self.assertEqual(pack["accounts"], [
+            {"account_id": "tiktok.obou_anicca", "integration_id": "cmo5s4edx00vgn10ygnu34a0n"},
+            {"account_id": "instagram.obou_anicca", "integration_id": "cmooplxmu04tpmd0y4h3cpk33"},
+        ])
+
+    def test_heygen_renderer_stays_closed_to_non_ebook_products(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            shutil.copytree(ENGINE / "registry", root / "registry")
+            path = root / "registry/accounts/tiktok.obou_anicca.json"
+            account = json.loads(path.read_text())
+            account.update(product_id="honne-ai", product_ids=["honne-ai"],
+                           allowed_renderer_ids=["heygen-avatar-iv"])
+            path.write_text(json.dumps(account))
+            with self.assertRaisesRegex(RoutingError, "HeyGen renderer is restricted"):
+                load_registry(root)
 
     def test_english_ebook_pack_uses_two_daily_slots(self):
         packs = load_ebook_packs(ENGINE)

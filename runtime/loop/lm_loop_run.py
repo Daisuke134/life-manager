@@ -234,7 +234,7 @@ def _child_environment_for_owner(
         if "/opt/homebrew/bin" not in path_entries:
             environment["PATH"] = os.pathsep.join(("/opt/homebrew/bin", inherited_path))
 
-    if loop_id == "ebook-en-tiktok-daily":
+    if loop_id in EBOOK_POSTIZ_LOOP_IDS:
         # HeyGen's CLI telemetry must not gate the provider command on PostHog DNS.
         environment["HEYGEN_NO_ANALYTICS"] = "1"
         # The CLI lives under the user's local bin, which is intentionally not

@@ -1,9 +1,15 @@
 {
   "schema_version": "marketing.ebook-pack.v1",
   "product_id": "ebook-ja",
-  "pack_id": "ebook-ja-watercolor",
+  "pack_id": "ebook-ja-anicca-monk",
   "language": "ja",
-  "renderer_id": "watercolor-monk",
+  "renderer_id": "heygen-avatar-iv",
+  "heygen": {
+    "avatar_id": "ce6ef33ff2d0484dabf8a13ce059bbe8",
+    "avatar_name": "Wise Buddhist Monk",
+    "voice_id": "662e1397965c484e8f65fa58c77effde",
+    "voice_name": "Satoshi"
+  },
   "destination_url": "https://aniccaai.com/achan",
   "price": {"amount": 1580, "currency": "JPY"},
   "slots_jst": ["07:00", "12:30", "20:00"],
@@ -12,5 +18,5 @@
     {"account_id": "instagram.obou_anicca", "integration_id": "cmooplxmu04tpmd0y4h3cpk33"}
   ],
   "allowed_claims": ["Japanese-language guided reflection ebook", "Digital access is sold through the owned checkout page"],
-  "stop_rules": ["missing_native_receipt", "identity_preflight_failed", "duplicate_publish_key", "unverified_render_cost"]
+  "stop_rules": ["missing_native_receipt", "identity_preflight_failed", "duplicate_publish_key", "unverified_render_cost", "heygen_setup_required"]
 }

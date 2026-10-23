@@ -10,13 +10,13 @@ from script_ledger import ScriptLedger
 
 
 JA = [
-    ("眠れない夜", "考えが止まらない", "思考も移り変わる", "息を三つ数える"),
-    ("足りないと感じる夜", "手に入れても安心できない", "満足も形を変える", "今ある一つを声に出す"),
-    ("比べてしまう朝", "誰かの速さに置いていかれる", "人の道も自分の道も変わる", "足裏を感じる"),
-    ("失敗を握る夜", "あの一言を何度も責める", "過去は今の手の中にない", "肩を一度ゆるめる"),
-    ("急ぎすぎる午後", "終わらせないと価値がない気がする", "急ぎの感覚も過ぎ去る", "次の一歩だけ選ぶ"),
-    ("寂しい帰り道", "誰にも分かってもらえない", "孤独の波にも終わりがある", "温かい飲み物を用意する"),
-    ("変化が怖い朝", "手放したら自分がなくなる気がする", "変化の中にも続く呼吸がある", "窓を開けて深呼吸する"),
+    ("スマホを置きたい夜", "通知を見るたびに画面を開いてしまう", "反応する前に一息おける", "スマホを伏せて息を一回吐く"),
+    ("返事を急いでしまう時", "まだ考えたいのにすぐ返してしまう", "返事は一度読んでから決めてよい", "返事を書いたら一度読み返す"),
+    ("予定が重なる朝", "やることが多くて最初の一つを選べない", "今できる一つから始めてよい", "今日最初にする用事を一つ紙に書く"),
+    ("会話の後で気になる夜", "言えなかったことを何度も考えてしまう", "今の気持ちは短い言葉で確かめられる", "気になっていることを一文だけ書く"),
+    ("作業が進まない午後", "別の作業へ何度も手を伸ばしてしまう", "いま取り組む一つを決めてよい", "机の上で今使う道具を一つ選ぶ"),
+    ("頼みを断れない時", "予定があってもすぐ引き受けてしまう", "確認する時間を取ってから答えてよい", "予定を確かめてから返すと一言伝える"),
+    ("一日を振り返る夜", "できなかったことばかり数えてしまう", "できた小さな行動も一日の一部", "今日終えたことを一つ書く"),
 ]
 EN = [
     ("When the room feels too loud", "your thoughts keep asking for an answer", "a thought is a visitor, not a command", "name one sound you can hear"),
@@ -40,14 +40,14 @@ def row(product: str, day: int, slot: int, parts: tuple[str, str, str, str]) -> 
     return {
         "schema_version": "marketing.ebook-script.v1", "product_id": product,
         "account_id": f"product:{product}", "language": "ja" if ja else "en",
-        "version": "1", "parent_script_id": None,
-        "source_mechanism_ids": [f"baseline.owner-authored.{product}.{day}.{slot}"],
+        "version": "2" if ja else "1", "parent_script_id": None,
+        "source_mechanism_ids": [f"baseline.owner-authored.{product}.{'avatar-v2.' if ja else ''}{day}.{slot}"],
         "hook": hook, "pain_angle": pain, "teaching": teaching, "action": action,
         "cta": cta, "hypothesis": "structured baseline: compare one culturally authored pain angle",
         "declared_mutation": "action", "baseline": True,
-        "campaign_id": f"baseline.{product}.d{day}.s{slot}",
-        "creative_id": f"baseline.{product}.d{day}.s{slot}",
-        "renderer_id": "watercolor-monk" if ja else "heygen-avatar-iv",
+        "campaign_id": f"baseline.{product}.{'avatar-v2.' if ja else ''}d{day}.s{slot}",
+        "creative_id": f"baseline.{product}.{'avatar-v2.' if ja else ''}d{day}.s{slot}",
+        "renderer_id": "heygen-avatar-iv",
         "primary_metric": "contribution_margin", "maturity_window": "72h",
         "stop_rule": "three comparable mature losses", "body": body,
     }

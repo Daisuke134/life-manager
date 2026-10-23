@@ -178,7 +178,7 @@ def run(*, engine: Path, product: str, slot_at: str, script_id: str, ledger_path
             return existing
     if render_output is not None:
         if receipt.get("state") not in {"rendered", "telegram_delivery_pending"}:
-            if product == "ebook-ja":
+            if pack["renderer_id"] == "watercolor-monk":
                 asset_check = verify_watercolor_mark_factory_pack(asset_root or default_asset_root())
                 if asset_check.get("state") != "verified":
                     receipt.update({"state": "setup_required", "setup": asset_check})
@@ -215,7 +215,7 @@ def run(*, engine: Path, product: str, slot_at: str, script_id: str, ledger_path
                     heygen.get("voice_id", "")
                 ).strip()
                 rendered = render_heygen(
-                    script=script["body"], output=render_output,
+                    script=script["body"], language=script["language"], output=render_output,
                     intent_path=heygen_intent_path,
                     environment=renderer_environment,
                 )

@@ -43,7 +43,8 @@ def configuration(environment: dict[str, str] | None = None) -> dict:
     return {"status": "ready", "cli": cli, "avatar_id": avatar_id, "voice_id": voice_id}
 
 
-def build_request(script: str, config: dict) -> dict:
+def build_request(script: str, config: dict, *, language: str = "en") -> dict:
+    require(language in {"en", "ja"}, "HeyGen language invalid")
     require(config.get("status") == "ready", "HeyGen setup is incomplete")
     require(isinstance(script, str) and script.strip(), "HeyGen script is required")
     require(len(script) <= 5000, "HeyGen script is too long")
@@ -52,7 +53,7 @@ def build_request(script: str, config: dict) -> dict:
         "avatar_id": config["avatar_id"],
         "script": script.strip(),
         "voice_id": config["voice_id"],
-        "voice_settings": {"speed": 0.9, "locale": "en-US"},
+        "voice_settings": {"speed": 0.9, **({"locale": "en-US"} if language == "en" else {})},
         "engine": {"type": "avatar_iv"},
         "aspect_ratio": "9:16",
         "resolution": "1080p",
@@ -174,11 +175,13 @@ def _receipt(output: Path, video_id: str, wallet_cost: dict | None) -> dict:
 def render(
     *,
     script: str,
+    language: str = "en",
     output: Path,
     intent_path: Path | None = None,
     environment: dict[str, str] | None = None,
     executor: Executor = subprocess.run,
 ) -> dict:
+    require(language in {"en", "ja"}, "HeyGen language invalid")
     config = configuration(environment)
     if config["status"] != "ready":
         return {
@@ -199,7 +202,7 @@ def render(
             "missing": ["heygen_auth"],
             "external_effects": [],
         }
-    request = build_request(script, config)
+    request = build_request(script, config, language=language)
     request_sha256 = hashlib.sha256(json.dumps(request, ensure_ascii=False, sort_keys=True,
                                                 separators=(",", ":")).encode()).hexdigest()
     expected = {"schema_version": "marketing.heygen-effect.v1", "renderer_id": "heygen-avatar-iv",

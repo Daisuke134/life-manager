@@ -139,12 +139,11 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["entrypoint"], "apps/life-manager/scripts/ebook-distribute-daily.sh")
         self.assertEqual(row.get("admission_effect_scope"), "occurrence")
 
-    def test_english_ebook_api_publisher_does_not_consume_model_capacity(self):
+    def test_ebook_api_publishers_do_not_consume_model_capacity(self):
         from runtime.host.resource_admission import _capacity_available
         from runtime.loop.lm_loop_run import _resource_class
 
-        row = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))[
-            "loops"]["ebook-en-tiktok-daily"]
+        registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
         model_owners = [{"resource_class": "agent", "admission_class": "revenue"}
                         for _ in range(4)]
         with mock.patch.dict(os.environ, {
@@ -152,13 +151,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS": "4",
             "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS": "5",
         }):
-            self.assertTrue(_capacity_available(model_owners, _resource_class(row), "revenue"))
-            full = model_owners + [{"resource_class": "browser"} for _ in range(6)]
-            self.assertFalse(_capacity_available(full, _resource_class(row), "revenue"))
-            deterministic_full = model_owners + [
-                {"resource_class": "deterministic", "admission_class": "revenue"}
-                for _ in range(5)]
-            self.assertFalse(_capacity_available(deterministic_full, _resource_class(row), "revenue"))
+            for owner_id in ("ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"):
+                with self.subTest(owner_id=owner_id):
+                    row = registry["loops"][owner_id]
+                    self.assertTrue(_capacity_available(model_owners, _resource_class(row), "revenue"))
+                    full = model_owners + [{"resource_class": "browser"} for _ in range(6)]
+                    self.assertFalse(_capacity_available(full, _resource_class(row), "revenue"))
+                    deterministic_full = model_owners + [
+                        {"resource_class": "deterministic", "admission_class": "revenue"}
+                        for _ in range(5)]
+                    self.assertFalse(_capacity_available(deterministic_full, _resource_class(row), "revenue"))
 
     def test_mobile_metrics_collectors_use_occurrence_scoped_admission(self):
         registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
