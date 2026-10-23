@@ -7,12 +7,13 @@
 - 認証情報は /workspace/.secrets、ノウハウは /workspace/knowhow/INDEX.md。
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 ## タスク
-- [Codex] READMEの外部向け整理・Mac初回導入修復（PR #8666、CI確認中）
+- [Codex] README・Mac初回導入はPR #8666/main反映済み。Coconalaの本人通知設定・現在認証の再開判定を修復中（TODO正本は統合SSOTのMAC02-A–C）
 - [参謀] ランサーズ/ココナラ応募・返信、X読み取り＋数字分析
 - [Muse] Instagram配信
 - [Local LM] Mac mini上のジョブ
 - [Dots] 未割当
 ## ログ
+- 2026-10-23 18:57 Codex: PR #8666はCI14件成功でmain 6b93057b41へ統合、公開6ファイルのbyte一致を確認。英日READMEは各52行。starsは8、目標10,000は未達。現在はMAC02の通知設定がcanonical7jobsへ渡らない問題と再認証観測の回帰を修復中。production/provider送信は操作しない。
 - Codex: READMEを英日各52行へ整理し、Codex認証確認漏れとbrowser依存不足を修復。空Python環境・installer28件・Web CTA122件がPASS。並行main文書の個人senderをprivate参照へ置換し、PII検査はclean。次は最新CI・main統合・公開readback。
 - 2026-10-23 17:25 参謀: ボード作成。ランサーズ3件提案済み。
 - 2026-10-23 17:55 参謀(チーム収益ループ初回): 受託=ランサーズ受信確認＋新規2件提案を実行中／自社=デイリー・ダンマのRevenueCat転換チェック実行中。結果は次パスで追記。
