@@ -72,7 +72,19 @@ def observe_event(event):
         raise _Expired()
 
 
+def mark_followup_completed():
+    """Fence terminal follow-up readback from active-turn cancel recovery."""
+    state=_active.get()
+    if state is not None:
+        state['followup_completed_seen']=True
+
+
 def _cancel(state):
+    # Once the exact follow-up completion event is observed, later failures
+    # concern final-output readback. Terminal metadata cannot prove that scan
+    # complete, and cancellation reconciliation would release its writer.
+    if state.get('followup_completed_seen'):
+        return 'FINAL_READBACK_UNCERTAIN'
     if not state.get('session_id') or state['journal'] is None:
         return 'UNKNOWN_CREATION_OR_TURN'
     from .provider_budget import cancel_and_reconcile

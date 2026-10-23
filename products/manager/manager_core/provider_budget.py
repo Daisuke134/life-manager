@@ -281,7 +281,7 @@ def cancel_and_reconcile(client,journal,session_id: str,turn_id: str, *,
         return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",False)
     terminal={"cancelled","completed","failed"}
     if before[1] not in terminal:
-        if before[1] not in {"in_progress","requires_action"}:
+        if before[1] not in {"queued","in_progress","waiting"}:
             return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",False)
         if new:
             try:

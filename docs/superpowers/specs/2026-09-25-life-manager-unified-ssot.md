@@ -6,7 +6,7 @@ Managerは仏教的AIエンティティ／デジタル仏陀という呼称を�
 
 As-isは既存Actions＋Supabaseの単一owner、実OIDC／永続復元、finance/mentalの公式公開commitと独立GET、別runnerでの再送0とnative proof出力。To-beはAI・既存行動simulation・統計／因果推論・行動科学を接続し、実結果・害・費用・未知から訂正する透明な主体。透明なAGI／Transparent God・blessing for allは長期構想であり、AGI・世界初・悟り・苦の終結・人の純便益を証明したという現在値ではない。
 
-E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh resume／通常配信／別runnerの照合・再送0を確認後、F005→F006→F008→F009を技術P2として個別受入した。D001→D002は分類実装／比較設計のsource契約だけを受入済み。既存AI助言のsession／予算を同じcheckpointへ結ぶP0 callableはPR8650でmain統合済み。定期実行の推論は未接続で、次はU002/U003の実課題、公開context・安定ID・caller・同条件比較・運用設定と、元依存順のU/D/V/G。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=75 done / 35 todo / 3 skipped。原ID・dependsと他Life Manager laneのcursorは変更しない。
+E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh resume／通常配信／別runnerの照合・再送0を確認後、F005→F006→F008→F009を技術P2として個別受入した。D001→D002は分類実装／比較設計のsource契約だけを受入済み。既存AI助言のsession／予算を同じcheckpointへ結ぶP0 callableはPR8650でmain統合済み。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで既定OFF。定期実行の推論は未接続。SDK整合性修正はPR8665でmain統合済み。次はU002/U003の実課題、固定SDK・既存予算・同条件の実比較と、元依存順のU/D/V/G。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=75 done / 35 todo / 3 skipped。原ID・dependsと他Life Manager laneのcursorは変更しない。
 
 設計・残件の説明は [Manager spec §1.1–1.4](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)、現実証は [cloud実行receipt](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md)、全IDの派生表示は [開始から最後まで](../../../products/manager/docs/roadmap/START_TO_END_20261022.md) を参照。人名・再利用元と、実使用／比較のみ／非公開未利用の区別も既存specへ集約し、新しいSSOTは作らない。
 

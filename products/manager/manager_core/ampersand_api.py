@@ -9,7 +9,7 @@ from hashlib import sha256
 import json
 import re
 from typing import Any
-from .provider_deadline import bounded_provider_call, observe_event
+from .provider_deadline import bounded_provider_call, observe_event, mark_followup_completed
 
 BASE_URL = "https://ampersand.humansand.ai/v1"
 MODEL = "ampersand-v0.1"
@@ -171,9 +171,13 @@ def read_initial_turn(client: Any, prompt: str,
         raise SessionFailure("initial provider session uncertain or failed; do not retry blindly") from exc
     session_id = getattr(result, "session_id", None)
     output = getattr(result, "output_text", None)
+    result_turn_id = getattr(result, "turn_id", None)
     if (type(session_id) is not str or
             not re.fullmatch(r"sess_[A-Za-z0-9_-]{4,128}", session_id)):
         raise SessionFailure("initial provider session ID missing")
+    if (type(result_turn_id) is not str or
+            not re.fullmatch(r"turn_[A-Za-z0-9_-]{4,128}", result_turn_id)):
+        raise SessionFailure("initial provider turn ID missing")
     if journal is not None:
         try:
             journal.bind(request_id, session_id)  # bind BEFORE text validation
@@ -187,6 +191,8 @@ def read_initial_turn(client: Any, prompt: str,
     if len(output) > 16000:
         raise SessionFailure("model output exceeds strict research limit")
     turn = _latest_completed_turn(client, session_id)
+    if getattr(turn, "id", None) != result_turn_id:
+        raise SessionFailure("initial result and saved completed turn do not match")
     tokens = _usage(turn)
     if reservation is not None:
         from .provider_budget import Usage
@@ -242,7 +248,6 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
         except SessionConflict as exc:
             raise SessionFailure("session writer/event conflict; reconcile first") from exc
     completed = False
-    response = None
     completed_turn_id = None
     try:
         # Stream starts BEFORE the event write so no completed event is missed.
@@ -250,13 +255,16 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
             client.beta.agents.sessions.events.create(
                 session_id, events=[event], idempotency_key=key)
             for i, item in enumerate(stream):
+                typ = getattr(item, "type", "")
+                if typ == "agent.session.turn.completed":
+                    # If the deadline interrupts event observation or any
+                    # later saved-item read, do not run active-turn cancel
+                    # recovery: final-output uncertainty must keep the writer.
+                    mark_followup_completed()
                 observe_event(item)
                 if i >= 4000:
                     raise SessionFailure("event budget exceeded")
-                typ = getattr(item, "type", "")
-                if typ == "agent.session.turn.output_text.done":
-                    response = getattr(item, "text", None)
-                elif typ == "agent.session.turn.completed":
+                if typ == "agent.session.turn.completed":
                     completed = True
                     completed_turn_id = getattr(item, "turn_id", None)
                     break
@@ -270,17 +278,28 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
         raise SessionFailure("follow-up state uncertain; inspect saved session before retry") from exc
     if not completed:
         raise SessionFailure("missing completed follow-up turn; reconcile before retry")
-    silent = type(response) is not str or not response.strip()
+    turn = _latest_completed_turn(client, session_id)
+    # The SSE completion identifies the target turn. Only the saved items are
+    # authoritative for text, and the latest turn must still be that target.
+    if type(completed_turn_id) is not str or getattr(turn, "id", None) != completed_turn_id:
+        raise SessionFailure("concurrent writer or missing/mismatched saved turn")
+    try:
+        response = "".join(read_saved_assistant_items(
+            client, session_id, completed_turn_id))
+    except SessionFailure:
+        raise
+    except Exception as exc:
+        raise SessionFailure("saved follow-up text is uncertain") from exc
+    turn = _latest_completed_turn(client, session_id)
+    if getattr(turn, "id", None) != completed_turn_id:
+        raise SessionFailure("saved turn changed during final item readback")
+    silent = not response.strip()
     if silent and allow_silent_completion is not True:
         raise SessionFailure("missing follow-up text without opt-in silence")
     if silent:
         response = ""
     if len(response) > 16000:
         raise SessionFailure("follow-up output exceeds research limit")
-    turn = _latest_completed_turn(client, session_id)
-    # An event may be about a different turn when multiple writers are active.
-    if type(completed_turn_id) is not str or getattr(turn, "id", None) != completed_turn_id:
-        raise SessionFailure("concurrent writer or missing/mismatched saved turn")
     if journal is not None:
         try:
             journal.release_writer(session_id, writer_id)
@@ -362,20 +381,27 @@ def read_saved_assistant_items(
                 continue
             if get(row, "role") != "assistant":
                 continue
+            status = get(row, "status")
+            phase = get(row, "phase")
+            if status != "completed":
+                raise SessionFailure("saved assistant message is missing or non-completed")
+            if phase not in (None, "commentary", "final_answer"):
+                raise SessionFailure("saved assistant message phase unsupported")
+            if phase == "commentary":
+                continue
             content = get(row, "content")
             if type(content) is not list:
                 raise SessionFailure("assistant message content shape unsupported")
             for chunk in content:
                 kind = get(chunk, "type")
                 raw = get(chunk, "text")
-                if kind in ("output_text", "text"):
-                    if type(raw) is not str:
-                        raise SessionFailure("assistant response text unsupported")
-                    if raw:
-                        messages.append(raw)
+                if kind != "output_text" or type(raw) is not str:
+                    raise SessionFailure("assistant response text unsupported")
+                if sum(map(len, messages)) + len(raw) > 16000:
+                    raise SessionFailure("saved response exceeds research limits")
+                if raw:
+                    messages.append(raw)
         if not more:
-            if sum(len(m) for m in messages) > 16000:
-                raise SessionFailure("saved response exceeds research limits")
             return tuple(messages)
         if not rows:
             raise SessionFailure("nonterminal empty saved item page")

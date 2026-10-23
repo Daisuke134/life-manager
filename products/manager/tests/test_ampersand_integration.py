@@ -156,7 +156,7 @@ class FakeInitialStream:
         return iter([NS(type="agent.session.created"),NS(type="agent.session.idle")])
     def get_final_result(self):
         return NS(output_text='{"decision":"ASK","reason":"check first","source_ids":[]}',
-                  session_id="sess_12345678")
+                  session_id="sess_12345678", turn_id="turn_test")
 
 
 class FakeCreate:
@@ -176,8 +176,14 @@ class FakeEventsStream:
 class FakeSessions:
     def __init__(self,turn_status="completed",events=None):
         self.create=FakeCreate()
-        self.turns=NS(list=lambda *args,**kwargs:NS(data=[
-            NS(id="turn_test",status=turn_status,usage=NS(input_tokens=17, output_tokens=11))]))
+        turn=NS(id="turn_test",status=turn_status,usage=NS(input_tokens=17, output_tokens=11))
+        self.turns=NS(list=lambda *args,**kwargs:NS(data=[turn]),
+                      retrieve=lambda *args,**kwargs:turn)
+        self.items=NS(list=lambda *args,**kwargs:NS(data=[
+            NS(id="item_test",turn_id="turn_test",type="message",role="assistant",
+               status="completed",phase="final_answer",content=[
+                   NS(type="output_text",text='{"decision":"PASS","reason":"wait","source_ids":[]}')])
+        ],has_more=False))
         self.events=NS(stream=lambda *args:FakeEventsStream(events or [
             NS(type="agent.session.turn.output_text.done",text='{"decision":"PASS","reason":"wait","source_ids":[]}'),
             NS(type="agent.session.turn.completed",turn_id="turn_test")]),

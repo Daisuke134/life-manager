@@ -49,9 +49,26 @@ Manager本体を先に進めるため、既存Ampersand adapterを、既存の�
 これはsource／contractの受入であり、scheduled inferenceの稼働受入ではない。定期実行のplannerは引き続き決定論的。今回の検証に新しいlive Ampersand推論は含めない。
 
 - U002/U003で実課題を確認し、モデルが単純ルール／非介入より価値を加えられる場面を選ぶ。
-- その公開sourceからtyped contextと安定したoperation IDを作り、同条件のbaseline／holdout比較を既存評価へ結ぶ。
-- caller、固定SDK依存、既存の秘密保管・予算設定、shadow評価を通常PRで実行経路へ結ぶ。助言で既存のsource／scope／browser／CAS検査を迂回しない。
+- 公開sourceのtyped context・安定operation ID・既存baselineを使うshadow callerは下記PR8660でsource受入済み。実課題のholdout／実model比較は未実証。
+- 既定OFFのcallerはsource統合済み。固定SDKの実行環境、既存の秘密保管・予算設定、実shadow評価を通常の経路で結ぶ。助言で既存のsource／scope／browser／CAS検査を迂回しない。
 - 長期記憶、既存channel、実結果からのpolicy更新を検証する。session/eventだけから自動のexact-turn復旧を完成したとはしない。
 - 人の便益・害・費用・継続利用を実測する。公開ページの技術結果や架空課題の応答で置き換えない。
 
 原113件は75 done／35 todo／3 skippedのまま。新task ID、done加算、元dependsや `original_*` の変更はない。新しい記事・書籍・応募・外部連絡は本体優先の後段に置く。cloud source-boundaryのcanonical path不在という既知FAILも書き換えず、所有者のcloud作業指示に従った。
+
+
+## 追加source受入 — shadow callerとSDK整合性修正（2026-10-23）
+
+[PR8660](https://github.com/Daisuke134/life-manager/pull/8660)は08:57:30 UTCにmain `78c9f8738bf4c48068b8ddc7515c75e8af778a4c`へ通常統合した。`owned_provider_shadow.py`は既存の公開catalog／browser検証、typed context、安定operation ID、checkpoint、ルール／NO_ACTION比較をつなぐ。既定OFFでP0記録のみ、action_writes=0、便益NOT_MEASURED。新しいpublisher packetや作用は生成しない。381テストと独立review、exact-headの15成功／1意図したskipを確認した。skipはPRで公開しないpublisher。
+
+公式[PyPI openai3.24.0](https://pypi.org/pypi/openai/3.24.0/json)のwheelを静的に取得・検査し、公表SHA256 `b59703a3e3b5df78b269e90049d383a1dda58c90104cc4be59db21078db4b7a4`との一致を確認した。SDKのインストール・import・client生成・推論は行っていない。SSE text-doneはpart単位、collectorは完成したassistant messageのoutput_textを区切りなしで連結、Turnの非終端状態はqueued/in_progress/waitingであることを一次sourceから確認した。
+
+[PR8665](https://github.com/Daisuke134/life-manager/pull/8665)は09:26:20 UTCにmain `1b418f56303945a1051d90e02366f6f07b4b398c`へ通常の `bin/merge-when-green … --squash` で統合した。reviewed headは `b10399a1677d443d35ff58cf4a5ffe41e347fb9e`。
+
+- followupの最終textを完成したexact-turn保存itemから読み、commentaryを除外して全blockを連結。途中の欠測・不正shape・不完全pageはsilenceと区別する。読み取り前後に対象turnの一致を確認する。
+- initial結果のturn IDを保存済みcompleted turnへ照合し、cancelのTurn状態語彙を修正した。Sessionのみのrequires_actionをTurnとして扱わない。
+- 独立R1で、deadline wrapperの回復が不完全なfinal itemを残したままterminal metadataだけでwriterを解放する問題を再現。実PrivateCheckpoint／Journal／Ledgerを使うRED→GREENで修正し、確認失敗・読取り中timeoutでもwriter／event／RESERVED exposureを保持する。active-turnのcancelは保持した。R2の未解決0件。
+- rootの独立391テスト、独立reviewの100 focused contractsが成功。研究branchへの同期後は既存fakeのSDK shapeだけを補正し、954テスト中949成功／5 skip。テストの母数は原113件と別。
+- exact-headは15成功／1意図したpublisher skip。[Manager verify39931015467](https://github.com/Daisuke134/life-manager/actions/runs/39931015467)、[checkpoint contract39931015460](https://github.com/Daisuke134/life-manager/actions/runs/39931015460)、[必須Security Scan39931015539](https://github.com/Daisuke134/life-manager/actions/runs/39931015539)はいずれも成功。Manager source境界・loop contract・product範囲gitleaksも成功した。
+
+追加したのはsourceと契約検証である。定期plannerは決定論的のまま、新しいlive Ampersand推論／cancel、SDK runtime install、課金確定、scheduled inference、人の便益を受入れたとはしない。元の実行receipt／UNKNOWN／nullを書き換えず、原113件の75 done／35 todo／3 skippedも維持する。
