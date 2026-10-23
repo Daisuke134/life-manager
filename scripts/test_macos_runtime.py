@@ -207,7 +207,7 @@ def test_compatible_node_and_npm_do_not_install_dependencies(tmp_path):
     ("22.18.0", True, False),
     ("22.19.0", True, True),
     ("22.20.0", True, True),
-    ("23.0.0", True, False),
+    ("23.0.0", True, True),
     ("24.0.0", True, True),
     ("25.0.0", True, True),
     ("24.0.0", False, False),
