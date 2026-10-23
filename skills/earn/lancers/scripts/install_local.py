@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
         if installing:
             phase = "owner_apply"
             applied = local_install.apply_targets(release, [PREFIX + "browser"], environment)
-            if applied and all(row.get("ok") is True and not row.get("skipped") for row in applied):
+            if applied and all(row.get("ok") is True and row.get("skipped") in (None, "loaded-running") for row in applied):
                 try:
                     account = _observe(release, environment, home)
                 except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):

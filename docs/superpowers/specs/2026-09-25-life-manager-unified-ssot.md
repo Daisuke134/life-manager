@@ -303,6 +303,8 @@ INSTALLのCI caller診断: 更新heada44f69e6f5b21815d96cb290c7eaa1afc3070801/wo
 
 INSTALLの既存browser継続: 新入口は別SHAの稼働中browserを既存apply_targetsがok=true/skipped=loaded-runningとして保持した時、fresh observeも省いてaccount依存laneを待機へ固定する。browserはkeep_aliveのため自然なidleが進行条件にならない。最小修復はinstallerの当該分岐だけでloaded-runningをfresh observeへ渡すこととし、登録済みidentity/lease、同immutable reader、現在の公式account一致は維持する。browser自身のskipped/waitingは保持し、新SHA採用済みと表示しない。正のfresh observe時だけ他laneを適用し、失敗時は旧readyを再利用しない。owner再起動・共通apply helper変更・新frameworkは追加しない。isolated fixtureで稼働中browser保持時の正/負observeを先にRED再現してから修正する。
 
+INSTALLの既存browser検証: 追加2casesはsource修正前に2 FAIL（0.13s、fresh observe未呼出）となり、専用branchへpushする。許容skip理由へloaded-runningを追加する条件1行だけの修正後、primaryの入口/owner/create/local_install全4filesは243 PASS/31 subtests（10.40s）となる。旧readyがある負caseでもaccount依存5lanesは適用せず、reportは独立、browserはwaitingを保持する。fresh read-only reviewと更新head CIを受け入れてからmainへ進む。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
