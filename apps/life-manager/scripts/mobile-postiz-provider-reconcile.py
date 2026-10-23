@@ -95,7 +95,9 @@ def _pending_unknown_count(admission_db: Path, owner_id: str) -> int | None:
 def _request_json(url: str, api_key: str) -> Any:
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("Postiz API key unavailable")
-    request = urllib.request.Request(url, headers={"Authorization": api_key})
+    request = urllib.request.Request(url, headers={
+        "Authorization": api_key, "Accept": "application/json", "User-Agent": "postiz-cli",
+    })
     try:
         with urllib.request.urlopen(request, timeout=90) as response:
             return json.loads(response.read().decode("utf-8"))
@@ -308,7 +310,7 @@ def _native_carousel_pack_title(identity: dict[str, Any], ledger: Path) -> str:
 def _is_native_carousel_identity(identity: dict[str, Any]) -> bool:
     return (
         identity.get("product_id") == "anicca-ios"
-        and identity.get("platform") == "tiktok"
+        and identity.get("platform") in {"tiktok", "instagram"}
         and identity.get("video_sha256") is None
         and isinstance(identity.get("media_sha256"), list)
         and len(identity["media_sha256"]) == 6
@@ -330,7 +332,7 @@ def _native_carousel_image_hashes(row: dict[str, Any], identity: dict[str, Any])
         if (parsed is None or parsed.scheme != "https" or parsed.hostname != "uploads.postiz.com"
                 or parsed.username or parsed.password or parsed.port):
             raise ValueError("Postiz carousel image URL is not allowlisted")
-        request = urllib.request.Request(url, headers={"Accept": "image/*"})
+        request = urllib.request.Request(url, headers={"Accept": "image/*", "User-Agent": "postiz-cli"})
         digest = hashlib.sha256()
         size = 0
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -604,6 +606,7 @@ def _native_carousel_slot_is_unique(
     occurrence_id = str(identity.get("occurrence_id", ""))
     owner_id = str(identity.get("loop_id", ""))
     published_utc = published_at.astimezone(timezone.utc)
+    allowed_accounts = _expected_postiz_profiles(identity)
     for sidecar in sidecars:
         rows = _safe_jsonl(sidecar)
         if rows is None:
@@ -614,9 +617,8 @@ def _native_carousel_slot_is_unique(
             if (other_occurrence == occurrence_id
                     or not _valid_identity(other, other_owner, other_occurrence)
                     or other.get("platform") != identity.get("platform")
-                    or other.get("platform") != "tiktok"
                     or other.get("video_sha256") is not None
-                    or other.get("account_id") != identity.get("account_id")
+                    or _account(other.get("account_id")) not in allowed_accounts
                     or other.get("integration_ref") != identity.get("integration_ref")
                     or not isinstance(other.get("media_sha256"), list)
                     or len(other["media_sha256"]) != 6
@@ -632,7 +634,7 @@ def _native_carousel_slot_is_unique(
             if other_title != provider_title:
                 continue
             if (other_slot.tzinfo is None
-                    or abs((other_slot.astimezone(timezone.utc) - published_utc).total_seconds()) <= 15 * 60):
+                    or _native_carousel_publish_time_matches_slot(other_slot, published_utc)):
                 return False
     return True
 
@@ -717,15 +719,14 @@ def _remote_native_carousel_receipt(
         "caption_with_cta_sha256": caption_sha,
         "provider_post_id": provider_id,
         "provider_reconciled": True,
-        "public_url": None,
-        "provider_state": readback["provider_state"],
-        "provider_integration_id": readback["provider_integration_id"],
-        "provider_content_sha256": readback["provider_content_sha256"],
-        "provider_title": readback["provider_title"],
-        "provider_posting_method": readback["provider_posting_method"],
-        "provider_release_id": readback["provider_release_id"],
+        "public_url": readback["public_url"],
         "published_at": readback["published_at"],
     }
+    if identity["platform"] == "tiktok":
+        receipt.update({key: readback[key] for key in (
+            "provider_state", "provider_integration_id", "provider_content_sha256",
+            "provider_title", "provider_posting_method", "provider_release_id",
+        )})
     return receipt, provider_id
 
 
@@ -789,7 +790,7 @@ def _integration(integration_id: str, platform: str, api_key: str) -> str:
     return profile
 
 
-def _expected_postiz_profile(identity: dict[str, Any]) -> str:
+def _expected_postiz_profiles(identity: dict[str, Any]) -> set[str]:
     manifest_path = ROOT / "config/marketing-destinations.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -802,17 +803,17 @@ def _expected_postiz_profile(identity: dict[str, Any]) -> str:
     matches = [target for target in targets if isinstance(target, dict)
                and target.get("integration_id") == integration_id]
     if not matches:
-        return str(identity["account_id"])
+        return {str(identity["account_id"])}
     if len(matches) != 1 or matches[0].get("platform") != identity.get("platform"):
         raise ValueError("Postiz destination native account mismatch")
     profile = _account(matches[0].get("postiz_profile"))
     if profile is None:
         raise ValueError("Postiz destination profile is missing")
     # Existing sidecars use the Postiz profile; current writers use the native handle.
-    allowed_accounts = {profile, _account(matches[0].get("native_handle"))}
+    allowed_accounts = {profile, _account(matches[0].get("native_handle"))} - {None}
     if _account(identity.get("account_id")) not in allowed_accounts:
         raise ValueError("Postiz destination native account mismatch")
-    return profile
+    return allowed_accounts
 
 
 def _caption(row: dict[str, Any]) -> str:
@@ -901,7 +902,7 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
     if integration_id != expected_integration_id:
         raise ValueError("Postiz post integration mismatch")
     postiz_profile = _integration(str(integration_id), identity["platform"], api_key)
-    if postiz_profile != _expected_postiz_profile(identity):
+    if postiz_profile not in _expected_postiz_profiles(identity):
         raise ValueError("Postiz integration profile mismatch")
     caption = _caption(row)
     caption_sha = hashlib.sha256(caption.encode("utf-8")).hexdigest()
@@ -934,7 +935,7 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
     if provider_video_sha is not None:
         provider_content["video_sha256"] = provider_video_sha
     native_photo = (
-        identity.get("platform") == "tiktok"
+        (identity.get("platform") == "tiktok" or _is_native_carousel_identity(identity))
         and identity.get("video_sha256") is None
         and isinstance(identity.get("media_sha256"), list)
     )
@@ -943,12 +944,16 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         settings = row.get("settings")
         if isinstance(settings, str):
             settings = json.loads(settings)
-        if (not isinstance(settings, dict) or not isinstance(expected_pack_title, str)
+        if identity["platform"] == "tiktok" and (
+                not isinstance(settings, dict) or not isinstance(expected_pack_title, str)
                 or settings.get("title") != expected_pack_title
                 or settings.get("content_posting_method") != "DIRECT_POST"
                 or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", str(row.get("releaseId", "")))
                 or state.get("post_url") is not None):
             raise ValueError("Postiz native carousel publication metadata mismatch")
+        if (identity["platform"] == "instagram"
+                and not adapter._valid_instagram_carousel_url(state.get("post_url"))):
+            raise ValueError("Postiz native carousel publication URL is invalid")
         remote_media = _native_carousel_image_hashes(row, identity)
         provider_content["media_sha256"] = remote_media
         provider_content["media_order_sha256"] = identity["media_order_sha256"]
@@ -964,12 +969,15 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
             "provider_integration_id": str(integration_id),
             "provider_content_sha256": caption_sha,
             "provider_caption_sha256": caption_sha,
-            "provider_title": settings["title"],
-            "provider_posting_method": settings["content_posting_method"],
-            "provider_release_id": row["releaseId"],
             "published_at": published_at.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "_verified_caption_text": caption,
         }
+        if identity["platform"] == "tiktok":
+            native_photo_details.update({
+                "provider_title": settings["title"],
+                "provider_posting_method": settings["content_posting_method"],
+                "provider_release_id": row["releaseId"],
+            })
     readback = {
         "provider": "postiz",
         "state": "PUBLISHED",
@@ -1048,7 +1056,7 @@ def build_official_proof(
         if (published_at.tzinfo is None or not isinstance(provider_caption, str)
                 or not _native_carousel_slot_is_unique(
                     identity, identity_dir, ledger, published_at, provider_caption,
-                    str(readback.get("provider_title") or ""),
+                    str(expected_pack_title or ""),
                 )):
             raise ValueError("native carousel candidate is shared with another slot identity")
     if receipt.get("remote_effect_locator") is not None:
@@ -1177,8 +1185,7 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
         raise ValueError("recovered Postiz receipt does not match the exact identity")
     if _is_native_carousel_identity(identity):
         content = readback.get("content")
-        if (readback.get("public_url") is not None
-                or readback.get("local_content", {}).get("pack_sha256") != identity.get("pack_sha256")
+        if (readback.get("local_content", {}).get("pack_sha256") != identity.get("pack_sha256")
                 or readback.get("local_content", {}).get("media_sha256") != identity.get("media_sha256")
                 or readback.get("local_content", {}).get("media_order_sha256") != identity.get("media_order_sha256")
                 or not isinstance(content, dict)
@@ -1186,11 +1193,17 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
                 or content.get("media_order_sha256") != identity.get("media_order_sha256")
                 or readback.get("provider_state") != "PUBLISHED"
                 or readback.get("provider_integration_id") != identity["integration_ref"].rsplit("/", 1)[-1]
-                or readback.get("provider_caption_sha256") != readback.get("provider_content_sha256")
+                or readback.get("provider_caption_sha256") != readback.get("provider_content_sha256")):
+            raise ValueError("recovered native carousel receipt does not match the exact identity")
+        if identity["platform"] == "tiktok" and (
+                readback.get("public_url") is not None
                 or not isinstance(readback.get("provider_title"), str)
                 or readback.get("provider_posting_method") != "DIRECT_POST"
                 or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", str(readback.get("provider_release_id", "")))):
             raise ValueError("recovered native carousel receipt does not match the exact identity")
+        if (identity["platform"] == "instagram"
+                and not _load_postiz_video_adapter()._valid_instagram_carousel_url(readback.get("public_url"))):
+            raise ValueError("recovered native carousel receipt URL is invalid")
         receipt = {
             "schema_version": 1,
             "kind": "marketing_native_carousel_distribution",
@@ -1210,15 +1223,14 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
             "caption_with_cta_sha256": readback["provider_caption_sha256"],
             "provider_post_id": provider_id,
             "provider_reconciled": True,
-            "public_url": None,
-            "provider_state": readback["provider_state"],
-            "provider_integration_id": readback["provider_integration_id"],
-            "provider_content_sha256": readback["provider_content_sha256"],
-            "provider_title": readback["provider_title"],
-            "provider_posting_method": readback["provider_posting_method"],
-            "provider_release_id": readback["provider_release_id"],
+            "public_url": readback["public_url"],
             "published_at": readback["published_at"],
         }
+        if identity["platform"] == "tiktok":
+            receipt.update({key: readback[key] for key in (
+                "provider_state", "provider_integration_id", "provider_content_sha256",
+                "provider_title", "provider_posting_method", "provider_release_id",
+            )})
         return {"effect_key": identity["effect_key"], "job_id": identity["job_id"], "receipt": receipt}
     if (readback.get("local_content", {}).get("video_sha256") != identity.get("video_sha256")
             or not isinstance(readback.get("public_url"), str)):
