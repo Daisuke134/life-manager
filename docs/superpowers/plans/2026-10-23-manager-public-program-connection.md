@@ -1,6 +1,6 @@
 # Manager Public Program Connection Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Connect the reviewed public outgoing expenditures and separate beneficiary report for original D003 while retaining unmeasured economic improvement.
 
@@ -43,9 +43,9 @@
 - Produce `connect_published_program(packet_bytes: bytes, packet_source: Source) -> dict` with the separate fields and fixed non-authority status in the design. Snapshot constants may be exported for callers/tests; no other execution interface.
 - Follow `evidence.load_verified_trial`'s independent artifact pin; do not call its Ampersand-specific parser or import unrelated research modules.
 
-- [ ] **Step 1: Write meaningful failing tests before production code.** Assert callable availability (not an import-only failure), then actual reviewed packet output: total290390000, currencyUSD, three outgoing rows, report87/sample484, unknown item count/window, same_program_only, direct report link, distinct raw hashes, dates/dayprecision, preserved rights and fixed P0/NO_ACTION/NOT_MEASURED/None. Test altered bytes against original Source; rehashed tampered packet (amount, foreign activity, added contact/raw body) still rejected by reviewed pin; wrong upstream raw URL, wrong Source type and oversized bytes rejected. Keep each actual behavior observable.
-- [ ] **Step 2: Run focused module and retain actual RED before adding implementation.** `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_public_program_disbursement -v`; failures must identify missing callable or behavior, not typos.
-- [ ] **Step 3: Implement the small pure loader using Source and reviewed independent pin.** Preserve separate categories and unknowns; no generic pipeline, model, raw file parser, live action or new dependency.
-- [ ] **Step 4: Add the focused test module to the existing CI verify list only.** Do not alter publisher, cadence, permissions or call paths.
-- [ ] **Step 5: Run focused tests, full391-test baseline plus new tests once, Manager import boundary and diffcheck.** Full command `PYTHONPATH=products/manager python3 -m unittest discover -s products/manager/tests -q`. Retain all errors/skips accurately in private logs; source guard's known canonical-path failure stays a failure.
-- [ ] **Step 6: Self-review and commit only the three owned files.** Write private report with RED/GREEN, commands, actual results and concerns; root reviews/integrates and evaluates original D003 separately.
+- [x] **Step 1: Write meaningful failing tests before production code.** Assert callable availability (not an import-only failure), then actual reviewed packet output: total290390000, currencyUSD, three outgoing rows, report87/sample484, unknown item count/window, same_program_only, direct report link, distinct raw hashes, dates/dayprecision, preserved rights and fixed P0/NO_ACTION/NOT_MEASURED/None. Test altered bytes against original Source; rehashed tampered packet (amount, foreign activity, added contact/raw body) still rejected by reviewed pin; wrong upstream raw URL, wrong Source type and oversized bytes rejected. Keep each actual behavior observable.
+- [x] **Step 2: Run focused module and retain actual RED before adding implementation.** `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_public_program_disbursement -v`; failures must identify missing callable or behavior, not typos.
+- [x] **Step 3: Implement the small pure loader using Source and reviewed independent pin.** Preserve separate categories and unknowns; no generic pipeline, model, raw file parser, live action or new dependency.
+- [x] **Step 4: Add the focused test module to the existing CI verify list only.** Do not alter publisher, cadence, permissions or call paths.
+- [x] **Step 5: Run focused tests, full391-test baseline plus new tests once, Manager import boundary and diffcheck.** Full command `PYTHONPATH=products/manager python3 -m unittest discover -s products/manager/tests -q`. Retain all errors/skips accurately in private logs; source guard's known canonical-path failure stays a failure.
+- [x] **Step 6: Self-review and commit only the three owned files.** Write private report with RED/GREEN, commands, actual results and concerns; root reviews/integrates and evaluates original D003 separately.
