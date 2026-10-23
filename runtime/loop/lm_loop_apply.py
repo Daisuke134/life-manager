@@ -51,6 +51,8 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
     loop_runner = str(release_root / "bin/lm-loop-run")
     state_root = os.path.expanduser(entry["state_root"])
     log_root = os.path.expanduser(entry["log_root"])
+    python = str(runtime_python or Path(sys.executable).absolute())
+    node = _managed_node(loop_id)
     life_manager_home = os.environ.get("LIFE_MANAGER_HOME")
     if life_manager_home and loop_id == "agent-economy-loop":
         state_root = str(Path(life_manager_home).expanduser() / "agent-economy")
@@ -68,10 +70,9 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_RELEASE_SHA": release_sha,
             "LIFE_MANAGER_STATE_ROOT": state_root,
             "LIFE_MANAGER_LOG_ROOT": log_root,
-            "LIFE_MANAGER_RUNTIME_PYTHON": str(
-                runtime_python or Path(sys.executable).absolute()
-            ),
-            "LIFE_MANAGER_RUNTIME_NODE": _managed_node(loop_id),
+            "LIFE_MANAGER_RUNTIME_PYTHON": python,
+            "LIFE_MANAGER_PYTHON": python,
+            "LIFE_MANAGER_RUNTIME_NODE": node,
             # Keep three slots for revenue while support owners share the finite host.
             "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS": "3",
         },
@@ -309,7 +310,13 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
                 Path.home() / ".local/share/life-manager/venv/bin/python"
             ),
         })
+    if loop_id.startswith("hf-gig-"):
+        value["EnvironmentVariables"]["PATH"] = os.pathsep.join(dict.fromkeys((
+            str(Path(python).parent), str(Path(node).parent), str(Path.home() / ".local/bin"),
+            "/opt/homebrew/bin", "/usr/local/bin", *os.defpath.split(os.pathsep))))
     value["EnvironmentVariables"].update(host_environment())
+    if loop_id.startswith("hf-gig-"):
+        value["EnvironmentVariables"]["HF_GIG_PYTHON"] = value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"]
     return plistlib.dumps(value, fmt=plistlib.FMT_XML, sort_keys=True)
 
 

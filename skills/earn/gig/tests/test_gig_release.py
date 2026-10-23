@@ -298,6 +298,7 @@ def test_managed_release_cuts_a_complete_main_release_without_changing_current(t
         release.mkdir(parents=True)
         (release / "RELEASE.json").write_text(json.dumps({
             "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+            "runtime_python": sys.executable,
         }))
         return SimpleNamespace(returncode=0, stdout=f"dependency build output\nrelease -> {release}  (ancestor-of-origin-main; current unchanged)\n", stderr="")
 
@@ -310,6 +311,32 @@ def test_managed_release_cuts_a_complete_main_release_without_changing_current(t
     assert calls[0][1]["env"]["LOOPS_RELEASE_PATHS"] == ""
     assert calls[0][1]["env"]["LOOPS_RUNTIME_PYTHON"] == sys.executable
     assert gig_release.managed_release("a" * 40) == release
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("old_python", ["/removed/venv/bin/python", "/bin/sh"])
+def test_managed_release_rebuilds_dead_or_different_runtime(tmp_path, monkeypatch, old_python):
+    root = tmp_path / "loops"
+    old = root / "releases/old"
+    old.mkdir(parents=True)
+    (old / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+        "runtime_python": old_python,
+    }))
+    monkeypatch.setenv("LOOPS_ROOT", str(root))
+    monkeypatch.setattr(gig_release, "git", lambda *_: "")
+    new = root / "releases/new"
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        new.mkdir()
+        (new / "RELEASE.json").write_text(json.dumps({
+            "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+            "runtime_python": sys.executable,
+        }))
+        return SimpleNamespace(returncode=0, stdout=f"release -> {new}  (ancestor-of-origin-main; current unchanged)\n", stderr="")
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+    assert gig_release.managed_release("a" * 40) == new
     assert len(calls) == 1
 
 

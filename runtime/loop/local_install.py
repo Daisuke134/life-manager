@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runtime.host.local_profile import host_environment, load_host_profile, prepare_host
+from runtime.host.local_profile import HOST_ENVIRONMENT_KEYS, host_environment, load_host_profile, prepare_host
 from runtime.loop.local_fleet import build_fleet_manifest
 from runtime.loop.lm_loop_apply import _loaded_arguments, _loaded_environment
 
@@ -72,7 +72,7 @@ def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str
         arguments = [str(release_root / "bin/lm-loop-run"), owner, str(release_root)]
         binding_matches = (not environment.get("LIFE_MANAGER_HOST_PROFILE") or all(
             _loaded_environment(probe.stdout).get(key) == value
-            for key, value in environment.items()))
+            for key, value in environment.items() if key in HOST_ENVIRONMENT_KEYS))
         if probe.returncode == 0 and _loaded_arguments(probe.stdout) == arguments and binding_matches:
             # Source identity is already installed. Running keep-alive owners
             # must not be restarted just to declare the installer successful.

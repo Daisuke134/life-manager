@@ -65,10 +65,24 @@ class LocalProfileTest(unittest.TestCase):
         self.assertEqual(self.prepare(), first)
         self.assertEqual(registry.read_text(), "# owner configuration\n")
 
+    def test_explicit_profile_path_survives_into_child_environment(self):
+        self.prepare()
+        original = self.home / ".config/life-manager/host.json"
+        selected = original.with_name("selected-host.json")
+        original.rename(selected)
+        with patch.dict(os.environ, {"LIFE_MANAGER_HOST_PROFILE": str(selected)}):
+            self.assertEqual(host_environment(home=self.home)["LIFE_MANAGER_HOST_PROFILE"], str(selected))
+
     def test_absent_profile_does_not_mutate_legacy_host(self):
         self.assertIsNone(load_host_profile(home=self.home))
         self.assertEqual(host_environment(home=self.home), {})
         self.assertFalse((self.home / ".config").exists())
+
+    def test_system_home_parent_alias_is_normalized(self):
+        raw_home = Path(self.temp.name) / "Another Person"
+        self.assertIsNone(load_host_profile(home=raw_home))
+        profile = prepare_host(ROOT, home=raw_home, python=self.python, node=self.node)
+        self.assertEqual(profile["owner_home"], str(raw_home.resolve()))
 
     def test_foreign_home_and_symlink_profile_are_rejected(self):
         self.prepare()
@@ -117,6 +131,17 @@ class LocalProfileTest(unittest.TestCase):
             env={**os.environ, "RUNTIME_PYTHON": str(self.python)}, capture_output=True, text=True)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(completed.stdout, str(self.python))
+
+    def test_individual_coconala_install_passes_venv_to_shell_owners(self):
+        from runtime.loop.lm_loop_apply import _plist
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        with patch.dict(os.environ, {"HOME": str(self.home)}):
+            for owner in ("hf-gig-paid-direct", "hf-gig-reply-detector"):
+                row = plistlib.loads(_plist(owner, registry["loops"][owner], ROOT, "a" * 40,
+                                           runtime_python=self.python))
+                env = row["EnvironmentVariables"]
+                self.assertEqual(env["HF_GIG_PYTHON"], str(self.python))
+                self.assertEqual(env["PATH"].split(os.pathsep)[0], str(self.python.parent))
 
 
 if __name__ == "__main__":

@@ -9,6 +9,12 @@ import stat
 import uuid
 from pathlib import Path
 
+HOST_ENVIRONMENT_KEYS = frozenset({
+    "LIFE_MANAGER_HOST_PROFILE", "LIFE_MANAGER_RUNTIME_PYTHON", "LIFE_MANAGER_PYTHON",
+    "LIFE_MANAGER_RUNTIME_NODE", "LIFE_MANAGER_NODE", "AGENT_RUNNER_CONFIG",
+    "AI_BROWSER_REGISTRY", "LIFE_MANAGER_ENV_FILE", "LM_SELFBUILD_SOURCE_REPO", "PATH",
+})
+
 
 def _home_path(value: str, home: Path) -> Path:
     return home / value[2:] if value.startswith("~/") else Path(value)
@@ -39,9 +45,12 @@ def _json(value: object) -> str:
 
 def load_host_profile(*, home: Path | None = None,
                       profile_path: Path | None = None) -> dict | None:
-    home = Path(home or Path.home()).absolute()
+    raw_home = Path(home or Path.home()).absolute()
+    home = raw_home.resolve()
     path = Path(profile_path or os.environ.get("LIFE_MANAGER_HOST_PROFILE")
                 or home / ".config/life-manager/host.json").expanduser().absolute()
+    if path.is_relative_to(raw_home):
+        path = home / path.relative_to(raw_home)
     if path.is_symlink() or any(parent.is_symlink() for parent in path.parents):
         raise ValueError("host profile contains symlink")
     if not path.exists():
@@ -99,7 +108,7 @@ def _browser_registry(registry: dict, home: Path) -> str:
 
 def prepare_host(repo_root: Path, *, home: Path | None = None,
                  python: Path, node: Path, codex: Path | None = None) -> dict:
-    home = Path(home or Path.home()).absolute()
+    home = Path(home or Path.home()).resolve()
     existing = load_host_profile(home=home)
     if existing is not None:
         return existing
@@ -153,7 +162,9 @@ def host_environment(*, home: Path | None = None) -> dict[str, str]:
         return {}
     runtime = value["runtime"]
     owner_home = Path(value["owner_home"])
-    return {"LIFE_MANAGER_HOST_PROFILE": str(owner_home / ".config/life-manager/host.json"),
+    selected = Path(os.environ.get("LIFE_MANAGER_HOST_PROFILE") or owner_home / ".config/life-manager/host.json").expanduser()
+    selected = selected.parent.resolve() / selected.name
+    return {"LIFE_MANAGER_HOST_PROFILE": str(selected),
             "LIFE_MANAGER_RUNTIME_PYTHON": runtime["python"], "LIFE_MANAGER_PYTHON": runtime["python"],
             "LIFE_MANAGER_RUNTIME_NODE": runtime["node"], "LIFE_MANAGER_NODE": runtime["node"],
             "AGENT_RUNNER_CONFIG": value["agent_runner_config"],

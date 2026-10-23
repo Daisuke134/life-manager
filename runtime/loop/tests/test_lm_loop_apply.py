@@ -1604,7 +1604,7 @@ class LmLoopApplyTest(unittest.TestCase):
             str(self.root.resolve() / "bin/lm-loop-run"), "example", str(self.root.resolve())])
         self.assertEqual(
             value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
-            str(Path(sys.executable).resolve()),
+            str(Path(sys.executable).absolute()),
         )
         self.assertEqual(
             value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_NODE"],

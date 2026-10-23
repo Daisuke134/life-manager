@@ -21,7 +21,8 @@ esac
 case "$(uname -m)" in arm64|x86_64) ;; *) echo "[local] 対応CPUはApple SiliconとIntelです" >&2; exit 2 ;; esac
 source "$ROOT/scripts/macos-runtime.sh"
 lm_ensure_python
-for dependency in node jq ffmpeg fontconfig; do
+lm_ensure_node
+for dependency in jq ffmpeg fontconfig; do
   executable="$dependency"
   [ "$dependency" != fontconfig ] || executable=fc-list
   if ! command -v "$executable" >/dev/null 2>&1; then

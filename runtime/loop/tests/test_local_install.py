@@ -1,5 +1,6 @@
 import json
 import os
+import plistlib
 import subprocess
 import tempfile
 import unittest
@@ -90,6 +91,22 @@ class LocalInstallTest(unittest.TestCase):
         result = apply_targets(ROOT, ["hf-gig-browser"], {"LIFE_MANAGER_HOST_PROFILE": "/own/host.json"}, runner=run)
         self.assertTrue(any("--loaded-idle-only" in command for command in calls))
         self.assertEqual(result[0]["skipped"], "loaded-running")
+
+    def test_installer_control_variables_do_not_make_exact_plist_wait_forever(self):
+        from runtime.host.local_profile import prepare_host, host_environment
+        from runtime.loop.lm_loop_apply import _plist
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {"HOME": str(Path(temporary).resolve())}):
+            prepare_host(ROOT, python=Path(os.sys.executable), node=Path(os.sys.executable))
+            registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+            row = plistlib.loads(_plist("hf-gig-browser", registry["loops"]["hf-gig-browser"], ROOT, "a" * 40))
+            text = "arguments = {\n" + "\n".join(row["ProgramArguments"]) + "\n}\nenvironment = {\n"
+            text += "\n".join(f"{key} => {value}" for key, value in row["EnvironmentVariables"].items()) + "\n}\n"
+            def run(command, **kwargs):
+                self.assertNotIn("apply", command)
+                return subprocess.CompletedProcess(command, 0, text, "")
+            env = {**host_environment(), "LIFE_MANAGER_SOURCE_REPO": str(ROOT), "LIFE_MANAGER_APPLY_REQUIRE_CURRENT": "0"}
+            result = apply_targets(ROOT, ["hf-gig-browser"], env, runner=run)
+            self.assertEqual(result[0]["readback"], "exact_release_loaded")
 
     def test_additional_owner_is_installed_only_after_confirmed_absence(self):
         owner = {"label": "com.anicca.disk-watchdog", "installer": "skills/self/disk-cleanup/install-launchd.sh",

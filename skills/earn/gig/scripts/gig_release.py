@@ -102,12 +102,21 @@ def coconala_jobs(repo_root: Path | None = None) -> dict[str, str]:
     return {registry[owner]["label"]: owner for owner in product["job_ids"]}
 
 
-def _complete_main_release(path: Path, sha: str) -> bool:
+def _runtime_environment() -> dict[str, str]:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from runtime.host.local_profile import host_environment
+    return host_environment()
+
+
+def _complete_main_release(path: Path, sha: str, python: str) -> bool:
     try:
         receipt = json.loads((path / "RELEASE.json").read_text())
         return (receipt.get("sha") == sha
                 and receipt.get("provenance") == "ancestor-of-origin-main"
-                and receipt.get("release_paths") == "ALL")
+                and receipt.get("release_paths") == "ALL"
+                and receipt.get("runtime_python") == python
+                and Path(python).is_file() and os.access(python, os.X_OK))
     except (OSError, ValueError):
         return False
 
@@ -115,22 +124,23 @@ def _complete_main_release(path: Path, sha: str) -> bool:
 def managed_release(sha: str) -> Path:
     """Reuse or cut the canonical complete release, leaving shared current alone."""
     git("merge-base", "--is-ancestor", sha, "origin/main")
+    python = _runtime_environment().get("LIFE_MANAGER_RUNTIME_PYTHON", sys.executable)
     releases = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser() / "releases"
     for candidate in sorted(releases.glob("*"), reverse=True):
-        if candidate.is_dir() and not candidate.is_symlink() and _complete_main_release(candidate, sha):
+        if candidate.is_dir() and not candidate.is_symlink() and _complete_main_release(candidate, sha, python):
             return candidate.resolve()
     result = subprocess.run(
         ["/bin/bash", str(REPO_ROOT / "bin/cut-loop-release.sh"), sha],
         env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(REPO_ROOT),
              "LOOPS_ACTIVATE_CURRENT": "0", "LOOPS_RELEASE_PATHS": "",
-             "LOOPS_RUNTIME_PYTHON": sys.executable},
+             "LOOPS_RUNTIME_PYTHON": python},
         capture_output=True, text=True, check=True,
     )
     match = re.search(r"^release -> (.+)  \([^\n]+; current unchanged\)$", result.stdout, re.MULTILINE)
     if not match:
         raise ValueError("canonical release path was not acknowledged")
     release = Path(match.group(1)).resolve()
-    if release.parent != releases.resolve() or not _complete_main_release(release, sha):
+    if release.parent != releases.resolve() or not _complete_main_release(release, sha, python):
         raise ValueError("Coconala requires a complete immutable main release")
     return release
 
@@ -145,12 +155,11 @@ def activate_managed_jobs(release: Path, wanted: set[str], dry_run: bool) -> int
         return 0
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
-    from runtime.host.local_profile import host_environment
     from runtime.loop.local_install import apply_targets
 
     try:
         results = apply_targets(release, owners, {
-            **host_environment(), "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable,
+            "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable, **_runtime_environment(),
             "LIFE_MANAGER_SOURCE_REPO": str(REPO_ROOT),
             "LIFE_MANAGER_APPLY_REQUIRE_CURRENT": "0",
         }, runner=subprocess.run)

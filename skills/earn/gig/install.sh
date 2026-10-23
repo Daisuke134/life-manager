@@ -5,11 +5,6 @@ GIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="/opt/homebrew/bin:$HOME/.local/bin:$PATH"
 source "$GIG_DIR/../../../scripts/macos-runtime.sh"
 
-_coconala_node_ready() {
-  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 \
-    && node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 20 || (major === 20 && minor >= 19) ? 0 : 1)' >/dev/null 2>&1
-}
-
 _coconala_browser_platform_ready() {
   "$1" -c 'import platform
 from cloakbrowser.config import SUPPORTED_PLATFORMS, AVAILABLE_PLATFORMS, PLATFORM_CHROMIUM_VERSIONS
@@ -53,7 +48,7 @@ if [ "${1:-}" = "preflight" ]; then
     python=true
     _coconala_browser_platform_ready "$LM_PYTHON" && browser_platform=true
   fi
-  _coconala_node_ready && node_runtime=true
+  lm_node_ready && node_runtime=true
   if command -v codex >/dev/null 2>&1; then
     codex_cli=true
     codex login status >/dev/null 2>&1 && codex_authenticated=true
@@ -75,12 +70,7 @@ if [ "${1:-}" = "prepare" ]; then
   [ "$(uname -s)" = "Darwin" ] || { echo "[coconala] requires macOS" >&2; exit 2; }
   case "$(uname -m)" in arm64|x86_64) ;; *) echo "[coconala] unsupported macOS architecture" >&2; exit 2 ;; esac
   lm_ensure_python
-  if ! _coconala_node_ready; then
-    lm_ensure_homebrew
-    "$LM_BREW" install node >&2
-    hash -r
-    _coconala_node_ready || { echo "[coconala] Node >=20.19 and npm are required" >&2; exit 2; }
-  fi
+  lm_ensure_node
 
   venv="$HOME/.local/share/anicca/gig/venv"
   if ! _lm_select_python "$venv/bin/python"; then
