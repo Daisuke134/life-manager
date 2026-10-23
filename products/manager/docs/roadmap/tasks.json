@@ -1288,7 +1288,6 @@
         "evidence": "docs/verification/E16_CLOUD_EXECUTION_20261023.md",
         "handoff": "docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md",
         "remaining_evidence": [
-          "fresh runner checkpoint restore / NOT_DUE and replay writes zero",
           "versioned real finance and mental current-page-cue canaries with exact P1/P2",
           "durable STOP and exact latest-candidate scoped rollback with restart / lost-response reconciliation",
           "native technical P1/P2 and missing observations connected to existing Explorer/shadow",
@@ -1316,12 +1315,15 @@
           "first_real_run_status": "NO_ACTION",
           "first_real_run_writes": 0,
           "authentication": "GATEWAY_ACKNOWLEDGED",
-          "readback_revision": 1,
+          "readback_revision": 2,
           "readback_owner_is_null": true,
           "positive_canary": "NOT_RUN",
           "fresh_runner_run_id": 39882784491,
-          "fresh_runner_status": "PENDING_READBACK",
-          "adapter_scope": "CORE_MAIN_HOST_CONNECTED_STOP_ROLLBACK_NATIVE_OBSERVATIONS_PENDING"
+          "fresh_runner_status": "NOT_DUE",
+          "adapter_scope": "CORE_MAIN_HOST_CONNECTED_STOP_ROLLBACK_NATIVE_OBSERVATIONS_PENDING",
+          "fresh_runner_writes": 0,
+          "fresh_runner_authentication": "GATEWAY_ACKNOWLEDGED",
+          "independent_seven_public_hashes_unchanged": true
         }
       }
     },

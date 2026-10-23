@@ -12,7 +12,7 @@
 
 ## 続行中の受入れ
 
-1. 別のfresh runner [39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491) で保存状態を復元し、NOT_DUEと外部書込み0を確認する。dispatch済みで、結果は本記録作成時点で未確定です。
+1. 別のfresh runner [39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491) は2026-10-23 01:22:53 UTCにSUCCESS。公式summaryで `GATEWAY_ACKNOWLEDGED / NOT_DUE / writes=0`、実DBでrevision2・同じ90112-byte snapshot hash・owner/leaseなし・recovery_required=falseを確認しました。公開全7ファイルのhashとgh-pages tipが元のd33dから変わっていないことも独立に読み戻しました。これで実OIDCとcross-run restore/replay-zeroの限定受入れは成立。正のcanary・停止/復旧の受入れを続けます。
 2. 実在する改善としてfinance/mental各ページの一意なself navigationへ `aria-current="page"` を付与するversioned typed criterionを追加する。旧v1 link/label検証は維持する。これはW3Cに沿う位置情報の付加で、WCAG違反や人への便益を主張しません。
 3. private checkpointを跨ぐSTOPと、当該candidateだけを対象にした明示的CAS rollbackを既存journal/publisherへ接続する。lag・timeout・hash mismatchだけではrollbackしません。
 4. exact P1と独立served P2を、既存Explorer/shadowへ元の単位と欠測理由で接続する。sandboxのlossや人間の成果へ読み替えません。

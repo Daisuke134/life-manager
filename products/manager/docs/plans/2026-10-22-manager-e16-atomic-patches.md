@@ -1,6 +1,6 @@
 # Manager — 追加一次資料に基づくatomic patch plan
 
-**2026-10-23現在の実施状況:** [実cloud実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md) が下記の旧host/CLI未接続の説明に優先します。PATCH-05/06のmain admission・core host・private gatewayは正規統合され、既存stagingで初回実OIDC/cycleを通過しました。未チェック工程をまとめて完了とはせず、正の2テーマcanary、fresh runner復元、durable STOP/限定rollback、native観測の本番受入れを続行します。Railway resource作成は前提から外します。
+**2026-10-23現在の実施状況:** [実cloud実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md) が下記の旧host/CLI未接続の説明に優先します。PATCH-05/06のmain admission・core host・private gatewayは正規統合され、既存stagingで初回実OIDC/cycleを通過しました。未チェック工程をまとめて完了とはせず、正の2テーマcanary、durable STOP/限定rollback、native観測の本番受入れを続行します。Railway resource作成は前提から外します。
 
 > **For agentic workers:** Use Superpowers executing-plans or subagent-driven-development when implementing. This request authorizes research/specification work; unchecked implementation steps below are proposed patches, not completed behavior changes.
 
