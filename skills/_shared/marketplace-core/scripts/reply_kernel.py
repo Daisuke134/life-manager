@@ -8,7 +8,7 @@ owns only durable identity, intent fencing, official reconciliation and retry.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import argparse
 from datetime import datetime, timedelta, timezone
 import fcntl
@@ -91,24 +91,70 @@ def _run_marker_path(root: Path, occurrence_id: str) -> Path:
     return root / "runs" / f"{digest}.json"
 
 
+def _run_marker_bindings(items) -> dict[str, Any]:
+    if not isinstance(items, list):
+        raise ValueError("reply_run_marker_invalid")
+    bindings = {}
+    for item in items:
+        if not isinstance(item, Mapping):
+            raise ValueError("reply_run_marker_invalid")
+        thread_id, state = item.get("thread_id"), item.get("reconcile_state")
+        if not isinstance(thread_id, str) or not thread_id or thread_id in bindings:
+            raise ValueError("reply_run_marker_invalid")
+        if state is not None and (
+            not isinstance(state, Mapping) or not isinstance(state.get("intent"), Mapping)
+        ):
+            raise ValueError("reply_run_marker_invalid")
+        bindings[thread_id] = (state.get("occurrence_id"), state["intent"]) if state is not None else None
+    return bindings
+
+
 def _write_run_marker(root: Path, occurrence_id: str | None,
-                      items: list[Mapping[str, Any]]) -> None:
+                      items: list[Mapping[str, Any]],
+                      reconcile_states: list[dict[str, Any] | None] | None = None) -> None:
     if not isinstance(occurrence_id, str) or not occurrence_id.strip():
         return
     marker_items = [{key: item.get(key) for key in
                      ("thread_id", "status", "effect", "readback", "failed", "reason")}
                     for item in items]
+    if reconcile_states is not None:
+        if len(reconcile_states) != len(marker_items):
+            raise ValueError("reply_run_marker_invalid")
+        for item, state in zip(marker_items, reconcile_states):
+            if state is not None:
+                item["reconcile_state"] = state
     uncertain = any(
         item.get("failed") == 1
         or item.get("status") == "pending"
         or (item.get("effect") == 1 and item.get("readback") != 1)
         for item in marker_items
     )
-    _write(_run_marker_path(root, occurrence_id.strip()), {
-        "version": 1, "occurrence_id": occurrence_id.strip(),
+    marker = {
+        "version": 2, "occurrence_id": occurrence_id.strip(),
         "status": "effect_unknown" if uncertain else "completed",
         "items": marker_items,
-    })
+    }
+    bindings = _run_marker_bindings(marker_items)
+    path = _run_marker_path(root, occurrence_id.strip())
+    # run_wake holds this marker lock before any provider work.
+    if path.is_symlink():
+        raise ValueError("reply_run_marker_invalid")
+    if path.exists():
+        try:
+            prior = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise ValueError("reply_run_marker_invalid") from error
+        if (not isinstance(prior, Mapping) or prior.get("version") != 2
+                or prior.get("occurrence_id") != occurrence_id.strip()
+                or prior.get("status") not in {"in_progress", "effect_unknown", "completed"}):
+            raise ValueError("reply_run_marker_invalid")
+        if prior.get("status") == "in_progress" and prior.get("items") == []:
+            _write(path, marker)
+            return
+        if _run_marker_bindings(prior.get("items")) != bindings:
+            raise ValueError("reply_run_marker_binding_changed")
+        return  # Keep the first occurrence snapshot, including its original receipt.
+    _write(path, marker)
 
 
 def run_marker_accounted(root: Path, occurrence_id: str,
@@ -117,7 +163,7 @@ def run_marker_accounted(root: Path, occurrence_id: str,
         marker = json.loads(_run_marker_path(root, occurrence_id).read_text(encoding="utf-8"))
     except (OSError, ValueError, json.JSONDecodeError):
         return False
-    if (not isinstance(marker, Mapping) or marker.get("version") != 1
+    if (not isinstance(marker, Mapping) or marker.get("version") not in {1, 2}
             or marker.get("occurrence_id") != occurrence_id
             or not isinstance(marker.get("items"), list)
             or not marker["items"]):
@@ -706,7 +752,8 @@ def _run_locked(
 
 
 def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None,
-             pre_effect_hint=None, occurrence_id: str | None = None):
+              pre_effect_hint=None, occurrence_id: str | None = None,
+              reconcile_states: dict | None = None):
     row = _observation(source)
     path = _state_path(state_root, row)
     with _lock(path):
@@ -767,13 +814,36 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
             return {"thread_id": row["thread_id"], "status": "failed",
                     "reason": type(error).__name__, "error_detail": error_detail, "effect": 0,
                     "readback": 0, "failed": 1}
+        finally:
+            if reconcile_states is not None:
+                state = _load(path)
+                if isinstance(state.get("intent"), Mapping):
+                    identity = tuple(row[field] for field in ("provider", "account_id", "thread_id"))
+                    reconcile_states[identity] = state
 
 
 def run_wake(*, adapter: ReplyAdapter,
              decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4, notify=None,
              human_notify=None) -> dict[str, Any]:
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip()
+    path = _run_marker_path(Path(state_root), occurrence_id)
+    with _lock(path) if occurrence_id else nullcontext():
+        if occurrence_id and (path.exists() or path.is_symlink()):
+            raise ValueError("reply_run_marker_already_recorded")
+        if occurrence_id:
+            _write(path, {"version": 2, "occurrence_id": occurrence_id,
+                          "status": "in_progress", "items": []})
+        return _run_wake(adapter=adapter, decide=decide, state_root=state_root,
+                         max_workers=max_workers, notify=notify, human_notify=human_notify)
+
+
+def _run_wake(*, adapter: ReplyAdapter,
+             decide: Callable[[dict[str, Any]], Mapping[str, Any]],
+             state_root: Path, max_workers: int = 4, notify=None,
+             human_notify=None) -> dict[str, Any]:
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
+    reconcile_states: dict[tuple[str, str, str], dict[str, Any]] = {}
     pre_effect_hint = _prepare_pre_effect_hint(max_workers)
     notify = _guard_effect_callback(notify, pre_effect_hint)
     human_notify = _guard_effect_callback(human_notify, pre_effect_hint)
@@ -791,12 +861,13 @@ def run_wake(*, adapter: ReplyAdapter,
             # Sync browser adapters are thread-affine: even a one-worker pool moves
             # their Playwright page to another thread and invalidates every call.
             items = [_run_one(adapter, decide, Path(state_root), row, notify, human_notify,
-                              pre_effect_hint, occurrence_id)
+                              pre_effect_hint, occurrence_id, reconcile_states)
                      for row in normalized]
         else:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row,
-                                       notify, human_notify, pre_effect_hint, occurrence_id)
+                                       notify, human_notify, pre_effect_hint, occurrence_id,
+                                       reconcile_states)
                            for row in normalized]
                 items = []
                 for row, future in zip(normalized, futures):
@@ -838,7 +909,8 @@ def run_wake(*, adapter: ReplyAdapter,
         "pending": sum(item["status"] == "pending" for item in items),
         "items": items,
     }
-    _write_run_marker(Path(state_root), occurrence_id, items)
+    _write_run_marker(Path(state_root), occurrence_id, items,
+                      [reconcile_states.get(identity) for identity in identities])
     return result
 
 

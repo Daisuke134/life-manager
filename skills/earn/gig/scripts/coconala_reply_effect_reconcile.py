@@ -57,7 +57,72 @@ def _intent_intact(intent: dict) -> bool:
     )
 
 
-def _load_state(path: Path, kernel_root: Path, occurrence_id: str) -> tuple[dict, dict] | None:
+def _run_marker_path(kernel_root: Path, occurrence_id: str) -> Path:
+    return kernel_root / "runs" / (hashlib.sha256(occurrence_id.encode()).hexdigest() + ".json")
+
+
+def _run_marker(kernel_root: Path, occurrence_id: str) -> dict | None:
+    """None means absent; an invalid existing marker must never fall back to thread state."""
+    path = _run_marker_path(kernel_root, occurrence_id)
+    if (kernel_root / "runs").is_symlink() or path.is_symlink():
+        return {}
+    if not path.exists():
+        return None
+    try:
+        marker = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if (not isinstance(marker, dict) or marker.get("occurrence_id") != occurrence_id
+            or marker.get("version") not in (1, 2)
+            or (marker.get("version") == 2 and marker.get("status") not in {"completed", "effect_unknown"})
+            or not isinstance(marker.get("items"), list) or not marker["items"]):
+        return {}
+    return marker
+
+
+def _no_effect_item(item: dict) -> bool:
+    return (item.get("status") in {"closed", "no_reply", "noop", "awaiting_buyer"}
+            and all(type(item.get(key)) is int and item[key] == value
+                    for key, value in (("effect", 0), ("readback", 1), ("failed", 0))))
+
+
+def _snapshot_states(marker: dict) -> dict[str, dict] | None:
+    if marker.get("version") != 2:
+        return None
+    states, seen = {}, set()
+    for item in marker["items"]:
+        if not isinstance(item, dict):
+            return None
+        thread_id = item.get("thread_id")
+        if (not isinstance(thread_id, str) or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", thread_id) is None
+                or thread_id in seen):
+            return None
+        seen.add(thread_id)
+        if "reconcile_state" not in item:
+            if not _no_effect_item(item):
+                return None
+            continue
+        state = item["reconcile_state"]
+        if (not isinstance(state, dict)
+                or state.get("status") not in {"intent_persisted", "reconcile_unknown", "verified"}
+                or not isinstance(state.get("occurrence_id"), str) or not state["occurrence_id"].strip()
+                or not isinstance(state.get("intent"), dict)
+                or not _intent_intact(state["intent"])
+                or state["intent"]["thread_id"] != thread_id):
+            return None
+        states[thread_id] = state
+    return states
+
+
+def _load_state(path: Path, kernel_root: Path, occurrence_id: str,
+                thread_id: str | None = None) -> tuple[dict, dict] | None:
+    if thread_id is not None:
+        marker = _run_marker(kernel_root, occurrence_id)
+        states = _snapshot_states(marker) if marker else None
+        if path != _run_marker_path(kernel_root, occurrence_id) or not states or thread_id not in states:
+            return None
+        state = states[thread_id]
+        return state, state["intent"]
     try:
         if path.is_symlink():
             return None
@@ -178,6 +243,25 @@ def _find_targets(kernel_root: Path, occurrence_id: str) -> list[Path] | None:
             if _load_state(path, kernel_root, occurrence_id) is None:
                 return None
             matches.append(path)
+    marker = _run_marker(kernel_root, occurrence_id)
+    if marker is None or marker.get("version") != 1:
+        return None
+    required, seen = set(), set()
+    for item in marker["items"]:
+        if not isinstance(item, dict) or not isinstance(item.get("thread_id"), str):
+            return None
+        thread_id = item["thread_id"]
+        if thread_id in seen:
+            return None
+        seen.add(thread_id)
+        if not _no_effect_item(item):
+            required.add(thread_id)
+    loaded = [_load_state(path, kernel_root, occurrence_id) for path in matches]
+    if any(value is None for value in loaded):
+        return None
+    actual = {value[1]["thread_id"] for value in loaded}
+    if actual != required:
+        return None
     return matches or None
 
 
@@ -191,8 +275,9 @@ def _load_adapter():
     return module
 
 
-def _child_readback(state_path: Path, kernel_root: Path, occurrence_id: str) -> dict:
-    loaded = _load_state(state_path, kernel_root, occurrence_id)
+def _child_readback(state_path: Path, kernel_root: Path, occurrence_id: str,
+                    thread_id: str | None = None) -> dict:
+    loaded = _load_state(state_path, kernel_root, occurrence_id, thread_id)
     if loaded is None:
         return {"status": "unknown", "reason": "exact_reply_state_changed"}
     _state, intent = loaded
@@ -266,13 +351,15 @@ def _parse_child_output(stdout: str) -> dict | None:
 
 def _browser_readback(
     state_path: Path, kernel_root: Path, occurrence_id: str,
-    *, runner=None,
+    *, runner=None, thread_id: str | None = None,
 ) -> dict:
     command = [
         "bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--", sys.executable,
         str(SCRIPT), "--readback-child", "--occurrence", occurrence_id,
         "--kernel-root", str(kernel_root), "--state-path", str(state_path),
     ]
+    if thread_id is not None:
+        command.extend(["--thread-id", thread_id])
     environment = os.environ.copy()
     environment["BROWSER_WAIT_SECONDS"] = "0"
     environment["AI_ENSURE_PROVISION_BROWSER"] = "/dev/null"
@@ -302,19 +389,26 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     parser.add_argument("--kernel-root", type=Path, default=DEFAULT_KERNEL_ROOT)
     parser.add_argument("--readback-child", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--state-path", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--thread-id", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
     if args.readback_child:
         result = (
-            _child_readback(args.state_path, args.kernel_root, args.occurrence)
+            _child_readback(args.state_path, args.kernel_root, args.occurrence, args.thread_id)
             if args.state_path is not None
             else {"status": "unknown", "reason": "exact_reply_state_missing"}
         )
         print(READBACK_MARKER + json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         return 0
 
-    targets = _find_targets(args.kernel_root, args.occurrence)
-    if targets is None:
+    marker = _run_marker(args.kernel_root, args.occurrence)
+    if marker is not None and marker.get("version") != 1:
+        states = _snapshot_states(marker) if marker else None
+        targets = [(_run_marker_path(args.kernel_root, args.occurrence), thread_id)
+                   for thread_id in states] if states else []
+    else:
+        targets = [(path, None) for path in (_find_targets(args.kernel_root, args.occurrence) or [])]
+    if not targets:
         _print({
             "owner_id": OWNER_ID, "occurrence_id": args.occurrence,
             "status": "unresolved", "verified": False,
@@ -326,9 +420,9 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     def official_readback() -> dict:
         receipts = []
-        for state_path in targets:
+        for state_path, thread_id in targets:
             result = _browser_readback(
-                state_path, args.kernel_root, args.occurrence, runner=runner,
+                state_path, args.kernel_root, args.occurrence, runner=runner, thread_id=thread_id,
             )
             if result.get("status") != "verified":
                 return {
