@@ -1055,6 +1055,29 @@
       "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/line-creators-browser"
     },
+    "capafy-improvement-ledger-hourly": {
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 17
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "growth",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/capafy-marketing/capafy-improvement-ledger.sh",
+      "label": "ai.anicca.capafy-improvement-ledger-hourly",
+      "log_root": "~/.local/state/life-manager/logs",
+      "resource_class": "deterministic",
+      "admission_class": "revenue",
+      "priority": "revenue",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager"
+    },
     "capafy-goal-monitor-hourly": {
       "cadence": {
         "calendar_interval": {
