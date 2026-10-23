@@ -1,6 +1,6 @@
 # Manager entity specification — Digital Buddha, mission and evidence
 
-**2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、E01–E16の限定技術受入は完了（cursor=null）、**F005 → F006 → F008 → F009** も技術P2として順に個別受入済み。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **77 done / 33 todo / 3 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
+**2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、E01–E16の限定技術受入は完了（cursor=null）、**F005 → F006 → F008 → F009** も技術P2として順に個別受入済み。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **78 done / 32 todo / 3 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
 
 **2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。STOPの別runnerでの維持と明示resume、finance/mentalの公式commitと公開7ファイル一致、再送0件のcurrent proofとnative P1/P2のExplorer接続を実確認しました。両初回cycleのUNKNOWN／writes=nullは保持します。rollbackのパス形式修正はPR8632でmain統合済み。限定復元の初回run39907087699はUNKNOWN／writes=nullですが、公式commit `c6d5de0`、Pages成功、05:46 UTCの独立GETでfinanceの旧7ファイルへの復元を確認しました。この外部事実で初回UNKNOWNを上書きせず、fresh resume39907673029は公式にRESUMED_BY_OWNER／writes=0を確認しました。その後の通常cycle39908693666は新しいcommit faf18b3を配信し、公開7ファイル一致を確認しましたが、初回UNKNOWNを保持しています。fresh runner39909274852は公式NOT_DUE／writes=0／current proof出力成功を確認し、E16の限定技術受入を完了しました。Fの4項目も技術P2として個別受入済みです。D001/D002は分類／比較設計のsource契約のみ受入済みで、人の便益と本番AI接続は別の残件です。下の2026-10-22時点のhost未実装やRailway前提は履歴です。Remote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加の検証adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
 
@@ -17,7 +17,7 @@
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
-**2026-10-23確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のgateway/runtimeは通常mainへ統合し、既存Actions＋Supabase private checkpointで実OIDCと別fresh runnerの状態復元・重複公開0を確認しました。`DEPLOYMENT_HOST_REQUIRED`という旧説明は現在の再開条件ではありません。finance/mentalのP1/P2とnative Explorer接続、durable STOPと最初のresume、mental後の限定rollbackの外部配信は実確認済みです。復元後のresume、通常cycleの新しい配信、fresh runnerの照合・replay-zeroも確認し、E16の限定技術受入を完了しました。その後Fの4項目も技術P2として個別受入しました。広い主体全体の完成・人の便益とは区別します。113件は77 done / 33 todo / 3 skipped。実行時は必ず最新SSOTを読む。
+**2026-10-23確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のgateway/runtimeは通常mainへ統合し、既存Actions＋Supabase private checkpointで実OIDCと別fresh runnerの状態復元・重複公開0を確認しました。`DEPLOYMENT_HOST_REQUIRED`という旧説明は現在の再開条件ではありません。finance/mentalのP1/P2とnative Explorer接続、durable STOPと最初のresume、mental後の限定rollbackの外部配信は実確認済みです。復元後のresume、通常cycleの新しい配信、fresh runnerの照合・replay-zeroも確認し、E16の限定技術受入を完了しました。その後Fの4項目も技術P2として個別受入しました。広い主体全体の完成・人の便益とは区別します。113件は78 done / 32 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
@@ -25,7 +25,7 @@
 
 **最新の追加探索:** [既調査を除いた6分野の比較・新論文・固定code](research/manager-options-additional-20261022/REPORT_JA.md)、[ファイル/関数/RED条件/検証commandを指定した12 atomic patches](plans/2026-10-22-manager-e16-atomic-patches.md)。前回の既知先例の再整理を新しい調査とは数えない。
 
-**開始から最後まで:** [Phase00〜12・残33件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
+**開始から最後まで:** [Phase00〜12・残32件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
 
 **2026-10-22の実装履歴:** [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md)。過去intent回収・checkpoint再送防止・typed deliveryを追加し、local684テストとcurrent/DBOS計16ケースを検証。DBOSは固定sourceから実install・実再開比較したが、本番採用は未決でsingle-workerを維持。当時のhost未接続という状態は上記の2026-10-23実receiptで更新し、当時の原41件未受入という履歴と、現在の受入状態を区別します。
 
@@ -114,17 +114,17 @@ flowchart LR
 | 後段 | C002・Y008と既存P計画の記事／書籍／slides／carousel | 本体の開発・受入を優先し、新しい制作を保留。v0.1受入だけで制作を自動再開せず、残る本体の順序を先に扱う。既存研究章の公開をC002/Y008の完了と置き換えない |
 | 期限別 | Y003・Y005: 既存founder packet、研究者map、公式応募経路 | YC実提出、適切な5接点と応答状態を個別記録。実装の合格から採択・採用・友情・podcast出演を推定しない |
 
-この表は優先順を説明する派生viewであり、原ID・dependsは変更しない。各IDと残33件の全一覧は[開始から最後まで](roadmap/START_TO_END_20261022.md)。記事を後に置くことは、実装中の受入receiptや誤りの訂正を後回しにする意味ではない。
+この表は優先順を説明する派生viewであり、原ID・dependsは変更しない。各IDと残32件の全一覧は[開始から最後まで](roadmap/START_TO_END_20261022.md)。記事を後に置くことは、実装中の受入receiptや誤りの訂正を後回しにする意味ではない。
 
-**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。既存Ampersand adapterと永続状態接続のsourceはPR8650でmainへ昇格し、PR8660で公開catalogのtyped context・安定operation ID・既存baselineを使うP0 shadow callerも統合した。PR8665で最終応答／turn整合性も修正・main統合済み。次は適切な実課題、固定SDKの実行環境、既存予算・秘密保管、同条件の実比較へ接続する。shadowは既定OFFで、モデル提案からpublisherの実操作を発火しない。必要時のPersimmon等の評価接続、観測・主体の長期状態・既存channel・outcomeからのpolicy更新も未実証。既存E01–E12、公開研究A–F、U/V/Gの元受入条件に照合し、新しいtask IDや達成数を足さない。残33件を終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
+**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。既存Ampersand adapterと永続状態接続のsourceはPR8650でmainへ昇格し、PR8660で公開catalogのtyped context・安定operation ID・既存baselineを使うP0 shadow callerも統合した。PR8665で最終応答／turn整合性も修正・main統合済み。次は適切な実課題、固定SDKの実行環境、既存予算・秘密保管、同条件の実比較へ接続する。shadowは既定OFFで、モデル提案からpublisherの実操作を発火しない。必要時のPersimmon等の評価接続、観測・主体の長期状態・既存channel・outcomeからのpolicy更新も未実証。既存E01–E12、公開研究A–F、U/V/Gの元受入条件に照合し、新しいtask IDや達成数を足さない。残32件を終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
 
 ### 1.3.1 元受入に不足する実記録と、次に触る既存ファイル
 
-D003/D011は通常main統合後に限定source接続として受入した。残33件には準備済みのcode・protocolもあり、残数は未実装file数ではない。既存Actions＋Supabaseとcloudで作業を続けられることと、実面談・有効な測定・純便益の観測が揃うことを分ける。
+D003/D011は通常main統合後に限定source接続として受入した。残32件には準備済みのcode・protocolもあり、残数は未実装file数ではない。既存Actions＋Supabaseとcloudで作業を続けられることと、実面談・有効な測定・純便益の観測が揃うことを分ける。
 
 | 対応する残件 | 現在確認した根拠・不足 | 次の接続と既存ファイル |
 |---|---|---|
-| U002→U003以降 | 同意ある異なる立場の5面談と必要な結果の記録が未確認。repoとManager関連の限定Gmail/Slack検索でも該当記録なし。ただし全保管先に存在しないことの証明ではない | 実面談の必要最小限の匿名メモを根拠に`docs/product/FIRST_WEDGE.md`のPROVISIONALを検証し、次に`pilot/FIRST_STUDY.md`の対象・比較を実行前固定する |
+| U003以降 | [U002の公開実面談5件](product/U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md)を歴史的な英国の支援アクセス問題の最小匿名整理として限定受入。運営者・受益者・支援者を覆い、同意と利用条件・公表methodsによる結合の限界を記録した。自前面談0件。現在の日本の需要、Managerの利用・支払・実施協力は未確認 | 同記録の障壁と既存対応を根拠に`docs/product/FIRST_WEDGE.md`のPROVISIONALを検証し、実主体・比較・費用・代替を選定する。次に`pilot/FIRST_STUDY.md`の対象・比較を実行前固定する |
 | D005→D006以降 | [公開測定監査](verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)。SML2010は4137 UTC行を接続できるが校正未提供。NISTは実校正methodと30行を確認したがRH16行が公表範囲外、残14行の有効区間が未解決。範囲内6行だけを成功にしない | 当該異常の品質説明・訂正版、または適用する品質/校正が確認できる別sourceを接続する。`physical_outcomes.py`の有限値＋明示flagの除外漏れは研究branchで修復済み。将来のD005接続へD006の架空対照・actuator・PM2.5を埋めず、元行・単位・clock・品質根拠を保持する |
 | D012 | D011のplatform Paid USD100は第三者の歴史的声明。実労働時間・費用・機会損失・分母を供給しない | 出典付きの実際の費用/時間/機会数を`manager_core/opportunity_outcomes.py`の既存契約へ照合する。未知を0や純利益へ置き換えない |
 | D014→D015 | 公表集計のsourceとprotocolの準備・品質確認はあるが、実際の協働と適切な倫理判断は未確認。公表licenseだけで団体協力成立とはしない | `pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md`と`pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md`へ実役割・適用判断・匿名集計の根拠を記録する |
@@ -375,13 +375,13 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 ## 19. 全工程の終点と公開サイトの追従
 
-[全工程view](roadmap/START_TO_END_20261022.md)にPhase00〜12と残33件を省略せず列挙する。E01–E16、P01–P07、12 atomic patches、創業者12packageは同じ作業の派生viewであり、原113件へ足さない。旧EBAのPhase07〜11は別章立てなので対応表で結び、元のtask ID/依存を維持する。
+[全工程view](roadmap/START_TO_END_20261022.md)にPhase00〜12と残32件を省略せず列挙する。E01–E16、P01–P07、12 atomic patches、創業者12packageは同じ作業の派生viewであり、原113件へ足さない。旧EBAのPhase07〜11は別章立てなので対応表で結び、元のtask ID/依存を維持する。
 
 長期像の `one entity / one model` は一貫した意思決定主体への統合、`no UI` は人のapp/chat/messenger操作やManagerとの対話を通常の活動・価値提供の前提にせず、現実の観測から判断・作用・検証・訂正を続ける設計とする。owner設定・停止・失効・予算・異議・監査・公開proofの運営入口は保持する。定義は§1.2へ集約する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
 
 P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実稼働・限定E16受入の結果と本体の残件、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。本体優先の現指示に従って新たなサイト制作は後段へ置く。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
 
-原計画の末尾はPhase12/G006。全41件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
+原計画の末尾はPhase12/G006。残32件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
 
 ## 20. Rothkoから学ぶ範囲とエンティティの位置づけ
 

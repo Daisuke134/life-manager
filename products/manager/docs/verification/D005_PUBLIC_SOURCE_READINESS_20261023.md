@@ -36,3 +36,9 @@ rootも原本5件と両配布memberのbytes/hash、4137行、列数・UTC・間�
 既存のCalibration/PhysicalSessionDesignへ架空の有効日、対照・actuator、事前protocolを埋めない。source取得時刻を2013年へ戻さない。将来の最小接続は同じSourceと品質排除を再利用し、原行・時刻・単位・校正/quality根拠・除外理由・未確定を保持する。現時点のコード修復とsource監査を、人の改善や原D005完了へ変換しない。
 
 cloudのsource-boundaryはcanonical checkout不在のFAILを保持しており、別hostのPASSへ付け替えていない。既存単一owner・定期planner・schema・model呼出し・配信状態・記事制作・外部連絡は変更していない。
+
+## 修復を含む全体CIのexact-head証拠
+
+[research CI39941440653](https://github.com/Daisuke134/life-manager/actions/runs/39941440653)はsource head `782f4535a7ac87eed82c44d12e16f5ae23633e24`でSUCCESS。E01 receipt6件、Ampersand P0 regression21件、原113件view整合・import境界が成功し、全suiteは942実行・6 skip・失敗0、27.256秒。取得した公式logは30560 bytes、SHA256 `d0f0c711c1f970a7f273bda05329a59ce7075810774476f2aa4c18422ee5de1e`。local workerの968実行・5 skipとは別の実測として保存する。
+
+このrunはD003/D011のsource同期と品質flag修復を含むが、その後の説明文commitを検証したrunではない。source/testの同一性と文書の更新を分けて記録する。原D005の測定有効性・人への効果をこのCIから認定しない。

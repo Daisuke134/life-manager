@@ -1,8 +1,8 @@
 # First wedge: access to official financial support
 
-> **Current interpretation, 2026-10-22:** This remains a provisional technical wedge, not verified demand or U003 completion. F004/F007 have been retired as `skipped` under Phase06 v2; older text below about preserving unresolved original finance/facility prerequisites is historical. No such partner is required for the owned digital loop. The long-term customer hypothesis is an operator paying to maintain a critical public-service journey; validate its actual recurring problem, existing alternatives, authority and willingness to pay before expanding the service offered around the entity. Five qualifying U002 interviews remain the existing acceptance requirement; no synthetic personas count. See [current entity specification](../MANAGER_PRODUCT_SPEC.md) and [primary-source findings, including a null enrollment result](../research/manager-strategy-20261022/REPORT_JA.md).
+> **Current interpretation, 2026-10-23:** This remains a provisional technical wedge, not verified demand or U003 completion. F004/F007 have been retired as `skipped` under Phase06 v2; older text below about preserving unresolved original finance/facility prerequisites is historical. No such partner is required for the owned digital loop. The long-term customer hypothesis is an operator paying to maintain a critical public-service journey; validate its actual recurring problem, existing alternatives, authority and willingness to pay before expanding the service offered around the entity. [U002's five published real-interview notes](U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md) have been accepted only as historical UK support-access problem evidence; own interviews conducted: 0. They do not validate the current Japanese navigation page or Manager demand. See [current entity specification](../MANAGER_PRODUCT_SPEC.md) and [primary-source findings, including a null enrollment result](../research/manager-strategy-20261022/REPORT_JA.md).
 
-**Decision status: PROVISIONAL — U003 is not complete.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a technical selection for the existing owned public surface. Five consented interviews required by U002 have not been evidenced, and no service operator or beneficiary cohort has been enrolled. The original Phase06 funding and indoor-environment acceptance conditions remain unchanged.
+**Decision status: PROVISIONAL — U003 is not complete.** Initial preparation 2026-10-22 JST / 2026-10-21 UTC; U002 evidence updated 2026-10-23 UTC. This is a technical candidate for the existing owned public surface. U002's five published interview records now inform the selection, including barriers that navigation alone cannot solve. No independent service operator or human-study cohort has been enrolled. The separate domain-research conditions remain distinct from the owned digital loop.
 
 ## Who could benefit, and what Manager would change
 
@@ -18,7 +18,7 @@ The [2026-10-21 delivery record](../verification/PHASE06_DIGITAL_SERVICE_EXECUTI
 
 | Candidate | Execution subject and authority | Measurable next result | Present dependency | Decision and reason |
 |---|---|---|---|---|
-| Official financial-support navigation | Manager's existing owner-authorized publisher; only the existing `manager-support/` release scope | Correct, accessible route to the chosen official destination in a predefined browser task; later, independently observed support progress if a study is authorized | Real interviews, operator agreement and an outcome protocol are absent | **Provisional technical first wedge.** An owned surface and byte/readback evidence already exist. |
+| Official financial-support navigation | Manager's existing owner-authorized publisher; only the existing `manager-support/` release scope | Correct, accessible route to the chosen official destination in a predefined browser task; later, independently observed support progress if a study is authorized | U002 historical interview notes accepted; fit to the current target, independent study cooperation and a human-outcome protocol remain unverified | **Provisional technical first wedge.** An owned surface and byte/readback evidence already exist. |
 | Direct financial transfer or matching | An authorized funding operator and permitted payment route | Settled funds, recipient receipt, displacement and recipient outcome | Real authority, funds and eligible settlement evidence remain unresolved | Preserve F004 and associated finance work. A page release cannot satisfy them. |
 | Indoor environmental improvement | A site operator with authority over a real location | Independently observed environmental state and, separately, human outcome | A real site and operational permission remain unresolved | Preserve F007 and associated environment work. No device or site access is assumed. |
 
@@ -48,7 +48,7 @@ Use the existing release envelope's update limits, expiry and revocation behavio
 
 ## What would confirm or change the selection
 
-U002 requires at least five actual, consented interviews with eligible potential beneficiaries or operators, as defined by the existing task. No interview answers, quotations, consent records or partner commitments are supplied here. Before U003 can be completed, the researcher should record, with consent and minimized detail:
+U002's five published records covering beneficiaries, an operator and a supporter are accepted with the source, methods/attribution limits and consent basis in the linked notes. They are historical problem evidence; raw interviews, new partner commitments and current local demand are not supplied. U003 must use those findings and preserve the following current-target unknowns rather than fill them from unrelated cases:
 
 1. A recent support-seeking task, the point where it stalled, and which organization owned that step.
 2. Whether finding the right official destination was actually a barrier, rather than eligibility, documentation, language, trust or service capacity.
@@ -62,7 +62,7 @@ Reconsider this wedge if interviews show that navigation is not a material barri
 
 ## Evidence and roadmap disposition
 
-The next selection decision should cite the five consented interviews, identify the actual operator, define the endpoint and denominator, state the cost ceiling and explain rejected alternatives. Until then, **U003 remains todo**. This file makes the candidate concrete and reviewable; it does not complete U002, funding/site permissions, human outcome collection or any P3/P4/P5 gate.
+The next selection decision should cite the five published interview records, identify the actual operator, define the endpoint and denominator, state the cost ceiling and explain rejected alternatives. Until then, **U003 remains todo**. This file makes the candidate concrete and reviewable. U002 is accepted only for the linked historical problem notes; funding/site permissions, human outcome collection and P3/P4/P5 gates remain separate.
 
 Primary sources were retrieved on 2026-10-21 UTC / 2026-10-22 JST; URLs, retrieval status and interpretation limits are in [the source registry](../research/COMPLETION_PRIMARY_SOURCES_20261022.json).
 
@@ -78,4 +78,12 @@ Status: **UNVALIDATED**. [New primary-source research](../research/manager-optio
 | Business app assistant | Gumloop MCP/API, Relevance AI workforce, Lindy routines | Whether bounded authority and independently measured outcome add enough value | USE_EXISTING_PRODUCT candidate; no new generic agent UI |
 | Maintain owned support-information journey | Existing link checker/manual process/native workflow plus thin Manager kernel | Operator need, recurring burden, evidence quality, cost, downstream outcome | TEST_THIN_MANAGER_BOUNDARY; commercial demand remains UNVALIDATED |
 
-These are source-backed alternative capabilities, not customer interview results. Runtime/vendor claims do not prove field efficacy, adoption or revenue. If the native alternative meets the job, omit the custom patch. Exact documentation/code/version/license/read depth is in the linked reports. Five consented U002 interviews and all original U003 acceptance remain required.
+These are source-backed alternative capabilities, not customer interview results. Runtime/vendor claims do not prove field efficacy, adoption or revenue. If the native alternative meets the job, omit the custom patch. Exact documentation/code/version/license/read depth is in the linked reports. The accepted U002 historical interview evidence is separate; all original U003 selection conditions remain required.
+
+## Published interview evidence eligibility — 2026-10-23
+
+Original U002 requires at least five actual consented interviews covering operators, beneficiaries and supporters, with the needed outcomes recorded. It does not require Manager or the founder to conduct all interviews anew. A published primary interview record can qualify if distinct real interviews, role/domain/date, participant-observed need, consent or applicable publication ethics, and the limited anonymous reuse basis can each be traced to the source. An aggregate sample count, general article or synthetic persona is not five interview records. Do not infer consent from public availability or a license.
+
+Reuse only minimal anonymous findings and locators, separating participant observations from our interpretation. Preserve source age, country and service context. Do not copy names, contacts, private raw transcripts or detailed individual health/financial histories. Publication consent explicitly judged not required for anonymized research is not the same as absent participation consent; document each actual source statement without inventing a broader permission. Keep license restrictions and do not extend noncommercial licensing to commercial redistribution.
+
+Third-party interviews can inform problem selection; they do not establish current Manager customer demand, a partner's agreement, pilot participation, willingness to pay, U004 study consent or U008 continuation. U002 has been accepted only for the linked published real-interview notes. U003 remains incomplete until the actual selection is individually accepted.

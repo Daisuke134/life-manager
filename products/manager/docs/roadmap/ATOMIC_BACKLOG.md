@@ -2,7 +2,7 @@
 
 Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 77 · Todo: 33 · Blocked: 0 · Skipped: 3
+Total: 113 · Done: 78 · Todo: 32 · Blocked: 0 · Skipped: 3
 
 ✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -144,7 +144,7 @@ E01–E16実装完了。F受入は別に証拠確認
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
 | ✅ `U001` | P002 | 人の便益と操作結果を混同しない | docs/product/OPPORTUNITIES.mdに公開観測と実世界の結果を備える3候補の比較行列を作る | 候補ごとに受益者・苦しみの機構・公開データ・操作権限・比較方法を記載 |
-| ⬜ `U002` | U001 | 顧客と最終受益者を分ける | 最初の領域の運営者・受益者・支援者それぞれの課題をインタビュー記録で整理 | 異なる立場の5件以上の同意ある面談と、実際に必要とする結果を記録 **外部条件:** 面談相手の承諾。回答は非公開の生データではなく必要最小限の匿名メモ |
+| ✅ `U002` | U001 | 顧客と最終受益者を分ける | 最初の領域の運営者・受益者・支援者それぞれの課題をインタビュー記録で整理 | 異なる立場の5件以上の同意ある面談と、実際に必要とする結果を記録 **外部条件:** 面談相手の承諾。回答は非公開の生データではなく必要最小限の匿名メモ |
 | ⬜ `U003` | U002 | 証明可能な最小単位の選び方 | docs/product/FIRST_WEDGE.mdで、所有デジタル案内経路と運営者の保守課題を既存代替・費用・権限・結果観測と比較し、最初の利用場面を選定する | 実行主体・測定可能な結果・費用上限・代替案と断念理由を記載 **外部条件:** オペレーターの協力が得られない場合は候補変更 |
 | ⬜ `U004` | U003, F002 | アウトカム事前定義と検出力 | pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定 | 実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない **外部条件:** 独立した実験実施協力・同意 |
 | ⬜ `U005` | U003, K010 | 実行ログと成果を別表示する | 公開データだけの読み取り専用Proof Explorerを作る | 第三者が元URLから同じ観測事実を再確認し、P0/P1/P2を誤表示しない |

@@ -1,14 +1,16 @@
-# Manager — Phase12までの全工程と残33件
+# Manager — Phase12までの全工程と残32件
 
-**2026-10-23 現在:** 原113件は **77 done / 33 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
+**2026-10-23 現在:** 原113件は **78 done / 32 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
 
 **D003受入更新:** [PR8670](https://github.com/Daisuke134/life-manager/pull/8670)の通常main統合・公開packetの実readback・独立reviewを確認し、資金移動と別の受益報告の接続だけを受入。送金・人の便益・因果効果は未検証のまま。[限定受入receipt](../verification/D003_PUBLIC_SOURCE_CONNECTION_20261023.md)。
 
 **D011受入更新:** [PR8675](https://github.com/Daisuke134/life-manager/pull/8675)の通常main統合・独立review・実source照合後、公開OSS成果物と別のplatform Paidの照合だけを受入。事前募集・銀行着金・Manager所得増・D012の純額は未検証。[限定受入receipt](../verification/D011_PUBLIC_SOURCE_CONNECTION_20261023.md)。
 
+**U002受入更新:** [公開実面談5件の匿名課題整理](../product/U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md)を、歴史的な英国の支援アクセス問題の根拠として限定受入。運営者・受益者・支援者を覆い、同意・rights・公表methodsと個別発言の結合の限界を保存。自前面談0件、現在の日本の需要・Managerへの利用／支払／協力・人の便益は未確認。次はU003の実選定。
+
 主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは、人のapp/chat/messenger操作や対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働くこと。BobaのMessages/iMessage/webにはUIがあり、この意味のno UIの先例とはしない。実行試験の7パスは主体全体の完成像ではない。
 
-**優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。session intent／予算を既存checkpointへ結ぶP0 callable、ACK先行、UNKNOWN隔離、期限、strict parserのsourceはPR8650でmain統合済み（[受入と残接続](../verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)）。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで、既定OFFを維持する。定期実行のモデル呼出しは未接続。SDK整合性修正はPR8665でmain統合済み。次はU002/U003の実課題、固定SDK・既存予算設定・同条件の実比較を結ぶ。C002/Y008を保留中に全113件完了とは呼ばない。
+**優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。session intent／予算を既存checkpointへ結ぶP0 callable、ACK先行、UNKNOWN隔離、期限、strict parserのsourceはPR8650でmain統合済み（[受入と残接続](../verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)）。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで、既定OFFを維持する。定期実行のモデル呼出しは未接続。SDK整合性修正はPR8665でmain統合済み。次はU002の記録を基にU003で実課題を選び、固定SDK・既存予算設定・同条件の実比較を結ぶ。C002/Y008を保留中に全113件完了とは呼ばない。
 
 全体の順序の入口はrepository統合SSOT、詳細状態・依存は既存 [tasks.json](tasks.json)。本書はその派生viewで、新しい台帳ではない。[As-is／To-be](../MANAGER_PRODUCT_SPEC.md)、[E16実稼働受入](../verification/E16_DEPLOYED_ACCEPTANCE_20261023.md)、[F個別受入](../verification/PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md)、[D001/D002 source受入](../verification/D001_D002_SOURCE_ACCEPTANCE_20261023.md)を参照。
 
@@ -36,16 +38,16 @@ flowchart LR
 | 05. Manager汎用カーネル | 14 | 14 | 0 | 0 |
 | 06. 現実の介入と独立した効果評価 | 9 | 7 | 0 | 2 |
 | 07. 研究発表・説明責任 | 2 | 1 | 1 | 0 |
-| 08. 最初の受益者・利用課題・継続利用の検証 | 8 | 1 | 7 | 0 |
+| 08. 最初の受益者・利用課題・継続利用の検証 | 8 | 2 | 6 | 0 |
 | 09. 領域横断の祝福・成果証拠 | 16 | 6 | 10 | 0 |
 | 10. ベンチマーク・一般化・自己改善 | 6 | 0 | 6 | 0 |
 | 11. YC・研究者ネットワーク・英語発信 | 8 | 5 | 3 | 0 |
 | 12. 長期運用と統治 | 6 | 0 | 6 | 0 |
-| **合計** | **113** | **77** | **33** | **3** |
+| **合計** | **113** | **78** | **32** | **3** |
 
 Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない。Fの4件は所有デジタルP2、D001/D002は研究branchのP0 source契約であり本番送金ではない。H005/F004/F007は未実施のskippedで、Gate1独立RCT再現はUNMET。
 
-## 2. 残る33件の全ID・実施内容・依存・既存ファイル
+## 2. 残る32件の全ID・実施内容・依存・既存ファイル
 
 一覧は元のPhase順。C/Yは本体優先の後段に保留する。実施内容・verify・dependsは台帳から転記した。†はその依存もtodo。準備コードや文書の存在だけでdoneにはせず、各verifyを個別に満たす。
 
@@ -55,17 +57,16 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 |---|---|---|---|---|
 | C002 | 英語記事/日本語要約/漫画/スライド候補を内部生成 | F006 | 投稿は別承認までdisabled。固有名/日時を創作しない | `docs/verification/BLOG_PUBLICATION_20261022.md` |
 
-### 08. 最初の受益者・利用課題・継続利用の検証（残7）
+### 08. 最初の受益者・利用課題・継続利用の検証（残6）
 
 | ID | 実施内容 | 台帳の依存 | 完了の確認 | 既存ファイル |
 |---|---|---|---|---|
-| U002 | 最初の領域の運営者・受益者・支援者それぞれの課題をインタビュー記録で整理 | U001 | 異なる立場の5件以上の同意ある面談と、実際に必要とする結果を記録 | 原verifyから個別指定 |
-| U003 | docs/product/FIRST_WEDGE.mdで、所有デジタル案内経路と運営者の保守課題を既存代替・費用・権限・結果観測と比較し、最初の利用場面を選定する | U002† | 実行主体・測定可能な結果・費用上限・代替案と断念理由を記載 | `docs/product/FIRST_WEDGE.md` |
+| U003 | docs/product/FIRST_WEDGE.mdで、所有デジタル案内経路と運営者の保守課題を既存代替・費用・権限・結果観測と比較し、最初の利用場面を選定する | U002 | 実行主体・測定可能な結果・費用上限・代替案と断念理由を記載 | `docs/product/FIRST_WEDGE.md` |
 | U004 | pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定 | U003†、F002 | 実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない | `pilot/FIRST_STUDY.md`、`pilot/RESEARCH_PROTOCOLS_20261022.sha256` |
 | U005 | 公開データだけの読み取り専用Proof Explorerを作る | U003†、K010 | 第三者が元URLから同じ観測事実を再確認し、P0/P1/P2を誤表示しない | `docs/product/PROOF_EXPLORER.md`、`scripts/phase06_kernel_release.py` |
 | U006 | 許可されたパイロットの外部receiptと観測をケースに保存 | U004†、F005 | 1件以上の実介入を第三者の公開データで確認し、未知状態を成功にしない | `manager_core/outcome_bench.py` |
 | U007 | 人の便益・費用・置換効果の事前登録済み比較レポートを作る | U006†、F006 | 一次指標の効果量と不確実性を示し、未測定は未測定と報告 | `manager_core/causal_analysis.py` |
-| U008 | 協力者に成果レポートを提示し継続利用の意思と運用費を記録 | U007†、U002† | 実際の有料/支援コミットまたは継続利用意向の出典付き記録。収益未確認はUNKNOWN。対象期間・商品・口座の公式source coverageを照合してゼロ件と確定した場合だけ0を記録し、単発pilotをMRRにしない | `manager_core/governance.py` |
+| U008 | 協力者に成果レポートを提示し継続利用の意思と運用費を記録 | U007†、U002 | 実際の有料/支援コミットまたは継続利用意向の出典付き記録。収益未確認はUNKNOWN。対象期間・商品・口座の公式source coverageを照合してゼロ件と確定した場合だけ0を記録し、単発pilotをMRRにしない | `manager_core/governance.py` |
 
 ### 09. 領域横断の祝福・成果証拠（残10）
 
@@ -127,19 +128,19 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 1. 技術線は **E01→…→E16**。F009 metadataの `technical_execution_completed` はE01–E16、cursorはnull。E16はActions＋Supabaseの既存owner／非公開永続checkpointとmain publisherで、P1/P2・停止・限定復元・resume・fresh replay-zeroを受入済み。旧DEPLOYMENT_HOST_REQUIREDとdeployed=falseは保存された参照receiptの履歴で、Railway／Macの新ownerを再開条件にしない。
 2. E完了後に **F005→F006→F008→F009** を証拠で個別受入済み。`depends` graph自体はF005→F006とF005→F008の分岐、F009がF006/F008 join。受入れcursorの指定順序はF005/F006/F008/F009なのでそれに従う。F005の`depends=[K009]`だけ見てE16前にdoneにしない。E後ゲートはF009の`sequence_contract`と現行specにも記載。
 3. F005は実provider commit/parent/allowlistと独立served GET、replay-zero・対象外不変。F006は技術baseline/比較/欠測/費用/害の版付き報告、P3/P4 NOT_MEASURED。F008は別URL/テーマの2件目のP2と復元可能性。F009は共通kernelと両readbackの統合。古い公開ページが存在するだけでは新E実行の同一occurrence証拠を自動充足しない。
-4. PMF線は **U002→U003→{U004,U005}**、**{U004,F005}→U006→（F006も必要）U007→U008**。U004はF002、U005はK010、U008はU002も必要。U002の5件以上の実面談を架空personaや既存文書で置換しない。
+4. PMF線は **U002→U003→{U004,U005}**、**{U004,F005}→U006→（F006も必要）U007→U008**。U004はF002、U005はK010、U008はU002も必要。U002は5件以上の同意ある実面談を要する。架空personaや一般説明文は面談に数えない。公開済みの実面談原記録は、立場・必要成果・同意・最小再利用と重複をsourceで確認できれば利用できる。
 5. 説明責任は **F006→C002→Y008**。Y008はY007も必要。P02/P03の独立した技術解説の原稿/公開が進んでもC002/Y008の原依存を自動消去しない。
 6. Phase09の本当のjoin: **F006→D001→D002→D003→D004（U007も必要）**。**F008→D005→D006→D007→D008→D009（U007も必要）**。**D010(done)→D011→D012**。**D013(done)→D014→D015**。**D015/D012/D009→D016**。D004は現台帳ではD016の直接/推移依存に入っていないので、勝手にD004→D016を追加しない。
 7. **D016/K014→V001→V002→V003→V004→V005→V006**。**K007/V001→G001→G002**、**G002/V006→G003→G004→G005→G006**。G001はV001までが依存で、全V006後にしか開始不可というgraphではない。元V/G全件をE16の前提にしない。
 8. **Y002(done)→Y003** と **Y004(done)→Y005** は技術線/全113件の完了待ちではない。W27提出は本人情報/内容確認と公式提出確認、接点は承認された対象・内容と実送信/返信/拒否記録が必要。現行既存資料の締切記録は2026-11-03 13:00 JST、今回新規Web再確認はしていない。
 
-台帳上、未完了依存のないtodoは **C002/U002/D005/D012/D014/Y003/Y005** の7件。C002と応募・新規連絡は本体優先の後段へ保留。公開資料で進められるsource／設計と、U002の実面談等の現実条件を区別し、各原verifyに照合する。「graphでready」は実行権限や成果の代替ではない。
+台帳上、未完了依存のないtodoは **C002/U003/D005/D012/D014/Y003/Y005** の7件。C002と応募・新規連絡は本体優先の後段へ保留。公開資料で進められるsource／設計と、実利用・協働・便益等の現実条件を区別し、各原verifyに照合する。「graphでready」は実行権限や成果の代替ではない。
 
-**現在不足する実記録と接続先:** [spec §1.3.1](../MANAGER_PRODUCT_SPEC.md)。D005の[公開source監査と研究codeの品質flag修復](../verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)は準備の前進で、原D005/D006や有効な校正済測定の受入にはしない。Gmail/Slackの限定検索でU002の該当記録は見つからなかったが、全保管先に存在しないと断定しない。D012の費用・労働時間・分母、D014の実協働も未確認である。
+**現在不足する実記録と接続先:** [spec §1.3.1](../MANAGER_PRODUCT_SPEC.md)。D005の[公開source監査と研究codeの品質flag修復](../verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)は準備の前進で、原D005/D006や有効な校正済測定の受入にはしない。U002は上記公開研究の課題整理として受入したが、U003以降の現対象・実利用・研究協力を供給しない。D012の費用・労働時間・分母、D014の実協働も未確認である。
 
 ## 5. 元113件、E16段、P7段、12PATCHの数え方
 
-- **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。77/33/3はこの母数だけ。
+- **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。78/32/3はこの母数だけ。
 - **E01–E16**: 同じエンティティの技術実装順と検証receipt。原113件への追加16件ではない。E01–E16の実装receipt済み、E16は所有7パスの限定P2能力として実配備・復旧受入済み。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
 - **P01–P07**: editorial parallel track。元Phase00の **P001–P006とは別表記・別意味**。P01 evidence index→P02英日package→P03既存installer公開、P04既存home更新、P05本の章/HTML/EPUB、P06slide/carousel/manga源、P07editor/release receipts。原稿・storyboard・rendered artifact・live公開・読者・売上は別証拠。E cursorもC002/Y008も自動更新しない。
 - **PATCH-01–12**: E16/出版/創業者作業を実ファイル・関数・RED検査へ分解した派生実装単位。新台帳でない。01→02→04→05→06がE16技術線（pending intent先行回収、dispatch権限非replay/既成runtime比較、official occurrenceとdelivery別回収、特権publisher bridge、host/backup/restore）。03は既成製品baseline文書、07→08→09/10は権利/証拠→記事章deck→download/render、11は同じcaseの職務/顧客/YC、12は真正な結果だけをscorecardへ戻す。
@@ -239,4 +240,4 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 5. **採用/YC:** 実提出、面談、offer、採択を各providerの実結果で判定。
 6. **持続運用:** Gの採択・監査・実接続・持続性を検証し、G006は以降も定期更新する。
 
-残33件を含む原113件の記録上の終了と、世界の苦しみの終焉は同じ判定ではない。失敗・害・未測定・不公平を残し、次versionの検証を続ける。
+残32件を含む原113件の記録上の終了と、世界の苦しみの終焉は同じ判定ではない。失敗・害・未測定・不公平を残し、次versionの検証を続ける。

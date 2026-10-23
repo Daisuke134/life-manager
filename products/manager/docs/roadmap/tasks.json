@@ -1504,8 +1504,37 @@
     "learn": "顧客と最終受益者を分ける",
     "change": "最初の領域の運営者・受益者・支援者それぞれの課題をインタビュー記録で整理",
     "verify": "異なる立場の5件以上の同意ある面談と、実際に必要とする結果を記録",
-    "status": "todo",
-    "external": "面談相手の承諾。回答は非公開の生データではなく必要最小限の匿名メモ"
+    "status": "done",
+    "external": "面談相手の承諾。回答は非公開の生データではなく必要最小限の匿名メモ",
+    "implementation_status": "ACCEPTED_PUBLISHED_ACTUAL_INTERVIEW_NEEDS_ONLY",
+    "completion_evidence": [
+      "docs/product/U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T11:06:13.308381+00:00",
+      "result": "FIVE_PUBLISHED_CONSENTED_INTERVIEW_NEEDS_RECORDS_ORGANISED",
+      "scope": "HISTORICAL_UK_SUPPORT_ACCESS_PROBLEM_EVIDENCE_ONLY",
+      "published_interview_records": 5,
+      "roles": [
+        "beneficiary",
+        "operator",
+        "supporter"
+      ],
+      "own_interviews_conducted": 0,
+      "individual_session_recording_verified": false,
+      "provenance_basis": "PUBLISHED_METHODS_AND_ATTRIBUTED_PASSAGES_WITH_EXPLICIT_LIMITATIONS",
+      "manager_demand_validated": false,
+      "current_japan_need_validated": false,
+      "pilot_participation_obtained": false,
+      "willingness_to_pay_verified": false,
+      "causal_support": false,
+      "human_outcome": "NOT_MEASURED",
+      "independent_review": "THREE_ROUNDS_ALL_FINDINGS_CLOSED",
+      "source_http_sha256": {
+        "UC2019": "478b5a90c1741ca1b154264ee6b58fadc8956d70f146a4acfc71c638995ecb4a",
+        "FB2018": "64ee57f113dbbb1f1c5213f3b033d3016a01833f16bdaeecf92a5ad2853f9c5e"
+      }
+    }
   },
   {
     "section": "08. 最初の受益者と製品市場適合の検証",
