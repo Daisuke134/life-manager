@@ -443,6 +443,8 @@ BUNDLE-GCの実装候補: 指定3filesだけで既存central入口へ統合し�
 
 BUNDLE-GCのprimary受入とreview修復: 最新main9da021244fを取り込んだ648fa662dbで、隔離HOMEの関連4filesは151 PASS/30subtests（79.98s）、AST/bash/diff/source境界/OSS self-containedはPASSとする。初回のHOME隔離subprocessはuser-siteのpytestを見失い起動失敗したため、既存pytestをimportしてから同processのHOMEを隔離し、依存追加無しで再実行する。fresh read-only reviewは新24条件PASSだがP1を再現しFIX-FIRST: process.stdout.splitが引用付き空白aliasを分断し、alias→bundleをresolveできず削除1となる。process行ごとの解析と未知時保持を既存collectorへ最小修復し、引用付き/引用無しの空白aliasと解析不明を隔離fixtureでRED→GREEN確認する。source受入/SHIPはこの修復と再review後とし、main/実cleanupはまだ実行しない。
 
+BUNDLE-GCのP1修復候補: source未変更でquoted/unquoted/unclosed-quote aliasの3 FAIL、無関係process1 PASS（0.65s）を再現する。stdlib shlexの行単位解析と、引用が落ちた場合のbounded絶対path/whitespace境界候補を既存resolverへ渡す19行の修復で、新旧30 PASS/6subtests（0.42s）、既存GC/FD/cutter subset8 PASS（1.37s）、source境界/diff PASSとする。literal apostropheだけで全体を停止せず、path解決不明と既存15s期限は保持へ戻す。追加依存/新native argv framework/cutter変更/実cleanupは0。primaryのexacttree再検証と再reviewを残す。
+
 順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAPの全13job成功を受け入れ、現在cursorはBUNDLE-GC-GREEN。全業務/別Mac/10,000starsは未完。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。

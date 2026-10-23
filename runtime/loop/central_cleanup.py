@@ -8,6 +8,7 @@ import json
 import os
 import plistlib
 import re
+import shlex
 import stat
 import shutil
 import subprocess
@@ -615,8 +616,24 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
         if "\n" not in value:
             path_values.append(value)
         path_values.extend(value.split())
-    path_values.extend(process.stdout.split())
+    for line in process.stdout.splitlines():
+        if time.monotonic() >= deadline:
+            raise subprocess.TimeoutExpired("process references", 0)
+        try:
+            path_values.extend(shlex.split(line))
+        except ValueError:
+            # ps renders argv, so a literal apostrophe need not be shell syntax.
+            path_values.extend(line.split())
+        # ps may omit quotes; each whitespace boundary can end a spaced path.
+        for match in re.finditer(r"(?:^|[\s='\":])(/)", line):
+            suffix = line[match.start(1):match.start(1) + 4097]
+            for boundary in re.finditer(r"\s|$", suffix):
+                if time.monotonic() >= deadline:
+                    raise subprocess.TimeoutExpired("process path boundaries", 0)
+                path_values.append(suffix[:boundary.start()])
     for word in path_values:
+        if time.monotonic() >= deadline:
+            raise subprocess.TimeoutExpired("reference path resolution", 0)
         for path in word.strip("'\"").split(os.pathsep):
             path = path.split("=", 1)[-1]
             if path.startswith("/") and len(os.fsencode(path)) <= 4096:

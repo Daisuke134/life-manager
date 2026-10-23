@@ -1092,6 +1092,62 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self._gc()
         self.assertTrue(bundle.exists())
 
+    def test_release_gc_only_preserves_quoted_process_alias_with_spaces(self):
+        bundle = self._bundle()
+        alias = self.root / "dependency alias"
+        alias.symlink_to(bundle)
+        self.ps_stdout = f"node --require '{alias}/node_modules/fixture.js' worker.js\n"
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_unquoted_process_alias_with_spaces(self):
+        bundle = self._bundle()
+        alias = self.root / "dependency alias"
+        alias.symlink_to(bundle)
+        self.ps_stdout = f"node --require {alias}/node_modules/fixture.js worker.js\n"
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_when_process_quotes_are_unknown(self):
+        bundle = self._bundle()
+        alias = self.root / "dependency alias"
+        alias.symlink_to(bundle)
+        self.ps_stdout = f"node --require '{alias}/node_modules/fixture.js\n"
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_reclaims_bundle_with_unrelated_quoted_process(self):
+        bundle = self._bundle()
+        unrelated = self.root / "unrelated dependency"
+        unrelated.mkdir()
+        (unrelated / "fixture.js").write_text("unrelated fixture\n")
+        self.ps_stdout = f"node --require '{unrelated}/fixture.js' worker.js\n"
+        self._gc()
+        self.assertFalse(bundle.exists())
+
+    def test_release_gc_only_reclaims_bundle_with_unrelated_process_apostrophe(self):
+        bundle = self._bundle()
+        unrelated = self.root / "unrelated fixture.js"
+        unrelated.write_text("unrelated fixture\n")
+        self.ps_stdout = f"node --message don't --require {unrelated} worker.js\n"
+        self._gc()
+        self.assertFalse(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_when_process_alias_resolution_is_unknown(self):
+        bundle = self._bundle()
+        alias = self.root / "dependency alias"
+        alias.symlink_to(bundle)
+        self.ps_stdout = f"node --require '{alias}/node_modules/fixture.js' worker.js\n"
+        resolve = Path.resolve
+        def unavailable_alias(path, *args, **kwargs):
+            if os.fspath(path).startswith(str(alias)):
+                raise PermissionError(errno.EACCES, "fixture alias probe unavailable")
+            return resolve(path, *args, **kwargs)
+        with mock.patch.object(Path, "resolve", unavailable_alias):
+            _code, result = self._gc()
+        self.assertTrue(bundle.exists())
+        self.assertGreater(result["errors"], 0)
+
     def test_release_gc_only_reclaims_bundle_with_long_multiline_process_inventory(self):
         bundle = self._bundle()
         executable = self.root / "unrelated-process"
