@@ -56,6 +56,8 @@ RECOVERY_FLOOR_BYTES = 2 * GiB
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 PROBE_ERROR_DETAIL_LIMIT = 8
+PRESERVED_CANDIDATE_DETAIL_LIMIT = 64
+PRESERVED_CANDIDATE_DETAIL_MAX_BYTES = 16 * 1024
 TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
 WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
 SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
@@ -1809,6 +1811,11 @@ class HostDiskGovernor:
                     filename = "last-unbound-receipt.json"
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+        details = payload.get("preserved_candidates")
+        while len(data) > RECEIPT_PAYLOAD_MAX_BYTES and isinstance(details, list) and details:
+            details.pop()
+            payload["preserved_candidates_omitted"] += 1
+            data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
             raise ValueError("receipt payload exceeds 64 KiB")
         self._receipt_reserve()
@@ -1888,17 +1895,41 @@ class HostDiskGovernor:
             "budget_exhaustion_stages": budget_exhaustion_stages,
             "reclaimed_candidates": [],
             "reclaimed_candidates_omitted": 0,
+            "preserved_candidates": [],
+            "preserved_candidates_omitted": 0,
         }
         reasons: dict[str, int] = {}
         probe_errors: list[dict[str, object]] = []
         probe_error_count = 0
+        preserved_detail_bytes = 2  # JSON list brackets.
 
         def preserve(reason: str, *, stage: str | None = None) -> None:
+            nonlocal preserved_detail_bytes
             result["preserved"] += 1
             reasons[reason] = reasons.get(reason, 0) + 1
             if reason == "probe-budget-exhausted":
                 label = stage or "unspecified"
                 budget_exhaustion_stages[label] = budget_exhaustion_stages.get(label, 0) + 1
+            details = result["preserved_candidates"]
+            if len(details) >= PRESERVED_CANDIDATE_DETAIL_LIMIT:
+                result["preserved_candidates_omitted"] += 1
+                return
+            lease = item.get("lease")
+            lease_path = lease.get("path") if isinstance(lease, dict) else lease
+            detail = {
+                "owner": item.get("owner"), "path": self._diagnostic_path(path),
+                "class": item.get("class"), "discovery": item.get("discovery"),
+                "reason": reason, "stage": stage,
+                "lease_path": self._diagnostic_path(Path(lease_path).expanduser())
+                    if isinstance(lease_path, (str, os.PathLike)) else None,
+                "reported_bytes": None,
+            }
+            detail_bytes = len(json.dumps(detail, ensure_ascii=False).encode("utf-8")) + (2 if details else 0)
+            if preserved_detail_bytes + detail_bytes > PRESERVED_CANDIDATE_DETAIL_MAX_BYTES:
+                result["preserved_candidates_omitted"] += 1
+                return
+            details.append(detail)
+            preserved_detail_bytes += detail_bytes
 
         def record_probe_error(
             item: dict, candidate: Path, error_path: Path, error: Exception | None,
