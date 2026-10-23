@@ -188,6 +188,7 @@ clone済みなら`./install.sh local plan`がHOMEを変更せず全agent・job�
 `./install.sh local apply --release /absolute/release`で完全releaseを再利用でき、
 `--agent gig-coconala`で一業務に限定できます。
 
+モデルを使うjobには、本人のaccountで`codex login`を行います。Agent Economyの初期stateも本人用に作成し、資金の移動は行いません。
 `./install.sh list`はproviderの設定案内を表示します。Coconala・Connector・Fundraiser・Job Hunterの
 個別設定経路を維持します。10業務の完全なguided provider setupは未完成です。
 全体installerはhostの導入を担当し、本人account・KYC・publication profile・公式loginは各業務の要件です。

@@ -327,7 +327,8 @@ changing the home directory. `./install.sh local apply --release /absolute/relea
 release; `--agent gig-coconala` limits it to one catalog product. Browser profiles, credentials and data
 belong to the person running the command. Nothing is relayed through the developer's Mac Mini.
 
-`./install.sh list` still shows the provider onboarding catalog. Coconala, Connector, Fundraiser and
+Run `codex login` with your own account for model-backed jobs. The installer creates your own isolated
+Agent Economy state without funding it. `./install.sh list` still shows the provider onboarding catalog. Coconala, Connector, Fundraiser and
 Job Hunter retain their individual setup flows. Ten products still lack a complete guided provider setup;
 the fleet installer supplies their host adapter, not their account identity, KYC, publication profile or
 provider login. Connect those requirements using the product's documented setup before expecting business
