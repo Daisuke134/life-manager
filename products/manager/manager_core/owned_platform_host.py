@@ -146,8 +146,56 @@ class GitHubActionsCycleHost:
             raise RuntimeError('bounded platform command failed')
         return completed.stdout.strip()
 
+    def _run_cli_bytes(self, argv, *, timeout=COMMAND_TIMEOUT_SECONDS):
+        """Read exact Git object bytes without exposing command errors."""
+        try:
+            completed = subprocess.run(
+                argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                timeout=min(timeout or COMMAND_TIMEOUT_SECONDS, COMMAND_TIMEOUT_SECONDS),
+                check=False,
+            )
+        except Exception:
+            raise RuntimeError('bounded platform command failed') from None
+        if completed.returncode != 0:
+            raise RuntimeError('bounded platform command failed')
+        return completed.stdout
+
     def _git(self, *args):
         return self._run_cli(['git', '-C', str(self.checkout), *args])
+
+    def _git_blob(self, commit, path):
+        if type(commit) is not str or not SHA_RE.fullmatch(commit) or path not in ALLOWED_PATHS:
+            raise ValueError('fixed committed Manager path required')
+        return self._run_cli_bytes([
+            'git', '-C', str(self.checkout), 'show', f'{commit}:{path}',
+        ])
+
+    def _validate_commit_tree(self, commit, expected_parent, expected_tree,
+                              expected_paths, packet):
+        """Validate the exact object tree before moving the branch ref."""
+        try:
+            if (not SHA_RE.fullmatch(commit) or not SHA_RE.fullmatch(expected_tree) or
+                    self._git('rev-parse', f'{commit}^') != expected_parent or
+                    self._git('rev-parse', f'{commit}^{{tree}}') != expected_tree):
+                raise ValueError('commit parent or tree changed')
+            names = set(self._git(
+                'diff-tree', '--no-commit-id', '--name-only', '-r', '-z', commit,
+            ).split('\x00')) - {''}
+            if names != expected_paths or not names <= set(ALLOWED_PATHS):
+                raise ValueError('committed path set differs from admission')
+            message = self._git('show', '-s', '--format=%B', commit)
+            if message != commit_message(packet):
+                raise ValueError('committed message differs from intent')
+            manifest = json.loads(self._git_blob(commit, 'manager-support/manifest.json'))
+            if manifest != packet['candidate']:
+                raise ValueError('committed manifest differs from candidate')
+            bodies = {
+                name: self._git_blob(commit, f'manager-support/{name}')
+                for name in manifest['files']
+            }
+            verify_readback(manifest, bodies)
+        except Exception:
+            raise PermissionError('committed Manager tree differs from admitted candidate') from None
 
     def _assert_checkout_identity(self, *, clean):
         try:
@@ -262,19 +310,32 @@ class GitHubActionsCycleHost:
         with TemporaryDirectory(prefix='manager-owned-commit-') as tmp:
             message_path = Path(tmp) / 'message.txt'
             message_path.write_text(message + '\n')
-            self._git('-c', 'user.name=github-actions[bot]', '-c',
-                      'user.email=41898282+github-actions[bot]@users.noreply.github.com',
-                      'commit', '-F', str(message_path))
-        commit = self._git('rev-parse', 'HEAD')
-        if (not SHA_RE.fullmatch(commit) or
-                self._git('rev-parse', 'HEAD^') != expected_parent):
-            raise PermissionError('exact single-parent commit required')
+            tree = self._git('write-tree')
+            if not SHA_RE.fullmatch(tree):
+                raise PermissionError('exact staged tree required')
+            commit = self._git(
+                '-c', 'core.hooksPath=/dev/null',
+                '-c', 'user.name=github-actions[bot]',
+                '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
+                'commit-tree', tree, '-p', expected_parent, '-F', str(message_path),
+            )
+        self._validate_commit_tree(commit, expected_parent, tree, staged, packet)
+        # update-ref is a local compare-and-swap. Suppress reference hooks for
+        # this mutation without changing any repository or global config.
+        self._git('-c', 'core.hooksPath=/dev/null', 'update-ref',
+                  'refs/heads/gh-pages', commit, expected_parent)
+        if self._git('rev-parse', 'HEAD') != commit:
+            raise PermissionError('gh-pages ref did not advance to exact commit')
         self._assert_checkout_identity(clean=True)
         self._send_window(packet, expected_parent)
         if self._fetch_remote_parent() != expected_parent:
             raise PermissionError('gh-pages parent moved; reconcile only')
+        # Fetch itself may cross either the packet lease or host lifetime.
+        # This is the final gate immediately before the irreversible push.
+        self._send_window(packet, expected_parent)
         # Non-force CAS push. Any response loss stays UNKNOWN and is reconciled.
-        self._run_cli(['git', '-C', str(self.checkout), 'push', 'origin',
+        self._run_cli(['git', '-c', 'core.hooksPath=/dev/null',
+                       '-C', str(self.checkout), 'push', 'origin',
                        f'HEAD:{PAGES_BRANCH}'])
         self._send_window(packet, expected_parent)
         # Only the existing protected workflow owns Pages deployment.
