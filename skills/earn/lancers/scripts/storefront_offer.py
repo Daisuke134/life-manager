@@ -1598,7 +1598,7 @@ def select_catalog_family_to_create(catalog_path: Path, state_path: Path) -> dic
     listing_catalog = _reach_marketplace_core()
     try:
         catalog = listing_catalog.load(catalog_path)
-    except listing_catalog.CatalogError as error:
+    except (listing_catalog.CatalogError, UnicodeError) as error:
         return {"action": "catalog_unavailable", "error": str(error), "skipped": []}
     order = _catalog_family_order(catalog)
     published = _read_catalog_listings(state_path)
@@ -1607,7 +1607,10 @@ def select_catalog_family_to_create(catalog_path: Path, state_path: Path) -> dic
         return {"action": "all_published", "skipped": []}
     skipped: list[dict[str, str]] = []
     for family in pending:
-        product = _family_create_product(listing_catalog, catalog, family)
+        try:
+            product = _family_create_product(listing_catalog, catalog, family)
+        except (listing_catalog.CatalogError, TypeError, ValueError, KeyError):
+            return {"action": "catalog_unavailable", "error": "catalog_product_invalid", "skipped": skipped}
         try:
             _require_create_fields(product)
         except OfferError as error:

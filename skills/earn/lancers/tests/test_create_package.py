@@ -2819,6 +2819,46 @@ def test_private_invalid_catalog_projection_stops_before_external_callbacks(tmp_
     assert callbacks == []
 
 
+@pytest.mark.parametrize("broken", ["short_title", "missing_mapping", "mapping_type", "encoding"])
+def test_private_invalid_auto_catalog_stops_wake_before_create_and_notify(tmp_path, monkeypatch, capsys, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    value = json.loads(catalog.read_text())
+    if broken == "short_title":
+        value["listings"][0]["title_ja"] = "短い"
+    elif broken == "missing_mapping":
+        value["listings"][0]["platform_overrides"] = {}
+    elif broken == "mapping_type":
+        value["listings"][0]["platform_overrides"]["lancers"] = 7
+    if broken == "encoding":
+        catalog.write_bytes(bytes([255]))
+    else:
+        catalog.write_text(json.dumps(value))
+    module = _module()
+    tick = _FakeTick()
+    callbacks, reported = [], []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("invalid catalog reached external callback")
+    monkeypatch.setattr(tick, "_default_browser_factory", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    monkeypatch.setattr(module, "run", lambda *_args, **_kwargs: {
+        "ok": True, "logged_in": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "_load", lambda _name, path: (
+        _private_reporter(reported) if Path(path).name == "telegram_report.py" else tick))
+    code = module.main(["--apply", "--product", str(product), "--catalog", str(catalog)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 78
+    assert result["ok"] is False
+    assert result["error"] == "setup_required"
+    direct = module.run_catalog_create(tmp_path / "state/application.json", catalog, product_path=product)
+    assert direct["error"] == "setup_required"
+    assert direct["logged_in"] is False
+    assert callbacks == []
+    assert reported == []
+
+
 def test_private_run_profile_receives_validated_avatar(tmp_path, monkeypatch):
     path = _private_product(tmp_path / "owner")
     module = _module()
