@@ -14,9 +14,9 @@
 - [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
 - [x] README-MAC-03: focused/context/contract、review、CI14項目すべて成功。PR #8666をmain `6b93057b41dcf8fdf8d983e85ecdb676d90bf041`へ統合する。英日README、公開installer、requirements、導入guide、agent catalogの6ファイルをGitHub公式main readbackとbyte一致で確認する。別Mac実機・全provider成果と既存Coconala待機の未完条件は保持する。
 
-README-MAC-01–03は完了、現在cursor=MAC02-CとREADME-MAC-04。
+README-MAC-01–03は完了、現在cursor=MAC02-C（PR #8677のCI/main/readback）。
 
-- [ ] README-MAC-04: 並行PR #8672のhosted agent手順表・promptを既存`docs/getting-started.md`へ移し、英日READMEは詳細への短い案内にする。追加内容を失わず、未検証のany-agent対応を導入保証として見せない。Local Mac/ChatGPT Plus/awake Macの入口は維持する。Git登録worktree/leaseに該当README ownerは見つからず、agmsg teamのlive照会は30秒でtimeoutするため、他席へ作業開始や連絡済みと断定しない。
+- [x] README-MAC-04: 並行PR #8672のhosted agent手順表・promptを既存`docs/getting-started.md`へ移し、英日READMEは詳細への短い案内にする。追加内容を失わず、未検証のany-agent対応を導入保証として見せない。Local Mac/ChatGPT Plus/awake Macの入口は維持する。Git登録worktree/leaseに該当README ownerは見つからず、agmsg teamのlive照会は30秒でtimeoutするため、他席へ作業開始や連絡済みと断定しない。
 
 primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASSに加え、Web CTA122件とclean-user23件がPASS、migration/shell/diff/loop contractもPASS。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
 
@@ -46,9 +46,13 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 **完了条件:** 下記2つの再現を最小RED/GREENで修復し、既存関連検証、独立read-only review、CI、PR/main、公開source readbackを閉じる。現在の本人認証と過去の本人確認履歴を区別し、過去の有効な履歴を根拠なく削除しない。本人の別Mac・実provider成果はMAC05の未完として残す。
 
-- [ ] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。 実際の`runtime/loop/lm_loop_apply.py:_plist()`まで通す全7job生成fixtureで確認し、Coconalaの7ownersだけへ`GIG_GOG_ACCOUNT`/`GIG_NOTIFY_EMAIL`を渡す。任意env passthroughや他ownerへの注入は追加しない。同一release SHAの既存ownerでも、通知設定の初回追加・変更をexact-releaseの採用判定で見落とさない。`runtime/loop/local_install.py`と対応する既存testsまでを必要なshared境界として修復し、稼働中ownerをskipする保護は維持する。
-- [ ] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。 初回の独立検証はHOLD。要求URLのままbody=`403 Forbidden`/ready=completeでも認証成功になるP1と、pagesのないauthenticated=trueだけの観測が開始を通すP2を隔離fixtureで再現する。URLだけではなく正の認証証拠と現在の観測形式との整合を検証し、KYC/銀行の履歴は保持する。
-- [ ] MAC02-C: focused/source/review/CI/main/readbackと残る外部条件を記録する。
+- [x] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。 実際の`runtime/loop/lm_loop_apply.py:_plist()`まで通す全7job生成fixtureで確認し、Coconalaの7ownersだけへ`GIG_GOG_ACCOUNT`/`GIG_NOTIFY_EMAIL`を渡す。任意env passthroughや他ownerへの注入は追加しない。同一release SHAの既存ownerでも、通知設定の初回追加・変更をexact-releaseの採用判定で見落とさない。`runtime/loop/local_install.py`と対応する既存testsまでを必要なshared境界として修復し、稼働中ownerをskipする保護は維持する。
+- [x] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。 初回の独立検証はHOLD。要求URLのままbody=`403 Forbidden`/ready=completeでも認証成功になるP1と、pagesのないauthenticated=trueだけの観測が開始を通すP2を隔離fixtureで再現する。URLだけではなく正の認証証拠と現在の観測形式との整合を検証し、KYC/銀行の履歴は保持する。
+- [ ] MAC02-C: focused/source/review/CI/main/readbackと残る外部条件を記録する。 PR #8677、source head `932ef1794879d51a98040fd2f8ca62263a9f80c3`は再reviewで確定finding0/SHIP、primaryのonboarding/gig-release計64件と独立focused25件がPASS。最新CI/main/readbackは本cursorで進める。
+
+source受入は通知追加7回帰と関連271 tests/298 subtests、認証関連108 tests、shell/diff/source-boundary、loop契約18/192/113/errors0がPASS。本人profileの正のDOM証拠は既存`application_parent`の同provider形を再利用し、safe snapshotへ真偽だけ保存する。本人profileが確認できるmaintenance表示は認証を否定する根拠とは限らず、provider availabilityをこのgateだけで保証しない。READMEの互換性詳細はguideへ保存し、英日各54行、startup context20/adapter registry15/URL migration/relative linksがPASS。
+
+現在Macのfree bytesは5,801,807,872へ回復したことを実測する。既存native maintenance markerは同UIDのregular fileで約2,100秒前の記録があり、rootは重複RPCやowner実行を開始しない。markerだけでnative完了や空き回復の因果を断定しない。過去4 effect fenceと別Mac実機/全provider成果の未完は保持する。
 
 現在owner=`codex-coconala-owner-setup`、worktree=`.worktrees/coconala-owner-setup-20261023`、branch=`fix/coconala-owner-setup-20261023`、base=`6b93057b41dcf8fdf8d983e85ecdb676d90bf041`。旧README worktreeは統合済みで、参照process・lease・dirty・ancestryを確認して片付ける。順序は既存MAC02→MAC03を維持する。
 
