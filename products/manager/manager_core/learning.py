@@ -62,11 +62,10 @@ class NativeTechnicalObservation:
             if self.native_value is not None or type(self.missing_reason) is not str or not self.missing_reason.strip():
                 raise ValueError('missing technical values require null and a reason')
         else:
-            try:
-                finite_native_value = type(self.native_value) in (int, float) and isfinite(float(self.native_value))
-            except (OverflowError, ValueError):
-                finite_native_value = False
-            if not finite_native_value or self.missing_reason is not None:
+            numeric_type = type(self.native_value)
+            finite_numeric = (numeric_type is float and isfinite(self.native_value))
+            exact_safe_integer = numeric_type is int and abs(self.native_value) <= 2**53
+            if (not (finite_numeric or exact_safe_integer) or self.missing_reason is not None):
                 raise ValueError('verified technical values must be finite and complete')
         if (type(self.missing_reason) is str and
                 (not self.missing_reason.strip() or len(self.missing_reason) > 256)):
@@ -74,10 +73,17 @@ class NativeTechnicalObservation:
         if type(self.provenance_refs) is not tuple or not self.provenance_refs:
             raise ValueError('immutable provenance reference tuple required')
         for ref in self.provenance_refs:
-            if type(ref) is not str or len(ref) > 2048 or ref != ref.strip():
+            if (type(ref) is not str or len(ref) > 2048 or ref != ref.strip() or
+                    any(char.isspace() or ord(char) < 32 for char in ref)):
                 raise ValueError('bounded provenance URL required')
-            parsed = urlsplit(ref)
-            if (parsed.scheme != 'https' or not parsed.netloc or parsed.username or parsed.password or
+            try:
+                parsed = urlsplit(ref)
+                port = parsed.port
+            except ValueError as exc:
+                raise ValueError('valid HTTPS provenance URL required') from exc
+            if (parsed.scheme != 'https' or not parsed.hostname or
+                    parsed.username is not None or parsed.password is not None or
+                    (parsed.netloc.endswith(':')) or (port is not None and not 1 <= port <= 65535) or
                     parsed.query or parsed.fragment):
                 raise ValueError('canonical HTTPS provenance reference required')
         if len(set(self.provenance_refs)) != len(self.provenance_refs):
@@ -128,7 +134,7 @@ class PolicyLearner:
                 unit TEXT NOT NULL,
                 status TEXT NOT NULL CHECK(status IN ('VERIFIED','PENDING','REGRESSION','UNKNOWN')),
                 proof_level TEXT NOT NULL CHECK(proof_level IN ('P1','P2')),
-                native_value REAL,
+                native_value BLOB, -- BLOB affinity preserves exact SQLite int/float storage classes.
                 missing_reason TEXT,
                 human_outcome TEXT NOT NULL CHECK(human_outcome='NOT_MEASURED'),
                 provenance_refs_json TEXT NOT NULL,

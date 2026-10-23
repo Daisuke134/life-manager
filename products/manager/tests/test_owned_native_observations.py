@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import sqlite3
+import struct
 import unittest
 
 from manager_core.learning import NativeTechnicalObservation, PolicyLearner
@@ -109,10 +110,46 @@ class OwnedNativeObservationTests(unittest.TestCase):
             {"status": "UNKNOWN", "native_value": None},
             {"status": "VERIFIED", "native_value": None, "missing_reason": "unknown"},
             {"status": "PENDING", "native_value": 0, "missing_reason": None},
+            {"native_value": 2**53 + 1},
+            {"native_value": 2**63},
+            {"native_value": 10**1000},
         ]
         for change in invalid:
             with self.subTest(change=change), self.assertRaises(ValueError):
                 observation(**change)
+
+    def test_safe_numeric_boundaries_roundtrip_without_value_or_type_change(self):
+        values = [-(2**53), 2**53, -0.0, 1.25,
+                  float.fromhex("0x1.fffffffffffffp+1023"),
+                  float.fromhex("0x0.0000000000001p-1022")]
+        for index, value in enumerate(values):
+            self.learner.record_native_technical_observation(observation(
+                measure_id=f"owned.test.number_{index}", unit="exact_numeric_fixture", native_value=value))
+
+        rows = self.learner.native_technical_observations()
+        self.assertEqual([row.native_value for row in rows], values)
+        self.assertEqual([type(row.native_value) for row in rows], [type(value) for value in values])
+        for row, value in zip(rows, values):
+            if type(value) is float:
+                self.assertEqual(struct.pack("!d", row.native_value), struct.pack("!d", value))
+        with sqlite3.connect(self.path) as db:
+            stored_values = [row[0] for row in db.execute(
+                "SELECT native_value FROM native_technical_observations ORDER BY rowid")]
+        self.assertEqual([type(value) for value in stored_values], [type(value) for value in values])
+        self.assertEqual(stored_values, values)
+        for stored, value in zip(stored_values, values):
+            if type(value) is float:
+                self.assertEqual(struct.pack("!d", stored), struct.pack("!d", value))
+
+    def test_https_provenance_requires_valid_hostname_and_port(self):
+        for url in ("https://@/", "https://@example.com/path", "https://:443/path",
+                    "https://example.com:bad/path", "https://example.com:0/path",
+                    "https://example.com:65536/path", "https://exa mple.com/path"):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                observation(provenance_refs=(url,))
+
+        accepted = observation(provenance_refs=("https://example.com:443/source",))
+        self.assertEqual(accepted.provenance_refs, ("https://example.com:443/source",))
 
     def test_p0_sandbox_and_scalar_policy_state_are_untouched(self):
         self.learner.initialize("fixed-policy")
