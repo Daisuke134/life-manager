@@ -135,6 +135,29 @@ class OwnedWorkflowContractTests(unittest.TestCase):
         self.assertIn('  publish-owned-prefix:', workflow)
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
 
+    def test_existing_artifact_step_uploads_only_summary_and_two_proof_outputs(self):
+        workflow = (ROOT / '.github/workflows/manager-phase06-service.yml').read_text()
+        lines = workflow.splitlines()
+        start = lines.index('      - name: Publish only the allowlisted public summary')
+        end = next((i for i in range(start + 1, len(lines))
+                    if lines[i].startswith('      - name: ')), len(lines))
+        step = lines[start:end]
+        self.assertEqual(sum(line.strip() == 'uses: actions/upload-artifact@v4' for line in step), 1)
+        path_line = next(i for i, line in enumerate(step) if line.strip() == 'path: |')
+        paths = []
+        for line in step[path_line + 1:]:
+            if not line.startswith('            '):
+                break
+            paths.append(line.strip())
+        self.assertEqual(paths, [
+            '${{ runner.temp }}/manager-public-summary.json',
+            '${{ runner.temp }}/manager-kernel-proof/kernel-public-proof.json',
+            '${{ runner.temp }}/manager-kernel-proof/proof-explorer.html',
+        ])
+        self.assertNotIn('cycle.sqlite', '\n'.join(paths))
+        self.assertNotIn('packet', '\n'.join(paths))
+        self.assertNotIn('nonce', '\n'.join(paths))
+
 
 if __name__ == '__main__':
     unittest.main()

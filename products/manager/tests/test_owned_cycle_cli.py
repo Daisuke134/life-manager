@@ -322,6 +322,195 @@ class OwnedCycleCLITests(unittest.TestCase):
         self.assertIsNone(summary['writes'])
         self.assertNotIn('release', events)
 
+    def test_current_proof_export_uses_exact_checkpoint_packet_and_native_rows(self):
+        from datetime import datetime, timedelta, timezone
+        from manager_core.digital_handoff import (PUBLIC_BASE, REPOSITORY, SOURCE_REF,
+            WORKFLOW, PublisherContext)
+        from manager_core.learning import NativeTechnicalObservation
+        from manager_core.owned_cycle import CycleStore
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from scripts import phase06_kernel_release as release
+        from test_owned_public_collector import PublicCollectorTests
+        with tempfile.TemporaryDirectory() as tmp:
+            packet, fixture_journal, receipt, observed_at, target_url, urls = (
+                PublicCollectorTests().prepare_v1_current_fixture(tmp))
+            detail_url = f'https://api.github.com/repos/{REPOSITORY}/commits/{receipt}'
+            parent = json.loads(urls[detail_url])['parents'][0]['sha']
+            runner_temp = Path(tmp) / 'runner-temp'
+            runner_temp.mkdir()
+            store = CycleStore(runner_temp / 'private-state')
+            publisher = PublisherContext(REPOSITORY, SOURCE_REF, WORKFLOW,
+                                         packet['candidate']['source_commit'], '7')
+            store.journal.reserve(packet, publisher, packet['baseline'], packet['candidate'],
+                                  parent, datetime.fromisoformat(packet['created_at']))
+            store.journal._present(packet['effect_key'], receipt)
+            byte_count = sum(len(body) for url, body in urls.items()
+                             if url.startswith(PUBLIC_BASE) and url != PUBLIC_BASE + 'manifest.json')
+            receipt_url = f'https://github.com/{REPOSITORY}/commit/{receipt}'
+            store.learning.record_native_technical_observation(NativeTechnicalObservation(
+                packet['effect_key'], packet['candidate_sha256'], receipt,
+                observed_at - timedelta(seconds=1), 'owned.pages.commit_occurrence',
+                'commit_occurrence', 'VERIFIED', 'P1', 1, None, 'NOT_MEASURED',
+                (receipt_url,)))
+            store.learning.record_native_technical_observation(NativeTechnicalObservation(
+                packet['effect_key'], packet['candidate_sha256'], receipt, observed_at,
+                'owned.pages.served_bundle_bytes', 'byte', 'VERIFIED', 'P2', byte_count,
+                None, 'NOT_MEASURED', (receipt_url, PUBLIC_BASE)))
+            checkpoint = PrivateCheckpoint(run_id='7', run_attempt='1')
+            checkpoint.db = store.db
+            checkpoint.broken = False
+            checkpoint.nonce = 'private-checkpoint-nonce-sentinel'
+            checkpoint.revision = 1
+            cycle_report = {
+                'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY', 'proof_level': 'P2',
+                'deployed': True, 'effect_key': packet['effect_key'],
+                'receipt_ref': receipt, 'nonce': 'cycle-report-nonce-sentinel',
+                'private_snapshot': 'cycle-report-private-snapshot-sentinel',
+            }
+            now = datetime.now(timezone.utc)
+
+            def fake_prove(intent_path, pages_commit, output, proved_at, *, learner=None):
+                self.assertEqual(json.loads(Path(intent_path).read_text()), packet)
+                self.assertEqual(Path(intent_path).stat().st_mode & 0o777, 0o600)
+                self.assertEqual(pages_commit, receipt)
+                self.assertIs(learner, store.learning)
+                proof_report = {
+                    'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY',
+                    'technical_proof': 'exact_public_artifact_bytes',
+                    'human_outcome': 'NOT_MEASURED', 'effect_key': packet['effect_key'],
+                    'source_commit': packet['candidate']['source_commit'],
+                    'pages_commit': receipt, 'parent_pages_commit': parent,
+                    'committed_at': observed_at.isoformat(), 'observed_at': proved_at.isoformat(),
+                    'observation_decision': packet['decision'],
+                    'reconciled_existing_occurrence': False,
+                    'changed_pages': ['finance.html'], 'receipt_url': receipt_url,
+                    'candidate_sha256': packet['candidate_sha256'],
+                    'served_bundle_bytes': byte_count, 'candidate': packet['candidate'],
+                }
+                release.write_json(Path(output) / 'kernel-public-proof.json', proof_report)
+                (Path(output) / 'proof-explorer.html').write_text(
+                    release.render_explorer(proof_report, learner=learner))
+                return proof_report
+
+            with patch.object(release, 'prove', side_effect=fake_prove) as prove:
+                exported = cli._export_current_kernel_proof(
+                    checkpoint, store, cycle_report, runner_temp, now=now)
+            self.assertTrue(exported)
+            prove.assert_called_once()
+            proof_dir = runner_temp / 'manager-kernel-proof'
+            self.assertEqual({path.name for path in proof_dir.iterdir()},
+                             {'kernel-public-proof.json', 'proof-explorer.html'})
+            public_files = ''.join(path.read_text() for path in proof_dir.iterdir())
+            self.assertNotIn('cycle-report-nonce-sentinel', public_files)
+            self.assertNotIn('cycle-report-private-snapshot-sentinel', public_files)
+            self.assertNotIn('private-checkpoint-nonce-sentinel', public_files)
+            self.assertNotIn('provenance_refs', public_files)
+            self.assertNotIn(packet['effect_key'], (proof_dir / 'proof-explorer.html').read_text())
+            explorer = (proof_dir / 'proof-explorer.html').read_text()
+            self.assertIn('owned.pages.commit_occurrence', explorer)
+            self.assertIn('owned.pages.served_bundle_bytes', explorer)
+            self.assertIn(f'{byte_count} byte', explorer)
+
+    def test_current_proof_export_skips_untrusted_reports_and_cleans_failed_partial_output(self):
+        from datetime import datetime, timedelta, timezone
+        from manager_core.digital_handoff import PUBLIC_BASE, REPOSITORY, SOURCE_REF, WORKFLOW, PublisherContext
+        from manager_core.learning import NativeTechnicalObservation
+        from manager_core.owned_cycle import CycleStore
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from scripts import phase06_kernel_release as release
+        from test_owned_public_collector import PublicCollectorTests
+        with tempfile.TemporaryDirectory() as tmp:
+            packet, fixture_journal, receipt, observed_at, target_url, urls = (
+                PublicCollectorTests().prepare_v1_current_fixture(tmp))
+            parent = json.loads(urls[
+                f'https://api.github.com/repos/{REPOSITORY}/commits/{receipt}'])['parents'][0]['sha']
+            runner_temp = Path(tmp) / 'runner-temp'
+            runner_temp.mkdir()
+            store = CycleStore(runner_temp / 'private-state')
+            store.journal.reserve(packet, PublisherContext(REPOSITORY, SOURCE_REF, WORKFLOW,
+                packet['candidate']['source_commit'], '7'), packet['baseline'], packet['candidate'],
+                parent, datetime.fromisoformat(packet['created_at']))
+            store.journal._present(packet['effect_key'], receipt)
+            receipt_url = f'https://github.com/{REPOSITORY}/commit/{receipt}'
+            store.learning.record_native_technical_observation(NativeTechnicalObservation(
+                packet['effect_key'], packet['candidate_sha256'], receipt, observed_at,
+                'owned.pages.commit_occurrence', 'commit_occurrence', 'VERIFIED', 'P1', 1,
+                None, 'NOT_MEASURED', (receipt_url,)))
+            byte_count = sum(len(body) for url, body in urls.items()
+                             if url.startswith(PUBLIC_BASE) and url != PUBLIC_BASE + 'manifest.json')
+            store.learning.record_native_technical_observation(NativeTechnicalObservation(
+                packet['effect_key'], packet['candidate_sha256'], receipt, observed_at,
+                'owned.pages.served_bundle_bytes', 'byte', 'VERIFIED', 'P2', byte_count,
+                None, 'NOT_MEASURED', (receipt_url, PUBLIC_BASE)))
+            checkpoint = PrivateCheckpoint(run_id='7', run_attempt='1')
+            checkpoint.db = store.db
+            checkpoint.broken = False
+            checkpoint.revision = 1
+            good_report = {'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY', 'proof_level': 'P2',
+                           'deployed': True, 'effect_key': packet['effect_key'],
+                           'receipt_ref': receipt}
+            denied_reports = (
+                dict(good_report, status='UNKNOWN'),
+                dict(good_report, status='NO_ACTION'),
+                dict(good_report, proof_level='P0', deployed=False),
+            )
+            with patch.object(release, 'prove') as prove:
+                for denied in denied_reports:
+                    self.assertFalse(cli._export_current_kernel_proof(
+                        checkpoint, store, denied, runner_temp))
+                    self.assertFalse((runner_temp / 'manager-kernel-proof').exists())
+                p1_rows=[row for row in store.learning.native_technical_observations()
+                         if row.proof_level=='P1']
+                with patch.object(store.learning, 'native_technical_observations',
+                                  return_value=p1_rows):
+                    self.assertFalse(cli._export_current_kernel_proof(
+                        checkpoint, store, good_report, runner_temp))
+                prove.assert_not_called()
+
+            rows_before = store.learning.native_technical_observations()
+            delivery_before = store.journal.delivery_record(packet['effect_key'])
+            def fail_after_first_file(intent_path, pages_commit, output, proved_at, *, learner=None):
+                (Path(output) / 'kernel-public-proof.json').write_text('{"partial":true}')
+                raise OSError('public proof read failed')
+            with patch.object(release, 'prove', side_effect=fail_after_first_file) as prove:
+                self.assertFalse(cli._export_current_kernel_proof(
+                    checkpoint, store, good_report, runner_temp))
+                prove.assert_called_once()
+            self.assertFalse((runner_temp / 'manager-kernel-proof').exists())
+            self.assertEqual(store.learning.native_technical_observations(), rows_before)
+            self.assertEqual(store.journal.delivery_record(packet['effect_key']), delivery_before)
+
+    def test_run_once_does_not_claim_positive_canary_when_proof_export_fails(self):
+        events = []
+        class Checkpoint:
+            db = None
+            broken = False
+            def __init__(self, **kwargs): pass
+            def acquire(self, root):
+                Path(root).mkdir(mode=0o700)
+                self.db = Path(root) / 'cycle.sqlite'; self.db.write_bytes(b'restored')
+            def save(self): events.append('save')
+            def release(self): events.append('release')
+        class Store:
+            def __init__(self, root): pass
+        report = {'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY', 'writes': 1,
+                  'proof_level': 'P2', 'deployed': True, 'effect_key': 'a' * 64,
+                  'receipt_ref': 'b' * 40}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1',
+                 'source_sha': 'c' * 40, 'runner_temp': Path(tmp).resolve(),
+                 'pages_root': Path(tmp) / 'pages'}), \
+             patch.object(cli, 'PrivateCheckpoint', Checkpoint), \
+             patch.object(cli, 'CycleStore', Store), \
+             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+             patch.object(cli, 'run_owned_cycle', return_value=report), \
+             patch.object(cli, '_export_current_kernel_proof', return_value=False), \
+             patch.object(cli, '_trusted_p2_observation', return_value=True):
+            code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
+        self.assertEqual(code, 0)
+        self.assertEqual(summary['positive_canary'], 'NOT_RUN')
+        self.assertEqual(events, ['save', 'release'])
+
     def test_public_summary_is_allowlisted(self):
         summary = cli.public_summary({'status': 'NO_ACTION', 'reason': 'NO_ELIGIBLE_BOUNDED_IMPROVEMENT', 'writes': 0,
                                       'private_snapshot': 'secret', 'nonce': 'secret'})
