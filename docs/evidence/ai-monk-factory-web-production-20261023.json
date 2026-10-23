@@ -1,0 +1,57 @@
+{
+  "schema_version": "anicca.ai-monk-factory-web-production.v1",
+  "observed_at": "2026-10-23T14:18:03.493Z",
+  "products_main_sha": "fcbe8ec027bcc78825f5e50e0d83d0926a036525",
+  "source_main_sha": "eb78a805c4f79cd807852c27f52f9e4207a1ba61",
+  "netlify_workflow": 39967298318,
+  "files": {
+    "app.css": {
+      "status": 200,
+      "bytes": 13567,
+      "sha256": "2aa9e429aa9ce360a57b851c74684f78e598d7d860ce3bc65d980f7db69cc71e",
+      "content_type": "text/css; charset=UTF-8"
+    },
+    "app.mjs": {
+      "status": 200,
+      "bytes": 10885,
+      "sha256": "a70dbafdb704a926fb0056e4a6fd7470338ddf3b161ae09fc456aca8ab48e33a",
+      "content_type": "application/javascript; charset=UTF-8"
+    },
+    "index.html": {
+      "status": 200,
+      "bytes": 9586,
+      "sha256": "b83310a0689ff3ffff09ddf75f2fbfb6761f83350cfe63ca9039bc9fe94bb098",
+      "content_type": "text/html; charset=UTF-8"
+    },
+    "project.mjs": {
+      "status": 200,
+      "bytes": 2056,
+      "sha256": "71baea8f3021841c0914d96f9229bef16aba3250391cc49bee8cde5207538e84",
+      "content_type": "application/javascript; charset=UTF-8"
+    }
+  },
+  "canonical_url": "https://aniccaai.com/ai-monk-factory/",
+  "slashless_entry": true,
+  "database_link": true,
+  "database_cards": 73,
+  "pending_notes": 69,
+  "public_browser_draft": "passed",
+  "native_publication_and_revenue_verified": false,
+  "public_browser_ui": {
+    "public_mode": true,
+    "save": true,
+    "reload_restored": true,
+    "actual_export_download": true,
+    "export_bytes": 35473,
+    "import_actual_export": true,
+    "desktop_width": 1360,
+    "mobile_width": 390,
+    "horizontal_overflow": false,
+    "page_errors": [],
+    "localhost_requests": [],
+    "owned_isolated_context": true
+  },
+  "run_id": "factory-web-public-20261023",
+  "owner_id": "root",
+  "exit_code": 0
+}
