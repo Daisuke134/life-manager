@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import importlib.util
+import base64
+import hashlib
+import io
 import json
 import os
 import pwd
 import shutil
 import subprocess
 import sys
+import tarfile
+import urllib.request
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -58,6 +63,8 @@ def _write_cleanup_recovery_signal(path: Path) -> None:
 
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs:
+                        pytest.fail("unexpected network access"))
     home = tmp_path / "home"
     host_state = home / ".local/state/life-manager/state"
     producer_state = home / ".local/state/life-manager/producer"
@@ -316,6 +323,110 @@ def test_release_capacity_measurement_failure_fails_closed(
         "--release-capacity", str(tmp_path), "a" * 40, str(tmp_path), "node", "npm",
     ]) == 1
     assert capsys.readouterr().out == ""
+
+
+def _fresh_capacity_fixture(tmp_path: Path, entries: dict):
+    guard, repo, _sha, loops = _release_capacity_fixture(tmp_path)
+    (loops / "current").unlink()
+    for relative in ("", "runtime/agentmail"):
+        directory = repo / relative
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "package.json").write_text('{"name":"fixture","version":"1.0.0"}')
+        (directory / "package-lock.json").write_text(json.dumps({
+            "lockfileVersion": 3, "packages": {"": {}, **entries},
+        }))
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "locked packages"], check=True)
+    sha = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    return guard, repo, sha, loops
+
+
+def _locked_capacity_package():
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w:gz") as stream:
+        entry = tarfile.TarInfo("package/index.js")
+        entry.size = 8192
+        stream.addfile(entry, io.BytesIO(b"x" * entry.size))
+    payload = archive.getvalue()
+    package = {"version": "1.0.0", "resolved": "https://registry.npmjs.org/fixture/-/fixture-1.0.0.tgz",
+               "integrity": "sha512-" + base64.b64encode(hashlib.sha512(payload).digest()).decode()}
+    metadata = {"name": "fixture", "version": "1.0.0", "dist": {
+        "tarball": package["resolved"], "integrity": package["integrity"],
+        "unpackedSize": 8192, "fileCount": 1,
+    }}
+    return package, metadata, payload
+
+
+@pytest.mark.parametrize("empty", (False, True))
+def test_release_capacity_bootstraps_without_current(monkeypatch, tmp_path, empty):
+    package, metadata, _payload = _locked_capacity_package()
+    entries = {} if empty else {"node_modules/fixture": package,
+                               "node_modules/dev-only": {"dev": True}}
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, entries)
+    requests = []
+    def fetch(url, **_kwargs):
+        requests.append(url)
+        return io.BytesIO(json.dumps(metadata).encode())
+    monkeypatch.setattr(urllib.request, "urlopen", fetch)
+    required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
+    assert required > 64 * 1024**2
+    assert install is True
+    assert requests == ([] if empty else ["https://registry.npmjs.org/fixture/1.0.0"])
+    assert not (loops / "current").exists()
+    assert not (loops / "dependency-bundles").exists()
+
+
+def test_release_capacity_measures_locked_tar_only_when_metadata_lacks_sizes(monkeypatch, tmp_path):
+    package, metadata, payload = _locked_capacity_package()
+    metadata["dist"].pop("unpackedSize")
+    metadata["dist"].pop("fileCount")
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {"node_modules/fixture": package})
+    requests = []
+    def fetch(url, **_kwargs):
+        requests.append(url)
+        return io.BytesIO(payload if url == package["resolved"] else json.dumps(metadata).encode())
+    monkeypatch.setattr(urllib.request, "urlopen", fetch)
+    required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
+    assert required > 64 * 1024**2 + 2 * 8192
+    assert install is True
+    assert requests == ["https://registry.npmjs.org/fixture/1.0.0", package["resolved"]]
+    assert not (loops / "dependency-bundles").exists()
+
+
+@pytest.mark.parametrize("failure", ("http", "metadata", "integrity", "lock"))
+def test_first_release_measurement_failure_remains_closed(monkeypatch, tmp_path, capsys, failure):
+    package, metadata, payload = _locked_capacity_package()
+    if failure == "lock":
+        package.pop("resolved")
+    if failure == "metadata":
+        metadata["version"] = "2.0.0"
+    if failure == "integrity":
+        metadata["dist"].pop("unpackedSize")
+        payload = b"different locked tarball"
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {"node_modules/fixture": package})
+    def fetch(url, **_kwargs):
+        if failure == "http":
+            raise OSError("fixture registry unavailable")
+        return io.BytesIO(payload if url.endswith(".tgz") else json.dumps(metadata).encode())
+    monkeypatch.setattr(urllib.request, "urlopen", fetch)
+    assert guard.main(["--release-capacity", str(repo), sha, str(loops), "node", "npm"]) == 1
+    receipt = json.loads(capsys.readouterr().err)
+    assert receipt["reason"] == "release_capacity_measurement_failed"
+    assert receipt["effect"] == receipt["readback"] == 0
+
+
+@pytest.mark.parametrize("invalid", ("dangling", "descriptor"))
+def test_invalid_current_is_not_treated_as_first_install(tmp_path, capsys, invalid):
+    package, _metadata, _payload = _locked_capacity_package()
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {"node_modules/fixture": package})
+    current = loops / "current"
+    if invalid == "dangling":
+        current.symlink_to(loops / "missing-release")
+    else:
+        current.mkdir()
+        (current / "RELEASE.json").write_text("{}")
+    assert guard.main(["--release-capacity", str(repo), sha, str(loops), "node", "npm"]) == 1
+    assert json.loads(capsys.readouterr().err)["reason"] == "release_capacity_measurement_failed"
 
 
 def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(tmp_path: Path):
