@@ -348,7 +348,7 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 所有: workerはskills/self/disk-cleanup/disk_cleanup.pyと同tests/test_disk_cleanup.pyのnative timeout/回帰のみ、primaryは本仕様・統合/review/CI・main由来sparse immutableによる既存watchdog1件の採用/自然receiptを所有する。他者編集を戻さず、開発中の実cleanup/制御/削除/リンク差替えは禁止。
 
-- [ ] CAPACITY-RED: deadline10/reserve5でnative即時CLOSED2回が固定15秒予約により開始されないことを再現する。残時間不足、初回/二回目timeout、probe後時間超過は削除0のまま保つ。
+- [x] CAPACITY-RED: source未変更の追加5条件は4 FAIL/1 PASS/192 deselected（0.56s）。closed/initial-timeout/final-timeout/reserve-spentは固定15秒+reserve gateでnative呼出0となり期待と不一致、no-timeはPASS。deadline10/reserve5でnative即時CLOSED2回を開始できることを検証し、残時間不足、初回/二回目timeout、probe後時間超過の削除0は維持する。
 - [ ] CAPACITY-GREEN: nativeだけ残時間timeoutを渡し、既存cache/guard/recurrence関連testsを確認する。
 - [ ] CAPACITY-SHIP: 独立review/既存CI/main/公開source一致を確認する。
 - [ ] CAPACITY-ACTUAL: accepted mainから既存sparse cut（bin/config/runtime/cleanupと必要shared依存、current変更0）でwatchdogに必要なimmutableを作り、同じinstallerで対象1件だけ採用する。Lancers5jobsのALL d8e release/既存bundle/他ownerを保持し、自然receiptと容量/業務待機を照合する。Sparseは既存機構であり、全依存再installや容量guard低下で代用しない。
