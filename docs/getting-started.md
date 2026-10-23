@@ -164,3 +164,28 @@ Apple Silicon/Intel dispatch and local fixture checks do not establish another p
 full Mac/provider acceptance. Follow [the agent catalog](agents.md) for what each capability
 needs; do not infer income, successful delivery, or publication from installation.
 Installation does not guarantee successful work or income.
+
+## Other agents
+
+**Local (ChatGPT / Codex)** · **Grok Bot** · **Dots** · **Muse**
+
+Local Mac installation is the supported path. A hosted agent can read this repository and its
+instructions, but the prompt below does not prove that its integrations or scheduling work.
+Hosted platforms need their own account connections and support for any Mac-only steps.
+
+| Where | 1 | 2 | 3 |
+|---|---|---|---|
+| **Local Mac (ChatGPT subscription)** | Run the install command above | Sign in with ChatGPT (Codex) | Connect the services you want |
+| **Grok Bot** | Open a chat with your bot | Paste the prompt below | Approve account connections when asked |
+| **Dots** | Open a chat with your agent | Paste the prompt below | Approve account connections when asked |
+| **Muse** | Open a chat with your agent | Paste the prompt below | Approve account connections when asked |
+
+Prompt for hosted agents:
+
+```
+Clone https://github.com/Daisuke134/life-manager, read AGENTS.md and
+docs/getting-started.md, then set up the agents I pick and report results to me here.
+```
+
+> The local Mac install is the supported path. Hosted agents follow the same repo instructions,
+> but scheduling and Mac-only steps can differ by platform.

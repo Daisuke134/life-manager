@@ -38,7 +38,7 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 **現在Macの追加観測:** immutable current `20261023T182457-409c568f`から同じownerをread-onlyで再確認する。installed/event SHA=`409c568f9116a3b61bb03e37ee36461e2198875b`、run=`18e1200ea94addd8-82363`、occurrence=`hf-gig-reply-detector:18e1200ea94addd8-82363`、phase=`report`、exit=75、effect=`not_applicable`、receipt/readback=null、blocker=`host_admission_deferred:disk_floor_low`、retryable=true、next=`retry_after_eligibility`へ変化する。前のcapacity busy snapshotを現在原因として使わない。`df`の空きは736,256 KiB、`vm.swapusage`は19,456 MiB使用である。既存disk governorの最新unbound receiptはerrors=0/protected_deletions=0/reclaimed=0/capacity recovery unmet、候補10件はopen6/protected_path4で保護される。Git重複もprune-packable10件のみで、repo全体や使用中cacheを削除して容量復旧を偽装しない。古い4 effect fenceは引き続きofficial receipt未取得。新規Mac向けsource修復は独立継続し、現Macの空容量・未照合effectと別Mac実機の受入はMAC02/05の未完として保持する。
 
-既存の容量回復経路として、main由来immutable releaseの`central_cleanup.codex_history_cleanup(home)`を独立read-only検証する。既存の本人ownership・native version・protected path・staging capacityの条件を一切緩めず、条件を満たす時だけCodex自身へ古い履歴のlossless maintenanceを依頼する。session JSONLの直接削除/書換え、app-server再起動、他ownerのlock解除、Telegram配信は行わない。requestを完了や空き容量回復と同一視せず、native返答と実空き容量を区別して記録する。
+既存の容量回復経路として、main由来immutable releaseの`central_cleanup.codex_history_cleanup(home)`を独立read-only検証する。既存の本人ownership・native version・protected path・staging capacityの条件を一切緩めず、条件を満たす時だけCodex自身へ古い履歴のlossless maintenanceを依頼する。session JSONLの直接削除/書換え、app-server再起動、他ownerのlock解除、Telegram配信は行わない。requestを完了や空き容量回復と同一視せず、native返答と実空き容量を区別して記録する。 独立検証ではhelper内部のnative保護条件は維持する一方、単独callは中央cleanup owner bindingを通らないと判明する。既存owner境界を保持した実行根拠が揃うまではRPCを実行せず、直接履歴削除やlock解除で代用しない。
 
 ### MAC02の本人設定・再開の修復
 
@@ -47,7 +47,7 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 **完了条件:** 下記2つの再現を最小RED/GREENで修復し、既存関連検証、独立read-only review、CI、PR/main、公開source readbackを閉じる。現在の本人認証と過去の本人確認履歴を区別し、過去の有効な履歴を根拠なく削除しない。本人の別Mac・実provider成果はMAC05の未完として残す。
 
 - [ ] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。 実際の`runtime/loop/lm_loop_apply.py:_plist()`まで通す全7job生成fixtureで確認し、Coconalaの7ownersだけへ`GIG_GOG_ACCOUNT`/`GIG_NOTIFY_EMAIL`を渡す。任意env passthroughや他ownerへの注入は追加しない。同一release SHAの既存ownerでも、通知設定の初回追加・変更をexact-releaseの採用判定で見落とさない。`runtime/loop/local_install.py`と対応する既存testsまでを必要なshared境界として修復し、稼働中ownerをskipする保護は維持する。
-- [ ] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。
+- [ ] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。 初回の独立検証はHOLD。要求URLのままbody=`403 Forbidden`/ready=completeでも認証成功になるP1と、pagesのないauthenticated=trueだけの観測が開始を通すP2を隔離fixtureで再現する。URLだけではなく正の認証証拠と現在の観測形式との整合を検証し、KYC/銀行の履歴は保持する。
 - [ ] MAC02-C: focused/source/review/CI/main/readbackと残る外部条件を記録する。
 
 現在owner=`codex-coconala-owner-setup`、worktree=`.worktrees/coconala-owner-setup-20261023`、branch=`fix/coconala-owner-setup-20261023`、base=`6b93057b41dcf8fdf8d983e85ecdb676d90bf041`。旧README worktreeは統合済みで、参照process・lease・dirty・ancestryを確認して片付ける。順序は既存MAC02→MAC03を維持する。
