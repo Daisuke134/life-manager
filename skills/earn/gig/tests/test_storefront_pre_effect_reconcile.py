@@ -430,7 +430,14 @@ def test_cli_refuses_multiple_terminal_reports_for_one_occurrence(tmp_path, monk
     assert result["state"] == "HELD"
 
 
-def test_cli_ignores_the_occurrences_own_admission_deferred_report(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("effect_status, exit_code", [
+    ("not_applicable", None),
+    # Live 2026-10-18: hf-gig-storefront-direct:18df7e7ddd4c0000-69171 was deferred by the disk
+    # floor with effect "unknown" (status blocked, failure_layer admission, exit 75).
+    ("unknown", 75),
+])
+def test_cli_ignores_the_occurrences_own_admission_deferred_report(
+        effect_status, exit_code, tmp_path, monkeypatch, capsys):
     """Live 2026-10-16: hf-gig-storefront-direct:18deeb722895f358-5308 was first deferred by
     host admission (blocked, effect not_applicable, exit 75), then claimed by a later run.
     The deferred report never ran the owner, so only the claim report is the terminal."""
@@ -444,10 +451,12 @@ def test_cli_ignores_the_occurrences_own_admission_deferred_report(tmp_path, mon
     host_root.mkdir()
     deferred = runtime_event(
         "queued-occurrence-5", "report", "1970-01-01T00:01:00+00:00",
-        status="blocked", effect_status="not_applicable",
+        status="blocked", effect_status=effect_status,
         refs=[f"lm-loop://{OWNER_ID}/queued-occurrence-5/summary.json"],
     )
     deferred["event_id"] = "c" * 24
+    deferred["failure_layer"] = "admission"
+    deferred["exit_code"] = exit_code
     deferred["error_class"] = deferred["blocker"] = "host_admission_deferred:resource_capacity_busy"
     resumed = start_terminal_events(
         resumed_run, terminal_occurrence_id=occurrence_id, terminal_status="pass",
@@ -558,3 +567,21 @@ def test_cli_occurrence_owner_mismatch_refuses(capsys, tmp_path):
     assert json.loads(capsys.readouterr().out) == {
         "state": "HELD", "reason": "occurrence_owner_mismatch",
     }
+
+
+def test_cli_dry_run_prefers_the_bounded_owner_log(tmp_path, capsys):
+    """Since the bounded relay (runtime/host/bounded_output.py) owner stdout lives in
+    logs/bounded/launchd-<owner>.out.log; logs/launchd.out.log stopped at 2026-09-26, so the
+    10/19 claim run's pass line was never found (stdout_pass_count_invalid)."""
+    module = load_module()
+    state_root, stdout_log, database, run_id = fixture(tmp_path)
+    bounded = state_root / "logs" / "bounded" / f"launchd-{OWNER_ID}.out.log"
+    bounded.parent.mkdir(parents=True, exist_ok=True)
+    bounded.write_text("", encoding="utf-8")
+    module.reconcile = Mock(return_value={"state": "PROOF_READY", "occurrence_id":
+                                          f"{OWNER_ID}:{run_id}", "evidence_ref": "x",
+                                          "evidence": {}})
+
+    assert module.main(["--occurrence", f"{OWNER_ID}:{run_id}",
+                        "--state-root", str(state_root), "--dry-run"]) == 0
+    assert module.reconcile.call_args.kwargs["stdout_log"] == bounded.resolve()

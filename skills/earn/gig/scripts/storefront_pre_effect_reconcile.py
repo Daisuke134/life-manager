@@ -117,8 +117,13 @@ def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]
         and row.get("phase") == "report" and row.get("occurrence_id") == occurrence_id
         # The occurrence's own wake deferred by host admission never ran the owner; a
         # later run claims it (lm-occurrence://.../claim) and is the only real terminal.
-        and not (row.get("effect_status") == "not_applicable"
-                 and str(row.get("error_class") or "").startswith("host_admission_deferred:"))
+        # Disk-floor defers are recorded with effect "unknown" but the admission layer blocked
+        # them before dispatch (status blocked, failure_layer admission, exit 75).
+        and not (str(row.get("error_class") or "").startswith("host_admission_deferred:")
+                 and (row.get("effect_status") == "not_applicable"
+                      or (row.get("status") == "blocked"
+                          and row.get("failure_layer") == "admission"
+                          and row.get("exit_code") == 75)))
     ]
     if len(occurrence_reports) != 1:
         raise EvidenceError("runtime_occurrence_event_invalid")
@@ -347,7 +352,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     state_root = args.state_root.expanduser().resolve()
-    stdout_log = (args.stdout_log or (state_root / "logs" / "launchd.out.log")).expanduser().resolve()
+    # The bounded relay writes owner stdout to logs/bounded/; the legacy file stays for old runs.
+    bounded = state_root / "logs" / "bounded" / f"launchd-{OWNER_ID}.out.log"
+    default_log = bounded if bounded.is_file() else state_root / "logs" / "launchd.out.log"
+    stdout_log = (args.stdout_log or default_log).expanduser().resolve()
     try:
         occurrence_id = _validate_occurrence_id(args.occurrence)
     except EvidenceError as error:
