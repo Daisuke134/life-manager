@@ -1,0 +1,2 @@
+"""Independent Manager prototype. Not Life Manager."""
+__version__ = "0.1.0-dev"

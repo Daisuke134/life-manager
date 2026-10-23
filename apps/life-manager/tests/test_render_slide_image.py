@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "render-slide-image.py"
@@ -31,6 +31,26 @@ def contrast_fixture(*pixels: tuple[int, int, int]) -> Image.Image:
 def rec709(rgb: tuple[int, int, int]) -> float:
     r, g, b = rgb
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def test_english_headline_wraps_between_words() -> None:
+    renderer = load_renderer_module()
+    draw = ImageDraw.Draw(Image.new("RGB", (1080, 1350)))
+    text = "4 lines for a morning with too much on your list"
+
+    lines, _font = renderer.fit_text(draw, text, 1080, 2, 72)
+
+    assert " ".join(lines).split() == text.split()
+
+
+def test_japanese_and_oversized_words_keep_every_character() -> None:
+    renderer = load_renderer_module()
+    draw = ImageDraw.Draw(Image.new("RGB", (1080, 1350)))
+    font = renderer.load_font(72)
+    for text in ["今日の失敗だけが私のすべてじゃない", "supercalifragilisticexpialidocious"]:
+        lines = renderer.wrap_to_lines(draw, text, font, 250, 99)
+        assert "".join(lines) == text
+        assert all(draw.textbbox((0, 0), line, font=font)[2] <= 250 for line in lines)
 
 
 def test_measure_contrast_preserves_rec709_float_luminance_for_green_fixture() -> None:

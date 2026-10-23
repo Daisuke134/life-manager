@@ -261,6 +261,14 @@ Nike事例は、会社自身がうまくいかなかった検査を公表して�
 
 研究の成果は、固定データ、比較表、再現手順、失敗例、費用の記録として公開する。それを記事、本、スライドへ展開する。専門性は「すべて知っている」と宣言することではなく、第三者が確かめられる仕事の蓄積から作る。
 
+### 2026年10月23日の再採点とTwin snapshot検査
+
+Natureの公開集約効果をstudy単位で固定splitし、70研究の35研究で較正、残る35研究で再採点した。効果はnative signed scale `[-1,1]` で扱う。test-study macro MAEは、無効果予測が0.06164431、公開予測そのままが0.07513314、train側だけの線形較正（`β=0.5497078`）が0.04701231だった。rawと較正の両方で、無効果予測との差のpaired 95%区間は0を含む。したがって優越性は確立していない。この再採点では新しいLLM推論をしておらず、study holdoutだけでpretraining時に未見だったとは言えない。人の便益も測っていない。[診断と手順](https://github.com/Daisuke134/life-manager/blob/0523c21bf7480ad370d17214e86ebd8dd6f33a46/docs/research/manager/2026-10-23-released-effects-diagnostic.md)と[対応する図](https://github.com/Daisuke134/life-manager/blob/0523c21bf7480ad370d17214e86ebd8dd6f33a46/docs/research/manager/evidence/released-effects-diagnostic-20261023/diagnostic.png)に、固定split・区間・計算上の制約を記録した。
+
+同じ日に、[固定したTwin-2K-500公開revision](https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500/tree/f883165a3026fde855dfd448e0cd16443ab257b6)の三つのCSV roleを構造検査した。各roleで2,058件のIDを読み取り、3集合は一致した。wave4の126対応列（84のQuestionID）はMultiple Choice 68列、Matrix 40列、Slider 12列、Text Entry 6列で、配布出力の42非研究列は集計から除外した。このbyte、列対応、ID、空欄の検査は、単独では精度の採点ではない。公式[simulation code revision](https://github.com/tianyipeng-lab/Digital-Twin-Simulation/tree/f1eed510c9a4fb47aaa9bb46e178aaa2d9224623)には、生成応答が失敗した際に元のanswerを保持し得る経路がある。そのため、公開セルだけから各値の生成来歴は認定できず、run bindingとmodel-training exposureはunknownである。これは配布データに実際のanswer混入があったとの判定ではない。確率出力も確認できないためBrier scoreも出さない。[inspect-only gate code](https://github.com/Daisuke134/life-manager/blob/e02b6e8284577f9671821fdcaef289ea9c96d6c6/products/manager/scripts/twin_wave4_eval.py)はPR #8580として2026年10月23日にmainへ統合された（[merge commit](https://github.com/Daisuke134/life-manager/commit/e02b6e8284577f9671821fdcaef289ea9c96d6c6)）。このgateの役割は公開snapshotの構造検査である。
+
+別の[固定済みaggregate監査（PR #8599）](https://github.com/Daisuke134/life-manager/blob/d8e16607797ef218843e09cd530aa5c1c8b7465c/docs/research/manager/evidence/twin-released-agreement-20261023.json)では、catalog-native validationを通過した三role共通の同じnonempty mask（197,580セル／126対応列×2,058 IDからの集計）を使い、released outputとwave4の一致は95,485/197,580（48.3273%）、historyとwave4は124,089/197,580（62.8044%）、released outputとhistoryは94,958/197,580（48.0605%）だった。数値入力は元の文字列表記ではなく、catalog-native validationを通過した数値同値で比較し、MC／Matrixは選択コードの一致を比較した。公式[normalized-MAD評価実装](https://github.com/tianyipeng-lab/Digital-Twin-Simulation/blob/f1eed510c9a4fb47aaa9bb46e178aaa2d9224623/evaluation/mad_accuracy_evaluation.py)の固定revision（SHA256 `b25b7912310c14393b62dcaf5c214496189f98eb82398e86bb8004a14785ff96`）に基づく数値尺度候補18列のうち14列を採点し、24,696の共通数値セルが含まれた。残る4列は公式range内の共通セルが0のため`UNSCORABLE`であり、privacy suppressionとは異なる。実際の集計では件数しきい値によるプライバシー抑制は発生していない。数値のnative unit provenanceは不明なので、尺度の読み替えや再スケールはしていない。この監査で新たなLLM推論は行っていない。これは公開済み出力と公開wave間の記述的一致であり、予測精度、生成来歴、優越性、人への便益を示さない。生成来歴は`UNVERIFIED`、run bindingとmodel-training exposureは`UNKNOWN`、eligible／verified-generated cell数、predictive accuracyはnull、scientific passはfalseのままである。公開物は集約値のみで、個人行は配布していない。
+
 ## 11. 何が障害でなくなり、何は実験でしか分からないか
 
 | 待つ必要をなくせるもの | 代わりに使うもの |
@@ -281,5 +289,5 @@ Nike事例は、会社自身がうまくいかなかった検査を公表して�
 
 FirecrawlのManager接続を使用し、途中の残高不足後は追加購入せず通常HTTP・公式APIで補完した。失敗した取得を成功扱いにせず、リンク、版、アクセス範囲を機械可読の取得記録に残した。原文全文や個人プロフィールをこの記事へ転載していない。
 
-実際の計算は、既存のAS scorecard再構築・group alignment notebook実行に加え、今回のNature配布XLSXの検査とDebateGPT CSVの記述集計である。新しいLLMによる全benchmark推論、Rothko本体の起動、説得研究の回帰の全面再現、新しい人間への介入は行っていない。どの段階の成果かを明示し、その範囲で次の仕事へつなぐ。
+実際の計算は、既存のAS scorecard再構築・group alignment notebook実行、Twin-2K-500公開snapshotの構造検査と、released output・history・wave4の共通native maskによる記述的一致集計ならびに18数値尺度候補のうち14列への公式normalized-MAD採点、今回のNature配布XLSX検査とDebateGPT CSVの記述集計である。Twin監査は公開済み出力と公開waveの記述的一致であり、新しいLLM推論や予測精度の測定ではない。新しいLLMによる全benchmark推論、Rothko本体の起動、説得研究の回帰の全面再現、新しい人間への介入は行っていない。どの段階の成果かを明示し、その範囲で次の仕事へつなぐ。
 

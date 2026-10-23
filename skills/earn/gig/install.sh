@@ -3,6 +3,7 @@ set -euo pipefail
 
 GIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="/opt/homebrew/bin:$HOME/.local/bin:$PATH"
+source "$GIG_DIR/../../../scripts/macos-runtime.sh"
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "help" ]; then
   cat <<'HELP'
@@ -30,8 +31,11 @@ if [ "${1:-}" = "preflight" ]; then
 
   [ "$(uname -s 2>/dev/null)" = "Darwin" ] && darwin=true
   [ "$(uname -m 2>/dev/null)" = "arm64" ] && arm64=true
-  if command -v python3 >/dev/null 2>&1 \
-    && python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 13))' >/dev/null 2>&1; then
+  python_bin="${PYTHON:-$HOME/.local/share/anicca/gig/venv/bin/python}"
+  if [ -z "${PYTHON:-}" ] && [ ! -x "$python_bin" ]; then
+    python_bin="${LIFE_MANAGER_PYTHON:-python3}"
+  fi
+  if _lm_select_python "$python_bin"; then
     python=true
   fi
   if command -v codex >/dev/null 2>&1; then
@@ -55,21 +59,14 @@ if [ "${1:-}" = "prepare" ]; then
   [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] || {
     echo "[coconala] requires Apple Silicon macOS" >&2; exit 2;
   }
-  if ! command -v python3 >/dev/null 2>&1 \
-    || ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 13))' >/dev/null 2>&1; then
-    if ! command -v brew >/dev/null 2>&1; then
-      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-    brew install python@3.14
-  fi
+  lm_ensure_python
 
   venv="$HOME/.local/share/anicca/gig/venv"
-  if [ ! -x "$venv/bin/python" ]; then
-    python3 -m venv "$venv"
+  if ! _lm_select_python "$venv/bin/python"; then
+    "$LM_PYTHON" -m venv --clear "$venv"
   fi
   if ! "$venv/bin/python" -c 'import websockets, bs4, jsonschema, cloakbrowser, PIL' >/dev/null 2>&1; then
-    "$venv/bin/pip" install websockets beautifulsoup4 jsonschema cloakbrowser pillow
+    "$venv/bin/pip" install websockets beautifulsoup4 jsonschema cloakbrowser pillow >&2
   fi
   "$venv/bin/python" "$GIG_DIR/scripts/coconala_onboarding.py" configure-python \
     --python "$venv/bin/python" >/dev/null
@@ -78,23 +75,24 @@ if [ "${1:-}" = "prepare" ]; then
     installer="$(mktemp -t codex-install.XXXXXX)"
     trap 'rm -f "$installer"' EXIT
     curl -fsSL https://chatgpt.com/codex/install.sh -o "$installer"
-    /bin/bash "$installer"
+    /bin/bash "$installer" >&2
     rm -f "$installer"
     trap - EXIT
   fi
 
   if ! command -v gog >/dev/null 2>&1; then
-    brew install gogcli
+    lm_ensure_homebrew
+    "$LM_BREW" install gogcli >&2
   fi
   if ! codex login status >/dev/null 2>&1; then
-    codex login
+    codex login >&2
     codex login status >/dev/null 2>&1 || {
       echo "[coconala] Codex login was not confirmed" >&2; exit 2;
     }
   fi
 
   if ! compgen -G "$HOME/.cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium" >/dev/null; then
-    "$venv/bin/python" -c 'from cloakbrowser import launch; browser=launch(headless=True); browser.close()'
+    "$venv/bin/python" -c 'from cloakbrowser import launch; browser=launch(headless=True); browser.close()' >&2
   fi
   PYTHON="$venv/bin/python" exec bash "$0" preflight
 fi

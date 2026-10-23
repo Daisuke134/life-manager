@@ -222,7 +222,7 @@ test("manual slot override refuses to call the renderer when the existing receip
   }
 });
 
-test("manual slot override reuses the exact completed render and scopes the publication to its owner", async () => {
+for (const costPending of [false, true]) for (const receiptLookup of [1, 2]) test(`receipt lookup ${receiptLookup} reuses the completed publication without a new effect (cost pending ${costPending})`, async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-manual-reuse-"));
   const dataDir = path.join(temporaryRoot, "data");
   const stateRoot = path.join(dataDir, "marketing", "ebook");
@@ -255,6 +255,7 @@ test("manual slot override reuses the exact completed render and scopes the publ
       output,
       sha256: videoSha,
       video_id: "db2dab0924e19b88c14e03a6a7849069",
+      ...(costPending ? { wallet_cost: null, cost_reconciliation_required: true } : {}),
     },
   };
   const ownerInput = {
@@ -264,9 +265,7 @@ test("manual slot override reuses the exact completed render and scopes the publ
     publication_id: `${script.creative_id}-20261007T230000000Z`,
     attribution_token: `ee_${"a".repeat(20)}`,
   };
-  const store = {
-    async readReceipt() {
-      return {
+  const publicationReceipt = {
         schema_version: 1,
         kind: "marketing_video_distribution",
         status: "published",
@@ -283,9 +282,18 @@ test("manual slot override reuses the exact completed render and scopes the publ
         provider_post_id: "postiz_manual_slot_1",
         provider_route: "postiz",
         provider_reconciled: true,
+        provider_effect_created: true,
+        origin_occurrence_id: "ebook-en-tiktok-daily:original-publication",
         published_at: "2026-10-08T00:00:00.000Z",
-      };
+  };
+  const originalReceipt = JSON.stringify(publicationReceipt);
+  let receiptReads = 0;
+  const store = {
+    async readReceipt() {
+      receiptReads += 1;
+      return receiptReads < receiptLookup ? null : publicationReceipt;
     },
+    async enqueueJob() { throw new Error("receipt reuse must not dispatch a publication job"); },
   };
   const fakePython = path.join(temporaryRoot, "fake-python");
   fs.writeFileSync(fakePython, `#!${process.execPath}\nconst fs = require("node:fs");\nconst path = require("node:path");\nconst stateIndex = process.argv.indexOf("--state-root");\nconst stateRoot = process.argv[stateIndex + 1];\nfs.writeFileSync(path.join(stateRoot, "renderer-called"), "yes");\nprocess.stdout.write(fs.readFileSync(path.join(stateRoot, "owner-input.json"), "utf8") + "\\n");\n`);
@@ -297,10 +305,11 @@ test("manual slot override reuses the exact completed render and scopes the publ
     fs.writeFileSync(output, videoBytes);
     fs.writeFileSync(path.join(stateRoot, "runs", `${runId}.json`), JSON.stringify(renderReceipt));
     fs.writeFileSync(path.join(stateRoot, "runs", `${runId}.heygen-effect.json`), JSON.stringify({
-      state: "completed",
+      state: costPending ? "cost_reconciliation_required" : "completed",
       provider_status: "completed",
       video_id: renderReceipt.render.video_id,
       provider_receipt_id: renderReceipt.render.video_id,
+      ...(costPending ? { wallet_cost: null, output_sha256: videoSha } : {}),
     }));
     fs.writeFileSync(path.join(stateRoot, "owner-input.json"), JSON.stringify(ownerInput));
 
@@ -309,19 +318,30 @@ test("manual slot override reuses the exact completed render and scopes the publ
       HOME: process.env.HOME || "",
       PATH: process.env.PATH || "",
       LIFE_MANAGER_LOOP_ID: ownerId,
+      LIFE_MANAGER_RUN_ID: "manual-existing-slot-test",
       LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:manual-existing-slot-test`,
       LIFE_MANAGER_RELEASE_ROOT: ROOT,
       LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+      LIFE_MANAGER_EFFECT_IDENTITY_PATH: path.join(dataDir, "effect-identity.jsonl"),
       LM_DATA_DIR: dataDir,
       LM_EBOOK_PUBLISHING_ENABLED: "true",
       LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
       LM_PYTHON: fakePython,
       LM_RUNTIME_TENANT_ID: "dais-local",
     };
-    const processEnv = ["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"];
+    const processEnv = ["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_RUN_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH", "LIFE_MANAGER_EFFECT_IDENTITY_PATH"];
     const previousEnv = Object.fromEntries(processEnv.map((key) => [key, process.env[key] ?? null]));
     Object.assign(process.env, Object.fromEntries(processEnv.map((key) => [key, env[key]])));
     try {
+      if (costPending) {
+        const sidecarPath = path.join(stateRoot, "runs", `${runId}.heygen-effect.json`);
+        const sidecar = JSON.parse(fs.readFileSync(sidecarPath, "utf8"));
+        fs.writeFileSync(sidecarPath, JSON.stringify({ ...sidecar, output_sha256: "0".repeat(64) }));
+        await assert.rejects(run([ownerId, "--slot-at", slotAt], {
+          env, nowMs: Date.parse("2026-10-09T07:30:00+09:00"), store,
+        }), /matching completed HeyGen receipt/);
+        fs.writeFileSync(sidecarPath, JSON.stringify(sidecar));
+      }
       const result = await run([ownerId, "--slot-at", slotAt], {
         env,
         nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
@@ -331,18 +351,27 @@ test("manual slot override reuses the exact completed render and scopes the publ
       assert.equal(result.state, "published");
       assert.equal(result.slot_at, slotAt);
       assert.equal(result.creative_id, `${ownerInput.publication_id}-ebook-en-tiktok-daily`);
+      assert.equal(JSON.stringify(publicationReceipt), originalReceipt);
       assert.equal(fs.existsSync(path.join(stateRoot, "renderer-called")), true);
       assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
         schema_version: 1,
-        kind: "life_manager_effect_result",
-        status: "verified_effect",
-        effect: 1,
+        kind: "life_manager_no_effect_result",
+        status: "verified_no_effect",
+        effect: 0,
         owner_id: ownerId,
         occurrence_id: env.LIFE_MANAGER_OCCURRENCE_ID,
-        provider: "postiz",
-        provider_receipt_id: "postiz_manual_slot_1",
-        effect_status: "reconciled",
+        reason: "receipt_reused",
       });
+      assert.equal(result.effect, 0);
+      assert.equal(result.receipt_reused, true);
+      const identity = JSON.parse(fs.readFileSync(env.LIFE_MANAGER_EFFECT_IDENTITY_PATH, "utf8"));
+      assert.equal(identity.occurrence_id, env.LIFE_MANAGER_OCCURRENCE_ID);
+      assert.equal(identity.runtime_run_id, env.LIFE_MANAGER_RUN_ID);
+      assert.equal(identity.loop_id, ownerId);
+      assert.equal(identity.platform, "tiktok");
+      assert.equal(identity.creative_id, result.creative_id);
+      assert.equal(identity.video_sha256, videoSha);
+      assert.equal(identity.integration_ref, "integration://postiz/tiktok/cmo5rwq2p00twn10yrsdglng3");
     } finally {
       for (const key of processEnv) {
         if (previousEnv[key] == null) delete process.env[key];

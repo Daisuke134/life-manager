@@ -351,9 +351,75 @@ def _fenced_occurrences(owner_id: str) -> list[str]:
     return [row[0] for row in rows]
 
 
-def _resolve_settled(owner_id, occurrence_id, *, settled_proof):
+def _released_fenced_occurrences(owner_id: str) -> list[str]:
+    _root, _owners, _tickets, database = resource_admission._durable_paths()
+    import sqlite3
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30) as connection:
+        rows = connection.execute(
+            "SELECT occurrence_id FROM occurrences WHERE owner_id=? AND effect_unknown=1"
+            " AND state='released' ORDER BY queued_at", (owner_id,)).fetchall()
+    return [row[0] for row in rows]
+
+
+def _owner_has_claimed_occurrence(owner_id: str) -> bool:
+    _root, _owners, _tickets, database = resource_admission._durable_paths()
+    import sqlite3
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30) as connection:
+        return connection.execute(
+            "SELECT EXISTS(SELECT 1 FROM occurrences WHERE owner_id=? AND state='claimed')",
+            (owner_id,)).fetchone()[0] == 1
+
+
+def _run_started_unix(run_id: object) -> float | None:
+    """lm-loop run ids start with the wake time in hex nanoseconds."""
+    try:
+        return int(str(run_id).rsplit(":", 1)[-1].split("-", 1)[0], 16) / 1e9
+    except ValueError:
+        return None
+
+
+def _scoped_settled_scan(intent_root: Path, occurrence_id: str, since: float) -> dict[str, object]:
+    """Settle only the intents this occurrence's own runs could have written.
+
+    Every attempt writes an intent bound to its ``runtime_occurrence_id`` before the
+    irreversible marker. Any intent its runs wrote is therefore newer than ``since``
+    (by run id or, unbound/unreadable, by file mtime). Such an intent counts unless it
+    is bound to another occurrence (that occurrence's fence owns it) or is this
+    occurrence's own intent with a provider-settled state.
+    """
+    applied, closed = _roster_ids(_latest_roster()), _closed_ids(CLOSED_READBACK)
+    rows = _closed_rows(CLOSED_READBACK)
+
+    def no_dispatch(value: dict) -> bool:
+        if value.get("state") == "prepared":
+            return _roster_settles_attempt(value, intent_root, APPLY_ROOT, rows) == "absent"
+        return _roster_proves_no_dispatch(value, intent_root, APPLY_ROOT, rows)
+
+    digest = hashlib.sha256()
+    scanned = unresolved = own = 0
+    for path, value in _store_intents(intent_root):
+        bound = value.get("runtime_occurrence_id") if value else None
+        # A claimer may predate the occurrence it claims, so its own intents count at any age.
+        if bound != occurrence_id:
+            started = _run_started_unix(value.get("runtime_run_id")) if value else None
+            if (started if started is not None else path.stat().st_mtime) < since:
+                continue
+        else:
+            own += 1
+        scanned += 1
+        settled = bool(bound) and (bound != occurrence_id
+                                   or _intent_settled(value, applied, closed, no_dispatch))
+        if not settled:
+            unresolved += 1
+        digest.update(f"{path.name}\0{bound}\0{settled}\n".encode("utf-8"))
+    return {"scanned_intents": scanned, "unresolved_irreversible": unresolved,
+            "occurrence_bound_intents": own, "scope_since_unix": since,
+            "evidence_ref": f"gig-intents://sha256/{digest.hexdigest()}"}
+
+
+def _resolve_settled(owner_id, occurrence_id, *, settled_proof, expected_state="claimed"):
     return resource_admission.resolve_settled_write_ahead_occurrence(
-        owner_id, occurrence_id, settled_proof=settled_proof)
+        owner_id, occurrence_id, settled_proof=settled_proof, expected_state=expected_state)
 
 
 def _needs_roster_readback(intent_root: Path) -> bool:
@@ -370,12 +436,17 @@ def _needs_roster_readback(intent_root: Path) -> bool:
 
 def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tuple[dict[str, object], list[dict]]:
     scan = _settled_scan(intent_root)
+    if scan["scanned_intents"] and scan["unresolved_irreversible"]:
+        # The per-occurrence proof needs no browser; serve it before the roster readback.
+        scoped = _close_scoped_fences(owner_id, intent_root)
+        if scoped:
+            return scan, scoped
     if scan["unresolved_irreversible"] and _needs_roster_readback(intent_root):
         exit_code = run_browser_reconcile(["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--",
                                            sys.executable, str(CLOSED_READBACK_SCRIPT)], runner=runner)
         scan = {**_settled_scan(intent_root), "roster_readback_exit_code": exit_code}
     if scan["scanned_intents"] == 0 or scan["unresolved_irreversible"] != 0:
-        return scan, []
+        return scan, _close_scoped_fences(owner_id, intent_root)
     closed = []
     for occurrence_id in _fenced_occurrences(owner_id):
         checked: dict[str, object] = {}
@@ -388,6 +459,33 @@ def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tupl
                            "proof_type": "write_ahead_store_settled.v1",
                            "evidence_ref": checked.get("evidence_ref", scan["evidence_ref"])})
     return scan, closed
+
+
+def _close_scoped_fences(owner_id: str, intent_root: Path) -> list[dict]:
+    """Close each fenced occurrence whose own possible intents are all run-bound and settled."""
+    if _owner_has_claimed_occurrence(owner_id):
+        # A live claim may be writing intents right now (intents use per-request locks, not
+        # the admission control lock), so the per-occurrence scope is only sound when idle.
+        return []
+    closed = []
+    for occurrence_id in _released_fenced_occurrences(owner_id):
+        since = _run_started_unix(occurrence_id)
+        if since is None:
+            continue
+        precheck = _scoped_settled_scan(intent_root, occurrence_id, since)
+        if precheck["scanned_intents"] == 0 or precheck["unresolved_irreversible"] != 0:
+            continue
+        checked: dict[str, object] = {}
+
+        def proof(occurrence_id=occurrence_id, checked=checked, since=since):
+            checked.update(_scoped_settled_scan(intent_root, occurrence_id, since))
+            return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                    "proof_type": "write_ahead_store_settled.v1", **checked}
+        if _resolve_settled(owner_id, occurrence_id, settled_proof=proof, expected_state="released"):
+            closed.append({"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                           "proof_type": "write_ahead_store_settled.v1",
+                           "scope_since_unix": since, "evidence_ref": checked["evidence_ref"]})
+    return closed
 
 
 def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,

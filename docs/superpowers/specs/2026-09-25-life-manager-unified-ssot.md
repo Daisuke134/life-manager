@@ -1,8 +1,26 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## 別Macへ配布するLocal製品の実行契約
+
+目的は、友人のMacで公開コマンドからLife Managerを導入し、本人のaccount・private stateで各業務を継続実行すること。既存の業務core、catalog、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
+
+現測sourceは`fb0b5d5d3b70e9907b66ba7263c954cca4d71a53`。catalogは18業務であり、「20 agent」に合わせて未登録業務を捏造しない。10業務のlocal commandがnullで、全業務のpublic installは未完成。Coconalaのprepare/preflightはvenvのPythonを一貫して使わず、Homebrewを`/opt/homebrew`へ固定する。共通bootstrapにも同じPython解決問題と既存checkoutのorigin/branchを検証せず更新する境界がある。
+
+**順序変更:** 旧順=既存FND/CLD/EARN/EVO。新順=独立するMAC01の公開導入経路修復→MAC02のCoconala導入→MAC03の残る個別業務製品化を進め、既存ownerのFND/CLD/EARN/EVOは並行継続する。理由は友人の別Mac導入をユーザーが明示し、この入口が全業務に共通するため。稼働中owner・browser lease・未確定effectを中断/再送しない。
+
+| TODO・状態 | 完了条件 |
+|---|---|
+| [ ] MAC01 | 公開bootstrapが既存checkoutを検証し、利用可能なPythonを選び、全catalogの導入状況と選択した個別installerへ到達する。空のprivate homeを使う隔離検証、CI、main統合、公開raw readbackを確認する |
+| [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
+| [ ] MAC03 | gig-lancers→gig-crowdworks→gig-mercor→promptbase→writer→affiliate→self-build→ebook→capafy→line-stickerのpublic installerを既存実装へ結び、各業務のaccount/host要件・自然実行・公式成果を一つずつ確認する。guidedの他8業務も同じ基準で検証する |
+
+source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを含む36件、catalog/plan50件、公開bootstrap7件、OSS/source境界をPASSする。既存Gig関連を含む78件もPASSする。独立reviewがJob Hunterへの選択Python欠落と、設定画面用旧venvが更新されない境界を実証するため、その2ケースもREDで再現し共通入口で修復する。PRは#8602、source先行headは`0d5cd4bbe43c37e8f98dd4ca59dffb854f942a5f`。Coconalaのlegacy導入はApply/Reply/Storefrontだけであり、Paid/Report/GCを含む全jobの導入はMAC02の残件として保持する。
+
+現在cursor=MAC01/MAC02の追加2ケースを含む検証→独立再review→CI→main公開readback。所有worktree=`.worktrees/mac-product-command-20261023`、branch=`fix/mac-product-command-20261023`、primary=`codex-mac-product-command`。source/隔離検証の成功だけで全18業務や友人Macの稼働完了とは報告しない。
+
 ## Local / Cloud 全体復旧の現行spec・実行計画
 
-> **実行者へ:** 実装時は `superpowers:executing-plans` を用いて本節の原子的TODOを順に進める。primaryが逐次実行を所有し、独立したLocal/Cloudのファイル所有だけを並行できる。新しい判断・追加承認を待たず、ユーザーの既存scope/owner/spend-capを守る。
+> **修復の再開時:** `superpowers:executing-plans` を用いて本節の原子的TODOを順に進める。primaryが逐次実行を所有し、独立したLocal/Cloudのファイル所有だけを並行できる。ユーザーの既存scope/owner/spend-capを守る。現在の文書更新を実装・運用の再開指示として扱わない。
 
 **Goal:** Local全業務とCloudの顧客価値を復旧し、実成果・公式収益・評価付き改善まで既存システムを閉じる。
 **Architecture:** 既存のbounded worker、admission、durable state、exact receipt、owner限定の復旧とmain由来immutableを使う。Local/Cloudの業務coreは共通とし、再現済みの境界不具合を小さいpatchで直す。
@@ -14,7 +32,7 @@
 
 Life Managerを、各業務がobserve → decide → act → official verify → persist → cleanup → 次の仕事を継続し、顧客に正しく成果を届け、実収益と費用を使って改善するシステムにする。Localの全業務と共有基盤、Cloudの移動予定作成・通知・継続稼働、meta loopの評価・自己修復・自己改善を対象にする。発話の「metal loop」はmeta loopとして扱い、mental careはCloudの既存機能として別に維持する。
 
-**現行scopeは、監査済み計画の逐次実装・必要な検証・main統合・immutable反映・自然実行と公式成果の確認まで。** ユーザーの「one by one until end」を実行指示として、下表の先頭未完atomから完了まで進める。進行中の他owner、既存effect fence、spend-capを維持し、計画の保存やテスト成功を「全体修復済み」「稼いだ」と報告しない。
+**今回のscopeは、正本specの更新と残TODOの報告だけ。** 長時間修復goalは`paused`であり、今回は実装・修復テスト・本番設定/state・ownerの停止/再起動・provider送信を再開しない。文書のcommit/push・必要CI・main統合までを今回の完了条件とする。全体目標は維持し、修復再開時は下表の未完atomから進める。既存の未commitコード差分・他owner・effect fence・spend-capを保持し、文書保存や過去のテスト成功を「全体修復済み」「稼いだ」と報告しない。
 
 「永久に故障しない」「全agentの利益が単調増加する」は、外部provider・審査・需要・有限資源を含む系では保証できない。実装する契約は、既知の失敗を再現する回帰検証、欠測を隠さない成果監視、同一effectの重複防止、期限とownerが明確な復旧、悪化した変更の復帰である。市場結果は独立して実測する。会社の既存US$10,000,000 MRR目標や各laneの目標を縮小しない。
 
@@ -68,7 +86,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** CLD03d2bはsource/DB/Cloud採用済みで自然の新create/update/cancel判断証拠が未確認。FND01の容量は10/12GiB floor未達で増加ownerを絞る。FND05bは#8569/main/対象immutable採用/旧1件解除/replay-zeroまで確認し、解除後の自然wakeを待つ。独立するFND05cはarticle-resumeの現exact fenceの投稿前停止証拠を調べ、旧caseや無題記事の推定absenceを流用しない。新paid/cost-complete net未確認、旧NULL/未知effect/旧X ERRORは一括解除/再送しない。
+**現在cursor:** 実行は一時停止、今回は文書だけを確定する。FND05bは#8569/main/対象immutable採用/旧1件解除/replay-zeroまで確認済みだが、解除後の自然wakeは未確認。FND05cのquota-before-work証明と関連testには未commitの実装案があり、追加後のGREEN・review・CI・main・採用・旧1件解除は未確認。容量のread-only最終snapshotは13,022,130,176Bで10/12GiB floorを満たすが、増加原因の閉鎖・次の自然業務成果は未確認。再開時はFND01のproducer責務/自然wake確認とFND05cの差分受入を進め、独立するCLD03d2bの自然create/update/cancel判断証拠を確認する。新paid/cost-complete netは未確認。旧NULL/未知effect/旧X ERRORは一括解除・再送しない。別Mac製品化の独立ownerの順序は冒頭MAC01–MAC03を参照する。
 
 - 順序判断: DaisのRyu案件優先指示に対し、既存案件18211957/直接DM10107358の履歴と最新3件の要望を確認する。対象が有料性的サービスの運営を促進する改修・納品であるため、その実装と送信は対応対象外として未実行を記録する。完了や納品済みへ置換せず、旧順=Ryu修正/1回送信→基盤復旧、新順=Ryu未実行を明記→独立するCLD04→残FND/EARN/EVOを継続とする。既存案件state/送信fenceは変更しない。
 
@@ -76,16 +94,16 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 | TODO・状態 | 一つの検証可能な成果 | 依存 / 既存TODOへの接続 |
 |---|---|---|
-| [ ] FND01 | 実producerの容量増加と後始末を直し、blockedな次の業務wakeを通す | F1–F5/C2/R15。全18完了待ちにしない |
+| [ ] FND01 | 実producerの容量増加と後始末を直し、10/12GiB floorと次の自然業務wakeを確認する | F1–F5/C2/R15。全18完了待ちにしない |
 | [x] FND02 | 現在状態を残したまま、履歴clockを既存期限内に返す | C2/SH。FND01と独立なsource調査可 |
 | [x] FND03 | 失敗ledger更新を成果復旧と誤判定しない監視を通す | DD12/EDD-FLEET。最初に既存6lane、次に全18の役割別coverage |
 | [ ] FND04 | model/profile競合・quotaとhost不足を区別し、安全な次回実行へ戻す | R04/brain_transport。既存profile leaseを維持 |
-| [ ] FND05 | 優先業務のexact未知effectを公式証拠で照合し、同じ原因の再生成を止める | C1の既完了は保持、現runは別occurrence |
-| [ ] FND06 | 修正が必要なownerへ同main由来SHAを安全に届ける | A15/通常promotion。全owner一斉更新はしない |
-| [ ] CLD01 | raw Composio / Google proxyのCalendar作成契約を揃える | Cloud Travelのsource型不一致。FNDに非依存 |
-| [ ] CLD02 | uncertain create / claim409を安全な公式再照合へ接続する | CLD01、既存travel claimとCalendar readerを再利用 |
-| [ ] CLD03 | source eventの変更・取消・時刻/route・通知を一貫させる | CLD02、既存DAILY/Web Travel契約 |
-| [ ] CLD04 | 配備SHA/設定・tenant・Cloud自然実行を確認する | Cloud機能patchごとに実施。Mac停止を破壊的試験に使わない |
+| [ ] FND05 | Bの解除後自然wake、Cのsource受入→main/immutable→旧1件の照合/解除/replay-zeroを閉じる | C1/Bの既確認を保持し、Cの未commit案は未受入 |
+| [ ] FND06 | 修正が必要なownerのrelease/loaded SHAを照合し、対象限定採用と自然terminalを確認する | A15/通常promotion。採用済みownerをやり直さず、一斉更新しない |
+| [ ] CLD01 | 採用済み作成契約を同tenant/account/source revisionの自然Calendar作成と公式readbackで確認する | source採用と顧客予定の実作成を区別する。FNDに非依存 |
+| [ ] CLD02 | 採用済みuncertain create / claim409照合を自然入力で確認し、重複作成0を記録する | CLD01、既存travel claim/Calendar reader。過去NULLは埋めない |
+| [ ] CLD03 | 変更・取消・移動時間/buffer/通知が正しいことを自然create/update/cancelの判断証拠で確認する | CLD03d2bはsource/DB/Cloud採用済み、自然の意味的証明は未取得 |
+| [ ] CLD04 | 採用済みCloudの同SHA/tenant/accountと自然成果を結び、transport PASS/意味HOLDの残件を閉じる | health成功・Telegram成功をCalendar成功に置換しない |
 | [ ] EARN01 | 有償契約の正しい納品と、Capafy既存sellerの新paidを実現する | 該当FND blockerのみ。C5/R01–R08、Paid契約 |
 | [ ] EARN02 | 全18業務を下表の役割別成果まで一つずつ閉じる | DD12/C8/G01。既存ownerは並行継続 |
 | [ ] EARN03 | 注文/fee/refund/実費/入金/active subscriptionを同期間・同通貨で結ぶ | C3/T0/T3、CFO。販売前の完全台帳gateにはしない |
@@ -93,12 +111,25 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 | [ ] EVO02 | 一変数の候補→自然適用→成熟評価→KEEP/REVERT→次回採用を完走する | C6/C9/R16。候補がwinnerでない時はbaseline維持 |
 | [ ] EVO03 | 自然失敗を回帰caseへ戻し、独立held-out/復旧/rollbackを確認する | 旧E03–E06/G02/G03。公開benchmarkは収益の先行gateにしない |
 
+### CI-DURATION — 必要な検証を保ったCI短縮
+
+**目的・範囲・完了条件:** DaisのCI短縮依頼を、直近の実行で最も遅い `life-manager` の `Security Scan` に適用する。所有は `.github/workflows/sec-scan.yml` と関係する既存テスト、本節。全履歴の秘密検査、macOS固有検証、既存テストの受入条件を保ち、GitHubのPR/main実行で時間短縮と全check成功を確認する。production loop/release/applyは変更しない。FND/CLD/EARNの既存順序と他ownerのcursorは維持し、独立するCI改善として進める。
+
+**一次証拠:** [baseline run 39889933473](https://github.com/Daisuke134/life-manager/actions/runs/39889933473) は成功・735秒。最長 `Loop control contracts` はcheckout149秒、unittest441秒（984 tests / runner内438.650秒）、後段pytest117秒。releaseテストは実sourceから10か所でcutを起動し、各cutがoriginをfetchする。これはnetwork依存の実コード証拠であり、441秒の内訳はまだ未計測。
+
+**実行順・現在cursor:** baseline/呼出し経路確認済み → releaseテストのローカルGit fixtureとshallow checkoutの安全性検証 → 最小修正/関連検証 → fresh read-only review → PR/CI → main/通常CIで比較 → 自所有worktree返却。fixtureをPRのHEADへ固定し、外部fetchをlocal bare originへ置換する。shallow checkout→shared bare fixture→local fetchはPASS。変更前に既存bytecodeテストへSHA一致を加えるとmainとPRの不一致でRED、変更後18 tests/7 subtestsとsecurity契約5 testsはGREEN。既存984 unittestは230.229秒でPASS（ローカル値のためCIとの速度比較に使わない）。fresh read-only reviewはblocking 0 / shipで、GitHub型のshallow・detached merge checkoutからfetch/祖先判定/archive/SHA固定も独立PASS。初回統合・CI実測の公式状態は [PR #8601](https://github.com/Daisuke134/life-manager/pull/8601) のexact head checks/main mergeへ結ぶ。テスト削除・検査skip・全履歴scannerの弱化、新依存・cache基盤の追加は行わない。
+
+**追加の実測とnative runner受入:** #8601は全12ジョブPASS/main `1dbf5087b49a`。baseline run 39889933473はworkflow総735秒/loop731秒/loop待機3秒、変更後39892194935はworkflow総711秒/loop628秒/待機82秒。unittest本体は441→445秒で、短縮の中心はcheckout。Intel指定は`0c559693f03`のARM割当15分待ち回避であり、CPU契約ではない。実MacはmacOS15.6/Apple Siliconで、既存984テストはPASS。標準`macos-15`（arm64）を同じPython3.14/同じ全検証でcanaryし、割当待ちを含む所要時間と全ジョブ成功を見て採用する。`macos-15-xlarge`等の追加有料runner、テストskip、別OSへの変更は行わない。ARM採用はPR #8605/main `0af03b5438286cfaba690b397204490caff7a36c`へ統合し、PR run39893541795は全12成功/346秒（baseline735秒比52.9%短縮）、統合SHA固定run39894270441も全12成功。固定runはworkflow_dispatchの全ref履歴走査を含むため、PRの速度比較へ混ぜない。過去の割当不足が再現した場合は、待ち時間を短縮と報告せずIntelの統合済み修正を保持する。
+
+**TruffleHogの重複除去:** 公式action `c85580b` のaction.ymlは表示名に関係なくGit走査を実行する。単一merge-baseのPRでは両旧stepの範囲をcommon ancestor→merge HEADが包含する。fresh reviewで、criss-crossの複数merge-baseではPR base→merge HEADだけにすると旧省略stepが走査する共通履歴の片側を落とす反例を確認する。PRは`git merge-base --all`が1件ならその共通祖先、複数ならbaseを空にしてmerge HEADの全履歴を選び、どちらも旧2範囲を包含する。pushはbefore→HEAD、手動実行は旧省略値の全ref履歴を各1回だけ選ぶ。`--only-verified`、full checkout、gitleaksの全履歴/現在tree検査は維持する。誤ったfilesystem表示をGit履歴へ直す。正本は [action.yml](https://github.com/trufflesecurity/trufflehog/blob/c85580b712841eda4c53bc28fc6ace6100e8c16c/action.yml#L78-L111) と [空refの全履歴選択](https://github.com/trufflesecurity/trufflehog/blob/c85580b712841eda4c53bc28fc6ace6100e8c16c/pkg/gitparse/gitparse.go#L271-L279)。既存required status名の外部依存はRules API空/legacy required status未設定を確認する。実workflow shellを隔離Git fixtureへ適用し、単一/複数merge-baseの旧範囲包含missing0、共通祖先なしexit1/不正ref exit128を独立確認する。PR synchronizeのbefore値へ空baseがfallbackしないよう、pushの場合だけevent.beforeを選ぶ。受入記録は [PR #8610](https://github.com/Daisuke134/life-manager/pull/8610) のexact-head全checkとmain merge receiptへ結ぶ。別eventで範囲が異なる実行時間を同一benchmarkとして報告しない。自所有worktreeは保護対象のtracked `memory/` を含むため削除せず、変更をcommit/push済みのclean状態で保持する。
+
 ### FND patchの実装指示
 
 各項目は同じ順で閉じる。実入力/記録を匿名化して最小REDを先に作る → 原因箇所の最小修正 → 関連GREEN → source/diff/契約review → exact-head CI → PR/main → 対象immutable採用 → 自然成果の公式readback。未再現の仮説を先に実装しない。以下の新テスト名は追加予定の受入名であり、既存テストと偽らない。
 
 **FND01 — 容量の再発をproducer責務で閉じる**
 
+- 文書更新時のread-only観測: 03:59:58ZのData availableは13,022,130,176Bで10GiB revenue/12GiB一般floorを満たす。直前の観測9,982,439,424Bから変化するが、この文書作業はcleanup/producer設定を変えておらず、回復原因を推定しない。過去のfloor未達snapshotは履歴として保持する。容量の一時回復だけではFND01を完了せず、増加owner/後始末の修復と次の自然業務wakeの成果が残る。私有証拠=`spec-only-status-20261023.json`。
 - FND01e開始前wakeのscratch: 共通診断rootは74,252 JSON、部分計測で約304MBを占有し、flat診断JSONに既存run retentionが接続されない。全件を再生成可能とは扱わず、旧unknownの一括削除はしない。exact Capafy runではterminal保存済み・held_effect_unknownだが、同じscratchのhost receiptはeffect0/pre_claim/disk_floor_lowで、FND02bが今後の保持を防ぐ。既存fenceで新wakeのenqueueを拒否する枝もprovider dispatch前であり、そのwakeまでscratchを永久保持すると同じ増加が続く。既存producerへ明示pre-dispatch phaseを保存し、保存済terminalと同runのfresh receiptで開始前と証明できる新wakeだけ既存のowned cleanupへ渡す。jobのunknown・古いeffect fence・過去scratch/診断・journalは保持する。source所有は`lm_loop_run.py`と既存bounds tests、追加daemon/janitor/retention frameworkは作らない。REDは旧fenceを持つ新wakeのscratchのみ回収・provider呼出し0/fence不変、実dispatch後/不正証拠/terminal未保存の保持。currentなsource/CI/main/immutableと自然ownerで確認する。旧floor候補1,253件のpartial probeはファイルallocated約10MBであり、過去scratchの回収だけで容量全体が回復するとは扱わない。
 - FND01d host原因の限定復旧: `top`のMEM/CMPRSはuser501の `corespotlightd` PID48584で各27GBを2回示し、RSS上位だけの観測では圧縮分を見落とす。start identityはFri Oct16 09:24:59、PPID1、safe GUI readbackは `com.apple.corespotlightd` と公式program/同PIDを示す。lsofはCoreSpotlight metadata主体、vmmap summaryは20秒timeoutのため根拠に使わない。空き約8.7GB/9GB swapとmanaged producerのdisk延期を分けて記録する。fresh read-only反証、同PID/start/UID、GUI preflightを確認後、同serviceへ一度だけsafe SIGTERMを送り通常再起動を待つ候補を採る。metadata削除・索引の恒久停止・SIGKILL・Mac/loginwindow/app-server restartは行わない。事後footprint・swap/free・実業務wakeで受け入れ、即時のswap縮小や永久解決を先に断定しない。新しいdaemon/schedulerは追加しない。
 - FND01d実測結果: fresh Codex検証は同PID/start/UIDとMEM/CMPRS各27Gを独立確認する。公式plistはEnablePressuredExit=trueで、正常終了/再起動は保証しない。直前のGUI preflightと同一性確認後のsafe SIGTERMはexit1、旧PIDが存続する。元のstderrを保存できていないため拒否理由は断定しない。追加のsignal0はlaunchctlがinvalid signal/exit64を返し、permission診断として使えない。同じshell signalの再送や強制終了を避け、容量/実業務の未達を維持する。fresh Git garbageは約12MBで、容量解決として無関係なGit削除/GCへ広げない。
@@ -198,15 +229,17 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 自然実行の限界: 採用直後23:59:52Z run18e0ff83a40ec740-52406と09時wake00:00:05Z run18e0ff86aa4f32b8-53683は解除前で、旧resource_effect_unknown/exit75を返す。解除後の自然wake/新no-effect枝/既存canary適用は未確認。追加の手動投稿やfloor迂回で置換しない。私有証拠はfnd05b-accepted-{resolver-dry-run,one-unit-resolve,replay-zero}等へ保存する。
 - 並行診断/順序: 旧=FND01容量/CLD自然対象→残EARN/EVO、新=同自然運転を維持しFND05b→独立FND05c→解除後のWriter wake/既存canary→残TODO。理由は、dailyが残す保留runのownerであるarticle-resumeにも現fence1件があり、その停止境界を特定するため。00:03:19Z free5,167,546,368Bでfloor未達。Data使用量差分3,799,662,592Bは未帰属で、VM増分0、新release191MB/現存pytest約4.5MBだけでは説明しない。snapshot0、unlink済open file論理約152MB、recent Git pack約300MBは個別probe値で、物理増加の合計や主因にしない。既存清掃を維持し、未確認storeを削除しない。
 
-**FND05c — article-resumeの現catch-up停止をexact証拠で診断する**
+**FND05c — article-resumeのquota-before-work停止をexact証拠で復旧する（実装案あり・未受入）**
 
-- 目的/範囲: dailyの保留を引き受けるarticle-resumeの現occurrence18e00a32b6c907c0-21320（queued1792443847.589477、releasebaac8c681314edd1fc430199f30da410d31a4c1c、claimed/unknown1）を復旧対象とする。primaryは既存article_fence_reconcile.py/article_absence_readback.pyの呼出契約、runner証拠producer、関連最小testsと本specを調べる。source atomは境界証明が定まってから同節へ追記する。新ledger/scheduler/7日min一般緩和/汎用exit1受理は作らない。
+- 目的/範囲: dailyの保留を引き受けるarticle-resumeの現occurrence18e00a32b6c907c0-21320（queued1792443847.589477、releasebaac8c681314edd1fc430199f30da410d31a4c1c、claimed/unknown1）を復旧対象とする。primaryは既存article_fence_reconcile.py/article_absence_readback.pyの呼出契約、runner証拠producer、関連最小testsと本specを調べる。source atomは下記の2ファイルに限定する。新ledger/scheduler/7日min一般緩和/汎用exit1受理は作らない。
 - 確認済み: exact own passはstart→missed-daily-schedule-catch-up、exec先own run20261019-210430。archiveにexit1/reportとsource/loaded argv-env bindingが残る。runner証拠agent-7a657b0f44fd4fcc95e3c64820ab4960は同親lifecycle/run/release/attempt1に結び付き、約2.86秒で利用枠上限エラー、timeout/launch/adapter errorなし。stdoutはthread.started→turn.started→error→turn.failed、生成状態prepublication-empty。記事/題名/draft/publication/dispatch/own ledger行なし。欠落だけから無作用と断定しない。
 - 現不足: 既存一般経路はarchiveへrotateしたreport不足/7日未満、reportを局所投影しても非zero終了で停止する。既存historical helperへexact pinのみ投影するとlocal照合を通るが4pair公式absenceが不足し、既存collectorは全pair run_title_missingでreader呼出0。旧10/12 caseのproofを流用せず、通信を増やすだけで閉じるとも扱わない。
-- 順序変更: 旧=受入docs #8574を先に統合/専用copy返却→別copyでC、新=同じWriter専用copyを最新main4c565f83e3へrebase→同PRをC修正へscope更新する。理由は同じresolver/同じprimary所有で、旧1件の許可表追加だけでは今日の同型失敗もunknownへ戻るため。追加copyと並行spec編集を作らず、Bの実測受入を同差分に保持する。B本番2d20f7c9と旧解除済rowは維持し、C旧1件は未解除。
+- 順序変更: 旧=同Writer copy/#8574でC実装受入を継続、新=ユーザーの文書限定依頼に従いCの未commit差分を保持→同copyへ最新main4171151fccをmerge→#8574を文書差分だけで確定する。理由はgoalがpausedであり、未検証コードを文書更新へ混ぜないため。修復再開時の順序はFND01のproducer責務/自然wake確認とC差分受入→Cの限定照合/採用→自然Writer成果→残EARN/EVO。別copy・別SSOTは作らず、B本番2d20f7c9と旧解除済rowを維持し、C旧1件は未解除。
 - 最小source atom: primaryは既存article_fence_reconcile.py/その既存tests/本specだけを変更する。既存catch-up proofへoccurrence固定許可表に依存しないquota-before-workの証明を1本追加し、既存_resume proof終端/resolverへ渡す。新ledger/scheduler/common runner/cleanup framework/新しいproof種別は作らない。現在+保存済ownerイベントからexact自pass/reportを復元し、main祖先sourceの確認済caller契約と親lifecycle/Writer run/releaseを照合する。
 - 肯定条件: 全attemptが終端し、各relayのbinding/EOF/written_bytes/dropped_bytes/storage_errorとhead.binの完全保持が一致する。全CLI eventが既知のwork/tool開始前quota失敗列で、不正JSON/切詰め/欠落/別attemptのworkがない。caller自身のempty run/finisher missing-article停止/投稿未到達を肯定する。既存draftや後続処理が不明な再開runは受理しない。モデル由来本文・記事欠落・codex_attempt_started_work=Falseだけで無作用とせず、追加のprocess非残存gateも発明しない。provider requestは既に発生するためprovider_started/billing/costをfalseや0へ変更せず、無作用はWriter投稿だけを指す。
-- 受入/反映: 実旧caseの構造を隔離fixtureにした最小RED→GREENと、wrong owner/run/release/source/branch、全attempt不整合、tool/work開始、不正/不完全capture、非quota、既存記事・dispatch到達を拒否する関連検証を通す。fresh read-only review/全CI/main→対象immutableを経てarticle-resumeへの1owner採用、旧1件の登録resolve/readback/replay-zeroを先に確認し、既存reconcilerの同helper採用へ進む。一般の7日minやexit1を緩和しない。不足は具体artifactとして保持し、自然再開/公開/売上は別の実receiptで判定する。現調査はsource/state/provider/通信/receipt生成/resolve0。
+- 受入/反映: 実旧caseの構造を隔離fixtureにした最小RED→GREENと、wrong owner/run/release/source/branch、全attempt不整合、tool/work開始、不正/不完全capture、非quota、既存記事・dispatch到達を拒否する関連検証を通す。fresh read-only review/全CI/main→対象immutableを経てarticle-resumeへの1owner採用、旧1件の登録resolve/readback/replay-zeroを先に確認し、既存reconcilerの同helper採用へ進む。一般の7日minやexit1を緩和しない。不足は具体artifactとして保持し、自然再開/公開/売上は別の実receiptで判定する。本回は文書更新のみで、provider/state変更・送信・resolveは0。
+
+- 中断点/残作業: `article_fence_reconcile.py` と `test_article_fence_reconcile.py` にgeneric proof/接続と肯定2件・拒否61条件の未commit実装案がある。修正前REDは確認済みだが、追加後のGREENは未確認。今回のread-only確認ではテストを実行しない。残るsource diff受入→関連test→fresh read-only review→commit/push→全CI/main→対象immutable/1owner採用→旧exact1件の公式照合/解除/readback/replay-zero→自然再開/公開/収益確認を省略しない。PRの文書確定はCコードの受入を意味しない。文書PR統合後もC未commit差分があるため所有copyを保持する。修復再開時に最新main由来の成果branchとleaseを確認し直す。
 
 **FND05 — exact effect復旧と履歴増加を分ける**
 
@@ -3008,7 +3041,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 - English TikTokは既存integration `cmo5rwq2p00twn10yrsdglng3` を保持する。公式Postizで30 enabled / 0 disabled、`@monkmujo` Instagram連携なしを確認。既存planは30枠満杯のためupgrade・他accountの解除を行わず、IGはsetup-requiredを維持する。
 - 公式Postizの直近7日eBook投稿19件はPUBLISHED。最終公開はEnglish TikTok 10/17、日本語TikTok 10/19、日本語Instagram 10/20で、10/21以降の新規公開は未確認。loadedと日次公開再開を混同しない。
-- English TikTokとebook-articlesはmain `1dbf2b502d9f0733e91b6f53a6ecd2ab86675da1`由来releaseでloaded-idle、effect_unknown=false。残る三ownerのfenceはEN Instagram `18dcc929a20914a8-33411`、JA TikTok `18dfbf4b313011a8-82806`、JA Instagram `18e01f3eff2e6368-4807`。既存reconcile read-onlyはidentity不足、JA側は複数claim/URL不一致が残るため保持する。
+- 五ownerのinstalled releaseとloaded-idleはprivate status readbackで照合する。EN TikTok/articlesにも後続のfenceが生じるが、下記exact no-effect照合で二件を解除し、SQLite readbackは各 `released / effect_unknown=0`。保持する三件はEN Instagram `18dcc929a20914a8-33411`、JA TikTok `18dfbf4b313011a8-82806`、JA Instagram `18e01f3eff2e6368-4807`。旧identity不足のexact proofを継続し、新規投稿の再開とは区別する。EN TikTokには `host_admission_deferred:disk_floor_low` もあり、保留解除だけでは日次公開を証明しない。
 - 正式cutでcurrentとなったimmutable releaseは `/Users/anicca/loops/releases/20261023T003543-1dbf2b50`。GUI preflightとloaded-idle判定後、既存deterministic reconcileで上記2ownerだけを採用する。install eventはEN TikTok `b61a61fba8c8d1bdb6a0606e`、articles `40d04c60a05fd859b698784c`。ENの新release自然wakeはno_due_slot/exit0/effect not_applicable。articlesの01:05 JST自然slotは一度resource_capacity_busy/exit75でdefer後、既存queue sequence800614のretry `18e0e59f2d703ec8-48635` が同SHAで自然起動する。compose1回成功、ledger=published、products commit `afffb6c50901ba3e925923d89a29cc6328bbd387`、Netlify run39811116468 success、公開URL `https://aniccaai.com/blog/ebook-en-2026-10-23-01` のHTTP200とtitle一致を確認。記事公開の回復を僧侶動画の日次公開再開とは扱わない。
 - HeyGen旧request `ebook-run.0be57011d69ed7b038a3f8a0.heygen-effect.json` は公式scenesの台本・avatar・voice・locale・speedと保存request SHAが一致し、completed video `492ee7b0f41372ab6856594c9096ea6f` を回復する。既存account lock下でID/公式証拠だけをsidecarへ保存し、state=cost_reconciliation_required、wallet_cost=nullとguardを維持する。個別費用receiptは未取得。旧wallet_beforeと現在wallet_afterから費用を推定せず、同要求を再生成しない。公式wallet $8.28、既存auto-reload enabled $10 / threshold $5を維持する。
 - TikTok disclosureはPR #8544でregistryのpublisher_settingsを実Postiz payloadへ渡す修正をmain統合する。自社eBookの英日TikTokはown-business=true、第三者partnership=false、AI=true。未知integrationの既存設定を変えない。新payloadでの自然PUBLISHEDは未確認。
@@ -3017,7 +3050,23 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **TODO順更新:** 旧順=`四fence照合→disclosure→render→IG→catalog`。新順=`(1) EN TikTokの旧HeyGen要求を無料read-onlyで照合し、独立して既存registryから実Postiz disclosureを修正 → (2) evidenceを失うarticle compose境界を修正 → (3) 修正sourceをfocused tests/PR/main/immutableへ反映し、EN TikTokとebook-articlesのloaded-idle ownerだけ採用し、他三ownerは保持 → (4) 既存08/21自然slotのPUBLISHED/URL/cost/流入を照合 → (5) 残る三fenceはexact official proofを個別回復 → (6) 無料枠ができた時だけInstagram接続 → (7) 新刊 The Art of AI Monks、OSS factory、subscription化`。理由はEN ownerのadmission fenceが既に解消しており、IGは30/30、HeyGenの旧未知要求とdisclosureが現在の実測blockerであるため。AI monk indexと英日4記事はproducts PR #551、main `d4380515c995abd0611987bedead436fbe432dcb`、Netlify success、75 records/48 sourcesを本番確認済み。全体企画の正本はproducts repo `docs/superpowers/specs/2026-10-21-ai-monk-avatar-field-guide.md`、Life Managerの運用TODO正本は本節とする。
 
-**現在cursor:** AM-14 / S11.4。PR #8544の13 checksとfresh reviewがPASSしmainへ統合済み、対象2ownerへimmutable release採用済み。旧HeyGen要求の当時費用receiptは限定検索でも未取得。記事の共有容量待ちは既存retryで解消し、自然公開まで確認済み。次は旧HeyGenの公式Billing/Usageと、三provider fenceのexact proofを進める。JA TikTokは既存job/receipt再利用による後続claimの新規送信0、公式integration・caption・upload hash一致まで確認するが、現adapterへ渡すidentity/proofが不足するためfenceを保持する。三provider fenceを個別照合し、根拠なしに解除・再送しない。products側では既存運用の費用照合と独立してAM-13書籍出版を並行する。日次配信復旧、注文、収益は未達として保持する。
+**現在cursor:** AM-14 / S11.4。完成済みHeyGen素材と費用未照合を分けるPR8611をexact-head CI→main/immutableへ進める。既存動画の台本/要求/ID/hashを変えず、別slot生成guard・個別費用null・残三fenceを維持する。JA Instagramは元runと両claimantのpre-effect marker/source境界を照合できる追加証拠を得たため、source反証後に限定bridgeを進める。JA TikTokは旧claimから既存job/receiptへのexact identity不足、EN Instagramは30/30・未接続を保持する。loaded5ownerはfb0b5d5dでinstalledと一致するが、新SHAの自然PUBLISHEDは未確認。空き約9.12GiBは収益10/producer12GiB未達。製品側のAI Monk Database・日英記事/書籍・CLI/MCPは公開済みだが、日次動画配信復旧・実購入/paid納品・収益・OSS factory・subscriptionは未完とする。運用の順序は費用記録探索だけを続ける旧cursorから、完成素材再利用のsource修復→個別fence proof→容量条件下の既存owner自然公開へ更新する。理由は費用欠測と素材準備の混同が無料の既存素材利用まで止めているため。既存外部effectは中断・再送しない。
+
+**AM-14完成素材の再利用契約:** 旧動画はprovider completedでも個別費用が欠け、rendererがreconciliation_requiredを返すため同じ動画の利用も止まる。費用欠測を0やcompleted会計へ変換せず、同一request/video IDの公式completed確認・既存assetのhash固定を条件に、rendered receiptへwallet_cost=nullとcost_reconciliation_requiredを明示して渡す。sidecarはcost_reconciliation_requiredを保持し、別slotの新規HeyGen生成guardを解除しない。manual既存素材経路は同じprovider receipt ID・出力hash・明示的未照合状態だけを受理し、tamperや未完成を拒否する。新しいrender framework、費用推定、paid再生成、投稿再送は追加しない。source所有はheygen_candidate.py、既存manual検証JSと関連tests、契約資料のみ。REDは既存動画の取得/再利用、費用null/新規create0、改変拒否、別slot生成保留。完了は関連tests/Loop Contract・fresh review・CI/main/immutableと、既存ownerの自然run・公式投稿receiptを分けて判定する。今回のsource受入だけで日次配信復旧とはしない。
+
+**AM-14完成素材source受入:** 旧動画のrenderer再利用2件・manual既存receiptの2経路で正しいREDを確認し、費用null/要照合・新規create0の最小修正で19Python/27JSとLoop Contract18業務191jobsがPASSする。既存owner test2件の14時fixtureは運用pack08/21に合わせ21時へ更新する。fresh reviewerが欠損assetの再download時に元hashを上書きできる枝を発見し、既存回帰へREDを追加、staging保存前の元hash照合で修復する。実旧slotの保存script IDと現packの選択はcf3a13805958a5a9c6a76b3dで一致し、caller変更は不要。live doctorは別owner ai.anicca.provision-browser.tiktok.hooklabのunmanaged1件でFAIL、無関係ownerは変更しない。full runtime984 tests、adapter registry15件はPASS。runtime suiteはSQLite ResourceWarningを出すがexit0。fresh reviewerの修正後再確認は未解決0件。PR8611のCI/main/immutableは確認中。
+
+**AM-14 runtime再観測:** 12:24 JSTの正規launchctl-safe printで5ownerのloaded ProgramArguments/env release SHAはinstalledと一致し、20261023T114601-fb0b5d5d / fb0b5d5d3b70e9907b66ba7263c954cca4d71a53を確認する。selectorの87a90136と混同しない。active admissionのEN TikTok/articles unknownは0、残3fenceはclaimed/effect_unknown=1。最後のEN TikTok terminalはff6821bbのdisk_floor_low/exit75で、新loaded SHAの自然投稿証明ではない。HeyGen sidecarは完成ID492ee7b0f41372ab6856594c9096ea6f・費用null・MP4不在。free約9.12GiBは収益10/producer12GiB未達。新規apply・生成・再投稿は行わず、完成素材利用のsource境界と残fenceのexact proofを進める。
+
+**AM-14の限定source修復:** 専用branch `fix/ai-monk-receipt-proof-20261023` は、`ebook-distribute-daily.js` の既存receipt再利用と `mobile-postiz-provider-reconcile.py` の既存official readback経路、必要なruntime hint契約と関連testsだけを所有する。再利用receiptの元 `origin_occurrence_id` / `provider_effect_created` を保存したまま、現在claimのprovider dispatch有無を区別する。JA TikTokのsnapshotは現在receiptとhashが異なり、追加journalは `receipt_correct`、enqueue/claim/completeは各1件・attempt1のままである。旧identityを推測して本番へ追記せず、既存journal・claim・release sourceで一意に証明できる境界だけを最小RED→GREENで修復する。不足するproofは具体化してfenceを保持する。workerのDONEはfocused tests・commit/push・primaryへのreview引継ぎ。本番fence解放・provider再送・新規HeyGen生成・merge/release/applyはprimaryが所有する。
+
+**AM-14 source受入:** 外側lookupと `executeJob` 内の再lookupで完了receiptが見つかる両経路をREDで再現する（旧hintは `effect=1`）。最小修正は現在claimへ `receipt_reused` の既存typed no-effect hintとidentityを記録し、receipt本体・元originを変更しない。新規jobの実行経路はeffect hintを維持する。JS eBook 25件、identity/ledger/video adapter/registry 71件、runtimeの変更2ファイルの全422件と56 subtests、Loop Contract 18業務/191 jobs/errors0がPASS。これはsource候補であり、本番の採用・fence解放・新規投稿の証拠ではない。
+
+**AM-14 review修正scope・受入:** fresh reviewが指摘したEN Instagramのterminal受入漏れを修復する。同ownerはhint readerが `receipt_reused` を受理するが、terminal側の旧3owner集合では拒否される。4ownerの同形terminalでEN Instagramだけ `no_pre_effect_terminal` となるREDを確認し、`lm_loop.py` の当該理由の完全一致だけEN Instagramへ限定許容する。`EBOOK_DISTRIBUTION_LOOP_IDS` とlegacy/env proofの対象は維持し、EN Instagramの `setup_required` / `no_due_slot` / `render_not_ready` は引き続き拒否する。回帰focusedはPreEffectForeignClaimTests 26件＋11 subtests、hint reader 3件、JS eBook 25件、diff checkがPASS。同PRへpushしてprimaryのfresh再reviewへ渡す。本番fence/stateには触れない。
+
+**旧JA TikTokのexact bridge要件:** 当時sidecarが無い `18dfbf4b313011a8-82806` は今回のsource修正だけでは閉じない。primaryは、(1) 自身のdisk-floor deferralと後続claim `18dff3a41b433450-51537` を同occurrenceへ結ぶevents、(2) retained release `20261019T150829-baac8c68` のreceipt再利用call path、(3) claimant開始前にcompletedとなる唯一のjobと元origin `18dfbec0c5a2d540-51433`、(4) URLのみを直す `receipt_correct` とreceipt current SHA `3562d1c75f45925d8e5a87e7c0b1e8daff67bc6c0d368f20aaf7b3fc77a83487`、(5) 公式Postizのexact ID/integration/caption/native URL、を一つの検証可能なproofへ結ぶ必要がある。fresh GETは同ID1件/PUBLISHED、native ID `7698333137004268821`、訂正後URL・caption SHA一致を確認する。local videoは1,316,691 bytes/SHA一致。現list APIにはupload bytes/hashが無く、remote upload一致は旧snapshotの観測でありfresh再確認ではない。旧sidecar/result hintの後付け、originの上書き、投稿再送で穴を埋めない。
+
+**別fenceの境界・公式照合:** main由来の既存release `20261023T083953-b19e4e5b` とfresh read-only検証者で二件を個別照合する。EN TikTok `18e0ea5c73ea38b0-92756` は後続claim `18e0f160d012f478-17304` のexact `no_due_slot` terminal（`ebook/events.jsonl` line13789）を持ち、既存pre-effect resolverが同occurrence一件をresolvedとする。articles `18e0e8e3f1329288-21858` は既存 `ebook_article_fence_reconcile.py` がGitHub公式historyで `verified=true/effected=false/closed=true` を返す。共有admission DB lockによる初回失敗は保持し、lock ownerを観測してread-only DBが再び読めることを確認後に個別再実行する。最終SQLite readbackは両occurrenceとも `released / effect_unknown=0`。新規provider投稿は行わない。根拠はprivate `ebook/evidence/ai-monk-{en-tiktok-pre-effect-close-attempt2,articles-fence-close-attempt3}-20261023.json`。今回のJS source修正を本番採用した結果とは扱わない。
 
 | Atom | exact file/input → output / dependency | DONE evidence | focused source check if code changes |
 |---|---|---|---|
@@ -21776,7 +21825,9 @@ TDD/verification: adapter 35/35 focused tests pass, including missing snapshot A
 
 **Evidence — current-main localization key coverage:** applying the parser in `apps/mobile/anicca-ios/scripts/localization/check_strings_parity.py` to `origin/main` `2345448e027` gives EN 2,435 keys; JA 2,463 (0 missing / 28 extra); ES 2,336 (104 missing / 5 extra); DE 1,113 (1,325 missing / 3 extra); FR 1,138 (1,325 missing / 28 extra); PT-BR 1,113 (1,325 missing / 3 extra). ES gaps include onboarding, paywall, and nudge keys. DE/FR/PT-BR each lack 1,185 `nudge_*` keys plus onboarding/paywall keys. `NudgeLocalizationTests` checks EN/JA nudge coverage only; tracked-source search found no CI call to the exact-parity script. These are resource-key differences, not yet a runtime proof of what users see; verify fallback behavior and referenced keys before claiming complete localization. JA has no missing EN keys, but its extra keys still need review.
 
-**Evidence — distribution and creative:** the official I am Instagram profile returned 2.0M followers and 5,470 posts (`https://www.instagram.com/iam.affirmations/`); its Linktree connects the app download, blog articles, app bundle, Instagram, TikTok, Facebook, Threads, and X (`https://linktr.ee/iam.app`). The official TikTok video `https://www.tiktok.com/@iam.app/video/7500960158898588971` is 14 seconds and its public metadata reports 4.5M views, 18.2K likes, 142 comments, and 892 reposts. Frames show a creator-face hook, then a two-step lock-screen/widget demonstration ending on the affirmation widget. The Instagram Reel `https://www.instagram.com/iam.affirmations/reel/Dc--fsolO-X/` is 8 seconds with 1,529 likes and 7 comments; it uses one emotionally specific affirmation over a subtle moving background with a small brand mark, while the caption routes to the app. These are engagement observations, not install attribution. The repeatable patterns are short, emotionally specific shareable copy, a concrete product demonstration, soft save/share/app-link prompts, frequent cross-platform publishing, SEO articles, and portfolio cross-promotion. Generate Anicca-original wording and visuals from those patterns. Do not claim notification-to-same-quote behavior in a demo until that UX fix has production readback.
+**Evidence — distribution and creative:** the official I am Instagram profile returned 2.0M followers and 5,470 posts (`https://www.instagram.com/iam.affirmations/`); its Linktree connects the app download, blog articles, app bundle, Instagram, TikTok, Facebook, Threads, and X (`https://linktr.ee/iam.app`). The official TikTok video `https://www.tiktok.com/@iam.app/video/7500960158898588971` is 14 seconds and its public metadata reports 4.5M views, 18.2K likes, 142 comments, and 892 reposts. 公式embedの再取得で `isAd: true` を確認し、広告クリエイティブの参照例として扱う。自然拡散の証拠には使わない。 Frames show a creator-face hook, then a two-step lock-screen/widget demonstration ending on the affirmation widget. The Instagram Reel `https://www.instagram.com/iam.affirmations/reel/Dc--fsolO-X/` is 8 seconds with 1,529 likes and 7 comments; it uses one emotionally specific affirmation over a subtle moving background with a small brand mark, while the caption routes to the app. These are engagement observations, not install attribution. The repeatable patterns are short, emotionally specific shareable copy, a concrete product demonstration, soft save/share/app-link prompts, frequent cross-platform publishing, SEO articles, and portfolio cross-promotion. Generate Anicca-original wording and visuals from those patterns. Do not claim notification-to-same-quote behavior in a demo until that UX fix has production readback.
+
+**フックと実媒体の再確認:** 公式captioned embedと実際の最初のframeで、[I am DeXC2XqCeKw](https://www.instagram.com/iam.affirmations/reel/DeXC2XqCeKw/) は8,361 views/1,607 likes（8秒、つらい気持ちを受容する一文、captionでアプリCTA）、[DeZE9jqGyaw](https://www.instagram.com/iam.affirmations/p/DeZE9jqGyaw/) は1,577 likes（6枚、重たい日を名指す表紙と肯定文、直接のアプリCTAなし）、[DerGcR3jj70](https://www.instagram.com/iam.affirmations/reel/DerGcR3jj70/) は30,543 views/6,207 likes（未来を先取りする肯定文、直接のアプリCTAなし）を確認する。公開反応の観測であり、インストール・収益の証拠ではない。取得URL・時刻・source response・最初のframeは `~/.local/state/life-manager/evidence/mobile-flagship/20261023/competitor-hooks/index.json` に保存する。TikTokのwidgetデモは通知タップとは別の挙動であり、公開Anicca版のwidget/日替わり挙動は本調査では未検証なので、商品事実を確認してから再現する候補とする。
 
 **Evidence — free research tools:** `every-app/open-seo` is MIT-licensed (`https://github.com/every-app/open-seo`). Its public Competitor Keyword Finder returns up to 20 keywords without signup, with usage limits; its full workspace starts at $10/month and includes $0.50 trial credit (`https://openseo.so/competitor-keyword-finder`, `https://openseo.so/pricing`). Docker/Cloudflare self-hosting still requires a DataForSEO API key and direct pay-as-you-go provider use (`https://raw.githubusercontent.com/every-app/open-seo/main/docs/SELF_HOSTING_DOCKER.md`, `https://raw.githubusercontent.com/every-app/open-seo/main/docs/DATAFORSEO_API_KEY.md`). The public no-signup tools were queried on 2026-10-15 for `blog.theiam.app` and `aniccaai.com` in US, JP, and ES, plus one keyword seed per locale; no account or trial credits were used. Competitor US results: the I am blog reports 20 keywords, including `daily affirmations for men` (2,400 monthly, difficulty 15, position 10), `full moon affirmation` (320, difficulty 0, position 2), `lucky affirmation` (260, difficulty 0, position 3), and zodiac/persona pages at positions 1–2. Anicca reports only `annica` (720, position 49). Both domains report zero ranking keywords in the tool's Japan and Spain indexes. Keyword Generator estimates: US `daily affirmations` 33,100 monthly (difficulty 42), `daily affirmations for women` 6,600 (19), `daily affirmations for men` 2,400 (15), and `daily affirmations app` 1,300 (50); JP `アファメーション` 12,100 (2), `アファメーションとは` 6,600 (0), `アファメーション 例文` 590 (0), `アファメーション やり方` 390 (3), `新月 アファメーション` 260 (7); ES `afirmaciones positivas` 1,300 (0), `afirmaciones positivas diarias` 260 (0), `afirmaciones positivas yo soy` 260 (0), and `afirmaciones positivas para dormir` 90 (0). These are estimated search volumes/index samples, not actual visits, and a zero-ranked-domain result does not mean zero local search demand. Review SERP intent before publishing; the data contains noisy variants. TREG CLI 0.25.0 is installed. Catalog reads show `treg.google.serp.organic` costs `$0.00015/success`, Google Trends costs `$0.0012/success`, and Google Ads keyword volume is free only with a Google Ads connection; `treg tool ls` is empty and that connection is absent. Only catalog reads were made; no paid TREG endpoint was called and no balance was spent. Under the $0-spend constraint, continue with OpenSEO public tools and free first-party/public sources; do not start the $10 subscription, buy credits, connect Google Ads management access, or call priced TREG endpoints.
 
@@ -23069,3 +23120,72 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 4. EARN02（PromptBase）: 審査結果と販売をSales tabで読み戻す。
 5. FND04/FND05/FND06、CLD03d2b/CLD04: primaryの現在cursorどおり継続する。
 6. 未解決の権限境界: `killall corespotlightd`はClaudeのauto-mode classifierで拒否される。容量の主因が再び同processになった時だけ、primaryが記録したActivity Monitor「終了」経路を使う。
+
+
+
+## Anicca旗艦・公開6アプリの配信と継続課金
+
+**目的・範囲・完了条件:** Aniccaを旗艦とし、公開6アプリのプロダクトと無料の既存SNS/Web配信を改善する。最初の事業成果は6アプリ合計MRR USD 10,000、その次に各アプリUSD 10,000を追う。MRRは公式の有料継続契約readbackで判定し、Apple Proceeds、ダウンロード、RevenueCat New Customers、投稿数をMRRへ置換しない。通知タップから表示本文と同一メッセージを開き、ペイウォール読込失敗で進行不能にならない版をApp Storeへ提出する。新しい配信基盤・有料広告・有料調査API・装飾アニメーションは先行条件にしない。毎週10倍は意欲的な目標であり、予測や保証として報告しない。
+
+**今回の一次証拠:** AppleのApp Analytics Weekly Summary（Gmail message 1a1652451bbb5752、受信2026-10-23 04:44 JST、対象2026-10-12〜18）は以下。App Unitsはメール記載の指標として保持し、ユニーク訪問者を分母にしない。
+
+| アプリ | 表示 / 前週比 | App Units / 前週比 | メールのProceeds |
+|---|---:|---:|---:|
+| Honne | 837 / -9% | 8 / +14% | 0 |
+| Dhamma Quotes | 259 / -12% | 4 / +33% | 0 |
+| Daily Affirmations - Anicca | 234 / +4% | 2 / -71% | 0 |
+| For Better Sleep - Sleep Reset | 94 / +19% | 1 / 比較値なし | 0 |
+| STUDIO CHERIE | 96 / -13% | 0 / 比較値なし | 0 |
+| Thankful - Gratitude Journal | 73 / +16% | 0 / 比較値なし | 0 |
+
+合計App Unitsは15。Aniccaの表示増加とApp Units減少は観測事実だが、原因を通知やペイウォールへ断定しない。vidIQの接続済みYouTubeチャンネルとInstagramアカウントはともに空で、非公開analyticsは未取得。Postiz公式GETの直近7日間は431投稿行、30接続。投稿数には他商品の配信も含むためAniccaの到達やインストールを示さない。private evidenceは `~/.local/state/life-manager/evidence/mobile-flagship/20261023/{integrations,posts}.json`。公開Apple LookupはAnicca 1.9.4（2026-06-24公開）。ASC live GETでは1.9.5 REJECTED、build391不在、最新Xcode Cloud #805 ERRORED/actions空。通知とpaywallの既存修正はcanonical `apps/mobile/anicca-ios` にあるが、新版への収録・提出・公開は未完。
+
+**追加の公式readback:** RevenueCatの2026-10-22 complete MRRはAnicca USD20.34 / Honne USD0.00。残る4アプリはRevenueCat project未登録でMRR未確認を保持する。PostizのAnicca関連16アカウントでは英語Instagram `anicca.en` の直近2本が1,946/1,818 views、保存各3、共有各1。英語TikTok `aniccaaffirmation` は171/119 views、`anicca_slideshow` は123/146 views。これは現在累計値の小標本であり、同じ24h cohortや課金効果の勝敗として扱わない。YouTubeではrate limitとdaily upload quota超過が確認され、失敗投稿の重複再送は行わない。証拠は同private evidenceディレクトリの `anicca-native-metrics.json` / `revenuecat-mrr.json`。
+
+**提出経路の最小修正:** `fastlane/Fastfile::submit_review` が選んだversionを `deliver(app_version:)` へ渡さない不備を修正する。外部提出をstubした実laneの回帰テストで、明示/既定versionの両方が変更前nilで失敗し、変更後2 tests/4 assertions PASS。Fastfile syntax PASS。これは審査提出の成功を意味しない。
+
+**正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`、現在branchは `growth/mobile-six-app-metrics-20261023`。提出version修正#8582、場面別copy/改行修正#8583、単一jobのclaim読込限定#8587、24h学習入力修正#8589、各言語72hookの#8592はmainへ統合済み。これらを含むmain由来immutable release `ff6821bb9ccefe8094f023e34471de6d0df7ce3a`を作り、Aniccaの日英carousel 8ownerを1件ずつloaded-idle限定で反映し、launchctl-safeの公式読込argvが8件すべて同releaseと一致することを確認する。新copyの自然PUBLISHED receiptや売上改善はまだ未確認。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
+
+**投稿台帳のclaim読込限定:** 配信台帳の単一job操作が全9,645 claim JSONを読むことによるロック競合を、`.worktrees/mobile-ledger-claims-20261023` / `fix/mobile-ledger-claims-20261023` の台帳実装と既存testで直す。primary観測はreadJob 1.735秒中claim読込1.509秒、生存ownerのglobal lock保持6.093秒に対し待機上限1,000×2msでtimeoutとなる。既存`keyFor(tenantId, jobId)`の対象markerだけをsnapshotへ渡し、複数jobのslot候補選択・conflict隔離は全claim scanを保つ。journal/receipt形式、claim-before-event復旧、lease/CAS/fence、unknown保持、partial-tail安全性とlock待機条件は変えず、index/cache/DB追加・台帳削除・本番mutationは行わない。時間閾値に依存しない追加testは変更前2 fail（exact操作19回の全claim列挙、無関係marker破損による対象復旧失敗）/候補照合1 passから変更後3/3 PASS、全ledger36件＋関連50件とdiff checkもPASS。隔離fixtureの9,645件に対するreadJobはclaim読込9,645→1件、総時間151.471→0.291ms（claimファイルreadのみ121.118→0.025ms、各1回の参考値）で、これは本番性能や自然実行成功を証明しない。PR/merge/releaseと自然実行・公式readbackの判定はprimaryが所有する。
+
+**順序更新:** 旧順序はローカルレポート修正→release→計測baseline→自然投稿→ストア/翻訳→creative/SEO→通知/paywall。新順序は下表。理由は既知の修正が未配布であることと、Apple週次でAniccaのApp Unitsが減少していること。既存slotの自然配信を止めず、過去投稿の重複再送を行わない。過去の1,000ダウンロード/日目標は計測上の別目標として維持するが、MRR達成を判定する必須gateにはしない。
+
+| 順序 | 作業 | 受入条件・現在状態 |
+|---|---|---|
+| 1 | 修正を含むAnicca新版をbuild/upload/審査提出 | 現在cursor。canonical main SHA→version/build→ASC build→審査提出receiptを結ぶ。sourceやbuild起動だけで提出済みとしない |
+| 2 | Postizの投稿別到達と6アプリの流入/課金baselineを更新 | #1と独立して進める。対象アプリIDをAppleの公開6アプリと照合し、完全な期間・欠損・取得元を保存。既存collectorが別アプリを見ていれば最小修正 |
+| 3 | Aniccaの既存slotでフック/スライド/実機デモを改善 | 同対象の成功事例URL・実測成果・模倣する仕組みを記録。元の文言/画像を複製せず、感情/場面を絞った導入、短い構成、読める画面、App Store CTAの各変数を検証。24hと7日の到達/保存/共有/流入で比較し、joinできないインストールは未帰属とする |
+| 4 | X/IG/TikTok/YouTubeとWeb/SEO/AEOを既存配信へ接続 | アカウント別cadence、native URL、広告費0、計測可能なCTAを確認。検索意図別の独自記事からアプリへ誘導。検索表示/クリックと売上を分ける |
+| 5 | 勝った型を他5アプリへ商品事実に合わせて展開 | 6商品のregistry/掲載先/計測IDの一致、各商品別の自然公開receiptと流入/課金。Aniccaと他商品の実験結果を混ぜない |
+| 6 | 毎週の結果で次の配信・課金改善を選び合計MRR USD10Kへ継続 | 施策、比較期間、基準値、観測結果、継続/停止/変更の判断を既存specへ更新。公式売上未確認を成功/0に変換しない |
+
+**配信copyの今回変更:** 公式I am Reel `https://www.instagram.com/iam.affirmations/reel/Dc--fsolO-X/` を再取得し、アプリへ誘導するcaptionと約1.5K likes/7 commentsを確認する。動画映像自体と課金効果は今回再検証していない。借りるのは「特定の感情に絞ったアファメーション→アプリCTA」の仕組みで、文章・画像は独自に作る。現行 `marketing-slide-pack-text.js` はhookと無関係に16の汎用本文から4つをshuffleしており、同じ導入でも話題・順序が変わる。今回は既存のEN/JA・3family・無料生成・slot冪等性を保ち、8つの生活場面ごとに導入と4枚の本文を一組として選ぶ。朝の支度、仕事終わり、比較、失敗、休息など場面を具体化し、本文は同じ場面に対する自己への言葉として順に読める構成にする。製品の効能・売上・通知修正済みの実機デモを創作しない。受入は既存の生成/slide-pack検証に加え、同じ導入の本文がseedによって無関係に入れ替わらない回帰テスト。回帰テストは変更前に同じhookの本文不一致で失敗し、変更後は既存factory/gateを含む25 tests PASS。効果は既存slotの自然PUBLISHED receiptと24h到達/保存/共有/流入で判定し、このcopy変更だけで改善済みと報告しない。
+
+**描画の実測修正:** 実際の1080×1350画像で英語 `with` が `wit` / `h` に分断されることを確認する。文字数・contrast gateだけでは単語途中改行を検出できない。既存Pillow rendererは英語を単語単位で折り返し、日本語の文字単位改行と、1行幅を超える長い単語のfallbackは保つ。実fontで元の見出しを描画し、改行後の英単語列が元と一致する失敗テストを先に確認する。
+
+**補助skill:** `ParthJadhav/app-store-screenshots` の公式READMEを確認。実スクリーンショットからストア画像を作るエディタで、アプリ内アニメーション用ではない。新版と配信の先頭作業を妨げない範囲で後続へ利用する。`rosssark-motion-skill` は添付画像の名前だけで配布元未特定のため、任意の同名packageを導入しない。
+
+**勝者のhookを展開する今回の範囲:** Daisの追加指示に従い、汎用的な言い換えではなく、実投稿で反応を観測した導入・copy・構成をAniccaへ移す。自社の同アカウント24h指標では `@aniccaaffirmation` の「4 small habits for a calmer day」が907 views/18 likes/1 share、`@anicca_slideshow` の問いかけが299 views/16 likes。指標の取得時刻・Postiz ID・pack hash・本文はprivate evidence `own-winning-hooks.json` にある。小標本の相対上位で、売上の因果証明ではない。競合の一次embedと実媒体は `competitor-hooks/` に保存し、実際の表紙・最初のフレームを確認する。借りるのは「重たい日のための言葉」「行動の直前に読む４行」「特定場面への問い」「自分を責める思い込みの反転」の導入。既存3family・8場面を維持し、各場面の各familyに3案、各言語72のhookを持つ。本文４枚は同じ場面を保ち、hookだけの改行挿入/削除・空白変更・大文字化を別案として数えない。新しいscheduler・有料生成・配信枠増加は加えない。受入は各familyで24の異なるhookをavoid指定で選べること、同じhookと本文の対応、同じ入力の冪等性、実画像の読みやすさ。回帰testは変更前に改行差分を別文と扱って1案目で再選択しFAIL。独立reviewで改行削除も同じ文を再選択する境界を確認し、専用testのFAIL後に空白を除いた比較へ統一する。変更後に生成/factory/gate計27 tests PASS。公開後は同一account/24h窓で比較し、保存・共有・追跡可能な流入も残す。現行のfamily選択を超える個別hookの勝敗は、投稿別データで判断し、再生増を課金増とみなさない。
+
+**24h学習入力の契約修正:** 稼働releaseには24h viewsからfamilyを選ぶ処理があるが、native collectorは`locale`を出力せず、carouselの`product_id`もnullになる。consumerが両方の完全一致を要求するため、7つのcarousel laneすべてで利用familyが空になる。既存のproduct別配信receipt・pack→family・Postiz post ID・integration・platform・公開時刻の一致から同一投稿を結び、collectorに無いproduct/localeはそのreceiptのlaneから確定する。collectorが値を持つ場合の矛盾は引き続き除外する。24h/measured/in_window、最低3投稿、重複と曖昧性の除外、7日間の再掲防止は保持する。`growth/mobile-feedback-20261023`で実collector形状の回帰testが変更前は空配列で失敗し、変更後は選択・rotation計36 testsとsource-boundary/diff check PASS。原データを変えないread-only replayで、6 laneが各3 familyを比較でき、Anicca英語TikTokではlisticle 388.1 views/7投稿、question-hook 244.3/7投稿、myth-vs-fact 254/4投稿を得る。小標本の過去24h平均であり、因果効果や売上増加を証明しない。残るAnicca英語2は最低件数に満たず比較を留保する。別の評価台帳・collector・schedulerは追加しない。原データの書換えや公開投稿はこの修正の検証に使わない。
+
+
+**公開6アプリの流入計測の欠落:** `life-manager-tiktok-metrics` の `tiktok-metrics-due.js` は22時以降に `marketing-asc-acquisition.js::persistAscAcquisition` を呼ぶ。同collectorの対象はAnicca/Honneと旧4商品だけで、公開Dhamma/SleepReset/STUDIO CHERIE/Thankfulが無い。`business_outcomes.py::PRODUCTS` には4商品が既に登録済みで、そちらの欠落ではない。fresh ASC GETで公開4商品のapp IDと有効ONGOING analyticsReportRequestの組を確認する。今回は `marketing-asc-acquisition.js`、既存test、当節を所有し、既存6商品は保ったまま公開4商品を追加する。collectorやschedulerを増設せず、RevenueCatの旧4商品や共有設定、当日保存済みpointerを変えない。4商品それぞれの実report一覧でr3/r4/r15のIDと名前も一致する。追加前の回帰testは4商品の欠落で2 FAIL、追加後はASC/persist/replay・既存product summary・due runner計32 testsとloop-contractがPASSする。受入は既存の日次persistで追加4商品の公式app/request IDがcollectorへ渡り、保存・再実行で同じsnapshotが使われること、欠損はunavailable/nullを保ち、実測ゼロだけをゼロとすること。sourceの回帰test→既存metrics関連test/loop-contract→PR/main→immutable release→metrics ownerのloaded-idle限定反映→自然実行/公式取得を追う。追加4商品のSNS配信先とRevenueCat MRRは未接続・未取得を保持する。根拠はprivate evidenceの `additional-app-analytics-requests.json`、`additional-product-source-map*.json`。iOSのfresh readbackはbuild391不在、#805 ERRORED/actions空のままで、新しいbuildを重複起動しない。
+
+**新版提出の認証経路:** ASCの公式GETでAnicca app/bundle、唯一のGitHub provider、旧`anicca-products` primary repository、main git referenceを照合する。最新#805はCOMPLETE/ERRORED、sourceCommit空、後続actionなしで、再実行中ではない。正本`life-manager`はSCM一覧に無いが、GitHub grant失敗やtoken失効の原因は未確定を保つ。既存ブラウザ登録のGitHubはRailway SSO専用のため、提出用途へ流用しない。既存provisioner/guardを使う専用`mobile-release:dais`・profile `~/.cloak/profiles/mobile-apps-release`・owner `life-manager-mobile-release`を、`agent-core-rules`の`registry/browsers.toml`に1件追加する。新しいbrowser daemon/loop/client、cookieコピー、固定portは作らない。TOML parse・identity/profile重複なし・既存行不変を確認し、専用branch/PR/mainの確定blockだけをruntime registryへ反映する。他ownerの未commit registry差分を保ち、CASで競合時は再読込する。認証は既存credential SSOTの`github-web-login`と`apple-app-store`を使う。12GiBのbrowser admission未達では起動せず、起動可能後にguard lease→実session/account→GitHub installation/grant→ASC canonical SCM登録→既存workflowの正本参照→build/upload/提出receiptまで追う。identity登録やsource mergeだけで提出済みにしない。
+
+**Thankfulの実課金経路:** 公開版1.0.1/build8に対し旧standalone repoは1.0.0/build1である。移動先`anicca-products/mobile-apps/rork-thankful-gratitude-app`は同bundle・1.0.1/build7で、公開binaryとのexact commitは未証明。旧repoのMirrorによるAPI key取得は移動先で既修正なので重ねて直さない。現行移動先の`PaywallView.purchase()`はoffering/package欠落で`onPurchaseSuccess()`を呼び、callerが`isPro=true`にする。選択したpackageが無い場合の`.availablePackages.first`も別プランを購入し得る。独立する#2の診断で見つけたこの経路だけを、既存のエラー表示を使って商品欠落時は課金・Pro付与・成功通知を行わず、選択したプランだけを購入するよう修正する。既存の有効pro entitlementによる購入/復元成功、dismiss、価格設定は保つ。所有は当節とpublisher repoの該当Paywall/必要最小の既存test・関連仕様。実コードの購入分岐を検証する最小RED→GREEN、必要CI/review/main、既存の配布経路で新版を反映して公式build/提出を確認する。native buildや配布が未検証ならそのまま残し、source修正を公開版やMRR改善と同一視しない。既存TODO順は変えず、Anicca新版提出を主cursorに保持する。根拠はprivate evidence `four-app-billing-readback.json`。
+
+### FND01/FND06 容量の実測：旧release固定とworktree返却 — 2026-10-23 Claude
+
+- 空きは5GiB→13GiB（anicca-productsの統合済み・clean・24h未更新・使用process0のworktree 7本をforce無しで返却し2,994MB、同時間帯の他ownerの回収を含む）→swap 6.8→8.2GBの増加で7GiBへ戻る。空きの振れはswap（`corespotlightd` 2.7GB・`mds_stores` 1.3GB）が主因。
+- `~/loops` 10GB = `dependency-bundles` 5.6GB（npm bundle 15個×約375MB）+ releases 3.2GB（35本）。`prune_dependency_bundles`は参照0のbundleだけ消し、`loaded_release_roots`は読込状態に関係なく`~/Library/LaunchAgents/*.plist`全件を保護する。
+- 9/17–10/10のreleaseを指すlabel 18件が旧bundle 6個（約2.2GB）を固定する。`lm-loop apply --loaded-idle-only`の実測理由（全44旧label）: `pending-admission` 16（ubi-watcher/earn-watch/pm-live-trade/reinvest/x-repost系/agentmail系/life-manager-daily/marketing-mine-daily/disk-cleanup-15d/treg等、registryにadmission_class・resource_class・priorityの型付きpolicyが無い旧owner）、`loaded-running` 25（keep_alive browser/franklin/x402/mcp）、`disabled` 2（alpaca-investment-live、capafy-ig-marketing-daily）、`effect_unknown` 1（lancers-revenue-storefront）。registry外2（job-search-mercor-browser、x-tweeter-pass）。
+- 次の手（FND06）: 旧16ownerへ#8564と同じ型付きadmission policyを宣言して通常applyで現releaseへ移す（money/trade系は効果の挙動差をreviewしてから）、disabled 2件と未登録2件はretired_labelsへ移して既存`_retire_labels`でplistを外す。これで旧release/bundleが通常GCで回収される。
+- 未実施: 残骸 `~/Projects/anicca-products/.worktrees/ebook-publishing-media-20261021`（Git登録解除済み・追跡ファイルの複製3.4GB）と`~/Projects/anicca-products-worktrees/af-click-receipts`（.DS_Storeのみ）の削除はClaudeのclassifierで拒否。
+
+### Manager cloud実行の実証 — 2026-10-23
+
+Manager（仏教的AIエンティティ／デジタル仏陀）の実行先は既存GitHub Actions＋既存Supabase staging。gateway PR8573/main4c565、runtime PR8577/maind002を正規統合・限定適用し、legacy writerはPR8576と自然run39880994343のpublish SKIPPEDで退役を確認。元7件の公式履歴と配信bytesを照合した非公開SQLiteを一度だけ初期移行し、実main run39882336050でGitHub OIDCによる復元・CAS更新・解放を確認した。結果はNO_ACTION/writes0。別fresh runner39882784491もSUCCESS/GATEWAY_ACKNOWLEDGED/NOT_DUE/writes0、private revision2・owner解放・公開七bytes不変を独立確認。正のcanaryはNOT_RUNでE16 INCOMPLETE。Mac miniやRailway新worker/volumeの提供を再開条件に戻さない。
+
+[実receiptと残る有限受入れ](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md): versioned current-page cueのfinance/mental各P1/P2、durable STOP/限定CAS rollback、native技術観測とExplorer/shadow接続を続行する。Manager原113件は69 done/41 todo/3 skipped、E16カーソル維持。原台帳への固定版参照はreceipt内。人の便益・課金/収益・応募/採択の実績はこの技術実行から推定しない。

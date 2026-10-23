@@ -194,7 +194,9 @@ def test_crossing_auto_reload_threshold_keeps_render_fenced_and_never_recreates(
     replay = render(script="Breathe.", output=output, intent_path=intent,
                     environment=READY, executor=execute)
     assert first["state"] == "reconciliation_required"
-    assert replay["state"] == "reconciliation_required"
+    assert replay["state"] == "rendered"
+    assert replay["wallet_cost"] is None
+    assert replay["cost_reconciliation_required"] is True
     assert json.loads(intent.read_text())["state"] == "cost_reconciliation_required"
     assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
 
@@ -430,10 +432,9 @@ def test_replay_recovers_crash_after_output_rename_without_second_create(tmp_pat
     assert json.loads(intent.read_text())["state"] == "completed"
 
 
-def test_resuming_old_video_never_attributes_later_wallet_spend(tmp_path):
+def test_resuming_old_video_is_reusable_without_attributing_later_wallet_spend(tmp_path):
     import hashlib
     output = tmp_path / "old-video.mp4"
-    output.write_bytes(b"already-completed-video")
     intent_path = tmp_path / "old-effect.json"
     request = build_request("Breathe.", configuration(READY))
     request_hash = hashlib.sha256(json.dumps(request, ensure_ascii=False, sort_keys=True,
@@ -447,6 +448,7 @@ def test_resuming_old_video_never_attributes_later_wallet_spend(tmp_path):
         }},
     }))
     calls = []
+    download_bytes = b"already-completed-video"
     def execute(args, **kwargs):
         calls.append(args)
         if args[1:3] == ["auth", "status"]:
@@ -457,11 +459,43 @@ def test_resuming_old_video_never_attributes_later_wallet_spend(tmp_path):
             }}), "")
         if args[1:4] == ["user", "me", "get"]:
             return subprocess.CompletedProcess(args, 0, wallet_response(8.28), "")
+        if args[1:3] == ["video", "download"]:
+            Path(args[-1]).write_bytes(download_bytes)
+            return subprocess.CompletedProcess(args, 0, "{}", "")
         raise AssertionError("an existing generation must never be recreated")
     receipt = render(script="Breathe.", output=output, intent_path=intent_path,
                      environment=READY, executor=execute)
-    assert receipt["state"] == "reconciliation_required"
+    assert receipt["state"] == "rendered"
+    assert receipt["wallet_cost"] is None
+    assert receipt["cost_reconciliation_required"] is True
+    assert receipt["external_effects"] == ["heygen_video_downloaded"]
     saved = json.loads(intent_path.read_text())
     assert saved["state"] == "cost_reconciliation_required"
     assert not saved.get("wallet_cost")
+    assert saved["provider_receipt_id"] == "video_12345678"
+    assert saved["output_sha256"] == hashlib.sha256(b"already-completed-video").hexdigest()
+    replay = render(script="Breathe.", output=output, intent_path=intent_path,
+                    environment=READY, executor=execute)
+    assert replay["sha256"] == receipt["sha256"]
+    assert replay["external_effects"] == []
+    assert sum(args[1:3] == ["video", "download"] for args in calls) == 1
     assert not any(args[1:4] == ["user", "me", "get"] for args in calls)
+    output.write_bytes(b"tampered-video")
+    try:
+        render(script="Breathe.", output=output, intent_path=intent_path,
+               environment=READY, executor=execute)
+    except ValueError as exc:
+        assert "output differs" in str(exc)
+    else:
+        raise AssertionError("a recovered asset must retain its recorded bytes")
+    output.unlink()
+    download_bytes = b"changed-provider-download"
+    try:
+        render(script="Breathe.", output=output, intent_path=intent_path,
+               environment=READY, executor=execute)
+    except ValueError as exc:
+        assert "output differs" in str(exc)
+    else:
+        raise AssertionError("a redownload must retain the original recorded hash")
+    assert not output.exists()
+    assert json.loads(intent_path.read_text())["output_sha256"] == saved["output_sha256"]

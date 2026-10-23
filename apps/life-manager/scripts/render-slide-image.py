@@ -18,6 +18,7 @@ JPEG itself.
 import json
 import math
 import os
+import re
 import sys
 
 from PIL import Image, ImageDraw, ImageFont
@@ -42,21 +43,34 @@ def load_font(point_size):
 
 
 def wrap_to_lines(draw, text, font, max_width, max_lines):
-    """Greedy char-wrap (correct for CJK, degrades gracefully for Latin)."""
+    """Keep English words intact; wrap CJK and oversized words by character."""
     paragraphs = [p for p in text.split("\n") if p != ""] or [text]
     lines = []
     for paragraph in paragraphs:
         current = ""
-        for ch in paragraph:
-            trial = current + ch
+        for token in re.findall(r"[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)*|\s+|.", paragraph):
+            if token.isspace():
+                if current and not current.endswith(" "):
+                    current += " "
+                continue
+            trial = current + token
             box = draw.textbbox((0, 0), trial, font=font)
-            if box[2] - box[0] > max_width and current:
-                lines.append(current)
-                current = ch
-            else:
+            if box[2] - box[0] <= max_width:
                 current = trial
+                continue
+            if current.strip():
+                lines.append(current.rstrip())
+            current = ""
+            for ch in token:
+                trial = current + ch
+                box = draw.textbbox((0, 0), trial, font=font)
+                if box[2] - box[0] > max_width and current:
+                    lines.append(current)
+                    current = ch
+                else:
+                    current = trial
         if current:
-            lines.append(current)
+            lines.append(current.rstrip())
     if len(lines) <= max_lines:
         return lines
     # Too long for max_lines at this size -- caller shrinks font and retries.

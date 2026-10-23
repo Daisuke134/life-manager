@@ -1,0 +1,49 @@
+name: Manager external behavior contract
+
+on:
+  pull_request:
+    paths:
+      - 'products/manager/manager_core/external_behavior_eval.py'
+      - 'products/manager/scripts/inspect_external_behavior_benchmark.py'
+      - 'products/manager/scripts/evaluate_external_behavior_benchmark.py'
+      - 'products/manager/scripts/twin_wave4_eval.py'
+      - 'products/manager/scripts/public_event_forecast.py'
+      - 'products/manager/schemas/public_event_forecast.v1.schema.json'
+      - 'products/manager/tests/test_external_behavior_eval.py'
+      - 'products/manager/tests/test_external_behavior_benchmark.py'
+      - 'products/manager/tests/test_twin_wave4_eval.py'
+      - 'products/manager/tests/test_public_event_forecast.py'
+      - 'products/manager/requirements-external-behavior-eval.txt'
+      - 'docs/research/manager/evidence/artificial-societies-20261022/reuse.json'
+      - '.github/workflows/manager-external-behavior-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'products/manager/manager_core/external_behavior_eval.py'
+      - 'products/manager/scripts/inspect_external_behavior_benchmark.py'
+      - 'products/manager/scripts/evaluate_external_behavior_benchmark.py'
+      - 'products/manager/scripts/twin_wave4_eval.py'
+      - 'products/manager/scripts/public_event_forecast.py'
+      - 'products/manager/schemas/public_event_forecast.v1.schema.json'
+      - 'products/manager/tests/test_external_behavior_eval.py'
+      - 'products/manager/tests/test_external_behavior_benchmark.py'
+      - 'products/manager/tests/test_twin_wave4_eval.py'
+      - 'products/manager/tests/test_public_event_forecast.py'
+      - 'products/manager/requirements-external-behavior-eval.txt'
+      - 'docs/research/manager/evidence/artificial-societies-20261022/reuse.json'
+      - '.github/workflows/manager-external-behavior-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r products/manager/requirements-external-behavior-eval.txt
+      - run: python -m unittest products/manager/tests/test_external_behavior_benchmark.py products/manager/tests/test_external_behavior_eval.py products/manager/tests/test_twin_wave4_eval.py products/manager/tests/test_public_event_forecast.py

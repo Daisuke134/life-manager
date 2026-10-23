@@ -71,13 +71,15 @@ def test_english_slot_uses_the_heygen_pack_and_english_campaign_token(tmp_path, 
             "video_id": "video_english_fixture",
             "output": str(output),
             "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+            "wallet_cost": None,
+            "cost_reconciliation_required": True,
             "external_effects": [],
         }
 
     monkeypatch.setattr(ebook_runner, "render_heygen", render)
     result = ebook_distribute_daily.render_slot(
         product="ebook-en",
-        slot_at="2026-10-06T14:00:00+09:00",
+        slot_at="2026-10-06T21:00:00+09:00",
         state_root=tmp_path / "ebook-state",
     )
 
@@ -85,6 +87,8 @@ def test_english_slot_uses_the_heygen_pack_and_english_campaign_token(tmp_path, 
     assert result["script"]["product_id"] == "ebook-en"
     assert result["script"]["language"] == "en"
     assert result["receipt"]["renderer_id"] == "heygen-avatar-iv"
+    assert result["receipt"]["render"]["wallet_cost"] is None
+    assert result["receipt"]["render"]["cost_reconciliation_required"] is True
     assert result["attribution_token"].startswith("ee_")
 
 
@@ -148,7 +152,7 @@ def test_english_slots_serialize_shared_heygen_wallet_reads_and_creates(tmp_path
 
     monkeypatch.setattr(ebook_runner, "render_heygen", render)
     state_root = tmp_path / "ebook-state"
-    slots = ("2026-10-07T08:00:00+09:00", "2026-10-07T14:00:00+09:00")
+    slots = ("2026-10-07T08:00:00+09:00", "2026-10-07T21:00:00+09:00")
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda slot: ebook_distribute_daily.render_slot(
             product="ebook-en", slot_at=slot, state_root=state_root,

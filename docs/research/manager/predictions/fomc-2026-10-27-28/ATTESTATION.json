@@ -1,0 +1,62 @@
+{
+  "case_id": "fomc-2026-10-27-28",
+  "forecast_payload_immutable": true,
+  "forecast_payload_sha256": "048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2",
+  "input_cutoff": "2026-10-26T23:59:59Z",
+  "limitations": {
+    "equals_historical_frequency_baseline": true,
+    "forecast_probability": 0.25,
+    "human_benefit_claim": false,
+    "independent_performance_claim": false,
+    "note": "This report documents existing attester readbacks; this JSON is not itself a cryptographic attestation. The forecast probability came only from the deterministic reference procedure; no predictive model or AI-generated probability was used. The forecast payload, its contents, and input cutoff remain unchanged.",
+    "outcome_observed": false,
+    "predictive_model_call": false,
+    "reference_only": true,
+    "score_available": false,
+    "wrapper_authenticates_itself": false
+  },
+  "procedure_sha256": "d168023122f7c0dfa20610c74902afe7c108e297d5a69016d121a6c7437527c1",
+  "record_type": "manager.public-event-forecast.attestation-report.v1",
+  "status": "VERIFIED_PROSPECTIVE",
+  "target_id": "fomc-2026-10-27-28.upper-below-4pct.v1",
+  "verification": {
+    "attester": "products/manager/scripts/public_event_forecast.py attest-github; existing fixed-repository/path read-only attester",
+    "baseline": {
+      "baseline_digest": "fb54cfad95b4b6c3f3a9248481cfacb996075c038247db1419f743b79f0edc3c",
+      "historical_frequency_p": 0.25,
+      "history_source_hashes": {
+        "fomc-20260617": "d153d08450c5dc41d9a4ce50c582b529d09bf2324279e96bb6731edd60da6469",
+        "fomc-20260729": "a71e50cbc7ea943ba5409b35dc433d95cc36acadd84c4b074f84870d92f5c7bd",
+        "fomc-20260916": "29f79c969231c1e90dfd7befc26ce8d349b5c6dba6502e4a4d8ddf665283ed84"
+      },
+      "persistence_p": 0.0
+    },
+    "context_digest": "67a15cc30d8a1c5008c13219b9545c1cad76788a7ea55f894eba73b1935867f0",
+    "git_blob_sha": "47997b35f76b3ece24099cc08c8d8e82a62adbf6",
+    "meaning": "The existing attester matched the merged payload bytes and cutoff timing, and bound the record to its context and baseline hashes. The independent live GitHub readbacks reported the same merge, tree, blob, and payload digests.",
+    "merge_commit_sha": "f6055f9460502cd79cba95ffadecb998439e1056",
+    "merge_tree_sha": "6bbcc4e004d33aebb4971c01be4b9d67b38fc437",
+    "merged_at": "2026-10-23T02:16:17Z",
+    "official_readbacks": [
+      {
+        "environment": "cloud",
+        "observed_at": "2026-10-23T02:18:58.846396Z",
+        "readbacks": "three live public GitHub API GETs: PR, merged commit/tree, exact payload blob"
+      },
+      {
+        "environment": "Mac",
+        "observed_at": "2026-10-23T02:20:36.815629Z",
+        "readbacks": "three live public GitHub API GETs: PR, merged commit/tree, exact payload blob"
+      }
+    ],
+    "payload_path": "docs/research/manager/predictions/fomc-2026-10-27-28/048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2.json",
+    "provider": "github-public-readonly",
+    "public_api_readback_refs": [
+      "/repos/Daisuke134/life-manager/pulls/8593",
+      "/repos/Daisuke134/life-manager/commits/f6055f9460502cd79cba95ffadecb998439e1056",
+      "/repos/Daisuke134/life-manager/contents/docs/research/manager/predictions/fomc-2026-10-27-28/048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2.json?ref=f6055f9460502cd79cba95ffadecb998439e1056"
+    ],
+    "pull_request": 8593,
+    "repository": "Daisuke134/life-manager"
+  }
+}

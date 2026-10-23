@@ -131,7 +131,12 @@ function requireExistingRenderedReceipt(stateRoot, productId, slotAt) {
       throw new Error("eBook manual slot has no completed HeyGen receipt");
     }
     const sidecar = readJson(sidecarPath, "eBook manual HeyGen receipt");
-    if (sidecar.state !== "completed" || sidecar.provider_status !== "completed"
+    const costPendingAsset = sidecar.state === "cost_reconciliation_required"
+      && sidecar.wallet_cost === null
+      && render.wallet_cost === null
+      && render.cost_reconciliation_required === true
+      && sidecar.output_sha256 === render.sha256;
+    if ((!costPendingAsset && sidecar.state !== "completed") || sidecar.provider_status !== "completed"
         || !sidecar.video_id || sidecar.provider_receipt_id !== sidecar.video_id
         || sidecar.video_id !== render.video_id) {
       throw new Error("eBook manual slot has no matching completed HeyGen receipt");
@@ -189,7 +194,7 @@ function writeNoEffectResult(env, ownerId, reason) {
   const configuredOwner = required(env.LIFE_MANAGER_LOOP_ID, "Life Manager loop ID");
   const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
   if (configuredOwner !== ownerId || !occurrenceId.startsWith(`${ownerId}:`)
-      || !["setup_required", "no_due_slot", "render_not_ready", "publication_readiness_gate_closed"].includes(reason)) {
+      || !["setup_required", "no_due_slot", "render_not_ready", "publication_readiness_gate_closed", "receipt_reused"].includes(reason)) {
     throw new Error("eBook no-effect result identity is invalid");
   }
   atomicJson(file, {
@@ -346,7 +351,7 @@ function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = proc
 
 async function executeJob(store, job, workerId, handler) {
   const existing = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
-  if (existing) return existing;
+  if (existing) return { publication: existing, receiptReused: true };
   const queued = await store.enqueueJob({
     jobId: job.job_id,
     tenantId: job.tenant_id,
@@ -376,7 +381,7 @@ async function executeJob(store, job, workerId, handler) {
   });
   const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
   if (!receipt) throw new Error("eBook publication receipt is unavailable");
-  return { ...receipt, created: queued.created };
+  return { publication: { ...receipt, created: queued.created }, receiptReused: false };
 }
 
 function normalizePostizInstagramReceiptRoute(receipt, context, proof) {
@@ -645,11 +650,12 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     ledgerPath: () => ledgerPath,
   });
   let publication = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
+  let receiptReused = Boolean(publication);
   if (!publication) {
-    publication = await executeJob(store, job, ownerId,
-      (claimed) => publicationAdapter.execute(claimed));
-  } else if (lane.platform === "instagram"
-      && publication.provider_route === "instagram_file_script") {
+    ({ publication, receiptReused } = await executeJob(store, job, ownerId,
+      (claimed) => publicationAdapter.execute(claimed)));
+  }
+  if (receiptReused) {
     const identityPath = String(env.LIFE_MANAGER_EFFECT_IDENTITY_PATH || "").trim();
     const identityWritten = identityPath && writeMarketingEffectIdentity({
       jobId: job.job_id,
@@ -666,28 +672,30 @@ async function run(argv = process.argv.slice(2), deps = {}) {
       videoSha256: video.sha256,
       captionSha256: captionObject.sha256,
     });
-    const proof = identityWritten ? verifyLegacyPostizReceipt({
-      root,
-      python: env.LM_PYTHON,
-      apiKey,
-      dataDir,
-      tenantId,
-      ownerId,
-      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
-      identityPath,
-      ledgerPath,
-      env,
-    }) : null;
-    publication = normalizePostizInstagramReceiptRoute(publication, {
-      ownerId,
-      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
-      jobId: job.job_id,
-      effectKey: job.effect_key,
-      productId: lane.productId,
-      platform: lane.platform,
-      integrationId,
-      accountId: target.postiz_profile,
-    }, proof);
+    if (lane.platform === "instagram" && publication.provider_route === "instagram_file_script") {
+      const proof = identityWritten ? verifyLegacyPostizReceipt({
+        root,
+        python: env.LM_PYTHON,
+        apiKey,
+        dataDir,
+        tenantId,
+        ownerId,
+        occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
+        identityPath,
+        ledgerPath,
+        env,
+      }) : null;
+      publication = normalizePostizInstagramReceiptRoute(publication, {
+        ownerId,
+        occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
+        jobId: job.job_id,
+        effectKey: job.effect_key,
+        productId: lane.productId,
+        platform: lane.platform,
+        integrationId,
+        accountId: target.postiz_profile,
+      }, proof);
+    }
   }
   const publicUrl = String(publication?.public_url || "");
   const tiktokPrefix = `https://www.tiktok.com/@${account.native_handle}/video/`;
@@ -700,9 +708,12 @@ async function run(argv = process.argv.slice(2), deps = {}) {
       || !publication.provider_post_id || !directAccountUrl) {
     throw new Error("eBook Postiz receipt is not officially reconciled");
   }
-  writeEffectResult(publication);
+  if (receiptReused) writeNoEffectResult(env, ownerId, "receipt_reused");
+  else writeEffectResult(publication);
   return {
     state: "published",
+    effect: receiptReused ? 0 : 1,
+    receipt_reused: receiptReused,
     owner_id: ownerId,
     occurrence_id: env.LIFE_MANAGER_OCCURRENCE_ID,
     product_id: lane.productId,

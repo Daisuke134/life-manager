@@ -698,6 +698,43 @@ test("readCreativeMetricsForFamilies uses exact in-window 24h views and requires
   ]);
 });
 
+test("readCreativeMetricsForFamilies joins collector rows without product or locale through the exact publication", (t) => {
+  const dataDir = tempDataDir(t);
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const candidate = { packRef: `object://sha256/${"d".repeat(64)}`, familyId: "question-hook" };
+  const postedHistory = [100, 200, 300].map((views, index) => ({
+    packRef: candidate.packRef,
+    postedAt: `2026-10-01T0${index}:00:00.000Z`,
+    integrationRef: lane.integrationRef,
+    providerPostId: `collector-${index}`,
+  }));
+  const rows = postedHistory.map((publication, index) => ({
+    product_id: null,
+    product_id_null_reason: "publication_product_unavailable",
+    platform: lane.platform,
+    integration_id: lane.integrationId,
+    postiz_id: publication.providerPostId,
+    published_at: publication.postedAt,
+    observed_at: `2026-10-02T0${index}:00:00.000Z`,
+    target_age_hours: 24,
+    checkpoint_status: "measured",
+    checkpoint_sla_status: "in_window",
+    views: (index + 1) * 100,
+  }));
+  rows.push(
+    { ...rows[0], product_id: "another-product", views: 99_999, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...rows[1], locale: "ja", views: 99_999, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...rows[2], integration_id: "another-account", views: 99_999, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...rows[2], postiz_id: "not-published-here", views: 99_999 },
+  );
+  const file = path.join(dataDir, "marketing-owner-events", "state", "post-metrics.jsonl");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+  assert.deepEqual(readCreativeMetricsForFamilies(dataDir, [candidate], lane, postedHistory), [
+    { familyId: "question-hook", score: 200, samples: 3 },
+  ]);
+});
+
 test("MIN_DAYS_BETWEEN_REPEAT is at least a week (per spec: never repeat within N days)", () => {
   assert.ok(MIN_DAYS_BETWEEN_REPEAT >= 7);
 });

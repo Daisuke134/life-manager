@@ -22,18 +22,20 @@ jobs:
 
   loop-control:
     name: Loop control contracts
-    runs-on: macos-15-intel
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
       - name: Install exact loop contract test dependency
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0 pytest==9.0.3
+      - name: Verify public Mac bootstrap and Coconala dependency selection
+        run: |
+          python3 -m unittest scripts.test_mac_bootstrap
+          python3 -m pytest -q scripts/test_macos_runtime.py skills/earn/gig/tests/test_coconala_installer_runtime.py
       - name: Verify registry, releases, apply fencing, and clean install
-        run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
+        run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py' --durations 15
       - name: Verify bounded storage, real syscall failures, and recurrence
         run: >-
           python3 -m pytest -q
@@ -87,6 +89,8 @@ jobs:
           lib/web-funnel-report.test.js
           lib/web-page.test.js
           scripts/lm-web-funnel-report.test.js
+          lib/product-onboarding.test.js
+          scripts/product-onboarding-plan.test.js
 
   openclaw-foundation:
     name: OpenClaw offline foundations
@@ -154,24 +158,41 @@ jobs:
         run: gitleaks git . --config .gitleaks.toml --no-banner --redact -v --log-opts=--all
 
   trufflehog:
-    name: TruffleHog (filesystem + git history)
+    name: TruffleHog (verified git history)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: TruffleHog filesystem
+      # Cover both the PR head and merge result, including criss-cross history.
+      - name: Select covering PR history
+        id: trufflehog-range
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base="$(git merge-base --all "$BASE_SHA" "$HEAD_SHA")"
+          if [[ "$base" == *$'\n'* ]]; then
+            base=""
+          fi
+          printf 'base=%s\n' "$base" >> "$GITHUB_OUTPUT"
+
+      # The action scans Git in both cases; select the covering range once.
+      - name: TruffleHog all refs
+        if: github.event_name == 'workflow_dispatch'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           extra_args: --only-verified
 
-      - name: TruffleHog git history
+      - name: TruffleHog merge result range
+        if: github.event_name != 'workflow_dispatch'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.pull_request.base.sha || github.event.before }}
+          base: ${{ github.event_name == 'push' && github.event.before || steps.trufflehog-range.outputs.base }}
           head: HEAD
           extra_args: --only-verified
 
@@ -192,8 +213,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'

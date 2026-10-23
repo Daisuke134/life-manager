@@ -26,7 +26,7 @@ function addMetricReceipt(dataDir, { productId, appId, accountId, postId, token 
   fs.writeFileSync(path.join(metricDir, "24h.combined.json"), JSON.stringify({ schema_version: 1, kind: "tiktok_combined_metric_snapshot", product_id: productId, locale: "en", account_id: accountId, integration_id: "integration-1", provider_post_id: postId, public_url: publicUrl, window: "24h", observed_at: "2026-08-21T00:01:00.000Z" }));
 }
 
-test("ASC acquisition covers six mobile app bindings and keeps pending reports unavailable", () => {
+test("ASC acquisition covers the published portfolio and existing mobile app bindings", () => {
   assert.deepEqual(PRODUCTS.map(({ product_id, app_id, request_id }) => [product_id, app_id, request_id]), [
     ["anicca-ios", "6755129214", "04c74879-547f-4e35-b231-1fafd485801d"],
     ["honne-ai", "6759667221", "c7c05836-181e-49cc-ae71-b57b7a0b466e"],
@@ -34,6 +34,10 @@ test("ASC acquisition covers six mobile app bindings and keeps pending reports u
     ["sleep-ritual", "6759916261", "d48b40a7-fd84-4ec7-a448-317c376457e0"],
     ["desk-stretch-timer", "6760048397", "0ffe9de3-7072-4dbc-9d49-afe1a70534b3"],
     ["micro-mood", "6759877003", "4e9b2fc8-6abb-4c6a-b58d-878f7a55e7e7"],
+    ["dhamma-quotes", "6757726663", "25b5906d-025b-4b9d-8226-dc1ea25bd13f"],
+    ["sleep-reset", "6762143790", "f4f4e486-d5cd-4b16-9d06-a1850fc9a477"],
+    ["studio-cherie", "6766485903", "b1c18c4e-77f3-4b63-bee4-259353531c3d"],
+    ["thankful", "6759514159", "a1149f87-b22a-42cb-85a8-324eb54d2f1a"],
   ]);
   for (const product of PRODUCTS.slice(2)) {
     const value = pending(product);
@@ -41,6 +45,34 @@ test("ASC acquisition covers six mobile app bindings and keeps pending reports u
     assert.equal(value.metrics.first_time_downloads.value, null);
     assert.equal(value.metrics.first_time_downloads.reason, "report_pending");
   }
+});
+
+test("daily ASC persistence collects the four additional published apps and replays without collection", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-published-portfolio-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  addMetricReceipt(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@anicca-ai", postId: "portfolio-post" });
+  const appIds = { "dhamma-quotes": "6757726663", "sleep-reset": "6762143790", "studio-cherie": "6766485903", thankful: "6759514159" };
+  const collected = [];
+  const collector = async (product) => {
+    collected.push(product.product_id);
+    if (!appIds[product.product_id]) return pending(product);
+    return summarize(product,
+      [{ Date: "2026-10-21", "App Apple Identifier": appIds[product.product_id], "Download Type": "First-time download", Counts: "0" }],
+      [{ Date: "2026-10-21", "App Apple Identifier": appIds[product.product_id], Event: "Impression", Counts: "3" }], []);
+  };
+  const first = await persistAscAcquisition(dataDir, "2026-10-23", collector);
+  for (const [productId, appId] of Object.entries(appIds)) {
+    assert.ok(collected.includes(productId), `daily collector omitted ${productId}`);
+    const observed = first.products.find((product) => product.product_id === productId);
+    assert.equal(observed.app_id, appId);
+    assert.deepEqual([observed.metrics.first_time_downloads.status, observed.metrics.first_time_downloads.value], ["measured", 0]);
+    assert.equal(observed.metrics.campaign_first_time_downloads.value, null);
+    assert.equal(observed.attribution_reason, "campaign_not_configured");
+  }
+  const replay = await persistAscAcquisition(dataDir, "2026-10-23", () => assert.fail("replay must not collect again"));
+  assert.equal(replay.created, false);
+  assert.equal(replay.snapshot_ref, first.snapshot_ref);
+  assert.deepEqual(replay.products, first.products);
 });
 
 test("pending Anicca ASC reports retain configured campaign breakdowns as unavailable", () => {

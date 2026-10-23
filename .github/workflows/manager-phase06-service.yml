@@ -1,0 +1,145 @@
+name: Manager Phase06 Digital Environment
+on:
+  pull_request:
+    branches: [main]
+    paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
+  push:
+    branches: [main]
+    paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Requested owner operation
+        required: true
+        default: run-once
+        type: choice
+        options:
+          - run-once
+          - stop
+          - rollback
+          - resume
+  schedule:
+    - cron: '17 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: manager-service-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Focused owned-cycle and selector contracts
+        run: >-
+          env PYTHONPATH=.:tests python -m unittest
+          test_owned_cycle_cli test_owned_workflow_contract
+          test_owned_catalog_planner test_candidate_verification
+          test_owned_digital_cycle test_owned_checkpoint_order
+          test_owned_platform_host test_owned_platform_rollback
+          test_owned_public_collector test_owned_native_observations
+          test_owned_native_observation_bridge -v
+      - name: Install locked browser suite and build the reference bundle
+        run: |
+          cd tests/e2e
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          cd ../..
+          python scripts/phase06_digital_service.py build --commit "$GITHUB_SHA"
+          npm --prefix tests/e2e test
+      - name: Existing source boundaries
+        run: python scripts/check_boundaries.py
+  publish-owned-prefix:
+    concurrency:
+      group: manager-pages-prefix-writer
+      cancel-in-progress: false
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    permissions:
+      contents: write
+      id-token: write
+      actions: write
+    outputs:
+      pages_commit: ${{ steps.cycle.outputs.pages_commit }}
+      status: ${{ steps.cycle.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Install locked browser dependencies before lease acquisition
+        working-directory: source/products/manager/tests/e2e
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Create fresh private runner state root
+        run: |
+          test ! -e "$RUNNER_TEMP/manager-owned-state"
+          install -d -m 700 "$RUNNER_TEMP/manager-owned-state"
+      - name: Restore, reconcile, and run one trusted main cycle
+        id: cycle
+        working-directory: source/products/manager
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANAGER_RELEASE_ENABLED: 'true'
+          MANAGER_OPERATION: ${{ github.event_name == 'schedule' && 'run-once' || github.event.inputs.operation || 'run-once' }}
+        shell: bash
+        run: |
+          set -o pipefail
+          MANAGER_OPERATION="${MANAGER_OPERATION-run-once}"
+          case "$MANAGER_OPERATION" in
+            run-once|stop|rollback|resume) ;;
+            *) echo "invalid manager operation" >&2; exit 2 ;;
+          esac
+          python scripts/run_owned_digital_cycle.py "$MANAGER_OPERATION" \
+            --state-store "$RUNNER_TEMP/manager-owned-state" \
+            --pages-checkout "$GITHUB_WORKSPACE/pages" | tee "$RUNNER_TEMP/manager-public-summary.json"
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'manager-public-summary.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('status='+str(value.get('status','UNKNOWN'))+'\n')
+              receipt=value.get('receipt_sha')
+              if isinstance(receipt,str) and re.fullmatch('[0-9a-f]{40}',receipt):
+                  out.write('pages_commit='+receipt+'\n')
+          PY
+      - name: Publish only the allowlisted public summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-owned-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/manager-public-summary.json
+            ${{ runner.temp }}/manager-kernel-proof/kernel-public-proof.json
+            ${{ runner.temp }}/manager-kernel-proof/proof-explorer.html
+          if-no-files-found: ignore
+          retention-days: 7

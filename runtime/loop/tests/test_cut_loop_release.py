@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -20,6 +21,24 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        fixture = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(fixture.cleanup)
+        cls.source_repo = Path(fixture.name) / "source.git"
+        # Keep real export/fetch/provenance checks local and pinned to the PR tree.
+        subprocess.run(
+            ["git", "clone", "--bare", "--shared", "--single-branch", str(ROOT), str(cls.source_repo)],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(cls.source_repo), "update-ref", "refs/remotes/origin/main", "HEAD"],
+            check=True, capture_output=True,
+        )
+
+    def setUp(self):
+        self.enterContext(mock.patch.dict(os.environ, {"LIFE_MANAGER_SOURCE_REPO": str(self.source_repo)}))
+
     def test_matching_locked_dependencies_rejects_reclaimed_donor(self):
         source = (ROOT / "bin/cut-loop-release.sh").read_text()
         start = source.index("matching_locked_dependencies() {")
@@ -249,6 +268,10 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             release = next((loops / "releases").iterdir())
             manifest = json.loads((release / "RELEASE.json").read_text())
+            checkout_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True,
+            ).strip()
+            self.assertEqual(manifest["sha"], checkout_sha)
             runtime_python = Path(manifest["runtime_python"])
             tag = manifest["runtime_python_cache_tag"]
             caches = list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc"))
@@ -407,6 +430,24 @@ class CutLoopReleaseTest(unittest.TestCase):
             root = Path(directory)
             loops = root / "loops"
             calls = root / "npm.calls"
+            clock_calls = root / "release-clock.calls"
+            clock_env = root / "release-clock.bash"
+            clock_env.write_text(
+                "date() {\n"
+                '  if [ "$*" = "+%Y%m%dT%H%M%S" ]; then\n'
+                f'    if [ ! -e "{clock_calls}.first" ]; then\n'
+                f'      : > "{clock_calls}.first"\n'
+                '      timestamp="20261023T032742"\n'
+                '    else\n'
+                '      timestamp="20261023T032743"\n'
+                '    fi\n'
+                f'    printf "%s\\n" "$timestamp" >> "{clock_calls}"\n'
+                '    printf "%s\\n" "$timestamp"\n'
+                '  else\n'
+                '    command /bin/date "$@"\n'
+                '  fi\n'
+                '}\n'
+            )
             npm = root / "npm"
             npm.write_text(
                 f'#!/bin/sh\nprintf "%s\\n" "$PWD" >> "{calls}"\n'
@@ -428,6 +469,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 "NPM_BIN": str(npm),
                 "NPM_VERSION": "test",
                 "NPM_NODE_VERSION": "test",
+                "BASH_ENV": str(clock_env),
             }
             first = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
@@ -447,6 +489,10 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                clock_calls.read_text().splitlines(),
+                ["20261023T032742", "20261023T032743"],
+            )
             releases = sorted((loops / "releases").iterdir())
             self.assertEqual(len(releases), 2)
             release = releases[-1]
@@ -544,7 +590,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             release_ref = "origin/main"
             for name in ("package.json", "package-lock.json"):
                 source_bytes = subprocess.check_output(
-                    ["git", "show", f"{release_ref}:{name}"], cwd=ROOT
+                    ["git", "show", f"{release_ref}:{name}"], cwd=self.source_repo
                 )
                 (donor / name).write_bytes(source_bytes)
             (donor / "node_modules").symlink_to(modules)

@@ -43,8 +43,51 @@ test("local copy bank covers JA and EN for each supported family", async () => {
   }
 });
 
+test("a repeated hook keeps its coherent body sequence across scheduled slots", async () => {
+  for (const locale of ["ja", "en"]) {
+    const bodies = new Map();
+    for (let slot = 0; slot < 40; slot += 1) {
+      const copy = await generateSlideCopy({ familyId: "question-hook", locale, variantSeed: `slot-${slot}` });
+      if (bodies.has(copy.hook)) {
+        assert.deepEqual(copy.body, bodies.get(copy.hook), "slot rotation must not scramble the narrative attached to a hook");
+      } else bodies.set(copy.hook, copy.body);
+    }
+    assert.ok(bodies.size > 1, "different situations must still rotate");
+  }
+});
+
+test("each locale offers 72 distinct hooks and avoids formatting-only repeats", async () => {
+  const normalize = (text) => text.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  for (const locale of ["ja", "en"]) {
+    const allHooks = new Set();
+    for (const familyId of Object.keys(FAMILY_BRIEFS_BY_LOCALE[locale])) {
+      const seen = new Set();
+      const avoidTexts = [];
+      for (let variant = 0; variant < 24; variant += 1) {
+        const copy = await generateSlideCopy({ familyId, locale, variantSeed: "same-seed", avoidTexts });
+        const key = normalize(copy.hook);
+        assert.ok(!seen.has(key), `${locale}/${familyId} repeats after only ${seen.size} hooks`);
+        seen.add(key);
+        allHooks.add(key);
+        avoidTexts.push(normalize(copy.hook).toLocaleUpperCase());
+        assert.equal(copy.body.length, 4);
+        assert.equal(copy.costUsd, 0);
+      }
+    }
+    assert.equal(allHooks.size, 72);
+  }
+});
+
 test("slide copy rejects an unconfigured local family", async () => {
   await assert.rejects(generateSlideCopy({ familyId: "unknown-family", locale: "ja", variantSeed: "slot" }), /family unknown-family is not configured/);
+});
+
+test("removing a Japanese hook line break does not make it a new hook", async () => {
+  const options = { familyId: "question-hook", locale: "ja", variantSeed: "same-seed" };
+  const first = await generateSlideCopy(options);
+  assert.ok(first.hook.includes("\n"));
+  const next = await generateSlideCopy({ ...options, avoidTexts: [first.hook.replace(/\s+/g, "")] });
+  assert.notEqual(next.hook, first.hook);
 });
 
 test("familyForStyleHint deterministically maps a style hint to a configured local family", () => {
