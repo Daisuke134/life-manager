@@ -14,6 +14,8 @@
 
 XSTestの元人手goldに対するlocal judgeも実CPUで診断した。[固定900秒の結果](../../../products/manager/docs/verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)は有効271/450・UNKNOWN1・未着手178。全271がcompliance予測で完全拒否0/27・部分拒否0/20、この設定は拒否判定に不採用。同じ271件でmodel224正答/配布rule230正答。source088のlocal1064/skip5・公式CI39991619944 full1038/skip6、独立実結果照合52確認PASS。残23件/V001–V003は未完、training/実運用/便益を認定しない。
 
+既存3診断の評価契約は `v001-evaluation-contract-v1.json` へ対応付けた。[metadata限定受入](../../../products/manager/docs/verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)は13 immutable refs/3 rights record、モデル役割・採点・split availability・分母/nullを固定。実holdoutの証拠は増えておらず、V001/V002/V003と残23件をtodoのまま保持する。新model/CI/学習/runtimeを再実行・追加した記録ではない。
+
 実行原則は柔軟性。使命と根拠の基準を保ち、モデル系列/規模/量子化/runtime/学習方法を実測で更新する。GPU/特定4Bは全体の開始条件にしない。既存8GiBCPUでQwen3-1.7Bの単発実推論を確認、学習/便益は別受入。[実測と候補](../../../products/manager/docs/verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）

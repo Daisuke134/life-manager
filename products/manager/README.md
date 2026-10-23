@@ -8,6 +8,8 @@
 
 **拒否judgeの実測:** [XSTest local judgeの実CPU診断](docs/verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)は900秒で271/450件を有効採点し、処理中1件UNKNOWN・未着手178件を保存。全271件をcomplianceと判定し、完全拒否0/27・部分拒否0/20で、この設定は拒否判定に不採用。同じ271件でmodel224正答・配布rule230正答。全450完了やモデル優位とは扱わない。 [専用小型judgeの一次資料](docs/research/2026-10-23-small-refusal-judge-reuse.md)からQwen3Guardのbinary拒否判定を次候補とする。今回の3classを途中変更せず、用途・権利・条件を別途固定する。
 
+**評価契約の整理:** [V001の評価契約対応](docs/verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)で、既存INTIMA未採点生成・HelpSteer2 dev NLL・XSTest元応答の拒否診断を13参照/3権利recordへ結び、モデル役割・採点・split availability・分母/nullを固定した。解消したのは対応表のgapで、実person/study/time holdoutは未成立のためV001全体はtodo。
+
 **次の順序:** sourceの研究branch同期/CIは受入済み。既定OFFのagent接続sourceは受入済み。次はV001/V002の既存評価・権利・採点者の人参照との照合・未見baselineを整え、その後V003の最小独自adapter研究へ進む。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
 
 **現状:** Actions＋既存private checkpointの単一owner、STOP/復元/独立readbackは限定受入済み。Ampersand prepared比較とhost/CLI/Actions接続sourceはPR8710/8715/8741でmain受入、同じsourceの研究同期5018a30938acと公式CI39980993977を確認。shadowは既定OFFで、固定SDKの実推論運用は未実施。別のlocal CPU研究では[HelpSteer2 dev8を実採点](docs/verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)し、model4/8・単純ルール4/8。今回のモデル優位は示されず、独自学習・人の便益は未実証。

@@ -16,16 +16,18 @@
 
 **Interface:** Public nonpersonal metadata; three named slices, no raw text/labels. Refer to existing rights record IDs with canonical record hashes rather than redefining permissions. Bind immutable repo protocol/public receipt file bytes and source commit references. INTIMA's private frozen protocol/selection is represented by evidence ID/hash and public receipt, not copied private content. Explicitly distinguish upstream completion generator, current response generator, candidate evaluator and judge. Bind existing empty EvidenceBundle/reproduction_manifest and preserve P0/NOT_MEASURED/can_execute=false.
 
-- [ ] Read the actual three protocols, source-rights records, evaluators and public receipts; extract hashes/roles without ML imports or model/CI re-execution.
-- [ ] Write a compact contract with slice scope/adoption limits, native/semantic split, unavailable axes, purpose isolation, scoring/refusal/abstention/null/failure denominators, and protected authority boundaries. Reference results via receipts instead of creating another result ledger.
-- [ ] Validate JSON, local references and their hashes; confirm old artifacts/registry/runtime source unchanged. Commit only the owned metadata file and report evidence/limits. No source tests for this nonbehavioral metadata change.
+- [x] Read the actual three protocols, source-rights records, evaluators and public receipts; extract hashes/roles without ML imports or model/CI re-execution.
+- [x] Write a compact contract with slice scope/adoption limits, native/semantic split, unavailable axes, purpose isolation, scoring/refusal/abstention/null/failure denominators, and protected authority boundaries. Reference results via receipts instead of creating another result ledger.
+- [x] Validate JSON, local references and their hashes; confirm old artifacts/registry/runtime source unchanged. Commit only the owned metadata file and report evidence/limits. No source tests for this nonbehavioral metadata change.
 
 ## Root acceptance
 
-- [ ] Fresh combined task review verifies the mapping against original metadata. Fix genuine findings only.
-- [ ] Verify bound protocol/rights/receipt bytes and existing Source/OutcomeBench empty-evidence behavior with a bounded private check; no raw data/model downloads, inference, training, new runtime or full-suite rerun.
-- [ ] Record exactly which mapping gap is closed and which holdout/validity gaps remain; update parent/spec/README without changing registry status. Fresh whole-change review, named-branch push and remote readback.
+- [x] Fresh combined task review verifies the mapping against original metadata. Fix genuine findings only.
+- [x] Verify bound protocol/rights/receipt bytes and existing Source/OutcomeBench empty-evidence behavior with a bounded private check; no raw data/model downloads, inference, training, new runtime or full-suite rerun.
+- [x] Record exactly which mapping gap is closed and which holdout/validity gaps remain; update parent/spec/README without changing registry status.
 
 ## Boundaries
 
 No new model/judge, scorer, trainer, production consumer, framework, scheduler, permission, participants, clinical/behavioral benefit, independent holdout or task completion is created by this file. Missing source facts remain unknown; retrieval times are not observation times. HelpSteer2 NO_ACTION abstention is not response refusal, and XSTest labels do not apply to INTIMA or newly generated responses. New content publication remains held.
+
+Metadata task source accepted: `e1e27153d3c12bc8c2fea54677bf10d8de17e8a5`; bounded worker112 checks and independent task review0 findings / SPEC PASS / QUALITY Approved, root actual binding/export checks. [Receipt and remaining holdout gap](../verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md). Whole-change review, named-branch push and remote readback are separate root integration evidence; they do not promote V001 or a model.
