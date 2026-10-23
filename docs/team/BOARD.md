@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODOの正本は統合SSOTの「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、独立するmetrics owner採用と自然配信を担当。Thankful PR593/build9は既存ownerと照合し、重複build/提出しない。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
 - [Codex] README・Mac初回導入はPR #8666/main反映済み。Coconalaの本人通知設定・現在認証はPR #8677/main反映・公開10ファイル照合済み。残る実稼働・別Mac受入は統合SSOTのMAC02/05
@@ -18,6 +19,7 @@
 - [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 ## ログ
+- Codex Mobile: 続行依頼を受け、既存6段階TODOを維持して再開。Apple/実機の公式readbackとmetrics/JP1の待機原因を再確認し、source統合・loaded採用・公開・MRRを区別する。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
 - 2026-10-23 18:39 Codex AI Monk: PR8668のFactory利用者publisher接続を独立review後に修復し、未解決0件。旧head独立210件とtimezone修復後38件がPASS。mainのlisticle-outreach.mdの使用禁止個人Gmail注記1件だけをprivate SSOT参照へ置換し、PII scan clean。送信元/宛先/配信状態・scanner/allowlistは保持、outreach送信0。次: exact CI/main/固定版、運用順はS11。
