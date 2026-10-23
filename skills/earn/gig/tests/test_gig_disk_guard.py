@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -670,7 +671,8 @@ def test_coconala_browser_has_a_finite_renderer_process_limit():
     assert '--renderer-process-limit="$GIG_BROWSER_RENDERER_LIMIT"' in source
 
 
-def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
+@pytest.mark.parametrize("selected_python", [False, True])
+def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path, selected_python):
     (tmp_path / ".local" / "state" / "life-manager" / "state").mkdir(
         parents=True, exist_ok=True
     )
@@ -682,7 +684,7 @@ def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
     browser.parent.mkdir(parents=True)
     browser.write_text(textwrap.dedent("""\
         #!/usr/bin/env python3
-        import http.server, sys, threading, time
+        import http.server, os, pathlib, sys, threading, time
         port = int(next(arg.split("=", 1)[1] for arg in sys.argv if arg.startswith("--remote-debugging-port=")))
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
@@ -690,7 +692,10 @@ def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
             def log_message(self, *_args): pass
         server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        time.sleep(1)
+        for _ in range(50):
+            if pathlib.Path(os.environ["RESTORE_MARKER"]).is_file():
+                break
+            time.sleep(0.1)
         server.shutdown()
         raise SystemExit(7)
     """), encoding="utf-8")
@@ -718,6 +723,14 @@ def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
         "CLOAK_CDP_BASE_URL": f"http://127.0.0.1:{port}",
         "RESTORE_MARKER": str(marker),
     }
+    calls = tmp_path / "python-calls"
+    if selected_python:
+        python = tmp_path / "owner runtime/bin/python"
+        python.parent.mkdir(parents=True)
+        python.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PYTHON_CALLS\"\n"
+                          f"exec {shlex.quote(sys.executable)} \"$@\"\n")
+        python.chmod(0o755)
+        env.update(PYTHON=str(python), PYTHON_CALLS=str(calls))
 
     result = subprocess.run(
         ["/bin/bash", str(GIG_BROWSER_PATH)], env=env,
@@ -725,7 +738,14 @@ def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
     )
 
     assert result.returncode == 7
+    assert marker.is_file(), result.stderr
     assert marker.read_text(encoding="utf-8") == f"restored:{port}"
+    if selected_python:
+        assert calls.is_file()
+        invoked = calls.read_text().splitlines()
+        assert any(line.startswith(str(GUARD_PATH)) for line in invoked)
+        assert any(line.startswith("-I ") and "browser_port_owner.py run" in line for line in invoked)
+        assert f"{helper} restore" in invoked
 
 
 def test_browser_ignores_pressure_marker_and_cleanup_removes_stale_file(

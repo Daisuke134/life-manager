@@ -72,6 +72,22 @@ source実装: kernel RED11件、reconciler RED9件を確認し、両file計75件
 
 所有worktree=`.worktrees/coconala-reply-evidence-20261023`、branch=`fix/coconala-reply-evidence-20261023`、owner=`codex-coconala-reply-evidence`、base=`178b6c46b30fc2e0540f12ccc741b3a8eef605cf`。現在cursor=REPLY-EVIDENCE-03、既存MAC02→03の順序は変えない。旧setup/readme worktreesは統合・退役済み。
 
+### MAC02-SELECTED-PYTHON: 準備済みPythonを実ownerまで保持する
+
+目的・範囲: REPLY-EVIDENCEのPR #8692は全13 CI、review round2のfinding0/SHIPを経てmain 0a54cd06315a6be3ddec6de06032e2614dd51ad5へ統合し、公開2 sourceとmanifestが検証済みbyteと一致する。完全immutable candidate 20261023T203225-0a54cd06を作成するが、現Coconala Pythonにcloakbrowserが無い。既存common venvもbs4無しであるため、target applyは実行していない。private host profileは無く、global prepareによる空browser bindingsの生成は既存稼働へ持ち込まない。
+
+原因境界: Coconala prepare/configure-pythonが選ぶprivate PYTHONがcanonical plistでHF_GIG_PYTHONへ届かず、shared release runtime Pythonで上書きされる。明示された本人PYTHONだけを既存Coconala env解決へ含め、7 canonical jobsとsame-SHA adoptionで同じ値を使う。HF_GIG_PYTHONだけではReply/Paid以外へ届かないため、当該7owners限定のLIFE_MANAGER_RUNTIME_PYTHONとPYTHONも同じ本人pathへ揃え、既存bin/lm-loop-run→entry_dispatch/GC、reportの既存PYTHON経路を再利用する。browser launcherだけ別Pythonを固定する場合は、既存選択Pythonの優先へ最小修復し、port/profile/vault/ownerは変更しない。他owner・global host設定は維持する。既定の作者Mac用Pythonや任意envは注入しない。他のmarketplace/ownerには渡さない。新しいglobal host profile/browser registryを作らない。
+
+- [x] SELECTED-PYTHON-01: private PYTHONをcanonical plistとsame-SHA adoptionへ渡す最小RED/GREEN。明示path欠損は起動前に拒否する。
+- [x] SELECTED-PYTHON-02: 公開installerが使う本人Coconala venvを準備し、既存locked requirementsの必要依存でimportを確認する。本人Python設定だけ保存し、認証/ブラウザは変更しない。
+- [ ] SELECTED-PYTHON-03: review/CI/main/public source→immutable→target loaded-idle apply→自然実行のsource/結果を照合する。旧4effectは公式証拠なしで解除/再送しない。
+
+source受入: 明示private PYTHONだけをcanonical7ownersへ白名单で渡し、Reply/PaidのHF_GIG_PYTHON、Apply/Storefront/GCの既存lifecycle→sys.executable、Report/browserのPYTHONへ接続する。source差分は既存helper/apply/local-install/browserの4filesで、新しいhost profileやbrowser bindingは追加しない。同SHAでも共通release runtimeと本人owner runtimeの期待値を分離し、exact/same-SHA adoptionで衝突しない。新しい13 tests+6subtestsと追加host binding回帰をRED→GREEN、関連4file計301 tests/123subtests、source-boundary/bash/diffがPASS。全runtime unittest1014 tests、loop契約18/192/113/errors0、adapter15 testsがPASS。doctorはmissing/retired0、別ownerのunmanaged browser1を返し、対象外なので変更しない。fresh reviewは、private PYTHON削除後のexact-release採用が旧overrideを残す反例を再現する。未指定のPYTHONもabsenceを比較し、running ownerは既存loaded-idle applyへ委ねる最小修正でRED→GREEN。local-install19 tests/31subtestsがPASS、新差分の再reviewへ進む。CI・main・自然実行は継続する。
+
+runtime準備結果: 既存public Coconala venv pathが無いことと本人UID/symlink無しを確認し作成する。main由来requirements-runtimeのconstraintsとrequirements-ciのwebsockets pinを使い、必要5依存とPlaywright1.59.0/cryptography46.0.5を揃える。exact venvで全5import・Coconala adapter importがPASS。native configure-pythonでPYTHONだけを保存し、private file0600/本人UIDをreadbackする。認証・browser・owner再起動・provider送信は行わない。candidate 20261023T203225-0a54cd06は未使用のため既存GCに回収され、現在は20261023T203452-98241d81へ自然更新する。未使用candidateの再利用を試みず、source修復後のmain由来releaseへ適用する。
+
+branch=fix/coconala-selected-python-20261023、base=6b1d48027a309530014d688324b166ba49320ba7。同じMAC02の所有worktree/leaseを継続し、owner=codex-coconala-reply-evidence。現在cursor=SELECTED-PYTHON-03、MAC02→MAC03の順序は変えない。次のLancersは共通導入済みだがguided dispatch/本人account・work profileの固定依存が残り、本人setup実測だけでは閉じないことをread-only探索で確認する。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。

@@ -15,7 +15,7 @@ from pathlib import Path
 from runtime.host.local_profile import HOST_ENVIRONMENT_KEYS, host_environment, load_host_profile, prepare_host
 from runtime.loop.local_fleet import build_fleet_manifest
 from runtime.loop.lm_loop_apply import _loaded_arguments, _loaded_environment, build_apply_plan
-from skills.earn.gig.scripts.gig_release import coconala_notification_environment
+from skills.earn.gig.scripts.gig_release import coconala_job_environment
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -82,8 +82,9 @@ def _same_sha_loaded_release(release_root: Path, owner: str, arguments: list[str
         return None
     loaded_environment = _loaded_environment(printed)
     required = {"LIFE_MANAGER_LOOP_ID": owner, "LIFE_MANAGER_RELEASE_SHA": requested["sha"],
-                "LIFE_MANAGER_RUNTIME_PYTHON": runtime, "LIFE_MANAGER_REPO": str(loaded_root)}
-    if any(loaded_environment.get(key) != value for key, value in required.items()):
+                "LIFE_MANAGER_RUNTIME_PYTHON": runtime, "LIFE_MANAGER_REPO": str(loaded_root),
+                **coconala_job_environment(release_root, owner)}
+    if any(loaded_environment.get(key, "") != value for key, value in required.items()):
         return None
     return {"ok": True, "loop_id": owner, "changed": False,
             "readback": "same_sha_release_loaded", "release_sha": loaded["sha"],
@@ -96,6 +97,11 @@ def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str
     registry = json.loads((release_root / "config/loop-registry.json").read_text())
     if len(set(loop_ids)) != len(loop_ids) or any(owner not in registry["loops"] for owner in loop_ids):
         raise ValueError("local apply target is unknown or duplicated")
+    owner_environments = {owner: coconala_job_environment(release_root, owner) for owner in loop_ids}
+    for owner, required in owner_environments.items():
+        if required:
+            # Removed owner overrides must not survive exact-release adoption.
+            owner_environments[owner] = {"PYTHON": "", **required}
     safe = str(release_root / "bin/launchctl-safe")
     env = {**os.environ, **environment, "LIFE_MANAGER_RELEASE_ROOT": str(release_root)}
     check = runner([safe, "preflight"], env=env, capture_output=True, text=True, timeout=30)
@@ -109,10 +115,11 @@ def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str
         arguments = [str(release_root / "bin/lm-loop-run"), owner, str(release_root)]
         binding_matches = (not environment.get("LIFE_MANAGER_HOST_PROFILE") or all(
             _loaded_environment(probe.stdout).get(key) == value
-            for key, value in environment.items() if key in HOST_ENVIRONMENT_KEYS))
+            for key, value in environment.items()
+            if key in HOST_ENVIRONMENT_KEYS and key not in owner_environments[owner]))
         binding_matches = binding_matches and all(
             _loaded_environment(probe.stdout).get(key, "") == value
-            for key, value in coconala_notification_environment(release_root, owner).items())
+            for key, value in owner_environments[owner].items())
         if probe.returncode == 0 and _loaded_arguments(probe.stdout) == arguments and binding_matches:
             # Source identity is already installed. Running keep-alive owners
             # must not be restarted just to declare the installer successful.
