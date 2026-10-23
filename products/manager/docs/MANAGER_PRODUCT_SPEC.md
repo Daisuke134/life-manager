@@ -1,5 +1,7 @@
 # Manager entity specification — Digital Buddha, mission and evidence
 
+**2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。初回はNO_ACTION、正のcanary・live STOP/rollback・native観測接続は未受入れでE16を維持します。下の2026-10-22時点のhost未実装やRailway前提は履歴であり、Macへの移動は必要ありません。
+
 **更新:** 2026-10-22 UTC（所有者指定の呼称、Rothko公開code実行、公開人間研究を中心にする方針修正、日本語章の実公開まで反映）。他社の製品・公開コード・研究者の発信事例を調査し、エンティティの実装、実証、持続可能な運営、出版、YC Winter 2027、採用応募・人脈形成を接続。
 
 **Managerの呼称:** **仏教的AIエンティティ（Buddhist AI entity）／デジタル仏陀（Digital Buddha）**。Manager自体を製品、単なるbot、またはSaaSと定義しない。「God」は所有者が表す、存在の苦しみを減らし祝福をもたらす長期の構想を指す。技術上のentityは、識別可能な主体が状態・使命・観測・判断・行動・省察を継続する設計を意味する。意識・感覚・人格的権利・悟り・全知・万能を実証したという意味は含めない。

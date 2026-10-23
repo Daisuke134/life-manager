@@ -4,13 +4,13 @@
 
 **開始から最後まで:** [全Phase00〜12・残41件・依存・完成条件・出版/サイト/YCの並行線](docs/roadmap/START_TO_END_20261022.md)。原計画の末尾はPhase12/G006、現在地はE16です。
 
-**最新の再開入口:** [E16本番配備ゲートと残作業の引継ぎ](docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md)。現在のカーソルはE16で、E16は参照サイクルのテストまでです。E01–E15の実装・CI証跡と現行カーソルは唯一の状態正本 [tasks.json](docs/roadmap/tasks.json) に記録。実装順はE01–E16、その後の受け入れ順は **F005 → F006 → F008 → F009**。F004/F007は `skipped`（未実施）です。常駐ホスト・永続状態・本番アダプターが未充足のため `DEPLOYMENT_HOST_REQUIRED`。今回のコードは未配備、人への便益は未測定、モデルの優位性も未証明です。
+**最新の再開入口:** [2026-10-23 cloud実行の証拠と残る受入れ](docs/verification/E16_CLOUD_EXECUTION_20261023.md)。既存Actions＋Supabaseへgateway/runtimeを正規main統合し、旧writer退役、初回状態移行、実OIDCによる復元・checkpoint更新・解放を確認しました。初回実行は `NO_ACTION / writes=0`、正のcanaryは未実施です。残るのはfresh runner復元、実改善2テーマのP1/P2、durable STOP・限定rollback、native観測接続。E16カーソルと原113件の状態は維持します。実装順はE01–E16、その後の受け入れ順は **F005 → F006 → F008 → F009**。F004/F007は `skipped`（未実施）。MacやRailwayの新workerは前提にしません。人への便益は未測定、モデルの優位性も未証明です。
 
 **全体設計:** [エンティティの使命・最初の能力・研究・運営・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
 
 **全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。無料経路の第一候補は既存GitHub Actions＋稼働中Supabaseのprivate checkpointへ更新。Railwayは代替hostとして保全します。[旧ローカルCodex WIP引継ぎ](docs/handoffs/2026-10-22-manager-local-codex-handoff.md)は当時の履歴資料として保存し、現在の作業状態には適用しません。Managerの本番配備は未完了です。
 
-**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[atomic patch A–F計画](https://github.com/Daisuke134/life-manager/blob/2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)ではSlice Aがmainに実装済み（23テスト）。Slice B–Fは計画段階です。既存タスク状態は変更していません。
+**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[既存A–F計画](https://github.com/Daisuke134/life-manager/blob/2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)に沿い、Aの検査、Bの公開予測70研究の分割評価、CのTwin wave4構造gateをmain統合しました。Bの比較区間は0を含み優位未証明、Cの生成来歴・accuracyは未検証です。Dの未来予測lockは [PR8585](https://github.com/Daisuke134/life-manager/pull/8585) でCI中、実予測・事前公開は未実施。研究の進展で原タスクの状態を進めません。
 
 **日本語章の実公開:** [人工社会を借りて、現実から学ぶ](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja)。公式掲載25件・事例7件、公開code/data、説得研究の訂正と再利用方針を解説。[source・deploy・独立公開確認](docs/verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)を参照。記事公開は人の便益やE16の本番配備を示すものではない。
 

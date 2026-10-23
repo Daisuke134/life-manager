@@ -1,5 +1,7 @@
 # Manager — E16本番配備ゲートから再開
 
+**2026-10-23以降の再開先:** [実cloud実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md) とtasks.jsonを優先してください。本書下部は2026-10-22保存時点の履歴です。現在は既存Actions＋Supabaseのgateway/main runtimeと初回状態移行が完了し、実OIDCで復元・更新・解放を確認済み。E16は実canary・停止/復旧・native観測等の受入れを継続しています。Railway新worker/volumeやMac hostの提供を作業再開条件に戻しません。
+
 唯一の状態正本は [tasks.json](../roadmap/tasks.json) のF009。技術順は既存E01→E16、次のカーソルはE16。E01–E15をやり直さない。原113件の69 done /41 todo /3 skippedは別の受入状態で、Eの実装件数を加算しない。
 
 **後続source実装:** 過去intent先行回収、checkpointで再利用できない送信境界、commitとdeliveryの分離、lag/hash-onlyでrollbackしない処理を追加した。[実装・684テスト・16ケース実測の記録](../verification/E16_RECOVERY_HARDENING_20261022.md)。本番host adapter/privileged bridge/volume/実canaryは未成立で、E16の状態は変わらない。
