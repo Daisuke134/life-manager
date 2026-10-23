@@ -46,5 +46,13 @@ if ! command -v codex >/dev/null 2>&1; then
   rm -f "$installer"
   trap - EXIT
 fi
+if [ "$command_name" = install ] && ! codex login status >/dev/null 2>&1; then
+  echo "[local] 本人のCodexへログインします。認証を確認してからjobを登録します。" >&2
+  codex login >&2
+  codex login status >/dev/null 2>&1 || {
+    echo "[local] Codex loginを確認できません。jobは登録していません。" >&2
+    exit 2
+  }
+fi
 export LIFE_MANAGER_PYTHON="$venv/bin/python"
 exec "$venv/bin/python" -m runtime.loop.local_install "$command_name" "$@"

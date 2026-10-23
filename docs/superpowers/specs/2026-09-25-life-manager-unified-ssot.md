@@ -4,6 +4,8 @@
 
 **目的・範囲:** READMEを初めて使う人が用途とMac導入をすぐ理解できる長さへ整理し、公開bootstrapから本人のMacで起動する経路の再現済み不具合を修復する。人気公開repoの実READMEとinstallerを一次資料として比較する。WebMCP/ハッカソン、個別運用履歴、内部owner名は入口から外し、必要な詳細は既存docsへ案内する。既存MAC02–05の全agent・本人設定・自然実行の受入範囲は維持し、別Mac実機やprovider成果を隔離テストで代用しない。他sessionのworktree、production browser、進行中effectは変更しない。
 
+**Daisの追加要件:** READMEは内部報告ではなく、背景知識のない外部利用者へ書く。Localの導入条件はChatGPT subscription（Plusで十分）とスリープしないMac/Mac miniを先に示す。内部owner名、same-core/host-adapter説明、運用受入履歴、会社名のform入力規則は本文に置かない。個別serviceの本人loginと追加provider条件は必要時の詳細guideへ案内する。獲得目標は実利用に基づくGitHub 10,000 stars。公式repo APIの開始snapshotは8 starsで、README変更だけを10,000達成と扱わない。今回の入口と導入の反映後、実利用・導入成功・starsを測りながら成長を継続する。
+
 **完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
 
 **順序・現在cursor:** 既存MAC01とMAC04 source受入を保持し、README-MAC-01（比較・入口整理）とREADME-MAC-02（公開導入の呼出し境界診断・修復）を並行、統合後に既存MAC02–05へ戻る。理由は、前回の共通installerがPR #8617でmainへ入っており、再実装せず公開入口と残る停止点を直すため。所有worktree=`.worktrees/readme-mac-product-20261023`、branch=`fix/readme-mac-product-20261023`、owner=`codex-readme-mac-product`。旧portability worktreeは別ownerのleaseを維持する。
@@ -11,6 +13,12 @@
 - [ ] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。
 - [ ] README-MAC-02: 現mainの公開導入を検証し、再現した不具合を最小修復する。
 - [ ] README-MAC-03: focused/context/contract、review、CI、main、公開readbackを確認し残る実機条件を記録する。
+
+**導入の再現対象:** `scripts/install-local.sh`はCodex CLIの存在だけで全job登録へ進み、本人の認証を確認しない。同じrepoのCoconala `prepare`は`codex login status`→必要時のみ公式`codex login`→再確認を実装している。この既存方式を全体`install`にも適用し、未認証・login失敗・成功応答だけで認証状態が変わらない場合はjob登録前に止める。既存認証は再loginしない。`prepare`とread-only `plan`はloginを開始しない。隔離fixtureで登録開始の有無を検証し、実account/sessionは操作しない。
+
+**確認した証拠:** 追加5ケースは旧実装で4 fail/1 pass（認証確認がなく、失敗・未確認でも登録開始）、修正後は全PASS。既存を含むinstaller27件、public bootstrap10件、host/fleet/install36件の計73件がPASS。loop contractは18 products/192 registry jobs/113 mapped/errors0で、旧specの191/112は当時のsnapshotである。最初の検証はruntime venvの既存`site-packages/scripts`がrepoのnamespaceを隠して2 import errorsとなるため、開発用Python3.14とunittest discoverで同bootstrapを実行し10件PASSを確認した。runtime依存やCIをこのために変更していない。
+
+**現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
 
 ## 別Macへ配布するLocal製品の実行契約
 
