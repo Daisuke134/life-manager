@@ -100,6 +100,8 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 実装判断: 既存Python/Playwright/共通profile validatorとlocal applyを再利用する。候補者の事実には既存job-search profile v1のnameとevidence付きfactsを使う。Lancers固有accountとprovider証拠は本人private入力を明示接続し、必要最小の契約を同じcaller群へ通す。source/templateの作者値は本人証拠の代替にしない。新scheduler/独自業務core/global host profile移行/任意の新依存は追加しない。brainstormingの質問はユーザーが明示的にopt outしているため進行条件にしない。building-agentsの古いmodel/provider指定は今回のChatGPT Plus/Codex要件を上書きしない。
 
+SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。専用Lancers browserは登録済みendpointで到達可能だが、with-browser guardの有限read-only probeはBUSY/exit75で実行されず、page作成・ログイン・送信は0。leaseはdead holderでも既存fresh-graceを保持するため、解除/再試行で迂回せず原ownerのreleaseまたはguardの正規判定後に公式観測を続ける。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
