@@ -121,6 +121,40 @@ COCONALA_REPLY_LEGACY_PRE_EFFECT_PROOF = {
     "wrapper_path": "skills/browser/with-browser.sh",
     "wrapper_sha256": "d5160dd49bb52ed72135907127db815bf8b88c69bbb75676d296a5ac20e6842c",
 }
+# Original event bytes and preserved files, not the investigation's summary JSON.
+EBOOK_JA_IG_LEGACY_EVENT_SHA256 = {
+    "ed5a6208c5b81c122cfd1b68": "b7edd9633393946bacc2ec54218fe195ad89898dc39f75efcb17e6f59290fb90",
+    "975156cdb6f27bb37b4fcbf6": "43aa762e9f5ad7748051e91a03e52a4e29c3c0ea81fc8fbf38b8340564312329",
+    "7b9cacb4c1d9c3f1e594ad51": "5bfdbb129b3632da262b762cca4fa57dc7c4be5c187995ebb649aea4535cbaf0",
+    "84284f6fdd7d108bf08c780b": "2b79f3b34b7d7d39a60018313e105d23171befbed0ed96b7458bb50f66f4fa79",
+    "05463b0a86790b8ec08a44d7": "8d35846ea70197c39207901ab06005fdcce96ae70fa358d4f7a600e30ddba65b",
+    "a046783b5764e13a7bd44a0c": "819a6b963b238fa9bfe46ba89ddfcf481bef906d68cceb1bb0239dbcfcb065f5",
+}
+EBOOK_JA_IG_LEGACY_RUN_FILES = {
+    "18e04e60151f5bc8-77716/entrypoint-result.json": ("bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd", 1792518831419582136),
+    "18e04e60151f5bc8-77716/host-admission.json": ("c565c6f7a0a410fac96c9299b58bf383e174bd3fdfeeb9e90c591734bfcde237", 1792518831418904717),
+    "18e04e60151f5bc8-77716/stderr-relay/relay-context.json": ("17028a202d6c319fdffbc337690d51ecd4d9a8ab275910361f902285d02b0ba4", 1792518831423256527),
+    "18e04e60151f5bc8-77716/stderr-relay/relay-result.json": ("8db67e64742e39a64aacaf387cef329dcf09b9adfb0703e148b8c4cd0a331cc2", 1792518836610200368),
+    "18e04e63effa5a60-78045/entrypoint-result.json": ("537e307a5986ef1434bcb61dbe2aaab54d06577a6a8357dbb05e9a742e66ed8a", 1792518847043348180),
+    "18e04e63effa5a60-78045/host-admission.json": ("c565c6f7a0a410fac96c9299b58bf383e174bd3fdfeeb9e90c591734bfcde237", 1792518843193747579),
+    "18e04e63effa5a60-78045/stderr-relay/relay-context.json": ("7dc62d1a2cf28778a76de44db8adf465c6d3c54ab17d75e583979385a9c2df98", 1792518843201011111),
+    "18e04e63effa5a60-78045/stderr-relay/relay-result.json": ("704ab321caf7ffa07cac073998deeecf132c0ba39bbb6dd8312beb654f975c57", 1792518847568349783),
+}
+# Each source body is byte-identical to its 4bf017d5 Git blob. The formerly
+# loaded 4bf release directory and the precise exit-75 branch remain unavailable.
+EBOOK_JA_IG_LEGACY_SOURCE_FILES = {
+    "RELEASE.json": ("68482e5f72c0472199f0a3251d35840d49c7dea3aded3838564c3aefb15280bd", 1792390128911740380, 0o444),
+    "runtime/loop/lm_loop_run.py": ("7f0f0bc88c2c1c7cf507db716a5c1d7aa537274fe3c184b982eac974e041b10b", 1792373109000000000, 0o555),
+    "apps/life-manager/scripts/ebook-distribute-daily.sh": ("ab845c0361e13d5870894a593d6a615c93e117cbae918919a0f678ae6c79171c", 1791728875000000000, 0o555),
+    "apps/life-manager/scripts/ebook-distribute-daily.js": ("f2552df9f307569843f0d233b0d9fcccc6f50c242bc13342bba017c5994835bd", 1791975608000000000, 0o444),
+    "apps/life-manager/lib/marketing-video-publication-adapter.js": ("d4cd1066ae9d369bb6d50ae76017b3f11d986e59fc3e79ea7ae11e194c84f345", 1791803252000000000, 0o444),
+    "skills/video/lm-distribution/distribute.py": ("8e5f2e579f1956273d4377a8bb8067d530b084e2e8f30c9aaa9ed0aa286d4281", 1791975608000000000, 0o555),
+    "skills/video/lm-distribution/postiz_video.py": ("de9e8b96ce7f9c52cae1cf969e355d6330a1195ae73ec06fc319c266dd079e7d", 1791975608000000000, 0o555),
+    "skills/earn/marketing-engine/ebook_distribute_daily.py": ("5c40957a0bad71348b1c8840e4340d1fedfd7139486ac5b371785bca37765948", 1791975608000000000, 0o444),
+    "skills/earn/marketing-engine/ebook_runner.py": ("5f522376e928dc4621c5ae07caa4ecb1aa51312be4708ea449e75a4ab3420b90", 1791975608000000000, 0o444),
+    "skills/earn/marketing-engine/render_eval/watercolor_candidate.py": ("a1ae3e839afe641a04d10dc584780d3133806f1b42af3fb71527361253e0de06", 1791975608000000000, 0o444),
+    "skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json": ("040ec1538e0aa75af4dd11d86737d3b332dd57e9ad0a9aacd14f73abcf936906", 1791975608000000000, 0o444),
+}
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
 PRE_EFFECT_RECONCILE_MAX_ROWS = 20
@@ -340,9 +374,12 @@ def _is_ebook_legacy_no_due_terminal(entry: dict, row: dict) -> bool:
     return _ebook_legacy_no_due_proof(entry, row) is not None
 
 
-def _mobile_pre_effect_marker_sha256(loop_id: str, entry: dict, row: dict) -> str | None:
+def _mobile_pre_effect_marker_sha256(
+    loop_id: str, entry: dict, row: dict, *,
+    entrypoint: str = "apps/life-manager/scripts/mobile-app",
+) -> str | None:
     """Verify the run-private marker that mobile-app clears before its first upload."""
-    if (entry.get("entrypoint") != "apps/life-manager/scripts/mobile-app"
+    if (entry.get("entrypoint") != entrypoint
             or entry.get("effect_class") != "publish"
             or row.get("loop_id") != loop_id
             or row.get("owner_id") != loop_id
@@ -725,6 +762,93 @@ def _coconala_reply_legacy_pre_effect_proof(
     }
 
 
+def _ebook_ja_ig_legacy_pre_effect_proof(
+    loop_id: str, entry: dict, occurrence_id: str, runtime_rows: list[dict],
+) -> dict | None:
+    """Join the exact FIFO deferral and both legacy claimants to original bytes."""
+    if (loop_id != "ebook-ja-instagram-daily"
+            or occurrence_id != f"{loop_id}:18e01f3eff2e6368-4807"
+            or entry.get("entrypoint") != EBOOK_DISTRIBUTION_ENTRYPOINT
+            or entry.get("effect_class") != "publish"
+            or not isinstance(entry.get("state_root"), str)):
+        return None
+    runs = ("18e01f3eff2e6368-4807", "18e04e60151f5bc8-77716", "18e04e63effa5a60-78045")
+    claim_ref = f"lm-occurrence://{loop_id}/{runs[0]}/claim"
+    exact = [row for row in runtime_rows if row.get("run_id") in runs
+             or row.get("occurrence_id") == occurrence_id
+             or claim_ref in (row.get("evidence_refs") or [])]
+    if (len(exact) != len(EBOOK_JA_IG_LEGACY_EVENT_SHA256)
+            or {row.get("event_id") for row in exact} != set(EBOOK_JA_IG_LEGACY_EVENT_SHA256)
+            or any(hashlib.sha256(json.dumps(row, sort_keys=True, separators=(",", ":"),
+                                             ensure_ascii=False).encode()).hexdigest()
+                   != EBOOK_JA_IG_LEGACY_EVENT_SHA256[row["event_id"]] for row in exact)):
+        return None
+
+    def original_bytes(base: Path, relative: str, expected: tuple, mode: int = 0o600) -> bytes:
+        path = base / relative
+        for parent in Path(relative).parents:
+            info = (base / parent).lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) & 0o022):
+                raise ValueError("legacy proof directory changed")
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != mode
+                    or info.st_mtime_ns != expected[1] or info.st_size > 512 * 1024):
+                raise ValueError("legacy proof file changed")
+            data = stream.read(512 * 1024 + 1)
+            after = os.fstat(stream.fileno())
+            if (hashlib.sha256(data).hexdigest() != expected[0]
+                    or (after.st_mtime_ns, after.st_size, after.st_nlink)
+                    != (info.st_mtime_ns, info.st_size, info.st_nlink)):
+                raise ValueError("legacy proof bytes changed")
+        return data
+
+    root = Path(entry["state_root"]).expanduser()
+    if not root.is_absolute():
+        return None
+    scratch = root / "loop-tmp" / loop_id
+    try:
+        release = ROOT.parent / "20261019T150829-baac8c68"
+        for relative, expected in EBOOK_JA_IG_LEGACY_SOURCE_FILES.items():
+            original_bytes(release, relative, expected, expected[2])
+        files = {relative: json.loads(original_bytes(scratch, relative, expected))
+                 for relative, expected in EBOOK_JA_IG_LEGACY_RUN_FILES.items()}
+        for run_id in runs[1:]:
+            if os.path.lexists(scratch / run_id / "effect-identity.jsonl"):
+                return None
+            binding = {"owner_id": loop_id, "run_id": run_id, "occurrence_id": occurrence_id,
+                       "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df"}
+            context = files[f"{run_id}/stderr-relay/relay-context.json"]
+            result = files[f"{run_id}/stderr-relay/relay-result.json"]
+            if (context.get("binding") != binding or result.get("binding") != binding
+                    or result.get("eof") is not True or result.get("dropped_bytes") != 0
+                    or result.get("storage_error") is not None
+                    or result.get("result_oversized") is not False):
+                return None
+        terminal = next(row for row in exact if row["event_id"] == "84284f6fdd7d108bf08c780b")
+        if _mobile_pre_effect_marker_sha256(
+                loop_id, entry, terminal, entrypoint=EBOOK_DISTRIBUTION_ENTRYPOINT,
+        ) != EBOOK_JA_IG_LEGACY_RUN_FILES[f"{runs[1]}/entrypoint-result.json"][0]:
+            return None
+    except (OSError, ValueError, TypeError, KeyError):
+        return None
+    refs = [f"lm-event://{loop_id}/{row['run_id']}/{row['event_id']}" for row in exact]
+    refs.extend(f"lm-loop://{loop_id}/{relative}" for relative in EBOOK_JA_IG_LEGACY_RUN_FILES)
+    return {
+        "owner_id": loop_id, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "pre_effect", "evidence_refs": refs,
+        "evidence_ref": f"lm-event://{loop_id}/{runs[2]}/a046783b5764e13a7bd44a0c",
+        "blocker": terminal["blocker"], "no_effect_proof": {
+            "kind": "ebook_ja_ig_legacy_all_claimants_pre_effect",
+            "claimant_run_ids": list(runs[1:]),
+            "source_release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+            "loaded_release_bytes_verified": False, "exit75_cause_identified": False,
+        },
+    }
+
+
 def _pre_effect_occurrence_proof(
     loop_id: str, entry: dict, occurrence_id: object, expected_state: object,
     runtime_rows: list[dict], *, queued_at: float | None = None,
@@ -746,6 +870,10 @@ def _pre_effect_occurrence_proof(
     if queued_at is not None and (history_start is None or history_start > queued_at):
         # Rotated-out journals could hide a foreign claim; fail closed.
         return None, "history_incomplete"
+    if (loop_id == "ebook-ja-instagram-daily"
+            and occurrence_id == f"{loop_id}:18e01f3eff2e6368-4807"):
+        proof = _ebook_ja_ig_legacy_pre_effect_proof(loop_id, entry, occurrence_id, runtime_rows)
+        return (proof, "ok") if proof is not None else (None, "legacy_claim_proof_mismatch")
     coconala_proof = _coconala_reply_legacy_pre_effect_proof(
         loop_id, entry, occurrence_id, expected_state, runtime_rows,
     )
