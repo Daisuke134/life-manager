@@ -466,3 +466,7 @@ This directly matches the SSOT L17 gap list (daily-life format missing / no foll
 no bio link yet) and is the basis for the per-slot content rotation and the engagement/bio-link gates
 implemented in `skills/earn/line-sticker-distribute/` (2026-10-07,
 `feat/line-sticker-daily-life-20261007`).
+
+## 運用ルール（成田 2026-10-23）
+
+- Mac mini で LINE（アプリ／Creators Market のブラウザ profile `line-creators`）やその他のサービスを終了するときは、ただ閉じずに必ずログアウトしてから終了する。閉じるだけだと接続が切れて修復に手間がかかる。loop が使う profile は通常終了させず、終了が必要なときは session_vault.py dump で保存してから。
