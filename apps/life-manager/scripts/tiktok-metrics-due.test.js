@@ -457,7 +457,7 @@ test("daily metrics catch up the latest elapsed 22 JST report day across midnigh
         for (const [relative, value] of [
           [`asc/${day}/acquisition.json`, { report_day: day, products: [], rows: [], snapshot_ref: `asc-${day}` }],
           [`revenuecat/${day}/subscriptions.json`, { report_day: day, products: [], snapshot_ref: `revenuecat-${day}` }],
-          [`coverage/${day}/summary.json`, { report_key: `attribution-${day}`, products: [], message: "fixture coverage unavailable" }],
+          [`coverage/${day}/summary.json`, { kind: "marketing_product_metric_summary", product_id: "mobile-marketing", period: "daily", observed_at: `${day}T13:00:00.000Z`, report_key: `attribution-${day}`, source_refs: [], products: [], message: "Life Manager：fixture coverage unavailable" }],
         ]) {
           const file = path.join(attributionRoot, relative);
           fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -500,7 +500,7 @@ test("missing Honne weekly data stays unavailable and does not stop Anicca metri
   for (const [relative, value] of [
     [`asc/${reportDay}/acquisition.json`, { report_day: reportDay, products: [], rows: [] }],
     [`revenuecat/${reportDay}/subscriptions.json`, { report_day: reportDay, products: [] }],
-    [`coverage/${reportDay}/summary.json`, { report_key: `attribution-${reportDay}`, products: [], message: "fixture coverage unavailable" }],
+    [`coverage/${reportDay}/summary.json`, { kind: "marketing_product_metric_summary", product_id: "mobile-marketing", period: "daily", observed_at: `${reportDay}T13:00:00.000Z`, report_key: `attribution-${reportDay}`, source_refs: [], products: [], message: "Life Manager：fixture coverage unavailable" }],
   ]) {
     const file = path.join(attributionRoot, relative);
     fs.mkdirSync(path.dirname(file), { recursive: true });

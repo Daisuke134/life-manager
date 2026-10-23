@@ -236,3 +236,18 @@ test("generated Japanese product summaries pass the real adapter and invalid hea
   }), /marketing summary snapshot mismatch/);
   assert.deepEqual(sent, []);
 });
+
+test("Japanese summaries use the 4096 character limit rather than UTF-8 bytes", async () => {
+  const payload = { lane: "marketing-product-summary-anicca", product: "anicca-ios", locale: "ja", platform: "multi", status: "summary", period: "daily", observed_at: "2026-10-23T19:19:22.638Z", summary_ref: `object://sha256/${HASH}` };
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload });
+  const snapshot = { kind: "marketing_product_metric_summary", period: "daily", report_key: "2026-10-23", source_refs: [], message: "Life Manager：" + "日".repeat(4083) };
+  const sent = [];
+  const deps = { secretProvider: { get: async () => "fixture-token" }, chatProvider: { get: async () => "fixture-chat" }, snapshotProvider: { get: async () => snapshot }, sendTelegram: async (_token, _chat, text) => { sent.push(text); return { ok: true, result: { message_id: 708 } }; } };
+  assert.equal(snapshot.message.length, 4096);
+  const result = await executeMarketingLivenessJob(job, deps);
+  assert.equal(result.receipt.message_id, 708);
+  assert.deepEqual(sent, [snapshot.message]);
+  snapshot.message += "日";
+  await assert.rejects(executeMarketingLivenessJob(job, deps), /marketing summary snapshot mismatch/);
+  assert.equal(sent.length, 1);
+});

@@ -343,7 +343,7 @@ async function executeMarketingLivenessJob(job, deps = {}) {
   if (payload.status === "summary") {
     if (!deps.snapshotProvider) throw new Error("marketing summary snapshot provider is required");
     const snapshot = await deps.snapshotProvider.get(job.tenant_id, payload.summary_ref);
-    if (!snapshot || snapshot.kind !== "marketing_product_metric_summary" || snapshot.period !== payload.period || typeof snapshot.message !== "string" || !(snapshot.message.startsWith("Life Manager:::") || snapshot.message.startsWith("Life Manager：")) || Buffer.byteLength(snapshot.message) > 4096 || !Array.isArray(snapshot.source_refs) || snapshot.source_refs.some((ref) => !SNAPSHOT_REF.test(ref))) throw new Error("marketing summary snapshot mismatch");
+    if (!snapshot || snapshot.kind !== "marketing_product_metric_summary" || snapshot.period !== payload.period || typeof snapshot.message !== "string" || !(snapshot.message.startsWith("Life Manager:::") || snapshot.message.startsWith("Life Manager：")) || snapshot.message.length > 4096 || !Array.isArray(snapshot.source_refs) || snapshot.source_refs.some((ref) => !SNAPSHOT_REF.test(ref))) throw new Error("marketing summary snapshot mismatch");
     renderedPayload = { ...payload, report_key: snapshot.report_key, source_refs: snapshot.source_refs, message: snapshot.message };
   }
   if (payload.status === "observed" && payload.metrics === undefined) {
