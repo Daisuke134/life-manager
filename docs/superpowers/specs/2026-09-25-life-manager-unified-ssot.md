@@ -23070,6 +23070,7 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 6. 未解決の権限境界: `killall corespotlightd`はClaudeのauto-mode classifierで拒否される。容量の主因が再び同processになった時だけ、primaryが記録したActivity Monitor「終了」経路を使う。
 
 
+
 ## Anicca旗艦・公開6アプリの配信と継続課金
 
 **目的・範囲・完了条件:** Aniccaを旗艦とし、公開6アプリのプロダクトと無料の既存SNS/Web配信を改善する。最初の事業成果は6アプリ合計MRR USD 10,000、その次に各アプリUSD 10,000を追う。MRRは公式の有料継続契約readbackで判定し、Apple Proceeds、ダウンロード、RevenueCat New Customers、投稿数をMRRへ置換しない。通知タップから表示本文と同一メッセージを開き、ペイウォール読込失敗で進行不能にならない版をApp Storeへ提出する。新しい配信基盤・有料広告・有料調査API・装飾アニメーションは先行条件にしない。毎週10倍は意欲的な目標であり、予測や保証として報告しない。
@@ -23087,6 +23088,10 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 合計App Unitsは15。Aniccaの表示増加とApp Units減少は観測事実だが、原因を通知やペイウォールへ断定しない。vidIQの接続済みYouTubeチャンネルとInstagramアカウントはともに空で、非公開analyticsは未取得。Postiz公式GETの直近7日間は431投稿行、30接続。投稿数には他商品の配信も含むためAniccaの到達やインストールを示さない。private evidenceは `~/.local/state/life-manager/evidence/mobile-flagship/20261023/{integrations,posts}.json`。公開Apple LookupはAnicca 1.9.4（2026-06-24公開）。ASC live GETでは1.9.5 REJECTED、build391不在、最新Xcode Cloud #805 ERRORED/actions空。通知とpaywallの既存修正はcanonical `apps/mobile/anicca-ios` にあるが、新版への収録・提出・公開は未完。
 
+**追加の公式readback:** RevenueCatの2026-10-22 complete MRRはAnicca USD20.34 / Honne USD0.00。残る4アプリはRevenueCat project未登録でMRR未確認を保持する。PostizのAnicca関連16アカウントでは英語Instagram `anicca.en` の直近2本が1,946/1,818 views、保存各3、共有各1。英語TikTok `aniccaaffirmation` は171/119 views、`anicca_slideshow` は123/146 views。これは現在累計値の小標本であり、同じ24h cohortや課金効果の勝敗として扱わない。YouTubeではrate limitとdaily upload quota超過が確認され、失敗投稿の重複再送は行わない。証拠は同private evidenceディレクトリの `anicca-native-metrics.json` / `revenuecat-mrr.json`。
+
+**提出経路の最小修正:** `fastlane/Fastfile::submit_review` が選んだversionを `deliver(app_version:)` へ渡さない不備を修正する。外部提出をstubした実laneの回帰テストで、明示/既定versionの両方が変更前nilで失敗し、変更後2 tests/4 assertions PASS。Fastfile syntax PASS。これは審査提出の成功を意味しない。
+
 **正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`、branchは `growth/mobile-flagship-20261023`。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
 
 **順序更新:** 旧順序はローカルレポート修正→release→計測baseline→自然投稿→ストア/翻訳→creative/SEO→通知/paywall。新順序は下表。理由は既知の修正が未配布であることと、Apple週次でAniccaのApp Unitsが減少していること。既存slotの自然配信を止めず、過去投稿の重複再送を行わない。過去の1,000ダウンロード/日目標は計測上の別目標として維持するが、MRR達成を判定する必須gateにはしない。
@@ -23101,3 +23106,12 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 | 6 | 毎週の結果で次の配信・課金改善を選び合計MRR USD10Kへ継続 | 施策、比較期間、基準値、観測結果、継続/停止/変更の判断を既存specへ更新。公式売上未確認を成功/0に変換しない |
 
 **補助skill:** `ParthJadhav/app-store-screenshots` の公式READMEを確認。実スクリーンショットからストア画像を作るエディタで、アプリ内アニメーション用ではない。新版と配信の先頭作業を妨げない範囲で後続へ利用する。`rosssark-motion-skill` は添付画像の名前だけで配布元未特定のため、任意の同名packageを導入しない。
+
+### FND01/FND06 容量の実測：旧release固定とworktree返却 — 2026-10-23 Claude
+
+- 空きは5GiB→13GiB（anicca-productsの統合済み・clean・24h未更新・使用process0のworktree 7本をforce無しで返却し2,994MB、同時間帯の他ownerの回収を含む）→swap 6.8→8.2GBの増加で7GiBへ戻る。空きの振れはswap（`corespotlightd` 2.7GB・`mds_stores` 1.3GB）が主因。
+- `~/loops` 10GB = `dependency-bundles` 5.6GB（npm bundle 15個×約375MB）+ releases 3.2GB（35本）。`prune_dependency_bundles`は参照0のbundleだけ消し、`loaded_release_roots`は読込状態に関係なく`~/Library/LaunchAgents/*.plist`全件を保護する。
+- 9/17–10/10のreleaseを指すlabel 18件が旧bundle 6個（約2.2GB）を固定する。`lm-loop apply --loaded-idle-only`の実測理由（全44旧label）: `pending-admission` 16（ubi-watcher/earn-watch/pm-live-trade/reinvest/x-repost系/agentmail系/life-manager-daily/marketing-mine-daily/disk-cleanup-15d/treg等、registryにadmission_class・resource_class・priorityの型付きpolicyが無い旧owner）、`loaded-running` 25（keep_alive browser/franklin/x402/mcp）、`disabled` 2（alpaca-investment-live、capafy-ig-marketing-daily）、`effect_unknown` 1（lancers-revenue-storefront）。registry外2（job-search-mercor-browser、x-tweeter-pass）。
+- 次の手（FND06）: 旧16ownerへ#8564と同じ型付きadmission policyを宣言して通常applyで現releaseへ移す（money/trade系は効果の挙動差をreviewしてから）、disabled 2件と未登録2件はretired_labelsへ移して既存`_retire_labels`でplistを外す。これで旧release/bundleが通常GCで回収される。
+- 未実施: 残骸 `~/Projects/anicca-products/.worktrees/ebook-publishing-media-20261021`（Git登録解除済み・追跡ファイルの複製3.4GB）と`~/Projects/anicca-products-worktrees/af-click-receipts`（.DS_Storeのみ）の削除はClaudeのclassifierで拒否。
+
