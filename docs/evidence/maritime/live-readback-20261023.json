@@ -200,5 +200,107 @@
     "model_calls": 0,
     "auth_changes": 0,
     "private_values_logged": 0
-  }
+  },
+  "followups": [
+    {
+      "observed_at": "2026-10-23T16:14:49Z",
+      "readback_owner": "root; provider/native exact-author and exact-body readback",
+      "distribution": {
+        "published_posts": [
+          {
+            "account": "@selawmqt",
+            "language": "en",
+            "url": "https://x.com/selawmqt/status/2113662565427691959",
+            "provider_post_id": "2113662565427691959",
+            "status": "PUBLISHED",
+            "cta_kind": "direct_tracked_pilot_link",
+            "short_url": "https://t.co/LPx75SXPsN",
+            "expanded_url": "https://life-call-production.up.railway.app/maritime?lang=en&source=x&utm_source=x&utm_medium=social&utm_campaign=maritime-week1&utm_content=selawmqt",
+            "destination_http_status": 200
+          },
+          {
+            "account": "@diceai0",
+            "language": "ja",
+            "url": "https://x.com/diceai0/status/2113665171407437975",
+            "provider_post_id": "2113665171407437975",
+            "postiz_post_id": "cmvl65omk011osz1co91dgv0h",
+            "stable_provider_user_id": "1731468246094905344",
+            "status": "PUBLISHED",
+            "published_at": "2026-10-23T16:13:51Z",
+            "author_and_body_match": true,
+            "provider_error": null,
+            "cta_kind": "clickable_cross_account_mention",
+            "click_path": [
+              "@selawmqt",
+              "https://x.com/selawmqt",
+              "https://x.com/selawmqt/status/2113662565427691959",
+              "https://t.co/LPx75SXPsN",
+              "https://life-call-production.up.railway.app/maritime?lang=en&source=x&utm_source=x&utm_medium=social&utm_campaign=maritime-week1&utm_content=selawmqt"
+            ],
+            "independent_ja_attribution": false
+          }
+        ],
+        "published_post_count": 2,
+        "posts_per_account": 1,
+        "reconciliation_posts": 0,
+        "account_or_profile_changes": 0,
+        "credit_purchases": 0,
+        "hq_receipt_url": "https://dais-45u3124.slack.com/archives/C0CBLBGSBJN/p1792772149534879?thread_ts=1792770959.141529&cid=C0CBLBGSBJN",
+        "attribution_limit": "The Japanese post is awareness through @selawmqt and shares the English landing attribution. No independent Japanese conversion, actual usage, competition acceptance or revenue is claimed."
+      },
+      "formal_submission_receipt": null,
+      "current_usage_counts": null,
+      "current_costs": null,
+      "unknown_reason": "No new authoritative business-usage, billing or formal-submission readback was obtained. Publication receipts are not user/work/revenue receipts."
+    },
+    {
+      "observed_at": "2026-10-23T16:16:28.916337+00:00",
+      "readback_owner": "product_readback; direct public GET",
+      "short_url": "https://t.co/LPx75SXPsN",
+      "final_url": "https://life-call-production.up.railway.app/maritime?lang=en&source=x&utm_source=x&utm_medium=social&utm_campaign=maritime-week1&utm_content=selawmqt",
+      "http_status": 200
+    },
+    {
+      "observed_at": "2026-10-23T16:19:51.278860+00:00",
+      "readback_owner": "product_readback GitHub PR metadata; source verification and operational boundaries reported by implementer/root",
+      "source_followup": {
+        "pr_url": "https://github.com/Daisuke134/life-manager/pull/8745",
+        "pr_state": "OPEN",
+        "is_draft": true,
+        "head_sha": "764be4c2b15b297134c79e3b147d4e49e74aed7f",
+        "branch": "feat/maritime-provider-chain-20261023",
+        "source_branch_base_sha": "307e86d77f37ebe02eeee7b55cdf36ebd4fe9f7c",
+        "pr_base_sha_at_readback": "5904b05b624a9b5216ac9f53d2a33d24a060cf5c",
+        "changed_source_files": 15,
+        "additions": 758,
+        "deletions": 22,
+        "bounded_scope": "Central prepare/publish chain, receipt validation, one-attempt effect keys, read-only reconciliation and provider-backed report slice.",
+        "reported_verification": {
+          "focused_passed": 141,
+          "runtime_adapter_passed": 362,
+          "common_schema_passed": 16,
+          "root_independent_provider_report_passed": 27,
+          "final_independent_blocking_findings": 0,
+          "full_suite_all_passing": false,
+          "unchanged_baseline_http_fixture_failures": 8,
+          "baseline_source_sha": "307e86d77f37ebe02eeee7b55cdf36ebd4fe9f7c",
+          "details_source": "PR body and source implementer/root readback; this docs audit did not rerun the source suites."
+        },
+        "ci_status_at_readback": "in_progress",
+        "merged": false,
+        "production_applied": false,
+        "trusted_tenant_binding_available": false,
+        "host_executor_available": false,
+        "automatic_enqueue_callers_available": false,
+        "defaults": "disabled/fail_closed",
+        "owner_pkce_and_explicit_retention_consent": "pending_owner",
+        "official_end_to_end_work_result_report_stop_receipts": null,
+        "T17_complete": false,
+        "next_boundary": "Integrate only after required checks/review and real T08/T16 tenant-bound account/credential/browser/action host wiring; owner PKCE/explicit retention consent and official end-to-end readback remain separate operational work."
+      },
+      "formal_submission_receipt": null,
+      "current_usage_counts": null,
+      "current_costs": null
+    }
+  ]
 }
