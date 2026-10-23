@@ -2,10 +2,12 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 import json
+import os
 from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 from test_candidate_verification import setup,NOW
 from manager_core.digital_handoff import plan_release,PublisherContext,REPOSITORY,SOURCE_REF,WORKFLOW,commit_message,ALLOWED_PATHS
 from manager_core.outbox import OwnedEffectJournal
@@ -17,6 +19,8 @@ class GitOccurrenceFixture:
     def __init__(self,root,before,after,packet):
         self.root=root;self.root.mkdir();self.after=after;self.packet=packet
         self.git('init','-q');self.git('config','user.email','fixture@example.invalid');self.git('config','user.name','Fixture')
+        # A detached Git writer can otherwise outlive TemporaryDirectory cleanup.
+        self.git('config', 'maintenance.autoDetach', 'false')
         (root/'unrelated.html').write_bytes(b'preserve me')
         (root/'manager-support').mkdir()
         self.copy(before);self.git('add','.');self.git('commit','-qm','baseline');self.parent=self.git('rev-parse','HEAD')
@@ -46,6 +50,27 @@ class GitOccurrenceFixture:
 
 
 class OwnedRecoveryTests(unittest.TestCase):
+    def test_git_fixture_waits_for_automatic_maintenance(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / 'global-git-config'
+            config.write_text('[maintenance]\n\tauto = true\n\tautoDetach = true\n')
+            trace = root / 'git-trace.jsonl'
+            with patch.dict(os.environ, {
+                'GIT_CONFIG_GLOBAL': str(config),
+                'GIT_CONFIG_NOSYSTEM': '1',
+                'GIT_TRACE2_EVENT': str(trace),
+            }):
+                self.prepare(root)
+            commands = [event.get('argv', [])
+                        for line in trace.read_text().splitlines()
+                        if (event := json.loads(line)).get('event') == 'child_start']
+            maintenance = [args for args in commands
+                           if 'maintenance' in args and '--auto' in args]
+            self.assertTrue(maintenance, 'probe must exercise actual automatic maintenance')
+            self.assertTrue(all('--no-detach' in args for args in maintenance),
+                            'fixture must wait for Git writers before temporary cleanup')
+
     def prepare(self,tmp):
         root=Path(tmp);a,b,c=setup(root)
         packet=plan_release(json.loads((a/'manifest.json').read_text()),json.loads((b/'manifest.json').read_text()),NOW)
