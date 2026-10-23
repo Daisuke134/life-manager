@@ -32,7 +32,7 @@ source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを�
 
 Life Managerを、各業務がobserve → decide → act → official verify → persist → cleanup → 次の仕事を継続し、顧客に正しく成果を届け、実収益と費用を使って改善するシステムにする。Localの全業務と共有基盤、Cloudの移動予定作成・通知・継続稼働、meta loopの評価・自己修復・自己改善を対象にする。発話の「metal loop」はmeta loopとして扱い、mental careはCloudの既存機能として別に維持する。
 
-**今回のscopeは、正本specの更新と残TODOの報告だけ。** 長時間修復goalは`paused`であり、今回は実装・修復テスト・本番設定/state・ownerの停止/再起動・provider送信を再開しない。文書のcommit/push・必要CI・main統合までを今回の完了条件とする。全体目標は維持し、修復再開時は下表の未完atomから進める。既存の未commitコード差分・他owner・effect fence・spend-capを保持し、文書保存や過去のテスト成功を「全体修復済み」「稼いだ」と報告しない。
+**今回のscopeは、現況のread-only照合・既存の隔離fixture検証・正本spec更新・atomic残TODOの報告だけ。** 長時間修復goalは`paused`であり、実装修復・本番設定/state・ownerの停止/再起動・provider送信を再開しない。文書のcommit/push・必要CI・main統合までを今回の完了条件とする。全体目標は維持し、修復再開時は下表の未完atomから進める。既存の未commitコード差分・他owner・effect fence・spend-capを保持し、文書保存や過去のテスト成功を「全体修復済み」「稼いだ」と報告しない。
 
 「永久に故障しない」「全agentの利益が単調増加する」は、外部provider・審査・需要・有限資源を含む系では保証できない。実装する契約は、既知の失敗を再現する回帰検証、欠測を隠さない成果監視、同一effectの重複防止、期限とownerが明確な復旧、悪化した変更の復帰である。市場結果は独立して実測する。会社の既存US$10,000,000 MRR目標や各laneの目標を縮小しない。
 
@@ -86,7 +86,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** 実行は一時停止、今回は文書だけを確定する。FND05bは#8569/main/対象immutable採用/旧1件解除/replay-zeroまで確認済みだが、解除後の自然wakeは未確認。FND05cのquota-before-work証明と関連testには未commitの実装案があり、追加後のGREEN・review・CI・main・採用・旧1件解除は未確認。容量のread-only最終snapshotは13,022,130,176Bで10/12GiB floorを満たすが、増加原因の閉鎖・次の自然業務成果は未確認。再開時はFND01のproducer責務/自然wake確認とFND05cの差分受入を進め、独立するCLD03d2bの自然create/update/cancel判断証拠を確認する。新paid/cost-complete netは未確認。旧NULL/未知effect/旧X ERRORは一括解除・再送しない。別Mac製品化の独立ownerの順序は冒頭MAC01–MAC03を参照する。
+**現在cursor:** goalはpaused、今回は現況照合と文書だけ。再開後はS01（容量増加元の帰属）とW01（C案の既存7回帰修正）を先頭にする。Writer旧Bのunknown0は再確認済みだが、旧Cと解除後に発生した別Dの2fenceが残る。C focused63PASS/全体108PASS・7FAILで未受入。Cloudはsource/DB/配備済みで新receipt/decision未確認。Capafyは当日集計paid1/gross$9.99まで確認し、注文原本・外部客・費用後利益・入金は未確認。次の実行単位と依存は下のS/W/T/B/E/V/M表だけを使う。
 
 - 順序判断: DaisのRyu案件優先指示に対し、既存案件18211957/直接DM10107358の履歴と最新3件の要望を確認する。対象が有料性的サービスの運営を促進する改修・納品であるため、その実装と送信は対応対象外として未実行を記録する。完了や納品済みへ置換せず、旧順=Ryu修正/1回送信→基盤復旧、新順=Ryu未実行を明記→独立するCLD04→残FND/EARN/EVOを継続とする。既存案件state/送信fenceは変更しない。
 
@@ -104,7 +104,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 | [ ] CLD02 | 採用済みuncertain create / claim409照合を自然入力で確認し、重複作成0を記録する | CLD01、既存travel claim/Calendar reader。過去NULLは埋めない |
 | [ ] CLD03 | 変更・取消・移動時間/buffer/通知が正しいことを自然create/update/cancelの判断証拠で確認する | CLD03d2bはsource/DB/Cloud採用済み、自然の意味的証明は未取得 |
 | [ ] CLD04 | 採用済みCloudの同SHA/tenant/accountと自然成果を結び、transport PASS/意味HOLDの残件を閉じる | health成功・Telegram成功をCalendar成功に置換しない |
-| [ ] EARN01 | 有償契約の正しい納品と、Capafy既存sellerの新paidを実現する | 該当FND blockerのみ。C5/R01–R08、Paid契約 |
+| [ ] EARN01 | 有償納品と、Capafy集計paid1の注文原本/外部客確認・既存sellerの次の販売を進める | B/E表、該当FND blockerのみ。計測完全性を無料配信の前提にしない |
 | [ ] EARN02 | 全18業務を下表の役割別成果まで一つずつ閉じる | DD12/C8/G01。既存ownerは並行継続 |
 | [ ] EARN03 | 注文/fee/refund/実費/入金/active subscriptionを同期間・同通貨で結ぶ | C3/T0/T3、CFO。販売前の完全台帳gateにはしない |
 | [ ] EVO01 | 各laneのlive成果を評価入力へ接続し、qualityと経済改善を分ける | 旧E02、既存Gig/Writer/marketing評価 |
@@ -122,6 +122,145 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 **追加の実測とnative runner受入:** #8601は全12ジョブPASS/main `1dbf5087b49a`。baseline run 39889933473はworkflow総735秒/loop731秒/loop待機3秒、変更後39892194935はworkflow総711秒/loop628秒/待機82秒。unittest本体は441→445秒で、短縮の中心はcheckout。Intel指定は`0c559693f03`のARM割当15分待ち回避であり、CPU契約ではない。実MacはmacOS15.6/Apple Siliconで、既存984テストはPASS。標準`macos-15`（arm64）を同じPython3.14/同じ全検証でcanaryし、割当待ちを含む所要時間と全ジョブ成功を見て採用する。`macos-15-xlarge`等の追加有料runner、テストskip、別OSへの変更は行わない。ARM採用はPR #8605/main `0af03b5438286cfaba690b397204490caff7a36c`へ統合し、PR run39893541795は全12成功/346秒（baseline735秒比52.9%短縮）、統合SHA固定run39894270441も全12成功。固定runはworkflow_dispatchの全ref履歴走査を含むため、PRの速度比較へ混ぜない。過去の割当不足が再現した場合は、待ち時間を短縮と報告せずIntelの統合済み修正を保持する。
 
 **TruffleHogの重複除去:** 公式action `c85580b` のaction.ymlは表示名に関係なくGit走査を実行する。単一merge-baseのPRでは両旧stepの範囲をcommon ancestor→merge HEADが包含する。fresh reviewで、criss-crossの複数merge-baseではPR base→merge HEADだけにすると旧省略stepが走査する共通履歴の片側を落とす反例を確認する。PRは`git merge-base --all`が1件ならその共通祖先、複数ならbaseを空にしてmerge HEADの全履歴を選び、どちらも旧2範囲を包含する。pushはbefore→HEAD、手動実行は旧省略値の全ref履歴を各1回だけ選ぶ。`--only-verified`、full checkout、gitleaksの全履歴/現在tree検査は維持する。誤ったfilesystem表示をGit履歴へ直す。正本は [action.yml](https://github.com/trufflesecurity/trufflehog/blob/c85580b712841eda4c53bc28fc6ace6100e8c16c/action.yml#L78-L111) と [空refの全履歴選択](https://github.com/trufflesecurity/trufflehog/blob/c85580b712841eda4c53bc28fc6ace6100e8c16c/pkg/gitparse/gitparse.go#L271-L279)。既存required status名の外部依存はRules API空/legacy required status未設定を確認する。実workflow shellを隔離Git fixtureへ適用し、単一/複数merge-baseの旧範囲包含missing0、共通祖先なしexit1/不正ref exit128を独立確認する。PR synchronizeのbefore値へ空baseがfallbackしないよう、pushの場合だけevent.beforeを選ぶ。受入記録は [PR #8610](https://github.com/Daisuke134/life-manager/pull/8610) のexact-head全checkとmain merge receiptへ結ぶ。別eventで範囲が異なる実行時間を同一benchmarkとして報告しない。自所有worktreeは保護対象のtracked `memory/` を含むため削除せず、変更をcommit/push済みのclean状態で保持する。
+
+### 現況照合とatomic残TODO
+
+**今回の完了条件:** 読み取りの現況照合、隔離fixture検証、残作業の具体化、文書だけのCI/main統合。長時間goalは`paused`のまま。実装修復・本番state/設定・owner操作・provider業務write・送信は再開しない。writing-plansの分解をこの既存正本へ置き、別plan/別SSOTを増やさない。
+
+**数の意味:** 以下67件は「実証済み故障」「未受入」「公式成果未照合」「自然入力待ち」「外部環境不足」を含む次の実行単位であり、67個のsource bugと断定しない。診断atomの完了を業務復旧/収益達成へ置換しない。source修正が必要なatomは既存の最小再現→関連検証→必要review→exact-head CI/main→immutable→対象採用の契約を使い、同じgateを別表へ複製しない。
+
+| fresh確認 | 観測結果 | まだ言えないこと |
+|---|---|---|
+| Local status、04:13:06Z開始 | 304行=managed191/retired97/external15/unmanaged1。catalogは18業務、mapped112/未分類79 | 登録数は稼働/売上の件数ではない |
+| managed191の最新attempt blocker | disk58 / effect_unknown42 / capacity13 / control3 / exit1が11 / exit75が1 / exit2が1 / blockerなし62 | 同時停止数・期間成功率ではない |
+| 04:18:48Zの自然cleanup receipt | ok=true/errors0、reclaimed0、protected_deletions0。free_after=10,343,182,336Bで10/12GiB両floor未達 | 2GiB capacity_recovery=metは業務復旧ではない。増加元はunattributedのまま |
+| runner source/採用bytes | mainのe36e635bbaを含むrunner bytesと146 jobが一致、45 jobは異なる | 45全件にrunner変更が必要とは限らず、同SHA一斉更新しない |
+| Writer旧Bと現在の2件 | 旧Bはreleased/unknown0をDB再確認。旧C resumeはclaimed/unknown1。解除後の自然dailyで別D occurrenceがclaimed/unknown1 | Bの古いfenceが戻ったわけではない。Cのno-work proofをDへ流用できない |
+| Writer Cの隔離検証 | focused63PASS。既存同file全体は108PASS/7FAIL。既存7tests/4fixturesはHEAD比AST不変 | 全体GREEN/受入済みではない。新C判定のearly returnが従来経路を遮る制御フロー回帰を確認 |
+| 新dailyのexact境界 | D=18e10850f9d765a8-39094、run20261023-004552。1st profile busy、2nd provider約900秒timeout。JA/EN記事あり、headline image欠落、publication-state/dispatchなし | モデル/tool作業があり、記事/dispatchの欠落だけでは公式no-effectを証明できない |
+| Cloud、04:13–04:15Z公式read | latest SUCCESS c0f10e13 / health HTTP200・ok=true・同SHA、app treeは比較時main564bade4と一致。現在mainfcaa273bとの差分はlocal TikTok metrics等の4 scriptsのみでTravel/core/DB差分0。DB822行、Calendar receipt2（GO/create/verified）、route_decision0。d2b後の新receipt/decision0 | 一覧/owned GETの自然成功はwrite・正しい移動時間・利益の証明ではない |
+| Capafy公式同account read | 10/23当日部分窓はpaid1/gross$9.99/trial0、10/17–23窓もpaid1。10/16–22完了窓はpaid0。累計gross$112.74/creator earnings$83.78/paid_out$0 | 注文原本・外部顧客・実費後利益・新入金・今回修復との因果は未確認。窓とorder/unit集計を混同しない |
+| 別Mac source | 公開bootstrapの公式blobは取得mainと一致。catalogでlocal command未接続は10業務 | 本人の別Mac自然実行や全18業務の成果を公開blobだけで証明しない |
+
+**順序の更新:** 旧=大分類7件の順序説明とC案の受入→新=S01の容量帰属とW01の実証済み7回帰を先頭で並行、W02–W07で旧C、W08–W10で別Dを処理する。T/Eの公式読取と各Bの独立業務は、直接blocker以外を待たず並行できる。理由はfresh観測で新Dを見つけ、C案の既存経路回帰を再現し、Capafyのpaid集計が1へ進んだため。動作中owner/外部effectを中断・重複させない。現在cursorは文書確定だけで、再開後の最初のsource修正候補はW01。
+
+#### S — 共有基盤（5件）
+
+owner: 共有runtime / disk-cleanup primary。対象: `skills/self/disk-cleanup、runtime/agent-runner/agent_runner.py、config/loop-registry.json、apps/life-manager/config/product-loop-catalog.json`。
+
+| 状態・ID | 今の状態 | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] S01 | 原因未確定 | 既存inventoryの欠測rootと2回のallocated差分を取り、増加producerを1件特定する | path・byte差分・時間・PID/start・ownerが同じ増加へ結び付く。共有APFSの値を合算しない | なし |
+| [ ] S02 | 要原因確定 | S01のproducerで実証した後始末漏れだけを既存cleanup経路へ直す | 最小再現が修正前FAIL→修正後PASS、保護store/使用中ownerを保持、source review/CI/main完了 | S01 |
+| [ ] S03 | 自然実行待ち | 必要なS02修正を対象ownerへ限定採用し、延期中の次eligible業務wakeを1件確認する | loaded bytes一致、10GiB収益/12GiB一般の該当floorを満たす自然runと業務receipt。2GiB recovery metで代用しない | S02、既存GUI/lease条件 |
+| [ ] S04 | 対象選別待ち | runner bytesがmainと異なる45 jobのうち、当該runner修正を使うownerだけを選び1ownerずつ採用する | 不要applyなし。対象のloaded argv/env hash・修正bytes・自然busy時typed deferを一致させる。他ownerのleaseを奪わない | FND04a sourceは既main、対象idle |
+| [ ] S05 | 分類未完 | 未分類79 jobsを既存18業務または正しいsupport/system roleへ対応付ける | 新しい架空業務を増やさず79件の所有/役割が明示され、lm-loop-contractがPASSする | registry/catalogのprimary単独編集 |
+
+#### W — Writer（10件）
+
+owner: Writer primary。対象: `skills/writer-agent/scripts/article_fence_reconcile.py、既存tests、article-daily.sh、prepublication-finish.sh、既存reconciler`。
+
+| 状態・ID | 今の状態 | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] W01 | 実証済み回帰 | _quota_catchup_proofの適用対象判定と証拠検証を分け、非対象入力を既存resume経路へ戻す | 既存7失敗を含む同file全115件PASS。識別済みC対象の不完全証拠はfail-closed、Cの63反例/肯定検証を維持 | 未commit案を保持、追加testの新造不要 |
+| [ ] W02 | 受入前 | C差分と実旧caseの通信/resolve禁止dry-runをfresh read-only reviewerへ渡す | wrong identity/source・不完全capture・tool/work/draft開始を拒否し、0 blocking。billing/costを0へ変えない | W01 |
+| [ ] W03 | source未統合 | Cの2ファイルだけをcommit/pushし、全exact-head CIを通してmainへ統合する | accepted commitとremote objectが一致。文書PRの統合とC実装の受入を混同しない | W02 |
+| [ ] W04 | 未採用 | Cを含むmain由来immutableをarticle-resumeだけへloaded-idleで採用する | 対象1owner・loaded SHA/bytes一致、他owner変更0、実行中owner中断0 | W03、通常preflight |
+| [ ] W05 | 旧C未解除 | article-resume:18e00a32b6c907c0-21320を登録adapterで1件だけ照合/resolveする | 同occurrenceのproofとDB claimed/unknown1→unknown0が一致。他caseのproofを借りない | W04、exact no-dispatch proof成立 |
+| [ ] W06 | replay未確認 | W05の同resolverを追加effect禁止probeでreplayする | provider/resolver/persist追加呼出0、proof hash/mtime/modeとDB不変 | W05 |
+| [ ] W07 | 後続採用待ち | 既存reconcilerの同helper採用を対象限定で進める | 旧Cのone-unit証拠を保持し、同型のeligible自然失敗を既存guard内で扱う。一般exit1/7日minを緩和しない | W06 |
+| [ ] W08 | 新D原因調査 | 新daily 18e10850f9d765a8-39094の900秒timeout直前のtool境界とheadline-image欠落を結ぶ | run20261023-004552・2 attempts・最後の成功/失敗操作をexactに対応付け、最小修正対象を特定する。timeout延長で代用しない | S03と独立にread-only診断可 |
+| [ ] W09 | 新D照合待ち | 新dailyの実publication有無を登録済official readerで同runへ照合する | article-ja/enとtool開始があるためCのquota-before-work proofは拒否。公式effect/absenceが成立する時だけ当該fenceを扱い、欠測なら保持して次probeを記録 | W08。旧B/旧Cの解除を流用しない |
+| [ ] W10 | 自然成果待ち | 新Dの判定に従い既存runを1ownerで回復し、必須destinationの自然公開を確認する | 元のquality/identity/conscience gateを維持し、manifest必須先の同run公式receiptが一致。重複投稿/新しいrunへの逃避なし | W09の安全な次transition、S03 |
+
+#### T — Cloud Travel（12件）
+
+owner: 既存Cloud Travel primary。対象: `apps/life-manager/lib/travel.js、既存Calendar reader/claim、route_decision、travel reminder`。
+
+| 状態・ID | 今の状態 | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] T01 | 旧証拠不足 | 旧GOの1件目をexact source/helper IDで公式再取得する | 現在の版・所有・時間・場所と当時の目的地根拠を照合し、根拠欠測はHOLDを保持する | source/schema/Cloud採用は完了 |
+| [ ] T02 | 旧証拠不足 | 旧GOの2件目のraw locationと採用先が異なる理由を探索する | 同source版のresolver根拠で意図を説明する。後付けroute_decisionを作らない | T01と独立 |
+| [ ] T03 | 自然入力待ち | 次の自然GO作成1件を公式helperへ照合する | receipt/decision/source revision/目的地HMAC一致、移動時間/buffer正しい、次wake追加create0 | 既配備coreを使用 |
+| [ ] T04 | 自然入力待ち | 帰宅が必要な自然RETURN作成1件を照合する | 外部会場→自宅の独立receipt/decisionと公式helperが一致、次wake追加create0 | 既配備coreを使用 |
+| [ ] T05 | 自然入力待ち | 解決後の場所が現在位置と同じ自然対象1件を確認する | 不要GOを作らず必要RETURNだけ残し、不要route再計算0 | T03とは別の入力条件 |
+| [ ] T06 | 自然入力待ち | source時刻または場所が変わる自然更新1件を確認する | 同helper IDを更新し、receiptとdecisionが同じCASで保存、次wake追加PATCH0 | 既存helperがある自然入力 |
+| [ ] T07 | 自然入力待ち | sourceが明示取消された自然対象1件を確認する | 公式cancelledとhelper tombstone、decision NULL化とverified取消が一致、次wake追加DELETE0 | 一覧不在だけで取消しない |
+| [ ] T08 | 残仕様確認 | active sourceがonline化する1件の既存helper処置を確認する | 明示意図による保持/取消と公式readbackが一致。欠測を削除理由にしない | 実故障を再現した時だけ最小source修正 |
+| [ ] T09 | 残仕様確認 | active sourceの場所が削除される1件の既存helper処置を確認する | 明示意図とofficial helper状態が一致し、不明なsourceを削除扱いしない | T08と別入力 |
+| [ ] T10 | 残仕様確認 | 既存legが不要になる1件のhelper処置を確認する | 不要legだけを正しく扱い、必要な他leg/同accountの予定を変えない | T08と別入力 |
+| [ ] T11 | 旧claim照合待ち | 実際の進行を止める旧NULL claimを1件選びattempt→公式requestを探索する | exact predispatch no-effectか実helperを特定。時刻/題名/現在の不在だけで解除しない | 旧NULL対象owner521件を一括解除しない |
+| [ ] T12 | 自然入力待ち | 次の自然T5通知1件を同じ移動blockと照合する | 出発時刻・宛先・設定に合う通知receipt1件。Calendar作成成功と通知成功を分ける | 対応blockのexact identity |
+
+#### B — 18業務の次の1件（18件）
+
+owner: 各行の既存job owner。対象: `catalog/registryの既存entrypoint・各provider reader。新しい共通frameworkは作らない`。最新terminalは04:13:06Z status snapshotで、期間成功率ではない。 14業務はcustomer_revenue、investment/fundraiser/connector/CFOはそれぞれ実現損益/資金調達/接続/財務coverageで評価する。各Bは直近1件の次操作であり、診断完了を業務全体DONEへ置換しない。実原因が確定した時だけ同ownerの最小修正atomを追加し、既存役割別受入まで進める。
+
+| 状態・ID | 最新terminal | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] B01 | pass2 / blocked4 / running1、成果は要公式照合 | gig-coconala / hf-gig-paid-direct: 既存の対応対象Paid案件1件の納品receiptと未納品物を公式talkroomで照合 | 同clientの納品済み/未済・未納品物・次の1操作が確定。他clientの証拠と共有しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B02 | blocked5 / running1 / fail1、成果は要公式照合 | gig-lancers / lancers-revenue-paid: capacity延期の既存有償案件1件を公式work itemと照合 | 同契約の次工程とownerが確定し、共有accountの他ownerを中断しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B03 | blocked3 / running1 / fail1、成果は要公式照合 | gig-crowdworks / crowdworks-revenue-reply: 最新exit75のphaseと公式message/契約stateを1件結ぶ | 未返信/受注済み/未送信をexact receiptで区別し、闇雲な再送をしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B04 | blocked3、成果は要公式照合 | gig-mercor / mercor-revenue-paid: 旧unknownを持つ有償work item1件の公式状態を読む | 当該案件の受注/提出/受領と既存fenceの対応が確定 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B05 | fail1、成果は要公式照合 | promptbase / promptbase-loop-daily: 最新exit1のcaller/input/terminalを1件復元 | 根拠のある原因と最小修正箇所が確定。現dailyがrunnerを呼ばない事実を維持 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B06 | blocked6 / pass1、成果は要公式照合 | writer / writer-money-sync: 既公開記事1件の販売/購読receiptを既存money readerへ照合 | 公開と有料購入を分け、同商品/通貨/期間の公式対価を記録 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B07 | running3 / blocked3、成果は要公式照合 | affiliate / affiliate-loop: 旧unknownを持つ公開1件を公式pageとregistered ctへ照合 | 公開の有無と同じtracked destinationを確定。公開だけをconversionへしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B08 | pass1 / blocked2 / fail1、成果は要公式照合 | investment / investment-strategy-validation: 最新exit1のvalidation入力/結果を1件復元 | 原因と次の安全なvalidationが確定。元本/未実現増加を売上へしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B09 | running6 / blocked10、成果は要公式照合 | agent-economy / x402-settlement-recorder: disk延期中の既存settlement候補1件を公式chain receiptへ照合 | 外部payment/自己資金/資金移動を区別し、同txを重複計上しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B10 | fail1 / blocked3、成果は要公式照合 | job-hunter / job-search-daily: 最新exit2の失敗境界と入力を1件特定 | source/設定/認証のどこかを証拠で特定し、再応募の有無を公式readbackで保持 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B11 | blocked1 / running1、成果は要公式照合 | fundraiser / fundraiser: 次eligible候補1件の公式application stateを照合 | 未提出/審査/採択を区別し、獲得資金を売上へ加えない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B12 | pass1、成果は要公式照合 | connector / hf-connector-daily: 最新passに対応する接続成果receiptを1件再照合 | 接続先/owner/同runが一致。passを営業売上の代用にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B13 | blocked3 / pass1、成果は要公式照合 | self-build / life-manager-selfbuild: disk延期後の自然build1件を既存product registryへ結ぶ | 同productのartifact/検証/登録receiptが一致し、source生成だけを販売にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B14 | fail5 / pass12 / blocked4 / running2、成果は要公式照合 | mobile-apps / life-manager-anicca-ai-youtube: 最新exit1の投稿1件をprovider requestと公式公開状態へ結ぶ | 未送信/公開済み/不明と最初の故障境界を確定。他4件の失敗も同じ手順で別ID化 | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B15 | blocked4 / pass1、成果は要公式照合 | ebook / ebook-ja-instagram-daily: 旧unknownの同投稿receiptをofficial publicationへ照合 | 既存完成asset/投稿receiptを再利用し、再生成/再投稿を重複課金しない | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B16 | running1 / fail1 / blocked6 / pass3、成果は要公式照合 | capafy / capafy-distribute-daily: 最新exit1のslotを既存公開/ct receiptへ照合 | 同slotの公開済み/未済を確定し、旧X ERRORを再送しない。販売済み商品の改変なし | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B17 | running1 / blocked2、成果は要公式照合 | line-sticker / line-sticker-factory-hourly: 既存factory unknownの同作品/申請を公式storeで照合 | 作品ID・審査状態・同runを結び、重複申請なし | S03が必要なlaneのみ。動いているownerは妨げない |
+| [ ] B18 | blocked3、成果は要公式照合 | cfo / life-manager-cfo-hourly: 延期中の次自然CFO snapshotを公式source coverageと照合 | 18業務のverified/partial/unknownと観測窓を保持し、欠測netを0にしない | S03が必要なlaneのみ。動いているownerは妨げない |
+
+#### E — 新paidの公式原本・財務（6件）
+
+owner: Capafy / CFO primary。対象: `既存Capafy公式reader、strict packet producer、skills/cfo/adapters、economic_attribution.py`。
+
+| 状態・ID | 今の状態 | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] E01 | 原本未取得 | $9.99の1件の注文原本を登録済み公式経路から取得する | order/developer/buyer identity・通貨・状態が揃う。経路不足は具体的な公式取得契約不足として残す | 集計paid1は確認済み |
+| [ ] E02 | 外部客未確認 | E01のbuyerを所有account inventoryと照合する | 自己購入を除外して外部paidとして数えられる。注文数とunit数を混同しない | E01 |
+| [ ] E03 | producer未接続 | 実注文をcapafy_order_readback_snapshotのstrict producerへ接続する | 注文配列/完全pagination/content hash/account inventory付きで既存adapterが受理。analytics kind検査を緩めない | E01 |
+| [ ] E04 | 利益未確認 | 同注文へ公式fee/refund/settlementと同期間・同通貨の実費を結ぶ | gross/creator earnings/確定収益/総費用後利益を別に記録。欠測はunknown | E01、既存cost receipt |
+| [ ] E05 | 帰属未確認 | $9.99の商品を既存catalog/R04の販売記録へ結ぶ | 同商品・同窓のpaid実績を一変数の販売判断へ使う。ct/修復との因果は推測しない | E01と並行可能な集計は格付け明記 |
+| [ ] E06 | 入金未確認 | 同sellerの次公式settlement/payoutを銀行receiptへ照合する | provider送金と実入金を別に記録。paid_out0は銀行口座残高0の意味にしない | 公式payout発生時。個人資金移動なし |
+
+#### V — 評価・自己改善（4件）
+
+owner: 各lane評価owner / primary。対象: `既存self-eval、Writer learning manifest、Gig A/B、marketing attribution、recovery intent/executor`。
+
+| 状態・ID | 今の状態 | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] V01 | live入力不足 | 1つのlaneの公式成果/実費を既存評価入力へ接続する | quality-proxyと経済成果を別のmetricへ格付けし、欠測cost/混在通貨はinconclusive | E04が必要な経済評価のみ |
+| [ ] V02 | 自然採用未確認 | 既存READY候補1件を既存manifest/cohortの契約で自然適用する | candidate・baseline・spend-cap・採用hashが同runに結び付く。Writer READYを適用済みにしない | 該当laneの直接blocker解消 |
+| [ ] V03 | 成熟結果待ち | 既存評価窓を満たす同候補1件を評価する | KEEP/REVERT/INCONCLUSIVEをdurable保存。少数sample/売上不明を利益改善にしない | V02、既存min sample/窓を維持 |
+| [ ] V04 | 次回採用未確認 | V03の次eligible自然wakeのversionと回帰caseを確認する | 採否と次回hashが一致し、同失敗を匿名回帰へ戻す。未知効果を再送しない | V03。公開benchmarkを販売前gateにしない |
+
+#### M — 別Mac製品化の独立残件（12件）
+
+owner: 既存MAC01–MAC03 primary。対象: `scripts/bootstrap.sh、install.sh、既存個別installer、product-loop-catalog.json`。
+
+| 状態・ID | 今の状態 | 次の1操作 | 完了条件 | 依存 |
+|---|---|---|---|---|
+| [ ] M01 | 別Mac実測未取得 | 別Macの本人private homeで公開bootstrapのlist/plan→選択installer到達を確認する | 本人host/ownerが特定され同public sourceが動く。公開blob一致の再作業はしない | 別Macの接続/実測環境が必要 |
+| [ ] M02 | 全job導入未確認 | Coconala installerをcatalogの7 jobsと突き合わせる | Paid/Report/GCを含む導入契約を明示し、同じ適合Pythonで本人setupとownerへ到達する | MAC02、本人provider setup |
+| [ ] M03 | command未接続 | gig-lancersのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M04 | command未接続 | gig-crowdworksのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M05 | command未接続 | gig-mercorのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M06 | command未接続 | promptbaseのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M07 | command未接続 | writerのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M08 | command未接続 | affiliateのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M09 | command未接続 | self-buildのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M10 | command未接続 | ebookのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M11 | command未接続 | capafyのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+| [ ] M12 | command未接続 | line-stickerのpublic installerを既存entrypointへ接続する | catalog commandの実sourceがあり、既存clean-user契約とmain/public readbackが一致。自然成果は別に確認 | MAC03、既存installerの形を再利用 |
+
+**観測の限界と証拠:** 各Bのterminalは上記status窓で再確認するが、全18providerの最新金銭readbackを今回取得したわけではない。Bは「壊れたと推定して修正」ではなく各ownerの次のexact観測/成果を定める。Ryuの既記録の対象外案件と送信fenceは変更しない。私有証拠正本は`~/.local/state/life-manager/evidence/lm-foundation-audit-20261022/`の`local-atomic-status-20261023.json`、`local-atomic-business-matrix-20261023.json`、`local-atomic-cleanup-readonly-20261023.json`、`local-atomic-runner-adoption-20261023.json`、`writer-atomic-{fences,occurrence-events,new-run-artifacts,new-run-runner,fixture-tests,related-tests,regression-diagnosis}-20261023.json`、`cloud-atomic-readonly-20261023.json`、`capafy-atomic-readonly-20261023.json`。credential/個人予定/顧客本文/買い手identity値はrepoへ保存しない。
 
 ### FND patchの実装指示
 
@@ -226,7 +365,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - source受入: 最小2RED→4GREEN、archive経路1RED→関連6GREEN、関連3ファイル279PASS。初回のsparse未展開/既存終了timing1件は個別2PASS→全279PASSを確認する。bash構文/差分/source-boundary/18群191jobs errors0。fresh-context reviewerは全7files/独立11tests/偽造no-effectとgeneric exit0拒否/実archive照合を確認し0 findings/0 blocking、reviewed head1d46c630cd。PR #8569全13checks PASS、main2d20f7c9432d9da8ce8864e9ad661cc8525706c6へ統合する。
 - 本番採用: main由来complete release20261023T085721-2d20f7c9の変更3filesがmain bytes一致/書込不可。UID/DS/Aqua/GUI preflight全PASS後、shared-agent-runnerのarticle-dailyだけをloaded-idle-only/max-owners1で反映し、applied1/failed0、install event67aca9aaab322e4784c7ad6b、loaded argv/SHA一致を確認する。他owner apply0、進行中owner中断0。
 - 限定解除/replay: accepted adapterのread-onlyでno_dispatch_provenを再確認後、00:00:50Zに登録resolverをexact旧1件だけresolveする。rowはreleased/effect_unknown1→released/0、article-daily unknown数1→0、private proof保存を確認する。00:01:41Zの登録main --resolve再検証はprovider/resolver/persistの全呼出を拒否したprobeで各0、closed/verified true、proof hash/mtime/modeとDB row不変。新規投稿/売上/strategy採用の証明にはしない。
-- 自然実行の限界: 採用直後23:59:52Z run18e0ff83a40ec740-52406と09時wake00:00:05Z run18e0ff86aa4f32b8-53683は解除前で、旧resource_effect_unknown/exit75を返す。解除後の自然wake/新no-effect枝/既存canary適用は未確認。追加の手動投稿やfloor迂回で置換しない。私有証拠はfnd05b-accepted-{resolver-dry-run,one-unit-resolve,replay-zero}等へ保存する。
+- 自然実行の限界: 採用直後23:59:52Z run18e0ff83a40ec740-52406と09時wake00:00:05Z run18e0ff86aa4f32b8-53683は解除前で、旧resource_effect_unknown/exit75を返す。解除後の別D自然実行は今回確認するが、新no-effect枝/既存canary適用は未確認。旧Bの解除と別Dの失敗を分ける。追加の手動投稿やfloor迂回で置換しない。私有証拠はfnd05b-accepted-{resolver-dry-run,one-unit-resolve,replay-zero}等へ保存する。
 - 並行診断/順序: 旧=FND01容量/CLD自然対象→残EARN/EVO、新=同自然運転を維持しFND05b→独立FND05c→解除後のWriter wake/既存canary→残TODO。理由は、dailyが残す保留runのownerであるarticle-resumeにも現fence1件があり、その停止境界を特定するため。00:03:19Z free5,167,546,368Bでfloor未達。Data使用量差分3,799,662,592Bは未帰属で、VM増分0、新release191MB/現存pytest約4.5MBだけでは説明しない。snapshot0、unlink済open file論理約152MB、recent Git pack約300MBは個別probe値で、物理増加の合計や主因にしない。既存清掃を維持し、未確認storeを削除しない。
 
 **FND05c — article-resumeのquota-before-work停止をexact証拠で復旧する（実装案あり・未受入）**
@@ -239,7 +378,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - 肯定条件: 全attemptが終端し、各relayのbinding/EOF/written_bytes/dropped_bytes/storage_errorとhead.binの完全保持が一致する。全CLI eventが既知のwork/tool開始前quota失敗列で、不正JSON/切詰め/欠落/別attemptのworkがない。caller自身のempty run/finisher missing-article停止/投稿未到達を肯定する。既存draftや後続処理が不明な再開runは受理しない。モデル由来本文・記事欠落・codex_attempt_started_work=Falseだけで無作用とせず、追加のprocess非残存gateも発明しない。provider requestは既に発生するためprovider_started/billing/costをfalseや0へ変更せず、無作用はWriter投稿だけを指す。
 - 受入/反映: 実旧caseの構造を隔離fixtureにした最小RED→GREENと、wrong owner/run/release/source/branch、全attempt不整合、tool/work開始、不正/不完全capture、非quota、既存記事・dispatch到達を拒否する関連検証を通す。fresh read-only review/全CI/main→対象immutableを経てarticle-resumeへの1owner採用、旧1件の登録resolve/readback/replay-zeroを先に確認し、既存reconcilerの同helper採用へ進む。一般の7日minやexit1を緩和しない。不足は具体artifactとして保持し、自然再開/公開/売上は別の実receiptで判定する。本回は文書更新のみで、provider/state変更・送信・resolveは0。
 
-- 中断点/残作業: `article_fence_reconcile.py` と `test_article_fence_reconcile.py` にgeneric proof/接続と肯定2件・拒否61条件の未commit実装案がある。修正前REDは確認済みだが、追加後のGREENは未確認。今回のread-only確認ではテストを実行しない。残るsource diff受入→関連test→fresh read-only review→commit/push→全CI/main→対象immutable/1owner採用→旧exact1件の公式照合/解除/readback/replay-zero→自然再開/公開/収益確認を省略しない。PRの文書確定はCコードの受入を意味しない。文書PR統合後もC未commit差分があるため所有copyを保持する。修復再開時に最新main由来の成果branchとleaseを確認し直す。
+- 中断点/残作業: `article_fence_reconcile.py` と `test_article_fence_reconcile.py` にgeneric proof/接続と肯定2件・拒否61条件の未commit実装案がある。今回の隔離検証はfocused63PASS、同file全体108PASS/7FAIL。既存7tests/4fixturesはHEAD比AST不変で、新C判定のearly returnが従来の公式readback/ledger/7日guardへ進めない回帰を確認する。最小修正と全115件の再検証がW01。残るsource diff受入→関連test→fresh read-only review→commit/push→全CI/main→対象immutable/1owner採用→旧exact1件の公式照合/解除/readback/replay-zero→自然再開/公開/収益確認を省略しない。PRの文書確定はCコードの受入を意味しない。文書PR統合後もC未commit差分があるため所有copyを保持する。修復再開時に最新main由来の成果branchとleaseを確認し直す。
 
 **FND05 — exact effect復旧と履歴増加を分ける**
 
@@ -324,7 +463,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 - CLD03b2 receipt契約: updateごとに新request_idを作り、marker_request_idは最初のcreate markerで固定、prior_request_fingerprintで前回helper内容を記録する。updateだけ追加2fieldを必須にし、legacy NULL/既存create shapeとRLS/unique/leg/Telegram契約は維持する。更新開始CASはuid/event_key/leg・旧request/phase/effect/source version/fingerprint/provider IDへ束縛して新dispatching/unknownへ置換し、失敗・競合時はwrite0。response/readback保存は新requestへ束縛し旧callbackを拒否する。helperのowned GETが同ID/固定marker/target fingerprintなら今回operationをverifiedにする。新sourceがさらに変わっていても完了済みoperationの証拠を閉じてから次revisionを別計画にする。旧内容しか見えないtimeoutは未実行と断定せず再送0、update no_effectはcreate用unclaimへ渡さない。予約/allowanceは同event keyを使いrevisionで課金単位を増やさない。
 - CLD03b2a source受入: workerはtransportの個別33 RED（親込み38 FAIL）から、所有/ACTIVE/hash・不正etag/context・callbackfalse/throw・ACK/timeout/wrongID・外失敗/不正status・明示上流412/400を含む57 tests PASSを確認する。production約60行追加、公開引数の契約は固定し、primaryがb2b接続を進める。SQLは旧constraintのupdate-go拒否をlocal socket fixtureでRED確認し、新constraint/testを仕上げる。PR/main前に両受入を必要とし、外部effectは0。
 - CLD03b2b RED準備: primaryは既存travel.test.jsのdurable fixtureへIf-Match用etag・PATCHの隔離mock・旧receipt各fieldのCAS照合を追加し、GO/RETURNの同helper更新と次wake write0を実fillTravel経路から検証する。locked dependency bundleをNODE_PATHへ指定した実行では初回create成功後、更新数が未実装（undefined≠1）でREDとなる。依存未指定時の初回create未到達は回帰証拠へ含めない。productionの接続はb2a source受入後に行い、provider/DB外部接続は0。
-- CLD03b2b接続検証: 実fillTravelのGO/RETURN変更は初回create成功後updated欠測でREDし、同provider ID更新/固定marker/新request/dispatch前CAS→ownedGET→nextwake write0へ接続する。ACK喪失後にsourceがさらに変わる場合も当該operationの完了を閉じて新revisionを保留する。追加反例2件は更新済みcount欠落/late response二重countでREDし、unknown→verifiedだけのCASと完了済みcountを新作成から分離してGREENにする。CAS拒否・route中source変更はwrite0、未確認timeoutは再送0、公式412はclaim保持して次wakeのfresh owned read/etagで別requestへ再計画する。schedulerの更新数欠落もRED→既存stdout1行で直す。関連11files/309tests PASS、a transport57/57と専用local socket PG constraint受入もPASSする。新constraintの本番適用・Cloud配備・自然更新・新paidは未確認。
+- CLD03b2b接続検証: 実fillTravelのGO/RETURN変更は初回create成功後updated欠測でREDし、同provider ID更新/固定marker/新request/dispatch前CAS→ownedGET→nextwake write0へ接続する。ACK喪失後にsourceがさらに変わる場合も当該operationの完了を閉じて新revisionを保留する。追加反例2件は更新済みcount欠落/late response二重countでREDし、unknown→verifiedだけのCASと完了済みcountを新作成から分離してGREENにする。CAS拒否・route中source変更はwrite0、未確認timeoutは再送0、公式412はclaim保持して次wakeのfresh owned read/etagで別requestへ再計画する。schedulerの更新数欠落もRED→既存stdout1行で直す。関連11files/309tests PASS、a transport57/57と専用local socket PG constraint受入もPASSする。このsource受入時点の本番適用/Cloud配備は後続atomで確認済み。現行の残りはT表の自然更新などの公式成果であり、再migration/再配備へ戻さない。
 - CLD03b2独立反証: fresh read-only reviewは新規1/統合阻害1、既存146tests PASS・独自24 probes。popup無しの旧createをexpectedCalendarAccountId付きで更新すると、PATCHは旧remindersを保持するのにtarget fingerprintは新popupを期待し、provider更新後もunknownへ残る。report保存後process timeout（正常exitではない）を記録する。target fingerprintにも実際に保持するhelper.remindersを使い、同UID/account移行の最小RED→GREENと次wake write0を確認する。追加差分をfresh reviewしてからready/mainへ進める。
 - CLD03b1/c1本番受入: C1 PR #8556/head4589a7512eは全14 checks PASS後、mainc1c4e7a2401b104f7b8397bdb392df9cb5c68e75へ統合する。通常GitHub deployment1633c311-5e9c-4404-accd-bf59baf6199bは19:07:01ZにSUCCESS、public health200/oktrue/build同SHA。手動再配備0。旧dda85aa3の内部失敗理由は未取得だが新配備はarchive/plan/image-export境界を通過する。公式Railway incidentの18:49更新はUS West障害復旧を案内する（https://status.railway.com/incident/QH8L8B3E）。CLI旧tokenのUnauthorizedとGitHub build失敗の因果は断定しない。
 - CLD03b1確定版canary: 標準作成されたmain由来immutable20261023T035516-c881f744のgetOwnedEventで本人の既存source1件を実GETする。DB binding/公式account/ID指定GETが各200、event ID完全一致、provider write0/DB write0。費用観測はprivateへ残しestUsd unknown/cost未永続を0へ置換しない。旧raw probeと区別し、このcanaryは新関数の実経路を確認する。Calendarの新作成/変更/取消の自然成果とは別である。
@@ -3050,11 +3189,21 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **TODO順更新:** 旧順=`四fence照合→disclosure→render→IG→catalog`。新順=`(1) EN TikTokの旧HeyGen要求を無料read-onlyで照合し、独立して既存registryから実Postiz disclosureを修正 → (2) evidenceを失うarticle compose境界を修正 → (3) 修正sourceをfocused tests/PR/main/immutableへ反映し、EN TikTokとebook-articlesのloaded-idle ownerだけ採用し、他三ownerは保持 → (4) 既存08/21自然slotのPUBLISHED/URL/cost/流入を照合 → (5) 残る三fenceはexact official proofを個別回復 → (6) 無料枠ができた時だけInstagram接続 → (7) 新刊 The Art of AI Monks、OSS factory、subscription化`。理由はEN ownerのadmission fenceが既に解消しており、IGは30/30、HeyGenの旧未知要求とdisclosureが現在の実測blockerであるため。AI monk indexと英日4記事はproducts PR #551、main `d4380515c995abd0611987bedead436fbe432dcb`、Netlify success、75 records/48 sourcesを本番確認済み。全体企画の正本はproducts repo `docs/superpowers/specs/2026-10-21-ai-monk-avatar-field-guide.md`、Life Managerの運用TODO正本は本節とする。
 
-**現在cursor:** AM-14 / S11.4。完成済みHeyGen素材と費用未照合を分けるPR8611をexact-head CI→main/immutableへ進める。既存動画の台本/要求/ID/hashを変えず、別slot生成guard・個別費用null・残三fenceを維持する。JA Instagramは元runと両claimantのpre-effect marker/source境界を照合できる追加証拠を得たため、source反証後に限定bridgeを進める。JA TikTokは旧claimから既存job/receiptへのexact identity不足、EN Instagramは30/30・未接続を保持する。loaded5ownerはfb0b5d5dでinstalledと一致するが、新SHAの自然PUBLISHEDは未確認。空き約9.12GiBは収益10/producer12GiB未達。製品側のAI Monk Database・日英記事/書籍・CLI/MCPは公開済みだが、日次動画配信復旧・実購入/paid納品・収益・OSS factory・subscriptionは未完とする。運用の順序は費用記録探索だけを続ける旧cursorから、完成素材再利用のsource修復→個別fence proof→容量条件下の既存owner自然公開へ更新する。理由は費用欠測と素材準備の混同が無料の既存素材利用まで止めているため。既存外部effectは中断・再送しない。
+**現在cursor:** AM-14 / S11.4。完成素材修正PR8611は13checks PASS、main c0f10e13へ統合済み。既存動画は同request/video/hashを保ちrendered、費用null/要照合、別slot生成guardを保持する。正式immutable561d945fを英語TikTokだけへ採用し、loaded argv/envとinstalledの一致を確認する。一時build2件の非稼働cacheだけを回収し空き12.13GiB、収益10/producer12GiBを超える。次は通常実行のterminal/公式投稿照合とJA Instagram複数claimの限定bridge。EN Instagram未接続30/30・JA TikTok旧identity不足は保持する。日次動画配信復旧、実購入/paid納品、収益、OSS factory、subscriptionは未完。運用TODO正本は本節、全体製品正本はproducts repoのAI monk field guideを参照する。
+
+**AM-14容量復旧・対象owner採用:** 英語TikTokだけを正式immutable561d945fへ正規reconcileで採用し、loaded argv/envとinstalledの一致を確認する。生成・投稿は0で、自然run/公式投稿は別の未完成果とする。空き容量は収益10GiB/producer12GiB未達。復旧対象は非稼働の一時build `/private/tmp/owned-media-build-137345976/apps/landing/.next/cache` と `/private/tmp/p1-assembled-preview-20261021/apps/landing/.next/cache` の再生成可能cacheだけとする。両者はsymlink/保護memory/stateなし、open handleなし、関連processなしを読み取り確認する。source/out/public/動画/履歴は変更せず、削除直前にも境界を再検査し、回収前後容量をprivate evidenceへ記録する。新規framework、容量floor引下げ、強制wakeは追加しない。
 
 **AM-14完成素材の再利用契約:** 旧動画はprovider completedでも個別費用が欠け、rendererがreconciliation_requiredを返すため同じ動画の利用も止まる。費用欠測を0やcompleted会計へ変換せず、同一request/video IDの公式completed確認・既存assetのhash固定を条件に、rendered receiptへwallet_cost=nullとcost_reconciliation_requiredを明示して渡す。sidecarはcost_reconciliation_requiredを保持し、別slotの新規HeyGen生成guardを解除しない。manual既存素材経路は同じprovider receipt ID・出力hash・明示的未照合状態だけを受理し、tamperや未完成を拒否する。新しいrender framework、費用推定、paid再生成、投稿再送は追加しない。source所有はheygen_candidate.py、既存manual検証JSと関連tests、契約資料のみ。REDは既存動画の取得/再利用、費用null/新規create0、改変拒否、別slot生成保留。完了は関連tests/Loop Contract・fresh review・CI/main/immutableと、既存ownerの自然run・公式投稿receiptを分けて判定する。今回のsource受入だけで日次配信復旧とはしない。
 
-**AM-14完成素材source受入:** 旧動画のrenderer再利用2件・manual既存receiptの2経路で正しいREDを確認し、費用null/要照合・新規create0の最小修正で19Python/27JSとLoop Contract18業務191jobsがPASSする。既存owner test2件の14時fixtureは運用pack08/21に合わせ21時へ更新する。fresh reviewerが欠損assetの再download時に元hashを上書きできる枝を発見し、既存回帰へREDを追加、staging保存前の元hash照合で修復する。実旧slotの保存script IDと現packの選択はcf3a13805958a5a9c6a76b3dで一致し、caller変更は不要。live doctorは別owner ai.anicca.provision-browser.tiktok.hooklabのunmanaged1件でFAIL、無関係ownerは変更しない。full runtime984 tests、adapter registry15件はPASS。runtime suiteはSQLite ResourceWarningを出すがexit0。fresh reviewerの修正後再確認は未解決0件。PR8611のCI/main/immutableは確認中。
+**AM-14完成素材source受入:** 旧動画のrenderer再利用2件・manual既存receiptの2経路で正しいREDを確認し、費用null/要照合・新規create0の最小修正で19Python/27JSとLoop Contract18業務191jobsがPASSする。既存owner test2件の14時fixtureは運用pack08/21に合わせ21時へ更新する。fresh reviewerが欠損assetの再download時に元hashを上書きできる枝を発見し、既存回帰へREDを追加、staging保存前の元hash照合で修復する。実旧slotの保存script IDと現packの選択はcf3a13805958a5a9c6a76b3dで一致し、caller変更は不要。live doctorは別owner ai.anicca.provision-browser.tiktok.hooklabのunmanaged1件でFAIL、無関係ownerは変更しない。full runtime984 tests、adapter registry15件はPASS。runtime suiteはSQLite ResourceWarningを出すがexit0。fresh reviewerの修正後再確認は未解決0件。PR8611の13checks・main c0f10e13・main由来完全immutableを確認済み。
+
+**AM-14完成素材の本番readback:** provider公式GETでcompleted ID492ee7b0f41372ab6856594c9096ea6fを確認し、旧immutable fb0b5d5dから既存MP4を取得する。新source c0f10e13の完全immutableで同じassetを再利用し、19,987,948bytes/SHA256 7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566、1080x1920/13.2秒、request SHA不変を確認する。費用nullと別slot生成guardは保持。0/6/12秒の画像は写真に近い僧侶avatarで、文字起こしは行わない。自然ownerやPostiz公開へ置換しない。source CI39895807440成功、source main c0f10e13。証拠 → docs/evidence/ai-monk-completed-asset-production-20261023.json。
+
+**AM-14 avatar限定・旧日本語配信の保留:** Daisの対象はYang MunのようなAI僧侶video avatarであり、水彩動画を再開しない。既存JA TikTok/Instagramはebook-watercolorのため、loaded-idle/PID無しを確認後、対象labelを正規launchctl-safe disable＋lm-loop stopで停止しdurable queueをsuspendする。元occurrence/receipt/claimを削除・変更せず、旧fenceの原本照合は独立して完了させる。正規操作後の両ownerはdisabled/unloaded、queue0/reservation0、元fenceはclaimed/unknown1のまま。停止時に処理中PIDは無い。release採用はdisabledを保持し、実写に近いavatar packへの切替と素材/音声確認までこの2ownerを再開しない。英語TikTokの既存HeyGen avatarを優先し、旧水彩動画の新規投稿は行わない。
+
+**AM-14 JA Instagram限定bridgeの範囲:** 旧occurrence18e01f3eff2e6368-4807の元runと2claimant全件を扱う。前者18e04e60151f5bc8-77716はowned raw pre_effect_failure marker、後者18e04e63effa5a60-78045はexact typed no_due_slot。元runはFIFO待ちでentrypoint前、全events parseのclaim集合はこの2件。relay EOF/drop/storage・owner/run/occurrence/release bindingと時刻・ファイル所有を照合する。当時4bf sourceと保持baac releaseの到達可能経路はbyte一致し、JAはlocal renderer、Telegram無し、非空integrationでPostiz専用、最初のupload POST前にmarkerを消し、raw markerの再作成経路はない。独立反証は指摘0件でsource proof候補として十分。ただし旧4bf release directory自体のloaded bytesと最初のexit75分岐は未取得。既存公開cmvg6fd0m00bnp70ypb637dloは別origin18dff73d217b6378-78060で付け替えない。private evidence ai-monk-ja-ig-multiple-claim-evidence-20261023.jsonのSHA256 2ddb7af4392fee5ad5d9174d7736671986ef54c0d5d93aa6d6443e1e4416293eを保持し、source実装では既存mobile marker検証/Coconala legacy proofを再利用する。一般の複数claim拒否を緩めず、追加claim・別owner/occurrence/source・不完全EOF・marker改変を拒否するREDを先に確認する。今回の調査ではfence解放/再投稿を行わない。
+
+**AM-14 JA Instagram bridge source受入:** 指定事件だけの完全一致bridgeを132行で追加する。正常caseのRED（claimed_by_multiple_runs）からGREENを確認し、原6event・8raw sidecar・11保持source/manifestのfingerprint、全claim集合、relay binding/EOF、既存marker検証を再利用する。新3テストは28拒否subtestsを含み、関連apply/readonlyの261tests、Loop Contract18業務/191jobs/errors0、source-boundary、diff checkがPASS。SQLite ResourceWarningは残る。source commit5245ee081bd4a133447ed02c4bf7c0a3d311271bをpush済み。fresh read-only reviewは指摘0件、原6event/8artifact/11sourceを独立照合、追加202tests PASS。CI/main/immutableと正式resolverは未完。候補probeやfixtureを本番closureと扱わない。
 
 **AM-14 runtime再観測:** 12:24 JSTの正規launchctl-safe printで5ownerのloaded ProgramArguments/env release SHAはinstalledと一致し、20261023T114601-fb0b5d5d / fb0b5d5d3b70e9907b66ba7263c954cca4d71a53を確認する。selectorの87a90136と混同しない。active admissionのEN TikTok/articles unknownは0、残3fenceはclaimed/effect_unknown=1。最後のEN TikTok terminalはff6821bbのdisk_floor_low/exit75で、新loaded SHAの自然投稿証明ではない。HeyGen sidecarは完成ID492ee7b0f41372ab6856594c9096ea6f・費用null・MP4不在。free約9.12GiBは収益10/producer12GiB未達。新規apply・生成・再投稿は行わず、完成素材利用のsource境界と残fenceのexact proofを進める。
 
@@ -23144,7 +23293,7 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 **提出経路の最小修正:** `fastlane/Fastfile::submit_review` が選んだversionを `deliver(app_version:)` へ渡さない不備を修正する。外部提出をstubした実laneの回帰テストで、明示/既定versionの両方が変更前nilで失敗し、変更後2 tests/4 assertions PASS。Fastfile syntax PASS。これは審査提出の成功を意味しない。
 
-**正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`、現在branchは `growth/mobile-six-app-metrics-20261023`。提出version修正#8582、場面別copy/改行修正#8583、単一jobのclaim読込限定#8587、24h学習入力修正#8589、各言語72hookの#8592はmainへ統合済み。これらを含むmain由来immutable release `ff6821bb9ccefe8094f023e34471de6d0df7ce3a`を作り、Aniccaの日英carousel 8ownerを1件ずつloaded-idle限定で反映し、launchctl-safeの公式読込argvが8件すべて同releaseと一致することを確認する。新copyの自然PUBLISHED receiptや売上改善はまだ未確認。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
+**正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`、現在branchは `growth/mobile-native-metrics-20261023`。提出version修正#8582、場面別copy/改行修正#8583、単一jobのclaim読込限定#8587、24h学習入力修正#8589、各言語72hookの#8592はmainへ統合済み。これらを含むmain由来immutable release `ff6821bb9ccefe8094f023e34471de6d0df7ce3a`を作り、Aniccaの日英carousel 8ownerを1件ずつloaded-idle限定で反映し、launchctl-safeの公式読込argvが8件すべて同releaseと一致することを確認する。新copyの自然PUBLISHED receiptや売上改善はまだ未確認。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
 
 **投稿台帳のclaim読込限定:** 配信台帳の単一job操作が全9,645 claim JSONを読むことによるロック競合を、`.worktrees/mobile-ledger-claims-20261023` / `fix/mobile-ledger-claims-20261023` の台帳実装と既存testで直す。primary観測はreadJob 1.735秒中claim読込1.509秒、生存ownerのglobal lock保持6.093秒に対し待機上限1,000×2msでtimeoutとなる。既存`keyFor(tenantId, jobId)`の対象markerだけをsnapshotへ渡し、複数jobのslot候補選択・conflict隔離は全claim scanを保つ。journal/receipt形式、claim-before-event復旧、lease/CAS/fence、unknown保持、partial-tail安全性とlock待機条件は変えず、index/cache/DB追加・台帳削除・本番mutationは行わない。時間閾値に依存しない追加testは変更前2 fail（exact操作19回の全claim列挙、無関係marker破損による対象復旧失敗）/候補照合1 passから変更後3/3 PASS、全ledger36件＋関連50件とdiff checkもPASS。隔離fixtureの9,645件に対するreadJobはclaim読込9,645→1件、総時間151.471→0.291ms（claimファイルreadのみ121.118→0.025ms、各1回の参考値）で、これは本番性能や自然実行成功を証明しない。PR/merge/releaseと自然実行・公式readbackの判定はprimaryが所有する。
 
@@ -23171,6 +23320,8 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 
 **公開6アプリの流入計測の欠落:** `life-manager-tiktok-metrics` の `tiktok-metrics-due.js` は22時以降に `marketing-asc-acquisition.js::persistAscAcquisition` を呼ぶ。同collectorの対象はAnicca/Honneと旧4商品だけで、公開Dhamma/SleepReset/STUDIO CHERIE/Thankfulが無い。`business_outcomes.py::PRODUCTS` には4商品が既に登録済みで、そちらの欠落ではない。fresh ASC GETで公開4商品のapp IDと有効ONGOING analyticsReportRequestの組を確認する。今回は `marketing-asc-acquisition.js`、既存test、当節を所有し、既存6商品は保ったまま公開4商品を追加する。collectorやschedulerを増設せず、RevenueCatの旧4商品や共有設定、当日保存済みpointerを変えない。4商品それぞれの実report一覧でr3/r4/r15のIDと名前も一致する。追加前の回帰testは4商品の欠落で2 FAIL、追加後はASC/persist/replay・既存product summary・due runner計32 testsとloop-contractがPASSする。受入は既存の日次persistで追加4商品の公式app/request IDがcollectorへ渡り、保存・再実行で同じsnapshotが使われること、欠損はunavailable/nullを保ち、実測ゼロだけをゼロとすること。sourceの回帰test→既存metrics関連test/loop-contract→PR/main→immutable release→metrics ownerのloaded-idle限定反映→自然実行/公式取得を追う。追加4商品のSNS配信先とRevenueCat MRRは未接続・未取得を保持する。根拠はprivate evidenceの `additional-app-analytics-requests.json`、`additional-product-source-map*.json`。iOSのfresh readbackはbuild391不在、#805 ERRORED/actions空のままで、新しいbuildを重複起動しない。
+
+**API計測とブラウザ取得の境界:** `tiktok-metrics-production-boot.sh` はrunner全体を `with-browser.sh tiktok-anicca-jp` で囲み、ASC/RevenueCat/Postiz写真のAPI-only取得までブラウザへ従属させる。実run `18e108e3d6ac5668-86058` はguarded startup後unreachable/exit10、後の `18e10b8ebdc8e3e8-59031` はentrypoint前のhost disk floor/exit75であり、同じ原因へ混同しない。正規ASC/RevenueCat日次pointerは10月14日が最新、日次取得は22 JST以降のままとする。既存Instagram bootのportable runtime直接起動を再利用し、先にAPI-only段を既存300秒制限内で完了する。続くnative段は期限内の未取得動画checkpointがある時だけ既存guardを1回取得し、その内側の既存300秒制限で動画batchを実行する。guard待機をwork timeoutの外側へ保ち、lease返却を先に殺さない。API-only写真・ASC/RevenueCat取得を先に完了し、ブラウザ失敗は当該動画をsource_unavailableとして他の取得を妨げない。最後に既存のdaily digest/product summaryを両取得結果から生成し、動画の新しい観測を集計前に欠落させない。観測がまだ無い投稿のdigestは既存Instagram runnerと同じ `pending/no_metric_snapshot` で当該投稿だけを保留し、他商品の日次summaryへ進む。別の例外は再throwして隠さない。未到来/既存/期限超過checkpointはブラウザを取得しない。所有は当節、TikTok boot/due/native readerの必要箇所、既存関連tests。実boot/runnerを隔離fixtureで実行し、browser拒否でもAPI処理が動くRED→GREEN、native動画のguard取得とlease由来endpoint、取得失敗時の未確定値維持を確かめる。effect_class/通知/effect fence、protected profile、共通10GiB・browser12GiBのfloor、cadence、既存provider receiptは変えない。通常のCI/main/immutable/対象owner採用から自然実行を追い、source修正を計測回復や売上増加と同一視しない。
 
 **新版提出の認証経路:** ASCの公式GETでAnicca app/bundle、唯一のGitHub provider、旧`anicca-products` primary repository、main git referenceを照合する。最新#805はCOMPLETE/ERRORED、sourceCommit空、後続actionなしで、再実行中ではない。正本`life-manager`はSCM一覧に無いが、GitHub grant失敗やtoken失効の原因は未確定を保つ。既存ブラウザ登録のGitHubはRailway SSO専用のため、提出用途へ流用しない。既存provisioner/guardを使う専用`mobile-release:dais`・profile `~/.cloak/profiles/mobile-apps-release`・owner `life-manager-mobile-release`を、`agent-core-rules`の`registry/browsers.toml`に1件追加する。新しいbrowser daemon/loop/client、cookieコピー、固定portは作らない。TOML parse・identity/profile重複なし・既存行不変を確認し、専用branch/PR/mainの確定blockだけをruntime registryへ反映する。他ownerの未commit registry差分を保ち、CASで競合時は再読込する。認証は既存credential SSOTの`github-web-login`と`apple-app-store`を使う。12GiBのbrowser admission未達では起動せず、起動可能後にguard lease→実session/account→GitHub installation/grant→ASC canonical SCM登録→既存workflowの正本参照→build/upload/提出receiptまで追う。identity登録やsource mergeだけで提出済みにしない。
 

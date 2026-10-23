@@ -56,3 +56,24 @@ test("portable runtime prefers the launchd-managed node when PATH has no node", 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), fakeNode);
 });
+
+test("TikTok production boot starts API metrics without acquiring an unavailable browser", (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-metrics-api-boot-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const node = path.join(home, "node-fixture");
+  const guard = path.join(home, "browser-unavailable");
+  const marker = path.join(home, "browser-called");
+  const envFile = path.join(home, "metrics.env");
+  fs.writeFileSync(node, '#!/bin/bash\ncase "$2" in --api-only|--native-only|--finalize) printf "runner:%s\\n" "$2";; *) exit 64;; esac\n', { mode: 0o700 });
+  fs.writeFileSync(guard, '#!/bin/bash\ntouch "$TEST_BROWSER_MARKER"\nexit 10\n', { mode: 0o700 });
+  fs.writeFileSync(envFile, `LM_POSTIZ_API_KEY=test-only\nLM_DATA_DIR=${home}/.local/state/life-manager\n`);
+  const result = childProcess.spawnSync("/bin/bash", [path.join(scripts, "tiktok-metrics-production-boot.sh")], {
+    env: { ...process.env, HOME: home, LIFE_MANAGER_ENV_FILE: envFile, NODE_BIN: node,
+      AI_BROWSER_GUARD: guard, AI_ENSURE_PROVISION_BROWSER: guard, AI_ENSURE_BROWSER: guard,
+      BROWSER_WAIT_SECONDS: "0", TEST_BROWSER_MARKER: marker },
+    encoding: "utf8", timeout: 10_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "runner:--api-only\nrunner:--native-only\nrunner:--finalize\n");
+  assert.equal(fs.existsSync(marker), false);
+});

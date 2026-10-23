@@ -4,6 +4,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
 const { verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { persistDailyDigest, sendMetricSnapshot } = require("./instagram-metrics-read.js");
@@ -135,15 +136,39 @@ function summaryResultState(summary) {
   return status === "partial" || status === "unavailable" ? status : summary.created ? "reported" : "complete";
 }
 
-async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
+async function runNativeDue(nowMs = Date.now(), env = process.env, provided = null) {
+  const dataDir = resolveDataRoot(env);
+  const due = (provided || discoverTargets(dataDir, nowMs)).filter((expected) => !expected.postiz_photo_only)
+    .flatMap((expected) => Object.entries(WINDOWS).flatMap(([window, delay]) => {
+      const age = nowMs - Date.parse(expected.published_at);
+      return age >= delay && age <= delay + GRACE_MS && age <= MAX_POST_AGE_MS
+        && !fs.existsSync(snapshotFile(dataDir, expected, window)) ? [{ expected, window }] : [];
+    }));
+  if (!due.length) return [];
+  // Keep lease acquisition outside the work timeout so timeout cleanup cannot kill lease release.
+  const result = spawnSync("/bin/bash", [
+    path.resolve(__dirname, "../../../skills/browser/with-browser.sh"), "tiktok-anicca-jp", "--",
+    "/bin/bash", "-c", 'export LM_CDP_ENDPOINT="$CLOAK_CDP_BASE_URL"; exec "$@"', "--",
+    env.LM_PYTHON || "python3", path.resolve(__dirname, "../../../runtime/run-with-timeout.py"), "300",
+    env.LM_NODE || process.execPath, __filename, "--native-leased",
+  ], { env, encoding: "utf8", maxBuffer: 1024 * 1024 });
+  if (result.error) throw result.error;
+  if (result.status !== 0) return due.map(({ expected, window }) => ({
+    video_id: expected.video_id, window, state: "source_unavailable",
+    error: (result.stderr.trim() || `TikTok browser collection exit ${result.status}`).slice(0, 200),
+  }));
+  return JSON.parse(result.stdout);
+}
+
+async function runDue(nowMs = Date.now(), env = process.env, provided = null, mode = "all") {
   const dataDir = resolveDataRoot(env); const results = []; const expecteds = (provided || discoverTargets(dataDir, nowMs)).filter((expected) => {
     const publishedMs = Date.parse(expected.published_at);
-    return Number.isFinite(publishedMs) && nowMs >= publishedMs && nowMs - publishedMs <= MAX_POST_AGE_MS;
+    return (mode !== "native" || !expected.postiz_photo_only) && Number.isFinite(publishedMs) && nowMs >= publishedMs && nowMs - publishedMs <= MAX_POST_AGE_MS;
   });
   const reportParts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${reportParts.year}-${reportParts.month}-${reportParts.day}`;
-  if (Number(reportParts.hour) >= 22 && !provided) { const asc = await persistAscAcquisition(dataDir, reportDay); results.push({ product_id: "mobile-marketing", window: "asc-daily", state: asc.created ? "measured" : "complete", snapshot_ref: asc.snapshot_ref }); const revenuecat = await persistRevenueCatSubscriptionsDaily(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "revenuecat-daily", state: revenuecat.created ? "observed" : "complete", source_status: revenuecat.customer_activity_status || "unavailable", snapshot_ref: revenuecat.snapshot_ref }); const coverage = persistAttributionCoverage(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "attribution-daily", state: coverage.created ? "reported" : "complete", telegram: await sendSummary(coverage, env, dataDir), snapshot_ref: coverage.snapshot.snapshot_ref }); const weekly = persistWeeklyReview(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "weekly-product", state: summaryResultState(weekly), source_status: weekly.snapshot.source_status, missing_products: weekly.snapshot.missing_products, telegram: await sendSummary(weekly, env, dataDir) }); }
+  if ((mode === "all" || mode === "api") && Number(reportParts.hour) >= 22 && !provided) { const asc = await persistAscAcquisition(dataDir, reportDay); results.push({ product_id: "mobile-marketing", window: "asc-daily", state: asc.created ? "measured" : "complete", snapshot_ref: asc.snapshot_ref }); const revenuecat = await persistRevenueCatSubscriptionsDaily(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "revenuecat-daily", state: revenuecat.created ? "observed" : "complete", source_status: revenuecat.customer_activity_status || "unavailable", snapshot_ref: revenuecat.snapshot_ref }); const coverage = persistAttributionCoverage(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "attribution-daily", state: coverage.created ? "reported" : "complete", telegram: await sendSummary(coverage, env, dataDir), snapshot_ref: coverage.snapshot.snapshot_ref }); const weekly = persistWeeklyReview(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "weekly-product", state: summaryResultState(weekly), source_status: weekly.snapshot.source_status, missing_products: weekly.snapshot.missing_products, telegram: await sendSummary(weekly, env, dataDir) }); }
   for (const expected of expecteds) {
-    for (const [window, delay] of Object.entries(WINDOWS)) {
+    for (const [window, delay] of mode === "finalize" ? [] : Object.entries(WINDOWS)) {
       const existingFile = snapshotFile(dataDir, expected, window);
       if (fs.existsSync(existingFile)) { const snapshot = JSON.parse(fs.readFileSync(existingFile, "utf8")); const missed = snapshot.sources?.postiz_post?.reason === "source_delayed"; results.push({ video_id: expected.video_id, window, state: missed ? "checkpoint_missed" : "complete" }); continue; }
       const dueMs = Date.parse(expected.published_at) + delay;
@@ -158,6 +183,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
         results.push({ video_id: expected.video_id, window, state: "checkpoint_missed", created: snapshot.created });
         continue;
       }
+      if (mode === "api" && !expected.postiz_photo_only) { results.push({ video_id: expected.video_id, window, state: "pending", reason: "native_browser_phase" }); continue; }
       const input = { tenantId: expected.tenant_id, productId: expected.product_id, locale: expected.locale, account: expected.account_id, integrationId: expected.integration_id, providerPostId: expected.provider_post_id, videoId: expected.video_id, publicUrl: expected.public_url, caption: expected.caption, window, publishedAt: expected.published_at };
       // One deleted/unavailable post ("item doesn't exist", live 2026-09-30) used to throw and stop every other
       // account's metrics since 9/27. Record it like the source_delayed branch above and keep going.
@@ -171,14 +197,32 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
       results.push({ video_id: expected.video_id, window, state: "measured", telegram: await sendMetricSnapshot(observation, env, dataDir, observation.telegramCredentials) });
     }
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${parts.year}-${parts.month}-${parts.day}`;
-    if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) { const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected }); results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "persisted" : "complete" }); }
-    else results.push({ video_id: expected.video_id, window: "daily", state: "pending", due_at: `${reportDay}T17:30:00+09:00` });
+    if (mode === "all" || mode === "finalize") {
+      if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) {
+        try {
+          const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected });
+          results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "persisted" : "complete" });
+        } catch (error) {
+          if (error?.message !== "Instagram daily digest has no metric snapshot") throw error;
+          results.push({ video_id: expected.video_id, window: "daily", state: "pending", reason: "no_metric_snapshot" });
+        }
+      }
+      else results.push({ video_id: expected.video_id, window: "daily", state: "pending", due_at: `${reportDay}T17:30:00+09:00` });
+    }
   }
-  if (Number(reportParts.hour) >= 22 && !provided) {
+  if ((mode === "all" || mode === "finalize") && Number(reportParts.hour) >= 22 && !provided) {
     for (const [productId, persist] of [["honne-ai", persistHonneDaily], ["anicca-ios", persistAniccaDaily]]) { const summary = persist(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: productId, window: "daily-product", state: summaryResultState(summary), source_status: summary.snapshot.source_status, missing_accounts: summary.snapshot.missing_accounts, telegram: await sendSummary(summary, env, dataDir) }); }
   }
   return results;
 }
 
-if (require.main === module) runDue().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { GRACE_MS, TARGETS, WINDOWS, delayed, discoverJp4, discoverNativeCarouselTargets, discoverTarget, discoverTargets, runDue, snapshotFile };
+if (require.main === module) {
+  const phase = process.argv[2];
+  const run = phase === "--api-only" ? () => runDue(Date.now(), process.env, null, "api")
+    : phase === "--native-only" ? () => runNativeDue()
+      : phase === "--native-leased" ? () => runDue(Date.now(), process.env, null, "native")
+        : phase === "--finalize" ? () => runDue(Date.now(), process.env, null, "finalize")
+          : async () => [...await runDue(Date.now(), process.env, null, "api"), ...await runNativeDue(), ...await runDue(Date.now(), process.env, null, "finalize")];
+  run().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+}
+module.exports = { GRACE_MS, TARGETS, WINDOWS, delayed, discoverJp4, discoverNativeCarouselTargets, discoverTarget, discoverTargets, runDue, runNativeDue, snapshotFile };
