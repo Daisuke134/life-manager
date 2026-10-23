@@ -548,12 +548,11 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "action_key": f"recover:{item['agent_id']}",
             "item": item,
         }
-    # Capafy permits at most five simultaneous draft/under-review submissions.
-    # A rejected agent becomes retryable only after that rejection has freed a slot;
-    # retrying an old agent does not create a sixth submission exception.
-    if occupied >= CAP:
-        return {"verdict": "CAP_FULL", "occupied": occupied}
     if retries:
+        # A rejected agent already holds one of the five slots; resubmitting it moves it to
+        # under_review under the same agent_id and creates no sixth submission, exactly like the
+        # recovery path above. Gating it behind the cap left five rejected/draft agents blocking
+        # every fresh create and their own repair (2026-10-23: CAP_FULL for days).
         # Highest 30d revenue retries first, same rule as queued updates above
         # (2026-10-04: agent_id-string order picked a $0-revenue retry ahead
         # of a $11.18/30d one while a slot was free).
@@ -565,6 +564,9 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "action_key": f"retry:{item['agent_id']}",
             "item": item,
         }
+    # Capafy permits at most five simultaneous draft/under-review submissions.
+    if occupied >= CAP:
+        return {"verdict": "CAP_FULL", "occupied": occupied}
     if updates:
         item = min(updates, key=update_priority_key(revenue_by_agent or {}))
         request = item["update_request"]
