@@ -3,14 +3,14 @@
   "clinical_claim": false,
   "experiment_enabled": false,
   "files": {
-    "control.html": "d8e86e71c0366c4f4c3b7f4a7c045ca8cc492c294dede9c289df6533b7272ee6",
-    "finance.html": "1c6452628038fbf0d7b9132bf38106903f0375f8ad8470562392c41436ae5769",
-    "index.html": "a9416b6bacc6594e65bbeef35c75d33c5b53b1bcfdf06bce9ce7d365147f4518",
-    "mental.html": "186067d6b245bf769730e0773c7cbf88c32c5567d6cb82d45a848e6ebb65d353",
-    "physical.html": "b8eab195a1e5067a3f95df39582c2c398d793da3975966ae634d11108fd60ed2",
-    "proof.html": "73573fd4169b53cb5d27394cd9e2a6b27a073a7c6059be90d20a804c412c8077"
+    "control.html": "f32f15aa0a50d119ccd25949cc3a4cb2ccf882285fb49b068b4954ddb7e926a9",
+    "finance.html": "504e663330bb25c7f24b65a6dbb187778ffc373633d6549f64c679a3c493d6e9",
+    "index.html": "ba6016142788cd89516b1cf0360979b0ddd9697a23038fb31e16ae85eabddd1e",
+    "mental.html": "c1e54455b826e935d433a8d24f8670f7e4b78485243e44cc73ac1b12f3e15201",
+    "physical.html": "6df426dd816ffd18fdf2eedb620ac37884d526d5a1fb581039561eb44586da18",
+    "proof.html": "ae5ff39d3ed230ccc24dca8e439168955eb1dee91d58678b31739702318e0d23"
   },
   "real_participants": 0,
   "schema": "manager.public-service.v1",
-  "source_commit": "eca775c9fbb002d59452c1cce37d853f4cf124d9"
+  "source_commit": "324671052ad9d5517ca63e35094028d5d9b06bb3"
 }
