@@ -23092,7 +23092,7 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 **提出経路の最小修正:** `fastlane/Fastfile::submit_review` が選んだversionを `deliver(app_version:)` へ渡さない不備を修正する。外部提出をstubした実laneの回帰テストで、明示/既定versionの両方が変更前nilで失敗し、変更後2 tests/4 assertions PASS。Fastfile syntax PASS。これは審査提出の成功を意味しない。
 
-**正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`、branchは `growth/mobile-flagship-20261023`。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
+**正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`。提出version修正の `growth/mobile-flagship-20261023` はPR #8582/main `39bf2501864acfa8cf28dbc5bbd74c7ec48b5cfb`へ統合済み。配信copyの現在branchは `growth/mobile-scene-copy-20261023`。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
 
 **順序更新:** 旧順序はローカルレポート修正→release→計測baseline→自然投稿→ストア/翻訳→creative/SEO→通知/paywall。新順序は下表。理由は既知の修正が未配布であることと、Apple週次でAniccaのApp Unitsが減少していること。既存slotの自然配信を止めず、過去投稿の重複再送を行わない。過去の1,000ダウンロード/日目標は計測上の別目標として維持するが、MRR達成を判定する必須gateにはしない。
 
@@ -23104,6 +23104,8 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 | 4 | X/IG/TikTok/YouTubeとWeb/SEO/AEOを既存配信へ接続 | アカウント別cadence、native URL、広告費0、計測可能なCTAを確認。検索意図別の独自記事からアプリへ誘導。検索表示/クリックと売上を分ける |
 | 5 | 勝った型を他5アプリへ商品事実に合わせて展開 | 6商品のregistry/掲載先/計測IDの一致、各商品別の自然公開receiptと流入/課金。Aniccaと他商品の実験結果を混ぜない |
 | 6 | 毎週の結果で次の配信・課金改善を選び合計MRR USD10Kへ継続 | 施策、比較期間、基準値、観測結果、継続/停止/変更の判断を既存specへ更新。公式売上未確認を成功/0に変換しない |
+
+**配信copyの今回変更:** 公式I am Reel `https://www.instagram.com/iam.affirmations/reel/Dc--fsolO-X/` を再取得し、アプリへ誘導するcaptionと約1.5K likes/7 commentsを確認する。動画映像自体と課金効果は今回再検証していない。借りるのは「特定の感情に絞ったアファメーション→アプリCTA」の仕組みで、文章・画像は独自に作る。現行 `marketing-slide-pack-text.js` はhookと無関係に16の汎用本文から4つをshuffleしており、同じ導入でも話題・順序が変わる。今回は既存のEN/JA・3family・無料生成・slot冪等性を保ち、8つの生活場面ごとに導入と4枚の本文を一組として選ぶ。朝の支度、仕事終わり、比較、失敗、休息など場面を具体化し、本文は同じ場面に対する自己への言葉として順に読める構成にする。製品の効能・売上・通知修正済みの実機デモを創作しない。受入は既存の生成/slide-pack検証に加え、同じ導入の本文がseedによって無関係に入れ替わらない回帰テスト。回帰テストは変更前に同じhookの本文不一致で失敗し、変更後は既存factory/gateを含む25 tests PASS。効果は既存slotの自然PUBLISHED receiptと24h到達/保存/共有/流入で判定し、このcopy変更だけで改善済みと報告しない。
 
 **補助skill:** `ParthJadhav/app-store-screenshots` の公式READMEを確認。実スクリーンショットからストア画像を作るエディタで、アプリ内アニメーション用ではない。新版と配信の先頭作業を妨げない範囲で後続へ利用する。`rosssark-motion-skill` は添付画像の名前だけで配布元未特定のため、任意の同名packageを導入しない。
 
