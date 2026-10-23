@@ -201,6 +201,8 @@ flowchart LR
 
 独自に評価・追加学習・版管理できるモデルの重みを主体の中心へ育てる。 モデル系列・規模・量子化・runtimeを固定せず、公式artifact/権利と実測から選び直す。GPUや4Bを全候補の開始条件にしない。[既存CPU実推論](verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)はQwen3-1.7Bで確認済みだが、モデルの有用性/独自学習の受入とは分ける。**既存モデル比較 → 権利とholdoutを固定 → 最小SFT/LoRA → 未見比較 → 実結果と保護を満たした限定運用**の順。V001–V003のoffline研究は人対象実証全体の完了を待たない。実LICENSEがApache 2.0のQwen3-4B-Baseと既存PEFT/TRL等を候補にし、実験前に版・データ・予算を固定する。scratch pretrainingは既存baseで解けない不足と適法corpus・実compute/原価が揃った際の別設計。重みだけで観測・記憶・作用・結果の検証が成立するとはしない。
 
+**柔軟性の運用:** 目的と受入基準を保ち、一次資料・実測から既存部品と実装方法を選び直す。専用モデルが見つかれば汎用モデルへの固執をやめるが、途中の実験条件は変えず、失敗・未完了も保存して別protocolで比較する。[小型専用judgeの追加一次資料](research/2026-10-23-small-refusal-judge-reuse.md)ではQwen3Guard-Gen-0.6Bにbinary refusalの出力を確認した。これは次の独立比較候補で、完全/部分/非拒否の3classへそのまま置き換えない。Streamのrisk3class、Graniteのharm/toxicity、拒否分類を混同しない。追加候補のこのCPUでの実測は未実施。
+
 ### 1.3 いま終える範囲と、残作業の実行順
 
 既存のDigital Autonomy v0.1は所有7パスの限定技術P2として受入済み。次はその基盤を再利用して行動変容の評価と主体へ進む。施設・センサー・電力/騒音・金融純増は現在の必須経路から外す。D004/D005–D009/D012は未達成のskippedで、旧code/receiptは保持する。
@@ -224,6 +226,17 @@ flowchart LR
 | D014/D015/D016 | 公開研究再利用と新規研究の条件を区別し、必要な実役割・保護・結果を既存outcome/causal契約へ結ぶ。全公開研究へ企業/政府の提携やNDAを一律要求しない |
 | V001/V002/V003 | 公開結果とscorer、権利、dataset/base/judge版、人物/研究/時間split、同条件baseline、追加学習で解く不足と実compute/費用。独自重みはまだ作っていない |
 | U002/U003/U005の履歴 | 公開面談5件は旧英国支援アクセス、U003は技術的対象選定、U005は公開7ファイルproofの限定受入。新対象の需要・実利用・支払・便益へ置き換えない |
+
+**直近の差分を小さくする:**
+
+| 順 | 既存sourceと具体的な残差分 | 受入を止めている未成立の事実 |
+|---|---|---|
+| 1 / V001 | `experiments/behavior-model/`の固定protocol、`source-rights.json`、`outcome_bench.py`へ、採用slice・model/judge/scorer・拒否mapping・適用範囲を一つの対応表として結ぶ。新しい評価engineは作らない | 人物/研究/時間holdoutが利用不能なsliceは、その軸の一般化をHOLD。UNKNOWN表記だけで実holdoutが成立したとしない |
+| 2 / V002 | `xstest_refusal_eval.py`/研究CLIの実結果から拒否の校正を記録。必要なら専用binary judgeを別の事前固定比較で試す | 既存goldは元回答限定。圧力・依存・害の人参照や未見評価は別に埋める。拒否判定だけで安全性/便益を認定しない |
+| 3 / V003 | 既存PEFT/TRLとmodel plan Task3を使い、学習で解く不足・権利・split・実資源を固定して最小adapterを作る | V002未受入。HelpSteer2 train案は内容除外後27/32でNOT_READY、学習用途の権利も未採用。32件揃ったものとして開始しない |
+| 4 / D014–D016・U004・G001/G002 | `BEHAVIOR_TRANSFORMATION_STUDY_V2.md`、`governance.py`と既存停止/監査記録へ、実役割・観測・異議申立先・全run母集団・独立readbackを結ぶ | 研究はDRAFT/参加者0。役割を引き受けた実在者、監視される連絡先、実結果をコードやAIレビューで創作しない。既存の停止proofを再利用し、不要な本番STOPを追加しない |
+
+クラウドでの推論は実行できており、Macへの移行や新GPUを全作業の前提にしない。上の実証上の不足と、利用可能なhost/credentialの有無は別問題として扱う。
 
 ### 1.3.2 agentの運用接続に残る具体的な差分
 
