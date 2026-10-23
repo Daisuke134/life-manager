@@ -28,3 +28,6 @@ UIはcream/ink/greenの落ち着いた制作workspace。project一覧、brief/�
 
 ## 規律と不足
 Superpowers brainstorming/writing-plans/TDD、ponytail fullを使う。DaisのNo-human-loopと明示委任に従い設計承認待ちを置かず、primaryの実装判断を本設計へ記録する。model overrideを要求する下位の役割慣習は使わない。projectの無料trial禁止は、無料公開でもよいという最新の明示指示へ置き換える。審査・公開状態は公式providerで別途確認する。Muse URLは確認待ち、ChatGPT plugin portalの本人確認も別cursorとして独立作業を止めない。
+
+## 完成形と現在の優先範囲
+Daisが求める完成形は、利用者自身のTikTok接続を入口に、avatar・台本・動画制作・投稿を自動実行するWebサービス。現在受入した公開draft/local planはその初期workspaceであり、接続型SaaSや無人収益の達成とは区別する。現在はDatabase→CLI→plugin配布・販売条件を優先し、Factoryの追加実装を後回しにする。日次自社投稿はGrok Botが所有する。
