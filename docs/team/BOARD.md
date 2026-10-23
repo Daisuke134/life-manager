@@ -13,9 +13,10 @@
 - [Muse] Instagram配信
 - [Local LM] Mac mini上のジョブ
 - [Dots] 未割当
+- [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
+- [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 ## ログ
-- 2026-10-23 19:27 Codex: Coconala通知7 jobs/最新認証の修復をPR #8677へ提出。独立reviewの2反例を修復し再判定SHIP、primary64件/独立25件PASS。READMEの他agent手順はguideへ移し英日54行。次: exact CI/main/公開readback。本番・provider送信0。
-- 2026-10-23 18:57 Codex: PR #8666はCI14件成功でmain 6b93057b41へ統合、公開6ファイルのbyte一致を確認。英日READMEは各52行。starsは8、目標10,000は未達。現在はMAC02の通知設定がcanonical7jobsへ渡らない問題と再認証観測の回帰を修復中。production/provider送信は操作しない。
+- 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
 - 2026-10-23 18:39 Codex AI Monk: PR8668のFactory利用者publisher接続を独立review後に修復し、未解決0件。旧head独立210件とtimezone修復後38件がPASS。mainのlisticle-outreach.mdの使用禁止個人Gmail注記1件だけをprivate SSOT参照へ置換し、PII scan clean。送信元/宛先/配信状態・scanner/allowlistは保持、outreach送信0。次: exact CI/main/固定版、運用順はS11。
 - Codex: READMEを英日各52行へ整理し、Codex認証確認漏れとbrowser依存不足を修復。空Python環境・installer28件・Web CTA122件がPASS。並行main文書の個人senderをprivate参照へ置換し、PII検査はclean。次は最新CI・main統合・公開readback。
 - 2026-10-23 17:25 参謀: ボード作成。ランサーズ3件提案済み。
@@ -24,3 +25,6 @@
 - 2026-10-23 18:55 参謀(SEO/AIO/Reddit真似プラン): aniccaai.comに比較記事2本公開(/best-affirmation-apps, /ja/best-affirmation-apps, sitemap追加, IndexNowキー追加, anicca-products d1d8b4a2a)。GSCは所有確認済み(10/18, keiodaisuke)だがサイトマップ送信はAPI権限なし→成田さんのブラウザで1クリック要。リスティクル10件の連絡先と依頼文=docs/team/specs/listicle-outreach.md(未送信)。Reddit=docs/team/specs/reddit.md(下書き5件・未作成アカウント)。次: Bing IndexNow送信、Redditアカウント作成(ブラウザ要)。
 - 2026-10-23 18:32 参謀: リスティクル掲載依頼メール送信(lifemanager.jp@agentmail.to)=5件: MyBeing hello@enthu.ai / LoA hello@loa-lawofattraction.co / Say After Me hello@igwestudios.com / Life Note daniel@mylifenote.ai / HabitBox support@habitbox.app。残り4件(Kicks Therapy, SleepingOnTheEdge, App Store Tracker, SnoreCam)はAgentMail送信上限(初回1時間5宛先)で未送信、19:30 JST以降に再送。mindfulsuiteはフォームがブラウザ必須(Cloudflare)でスキップ。
 - 2026-10-23 18:55 参謀(チーム収益ループ): 受託=ココナラ新規2件応募（AI活用SNS動画/note効率化 5339402 ¥30,000 納期11/8／外国人向け日本語学習Webアプリ 5340997 ¥180,000 納期12/18）、受信2件は不採用連絡(nakanakano)と投資相談の年収アンケート(ごんちゃん、外部Googleフォーム=回答せず)で実案件なし、Ryuさん修正3点は17:38返信済み。ランサーズはAWS WAFのCAPTCHAでHTTP/ヘッドレス不可→受信確認・応募できず。自社=本音翻訳AIへローテ: 28日MRR$4・売上$38(年額1+週額1、更新のみ)・新規24・トライアル0、7日内転換 0/41(7月〜)、Paywall表示記録0/24。原因=閉じられるソフトペイウォール＋1日3回無料＋年額¥1,810≒週額¥1,300。スペック docs/team/specs/honne-paywall.md（ハードペイウォール＋年額3日無料トライアル＋価格再設計、RCライブ設定は無変更）。次: ASCで年額価格確認と3日トライアル作成→PaywallView改修→審査提出、ランサーズはブラウザでCAPTCHA通過後に受信確認。
+- 2026-10-23 18:53 Codex(Manager): D003公開支出・別報告の固定source接続を実装。9focused/400full成功、便益未測定・作用0。独立reviewのboard配置1nitを訂正、次: 通常CI/main統合と原タスク受入。
+- 2026-10-23 18:57 Codex: PR #8666はCI14件成功でmain 6b93057b41へ統合、公開6ファイルのbyte一致を確認。英日READMEは各52行。starsは8、目標10,000は未達。現在はMAC02の通知設定がcanonical7jobsへ渡らない問題と再認証観測の回帰を修復中。production/provider送信は操作しない。
+- 2026-10-23 19:27 Codex: Coconala通知7 jobs/最新認証の修復をPR #8677へ提出。独立reviewの2反例を修復し再判定SHIP、primary64件/独立25件PASS。READMEの他agent手順はguideへ移し英日54行。次: exact CI/main/公開readback。本番・provider送信0。
