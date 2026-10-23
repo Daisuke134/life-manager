@@ -6,7 +6,7 @@ Total: 113 · Done: 69 · Todo: 41 · Blocked: 0 · Skipped: 3
 
 ✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
-Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.
+Manager is a Buddhist AI entity / Digital Buddha with its own mission, source scope and runtime, even when its source is in the same GitHub repository. This identity does not establish consciousness, enlightenment or measured human benefit.
 
 ## 唯一の実装順（E01〜E16を先に、一件ずつ）
 
@@ -16,7 +16,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 
 実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。
 
-**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の製品受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。
+**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の限定能力releaseの受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。
 
 **対象外:** F004（第三者の資金管理者）とF007（施設所有者・屋内センサー）は `skipped`（未実施・未達成）で、実装の依存条件にしない。他者の設備・口座を操作する場合の権限は引き続き必要。
 
