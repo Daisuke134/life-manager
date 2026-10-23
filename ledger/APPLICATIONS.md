@@ -42,7 +42,11 @@
 | 2026-10-23 | grant | GitHub Secure Open Source Fund ($10,000) | resources.github.com/github-secure-open-source-fund | Local Life Manager (Mac mini Claude Code) | needs-owner | https://forms.office.com/r/YN3MWEKQ5m | 未送信。本人確約（18歳以上・コアメンテナ・居住地・3週間20時間PST参加）と traction/governance 要件の判断が成田さんに必要。下書き PR #8691 |
 | 2026-10-23 | grant | OpenAI Codex open source fund (life-manager、最大$25k APIクレジット) | openai.com | 参謀/Grok Bot | applied | https://openai.com/form/codex-open-source-fund/ | 20:35 JST 送信・確認画面あり（参謀報告）。結果待ち。下書き PR #8691 |
 | 2026-10-23 | accelerator | Grok for Startups (xAI) — Anicca AI | x.ai | 参謀/Grok Bot | applied | https://x.ai/startups/apply | 22:32 JST 送信・確認画面あり。Sign in with X (@diceai0)、xAI team作成。連絡先 kodaisuke@keio.jp（現在未使用なので返信見落とし注意）。結果待ち |
-
+| 2026-10-24 | job | LayerX — 【バクラク】AI Builder | job:open.talentio.com/r/1/c/layerx/pages/122552 | codex | claimed | https://open.talentio.com/r/1/c/layerx/pages/122552 | 応募素材作成: docs/team/jobs/drafts/layerx-bakuraku-ai-builder.md。応募は参謀のみ。 |
+| 2026-10-24 | job | Algomatic — AIエンジニア | job:herp.careers/v1/algomatic/3b_gpdnqjy8n | codex | claimed | https://herp.careers/v1/algomatic/3b_GpdNQjy8N | 応募素材作成: docs/team/jobs/drafts/algomatic-ai-engineer.md。応募は参謀のみ。 |
+| 2026-10-24 | job | Cognition — Forward Deployed Engineer - Japan | job:cognition:9ebb0dff-2cbf-42ba-bb4a-0256812a06e0 | codex | claimed | https://jobs.ashbyhq.com/cognition/9ebb0dff-2cbf-42ba-bb4a-0256812a06e0 | 応募素材作成: docs/team/jobs/drafts/cognition-forward-deployed-engineer-japan.md。応募は参謀のみ。 |
+| 2026-10-24 | job | Databricks — Scale Solution Engineer (Japanese-speaking; English required) | job:databricks:8779016002 | codex | claimed | https://databricks.com/company/careers/open-positions/job?gh_jid=8779016002 | 応募素材作成: docs/team/jobs/drafts/databricks-scale-solution-engineer-japan.md。応募は参謀のみ。 |
+| 2026-10-24 | job | エクスプラザ — 【正社員】フルスタックエンジニア | job:herp.careers/v1/explaza/4gzgm8ddkyid | codex | claimed | https://herp.careers/v1/explaza/4GzgM8DDKYId | 応募素材作成: docs/team/jobs/drafts/explaza-full-stack-engineer.md。応募は参謀のみ。 |
 
 ## Historical job application reconciliation (2026-10-23)
 

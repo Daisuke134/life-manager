@@ -52,4 +52,16 @@
 
 完了条件: claim PRと追加5件のドラフトPRがmainへ統合され、main上の5キーと5ファイルを公式readbackで確認する。Reasonで `daisuke/cursor` へ両PR URLと5キーを返信する。応募送信、応募済みへのstatus更新、Thankful/build 10、他のCodex作業、runtimeやcronは範囲外。
 
-現在cursor: 公式求人を比較して新規5件を選定する。前回の5原稿はPR #8730で完了済みとして保持する。
+選定基準: 調査した公式求人の中で、東京勤務、既存のAI導入・実装・指導との接点、固定年数の制約、報酬帯を比較する。下表はその候補内の優先順であり、全市場の網羅順位や採用可能性の予測ではない。5年以上を要求するNotion FDE/Architect、4年以上のCognition Support、3〜5年のGenspark CSMを下げる。Algomatic AI Builder（組織変革本部）は既存履歴でchecker exit 1となるため除外する。雇用先除外リストも確認する。
+
+| 順位 | 求人・公式情報 | key | 根拠と不足 |
+|---|---|---|---|
+| 1 | [LayerX — 【バクラク】AI Builder](https://open.talentio.com/r/1/c/layerx/pages/122552) | `job:open.talentio.com/r/1/c/layerx/pages/122552` | Agent活用・実装・業務変革が直接関連。固定経験年数なし。生産性改善の数値、特定言語の職務使用は未確認。 |
+| 2 | [Algomatic — AIエンジニア](https://herp.careers/v1/algomatic/3b_GpdNQjy8N) | `job:herp.careers/v1/algomatic/3b_gpdnqjy8n` | 実務・研究・個人開発を評価。LLM実装/研究と接点。個別言語・RAG等の経験は補完しない。 |
+| 3 | [Cognition — Forward Deployed Engineer - Japan](https://jobs.ashbyhq.com/cognition/9ebb0dff-2cbf-42ba-bb4a-0256812a06e0) | `job:cognition:9ebb0dff-2cbf-42ba-bb4a-0256812a06e0` | 企業AI導入支援・ツール指導と接点。STEM学位授与は未確認。過去のPartner Deployed Engineerとは別職種。 |
+| 4 | [Databricks — Scale Solution Engineer (Japanese-speaking; English required)](https://databricks.com/company/careers/open-positions/job?gh_jid=8779016002) | `job:databricks:8779016002` | Databricks応答品質分析とML研究が直接関連。technical role 2年以上を要求、MUIT職務は2025年4月開始。cloud/言語/ETLの要件充足は未確認。過去FDEとは別職種。 |
+| 5 | [エクスプラザ — 【正社員】フルスタックエンジニア](https://herp.careers/v1/explaza/4GzgM8DDKYId) | `job:herp.careers/v1/explaza/4gzgm8ddkyid` | AI活用・agent運用設計と接点、固定年数なし。cloud設計構築と職務上のfull-stack経験は未確認。年収500〜800万円は希望下限800万円と上限のみ重なる。 |
+
+5キーはすべて `scripts/ledger-check.sh` がexit 0（FREE）であることを最終確認してから台帳へ追加する。既存のCognition Partner Deployed Engineer、Databricks FDEのstatusは変更しない。
+
+現在cursor: 5件のclaimを専用PRでmainへ統合する。その後、フォームの取得範囲・回答案・カバーレターを5原稿へ保存し、別のドラフトPRを統合する。前回の5原稿はPR #8730で完了済みとして保持する。
