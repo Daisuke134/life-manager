@@ -12,8 +12,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 ENGINE = HERE.parent
 sys.path.insert(0, str(ENGINE / "gates"))
 
-from product_router import load_registry  # noqa: E402
 from intent_store import file_sha256  # noqa: E402
+from publication_context import (PublishContext, require_exact_destination,
+                                 resolve_publication_route)  # noqa: E402
 
 
 def require(condition: bool, message: str) -> None:
@@ -79,14 +80,12 @@ def validate_media(media: dict) -> dict:
 
 def validate_preflight(intent: dict, *, engine: pathlib.Path = ENGINE,
                        approvals_path: pathlib.Path,
-                       media_probe=probe_media) -> dict:
-    registry = load_registry(pathlib.Path(engine))
+                       media_probe=probe_media,
+                       context: PublishContext | None = None) -> dict:
     account_id = intent.get("account_id")
     product_id = intent.get("product_id")
-    require(account_id in registry.accounts, "publication account unknown")
-    require(product_id in registry.products, "publication product unknown")
-    account = registry.accounts[account_id]
-    product = registry.products[product_id]
+    account, product = resolve_publication_route(
+        engine=engine, account_id=account_id, product_id=product_id, context=context)
     require(account["status"] == "approved_active", "account is not approved_active")
     require(account["product_id"] == product_id, "publication account product mismatch")
     require(account["platform"] == intent.get("platform"), "publication platform mismatch")
@@ -105,8 +104,11 @@ def validate_preflight(intent: dict, *, engine: pathlib.Path = ENGINE,
     caption = str(intent.get("caption") or "")
     require(product["cta"] in caption, "publication CTA missing")
     require(intent.get("attribution_token") in caption, "publication attribution token missing")
-    require(f"https://aniccaai.com/go/{intent['attribution_token']}" in caption,
-            "owned attribution URL missing")
+    if context is None:
+        require(f"https://aniccaai.com/go/{intent['attribution_token']}" in caption,
+                "owned attribution URL missing")
+    else:
+        require_exact_destination(caption, context.destination_url)
     approvals = [row for row in read_jsonl(approvals_path)
                  if row.get("approval_id") == intent.get("visual_approval_id") and
                  row.get("status") == "accepted"]
