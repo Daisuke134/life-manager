@@ -8,6 +8,8 @@ from types import ModuleType
 import unittest
 from unittest.mock import Mock, patch
 
+FIXTURE_API_KEY = "hak_" + ("a" * 12)
+
 
 class AmpersandClientSetupTests(unittest.TestCase):
     def _fake_openai(self):
@@ -22,12 +24,12 @@ class AmpersandClientSetupTests(unittest.TestCase):
         with patch("importlib.metadata.version", return_value="3.24.0"), \
                 patch.dict("sys.modules", {"openai": openai}):
             client = ampersand_api.make_client(
-                "hak_abcdefgh", timeout=37)
+                FIXTURE_API_KEY, timeout=37)
 
         self.assertIs(client, openai.OpenAI.return_value)
         openai.OpenAI.assert_called_once_with(
             base_url=ampersand_api.BASE_URL,
-            api_key="hak_abcdefgh",
+            api_key=FIXTURE_API_KEY,
             max_retries=0,
             timeout=37,
         )
@@ -41,7 +43,7 @@ class AmpersandClientSetupTests(unittest.TestCase):
                 with patch("importlib.metadata.version", return_value=unsupported), \
                         patch.dict("sys.modules", {"openai": openai}):
                     with self.assertRaises(ampersand_api.SessionFailure) as raised:
-                        ampersand_api.make_client("hak_abcdefgh")
+                        ampersand_api.make_client(FIXTURE_API_KEY)
 
                 self.assertEqual(
                     str(raised.exception),
@@ -58,7 +60,7 @@ class AmpersandClientSetupTests(unittest.TestCase):
         with patch("importlib.metadata.version", side_effect=missing), \
                 patch.dict("sys.modules", {"openai": openai}):
             with self.assertRaises(ampersand_api.SessionFailure) as raised:
-                ampersand_api.make_client("hak_abcdefgh")
+                ampersand_api.make_client(FIXTURE_API_KEY)
 
         self.assertEqual(
             str(raised.exception),
@@ -74,7 +76,7 @@ class AmpersandClientSetupTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ampersand_api.make_client("bad")
             with self.assertRaises(ValueError):
-                ampersand_api.make_client("hak_abcdefgh", timeout=181)
+                ampersand_api.make_client(FIXTURE_API_KEY, timeout=181)
 
         version.assert_not_called()
 

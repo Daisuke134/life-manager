@@ -35,6 +35,11 @@ passed. `git diff --check` passed. This checkout has no standalone loop-contract
 gate script; the full suite includes the existing provider, session, budget,
 deadline, and owned-provider contract tests.
 
+The current focused test module is
+`tests/test_ampersand_sdk_setup.py`. The original RED log was captured before
+that rename as `tests/test_ampersand_integration.py`; its private log is kept
+unchanged to preserve the original test-first evidence.
+
 The source-boundary guard remains FAIL because its canonical host path
 `/home/agent/Projects/life-manager-main` is unavailable. That check is not
 relaxed. No SDK was installed in this worktree and no runtime/provider call was
