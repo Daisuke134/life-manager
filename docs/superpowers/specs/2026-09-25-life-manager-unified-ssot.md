@@ -128,6 +128,8 @@ Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、�
 
 ACCOUNTのsource検証: 新規52件を未実装でRED再現し、既存identity12件を含む64件がPASS。primaryが実測と同じprofile/feedback/proposal混在で追加REDを再現するため、同一accountのroot/統計suffixを同じ本人として扱い、別account混在を拒否する4ケースを追加する。workerとprimaryの新規56件＋既存12件=68件がPython3.14.7でPASS。追加のaccepted browser観測もsummary10links/root4/query0/fragment0/official origin・account一意を確認する。AST/source境界/diffはPASS、Loop contractは18products/192jobs/113mapped/errors0。無関係な別provider同士のUUID衝突がLancersまで停止する追加gateもRED1で再現し、Lancers UUIDの重複だけを拒否する既存guardの範囲へ揃える。最終は新規59件＋既存identity12件=71件PASS。実EXPRESSIONから4root＋6統計linksを通すfixtureもPASS。既存CIへ新test1fileを追加する。独立reviewとCI/main受入、公開入口・実private bindingは継続中。開発sourceの実browser/private操作は0。
 
+ACCOUNTのCI診断: PR #8733/head f13270f5e644cdfa235d6d3c0f0de553c57839f4、workflow39971014970のMac用jobは143件/8 subtestsがPASS、6件が同じ `ModuleNotFoundError: websocket` でFAILする。共通runtimeとrequirements-ciには既に `websocket-client==1.9.0` があるが、このjobだけがjsonschema/pytestのみを導入していた。隔離したPythonのsite-packagesなしimportでも同じ境界をRED再現する。新しいruntime依存を増やさず、既存Mac CI jobに同じ固定versionを追加し、exact-head CIで再検証する。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
