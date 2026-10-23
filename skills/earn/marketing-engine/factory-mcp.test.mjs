@@ -157,7 +157,7 @@ test('timeout and output limit reclaim the owned group while an unrelated child 
     for (const mode of ['timeout', 'output_limit']) {
       let owned;
       const result = await runCli(['factory', 'plan'], {
-        timeoutMs: 200, maxOutputBytes: 64, killGraceMs: 25,
+        timeoutMs: mode === 'timeout' ? 200 : 3000, maxOutputBytes: 64, killGraceMs: 25,
         spawnChild: (command, args, options) => {
           assert.equal(command, 'python3');
           assert.deepEqual(args, [cli, 'factory', 'plan']);
