@@ -430,11 +430,11 @@ def test_ebook_entrypoint_forwards_registry_occurrence_scope_to_admission(tmp_pa
         ) == 75
 
     enqueue.assert_called_once_with(
-        "agent", owner, admission_class="revenue", priority="distribution",
+        "deterministic", owner, admission_class="revenue", priority="distribution",
         occurrence_id=occurrence_id, effect_scope="occurrence", coalesce_reserved=True,
     )
     claim.assert_called_once_with(
-        "agent", owner, admission_class="revenue", effect_scope="occurrence",
+        "deterministic", owner, admission_class="revenue", effect_scope="occurrence",
         coalesced_occurrence_id=occurrence_id,
     )
     run.assert_not_called()
@@ -4111,7 +4111,7 @@ def test_manual_slot_dispatches_only_its_exact_claim(manual_slot_runtime):
 def test_manual_slot_foreign_fifo_claim_does_not_dispatch_or_starve_normal(manual_slot_runtime):
     runtime = manual_slot_runtime
     runtime.entry["coalesce_queued_wakes"] = False
-    admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
+    admission.enqueue_durable(runtime.entry["resource_class"], runtime.owner, admission_class="revenue",
                               priority="distribution", effect_scope="occurrence",
                               occurrence_id=f"{runtime.owner}:older-normal")
     code, receipt = runtime.invoke("manual-behind-older", manual=True)
@@ -4148,7 +4148,7 @@ def test_manual_slot_capacity_deferral_is_discarded_without_automatic_override(
 
 def test_manual_slot_coalesces_orphaned_wakes_under_its_exact_identity(manual_slot_runtime):
     runtime = manual_slot_runtime
-    admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
+    admission.enqueue_durable(runtime.entry["resource_class"], runtime.owner, admission_class="revenue",
                               priority="distribution", effect_scope="occurrence",
                               occurrence_id=f"{runtime.owner}:older-normal")
     assert admission.cancel_durable(runtime.owner) is True
@@ -4165,10 +4165,10 @@ def test_manual_slot_coalesces_orphaned_wakes_under_its_exact_identity(manual_sl
 def test_manual_slot_unknown_claim_never_starts_child(manual_slot_runtime):
     runtime = manual_slot_runtime
     occurrence = f"{runtime.owner}:manual-unknown"
-    admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
+    admission.enqueue_durable(runtime.entry["resource_class"], runtime.owner, admission_class="revenue",
                               priority="distribution", effect_scope="occurrence",
                               occurrence_id=occurrence)
-    claim, _ = admission.claim_durable("agent", runtime.owner, admission_class="revenue",
+    claim, _ = admission.claim_durable(runtime.entry["resource_class"], runtime.owner, admission_class="revenue",
                                        effect_scope="occurrence")
     admission.release_and_reserve(claim, effect_unknown=True, reserve=False)
     code, receipt = runtime.invoke("manual-unknown", manual=True)

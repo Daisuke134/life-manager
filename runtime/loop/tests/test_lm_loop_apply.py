@@ -1400,7 +1400,7 @@ class LmLoopApplyTest(unittest.TestCase):
         ):
             self.assertIsNone(decision)
         rebind.assert_called_once_with(
-            owner, resource_class="agent", admission_class="revenue",
+            owner, resource_class="deterministic", admission_class="revenue",
             priority="distribution", effect_scope="occurrence",
         )
 

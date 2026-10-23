@@ -1673,7 +1673,7 @@
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
       "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":21,"Minute":0}]},

@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from runtime.loop.macos_loop_registry import (
     CONTROL_PLANE_SAFETY_LOOPS,
@@ -137,6 +138,27 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = validated["loops"]["ebook-en-tiktok-daily"]
         self.assertEqual(row["entrypoint"], "apps/life-manager/scripts/ebook-distribute-daily.sh")
         self.assertEqual(row.get("admission_effect_scope"), "occurrence")
+
+    def test_english_ebook_api_publisher_does_not_consume_model_capacity(self):
+        from runtime.host.resource_admission import _capacity_available
+        from runtime.loop.lm_loop_run import _resource_class
+
+        row = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))[
+            "loops"]["ebook-en-tiktok-daily"]
+        model_owners = [{"resource_class": "agent", "admission_class": "revenue"}
+                        for _ in range(4)]
+        with mock.patch.dict(os.environ, {
+            "LIFE_MANAGER_HOST_MAX_FINITE_RUNS": "10",
+            "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS": "4",
+            "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS": "5",
+        }):
+            self.assertTrue(_capacity_available(model_owners, _resource_class(row), "revenue"))
+            full = model_owners + [{"resource_class": "browser"} for _ in range(6)]
+            self.assertFalse(_capacity_available(full, _resource_class(row), "revenue"))
+            deterministic_full = model_owners + [
+                {"resource_class": "deterministic", "admission_class": "revenue"}
+                for _ in range(5)]
+            self.assertFalse(_capacity_available(deterministic_full, _resource_class(row), "revenue"))
 
     def test_mobile_metrics_collectors_use_occurrence_scoped_admission(self):
         registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
@@ -721,7 +743,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row.get("admission_class"), "revenue")
                 self.assertEqual(row.get("priority"), "distribution")
         ebook = registry["loops"]["ebook-en-tiktok-daily"]
-        self.assertEqual(ebook.get("resource_class"), "agent")
+        self.assertEqual(ebook.get("resource_class"), "deterministic")
         self.assertEqual(ebook.get("admission_class"), "revenue")
         self.assertEqual(ebook.get("priority"), "distribution")
         self.assertTrue(ebook.get("coalesce_reserved_wakes"))
