@@ -4,12 +4,15 @@ import hashlib
 import io
 import json
 import os
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from products.manager.scripts import public_event_forecast as forecast
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "public_event_forecast.py"
+sys.path.insert(0, str(SCRIPT.parent))
+import public_event_forecast as forecast
 
 
 class PublicEventForecastTests(unittest.TestCase):
