@@ -322,6 +322,219 @@ class OwnedCycleCLITests(unittest.TestCase):
         self.assertIsNone(summary['writes'])
         self.assertNotIn('release', events)
 
+    def test_not_due_saved_v2_current_delivery_exports_real_proof_read_only(self):
+        from datetime import datetime, timedelta, timezone
+        from manager_core.digital_handoff import (MAIN_REF, PUBLIC_BASE, REPOSITORY, WORKFLOW,
+            PublisherContext, plan_release)
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from manager_core.owned_cycle import CycleStore, _cycle_result
+        from manager_core.owned_platform_host import GitHubActionsCycleHost
+        from scripts import phase06_kernel_release as release
+        from test_candidate_verification import setup
+        from test_owned_effect_recovery import GitOccurrenceFixture
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            baseline_dir, candidate_dir, _ = setup(root)
+            baseline = json.loads((baseline_dir / 'manifest.json').read_text())
+            candidate = json.loads((candidate_dir / 'manifest.json').read_text())
+            created = datetime.now(timezone.utc) - timedelta(seconds=10)
+            packet = plan_release(baseline, candidate, created,
+                                  schema='manager.digital-handoff.v2')
+            git = GitOccurrenceFixture(root / 'public-git', baseline_dir, candidate_dir, packet)
+            store = CycleStore(root / 'runner-temp' / 'private-state')
+            publisher = PublisherContext(REPOSITORY, MAIN_REF, WORKFLOW,
+                candidate['source_commit'], '123', workflow_commit=candidate['source_commit'])
+            store.journal.reserve(packet, publisher, baseline, candidate, git.parent, created)
+            receipt = git.send(git.parent)
+            occurrence = git.evidence(receipt)
+            store.journal._present(packet['effect_key'], receipt)
+            store.journal.save_delivery(packet['effect_key'], {
+                'status': 'VERIFIED', 'effect_key': packet['effect_key'],
+                'receipt_ref': receipt, 'candidate_sha256': packet['candidate_sha256'],
+                'observed_at': datetime.now(timezone.utc).isoformat(),
+                'proof_ref': PUBLIC_BASE, 'proof_level': 'P2',
+                'reason': 'EXACT_DEPLOYED_CANDIDATE', 'human_outcome': 'NOT_MEASURED'})
+
+            target_url = f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/gh-pages'
+            list_url = (f'https://api.github.com/repos/{REPOSITORY}/commits'
+                        '?sha=gh-pages&per_page=100&page=1')
+            runs_url = (f'https://api.github.com/repos/{REPOSITORY}/actions/workflows/307239134/runs'
+                        '?branch=gh-pages&per_page=100')
+            detail_url = f'https://api.github.com/repos/{REPOSITORY}/commits/{receipt}'
+            urls = {
+                target_url: json.dumps({'ref': 'refs/heads/gh-pages',
+                    'object': {'type': 'commit', 'sha': receipt}}).encode(),
+                list_url: json.dumps([{'sha': receipt, 'commit': {
+                    'message': occurrence.receipt['commit']['message']}}]).encode(),
+                detail_url: json.dumps(occurrence.receipt).encode(),
+                runs_url: json.dumps({'workflow_runs': [{
+                    'workflow_id': 307239134, 'path': '.github/workflows/pages.yml',
+                    'event': 'workflow_dispatch', 'head_branch': 'gh-pages',
+                    'head_repository': {'full_name': REPOSITORY}, 'head_sha': receipt,
+                    'status': 'completed', 'conclusion': 'success',
+                    'created_at': occurrence.receipt['commit']['committer']['date']}]}).encode(),
+                PUBLIC_BASE + 'manifest.json': json.dumps(candidate).encode(),
+            }
+            for commit, bodies in ((receipt, occurrence.committed_bodies),
+                                   (git.parent, occurrence.parent_bodies)):
+                for name, raw in bodies.items():
+                    urls[f'https://raw.githubusercontent.com/{REPOSITORY}/{commit}/manager-support/{name}'] = raw
+            urls.update({PUBLIC_BASE + name: raw for name, raw in occurrence.committed_bodies.items()
+                         if name != 'manifest.json'})
+
+            def public_get(url):
+                self.assertIn(url, urls, 'current proof used an unexpected public URL')
+                return urls[url]
+
+            checkpoint = PrivateCheckpoint(run_id='123', run_attempt='1')
+            checkpoint.db = store.db
+            checkpoint.owner = '123:1:private-owner'
+            checkpoint.nonce = 'private-owner'
+            checkpoint.revision = 1
+            checkpoint.broken = False
+            host = GitHubActionsCycleHost(checkpoint, root, None)
+            no_op = dict(_cycle_result('NOT_DUE'),
+                         nonce='no-op-private-nonce-sentinel',
+                         private_snapshot='no-op-private-snapshot-sentinel')
+            with patch.object(release, 'public_get', side_effect=public_get):
+                current_report = cli._select_current_noop_proof(store, host, no_op)
+                self.assertIsNotNone(current_report)
+                self.assertEqual(current_report['status'], 'VERIFIED_PUBLIC_ARTIFACT_ONLY')
+                self.assertEqual(current_report['proof_level'], 'P2')
+                self.assertEqual(current_report['receipt_ref'], receipt)
+                self.assertEqual(no_op['proof_level'], 'P0')
+                self.assertEqual(no_op['writes'], 0)
+                exported = cli._export_current_kernel_proof(
+                    checkpoint, store, current_report, root / 'runner-temp')
+            self.assertTrue(exported)
+            proof_dir = root / 'runner-temp' / 'manager-kernel-proof'
+            self.assertEqual({path.name for path in proof_dir.iterdir()},
+                             {'kernel-public-proof.json', 'proof-explorer.html'})
+            proof = json.loads((proof_dir / 'kernel-public-proof.json').read_text())
+            self.assertEqual(proof['pages_commit'], receipt)
+            self.assertEqual(proof['status'], 'VERIFIED_PUBLIC_ARTIFACT_ONLY')
+            self.assertEqual(proof['human_outcome'], 'NOT_MEASURED')
+            html = (proof_dir / 'proof-explorer.html').read_text()
+            self.assertIn('owned.pages.commit_occurrence', html)
+            self.assertIn('owned.pages.served_bundle_bytes', html)
+            self.assertNotIn(packet['effect_key'], html)
+            public_files = ''.join(path.read_text() for path in proof_dir.iterdir())
+            self.assertNotIn('no-op-private-nonce-sentinel', public_files)
+            self.assertNotIn('no-op-private-snapshot-sentinel', public_files)
+            self.assertNotIn('provenance_refs', public_files)
+            self.assertEqual(git.git('rev-list', '--count', 'HEAD'), '2')
+
+            for untrusted in (
+                    dict(current_report, status='UNKNOWN', proof_level='P0'),
+                    dict(current_report, proof_level='P0'),
+                    dict(current_report, receipt_ref='f' * 40),
+                    dict(current_report, candidate_sha256='e' * 64)):
+                current = {'kind': 'candidate', 'effect_key': packet['effect_key'],
+                           'receipt_ref': receipt, 'evidence': untrusted}
+                with patch.object(host, 'observe_current_delivery', return_value=current):
+                    self.assertIsNone(cli._select_current_noop_proof(store, host, no_op))
+            with patch.object(host, 'observe_current_delivery', return_value={
+                    'kind': 'rollback', 'effect_key': packet['effect_key'],
+                    'receipt_ref': receipt, 'evidence': current_report}):
+                self.assertIsNone(cli._select_current_noop_proof(store, host, no_op))
+
+    def test_not_due_run_once_saves_selected_current_proof_without_canary_upgrade(self):
+        events = []
+        selected = {'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY', 'proof_level': 'P2',
+                    'deployed': True, 'effect_key': 'a' * 64, 'receipt_ref': 'b' * 40}
+        class Checkpoint:
+            db = None
+            broken = False
+            def __init__(self, **kwargs): pass
+            def acquire(self, root):
+                Path(root).mkdir(mode=0o700)
+                self.db = Path(root) / 'cycle.sqlite'; self.db.write_bytes(b'restored')
+            def save(self): events.append('save')
+            def release(self): events.append('release')
+        class Store:
+            def __init__(self, root): pass
+        class Host:
+            def __init__(self, *args, **kwargs): pass
+        from manager_core.owned_cycle import _cycle_result
+        report = _cycle_result('NOT_DUE')
+        def select(*args):
+            events.append('select_current')
+            return selected
+        def export(checkpoint, store, proof_report, runner_temp):
+            events.append(('export', proof_report))
+            return True
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1',
+                 'source_sha': 'c' * 40, 'runner_temp': Path(tmp).resolve(),
+                 'pages_root': Path(tmp) / 'pages'}), \
+             patch.object(cli, 'PrivateCheckpoint', Checkpoint), \
+             patch.object(cli, 'CycleStore', Store), \
+             patch.object(cli, 'GitHubActionsCycleHost', Host), \
+             patch.object(cli, 'run_owned_cycle', return_value=report), \
+             patch.object(cli, '_select_current_noop_proof', side_effect=select), \
+             patch.object(cli, '_export_current_kernel_proof', side_effect=export):
+            code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
+        self.assertEqual(code, 0)
+        self.assertEqual(summary['status'], 'NOT_DUE')
+        self.assertEqual(summary['proof_level'], 'P0')
+        self.assertEqual(summary['writes'], 0)
+        self.assertEqual(summary['positive_canary'], 'NOT_RUN')
+        self.assertTrue(summary['current_proof_exported'])
+        self.assertEqual(summary['current_proof_receipt_sha'], 'b' * 40)
+        self.assertEqual(events, ['select_current', 'save', ('export', selected), 'release'])
+
+        events.clear()
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1',
+                 'source_sha': 'c' * 40, 'runner_temp': Path(tmp).resolve(),
+                 'pages_root': Path(tmp) / 'pages'}), \
+             patch.object(cli, 'PrivateCheckpoint', Checkpoint), \
+             patch.object(cli, 'CycleStore', Store), \
+             patch.object(cli, 'GitHubActionsCycleHost', Host), \
+             patch.object(cli, 'run_owned_cycle', return_value=report), \
+             patch.object(cli, '_select_current_noop_proof', side_effect=select), \
+             patch.object(cli, '_export_current_kernel_proof', return_value=False):
+            code, failed = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
+        self.assertEqual(code, 0)
+        self.assertFalse(failed['current_proof_exported'])
+        self.assertIsNone(failed['current_proof_receipt_sha'])
+        self.assertEqual(failed['positive_canary'], 'NOT_RUN')
+        self.assertEqual(failed['writes'], 0)
+
+    def test_current_v1_seed_is_never_selected_for_noop_proof(self):
+        from datetime import datetime
+        from manager_core.digital_handoff import (REPOSITORY, SOURCE_REF, WORKFLOW,
+            PublisherContext)
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from manager_core.owned_cycle import CycleStore, _cycle_result
+        from manager_core.owned_platform_host import GitHubActionsCycleHost
+        from test_owned_public_collector import PublicCollectorTests
+
+        with tempfile.TemporaryDirectory() as tmp:
+            packet, source_journal, receipt, _, _, _ = (
+                PublicCollectorTests().prepare_v1_current_fixture(tmp))
+            original = source_journal.record(packet['effect_key'])
+            root = Path(tmp) / 'runner-temp'
+            store = CycleStore(root / 'private-state')
+            publisher = PublisherContext(REPOSITORY, SOURCE_REF, WORKFLOW,
+                packet['candidate']['source_commit'], '123')
+            store.journal.reserve(packet, publisher, packet['baseline'], packet['candidate'],
+                original.expected_parent, datetime.fromisoformat(packet['created_at']))
+            store.journal._present(packet['effect_key'], receipt)
+            checkpoint = PrivateCheckpoint(run_id='123', run_attempt='1')
+            checkpoint.db = store.db
+            host = GitHubActionsCycleHost(checkpoint, root, None)
+            evidence = {'status': 'VERIFIED', 'proof_level': 'P2',
+                        'effect_key': packet['effect_key'], 'receipt_ref': receipt,
+                        'candidate_sha256': packet['candidate_sha256'],
+                        'reason': 'EXACT_DEPLOYED_CANDIDATE'}
+            current = {'kind': 'candidate', 'effect_key': packet['effect_key'],
+                       'receipt_ref': receipt, 'evidence': evidence}
+            with patch.object(host, 'observe_current_delivery', return_value=current):
+                self.assertIsNone(cli._select_current_noop_proof(
+                    store, host, _cycle_result('NOT_DUE')))
+
     def test_current_proof_export_uses_exact_checkpoint_packet_and_native_rows(self):
         from datetime import datetime, timedelta, timezone
         from manager_core.digital_handoff import (PUBLIC_BASE, REPOSITORY, SOURCE_REF,
