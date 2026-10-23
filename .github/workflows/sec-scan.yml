@@ -39,6 +39,7 @@ jobs:
         run: >-
           python3 -m pytest -q
           skills/earn/lancers/tests/test_local_identity.py
+          skills/earn/lancers/tests/test_lancers_onboarding.py
           skills/earn/lancers/tests/test_application_prompt_handoff.py
           skills/earn/lancers/tests/test_discovery_reads_through_browser.py
           skills/earn/lancers/tests/test_owner_browser_attach_busy_exit_75.py

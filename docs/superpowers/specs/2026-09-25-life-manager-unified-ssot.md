@@ -121,10 +121,12 @@ Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、�
 
 **Review focus:** 未ログイン/challenge/未完DOM、公式URLの偽装や他人の公開profile、0件・複数account、既存recordの不一致・壊れたJSON、観測/cleanup失敗後の旧成功をfocused fixtureで検証する。default source/作者profileを本人証拠へ代用しない。
 
-- [ ] ACCOUNT-RED: 空HOME/fake CDPだけでpositive別account、login/challenge/不正origin/公開profile/空・曖昧linkを検証し、未実装で失敗を確認する。unleased observeはbrowser callback0、観測/cleanup失敗後は旧ready無効、壊れたrecordと既存account不一致は保存値不変をassertする。
-- [ ] ACCOUNT-INPUT: 上記2filesを最小実装する。既存 `_write_private` の0600/atomic replaceを使い、観測digestとbindingを結ぶ。secretやページ本文は保存せず、private evidenceには必要なaccountと構造化markerだけを保持する。import時のprivate読取・browser接続は0。
-- [ ] ACCOUNT-GREEN: focused testsと既存local_identity testsを実行し、保存後の本人recordを既存readerで読めること、別HOME/既存keys保持/digest改変拒否/所有tab cleanupを確認する。
+- [x] ACCOUNT-RED: 空HOME/fake CDPだけでpositive別account、login/challenge/不正origin/公開profile/空・曖昧linkを検証し、未実装で失敗を確認する。unleased observeはbrowser callback0、観測/cleanup失敗後は旧ready無効、壊れたrecordと既存account不一致は保存値不変をassertする。
+- [x] ACCOUNT-INPUT: 上記2filesを最小実装する。既存 `_write_private` の0600/atomic replaceを使い、観測digestとbindingを結ぶ。secretやページ本文は保存せず、private evidenceには必要なaccountと構造化markerだけを保持する。import時のprivate読取・browser接続は0。
+- [x] ACCOUNT-GREEN: focused testsと既存local_identity testsを実行し、保存後の本人recordを既存readerで読めること、別HOME/既存keys保持/digest改変拒否/所有tab cleanupを確認する。
 - [ ] ACCOUNT-SHIP: diff/source boundary→commit/push→必要review/既存CI→main/public readback→main由来immutableの同commandで公式観測とprivate bindingを確認する。ここで他laneや別Macの稼働を完了にしない。
+
+ACCOUNTのsource検証: 新規52件を未実装でRED再現し、既存identity12件を含む64件がPASS。primaryが実測と同じprofile/feedback/proposal混在で追加REDを再現するため、同一accountのroot/統計suffixを同じ本人として扱い、別account混在を拒否する4ケースを追加する。workerとprimaryの新規56件＋既存12件=68件がPython3.14.7でPASS。追加のaccepted browser観測もsummary10links/root4/query0/fragment0/official origin・account一意を確認する。AST/source境界/diffはPASS、Loop contractは18products/192jobs/113mapped/errors0。既存CIへ新test1fileを追加する。独立reviewとCI/main受入、公開入口・実private bindingは継続中。開発sourceの実browser/private操作は0。
 
 #### Lancers本人入力の実装計画
 
