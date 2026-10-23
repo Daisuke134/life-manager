@@ -90,7 +90,7 @@ def fixed_contract() -> dict[str, Any]:
         "cutoff": CUTOFF,
         "resolution_deadline": DEADLINE,
         "question": "Will the official statement for the scheduled 2026-10-27–28 FOMC meeting state a federal funds target range with an upper bound below 4.00 percent?",
-        "outcome_rule": {"source_role": "same-meeting-official-policy-statement", "operator": "<", "threshold": "4.00", "unit": "percent", "missing_policy": "unavailable-is-not-zero", "reschedule_policy": "retain-original-case-status"},
+        "outcome_rule": {"source_role": "same-meeting-official-policy-statement", "operator": "<", "threshold": "4.00", "unit": "percent", "missing_policy": "unavailable-is-not-zero", "reschedule_policy": "retain-original-case-status", "primary_version_rule": "deadline-current-same-meeting-official-statement-after-explicit-corrections", "initial_version_diagnostic": "preserve-first-publication-bytes-and-report-value-separately", "post_deadline_correction": "append-annotation-only-never-overwrite-primary"},
         "scoring": {"primary": "binary-brier", "lower_is_better": True, "scheduled_targets": 1, "calibration_claim": False},
     }
 
@@ -188,15 +188,19 @@ def validate_payload(payload: Any) -> None:
     if integrity != {"canonicalization": CANONICALIZATION}:
         _fail("CANONICALIZATION_MISMATCH")
     context = payload.get("context_manifest")
-    if not isinstance(context, dict) or set(context) != {"source_hashes", "context_digest", "sources"} or context.get("source_hashes") != PINNED_SOURCE_HASHES or context.get("sources") != PINNED_CONTEXT_SOURCES:
-        _fail("CONTEXT_HASH_MISMATCH")
-    if context.get("context_digest") != context_digest(PINNED_SOURCE_HASHES):
+    if not isinstance(context, dict) or set(context) != {"source_hashes", "context_digest", "sources"} or not isinstance(context.get("sources"), list):
         _fail("CONTEXT_HASH_MISMATCH")
     cutoff = _parse_time(CUTOFF)
     for source in context["sources"]:
+        if not isinstance(source, dict) or "observed_at" not in source:
+            _fail("CONTEXT_HASH_MISMATCH")
         observed = _parse_time(source["observed_at"])
         if observed > cutoff or ("published_at" in source and _parse_time(source["published_at"]) > observed):
             _fail("CONTEXT_AFTER_CUTOFF")
+    if context.get("source_hashes") != PINNED_SOURCE_HASHES or context.get("sources") != PINNED_CONTEXT_SOURCES:
+        _fail("CONTEXT_HASH_MISMATCH")
+    if context.get("context_digest") != context_digest(PINNED_SOURCE_HASHES):
+        _fail("CONTEXT_HASH_MISMATCH")
     predictor = payload.get("predictor")
     if not isinstance(predictor, dict) or set(predictor) != {"kind", "id", "procedure_sha256"} or predictor.get("kind") not in {"manual", "reference"}:
         _fail("INVALID_PREDICTOR")
@@ -215,7 +219,13 @@ def validate_payload(payload: Any) -> None:
     historical = baselines.get("historical_frequency")
     if not isinstance(persistence, dict) or persistence.get("p") != 0.0 or persistence.get("rule") != "latest upper unchanged at 4.00 percent":
         _fail("INVALID_BASELINE")
-    if not isinstance(historical, dict) or set(historical) != {"p", "rule"} or historical.get("p") != 0.25 or historical.get("rule") != "(cuts+1)/(transitions+2); 1 cut / 3 values":
+    expected_history = history_change_summary(["3.75", "3.75", "4.00"])
+    expected_historical = {
+        "p": expected_history["p"], "cuts": expected_history["cuts"],
+        "transitions": expected_history["transitions"], "values": expected_history["values"],
+        "rule": f"({expected_history['cuts']}+1)/({expected_history['transitions']}+2); {expected_history['cuts']} cuts / {expected_history['transitions']} transitions / {expected_history['values']} values",
+    }
+    if not isinstance(historical, dict) or historical != expected_historical:
         _fail("INVALID_BASELINE")
     if baselines.get("baseline_digest") != baseline_digest(baselines):
         _fail("BASELINE_HASH_MISMATCH")
@@ -415,6 +425,19 @@ def _statement_upper(raw: bytes) -> str:
     return _decimal_rate(candidates[0].group(2))
 
 
+def history_change_summary(upper_percent: list[str]) -> dict[str, int | float]:
+    from fractions import Fraction
+    try:
+        rates = [Fraction(value) for value in upper_percent]
+    except (TypeError, ValueError, ZeroDivisionError):
+        _fail("HISTORY_BASELINE_INVALID")
+    transitions = max(0, len(rates) - 1)
+    cuts = sum(current < previous for previous, current in zip(rates, rates[1:]))
+    values = len(rates)
+    probability = (cuts + 1) / (transitions + 2)
+    return {"cuts": cuts, "transitions": transitions, "values": values, "p": probability}
+
+
 def preflight_official_context(source_dir: Path | str) -> dict[str, Any]:
     files = _verify_pinned_bytes(Path(source_dir))  # all four hashes are checked before any parse
     calendar_parser = _AllText()
@@ -430,12 +453,16 @@ def preflight_official_context(source_dir: Path | str) -> dict[str, Any]:
         uppers.append(_statement_upper(files[name]))
     if uppers != ["3.75", "3.75", "4.00"]:
         _fail("HISTORY_BASELINE_MISMATCH")
+    history = history_change_summary(uppers)
+    if history != {"cuts": 0, "transitions": 2, "values": 3, "p": 0.25}:
+        _fail("HISTORY_BASELINE_MISMATCH")
     return {
         "status": "CONTEXT_VALIDATED_NO_FORECAST", "case_id": CASE_ID,
         "meeting": "2026-10-27/2026-10-28", "official_calendar_sha256": PINNED_SOURCE_HASHES["fomc-calendar"],
         "historical_dates_and_release_times": {name: {"date": HISTORY_EXPECTED[name][0], "published_at": HISTORY_EXPECTED[name][1]} for name in PINNED_HISTORY_HASHES},
         "historical_upper_percent": uppers,
-        "baseline_probabilities": {"persistence": 0.0, "historical_frequency": 0.25},
+        "baseline_probabilities": {"persistence": 0.0, "historical_frequency": history["p"]},
+        "history_change_summary": history,
         "source_hashes": PINNED_SOURCE_HASHES,
         "context_digest": context_digest(PINNED_SOURCE_HASHES),
         "forecast_frozen": False, "attestation_status": "LOCAL_RECORD_ONLY",
