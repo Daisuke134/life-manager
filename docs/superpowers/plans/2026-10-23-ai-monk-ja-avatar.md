@@ -79,7 +79,7 @@ rendererだけの置換は本番の旧JA21件とsemantic signatureが衝突す�
 ## Task 3: 統合・source受入・反映（primary所有）
 
 - [x] 上記関連Python/Node tests、Loop Contract、source-boundary/OSS、diff checkを実行する。無関係な全suiteや新frameworkを追加しない。
-- [ ] fresh read-only reviewerへ言語/費用/lock/旧ledger/secret/宛先pinの反証を依頼し、成立した指摘を修正する。
+- [x] fresh read-only reviewerへ言語/費用/lock/旧ledger/secret/宛先pinの反証を依頼し、成立した指摘を修正する。
 - [ ] S11と本planの状態を更新し、最新mainを保持してcommit/push、exact-head CI全成功後PRをmainへ統合する。
 - [ ] main由来ALL/sealed releaseを配置する。JA disabled/unloaded、既存receipt/sidecar、EN既存動画hashを確認し、未確定費用・disk/FIFOを維持する。
 - [ ] 実JA生成/配信の未完条件をS11へ残す。費用の公式照合・通常admissionが揃う前に生成/owner再開/投稿をしない。source成功を日次配信・実売上の成功と報告しない。
@@ -94,3 +94,4 @@ rendererだけの置換は本番の旧JA21件とsemantic signatureが衝突す�
 - native単独実行のskill既定より独立作業の並行指示を優先し、rootのcoreとworkerのwiringを分担する。全差分のfresh reviewは維持し、UIモデル固定や承認待ちを追加しない。
 
 - primary統合再実行はPython７files437 PASS/217 subtests、Node２files41 PASS、Loop Contract18業務/191jobs/errors0、source-boundary/OSS/diff PASS。fresh reviewとCI/main/releaseは未完。
+- fresh whole-branch reviewerはhead87f5b3122dの本機能差分を検証して指摘0件。独立Python49件/4 subtests・Node41件・diff PASS。PR8651を作成し、exact-head CI/main/完全immutableを待つ。

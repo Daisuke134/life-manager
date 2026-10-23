@@ -1053,7 +1053,7 @@
     "private_voice_metadata_sha256": "240a17fbd5faa0b923c92f91941d85c38b60e7b6d745ae72274e834bc66d60d0"
   },
   "japanese_avatar_migration_source": {
-    "status": "local_verified_review_pending",
+    "status": "reviewed_ci_pending",
     "product_id": "ebook-ja",
     "product_name": "アニッチャ・リセット",
     "pack_id": "ebook-ja-anicca-monk",
@@ -1093,7 +1093,6 @@
     "posts": 0,
     "private_english_request_rebuild_sha256": "0c14d91419f6eff0e402f1f65765f84f372398cc656af9a1feba1e791aa8ae32",
     "remaining": [
-      "fresh_source_review",
       "exact_head_ci",
       "main_merge",
       "complete_sealed_immutable",
@@ -1101,7 +1100,13 @@
       "native_capacity_and_fifo",
       "japanese_canary_and_daily_distribution",
       "actual_sales"
-    ]
+    ],
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8651",
+    "reviewed_source_head": "87f5b3122df130a5eaf0465d4ba6cfedaaf6dcef",
+    "fresh_review_findings": 0,
+    "independent_review_python_passed": 49,
+    "independent_review_subtests_passed": 4,
+    "independent_review_node_passed": 41
   },
   "native_capacity_during_ja_source_acceptance": {
     "recorded_at": "2026-10-23T07:04:17.550445+00:00",
