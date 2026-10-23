@@ -98,6 +98,10 @@ def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str
     if len(set(loop_ids)) != len(loop_ids) or any(owner not in registry["loops"] for owner in loop_ids):
         raise ValueError("local apply target is unknown or duplicated")
     owner_environments = {owner: coconala_job_environment(release_root, owner) for owner in loop_ids}
+    for owner, required in owner_environments.items():
+        if required:
+            # Removed owner overrides must not survive exact-release adoption.
+            owner_environments[owner] = {"PYTHON": "", **required}
     safe = str(release_root / "bin/launchctl-safe")
     env = {**os.environ, **environment, "LIFE_MANAGER_RELEASE_ROOT": str(release_root)}
     check = runner([safe, "preflight"], env=env, capture_output=True, text=True, timeout=30)

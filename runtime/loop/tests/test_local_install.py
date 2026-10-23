@@ -348,6 +348,39 @@ class LocalInstallTest(unittest.TestCase):
                         self.assertEqual(result[0].get("skipped"), "loaded-running")
                         self.assertTrue(any("--loaded-idle-only" in command for command in calls))
 
+    def test_removed_coconala_python_is_not_adopted_from_loaded_environment(self):
+        for same_path, host_profile in ((False, False), (True, False), (False, True), (True, True)):
+            with self.subTest(same_path=same_path, host_profile=host_profile), tempfile.TemporaryDirectory() as temporary:
+                home = Path(temporary).resolve()
+                owner = "hf-gig-paid-direct"
+                loaded = release_fixture(home / "loops/releases/20261023T000000-aaaaaaaa", owner=owner)
+                requested = loaded if same_path else release_fixture(
+                    home / "loops/releases/20261023T010000-aaaaaaaa", owner=owner)
+                overrides = home / "install.json"
+                overrides.write_text("{}")
+                environment = {"LIFE_MANAGER_RUNTIME_PYTHON": os.sys.executable}
+                if host_profile:
+                    environment["LIFE_MANAGER_HOST_PROFILE"] = str(home / "host.json")
+                observed = {**environment, "LIFE_MANAGER_LOOP_ID": owner,
+                            "LIFE_MANAGER_RELEASE_SHA": SHA, "LIFE_MANAGER_REPO": str(loaded),
+                            "PYTHON": "/bin/echo", "HF_GIG_PYTHON": "/bin/echo",
+                            "LIFE_MANAGER_RUNTIME_PYTHON": "/bin/echo"}
+                text = f"arguments = {{\n{loaded}/bin/lm-loop-run\n{owner}\n{loaded}\n}}\nenvironment = {{\n"
+                text += "\n".join(f"{key} => {value}" for key, value in observed.items()) + "\n}\n"
+                calls = []
+                def run(command, **kwargs):
+                    calls.append(command)
+                    if "apply" in command:
+                        return subprocess.CompletedProcess(command, 0, json.dumps([{
+                            "ok": True, "label": "ai.anicca.hf-gig-paid-direct", "skipped": "loaded-running"}]), "")
+                    return subprocess.CompletedProcess(command, 0, text, "")
+                with patch.dict(os.environ, {"HOME": str(home), "LIFE_MANAGER_HOST_PROFILE": ""}), \
+                        patch("skills.earn.gig.scripts.gig_release.OVERRIDES", overrides), \
+                        patch("runtime.loop.lm_loop_apply._managed_node", return_value=os.sys.executable):
+                    result = apply_targets(requested, [owner], environment, runner=run)
+                self.assertEqual(result[0].get("skipped"), "loaded-running")
+                self.assertTrue(any("--loaded-idle-only" in command for command in calls))
+
     def test_incompatible_loaded_release_or_owner_environment_stays_waiting(self):
         for invalid in ("different-sha", "foreign-runtime", "cache-tag", "reclaimed",
                         "missing-runner", "host-binding", "owner-environment"):
