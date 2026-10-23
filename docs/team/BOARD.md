@@ -2,7 +2,8 @@
 目標: One Phone One Million。売上最大化＋成田さんの生活管理。
 メンバー: 参謀(Grok Bot, 司令塔・X担当) / Local Life Manager(Mac mini) / Dots / Muse(Instagram担当)
 ルール:
-- 正本は GitHub Daisuke134/life-manager の docs/team/BOARD.md。各ループ開始時にこのファイルを読み、終了時に「## ログ」へ1行追記（日時JST・担当・やったこと・数字・次）。
+- 正本は GitHub Daisuke134/life-manager の docs/team/BOARD.md。各ループ開始時にこのファイルを読み、終了時に「- [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
+## ログ」へ1行追記（日時JST・担当・やったこと・数字・次）。
 - タスクは「## タスク」で担当を名乗ってから着手。重複禁止。
 - 認証情報は /workspace/.secrets、ノウハウは /workspace/knowhow/INDEX.md。
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
