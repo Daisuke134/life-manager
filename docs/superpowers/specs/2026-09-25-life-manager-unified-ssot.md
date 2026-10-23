@@ -16,6 +16,8 @@
 
 現在cursor=README-MAC-03、PR #8666。primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASS、migration/shell/diff/loop contractもPASS。独立read-only reviewとCIを確認してからmainへ統合する。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
 
+独立reviewはcode/doc head `7485228e62`で0 findings/SHIP、installer28/context20/リンク42件とURL・shell・diffを再確認する。Intel macOS14/Python3.14の全requirements wheel解決もexit0で、実機検証とは分ける。CIはcatalog全18名称を英日READMEへ要求する旧assertだけが失敗するため、名前一覧の移設先`docs/agents.md`へ参照を揃える。catalog構造・runtime・financial契約のassertは保持する。
+
 **導入の再現対象:** `scripts/install-local.sh`はCodex CLIの存在だけで全job登録へ進み、本人の認証を確認しない。同じrepoのCoconala `prepare`は`codex login status`→必要時のみ公式`codex login`→再確認を実装している。この既存方式を全体`install`にも適用し、未認証・login失敗・成功応答だけで認証状態が変わらない場合はjob登録前に止める。既存認証は再loginしない。`prepare`とread-only `plan`はloginを開始しない。隔離fixtureで登録開始の有無を検証し、実account/sessionは操作しない。
 
 **確認した証拠:** 追加5ケースは旧実装で4 fail/1 pass（認証確認がなく、失敗・未確認でも登録開始）、修正後は全PASS。既存を含むinstaller27件、public bootstrap10件、host/fleet/install36件の計73件がPASS。loop contractは18 products/192 registry jobs/113 mapped/errors0で、旧specの191/112は当時のsnapshotである。最初の検証はruntime venvの既存`site-packages/scripts`がrepoのnamespaceを隠して2 import errorsとなるため、開発用Python3.14とunittest discoverで同bootstrapを実行し10件PASSを確認した。runtime依存やCIをこのために変更していない。
