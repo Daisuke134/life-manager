@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
 - [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODOの正本は統合SSOTの「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics owner採用と自然配信を担当。Thankful PR593の独立reviewで部分offering時の読込停止を再現し、別の専用branchで最小修復を担当。元ownerのworktree/branchとRC設定/価格は変更しない。build9はVALIDだが追加修正を含まないため、提出前にsource/mainと新buildを照合する。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
@@ -21,6 +22,7 @@
 - [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 ## ログ
+- 2026-10-23 23:28 Codex(Job drafts): Cursor/NICE/OpenAI Codex/OpenAI Applied/BJAKの下書き5件を作成。全63質問の順序・必須区分を公式schemaと照合し、カバーレター5件/連絡先の値非掲載を確認。ブランド混在・経験年数・宣誓・未確認事項を明示。次: 原稿のPR統合後に参謀が提出判断。応募送信0、ledger/Thankful変更0。
 - 2026-10-23 22:39 Codex(Reason): Dots本人 `daisuke/chatgpt`（agent chatgpt / through Reason）を公式list_teamで確認、参加条件達成。HANDOFF.mdへ根拠と境界を記録。追加join・設定変更なし。Thankful/build 10はclaude-5専任。次: 専用PRをmain統合し参謀へ報告。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
 - 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
