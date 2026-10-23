@@ -45,3 +45,44 @@ D014/D015は現在 **todo / ACCEPTANCE_PENDING**。本節は上記の実用途/�
 study_read/local_researchはこの正確なsource統合と実採用/readbackで限定条件を満たす。他用途の範囲は従前どおり。原569人をManager参加者へ数えず、著者報告B/g/CIや欠測感度分析をManagerの効果・独立したraw再現へ昇格しない。費用UNKNOWN、害の関連性は著者assessment、制度適用UNKNOWN・正式承認/免除NOT_OBTAINED・臨床承認NOT_GRANTEDを保持する。
 
 **D014/D015はtodo / task受入PENDING、U004はDRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、83 done /20 todo /10 skippedのまま。** 今回は限定source protocol採用であり、人研究の準備完了、実行動変容、苦しみへの便益、モデル採用や全体完成は記録しない。モデル採用HOLD、親目標ACTIVE。commit/pushの外部確認はこの実eventより後に別記録する。
+
+
+<a id="d014-actual-task-acceptance"></a>
+
+## D014現scopeの実task受入 — 公表非個人protocolの有限範囲
+
+**D014_TASK_ACCEPTED_CURRENT_PUBLISHED_NONPERSONAL_RESEARCH_PROTOCOL_ROUTE。** rootはUTC `2026-10-23T21:05:30.590333+00:00` に、既に実source採用済みの公表非個人published-effect protocolが現行D014のlearn/change/verify/externalを満たすと実判断した。私有0400 receipt `root-d014-task-acceptance.json` SHA-256 `704c4e8ab44ee2cbe795c88581b3ebbe18fa0f107f538ff26d0382605cb1e35d`。依存D013=doneを実確認した。現scopeの公開研究routeのprotocol受入doneであり、旧original_*の団体協力や新規人研究の達成へ遡及しない。
+
+直前のfresh条項assessmentはD014 YES/D015 NO、MD `d014-d015-actual-acceptance-gap-assessment.md` SHA-256 `88c5f8da0cd098eeff87200072d141aeca60cd107295e04e12239e1d86bc56cc`、JSON SHA-256 `81d76560d2655cec2b7c81ce948eda0193602c2b3f8263a26eccae196b5ab7ec`。これはsource/scienceの再reviewではなく現task条項の限定確認で、上の実source採用や既存R1/R2をPENDINGへ戻さない。
+
+根拠sourceは実採用protocol SHA `f9154230d622965ddc82c14340b0661dbd9717e2210f2b97b2ad868d01e9e7b1`、権利record canonical SHA `be3237789c2d498f3d31987d33a344626e425692629cc91b325729452cfddaa9`、実source採用receipt `ba346b61ffff3b84ef0adf5c726562930b292da405348f166e24966c413a2363`、正確5paths official byte readback `root-remote-source-readback.json` SHA `d141e9a0e27f16aeca35960f88f07f443e5835e13623781325fc7f8e129117a8`。source採用/push/readbackは研究HEAD4f6a063a0339bd327529659b1c975361476708e7で実施済み、再採用や新GET/36セル再照合を完了条件にしない。
+
+D014の現行原文learn/change/verify/external/dependsと全original_*は保持する。役割・利用権・測定・用途に必要な有限適用判断・独立分析protocolを、公開非個人の選択routeで受け入れる。新規接触/個票/尺度実施がないこのrouteに企業/政府提携・NDA・新規人体実験・一律の正式IRB署名を追加しない。実団体協力UNMET、正式制度適用UNKNOWN、承認/免除NOT_OBTAINED、臨床承認NOT_GRANTEDを保持し、適用対象へ拡張するときは別判断を要する。
+
+**D015はtodo。** D014依存は今回の実task判断を台帳へ記録した後にdoneとして参照できるが、依存固有のsignal、何の作用/接触を止めるか、本人が選ぶ通常支援への戻し方、復旧判断の定義と、現行動変容scopeに対する独立した適用判断がなお不足する。既存の選択/撤回・誤断定・過剰説得・悪化・停止/支援/復旧の定義を保持し、実害率/臨床閾値/新schema/parser/native比較をこの定義taskへ追加しない。
+
+**受入eventと台帳反映の区別:** このroot実判断時点の台帳はD014 todo・83 done/20 todo/10 skippedで、台帳反映は未実施だった。本追補と12path PRIVATE案は実D014受入に基づきstatus=done・84 done/19 todo/10 skippedへの記録を提案する。台帳への実適用・新delta reviewの完了・commit/push/remote readbackはroot所有の後続段階で、ここでは先書きしない。既存receiptの全prefixと原研究hashを保持する。
+
+U004はDRAFT/NOT_REGISTERED/participants=0/intervention_runs=0のtodo。モデル採用HOLD、human benefitNOT_MEASURED、親目標ACTIVE。人介入・実協働・臨床・苦しみ低減・モデル採用・全Manager完成の受入ではない。
+
+
+<a id="d015-actual-task-acceptance"></a>
+
+## D015実source採用・有限定義task受入
+
+**ADOPTED_FINITE_BEHAVIOR_TRANSFORMATION_SAFETY_DEFINITION_ONLY。** rootはUTC `2026-10-23T21:16:58.283242+00:00` に新[Safety定義](../../pilot/BEHAVIOR_TRANSFORMATION_SAFETY_V1.md) `MGR-D015-BEHAVIOR-SAFETY-V1` を有限定義として実source採用した。私有0400 `root-actual-safety-definition-source-adoption.json` SHA-256 `675569d422f85631d9afbeddf832866f5e33a83c02c896fab59bc94c9552f8bb`。新doc最終SHAは `2f0c39c7555f7bb5e27ce543c8db5c254108ab843b2a1d70261561dba88c758d` で、外部実receiptから一方向にpinし、凍結本文のPENDINGや科学定義を事後変更しない。
+
+続いてrootはUTC `2026-10-23T21:16:58.283436+00:00` に **D015_TASK_ACCEPTED_CURRENT_FINITE_BEHAVIOR_SAFETY_DEFINITION_SCOPE** として別task受入を実記録した。私有0400 `root-d015-task-acceptance.json` SHA-256 `53b85f4c5238bf20db582fc5f652f0a0a44d88558f3e334f1741dd72f3f053e0`。その直前にD014は実source台帳doneとして読戻し済み。D014行・D015のlearn/change/verify/external/dependsと全original_*は変更せず、現D015の「定義する/確認する」に限るdoneを記録する。
+
+実独立有限適用判断はauthor/rootと別contextのAI reviewer `/root/behavior_safety_definition_whole_review`、UTC `2026-10-23T21:12:45.444261+00:00`。全3文書reviewは0 findings/0 blocking、SPEC/QUALITY/INTEGRATION YES、FINITE_DEFINITION_APPLICABILITY YES。私有 `whole-definition-applicability-review.md` SHA-256 `d4d14c128a069895ed9a2fa1166fbec4b45eb5b15807a9a970a1d8adc615c10f`、JSON SHA `e93dcfcd60c07e2f8b9ec826f2604051d4210b55515e13798a9e5e476b0f1c66`。9つの非診断signal、本人選択/撤回・無応答・圧力/誤断定・依存/判断委譲・支援遮断・悪化・privacy/不明、該当作用停止/通常支援保持、適した実独立判断/自由な再選択/版固定までの非自動復帰が現定義scopeで充足した。これは本人の安全性/clinical再開可否・制度承認をAIが代行する判断ではない。
+
+rootの前段実適用/readbackはUTC `2026-10-23T21:16:35.340175+00:00`、私有 `root-combined-source-application.json` SHA-256 `475b848038799289cbabf1bf09a3e5b5e3edb2d4b7def31a4025cbddf5cd0600`。D014 exact12とD015定義exact3の15pathsを適用し、D014 receiptの10path→12pathというR1唯一のNitだけを修正した。D014 R1は1 Nit/0 blocking（SHA `82234bfd537e2a245d9a9987f5c0957111e12beb7142d4444aae6afdba9ddd0d`）、Nit修正後のSol delta R2は未実施で、R2 cleanを先書きしない。既存receiptの全prefixと修正済み12path表記を保存する。
+
+**実判断と台帳反映の区別:** 実D015判断時点の台帳はD014done/D015todo・84 done/19 todo/10 skipped。D015をdoneとして85 done/18 todo/10 skippedへ記録する本14path差分はPRIVATE提案であり、後続rootの実適用・Sol delta R2・commit/push/authoritative remote readbackは未実施。source HEAD4f6のclean treeを基準にせず、実適用済みdirty15のbytesからの差分である。
+
+U004はDRAFT/NOT_REGISTERED/participants=0/intervention_runs=0で、対象/需要・測定権利・比較/検出力・同意/媒体・実役割・実監視/停止/支援・登録の空欄は維持する。実人研究、runtime自動検出/停止、個人安全性・clinical承認、モデル採用/人便益や全Manager完成の受入ではない。正式制度適用UNKNOWN・正式承認/免除NOT_OBTAINED、実人役割未任命、モデルHOLD/human benefitNOT_MEASURED/親目標ACTIVEを保持する。
+
+
+### 後続の実反映確認
+
+rootは上記14path metadata差分を実適用し、UTC `2026-10-23T21:29:37.560634+00:00` に全14payloadのSHA一致、D014/D015 done、85 done/18 todo/10 skipped、他112task objectと108保護file不変を確認した。実確認receipt `root-actual-metadata-application.json` SHA-256 `3f5ac23e71ae9802496975f5d10c68a20812dc3e07c8e881e3f061bf900c0f70`。先行提案内のR2未実施/実適用未了は作成時snapshotであり、その後の独立Sol delta R2は0 findings/0 blocking、R1 Nit FIXED/CLOSED（review SHA-256 `660ab314dd71e7bcf2e38e52560158bd02594e1cf4bc6e19c3188250afa25c59`）を確認済み。commit/push/remote readbackは本追記時点で後続段階。model HOLD・human benefit NOT_MEASURED・親目標ACTIVEを保持する。

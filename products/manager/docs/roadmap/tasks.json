@@ -2124,12 +2124,14 @@
     "learn": "公開研究再利用と新規参加者研究の条件を区別する",
     "change": "公開匿名研究または本人が選んだ実研究について役割・利用権・測定・必要な同意/適用判断・独立分析のprotocolを成立させる",
     "verify": "公開licenseだけで実協働成立とせず、必要な役割・観測根拠を記録。新規個票を無断取得せず、全公開研究へ企業/政府の提携やNDAを一律要求しない",
-    "status": "todo",
+    "status": "done",
     "external": "source利用条件と倫理上の適用判断。新規研究の協力が必要な場合は実在する役割と同意",
     "implementation_evidence": [
-      "pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md"
+      "pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md",
+      "pilot/STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md",
+      "docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md"
     ],
-    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "implementation_status": "BOUNDED_PUBLISHED_NONPERSONAL_PROTOCOL_ACCEPTED",
     "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
     "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
     "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
@@ -2140,7 +2142,13 @@
     "original_change": "支援団体/公的機関の公表集計との協働プロトコルを作る",
     "original_verify": "同意・倫理・匿名集計を守り、公開しない個票をManagerに取得しない",
     "original_status": "todo",
-    "original_external": "適切な倫理審査・団体の協力・公開集計の可用性"
+    "original_external": "適切な倫理審査・団体の協力・公開集計の可用性",
+    "completed_on": "2026-10-23T21:05:30.590333+00:00",
+    "completion_evidence": [
+      "pilot/STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md",
+      "docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md"
+    ],
+    "source_acceptance_scope": "CURRENT_REVISED_D014_PUBLISHED_NONPERSONAL_PROTOCOL_TASK_ONLY; root actual decision 2026-10-23T21:05:30.590333Z; root-d014-task-acceptance.json SHA256 704c4e8ab44ee2cbe795c88581b3ebbe18fa0f107f538ff26d0382605cb1e35d; original partner cooperation UNMET; formal applicability UNKNOWN; approval/exemption NOT_OBTAINED; no participant research, clinical approval, measured human benefit or model adoption."
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -2151,12 +2159,14 @@
     "learn": "行動変容介入の圧力・依存・悪化を評価する",
     "change": "本人の選択・撤回、誤った断定、過剰な説得、依存、悪化、停止と適切な支援への接続を定義する",
     "verify": "独立した適用判断と中止/復旧経路を確認。本人の苦痛を必要な成長と決め付けず、clinical仮説は適切な専門家/研究条件へ分離する",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
-      "pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md"
+      "pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md",
+      "pilot/BEHAVIOR_TRANSFORMATION_SAFETY_V1.md",
+      "docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md"
     ],
-    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "implementation_status": "BOUNDED_BEHAVIOR_SAFETY_DEFINITION_ACCEPTED",
     "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
     "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
     "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
@@ -2167,7 +2177,13 @@
     "original_change": "当事者保護、過剰介入、誤評価、否定的影響の停止基準を定義",
     "original_verify": "被害や不確実性がある場合はno_action・専門家による評価へ",
     "original_status": "todo",
-    "original_external": "none"
+    "original_external": "none",
+    "completed_on": "2026-10-23T21:16:58.283436+00:00",
+    "completion_evidence": [
+      "pilot/BEHAVIOR_TRANSFORMATION_SAFETY_V1.md",
+      "docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md"
+    ],
+    "source_acceptance_scope": "CURRENT_D015_FINITE_BEHAVIOR_SAFETY_DEFINITION_ONLY; actual separate-context finite applicability review 2026-10-23T21:12:45.444261Z SHA d4d14c128a069895ed9a2fa1166fbec4b45eb5b15807a9a970a1d8adc615c10f; actual root source adoption 2026-10-23T21:16:58.283242Z SHA 675569d422f85631d9afbeddf832866f5e33a83c02c896fab59bc94c9552f8bb; actual root task decision 2026-10-23T21:16:58.283436Z root-d015-task-acceptance.json SHA 53b85f4c5238bf20db582fc5f652f0a0a44d88558f3e334f1741dd72f3f053e0; D014 actually recorded done; no clinical/individual safety approval, field activation, runtime implementation or new execution authority; U004 remains DRAFT/NOT_REGISTERED/participants0/intervention_runs0."
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",

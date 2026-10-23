@@ -1,8 +1,8 @@
 # Manager entity specification — Behavior Transformation, mission and evidence
 
-**2026-10-23 行動変容への方針改訂（最新・V001/G001/G002の限定設計受入を反映）:** 使命は **「行動変容を通じて、苦しみを終わらせることを目指す」**。仏教は学ぶ知恵の一つで、宗教・教義の受容は必須にしない。D004・D005–D009・D012の7件を必須経路から退役し、**113件＝83 done / 20 todo / 10 skipped**。退役は成功ではない。独自モデルへ進む道筋をV001–V004へ具体化し、offline評価/追加学習は実パイロット全体の完了を待たずに開始できる。[scope改訂・一次資料](specs/2026-10-23-behavior-transformation-scope-amendment.md)、[実ファイル別計画](plans/2026-10-23-behavior-transformation-model-plan.md)、[新研究草案](../pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)を参照。過去の受入はその範囲で保存し、新使命の人の成果へ読み替えない。
+**2026-10-23 行動変容への方針改訂（最新・V001/G001/G002の限定設計とD014/D015の有限protocol/定義受入を反映）:** 使命は **「行動変容を通じて、苦しみを終わらせることを目指す」**。仏教は学ぶ知恵の一つで、宗教・教義の受容は必須にしない。D004・D005–D009・D012の7件を必須経路から退役し、**113件＝85 done / 18 todo / 10 skipped**。退役は成功ではない。独自モデルへ進む道筋をV001–V004へ具体化し、offline評価/追加学習は実パイロット全体の完了を待たずに開始できる。[scope改訂・一次資料](specs/2026-10-23-behavior-transformation-scope-amendment.md)、[実ファイル別計画](plans/2026-10-23-behavior-transformation-model-plan.md)、[新研究草案](../pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)を参照。過去の受入はその範囲で保存し、新使命の人の成果へ読み替えない。
 
-**2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、E01–E16の限定技術受入は完了（cursor=null）、**F005 → F006 → F008 → F009** も技術P2として順に個別受入済み。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **83 done / 20 todo / 10 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
+**2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、E01–E16の限定技術受入は完了（cursor=null）、**F005 → F006 → F008 → F009** も技術P2として順に個別受入済み。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **85 done / 18 todo / 10 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
 
 **2026-10-23 agent接続・CPU検証更新:** 既定OFFのhost/CLI/Actions比較を[PR8741](https://github.com/Daisuke134/life-manager/pull/8741)でmain受入し、同じsourceを研究branchへ同期、local1025/skip5・公式999/skip6を確認。[接続receipt](verification/HOST_SHADOW_CONNECTION_ACCEPTANCE_20261023.md)。既存cloud CPUではQwen3-1.7Bの実推論とINTIMA32入力×3条件の生成を実施したが、全96行は未採点。[診断receipt](verification/INTIMA_CPU_DIAGNOSTIC_20261023.md)。小型native Qwen3-0.6Bでは[HelpSteer2 dev8の16候補を実CPU採点](verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)し、model4/8・単純ルール4/8、約28秒・sampled RSS約1.78GiB。この旧dev比較では優位は示されず、当時は学習・final-test採点・人の便益が未実施/未測定だった。現在の有限PRIVATE学習完了は[実結果](verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)へ結び、[固定adapter比較](verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)も96/96完了（dev base4/8・adapter4/8、final base12/16・adapter11/16）、人の便益はNOT_MEASURED。[人参照artifactの追加一次監査](research/2026-10-23-human-reference-artifact-audit.md)も用途別に区別する。[XSTestの元人手gold450件との照合](verification/XSTEST_RELEASED_REFUSAL_CALIBRATION_20261023.md)では、配布string判定のfull-refusal recall12/49・partial0/27という不足を確認。人参照のある既存評価を再利用し、全体一致率だけで採点者を採用しない。[XSTest local judgeの実CPU診断](verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)は900秒で271/450件を有効採点し、処理中1件UNKNOWN・未着手178件を保存。全271件をcomplianceと判定し、完全拒否0/27・部分拒否0/20で、この設定は拒否判定に不採用。同じ271件でmodel224正答・配布rule230正答。全450完了やモデル優位とは扱わない。[V001の評価契約対応](verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)で、既存INTIMA未採点生成・HelpSteer2 dev NLL・XSTest元応答の拒否診断を13参照/3権利recordへ結び、モデル役割・採点・split availability・分母/nullを固定した。先行mappingは対応表のgapだけを解消し、当時V001/V002/V003はtodoだった。最新の[用途別scope](specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md)と[限定設計受入receipt](verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)は既存4有限役割の設計のみをV001 doneへ反映した。rootの最終review・実適用・限定受入はreceiptに記録した。旧literal UNMET/HOLDと実holdout未成立は変わらず、V002/V003はtodo。
 
@@ -33,7 +33,7 @@
 
 **最新の追加探索:** [既調査を除いた6分野の比較・新論文・固定code](research/manager-options-additional-20261022/REPORT_JA.md)、[ファイル/関数/RED条件/検証commandを指定した12 atomic patches](plans/2026-10-22-manager-e16-atomic-patches.md)。前回の既知先例の再整理を新しい調査とは数えない。
 
-**開始から最後まで:** [Phase00〜12・残20件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
+**開始から最後まで:** [Phase00〜12・残18件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
 
 **2026-10-22の実装履歴:** [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md)。過去intent回収・checkpoint再送防止・typed deliveryを追加し、local684テストとcurrent/DBOS計16ケースを検証。DBOSは固定sourceから実install・実再開比較したが、本番採用は未決でsingle-workerを維持。当時のhost未接続という状態は上記の2026-10-23実receiptで更新し、当時の原41件未受入という履歴と、現在の受入状態を区別します。
 
@@ -213,7 +213,7 @@ flowchart LR
 
 **固定と隔離:** 旧train32は27 retain/5 excludeのNOT_READYとして保存し、新27版へ補充/除外復帰/split移動をしない。旧strict8 dev-only protocol/rightsとnative/Qwen3Guardの陰性receipt、V001/G001/G002の限定受入は不変。新manifestは元gold/choice/hash/source join・exact/canonical交差非重複と曝露台帳を固定する。全56 prompt/112 responseはAI適格性QCで内容曝露済み。final16は未学習/設定選択未使用で、今回の固定比較でtarget-model採点済み。内容QC曝露済みでpristine/完全盲検でも、今後の新規未見holdoutでもない。person/study/timeはUNAVAILABLE、language/family/OODとparaphrase/pretraining汚染はUNKNOWNを保持し、有限estimandのN/Aをholdout/OOD成功にしない。
 
-**実学習と次の評価:** [実結果receipt](verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)のとおり、exact-source d255c6bd5e8d7e3ac38cae0a587bf213590cc27bの公式CI run40016653728/job120630338115（1097tests/skip6、20:07:30Z成功完了）と実G0–G6/0400設定受入後、有限train27のPRIVATE SFTを1回実行し、単一adapterを完全保存した。COMPLETED / ARTIFACT_FROZEN、27 backward-microbatch下限、7 optimizer機会/7 return/global_step7、112 FP32 trainable tensors・1,146,880要素。runtime初期in-memory clone比では112tensor変化、独立保存検査は全112finiteと標準zero-B初期化比の変化下限56tensorを確認した。全112の独立初期差分復元ではない。正常終了/完全save/fsync/inventory/hashを独立検証し、保存物は全11fileで固定。81.977秒、sampled own-group peak RSS 3,036,762,112B（約2.828GiB）、CPU2・900秒/6GiB polling threshold内、retry/resume/延長/networkなし。連続RSS peak/kernel hardcapとはせず、$費用UNKNOWN。実G7を20:32:19.192976Zに別受入し、exact-source3694f80c39e6cd164a1a9a299e922d85bc75897c・公式CI40019570960/job120640311552・外部0400設定でdev8/final16固定比較を1回完了した。96/96 candidate forwardsが正常完了、failed/unknown/not_runは0。dev8はbase4/8・adapter4/8・短候補rule4/8、final16はbase12/16・adapter11/16・rule3/16、NO_ACTIONは8/16棄権でaccuracy=null。この有限元候補比較でbaseに対する改善は観測されず、モデル採用は点推定にかかわらずHOLD。評価科学は学習前freeze、単一adapterは新規採点前固定済みで、独立実結果検証を[固定比較実結果](verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)へ結ぶ。final16は内容QC曝露済み・NOT_PRISTINEで、今回はtarget-model採点済み。未学習は維持するが、以後新しい未見holdoutとして使わない。小Nの点差から同等性・統計的劣位・一般化/安全性・行動変容/苦しみ低減・人便益を結論しない。新しい研究は別version・用途に適合したholdoutと別の受入を要し、再学習/retune/adapter選別/再採点を今回の結果から自動許可しない。次はこの有限結果と限界を報告し、全V002/V003の未達比較・用途に適合した評価設計とD014/D015/U004の実研究条件/保護を進める。全V002/V003はtodo、V004=[V003,D016]、113 IDs=83 done/20 todo/10 skippedと元依存は不変。live/人便益の受入は別。G6からG7権限を推定せず、future commit/hashを凍結scienceへ逆pinしない。
+**実学習と次の評価:** [実結果receipt](verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)のとおり、exact-source d255c6bd5e8d7e3ac38cae0a587bf213590cc27bの公式CI run40016653728/job120630338115（1097tests/skip6、20:07:30Z成功完了）と実G0–G6/0400設定受入後、有限train27のPRIVATE SFTを1回実行し、単一adapterを完全保存した。COMPLETED / ARTIFACT_FROZEN、27 backward-microbatch下限、7 optimizer機会/7 return/global_step7、112 FP32 trainable tensors・1,146,880要素。runtime初期in-memory clone比では112tensor変化、独立保存検査は全112finiteと標準zero-B初期化比の変化下限56tensorを確認した。全112の独立初期差分復元ではない。正常終了/完全save/fsync/inventory/hashを独立検証し、保存物は全11fileで固定。81.977秒、sampled own-group peak RSS 3,036,762,112B（約2.828GiB）、CPU2・900秒/6GiB polling threshold内、retry/resume/延長/networkなし。連続RSS peak/kernel hardcapとはせず、$費用UNKNOWN。実G7を20:32:19.192976Zに別受入し、exact-source3694f80c39e6cd164a1a9a299e922d85bc75897c・公式CI40019570960/job120640311552・外部0400設定でdev8/final16固定比較を1回完了した。96/96 candidate forwardsが正常完了、failed/unknown/not_runは0。dev8はbase4/8・adapter4/8・短候補rule4/8、final16はbase12/16・adapter11/16・rule3/16、NO_ACTIONは8/16棄権でaccuracy=null。この有限元候補比較でbaseに対する改善は観測されず、モデル採用は点推定にかかわらずHOLD。評価科学は学習前freeze、単一adapterは新規採点前固定済みで、独立実結果検証を[固定比較実結果](verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)へ結ぶ。final16は内容QC曝露済み・NOT_PRISTINEで、今回はtarget-model採点済み。未学習は維持するが、以後新しい未見holdoutとして使わない。小Nの点差から同等性・統計的劣位・一般化/安全性・行動変容/苦しみ低減・人便益を結論しない。新しい研究は別version・用途に適合したholdoutと別の受入を要し、再学習/retune/adapter選別/再採点を今回の結果から自動許可しない。次はこの有限結果と限界を報告し、全V002/V003の未達比較・用途に適合した評価設計とU004の残る実研究条件/保護を進める。全V002/V003はtodo、V004=[V003,D016]、113 IDs=85 done/18 todo/10 skippedと元依存は不変。live/人便益の受入は別。G6からG7権限を推定せず、future commit/hashを凍結scienceへ逆pinしない。
 
 ### 1.3 いま終える範囲と、残作業の実行順
 
@@ -223,19 +223,19 @@ flowchart LR
 |---|---|
 | agent接続 | §1.3.2のmain source同期、研究CI、既定OFFのhost/CLI/workflow接続は限定受入済み。固定SDKを使う実推論運用、新channelと昇格は未実施。local dev比較は上記receiptの限定範囲 |
 | V001受入→V002→V003 | V001の既存4有限役割の設計は限定受入済み。全V002のAPI/人参照/圧力等の比較と全V003のclaimに適合した未見/一般化/安全性は別受入のtodo。有限train27の上記別routeはG0有限source採択済み（SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY）で、全V002完了を一律前提とせず、実G0–G6/最終code・公式CI・実resource/0400受入後に一attemptの学習/完全保存を完了。実G7/公式CI/config受入後に固定比較96/96完了、baseへの改善未観測・採用HOLD。今後の研究は別version/用途適合holdoutを要する |
-| D014→D015とU004→U006→U007→U008 | 新対象の実課題・研究条件・保護・測定を成立させ、行動と苦しみへの価値・持続・害・継続意思を実確認。旧支援アクセス研究を新対象の検証にしない |
+| D014/D015有限受入済み→U004→U006→U007→U008 | D014は公表非個人protocol、D015は有限保護定義/独立適用判断に限るdone。新対象の実課題・研究条件・保護・測定を成立させ、行動と苦しみへの価値・持続・害・継続意思を実確認。旧支援アクセス研究を新対象の検証にしない |
 | D016→V004→V005→V006 | D016はD015/U007の真正な結果を統合。V004はV003/D016を満たして限定昇格、以後第三者再現・実案件へ |
 | G001–G006 | [G001/G002有限source設計receipt](verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)による有限source設計doneは実受入済み。実依存K007/V001→G001→G002の確認とroot実受入をreceiptに記録した。運営UNADOPTED・実外部監査NOT_PERFORMED。G003はG002/V006後。異集団・接続責任・持続運営・未測定領域へ |
 | C002/Y003/Y005/Y008 | 新しい記事/書籍等は本体の後段。YC/接点は期限と実提出/応答を別管理。bio/使命の訂正source準備は新記事制作と区別 |
 
-113 IDsと他111行をV001基準から保つ。受入済みV001を含む81 doneへG001/G002 source設計2件を加えた現状態は83 done / 20 todo / 10 skipped。Gの原change/verify/depends/learnは保持し、root実受入は各receiptの記録済み実イベントに結ぶ。残数は未実装file数やAGIまでの完成率ではない。
+G001/G002設計受入時点はV001基準の他111行を保ち83 done / 20 todo / 10 skippedだった。その後D014の実台帳記録時点は84 done / 19 todo / 10 skipped。さらに[実D015有限定義受入](verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)を反映する現在の提案viewは85 done / 18 todo / 10 skipped。Gの原change/verify/depends/learnは保持し、root実受入は各receiptの記録済み実イベントに結ぶ。残数は未実装file数やAGIまでの完成率ではない。
 
 ### 1.3.1 いま不足する実記録と、次に触る既存ファイル
 
 | 残件 | 不足と次の接続 |
 |---|---|
 | U004以降 | 新しい行動変容対象の課題・需要・研究条件は未確認。`pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md`はDRAFT/参加者0/NOT_REGISTERED。尺度の利用権、比較、人数/期間の根拠、独立した適用判断・停止を埋めて開始前固定 |
-| D014/D015/D016 | 公開研究再利用と新規研究の条件を区別し、必要な実役割・保護・結果を既存outcome/causal契約へ結ぶ。全公開研究へ企業/政府の提携やNDAを一律要求しない |
+| D014/D015有限受入済み・D016未完 | D014公表非個人protocolとD015有限保護定義/適用判断は実受入済み。実人研究条件とD016の真正な結果は未完。公開研究再利用と新規研究の条件を区別し、必要な実役割・保護・結果を既存outcome/causal契約へ結ぶ。全公開研究へ企業/政府の提携やNDAを一律要求しない |
 | V002/V003 | 全V002/V003の一般採用条件と依存は維持。有限train27のmanifest/protocol・条件付きAI研究用途判断・標準native training entryはsourceにあるが、G0有限sourceは実採択済み。最終統合R2は0 findings/PASS。exact-source公式CI・実G0–G6/外部0400受入後に有限PRIVATE train27学習/単一adapter保存を完了した。評価科学定義は用途判断・独立reviewを経てG6前にsource採択/freeze済み。実adapterの正常終了/完全保存は独立検証・root単一固定済み。実G7/評価code review/公式CI/resource/0400受入後に固定比較96/96完了。dev4/8対4/8・final12/16対11/16、採用HOLD |
 | U002/U003/U005の履歴 | 公開面談5件は旧英国支援アクセス、U003は技術的対象選定、U005は公開7ファイルproofの限定受入。新対象の需要・実利用・支払・便益へ置き換えない |
 
@@ -246,13 +246,13 @@ flowchart LR
 | 1 / V001設計 | [用途metadata](../experiments/behavior-model/v001-purpose-applicability-v1.json)は旧contractの13refs/3rightsと別native protocolを結び、4役割/12軸・元応答binding・尺度/母数/null/FINAL隔離を固定。[限定receipt](verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)にroot実受入を記録済み | 受入対象は有限取込/開発診断設計だけ。旧literalはUNMET/HOLD、person/study/time availability UNAVAILABLEは保持。N/Aを成功holdoutに数えず、このV001受入だけで将来train/dev/test・一般化・訓練を受入しない |
 | 2 / V002 | `xstest_refusal_eval.py`と別native binary研究CLIの実結果から拒否の校正と限界を記録。専用modelの450件完了も自動採用や安全性の証明にしない | 既存goldは元回答限定。圧力・依存・害の人参照や未見評価は別に埋める。拒否判定だけで安全性/便益を認定しない |
 | 3 / V003 | [有限PRIVATE SFT scope](specs/2026-10-23-finite-private-sft-research-start.md)・[subplan](plans/2026-10-23-helpsteer2-private-sft.md)と実在するmanifest/protocol/core/CLI/testsへ接続。G0有限source実採択（SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY）を記録済み。最終統合R2は0 findings/PASS。実G0–G6/CI/resource/0400受入後に一attempt学習/単一adapter完全保存済み。実G7/評価code review/公式CI/resource/0400受入後に固定比較96/96完了、baseへの改善未観測・採用HOLD | 全V002/V003はtodo。旧train32は27 retain/5 excludeのNOT_READYを保持。新exact27の条件付きAI研究用途判断と有限G0採択、評価科学定義の用途判断・独立review・G6前source採択/freezeは記録済み。最終統合R2は0 findings/PASS。公式CI・実resource/0400/G6受入後の一attempt学習/保存を独立検証し単一固定済み。実G7/評価code review/公式CI/resource/0400受入後に固定比較96/96完了。final16はtarget-model採点済みで新規未見holdoutに再利用しない。採用HOLD |
-| 4 / D014–D016・U004・G実運営 | `BEHAVIOR_TRANSFORMATION_STUDY_V2.md`、`governance.py`と既存停止/監査記録へ、実役割・観測・異議申立先・全run母集団・独立readbackを結ぶ | 研究はDRAFT/参加者0。役割を引き受けた実在者、監視される連絡先、実結果をコードやAIレビューで創作しない。既存の停止proofを再利用し、不要な本番STOPを追加しない |
+| 4 / D014/D015有限受入後のD016・U004・G実運営 | `BEHAVIOR_TRANSFORMATION_STUDY_V2.md`、`governance.py`と既存停止/監査記録へ、実役割・観測・異議申立先・全run母集団・独立readbackを結ぶ | 研究はDRAFT/参加者0。役割を引き受けた実在者、監視される連絡先、実結果をコードやAIレビューで創作しない。既存の停止proofを再利用し、不要な本番STOPを追加しない |
 
 クラウドでの推論は実行できており、Macへの移行や新GPUを全作業の前提にしない。上の実証上の不足と、利用可能なhost/credentialの有無は別問題として扱う。
 
 ### 1.3.2 agentの運用接続に残る具体的な差分
 
-残20件は原受入の件数であり、目標像までの全実装差分をファイル単位で数える表ではない。既存sourceを実際の継続主体へ結ぶ差分は以下。新しいtask IDや達成件数は加算しない。
+残18件は原受入の件数であり、目標像までの全実装差分をファイル単位で数える表ではない。既存sourceを実際の継続主体へ結ぶ差分は以下。新しいtask IDや達成件数は加算しない。
 
 | 順 | 既存ファイル・関数 | 現在と次の差分・受入条件 |
 |---|---|---|
@@ -264,9 +264,11 @@ flowchart LR
 
 2と3はmainでsource受入済み。PR8710/8715/8741のMERGED状態・merge SHAは2026-10-23にGitHubから再読した。研究branchへのsource同期と公式CIは上記receiptで受入済み。scheduled inferenceの稼働やモデルの有用性の実証を意味しない。単純なリンク修正へmodelを足すこと自体は目的にせず、比較に意味がある対象で薄く接続する。今回の公開面談・選定・proofの受入は、このAI接続や人間研究の実施を代わりに完了させない。
 
-### 1.3.3 現scopeの残20件と依存（2026-10-23改訂）
+**D014/D015の有限受入:** D014は現scopeの公表非個人published-effect protocol taskに限り実受入・台帳記録済み。D015の9つの非診断signal→該当作用の停止/通常支援保持→適した実独立判断と自由な再選択/版固定による復旧の有限定義は、別contextの実適用YES reviewを受け、rootが2026-10-23T21:16:58.283242Zにsource採用し、同21:16:58.283436Zに定義taskを別受入した。D015もこの有限定義scopeに限るdone。U004はDRAFT/NOT_REGISTERED/参加者0/介入0のtodo。[実receipt](verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)。旧original_*の実団体協力UNMET、正式制度適用UNKNOWN・承認/免除NOT_OBTAINED・臨床承認NOT_GRANTEDを保持する。新規人介入・実協働・臨床・人便益・モデル採用の受入ではなく、モデル採用HOLD/親目標ACTIVEを維持する。
 
-既存`tasks.json`の派生view。V001設計受入済みで、[G001/G002設計receipt](verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に記録されたroot実受入を反映した現状態は**113件＝83 done／20 todo／10 skipped**。退役7件は未達成。新IDやモデル開発のsubstepを件数に加算しない。
+### 1.3.3 現scopeの残18件と依存（2026-10-23改訂）
+
+既存`tasks.json`の派生view。V001設計受入済みで、[G001/G002設計receipt](verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)とD014/D015有限protocol/定義のroot実受入を反映する現在viewは**113件＝85 done／18 todo／10 skipped**。退役7件は未達成。新IDやモデル開発のsubstepを件数に加算しない。
 
 | ID | 残る作業 | 現依存 |
 |---|---|---|
@@ -275,8 +277,6 @@ flowchart LR
 | U006 | 成立した行動変容protocolで実施・曝露・本人が選んだ行動・独立した結果観測を記録する | U004, F005 |
 | U007 | 行動の変化・本人が報告する苦しみ・生活機能・持続・害・費用を事前固定した比較で評価する | U006, F006 |
 | U008 | 協力者に成果レポートを提示し継続利用の意思と運用費を記録 | U007, U002 |
-| D014 | 公開匿名研究または本人が選んだ実研究について役割・利用権・測定・必要な同意/適用判断・独立分析のprotocolを成立させる | D013 |
-| D015 | 本人の選択・撤回、誤った断定、過剰な説得、依存、悪化、停止と適切な支援への接続を定義する | D014 |
 | D016 | 予測・実施・本人が選んだ行動・苦しみ/生活機能・持続・害・費用を共通の証拠階層へ統合する | D015, U007 |
 | V002 | NO_ACTION/ルール/既存API/open-weightモデルを同じ入力・分母・予算条件で比較し、attempt・refusal・予測誤差・根拠・圧力/依存・害を独立評価する | V001 |
 | V003 | 権利確認済みbase/dataで最小SFT/LoRAの独自adapter研究を行い、人物・文脈・言語・時間holdoutと分布外検知で既存baselineに再比較する | V002 |
@@ -291,7 +291,7 @@ flowchart LR
 | G005 | 運営原価・資金調達・継続支援・測定コストの経済モデルを作る | G004 |
 | G006 | 人の苦しみの未測定領域・不公平・失敗・次の課題を継続棚卸し | G005 |
 
-旧D005等を終えることを新scopeの前提にしない。有限PRIVATE SFT別routeのG0 sourceは実採択済み。有限PRIVATE学習と単一adapter保存を完了・独立検証済み。[固定dev/final比較](verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)も96/96完了し、baseへの改善は観測されなかった。直近は点推定にかかわらず採用HOLDを維持し、別version/用途適合holdoutの評価設計と、並行してD014/D015/U004の実研究条件を進める。全V002比較/全V003の未見・一般化・安全性と現依存は維持し、このrouteでdoneにしない。G001/G002の有限設計doneは[receipt](verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に記録済みのroot実受入により発効し、実運営採択UNADOPTED・実外部監査NOT_PERFORMEDを維持する。V004の実運用は引き続きV003/D016成立後。正確な状態はregistry、新しい実施手順は[model計画](plans/2026-10-23-behavior-transformation-model-plan.md)を使う。
+旧D005等を終えることを新scopeの前提にしない。有限PRIVATE SFT別routeのG0 sourceは実採択済み。有限PRIVATE学習と単一adapter保存を完了・独立検証済み。[固定dev/final比較](verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)も96/96完了し、baseへの改善は観測されなかった。直近は点推定にかかわらず採用HOLDを維持し、別version/用途適合holdoutの評価設計と、D014/D015の有限受入後、U004の実研究条件/保護とD016へ結ぶ真正な結果の条件を進める。全V002比較/全V003の未見・一般化・安全性と現依存は維持し、このrouteでdoneにしない。G001/G002の有限設計doneは[receipt](verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に記録済みのroot実受入により発効し、実運営採択UNADOPTED・実外部監査NOT_PERFORMEDを維持する。V004の実運用は引き続きV003/D016成立後。正確な状態はregistry、新しい実施手順は[model計画](plans/2026-10-23-behavior-transformation-model-plan.md)を使う。
 
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
@@ -532,13 +532,13 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 ## 19. 全工程の終点と公開サイトの追従
 
-[全工程view](roadmap/START_TO_END_20261022.md)にPhase00〜12と残20件を省略せず列挙する。E01–E16、P01–P07、12 atomic patches、創業者12packageは同じ作業の派生viewであり、原113件へ足さない。旧EBAのPhase07〜11は別章立てなので対応表で結び、task IDを保ち、今回変更した依存/受入はscope archiveへ結ぶ。
+[全工程view](roadmap/START_TO_END_20261022.md)にPhase00〜12と残18件を省略せず列挙する。E01–E16、P01–P07、12 atomic patches、創業者12packageは同じ作業の派生viewであり、原113件へ足さない。旧EBAのPhase07〜11は別章立てなので対応表で結び、task IDを保ち、今回変更した依存/受入はscope archiveへ結ぶ。
 
 長期像の `one entity / one model` は一貫した意思決定主体への統合、`no UI` は人のapp/chat/messenger操作やManagerとの対話を通常の活動・価値提供の前提にせず、現実の観測から判断・作用・検証・訂正を続ける設計とする。owner設定・停止・失効・予算・異議・監査・公開proofの運営入口は保持する。定義は§1.2へ集約する。独自に評価/追加学習できる重みへの道筋をV001–V004へ含め、scratch pretrainingや全機能の単一モデル化を初期条件にしない。宗教の受容は要件ではない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
 
 P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実稼働・限定E16受入の結果と本体の残件、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。本体優先で新記事制作は後段へ置き、今回指定されたbio/使命の訂正は既存homeのsourceで別途扱う。A10 LabのMarketing Internから行動変容appへの問い、neurofeedback、AIへの流れを本人の説明として記す。開発貢献や実証成果を創作しない。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
 
-原計画の末尾はPhase12/G006。残20件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
+原計画の末尾はPhase12/G006。残18件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
 
 ## 20. Rothkoから学ぶ範囲とエンティティの位置づけ
 

@@ -79,3 +79,6 @@ site sourceは既存`apps/landing/marketing/pages/en.html`と`ja.html`のhero/st
 ## 7. 今回確認した範囲
 
 Exaのroot2検索=12結果枠、介入研究11検索=55枠、モデル研究17検索=85枠、計152検索結果枠を3観点で探索した。これは152独立原著を精読した数ではない。保持した原著・artifactは上のURLへ結び、DOI/PMC/企業pageの重複を別研究へ数えない。原典2本文も取得した。公開研究・実践・企業の全史や全言語を網羅したとは主張しない。新モデル学習・provider推論・新規課金・参加者介入・記事公開・本番変更は今回行っていない。
+
+
+行動変容研究の選択/撤回・圧力/依存/悪化・停止/支援/復旧の限定定義案は[BEHAVIOR_TRANSFORMATION_SAFETY_V1.md](../../pilot/BEHAVIOR_TRANSFORMATION_SAFETY_V1.md)を参照。別context AIの実有限適用review YES（21:12:45.444261Z）後、rootは21:16:58.283242Zにsource採用し、21:16:58.283436ZにD015有限定義taskを別受入した（[外部実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。新docのPENDINGは作成snapshotとして保持し、新規U004のDRAFT/0参加者/未登録と実発動・個人安全/clinical判断・保護条件の未成立は変えない。

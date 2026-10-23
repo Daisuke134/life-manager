@@ -36,3 +36,8 @@
 このsource案は本v2の対象行動・需要・測定権利・検出力・実施協力・独立した適用判断・媒体・同意/停止・登録の空欄を埋めない。**本v2はDRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、U004はtodo。** 原著の569人は歴史的なsource母集団で、Manager参加者数へ加算しない。旧FIRST_STUDYや120世帯/58日、旧manifest/hashを置き換えない。
 
 公開非個人集計を読む限定活動に提携/NDA/新規募集/原参加者への再同意を普遍的に要求せず、必要な条件をsource/用途ごとに判断する。その技術設計の受入と、新規参加者を含む本v2の実同意・適用判断・必要な実在する役割、U006/U007の実結果の受入は別である。[offline停止/復旧追補案](STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md#5-offline停止復旧)も限定proposalで、臨床承認・実害ゼロ・Manager便益を意味しない。新しい受入済みprotocol hash/登録番号は未発行。
+
+
+## 将来の行動変容研究の保護定義案への参照
+
+[BEHAVIOR_TRANSFORMATION_SAFETY_V1.md](BEHAVIOR_TRANSFORMATION_SAFETY_V1.md)は、本人の選択/撤回、非応答への追送、圧力/誤断定、排他的依存/判断委譲、支援遮断、本人報告の悪化、privacy/不明についてsignal→停止/支援→実scopeの独立判断と非自動復帰を定義する。別context AIの21:12:45.444261Z実reviewは有限design applicability YES、rootは21:16:58.283242Zにsource採用し、21:16:58.283436ZにD015定義taskを別受入した（[外部実receipt](../docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。新doc内PENDINGは作成時snapshotとして保持し、旧研究の数値triggerを移植しない。本v2のDRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、上記未確定欄と実役割/同意/測定/登録の条件はそのまま。研究・モデル運用・通知/UI・clinical承認をこの参照で発動しない。

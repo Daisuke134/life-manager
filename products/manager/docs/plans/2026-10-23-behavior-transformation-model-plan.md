@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 使命は「行動変容を通じて、苦しみを終わらせることを目指す」。宗教は必須条件/採点基準ではない。
-- 113 IDs、先行scope改訂時点のsnapshotは80 done / 23 todo / 10 skipped。rootが[限定V001設計receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)で実受入した時点は81 done / 22 todo / 10 skipped。その後[G001/G002有限source設計receipt](../verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)のroot実受入を反映した現在は83 done / 20 todo / 10 skipped。退役7件は未達成。旧done/receipt/protocol hashを保存し、有限SFT開始scope/結果だけではstatus/件数/全体依存を変えない。
+- 113 IDs、先行scope改訂時点のsnapshotは80 done / 23 todo / 10 skipped。rootが[限定V001設計receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)で実受入した時点は81 done / 22 todo / 10 skipped。その後[G001/G002有限source設計receipt](../verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)のroot実受入を反映した時点は83 done / 20 todo / 10 skipped。その後D014の実台帳記録時点は84 done / 19 todo / 10 skipped。D015有限定義task実受入を反映する現在viewは85 done / 18 todo / 10 skipped。退役7件は未達成。旧done/receipt/protocol hashを保存し、有限SFT開始scope/結果だけではstatus/件数/全体依存を変えない。
 - 目的と評価基準を保ち、モデル系列/規模/量子化/runtime/学習方法は実測で更新する。GPU/特定4B候補を全体の開始条件にしない。既存CPUで公開モデル推論を進め、訓練と推論の必要資源を分ける。
 - 独自modelは将来像へ含める。有限train27 PRIVATE SFTは[別scope](../specs/2026-10-23-finite-private-sft-research-start.md)のG0有限sourceを実採択済み（SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY）。用途別の実G0–G6/CI/resource/0400受入後に一attempt学習/単一adapter保存を完了・独立検証した（[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)）。[固定比較](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)も実G7別受入後96/96完了、baseへの改善未観測・採用HOLDで、全V002完了や人対象実研究全体の完了を一律前提としない。全V002/V003の一般採用要件・todoとV004=[V003,D016]は維持する。
 - 新規費用・GPU・データ利用権・live推論は仮定しない。既存予算・契約・資源を確認してから実行する。
@@ -60,7 +60,7 @@
 
 **実在するsource:** [有限研究scope](../specs/2026-10-23-finite-private-sft-research-start.md)、[train27 manifest](../../experiments/behavior-model/helpsteer2-train27-manifest-v1.json)、[静的科学protocol](../../experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json)、[source-rights](../research/source-rights.json)、[実装subplan](2026-10-23-helpsteer2-private-sft.md)、[core](../../manager_core/helpsteer2_candidate_sft.py)、[薄いCLI](../../scripts/train_helpsteer2_candidate_sft.py)、[focused tests](../../tests/test_helpsteer2_candidate_sft.py)。runtime receipt/adapterは既存のprivate Git外保存・metadata receipt契約へ結ぶ。
 
-**Interfaceと現在地:** G0は**SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY**。2026-10-23T19:59:07.182754+00:00にrootが有限source scopeを実採択した（[実イベント](2026-10-23-helpsteer2-private-sft.md#actual-g0-source-event)）。最終統合R2は0 findings/PASS。exact-source公式CI・実resource/外部0400・G0–G6実判断を別に受け入れ、[一attemptの学習/完全保存](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)を完了・独立検証済み。[固定比較](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)も実G7別受入後96/96完了。dev base4/8・adapter4/8、final base12/16・adapter11/16、採用HOLD。exact retained train27の元preferenceが選んだ元候補1本だけを、既存native Qwen3-0.6Bへ標準PEFT/TRL/SFTTrainerでcompletion-only SFTする一recipe/初期adapter/attempt。目的は固定元候補mean completion-token NLL選択の元人preference一致の変化（P0）で、pairwise rankingの直接最適化ではなく改善も保証しない。同じbaseへの有限差を問うためAPIは必須にしない。既知dev4/8対rule4/8は探索動機に限る。全V002のAPI比較・圧力/依存/害/人参照照合、全V003の人物/文脈/言語/時間holdout・OODと一般化/安全性はtodo/HOLDのまま。全体V001→V002→V003、V004=[V003,D016]、113 IDsと83/20/10は不変。
+**Interfaceと現在地:** G0は**SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY**。2026-10-23T19:59:07.182754+00:00にrootが有限source scopeを実採択した（[実イベント](2026-10-23-helpsteer2-private-sft.md#actual-g0-source-event)）。最終統合R2は0 findings/PASS。exact-source公式CI・実resource/外部0400・G0–G6実判断を別に受け入れ、[一attemptの学習/完全保存](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)を完了・独立検証済み。[固定比較](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)も実G7別受入後96/96完了。dev base4/8・adapter4/8、final base12/16・adapter11/16、採用HOLD。exact retained train27の元preferenceが選んだ元候補1本だけを、既存native Qwen3-0.6Bへ標準PEFT/TRL/SFTTrainerでcompletion-only SFTする一recipe/初期adapter/attempt。目的は固定元候補mean completion-token NLL選択の元人preference一致の変化（P0）で、pairwise rankingの直接最適化ではなく改善も保証しない。同じbaseへの有限差を問うためAPIは必須にしない。既知dev4/8対rule4/8は探索動機に限る。全V002のAPI比較・圧力/依存/害/人参照照合、全V003の人物/文脈/言語/時間holdout・OODと一般化/安全性はtodo/HOLDのまま。全体V001→V002→V003、V004=[V003,D016]、D014/D015の有限受入を反映する現在件数は113 IDs・85/18/10。SFT/G7だけではstatus/元依存を進めない。
 
 **権利/履歴/曝露:** 新record `helpsteer2-private-exploratory-sft-train27-v1`（canonical SHA `f41063b9ae281bc5bc1677655cb5a5997b1c9b5de8857ac180480176d71a1be5`）は2026-10-23のroot AI engineering/research判断でexact27 PRIVATE前処理/SFT/adapter保管用途を条件付き受入とした。既存AI QCとmetadata/source-binding reviewを採用した用途限定のpending解決で、新しい人手raw reviewや全第三者/privacy clearanceではない。旧strict8 protocol/権利、native/Qwen3Guard陰性結果、旧train32の27 retain/5 exclude NOT_READYを保存し、補充/除外復帰/split移動をしない。final16はAI適格性QCで内容曝露済み・未学習/設定選択未使用、今回の固定比較でtarget-model採点済み。pristineでも以後の新規未見holdoutでもない。person/study/time UNAVAILABLE、language/family/OOD・paraphrase/pretraining汚染UNKNOWNを成功holdoutへ変えない。
 
@@ -77,7 +77,12 @@
 
 **Files:** `pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md`、新v2 manifest、既存source/rights/protection文書。
 
-**Interface:** 現対象の一次的な課題確認、適用判断・必要な同意/役割、主要結果・比較・検出力・追跡・害/停止を固定した研究versionを出す。旧120世帯/58日のhashは変えない。
+**D014/D015有限protocol/定義受入:** D014は現scopeの公表非個人published-effect protocol taskに限り実受入・台帳記録済み。D015の9つの非診断signal→該当作用の停止/通常支援保持→適した実独立判断と自由な再選択/版固定による復旧の有限定義は、別contextの実適用YES reviewを受け、rootが2026-10-23T21:16:58.283242Zにsource採用し、同21:16:58.283436Zに定義taskを別受入した。D015もこの有限定義scopeに限るdone。U004はDRAFT/NOT_REGISTERED/参加者0/介入0のtodo。[実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)。旧original_*の実団体協力UNMET、正式制度適用UNKNOWN・承認/免除NOT_OBTAINED・臨床承認NOT_GRANTEDを保持する。新規人介入・実協働・臨床・人便益・モデル採用の受入ではなく、モデル採用HOLD/親目標ACTIVEを維持する。D014の原要件/依存/original_*は変更しない。
+
+- [x] D014の実root task判断を現scopeの公表非個人protocolに限る受入として記録した。D014台帳はrootの21:16:35.340175Z実適用/readbackでdone記録済み。D014 R1のreceipt表記Nitは修正済みだがSol delta R2は未完、commit/pushは未実施。
+- [x] D015の依存signal・停止/本人選択の通常支援/復旧定義と現scopeへの有限独立適用判断を、新Safety定義と21:12:45.444261Z別context実review YESで満たした。rootはsource採用21:16:58.283242Zと別task判断21:16:58.283436Zを実記録した（[実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。台帳反映はこのPRIVATE差分の後続root実適用で、人研究/個人安全/clinical承認は未発動。
+
+**Interface:** 以下の新規人研究の条件は別に未完。現対象の一次的な課題確認、適用判断・必要な同意/役割、主要結果・比較・検出力・追跡・害/停止を固定した研究versionを出す。旧120世帯/58日のhashは変えない。
 
 - [ ] 対象行動/需要と媒体の適合を実確認し、旧UK支援面談を新対象の検証に流用しない。
 - [ ] 草案の未確定欄を実条件・測定権利・検出力根拠で埋め、独立した適用判断と停止経路を成立させる。
@@ -111,4 +116,4 @@
 
 ## 今回の計画のself-review
 
-scope・元snapshotの23残件から限定V001/G001/G002受入後の現20残件・独自重み・公開研究再利用・no UI・実結果・siteの各要求をTask1–7へ対応付けた。有限train27開始routeのG0 sourceを実採択し、評価科学定義の用途判断・独立reviewに基づくsource採択/freezeをG6実学習より前に記録済み。実G0–G6・CI/config受入、一attempt学習/完全保存と独立実結果検証・単一artifact固定を[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)へ結んだ。別G7/code/CI/resource/0400受入後の固定比較96/96完了と[独立実結果検証](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)を接続した。baseへの改善未観測・採用HOLDと全体未達を保持し、新しい研究は別version/用途適合holdoutを要する。未確定の研究条件はprotocol草案へ明記し、実行時に埋める方法と受入を指定した。本計画のcheckboxは実イベントと今後の手順を区別し、第二の状態台帳や達成件数にはしない。
+scope・元snapshotの23残件から限定V001/G001/G002とD014/D015有限受入後の現18残件・独自重み・公開研究再利用・no UI・実結果・siteの各要求をTask1–7へ対応付けた。有限train27開始routeのG0 sourceを実採択し、評価科学定義の用途判断・独立reviewに基づくsource採択/freezeをG6実学習より前に記録済み。実G0–G6・CI/config受入、一attempt学習/完全保存と独立実結果検証・単一artifact固定を[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)へ結んだ。別G7/code/CI/resource/0400受入後の固定比較96/96完了と[独立実結果検証](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)を接続した。baseへの改善未観測・採用HOLDと全体未達を保持し、新しい研究は別version/用途適合holdoutを要する。未確定の研究条件はprotocol草案へ明記し、実行時に埋める方法と受入を指定した。本計画のcheckboxは実イベントと今後の手順を区別し、第二の状態台帳や達成件数にはしない。
