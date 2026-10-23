@@ -1,0 +1,17 @@
+{
+  "schema_version": "marketing.product.v1",
+  "product_id": "thankful",
+  "type": "ios_app",
+  "live_status": "app_store_live",
+  "destination_url": "https://apps.apple.com/us/app/thankful-gratitude-journal/id6759514159?uo=4",
+  "price": {"amount": 0, "currency": "USD", "basis": "free_download_us_store"},
+  "approved_claims": ["Thankful - Gratitude Journal lets users write three gratitude entries, read daily affirmations and track a journaling streak"],
+  "cta": "View Thankful on the App Store",
+  "conversion_events": ["app_store_impression", "install"],
+  "revenue_events": ["app_store_sale", "refund"],
+  "margin_rule": "report gross App Store revenue and App Store proceeds separately; unverified revenue remains unknown",
+  "audiences": ["People building a daily gratitude journaling practice."],
+  "metric_adapters": ["app_store_connect"],
+  "primary_metric": "first_time_downloads",
+  "attribution_method": "app_store_connect_app_aggregate"
+}

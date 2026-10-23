@@ -1,0 +1,17 @@
+{
+  "schema_version": "marketing.product.v1",
+  "product_id": "sleep-reset",
+  "type": "ios_app",
+  "live_status": "app_store_live",
+  "destination_url": "https://apps.apple.com/us/app/for-better-sleep-sleep-reset/id6762143790?uo=4",
+  "price": {"amount": 0, "currency": "USD", "basis": "free_download_us_store"},
+  "approved_claims": ["For Better Sleep - Sleep Reset offers a free sleep reset score and recovery outlook; personalized plans, bedtime timing and guided breathwork require a paid subscription"],
+  "cta": "View Sleep Reset on the App Store",
+  "conversion_events": ["app_store_impression", "install"],
+  "revenue_events": ["app_store_sale", "refund"],
+  "margin_rule": "report gross App Store revenue and App Store proceeds separately; unverified revenue remains unknown",
+  "audiences": ["People recovering from a disrupted sleep schedule who want a personalized bedtime plan and guided breathwork."],
+  "metric_adapters": ["app_store_connect"],
+  "primary_metric": "first_time_downloads",
+  "attribution_method": "app_store_connect_app_aggregate"
+}
