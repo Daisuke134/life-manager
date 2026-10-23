@@ -2,10 +2,10 @@
   "schema_version": "anicca.ai-monk-factory-web-source.v1",
   "status": "source_tests_passed_delta_review_pending",
   "related_tests": {
-    "passed": 36,
+    "passed": 37,
     "failed": 0,
     "skipped": 0,
-    "new_web_tests": 25,
+    "new_web_tests": 26,
     "existing_factory_mcp_tests": 11,
     "CI": true
   },
@@ -38,7 +38,7 @@
     "Public deployment and immutable release are pending"
   ],
   "source_files": {
-    "skills/earn/marketing-engine/factory-web/agent-mcp.mjs": "042f4b4fb0420854ca6b8738c8f99667a709d6d0a700c9c7f222b1656e7a7338",
+    "skills/earn/marketing-engine/factory-web/agent-mcp.mjs": "5a12943711ad729f7e12572f0ce8248d1d8598bde44ccc7d21623b87ea8f9fe1",
     "skills/earn/marketing-engine/factory-web/app.css": "2aa9e429aa9ce360a57b851c74684f78e598d7d860ce3bc65d980f7db69cc71e",
     "skills/earn/marketing-engine/factory-web/app.mjs": "a70dbafdb704a926fb0056e4a6fd7470338ddf3b161ae09fc456aca8ab48e33a",
     "skills/earn/marketing-engine/factory-web/app.test.mjs": "b03800e4d08892cdfdac047136d3d6fbcb71cb8b66b19565e0521578d9dcd27f",
@@ -46,7 +46,7 @@
     "skills/earn/marketing-engine/factory-web/project.mjs": "71baea8f3021841c0914d96f9229bef16aba3250391cc49bee8cde5207538e84",
     "skills/earn/marketing-engine/factory-web/project.test.mjs": "50a87f71dc0e273fefdb60514e602701a84f79470cccf73230b1790a6caf3f88",
     "skills/earn/marketing-engine/factory-web/server.mjs": "93501588e50794888ef56fd4a801e53222b7edcfea1c3b4dfeabd1062fa05b9b",
-    "skills/earn/marketing-engine/factory-web/server.test.mjs": "b86169c335027a006c5e7c670391f80a042fc3cc1fb5592feebf3919f39cd361"
+    "skills/earn/marketing-engine/factory-web/server.test.mjs": "7b7e4bc04c4b0594529f85a76719be98c38a916824f903c6a378a30c8604ad8a"
   },
   "codex_configuration_load": {
     "plugin_off_inventory": true,
@@ -68,7 +68,9 @@
       "run-wide unresolved cost and CLI error aggregation",
       "shared UTF-8 import/export limit"
     ],
-    "delta_review": "running"
+    "delta_review": "initial four issues resolved; receipt-before-extraction fix in final delta review",
+    "followup_blocking": 1,
+    "followup_regression": "old RED to corrected GREEN"
   },
   "native_media_fixture": {
     "ffprobe_decode": true,

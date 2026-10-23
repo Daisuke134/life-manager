@@ -253,6 +253,8 @@ export function createRunToolCaller({ runRoot, factoryExecutor, signal }) {
       const invoke = factoryExecutor ?? (await import('../factory-mcp.mjs')).callFactoryTool;
       invoked = true;
       const result = await invoke(name, fixed, { signal });
+      // The CLI receipt is authoritative even if later media inspection is interrupted.
+      await appendTool(runRoot, name, result);
       if (name === 'factory_render' && input.mode === 'publish' && result.structuredContent?.result?.output) {
         const render = result.structuredContent.result;
         try {
@@ -263,7 +265,7 @@ export function createRunToolCaller({ runRoot, factoryExecutor, signal }) {
         }
         result.content = [{ type: 'text', text: JSON.stringify(result.structuredContent) }];
       }
-      return await appendTool(runRoot, name, result);
+      return result;
     } catch {
       return appendTool(runRoot, name, failed(invoked ? 'factory_transport_error' : 'factory_input_or_transport_error'));
     }

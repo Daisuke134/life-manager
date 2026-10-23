@@ -357,8 +357,57 @@ test('publish binds approval to the actual asset and prepare metadata, with real
   assert.equal(done.state, 'native_verification_required');
 });
 
+test('render receipt is durable before frame extraction waits and survives interruption exactly once', async t => {
+  const { request, server, root } = await fixture(t, {
+    factoryExecutor: async (name, args) => {
+      if (name === 'factory_plan') return receipt({ status: 'planned', provider_calls: 0 });
+      const config = JSON.parse(await readFile(args.config, 'utf8'));
+      const output = join(config.state_root, 'renders', config.project_id + '.' + args.run_id + '.mp4'), bytes = Buffer.from('verified asset awaiting extraction');
+      await mkdir(join(config.state_root, 'renders')); await writeFile(output, bytes);
+      const result = receipt({ state: 'rendered', output, sha256: createHash('sha256').update(bytes).digest('hex'), wallet_cost: null });
+      result.isError = true; result.structuredContent.exit_code = 1;
+      return result;
+    },
+    agentExecutor: async context => {
+      await context.invokeTool('factory_plan', {}); await context.invokeTool('factory_render', {});
+      return { exit_code: 0 };
+    },
+  });
+  const marker = join(root, 'extracting'), native = join(root, 'paused-media-probe');
+  await writeFile(native, '#!' + process.execPath + '\n' +
+    'require("node:fs").writeFileSync(' + JSON.stringify(marker) + ',"waiting");setInterval(()=>{},1000);', { mode: 0o700 });
+  const previous = { FFMPEG_BIN: process.env.FFMPEG_BIN, FFPROBE_BIN: process.env.FFPROBE_BIN };
+  let observed, saved, extracting = false;
+  try {
+    process.env.FFMPEG_BIN = native; process.env.FFPROBE_BIN = native;
+    await save(request);
+    const run = (await (await request('/api/runs', { body: { project_id: project.project_id, mode: 'publish' } })).json()).run;
+    for (let n = 0; n < 200; n++) {
+      try { await readFile(marker); extracting = true; break; } catch {}
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    observed = (await (await request('/api/runs/' + run.run_id)).json()).run;
+    await server.shutdown();
+    saved = JSON.parse(await readFile(join(root, 'state', 'runs', run.run_id, 'run.json'), 'utf8'));
+  } finally {
+    await server.shutdown();
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+  assert.equal(extracting, true, 'the native extraction boundary must actually be waiting');
+  const pending = observed.tool_results.filter(row => row.name === 'factory_render');
+  assert.equal(pending.length, 1, 'the received render receipt must already be durable while extraction waits');
+  assert.equal(pending[0].result.structuredContent.exit_code, 1);
+  assert.equal(pending[0].result.structuredContent.result.wallet_cost, null);
+  const final = saved.tool_results.filter(row => row.name === 'factory_render');
+  assert.deepEqual(final, pending, 'frame enrichment and abort must not append or replace the original receipt');
+  assert.equal(saved.state, 'interrupted');
+  assert.match(saved.summary, /cost_reconciliation_required/); assert.match(saved.summary, /failed CLI calls 1/);
+});
+
 test('undecodable video cannot create review evidence and preserves its original cost and failure receipt', async t => {
-  let reviewCalls = 0, refused = false;
+  let reviewCalls = 0, refused = false, returnedRender;
   const { request } = await fixture(t, {
     factoryExecutor: async (name, args) => {
       if (name === 'factory_plan') return receipt({ status: 'planned', provider_calls: 0 });
@@ -372,7 +421,7 @@ test('undecodable video cannot create review evidence and preserves its original
       return result;
     },
     agentExecutor: async context => {
-      await context.invokeTool('factory_plan', {}); await context.invokeTool('factory_render', {});
+      await context.invokeTool('factory_plan', {}); returnedRender = await context.invokeTool('factory_render', {});
       await context.invokeTool('factory_publish', { operation: 'prepare' });
       await writeFile(join(context.workspace, 'frame.png'), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
       refused = (await context.invokeTool('factory_record_review', { notes: 'No verified frames were extracted.', frame_evidence: ['frame.png'] })).isError;
@@ -385,8 +434,10 @@ test('undecodable video cannot create review evidence and preserves its original
   assert.equal(refused, true); assert.equal(reviewCalls, 0);
   assert.equal(render.structuredContent.exit_code, 1); assert.equal(render.isError, true);
   assert.equal(render.structuredContent.result.wallet_cost, null);
-  assert.equal(render.structuredContent.result.review_state, 'unavailable');
-  assert.deepEqual(render.structuredContent.result.review_frames, []);
+  assert.equal(Object.hasOwn(render.structuredContent.result, 'review_state'), false, 'the original CLI receipt stays unchanged');
+  assert.equal(returnedRender.structuredContent.result.review_state, 'unavailable');
+  assert.deepEqual(returnedRender.structuredContent.result.review_frames, []);
+  assert.equal(done.tool_results.filter(row => row.name === 'factory_render').length, 1);
   assert.equal(done.state, 'cost_reconciliation_required');
   assert.match(done.summary, /failed CLI calls 1/);
 });

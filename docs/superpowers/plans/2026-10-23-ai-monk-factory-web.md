@@ -59,3 +59,7 @@ Interfaces: project v1とTask1 APIを使う。UIはrootが __FACTORY_TOKEN__ を
 新jobのNode20.19/npm10.8.2でnpm ciがzod3のlock不整合としてテスト開始前に失敗する。同一lockはnpm11.9の隔離dry-runでexit0（754 packages）。既存repo jobsのcanonical Node24.16へ揃え、UI/READMEの起動要件も訂正する。dependency/lock版は変更しない。
 
 固定版canaryは本件専用LOOPS_ROOT/LM_DATA_DIRで作り、既存current/loop/他releaseのGCを操作しない。main由来の必要sourceを既存builderでimmutable化し、protected memoryとstate/jsonlをexport対象に含めない。理由はDaisのGrok担当/no-action境界と不可侵storeを保持するため。
+
+差分fresh reviewは前4点の解消を確認し、新たにframe抽出中の中断で取得済みrender receiptが未保存となる1 blockingを再現する。元CLI receiptの永続化を抽出前へ移し、抽出metadataは返却値/control manifestへ足してCLI呼出を二重計上しない。抽出保留/中断でも費用null・exit1を保持する最小REDから修正する。
+
+receipt中断の回帰は旧REDから最小fixでGREEN。元receiptを抽出前に1回保存し、抽出metadataだけを返却/control manifestへ加える。全関連37 PASS/0 FAIL/0 SKIP。最後の差分read-onlyレビューとexact CIを実行中。
