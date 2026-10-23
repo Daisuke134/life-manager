@@ -12,7 +12,7 @@
   },
   "product": {
     "name": "Your product",
-    "url": "https://example.invalid/your-product"
+    "url": "https://example.invalid/your-product?utm_campaign=my_monk_launch"
   },
   "state_root": "~/.local/state/your-project"
 }

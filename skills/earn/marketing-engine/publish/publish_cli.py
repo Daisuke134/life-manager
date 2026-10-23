@@ -18,6 +18,8 @@ from reconcile import reconcile_postiz_result
 from approval_store import record_visual_approval
 from browser_adapter import unique_native_match
 from native_candidates import collect_tiktok_candidates, write_candidates, write_json_atomic
+from publication_context import (PublishContext, require_exact_destination,
+                                 resolve_publication_route)
 
 
 def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
@@ -26,20 +28,11 @@ def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
                       asset_path: pathlib.Path, caption: str, attribution_token: str,
                       scheduled_at: str, visual_approval_id: str,
                       now: str | None = None, script_db_path: pathlib.Path | None = None,
-                      script_id: str | None = None) -> dict:
+                      script_id: str | None = None,
+                      context: PublishContext | None = None) -> dict:
     import sys
-    gates = pathlib.Path(engine) / "gates"
-    if str(gates) not in sys.path:
-        sys.path.insert(0, str(gates))
-    from product_router import load_registry
-
-    registry = load_registry(engine)
-    if product_id not in registry.products:
-        raise ValueError("publication product unknown")
-    if account_id not in registry.accounts:
-        raise ValueError("publication account unknown")
-    account = registry.accounts[account_id]
-    product = registry.products[product_id]
+    account, product = resolve_publication_route(
+        engine=engine, account_id=account_id, product_id=product_id, context=context)
     if account["product_id"] != product_id:
         raise ValueError("account product mismatch")
     if renderer_id not in account["allowed_renderer_ids"]:
@@ -49,7 +42,7 @@ def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
     if not account["publisher_integration_id"] or not account["publisher_settings"]:
         raise ValueError("account publisher route is not configured")
     normalized_caption = " ".join(caption.split())
-    if product_id == "hook-lab":
+    if context is None and product_id == "hook-lab":
         measure_dir = pathlib.Path(engine) / "measure"
         if str(measure_dir) not in sys.path:
             sys.path.insert(0, str(measure_dir))
@@ -76,9 +69,12 @@ def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
         attribution_token = expected_token
     if product["cta"] not in normalized_caption:
         raise ValueError("product CTA missing from caption")
-    owned_url = f"https://aniccaai.com/go/{attribution_token}"
-    if owned_url not in normalized_caption:
-        raise ValueError("owned attribution URL missing from caption")
+    if context is None:
+        owned_url = f"https://aniccaai.com/go/{attribution_token}"
+        if owned_url not in normalized_caption:
+            raise ValueError("owned attribution URL missing from caption")
+    else:
+        require_exact_destination(normalized_caption, context.destination_url)
     if (script_db_path is None) != (script_id is None):
         raise ValueError("script receipt and script ledger must be supplied together")
     if script_id is not None:
@@ -126,7 +122,8 @@ def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
 
 def run_shadow(*, intent_path: pathlib.Path, db_path: pathlib.Path,
                approvals_path: pathlib.Path, owner: str, now: str,
-               ttl_seconds: int = 300, engine: pathlib.Path) -> dict:
+               ttl_seconds: int = 300, engine: pathlib.Path,
+               context: PublishContext | None = None) -> dict:
     intent = json.loads(pathlib.Path(intent_path).read_text(encoding="utf-8"))
     schema = json.loads((pathlib.Path(engine) / "schemas/publication-intent.schema.json").read_text(
         encoding="utf-8"))
@@ -140,7 +137,8 @@ def run_shadow(*, intent_path: pathlib.Path, db_path: pathlib.Path,
         intent["publish_key"], owner, lease["fence"], now=now)
     blocker = None
     try:
-        validate_preflight(intent, engine=engine, approvals_path=approvals_path)
+        validate_preflight(intent, engine=engine, approvals_path=approvals_path,
+                           context=context)
     except ValueError as exc:
         blocker = str(exc)
     return {
@@ -155,7 +153,8 @@ def run_shadow(*, intent_path: pathlib.Path, db_path: pathlib.Path,
 def run_postiz_operation(*, db_path: pathlib.Path, publish_key: str, operation: str,
                          approvals_path: pathlib.Path, owner: str, now: str,
                          ttl_seconds: int, engine: pathlib.Path, production: bool,
-                         client=None, media_probe=probe_media) -> dict:
+                         client=None, media_probe=probe_media,
+                         context: PublishContext | None = None) -> dict:
     if not production:
         raise ValueError("explicit --production flag required")
     if operation not in {"upload", "draft", "promote"}:
@@ -163,14 +162,10 @@ def run_postiz_operation(*, db_path: pathlib.Path, publish_key: str, operation: 
     store = IntentStore(db_path)
     intent = store.get(publish_key)["intent"]
     validate_preflight(intent, engine=engine, approvals_path=approvals_path,
-                       media_probe=media_probe)
+                       media_probe=media_probe, context=context)
     active_client = client or HttpPostizClient(os.environ.get("POSTIZ_API_KEY", ""))
-    import sys
-    gates = pathlib.Path(engine) / "gates"
-    if str(gates) not in sys.path:
-        sys.path.insert(0, str(gates))
-    from product_router import load_registry
-    account = load_registry(engine).accounts[intent["account_id"]]
+    account, _ = resolve_publication_route(engine=engine, account_id=intent["account_id"],
+        product_id=intent["product_id"], context=context)
     route = evaluate_route(account, active_client.list_integrations())
     if not route["route_ready"]:
         raise ValueError("publisher route is not ready: " + "; ".join(route["blockers"]))
@@ -185,39 +180,26 @@ def run_postiz_operation(*, db_path: pathlib.Path, publish_key: str, operation: 
     return {**result, "operation": operation, "lease_fence": lease["fence"]}
 
 
-def run_route_check(*, account_id: str, engine: pathlib.Path, client=None) -> dict:
-    import sys
-    gates = pathlib.Path(engine) / "gates"
-    if str(gates) not in sys.path:
-        sys.path.insert(0, str(gates))
-    from product_router import load_registry
-
-    registry = load_registry(engine)
-    if account_id not in registry.accounts:
-        raise ValueError("publication account unknown")
+def run_route_check(*, account_id: str, engine: pathlib.Path, client=None,
+                    context: PublishContext | None = None) -> dict:
+    account, _ = resolve_publication_route(
+        engine=engine, account_id=account_id, context=context)
     active_client = client or HttpPostizClient(os.environ.get("POSTIZ_API_KEY", ""))
     rows = active_client.list_integrations()
     if not isinstance(rows, list):
         raise ValueError("Postiz integrations response must be a list")
-    return evaluate_route(registry.accounts[account_id], rows)
+    return evaluate_route(account, rows)
 
 
 def run_reconcile(*, db_path: pathlib.Path, publish_key: str,
                   post_path: pathlib.Path, native_path: pathlib.Path,
                   ledger_path: pathlib.Path, observed_at: str,
-                  engine: pathlib.Path) -> dict:
-    import sys
-    gates = pathlib.Path(engine) / "gates"
-    if str(gates) not in sys.path:
-        sys.path.insert(0, str(gates))
-    from product_router import load_registry
-
+                  engine: pathlib.Path,
+                  context: PublishContext | None = None) -> dict:
     store = IntentStore(db_path)
     intent = store.get(publish_key)["intent"]
-    registry = load_registry(engine)
-    account = registry.accounts.get(intent["account_id"])
-    if account is None:
-        raise ValueError("publication account unknown")
+    account, _ = resolve_publication_route(engine=engine, account_id=intent["account_id"],
+        product_id=intent["product_id"] if context is not None else None, context=context)
     if account["native_handle"].casefold() != intent["native_handle"].casefold():
         raise ValueError("registry native handle differs from immutable intent")
     post = json.loads(pathlib.Path(post_path).read_text(encoding="utf-8"))
@@ -234,21 +216,14 @@ def run_native_candidates(*, db_path: pathlib.Path, publish_key: str,
                           output_path: pathlib.Path, engine: pathlib.Path,
                           cdp_url: str, wait_ms: int,
                           collector=collect_tiktok_candidates,
-                          report_path: pathlib.Path | None = None) -> dict:
-    import sys
-    gates = pathlib.Path(engine) / "gates"
-    if str(gates) not in sys.path:
-        sys.path.insert(0, str(gates))
-    from product_router import load_registry
-
+                          report_path: pathlib.Path | None = None,
+                          context: PublishContext | None = None) -> dict:
     store = IntentStore(db_path)
     intent = store.get(publish_key)["intent"]
     if intent["platform"] != "tiktok":
         raise ValueError("native candidate collector currently supports TikTok only")
-    registry = load_registry(engine)
-    account = registry.accounts.get(intent["account_id"])
-    if account is None:
-        raise ValueError("publication account unknown")
+    account, _ = resolve_publication_route(engine=engine, account_id=intent["account_id"],
+        product_id=intent["product_id"] if context is not None else None, context=context)
     if account["native_handle"].casefold() != intent["native_handle"].casefold():
         raise ValueError("registry native handle differs from immutable intent")
     scan = collector(expected_handle=intent["native_handle"],

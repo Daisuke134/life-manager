@@ -17,6 +17,14 @@ from render_eval.heygen_candidate import render, require
 HERE = Path(__file__).resolve().parent
 
 
+def _host_data_root() -> Path:
+    host_root = os.environ.get("LM_DATA_DIR")
+    require(host_root is None or (bool(host_root) and "\x00" not in host_root and Path(host_root).is_absolute()),
+            "Factory host data root must be absolute")
+    return (Path.home() / ".local/state/life-manager" if host_root is None
+            else Path(os.path.normpath(host_root)))
+
+
 def _host_disk_admission() -> bool:
     # Project overrides and loop exemptions must not weaken the ordinary producer gate.
     result = subprocess.run(
@@ -34,11 +42,7 @@ def render_from_config(
     plan = build_plan(config, script)
     require(isinstance(run_id, str) and re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", run_id) is not None,
             "Factory run ID invalid")
-    host_root = os.environ.get("LM_DATA_DIR")
-    require(host_root is None or (bool(host_root) and "\x00" not in host_root and Path(host_root).is_absolute()),
-            "Factory host data root must be absolute")
-    data_root = (Path.home() / ".local/state/life-manager" if host_root is None
-                 else Path(os.path.normpath(host_root)))
+    data_root = _host_data_root()
     metadata = {"schema_version": "ai-monk-factory.render.v1", "project_id": plan["project_id"], "run_id": run_id}
     shared_root = data_root / "marketing/ebook"
     intent = shared_root / "runs" / f"factory.{plan['project_id']}.{run_id}.heygen-effect.json"

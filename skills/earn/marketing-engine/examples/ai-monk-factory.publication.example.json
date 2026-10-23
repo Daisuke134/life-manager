@@ -1,0 +1,24 @@
+{
+  "schema_version": "ai-monk-factory.publication.v1",
+  "native_handle": "your_monk",
+  "publisher_provider": "tiktok",
+  "provider_settings": {
+    "__type": "tiktok",
+    "title": "",
+    "privacy_level": "PUBLIC_TO_EVERYONE",
+    "duet": false,
+    "stitch": false,
+    "comment": true,
+    "autoAddMusic": "no",
+    "brand_content_toggle": false,
+    "brand_organic_toggle": true,
+    "video_made_with_ai": true,
+    "content_posting_method": "DIRECT_POST"
+  },
+  "publish_enabled": false,
+  "cta": "Read Your product",
+  "caption": "Read Your product https://example.invalid/your-product?utm_campaign=my_monk_launch",
+  "attribution_token": "my_monk_launch",
+  "scheduled_at": "2099-01-01T00:00:00Z",
+  "visual_approval_id": "visual.accepted.your-project.first-video"
+}
