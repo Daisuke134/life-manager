@@ -36,21 +36,21 @@
 - Old `run_catalog_shadow(checkpoint, client, checkout, workspace, source_commit, *, run_id, enabled=False, cap_usd, upper_usd, deadline_monotonic) -> dict` はsignature・既存preflight順序を保持し、plannerを一度だけ呼び、上記へ `client_factory=lambda: client` で委譲する互換wrapper。
 - Produces `public_catalog_shadow_summary(result: dict) -> dict`。private辞書を展開せず、下記固定keys/enumから新辞書を作る。
 
-- [ ] **Step 1: 失敗テストを書く。** 既存 `make_catalog_fixture`/`client_for`/`OwnedProviderShadowTests.owner` で一度だけ実planner fixtureのtupleを作り、次を同classへ追加する。
+- [x] **Step 1: 失敗テストを書く。** 既存 `make_catalog_fixture`/`client_for`/`OwnedProviderShadowTests.owner` で一度だけ実planner fixtureのtupleを作り、次を同classへ追加する。
   - `test_prepared_shadow_never_replans`: 準備後plannerをAssertionErrorにpatchして比較し、`self.assertEqual(result["status"], "COMPARED_P0")`、`self.assertEqual(sessions.create_count, 1)`、baseline/candidate bytes不変をassert。
   - `test_initial_request_hash_preserves_existing_journal_identity`: helper値を既存fake initial要求後の `amp_sessions.body_hash` と照合し、既存canonical要求の式が変わらないことをassert。
   - `test_prepared_disabled_invalid_scope_deadline_and_unsupported_do_not_initialize_provider`: enabled=Falseは他引数不備でもSKIPPED/DISABLED、enabled=1はValueError。None候補/current-page criteria/expired scope/deadlineは既存静的理由でSKIPPED、factory/create0。invalid finite/type configurationもfactory0。
   - `test_public_projection_is_fixed_and_never_echoes_private_fields`: private model reason/未知key/provider IDへ識別markerを入れ、公開keysが下記集合と完全一致しmarkerなし、INVALID_MODEL_OUTPUTをPASSに変換しないことをassert。未知top-level reason/不正flagは静的ValueErrorのみ。
-- [ ] **Step 2: REDを実行する。** `cd products/manager && env PYTHONPATH=.:tests python -m unittest test_owned_provider_shadow -v`。新API不在の失敗を確認し、実exit非0をprivate logへ残す。
-- [ ] **Step 3: 上記Interfacesを最小実装する。** standalone helperは型・exact bool・positive decimal run ID・aware now・finite deadline・active checkpointを検査し、同tupleの `prepare_owned_change` とpublic promptを再検証する。既存action2種だけ、source/bytes/scope検証は緩めない。DISABLED判定は他の処理より先。
+- [x] **Step 2: REDを実行する。** `cd products/manager && env PYTHONPATH=.:tests python -m unittest test_owned_provider_shadow -v`。新API不在の失敗を確認し、実exit非0をprivate logへ残す。
+- [x] **Step 3: 上記Interfacesを最小実装する。** standalone helperは型・exact bool・positive decimal run ID・aware now・finite deadline・active checkpointを検査し、同tupleの `prepare_owned_change` とpublic promptを再検証する。既存action2種だけ、source/bytes/scope検証は緩めない。DISABLED判定は他の処理より先。
   - client factoryとcap/upperは新送信にだけ必要。新送信時はfinite Decimalを既存 `provider_budget._money` の範囲/精度で検査し、設定済みの不正値は固定ValueError・factory0、未設定なら `SKIPPED / PROVIDER_NOT_CONFIGURED`。既存provider境界で予算・intent ACK→送信を守り、factoryエラーもraw例外を返さない。
   - 成功辞書は既存P0 fieldsを保持し、host UTCの `compared_at: str` を成功時一度だけ付加する。model parser/invalid状態・NO_ACTION/rules比較・action_writes0は既存処理を使う。private model reasonは既存bounded parsed値だけでraw応答は保存しない。
   - result schemaは既存 `manager.catalog-shadow.v1`、statusは `SKIPPED|UNKNOWN|COMPARED_P0`。reasonは現sourceの既存値と、新規 `INPUT_BINDING_MISMATCH|PROVIDER_NOT_CONFIGURED` の固定文字列のみ（下記列挙を正本とする）。
   - reason集合: `DISABLED, DEADLINE_EXPIRED, PLANNER_UNCERTAIN, NO_CANDIDATE, UNSUPPORTED_CONTEXT, UNSUPPORTED_ACTION, CONTEXT_REVALIDATION_FAILED, PRIOR_INTENT_RECONCILIATION_REQUIRED, BUDGET_EXCEEDED, PROVIDER_TRANSPORT_UNKNOWN, MODEL_RESPONSE_PARSED, INPUT_BINDING_MISMATCH, PROVIDER_NOT_CONFIGURED`。
   - 公開keys: `schema,status,reason,run_id,compared_at,operation_id,context_sha256,baseline_digest,candidate_digest,baseline_decisions,model_status,model_decision,model_comparison,proof_level,authorized_execution,causal_support,human_outcome,action_writes,settled_cost_usd`。未存在の比較値はNone、baseline_decisionsは `{no_action,rules}`、model_comparisonは `{no_action_same_decision,rules_same_decision}`（各bool/None）を固定。decisionはPASS/ASK/PROPOSE、model_statusはMODEL_ADVICE_P0/INVALID_MODEL_OUTPUT/Noneのみ。scope/packet/URL/自由reason/provider IDを公開しない。
   - 公開flagは常にP0/False/False/NOT_MEASURED/int0/None。選択する値の型・hash・run/time・enumを検査し、不正値は内容を含まない `ValueError("invalid catalog shadow record")`。未知keyはコピーしない。
-- [ ] **Step 4: GREENを実行する。** 同unittestと `python scripts/check_boundaries.py` が成功、既存shadow regressionにskip追加なし、git diff --check成功を確認する。
-- [ ] **Step 5: 独立レビュー・commit。** このtaskのsource/API・境界だけをreviewし、指摘対応後に明示pathだけstageしてcommit。host/CLI/workflowの差分0を確認する。
+- [x] **Step 4: GREENを実行する。** 同unittestと `python scripts/check_boundaries.py` が成功、既存shadow regressionにskip追加なし、git diff --check成功を確認する。
+- [x] **Step 5: 独立レビュー・commit。** このtaskのsource/API・境界だけをreviewし、指摘対応後に明示pathだけstageしてcommit。host/CLI/workflowの差分0を確認する。
 
 ### Task 2: 同じcheckpointへの保存・検証・要求0の再読
 
@@ -70,7 +70,7 @@
 - 行operation_id=JSON operation_id=amp_sessions.request_id、行body_hash=amp_sessions.body_hash、intent.status=BOUND、JSON provider.session_id=同intent.session_id。派生budget IDのreservationが必須、成功行にRESERVEDは不可（UNKNOWN_USAGEまたはTOKENS_OBSERVED_COST_UNSETTLED）。usage有りならJSON token2値も一致、settled_units/settled_costはNULL/Noneのまま。usage不明を0にせず、既存Usage/予算validatorの範囲を再利用する。
 - `owned_checkpoint._validate_database` は既存provider validatorの後にlocal importで新validatorを呼ぶ。module-topでshadowをimportしない。新validatorはDDL/constructor/save/plannerを呼ばないため、shadow→checkpointの既存importと循環実行しない。
 
-- [ ] **Step 1: REDテストを書く。** 新test fileでは既存shadow fixtureと `test_owned_checkpoint` のMemoryGateway/snapshotを再利用し、以下の境界を一つずつ検査する。
+- [x] **Step 1: REDテストを書く。** 新test fileでは既存shadow fixtureと `test_owned_checkpoint` のMemoryGateway/snapshotを再利用し、以下の境界を一つずつ検査する。
   - `test_completed_result_is_remote_acked_before_return`: 成功結果を返す時点でremote snapshotにvalid結果行があり、provider意図/予算ACKも先行する。結果保存にだけ失敗するtransportを使う対になる検査も用意する。
   - `test_fresh_restore_replays_original_comparison_without_initialization`: fresh cpへ復元、同prepared入力、factory/BudgetLedger constructor/plannerをAssertionErrorにpatch、cap/upper=Noneで `self.assertEqual(replayed, first)`、原run/time一致、create0・追加reservation0・結果行1件をassert。
   - `test_changed_prompt_same_operation_is_unknown_without_create`: retrieved_atだけを更新した同content入力でop ID一致/body hash不一致を確認し、`self.assertEqual((result["status"], result["reason"]), ("UNKNOWN", "INPUT_BINDING_MISMATCH"))`、factory/create0、保存行/原run/time不変。
@@ -79,16 +79,16 @@
   - `test_old_snapshot_and_complete_optional_result_schema`: 結果表なしの旧snapshot受容、現行valid snapshotのfresh restore受容。import checkpoint→shadow／shadow→checkpoint両順をoffline subprocessで確認しSDK import/provider0。
   - `test_corrupt_result_restore_fences_before_any_factory`: missing column/PK/FK、provider4表欠落、duplicate JSON/NaN/未知key、operation/body/session参照差替え、budget欠落/RESERVED、不整合token/decision/flagsをsubTestで改変し、acquire拒否・cp.broken・factory/create0。壊れた結果を空表へ修復しない。
   - `test_expired_scope_or_deadline_cannot_turn_cached_propose_into_authority`: cached PROPOSEでも古いscope/期限は既存SKIPPED、factory/create0、packet/実行権限なし。正当な再読もaction_writes0・P0のまま、新比較件数を増やさない。
-- [ ] **Step 2: RED実行。** `cd products/manager && env PYTHONPATH=.:tests python -m unittest test_owned_catalog_shadow_results -v`。保存/API不在の実exit非0を残す。
-- [ ] **Step 3: Interfaces/schemaを実装する。** 新tableを新比較成功後の同一SQL transactionでCREATE+INSERT（OR REPLACE禁止）しcommit/close→checkpoint.save→ACK後return。ACK/検証不明を成功へcatchしない。
+- [x] **Step 2: RED実行。** `cd products/manager && env PYTHONPATH=.:tests python -m unittest test_owned_catalog_shadow_results -v`。保存/API不在の実exit非0を残す。
+- [x] **Step 3: Interfaces/schemaを実装する。** 新tableを新比較成功後の同一SQL transactionでCREATE+INSERT（OR REPLACE禁止）しcommit/close→checkpoint.save→ACK後return。ACK/検証不明を成功へcatchしない。
   - helperは既存preflight/同tuple再検証→現在のprompt/context/request hash計算→保存結果読取→既存intent確認→新送信config/予算/client生成、の順。cache hitは原辞書を返し、run/timeを現runへ置換しない。current expected_fieldsまたはbody hashが異なれば静的UNKNOWN/create0。intent-onlyもUNKNOWN/create0。
   - 保存を読む際は同じDB validationを行い、corruptならcpをfenceする。比較表がないだけならDDLなしでmiss。valid cache readではcap/upper/client_factoryが不要で、BudgetLedger初期化によるcap変更やcheckpoint追加も起こさない。
-- [ ] **Step 4: GREEN実行。** 新testと `env PYTHONPATH=.:tests python -m unittest test_owned_provider_shadow test_owned_provider test_owned_checkpoint -v`、境界検査、diff検査を実行。保存field以外の旧wrapper契約を維持し、skip/xfailやguard緩和を追加しない。
-- [ ] **Step 5: 独立レビュー・commit。** 5 Review Focusを新diffと実RED/GREEN証拠で確認し、明示pathだけcommit。rootが最終integrated headの必要なsuite/CIを確認して通常main統合する。host接続/activationは別段のまま。
+- [x] **Step 4: GREEN実行。** 新testと `env PYTHONPATH=.:tests python -m unittest test_owned_provider_shadow test_owned_provider test_owned_checkpoint -v`、境界検査、diff検査を実行。保存field以外の旧wrapper契約を維持し、skip/xfailやguard緩和を追加しない。
+- [x] **Step 5: 独立レビュー・commit。** 5 Review Focusを新diffと実RED/GREEN証拠で確認し、明示pathだけcommit。rootが最終integrated headの必要なsuite/CIを確認して通常main統合する。host接続/activationは別段のまま。
 
 ## 判断済み事項・限界・self-review
 
 - hash-only方針を保持する。DB単独でcontext SHAからrequest SHAの逆算、元promptの再構成、remote completed turnの再証明はできない。validatorはintent/budget参照整合、current prepared inputは両hashと全base fieldsを照合する。BOUNDだけを成功認定しない。
 - 日時だけ変わる再planningも厳密には新入力なので再読失敗となる。元のsame-input比較を取り出す機能であり、新しい観測に旧モデル判定を転用する機能ではない。新しい有用性・成果・課金確定を認定しない。
 - Spec coverage: 同入力/保存/ACK/replay/UNKNOWN/公開/旧snapshotを2taskへ割付済み。Interfaces名・kwargs・keysを統一。5 Review Focusは全て明示negative testあり。sourceは3ファイル、追加production module0。host/CLI/workflowと実model比較は意図した範囲外。
-- 実装前計画。未実装・未テスト・台帳更新なし。rootはオフラインの同入力・耐久保存のsource境界だけを実装対象とした。host接続・推論ON・有用性の認定は含めない。
+- Task1/2のsource実装と個別reviewは完了。最終focused70/full430 tests成功、skip0、各reviewは仕様・品質PASS／指摘0。rootのブランチ全体review・公式CI・通常main統合は未完了。元113件の台帳は変更していない。host接続・推論ON・有用性の認定は含めない。
