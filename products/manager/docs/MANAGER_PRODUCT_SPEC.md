@@ -42,7 +42,7 @@
 | 観点 | 実確認した現状 | まだ成立していないこと |
 |---|---|---|
 | 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
-| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認 | E16全体の受入。mental後の明示STOP・限定rollbackの実配信と復元後のresume/replay確認は進行中 |
+| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認。mental後の明示STOPも公式ACK済み | E16全体の受入。限定rollbackの実配信と復元後のresume/replay確認は未受入 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
 
