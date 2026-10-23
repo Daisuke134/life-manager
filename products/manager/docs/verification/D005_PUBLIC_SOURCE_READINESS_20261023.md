@@ -42,3 +42,15 @@ cloudのsource-boundaryはcanonical checkout不在のFAILを保持しており�
 [research CI39941440653](https://github.com/Daisuke134/life-manager/actions/runs/39941440653)はsource head `782f4535a7ac87eed82c44d12e16f5ae23633e24`でSUCCESS。E01 receipt6件、Ampersand P0 regression21件、原113件view整合・import境界が成功し、全suiteは942実行・6 skip・失敗0、27.256秒。取得した公式logは30560 bytes、SHA256 `d0f0c711c1f970a7f273bda05329a59ce7075810774476f2aa4c18422ee5de1e`。local workerの968実行・5 skipとは別の実測として保存する。
 
 このrunはD003/D011のsource同期と品質flag修復を含むが、その後の説明文commitを検証したrunではない。source/testの同一性と文書の更新を分けて記録する。原D005の測定有効性・人への効果をこのCIから認定しない。
+
+## 追加候補：UCI Appliances Energy Prediction
+
+[UCI dataset374](https://archive.ics.uci.edu/dataset/374/appliances+energy+prediction)、DOI [10.24432/C5VC8G](https://doi.org/10.24432/C5VC8G)の別sourceを監査した。[原著](https://orbi.umons.ac.be/bitstream/20.500.12907/23357/1/1-s2.0-S0378778816308970-main.pdf)は Candanedo/Feldheim/Deramaix (2017)、DOI **10.1016/j.enbuild.2017.01.083**。印刷p85 §2.1とp89 Table2により、実際のDHT-22使用、屋内kitchenのT1/RH_1、建物北側屋外のT6/RH_6、°C/%、約3.3分送信を10分平均した対応を確認した。T_out/RH_outの空港補間値と区別する。
+
+[AM2302/DHT22資料](https://cdn-shop.adafruit.com/datasheets/Digital+humidity+and+temperature+sensor+AM2302.pdf)の型番aliasとchamber校正・OTP係数、[Aosong公式AM2302](https://www.aosong.com/en/Products/info.aspx?itemid=2294&lcid=139)が埋め込む製品紹介画像のfactory calibrationを確認した。型番に適用する工場校正には根拠がある。公称温度は−40〜80°C、RHは公式現行0〜99.9%と資料0〜100%を区別する。原著RH精度±3%と現行±2%も混ぜない。現行資料は2016年の個体・継続状態・有効期間まで認証しない。**別URLの `DHT22.pdf` は本文がAM2303/DS18B20であり、根拠から除外した。**
+
+[UCI CSV](https://archive.ics.uci.edu/static/public/374/data.csv)はHTTP200の応答から先頭16384 bytesだけを保持した。prefix SHA256は `5cb9eae9d65c6ff2d7a7487df9e879c465027e9819045379f94af52af97733ed`。header29列と完全70行、末尾不完全行を区別し、後者を除外した。native日時ラベルは2016-01-1117:00:00〜2016-01-1204:30:00、69間隔すべて600秒・重複0。4列280値はfiniteで両資料の公称範囲内。**70 nominal候補という確認で、校正有効な70行や全19735行の監査ではない。** timezone、個体の継続正常性、source quality flag、平均coverageはUNKNOWN。著者R codeのUTC指定を実測loggerのUTC証明へ変換しない。
+
+rootは18原本receiptのbytes/hashと70行を独立再検証した。原著PDFは6095546 bytes、SHA256 `20ec6c6cd7b0943724c87a315bfc038f8679d2d8a7247ea8a640e76374504ba5`。datasetのCC BY4.0に従いLuis Candanedo/UCIとDOIへ帰属し、ここでは集計事実と所在だけを記す。著者repoのcode、Elsevier論文、メーカー資料へdatasetのlicenseを拡張しない。
+
+独立source前提reviewは **CONDITIONAL YES**。同じnative時計の原行・値・単位・型番factory calibrationの根拠を残し、欠測・非finite・不完全行・既知の不良flag・公称範囲外を除外する薄いP0接続には進める。公称適格性と個体の校正有効性UNKNOWNを分け、operating rangeを個体の校正範囲と呼ばない。旧strict analyzerのためにUTC、校正日、対照、actuatorを創作しない。**adapterによる自動排除・接続は未実装、D005はtodoのまま**。この追加監査で旧sourceの不明を解消したり、D006以降・健康効果・実行権限を認定したりしない。
