@@ -53,6 +53,16 @@ python scripts/check_boundaries.py
 認証・状態復元・公開・復元後の重複送信0件という実際の記録が揃うまで、
 ローカルテストの成功だけでE16を完了にしません。
 
+mainの明示的なworkflow dispatchでは、`operation`から`run-once`、`stop`、
+`rollback`、`resume`を選べます。定期実行は`run-once`です。STOPは非公開状態に
+保存され、別runnerでも維持します。rollbackは保存済みv2の現在の変更と元の
+7ファイルだけに限定し、Git CASで照合します。`resume`は現在の公開内容を
+改めて確認してから停止を解除します。配信待ちや不明な結果だけで復元しません。
+
+公式commitと独立した配信確認から得た技術観測は、既存SQLiteへ元の単位で
+記録します。人の結果は`NOT_MEASURED`、欠測はnullのままです。Explorerの
+集計表示はローカル描画機能で、公開サイトへの接続・実観測の受入れは別に確認します。
+
 ## 進捗の正本
 
 このREADMEは実装の入口であり、新しいTODO一覧ではありません。
