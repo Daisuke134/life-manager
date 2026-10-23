@@ -27,6 +27,7 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- Codex Mobile: Apple公式購読件数を既存日次取得・日次表示へ接続する限定atomを所有。専用branch feat/mobile-apple-subscription-source-20261024、collector/report各2fileと正本だけを変更し、MRR/weekly/CFO/旧snapshot/送信は変更しない。契約・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - 2026-10-24 01:50 Codex AI Monk: Database139出典/CLI v0.4.4/公式MCP Registry activeを受入し、無料Codex pluginの新X告知2113673062554247580を1回公開、expanded目的URL・UTM/公開本文一致・再送0。参謀へ上記配布協力を依頼（受領/参謀投稿は未確認）。次: 追加33商品を根拠付きで統合し、正式plugin掲載と原価ベースのIG先行Factoryへ進む。日次loop操作0。
 - 2026-10-24 01:19 JST Codex(Maritime receipt): root公式readbackの既存X各1件（英語selawmqt/日本語diceai0）の公開2件と同pilotへの導線を記録。EN t.coを担当GETでHTTP200、JA独立attributionはなし。readback claimを閉じ、T17 sourceはDRAFT準備/実行bindingなしを保持。実利用/費用/正式receiptはunknown、追加投稿・本番反映0。次: source DRAFT PR #8745の通常review/CIと実binding確認、docs review/CI/main。
 - 2026-10-24 01:00 JST Codex(Maritime readback): 英日pilot・記事・healthのHTTP200、Railway両serviceの3c07308/SUCCESS・Onlineを確認。source307e86dのT17未実装、現行flags/counts・正式receipt・X公開receiptはunknownを維持。live-readback-20261023.jsonと統合SSOTへcheckpoint追加。本番/投稿/提出/model/auth変更0。次: docs review/CI/main、T17/T18別owner、rootの正式提出/配布readback。
