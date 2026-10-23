@@ -149,6 +149,8 @@ def _validate_database(path):
                     raise ValueError('invalid saved rollback delivery binding')
                 from .models.source import _aware
                 _aware(datetime.fromisoformat(evidence['observed_at']))
+        from .owned_provider import validate_provider_tables
+        validate_provider_tables(db, tables)
 
 
 class PrivateCheckpoint:
@@ -179,9 +181,11 @@ class PrivateCheckpoint:
             if len(raw)>MAX_SNAPSHOT or sha256(raw).hexdigest()!=value['sha256']:
                 raise ValueError('invalid checkpoint bytes')
             return value,raw
-        except Exception:
+        except BaseException as exc:
             self.broken=True
-            raise CheckpointUnavailable('private state transition uncertain; reconcile only') from None
+            if isinstance(exc, Exception):
+                raise CheckpointUnavailable('private state transition uncertain; reconcile only') from None
+            raise
 
     def acquire(self, root):
         if self.db is not None or self.broken:
@@ -219,9 +223,11 @@ class PrivateCheckpoint:
                 raise ValueError('checkpoint CAS acknowledgement differs')
             self.revision=value['revision']
             return dict(revision=self.revision,sha256=checksum)
-        except Exception:
+        except BaseException as exc:
             self.broken=True
-            raise CheckpointUnavailable('checkpoint save uncertain; reconcile only') from None
+            if isinstance(exc, Exception):
+                raise CheckpointUnavailable('checkpoint save uncertain; reconcile only') from None
+            raise
 
     def release(self):
         if self.db is None or self.broken: raise CheckpointUnavailable('active private session required')

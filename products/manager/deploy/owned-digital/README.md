@@ -45,3 +45,28 @@ still needs the trusted main workflow, its scoped OIDC permission and provider
 secrets, the reviewed Supabase `verify_jwt=false` setting, and separate live
 readback of the SQL privileges, function authentication, and private state
 behavior. This repository change does not establish those live facts.
+
+## Optional checkpointed advisory provider
+
+The `manager_core.owned_provider.CheckpointedProvider` callable adapter can
+connect an already acquired `PrivateCheckpoint` to the optional Ampersand
+session journal and budget ledger. Both SQLite stores live in that exact
+private `cycle.sqlite` database, so the existing SQLite Backup API carries
+their state in the same private snapshot. It does not change the scheduled
+deterministic planner or enable scheduled provider inference.
+
+The adapter is advisory only. Its public-fact prompt rejects synthetic facts,
+and its strict output parser returns P0 advice with execution authorization
+disabled, causal support false, and human outcome not measured. Session
+creation and followup reservations, UNKNOWN intents, event idempotency keys,
+writer claims, usage estimates, and releases are checkpointed after SQLite
+commit and close and before a possible provider write. A lost checkpoint
+acknowledgement fences that owner; UNKNOWN creation or event state remains
+UNKNOWN and is never automatically resent.
+
+The configured reservation cap restricts which reservations this adapter may
+add to its ledger. It is not a provider-enforced token or spend ceiling and is
+not a settled bill. Token-derived costs remain estimates; settled cost is
+unknown until separate provider billing evidence is reconciled. Exact-turn
+recovery is not automatic because the session journal does not persist turn
+identifiers.
