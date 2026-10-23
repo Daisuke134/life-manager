@@ -1205,6 +1205,30 @@ def _central_closure_result(owner_id: str, result: dict) -> dict:
     return result
 
 
+def _execute_anchor(writer_root: Path, occurrence_id: str, queued_at: float) -> float:
+    """When the occurrence actually started: its own runtime execute event, else queued_at.
+
+    A disk-floor or capacity defer can hold a queued occurrence for an hour; the Writer run it
+    pairs with starts after the execute event, not after the queue time.
+    """
+    try:
+        lines = (writer_root / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return queued_at
+    starts = []
+    for line in lines:
+        if occurrence_id not in line:
+            continue
+        try:
+            row = json.loads(line)
+            if row.get("phase") == "execute" and row.get("occurrence_id") == occurrence_id:
+                starts.append(datetime.fromisoformat(str(row["timestamp"]).replace("Z", "+00:00")).timestamp())
+        except (ValueError, KeyError, TypeError):
+            continue
+    later = [start for start in starts if start >= queued_at]
+    return max(later) if later else queued_at
+
+
 def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path = ARTICLES,
               fetch_status: Callable[[str], int] = _http_status, resolver: Callable[..., bool] | None = None,
               resolve: bool = False, now: float | None = None, runs_root: Path = RUNS_ROOT,
@@ -1229,6 +1253,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         rows = [json.loads(line) for line in articles_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except (OSError, ValueError):
         return _inconclusive(occurrence_id, "articles_ledger_unreadable")
+    pair_from = _execute_anchor(writer_root, occurrence_id, queued_at)
     candidates = []
     for row in rows:
         run_id = str(row.get("run_id", ""))
@@ -1242,7 +1267,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         run_dir = runs_root / run_id
         starts = ([started] if runs_root.is_symlink() or run_dir.is_symlink() or not run_dir.is_dir()
                   else _run_starts(run_dir))
-        if any(queued_at <= start <= queued_at + PAIR_WINDOW_SECONDS for start in starts):
+        if any(pair_from <= start <= pair_from + PAIR_WINDOW_SECONDS for start in starts):
             candidates.append(row)
     proven = [row for row in candidates if fetch_status(str(row["live_url"])) == 200]
     if not proven:
@@ -1291,7 +1316,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
             absence_readback, resolver, resolve)
         if carry_over is not None:
             return _central_closure_result(OWNER_ID, carry_over)
-        result = _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
+        result = _pre_effect(occurrence_id, pair_from, state, rows, runs_root,
                              pre_effect_resolver, resolve)
         return _central_closure_result(OWNER_ID, result)
     receipt = str(proven[0]["live_url"])
