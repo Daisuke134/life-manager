@@ -47,11 +47,10 @@ class NativeObservationBridgeTests(unittest.TestCase):
             self.assertEqual((p1.measure_id, p1.unit, p1.status),
                              ('owned.pages.commit_occurrence', 'commit_occurrence', 'VERIFIED'))
             self.assertEqual(p1.receipt_ref, receipt)
-            self.assertEqual(p1.observed_at.isoformat(),
-                             urls[f'https://api.github.com/repos/{collector_fixtures.REPOSITORY}/commits/{receipt}']
-                             and datetime.fromisoformat(json.loads(urls[
+            self.assertEqual(p1.observed_at,
+                             datetime.fromisoformat(json.loads(urls[
                                  f'https://api.github.com/repos/{collector_fixtures.REPOSITORY}/commits/{receipt}'])
-                                 ['commit']['committer']['date'].replace('Z', '+00:00')).isoformat())
+                                 ['commit']['committer']['date'].replace('Z', '+00:00')))
             self.assertEqual(len(p2_rows), 2)
             for p2 in p2_rows:
                 self.assertEqual((p2.measure_id, p2.unit, p2.status, p2.proof_level),
