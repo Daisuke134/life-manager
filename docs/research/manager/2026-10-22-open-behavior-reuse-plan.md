@@ -21,20 +21,70 @@ Rothko私有weights、商用provider契約、企業提携、個票NDA、巨大�
 | OASIS | social-feed固有の問いが生じた場合の比較候補 | Apache2。ConcordiaとはPython要件が異なる |
 | AgentTorch/AgentSociety | 要件が生じた後の候補 | 前者current AGPL3、後者commercial例外あり。必須依存にしない |
 
-## 実装時のatomic patch順
+## 実装・再利用経路
 
-Slice AはPR #8555として2026-10-22にmainへ統合された（merge commit `2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2`）。Slice Bは別のPR #8575として2026-10-23にmainへ統合された（merge commit `b7c9d150684d0278ec7011e2a9981cef2e3f952f`）。Aは自己完結した標準ライブラリの公開source inspector、Bはhash検証済みの非公開snapshotに対する固定study-holdout集計CLIと任意研究依存のNumPy/SciPyを使う診断であり、どちらもManager runtimeの追加・複製・統合ではない。C–Fは下記の未実装案のままであり、runtime接続やE16/Phase受入の状態を変更しない。task状態は既存SSOTだけが所有する。
+Slice AはPR #8555として2026-10-22にmainへ統合された（merge commit `2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2`）。Slice Bは別のPR #8575として2026-10-23にmainへ統合された（merge commit `b7c9d150684d0278ec7011e2a9981cef2e3f952f`）。Aは自己完結した標準ライブラリの公開source inspector、Bはhash検証済みの公開効果集約に対する固定study-holdout診断であり、どちらもManager runtimeの追加・複製・統合ではない。Cは固定Twin wave4 snapshotの検査と既公開出力の記述的agreement監査までが実装済みで、full behavioral modeling/evaluationの完了ではない。Dは予測の事前固定方法と、1件の未来FOMC reference forecastのsource-lock/attestationまでが存在するが、イベント結果の採点は未了である。E/Fは未実装案のまま。これらの状態はruntime接続やE16/Phase受入を変更しない。task状態は既存SSOTだけが所有する。
 
 | 順 | ファイル・接続点 | 最小変更 | 完了を示す検証 |
 |---|---|---|---|
 | A (PR #8555でmain統合済) | 実装: `products/manager/scripts/inspect_external_behavior_benchmark.py`、`products/manager/tests/test_external_behavior_benchmark.py`。旧companionは委譲entrypoint | 固定 `reuse.json` pinsを先に照合し、Fig1 panelA/Bをstrict analysis。他の取得sheetはinventory、PDFはhashのみ。原データはprivate、出力は集計のみ | 23 synthetic tests。全4ファイルfixtureで同じ長さの改変を作り、`python -O` のinternal API child processがparse前の `SOURCE_HASH_MISMATCH` を返すことを確認。CLIのsanitized error/empty stdout/exit 2は別に確認。実snapshot 70/3356/129/1678・group counts・GPT-4 summaries・4 hashes照合済。新規推論ではない |
 | B (PR #8575でmain統合済) | `products/manager/manager_core/external_behavior_eval.py`、`products/manager/scripts/evaluate_external_behavior_benchmark.py`、focused test、任意依存の固定requirements | 既存inspectorのhash-first validated loaderを再利用。効果量を[-1,1] full scaleで保持し、zero/raw/train-only weighted through-origin betaを比較。NumPy/SciPyは通常runtimeの必須依存ではない | 固定SHA-256層別study split、study単位bootstrap、pair→outcome→studyのmacro平均。欠測≠0。direction coverageとtieを明示。Pearsonは対称方向を使った記述的な反対称associationのみ。選択目的未指定ならregret null。詳細と再現手順は[released-effects診断](2026-10-23-released-effects-diagnostic.md)参照。 |
-| C (未実装) | 新 `scripts/twin_wave4_eval.py`、対応するfocused test | 公式QuestionID/mappingでwave1–3のみ入力。既存 `phase04_socsci_individual.py::evaluate_predictions` の分母・split設計を参考にする。まず配布出力を再採点 | wave4回答・full_persona漏洩を検出。個人/分布/subgroup/coverageを別表示。新規推論は小subsetで費用計測後 |
-| D (未実装) | 新 `scripts/public_event_forecast.py` と予測記録schema | 決算説明会の公開先例を模倣。公開前入力cutoff・対象・採点法・モデル・予測hashを固定し、後日公開記録で採点 | cutoff後情報混入と後出し予測変更を検出。過去質問等の強いbaseline、欠測と失敗を報告。個人の非公開属性は不要 |
+| C (bounded released-data audit実装済、PR #8580 `e02b6e8284577f9671821fdcaef289ea9c96d6c6`、PR #8599 `d8e16607797ef218843e09cd530aa5c1c8b7465c`) | `products/manager/scripts/twin_wave4_eval.py` と `products/manager/tests/test_twin_wave4_eval.py` | `reuse.json`にpinされた5入力と公式MAD scorerをhash確認後、既存released outputとwave1–3 history／wave4 target間の集約agreementを監査する。任意依存は専用[`requirements-twin-wave4-eval.txt`](../../../products/manager/requirements-twin-wave4-eval.txt)。5入力・CLI・再現制約は下記「C: released agreement audit」を参照 | 出力はdescriptive aggregate。provenance/run binding/training exposure不明、predictive accuracy null、`scientific_pass=false`。将来モデル推論、full persona/subgroup検証、人の行動・便益評価は未完了 |
+| D (事前固定方法と1件のreference forecastのみ実装済) | method PR #8585 commit `16cb856861528124e89fb0983bbe59f382eb4afc`。FOMC reference forecast PR #8593 commit `f6055f9460502cd79cba95ffadecb998439e1056`、byte attestation PR #8595 | source/cutoff/target/baselineを事前固定する手順を記録。FOMC 2026-10-27–28は公開履歴頻度による決定的な `p=0.25` referenceのみ | この確率は同じ歴史頻度baselineと等しい。model call・human probability judgment・独立性能の主張はない。会合結果はまだなくscore unavailable。一般forecasting評価、accuracy、human outcomeは未完了 |
 | E (未実装) | 必要時、新 `scripts/concordia_behavior_eval.py`。既存 `concordia_island_mock.py::run` は保持 | upstream engineへ薄い接続。処置対照は同一初期状態・対応seed、条件間memoryを隔離 | 実モデル実行/費用/seedと外部参照の効果誤差。mock完走を人間妥当性にしない |
 | F (未実装) | 既存 `evidence.py::validate_record/load_verified_trial`、`scripts/heartsteps_phase3.py`、既存kernel/publisher | 予測→選択→実行→独立readback→行動→持続/害/費用の参照を接続。歴史研究は過去の証拠、自分の新介入は別occurrence | 実行receiptと便益の区別、比較対象、欠測、持続、group別不利益。歴史RCT再採点だけで新P4を発行しない |
 
-### Slice A/B の統合済み検証範囲
+### Slice A/B/C と D の統合済み検証
+
+A/Bの既存検証記録は維持する。Bは公開Nature集約値の後ろ向きdiagnosticであり、CのTwin結果とは異なるdataset/taskである。Cについては、構造的inspector PR #8580 (`e02b6e8284577f9671821fdcaef289ea9c96d6c6`) と公式MADを加えた集約監査 PR #8599 (`d8e16607797ef218843e09cd530aa5c1c8b7465c`) がmainに統合済み。Cのfocused suite 23 testsを含むB/C suiteは、追加したoptional scorer依存を使ったPython 3.12.14環境で73 tests passした。これはtestsと決定的集計の再現であり、科学的passではない。
+
+#### C: released agreement audit
+
+実行対象は`products/manager/scripts/twin_wave4_eval.py released-agreement <INPUT_DIR> <OFFICIAL_CODE_PATH>`。`<INPUT_DIR>`は私有のローカルsnapshot directoryで、次の5ファイル全てを置く。各byte countとSHA-256は repositoryの[`reuse.json`](evidence/artificial-societies-20261022/reuse.json)に固定され、CLIは一致を検査する。raw CSVはrepositoryやpublic artifactへコピーしない。
+
+| local filename | role | SHA-256 |
+|---|---|---|
+| `catalog.json` | official question catalog | `e72e305f0c7c83bb990e97de4c0cf2c718ead18cc197239b7feeb354c9ac1bef` |
+| `mapping.json` | official wave4-to-catalog mapping | `345f7f6645f80dc23bcb423a9bb7c5ae77dbbd17fe572472fdfeb252bdcfc2c7` |
+| `history.csv` | wave1–3 human responses | `fc227b1682e2654fd4b2a8152294b68118c0e3be4d83f4a9af5f3e96df56d3f0` |
+| `target.csv` | wave4 human responses | `09ec1a88bdd48fec95963da3102df0ca467378bf729cbc1c0b869b0f1e4fb942` |
+| `output.csv` | released GPT-4.1-mini output (generation provenance unverified) | `22937217115db30c064489125e39ceb0539c461b678400d8b3e0827962e5436c` |
+
+`<OFFICIAL_CODE_PATH>` must be the exact official `evaluation/mad_accuracy_evaluation.py` fetched from `tianyipeng-lab/Digital-Twin-Simulation` revision `f1eed510c9a4fb47aaa9bb46e178aaa2d9224623`; before import, the CLI requires SHA-256 `b25b7912310c14393b62dcaf5c214496189f98eb82398e86bb8004a14785ff96`. Do not vendor that upstream source into this repository. Its imports include pandas, matplotlib, and yaml in addition to B's NumPy/SciPy. The optional requirements file installs only the tested pinned scorer imports on top of the existing B requirements; it is not an ordinary Manager dependency and does not recreate the full upstream Poetry/model environment. The upstream `pyproject.toml` uses broad constraints, so these pins establish only the tested scorer-import environment.
+
+With Python 3.12.14, NumPy 2.2.6, SciPy 1.15.3, pandas 2.2.3, matplotlib 3.10.8, and PyYAML 6.0.3, the existing C CLI reproduced the complete aggregate byte-for-byte. The checked-in aggregate is [`twin-released-agreement-20261023.json`](evidence/twin-released-agreement-20261023.json), SHA-256 `f3556911ca7be301a0481c7505ff7fbd32206d175e1a8ce94f71deed9a519bbb`; it retains the 197,580 common native-valid cells. The same B/C focused command completed 73 tests (23 Twin gate, 23 external inspector, 27 released-effects evaluator). The initial reproduction report's missing-pandas failure remains preserved; see the completed scorer follow-up at `/workspace/scratch/manager-e16-cloud-completion-20261022/pinned-scientific-reproduction-complete-scorer.md` for the follow-up environment and result.
+
+For a repeat run, make an isolated Python 3.12 environment and install the optional pins; do not add them to the ordinary Manager environment. The private snapshot directory must contain the five filenames above, and the official scorer file must match the fixed revision and hash. Keep the output aggregate and Matplotlib cache in private temporary paths; compare the resulting aggregate with the checked-in JSON rather than overwriting it.
+
+```bash
+python3.12 -m venv "$TWIN_WAVE4_VENV"
+"$TWIN_WAVE4_VENV/bin/python" -m pip install \
+  -r products/manager/requirements-twin-wave4-eval.txt
+curl -fsSL \
+  https://raw.githubusercontent.com/tianyipeng-lab/Digital-Twin-Simulation/f1eed510c9a4fb47aaa9bb46e178aaa2d9224623/evaluation/mad_accuracy_evaluation.py \
+  -o "$TWIN_WAVE4_OFFICIAL_SCORER"
+printf '%s  %s\n' \
+  b25b7912310c14393b62dcaf5c214496189f98eb82398e86bb8004a14785ff96 \
+  "$TWIN_WAVE4_OFFICIAL_SCORER" | sha256sum -c -
+MPLCONFIGDIR="$TWIN_WAVE4_MPLCONFIG" MPLBACKEND=Agg \
+  "$TWIN_WAVE4_VENV/bin/python" \
+  products/manager/scripts/twin_wave4_eval.py released-agreement \
+  "$TWIN_WAVE4_PRIVATE_SNAPSHOT" "$TWIN_WAVE4_OFFICIAL_SCORER" \
+  > "$TWIN_WAVE4_PRIVATE_AGGREGATE"
+sha256sum "$TWIN_WAVE4_PRIVATE_AGGREGATE"
+cmp "$TWIN_WAVE4_PRIVATE_AGGREGATE" \
+  docs/research/manager/evidence/twin-released-agreement-20261023.json
+```
+
+Set each `TWIN_WAVE4_*` variable to a path outside the repository. The pinned official source declares dependencies in its upstream [pyproject.toml](https://raw.githubusercontent.com/tianyipeng-lab/Digital-Twin-Simulation/f1eed510c9a4fb47aaa9bb46e178aaa2d9224623/pyproject.toml); those broad upstream constraints and model packages are not installed by this optional file. The exact versions here are the tested import set needed by this released scorer, not a full upstream environment reproduction.
+
+Interpret this JSON as a descriptive agreement audit only. It records `generated_cell_provenance=UNVERIFIED`, `generation_run_binding=UNKNOWN`, `model_training_exposure=UNKNOWN`, `predictive_accuracy=null`, top-level `accuracy=null`, and `scientific_pass=false`; human outcomes are `NOT_MEASURED`. Hash-valid inputs and agreement rates do not verify which process generated output.csv, exclude training exposure, establish predictive accuracy on independent future data, or demonstrate human behavior/benefit. The audit does not complete C's proposed future modeling, full-persona, subgroup, or intervention-effect evaluation.
+
+#### D: method and one prospective reference case
+
+The D method commit `16cb856861528124e89fb0983bbe59f382eb4afc` freezes a single public-event question, source cutoffs, deterministic reference rule, and exact payload for later read-only attestation. PR #8593 adds the [FOMC 2026-10-27–28 reference forecast](predictions/fomc-2026-10-27-28/README.md) and [deterministic procedure](predictions/fomc-2026-10-27-28/REFERENCE_PROCEDURE.md), using the historical-frequency baseline: `p=0.25`, deliberately equal to that baseline. PR #8595 (attestation commit `ef41dd2453a84140d7caf877a6ec4b1ae0853b81`) verifies the frozen payload bytes before the input cutoff; the [attestation record](predictions/fomc-2026-10-27-28/ATTESTATION.json) validates the record lock, not forecast accuracy. As of 2026-10-23 the meeting outcome is unavailable, so no score or independent performance estimate exists. No model was called and no human probability judgment was collected. General public-event forecasting evaluation remains future work.
+
+E/F remain unimplemented proposals. The published 2026-10-22 research article and the original Slice C/D future evaluation goals should not be labeled complete based on these bounded C/D artifacts.
 
 `python -B -m unittest discover -s products/manager/tests -p 'test_external_behavior_benchmark.py' -v` は23 testsがpass。合成OOXMLでshared/inline strings、必須cell/header、hash前倒し、重複・逆方向・完全比較graph・study group、Fig3等の空panel inventoryを検査した。SHA-256照合は、同じ長さを保った合成supplement改変を含む全4ファイルfixtureで、`python -O` child processからinternal APIにfixture metadataを渡して `SOURCE_HASH_MISMATCH` を直接確認し、CLIのsanitized errorは別に検査した。実データを使った一度の照合では70 studies、3,356 directed rows、129 study×outcome blocks、1,678 unordered pairs、published/unpublished 1,572/1,784、panelB 8 rows、4つのmanifest hash、公開GPT-4 raw/adjusted correlationを確認した。canonical CLIとlegacy entrypointは別current directoryから同一JSONを出した。source-boundary guardはクラウドhostにcanonical pathがないためFAILのまま記録し、変更していない。
 
