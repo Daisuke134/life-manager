@@ -100,6 +100,28 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 実装判断: 既存Python/Playwright/共通profile validatorとlocal applyを再利用する。候補者の事実には既存job-search profile v1のnameとevidence付きfactsを使う。Lancers固有accountとprovider証拠は本人private入力を明示接続し、必要最小の契約を同じcaller群へ通す。source/templateの作者値は本人証拠の代替にしない。新scheduler/独自業務core/global host profile移行/任意の新依存は追加しない。brainstormingの質問はユーザーが明示的にopt outしているため進行条件にしない。building-agentsの古いmodel/provider指定は今回のChatGPT Plus/Codex要件を上書きしない。
 
+#### Lancers本人入力の実装計画
+
+> 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
+
+**Goal:** 別の利用者のMacで、作者の個人情報や実績を使わずに本人入力からApply/Paidを準備する。
+**Architecture:** 既存candidate profile v1のvalidatorを再利用し、Lancers専用private provider recordのaccount_idを同じ最小helperから読む。候補者とaccountをplanner/safety/paid argvへ渡し、未設定なら外部操作前にsetup_requiredを返す。
+**Tech Stack:** Python標準library、既存job-search validator、既存shell/marketplace core。
+**Spec:** 本ファイルのMAC03-LANCERS-IDENTITY。
+
+**Global constraints:** ChatGPT Plus/Codex経路・UI modelを維持する。privateファイルや実browserは開発時に参照しない。新依存・新profile framework・portfolio必須gate・effect fence変更を追加しない。sourceの作者情報は本人証拠にしない。
+**Review focus:** 欠損/壊れた入力、別account、任意属性なし、portfolioなし、他provider profile混入を下記fixtureで検証する。import時の本人ファイル読みも除く。
+
+**Files:** `skills/earn/lancers/scripts/local_identity.py`（本人入力の読取/既存validate_profile呼出/CLI account-id）、`application_loop.py`（動的な本人事実と3hash・setup停止）、`paid-owner`（明示本人account）、`paid_adapter.py`（Lancers provider path）、関連Lancers tests。4sourceへの変更は同じ入力不具合のApply/Paid両callerを閉じるため必要。rootは本仕様、統合、実機確認を所有する。
+**Interfaces:** local_identity.load_identity(candidate_path: Path | None = None, provider_path: Path | None = None) -> dict はcandidate/provider/account_idを返す。既定は本人 `~/.config/anicca/job-search/profile.json` と `~/.config/anicca/lancers/public-profile.json`。後者の最小形は account_idだけのobject。SetupRequired.missing: list[str] は値を含まない不足項目。CLI account-idは同じ検証後のIDだけをstdoutへ出し、未設定はsetup_required JSONとexit78を返す。
+
+- [ ] RED: 空HOME/壊れたprofileでrun_loop/mainのplanner/discovery/browser/notifyが0、error=setup_requiredとmissing項目を返すtestを追加し、既存fallback/外部到達で失敗を確認する。
+- [ ] INPUT: local_identityで既存validate_profileを呼ぶ。候補者最小fixtureはversion1、candidate.name=別の利用者、facts=[id/claim/evidence]。provider最小fixtureはaccount_id=other-seller。自動作成やCrowdWorks参照はしない。
+- [ ] APPLY: _persona_factsは入力がある属性だけを返し、PERSONA_FACTSのimport-time読取と日本語nativeの固定文を除く。_seller_proofは本人candidate/facts/accountだけを表し、profile_version/proof_version/price_versionの3hashを維持する。未設定portfolio/pricingは空の入力としてhash化し能力を制限しない。catalog_product_id/versionはattribution callerでも存在時だけ渡す。main/run_loopは不足を外部操作・通知前に返す。
+- [ ] PAID: paid-ownerは同じhelperのaccount-idを引用した単一argvとして渡し、paid_adapterのprovider既定をLancers pathへ修正する。Noneの新interfaceは追加せず、account-only provider objectを共通reply groundingで扱う。quality/readback/既存no-effect reconcileを保持する。
+- [ ] GREEN: 本人fixtureでprompt/safetyとpaid argvがother-sellerの値だけを使い、属性/portfolioなしでも作者値を含まない。CrowdWorks fixtureだけではsetup成功しない。既存persona/attribution/paid fixtureを本人入力契約へ更新し、関連suite・source-boundary・diffをPASSする。
+- [ ] SHIP: source commit/push→独立review→必要CI/main/public byte readback。実Lancers activationはSETUP/RUNTIMEのTODOで本人観測後に行い、sourceだけで業務完了にしない。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
