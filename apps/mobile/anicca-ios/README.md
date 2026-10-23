@@ -15,3 +15,23 @@ files and must remain outside Git.
 
 The Xcode project and test targets use paths relative to this directory. No
 external checkout is required for source editing.
+
+## Xcode Cloud release builds
+
+Use the existing Anicca product with repository `Daisuke134/life-manager`,
+container `apps/mobile/anicca-ios/aniccaios.xcodeproj`, and scheme `aniccaios`.
+Set the secret product environment variable `ANICCA_PRODUCTION_XCCONFIG_B64`
+to the Base64 encoding of the verified private production configuration from
+the credential SSOT. Never commit the encoded value or print it in build logs.
+
+The executable `ci_scripts/ci_post_clone.sh` writes
+`Configs/Production.xcconfig` with mode `0600` before the Release archive.
+Missing, malformed, or empty input fails the hook and preserves an existing
+configuration. Staging builds still require their separate private input.
+This follows Apple's [custom build script placement](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts).
+
+Run the isolated hook checks with:
+
+```sh
+python3 apps/mobile/anicca-ios/scripts/tests/test_cloud_build_config.py
+```
