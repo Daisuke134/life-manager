@@ -175,17 +175,48 @@ class IncidentInventory:
     counts: Mapping[str, int]
     chain_valid: bool
     external_audit_status: str = "NOT_PERFORMED"
+    population_reconciled: bool | None = None
+    missing_population_run_ids: tuple[str, ...] = ()
+    unexpected_run_ids: tuple[str, ...] = ()
+    missing_trace_run_ids: tuple[str, ...] = ()
 
 
-def incident_inventory(audit: AuditTrail, run_ids: tuple[str, ...]) -> IncidentInventory:
+def incident_inventory(audit: AuditTrail, run_ids: tuple[str, ...], *,
+                       population_run_ids: tuple[str, ...] | None = None) -> IncidentInventory:
+    """Count requested traces and optionally reconcile a declared finite population.
+
+    The caller must obtain the population independently from execution/outbox
+    records, never infer it from incident counts. Its authenticity and completeness
+    are not established here. None leaves reconciliation unassessed; an explicit
+    population permits an empty selection, including a declared empty population.
+    Legacy calls without a population still require nonempty run_ids.
+
+    True means only equal declared/requested IDs with valid nonempty traces. It
+    proves neither complete outcome classification/receipts nor an external audit
+    or world-wide absence of incidents. Events/counts and missing-trace IDs cover
+    requested runs only; omitted population runs are reported without loading them.
+    """
     if type(audit) is not AuditTrail:
         raise ValueError("existing Manager audit trail required")
-    _texts(run_ids, nonempty=True)
+    _texts(run_ids, nonempty=population_run_ids is None)
+    if population_run_ids is not None:
+        _texts(population_run_ids)
     events = {run_id: tuple(audit.trace(run_id)) for run_id in run_ids}
     counts = Counter(event["data"]["status"] for trace in events.values() for event in trace
                      if event["stage"] == "evaluation" and event["data"].get("status") in INCIDENT_OUTCOMES)
+    chain_valid = all(audit.verify_chain(run_id) for run_id in run_ids)
+    missing_traces = tuple(run_id for run_id, trace in events.items() if not trace)
+    missing_population, unexpected = (), ()
+    reconciled = None
+    if population_run_ids is not None:
+        requested, population = set(run_ids), set(population_run_ids)
+        missing_population = tuple(run_id for run_id in population_run_ids if run_id not in requested)
+        unexpected = tuple(run_id for run_id in run_ids if run_id not in population)
+        reconciled = not missing_population and not unexpected and not missing_traces and chain_valid
     return IncidentInventory(MappingProxyType(events), MappingProxyType(dict(counts)),
-                             all(audit.verify_chain(run_id) for run_id in run_ids))
+                             chain_valid, population_reconciled=reconciled,
+                             missing_population_run_ids=missing_population,
+                             unexpected_run_ids=unexpected, missing_trace_run_ids=missing_traces)
 
 
 @dataclass(frozen=True)

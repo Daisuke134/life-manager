@@ -1,6 +1,7 @@
 """Governance engineering contracts; no test authorizes or executes live actions."""
 import importlib
 import importlib.util
+import sqlite3
 import tempfile
 import unittest
 from dataclasses import replace
@@ -126,15 +127,117 @@ class GovernanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "audit.sqlite"
             trail = AuditTrail(path)
-            for outcome in ("INEFFECTIVE", "WORSENED", "UNKNOWN"):
-                report = m.IncidentReport("run-1", outcome, "fixture observation", None if outcome == "UNKNOWN" else "b" * 64, NOW)
+            run_ids = ("ineffective", "worsened", "unknown")
+            for run_id, outcome in zip(run_ids, ("INEFFECTIVE", "WORSENED", "UNKNOWN")):
+                report = m.IncidentReport(run_id, outcome, "fixture observation", None if outcome == "UNKNOWN" else "b" * 64, NOW)
                 m.record_incident(trail, report)
-            inventory = m.incident_inventory(AuditTrail(path), ("run-1",))
+            inventory = m.incident_inventory(AuditTrail(path), run_ids, population_run_ids=run_ids)
             self.assertEqual(inventory.counts, {"INEFFECTIVE": 1, "WORSENED": 1, "UNKNOWN": 1})
             self.assertTrue(inventory.chain_valid)
-            self.assertEqual(len(inventory.events["run-1"]), 3)
+            self.assertIs(inventory.population_reconciled, True)
+            self.assertEqual(inventory.missing_population_run_ids, ())
+            self.assertEqual(inventory.unexpected_run_ids, ())
+            self.assertEqual(inventory.missing_trace_run_ids, ())
             self.assertEqual(inventory.external_audit_status, "NOT_PERFORMED")
-            self.assertIsNone(inventory.events["run-1"][-1]["data"]["evidence_refs"])
+            self.assertIsNone(inventory.events["unknown"][0]["data"]["evidence_refs"])
+            for trace in inventory.events.values():
+                self.assertEqual(len(trace), 1)
+                self.assertEqual(trace[0]["data"]["benefit_status"], "NOT_MEASURED")
+                self.assertEqual(trace[0]["data"]["proof_level"], "P0")
+
+    def test_population_omission_is_visible_without_broadening_requested_events(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            trail = AuditTrail(Path(tmp) / "audit.sqlite")
+            m.record_incident(trail, m.IncidentReport("selected", "INEFFECTIVE", "fixture observation", None, NOW))
+            m.record_incident(trail, m.IncidentReport("omitted", "WORSENED", "fixture observation", None, NOW))
+            inventory = m.incident_inventory(trail, ("selected",), population_run_ids=("selected", "omitted"))
+            self.assertIs(inventory.population_reconciled, False)
+            self.assertEqual(inventory.missing_population_run_ids, ("omitted",))
+            self.assertEqual(inventory.unexpected_run_ids, ())
+            self.assertEqual(inventory.missing_trace_run_ids, ())
+            self.assertTrue(inventory.chain_valid)
+            self.assertEqual(tuple(inventory.events), ("selected",))
+            self.assertEqual(inventory.counts, {"INEFFECTIVE": 1})
+
+    def test_unexpected_requested_run_is_explicit_even_with_valid_trace(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            trail = AuditTrail(Path(tmp) / "audit.sqlite")
+            trail.append("expected", "decision", {"status": "NO_ACTION"})
+            m.record_incident(trail, m.IncidentReport("extra", "UNKNOWN", "fixture observation", None, NOW))
+            inventory = m.incident_inventory(trail, ("extra", "expected"), population_run_ids=("expected",))
+            self.assertIs(inventory.population_reconciled, False)
+            self.assertEqual(inventory.unexpected_run_ids, ("extra",))
+            self.assertEqual(inventory.missing_population_run_ids, ())
+            self.assertTrue(inventory.chain_valid)
+            self.assertEqual(inventory.counts, {"UNKNOWN": 1})
+
+    def test_selected_population_id_without_trace_never_counts_as_coverage(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            trail = AuditTrail(Path(tmp) / "audit.sqlite")
+            inventory = m.incident_inventory(trail, ("absent",), population_run_ids=("absent",))
+            self.assertIs(inventory.population_reconciled, False)
+            self.assertFalse(inventory.chain_valid)
+            self.assertEqual(inventory.missing_trace_run_ids, ("absent",))
+            self.assertEqual(inventory.missing_population_run_ids, ())
+            self.assertEqual(inventory.unexpected_run_ids, ())
+            self.assertEqual(inventory.events, {"absent": ()})
+            self.assertEqual(inventory.counts, {})
+
+    def test_corrupt_chain_blocks_population_reconciliation(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "audit.sqlite"
+            trail = AuditTrail(path)
+            m.record_incident(trail, m.IncidentReport("corrupt", "WORSENED", "fixture observation", None, NOW))
+            with sqlite3.connect(path) as db:
+                db.execute("UPDATE events SET digest = ? WHERE run_id = ?", ("0" * 64, "corrupt"))
+            inventory = m.incident_inventory(AuditTrail(path), ("corrupt",), population_run_ids=("corrupt",))
+            self.assertIs(inventory.population_reconciled, False)
+            self.assertFalse(inventory.chain_valid)
+            self.assertEqual(inventory.missing_trace_run_ids, ())
+            self.assertEqual(inventory.counts, {"WORSENED": 1})
+
+    def test_legacy_call_leaves_population_unassessed(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            trail = AuditTrail(Path(tmp) / "audit.sqlite")
+            trail.append("selected", "decision", {"status": "NO_ACTION"})
+            inventory = m.incident_inventory(trail, ("selected",))
+            self.assertIsNone(inventory.population_reconciled)
+            self.assertTrue(inventory.chain_valid)
+            self.assertEqual(inventory.missing_population_run_ids, ())
+            self.assertEqual(inventory.unexpected_run_ids, ())
+            self.assertEqual(inventory.counts, {})
+            self.assertEqual(inventory.external_audit_status, "NOT_PERFORMED")
+
+    def test_explicit_empty_population_and_selection_are_finitely_reconciled(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            trail = AuditTrail(Path(tmp) / "audit.sqlite")
+            inventory = m.incident_inventory(trail, (), population_run_ids=())
+            self.assertIs(inventory.population_reconciled, True)
+            self.assertEqual(inventory.events, {})
+            self.assertEqual(inventory.counts, {})
+            self.assertEqual(inventory.external_audit_status, "NOT_PERFORMED")
+            missing = m.incident_inventory(trail, (), population_run_ids=("omitted",))
+            self.assertIs(missing.population_reconciled, False)
+            self.assertEqual(missing.missing_population_run_ids, ("omitted",))
+            with self.assertRaises(ValueError):
+                m.incident_inventory(trail, ())
+
+    def test_population_ids_require_distinct_nonblank_immutable_texts(self):
+        m = governance()
+        with tempfile.TemporaryDirectory() as tmp:
+            trail = AuditTrail(Path(tmp) / "audit.sqlite")
+            for invalid in (("selected", "selected"), ("",), ("  ",), (None,), ["selected"]):
+                with self.subTest(invalid=invalid):
+                    with self.assertRaises(ValueError):
+                        m.incident_inventory(trail, ("selected",), population_run_ids=invalid)
+                    with self.assertRaises(ValueError):
+                        m.incident_inventory(trail, invalid, population_run_ids=("selected",))
 
     def test_incident_report_rejects_unknown_enum_and_unsafe_public_detail(self):
         m = governance()
