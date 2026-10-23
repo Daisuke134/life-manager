@@ -111,10 +111,11 @@ struct OnboardingView: View {
             }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: currentStep)
-        .sheet(isPresented: $showPaywall, onDismiss: {
-            onComplete()
-        }) {
-            PaywallView()
+        .fullScreenCover(isPresented: $showPaywall) {
+            PaywallView(isHard: true) {
+                showPaywall = false
+                onComplete()
+            }
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) { appeared = true }
