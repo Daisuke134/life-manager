@@ -126,50 +126,50 @@ test("English Monk publication does not require a native TikTok receipt", () => 
   assert.equal(PACK_EN.stop_rules.includes("missing_native_receipt"), false);
 });
 
-test("English Monk Instagram owner stays effect-free until its Postiz account is connected", async () => {
-  const ownerId = "ebook-en-instagram-daily";
+test("English Monk Instagram resolves the specified connected account", () => {
   const selected = selectTarget({
-    root: ROOT,
-    pack: PACK_EN,
-    ownerId,
-    platform: "instagram",
-    accountId: "instagram.monk_anicca",
+    root: ROOT, pack: PACK_EN, ownerId: "ebook-en-instagram-daily",
+    platform: "instagram", accountId: "instagram.monk_anicca",
   });
+  assert.equal(selected.setup_required, false);
+  assert.equal(selected.integrationId, "cmoopzaak04yop70y1yx1bwr1");
+  assert.equal(selected.account.native_handle, "monk.mujo");
+  assert.equal(selected.account.publisher_provider, "instagram-standalone");
+  assert.equal(selected.target.postiz_profile, "@monk.mujo");
+  assert.deepEqual(selected.target.cadence_jst, ["08:00", "21:00"]);
+});
 
-  assert.equal(selected.setup_required, true);
-  assert.equal(selected.setup_reason, "english_monk_instagram_not_connected");
-  assert.equal(selected.target, null);
-  assert.equal(selected.integrationId, null);
-
-  const dataDir = path.join(os.tmpdir(), `ebook-en-instagram-hold-${process.pid}-${Date.now()}`);
-  const env = {
-    LIFE_MANAGER_LOOP_ID: ownerId,
-    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:run-1`,
-    LIFE_MANAGER_RELEASE_ROOT: ROOT,
-    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
-    LM_DATA_DIR: dataDir,
-    LM_RUNTIME_TENANT_ID: "dais-local",
-  };
-
+test("a disabled English Instagram route stays effect-free", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-instagram-hold-"));
   try {
+    for (const relative of [
+      "config/loop-registry.json", "config/marketing-destinations.json",
+      "skills/earn/marketing-engine/registry/accounts/instagram.monk_anicca.json",
+      "skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json",
+    ]) {
+      const destination = path.join(root, relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, relative), destination);
+    }
+    const accountPath = path.join(root, "skills/earn/marketing-engine/registry/accounts/instagram.monk_anicca.json");
+    const account = JSON.parse(fs.readFileSync(accountPath, "utf8"));
+    account.status = "disabled_verified";
+    fs.writeFileSync(accountPath, JSON.stringify(account));
+    const ownerId = "ebook-en-instagram-daily";
+    const env = {
+      LIFE_MANAGER_LOOP_ID: ownerId,
+      LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:run-1`,
+      LIFE_MANAGER_RELEASE_ROOT: root,
+      LIFE_MANAGER_RESULT_HINT_PATH: path.join(root, "entrypoint-result.json"),
+      LM_DATA_DIR: path.join(root, "data"), LM_RUNTIME_TENANT_ID: "dais-local",
+    };
     const result = await run([ownerId], { env, nowMs: Date.parse("2026-10-08T08:30:00+09:00") });
-    assert.deepEqual(result, {
-      state: "setup_required",
-      reason: "english_monk_instagram_not_connected",
-      owner_id: ownerId,
-      effect: 0,
-    });
-    assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
-      schema_version: 1,
-      kind: "life_manager_no_effect_result",
-      status: "verified_no_effect",
-      effect: 0,
-      owner_id: ownerId,
-      occurrence_id: env.LIFE_MANAGER_OCCURRENCE_ID,
-      reason: "setup_required",
-    });
+    assert.deepEqual(result, { state: "setup_required", reason: "postiz_channel_disabled", owner_id: ownerId, effect: 0 });
+    const hint = JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8"));
+    assert.equal(hint.status, "verified_no_effect");
+    assert.equal(hint.effect, 0);
   } finally {
-    fs.rmSync(dataDir, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

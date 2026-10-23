@@ -1719,9 +1719,9 @@
     },
     "ebook-en-instagram-daily": {
       "priority": "revenue",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
-      "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":14,"Minute":0},{"Hour":21,"Minute":0}]},
+      "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":21,"Minute":0}]},
       "cleanup": {"max_age_days":14,"max_runs":100},
       "domain": "growth",
       "effect_class": "publish",

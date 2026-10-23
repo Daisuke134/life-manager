@@ -172,7 +172,8 @@ def run(*, engine: Path, product: str, slot_at: str, script_id: str, ledger_path
     path = state_root / f"{receipt['run_id']}.json"
     if not claim_receipt(path, receipt):
         existing = json.loads(path.read_text(encoding="utf-8"))
-        require(all(existing.get(key) == receipt[key] for key in receipt if key not in {"state", "external_effects"}), "conflicting run replay")
+        # Channel setup can change without changing the rendered video identity.
+        require(all(existing.get(key) == receipt[key] for key in receipt if key not in {"state", "external_effects", "accounts", "setup_required_accounts"}), "conflicting run replay")
         receipt = existing
         if existing.get("state") == "telegram_delivery_unknown":
             return existing

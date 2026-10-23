@@ -28,22 +28,18 @@ const CONTRACT = path.resolve(__dirname, "../../../config/marketing-destinations
 
 test("the marketing destination SSOT fixes every retained route and every non-target connection", () => {
   const value = loadMarketingDestinationContract(CONTRACT);
-  assert.equal(value.targets.length, 21);
+  assert.equal(value.targets.length, 22);
   assert.equal(value.targets.filter((row) => ["anicca", "honne-ai"].includes(row.product_id)).length, 18);
-  assert.equal(value.targets.filter((row) => row.product_id.startsWith("ebook-")).length, 3);
+  assert.equal(value.targets.filter((row) => row.product_id.startsWith("ebook-")).length, 4);
   assert.equal(value.targets.filter((row) => row.product_id === "ebook-ja").length, 2);
-  assert.equal(value.holds.length, 12);
+  assert.equal(value.holds.length, 11);
   assert.equal(value.holds.filter((row) => row.integration_id).length, 9);
-  assert.equal(value.holds.filter((row) => row.integration_id === null).length, 3);
-  assert.deepEqual(
-    value.holds.find((row) => row.postiz_profile === "@monk_anicca"),
-    { platform: "instagram", postiz_profile: "@monk_anicca", integration_id: null,
-      reason: "english_monk_instagram_not_connected", target_daily_limit: 0 },
-  );
+  assert.equal(value.holds.filter((row) => row.integration_id === null).length, 2);
+  assert.equal(value.holds.some((row) => row.postiz_profile === "@monk.mujo"), false);
   assert.ok(value.targets.every((row) => [2, 3].includes(row.cadence_jst.length)));
   assert.deepEqual(
     value.targets.filter((row) => row.cadence_jst.length === 2).map((row) => row.lane_id),
-    ["ebook-en-tiktok"],
+    ["ebook-en-tiktok", "ebook-en-instagram"],
   );
   const englishMonk = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
   assert.deepEqual(
@@ -70,7 +66,7 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
   );
   assert.deepEqual(
     value.holds.filter((row) => row.integration_id === null).map((row) => `${row.platform}:${row.postiz_profile}`).sort(),
-    ["instagram:@monk_anicca", "tiktok:@anicca.videojp", "tiktok:@anicca_girl"],
+    ["tiktok:@anicca.videojp", "tiktok:@anicca_girl"],
   );
 });
 
@@ -128,7 +124,7 @@ test("enabled @aniccaen2 resolves to one Anicca iOS English affirmation route wi
   });
 
   const registry = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../config/loop-registry.json"), "utf8"));
-  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 21);
+  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 22);
 });
 
 test("the carousel publisher selects @aniccaen2 by its exact Postiz integration", () => {
@@ -179,7 +175,7 @@ test("a target without an exact pack, form, cadence, label, or entrypoint fails 
 test("the loop registry exactly matches the destination SSOT labels, entrypoints, and cadences", () => {
   const contract = loadMarketingDestinationContract(CONTRACT);
   const registry = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../config/loop-registry.json"), "utf8"));
-  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 21);
+  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 22);
   const candidate = structuredClone(registry);
   candidate.loops[contract.targets[0].loop_name].cadence.calendar_interval[0].Minute = 1;
   assert.throws(() => auditMarketingDestinationRegistry(contract, candidate), /cadence/i);

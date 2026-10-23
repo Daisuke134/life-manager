@@ -1,0 +1,74 @@
+{
+  "observed_at": "2026-10-23T10:20:49.688056+00:00",
+  "browser_identity": "x:diceai0",
+  "operation": "enable_existing_specified_instagram",
+  "before": {
+    "count": 14,
+    "enabled": 13,
+    "targets": [
+      {
+        "id": "cmo5rwq2p00twn10yrsdglng3",
+        "display": "monk_anicca",
+        "identifier": "tiktok",
+        "disabled": false,
+        "refreshNeeded": false,
+        "inBetweenSteps": false
+      },
+      {
+        "id": "cmoopzaak04yop70y1yx1bwr1",
+        "display": "monk.mujo",
+        "identifier": "instagram-standalone",
+        "disabled": true,
+        "refreshNeeded": false,
+        "inBetweenSteps": false
+      }
+    ]
+  },
+  "enable_http_status": 201,
+  "after": {
+    "count": 14,
+    "enabled": 14,
+    "targets": [
+      {
+        "id": "cmo5rwq2p00twn10yrsdglng3",
+        "display": "monk_anicca",
+        "identifier": "tiktok",
+        "disabled": false,
+        "refreshNeeded": false,
+        "inBetweenSteps": false
+      },
+      {
+        "id": "cmoopzaak04yop70y1yx1bwr1",
+        "display": "monk.mujo",
+        "identifier": "instagram-standalone",
+        "disabled": false,
+        "refreshNeeded": false,
+        "inBetweenSteps": false
+      }
+    ]
+  },
+  "posting_requests": 0,
+  "plan_changes": 0,
+  "independent_api_readback": {
+    "observed_at": "2026-10-23T10:26:27.650647+00:00",
+    "endpoint": "https://api.postiz.com/public/v1/integrations",
+    "count": 14,
+    "enabled": 14,
+    "targets": [
+      {
+        "id": "cmo5rwq2p00twn10yrsdglng3",
+        "name": "Monk Anicca",
+        "identifier": "tiktok",
+        "profile": "monk_anicca",
+        "disabled": false
+      },
+      {
+        "id": "cmoopzaak04yop70y1yx1bwr1",
+        "name": "monk",
+        "identifier": "instagram-standalone",
+        "profile": "monk.mujo",
+        "disabled": false
+      }
+    ]
+  }
+}
