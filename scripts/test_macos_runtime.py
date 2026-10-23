@@ -201,6 +201,34 @@ def test_compatible_node_and_npm_do_not_install_dependencies(tmp_path):
     assert "brew " not in box.log()
 
 
+@pytest.mark.parametrize("version, npm_present, ready", [
+    ("20.19.0", True, False),
+    ("21.0.0", True, False),
+    ("22.18.0", True, False),
+    ("22.19.0", True, True),
+    ("22.20.0", True, True),
+    ("23.0.0", True, False),
+    ("24.0.0", True, True),
+    ("25.0.0", True, True),
+    ("24.0.0", False, False),
+])
+def test_node_readiness_matches_production_locks(tmp_path, version, npm_present, ready):
+    box = RuntimeSandbox(tmp_path)
+    node = shutil.which("node")
+    assert node is not None, "Node is required to exercise the installer predicate"
+    box.env["SANDBOX_NODE_VERSION"] = version
+    box.executable(box.bin / "node", f'''#!{node}
+Object.defineProperty(process.versions, "node", {{value: process.env.SANDBOX_NODE_VERSION}});
+if (process.argv[2] !== "-e") process.exit(91);
+eval(process.argv[3]);
+''')
+    if npm_present:
+        box.executable(box.bin / "npm", "#!/bin/bash\nexit 0\n")
+    result = box.run_helper('lm_node_ready')
+    assert (result.returncode == 0) is ready, result.stderr
+    assert box.log() == ""
+
+
 def test_full_host_prepare_refuses_incomplete_browser_dependencies(tmp_path):
     box = RuntimeSandbox(tmp_path)
     script = box.copy_script("scripts/install-local.sh")

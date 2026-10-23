@@ -365,7 +365,7 @@ CAPACITYの自然受入: 更新後receiptは21:16:48Z/mtime1792790208.6259868（
 
 最小変更: bin/cut-loop-release.shのcleanup/過去bundle確認/current manifest/atomic activationの4呼出を既存RUNTIME_PYTHONへ揃える。fallbackのcommand -v python3は選択境界として残す。scripts/macos-runtime.shの既存Node validator/不足messageをlock契約へ合わせる。関連testsはruntime/loop/tests/test_cut_loop_release_pressure.pyとscripts/test_macos_runtime.pyのみ、必要な既存CI接続だけ確認する。実Homebrew/npm install、private/browser/provider/owner制御は開発中0とする。
 
-- [ ] BOOTSTRAP-RUNTIME-RED: source未変更で、選択済み絶対Pythonがあってambient python3が使えないcutterの失敗、Node20.19/22.18/23の誤受入を最小fixtureで再現する。22.19/24の既存互換再利用と不足npm拒否を保持する。
+- [x] BOOTSTRAP-RUNTIME-RED: source未変更で追加Node9条件は4 FAIL/5 PASS（1.42s）、20.19/21/22.18/23を誤受理することを再現する。22.19/22.20/24/25の受入とnpm不足拒否はPASS。実Node上でversion属性だけをfixture値へ置換し、実helper predicateを実行する。絶対selected Pythonとambient python3使用拒否の既存cutter fixtureも1 FAIL（0.90s）となりsafe release pruning failedを再現する。最初のmanaged runtime venvにはpytestが無く2起動が失敗したため、既存開発Python3.14.7/pytest9.0.3へ切り替える。このharness不足はsourceのRED件数に含めず、runtimeへtest依存を追加しない。
 - [ ] BOOTSTRAP-RUNTIME-GREEN: 2sourceの最小変更と関連2test fileを検証し、source boundary/diff/shell構文を確認する。既存のPython選択・Homebrew prefix・失敗処理とcleanup保護は変えない。
 - [ ] BOOTSTRAP-RUNTIME-SHIP: commit/push、独立read-only review、既存CI、main/public byte readbackを確認し、main由来sourceを同じ隔離fixtureで受け入れる。実機の古いNodeを意図的に導入する検証やhost設定変更は行わない。
 
