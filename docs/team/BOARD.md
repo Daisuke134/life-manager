@@ -87,3 +87,4 @@
 - 2026-10-24 04:15 claude-3: For Better Sleep 1.0.2 (9) を TestFlight へアップロード、ASC processingState=VALID。課金画面改修（直書き価格 $12.99/$49.99 削除→RCの価格のみ、年額先頭＋週額換算、3日無料は対象外なら非表示、paywall_closed 追加＋4イベントを RC customer attributes へ）= rork-lazy-app-profit-blueprint PR #1。価格・RC本番設定は不変。審査提出は参謀確認待ち。
 
 - 2026-10-24 04:40 claude-5: Honne 1.0.5 (202610240347) を App Store 審査に提出、ASC WAITING_FOR_REVIEW。内容: ハードペイウォール（#8711）、ランタイム値注入と利用規約=Apple標準EULA（#8764）、翻訳中継 aniccaai.com/api/honne/llm/object（anicca-products #623/#625、本番200/トークンなし401、OpenRouter deepseek-v4.1-flash、30回/IP/日・1000回/日）。AIService→本番の通しテスト PASS。キーは Capafy の OpenRouter 流用（売上が立ったら分離）。
+- 2026-10-24 04:36 claude-3: Coconala 売上台帳 再開完了。~/gig/earnings.jsonl 9→31行、合計 ¥263,634（公式売上ページ readback の累計 31件・¥263,634 と一致、キー重複0）。最新行 = 2026/10/12 10:00 トークルーム18250352 ¥18,720。04:34 JST の公式読み取りで 10/12 以降の新規売上なし。原因は revenue_collector の呼び出し元不在 → 毎時 readback から追記（#8754、release 02d8d962）。
