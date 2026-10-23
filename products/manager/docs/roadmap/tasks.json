@@ -859,13 +859,13 @@
     "learn": "所有する公開デジタル環境の実更新と外部readbackを区別する",
     "change": "Manager所有の公式情報案内ページを限定公開し、実際の提供者commitと配信中のSHA256を独立照合",
     "verify": "提供者receipt P1＋公開ページ外部GET P2＋NO_ACTION replay-zeroと他のパス不変。人の便益はNOT_MEASURED",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "manager_core/digital_handoff.py",
       "scripts/phase06_kernel_release.py"
     ],
-    "implementation_status": "P2_REVIEW_PENDING",
+    "implementation_status": "ACCEPTED_OWNED_PUBLIC_DIGITAL_P2_ONLY",
     "original_status": "todo",
     "original_depends": [
       "F004",
@@ -879,7 +879,25 @@
     "scope_amendment": "products/manager/docs/specs/2026-10-22-phase06-owned-public-good-scope-amendment.md",
     "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
     "beneficiary_outcome": "NOT_MEASURED",
-    "v2_dependency_correction_note": "Removed legacy finance read-only prerequisite F003; owned digital evidence depends on existing K009 outbox and release gate, not third-party finance."
+    "v2_dependency_correction_note": "Removed legacy finance read-only prerequisite F003; owned digital evidence depends on existing K009 outbox and release gate, not third-party finance.",
+    "completion_evidence": [
+      "docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json",
+      "docs/verification/PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md",
+      "docs/verification/E16_DEPLOYED_ACCEPTANCE_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T06:18:55.845027+00:00",
+      "result": "FINANCE_OWNED_PUBLIC_P1_P2_VERIFIED",
+      "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
+      "human_outcome": "NOT_MEASURED",
+      "versioned_result_source_commit": "254f83b98",
+      "versioned_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab",
+      "provider_commit": "61909d20220fcf14132a6f5f459ce19796f1fc2d",
+      "independent_readback_at": "2026-10-23T03:07:59.557833+00:00",
+      "replay_run_id": 39909274852,
+      "replay_writes": 0,
+      "outside_seven_allowed_paths_changed": false
+    }
   },
   {
     "section": "06. 現実の介入と独立した効果評価",
