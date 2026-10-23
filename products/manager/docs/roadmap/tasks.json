@@ -1744,9 +1744,11 @@
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
-      "manager_core/physical_outcomes.py"
+      "manager_core/physical_outcomes.py",
+      "tests/test_physical_outcomes.py",
+      "docs/verification/D005_PUBLIC_SOURCE_READINESS_20261023.md"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "PUBLIC_SOURCE_AUDIT_AND_QUALITY_FLAG_FIX_ORIGINAL_ACCEPTANCE_INCOMPLETE"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",

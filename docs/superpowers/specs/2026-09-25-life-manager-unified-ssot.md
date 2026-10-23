@@ -14,6 +14,8 @@ E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh r
 
 **主体と事業の定義（所有者指定、no UI明確化）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは、人のapp/chat/messenger操作やManagerへの対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働く設計。BobaのMessages/iMessage/webはUIであり、no UIの先例としない。停止・監査の運営入口は保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。設計上の違いだけで世界初・AGI・世界の苦の終結を実証済みとはせず、原ID/依存/件数と他laneのcursorは変更しない。
 
+**残る実記録とcodeの接続条件:** [Manager spec §1.3.1](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。D005の公開source監査で測定の未解決品質を確認し、研究codeの有限値＋明示flag除外漏れを修復したが、D005の原受入は未充足。U002の5実面談、D012の費用/時間/分母、D014の実協働も未確認のまま。元113件=77 done / 33 todo / 3 skippedを保ち、他laneの状態は変更しない。
+
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 
 **順序変更の記録:** 旧=「統括cursor（2026-10-15）D1→D4→Gig」と10/17「SH2→SH4→SH3→SH5、cursor = SH2」。新=下記「次の順序」1→7、現在cursor=1。理由: 10/19実測で収益laneを止めている根本はcorespotlightd→swap→disk floorで、merge済みsourceの採用だけでは収益laneが走らない。SH2–SH5・P2–P5は未完のまま残し、この順序の後に再評価する。

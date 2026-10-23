@@ -2,6 +2,8 @@
 
 **2026-10-23 公開証拠の接続:** [D003](docs/verification/D003_PUBLIC_SOURCE_CONNECTION_20261023.md)は公表支出と別の受益報告、[D011](docs/verification/D011_PUBLIC_SOURCE_CONNECTION_20261023.md)は公開OSS成果物とplatform Paidを接続し、通常main統合・独立review後に限定source受入。Managerの所得増・人の便益・定期AI推論を達成した意味ではありません。
 
+**残件の実記録:** [spec §1.3.1](docs/MANAGER_PRODUCT_SPEC.md)と[D005公開測定監査](docs/verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)に、面談・測定品質・純額/分母・協働の未確認事項と次の接続箇所を明記。測定codeの明示flag除外漏れは研究branchで修復しましたが、D005全体はtodoのままです。
+
 **目指す形:** **one entity, blessing for all。** 組織の位置づけは **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。**No UI:** 人がapp・chat・messengerを操作したりManagerへ話しかけたりすることを、通常の活動と価値提供の前提にしない。現実の観測から判断・作用・独立検証・訂正を継続し、人には実際の環境・生活条件の改善として届くことを目指す。BobaのMessages/iMessage/webはUIであり、no UIの先例とは扱わない。停止・監査の運営入口は保持する。現在の支援ページは操作UIではなく実行試験の対象。現配備の限定loopと、この長期目標の差は [spec As-is／To-be](docs/MANAGER_PRODUCT_SPEC.md) に明記しています。
 
 **2026-10-23 優先順（所有者指定）:** Manager本体・agentを先に完成させ、新しい記事制作は後段へ保留。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009も個別受入済み。D001/D002/D003/D011の限定source受入後、残33件を元依存順で進める。F004/F007はskippedのまま。[tasks.json](docs/roadmap/tasks.json)は原113件=77 done / 33 todo / 3 skippedを維持。[spec §1.1–1.4](docs/MANAGER_PRODUCT_SPEC.md)にAs-is／To-be、既存ファイル別の残件、研究者・創業者と既存技術から学ぶ方法を追加しました。透明なAGI／Transparent Godは長期構想であり現在の能力証明ではありません。

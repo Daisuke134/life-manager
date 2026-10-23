@@ -118,6 +118,20 @@ flowchart LR
 
 **目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。既存Ampersand adapterと永続状態接続のsourceはPR8650でmainへ昇格し、PR8660で公開catalogのtyped context・安定operation ID・既存baselineを使うP0 shadow callerも統合した。PR8665で最終応答／turn整合性も修正・main統合済み。次は適切な実課題、固定SDKの実行環境、既存予算・秘密保管、同条件の実比較へ接続する。shadowは既定OFFで、モデル提案からpublisherの実操作を発火しない。必要時のPersimmon等の評価接続、観測・主体の長期状態・既存channel・outcomeからのpolicy更新も未実証。既存E01–E12、公開研究A–F、U/V/Gの元受入条件に照合し、新しいtask IDや達成数を足さない。残33件を終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
 
+### 1.3.1 元受入に不足する実記録と、次に触る既存ファイル
+
+D003/D011は通常main統合後に限定source接続として受入した。残33件には準備済みのcode・protocolもあり、残数は未実装file数ではない。既存Actions＋Supabaseとcloudで作業を続けられることと、実面談・有効な測定・純便益の観測が揃うことを分ける。
+
+| 対応する残件 | 現在確認した根拠・不足 | 次の接続と既存ファイル |
+|---|---|---|
+| U002→U003以降 | 同意ある異なる立場の5面談と必要な結果の記録が未確認。repoとManager関連の限定Gmail/Slack検索でも該当記録なし。ただし全保管先に存在しないことの証明ではない | 実面談の必要最小限の匿名メモを根拠に`docs/product/FIRST_WEDGE.md`のPROVISIONALを検証し、次に`pilot/FIRST_STUDY.md`の対象・比較を実行前固定する |
+| D005→D006以降 | [公開測定監査](verification/D005_PUBLIC_SOURCE_READINESS_20261023.md)。SML2010は4137 UTC行を接続できるが校正未提供。NISTは実校正methodと30行を確認したがRH16行が公表範囲外、残14行の有効区間が未解決。範囲内6行だけを成功にしない | 当該異常の品質説明・訂正版、または適用する品質/校正が確認できる別sourceを接続する。`physical_outcomes.py`の有限値＋明示flagの除外漏れは研究branchで修復済み。将来のD005接続へD006の架空対照・actuator・PM2.5を埋めず、元行・単位・clock・品質根拠を保持する |
+| D012 | D011のplatform Paid USD100は第三者の歴史的声明。実労働時間・費用・機会損失・分母を供給しない | 出典付きの実際の費用/時間/機会数を`manager_core/opportunity_outcomes.py`の既存契約へ照合する。未知を0や純利益へ置き換えない |
+| D014→D015 | 公表集計のsourceとprotocolの準備・品質確認はあるが、実際の協働と適切な倫理判断は未確認。公表licenseだけで団体協力成立とはしない | `pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md`と`pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md`へ実役割・適用判断・匿名集計の根拠を記録する |
+| AIを使う継続主体の運用実証 | checkpoint-bound callable・shadow caller・SDK最終応答修正はmain済み。定期plannerは決定論的、shadow既定OFF、同条件の実推論比較は未確認 | 実課題・既存予算に結んだ固定SDKの実行環境、`owned_provider_shadow.py`/`owned_provider.py`と既存単一ownerのreadbackを検証する。source受入からモデル性能・人の便益を推定しない |
+
+これは原ID・dependsを変えない接続条件の説明で、新しいtask台帳や全公開研究への契約・NDA要求ではない。既存測定のsource監査と品質判定の修復を先に行い、受入条件が未充足の項目はtodoのまま保持する。記事制作・外部連絡・応募は本体優先の後段を維持する。
+
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
 **agent接続の実装更新:** [PR8650](https://github.com/Daisuke134/life-manager/pull/8650)をmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`へ統合した。既存4 provider moduleを再利用し、`owned_provider.CheckpointedProvider`がsession intent・event・予算を同じ `cycle.sqlite`へ結び、外部送信前にcheckpointのACKを得る。主キー・重複・参照の検証、割込み後の永久fence、対象turnと状態が一致するcancel readback、絶対期限、P0 parserを検証した。応答不明はUNKNOWN／nullで保持し、予約上限を実請求上限としない。独立reviewの未解決0、main由来365テスト成功。詳細は[source受入と残接続](verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)。
