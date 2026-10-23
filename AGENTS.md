@@ -75,3 +75,7 @@ This repository is the source authority for Life Manager. The canonical remote i
 - A plan, test pass, process exit 0, or local mock is not business completion. Completion requires the requested external effect plus authoritative provider receipt/readback and replay-zero where applicable. `unknown` is never converted to zero.
 - Implementation handoff is: dedicated worktree from current `origin/main` → focused tests/diff check → commit/push → PR → primary review/merge → immutable release → targeted loaded-idle apply → natural terminal → official readback → SSOT/Telegram evidence. Do not merge, release, or apply from an unverified worker claim.
 - Model choice is explicit and truthful: record the actual CLI `--model`/model readback. Do not describe a default Claude session as Opus or Sonnet without evidence. Report model and effort in the AGMSG handoff.
+
+## Anicca Company team (all agents)
+
+- Team mission, rules, ownership, board and specs live in `docs/team/` (README, RULES, OWNERSHIP, BOARD, WORKFLOW, specs/). Read them before work and append one log line to `docs/team/BOARD.md` after. Top rule: copy the winners; reuse existing repos instead of creating new ones.
