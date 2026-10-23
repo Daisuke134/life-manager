@@ -1,0 +1,306 @@
+{
+  "events": [
+    {
+      "blocker": null,
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_status": "started",
+      "error_class": null,
+      "event_id": "ed5a6208c5b81c122cfd1b68",
+      "evidence_refs": [
+        "lm-loop://ebook-ja-instagram-daily/18e01f3eff2e6368-4807/summary.json"
+      ],
+      "exit_code": null,
+      "failure_layer": "clean",
+      "job_id": "ebook-ja-instagram-daily",
+      "loaded_argv_sha256": "03a357704ac51dd38e33ddd8ae5ae3b4b9e438c05e68dafa54c487e9da0517f8",
+      "loaded_env_sha256": "4774b37cacd00fa379e7c2ce0543f44ef785407b3fe12d7f71011909f8d0e7c9",
+      "loop_id": "ebook-ja-instagram-daily",
+      "next_action": "monitor_running",
+      "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+      "official_readback_ref": null,
+      "owner_id": "ebook-ja-instagram-daily",
+      "phase": "execute",
+      "product_loop_id": "ebook",
+      "profile_alias": null,
+      "provider": "deterministic",
+      "provider_receipt_id": null,
+      "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+      "retryable": false,
+      "run_id": "18e01f3eff2e6368-4807",
+      "status": "running",
+      "timestamp": "2026-10-20T03:30:07.230209+00:00",
+      "version": 1,
+      "wake_id": "18e01f3eff2e6368-4807"
+    },
+    {
+      "blocker": "host_admission_deferred:resource_fifo_wait",
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_identity_status": "not_written",
+      "effect_status": "not_applicable",
+      "error_class": "host_admission_deferred:resource_fifo_wait",
+      "event_id": "975156cdb6f27bb37b4fcbf6",
+      "evidence_refs": [
+        "lm-loop://ebook-ja-instagram-daily/18e01f3eff2e6368-4807/summary.json"
+      ],
+      "exit_code": 75,
+      "failure_layer": "admission",
+      "job_id": "ebook-ja-instagram-daily",
+      "loaded_argv_sha256": "03a357704ac51dd38e33ddd8ae5ae3b4b9e438c05e68dafa54c487e9da0517f8",
+      "loaded_env_sha256": "4774b37cacd00fa379e7c2ce0543f44ef785407b3fe12d7f71011909f8d0e7c9",
+      "loop_id": "ebook-ja-instagram-daily",
+      "next_action": "retry_after_eligibility",
+      "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+      "official_readback_ref": null,
+      "owner_id": "ebook-ja-instagram-daily",
+      "phase": "report",
+      "product_loop_id": "ebook",
+      "profile_alias": null,
+      "provider": "deterministic",
+      "provider_receipt_id": null,
+      "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+      "retryable": true,
+      "run_id": "18e01f3eff2e6368-4807",
+      "status": "blocked",
+      "timestamp": "2026-10-20T03:30:19.270214+00:00",
+      "version": 1,
+      "wake_id": "18e01f3eff2e6368-4807"
+    },
+    {
+      "blocker": null,
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_status": "started",
+      "error_class": null,
+      "event_id": "7b9cacb4c1d9c3f1e594ad51",
+      "evidence_refs": [
+        "lm-loop://ebook-ja-instagram-daily/18e04e60151f5bc8-77716/summary.json"
+      ],
+      "exit_code": null,
+      "failure_layer": "clean",
+      "job_id": "ebook-ja-instagram-daily",
+      "loaded_argv_sha256": "3ba6458890f506203ab1e7381feecb91cfacc8be67d71c0f9f6ac54a20819483",
+      "loaded_env_sha256": "31b4bcb66a2dd1e3ef9c0f6f47d5b88fbe992bbc3207f85c703103985c73a5dd",
+      "loop_id": "ebook-ja-instagram-daily",
+      "next_action": "monitor_running",
+      "occurrence_id": "ebook-ja-instagram-daily:18e04e60151f5bc8-77716",
+      "official_readback_ref": null,
+      "owner_id": "ebook-ja-instagram-daily",
+      "phase": "execute",
+      "product_loop_id": "ebook",
+      "profile_alias": null,
+      "provider": "deterministic",
+      "provider_receipt_id": null,
+      "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+      "retryable": false,
+      "run_id": "18e04e60151f5bc8-77716",
+      "status": "running",
+      "timestamp": "2026-10-20T17:53:46.296848+00:00",
+      "version": 1,
+      "wake_id": "18e04e60151f5bc8-77716"
+    },
+    {
+      "blocker": "entrypoint_exit_75",
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_identity_status": "not_written",
+      "effect_status": "unknown",
+      "error_class": "entrypoint_exit_75",
+      "event_id": "84284f6fdd7d108bf08c780b",
+      "evidence_refs": [
+        "lm-loop://ebook-ja-instagram-daily/18e04e60151f5bc8-77716/summary.json",
+        "lm-occurrence://ebook-ja-instagram-daily/18e01f3eff2e6368-4807/claim"
+      ],
+      "exit_code": 75,
+      "failure_layer": "entrypoint",
+      "job_id": "ebook-ja-instagram-daily",
+      "loaded_argv_sha256": "3ba6458890f506203ab1e7381feecb91cfacc8be67d71c0f9f6ac54a20819483",
+      "loaded_env_sha256": "4ffea49e47cdd932ae85af8e4de6fcc7aa3077898906e655c1293fc037619ff5",
+      "loop_id": "ebook-ja-instagram-daily",
+      "next_action": "official_readback_required",
+      "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+      "official_readback_ref": null,
+      "owner_id": "ebook-ja-instagram-daily",
+      "phase": "report",
+      "product_loop_id": "ebook",
+      "profile_alias": null,
+      "provider": "deterministic",
+      "provider_receipt_id": null,
+      "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+      "retryable": false,
+      "run_id": "18e04e60151f5bc8-77716",
+      "status": "fail",
+      "timestamp": "2026-10-20T17:53:55.148406+00:00",
+      "version": 1,
+      "wake_id": "18e04e60151f5bc8-77716"
+    },
+    {
+      "blocker": null,
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_status": "started",
+      "error_class": null,
+      "event_id": "05463b0a86790b8ec08a44d7",
+      "evidence_refs": [
+        "lm-loop://ebook-ja-instagram-daily/18e04e63effa5a60-78045/summary.json"
+      ],
+      "exit_code": null,
+      "failure_layer": "clean",
+      "job_id": "ebook-ja-instagram-daily",
+      "loaded_argv_sha256": "3ba6458890f506203ab1e7381feecb91cfacc8be67d71c0f9f6ac54a20819483",
+      "loaded_env_sha256": "d8d818d4d635759e0589443e0919e30969cc37bbfd7ca803ab38b3aaaf5d21d3",
+      "loop_id": "ebook-ja-instagram-daily",
+      "next_action": "monitor_running",
+      "occurrence_id": "ebook-ja-instagram-daily:18e04e63effa5a60-78045",
+      "official_readback_ref": null,
+      "owner_id": "ebook-ja-instagram-daily",
+      "phase": "execute",
+      "product_loop_id": "ebook",
+      "profile_alias": null,
+      "provider": "deterministic",
+      "provider_receipt_id": null,
+      "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+      "retryable": false,
+      "run_id": "18e04e63effa5a60-78045",
+      "status": "running",
+      "timestamp": "2026-10-20T17:54:02.859581+00:00",
+      "version": 1,
+      "wake_id": "18e04e63effa5a60-78045"
+    },
+    {
+      "blocker": null,
+      "domain": "growth",
+      "effect_class": "none",
+      "effect_status": "not_applicable",
+      "error_class": null,
+      "event_id": "a046783b5764e13a7bd44a0c",
+      "evidence_refs": [
+        "lm-loop://ebook-ja-instagram-daily/18e04e63effa5a60-78045/summary.json",
+        "lm-occurrence://ebook-ja-instagram-daily/18e01f3eff2e6368-4807/claim",
+        "lm-no-effect://ebook-ja-instagram-daily/ebook-ja-instagram-daily:18e01f3eff2e6368-4807/no_due_slot"
+      ],
+      "exit_code": 0,
+      "failure_layer": "clean",
+      "job_id": "ebook-ja-instagram-daily",
+      "loaded_argv_sha256": "3ba6458890f506203ab1e7381feecb91cfacc8be67d71c0f9f6ac54a20819483",
+      "loaded_env_sha256": "baa7b7601f9c84ddb077f8177fd8b7d1a97cc6d167f39f83bf68bcf82187234f",
+      "loop_id": "ebook-ja-instagram-daily",
+      "next_action": "none",
+      "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+      "official_readback_ref": null,
+      "owner_id": "ebook-ja-instagram-daily",
+      "phase": "report",
+      "product_loop_id": "ebook",
+      "profile_alias": null,
+      "provider": "deterministic",
+      "provider_receipt_id": null,
+      "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+      "retryable": false,
+      "run_id": "18e04e63effa5a60-78045",
+      "status": "pass",
+      "timestamp": "2026-10-20T17:54:09.616067+00:00",
+      "version": 1,
+      "wake_id": "18e04e63effa5a60-78045"
+    }
+  ],
+  "run_files": {
+    "18e04e60151f5bc8-77716/entrypoint-result.json": {
+      "mtime_ns": 1792518831419582136,
+      "raw": "{\"effect\":0,\"status\":\"pre_effect_failure\"}\n",
+      "sha256": "bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd"
+    },
+    "18e04e60151f5bc8-77716/host-admission.json": {
+      "mtime_ns": 1792518831418904717,
+      "raw": "{\"effect\":0,\"reason\":\"resource_slot_acquired\",\"resource_class\":\"agent\",\"status\":\"pass\"}\n",
+      "sha256": "c565c6f7a0a410fac96c9299b58bf383e174bd3fdfeeb9e90c591734bfcde237"
+    },
+    "18e04e60151f5bc8-77716/stderr-relay/relay-context.json": {
+      "mtime_ns": 1792518831423256527,
+      "raw": "{\"policy\":{\"owner_id\":\"ebook-ja-instagram-daily\",\"diagnostic_segment_bytes\":1048576,\"diagnostic_backup_count\":1,\"chunk_bytes\":4096,\"head_bytes\":32768,\"metadata_max_bytes\":4096,\"structured_record_max_bytes\":16777216,\"owner_diagnostic_retained_bytes\":2810842,\"host_diagnostic_retained_bytes\":536870912},\"binding\":{\"owner_id\":\"ebook-ja-instagram-daily\",\"run_id\":\"18e04e60151f5bc8-77716\",\"occurrence_id\":\"ebook-ja-instagram-daily:18e01f3eff2e6368-4807\",\"release_sha\":\"4bf017d5a18ec2cb378710df78b299f441b207df\"},\"stream_kind\":null}",
+      "sha256": "17028a202d6c319fdffbc337690d51ecd4d9a8ab275910361f902285d02b0ba4"
+    },
+    "18e04e60151f5bc8-77716/stderr-relay/relay-result.json": {
+      "mtime_ns": 1792518836610200368,
+      "raw": "{\"binding\":{\"owner_id\":\"ebook-ja-instagram-daily\",\"run_id\":\"18e04e60151f5bc8-77716\",\"occurrence_id\":\"ebook-ja-instagram-daily:18e01f3eff2e6368-4807\",\"release_sha\":\"4bf017d5a18ec2cb378710df78b299f441b207df\"},\"pid\":77842,\"observed_at\":1792518836.609951,\"written_bytes\":0,\"dropped_bytes\":0,\"tail_b64\":\"\",\"storage_error\":null,\"eof\":true,\"result_oversized\":false}",
+      "sha256": "8db67e64742e39a64aacaf387cef329dcf09b9adfb0703e148b8c4cd0a331cc2"
+    },
+    "18e04e63effa5a60-78045/entrypoint-result.json": {
+      "mtime_ns": 1792518847043348180,
+      "raw": "{\"schema_version\":1,\"kind\":\"life_manager_no_effect_result\",\"status\":\"verified_no_effect\",\"effect\":0,\"owner_id\":\"ebook-ja-instagram-daily\",\"occurrence_id\":\"ebook-ja-instagram-daily:18e01f3eff2e6368-4807\",\"reason\":\"no_due_slot\"}\n",
+      "sha256": "537e307a5986ef1434bcb61dbe2aaab54d06577a6a8357dbb05e9a742e66ed8a"
+    },
+    "18e04e63effa5a60-78045/host-admission.json": {
+      "mtime_ns": 1792518843193747579,
+      "raw": "{\"effect\":0,\"reason\":\"resource_slot_acquired\",\"resource_class\":\"agent\",\"status\":\"pass\"}\n",
+      "sha256": "c565c6f7a0a410fac96c9299b58bf383e174bd3fdfeeb9e90c591734bfcde237"
+    },
+    "18e04e63effa5a60-78045/stderr-relay/relay-context.json": {
+      "mtime_ns": 1792518843201011111,
+      "raw": "{\"policy\":{\"owner_id\":\"ebook-ja-instagram-daily\",\"diagnostic_segment_bytes\":1048576,\"diagnostic_backup_count\":1,\"chunk_bytes\":4096,\"head_bytes\":32768,\"metadata_max_bytes\":4096,\"structured_record_max_bytes\":16777216,\"owner_diagnostic_retained_bytes\":2810842,\"host_diagnostic_retained_bytes\":536870912},\"binding\":{\"owner_id\":\"ebook-ja-instagram-daily\",\"run_id\":\"18e04e63effa5a60-78045\",\"occurrence_id\":\"ebook-ja-instagram-daily:18e01f3eff2e6368-4807\",\"release_sha\":\"4bf017d5a18ec2cb378710df78b299f441b207df\"},\"stream_kind\":null}",
+      "sha256": "7dc62d1a2cf28778a76de44db8adf465c6d3c54ab17d75e583979385a9c2df98"
+    },
+    "18e04e63effa5a60-78045/stderr-relay/relay-result.json": {
+      "mtime_ns": 1792518847568349783,
+      "raw": "{\"binding\":{\"owner_id\":\"ebook-ja-instagram-daily\",\"run_id\":\"18e04e63effa5a60-78045\",\"occurrence_id\":\"ebook-ja-instagram-daily:18e01f3eff2e6368-4807\",\"release_sha\":\"4bf017d5a18ec2cb378710df78b299f441b207df\"},\"pid\":78193,\"observed_at\":1792518847.559552,\"written_bytes\":0,\"dropped_bytes\":0,\"tail_b64\":\"\",\"storage_error\":null,\"eof\":true,\"result_oversized\":false}",
+      "sha256": "704ab321caf7ffa07cac073998deeecf132c0ba39bbb6dd8312beb654f975c57"
+    }
+  },
+  "source_files": {
+    "RELEASE.json": [
+      "68482e5f72c0472199f0a3251d35840d49c7dea3aded3838564c3aefb15280bd",
+      1792390128911740380,
+      292
+    ],
+    "apps/life-manager/lib/marketing-video-publication-adapter.js": [
+      "d4cd1066ae9d369bb6d50ae76017b3f11d986e59fc3e79ea7ae11e194c84f345",
+      1791803252000000000,
+      292
+    ],
+    "apps/life-manager/scripts/ebook-distribute-daily.js": [
+      "f2552df9f307569843f0d233b0d9fcccc6f50c242bc13342bba017c5994835bd",
+      1791975608000000000,
+      292
+    ],
+    "apps/life-manager/scripts/ebook-distribute-daily.sh": [
+      "ab845c0361e13d5870894a593d6a615c93e117cbae918919a0f678ae6c79171c",
+      1791728875000000000,
+      365
+    ],
+    "runtime/loop/lm_loop_run.py": [
+      "7f0f0bc88c2c1c7cf507db716a5c1d7aa537274fe3c184b982eac974e041b10b",
+      1792373109000000000,
+      365
+    ],
+    "skills/earn/marketing-engine/ebook_distribute_daily.py": [
+      "5c40957a0bad71348b1c8840e4340d1fedfd7139486ac5b371785bca37765948",
+      1791975608000000000,
+      292
+    ],
+    "skills/earn/marketing-engine/ebook_runner.py": [
+      "5f522376e928dc4621c5ae07caa4ecb1aa51312be4708ea449e75a4ab3420b90",
+      1791975608000000000,
+      292
+    ],
+    "skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json": [
+      "040ec1538e0aa75af4dd11d86737d3b332dd57e9ad0a9aacd14f73abcf936906",
+      1791975608000000000,
+      292
+    ],
+    "skills/earn/marketing-engine/render_eval/watercolor_candidate.py": [
+      "a1ae3e839afe641a04d10dc584780d3133806f1b42af3fb71527361253e0de06",
+      1791975608000000000,
+      292
+    ],
+    "skills/video/lm-distribution/distribute.py": [
+      "8e5f2e579f1956273d4377a8bb8067d530b084e2e8f30c9aaa9ed0aa286d4281",
+      1791975608000000000,
+      365
+    ],
+    "skills/video/lm-distribution/postiz_video.py": [
+      "de9e8b96ce7f9c52cae1cf969e355d6330a1195ae73ec06fc319c266dd079e7d",
+      1791975608000000000,
+      365
+    ]
+  }
+}

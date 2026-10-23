@@ -5345,6 +5345,150 @@ class PreEffectForeignClaimTests(unittest.TestCase):
     ENTRY = {"effect_class": "message", "entrypoint": "x"}
     OWNER = "owner-a"
 
+    @contextmanager
+    def _ja_ig_legacy_fixture(self):
+        fixture = json.loads((ROOT / "runtime/loop/tests/fixtures/ebook-ja-ig-legacy-claim.json")
+                             .read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state = root / "state"
+            state.mkdir(mode=0o700)
+            release = root / "releases/20261019T150829-baac8c68"
+            for relative, item in fixture["run_files"].items():
+                path = state / "loop-tmp/ebook-ja-instagram-daily" / relative
+                path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                path.write_text(item["raw"], encoding="utf-8")
+                path.chmod(0o600)
+                os.utime(path, ns=(item["mtime_ns"], item["mtime_ns"]))
+            # Keep the real event/sidecar bytes; substitute source bodies so CI
+            # need not carry another immutable release or historical Git objects.
+            sources = {}
+            for relative, (_digest, modified_ns, mode) in fixture["source_files"].items():
+                path = release / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"retained source fixture\n")
+                path.chmod(mode)
+                os.utime(path, ns=(modified_ns, modified_ns))
+                sources[relative] = (
+                    "640cdf523c36343ebe2a844a040f5de0e5094fb70999052e11faec807333bd9e",
+                    modified_ns, mode,
+                )
+            entry = {"effect_class": "publish", "entrypoint": lm_loop.EBOOK_DISTRIBUTION_ENTRYPOINT,
+                     "state_root": str(state)}
+            with patch.object(lm_loop, "ROOT", root / "releases/current"), patch.object(
+                    lm_loop, "EBOOK_JA_IG_LEGACY_SOURCE_FILES", sources, create=True):
+                yield entry, fixture["events"], state, release
+
+    def _ja_ig_legacy_proof(self, entry, rows, *, owner="ebook-ja-instagram-daily",
+                            occurrence="ebook-ja-instagram-daily:18e01f3eff2e6368-4807"):
+        journal = Path(entry["state_root"]) / "events.jsonl"
+        journal.write_text("".join(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n"
+                                   for row in rows), encoding="utf-8")
+        journal.chmod(0o600)
+        actual, reason = lm_loop._owner_runtime_rows(entry)
+        if actual is None:
+            return None, reason
+        return lm_loop._pre_effect_occurrence_proof(owner, entry, occurrence, "claimed", actual)
+
+    def test_ja_ig_legacy_bridge_proves_original_and_both_claimants_from_raw_artifacts(self):
+        with self._ja_ig_legacy_fixture() as (entry, rows, _state, _release):
+            proof, reason = self._ja_ig_legacy_proof(entry, rows)
+            self.assertEqual(reason, "ok")
+            self.assertEqual(proof["occurrence_id"],
+                             "ebook-ja-instagram-daily:18e01f3eff2e6368-4807")
+            self.assertEqual(proof["proof_type"], "pre_effect")
+            self.assertEqual(proof["no_effect_proof"]["claimant_run_ids"], [
+                "18e04e60151f5bc8-77716", "18e04e63effa5a60-78045",
+            ])
+            self.assertFalse(proof["no_effect_proof"]["loaded_release_bytes_verified"])
+            self.assertFalse(proof["no_effect_proof"]["exit75_cause_identified"])
+            reordered, reason = self._ja_ig_legacy_proof(entry, list(reversed(rows)))
+            self.assertEqual(reason, "ok")
+            self.assertEqual(reordered["evidence_ref"],
+                             "lm-event://ebook-ja-instagram-daily/"
+                             "18e04e63effa5a60-78045/a046783b5764e13a7bd44a0c")
+
+    def test_ja_ig_legacy_bridge_rejects_extra_claim_and_changed_event_bindings(self):
+        changes = {
+            "owner": (3, "owner_id", "another-owner"),
+            "loop": (3, "loop_id", "another-owner"),
+            "occurrence": (3, "occurrence_id", "ebook-ja-instagram-daily:another-run"),
+            "release": (3, "release_sha", "a" * 40),
+            "argv": (3, "loaded_argv_sha256", "a" * 64),
+            "terminal": (3, "exit_code", 0),
+            "timestamp": (3, "timestamp", "2026-10-20T17:53:56+00:00"),
+            "receipt": (3, "provider_receipt_id", "another-receipt"),
+        }
+        for case in (*changes, "extra_claim", "missing_terminal", "duplicate_event",
+                     "argument_owner", "argument_occurrence"):
+            with self.subTest(case=case), self._ja_ig_legacy_fixture() as (
+                    entry, rows, _state, _release):
+                arguments = {}
+                if case in changes:
+                    index, key, value = changes[case]
+                    rows[index][key] = value
+                elif case == "extra_claim":
+                    rows.append({**rows[3], "run_id": "another-run", "event_id": "b" * 24})
+                elif case == "missing_terminal":
+                    rows.pop(3)
+                elif case == "duplicate_event":
+                    rows.append(dict(rows[3]))
+                elif case == "argument_owner":
+                    arguments["owner"] = "another-owner"
+                else:
+                    arguments["occurrence"] = "ebook-ja-instagram-daily:another-run"
+                proof, _reason = self._ja_ig_legacy_proof(entry, rows, **arguments)
+                self.assertIsNone(proof)
+
+    def test_ja_ig_legacy_bridge_rejects_changed_private_artifacts_and_sources(self):
+        for case in ("marker_bytes", "marker_mtime", "marker_mode", "marker_symlink",
+                     "marker_hardlink", "relay_binding", "relay_eof", "relay_drop",
+                     "relay_storage", "relay_oversized", "source_bytes", "source_mtime",
+                     "source_mode", "effect_identity", "directory_mode"):
+            with self.subTest(case=case), self._ja_ig_legacy_fixture() as (
+                    entry, rows, state, release):
+                run = state / "loop-tmp/ebook-ja-instagram-daily/18e04e60151f5bc8-77716"
+                marker = run / "entrypoint-result.json"
+                source = release / "apps/life-manager/scripts/ebook-distribute-daily.js"
+                path = source if case.startswith("source_") else marker
+                modified_ns = path.stat().st_mtime_ns
+                if case.endswith("_mtime"):
+                    os.utime(path, ns=(modified_ns + 1, modified_ns + 1))
+                elif case.endswith("_mode") and case != "directory_mode":
+                    path.chmod(0o644)
+                elif case.endswith("_bytes"):
+                    path.chmod(0o600)
+                    path.write_bytes(path.read_bytes() + b" ")
+                    path.chmod(0o444 if case.startswith("source_") else 0o600)
+                    os.utime(path, ns=(modified_ns, modified_ns))
+                elif case == "marker_symlink":
+                    marker.rename(run / "saved-marker.json")
+                    marker.symlink_to(run / "saved-marker.json")
+                elif case == "marker_hardlink":
+                    os.link(marker, run / "linked-marker.json")
+                elif case.startswith("relay_"):
+                    path = run / "stderr-relay/relay-result.json"
+                    modified_ns = path.stat().st_mtime_ns
+                    value = json.loads(path.read_bytes())
+                    if case == "relay_binding":
+                        value["binding"]["run_id"] = "another-run"
+                    else:
+                        key, value_change = {
+                            "relay_eof": ("eof", False), "relay_drop": ("dropped_bytes", 1),
+                            "relay_storage": ("storage_error", 28),
+                            "relay_oversized": ("result_oversized", True),
+                        }[case]
+                        value[key] = value_change
+                    path.write_text(json.dumps(value), encoding="utf-8")
+                    os.utime(path, ns=(modified_ns, modified_ns))
+                elif case == "effect_identity":
+                    other = state / "loop-tmp/ebook-ja-instagram-daily/18e04e63effa5a60-78045"
+                    (other / "effect-identity.jsonl").write_text("{}\n", encoding="utf-8")
+                else:
+                    (run / "stderr-relay").chmod(0o777)
+                proof, _reason = self._ja_ig_legacy_proof(entry, rows)
+                self.assertIsNone(proof)
+
     def _coconala_reply_wrapper_claim(self):
         owner = "hf-gig-reply-detector"
         occurrence = f"{owner}:18dbf6546032eca0-25901"
