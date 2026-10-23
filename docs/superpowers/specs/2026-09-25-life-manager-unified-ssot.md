@@ -23925,6 +23925,8 @@ Manager（仏教的AIエンティティ／デジタル仏陀）の実行先は�
 
 [実receiptと残る有限受入れ](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md): versioned current-page cueのfinance/mental各P1/P2、durable STOP/限定CAS rollback、native技術観測とExplorer/shadow接続を続行する。Manager原113件は69 done/41 todo/3 skipped、E16カーソル維持。原台帳への固定版参照はreceipt内。人の便益・課金/収益・応募/採択の実績はこの技術実行から推定しない。
 
+**有限private SFTのoffline source導入範囲:** 研究branchの固定source/科学metadataから、既存main共通9sourceを維持し、欠落import closure9・既存dev CLI/6テスト・必要用途rightsだけを通常PRで導入する。[scope](../../../products/manager/docs/specs/2026-10-23-finite-private-sft-research-start.md)と[検証・統合計画](../../../products/manager/docs/plans/2026-10-23-helpsteer2-private-sft.md)を参照。原corpus/weights/private adapter・runtime configはGitへ入れず、新しいmodel実行経路やownerは追加しない。source mergeは新G6/G7実行許可・本番model採用・全V002/V003/V004/D016の受入ではない。固定adapter評価sourceは別PR、実行・model採用は別受入。既存E16 cursor/件数/他laneは変更せず、Manager/agent完成を先、記事を後という順を保つ。
+
 ### FND04 実測：Writer入れ子judgeのprofile lease自己競合 — 2026-10-23 Claude
 
 - 現象: run `20261023-053932` は台帳3行（note ja / Substack ja・en）を `pending: required fail-closed proofs unavailable (headline-image API credential; judge broker returned no verdict for identity and conscience)` で記録し、公開0。`gates/judge-broker/broker.err` は全judgeが `rc=75 codex_home_busy` / `provider profile lease is busy`（attempt 1・2の両profile）。
