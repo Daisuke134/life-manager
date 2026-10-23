@@ -104,6 +104,11 @@ def browser_readback(state_root: Path, product: Path, *,
 def official_proof(occurrence_id: str, state_root: Path, product_path: Path, *,
                    catalog_path: Path | None = None, runner=None) -> dict:
     try:
+        if "pending_create" in offer._listing_state(state_root / "application.json"):
+            raise Held("creation_pending")
+    except offer.OfferError as error:
+        raise Held("owner_ledger_invalid") from error
+    try:
         product, _image, _avatar = offer._product(product_path, catalog_path)
     except offer.OfferError as error:
         raise Held("setup_required") from error

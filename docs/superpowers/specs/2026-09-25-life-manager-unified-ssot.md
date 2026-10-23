@@ -191,13 +191,15 @@ ACCOUNTの実接続受入: 資格情報SSOT全体のservice=Lancers完全一致1
 **分割と現在cursor:** pending/receipt/private productの再開だけで100行超の変更となるため、同じINPUTS-B内をB1=初回listing＋pending＋catalog cursor＋reconcile保持、B2=applyでのportfolio作成/実ID保存に分ける。B1ではID無しのportfolioをcreate入力として検証するが、applyのportfolio ID保存を完了扱いしない。旧順/新順は同じINPUTS-B→INSTALLで、外部effectは進行していない。現在cursor=INPUTS-B1。
 
 - [x] INPUTS-B1-RED: 補正後の既存create/reconcile計12ケースがprimaryの単一プロセスで12 failed/143 deselected（0.39s）。初回listing ID欠損、保存失敗後の重複、入力変更後の旧成功採用、既存IDからの再作成、通常writerのpending消去、catalog/apply/reconcileでのpending無視を実際に再現する。fixtureだけのimport/末尾assert不備は修正済み。実lock/browser/providerはfake、書込は一時HOME/fixture SQLiteだけ。
-- [ ] INPUTS-B1-GREEN: 初回listing/pending/catalog cursor/reconcileの最小実装と関連testsを通し、sourceをfreezeする。B2のapply portfolio保存は残す。
+- [x] INPUTS-B1-GREEN: 初回listing/pending/catalog cursor/reconcileの最小実装と関連testsを通し、sourceをfreezeする。B2のapply portfolio保存は残す。
 
 - [ ] INPUTS-B-RED: ID無しの別利用者fixture→公式fake成功→private実ID保存→再実行create0を先に失敗再現する。pending保存失敗/create0、公式作成後のreceipt/product保存ENOSPCと再実行、通常writerのpending保持、同family cursorと既存行保持、pending中resolver0を既存fakeで検証する。
 - [ ] INPUTS-B-GREEN: 上記の最小実装後、関連create/portfolio/reconcileと既存本人入力caller tests、AST/source-boundary/diff/Loop contractを確認する。実private/browser/provider操作は行わない。
 - [ ] INPUTS-B-SHIP: commit/push→独立read-only review/既存CI→PR/main/public readbackへ進む。公開installer/実account照合/owner activationと公式成果はINSTALL/ACCOUNT/READYに残す。
 
 INPUTS-B1の実行境界: hostのall-owner status取得は60秒timeout、swap使用13005.31MiB/空きmemory31%を観測するが、pytest開始待ちの原因をRAMだけと断定しない。依存importは各12秒以内に成功。先にHOMEを隔離するとpytestが見えないことを最小probeで確認し、依存を先import→HOME隔離、不要plugin自動load無しの入口で上記12件REDを確認する。本番のhost gateや稼働ownerは変更せず、同じ重い取得の再試行を止める。
+
+INPUTS-B1のsource受入: 担当2source/既存2testをfreezeする。初回12ケース、追加保存境界3件、作成中input変更1件、ローカル復旧が既存receipt.observed_atを新しい公式観測時刻へ書き換える1件をRED/GREENで確認する。現在auth未観測のpending/ローカル復旧はlogged_in=None、実login後の保存失敗はTrueとし、ownerのFalseだけをpre-effectとする契約を保持する。primaryは隔離HOME/依存先import/不要plugin自動load無しの単一プロセスで関連10files297件PASS（13.25s）、AST4files/source-boundary/diff/Loop contract18/192/113/errors0を確認する。新機能の実private/browser/provider操作0。独立review/公開CI/mainを継続し、B2のapply portfolio保存とINSTALL/READYは未完。
 
 #### Lancers本人入力の実装計画
 

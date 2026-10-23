@@ -2999,6 +2999,10 @@ def test_first_listing_storage_failure_keeps_pending_and_does_not_recreate(tmp_p
     assert first["ok"] is False and first["logged_in"] is True
     assert first["listing_external_id"] == "92001"
     assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
+    if not receipt_fails:
+        ledger = json.loads(state.with_name("listing.json").read_text())
+        ledger["observed_at"] = "2026-01-02T03:04:05Z"
+        state.with_name("listing.json").write_text(json.dumps(ledger))
     monkeypatch.setattr(module, "_write_private", _write_private)
     second = module.run_create(path, state)
     assert len(calls) == 1 and tick.opened_pages == tick.closed_pages == 1
@@ -3009,6 +3013,7 @@ def test_first_listing_storage_failure_keeps_pending_and_does_not_recreate(tmp_p
         assert second["ok"] is True and second["action"] == "creation_restored"
         assert json.loads(path.read_text())["listing_external_id"] == "92001"
         assert "pending_create" not in json.loads(state.with_name("listing.json").read_text())
+        assert json.loads(state.with_name("listing.json").read_text())["observed_at"] == "2026-01-02T03:04:05Z"
 
 
 def test_first_listing_changed_input_cannot_adopt_old_success(tmp_path, monkeypatch):
@@ -3097,3 +3102,61 @@ def test_first_listing_pending_blocks_apply_before_provider_step(tmp_path, monke
     result = module.run(True, path, state)
     assert result["ok"] is False and result["next_action"] == "official_readback_required"
     assert result["logged_in"] is not False and calls == []
+
+
+def test_first_listing_catalog_storage_failure_keeps_pending_and_real_id(tmp_path, monkeypatch):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    def no_space(*_args):
+        raise OSError(28, "fixture full")
+    monkeypatch.setattr(module, "_write_catalog_listing", no_space)
+
+    first = module.run_catalog_create(state, catalog, product_path=path)
+
+    assert first["ok"] is False and first["logged_in"] is True
+    assert first.get("listing_external_id") == "92001"
+    assert state.with_name("listing.json").is_file()
+    assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
+    second = module.run_catalog_create(state, catalog, product_path=path)
+    assert second["next_action"] == "official_readback_required"
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("create", [False, True])
+def test_first_listing_invalid_product_cannot_turn_pending_effect_into_pre_effect(tmp_path, monkeypatch, create):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    path.write_text("{broken")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    state.with_name("listing.json").write_text(json.dumps({"pending_create": {"product_id": "unconfirmed"}}))
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    result = module.run_create(path, state) if create else module.run(True, path, state)
+    assert result["error"] == "setup_required"
+    assert result["logged_in"] is not False
+    assert calls == [] and tick.opened_pages == 0
+
+
+def test_first_listing_changed_during_create_keeps_new_owner_input_unbound(tmp_path, monkeypatch):
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    state = tmp_path / "state/application.json"
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    create = module.create_package
+    changed = json.loads(path.read_text())
+    changed["description"] += " new owner input during create"
+    def changed_during_create(*args):
+        path.write_text(json.dumps(changed))
+        return create(*args)
+    monkeypatch.setattr(module, "create_package", changed_during_create)
+
+    result = module.run_create(path, state)
+
+    assert result["ok"] is False and result["logged_in"] is True
+    assert result["listing_external_id"] == "92001"
+    assert json.loads(path.read_text()) == changed
+    assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
+    assert len(calls) == 1
