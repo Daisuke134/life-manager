@@ -160,7 +160,7 @@ ACCOUNTのDOM source受入: PR #8738/head1a30d9177cb12dce0807182f95c364543ade376
 
 - [ ] INPUTS-A-RED: 空HOME/別利用者の合成product/catalog/avatarと既存fake tick/runnerで、既定pathと各callerの伝播、検証済みavatar/imageの一致、欠損/破損時の外部callback0を先に失敗再現する。
 - [ ] INPUTS-A-GREEN: 最小修復後に関連tests/AST/shell/source-boundary/diff/Loop contractを確認する。既存の明示--productとcatalog無しの経路を保持し、reconcileの未照合state/fenceを変更・解放しない。
-- [ ] INPUTS-A-SHIP: commit/push→独立read-only review/既存CI→PR/main/public readbackを行う。本人入力の生成と実activation、別Mac/公式成果はINSTALL/ACCOUNT/READYへ保持する。
+- [ ] INPUTS-A-SHIP: commit/push→独立read-only review/既存CI→PR/main/public readbackを行う。既存Lancers CI stepへstorefront owner/reconcile/create/profile/catalogの5既存test filesを追加し、既存Reply testと合わせて今回のcallerを検証する。新workflow/新packageは追加しない。本人入力の生成と実activation、別Mac/公式成果はINSTALL/ACCOUNT/READYへ保持する。
 
 #### Lancers本人入力の実装計画
 
