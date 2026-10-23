@@ -23731,10 +23731,12 @@ Manager（仏教的AIエンティティ／デジタル仏陀）の実行先は�
 
 
 ## S11 Monk Factory Webの現在cursor
-日次投稿はDais指定のGrok Botが所有し、Codexは自社Postiz/HeyGen/稼働loop/未完投稿/容量復旧を操作しない。旧順の運用復旧→Database→Webを、Database復元→Monk Factory Web→Muse/ChatGPT配布へ変更する。根拠はDaisの担当変更と公開一覧73→4の実害。
+日次投稿はDais指定のGrok Botが所有し、Codexは自社Postiz/HeyGen/稼働loop/未完投稿/容量復旧を操作しない。旧順=Database復元→Factory Web→plugin。新順=Database→CLI→pluginの配布・販売条件確認→Factory完成形。理由はDaisがDatabase/CLI/pluginを先行し、Factoryの追加実装を後回しと明示するため。進行中のcatalog PR609は中断せず反映を閉じ、CLI v0.4.2とmain追加の研究機能/最新snapshotの配布整合を確認する。
 
 Databaseはproducts PR595/main6ac3f6c/CLI v0.4.2で73件へ復元する。制作/動画根拠を確認した4件・pending69件・excluded2件を区別し、71画像、75archive/57sources、Web/CLI/remote MCPの一致を確認する。
 
 FactoryはLM PR8721/main eb78a805c4f79cd807852c27f52f9e4207a1ba61、products PR602/main fcbe8ec027bcc78825f5e50e0d83d0926a036525、Netlify39967298318で https://aniccaai.com/ai-monk-factory/ へ公開する。関連37件、独立最終blocking0、共通CI全成功。専用immutable版から実Codexが空script→165文字→実MCP/Python offline planをplanned/exit0で完了し、provider_calls0/external_effects[]を保持する。公開4file hash、35473byteの実download/import、公開/localの1360/390幅・JSerror0/overflow0・履歴復帰を確認する。公開Webはdraft編集で、制作実行は同じUIのlocalhostを使う。
 
-現在cursorは配布と通常認証の診断。無料plugin ZIP v0.1.1は公開digestと実SDK5scenarioを受入するが、ChatGPT/Codex公式掲載とMuse URLは未完。vault由来の隔離contextではGoogle passkeyに留まるが、既存persistent contextの通常Google SSOは通過する。最新の停止点はOpenAI MFA passkeyで、別方法1回後も同画面。指定cua-driver skillを既知skill rootsで発見できず、native UIは未操作。実生成・投稿/native確認・売上・他者無人収益/USD10K MRRを完了扱いしない。正本の残TODO → docs/superpowers/plans/2026-10-23-ai-monk-factory-web.md。
+Factoryの完成形は、利用者がWeb上で自分のTikTokを接続すると、avatar・台本・動画制作から投稿までサービスが自動実行するSaaS。公開draft workspace/local planの受入は初期段階であり、この完成形や利用者の無人収益化の達成を意味しない。追加のFactory実装は現在の優先範囲に含めない。
+
+現在cursorはDatabase/CLI/pluginの配布整合。Codex native pluginは実2run/7MCP呼出で5positive/3negativeを確認し、user保存済みmodel設定を値変更なしで継承する。公式Directory内のdigital商品・subscription販売/upsellは現行規則の対象外で、既存paid accountの契約機能利用と販売導線を分ける。販売済み/課金対応済みと扱わず、根拠は https://developers.openai.com/plugins/plugin-guidelines#commerce-and-monetization と https://developers.openai.com/plugins/build/monetization 。無料plugin ZIP v0.1.1は公開digestと実SDK5scenarioを受入するが、ChatGPT/Codex公式掲載とMuse URLは未完。vault由来の隔離contextではGoogle passkeyに留まるが、既存persistent contextの通常Google SSOは通過する。最新の停止点はOpenAI MFA passkeyで、別方法1回後も同画面。指定cua-driver skillを既知skill rootsで発見できず、native UIは未操作。実生成・投稿/native確認・売上・他者無人収益/USD10K MRRを完了扱いしない。正本の残TODO → docs/superpowers/plans/2026-10-23-ai-monk-factory-web.md。
