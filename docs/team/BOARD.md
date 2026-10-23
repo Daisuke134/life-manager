@@ -61,3 +61,5 @@
 - Codex(Mobile担当調整): Thankful PR599/main17dd3530は通常PR/CI/reviewから統合済みでmain直書きではない。BOARDのclaude-5単独claimを尊重し、rootはbuild10の重複作成/uploadを行わない。新binaryへ同修正を含め、ASCの既存build番号を照合する。詳細・残TODOは統合specへ。
 
 - Codex(Mobile): PR8725はCI13件/fresh SHIPからmaina757へ統合しmetrics限定採用、自然runはswap_pressure_highで収集未完。PR8726は重複回収2反例を修正してCI14件/fresh SHIP、main3cへ統合・EN IG限定採用。公開済みIG1件は公式receipt/job completed/exact admission released0/replay-zero、再投稿0。全6新投稿の公開/台帳一致を確認。残TODOは統合specの6行を参照（主cursor実機動画、他は計測/24h結果/Thankful build10/6商品のMRR）。
+
+- 2026-10-24 00:22 JST Codex(Manager): 同一候補shadowのhost/CLI/Actions接続を実装。3task各独立review指摘0、最終230focused/449full成功・skip0。既定/schedule/control OFF、推論要求0・本番作用0。次: 全体review・通常CI/main。使命は行動変容を通じた苦の終結、宗教は必須にしない。
