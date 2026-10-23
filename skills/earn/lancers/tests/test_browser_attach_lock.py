@@ -185,3 +185,23 @@ def test_successful_dashboard_still_requires_correct_url_and_no_login_form():
             def locator(self, _selector):
                 return SimpleNamespace(count=lambda: login_count)
         assert module._production_account_ready(Page()) is expected
+
+
+def test_account_ready_solves_the_waf_challenge_like_work_sync(monkeypatch):
+    from types import SimpleNamespace
+    module = _module()
+    calls = []
+
+    def solve(page, diagnostic, solver_state_path):
+        calls.append(solver_state_path)
+        return {**diagnostic, "ready": True, "reason": "ready"}
+
+    monkeypatch.setattr(module, "_solve_aws_waf_challenge", solve)
+
+    class Page:
+        url = module.DASHBOARD_URL
+        def goto(self, _url):
+            return SimpleNamespace(status=405)
+
+    assert module._production_account_ready(Page()) is True
+    assert calls == [module.DEFAULT_STATE_PATH.with_name("aws-waf-solver.json")]
