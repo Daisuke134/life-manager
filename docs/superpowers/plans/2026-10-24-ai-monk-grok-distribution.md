@@ -6,7 +6,7 @@ Daisの明示する配布協力を、既存の参謀(Grok Bot)所有チャネル
 このplanとS11の最新参照を先にcommit/pushする。その後BOARDの依頼/ログだけを追加し、PR/mainと公式GitHub内容のreadbackで依頼記録を確定する。ボード記入・Grok受領・Grok実投稿・click/注文は別の状態として残す。Grok応答を待って独立したDatabase/Plugin/Factory作業を停止しない。本人や収益の未確認を0/成功へ置換しない。商品仕様の正本はproducts field-guide/2026-10-24-ai-monk-research-distribution.mdへの参照とする。
 
 ## TODO
-- [ ] 本契約とS11の最新参照をcommit/pushしてからBOARDを編集する。
-- [ ] 参謀への具体依頼と実投稿URLをBOARDへ追加する。
+- [x] 本契約とS11の最新参照をcommit/pushしてからBOARDを編集する。
+- [x] 参謀への具体依頼と実投稿URLをBOARDへ追加する。
 - [ ] PR/main/公式GitHub内容を照合して依頼済みと記録する。
 - [ ] Grokの受領/実投稿/metricsは公式結果が来た時に別途記録する。
