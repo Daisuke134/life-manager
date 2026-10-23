@@ -35,11 +35,22 @@ def _acquire(env):
                           capture_output=True, text=True)
 
 
+def _ps_start_time(tmp: Path, env, pid: int, started_at: int):
+    ps = tmp / "ps"
+    started = time.strftime("%a %b %d %H:%M:%S %Y", time.localtime(started_at))
+    ps.write_text(f"#!{sys.executable}\nimport sys\n"
+                  f"assert sys.argv[1:] == ['-o', 'lstart=', '-p', {str(pid)!r}]\n"
+                  f"print({started!r})\n")
+    ps.chmod(0o700)
+    env.update(PATH=f"{tmp}{os.pathsep}{env['PATH']}", AI_BROWSER_HOLDER_START="fixture-caller-start")
+
+
 def test_legacy_lease_held_by_live_daemon_past_stale_window_is_reclaimed(tmp_path):
     lease, env = _setup(tmp_path)
-    # pid 1 has run since boot, long before this lease: the shape of the Codex daemon holder.
+    acquired_at = int(time.time()) - 120
+    _ps_start_time(tmp_path, env, 1, acquired_at - 120)
     lease.write_text(json.dumps({"identity": "test:dais", "pid": 1, "host": os.uname().nodename.split(".")[0],
-                                 "port": 1, "uuid": "u1", "acquired_at": int(time.time()) - 120}) + "\n")
+                                 "port": 1, "uuid": "u1", "acquired_at": acquired_at}) + "\n")
     result = _acquire(env)
     assert result.returncode == 0, result.stderr
     assert "holder_start" in json.loads(lease.read_text().strip().splitlines()[-1])
@@ -58,16 +69,14 @@ def test_legacy_lease_whose_holder_started_just_before_acquiring_stays_busy(tmp_
     # ~/.config/ai/bin/with-browser.sh writes legacy leases with its own shell pid and never
     # beats; a long job there must not be robbed after 30 minutes.
     lease, env = _setup(tmp_path)
-    holder = subprocess.Popen(["sleep", "30"])
-    try:
-        lease.write_text(json.dumps({"identity": "test:dais", "pid": holder.pid,
-                                     "host": os.uname().nodename.split(".")[0], "port": 1, "uuid": "u1",
-                                     "acquired_at": int(time.time())}) + "\n")
-        env["AI_BROWSER_STALE_SECONDS"] = "1"
-        time.sleep(2)                    # past the stale window, holder started with the lease
-        assert _acquire(env).returncode == 9
-    finally:
-        holder.kill()
+    acquired_at = int(time.time()) - 120
+    _ps_start_time(tmp_path, env, os.getpid(), acquired_at - 1)
+    original = json.dumps({"identity": "test:dais", "pid": os.getpid(),
+                           "host": os.uname().nodename.split(".")[0], "port": 1, "uuid": "u1",
+                           "acquired_at": acquired_at}) + "\n"
+    lease.write_text(original)
+    assert _acquire(env).returncode == 9
+    assert lease.read_text() == original
 
 
 @pytest.mark.parametrize("matching_holder", [True, False], ids=["authorized", "wrong-holder"])

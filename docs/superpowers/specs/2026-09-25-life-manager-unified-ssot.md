@@ -143,6 +143,10 @@ Browser releaseのbounded計画: workerはskills/browser/browser-guard.shと既�
 
 Browser releaseのsource検証: 正常holder/別holderの2ケースがsweep呼出しでREDとなる。releaseの自動sweep 3行だけを除き、lease解放/誤holder拒否と既存acquire/beat/collision/target ownershipを含む29件がPython3.14.7でPASS。shell構文・source境界・diff checkはPASS。Loop contractは18products/192jobs/113mapped/errors0。既存CI jobへguard関連2test filesを追加し、独立read-only reviewとexact-head CI/main readbackを続ける。実browser・private入力・provider操作は0。
 
+Browser CIの診断: PR #8723/head89c5063e43945aa23fc53666815cd165d938558bの公開Mac runnerで、追加step内の既存legacy lease testだけがFAIL（他6件PASS）。testはPID1がleaseより十分前に起動済みと仮定するが、起動直後のrunnerでは成立せずguardは正しくBUSYを返す。productionのstale/ownership条件は変更せず、隔離fixtureのps起動時刻を決定的にし、十分古いholderだけを回収し新しいholderは保持する両境界を検証する。workerの追加所有は同test fileのみ。recent時刻のfixtureでRED1を再現し、old/recent両境界を修正後、workerとprimaryの関連29件がPASS。primaryは追加fixtureの差分を確認する。production変更とCI追加は独立read-only reviewの指摘0で、追加test修正後のproduction差分も0。同PRへpushしてCIを確認する。
+
+実機観測の範囲: 接続済み端末一覧は既存Mac mini1台。別Macの公式成果は未取得のまま保持する。ブラウザーの公式account観測は、accepted mainのskills/browserを既存cutterで限定immutable候補にし、cwdも候補へ固定して実施する。guard/resolver/cdp/target_ownershipの依存は同subtreeと導入済みwebsocket-clientで閉じ、ensure両経路を無効にするためbrowserの起動/再起動を行わない。この候補で業務ownerをapplyせず、製品導入には別途ALL releaseを使う。
+
 SETUP追跡: Reply adapterのprovider既定にもCrowdWorks pathが残る。Storefrontのcreator product固定と併せ、本人入力の次atomで修復する。
 
 ## 別Macへ配布するLocal製品の実行契約
