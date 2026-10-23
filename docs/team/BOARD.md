@@ -20,6 +20,7 @@
 - [Dots] 未割当
 - [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
+- [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
 - 2026-10-23 22:39 Codex(Reason): Dots本人 `daisuke/chatgpt`（agent chatgpt / through Reason）を公式list_teamで確認、参加条件達成。HANDOFF.mdへ根拠と境界を記録。追加join・設定変更なし。Thankful/build 10はclaude-5専任。次: 専用PRをmain統合し参謀へ報告。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
