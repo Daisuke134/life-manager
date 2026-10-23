@@ -94,7 +94,7 @@ MAC02の最新read-only観測: current selectorはa8954faaだが、対象hf-gig-
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-guided-install-20261024、base=32cb3ad451ef2006103c99da0cacaf4f0cff3b39（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINSTALL-RED。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-guided-install-20261024、base=32cb3ad451ef2006103c99da0cacaf4f0cff3b39（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINSTALL-GREEN。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -257,7 +257,7 @@ B3の実行経路診断: 登録済みstorefront effect_reconcileはpending中に
 
 B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
 
-- [ ] B3-READBACK: source/SHIPを完了する。pendingだけ残る実targetの公式照合とkernelのheld fence復旧はINSTALL/READY後の自然実行で確認し、sourceテストを実provider成果へ置換しない。現在cursor=INSTALL-RED。
+- [ ] B3-READBACK: source/SHIPを完了する。pendingだけ残る実targetの公式照合とkernelのheld fence復旧はINSTALL/READY後の自然実行で確認し、sourceテストを実provider成果へ置換しない。現在cursor=INSTALL-GREEN。
 
 #### B3のbounded実装計画
 
@@ -285,7 +285,7 @@ B3の限定修復: context/last_creationを既存ledgerへ追加し、作成時�
 
 所有: workerは新規skills/earn/lancers/install.sh、scripts/install_local.py、tests/test_install_local.pyと、既存storefront_offer.py/storefront-owner/test_create_package.py/test_storefront_owner_pre_effect.pyの初回callerに必要な箇所のみ。primaryはtop-level install.sh dispatch、product-loop-catalog.json、外部向けguide/agent catalog、既存CI、本仕様、統合/実機受入を所有する。他ownerの編集、shared kernel/browser lifecycle/host admission、model設定、実private/browser/provider/launchd操作を開発中に変更しない。
 
-入口: installを既定、planを無変更の読取とする。--candidate-profile/--product/--catalogで本人の既存fileを受け取る。wrapperはcommon scripts/install-local.sh prepareで適合Python/Node/Cloak/Codexとhost bindingを準備し、同じmanaged Pythonでinstallerへ進む。planはprepare/login/書込/browser/applyを呼ばない。installは選択済みCodexのlogin status→必要時login→statusを確認し、既存cut_release/validate_releaseで完全なmain由来immutableを使う。公式observeとowner applyは同releaseの入口から実行し、current selectorを独自に切り替えない。
+入口: installを既定、planを無変更の読取とする。--candidate-profile/--product/--catalogで本人の既存fileを受け取る。wrapperはcommon scripts/install-local.sh prepareで適合Python/Node/Cloak/Codexとhost bindingを準備し、同じmanaged Pythonでinstallerへ進む。planはprepare/login/書込/browser/applyを呼ばない。installはhostが選択済みのCodex executableとprimary runtime profileのauth_file parentをCODEX_HOMEへ渡し、login status→必要時login→statusを確認する。呼出元の別CODEX_HOMEやPATH Codexで成功を代用せず、model/configやaccount orderを変更しない。既存cut_release/validate_releaseで完全なmain由来immutableを使い、公式observeとowner applyは同releaseの入口から実行し、current selectorを独自に切り替えない。
 
 本人入力: candidateは既存validate_profile（version/name/evidence付きfacts）を再利用し、年齢/国籍/email/portfolioを一律必須にしない。productは既存_product(...,creating=True)と任意catalogを使い、初回の空IDを許す。相対image/avatar pathは元product fileのdirectoryから解決してabsoluteへ正規化し、元の本人assetsを参照する。作者template、repo実績、作者accountを補完しない。import先は既存private profile/product/catalog、directory0700/file0600、既存atomic writerを再利用する。既存の異なる本人入力や確認済みIDを上書きしない。同じ内容の再importを許し、入力側の空IDだけが保存済みの実IDと違う場合は実IDを保持する。他の競合は具体的missing/errorで該当laneを保留する。別asset storeやmigration frameworkは作らない。
 
@@ -293,7 +293,7 @@ B3の限定修復: context/last_creationを既存ledgerへ追加し、作成時�
 
 lane適用: browser ownerを既存apply_targetsから先に扱い、既存with-browserの登録済みidentity/leaseからonboarding.observeを新しく実行する。旧statusや本人の完了申告をobserve成功へ置換しない。application/negotiate/paidは既存の本人candidate/provider条件、storefrontは本人product/proof/assetsとseller/account一致、work-syncは既存account/state条件だけを使う。通常telegram-reportのlocal snapshot/outbox/notification条件へ不要なlive accountやproduct gateを追加しない。missing candidate/productで独立したlaneを止めず、不明やHuman Verificationをready/installedへ置換しない。既存稼働ownerはapply_targetsの維持方針に従い、再起動/再送/独自schedulerを追加しない。出力はjob別state/missing/next_actionとbusiness_outcomes_verified=Falseで、private本文やcredentialを表示しない。
 
-- [ ] INSTALL-RED: 無い公開入口、未設定/壊れた本人入力、別HOMEの正の本人設定、相対assets/再import時の実ID保持、plan無変更、Codex未認証、observe失敗、laneごとの独立適用、ownerの初回create/既存apply/不正入力停止を最少fixtureで先に失敗再現する。実通信・private・launchctlは0とする。
+- [x] INSTALL-RED: 無い公開入口、未設定/壊れた本人入力、別HOMEの正の本人設定、相対assets/再import時の実ID保持、plan無変更、Codex未認証、observe失敗、laneごとの独立適用、ownerの初回create/既存apply/不正入力停止を最少fixtureで先に失敗再現する。追加20件に対しworkerは19 failed/201 passed（8.00s）、primaryは19 failed/201 passed（8.49s）を独立確認する。既存200件＋明示apply非create契約1件はPASSし、collection/fixture errorとproduction source差分は0。installer12件の個別assertは未実装入口で止まるためGREEN時に初めて到達する。primaryは同じfixtureへselected runtime auth home、同immutable with-browser、stderrも含むprivate本文非表示のassertを追加する。実通信・private・launchctlは0とする。
 - [ ] INSTALL-GREEN: 既存helperと上記の薄い入口だけで同じtestsを通す。source/契約に必要な既存関連tests、shell/AST/source-boundary/diffを確認する。
 - [ ] INSTALL-SHIP: 外部向けの短い手順とcatalog commandを更新し、commit/push→必要review/既存CI→main/公式readbackへ反映する。本人実機でのaccepted immutableによる導入、READY-B、自然terminal/公式成果、別Mac/10,000 starsは残し、mock成功を全7jobsの本番成功にしない。
 

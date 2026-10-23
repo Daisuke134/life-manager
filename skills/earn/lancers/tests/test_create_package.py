@@ -3632,3 +3632,78 @@ def test_b3_creation_rechecks_catalog_after_target_readback(tmp_path, monkeypatc
     assert result["ok"] is False and result["next_action"] == "official_readback_required"
     assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
     assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+def _owner_cli(module, args, capsys):
+    try:
+        code = module.main(args)
+    except SystemExit as error:
+        code = error.code
+    return code, capsys.readouterr()
+
+
+@pytest.mark.parametrize("listing_id", ["", "91001"], ids=["first-create", "existing-apply"])
+def test_owner_run_uses_validated_input_to_choose_create_or_apply(tmp_path, monkeypatch, capsys, listing_id):
+    module = _module()
+    path = _private_product(tmp_path / "owner", listing_external_id=listing_id)
+    state = tmp_path / "state/application.json"
+    _b3_runtime(monkeypatch)
+    calls = []
+
+    def create(product, output, **_kwargs):
+        assert (product, output) == (path, state)
+        assert {key: module.os.environ[name] for key, name in (
+            ("owner_id", "LIFE_MANAGER_LOOP_ID"), ("occurrence_id", "LIFE_MANAGER_OCCURRENCE_ID"),
+            ("release_sha", "LIFE_MANAGER_RELEASE_SHA"))} == B3_CONTEXT
+        calls.append("create")
+        return {"ok": True, "action": "created", "listing_external_id": "99001"}
+
+    def apply(enabled, product, output, **_kwargs):
+        assert enabled is True and (product, output) == (path, state)
+        calls.append("apply")
+        return {"ok": True, "action": "aligned", "listing_external_id": listing_id}
+
+    delivery = SimpleNamespace(attempted=False, delivered=True, delivery_uncertain=False,
+                               pre_send_failed=False, provider_rejected=False)
+    monkeypatch.setattr(module, "run_create", create)
+    monkeypatch.setattr(module, "run", apply)
+    monkeypatch.setattr(module, "_load", lambda *_args: SimpleNamespace(notify_storefront_wake=lambda _result: delivery))
+    code, output = _owner_cli(module, ["--owner-run", "--product", str(path), "--state-path", str(state)], capsys)
+
+    assert code == 0, output.err
+    assert json.loads(output.out)["ok"] is True
+    assert calls == ["create" if not listing_id else "apply"]
+
+
+@pytest.mark.parametrize("invalid", ["json", "listing-id"])
+def test_owner_run_rejects_invalid_product_before_provider_dispatch(tmp_path, monkeypatch, capsys, invalid):
+    module = _module()
+    path = _private_product(tmp_path / "owner", listing_external_id="PRIVATE-INVALID-ID")
+    if invalid == "json":
+        path.write_text('{"PRIVATE-INVALID-PRODUCT":')
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("invalid owner input reached the provider dispatch")
+
+    monkeypatch.setattr(module, "run_create", forbidden)
+    monkeypatch.setattr(module, "run", forbidden)
+    code, output = _owner_cli(module, ["--owner-run", "--product", str(path)], capsys)
+
+    assert code == 78, output.err
+    result = json.loads(output.out)
+    assert result["ok"] is False and result["error"] == "setup_required"
+    assert "PRIVATE" not in output.out
+
+
+def test_apply_still_refuses_an_empty_id_and_owner_mode_is_exclusive(tmp_path, monkeypatch, capsys):
+    module = _module()
+    path = _private_product(tmp_path / "owner", listing_external_id="")
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("explicit --apply must never create a first listing")
+
+    monkeypatch.setattr(module, "run_create", forbidden)
+    code, output = _owner_cli(module, ["--apply", "--product", str(path)], capsys)
+    assert code == 78 and json.loads(output.out)["error"] == "setup_required"
+    code, _output = _owner_cli(module, ["--owner-run", "--apply", "--product", str(path)], capsys)
+    assert code == 2
