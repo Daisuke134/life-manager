@@ -430,6 +430,24 @@ class CutLoopReleaseTest(unittest.TestCase):
             root = Path(directory)
             loops = root / "loops"
             calls = root / "npm.calls"
+            clock_calls = root / "release-clock.calls"
+            clock_env = root / "release-clock.bash"
+            clock_env.write_text(
+                "date() {\n"
+                '  if [ "$*" = "+%Y%m%dT%H%M%S" ]; then\n'
+                f'    if [ ! -e "{clock_calls}.first" ]; then\n'
+                f'      : > "{clock_calls}.first"\n'
+                '      timestamp="20261023T032742"\n'
+                '    else\n'
+                '      timestamp="20261023T032743"\n'
+                '    fi\n'
+                f'    printf "%s\\n" "$timestamp" >> "{clock_calls}"\n'
+                '    printf "%s\\n" "$timestamp"\n'
+                '  else\n'
+                '    command /bin/date "$@"\n'
+                '  fi\n'
+                '}\n'
+            )
             npm = root / "npm"
             npm.write_text(
                 f'#!/bin/sh\nprintf "%s\\n" "$PWD" >> "{calls}"\n'
@@ -451,6 +469,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 "NPM_BIN": str(npm),
                 "NPM_VERSION": "test",
                 "NPM_NODE_VERSION": "test",
+                "BASH_ENV": str(clock_env),
             }
             first = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
@@ -470,6 +489,10 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                clock_calls.read_text().splitlines(),
+                ["20261023T032742", "20261023T032743"],
+            )
             releases = sorted((loops / "releases").iterdir())
             self.assertEqual(len(releases), 2)
             release = releases[-1]
