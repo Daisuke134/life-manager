@@ -15,7 +15,7 @@ def test_every_registry_priority_is_valid():
     assert not bad, bad
 
 
-def test_message_effect_loops_carry_an_admission_contract():
+def test_effectful_loops_carry_an_admission_contract():
     # 2026-10-24: agentmail-nudge / agentmail-replier pointed at a deleted release and could not be
     # re-applied: lm_loop._admission_rebind_guard keeps a legacy effectful queue row fenced
     # ("pending-admission") until the registry names resource_class/admission_class/priority,
@@ -23,6 +23,6 @@ def test_message_effect_loops_carry_an_admission_contract():
     loops = json.loads(REGISTRY.read_text())
     loops = loops.get("loops", loops)
     missing = {k for k, v in loops.items()
-               if isinstance(v, dict) and v.get("effect_class") == "message"
+               if isinstance(v, dict) and v.get("effect_class") not in (None, "none")
                and not all(v.get(x) for x in ("resource_class", "admission_class", "priority"))}
     assert not missing, missing
