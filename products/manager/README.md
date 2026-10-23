@@ -2,11 +2,13 @@
 
 **使命: 行動変容を通じて、苦しみを終わらせることを目指す。** 特定の宗教は必須にせず、仏教・心理学・行動科学・統計・AIの既存成果を学ぶ。Managerは一つの主体で、人の専用app/chat/毎回の操作を通常活動の前提にしない。Digital Buddhaは任意の構想上の呼称で、覚り/AGI/人の便益を実証したという意味ではない。
 
+**実行原則 — 柔軟性:** 目的と評価基準を保ち、モデル・規模・量子化・runtime・学習方法を実測で選び直す。GPUや特定4B候補を全体の前提にしない。[既存8GiB CPUでQwen3-1.7Bの実推論を確認](docs/verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)。独自学習・人の便益とは別の受入。
+
 **2026-10-23 最新scope:** [tasks.json](docs/roadmap/tasks.json)は113 IDs、**80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件は今回の必須経路から退役し、未達成のskippedとして元の行を保存した。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009も所有7パスの技術P2として受入済み。H005/F004/F007の既存waiverは保持する。人の便益はNOT_MEASURED。
 
-**次の順序:** 受入済みsourceの研究branch同期/CIと既定OFFのagent接続、V001/V002の既存評価・権利・同条件baseline、V003の最小独自adapter研究を進める。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
+**次の順序:** sourceの研究branch同期/CIは受入済み。次は既定OFFのagent接続、V001/V002の既存評価・権利・同条件baseline、V003の最小独自adapter研究を進める。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
 
-**現状:** Actions＋既存private checkpointの単一owner、STOP/復元/独立readbackは限定受入済み。Ampersand prepared比較/保存/公開要約のsourceはPR8710/8715でmain受入済み。研究branch同期・host接続・同条件の実推論比較は未完了で、shadow既定OFF。モデル有用性や人の成果は未証明。
+**現状:** Actions＋既存private checkpointの単一owner、STOP/復元/独立readbackは限定受入済み。Ampersand prepared比較/保存/公開要約のsourceはPR8710/8715でmain受入済み。研究branch同期はdc56ba984ee9／公式CI39972208021で受入済み。host接続・同条件の実比較は未完了で、shadow既定OFF。モデル有用性や人の成果は未証明。
 
 [最新仕様](docs/MANAGER_PRODUCT_SPEC.md) · [scope改訂と一次資料](docs/specs/2026-10-23-behavior-transformation-scope-amendment.md) · [実ファイル別のmodel計画](docs/plans/2026-10-23-behavior-transformation-model-plan.md) · [全Phaseと残23件](docs/roadmap/START_TO_END_20261022.md) · [自動生成backlog](docs/roadmap/ATOMIC_BACKLOG.md) · [新研究protocol草案](pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)
 

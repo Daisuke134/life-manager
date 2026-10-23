@@ -6,11 +6,13 @@
 
 詳細registryは既存[`products/manager/docs/roadmap/tasks.json`](../../../products/manager/docs/roadmap/tasks.json)、**113件＝80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件をtodo→skippedへ変更し、原行・依存・受入をarchiveに保存。完了を増やした変更ではない。既存done80件、E01–E16/F4の所有7パスの限定P2受入、H005/F004/F007のwaiverと他laneのcursorは不変。人の便益はNOT_MEASURED。
 
-次は受入済みAI sourceの研究branch同期/CIと既定OFFのhost接続、V001/V002の権利・固定評価・同条件baseline。V003の最小独自adapter研究は実パイロット全体の完了を待たず進められる。並行してD014/D015/U004の実研究条件/保護を成立させ、U006/U007の実結果をD016へ結ぶ。現依存D016=[D015,U007]、V001=[K014,R006,S003]、V004=[V003,D016]。V004の実昇格、第三者再現・継続・Gの統治はそれぞれ実証して進める。独自modelは計画済み、学習/推論運用/有用性を証明したわけではない。
+受入済みAI sourceの研究branch同期/CIはdc56ba984ee9／公式CI39972208021で確認済み。次は既定OFFのhost接続、V001/V002の権利・固定評価・同条件baseline。V003の最小独自adapter研究は実パイロット全体の完了を待たず進められる。並行してD014/D015/U004の実研究条件/保護を成立させ、U006/U007の実結果をD016へ結ぶ。現依存D016=[D015,U007]、V001=[K014,R006,S003]、V004=[V003,D016]。V004の実昇格、第三者再現・継続・Gの統治はそれぞれ実証して進める。独自modelは計画済み、学習/推論運用/有用性を証明したわけではない。
 
 [主仕様](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)・[scope改訂と一次資料](../../../products/manager/docs/specs/2026-10-23-behavior-transformation-scope-amendment.md)・[実ファイル別計画](../../../products/manager/docs/plans/2026-10-23-behavior-transformation-model-plan.md)・[全Phase/残23件](../../../products/manager/docs/roadmap/START_TO_END_20261022.md)に集約し、別SSOTを作らない。旧U002/U003/U005の支援アクセス研究/技術proofを新対象の需要/便益へ読み替えず、新protocol v2はDRAFT/参加者0/NOT_REGISTERED、旧研究hashは保存。
 
 本体・agentを先にし、新しい記事・書籍等の制作は後段。既存homeのA10 Lab Marketing Intern→行動変容appへの問い→neurofeedback→AIというbio/使命訂正は別のsource作業で、実公開は既存full-site releaseと独立readbackで確認する。YC/適切な接点は期限・本人情報・実提出/応答を別管理し、採択/採用を推定しない。他Life Manager業務のowner/cursorはこの指定で置換しない。
+
+実行原則は柔軟性。使命と根拠の基準を保ち、モデル系列/規模/量子化/runtime/学習方法を実測で更新する。GPU/特定4Bは全体の開始条件にしない。既存8GiBCPUでQwen3-1.7Bの単発実推論を確認、学習/便益は別受入。[実測と候補](../../../products/manager/docs/verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 

@@ -196,7 +196,7 @@ flowchart LR
 
 [新scopeと一次資料](specs/2026-10-23-behavior-transformation-scope-amendment.md)には、Therabot、WHO Step-by-Step/SH+、MBCT/PREVENT、学生mindfulness、瞑想の有害作用、humorのnull RCTを整理した。指導者・支援・対照条件を外したManagerへ効果を移植しない。既存の説得benchmarkに加えてINTIMA等の依存/境界評価を照合し、CounselBench/AHaBench等のNC/ND条件を商用学習に流用しない。§1.2.1–1.2.3の広い探索は研究履歴で、施設・環境の実装を新たな必須条件にしない。
 
-独自に評価・追加学習・版管理できるモデルの重みを主体の中心へ育てる。**既存モデル比較 → 権利とholdoutを固定 → 最小SFT/LoRA → 未見比較 → 実結果と保護を満たした限定運用**の順。V001–V003のoffline研究は人対象実証全体の完了を待たない。実LICENSEがApache 2.0のQwen3-4B-Baseと既存PEFT/TRL等を候補にし、実験前に版・データ・予算を固定する。scratch pretrainingは既存baseで解けない不足と適法corpus・実compute/原価が揃った際の別設計。重みだけで観測・記憶・作用・結果の検証が成立するとはしない。
+独自に評価・追加学習・版管理できるモデルの重みを主体の中心へ育てる。 モデル系列・規模・量子化・runtimeを固定せず、公式artifact/権利と実測から選び直す。GPUや4Bを全候補の開始条件にしない。[既存CPU実推論](verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)はQwen3-1.7Bで確認済みだが、モデルの有用性/独自学習の受入とは分ける。**既存モデル比較 → 権利とholdoutを固定 → 最小SFT/LoRA → 未見比較 → 実結果と保護を満たした限定運用**の順。V001–V003のoffline研究は人対象実証全体の完了を待たない。実LICENSEがApache 2.0のQwen3-4B-Baseと既存PEFT/TRL等を候補にし、実験前に版・データ・予算を固定する。scratch pretrainingは既存baseで解けない不足と適法corpus・実compute/原価が揃った際の別設計。重みだけで観測・記憶・作用・結果の検証が成立するとはしない。
 
 ### 1.3 いま終える範囲と、残作業の実行順
 
