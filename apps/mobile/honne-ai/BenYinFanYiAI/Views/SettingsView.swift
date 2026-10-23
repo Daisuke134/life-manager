@@ -8,7 +8,8 @@ struct SettingsView: View {
         URL(string: "https://daisuke134.github.io/rork--ai/privacy-policy.html")!
     }
     private var termsURL: URL {
-        URL(string: "\(Config.EXPO_PUBLIC_RORK_API_BASE_URL)/api/terms/ja") ?? URL(string: "https://apple.com")!
+        // Apple's standard EULA (accepted for auto-renewable subscriptions, guideline 3.1.2).
+        URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
     }
 
     var body: some View {
