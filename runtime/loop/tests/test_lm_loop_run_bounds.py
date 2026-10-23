@@ -1170,11 +1170,17 @@ def test_entrypoint_cancellation_terminates_running_process_group():
     assert time.monotonic() - started < 2
 
 
-@pytest.mark.parametrize("ignore_term", [False, True])
-@pytest.mark.parametrize("group_observed", [False, True])
-@pytest.mark.parametrize("terminal_kind", ["normal", "timeout", "cancel"])
-def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_session(
-        tmp_path, ignore_term, group_observed, terminal_kind):
+def _process_state(pid):
+    result = subprocess.run(
+        ["ps", "-p", str(pid), "-o", "stat="],
+        capture_output=True, text=True, check=False, timeout=2,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _assert_entrypoint_terminal_fixture(
+        tmp_path, *, ignore_term, group_observed, terminal_kind,
+        parent_stays_after_term=False):
     owned = tmp_path / "owned.json"
     detached = tmp_path / "detached.json"
     parent_terminated = tmp_path / "parent-terminated"
@@ -1185,9 +1191,14 @@ def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_ses
         "pathlib.Path(sys.argv[1]).write_text(json.dumps([os.getpid(),process_start(os.getpid())])); "
         "time.sleep(60)"
     )
+    parent_term_handler = (
+        f"lambda *_: (pathlib.Path({str(parent_terminated)!r}).write_text('TERM'), time.sleep(60))"
+        if parent_stays_after_term else
+        f"lambda *_: (pathlib.Path({str(parent_terminated)!r}).write_text('TERM'), sys.exit(0))"
+    )
     parent = (
         "import pathlib,signal,subprocess,sys,time; "
-        f"signal.signal(signal.SIGTERM, lambda *_: (pathlib.Path({str(parent_terminated)!r}).write_text('TERM'), sys.exit(0))); "
+        f"signal.signal(signal.SIGTERM, {parent_term_handler}); "
         f"subprocess.Popen([sys.executable,'-c',{script!r},{str(owned)!r}]); "
         f"subprocess.Popen([sys.executable,'-c',{script!r},{str(detached)!r}],start_new_session=True); "
         f"paths=[pathlib.Path({str(owned)!r}),pathlib.Path({str(detached)!r})]; "
@@ -1197,7 +1208,19 @@ def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_ses
         + ("sys.exit(0)" if terminal_kind == "normal" else "time.sleep(60)")
     )
     leader = []
+    forwarding = []
+    signal_attempts = []
+    signal_trace = []
+    forward = loop_runner._forward_process_group_signal
     killpg = os.killpg
+
+    def forward_owned_group(pgid, signum):
+        assert pgid == leader[0]
+        forwarding.append(True)
+        try:
+            return forward(pgid, signum)
+        finally:
+            forwarding.pop()
 
     def signal_owned_group(pgid, signum):
         assert pgid == leader[0]
@@ -1205,7 +1228,16 @@ def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_ses
         if terminal_kind == "normal":
             assert exited is not None
         assert exited is None or exited.si_pid == pgid, "group leader was already reaped"
-        return killpg(pgid, signum)
+        origin = "owned-leader" if forwarding else "post-exit-drain"
+        signal_attempts.append((origin, signum))
+        result = killpg(pgid, signum)
+        signal_trace.append({
+            "origin": origin,
+            "signal": signum,
+            # Diagnostic only: origin, not this racy sample, classifies the path.
+            "leader_waitable_at_send": exited is not None,
+        })
+        return result
 
     group_observation = (
         nullcontext() if group_observed else
@@ -1215,6 +1247,8 @@ def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_ses
     try:
         started = time.monotonic()
         with (group_observation,
+              patch("runtime.loop.lm_loop_run._forward_process_group_signal",
+                    side_effect=forward_owned_group),
               patch("runtime.loop.lm_loop_run.os.killpg", side_effect=signal_owned_group)):
             result = _run_entrypoint(
                 [sys.executable, "-c", parent],
@@ -1224,21 +1258,44 @@ def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_ses
             )
         assert result == {"normal": 0, "timeout": 124, "cancel": 75}[terminal_kind]
         assert time.monotonic() - started < 2
-        if terminal_kind != "normal":
+        if terminal_kind != "normal" or parent_stays_after_term:
             assert parent_terminated.read_text() == "TERM"
         owned_pid, owned_start = json.loads(owned.read_text())
         detached_pid, detached_start = json.loads(detached.read_text())
         assert owned_start is not None and detached_start is not None
+        if not group_observed:
+            assert not any(origin == "post-exit-drain"
+                           for origin, _ in signal_attempts), \
+                "unobserved group must not receive a post-exit drain signal"
         if group_observed or (terminal_kind != "normal" and not ignore_term):
             deadline = time.monotonic() + 1
-            while admission.process_start(owned_pid) == owned_start and time.monotonic() < deadline:
+            while (admission.process_start(owned_pid) == owned_start
+                   and not (_process_state(owned_pid) or "").startswith("Z")
+                   and time.monotonic() < deadline):
                 time.sleep(.01)
-            assert admission.process_start(owned_pid) != owned_start, "terminal exit left its child live"
+            assert (admission.process_start(owned_pid) != owned_start
+                    or (_process_state(owned_pid) or "").startswith("Z")), \
+                "terminal exit left its child live"
         else:
-            assert admission.process_start(owned_pid) == owned_start
+            owned_state = _process_state(owned_pid)
+            owned_stopped = (
+                admission.process_start(owned_pid) != owned_start
+                or (owned_state or "").startswith("Z")
+            )
+            escalated_owned_group = any(
+                row["origin"] == "owned-leader"
+                and row["signal"] == signal.SIGKILL
+                for row in signal_trace
+            )
+            if escalated_owned_group:
+                assert owned_stopped, "owned SIGKILL escalation left its child live"
+            else:
+                assert not owned_stopped, \
+                    "terminal exit did not preserve its ignoring child"
         assert admission.process_start(leader[0]) is None
         assert admission.process_start(detached_pid) == detached_start
         assert os.getpgid(detached_pid) != leader[0]
+        return signal_trace
     finally:
         for path in (owned, detached):
             if path.exists():
@@ -1248,6 +1305,30 @@ def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_ses
                         os.kill(pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
+
+
+@pytest.mark.parametrize("ignore_term", [False, True])
+@pytest.mark.parametrize("group_observed", [False, True])
+@pytest.mark.parametrize("terminal_kind", ["normal", "timeout", "cancel"])
+def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_session(
+        tmp_path, ignore_term, group_observed, terminal_kind):
+    _assert_entrypoint_terminal_fixture(
+        tmp_path, ignore_term=ignore_term, group_observed=group_observed,
+        terminal_kind=terminal_kind,
+    )
+
+
+def test_unobserved_group_stops_ignoring_child_when_live_parent_requires_sigkill(
+        tmp_path):
+    signal_trace = _assert_entrypoint_terminal_fixture(
+        tmp_path, ignore_term=True, group_observed=False,
+        terminal_kind="timeout", parent_stays_after_term=True,
+    )
+    assert [(row["origin"], row["signal"]) for row in signal_trace] == [
+        ("owned-leader", signal.SIGTERM),
+        ("owned-leader", signal.SIGKILL),
+    ]
+    assert all(not row["leader_waitable_at_send"] for row in signal_trace)
 
 
 @pytest.mark.parametrize("timeout_seconds", [None, .2])
