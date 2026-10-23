@@ -55,8 +55,10 @@ export function runCli(args, { signal, timeoutMs = 3_600_000, maxOutputBytes = 1
     let done;
     const entry = { stop: reason => terminate(reason), closed: new Promise(res => { done = res; }) };
     const kill = kind => {
-      if (!child?.pid) return;
-      try { process.kill(-child.pid, kind); } catch (error) { if (error.code !== 'ESRCH') transportError ||= 'signal_error'; }
+      if (!child?.pid) return false;
+      try { process.kill(-child.pid, kind); return true; }
+      catch (error) { if (error.code !== 'ESRCH') transportError ||= 'signal_error'; }
+      return false;
     };
     const finish = () => {
       clearTimeout(timer);
@@ -69,9 +71,10 @@ export function runCli(args, { signal, timeoutMs = 3_600_000, maxOutputBytes = 1
         ...(transportError ? { transport_error: transportError } : {}) });
     };
     const terminate = reason => {
-      if (transportError) return;
-      transportError = reason;
-      kill('SIGTERM');
+      if (forceTimer || (!closed && transportError)) return;
+      // Normal CLI completion keeps its exit/JSON while descendants are reclaimed.
+      if (!closed) transportError = reason;
+      if (!kill('SIGTERM') && closed) { finish(); return; }
       // Escalate even if Python exits first: its descendants may still own this group.
       forceTimer = setTimeout(() => {
         forceTimer = undefined;
@@ -105,7 +108,8 @@ export function runCli(args, { signal, timeoutMs = 3_600_000, maxOutputBytes = 1
     child.once('error', () => { transportError ||= 'spawn_error'; });
     child.once('close', (code, childSignal) => {
       closed = { code, signal: childSignal };
-      if (!forceTimer) finish();
+      clearTimeout(timer);
+      if (!forceTimer) terminate();
     });
     timer = setTimeout(() => terminate('timeout'), timeoutMs);
     signal?.addEventListener('abort', abort, { once: true });

@@ -228,6 +228,46 @@ test('server shutdown reclaims its child group after the parent exits first', as
   }
 });
 
+test('normal CLI exit reclaims descendants before returning the unchanged success result', async () => {
+  const { callFactoryTool, runCli } = await adapter();
+  const unrelated = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  let owned;
+  try {
+    const result = await callFactoryTool('factory_plan', base, { executor: args => runCli(args, {
+      timeoutMs: 3000, killGraceMs: 100,
+      spawnChild: (_command, _args, options) => {
+        owned = spawn(process.execPath, ['-e', `
+          const { spawn } = require('node:child_process');
+          const grandchild = spawn(process.execPath, ['-e', 'process.on("SIGTERM", () => {}); process.send("ready"); setInterval(() => {}, 1000)'], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+          grandchild.once('message', () => {
+            grandchild.disconnect();
+            grandchild.unref();
+            process.stdout.write(JSON.stringify({ descendant: grandchild.pid }));
+          });
+        `], options);
+        return owned;
+      },
+    }) });
+    const { descendant } = result.structuredContent.result;
+    assert.equal(result.isError, false);
+    assert.deepEqual(result.structuredContent, { exit_code: 0, signal: null,
+      result: { descendant }, stdout: JSON.stringify({ descendant }), stderr: '' });
+    let survived = true;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      try { process.kill(descendant, 0); }
+      catch (error) { assert.equal(error.code, 'ESRCH'); survived = false; break; }
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.equal(survived, false, 'owned descendant survived normal CLI exit');
+    assert.doesNotThrow(() => process.kill(unrelated.pid, 0));
+  } finally {
+    if (owned?.pid) {
+      try { process.kill(-owned.pid, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    }
+    unrelated.kill('SIGKILL');
+  }
+});
+
 test('real stdio lists tools, plans without communication, and preserves CLI rejection', async () => {
   await adapter();
   const home = await mkdtemp(path.join(tmpdir(), 'factory-mcp-test-'));
