@@ -117,6 +117,67 @@ def _trusted_p2_observation(store, report):
         return False
 
 
+def _select_current_noop_proof(store, host, report):
+    """Select a fresh saved v2 current receipt for a no-op proof export.
+
+    This private bridge never upgrades the cycle result or its canary. It asks
+    the exact trusted platform host for a new default readback and binds that
+    result to the immutable saved occurrence and its native P1/P2 facts.
+    """
+    from manager_core.digital_handoff import validate_intent
+    from manager_core.learning import NativeTechnicalObservation
+    from manager_core.owned_platform_host import GitHubActionsCycleHost
+
+    if (type(store) is not CycleStore or type(host) is not GitHubActionsCycleHost or
+            type(report) is not dict or report.get('status') not in ('NO_ACTION', 'NOT_DUE')):
+        return None
+    try:
+        current = host.observe_current_delivery(store.journal)
+        if (type(current) is not dict or current.get('kind') != 'candidate' or
+                type(current.get('evidence')) is not dict):
+            return None
+        evidence = current['evidence']
+        effect = current.get('effect_key')
+        receipt = current.get('receipt_ref')
+        if (evidence.get('status') != 'VERIFIED' or evidence.get('proof_level') != 'P2' or
+                evidence.get('reason') != 'EXACT_DEPLOYED_CANDIDATE' or
+                type(effect) is not str or not re.fullmatch(r'[0-9a-f]{64}', effect) or
+                type(receipt) is not str or not _SHA.fullmatch(receipt) or
+                evidence.get('effect_key') != effect or evidence.get('receipt_ref') != receipt):
+            return None
+        saved = store.journal.record(effect)
+        if (saved is None or saved.status != 'PRESENT' or saved.receipt_ref != receipt):
+            return None
+        packet = json.loads(saved.packet_json)
+        validate_intent(packet)
+        if (packet.get('schema') != 'manager.digital-handoff.v2' or
+                evidence.get('candidate_sha256') != packet.get('candidate_sha256')):
+            return None
+        receipt_url = f'https://github.com/{REPOSITORY}/commit/{receipt}'
+        rows = store.learning.native_technical_observations(effect_key=effect)
+        bound = [row for row in rows if type(row) is NativeTechnicalObservation and
+                 row.effect_key == effect and
+                 row.candidate_sha256 == packet['candidate_sha256'] and
+                 row.receipt_ref == receipt and row.status == 'VERIFIED' and
+                 row.missing_reason is None and row.human_outcome == 'NOT_MEASURED']
+        if (not any(row.measure_id == 'owned.pages.commit_occurrence' and
+                    row.unit == 'commit_occurrence' and row.proof_level == 'P1' and
+                    row.native_value == 1 and receipt_url in row.provenance_refs
+                    for row in bound) or
+                not any(row.measure_id == 'owned.pages.served_bundle_bytes' and
+                        row.unit == 'byte' and row.proof_level == 'P2' and
+                        type(row.native_value) is int and row.native_value > 0 and
+                        receipt_url in row.provenance_refs and PUBLIC_BASE in row.provenance_refs
+                        for row in bound)):
+            return None
+        selected = dict(evidence, status='VERIFIED_PUBLIC_ARTIFACT_ONLY',
+                        proof_level='P2', deployed=True, effect_key=effect,
+                        receipt_ref=receipt)
+        return selected if _trusted_p2_observation(store, selected) else None
+    except Exception:
+        return None
+
+
 def _discard_kernel_proof(runner_temp):
     """Remove only this run's allowlisted proof directory after later failure."""
     try:
@@ -343,14 +404,21 @@ def run_once(state_store, pages_checkout):
             summary['writes'] = None
             summary['authentication'] = authentication
             return 2, summary
+        current_proof_report = _select_current_noop_proof(
+            store, host, report) if report.get('status') in ('NO_ACTION', 'NOT_DUE') else None
         # Persist the journal/cadence before relinquishing the remote session.
         checkpoint.save()
-        proof_exported=_export_current_kernel_proof(
-            checkpoint,store,report,context['runner_temp'])
+        export_report = (report if _trusted_p2_observation(store, report)
+                         else current_proof_report)
+        proof_exported = bool(export_report is not None and _export_current_kernel_proof(
+            checkpoint, store, export_report, context['runner_temp']))
         checkpoint.release()
         summary = public_summary(report, source_sha=context['source_sha'],store=store)
         if not proof_exported:
             summary['positive_canary']='NOT_RUN'
+        summary['current_proof_exported'] = bool(current_proof_report is not None and proof_exported)
+        summary['current_proof_receipt_sha'] = (
+            current_proof_report['receipt_ref'] if summary['current_proof_exported'] else None)
         summary['authentication'] = authentication
         return (0 if _successful_cycle_exit(report) else 2), summary
     except Exception as exc:
