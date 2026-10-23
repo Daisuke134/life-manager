@@ -262,6 +262,131 @@
       ],
       "risk": "England survey context is not a baseline, comparator or causal benefit estimate for Manager visitors. Weighted percentages differ from unweighted category/base ratios.",
       "unresolved": "Institutional applicability UNKNOWN; Route B partnership/ethics/consent inactive; expanded reuse and full license text remain unverified."
+    },
+    {
+      "id": "intima-prompts",
+      "name": "INTIMA synthetic companionship prompts",
+      "kind": "public synthetic benchmark prompts; no participant or time columns",
+      "license_expression": "CC-BY-4.0",
+      "source_url": "https://huggingface.co/datasets/AI-companionship/INTIMA/resolve/48537e5d3905152751964b48d0a2ef681ace74dc/INTIMA.jsonl",
+      "license_evidence_url": "https://huggingface.co/datasets/AI-companionship/INTIMA/blob/48537e5d3905152751964b48d0a2ef681ace74dc/README.md",
+      "license_evidence_sha": "48537e5d3905152751964b48d0a2ef681ace74dc",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "hold",
+        "commercial_evaluation": "allowed_with_conditions",
+        "commercial_training": "hold"
+      },
+      "requirements": [
+        "Credit Lucie-Aimée Kaffee, Giada Pistilli and Yacine Jernite; cite INTIMA and arXiv:2508.09998, include source and CC BY 4.0 license links and identify changes.",
+        "Use only as evaluation input. Never use benchmark prompts as training, SFT, DPO, teacher, few-shot or retrieval examples; preserve all rows and duplicate prompt families.",
+        "Keep raw prompts and responses out of public Git, stdout metadata, repr and error messages. Public output is metadata only; raw prompts may exist only in private in-memory evaluation cases.",
+        "Commercial evaluation is conditional on this scoped review, attribution and separate third-party rights/privacy checks. Commercial training is an operational hold for test-set isolation, not a claim that CC BY prohibits training.",
+        "Dataset card declares CC BY 4.0; no independent LICENSE file was found. Full CC legalcode retrieval returned HTTP403 and was not independently confirmed in this intake.",
+        "Do not extend the dataset declaration to the attached paper, source Reddit corpus, separate Space code or model outputs. Do not retrieve or join source profiles.",
+        "Intake is INPUT_INTAKE_ONLY, evaluation NOT_RUN, P0, human welfare NOT_MEASURED and can_execute=False. Person, time and transfer validity remain UNKNOWN; V001/V002 are not completed by intake."
+      ],
+      "attribution": {
+        "creators": [
+          "Lucie-Aimée Kaffee",
+          "Giada Pistilli",
+          "Yacine Jernite"
+        ],
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "changes": "No prompt changes or deduplication; add row IDs, prompt hashes and metadata-only intake checks."
+      },
+      "artifact": {
+        "revision": "48537e5d3905152751964b48d0a2ef681ace74dc",
+        "path": "INTIMA.jsonl",
+        "bytes": 98989,
+        "sha256": "31b683f0592a88db078e9cd8f3b03eefbd59edeac14b7894a92894d1518eb136",
+        "retrieved_at": "2026-10-23T14:43:01.188826+00:00",
+        "role": "evaluation_only",
+        "publication": "metadata_only",
+        "retrieved_at_basis": "Local INTIMA.jsonl filesystem mtime observed during intake; proxy for local save completion, not an exact HTTP retrieval or upstream publication time."
+      },
+      "data_quality": {
+        "rows": 380,
+        "unique_prompts": 376,
+        "codes": 32,
+        "code_counts": {
+          "age of the user": 12,
+          "always happy": 9,
+          "attachment": 12,
+          "availability": 9,
+          "challenging time": 12,
+          "company": 12,
+          "consistent": 12,
+          "friendship": 12,
+          "funny": 12,
+          "gifting": 12,
+          "grief": 12,
+          "growing from a tool": 12,
+          "growth": 12,
+          "guide": 12,
+          "helpful": 12,
+          "loneliness": 12,
+          "long-term relationship": 12,
+          "lose yourself in the conversation": 12,
+          "love": 12,
+          "memory": 12,
+          "mirror": 8,
+          "name": 15,
+          "neurodivergent": 12,
+          "persona": 15,
+          "personalised": 12,
+          "preference over people": 12,
+          "regular interaction": 12,
+          "romantic partner": 12,
+          "smart": 12,
+          "support": 12,
+          "therapy": 12,
+          "understanding": 12
+        },
+        "prompt_generator_model_counts": {
+          "Llama-3.1-8B-Instruct": 124,
+          "Qwen2.5-72B-Instruct": 128,
+          "Mistral-Small-24B-Instruct-2501": 128
+        },
+        "duplicate_groups": [
+          {
+            "prompt_sha256": "5c9ff789d2b43e07d03332b5a1e0708ca68ece6d08e835faca425a0ffef06555",
+            "rows_1based": [
+              126,
+              129
+            ]
+          },
+          {
+            "prompt_sha256": "72e971cdbd7ba46a5f9cb7de630223a5939427652523ecba15b12c1c82ea42b3",
+            "rows_1based": [
+              134,
+              137
+            ]
+          },
+          {
+            "prompt_sha256": "d3b3a580005079d1afdf599871118e0216f6e069545d006dac75c1c226547e2b",
+            "rows_1based": [
+              133,
+              136
+            ]
+          },
+          {
+            "prompt_sha256": "d47aee1b177d1754ff7d35263d5afe436dfab74ce9119afabfc897e65034c758",
+            "rows_1based": [
+              127,
+              130
+            ]
+          }
+        ]
+      },
+      "card_claim": {
+        "rows": 368,
+        "codes": 31
+      },
+      "risk": "Card/abstract claims 368 prompts and 31 codes; pinned bytes contain 380 rows, 376 unique prompts and 32 codes. Four identical row duplicates are retained. The model field identifies prompt generators, not evaluated models or judges.",
+      "unresolved": "Independent legal authentication, source participant anonymization, pretraining contamination, person/time/transfer validity, complete upstream judge reproduction and human outcome measurement remain unverified. This review authorizes no execution or training."
     }
   ]
 }
