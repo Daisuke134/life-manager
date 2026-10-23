@@ -10,7 +10,7 @@
 
 主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは、人のapp/chat/messenger操作や対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働くこと。BobaのMessages/iMessage/webにはUIがあり、この意味のno UIの先例とはしない。実行試験の7パスは主体全体の完成像ではない。
 
-**優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。session intent／予算を既存checkpointへ結ぶP0 callable、ACK先行、UNKNOWN隔離、期限、strict parserのsourceはPR8650でmain統合済み（[受入と残接続](../verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)）。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで、既定OFFを維持する。定期実行のモデル呼出しは未接続。SDK整合性修正はPR8665でmain統合済み。次はU002の記録を基にU003で実課題を選び、固定SDK・既存予算設定・同条件の実比較を結ぶ。C002/Y008を保留中に全113件完了とは呼ばない。
+**優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。session intent／予算を既存checkpointへ結ぶP0 callable、ACK先行、UNKNOWN隔離、期限、strict parserのsourceはPR8650でmain統合済み（[受入と残接続](../verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)）。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで、既定OFFを維持する。定期実行のモデル呼出しは未接続。SDK整合性修正はPR8665でmain統合済み。U002/U003/U005を限定受入し、固定SDKの修復もPR8693でmain統合済み（[source受入](../verification/AMPERSAND_SDK_PIN_SOURCE_ACCEPTANCE_20261023.md)）。次は同じ候補での比較結果保存・再読、既存ownerへの任意接続と、適合課題での実比較を検証する。C002/Y008を保留中に全113件完了とは呼ばない。
 
 全体の順序の入口はrepository統合SSOT、詳細状態・依存は既存 [tasks.json](tasks.json)。本書はその派生viewで、新しい台帳ではない。[As-is／To-be](../MANAGER_PRODUCT_SPEC.md)、[E16実稼働受入](../verification/E16_DEPLOYED_ACCEPTANCE_20261023.md)、[F個別受入](../verification/PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md)、[D001/D002 source受入](../verification/D001_D002_SOURCE_ACCEPTANCE_20261023.md)を参照。
 

@@ -138,7 +138,7 @@ D003/D011は通常main統合後に限定source接続として受入した。残3
 
 | 順 | 既存ファイル・関数 | 現在と次の差分・受入条件 |
 |---|---|---|
-| 1 | `ampersand_api.make_client`、`requirements-ampersand.txt` | [PR8693](https://github.com/Daisuke134/life-manager/pull/8693)で任意のSDKを公式3.24.0へ固定し、異なる版をclient生成前に拒否する修復を審査中。Manager410 tests・独立review・隔離した実SDKのconstructor確認は成功、model要求0。必須CIの既存process-group testに未考慮の正当な停止経路があり、テスト側を修復して通常main統合へ進める。まだmain済み／定期推論済みとはしない |
+| 1 | `ampersand_api.make_client`、`requirements-ampersand.txt` | [PR8693](https://github.com/Daisuke134/life-manager/pull/8693)をmain `f29c10074d7ac31327b5d6247d0f656f20d4c4db`へ通常統合済み。任意SDKを公式3.24.0へ固定し、異なる版をclient生成前に拒否する。Manager410 tests、停止fixture修復の独立17 tests、R1/R2 review指摘0、最終headの全16チェック終端（15成功／想定内publisher skip1、失敗0）を確認。[source受入](verification/AMPERSAND_SDK_PIN_SOURCE_ACCEPTANCE_20261023.md)。隔離した実SDKのconstructor確認はmodel要求0。定期実行のSDK導入・推論有効化は行っていない |
 | 2 | `owned_provider_shadow.py`、`owned_checkpoint._validate_database` | 次のsource差分。hostが既に検証した同じcontext/assessment/scopeから比較し、二重planningを避ける。P0比較を同じprivate `cycle.sqlite`へ保存しcheckpoint ACK後に提示する。保存結果の再読で新しいcreateをしない。intentだけ残る場合はUNKNOWN／要照合のまま。public出力は固定したstatus・hash・baseline/model判定などに限定し、raw応答・provider ID・秘密を出さない。旧checkpointとの互換も検証する |
 | 3 | `owned_platform_host.prepare_candidate`、`run_owned_digital_cycle.py`、`manager-phase06-service.yml` | 次のsource差分。既存lock/recovery/STOP/cadenceを通った後、同じ候補で任意の比較を行う。SDK導入はlease前、provider初期化は適合候補と明示設定の確認後。既定OFF、scheduleはOFF、数値予算の空欄を勝手な額へ変えない。control操作や無効設定ではprovider呼出し0。既存のdeterministic選定・source/browser/CAS/publisher権限は独立して保持する |
 | 4 | 既存shadow／baseline／provider receipt | 実運用の証拠。適合する実課題、利用可能なproviderと実際の予算条件、同じ入力・版・失敗分母を固定し、保存session/turn/final応答と比較を照合する。再読でnew create0を確認する。候補なしならSKIPPED、比較不要なら既存ルールを使う。SDK導入や判定一致だけでmodel有用性・人の便益を認定しない |
