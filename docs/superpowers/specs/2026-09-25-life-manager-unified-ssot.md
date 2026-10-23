@@ -126,7 +126,7 @@ Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、�
 - [x] ACCOUNT-GREEN: focused testsと既存local_identity testsを実行し、保存後の本人recordを既存readerで読めること、別HOME/既存keys保持/digest改変拒否/所有tab cleanupを確認する。
 - [ ] ACCOUNT-SHIP: diff/source boundary→commit/push→必要review/既存CI→main/public readback→main由来immutableの同commandで公式観測とprivate bindingを確認する。ここで他laneや別Macの稼働を完了にしない。
 
-ACCOUNTのsource検証: 新規52件を未実装でRED再現し、既存identity12件を含む64件がPASS。primaryが実測と同じprofile/feedback/proposal混在で追加REDを再現するため、同一accountのroot/統計suffixを同じ本人として扱い、別account混在を拒否する4ケースを追加する。workerとprimaryの新規56件＋既存12件=68件がPython3.14.7でPASS。追加のaccepted browser観測もsummary10links/root4/query0/fragment0/official origin・account一意を確認する。AST/source境界/diffはPASS、Loop contractは18products/192jobs/113mapped/errors0。既存CIへ新test1fileを追加する。独立reviewとCI/main受入、公開入口・実private bindingは継続中。開発sourceの実browser/private操作は0。
+ACCOUNTのsource検証: 新規52件を未実装でRED再現し、既存identity12件を含む64件がPASS。primaryが実測と同じprofile/feedback/proposal混在で追加REDを再現するため、同一accountのroot/統計suffixを同じ本人として扱い、別account混在を拒否する4ケースを追加する。workerとprimaryの新規56件＋既存12件=68件がPython3.14.7でPASS。追加のaccepted browser観測もsummary10links/root4/query0/fragment0/official origin・account一意を確認する。AST/source境界/diffはPASS、Loop contractは18products/192jobs/113mapped/errors0。無関係な別provider同士のUUID衝突がLancersまで停止する追加gateもRED1で再現し、Lancers UUIDの重複だけを拒否する既存guardの範囲へ揃える。最終は新規59件＋既存identity12件=71件PASS。実EXPRESSIONから4root＋6統計linksを通すfixtureもPASS。既存CIへ新test1fileを追加する。独立reviewとCI/main受入、公開入口・実private bindingは継続中。開発sourceの実browser/private操作は0。
 
 #### Lancers本人入力の実装計画
 

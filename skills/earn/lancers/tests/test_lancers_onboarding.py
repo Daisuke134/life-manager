@@ -61,14 +61,14 @@ def _observation(home):
     return home / ".config/anicca/lancers/onboarding-observation.json"
 
 
-def _lease(home, monkeypatch, *, row_updates=None, holder_updates=None, status_updates=None):
+def _lease(home, monkeypatch, *, row_updates=None, holder_updates=None, status_updates=None, other_rows=()):
     holder = {"identity": "lancers:dais", "pid": os.getpid(),
               "host": socket.gethostname().split(".")[0], "holder_start": "fixture-token",
               "port": 19471, "uuid": "fixture-browser-uuid", **(holder_updates or {})}
     row = {"identity": "lancers:dais", "reachable": True, "endpoint": ENDPOINT,
            "port": 19471, "uuid": "fixture-browser-uuid", "holder": json.dumps(holder),
            **(row_updates or {})}
-    status = {"identities": [row], "collisions": {}, **(status_updates or {})}
+    status = {"identities": [row, *other_rows], "collisions": {}, **(status_updates or {})}
     guard = home / "fake-guard"
     calls = home / "guard-calls.txt"
     guard.write_text(
@@ -264,6 +264,7 @@ def test_unleased_observe_invalidates_old_success_before_any_guard_or_cdp(isolat
 def test_inherited_environment_requires_real_guard_holder_endpoint_join(isolated_home, monkeypatch, boundary):
     module = _load()
     holder, row, status = {}, {}, {}
+    other_rows = []
     if boundary == "holder":
         holder["pid"] = os.getpid() + 1
     elif boundary == "token":
@@ -282,12 +283,42 @@ def test_inherited_environment_requires_real_guard_holder_endpoint_join(isolated
         row["identity"] = "coconala:kosuke"
     elif boundary == "collision":
         status["collisions"] = {"fixture-browser-uuid": ["lancers:dais", "other:identity"]}
+        other_rows = [{"identity": "other:identity", "uuid": "fixture-browser-uuid",
+                       "reachable": True, "endpoint": "http://127.0.0.1:19472", "port": 19472, "holder": ""}]
     else:
         row["holder"] = "not-json-PRIVATE"
-    _lease(isolated_home, monkeypatch, row_updates=row, holder_updates=holder, status_updates=status)
+    _lease(isolated_home, monkeypatch, row_updates=row, holder_updates=holder,
+           status_updates=status, other_rows=other_rows)
     monkeypatch.setattr(module, "_load_cdp", lambda: pytest.fail("invalid lease must not connect to CDP"))
     assert module.observe(isolated_home)["error"] == "setup_required"
     assert not _profile(isolated_home).exists()
+
+
+@pytest.mark.parametrize("shares_lancers_uuid", [False, True])
+def test_guard_collision_is_scoped_to_lancers_browser_uuid(isolated_home, monkeypatch, shares_lancers_uuid):
+    module = _load()
+    uuid = "fixture-browser-uuid" if shares_lancers_uuid else "unrelated-browser-uuid"
+    other_rows = [
+        {"identity": "other:a", "uuid": uuid, "reachable": True,
+         "endpoint": "http://127.0.0.1:19472", "port": 19472, "holder": ""},
+        {"identity": "other:b", "uuid": uuid, "reachable": True,
+         "endpoint": "http://127.0.0.1:19473", "port": 19473, "holder": ""},
+    ]
+    identities = ["lancers:dais", "other:a", "other:b"] if shares_lancers_uuid else ["other:a", "other:b"]
+    _lease(isolated_home, monkeypatch, other_rows=other_rows,
+           status_updates={"collisions": {uuid: identities}})
+    cdp, events = _browser(module, monkeypatch)
+
+    result = module.observe(isolated_home)
+
+    if shares_lancers_uuid:
+        assert result["error"] == "setup_required"
+        assert not _profile(isolated_home).exists()
+        assert events == []
+    else:
+        assert result == {"ok": True, "status": "account_connected"}
+        assert events == ["open", "evaluate", "close"]
+        assert cdp.target_ownership.targets_for_owner("lancers-onboarding") == set()
 
 
 def test_observe_closes_only_owned_target_before_private_connection(isolated_home, monkeypatch):
@@ -361,10 +392,15 @@ def test_import_does_not_read_private_input_or_invoke_browser(isolated_home, mon
 
 @pytest.mark.parametrize("summary_links,challenge,want", [
     (["https://www.lancers.jp/profile/other-seller"], False, "other-seller"),
+    (["https://www.lancers.jp/profile/other-seller"] * 4 + [
+        "https://www.lancers.jp/profile/other-seller/feedback/0/win",
+        "https://www.lancers.jp/profile/other-seller/proposal",
+        "https://www.lancers.jp/profile/other-seller/feedback/0/feedback",
+    ] * 2, False, "other-seller"),
     ([], False, None),
     (["https://www.lancers.jp/profile/other-seller"], True, None),
 ])
-def test_dom_snapshot_reads_summary_links_without_page_text(summary_links, challenge, want):
+def test_dom_snapshot_reads_summary_links_without_page_text(isolated_home, summary_links, challenge, want):
     module = _load()
     script = r'''
 const vm = require('node:vm'), input = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
@@ -382,4 +418,6 @@ process.stdout.write(JSON.stringify(vm.runInNewContext(input.expression, {docume
         capture_output=True, text=True, timeout=10, check=True)
     snapshot = json.loads(completed.stdout)
     assert module.observed_account(snapshot) == want
+    if want is not None:
+        assert module.connect(isolated_home, snapshot) == {"ok": True, "status": "account_connected"}
     assert "PRIVATE" not in completed.stdout

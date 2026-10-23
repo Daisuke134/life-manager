@@ -152,7 +152,7 @@ def _inherited_lease() -> bool:
         os.kill(int(pid), 0)
         result = subprocess.run([guard, "status"], capture_output=True, text=True, timeout=8, check=False)
         status = json.loads(result.stdout) if result.returncode == 0 else {}
-        if not isinstance(status, dict) or status.get("collisions") != {}:
+        if not isinstance(status, dict):
             return False
         rows = status.get("identities")
         if not isinstance(rows, list):
@@ -166,6 +166,8 @@ def _inherited_lease() -> bool:
             isinstance(holder, dict) and row.get("reachable") is True
             and row.get("endpoint") == endpoint and row.get("port") == port
             and isinstance(row.get("uuid"), str) and bool(row["uuid"])
+            and not any(isinstance(other, dict) and other.get("identity") != IDENTITY
+                        and other.get("uuid") == row["uuid"] for other in rows)
             and holder.get("identity") == IDENTITY and holder.get("pid") == int(pid)
             and holder.get("holder_start") == token
             and holder.get("host") == socket.gethostname().split(".")[0]
