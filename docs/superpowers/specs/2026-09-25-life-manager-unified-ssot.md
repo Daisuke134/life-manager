@@ -14,7 +14,7 @@
 - [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
 - [x] README-MAC-03: focused/context/contract、review、CI14項目すべて成功。PR #8666をmain `6b93057b41dcf8fdf8d983e85ecdb676d90bf041`へ統合する。英日README、公開installer、requirements、導入guide、agent catalogの6ファイルをGitHub公式main readbackとbyte一致で確認する。別Mac実機・全provider成果と既存Coconala待機の未完条件は保持する。
 
-README-MAC-01–03は完了、現在cursor=MAC02-C（PR #8677のCI/main/readback）。
+README-MAC-01–03は完了、source受入は完了、現在cursor=MAC02の本人設定後の実稼働・MAC05の別Mac実機受入。
 
 - [x] README-MAC-04: 並行PR #8672のhosted agent手順表・promptを既存`docs/getting-started.md`へ移し、英日READMEは詳細への短い案内にする。追加内容を失わず、未検証のany-agent対応を導入保証として見せない。Local Mac/ChatGPT Plus/awake Macの入口は維持する。Git登録worktree/leaseに該当README ownerは見つからず、agmsg teamのlive照会は30秒でtimeoutするため、他席へ作業開始や連絡済みと断定しない。
 
@@ -48,7 +48,7 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 - [x] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。 実際の`runtime/loop/lm_loop_apply.py:_plist()`まで通す全7job生成fixtureで確認し、Coconalaの7ownersだけへ`GIG_GOG_ACCOUNT`/`GIG_NOTIFY_EMAIL`を渡す。任意env passthroughや他ownerへの注入は追加しない。同一release SHAの既存ownerでも、通知設定の初回追加・変更をexact-releaseの採用判定で見落とさない。`runtime/loop/local_install.py`と対応する既存testsまでを必要なshared境界として修復し、稼働中ownerをskipする保護は維持する。
 - [x] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。 初回の独立検証はHOLD。要求URLのままbody=`403 Forbidden`/ready=completeでも認証成功になるP1と、pagesのないauthenticated=trueだけの観測が開始を通すP2を隔離fixtureで再現する。URLだけではなく正の認証証拠と現在の観測形式との整合を検証し、KYC/銀行の履歴は保持する。
-- [ ] MAC02-C: focused/source/review/CI/main/readbackと残る外部条件を記録する。 PR #8677、source head `932ef1794879d51a98040fd2f8ca62263a9f80c3`は再reviewで確定finding0/SHIP、primaryのonboarding/gig-release計64件と独立focused25件がPASS。最新CI/main/readbackは本cursorで進める。
+- [x] MAC02-C: source head `932ef1794879d51a98040fd2f8ca62263a9f80c3`の再reviewは確定finding0/SHIP、primaryのonboarding/gig-release計64件と独立focused25件がPASS。PR #8677の最終head `9aa2752c44c9d6cc8d6d67ec1f0d2c5d2cc065f4`で全13チェックが成功し、main `09e297141303d2d09593d09a1e603d165bbc4344`へ統合する。GitHub公式main readbackで英日README各54行、guide、共通installer/runtime依存、apply/local-install、Coconala3 sourceの公開10ファイルすべてが検証済みlocalとbyte一致する。旧worktree/branchのsource受入を閉じる。全MAC02/05の別Mac実機・本人provider接続・自然業務の公式成果は未完であり、source受入を全製品完走に置換しない。
 
 source受入は通知追加7回帰と関連271 tests/298 subtests、認証関連108 tests、shell/diff/source-boundary、loop契約18/192/113/errors0がPASS。本人profileの正のDOM証拠は既存`application_parent`の同provider形を再利用し、safe snapshotへ真偽だけ保存する。本人profileが確認できるmaintenance表示は認証を否定する根拠とは限らず、provider availabilityをこのgateだけで保証しない。READMEの互換性詳細はguideへ保存し、英日各54行、startup context20/adapter registry15/URL migration/relative linksがPASS。
 
