@@ -3189,3 +3189,54 @@ def test_catalog_setup_failure_preserves_unknown_effect(tmp_path, monkeypatch, c
     assert result["missing"] == ["listing_catalog"]
     assert result["logged_in"] is None and result["next_action"] == "official_readback_required"
     assert callbacks == []
+
+
+@pytest.mark.parametrize("mode", ["apply", "create", "catalog"])
+@pytest.mark.parametrize("ledger", ["pending", "broken", "absent"])
+@pytest.mark.parametrize("boundary", ["import", "lock"])
+def test_startup_failure_preserves_unknown_effect(tmp_path, monkeypatch, mode, ledger, boundary):
+    module = _module()
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    ledger_path = state.with_name("listing.json")
+    if ledger != "absent":
+        ledger_path.write_text(json.dumps({"pending_create": {"product_id": "unconfirmed"}})
+                               if ledger == "pending" else "{broken")
+    before = ledger_path.read_bytes() if ledger_path.exists() else None
+    tick = _FakeTick()
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("failed startup reached browser/provider callback")
+    monkeypatch.setattr(tick, "_default_browser_factory", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    if boundary == "import":
+        def failed_import(*_args):
+            raise ImportError("fixture tick unavailable")
+        monkeypatch.setattr(module, "_load", failed_import)
+    else:
+        class FixtureLockBusy(RuntimeError):
+            pass
+        def failed_lock(*_args):
+            raise FixtureLockBusy("fixture lock unavailable")
+        monkeypatch.setattr(tick, "account_lock", failed_lock)
+        monkeypatch.setattr(module, "_load", lambda *_args: tick)
+
+    if mode == "apply":
+        result = module.run(True, product, state)
+    elif mode == "create":
+        result = module.run_create(product, state)
+    else:
+        result = module.run_catalog_create(state, catalog, product_path=product)
+
+    assert result["ok"] is False
+    if ledger == "absent":
+        assert result["logged_in"] is False
+        assert "next_action" not in result
+    else:
+        assert result["logged_in"] is None
+        assert result["next_action"] == "official_readback_required"
+    assert callbacks == []
+    assert (ledger_path.read_bytes() if ledger_path.exists() else None) == before

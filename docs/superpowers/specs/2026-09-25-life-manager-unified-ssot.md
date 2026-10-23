@@ -207,6 +207,8 @@ INPUTS-B1のreview修復: catalog欠損/破損とpending存在/ledger破損の4�
 
 INPUTS-B1の起動境界診断: pending_createを持つ隔離fixtureでtick importをImportErrorにすると、apply/createがlogged_in=Falseを返すことをprimaryのfake probeで再現する。現head67933727の独立再reviewはblocking0だが、この追加境界があるためmerge watcherを停止する（PR #8747はOPEN）。同じpending/ledger読取不能はmodule import・account lock取得失敗・catalog入口でもauth未観測を保持し、ownerのpre_effect_failure/effect0へ戻さない。通常pending無しの起動失敗は従来のFalseを維持する。既存state helperを再利用した最小修正を、実private/browser/provider無しの失敗テストから進め、更新headの独立review/CIで受け入れる。B2/INSTALL/READYは残す。
 
+INPUTS-B1の起動境界RED: 既存test_create_package.pyへapply/create/catalog×tick import/account lock失敗×pending/ledger破損/記録無しの18ケースを追加する。primaryの同じ隔離入口で12 failed/6 passed/148 deselected（0.59s）を確認する。12件はFalse is Noneで失敗し、記録無し6件のFalseは維持する。production sourceはまだ変更していない。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
