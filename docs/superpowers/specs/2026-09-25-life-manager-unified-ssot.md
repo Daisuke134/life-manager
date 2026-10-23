@@ -38,7 +38,7 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 **現在Macの追加観測:** immutable current `20261023T182457-409c568f`から同じownerをread-onlyで再確認する。installed/event SHA=`409c568f9116a3b61bb03e37ee36461e2198875b`、run=`18e1200ea94addd8-82363`、occurrence=`hf-gig-reply-detector:18e1200ea94addd8-82363`、phase=`report`、exit=75、effect=`not_applicable`、receipt/readback=null、blocker=`host_admission_deferred:disk_floor_low`、retryable=true、next=`retry_after_eligibility`へ変化する。前のcapacity busy snapshotを現在原因として使わない。`df`の空きは736,256 KiB、`vm.swapusage`は19,456 MiB使用である。既存disk governorの最新unbound receiptはerrors=0/protected_deletions=0/reclaimed=0/capacity recovery unmet、候補10件はopen6/protected_path4で保護される。Git重複もprune-packable10件のみで、repo全体や使用中cacheを削除して容量復旧を偽装しない。古い4 effect fenceは引き続きofficial receipt未取得。新規Mac向けsource修復は独立継続し、現Macの空容量・未照合effectと別Mac実機の受入はMAC02/05の未完として保持する。
 
-既存の容量回復経路として、main由来immutable releaseの`central_cleanup.codex_history_cleanup(home)`を独立read-only検証する。既存の本人ownership・native version・protected path・staging capacityの条件を一切緩めず、条件を満たす時だけCodex自身へ古い履歴のlossless maintenanceを依頼する。session JSONLの直接削除/書換え、app-server再起動、他ownerのlock解除、Telegram配信は行わない。requestを完了や空き容量回復と同一視せず、native返答と実空き容量を区別して記録する。 独立検証ではhelper内部のnative保護条件は維持する一方、単独callは中央cleanup owner bindingを通らないと判明する。既存owner境界を保持した実行根拠が揃うまではRPCを実行せず、直接履歴削除やlock解除で代用しない。
+既存の容量回復経路はowner-bound自然実行で観測する。life-manager-disk-cleanupはaccepted ALL23cce9dc/run18e144fe81ea4520-3098/report/exit0/effectnot_applicableである。同runのbounded launchd out log（mtime1792790293.8984833）もowner/release/run bindingが一致し、ok=true/errors0、codex_storage=no_cold_rollouts、git_cleanup=pass/prune_packable_after0/loose_bytes_after9,048,064、release GC reclaimed_bytes0/protected_deletions0である。native履歴メンテナンスの追加対象や回収成果を作らず、RPC要求・履歴直接変更・lock解除・Mac/app-server restartは0とする。legacy StandardOutPathの古いsnapshot（mtime1792601594）は現在成果に流用せず、現在のbounded logを根拠にする。容量floorは未到達のため、既存host inventoryと書込みの観測へ進む。
 
 ### MAC02の本人設定・再開の修復
 
@@ -360,6 +360,8 @@ CAPACITYの自然受入: 更新後receiptは21:16:48Z/mtime1792790208.6259868（
 INSTALL-REUSEの次TODO（source推論、実再install失敗の証拠ではない）: currentを変えない公開導入では、次SHA更新時に既存full release/bundlesがあってもfresh容量分岐が全依存を再予算化する。次の容量回復後、current無し/既存有効donorの最小回帰で確認し、初回導入・不正current拒否を保持して再利用へ接続する。
 
 旧effect fenceの追加診断: accepted d8e4578cの既存private journal validator/proof evaluatorで、利用可能な全18 journalを読み、対象5ownersの239,727rowsを照合する。SQLiteはmode=ro/query_only、state変更0。unknown416件はapplication186（no_pre_effect_terminal151/claimed_by_other_run19/terminal_not_claiming_run16）、negotiate226（no_pre_effect_terminal225/claimed_by_other_run1）、paid2/report1（全てno_pre_effect_terminal）、storefront1（terminal_not_claiming_run1）。provable0、53.87s。最新4archive限定によるhistory_incompleteだけが原因ではなく、全既存履歴でもno-effect証明が無い。archive上限拡大やDB直接解除を追加せず、既存provider別reconcileの公式readbackで未確定effectを解決する。本人商品入力不足は別の未完条件として保持する。
+
+CAPACITYの継続受入: 次の21:19:50Z/mtime1792790390.1365283もok=true/errors0/protected_deletions0、budget_exhaustion_stages空、reclaimed0、open5/protected_path4を維持する。free7,415,955,456→7,506,137,088の増加は回収0であり、掃除による追加成果とは扱わない。candidate9/cursor0→1をpersistし、使用中候補を保持した自然反復を確認する。
 
 #### PROVENANCEのbounded修復
 
