@@ -1050,10 +1050,12 @@
     "complete_voice_inventory": false,
     "requested_language_filter_effective": false,
     "selected_existing_english_voice_japanese_support_verified": false,
-    "private_voice_metadata_sha256": "240a17fbd5faa0b923c92f91941d85c38b60e7b6d745ae72274e834bc66d60d0"
+    "private_voice_metadata_sha256": "240a17fbd5faa0b923c92f91941d85c38b60e7b6d745ae72274e834bc66d60d0",
+    "historical_preimplementation_observation": true,
+    "current_state_ref": "japanese_avatar_migration_source"
   },
   "japanese_avatar_migration_source": {
-    "status": "reviewed_ci_pending",
+    "status": "main_immutable_prepared",
     "product_id": "ebook-ja",
     "product_name": "アニッチャ・リセット",
     "pack_id": "ebook-ja-anicca-monk",
@@ -1093,9 +1095,7 @@
     "posts": 0,
     "private_english_request_rebuild_sha256": "0c14d91419f6eff0e402f1f65765f84f372398cc656af9a1feba1e791aa8ae32",
     "remaining": [
-      "exact_head_ci",
-      "main_merge",
-      "complete_sealed_immutable",
+      "japanese_targeted_adoption_after_cost_and_canary_preflight",
       "cash_cost_reconciliation",
       "native_capacity_and_fifo",
       "japanese_canary_and_daily_distribution",
@@ -1106,7 +1106,44 @@
     "fresh_review_findings": 0,
     "independent_review_python_passed": 49,
     "independent_review_subtests_passed": 4,
-    "independent_review_node_passed": 41
+    "independent_review_node_passed": 41,
+    "source_head": "6dac0de6f96318b602dbf21fb5fca2130fa8afa6",
+    "main_commit": "e626079013aa1b29914191bd6a2530d2f5b1f254",
+    "ci_run_id": 39915834470,
+    "ci_checks_success": 14,
+    "release_root": "/Users/anicca/loops/releases/20261023T162024-e6260790",
+    "release_paths": "ALL",
+    "sealed": true,
+    "main_source_fingerprints_verified": 14,
+    "shared_current_unchanged": true,
+    "japanese_owners_disabled_unloaded": true,
+    "target_apply_operations": 0,
+    "source_preparation_complete": true,
+    "daily_distribution_verified": false,
+    "private_release_proof_sha256": "75f2abbbda141e46de8c776580e20af488e90d8c36554073fd901182228a20c3",
+    "private_prerelease_holds_sha256": "cbe87a6aa9ad59e0a59f269bfba96183474a7d5115ed31f11142b0936ff0187d",
+    "result_checkpoint_disk_full": {
+      "git_add_initial_result": "no_space_left_on_device",
+      "git_commit_initial_result": "not_created",
+      "remote_branch_created_without_result_changes": true,
+      "observed_recovered_free_bytes": 1273577472,
+      "recovery_mutations": 0,
+      "uncommitted_result_files_retained": true,
+      "subsequent_checkpoint_remote_verified": true
+    },
+    "production_proof_fresh_review_findings": 0,
+    "production_proof_review_verified": [
+      "official_github_exact_head_and_merge",
+      "release_manifest_and_14_main_source_bytes",
+      "sealed_11356_entries",
+      "independent_launchctl_safe_preflight_and_JA_holds",
+      "english_asset_and_pending_cost_sidecar_hashes"
+    ],
+    "production_proof_review_limits": [
+      "database_not_requeried",
+      "provider_not_requeried",
+      "apply_enable_zero_from_saved_evidence_and_current_holds"
+    ]
   },
   "native_capacity_during_ja_source_acceptance": {
     "recorded_at": "2026-10-23T07:04:17.550445+00:00",
@@ -1177,5 +1214,35 @@
     "queue_head_owner": "crowdworks-revenue-paid",
     "eligible_for_one_native_attempt": false,
     "private_evidence_sha256": "f4004936cfd1add4c6dd0cb72032ec50af9bde0216cdd16be2063af9cfe407b5"
+  },
+  "native_nullrank_diagnosis": {
+    "observed_at": "2026-10-23T07:13:47.225561+00:00",
+    "database_open_mode": "ro",
+    "explicit_read_transaction": true,
+    "database_lock_busy": false,
+    "queue_sequence": 811613,
+    "target_queue_count": 1,
+    "target_unknown_count": 0,
+    "target_queue_rank": 38,
+    "ordered_resource_waiters": 46,
+    "free_bytes": 1657196544,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": false,
+    "prior_null_rank_reason": "60 second cooldown after native disk_floor_low deferral",
+    "native_run_id": "18e116ac65c1e158-27193",
+    "native_exit_code": 75,
+    "native_effect": "not_applicable",
+    "next_eligible_at": "2026-10-23T07:05:16.541941Z",
+    "private_evidence_sha256": "05a2696787fe9cbd5d62f9fdd318576a3f79aeb0309f439f155b459d9a2cdc49",
+    "production_mutations": 0
+  },
+  "operator_readonly_probe_correction": {
+    "queued_null_rank_is_permission": false,
+    "fifo_counterexamples_passed": 5,
+    "live_readback_after_correction": "not_retrieved_database_locked",
+    "eligible_for_one_native_attempt": null,
+    "production_code_changed": false,
+    "production_state_changed": false,
+    "private_evidence_sha256": "8d41bf02e050851f2b8ba25b942f3409865dbd5e22b93959fbedfebabd9e2507"
   }
 }

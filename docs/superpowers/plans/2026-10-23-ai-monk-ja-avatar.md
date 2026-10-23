@@ -80,9 +80,9 @@ rendererだけの置換は本番の旧JA21件とsemantic signatureが衝突す�
 
 - [x] 上記関連Python/Node tests、Loop Contract、source-boundary/OSS、diff checkを実行する。無関係な全suiteや新frameworkを追加しない。
 - [x] fresh read-only reviewerへ言語/費用/lock/旧ledger/secret/宛先pinの反証を依頼し、成立した指摘を修正する。
-- [ ] S11と本planの状態を更新し、最新mainを保持してcommit/push、exact-head CI全成功後PRをmainへ統合する。
-- [ ] main由来ALL/sealed releaseを配置する。JA disabled/unloaded、既存receipt/sidecar、EN既存動画hashを確認し、未確定費用・disk/FIFOを維持する。
-- [ ] 実JA生成/配信の未完条件をS11へ残す。費用の公式照合・通常admissionが揃う前に生成/owner再開/投稿をしない。source成功を日次配信・実売上の成功と報告しない。
+- [x] S11と本planの状態を更新し、最新mainを保持してcommit/push、exact-head CI全成功後PRをmainへ統合する。
+- [x] main由来ALL/sealed releaseを配置する。JA disabled/unloaded、既存receipt/sidecar、EN既存動画hashを確認し、未確定費用・disk/FIFOを維持する。
+- [x] 実JA生成/配信の未完条件をS11へ残す。費用の公式照合・通常admissionが揃う前に生成/owner再開/投稿をしない。source成功を日次配信・実売上の成功と報告しない。
 
 ## 実装記録
 
@@ -93,5 +93,7 @@ rendererだけの置換は本番の旧JA21件とsemantic signatureが衝突す�
 - 本番EN要求のread-only再構築は既存fingerprint `4519ee11894303b3dce9316621a969334375669c333642c3163a4bf6690bf814`と完全一致し、MP4/費用sidecar不変。private evidence SHAは`0c14d91419f6eff0e402f1f65765f84f372398cc656af9a1feba1e791aa8ae32`。新JAの実生成・投稿・owner再開を意味しない。
 - native単独実行のskill既定より独立作業の並行指示を優先し、rootのcoreとworkerのwiringを分担する。全差分のfresh reviewは維持し、UIモデル固定や承認待ちを追加しない。
 
-- primary統合再実行はPython７files437 PASS/217 subtests、Node２files41 PASS、Loop Contract18業務/191jobs/errors0、source-boundary/OSS/diff PASS。fresh reviewとCI/main/releaseは未完。
-- fresh whole-branch reviewerはhead87f5b3122dの本機能差分を検証して指摘0件。独立Python49件/4 subtests・Node41件・diff PASS。PR8651を作成し、exact-head CI/main/完全immutableを待つ。
+- primary統合再実行はPython７files437 PASS/217 subtests、Node２files41 PASS、Loop Contract18業務/191jobs/errors0、source-boundary/OSS/diff PASS。fresh review指摘0件とexact-head CI全14checks成功、main/完全releaseまで確認する。
+- fresh whole-branch reviewerはhead87f5b3122dの本機能差分を検証して指摘0件。独立Python49件/4 subtests・Node41件・diff PASS。PR8651を全14checks成功後main e626079013aa1b29914191bd6a2530d2f5b1f254へ統合し、ALL/sealed immutable20261023T162024-e6260790を配置する。
+- source準備の受入は完了。主要14sourceのmain bytes一致、JA disabled/unloaded、既存MP4/費用sidecarと共有current不変を確認する。private release proof SHA75f2abbbda141e46de8c776580e20af488e90d8c36554073fd901182228a20c3。JA対象apply/再開/実生成/投稿は0。実配信・購入・収益は未完である。
+- fresh本番準備reviewも指摘0件。GitHub/main/ALL/sealed14source、両JAの自身公式停止readback、MP4/sidecarを独立照合する。DB/providerは再照合しない。結果docsのremote checkpoint20029fb435を確認済み。
