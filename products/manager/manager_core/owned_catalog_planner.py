@@ -16,21 +16,32 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
-import time
-from urllib.request import urlopen
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+from urllib.parse import unquote, urlsplit
+from urllib.request import ProxyHandler, Request, build_opener
 
 from .authority import OwnedDigitalScope
 from .candidate_verification import TechnicalCriteria, verify_candidate
 from .collaboration import PlannerContext, PublicFact
 from .digital_environment import PAGES, PUBLISH_PREFIX, SOURCE_REPO, audit_sources, validate_catalog, verify_readback
-from .digital_handoff import ALLOWED_PATHS
+from .digital_handoff import ALLOWED_PATHS, OwnedChangeContext
 from .models.intervention import Candidate
 from .models.source import Source
 
 _SOURCE_LINK = re.compile(re.escape(SOURCE_REPO) + r"/tree/[0-9a-f]{40}/products/manager")
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _LICENSE_READY = {"livelihood", "debt", "mental-support"}
+
+
+class CatalogPlanningUnavailable(RuntimeError):
+    """A real catalog opportunity could not be safely evaluated; caller must retain UNKNOWN."""
+
+    status = "UNKNOWN"
+    reason = "SOURCE_AUDIT_UNAVAILABLE"
+
+    def __init__(self):
+        super().__init__("UNKNOWN:SOURCE_AUDIT_UNAVAILABLE")
 
 
 @dataclass(frozen=True)
@@ -312,19 +323,22 @@ def plan_catalog_change(checkout, workspace, source_commit, now, *, run_id):
     if potential is None:
         return None
 
-    audit = audit_sources(catalog)
+    try:
+        audit = audit_sources(catalog)
+    except Exception:
+        raise CatalogPlanningUnavailable() from None
     work = _private_workspace(workspace, checkout)
     _source_audit_file(audit, work)
     if not _all_source_rows_ready(audit, catalog):
-        return None
+        raise CatalogPlanningUnavailable()
     opportunity = find_catalog_opportunity(local_bodies, catalog, audit["sources"])
     if opportunity is None:
-        return None
+        raise CatalogPlanningUnavailable()
     resource = next(row for row in catalog["resources"] if row["id"] == opportunity.catalog_id)
     observed = _observed_row(audit["sources"], resource["id"], resource["url"])
     source = _source_from_row(resource, observed) if observed else None
     if source is None:
-        return None
+        raise CatalogPlanningUnavailable()
 
     baseline_dir = work / "baseline"
     candidate_dir = work / "candidate"
@@ -356,7 +370,8 @@ def plan_catalog_change(checkout, workspace, source_commit, now, *, run_id):
     final_assessment = verify_candidate(baseline_dir, candidate_dir, criteria)
     if final_assessment.status != "VERIFIED_TECHNICAL" or final_assessment.candidate_digest != assessment.candidate_digest:
         raise ValueError("candidate changed after browser verification")
-    return context, final_assessment, scope
+    owned_context = OwnedChangeContext(run_id, context, baseline_dir, candidate_dir, criteria)
+    return owned_context, final_assessment, scope
 
 
 def _potential_opportunity(bodies, catalog):
@@ -428,6 +443,64 @@ def verify_candidate_in_browser(candidate_dir, source_sha, candidate_digest):
     return _verify_candidate_in_browser(candidate_dir, source_sha, candidate_digest, Path(__file__).resolve().parents[1])
 
 
+def _start_candidate_server(candidate_dir, candidate_digest):
+    candidate_dir = Path(candidate_dir)
+    files = {name: (candidate_dir / name).read_bytes() for name in PAGES | {"manifest.json"}}
+    if _candidate_tree_digest(candidate_dir) != candidate_digest:
+        raise ValueError("candidate digest changed before browser server bind")
+
+    class CandidateHandler(BaseHTTPRequestHandler):
+        def _respond(self, include_body):
+            path = unquote(urlsplit(self.path).path)
+            name = path.removeprefix("/")
+            if path != "/" + name or name not in files:
+                self.send_error(404)
+                return
+            body = files[name]
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json" if name == "manifest.json" else "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            if include_body:
+                self.wfile.write(body)
+
+        def do_GET(self):
+            self._respond(True)
+
+        def do_HEAD(self):
+            self._respond(False)
+
+        def log_message(self, *_args):
+            pass
+
+    class ExclusiveThreadingHTTPServer(ThreadingHTTPServer):
+        # Permit a fresh owned listener after our own prior connections enter TIME_WAIT.
+        # An active incumbent listener still blocks bind because SO_REUSEPORT stays off.
+        allow_reuse_address = True
+        allow_reuse_port = False
+
+    try:
+        server = ExclusiveThreadingHTTPServer(("127.0.0.1", 8765), CandidateHandler)
+    except OSError:
+        raise ValueError("candidate browser port unavailable") from None
+    thread = Thread(target=server.serve_forever, name="manager-owned-candidate-http", daemon=True)
+    thread.start()
+    try:
+        opener = build_opener(ProxyHandler({}))
+        for name, expected in files.items():
+            request = Request("http://127.0.0.1:8765/" + name, method="GET")
+            with opener.open(request, timeout=5) as response:
+                if response.status != 200 or response.read() != expected:
+                    raise ValueError("loopback candidate bytes differ")
+    except Exception:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+        raise ValueError("candidate browser server attestation failed") from None
+    return server, thread
+
+
 def _verify_candidate_in_browser(candidate_dir, source_sha, candidate_digest, manager_root):
     if not _SHA.fullmatch(source_sha) or not re.fullmatch(r"[a-f0-9]{64}", candidate_digest):
         raise ValueError("browser candidate binding required")
@@ -452,26 +525,8 @@ def _verify_candidate_in_browser(candidate_dir, source_sha, candidate_digest, ma
     if report_path.exists() or report_path.is_symlink():
         report_path.unlink()
     server_env = _sanitized_environment()
-    server = subprocess.Popen([sys.executable, "-m", "http.server", "8765", "--bind", "127.0.0.1",
-                               "--directory", str(candidate_dir.resolve())],
-                              cwd=manager_root, env={k: v for k, v in server_env.items() if k != "MANAGER_BASE_URL"},
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    server, server_thread = _start_candidate_server(candidate_dir, candidate_digest)
     try:
-        deadline = time.monotonic() + 20
-        ready = False
-        while time.monotonic() < deadline and server.poll() is None:
-            try:
-                with urlopen("http://127.0.0.1:8765/manifest.json", timeout=1) as response:
-                    remote_manifest = json.loads(response.read())
-                local_manifest = json.loads((candidate_dir / "manifest.json").read_text())
-                if remote_manifest != local_manifest:
-                    raise ValueError("loopback server returned another candidate")
-                ready = True
-                break
-            except (OSError, ValueError, json.JSONDecodeError):
-                time.sleep(0.1)
-        if not ready:
-            raise ValueError("owned candidate server did not become ready")
         proc = subprocess.run(["npm", "test"], cwd=suite, env=server_env, capture_output=True,
                              text=True, timeout=600, check=False)
         if proc.returncode != 0 or not report_path.is_file() or report_path.is_symlink():
@@ -491,9 +546,6 @@ def _verify_candidate_in_browser(candidate_dir, source_sha, candidate_digest, ma
     except subprocess.TimeoutExpired as exc:
         raise ValueError("browser suite timed out") from exc
     finally:
-        server.terminate()
-        try:
-            server.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            server.kill()
-            server.wait(timeout=5)
+        server.shutdown()
+        server_thread.join(timeout=5)
+        server.server_close()

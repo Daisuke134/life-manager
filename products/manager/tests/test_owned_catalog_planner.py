@@ -4,10 +4,14 @@ from hashlib import sha256
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+import functools
 import unittest
 from unittest.mock import patch
 
 from manager_core.digital_environment import PAGES, build_site
+from manager_core.digital_handoff import OwnedChangeContext, prepare_owned_change
 from manager_core.models.source import Source
 from manager_core.models.intervention import Candidate
 from manager_core.candidate_verification import TechnicalCriteria, verify_candidate
@@ -53,6 +57,41 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
         opportunity = planner.find_catalog_opportunity(baseline, c, rows)
         self.assertEqual(opportunity.action, "IMPROVE_ACCESSIBILITY")
         self.assertEqual(opportunity.required_label, c["resources"][0]["title"])
+
+    def test_positive_plan_returns_bound_context_accepted_by_existing_prepare_api(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkout = root / "checkout"
+            bundle = checkout / "manager-support"
+            build_site(catalog(), bundle, SHA)
+            path = bundle / "finance.html"
+            body = path.read_bytes()
+            import re
+            match = re.search(rb'(<a data-official href="[^"]+"[^>]*>)[^<]+</a>', body)
+            body = body.replace(match.group(0), match.group(1) + b"</a>", 1)
+            path.write_bytes(body)
+            manifest = json.loads((bundle / "manifest.json").read_text())
+            manifest["files"]["finance.html"] = sha256(body).hexdigest()
+            (bundle / "manifest.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
+            now = datetime.now(timezone.utc)
+            rows = [{"id": row["id"], "url": row["url"], "final_url": row["url"],
+                     "status": "REACHABLE_NOT_OUTCOME", "http_status": 200,
+                     "sha256": sha256(row["id"].encode()).hexdigest(), "observed_at": now.isoformat()}
+                    for row in catalog()["resources"]]
+            served = (manifest, bodies_from(bundle), (bundle / "manifest.json").read_bytes())
+            with patch.object(planner, "_read_served_bundle", return_value=served), \
+                 patch.object(planner, "audit_sources", return_value={"sources": rows}), \
+                 patch.object(planner, "verify_candidate_in_browser", return_value={"status": "P0_BROWSER_FIXTURE"}), \
+                 patch.dict("os.environ", {"MANAGER_RELEASE_ENABLED": "true"}):
+                result = planner.plan_catalog_change(checkout, root / "private", "c" * 40, now, run_id="12345")
+                self.assertIs(type(result[0]), OwnedChangeContext)
+                self.assertEqual(result[0].run_id, "12345")
+                self.assertEqual(result[0].baseline_bundle.name, "baseline")
+                self.assertEqual(result[0].candidate_bundle.name, "candidate")
+                self.assertEqual(result[0].criteria.candidate.target, "manager-support/finance.html")
+                prepared = prepare_owned_change(*result, datetime.now(timezone.utc), schema="manager.digital-handoff.v2")
+            self.assertEqual(prepared.status, "PREPARED_PLATFORM_AUTHORITY_REQUIRED")
+            self.assertEqual(prepared.run_id, "12345")
 
     def test_reviewed_catalog_discrepancy_is_selected_only_for_exact_identity(self):
         c = catalog()
@@ -141,15 +180,11 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
             stale = output / "browser-results.json"
             stale.write_text('{"old":true}')
             class Server:
-                def poll(self): return None
-                def terminate(self): pass
-                def wait(self, timeout=None): pass
-            class Response:
-                def __enter__(self): return self
-                def __exit__(self, *args): pass
-                def read(self): return (candidate / "manifest.json").read_bytes()
-            with patch.object(planner.subprocess, "Popen", return_value=Server()), \
-                 patch.object(planner, "urlopen", return_value=Response()), \
+                def shutdown(self): pass
+                def server_close(self): pass
+            class ServerThread:
+                def join(self, timeout=None): pass
+            with patch.object(planner, "_start_candidate_server", return_value=(Server(), ServerThread())), \
                  patch.object(planner.subprocess, "run", return_value=type("Run", (), {"returncode": 0})()):
                 with self.assertRaisesRegex(ValueError, "fresh report missing"):
                     planner._verify_candidate_in_browser(candidate, SHA, planner._candidate_tree_digest(candidate), root)
@@ -162,19 +197,16 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
             candidate = root / "candidate"
             build_site(catalog(), candidate, SHA)
             class Server:
-                def poll(self): return None
-                def terminate(self): pass
-                def wait(self, timeout=None): pass
-            class Response:
-                def __enter__(self): return self
-                def __exit__(self, *args): pass
-                def read(self): return (candidate / "manifest.json").read_bytes()
+                def shutdown(self): pass
+                def server_close(self): pass
+            class ServerThread:
+                def join(self, timeout=None): pass
             report_path = root / "output/service/browser-results.json"
             def make_report(count=16):
                 tests = [{"projectName": "desktop" if n < 8 else "mobile", "expectedStatus": "passed", "results": [{"status": "passed"}]} for n in range(count)]
                 report_path.parent.mkdir(parents=True, exist_ok=True)
                 report_path.write_text(json.dumps({"suites": [{"specs": [{"tests": tests}]}]}))
-            with patch.object(planner.subprocess, "Popen", return_value=Server()), patch.object(planner, "urlopen", return_value=Response()), \
+            with patch.object(planner, "_start_candidate_server", return_value=(Server(), ServerThread())), \
                  patch.object(planner.subprocess, "run", side_effect=lambda *a, **k: (make_report(15), type("Run", (), {"returncode": 0})())[1]):
                 with self.assertRaisesRegex(ValueError, "exact expected passing suite"):
                     planner._verify_candidate_in_browser(candidate, SHA, planner._candidate_tree_digest(candidate), root)
@@ -182,10 +214,43 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
                 make_report()
                 (candidate / "proof.html").write_bytes((candidate / "proof.html").read_bytes() + b"changed")
                 return type("Run", (), {"returncode": 0})()
-            with patch.object(planner.subprocess, "Popen", return_value=Server()), patch.object(planner, "urlopen", return_value=Response()), \
+            with patch.object(planner, "_start_candidate_server", return_value=(Server(), ServerThread())), \
                  patch.object(planner.subprocess, "run", side_effect=mutate_candidate):
                 with self.assertRaisesRegex(ValueError, "candidate bytes changed"):
                     planner._verify_candidate_in_browser(candidate, SHA, planner._candidate_tree_digest(candidate), root)
+
+    def test_browser_adapter_refuses_an_incumbent_8765_even_when_manifest_matches(self):
+        # The incumbent serves a candidate-shaped manifest but a different page body.
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = root / "manager"
+            (manager / "tests/e2e").mkdir(parents=True)
+            candidate = root / "candidate"
+            incumbent = root / "incumbent"
+            build_site(catalog(), candidate, SHA)
+            build_site(catalog(), incumbent, SHA)
+            (incumbent / "proof.html").write_bytes(b"WRONG_SERVER_BYTES")
+            class Quiet(SimpleHTTPRequestHandler):
+                def log_message(self, *args):
+                    pass
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 8765), functools.partial(Quiet, directory=str(incumbent)))
+            except OSError as exc:
+                self.skipTest(f"fixed browser port is already occupied: {type(exc).__name__}")
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            npm = unittest.mock.Mock()
+            try:
+                with patch.object(planner.subprocess, "run", npm):
+                    with self.assertRaisesRegex(ValueError, "port unavailable"):
+                        planner._verify_candidate_in_browser(candidate, SHA, planner._candidate_tree_digest(candidate), manager)
+                npm.assert_not_called()
+                self.assertTrue(thread.is_alive())
+                self.assertEqual((incumbent / "proof.html").read_bytes(), b"WRONG_SERVER_BYTES")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
 
     def test_browser_child_environment_strips_credentials_and_keeps_network_tls(self):
         with patch.dict("os.environ", {"GITHUB_TOKEN": "private", "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "private",
@@ -227,7 +292,8 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
             failed = {"sources": [], "content_rights": "LINK_ONLY", "human_outcome": "NOT_MEASURED"}
             workspace = root / "private"
             with patch.object(planner, "_read_served_bundle", return_value=(served[0], served[1], (bundle / "manifest.json").read_bytes())), patch.object(planner, "audit_sources", return_value=failed):
-                self.assertIsNone(planner.plan_catalog_change(checkout, workspace, SHA, NOW, run_id="123"))
+                with self.assertRaisesRegex(RuntimeError, "UNKNOWN.*SOURCE_AUDIT_UNAVAILABLE"):
+                    planner.plan_catalog_change(checkout, workspace, SHA, NOW, run_id="123")
             self.assertTrue((workspace / "source-audit.json").is_file())
 
 
