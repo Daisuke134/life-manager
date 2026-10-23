@@ -33,7 +33,9 @@
 
 ### Task 2: 統合と固定版受入（primary）
 - [x] 最終headのfresh read-only review、必要反証を修復する。初回HIGH1→head935cacbabcの独立再反証で残blocking0。
-- [ ] PR/必要CIをPASSし--admin --merge、main由来immutableのMCP実stdio list/planを無通信で確認する。
-- [ ] S11へsource受入と未完の実生成/導入/収益を区別して記録する。
+- [x] PR/必要CIをPASSし--admin --merge、main由来immutableのMCP実stdio list/planを無通信で確認する。
+- [x] S11へsource受入と未完の実生成/導入/収益を区別して記録する。
 
 **Approach decision:** primaryは既存CLIの薄いstdio接続を選ぶ。CLI domainを複製する方式は費用/投稿fenceが二重化し、hosted API先行は顧客認証/利用権が未接続なので採らない。この計画はDaisのNo-human-loop委任で実行し、設計承認を再要求しない。
+
+**受入結果:** PR8701/main6716deb1、全13checks成功。ALL固定版20261023T205228-6716deb1で実stdio test1 PASS、source9files main bytes一致/11,433entries書込bit0、current activation0。実provider・他者導入・売上は未検証。

@@ -1,0 +1,76 @@
+{
+  "observed_at": "2026-10-23T11:53:37.045973+00:00",
+  "owner_id": "codex-monk-factory-mcp",
+  "release_path": "/Users/anicca/loops/releases/20261023T205228-6716deb1",
+  "release_sha": "6716deb16d75257369ecf6926d7621f63805cb7c",
+  "source_pr": 8701,
+  "source_head": "dca58347256c3160452999704db56520ed326c91",
+  "checks_success": 13,
+  "provenance": "ancestor-of-origin-main",
+  "release_paths": "ALL",
+  "non_symlink_entries": 11433,
+  "writable_entries": [],
+  "source_files": [
+    {
+      "path": "skills/earn/marketing-engine/factory-mcp.mjs",
+      "sha256": "17da345af68bc9bd6c87aec4825cf8745c0a43078226f1c577c763a0e397d770",
+      "main_bytes_match": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/factory-mcp.test.mjs",
+      "sha256": "e71b848637cd649a3e93ab6b7948bcc861b8bdc1498b93ab406d7f111affba70",
+      "main_bytes_match": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/README.md",
+      "sha256": "968b8edd0a4e6c96e27e573f482d10d9e1da5be5bb10a2431df0b51bf0dcbdce",
+      "main_bytes_match": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/factory_plan.py",
+      "sha256": "4c56be4231a0b1a0f24f54ceebda4be8cbb0002afc481bbd8a9cda5a91dbf183",
+      "main_bytes_match": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/factory_render.py",
+      "sha256": "91efc107ebf467073a53ebf42e0c6398c1da9a8b9d1bc518117dc9563393ca25",
+      "main_bytes_match": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/factory_publish.py",
+      "sha256": "3c99da8a29270f856da03b46e385fd234030b56a10c69bcdf919fc5b05416485",
+      "main_bytes_match": true
+    },
+    {
+      "path": "skills/earn/marketing-engine/bin/lm",
+      "sha256": "abcc1572254c74d176808f74188eef6ea505dea0bcb9dc0b00e7d05d70190f42",
+      "main_bytes_match": true
+    },
+    {
+      "path": "package.json",
+      "sha256": "d15b6af0e05757f60de180c9f1e1e9a4ce33941529d62cd33b5e80b41e9c46a1",
+      "main_bytes_match": true
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "7fe50746aa09d7aab43cc27dfcfc006c23282939ac5c3653f4c09c350fa7bb30",
+      "main_bytes_match": true
+    }
+  ],
+  "current_before": "/Users/anicca/loops/releases/20261023T203452-98241d81",
+  "current_after": "/Users/anicca/loops/releases/20261023T203452-98241d81",
+  "current_activation": 0,
+  "provider_calls": 0,
+  "new_generations": 0,
+  "publication_requests": 0,
+  "stdio_test_result": {
+    "pass": 1,
+    "fail": 0,
+    "tools_list_count": 4,
+    "offline_plan_exit_code": 0,
+    "offline_plan_provider_calls": 0,
+    "offline_plan_external_effects": [],
+    "state_root_created": false,
+    "production_omitted_cli_exit_code": 1
+  }
+}
