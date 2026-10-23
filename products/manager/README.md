@@ -31,7 +31,9 @@ Managerは、**行動変容を通じて、苦しみを終わらせることを�
 weights・private adapter/configはGitへ保存しません。
 
 sourceのimport・main統合は学習/評価の実行許可や本番model採用を意味しません。
-固定adapter評価の新実装は別変更です。進捗・順序は下記の単一SSOTを参照します。
+固定adapter比較の研究entryは[評価source導入計画](docs/plans/2026-10-23-helpsteer2-fixed-adapter-eval.md)
+を参照します。同じ固定元候補の比較sourceで、結果・実行権限・model採用は別に確認します。
+進捗・順序は下記の単一SSOTを参照します。
 
 ## 一つの実行経路
 

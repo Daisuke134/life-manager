@@ -75,7 +75,7 @@ jobs:
           env PYTHONPATH=.:tests python -B -m unittest
           test_evaluation test_outcome_bench test_collaboration_rubric
           test_helpsteer2_candidate_eval test_xstest_refusal_eval
-          test_helpsteer2_candidate_sft -v
+          test_helpsteer2_candidate_sft test_helpsteer2_fixed_adapter_eval -v
       - name: Install locked browser suite and build the reference bundle
         run: |
           cd tests/e2e
