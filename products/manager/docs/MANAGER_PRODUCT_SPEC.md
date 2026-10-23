@@ -224,17 +224,17 @@ flowchart LR
 
 ### 1.3.2 agentの運用接続に残る具体的な差分
 
-残23件は原受入の件数であり、目標像までの実装差分をすべて30ファイルに対応させる表ではない。既存sourceを実際の継続主体へ結ぶ差分は以下。新しいtask IDや達成件数は加算しない。
+残23件は原受入の件数であり、目標像までの全実装差分をファイル単位で数える表ではない。既存sourceを実際の継続主体へ結ぶ差分は以下。新しいtask IDや達成件数は加算しない。
 
 | 順 | 既存ファイル・関数 | 現在と次の差分・受入条件 |
 |---|---|---|
 | 1 | `ampersand_api.make_client`、`requirements-ampersand.txt` | [PR8693](https://github.com/Daisuke134/life-manager/pull/8693)をmain `f29c10074d7ac31327b5d6247d0f656f20d4c4db`へ通常統合済み。任意SDKを公式3.24.0へ固定し、異なる版をclient生成前に拒否する。Manager410 tests、停止fixture修復の独立17 tests、R1/R2 review指摘0、最終headの全16チェック終端（15成功／想定内publisher skip1、失敗0）を確認。[source受入](verification/AMPERSAND_SDK_PIN_SOURCE_ACCEPTANCE_20261023.md)。隔離した実SDKのconstructor確認はmodel要求0。定期実行のSDK導入・推論有効化は行っていない |
-| 2 | `owned_provider_shadow.py`、`owned_checkpoint._validate_database` | **main上でsource受入済み。** [PR8710](https://github.com/Daisuke134/life-manager/pull/8710)をmain `6b5390133ab45006bcb4ec7e0560bfab679f4d67`へ、公開要約の整合性修正[PR8715](https://github.com/Daisuke134/life-manager/pull/8715)をmain `07a8957c7f115b99204aeccbb1a06a1f693daae8`へ統合した。同じprepared context/assessment/scopeの比較をprivate `cycle.sqlite`へ保存し、checkpoint ACK後に提示する。保存済み結果の再読はnew create0、intentだけならUNKNOWN。部分token使用量を保持し、不正Unicodeと公開status/reason/model判定の矛盾を拒否する。公開要約は固定19項目で秘密・raw応答・provider IDを除外。後者のsource435 tests成功／skip0、最終headの15チェック終端（14成功／想定publisher skip1、失敗0）を確認。これはmainのsource受入であり、研究branchへの当該source同期・研究CI、host接続、実推論は別の未完了作業 |
+| 2 | `owned_provider_shadow.py`、`owned_checkpoint._validate_database` | **main上でsource受入済み。** [PR8710](https://github.com/Daisuke134/life-manager/pull/8710)をmain `6b5390133ab45006bcb4ec7e0560bfab679f4d67`へ、公開要約の整合性修正[PR8715](https://github.com/Daisuke134/life-manager/pull/8715)をmain `07a8957c7f115b99204aeccbb1a06a1f693daae8`へ統合した。同じprepared context/assessment/scopeの比較をprivate `cycle.sqlite`へ保存し、checkpoint ACK後に提示する。保存済み結果の再読はnew create0、intentだけならUNKNOWN。部分token使用量を保持し、不正Unicodeと公開status/reason/model判定の矛盾を拒否する。公開要約は固定19項目で秘密・raw応答・provider IDを除外。後者のsource435 tests成功／skip0、最終headの15チェック終端（14成功／想定publisher skip1、失敗0）を確認。当該5source/testは研究branch `dc56ba984ee97cb307051c8cac4739f8e914c46a`へ同じbytesで同期済み。local1000/skip5、[公式研究CI39972208021](https://github.com/Daisuke134/life-manager/actions/runs/39972208021) full974/skip6・失敗0を確認。[研究source受入](verification/PREPARED_SHADOW_RESEARCH_SYNC_20261023.md)。host接続と実推論は別の未完了作業 |
 | 3 | `owned_platform_host.prepare_candidate`、`run_owned_digital_cycle.py`、`manager-phase06-service.yml` | 次のsource差分。既存lock/recovery/STOP/cadenceを通った後、同じ候補で任意の比較を行う。SDK導入はlease前、provider初期化は適合候補と明示設定の確認後。既定OFF、scheduleはOFF、数値予算の空欄を勝手な額へ変えない。control操作や無効設定ではprovider呼出し0。既存のdeterministic選定・source/browser/CAS/publisher権限は独立して保持する |
 | 4 | 既存shadow／baseline／provider receipt | 実運用の証拠。適合する実課題、利用可能なproviderと実際の予算条件、同じ入力・版・失敗分母を固定し、保存session/turn/final応答と比較を照合する。再読でnew create0を確認する。候補なしならSKIPPED、比較不要なら既存ルールを使う。SDK導入や判定一致だけでmodel有用性・人の便益を認定しない |
 | 5 | 既存観測・`world_state.py`・channel・outcome/policy契約 | 長期主体の実証。研究sourceの状態表現を実ownerの観測・永続状態へ適合させ、結果と失敗からの訂正を版付きで確認する。研究branchのmodule存在を実稼働と表示せず、第二の記憶engine／scheduler／agent frameworkを作らない。実績をU/V/Gの元条件へ照合する |
 
-2はmainでsource受入済み、3のhost/CLI/workflow接続は未実装。PR8710/8715のMERGED状態・merge SHA・時刻は2026-10-23にGitHubから再読した。研究branchにsourceが同期済みである、scheduled inferenceが稼働している、モデルの有用性が実証された、という意味にはしない。単純なリンク修正へmodelを足すこと自体は目的にせず、比較に意味がある対象で薄く接続する。今回の公開面談・選定・proofの受入は、このAI接続や人間研究の実施を代わりに完了させない。
+2はmainでsource受入済み、3のhost/CLI/workflow接続は未実装。PR8710/8715のMERGED状態・merge SHA・時刻は2026-10-23にGitHubから再読した。研究branchへのsource同期と公式CIは上記receiptで受入済み。scheduled inferenceの稼働やモデルの有用性の実証を意味しない。単純なリンク修正へmodelを足すこと自体は目的にせず、比較に意味がある対象で薄く接続する。今回の公開面談・選定・proofの受入は、このAI接続や人間研究の実施を代わりに完了させない。
 
 ### 1.3.3 現scopeの残23件と依存（2026-10-23改訂）
 

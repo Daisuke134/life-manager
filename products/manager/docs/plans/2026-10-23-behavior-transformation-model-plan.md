@@ -30,11 +30,11 @@
 
 **Files:** `manager_core/ampersand_api.py`、`manager_core/owned_checkpoint.py`、`manager_core/owned_provider_shadow.py`、対応する既存tests、受入receipt。
 
-**Interface:** main PR8710/8715の受入sourceを同じbytesで研究branchへ同期し、既存のprepared比較／保存／再読契約を使う。まだ同期・CI済みとはしない。
+**Interface:** main PR8710/8715の受入sourceを同じbytesで研究branchへ同期し、既存のprepared比較／保存／再読契約を使う。研究source dc56ba984ee9と公式CI39972208021で受入済み。host接続は別Task6。
 
-- [ ] 差分の個別編集とsource由来を確認し、受入済みの必要fileだけを同期する。
-- [ ] focused testsと全Manager suite、公式研究CIで同じsource headを検証する。
-- [ ] 実結果・main/research SHA・skip理由をreceiptへ固定する。
+- [x] 差分の個別編集とsource由来を確認し、受入済みの必要fileだけを同期する。
+- [x] focused testsと全Manager suite、公式研究CIで同じsource headを検証する。
+- [x] 実結果・main/research SHA・skip理由をreceiptへ固定する。
 
 ## Task 2: 既存評価の最小接続 — V001/V002
 
