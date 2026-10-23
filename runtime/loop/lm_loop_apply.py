@@ -53,7 +53,8 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
     log_root = os.path.expanduser(entry["log_root"])
     python = str(runtime_python or Path(sys.executable).absolute())
     node = _managed_node(loop_id)
-    life_manager_home = os.environ.get("LIFE_MANAGER_HOME")
+    host = host_environment()
+    life_manager_home = host.get("LIFE_MANAGER_HOME") or os.environ.get("LIFE_MANAGER_HOME")
     if life_manager_home and loop_id == "agent-economy-loop":
         state_root = str(Path(life_manager_home).expanduser() / "agent-economy")
         log_root = str(Path(state_root) / "logs")
@@ -314,7 +315,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         value["EnvironmentVariables"]["PATH"] = os.pathsep.join(dict.fromkeys((
             str(Path(python).parent), str(Path(node).parent), str(Path.home() / ".local/bin"),
             "/opt/homebrew/bin", "/usr/local/bin", *os.defpath.split(os.pathsep))))
-    value["EnvironmentVariables"].update(host_environment())
+    value["EnvironmentVariables"].update(host)
     if loop_id.startswith("hf-gig-"):
         value["EnvironmentVariables"]["HF_GIG_PYTHON"] = value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"]
     return plistlib.dumps(value, fmt=plistlib.FMT_XML, sort_keys=True)

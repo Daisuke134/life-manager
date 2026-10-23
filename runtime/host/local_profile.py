@@ -12,7 +12,8 @@ from pathlib import Path
 HOST_ENVIRONMENT_KEYS = frozenset({
     "LIFE_MANAGER_HOST_PROFILE", "LIFE_MANAGER_RUNTIME_PYTHON", "LIFE_MANAGER_PYTHON",
     "LIFE_MANAGER_RUNTIME_NODE", "LIFE_MANAGER_NODE", "AGENT_RUNNER_CONFIG",
-    "AI_BROWSER_REGISTRY", "LIFE_MANAGER_ENV_FILE", "LM_SELFBUILD_SOURCE_REPO", "PATH",
+    "AI_BROWSER_REGISTRY", "LIFE_MANAGER_ENV_FILE", "LIFE_MANAGER_HOME",
+    "LM_SELFBUILD_SOURCE_REPO", "LIFE_MANAGER_SOURCE_REPO", "PATH",
 })
 
 
@@ -108,8 +109,9 @@ def _browser_registry(registry: dict, home: Path) -> str:
 
 def prepare_host(repo_root: Path, *, home: Path | None = None,
                  python: Path, node: Path, codex: Path | None = None) -> dict:
-    home = Path(home or Path.home()).resolve()
-    existing = load_host_profile(home=home)
+    raw_home = Path(home or Path.home()).absolute()
+    existing = load_host_profile(home=raw_home)
+    home = raw_home.resolve()
     if existing is not None:
         return existing
     config = home / ".config/life-manager"
@@ -170,7 +172,9 @@ def host_environment(*, home: Path | None = None) -> dict[str, str]:
             "AGENT_RUNNER_CONFIG": value["agent_runner_config"],
             "AI_BROWSER_REGISTRY": value["browser_registry"],
             "LIFE_MANAGER_ENV_FILE": value["environment_file"],
+            "LIFE_MANAGER_HOME": str(Path(value["environment_file"]).parent),
             "LM_SELFBUILD_SOURCE_REPO": value["source_checkout"],
+            "LIFE_MANAGER_SOURCE_REPO": value["source_checkout"],
             "PATH": os.pathsep.join(dict.fromkeys((str(Path(runtime["python"]).parent),
                 str(Path(runtime["node"]).parent), str(owner_home / ".local/bin"),
                 "/opt/homebrew/bin", "/usr/local/bin", *os.defpath.split(os.pathsep))))}

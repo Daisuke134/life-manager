@@ -14,7 +14,7 @@ from pathlib import Path
 
 from runtime.host.local_profile import HOST_ENVIRONMENT_KEYS, host_environment, load_host_profile, prepare_host
 from runtime.loop.local_fleet import build_fleet_manifest
-from runtime.loop.lm_loop_apply import _loaded_arguments, _loaded_environment
+from runtime.loop.lm_loop_apply import _loaded_arguments, _loaded_environment, build_apply_plan
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,6 +53,42 @@ def validate_release(release_root: Path, profile: dict) -> dict:
     return manifest
 
 
+def _validated_runtime_release(release_root: Path, runtime_python: str,
+                               sha: str | None = None) -> dict:
+    manifest = validate_release(release_root, {"runtime": {"python": runtime_python}})
+    if sha is not None and manifest["sha"] != sha:
+        raise ValueError("release SHA differs from the requested source")
+    registry = json.loads((release_root / "config/loop-registry.json").read_text())
+    build_apply_plan(registry, release_root, manifest["sha"])
+    return manifest
+
+
+def _same_sha_loaded_release(release_root: Path, owner: str, arguments: list[str],
+                             printed: str, environment: dict[str, str]) -> dict | None:
+    if len(arguments) != 3 or arguments[1] != owner:
+        return None
+    loaded_root = Path(arguments[2])
+    if not loaded_root.is_absolute() or arguments[0] != str(loaded_root / "bin/lm-loop-run"):
+        return None
+    try:
+        runtime = environment.get("LIFE_MANAGER_RUNTIME_PYTHON") or json.loads(
+            (release_root / "RELEASE.json").read_text())["runtime_python"]
+        requested = _validated_runtime_release(release_root, runtime)
+        loaded = _validated_runtime_release(loaded_root, runtime, requested["sha"])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    if loaded.get("runtime_python_cache_tag") != requested.get("runtime_python_cache_tag"):
+        return None
+    loaded_environment = _loaded_environment(printed)
+    required = {"LIFE_MANAGER_LOOP_ID": owner, "LIFE_MANAGER_RELEASE_SHA": requested["sha"],
+                "LIFE_MANAGER_RUNTIME_PYTHON": runtime, "LIFE_MANAGER_REPO": str(loaded_root)}
+    if any(loaded_environment.get(key) != value for key, value in required.items()):
+        return None
+    return {"ok": True, "loop_id": owner, "changed": False,
+            "readback": "same_sha_release_loaded", "release_sha": loaded["sha"],
+            "loaded_root": str(loaded_root), "loaded_arguments": arguments}
+
+
 def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str, str],
                   *, runner=subprocess.run) -> list[dict]:
     """Use the existing safe control plane. Never turn a failed probe into absence."""
@@ -79,6 +115,12 @@ def apply_targets(release_root: Path, loop_ids: list[str], environment: dict[str
             results.append({"ok": True, "loop_id": owner, "label": label,
                             "changed": False, "readback": "exact_release_loaded"})
             continue
+        if probe.returncode == 0 and binding_matches:
+            same_source = _same_sha_loaded_release(
+                release_root, owner, _loaded_arguments(probe.stdout), probe.stdout, environment)
+            if same_source is not None:
+                results.append({**same_source, "label": label})
+                continue
         command = [str(release_root / "bin/lm-loop"), "apply"]
         if probe.returncode == 0:
             command.append("--loaded-idle-only")
@@ -137,8 +179,38 @@ def apply_host_owners(release_root: Path, owners: list[dict], environment: dict[
 
 
 def cut_release(repo_root: Path, environment: dict[str, str], *, runner=subprocess.run) -> Path:
+    env = {**os.environ, **environment}
+    head = runner(["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+                  env=env, capture_output=True, text=True, timeout=30)
+    sha = head.stdout.strip()
+    if head.returncode or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise RuntimeError("source HEAD is unavailable")
+    ancestry = runner(["git", "-C", str(repo_root), "merge-base", "--is-ancestor", sha, "origin/main"],
+                      env=env, capture_output=True, text=True, timeout=30)
+    if ancestry.returncode:
+        raise RuntimeError("local installation requires a source commit from origin/main")
+    home = Path(env.get("HOME", str(Path.home()))).resolve()
+    loops_value = env.get("LOOPS_ROOT", str(home / "loops"))
+    loops = (home / loops_value[2:] if loops_value.startswith("~/") else Path(loops_value)).resolve()
+    releases = loops / "releases"
+    runtime = environment["LIFE_MANAGER_RUNTIME_PYTHON"]
+
+    def reusable(candidate: Path) -> Path | None:
+        try:
+            release = candidate.resolve(strict=True)
+            if release.parent != releases:
+                return None
+            _validated_runtime_release(release, runtime, sha)
+            return release
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            return None
+
+    for candidate in (loops / "current", *sorted(releases.glob("*"), reverse=True)):
+        existing = reusable(candidate)
+        if existing is not None:
+            return existing
     completed = runner(["bash", str(repo_root / "bin/cut-loop-release.sh"), "HEAD"],
-        env={**os.environ, **environment, "LIFE_MANAGER_SOURCE_REPO": str(repo_root),
+        env={**env, "LIFE_MANAGER_SOURCE_REPO": str(repo_root),
              "LOOPS_ACTIVATE_CURRENT": "0", "LOOPS_RELEASE_PATHS": "",
              "LOOPS_RUNTIME_PYTHON": environment["LIFE_MANAGER_RUNTIME_PYTHON"]},
         capture_output=True, text=True, timeout=1800)
@@ -148,7 +220,23 @@ def cut_release(repo_root: Path, environment: dict[str, str], *, runner=subproce
                          completed.stdout, re.MULTILINE)
     if len(matches) != 1:
         raise RuntimeError("complete main release path was not returned")
-    return Path(matches[0]).resolve(strict=True)
+    release = reusable(Path(matches[0]))
+    if release is None:
+        raise RuntimeError("built release is incomplete or differs from this owner's runtime/source")
+    return release
+
+
+def prepare_product_state(release_root: Path, loop_ids: list[str], profile: dict,
+                          environment: dict[str, str], *, runner=subprocess.run) -> list[dict]:
+    if "agent-economy-loop" not in loop_ids:
+        return []
+    prepared = runner(["bash", str(release_root / "install.sh")], cwd=release_root,
+        env={**os.environ, **environment, "LIFE_MANAGER_INSTALL_DEPS": "0",
+             "LIFE_MANAGER_INSTALL_DAEMON": "0", "LIFE_MANAGER_TENANT_ID": profile["tenant_id"]},
+        capture_output=True, text=True, timeout=180)
+    if prepared.returncode:
+        raise RuntimeError("agent-economy state preparation failed")
+    return [{"agent": "agent-economy", "state": "prepared"}]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -196,17 +284,20 @@ def main(argv: list[str] | None = None) -> int:
         # owned by the registry's cadence/admission, not by this installer.
         owners = sorted(selected, key=lambda owner: (not bool(registry["loops"][owner].get("browser_owner")), owner))
         print("本人のMacへ対象jobを登録します。既存の稼働中ownerは維持します。", file=sys.stderr)
+        environment = host_environment()
+        product_state = prepare_product_state(release, owners, profile, environment)
         extras = []
         if not args.agent or "gig-mercor" in args.agent or "job-hunter" in args.agent:
             extras.append(MERCOR_BROWSER)
         if not args.agent or "host-steward" in args.agent:
             extras.extend({**row, "program": "bin/disk-watchdog.sh"} for row in fleet["host_owners"])
-        host_results = apply_host_owners(release, extras, host_environment()) if extras else []
-        result = apply_targets(release, owners, host_environment())
+        host_results = apply_host_owners(release, extras, environment) if extras else []
+        result = apply_targets(release, owners, environment)
         pending = any(row.get("skipped") for row in [*result, *host_results])
         print(json.dumps({"status": "waiting" if pending else "installed",
                           "jobs": result, "business_outcomes_verified": False,
                           "external_labels": fleet["external_labels"],
+                          "product_state": product_state,
                           "additional_host_owners": host_results}, ensure_ascii=False, indent=2))
         return 2 if pending else 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:

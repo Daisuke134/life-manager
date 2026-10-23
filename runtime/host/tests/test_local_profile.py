@@ -84,6 +84,13 @@ class LocalProfileTest(unittest.TestCase):
         profile = prepare_host(ROOT, home=raw_home, python=self.python, node=self.node)
         self.assertEqual(profile["owner_home"], str(raw_home.resolve()))
 
+    def test_reprepare_preserves_explicit_profile_under_system_home_alias(self):
+        profile = self.prepare()
+        raw_home = Path(self.temp.name) / "Another Person"
+        with patch.dict(os.environ, {"LIFE_MANAGER_HOST_PROFILE": str(raw_home / ".config/life-manager/host.json")}):
+            self.assertEqual(load_host_profile(home=raw_home), profile)
+            self.assertEqual(prepare_host(ROOT, home=raw_home, python=self.python, node=self.node), profile)
+
     def test_foreign_home_and_symlink_profile_are_rejected(self):
         self.prepare()
         with self.assertRaisesRegex(ValueError, "owner_home"):
@@ -102,6 +109,8 @@ class LocalProfileTest(unittest.TestCase):
         self.assertEqual(env["LIFE_MANAGER_PYTHON"], str(self.python))
         self.assertEqual(env["LIFE_MANAGER_RUNTIME_NODE"], str(self.node))
         self.assertEqual(env["LM_SELFBUILD_SOURCE_REPO"], str(ROOT))
+        self.assertEqual(env["LIFE_MANAGER_SOURCE_REPO"], str(ROOT))
+        self.assertEqual(env["LIFE_MANAGER_HOME"], str(self.home / ".local/state/life-manager"))
         self.assertEqual(env["AI_BROWSER_REGISTRY"], profile["browser_registry"])
         self.assertIn(str(self.node.parent), env["PATH"].split(os.pathsep))
 
@@ -116,6 +125,9 @@ class LocalProfileTest(unittest.TestCase):
                     self.assertEqual(env["LIFE_MANAGER_RUNTIME_PYTHON"], str(self.python))
                     self.assertEqual(env["AGENT_RUNNER_CONFIG"], profile["agent_runner_config"])
                     self.assertEqual(env["AI_BROWSER_REGISTRY"], profile["browser_registry"])
+                    self.assertEqual(env["LIFE_MANAGER_HOME"], str(self.home / ".local/state/life-manager"))
+                    if owner in {"agent-economy-loop", "compute-proxy"}:
+                        self.assertEqual(env["ANICCA_HOME"], str(self.home / ".local/state/life-manager/agent-economy/instance"))
 
     def test_ebook_tenant_comes_from_validated_owner_profile(self):
         from runtime.loop.lm_loop_run import _child_environment_for_owner
