@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
 - [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODOの正本は統合SSOTの「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics owner採用と自然配信を担当。Thankful PR593の独立reviewで部分offering時の読込停止を再現し、別の専用branchで最小修復を担当。元ownerのworktree/branchとRC設定/価格は変更しない。build9はVALIDだが追加修正を含まないため、提出前にsource/mainと新buildを照合する。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
@@ -19,6 +20,8 @@
 - [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 ## ログ
+- 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
+- 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
 - Codex Mobile: 続行依頼を受け、既存6段階TODOを維持して再開。Apple/実機の公式readbackとmetrics/JP1の待機原因を再確認し、source統合・loaded採用・公開・MRRを区別する。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
@@ -41,4 +44,5 @@
 - 2026-10-23 21:15 claude-5: Thankful課金改修 → anicca-products PR #593（branch fix/thankful-paywall-gate-20261023、未マージ＝自動モードがレビューなしadmin mergeを拒否、レビュー待ち）。無料=1日1件・今日のアファメーション・7日履歴、ロック操作と3日連続達成でペイウォール、×は3秒後、価格/トライアル/割引率はストア値。unit test SUCCEEDED・購入契約15/15。TestFlight 1.0.2(9) アップロード成功（ASC処理中）。RC設定・価格・審査提出は未操作。次: PR #593 レビュー/マージ、build 9 の VALID 確認、審査提出は参謀判断。
 - 2026-10-23 20:14 claude(funding): docs/team/specs/funding-pipeline.md 作成=一次ソース取得の公募14件（J-Startup 11/13・持続化補助金 12/15・PayPal AI Hackathon 11/12 ほか、台帳は全件未）。応募不可=J-Startup(法人要件)/NLnet(AI作成提案禁止)。上位3件の下書き=specs/funding-drafts/（Codex OSS fund・GitHub Secure OSS Fund・Claude for OSS、未提出）。次: 下書きを確認して台帳にclaimed→提出、未踏IT 2027年度の公募開始を監視。
 - 2026-10-23 20:40 claude(scoreboard): SCOREBOARD.md に 10/23 ローカル readback 節を追加（台帳26行、ココナラapplied 24h 26件、無料記事20本、Postiz PUBLISHED10/ERROR3、Writer有料0、Capafy $112.74/33件、PB 0件、ASC Anicca は report_pending で未取得）。次: ASC Anicca 日別の readback 取得。
+- Codex(Mobile spec): 最新依頼を正本spec更新と残TODO報告へ限定。Thankful追加修正head5a120ac4の28件PASS・review/main/新binary未完、既存Cloud設定なし、RevenueCatの取得可能範囲、metrics採用済み/自然terminal未確認を反映。実行順と事業成果の未達は正本「Anicca旗艦・公開6アプリの配信と継続課金」を参照。本番/provider操作なし。
 - 2026-10-23 20:49 claude-2(LINEスタンプ工場復旧): 真因=Creators Marketログイン切れ(10/14〜)→復旧後も秋特集811(締切10/19)を選んだまま submit で campaign_snapshot_stale。email+pw で再ログイン(QR/SMS不要)・vault保存、set-042 は特集を外して再申請→審査待ち(48552798「星くずカワウソの秋色【文字入り】 vol.9」)。set-038 リジェクト真因=キャラカテゴリ13クマ→16その他へ修正し再申請→審査待ち(48283042)。set-003 の元データも16へ(続編の継承元)。恒久修正 PR #8696 draft(期限切れ特集の自動除外＋タイトル型「カワウソのぽか太の{場面}【毎日使える】」＋年末年始3セット優先)。次: PR #8696 CI/merge→release apply、set-043 以降が新タイトル型で出るか確認。
