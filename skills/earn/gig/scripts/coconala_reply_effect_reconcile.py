@@ -74,6 +74,7 @@ def _run_marker(kernel_root: Path, occurrence_id: str) -> dict | None:
         return {}
     if (not isinstance(marker, dict) or marker.get("occurrence_id") != occurrence_id
             or marker.get("version") not in (1, 2)
+            or (marker.get("version") == 2 and marker.get("status") not in {"completed", "effect_unknown"})
             or not isinstance(marker.get("items"), list) or not marker["items"]):
         return {}
     return marker

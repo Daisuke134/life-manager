@@ -389,7 +389,7 @@ def test_run_snapshot_uses_every_effect_target_without_exposing_reply(tmp_path, 
     assert "回答" not in output and all("回答" not in str(argv) for argv in seen)
 
 
-@pytest.mark.parametrize("damage", ["payload", "missing_snapshot", "duplicate", "wrong_occurrence", "unsupported_version"])
+@pytest.mark.parametrize("damage", ["payload", "missing_snapshot", "duplicate", "wrong_occurrence", "unsupported_version", "in_progress"])
 def test_incomplete_run_snapshot_cannot_fall_back_to_a_remaining_thread(
     tmp_path, monkeypatch, capsys, damage,
 ):
@@ -403,6 +403,8 @@ def test_incomplete_run_snapshot_cannot_fall_back_to_a_remaining_thread(
         marker["items"].append(marker["items"][0])
     elif damage == "wrong_occurrence":
         marker["occurrence_id"] = "hf-gig-reply-detector:wrong"
+    elif damage == "in_progress":
+        marker["status"] = "in_progress"
     else:
         marker["version"] = 3
     path.write_text(json.dumps(marker))

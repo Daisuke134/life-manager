@@ -8,7 +8,7 @@ owns only durable identity, intent fencing, official reconciliation and retry.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import argparse
 from datetime import datetime, timedelta, timezone
 import fcntl
@@ -136,22 +136,25 @@ def _write_run_marker(root: Path, occurrence_id: str | None,
     }
     bindings = _run_marker_bindings(marker_items)
     path = _run_marker_path(root, occurrence_id.strip())
-    with _lock(path):
-        if path.is_symlink():
+    # run_wake holds this marker lock before any provider work.
+    if path.is_symlink():
+        raise ValueError("reply_run_marker_invalid")
+    if path.exists():
+        try:
+            prior = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise ValueError("reply_run_marker_invalid") from error
+        if (not isinstance(prior, Mapping) or prior.get("version") != 2
+                or prior.get("occurrence_id") != occurrence_id.strip()
+                or prior.get("status") not in {"in_progress", "effect_unknown", "completed"}):
             raise ValueError("reply_run_marker_invalid")
-        if path.exists():
-            try:
-                prior = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError) as error:
-                raise ValueError("reply_run_marker_invalid") from error
-            if (not isinstance(prior, Mapping) or prior.get("version") != 2
-                    or prior.get("occurrence_id") != occurrence_id.strip()
-                    or prior.get("status") not in {"effect_unknown", "completed"}):
-                raise ValueError("reply_run_marker_invalid")
-            if _run_marker_bindings(prior.get("items")) != bindings:
-                raise ValueError("reply_run_marker_binding_changed")
-            return  # Keep the first occurrence snapshot, including its original receipt.
-        _write(path, marker)
+        if prior.get("status") == "in_progress" and prior.get("items") == []:
+            _write(path, marker)
+            return
+        if _run_marker_bindings(prior.get("items")) != bindings:
+            raise ValueError("reply_run_marker_binding_changed")
+        return  # Keep the first occurrence snapshot, including its original receipt.
+    _write(path, marker)
 
 
 def run_marker_accounted(root: Path, occurrence_id: str,
@@ -820,6 +823,22 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
 
 
 def run_wake(*, adapter: ReplyAdapter,
+             decide: Callable[[dict[str, Any]], Mapping[str, Any]],
+             state_root: Path, max_workers: int = 4, notify=None,
+             human_notify=None) -> dict[str, Any]:
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip()
+    path = _run_marker_path(Path(state_root), occurrence_id)
+    with _lock(path) if occurrence_id else nullcontext():
+        if occurrence_id and (path.exists() or path.is_symlink()):
+            raise ValueError("reply_run_marker_already_recorded")
+        if occurrence_id:
+            _write(path, {"version": 2, "occurrence_id": occurrence_id,
+                          "status": "in_progress", "items": []})
+        return _run_wake(adapter=adapter, decide=decide, state_root=state_root,
+                         max_workers=max_workers, notify=notify, human_notify=human_notify)
+
+
+def _run_wake(*, adapter: ReplyAdapter,
              decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4, notify=None,
              human_notify=None) -> dict[str, Any]:

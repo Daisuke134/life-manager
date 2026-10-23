@@ -3,7 +3,6 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import threading
-import pytest
 
 import pytest
 
@@ -225,7 +224,9 @@ def test_same_occurrence_replay_preserves_first_run_marker(monkeypatch, tmp_path
     reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
     path = reply_kernel._run_marker_path(tmp_path, "fixture-reply:immutable")
     before = path.read_bytes()
-    assert reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)["effect"] == 0
+    with pytest.raises(ValueError, match="reply_run_marker"):
+        reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    assert len(adapter.effects) == 1
     assert path.read_bytes() == before
 
 
@@ -239,7 +240,73 @@ def test_same_occurrence_cannot_replace_original_intent_binding(monkeypatch, tmp
     adapter.rows = [event(latest="buyer-2")]
     with pytest.raises(ValueError, match="reply_run_marker"):
         reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    assert len(adapter.effects) == 1
     assert path.read_bytes() == before
+
+
+def test_concurrent_same_occurrence_is_rejected_before_provider_work(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:concurrent")
+    first_entered, second_attempted, release = threading.Event(), threading.Event(), threading.Event()
+    original_lock = reply_kernel._lock
+
+    @contextmanager
+    def observe_lock(path):
+        if threading.current_thread().name == "second-wake" and path.parent.name == "runs":
+            second_attempted.set()
+        with original_lock(path):
+            yield
+
+    monkeypatch.setattr(reply_kernel, "_lock", observe_lock)
+
+    class First(Adapter):
+        def observe_threads(self):
+            first_entered.set()
+            assert release.wait(5)
+            return super().observe_threads()
+
+    first, second = First([event(thread="first")]), Adapter([event(thread="second")])
+    errors = []
+
+    def run(adapter):
+        try:
+            reply_kernel.run_wake(adapter=adapter, state_root=tmp_path, max_workers=1,
+                                  decide=lambda _: {"action": "reply", "payload": {"body": "one"}})
+        except ValueError as error:
+            errors.append(str(error))
+
+    a = threading.Thread(target=run, args=(first,), name="first-wake")
+    b = threading.Thread(target=run, args=(second,), name="second-wake")
+    a.start()
+    try:
+        assert first_entered.wait(5)
+        b.start()
+        assert second_attempted.wait(5)
+    finally:
+        release.set()
+        a.join(5)
+        if b.ident is not None:
+            b.join(5)
+    assert not a.is_alive() and not b.is_alive()
+    assert len(first.effects) == 1 and not second.effects
+    assert len(errors) == 1 and errors[0].startswith("reply_run_marker")
+
+
+def test_interrupted_occurrence_cannot_be_reused_for_new_provider_work(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:interrupted")
+
+    class Interrupted(Adapter):
+        def mutate(self, intent):
+            super().mutate(intent)
+            raise KeyboardInterrupt()
+
+    decide = lambda _: {"action": "reply", "payload": {"body": "original"}}
+    first = Interrupted()
+    with pytest.raises(KeyboardInterrupt):
+        reply_kernel.run_wake(adapter=first, decide=decide, state_root=tmp_path, max_workers=1)
+    second = Adapter()
+    with pytest.raises(ValueError, match="reply_run_marker"):
+        reply_kernel.run_wake(adapter=second, decide=decide, state_root=tmp_path, max_workers=1)
+    assert len(first.effects) == 1 and not second.effects
 
 
 @pytest.mark.parametrize("existing", ["{broken", "{}", '{"version": 2, "occurrence_id": "other", "items": []}',
