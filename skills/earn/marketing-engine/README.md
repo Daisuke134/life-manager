@@ -140,6 +140,7 @@ HeyGenのlockと費用sidecarは、host共通の`LM_DATA_DIR/marketing/ebook`に
 
 `examples/ai-monk-factory.publication.example.json`をコピーし、自分のnative handle、
 本文、CTA、追跡token、timezone付き投稿時刻、既存の素材確認IDを設定する。
+投稿時刻はUTCへ正規化し、時差や小数秒の表記を変えても同じ投稿枠として扱う。
 configの商品URLとcaption中の販売URLは完全一致させ、追跡tokenをそのURLに含める。
 例の`publish_enabled`はfalseで、公開する場合は自分の連携を確認してtrueへ変える。
 API keyは既存の`POSTIZ_API_KEY`環境設定を使い、どちらのJSONへも保存しない。

@@ -124,7 +124,8 @@ def publish_from_config(config: dict, script: str, publication: dict, run_id: st
         "hook_id": stable_id("factory.hook", [hashlib.sha256(script.encode()).hexdigest()]),
         "renderer_id": "heygen-avatar-iv", "adapter": "postiz", "asset_path": str(asset.resolve()),
         "caption": normalize_caption(publication["caption"]), "attribution_token": publication["attribution_token"],
-        "scheduled_at": publication["scheduled_at"], "visual_approval_id": publication["visual_approval_id"],
+        "scheduled_at": publish_cli.parse_time(publication["scheduled_at"]).astimezone(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "visual_approval_id": publication["visual_approval_id"],
         "integration_id": context.account["publisher_integration_id"], "platform": context.account["platform"],
         "native_handle": context.account["native_handle"], "provider_settings": context.account["publisher_settings"]}
     current = now or dt.datetime.now(dt.timezone.utc).isoformat()

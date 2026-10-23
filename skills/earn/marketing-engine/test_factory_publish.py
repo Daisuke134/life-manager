@@ -275,3 +275,15 @@ def test_real_cli_prepare_uses_user_route_and_creates_no_approval(request_args, 
     intent = json.loads(Path(row["intent_path"]).read_text())
     assert intent["native_handle"] == "factory_test_monk"
     assert intent["integration_id"] == "factory-test-integration"
+
+
+@pytest.mark.parametrize("same_instant", ["2026-10-24T09:00:00+09:00", "2026-10-24T00:00:00+00:00", "2026-10-24T00:00:00.000Z"])
+def test_same_epoch_slot_cannot_be_reused_with_a_different_timezone_format(request_args, same_instant):
+    prepare(request_args)
+    other = copy.deepcopy(request_args)
+    other["config"]["project_id"] = "other"
+    other["config"]["state_root"] += "-other"
+    other["publication"]["scheduled_at"] = same_instant
+    make_render(other)
+    with pytest.raises(ValueError, match="slot already reserved"):
+        prepare(other)

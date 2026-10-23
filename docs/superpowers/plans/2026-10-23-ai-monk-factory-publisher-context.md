@@ -4,7 +4,7 @@
 
 **入口:** `factory publish --config JSON --script UTF-8 --publication JSON --run-id ID --operation prepare|shadow|upload|draft|promote|route-check|status|postiz-readback|reconcile`。mutationのupload/draft/promoteには既存と同じ`--production`を必要とする。現在のv1 configに追加fieldを混ぜない。
 
-**投稿入力:** 厳密な`ai-monk-factory.publication.v1` JSONはschema_version/native_handle/publisher_provider/provider_settings/publish_enabled/cta/caption/attribution_token/scheduled_at/visual_approval_idだけを持つ。platform/integration/product name/HTTPS URLは既存configから取る。既存Intentのattribution契約に合わせcaptionはCTA、tracking tokenを含むexact product URLを完全なtokenとして1回含める。時刻はtimezone付きで固定する。credential・任意DB path・accepted statusを受け取らない。TikTokは現行のAI表示true/自社商品true/paid partnership false/DIRECT_POST契約を維持する。Instagramは既存video設定を使う。
+**投稿入力:** 厳密な`ai-monk-factory.publication.v1` JSONはschema_version/native_handle/publisher_provider/provider_settings/publish_enabled/cta/caption/attribution_token/scheduled_at/visual_approval_idだけを持つ。platform/integration/product name/HTTPS URLは既存configから取る。既存Intentのattribution契約に合わせcaptionはCTA、tracking tokenを含むexact product URLを完全なtokenとして1回含める。時刻はtimezone付きで受け取り、UTC ISO表記へ正規化して固定する。credential・任意DB path・accepted statusを受け取らない。TikTokは現行のAI表示true/自社商品true/paid partnership false/DIRECT_POST契約を維持する。Instagramは既存video設定を使う。
 
 **共通context:** `publish/publication_context.py`の`PublishContext(account, product, destination_url)`を任意引数`context=None`で既存publish関数へ渡す。未指定なら既存registry/owned redirect/Hook Lab処理をそのまま使う。指定時はaccount_id/product_idをcontextと照合し、同じcontextをcreate/shadow/preflight/live route/reconcile/native candidatesへ伝播する。IntentStore/PostizAdapterのschema・unique dispatch・provider実装は変えない。
 
@@ -29,3 +29,5 @@
 - Workerのcontext引数未実装15 RED→15 PASS。既存default Hook Lab/intent/preflight/production/reconcile/native/routeを含め45 PASS。preflight旧testは未追跡MP4と古いown-business設定への依存だけをfixtureへ置換し、承認/codec/ratio拒否を保持する。
 - Primaryの新Factory CLI/module欠落REDを確認する。run別intent fileのpublish_keyを別の保存済みintentへ付け替える反例はDID NOT RAISEでREDとなり、共有store原本との完全一致で拒否する最小修正を加える。
 - Factory render/plan/既存HeyGenとpublisherの関連14files209 PASSに加え、環境credentialを渡さない実CLI prepareの1件もPASS（計210件）。実provider/credential/browser読取0。Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。fresh review・CI/main・固定版・実投稿は未完。
+
+- Fresh reviewerは旧head c7e328dcの全差分を確認し、独立210 PASS、指摘は同じepochを別timezone/秒精度で表すslot迂回1件。primaryは+09:00/+00:00/.000Zの3件をDID NOT RAISEでRED再現し、Factory境界のUTC ISO正規化1行で修復する。修正後のFactory38件がPASS。再reviewと新head CI/mainは未完。旧head CIのPII失敗は同時にmainへ入る別仕様書docs/team/specs/listicle-outreach.mdのpersonal_gmail検出1件で、今回の変更範囲scanは0件。scanner/allowlistは変更せず、ownerと該当記載の是正を進める。
