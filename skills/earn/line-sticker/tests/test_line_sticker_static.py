@@ -340,12 +340,28 @@ class TextBearingVariant(unittest.TestCase):
 
     def test_a_title_that_already_carries_a_bracket_mark_is_not_marked_twice(self) -> None:
         # 2026-10-23 title type: 「カワウソのぽか太の<場面>【毎日使える】」; a second 【文字入り】 would not fit.
-        listing = STATIC.mark_text_listing({"title": {"ja": "カワウソのぽか太の年末年始【毎日使える】",
-                                                      "en": "Pokata Otter New Year"},
+        listing = STATIC.mark_text_listing({"title": {"ja": "カワウソのぽか太の敬語【毎日使える】",
+                                                      "en": "Pokata Otter Polite Phrases"},
                                             "description": {"ja": "説明", "en": "desc"}})
-        self.assertEqual(listing["title"]["ja"], "カワウソのぽか太の年末年始【毎日使える】")
+        self.assertEqual(listing["title"]["ja"], "カワウソのぽか太の敬語【毎日使える】")
         self.assertIn("with text", listing["title"]["en"].lower())
         self.assertEqual(STATIC.mark_text_listing(listing), listing)
+
+
+    def test_a_planner_title_that_already_carries_the_mark_is_still_fitted(self) -> None:
+        # set-043 (48554244, 2026-10-23) was filed as "星くずカワウソの毎日返事スタンプ【文字入": the planner
+        # wrote the mark itself, the "already marked" branch kept the 44-unit title, and submit cut it.
+        listing = STATIC.mark_text_listing({"title": {"ja": "星くずカワウソの毎日返事スタンプ【文字入り】",
+                                                      "en": "Stardust Otter Daily Reply (with text)"},
+                                            "description": {"ja": "説明", "en": "desc"}})
+        self.assertEqual(listing["title"]["ja"], "星くずカワウソの毎日返事【文字入り】")
+        for title in listing["title"].values():
+            self.assertLessEqual(SUBMIT._title_units(title), SUBMIT.TITLE_MAX)
+        long_new_type = STATIC.mark_text_listing({"title": {"ja": "カワウソのぽか太の年末年始のあいさつ【毎日使える】",
+                                                            "en": "Pokata Otter New Year (with text)"},
+                                                  "description": {"ja": "説明", "en": "desc"}})
+        self.assertTrue(long_new_type["title"]["ja"].endswith("【毎日使える】"))
+        self.assertLessEqual(SUBMIT._title_units(long_new_type["title"]["ja"]), SUBMIT.TITLE_MAX)
 
 
 class StaticPlanPromptTitleType(unittest.TestCase):
@@ -353,6 +369,7 @@ class StaticPlanPromptTitleType(unittest.TestCase):
         prompt = STATIC._build_static_plan_prompt([], None)
         self.assertIn("カワウソのぽか太の<場面>【毎日使える】", prompt)
         self.assertIn("年末年始", prompt)
+        self.assertIn("全角19文字", prompt)
 
 
 if __name__ == "__main__":
