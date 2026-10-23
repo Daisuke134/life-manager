@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from money_loop_onboarding import _write_private
 
@@ -19,6 +21,29 @@ STATES = (
     "launchd_readback", "storefront_listing_readback",
 )
 ACCOUNT_GATES = STATES[:7]
+OBSERVATION_PAGES = {
+    "authenticated": "https://coconala.com/mypage",
+    "sms_verified": "https://coconala.com/mypage/sms",
+    "seller_information": "https://coconala.com/mypage/user_information",
+    "identity_approved": "https://coconala.com/mypage/user_identification",
+    "bank_registered": "https://coconala.com/mypage/bank",
+}
+
+
+def observed_authentication(pages: dict[str, dict[str, Any]]) -> bool | None:
+    completed = [urlparse(str(row.get("url") or "")) for row in pages.values()
+                 if row.get("ready") == "complete"]
+    if any(url.hostname == "coconala.com" and url.path.rstrip("/") in {
+        "/login", "/users/login", "/users/signup",
+    } for url in completed):
+        return False
+    page = pages.get("authenticated", {})
+    url = urlparse(str(page.get("url") or ""))
+    if (page.get("ready") == "complete" and page.get("authenticated_identity") is True
+            and url.scheme == "https" and url.hostname == "coconala.com"
+            and (url.path == "/mypage" or url.path.startswith("/mypage/"))):
+        return True
+    return None
 
 
 def _validate(value: Any) -> dict[str, Any]:
@@ -80,6 +105,18 @@ def ready(home: Path) -> tuple[dict[str, Any], int]:
                 or not isinstance(latest.get("classifications"), dict)):
             raise ValueError("invalid_coconala_onboarding_observation")
         authenticated = latest["classifications"].get("authenticated")
+        if authenticated is True:
+            pages = latest.get("pages")
+            fields = {"url", "ready", "forms", "controls", "body_sha256", "body_length", "authenticated_identity"}
+            if (not isinstance(pages, dict) or set(pages) != set(OBSERVATION_PAGES)
+                    or any(not isinstance(row, dict) or set(row) != fields for row in pages.values())
+                    or observed_authentication(pages) is not True):
+                raise ValueError("invalid_coconala_onboarding_observation")
+            digest = hashlib.sha256(json.dumps(
+                pages["authenticated"], sort_keys=True, separators=(",", ":"),
+            ).encode("utf-8")).hexdigest()
+            if digest != value["states"]["authenticated"]["evidence_sha256"]:
+                raise ValueError("invalid_coconala_onboarding_observation")
     if authenticated is not True and "authenticated" not in missing:
         missing.insert(0, "authenticated")
     return {"status": "ready" if not missing else "blocked", "missing": missing}, 0 if not missing else 2

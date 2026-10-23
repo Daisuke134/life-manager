@@ -36,7 +36,7 @@ def _browser(monkeypatch, page=None):
 
     async def evaluate(state):
         raw = {"url": observer.PAGES[state], "ready": "complete", "forms": 0,
-               "controls": [], "body": "PRIVATE-PAGE-TEXT"}
+               "controls": [], "body": "PRIVATE-PAGE-TEXT", "own_user_path": "/users/42"}
         return {**raw, **(page(state) if page else {})}
 
     monkeypatch.setattr(observer.cdp_default_tab, "open_tab", open_tab)
@@ -158,10 +158,72 @@ def test_current_authentication_does_not_approve_missing_identity_or_bank(tmp_pa
     ]
 
 
+@pytest.mark.parametrize("body", ["403 Forbidden", "", "メンテナンス中"])
+def test_expected_url_without_own_profile_cannot_prove_authentication(tmp_path, monkeypatch, body):
+    before = _completed_history(tmp_path)
+    _browser(monkeypatch, lambda _: {"body": body, "own_user_path": None})
+
+    evidence = observer.observe(tmp_path)
+    result, exit_code = onboarding.ready(tmp_path)
+
+    assert evidence["classifications"]["authenticated"] is None
+    assert (result, exit_code) == ({"status": "blocked", "missing": ["authenticated"]}, 2)
+    assert onboarding.receipt(tmp_path) == before
+
+
+@pytest.mark.parametrize("corruption", ["missing_page", "empty_page", "missing_identity", "different_snapshot", "login_page"])
+def test_positive_classification_requires_complete_matching_observation(tmp_path, monkeypatch, corruption):
+    _completed_history(tmp_path)
+    _browser(monkeypatch)
+    evidence = observer.observe(tmp_path)
+    before = onboarding.receipt(tmp_path)
+    if corruption == "missing_page":
+        del evidence["pages"]["bank_registered"]
+    elif corruption == "empty_page":
+        evidence["pages"]["bank_registered"] = {}
+    elif corruption == "missing_identity":
+        evidence["pages"]["authenticated"].pop("authenticated_identity", None)
+    elif corruption == "different_snapshot":
+        evidence["pages"]["authenticated"]["body_sha256"] = "b" * 64
+    else:
+        evidence["pages"]["bank_registered"]["url"] = "https://coconala.com/login"
+    (tmp_path / ".config/anicca/gig/onboarding-observation.json").write_text(json.dumps(evidence))
+
+    with pytest.raises(ValueError, match="invalid_coconala_onboarding_observation"):
+        onboarding.ready(tmp_path)
+    assert onboarding.receipt(tmp_path) == before
+
+
+@pytest.mark.parametrize("selection,expected", [
+    ("sidebar-profile", "/users/42"), ("header", "/users/42"), ("content", None),
+])
+def test_dom_expression_reads_own_profile_only_from_account_navigation(selection, expected):
+    script = r'''
+const vm = require('node:vm');
+const input = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
+const link = {
+  href: 'https://coconala.com/users/42',
+  closest: selector => (selector === '.sidebar-profile' && input.selection === 'sidebar-profile') ||
+    (selector.includes('header') && input.selection === 'header') ? {} : null,
+};
+const document = {readyState:'complete', forms:[], body:{innerText:'fixture'},
+  querySelectorAll: selector => selector === 'a[href]' ? [link] : [],
+};
+const location = {origin:'https://coconala.com', pathname:'/mypage', href:'https://coconala.com/mypage'};
+process.stdout.write(vm.runInNewContext(input.expression, {document, location, URL, JSON}));
+'''
+    completed = subprocess.run(["node", "-e", script],
+        input=json.dumps({"expression": observer.EXPRESSION, "selection": selection}),
+        capture_output=True, text=True, timeout=10, check=True)
+
+    assert json.loads(completed.stdout).get("own_user_path") == expected
+
+
 @pytest.mark.parametrize("latest", [
     [],
     {"version": 1, "platform": "other", "classifications": {"authenticated": True}},
     {"version": 1, "platform": "coconala", "classifications": []},
+    {"version": 1, "platform": "coconala", "classifications": {"authenticated": True}},
 ])
 def test_invalid_latest_observation_cannot_approve_activation(tmp_path, latest):
     _completed_history(tmp_path)
