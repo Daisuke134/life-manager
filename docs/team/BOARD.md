@@ -50,7 +50,7 @@
 - 2026-10-23 20:14 claude(funding): docs/team/specs/funding-pipeline.md 作成=一次ソース取得の公募14件（J-Startup 11/13・持続化補助金 12/15・PayPal AI Hackathon 11/12 ほか、台帳は全件未）。応募不可=J-Startup(法人要件)/NLnet(AI作成提案禁止)。上位3件の下書き=specs/funding-drafts/（Codex OSS fund・GitHub Secure OSS Fund・Claude for OSS、未提出）。次: 下書きを確認して台帳にclaimed→提出、未踏IT 2027年度の公募開始を監視。
 - 2026-10-23 20:40 claude(scoreboard): SCOREBOARD.md に 10/23 ローカル readback 節を追加（台帳26行、ココナラapplied 24h 26件、無料記事20本、Postiz PUBLISHED10/ERROR3、Writer有料0、Capafy $112.74/33件、PB 0件、ASC Anicca は report_pending で未取得）。次: ASC Anicca 日別の readback 取得。
 
-- Codex AI Monk: Database73件復元とMonk Factory Webを担当。日次投稿はGrok Botへ委任済み。既存Factory CLI/MCPを再利用する公開draft＋local Web workspaceの設計/計画を記録し、次は有限agent接続を実装する。
+- Codex AI Monk: Database73件復元、Monk Factory公開/immutable localhostの実Codex offline plan受入を完了。37tests/独立blocking0/CI/公開4hashとdraft download/importを確認。日次投稿はGrok Bot担当。現在cursorはplugin公式配布・通常認証/Muse特定。売上/他者無人収益は未達。
 - Codex(Mobile spec): 最新依頼を正本spec更新と残TODO報告へ限定。Thankful追加修正head5a120ac4の28件PASS・review/main/新binary未完、既存Cloud設定なし、RevenueCatの取得可能範囲、metrics採用済み/自然terminal未確認を反映。実行順と事業成果の未達は正本「Anicca旗艦・公開6アプリの配信と継続課金」を参照。本番/provider操作なし。
 - Codex(Mobile続行): 正本の6段階を実行再開。Thankful追加3filesはfresh review指摘0件/SHIP・独立28件PASS、次はbuild10設定と通常PR/main/配布。metricsの最新heartbeat境界と自然snapshotを独立診断。本番設定変更は対象・重複・既存枠を照合して実行する。
 - 2026-10-23 20:49 claude-2(LINEスタンプ工場復旧): 真因=Creators Marketログイン切れ(10/14〜)→復旧後も秋特集811(締切10/19)を選んだまま submit で campaign_snapshot_stale。email+pw で再ログイン(QR/SMS不要)・vault保存、set-042 は特集を外して再申請→審査待ち(48552798「星くずカワウソの秋色【文字入り】 vol.9」)。set-038 リジェクト真因=キャラカテゴリ13クマ→16その他へ修正し再申請→審査待ち(48283042)。set-003 の元データも16へ(続編の継承元)。恒久修正 PR #8696 draft(期限切れ特集の自動除外＋タイトル型「カワウソのぽか太の{場面}【毎日使える】」＋年末年始3セット優先)。次: PR #8696 CI/merge→release apply、set-043 以降が新タイトル型で出るか確認。

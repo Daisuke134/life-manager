@@ -1,6 +1,6 @@
 {
   "schema_version": "anicca.ai-monk-factory-web-source.v1",
-  "status": "source_tests_passed_delta_review_pending",
+  "status": "source_accepted",
   "related_tests": {
     "passed": 37,
     "failed": 0,
@@ -35,7 +35,7 @@
   "scope_limits": [
     "No real HeyGen/Postiz generation or publication",
     "No native publication, sales or revenue acceptance",
-    "Public deployment and immutable release are pending"
+    "Public browser drafts execute; provider execution uses localhost"
   ],
   "source_files": {
     "skills/earn/marketing-engine/factory-web/agent-mcp.mjs": "5a12943711ad729f7e12572f0ce8248d1d8598bde44ccc7d21623b87ea8f9fe1",
@@ -68,9 +68,11 @@
       "run-wide unresolved cost and CLI error aggregation",
       "shared UTF-8 import/export limit"
     ],
-    "delta_review": "initial four issues resolved; receipt-before-extraction fix in final delta review",
+    "delta_review": "passed",
     "followup_blocking": 1,
-    "followup_regression": "old RED to corrected GREEN"
+    "followup_regression": "old RED to corrected GREEN",
+    "final_blocking": 0,
+    "target_commit": "de802dd4b05f3db0975ca6d195ae21b7eb68a899"
   },
   "native_media_fixture": {
     "ffprobe_decode": true,
@@ -84,5 +86,15 @@
     "canonical_node": "24.16.0",
     "npm_11_9_same_lock_dry_run_exit": 0,
     "lock_or_dependency_versions_changed": false
-  }
+  },
+  "ci": {
+    "workflow": 39964362189,
+    "conclusion": "success",
+    "factory_job": "success",
+    "mac_loop_job": "success"
+  },
+  "acceptance_refs": [
+    "docs/evidence/ai-monk-factory-web-local-20261023.json",
+    "docs/evidence/ai-monk-factory-web-production-20261023.json"
+  ]
 }
