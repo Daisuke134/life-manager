@@ -4060,6 +4060,201 @@ def test_noncoalesced_child_uses_claimed_older_occurrence(tmp_path):
     assert claimed == ["example:older"]
 
 
+@pytest.fixture
+def manual_slot_runtime(tmp_path, monkeypatch):
+    owner = "ebook-en-tiktok-daily"
+    root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(root))
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+    admission.activate_durable_v2()
+    entry = json.loads((Path(__file__).parents[3] / "config/loop-registry.json").read_text())["loops"][owner]
+    children = []
+
+    def child(command, _scratch, **kwargs):
+        children.append((command, kwargs["env"]["LIFE_MANAGER_OCCURRENCE_ID"]))
+        kwargs["on_started"](os.getpid())
+        return 0, b""
+
+    monkeypatch.setattr(loop_runner, "memory_free_percent", lambda: 50)
+    monkeypatch.setattr(loop_runner, "_child_environment_for_owner", lambda _owner, env: env)
+    monkeypatch.setattr(loop_runner, "_dispatch_reserved", lambda _owners: [])
+    monkeypatch.setattr(loop_runner, "_run_entrypoint_with_stderr_capture", child)
+
+    def invoke(run_id, manual=False):
+        receipt = tmp_path / run_id / "host-admission.json"
+        receipt.parent.mkdir()
+        command = ["/fixture/ebook-distribute-daily.sh", owner]
+        if manual:
+            command += ["--slot-at", "2026-10-08T23:00:00.000Z"]
+        result = _run_admitted(command, entry, owner, {}, receipt,
+                               occurrence_id=f"{owner}:{run_id}")
+        return result, json.loads(receipt.read_text())
+
+    return SimpleNamespace(owner=owner, root=root, children=children, invoke=invoke)
+
+
+def test_manual_slot_dispatches_only_its_exact_claim(manual_slot_runtime):
+    runtime = manual_slot_runtime
+    assert runtime.invoke("manual-exact", manual=True)[0] == 0
+    assert runtime.children == [([
+        "/fixture/ebook-distribute-daily.sh", runtime.owner,
+        "--slot-at", "2026-10-08T23:00:00.000Z",
+    ], f"{runtime.owner}:manual-exact")]
+
+
+def test_manual_slot_foreign_fifo_claim_does_not_dispatch_or_starve_normal(manual_slot_runtime):
+    runtime = manual_slot_runtime
+    admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
+                              priority="distribution", effect_scope="occurrence",
+                              occurrence_id=f"{runtime.owner}:older-normal")
+    code, receipt = runtime.invoke("manual-behind-older", manual=True)
+    assert code == 75 and receipt["reason"] == "manual_slot_claim_mismatch"
+    assert runtime.children == []
+    assert runtime.invoke("normal-followup")[0] == 0
+    code, receipt = runtime.invoke("normal-discards-manual")
+    assert code == 75 and receipt["reason"] == "manual_slot_request_expired"
+    assert runtime.invoke("normal-progress")[0] == 0
+    assert [identity for _, identity in runtime.children] == [
+        f"{runtime.owner}:older-normal", f"{runtime.owner}:normal-followup",
+    ]
+    with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
+        assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (f"{runtime.owner}:manual-behind-older",)).fetchone() == ("released", 0)
+        assert db.execute("SELECT COUNT(*) FROM occurrences WHERE effect_unknown=1").fetchone()[0] == 0
+
+
+def test_manual_slot_capacity_deferral_is_discarded_without_automatic_override(
+        manual_slot_runtime, monkeypatch):
+    runtime = manual_slot_runtime
+    monkeypatch.setattr(loop_runner, "memory_free_percent", lambda: None)
+    assert runtime.invoke("manual-deferred", manual=True)[0] == 75
+    assert runtime.children == []
+    monkeypatch.setattr(loop_runner, "memory_free_percent", lambda: 50)
+    code, receipt = runtime.invoke("normal-after-deferral")
+    assert code == 75 and receipt["reason"] == "manual_slot_request_expired"
+    assert runtime.children == []
+    assert runtime.invoke("normal-after-discard")[0] == 0
+    assert runtime.children == [([
+        "/fixture/ebook-distribute-daily.sh", runtime.owner,
+    ], f"{runtime.owner}:normal-after-deferral")]
+    with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
+        assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (f"{runtime.owner}:manual-deferred",)).fetchone() == ("released", 0)
+
+
+def test_manual_slot_unknown_claim_never_starts_child(manual_slot_runtime):
+    runtime = manual_slot_runtime
+    occurrence = f"{runtime.owner}:manual-unknown"
+    admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
+                              priority="distribution", effect_scope="occurrence",
+                              occurrence_id=occurrence)
+    claim, _ = admission.claim_durable("agent", runtime.owner, admission_class="revenue",
+                                       effect_scope="occurrence")
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False)
+    code, receipt = runtime.invoke("manual-unknown", manual=True)
+    assert code == 75 and receipt["reason"] == "resource_effect_unknown"
+    assert runtime.children == []
+    with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
+        assert db.execute("SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (occurrence,)).fetchone() == (1,)
+
+
+def test_manual_slot_without_durable_admission_never_starts_child(manual_slot_runtime):
+    runtime = manual_slot_runtime
+    with (patch.object(loop_runner, "durable_protocol_version", return_value=1),
+          patch.object(loop_runner, "try_acquire_resource", return_value=(None, "capacity_busy")) as claim):
+        code, receipt = runtime.invoke("manual-legacy", manual=True)
+    assert code == 75 and receipt["reason"] == "manual_slot_requires_durable"
+    claim.assert_not_called()
+    assert runtime.children == []
+
+
+def test_manual_slot_capacity_busy_leaves_only_discardable_manual_work(manual_slot_runtime):
+    runtime = manual_slot_runtime
+    admission.enqueue_durable("agent", "busy-owner", admission_class="revenue")
+    busy, _ = admission.claim_durable("agent", "busy-owner", admission_class="revenue")
+    assert busy is not None
+    try:
+        code, receipt = runtime.invoke("manual-capacity", manual=True)
+        assert code == 75 and receipt["reason"] == "resource_capacity_busy"
+        assert runtime.children == []
+    finally:
+        admission.release_and_reserve(busy, reserve=False)
+    assert runtime.invoke("normal-after-capacity")[1]["reason"] == "manual_slot_request_expired"
+    assert runtime.invoke("normal-capacity-progress")[0] == 0
+    assert len(runtime.children) == 1
+    assert runtime.children[0][1] == f"{runtime.owner}:normal-after-capacity"
+    with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
+        assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (f"{runtime.owner}:manual-capacity",)).fetchone() == ("released", 0)
+
+
+@pytest.fixture
+def manual_slot_cli(tmp_path, monkeypatch):
+    owner = "ebook-en-tiktok-daily"
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    pack = release / "skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json"
+    pack.parent.mkdir(parents=True)
+    pack.write_text(json.dumps({"slots_jst": ["08:00", "21:00"]}))
+    entries = {}
+    for name in (owner, "ebook-ja-tiktok-daily"):
+        entries[name] = {
+            "label": f"ai.anicca.life-manager-{name}", "domain": "growth",
+            "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+            "effect_class": "publish", "provider_route": "deterministic",
+            "state_root": str(tmp_path / "state"),
+        }
+    (release / "config/loop-registry.json").write_text(json.dumps({"loops": entries}))
+    (release / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    monkeypatch.delenv("LIFE_MANAGER_LOG_ROOT", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_RUN_ID", raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(tmp_path / "state"))
+    monkeypatch.setattr(loop_runner, "_apply_lock", lambda *_args: nullcontext())
+    monkeypatch.setattr(loop_runner, "build_loop_command", lambda *_args: ["/fixture/ebook", owner])
+    monkeypatch.setattr(loop_runner, "_should_enqueue_recovery_intent", lambda *_args: False)
+    return owner, release
+
+
+def test_manual_slot_cli_passes_slot_with_fresh_manual_identity(manual_slot_cli):
+    owner, release = manual_slot_cli
+    calls = []
+
+    def run(command, _entry, _owner, env, receipt, **kwargs):
+        calls.append((command, kwargs["occurrence_id"]))
+        receipt.write_text('{"status":"pass","effect":0}')
+        return 0
+
+    with patch.object(loop_runner, "_run_admitted", side_effect=run):
+        for _ in range(2):
+            assert lm_loop_run_main([owner, str(release), "--slot-at", "2026-10-08T23:00:00.000Z"]) == 0
+    assert len(calls) == 2 and calls[0][1] != calls[1][1]
+    assert all(command == ["/fixture/ebook", owner, "--slot-at", "2026-10-08T23:00:00.000Z"]
+               and occurrence.startswith(f"{owner}:manual-") for command, occurrence in calls)
+
+
+@pytest.mark.parametrize("owner,slot,run_id", [
+    ("ebook-ja-tiktok-daily", "2026-10-08T23:00:00.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:00.000Z", "scheduled-invalid"),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:00.000Z", "manual-explicit"),
+    ("ebook-en-tiktok-daily", "2999-10-08T23:00:00.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:30:00.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:01.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:00Z", None),
+])
+def test_manual_slot_cli_rejects_invalid_request_before_admission(
+        manual_slot_cli, monkeypatch, owner, slot, run_id):
+    _, release = manual_slot_cli
+    if run_id is None:
+        monkeypatch.delenv("LIFE_MANAGER_RUN_ID", raising=False)
+    else:
+        monkeypatch.setenv("LIFE_MANAGER_RUN_ID", run_id)
+    with patch.object(loop_runner, "_run_admitted", return_value=0) as run:
+        assert lm_loop_run_main([owner, str(release), "--slot-at", slot]) in {64, 78}
+    run.assert_not_called()
+
+
 def test_v1_protocol_coexists_with_live_legacy_owner_without_sqlite(tmp_path, monkeypatch):
     root = tmp_path / "admission"
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(root))

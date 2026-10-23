@@ -59,6 +59,18 @@ or silently switch providers.
 `wallet_cost=null`・`cost_reconciliation_required=true`を保持し、費用0とは扱わない。
 sidecarも`cost_reconciliation_required`を維持し、別slotの新規生成は保留する。
 既存素材のmanual投稿も、同じprovider receipt ID・出力hash・未照合状態の一致が必要。
+英語TikTokの単発回復は、main由来immutableの正規runnerを使う。
+
+```sh
+env -u LIFE_MANAGER_RUN_ID /absolute/immutable/release/bin/lm-loop-run ebook-en-tiktok-daily /absolute/immutable/release --slot-at '<configured past UTC slot, including .000Z>'
+```
+
+runnerはfreshな`manual-*` IDを発行し、durable admission・owner lockを通す。
+`--slot-at`と環境の非空`LIFE_MANAGER_RUN_ID`の併用はadmission前に拒否する。
+自分のactual claimと一致する時だけ指定slotを子へ渡し、Nodeは既存render receiptを必須とする。
+別FIFO/容量待ち/unknownで実行できなければ新規生成・投稿は行わない。
+後の通常wakeが保留manualをclaimした場合は`manual_slot_request_expired`として未実行で終端し、
+次の通常FIFOへ進む。手動指定の自動復元や、実行済みという扱いはしない。
 
 | Legacy `MKT_CONTENT_ADAPTER` | Instagram media | `poster.py` route |
 |---|---|---|

@@ -163,7 +163,7 @@
   },
   "limits": [
     "manualな素材回復であり、自然ownerの実行や投稿完了の証拠ではない。",
-    "HeyGen個別費用はnull。新規生成guardと残る3投稿fenceを保持する。",
+    "HeyGen個別費用はnull。新規生成guard、EN Instagram/JA TikTokの旧fenceを保持する。JA Instagramの旧fenceは原本proofで解消済み。",
     "新規生成・投稿は各phaseで0回。既存動画のdownloadは最初のphaseだけ1回。",
     "EN ownerへの新release採用をloaded argv/envで確認。自然PUBLISHED・売上は未確認。"
   ],
@@ -285,8 +285,91 @@
     "raw_artifact_count": 8,
     "preserved_source_manifest_count": 11,
     "source_candidate_probe": "verified",
-    "production_fence_closed": false,
+    "production_fence_closed": true,
     "loaded_old_release_bytes_verified": false,
     "exit75_branch_identified": false
+  },
+  "legacy_ja_instagram_closure": {
+    "checked_at": "2026-10-23T04:16:44.578489+00:00",
+    "run_id": "manual-ja-ig-pre-effect-closure-20261023",
+    "owner_id": "ebook-ja-instagram-daily",
+    "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+    "release_sha": "fcaa273b92e2612be7215ee55c2fa57cb0564845",
+    "phase": "pre_effect_reconciliation",
+    "exit_code": 0,
+    "effect": "exact_pre_effect_fence_closed",
+    "readback": {
+      "official_resolver_receipt_sha256": "91a250f826b4723a83e652c64f3609ebc800fe1eadfea6277b79340eb4772b8a",
+      "proof_kind": "ebook_ja_ig_legacy_all_claimants_pre_effect",
+      "owner_disabled_unloaded": true
+    },
+    "effects": {
+      "new_generations": 0,
+      "posts": 0
+    },
+    "before": {
+      "owner_id": "ebook-ja-instagram-daily",
+      "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+      "state": "claimed",
+      "effect_unknown": 1
+    },
+    "after": {
+      "owner_id": "ebook-ja-instagram-daily",
+      "occurrence_id": "ebook-ja-instagram-daily:18e01f3eff2e6368-4807",
+      "state": "released",
+      "effect_unknown": 0
+    },
+    "next_action": "keep_JA_watercolor_lane_disabled; implement_avatar_pack",
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8616",
+    "source_ci": {
+      "run_id": 39898688756,
+      "conclusion": "success",
+      "checks": 13
+    },
+    "read_only_replay_probe": {
+      "remaining_unknown_rows": 0,
+      "repeat_actions": 0
+    }
+  },
+  "english_owner_execution": {
+    "checked_at": "2026-10-23T04:11:38.743569+00:00",
+    "owner_id": "ebook-en-tiktok-daily",
+    "run_id": "18e10d1794afd400-50593",
+    "occurrence_id": "ebook-en-tiktok-daily:18e0ea935761ba60-5141",
+    "release_sha": "561d945fc4f3938d3bc47dad47eff031da33d0b6",
+    "phase": "owner_run_readback",
+    "exit_code": 0,
+    "effect": "no_publication",
+    "error_class": "prior_heygen_effect_unresolved",
+    "provider_receipt_id": null,
+    "wake_origin_verified": false,
+    "readback": {
+      "render_state": "setup_required",
+      "render_reason": "prior_heygen_effect_unresolved",
+      "prior_render_state": "cost_reconciliation_required",
+      "render_receipt_sha256": "94cd90b33f2f3f71e6842a66dfb7f7d1be1f6a6f4bbe05e13b37c4a037d1dfad"
+    }
+  },
+  "additional_unused_database_cache_recovery": {
+    "checked_at": "2026-10-23T04:22:57.350685+00:00",
+    "run_id": "manual-ai-monk-old-database-cache-recovery-20261023",
+    "owner_id": "ebook",
+    "occurrence_id": null,
+    "release_sha": "fcaa273b92e2612be7215ee55c2fa57cb0564845",
+    "phase": "unused_cache_recovery",
+    "exit_code": 0,
+    "effect": "one_regenerable_cache_removed",
+    "entries": 26,
+    "before_free_bytes": 11380228096,
+    "after_free_bytes": 13460193280,
+    "recovered_bytes_observed": 2079965184,
+    "open_handles": 0,
+    "parent_cwd_handles": 0,
+    "protected_entries": 0,
+    "symlinks": 0,
+    "readback": {
+      "target_absent": true,
+      "free_gib": 12.536
+    }
   }
 }

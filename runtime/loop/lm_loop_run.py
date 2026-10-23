@@ -20,8 +20,10 @@ import tempfile
 import threading
 import time
 from contextlib import ExitStack
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
+from zoneinfo import ZoneInfo
 
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
@@ -1698,6 +1700,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     terminal_event_attempted = False
     terminal_event_saved = False
     terminal_effect_result: tuple[str, ...] | None = None
+    discard_manual_claim = False
+    manual_slot_requested = (loop_id == "ebook-en-tiktok-daily"
+                             and command[-2:-1] == ["--slot-at"])
     previous = {}
     pre_effect_hint_allowed = (entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
                                 or loop_id in PRE_EFFECT_HINT_LOOP_IDS)
@@ -1773,6 +1778,10 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
+            return 75
+        if manual_slot_requested and not durable:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "manual_slot_requires_durable"})
             return 75
         if interrupted:
             if durable:
@@ -1879,6 +1888,18 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
+        if loop_id == "ebook-en-tiktok-daily":
+            claimed_manual = (isinstance(claimed_occurrence_id, str)
+                              and claimed_occurrence_id.startswith(f"{loop_id}:manual-"))
+            if ((manual_slot_requested and (not claimed_manual or claimed_occurrence_id != occurrence_id))
+                    or (claimed_manual and not manual_slot_requested)):
+                # A slot override belongs only to this invocation. Consume an
+                # orphan manual claim without a child so normal FIFO can progress.
+                discard_manual_claim = claimed_manual
+                _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                      "reason": ("manual_slot_request_expired" if claimed_manual
+                                                 else "manual_slot_claim_mismatch")})
+                return 75
         if disk_deferred("post_claim", check_capacity=True):
             return 75
         if interrupted:
@@ -1975,8 +1996,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if claim is not None:
             try:
                 if durable:
-                    release_options = {"requeue": not claim_started_child,
-                                       "reserve": claim_started_child}
+                    release_options = {"requeue": not claim_started_child and not discard_manual_claim,
+                                       "reserve": claim_started_child or discard_manual_claim}
                     terminal_persistence_failed = (
                         on_terminal_event is not None and not terminal_event_saved)
                     missing_alpaca_terminal_result = (
@@ -2024,11 +2045,31 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _dispatch_reserved(dispatch_after_release)
 
 
+def _manual_slot_arguments(arguments: list[str], loop_id: str, run_id: str,
+                           release_root: Path) -> list[str]:
+    if not arguments:
+        return []
+    if (loop_id != "ebook-en-tiktok-daily" or not SAFE_RUN_ID.fullmatch(run_id)
+            or not run_id.startswith("manual-") or len(run_id) <= len("manual-")):
+        raise ValueError("manual slot owner/run identity is invalid")
+    slot = arguments[1]
+    instant = datetime.fromisoformat(slot.replace("Z", "+00:00"))
+    if (instant.tzinfo != timezone.utc
+            or instant.isoformat(timespec="milliseconds").replace("+00:00", "Z") != slot
+            or instant.timestamp() > time.time() or instant.second or instant.microsecond):
+        raise ValueError("manual slot must be an exact past configured slot")
+    pack = json.loads((release_root / "skills/earn/marketing-engine/registry/ebook-packs"
+                       / "ebook-en-anicca-monk.json").read_text())
+    if instant.astimezone(ZoneInfo("Asia/Tokyo")).strftime("%H:%M") not in pack.get("slots_jst", []):
+        raise ValueError("manual slot is not configured for the eBook pack")
+    return arguments
+
+
 def _main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
-    if len(args) != 2:
-        print("usage: lm-loop-run <loop-id> <release-root>", file=sys.stderr); return 64
-    loop_id, release_value = args
+    if len(args) not in {2, 4} or (len(args) == 4 and args[2] != "--slot-at"):
+        print("usage: lm-loop-run <loop-id> <release-root> [--slot-at <past-slot>]", file=sys.stderr); return 64
+    loop_id, release_value = args[:2]
     release_root = Path(release_value).resolve()
     try:
         registry = json.loads((release_root / "config/loop-registry.json").read_text())
@@ -2038,9 +2079,12 @@ def _main(argv: list[str] | None = None) -> int:
         entry = registry.get("loops", {}).get(loop_id)
         if not isinstance(entry, dict):
             raise ValueError(f"unknown loop id: {loop_id}")
+        if len(args) == 4 and os.environ.get("LIFE_MANAGER_RUN_ID"):
+            raise ValueError("manual slot requires a fresh runtime-generated run ID")
         loop_state_root = Path(os.path.expanduser(
             os.environ.get("LIFE_MANAGER_STATE_ROOT", entry["state_root"])))
-        run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
+        run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{'manual-' if len(args) == 4 else ''}{time.time_ns():x}-{os.getpid()}"
+        manual_arguments = _manual_slot_arguments(args[2:], loop_id, run_id, release_root)
         wake_id = _wake_id(run_id)
         product_loop_id = _product_loop_for_job(release_root, loop_id)
         occurrence_id = f"{loop_id}:{run_id}"
@@ -2124,6 +2168,7 @@ def _main(argv: list[str] | None = None) -> int:
                     }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
                 return 78
             command = build_loop_command(registry, loop_id, release_root)
+            command.extend(manual_arguments)
             loaded_argv_sha256 = _identity_sha256(command)
             try:
                 scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
@@ -2417,7 +2462,7 @@ def _main(argv: list[str] | None = None) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     log_root = os.environ.get("LIFE_MANAGER_LOG_ROOT")
-    if len(args) == 2 and log_root:
+    if len(args) in {2, 4} and log_root:
         with ExitStack() as stack:
             try:
                 policy = load_storage_policy(Path(args[1]) / "config/storage-policy.json", args[0])
