@@ -178,7 +178,8 @@ class OwnedProviderRegressions(unittest.TestCase):
                 yield self.events[1]
             def get_final_result(self):
                 return SimpleNamespace(session_id="sess_12345678", output_text=
-                    '{"decision":"PROPOSE","reason":"Review the cited claim.","source_ids":["public:case"]}')
+                    '{"decision":"PROPOSE","reason":"Review the cited claim.","source_ids":["public:case"]}',
+                    turn_id="turn_12345678")
         class Sessions:
             def __init__(self): self.create_count = 0
             def create(inner, **kwargs):
@@ -280,7 +281,16 @@ class OwnedProviderRegressions(unittest.TestCase):
                 turns=SimpleNamespace(list=lambda *a, **k: SimpleNamespace(data=[SimpleNamespace(
                     id="turn_12345678", status="completed", usage=SimpleNamespace(
                         input_tokens=10, output_tokens=20, input_tokens_details=None,
-                        output_tokens_details=None))]))))
+                        output_tokens_details=None))]),
+                    retrieve=lambda tid, *, session_id: SimpleNamespace(
+                        id=tid, status="completed", usage=SimpleNamespace(
+                            input_tokens=10, output_tokens=20))),
+                items=SimpleNamespace(list=lambda *a, **k: SimpleNamespace(data=[SimpleNamespace(
+                    id="item_12345678", type="message", turn_id="turn_12345678",
+                    role="assistant", phase="final_answer", status="completed",
+                    content=[{"type":"output_text","text":
+                        '{"decision":"ASK","reason":"Which claim?","source_ids":["public:case"]}'}])],
+                    has_more=False))))
             client = SimpleNamespace(beta=SimpleNamespace(agents=agents))
             result = owner.followup(client, "sess_12345678", self._context(), key="fup1",
                 upper_usd=Decimal("0.03"), deadline_monotonic=monotonic()+10)
@@ -295,6 +305,80 @@ class OwnedProviderRegressions(unittest.TestCase):
                 self.assertIsNone(db.execute("SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'").fetchone()[0])
                 self.assertEqual(db.execute("SELECT status FROM budget_reservations").fetchone()[0],
                                  "TOKENS_OBSERVED_COST_UNSETTLED")
+
+    def test_final_readback_failure_and_deadline_keep_checkpointed_writer_and_reservation(self):
+        import hashlib
+        from manager_core.provider_sessions import SessionConflict
+        from manager_core.ampersand_api import SessionFailure
+        for mode in ("incomplete", "deadline"):
+            with self.subTest(mode=mode), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                gateway, checkpoint, owner = self._owner(root)
+                owner.journal.begin("first", hashlib.sha256(b"body").hexdigest())
+                owner.journal.bind("first", "sess_12345678")
+                posts = []
+                saved_turn = SimpleNamespace(id="turn_12345678", status="completed",
+                    usage=SimpleNamespace(input_tokens=10, output_tokens=20))
+
+                class Events:
+                    @staticmethod
+                    def stream(*args):
+                        class Stream:
+                            def __enter__(self):
+                                return iter([SimpleNamespace(
+                                    type="agent.session.turn.completed",
+                                    turn_id="turn_12345678")])
+                            def __exit__(self, *args): return False
+                        return Stream()
+
+                    @staticmethod
+                    def create(*args, **kwargs): posts.append(kwargs)
+
+                def read_items(*args, **kwargs):
+                    if mode == "deadline":
+                        import time
+                        while True:
+                            time.sleep(.01)
+                    return SimpleNamespace(data=[SimpleNamespace(
+                        id="item_12345678", type="message", turn_id="turn_12345678",
+                        role="assistant", phase="final_answer", status="incomplete",
+                        content=[{"type":"output_text", "text":"partial"}])],
+                        has_more=False)
+
+                sessions = SimpleNamespace(
+                    events=Events,
+                    turns=SimpleNamespace(
+                        list=lambda *args, **kwargs: SimpleNamespace(data=[saved_turn]),
+                        retrieve=lambda tid, *, session_id: saved_turn),
+                    items=SimpleNamespace(list=read_items))
+                client = SimpleNamespace(beta=SimpleNamespace(
+                    agents=SimpleNamespace(sessions=sessions)))
+                context = self._context()
+                key = "r1-" + mode
+                op = "sess_12345678\0" + key
+                budget_id = "followup_" + hashlib.sha256(op.encode()).hexdigest()
+                with self.assertRaises(SessionFailure):
+                    owner.followup(client, "sess_12345678", context, key=key,
+                        upper_usd=Decimal("0.03"),
+                        deadline_monotonic=monotonic() + (0.4 if mode == "deadline" else 10))
+                self.assertEqual(len(posts), 1)
+                self.assertEqual(owner.ledger.get(budget_id).status, "RESERVED")
+                with self.assertRaises(SessionConflict):
+                    owner.journal.claim_writer("sess_12345678", "second-writer")
+                checkpointed = root / "after-failed-readback.sqlite"
+                checkpointed.write_bytes(base64.b64decode(gateway.value["snapshot"]))
+                with sqlite3.connect(checkpointed) as db:
+                    self.assertEqual(db.execute(
+                        "SELECT writer_id FROM amp_sessions WHERE session_id=?",
+                        ("sess_12345678",)).fetchone()[0],
+                        "followup_" + hashlib.sha256(op.encode()).hexdigest())
+                    self.assertEqual(db.execute(
+                        "SELECT event_key FROM amp_events WHERE session_id=?",
+                        ("sess_12345678",)).fetchone()[0], key)
+                    self.assertEqual(db.execute(
+                        "SELECT status FROM budget_reservations WHERE run_id=?",
+                        (budget_id,)).fetchone()[0], "RESERVED")
+                checkpoint.release()
 
     def test_cancel_event_and_writer_are_acknowledged_before_provider_http(self):
         import hashlib

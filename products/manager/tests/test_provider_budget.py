@@ -103,7 +103,8 @@ class BudgetContract(unittest.TestCase):
             def __iter__(self):
                 yield SimpleNamespace(type="agent.session.idle")
             def get_final_result(self):
-                return SimpleNamespace(session_id="sess_abcdefgh",output_text="")
+                return SimpleNamespace(session_id="sess_abcdefgh",output_text="",
+                                       turn_id="turn_abcdefgh")
         turn=SimpleNamespace(id="turn_abcdefgh",status="completed",usage=None)
         sessions=SimpleNamespace(
             create=lambda **kw:SimpleNamespace(with_result_collection=lambda:Stream()),
@@ -145,7 +146,10 @@ class BudgetContract(unittest.TestCase):
             events=SimpleNamespace(stream=lambda sid:Stream(),
                                    create=lambda sid,**kwargs:calls.append(kwargs)),
             turns=SimpleNamespace(list=lambda sid,**kwargs:
-                                  SimpleNamespace(data=[turn])))
+                                  SimpleNamespace(data=[turn]),
+                                  retrieve=lambda tid,*,session_id:turn),
+            items=SimpleNamespace(list=lambda sid,**kwargs:
+                                  SimpleNamespace(data=[],has_more=False)))
         client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
         res=read_followup_turn(client,"sess_abcdefgh","No extra help needed",
             key="silent-01",allow_silent_completion=True)

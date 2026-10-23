@@ -113,3 +113,16 @@ and candidate hashes identify the proposal; model advice cannot change its
 baseline or candidate bytes. Provider usage is not settled cost. This source
 change adds no workflow enablement, schedule, secret, SDK install, live model
 call, or deployment action.
+
+Final-text readback follows the pinned OpenAI SDK 3.24.0 result collector: it
+joins `output_text` blocks from completed assistant messages whose phase is
+`None` or `final_answer`, in returned item order, with no separator; commentary
+is excluded. Follow-up SSE completion supplies the target turn ID only. The
+adapter requires that turn to remain latest before and after the bounded saved
+item scan, and retains its writer fence if any read is incomplete or uncertain.
+Initial collected text is bound to its own result turn ID. Cancellation requests
+are limited to Turn states `queued`, `in_progress`, and `waiting`; unsupported
+states remain UNKNOWN. These SDK-shaped local contracts establish neither live
+provider inference nor provider cancellation behavior. Provenance: official
+OpenAI 3.24.0 wheel sources and compatibility audit retained outside this
+repository at `/workspace/scratch/manager-provider-shadow-20261023/sdk-audit/`.

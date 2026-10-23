@@ -66,7 +66,8 @@ def client_for(output='{"decision":"PROPOSE","reason":"Repair the cited link.","
         def __iter__(self):
             yield SimpleNamespace(type="agent.session.created", session_id="sess_12345678")
             yield SimpleNamespace(type="agent.session.idle")
-        def get_final_result(self): return SimpleNamespace(session_id="sess_12345678", output_text=output)
+        def get_final_result(self): return SimpleNamespace(session_id="sess_12345678", output_text=output,
+                                                           turn_id="turn_12345678")
     class Sessions:
         create_count = 0
         def create(self, **kwargs):
