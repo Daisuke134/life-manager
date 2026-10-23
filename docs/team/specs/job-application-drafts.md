@@ -14,7 +14,7 @@
 4. [OpenAI Applied AI Engineer Tokyo](../jobs/drafts/openai-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム10項目。Codex職と異なる質問構成を保持する。
 5. [BJAK Applied AI Engineer Tokyo](../jobs/drafts/bjak-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム17項目。3年以上の職業経験を裏付けず、言語別の職務使用と採用マーケティング同意を未確認として扱う。
 
-現在cursor: 全63項目の対応・事実根拠・限定差分を検証して専用PRへ進む。`docs/team/dots/` は取得したmainにもGitHub contents APIにも存在せず、参謀へ所在を照会済み。受領前のDots資料を読んだとは扱わず、取得済みの私的プロフィールと既存英語技術職用resumeに基づいて下書きする。具体的な回答を裏付けない包括的な経験attestationは、年数・言語・provider利用の根拠にしない。
+現在cursor: 下書き5件・全63項目の公式schema対応と事実根拠の照合を完了する。必須/任意の内訳と非公開連絡先の非掲載を確認する。ソース受入後の提出判断・未確認回答は各原稿を参照し、応募送信は参謀が所有する。PRのCI/統合状態はGitHubの当該branch/PRを正本とする。`docs/team/dots/` は取得したmainにもGitHub contents APIにも存在せず、参謀へ所在を照会済み。受領前のDots資料を読んだとは扱わず、取得済みの私的プロフィールと既存英語技術職用resumeに基づいて下書きする。具体的な回答を裏付けない包括的な経験attestationは、年数・言語・provider利用の根拠にしない。
 
 ## 経歴根拠
 
