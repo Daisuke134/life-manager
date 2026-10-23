@@ -82,7 +82,7 @@
 
 **Files:** `manager_core/owned_platform_host.py`、`scripts/run_owned_digital_cycle.py`、repository rootの`.github/workflows/manager-phase06-service.yml`、`manager_core/governance.py`、既存監査文書。
 
-- [ ] STOP/recovery/cadence後の同じ候補を使う既定OFFのshadow接続を実装し、control/無効設定/再読のprovider呼出し境界を回帰確認する。
+- [x] STOP/recovery/cadence後の同じ候補を使う既定OFFのshadow接続を実装し、control/無効設定/再読のprovider呼出し境界を回帰確認する。[PR8741と研究source5018の受入](../verification/HOST_SHADOW_CONNECTION_ACCEPTANCE_20261023.md)。実推論運用やV004全体の完了ではない。
 - [ ] 新しい行動変容channelの実範囲と観測をreviewし、既存7パスpublisherの権限を流用しない。
 - [ ] V003とD016を満たして初めて限定昇格し、停止・復元・独立readback・再送0を確認する。
 - [ ] V005の第三者再現、V006の実案件、G001/G002の憲章/監査、G003以降の異集団/接続責任/原価/未測定領域へ進む。
