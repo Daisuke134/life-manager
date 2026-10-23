@@ -62,6 +62,44 @@ test('HTTP requires exact Host/Origin and action token, bounded JSON, and a know
   assert.equal((await request('/api/runs', { body: { project_id: '../escape', mode: 'plan' } })).status, 400);
 });
 
+test('fixed public asset aliases serve the same local UI without exposing arbitrary files', async t => {
+  const { root, request } = await fixture(t);
+  await writeFile(join(root, 'ui', 'app.mjs'), 'export const fixture = true;');
+  await writeFile(join(root, 'ui', 'app.css'), 'body { color: black; }');
+  await writeFile(join(root, 'ui', 'project.mjs'), 'export const project = true;');
+  const html = await request('/ai-monk-factory/');
+  assert.equal(html.status, 200); assert.match(await html.text(), /test-token/);
+  for (const file of ['index.html', 'app.mjs', 'app.css', 'project.mjs']) {
+    const alias = await request('/ai-monk-factory/' + file), original = await request('/' + file);
+    assert.equal(alias.status, 200); assert.equal(alias.headers.get('content-type'), original.headers.get('content-type'));
+    assert.equal(await alias.text(), await original.text());
+  }
+  assert.equal((await request('/ai-monk-factory/server.mjs')).status, 404);
+});
+
+test('MCP inventory disables plugin transports before enumerating only persisted server names', async () => {
+  const names = await runtime.configuredMcpNames({ execFileCommand: (command, args, options, callback) => {
+    const isolated = ['plugins', 'remote_plugin', 'apps', 'enable_mcp_apps', 'codex_apps_mcp_2026_07_28']
+      .every(feature => args.some((arg, index) => arg === '--disable' && args[index + 1] === feature));
+    callback(null, JSON.stringify(isolated ? [{ name: 'factory' }, { name: 'unwanted' }]
+      : [{ name: 'factory' }, { name: 'unwanted' }, { name: 'code-review' }]));
+  } });
+  assert.deepEqual(names, ['factory', 'unwanted']);
+});
+
+test('run-bound MCP names avoid existing factory transports and any inventory name collision', () => {
+  const context = { runRoot: '/fixture/run-one', workspace: '/fixture/run-one/workspace' };
+  const first = runtime.agentCommand(context, ['factory', 'unwanted']);
+  const table = first.args.find(arg => arg.startsWith('mcp_servers='));
+  const name = /^mcp_servers=\{([^=]+)=/.exec(table)[1];
+  assert.notEqual(name, 'factory');
+  assert.ok(table.includes('"factory"={enabled=false}'));
+  const collided = runtime.agentCommand(context, ['factory', 'unwanted', name]);
+  const next = collided.args.find(arg => arg.startsWith('mcp_servers='));
+  assert.notEqual(/^mcp_servers=\{([^=]+)=/.exec(next)[1], name);
+  assert.ok(next.includes(JSON.stringify(name) + '={enabled=false}'));
+});
+
 test('runs snapshot project and freeze the first script/caption; plan cannot render or publish', async t => {
   let resume;
   const waiting = new Promise(resolve => { resume = resolve; });
@@ -177,9 +215,10 @@ test('finite agent inherits model choice, bounds output, and ignores a success c
   assert.equal(captured.command, 'codex');
   assert.equal(captured.options.shell, false);
   assert.ok(!captured.args.some(arg => /^(?:-m|--model|--provider)$|model_provider|model_reasoning_effort/.test(arg)));
-  assert.ok(captured.args.some(arg => arg.startsWith('mcp_servers={factory=')), 'other inherited MCP servers must not bypass run mode');
+  assert.ok(captured.args.some(arg => arg.startsWith('mcp_servers={factory_run_')), 'other inherited MCP servers must not bypass run mode');
   assert.ok(captured.args.some(arg => arg.includes('"unwanted"={enabled=false}')), 'existing MCP servers must be explicitly disabled');
   assert.ok(captured.args.includes('sandbox_workspace_write.writable_roots=[]'), 'inherited writable roots must not expose control evidence');
+  assert.ok(captured.args.includes('approval_policy="never"'), 'finite runs must not wait for a tool approval');
   for (const feature of ['plugins', 'apps', 'remote_plugin', 'enable_mcp_apps', 'codex_apps_mcp_2026_07_28']) {
     assert.ok(captured.args.some((arg, index) => arg === '--disable' && captured.args[index + 1] === feature), 'inherited plugin/app execution must be disabled');
   }

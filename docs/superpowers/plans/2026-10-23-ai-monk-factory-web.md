@@ -32,7 +32,7 @@ Interfaces: GET /api/projects -> {projects}; POST /api/projects {project} -> {pr
 - [x] focused testsをPASSし、外部provider0の実CLI planとHTTP readbackを記録する。
 
 ### Task 2: 同一UI
-Files: factory-web/index.html, app.css, app.js, app.test.mjs。
+Files: factory-web/index.html, app.css, app.mjs, app.test.mjs。
 Interfaces: project v1とTask1 APIを使う。UIはrootが __FACTORY_TOKEN__ を置換した時だけlocal。publicではbrowser draftのみ。実行actionはplan/render/publishの単一run、stateはserver結果を表示する。
 - [x] draft validation/export/import/local判定の最小REDを確認する。
 - [x] accessible form、保存/実行、run履歴/状態、動画/receiptを実装する。CSPに合わせた外部JS/CSSのみ、innerHTMLによるユーザー文字列挿入を使わない。
@@ -41,8 +41,11 @@ Interfaces: project v1とTask1 APIを使う。UIはrootが __FACTORY_TOKEN__ を
 ### Task 3: 統合と公開
 - [ ] fresh read-onlyレビューでTask1/2の実害を反証、必要fix後focused検証、source acceptance/CI/main。
 - [ ] main由来固定版のlocalhost起動とprovider0 planをreadbackする。
-- [ ] productsの既存buildにUI3filesのimmutable SHA/hash stageを最小追加し、Databaseからリンクする。source/test/CI/main/Netlifyと公開draft/local起動導線を確認する。
+- [ ] productsの既存buildにUI4filesのimmutable SHA/hash stageを最小追加し、Databaseからリンクする。source/test/CI/main/Netlifyと公開draft/local起動導線を確認する。
 - [ ] S11/field-guide現在cursorと本計画へ実結果/残件を記録する。公開を実収益や他者provider成功と取り違えない。
 
 ## source検証
-新Factory focused18件と既存Factory MCP11件をCI=trueで実行し29 PASS/0 FAIL/0 SKIP。実SDK stdioから既存Python CLI planのprovider_calls0/external_effects[]を確認。PC1360/スマホ390の実browserでdraft保存/export/import、JSerror0/overflow0。最初の29件runでは既存output_limit fixtureがNode cold startより短い200ms timerと競合しtimeoutとなるため、output caseだけ3sの別deadlineへ修正し64byte上限判定を維持する。EOF fixture内assertがouter agent catchで隠れる問題は失敗理由と所有PID状態を残す診断を追加し、isolateと全29件でPASSを確認する。renderer/publisherのproduction sourceやguardは変更しない。fresh read-onlyレビューとCI/main/固定版を次cursorとする。
+新Factory focused21件と既存Factory MCP11件をCI=trueで実行し32 PASS/0 FAIL/0 SKIP。実SDK stdioから既存Python CLI planのprovider_calls0/external_effects[]を確認。PC1360/スマホ390の実browserでdraft保存/export/import、JSerror0/overflow0。最初の29件runでは既存output_limit fixtureがNode cold startより短い200ms timerと競合しtimeoutとなるため、output caseだけ3sの別deadlineへ修正し64byte上限判定を維持する。EOF fixture内assertがouter agent catchで隠れる問題は失敗理由と所有PID状態を残す診断を追加し、isolateと全29件でPASSを確認する。renderer/publisherのproduction sourceやguardは変更しない。fresh read-onlyレビューとCI/main/固定版を次cursorとする。
+
+## Codex設定loadの修正と受入
+モデル起動前のread-only reviewer起動はinvalid transport in mcp_servers.code-reviewでexit1となる。通常inventoryがplugin仮想MCP名も返す一方、実行でpluginを無効化すると元transportが消え、enabled=falseだけのoverrideが無効になる。モデル開始/外部provider操作は0。inventoryにも同じfeature無効化を適用し、既存HTTP名factoryとの衝突を避けるrun固有MCP名へ接続する。実user設定のCLI loadで既存6件無効・新run1件だけ有効を確認し、credential無しfixtureのHTTP名factory/生成名衝突もPASSする。approval_policy=neverで承認待ちを防ぎ、model/provider指定は0。fresh read-onlyレビューは修正後の設定で再開する。公開assetは末尾slash有無に依存しない/ai-monk-factory/絶対pathとlocal固定aliasへ揃える。

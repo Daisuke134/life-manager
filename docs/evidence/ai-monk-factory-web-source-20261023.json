@@ -2,10 +2,10 @@
   "schema_version": "anicca.ai-monk-factory-web-source.v1",
   "status": "source_tests_passed_review_pending",
   "related_tests": {
-    "passed": 29,
+    "passed": 32,
     "failed": 0,
     "skipped": 0,
-    "new_web_tests": 18,
+    "new_web_tests": 21,
     "existing_factory_mcp_tests": 11,
     "CI": true
   },
@@ -42,10 +42,20 @@
     "skills/earn/marketing-engine/factory-web/app.css": "2aa9e429aa9ce360a57b851c74684f78e598d7d860ce3bc65d980f7db69cc71e",
     "skills/earn/marketing-engine/factory-web/app.mjs": "c628037794356b39780a412601d04568bee0767c893c4ee062ffac646d510f11",
     "skills/earn/marketing-engine/factory-web/app.test.mjs": "d11225a32c69460acbba6a8f523f928178a65ce9d9a55e0b34bb3894b7bc07af",
-    "skills/earn/marketing-engine/factory-web/index.html": "406f0dcd764a538ec23f7301bf9b5b93f61ca8c9b2db90996deaaacc8719ba66",
+    "skills/earn/marketing-engine/factory-web/index.html": "a7d621cc4f7c8465fff6ac7dee46f746d79ca5f74b9523a5d0d7390c8e83937c",
     "skills/earn/marketing-engine/factory-web/project.mjs": "71baea8f3021841c0914d96f9229bef16aba3250391cc49bee8cde5207538e84",
     "skills/earn/marketing-engine/factory-web/project.test.mjs": "50a87f71dc0e273fefdb60514e602701a84f79470cccf73230b1790a6caf3f88",
-    "skills/earn/marketing-engine/factory-web/server.mjs": "bb0f8d83906bf82b49a41201c5e8e0431812fb355d95612ab3579006749f2da2",
-    "skills/earn/marketing-engine/factory-web/server.test.mjs": "8b447a96b5dc152f504252a824a335dfb0ac620d3cfa2366057889c8b277e3f3"
+    "skills/earn/marketing-engine/factory-web/server.mjs": "c9d6336a1cb2ad84503095daf43f30ba554c907f5929f51bb114e591720f55d8",
+    "skills/earn/marketing-engine/factory-web/server.test.mjs": "4d4239d0fbe6f26b3958f02ea29029cef19d1e83590dfce73d90c4c3fe0a6dd6"
+  },
+  "codex_configuration_load": {
+    "plugin_off_inventory": true,
+    "persisted_mcp_names": 6,
+    "existing_servers_disabled": 6,
+    "run_servers_enabled": 1,
+    "existing_http_factory_collision_fixture": "passed",
+    "run_name_collision_fixture": "passed",
+    "approval_policy": "never",
+    "model_provider_overrides": false
   }
 }

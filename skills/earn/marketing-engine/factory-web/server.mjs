@@ -6,12 +6,19 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, execFile } from 'node:child_process';
-import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { validateProject } from './project.mjs';
 import { createRunToolCaller, idPattern, readSafe, readTools, safePath, verifiedArtifact, writeJson } from './agent-mcp.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const modes = ['plan', 'render', 'publish'];
+const isolationFeatureArgs = ['plugins', 'remote_plugin', 'apps', 'enable_mcp_apps', 'codex_apps_mcp_2026_07_28']
+  .flatMap(feature => ['--disable', feature]);
+const staticFiles = new Map([
+  ['/', 'index.html'], ['/index.html', 'index.html'], ['/app.mjs', 'app.mjs'], ['/app.css', 'app.css'], ['/project.mjs', 'project.mjs'],
+  ['/ai-monk-factory/', 'index.html'], ['/ai-monk-factory/index.html', 'index.html'], ['/ai-monk-factory/app.mjs', 'app.mjs'],
+  ['/ai-monk-factory/app.css', 'app.css'], ['/ai-monk-factory/project.mjs', 'project.mjs'],
+]);
 const iso = () => new Date().toISOString();
 const requireId = value => { if (typeof value !== 'string' || !idPattern.test(value)) throw new Error('Invalid ID.'); return value; };
 const fields = (value, keys) => {
@@ -21,20 +28,24 @@ const sameToken = (left, right) => typeof left === 'string' && Buffer.byteLength
   && timingSafeEqual(Buffer.from(left), Buffer.from(right));
 
 export function agentCommand({ runRoot, workspace }, otherMcpServers = []) {
-  const disabled = otherMcpServers.filter(name => name !== 'factory').map(name => `${JSON.stringify(name)}={enabled=false}`);
-  const bridge = `mcp_servers={factory={enabled=true,command=${JSON.stringify(process.execPath)},args=${JSON.stringify([path.join(here, 'agent-mcp.mjs'), '--run-root', runRoot])},required=true,tool_timeout_sec=3600}${disabled.length ? ',' + disabled.join(',') : ''}}`;
+  const existing = new Set(otherMcpServers);
+  const base = 'factory_run_' + createHash('sha256').update(runRoot).digest('hex').slice(0, 24);
+  let name = base, suffix = 0;
+  while (existing.has(name)) name = base + '_' + ++suffix;
+  const disabled = [...existing].map(server => `${JSON.stringify(server)}={enabled=false}`);
+  const bridge = `mcp_servers={${name}={enabled=true,command=${JSON.stringify(process.execPath)},args=${JSON.stringify([path.join(here, 'agent-mcp.mjs'), '--run-root', runRoot])},required=true,tool_timeout_sec=3600}${disabled.length ? ',' + disabled.join(',') : ''}}`;
   return { command: 'codex', args: ['exec', '--ephemeral', '--sandbox', 'workspace-write', '--json', '--skip-git-repo-check',
-    '--disable', 'plugins', '--disable', 'remote_plugin', '--disable', 'apps',
-    '--disable', 'enable_mcp_apps', '--disable', 'codex_apps_mcp_2026_07_28',
+    ...isolationFeatureArgs,
     '-C', workspace, '-o', path.join(runRoot, 'control', 'agent.last.txt'),
+    '-c', 'approval_policy="never"',
     '-c', 'sandbox_workspace_write.exclude_slash_tmp=true', '-c', 'sandbox_workspace_write.exclude_tmpdir_env_var=true',
     '-c', 'sandbox_workspace_write.writable_roots=[]',
     '-c', 'sandbox_workspace_write.network_access=false',
     '-c', bridge, '-'] };
 }
 
-export function configuredMcpNames() {
-  return new Promise((resolve, reject) => execFile('codex', ['mcp', 'list', '--json'], { timeout: 15000, maxBuffer: 1048576, shell: false }, (error, stdout) => {
+export function configuredMcpNames({ execFileCommand = execFile } = {}) {
+  return new Promise((resolve, reject) => execFileCommand('codex', [...isolationFeatureArgs, 'mcp', 'list', '--json'], { timeout: 15000, maxBuffer: 1048576, shell: false }, (error, stdout) => {
     if (error) { reject(new Error('mcp_inventory_unavailable')); return; }
     try {
       const rows = JSON.parse(stdout);
@@ -177,8 +188,8 @@ export async function createFactoryWebServer({ root, token = randomBytes(32).toS
       if (request.headers.host !== host || (request.headers.origin !== undefined && request.headers.origin !== `http://${host}`)) return send(response, 403, { error: 'Local origin required.' });
       const route = request.url;
       if (route?.startsWith('/api/') && !sameToken(request.headers['x-factory-token'], token)) return send(response, 403, { error: 'Local action token required.' });
-      if (request.method === 'GET' && ['/', '/index.html', '/app.mjs', '/app.css', '/project.mjs'].includes(route)) {
-        const filename = route === '/' ? 'index.html' : route.slice(1);
+      if (request.method === 'GET' && staticFiles.has(route)) {
+        const filename = staticFiles.get(route);
         const source = (await readSafe(uiRoot, path.join(uiRoot, filename), 1024 * 1024)).toString('utf8');
         return send(response, 200, filename === 'index.html' ? source.replaceAll('__FACTORY_TOKEN__', token) : source,
           filename.endsWith('.html') ? 'text/html; charset=utf-8' : filename.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8');
