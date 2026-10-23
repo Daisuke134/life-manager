@@ -32,13 +32,18 @@ from . import owned_catalog_planner
 
 _SCHEMA = "manager.catalog-shadow.v1"
 _ALLOWED_ACTIONS = frozenset({"CORRECT_LINK", "IMPROVE_ACCESSIBILITY"})
-_REASONS = frozenset({
-    "DISABLED", "DEADLINE_EXPIRED", "PLANNER_UNCERTAIN", "NO_CANDIDATE",
-    "UNSUPPORTED_CONTEXT", "UNSUPPORTED_ACTION", "CONTEXT_REVALIDATION_FAILED",
-    "PRIOR_INTENT_RECONCILIATION_REQUIRED", "BUDGET_EXCEEDED",
-    "PROVIDER_TRANSPORT_UNKNOWN", "MODEL_RESPONSE_PARSED", "INPUT_BINDING_MISMATCH",
-    "PROVIDER_NOT_CONFIGURED",
-})
+_STATUS_REASONS = {
+    "SKIPPED": frozenset({
+        "DISABLED", "DEADLINE_EXPIRED", "NO_CANDIDATE", "UNSUPPORTED_CONTEXT",
+        "UNSUPPORTED_ACTION", "CONTEXT_REVALIDATION_FAILED", "BUDGET_EXCEEDED",
+        "PROVIDER_NOT_CONFIGURED",
+    }),
+    "UNKNOWN": frozenset({
+        "PLANNER_UNCERTAIN", "PRIOR_INTENT_RECONCILIATION_REQUIRED",
+        "PROVIDER_TRANSPORT_UNKNOWN", "INPUT_BINDING_MISMATCH",
+    }),
+    "COMPARED_P0": frozenset({"MODEL_RESPONSE_PARSED"}),
+}
 
 
 def _record(status, reason, run_id, **fields):
@@ -540,8 +545,8 @@ def public_catalog_shadow_summary(result: dict) -> dict:
             or type(result.get("action_writes")) is not int or result["action_writes"] != 0
             or result.get("settled_cost_usd") is not None):
         invalid()
-    status = enum(result.get("status"), {"SKIPPED", "UNKNOWN", "COMPARED_P0"})
-    reason = enum(result.get("reason"), _REASONS)
+    status = enum(result.get("status"), _STATUS_REASONS)
+    reason = enum(result.get("reason"), _STATUS_REASONS[status])
     compared_at = result.get("compared_at")
     if compared_at is not None:
         if type(compared_at) is not str:
@@ -568,13 +573,30 @@ def public_catalog_shadow_summary(result: dict) -> dict:
         if value is not None and type(value) is not bool:
             invalid()
         model_comparison[key] = value
+    operation_id = optional_hash(result.get("operation_id"), "catalog_shadow_")
+    context_sha256 = optional_hash(result.get("context_sha256"))
+    baseline_digest = optional_hash(result.get("baseline_digest"))
+    candidate_digest = optional_hash(result.get("candidate_digest"))
+    if status == "COMPARED_P0":
+        if (any(value is None for value in (compared_at, operation_id, context_sha256,
+                baseline_digest, candidate_digest, model_status))
+                or any(value is None for value in baseline_decisions.values())):
+            invalid()
+        if model_status == "MODEL_ADVICE_P0":
+            if model_decision is None or any(
+                    model_comparison[key + "_same_decision"] is not (model_decision == value)
+                    for key, value in baseline_decisions.items()):
+                invalid()
+        elif result.get("model_advice") is not None or result.get("model_comparison") is not None:
+            invalid()
+    elif any(result.get(key) is not None for key in (
+            "compared_at", "model_status", "model_advice", "model_comparison")):
+        invalid()
     return {
         "schema": _SCHEMA, "status": status, "reason": reason,
         "run_id": result["run_id"], "compared_at": compared_at,
-        "operation_id": optional_hash(result.get("operation_id"), "catalog_shadow_"),
-        "context_sha256": optional_hash(result.get("context_sha256")),
-        "baseline_digest": optional_hash(result.get("baseline_digest")),
-        "candidate_digest": optional_hash(result.get("candidate_digest")),
+        "operation_id": operation_id, "context_sha256": context_sha256,
+        "baseline_digest": baseline_digest, "candidate_digest": candidate_digest,
         "baseline_decisions": baseline_decisions,
         "model_status": model_status, "model_decision": model_decision,
         "model_comparison": model_comparison,
