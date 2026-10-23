@@ -1,6 +1,6 @@
 # Manager Provider Final Readback Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Fix response/turn binding and cancellation state handling against the actual pinned SDK without enabling live inference.
 
@@ -36,6 +36,7 @@
 **Files owned:**
 - Modify `products/manager/manager_core/ampersand_api.py`
 - Modify `products/manager/manager_core/provider_budget.py`
+- Modify `products/manager/manager_core/provider_deadline.py` only for R1: terminal metadata must not release a writer after failed/unfinished final-output readback, including deadline expiration during that scan. Preserve genuine active-turn cancellation recovery.
 - Create `products/manager/tests/test_provider_final_readback.py`
 - Modify fixture shapes only as needed in `products/manager/tests/test_provider_session_recovery.py`, `test_provider_budget.py`, `test_provider_deadlines.py`, `test_owned_provider.py`, `test_owned_provider_shadow.py`
 - Modify `.github/workflows/manager-phase06-service.yml` only by adding `test_provider_final_readback` to focused unittest modules
@@ -50,10 +51,18 @@
 - In helper, enforce exact turn/role/type, completed status, permitted nullable phase, output_text strings, total16000 while appending, and existing pagination/duplicate guards. Commentary is excluded; malformed or incomplete selected final messages cannot yield SILENT_COMPLETED.
 - In cancellation, replace incorrect pre-send Session-state set with canonical queued/in_progress/waiting only. Retain all terminal/mismatch/no-retry/fence code.
 
-- [ ] **Step 1: Add behavior regressions FIRST and retain raw RED.** At least cover multipart/multiple saved messages with misleading SSE lastpart, commentary/foreign/user exclusion, no SSE text with saved text, complete empty items with and without explicit silence, incomplete/malformed pagination despite silence opt-in, incomplete/missing-status/unknown-phase final messages, nullablephase, >16000 total on an intermediate page, latestturn advances while scanning (writer held), initial collected vs latestID mismatch and missingresultturnID, queued/waiting cancel exact completion, unsupported requires_action Turn state, contradictory cancellation readback remains UNKNOWN. Use real SessionJournal/PrivateCheckpoint where fence persistence matters.
-- [ ] **Step 2: Run `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_provider_final_readback -v` before source edits.** Existing functions must fail the named behavior assertions; save actual failures, not only import errors.
-- [ ] **Step 3: Implement minimal fixes in the two owned source modules using existing helpers.** Do not create new clients, endpoints, schema, recovery engine or transport retry. Preserve interruption/fencing and billing uncertainty.
-- [ ] **Step 4: Update existing fake responses only to match actual required SDK result.turn_id, completed message status, turns.retrieve/items.list.** Do not remove existing assertions or loosen guards. If an additional fixture file outside the list fails, ask root before touching it.
-- [ ] **Step 5: Add the one CI test module and append README evidence/limits.** Static SDK conformance is not provider/live inference acceptance.
-- [ ] **Step 6: Run new focused regressions, existing provider/session/budget/deadline/shadow contracts, full suite once, source boundary checker and diffcheck.** Full command `PYTHONPATH=products/manager python3 -m unittest discover -s products/manager/tests -q`. Retain raw logs outside Git. Baseline main-derived source is381 tests.
-- [ ] **Step 7: Self-review and commit only owned files.** Report commands, failures/passes, actual RED/GREEN raw paths and remaining concerns. Root owns plan/design, review, integration, registry and any live operations.
+- [x] **Step 1: Add behavior regressions FIRST and retain raw RED.** At least cover multipart/multiple saved messages with misleading SSE lastpart, commentary/foreign/user exclusion, no SSE text with saved text, complete empty items with and without explicit silence, incomplete/malformed pagination despite silence opt-in, incomplete/missing-status/unknown-phase final messages, nullablephase, >16000 total on an intermediate page, latestturn advances while scanning (writer held), initial collected vs latestID mismatch and missingresultturnID, queued/waiting cancel exact completion, unsupported requires_action Turn state, contradictory cancellation readback remains UNKNOWN. Use real SessionJournal/PrivateCheckpoint where fence persistence matters.
+- [x] **Step 2: Run `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_provider_final_readback -v` before source edits.** Existing functions must fail the named behavior assertions; save actual failures, not only import errors.
+- [x] **Step 3: Implement minimal fixes in the two owned source modules using existing helpers.** Do not create new clients, endpoints, schema, recovery engine or transport retry. Preserve interruption/fencing and billing uncertainty.
+- [x] **Step 4: Update existing fake responses only to match actual required SDK result.turn_id, completed message status, turns.retrieve/items.list.** Do not remove existing assertions or loosen guards. If an additional fixture file outside the list fails, ask root before touching it.
+- [x] **Step 5: Add the one CI test module and append README evidence/limits.** Static SDK conformance is not provider/live inference acceptance.
+- [x] **Step 6: Run new focused regressions, existing provider/session/budget/deadline/shadow contracts, full suite once, source boundary checker and diffcheck.** Full command `PYTHONPATH=products/manager python3 -m unittest discover -s products/manager/tests -q`. Retain raw logs outside Git. Baseline main-derived source is381 tests.
+- [x] **Step 7: Self-review and commit only owned files.** Report commands, failures/passes, actual RED/GREEN raw paths and remaining concerns. Root owns plan/design, review, integration, registry and any live operations.
+
+### Independent R1 corrective acceptance
+
+R1 reproduced a deadline-wrapper recovery bypass: incomplete saved final items raise SessionFailure, then automatic cancel recovery sees completed metadata and releases the writer without valid final text. Direct-reader regressions missed the actual deadline-enabled owner path. This unit remains unaccepted until that path is fixed.
+
+- [x] Reproduce through deadline-enabled owner/journal/checkpoint with actual RED; incomplete/malformed/failing saved items and interrupted final readback retain writer/event and unsettled exposure, and a second writer/message is blocked.
+- [x] Reuse the existing deadline/recovery boundary to distinguish unfinished final-output observation from genuine active-turn cancellation; no new schema, client, public signature, model call or blanket cancellation suppression.
+- [x] Run focused provider contracts and full suite after the fix, then independent R2 of the new diff only. Maximum three review rounds for this unit.
