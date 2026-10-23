@@ -201,7 +201,7 @@ flowchart LR
 
 独自に評価・追加学習・版管理できるモデルの重みを主体の中心へ育てる。 モデル系列・規模・量子化・runtimeを固定せず、公式artifact/権利と実測から選び直す。GPUや4Bを全候補の開始条件にしない。[既存CPU実推論](verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)はQwen3-1.7Bで確認済みだが、モデルの有用性/独自学習の受入とは分ける。**既存モデル比較 → 権利とholdoutを固定 → 最小SFT/LoRA → 未見比較 → 実結果と保護を満たした限定運用**の順。V001–V003のoffline研究は人対象実証全体の完了を待たない。実LICENSEがApache 2.0のQwen3-4B-Baseと既存PEFT/TRL等を候補にし、実験前に版・データ・予算を固定する。scratch pretrainingは既存baseで解けない不足と適法corpus・実compute/原価が揃った際の別設計。重みだけで観測・記憶・作用・結果の検証が成立するとはしない。
 
-**柔軟性の運用:** 目的と受入基準を保ち、一次資料・実測から既存部品と実装方法を選び直す。専用モデルが見つかれば汎用モデルへの固執をやめるが、途中の実験条件は変えず、失敗・未完了も保存して別protocolで比較する。[小型専用judgeの追加一次資料](research/2026-10-23-small-refusal-judge-reuse.md)ではQwen3Guard-Gen-0.6Bにbinary refusalの出力を確認した。これは次の独立比較候補で、完全/部分/非拒否の3classへそのまま置き換えない。Streamのrisk3class、Graniteのharm/toxicity、拒否分類を混同しない。追加候補のこのCPUでの実測は未実施。
+**柔軟性の運用:** 目的と受入基準を保ち、一次資料・実測から既存部品と実装方法を選び直す。専用モデルが見つかれば汎用モデルへの固執をやめるが、途中の実験条件は変えず、失敗・未完了も保存して別protocolで比較する。[小型専用judgeの追加一次資料](research/2026-10-23-small-refusal-judge-reuse.md)ではQwen3Guard-Gen-0.6Bにbinary refusalの出力を確認した。これは次の独立比較候補で、完全/部分/非拒否の3classへそのまま置き換えない。Streamのrisk3class、Graniteのharm/toxicity、拒否分類を混同しない。LibrAIの追加一次確認では、公式codeのquestion＋response/7 labelsと当該checkpointのresponse-only/6 labelsの不一致を確認し、native recipe・権利の未確認が残るためHOLDを維持した。追加候補のこのCPUでの実測は未実施。
 
 ### 1.3 いま終える範囲と、残作業の実行順
 

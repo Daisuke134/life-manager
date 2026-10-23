@@ -100,3 +100,13 @@ binary定義・partial集約・評価集合は照合しておらず、現在の3
 - [LibrAI code実LICENSE](https://github.com/Libr-AI/do-not-answer/blob/main/LICENSE)
 - [WildGuard paper: LibrAI説明は検索抜粋](https://arxiv.org/html/2406.18495v3)
 - [Do-Not-Answer dataset: 条件は検索抜粋](https://huggingface.co/datasets/LibrAI/do-not-answer)
+
+## LibrAIの狭い追加確認（同日、前段調査の後）
+
+追加広域検索0、一次取得6試行（native HTTP5成功、Firecrawl scrapeはUnknown toolで本文取得失敗1）。weights/tokenizer取得・ML・推論は0。前段のHF JSON取得失敗をAPI不存在と解釈せず、公開APIで次を確認した。
+
+- [固定checkpoint](https://huggingface.co/LibrAI/longformer-action-ro/tree/bb1f0a07dcb55ae0e9af5c5431ea8075f9a92c92)は6 labels。`pytorch_model.bin`は594,751,569 bytes、LFS SHA256 `c4d3e8d173485717cc4ab12a58a7f4c425535c1aab9fc2f978dc7f35b8091419`。safetensors/実LICENSEファイルはこのmodel snapshotにない。cardのApache-2.0宣言は存在し、ファイル不在を無許諾と断定しない。base実LICENSE・weights固有条件・訓練dataとの対応は未確定。
+- [公式codeの固定本文](https://raw.githubusercontent.com/Libr-AI/do-not-answer/460703484df354958a5e1cd7378a38fcb94a2f3e/do_not_answer/evaluator/mlm.py)はquestion＋`[SEP]`＋response、action **7 labels**、default max_length512の学習/評価script。当該6label checkpointを直接loadするnative inference recipeではない。取得本文はGit treeのblob hashとも照合した。
+- 保存済み[WildGuard原著](https://arxiv.org/html/2406.18495v1)のF.1本文は当該IDをresponse-onlyとし、0..4→refusal /5→complianceへ二値化する。検索抜粋だけだった前段から本文確認へ進んだが、action1..4の正確な文章定義とcheckpoint固有tokenizationは未取得。XSTestのfull/partial/noへ対応付けない。
+
+**候補は引き続きHOLD。** 公開codeとweightsの入力・分類数の不一致を無視してコピーしない。約0.554GiBはweight fileの容量で、常駐RAM・速度・CPU実行成功の測定ではない。既存CPU全体の利用不能という結論にもならない。今回の条件・結果・権利recordは変更していない。
