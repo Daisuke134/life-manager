@@ -202,7 +202,7 @@ def observe(home: Path) -> dict:
             snapshot = None
             for _ in range(20):
                 snapshot = cdp.evaluate(target, EXPRESSION)
-                if isinstance(snapshot, dict) and snapshot.get("ready") == "complete":
+                if observed_account(snapshot) is not None:
                     break
                 time.sleep(0.5)
         finally:
