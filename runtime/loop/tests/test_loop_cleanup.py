@@ -729,6 +729,7 @@ class LoopCleanupTest(unittest.TestCase):
 
             agents = Path(directory) / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             protected_file = Path(directory) / "protected-releases.json"
             protected_file.write_text("[]")
             with (
@@ -1628,6 +1629,7 @@ class LoopCleanupTest(unittest.TestCase):
             entry.write_text("x")
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             (agents / "unrelated.plist").write_bytes(plistlib.dumps([]))
             (agents / "com.anicca.disk-watchdog.plist").write_bytes(plistlib.dumps({
                 "Label": "com.anicca.disk-watchdog",
@@ -1844,7 +1846,7 @@ class LoopCleanupTest(unittest.TestCase):
                 path.mkdir(); (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
                 os.utime(path, (index, index)); paths.append(path)
             current = root / "current"; current.symlink_to(paths[3])
-            agents = root / "agents"; agents.mkdir()
+            agents = root / "agents"; agents.mkdir(); (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             protected_file = root / "protected-releases.json"
             protected_file.write_text("[]")
             with (

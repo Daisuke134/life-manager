@@ -1,3 +1,4 @@
+import plistlib
 import json
 import hashlib
 import errno
@@ -322,6 +323,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             loops = root / "loops"
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             npm = root / "npm"
             npm.write_text("#!/bin/sh\nmkdir -p node_modules\nprintf '{}\\n' > node_modules/.package-lock.json\n")
             npm.chmod(0o755)
@@ -488,6 +490,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm.chmod(0o755)
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
 
             env = {
                 **os.environ,
@@ -678,6 +681,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm.chmod(0o755)
             agents = root / "agents"
             agents.mkdir()
+            (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
