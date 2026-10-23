@@ -935,8 +935,8 @@ def test_released_occurrence_closes_when_every_intent_since_it_is_bound_and_sett
 
 @pytest.mark.parametrize("state, run_id, occurrence", [
     ("prepared", "18dff4af2b0af010-88923", OCCURRENCE),  # its own attempt, unsettled
-    ("confirmed", "18dff4af2b0af010-88923", None),       # unbound: owner unknown
-    ("confirmed", None, None),                           # unbound, dated by mtime
+    ("prepared", "18dff4af2b0af010-88923", None),        # unbound past the marker: owner unknown
+    ("prepared", None, None),                            # unbound past the marker, dated by mtime
     # A claimer that predates the occurrence it claimed still writes this occurrence's id.
     ("prepared", "18dfc0000000000-1", OCCURRENCE),
 ])
@@ -982,3 +982,39 @@ def test_scoped_proof_closes_before_any_roster_browser_readback(tmp_path, monkey
                         settled_proof()["unresolved_irreversible"] == 0)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     assert json.loads(capsys.readouterr().out.strip().splitlines()[-1])["occurrence_id"] == OCCURRENCE
+
+
+def test_a_stale_claimed_fence_closes_through_the_live_owner_checked_resolver(tmp_path, monkeypatch) -> None:
+    # 2026-10-23: hf-gig-apply-direct:18e109c520f9ace8-50348 stayed claimed after its run exited 0
+    # with no intent; the claimed branch is only released by the resolver when no owner is live.
+    wrapper = _scoped_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [])
+    monkeypatch.setattr(wrapper, "_owner_has_claimed_occurrence", lambda owner_id: True)
+    _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
+    calls = []
+    monkeypatch.setattr(wrapper, "_resolve_settled",
+                        lambda owner_id, occurrence_id, *, settled_proof, expected_state="claimed":
+                        calls.append((occurrence_id, expected_state)) or True)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    assert calls == [(OCCURRENCE, "claimed")]
+
+
+def test_an_unbound_pre_effect_intent_does_not_hold_the_scoped_fence(tmp_path, monkeypatch) -> None:
+    # 2026-10-23: two retired_absent intents with effect_phase pre_effect and no runtime binding
+    # kept the stale claimed fence 18e109c520f9ace8-50348 although neither reached the marker.
+    wrapper = _scoped_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [])
+    _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
+    import os
+    path = tmp_path / "3.json"
+    path.write_text(json.dumps({"request_id": "3", "state": "retired_absent", "version": 2,
+                                "effect_phase": "pre_effect"}), encoding="utf-8")
+    os.utime(path, (STARTED + 3700, STARTED + 3700))
+    calls = []
+    monkeypatch.setattr(wrapper, "_resolve_settled",
+                        lambda owner_id, occurrence_id, *, settled_proof, expected_state="claimed":
+                        calls.append(settled_proof()["unresolved_irreversible"]) or True)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    assert calls == [0]

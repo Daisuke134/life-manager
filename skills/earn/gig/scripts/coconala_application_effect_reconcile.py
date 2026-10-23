@@ -407,8 +407,11 @@ def _scoped_settled_scan(intent_root: Path, occurrence_id: str, since: float) ->
         else:
             own += 1
         scanned += 1
-        settled = bool(bound) and (bound != occurrence_id
-                                   or _intent_settled(value, applied, closed, no_dispatch))
+        # An unbound intent may be this occurrence's own, so it must be settled by the same rule
+        # the store-wide proof uses (confirmed, pre-effect, or retired before the marker).
+        settled = value is not None and (
+            (bool(bound) and bound != occurrence_id)
+            or _intent_settled(value, applied, closed, no_dispatch))
         if not settled:
             unresolved += 1
         digest.update(f"{path.name}\0{bound}\0{settled}\n".encode("utf-8"))
@@ -462,29 +465,41 @@ def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tupl
 
 
 def _close_scoped_fences(owner_id: str, intent_root: Path) -> list[dict]:
-    """Close each fenced occurrence whose own possible intents are all run-bound and settled."""
-    if _owner_has_claimed_occurrence(owner_id):
-        # A live claim may be writing intents right now (intents use per-request locks, not
-        # the admission control lock), so the per-occurrence scope is only sound when idle.
-        return []
+    """Close each fenced occurrence whose own possible intents are all run-bound and settled.
+
+    Claimed fences go first: the admission resolver refuses a claimed close while any owner
+    process is live, so a stale claim left by a finished run (2026-10-23
+    18e109c520f9ace8-50348: exit 0, no intent) is the only kind it releases.
+    """
     closed = []
-    for occurrence_id in _released_fenced_occurrences(owner_id):
+
+    def close(occurrence_id: str, state: str) -> None:
         since = _run_started_unix(occurrence_id)
         if since is None:
-            continue
+            return
         precheck = _scoped_settled_scan(intent_root, occurrence_id, since)
         if precheck["scanned_intents"] == 0 or precheck["unresolved_irreversible"] != 0:
-            continue
+            return
         checked: dict[str, object] = {}
 
-        def proof(occurrence_id=occurrence_id, checked=checked, since=since):
+        def proof():
             checked.update(_scoped_settled_scan(intent_root, occurrence_id, since))
             return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
                     "proof_type": "write_ahead_store_settled.v1", **checked}
-        if _resolve_settled(owner_id, occurrence_id, settled_proof=proof, expected_state="released"):
+        if _resolve_settled(owner_id, occurrence_id, settled_proof=proof, expected_state=state):
             closed.append({"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
                            "proof_type": "write_ahead_store_settled.v1",
-                           "scope_since_unix": since, "evidence_ref": checked["evidence_ref"]})
+                           "scope_since_unix": since,
+                           "evidence_ref": checked.get("evidence_ref", precheck["evidence_ref"])})
+
+    for occurrence_id in _fenced_occurrences(owner_id):
+        close(occurrence_id, "claimed")
+    if _owner_has_claimed_occurrence(owner_id):
+        # A live claim may be writing intents right now (intents use per-request locks, not
+        # the admission control lock); released fences rely on this idle check.
+        return closed
+    for occurrence_id in _released_fenced_occurrences(owner_id):
+        close(occurrence_id, "released")
     return closed
 
 
