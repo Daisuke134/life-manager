@@ -1,5 +1,7 @@
 """Pre-send private reservation barrier and recovery tests (P0 fixtures only)."""
 import base64
+from contextlib import ExitStack
+from time import monotonic
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -16,6 +18,72 @@ from manager_core.owned_cycle import run_owned_cycle, CycleStore
 
 
 class OwnedCheckpointOrderTests(unittest.TestCase):
+    def test_shadow_initialization_follows_all_existing_cycle_gates(self):
+        from manager_core.owned_platform_host import CatalogShadowSettings
+        from manager_core import owned_provider_shadow as shadow
+        from manager_core.digital_handoff import PublisherContext
+        from manager_core.outbox import plan_owned_rollback
+        from test_owned_platform_rollback import OwnedPlatformRollbackTests
+        from scripts import phase06_kernel_release as release
+        import manager_core.owned_public_collector as collector
+        expected = {'owner_busy': 'OWNER_BUSY', 'rollback': 'UNKNOWN',
+                    'occurrence': 'UNKNOWN', 'current_delivery': 'UNKNOWN',
+                    'delivery': 'UNKNOWN', 'stop': 'STOPPED_REGRESSION',
+                    'not_due': 'NOT_DUE', 'release_disabled': 'NO_ACTION'}
+        for gate, status in expected.items():
+            with self.subTest(gate=gate), TemporaryDirectory() as tmp, ExitStack() as stack:
+                factories = []
+                settings = CatalogShadowSettings(monotonic()+120,
+                    client_factory=lambda: factories.append('factory'))
+                conf, store, host, *_ = platform_fixture(Path(tmp), catalog_shadow=settings)
+                current = None
+                if gate in ('rollback', 'delivery', 'current_delivery'):
+                    packet, parent, receipt, _ = OwnedPlatformRollbackTests()._install_candidate_commit(
+                        host, store, stop=False)
+                    evidence = dict(status='PENDING', effect_key=packet['effect_key'],
+                        receipt_ref=receipt, candidate_sha256=packet['candidate_sha256'],
+                        observed_at=NOW.isoformat(), proof_ref='https://example.test/',
+                        proof_level='P0', reason='PAGES_DEPLOYMENT_LAG', human_outcome='NOT_MEASURED')
+                    if gate == 'rollback':
+                        rollback = plan_owned_rollback(packet, receipt, parent, NOW, controller_sha='b'*40)
+                        store.journal.reserve_rollback(rollback, NOW)
+                    elif gate == 'current_delivery':
+                        verified = dict(evidence, status='VERIFIED', proof_level='P2', reason='EXACT_DEPLOYED_CANDIDATE')
+                        store.journal.save_delivery(packet['effect_key'], verified)
+                        current = dict(kind='candidate', effect_key=packet['effect_key'], receipt_ref=receipt,
+                            evidence=dict(evidence, status='UNKNOWN', reason='PAGES_DEPLOYMENT_NOT_BOUND_SUCCESS'))
+                    stack.enter_context(patch.object(collector, 'collect_owned_delivery', return_value=evidence))
+                elif gate == 'occurrence':
+                    packet = prepare_owned_change(host.context, host.assessment, host.scope, NOW,
+                                                  schema='manager.digital-handoff.v2').packet
+                    publisher = PublisherContext(REPOSITORY, MAIN_REF, WORKFLOW, 'b'*40,
+                                                 '123', workflow_commit='b'*40)
+                    store.journal.reserve(packet, publisher, packet['baseline'], packet['candidate'],
+                                          host._git('rev-parse', 'HEAD'), NOW)
+                elif gate == 'stop':
+                    store.stop()
+                elif gate == 'not_due':
+                    self.assertTrue(store.due(conf, NOW))
+                elif gate == 'owner_busy':
+                    self.assertTrue(stack.enter_context(store.owner_lock()))
+                env = github_environment(MANAGER_RELEASE_ENABLED='false') if gate == 'release_disabled' else github_environment()
+                with patch.dict('os.environ', env, clear=True), \
+                     patch.object(release, 'source_checkout_commit', return_value='b'*40), \
+                     patch.object(collector, 'collect_owned_occurrence', return_value=None), \
+                     patch.object(collector, 'collect_owned_rollback', return_value=None), \
+                     patch.object(host, 'observe_current_delivery', return_value=current), \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', wraps=shadow.compare_prepared_catalog_shadow) as compare, \
+                     patch.object(shadow, 'CheckpointedProvider', side_effect=AssertionError('provider initialized')) as provider, \
+                     patch.object(host, 'send_owned') as send, \
+                     self.frozen_now(host):
+                    result = run_owned_cycle(conf, store, host=host, now=NOW)
+                self.assertEqual(result['status'], status)
+                compare.assert_not_called()
+                provider.assert_not_called()
+                send.assert_not_called()
+                self.assertEqual(factories, [])
+                self.assertIsNone(host._catalog_shadow_result)
+
     def frozen_now(self, host):
         return patch.object(host, '_now', return_value=NOW)
 
