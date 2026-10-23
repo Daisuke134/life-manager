@@ -1,6 +1,6 @@
 # E16 — 限定した実稼働能力の総合受入（2026-10-23 UTC）
 
-**判定範囲:** Digital Autonomy v0.1の所有デジタル7パスに限る。通常mainの単一Actions owner、Supabase private checkpoint、既存publisherを使用する。人の便益、汎用AGI、広い環境で活動するManager全体の完成判定ではない。F005/F006/F008/F009は本判定後に個別受入する。
+**判定範囲:** Digital Autonomy v0.1の所有デジタル7パスに限る。通常mainの単一Actions owner、Supabase private checkpoint、既存publisherを使用する。人の便益、汎用AGI、広い環境で活動するManager全体の完成判定ではない。F005/F006/F008/F009は本判定後に[別の個別受入記録](PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md)で技術P2として受入済み。
 
 ## 実証と元のE16要件の対応
 

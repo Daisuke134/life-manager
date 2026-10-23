@@ -1,6 +1,6 @@
 # Phase06 v2 — 技術P2の個別受入記録
 
-E01–E16は[限定実稼働能力の総合受入](E16_DEPLOYED_ACCEPTANCE_20261023.md)で完了。下のFは指定順に個別判定する。状態の正本は `../roadmap/tasks.json`。根拠となる[版付き結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)のv5はcommit `254f83b98` に固定され、各taskのcompletion receiptでそのSHA256を保持する。
+E01–E16は[限定実稼働能力の総合受入](E16_DEPLOYED_ACCEPTANCE_20261023.md)で完了。下のFは指定順に個別判定し、全4件を技術P2として受入済み。状態の正本は `../roadmap/tasks.json`。根拠となる[版付き結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)のv5はcommit `254f83b98` に固定され、各taskのcompletion receiptでそのSHA256を保持する。
 
 ## F005 — 所有公開面の実配信
 

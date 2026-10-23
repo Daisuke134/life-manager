@@ -1,6 +1,8 @@
 # D001–D003: プログラム資金・置換・受益報告の結合
 
-**2026-10-22 JST。独立製品 Manager の研究用準備。** [原 D001–D003](../roadmap/tasks.json) に向け、[program_funding.py](../../manager_core/program_funding.py) と [12件の行動テスト](../../tests/test_program_funding.py) を追加した。実際の資金、送金、寄付の純増、受益者、生活改善は観測していない。全ての入力出典と完全性は供給者の宣言であり、出力は **P0 / NOT_VERIFIED / NO_ACTION** のままである。
+**2026-10-23 current pointer:** F006受入後、D001は分類実装、D002は比較設計のsource契約として[個別受入](D001_D002_SOURCE_ACCEPTANCE_20261023.md)済み。P0／NOT_VERIFIED／NO_ACTIONと実資金・人の便益未測定は保持。D003以降の実証は未受入。下は2026-10-22の準備記録。
+
+**2026-10-22 JST。独立したManagerエンティティの研究用準備。** [原 D001–D003](../roadmap/tasks.json) に向け、[program_funding.py](../../manager_core/program_funding.py) と [12件の行動テスト](../../tests/test_program_funding.py) を追加した。実際の資金、送金、寄付の純増、受益者、生活改善は観測していない。全ての入力出典と完全性は供給者の宣言であり、出力は **P0 / NOT_VERIFIED / NO_ACTION** のままである。
 
 ## 何を結合するか
 

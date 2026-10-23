@@ -1,10 +1,10 @@
 {
   "schema": "manager.phase06-digital-v2-result.v1",
-  "report_version": 5,
+  "report_version": 6,
   "created_at": "2026-10-23T05:10:04.421349+00:00",
   "report_role": "Versioned occurrence evidence report; task statuses only in ../roadmap/tasks.json. Filename follows the 2026-10-22 scope amendment; observations are dated 2026-10-23 UTC.",
   "scope_version": 2,
-  "acceptance_status": "E16_ACCEPTED_INDIVIDUAL_F_REVIEW_PENDING",
+  "acceptance_status": "ACCEPTED_PHASE06_DIGITAL_TECHNICAL_P2",
   "scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
   "common_kernel": [
     "manager_core/digital_handoff.py",
@@ -658,7 +658,7 @@
       "prior_source_commit": "17d400f225ab4ee320daae337b2e866e0c32884a"
     }
   ],
-  "updated_at": "2026-10-23T06:11:44.350812+00:00",
+  "updated_at": "2026-10-23T06:26:06.351542+00:00",
   "source_verification": {
     "research_full_ci_run_id": 39905051912,
     "research_full_ci_source": "9deec0f375b6bbd9d20b1bc3987e56a16c1f8db7",
@@ -696,5 +696,40 @@
     "report_created_after_occurrences": true,
     "human_study_preregistration": null,
     "note": "The public code fixed the technical criterion before these releases; the later report is not a preregistered human experiment."
-  }
+  },
+  "individual_f_acceptance": {
+    "F005": {
+      "result": "FINANCE_OWNED_PUBLIC_P1_P2_VERIFIED",
+      "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
+      "human_outcome": "NOT_MEASURED",
+      "basis_result_git_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
+      "basis_result_version": 5,
+      "basis_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab"
+    },
+    "F006": {
+      "result": "VERSIONED_TECHNICAL_REPORT_WITH_NULL_HUMAN_OUTCOMES",
+      "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
+      "human_outcome": "NOT_MEASURED",
+      "basis_result_git_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
+      "basis_result_version": 5,
+      "basis_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab"
+    },
+    "F008": {
+      "result": "DISTINCT_MENTAL_TOPIC_P2_AND_SCOPED_RECOVERY_VERIFIED",
+      "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
+      "human_outcome": "NOT_MEASURED",
+      "basis_result_git_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
+      "basis_result_version": 5,
+      "basis_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab"
+    },
+    "F009": {
+      "result": "PHASE06_DIGITAL_TECHNICAL_P2",
+      "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
+      "human_outcome": "NOT_MEASURED",
+      "basis_result_git_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
+      "basis_result_version": 5,
+      "basis_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab"
+    }
+  },
+  "f_acceptance_evidence": "PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md"
 }

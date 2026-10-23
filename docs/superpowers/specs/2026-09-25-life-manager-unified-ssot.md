@@ -6,13 +6,13 @@ Managerは仏教的AIエンティティ／デジタル仏陀という呼称を�
 
 As-isは既存Actions＋Supabaseの単一owner、実OIDC／永続復元、finance/mentalの公式公開commitと独立GET、別runnerでの再送0とnative proof出力。To-beはAI・既存行動simulation・統計／因果推論・行動科学を接続し、実結果・害・費用・未知から訂正する透明な主体。透明なAGI／Transparent God・blessing for allは長期構想であり、AGI・世界初・悟り・苦の終結・人の純便益を証明したという現在値ではない。
 
-現在の技術cursorはE16。限定rollbackの実配信／復元後のresume・replay検証 → E16判定 → F005→F006→F008→F009個別受入 → 元依存順のU/D/V/G本体作業を進める。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=69 done / 41 todo / 3 skipped。この更新では状態・ID・dependsを変えない。
+E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh resume／通常配信／別runnerの照合・再送0を確認後、F005→F006→F008→F009を技術P2として個別受入した。D001→D002は分類実装／比較設計のsource契約だけを受入済み。次は既存AI助言とdurable状態の本番接続、U002の実課題確認と元依存順のU/D/V/G。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=75 done / 35 todo / 3 skipped。原ID・dependsと他Life Manager laneのcursorは変更しない。
 
 設計・残件の説明は [Manager spec §1.1–1.4](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)、現実証は [cloud実行receipt](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md)、全IDの派生表示は [開始から最後まで](../../../products/manager/docs/roadmap/START_TO_END_20261022.md) を参照。人名・再利用元と、実使用／比較のみ／非公開未利用の区別も既存specへ集約し、新しいSSOTは作らない。
 
-**humans&再利用の確認（04:28 UTC）:** Ampersandの過去の実API架空課題試験と、現owned-mainの決定論的plannerを区別する。Persimmonはuser model、Ampersandはcollaborator/API、Bobaは完成アプリ。現行の接続・未使用・公式API/appの利用方針は[spec §22](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。humans&のProduct/Research2求人は公式掲載を確認し、既存応募packetへ追加。数日を準備の目安とするが、記事再開・応募済み・自動送信予約とは扱わない。原113件とE16cursorは不変。
+**humans&再利用の確認（04:28 UTC）:** Ampersandの過去の実API架空課題試験と、現owned-mainの決定論的plannerを区別する。Persimmonはuser model、Ampersandはcollaborator/API、Bobaは完成アプリ。現行の接続・未使用・公式API/appの利用方針は[spec §22](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。humans&のProduct/Research2求人は公式掲載を確認し、既存応募packetへ追加。数日を準備の目安とするが、記事再開・応募済み・自動送信予約とは扱わない。この04:28時点では原113件とE16cursorを変更しなかった。
 
-**主体と事業の定義（所有者指定）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは専用のapp/chat/dashboardを日常の前提にしない運用とし、既存channelと停止・監査の入口を保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。no UI単独の独占性や、原41件を終えればAGI／世界の苦の終結を証明できるとの主張はしない。新規UI・基盤実装・記事を今回の定義更新で始めない。
+**主体と事業の定義（所有者指定）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは専用のapp/chat/dashboardを日常の前提にしない運用とし、既存channelと停止・監査の入口を保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。no UI単独の独占性や、残35件を含む原計画を終えればAGI／世界の苦の終結を証明できるとの主張はしない。新規UI・基盤実装・記事を今回の定義更新で始めない。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 

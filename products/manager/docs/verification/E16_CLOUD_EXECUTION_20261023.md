@@ -1,6 +1,6 @@
 # E16 — cloud実行と残る受入れ（2026-10-23 UTC）
 
-finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/current proof・NO_ACTION/NOT_DUE・欠測・費用・害は、[版付きv2結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)に対応付けています。現版はE16の限定技術受入と、これから個別に行うF受入の根拠です。各runの元結果と総合受入の判定を区別し、タスク状態は台帳で管理します。
+finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/current proof・NO_ACTION/NOT_DUE・欠測・費用・害は、[版付きv2結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)に対応付けています。現版はE16の限定技術受入と、実施したFの個別受入の根拠です。各runの元結果と総合受入の判定を区別し、タスク状態は台帳で管理します。
 
 現在の実行先は、既存GitHub Actions ownerと既存Supabase stagingの非公開checkpointです。Mac mini、Railwayの新worker・volume、長期tokenの新規提供は再開条件ではありません。本記録は過去のhost未接続という説明を更新します。タスク状態の正本は引き続き `../roadmap/tasks.json`。06:07 UTCのfresh replay後、[E16の限定した総合受入](E16_DEPLOYED_ACCEPTANCE_20261023.md)を成立と判定しました。Fの各項目は別の受入です。
 
@@ -51,3 +51,8 @@ sourceの照合では、配備main f8e11のmanager_core／scripts／workflow全4
 15. [39909274852](https://github.com/Daisuke134/life-manager/actions/runs/39909274852) はverify／publisherともSUCCESS。06:07:14 UTCの公式summaryは `GATEWAY_ACKNOWLEDGED / NOT_DUE / P0 / writes=0 / current_proof_exported=true / current_proof_receipt_sha=faf18b39207be69af89d9b10389a294731288a20`。公開tipもfaf18b3のまま。公式 `E16_ACCEPTANCE=INCOMPLETE / positive_canary=NOT_RUN / human_outcome=NOT_MEASURED` は保存し、このNOOPを新規positive canaryに数えません。実DBはrevision20・163840 bytes・owner／leaseなし・recovery_required=falseでした。
 
 全時点を[総合受入記録](E16_DEPLOYED_ACCEPTANCE_20261023.md)に対応付け、E16を所有7パスの限定技術能力としてPASSED、cursor=nullとしました。過去のUNKNOWN／BLOCKEDや個別runのINCOMPLETEを改変する判定ではありません。F005→F006→F008→F009はこの後に一つずつ審査します。人の便益とGate1は未測定／UNMETのままです。
+
+
+## 06:25 UTC 更新 — F個別受入と残件
+
+E16の総合受入後、F005→F006→F008→F009を一つずつ、[v2個別受入記録](PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md)の技術P2範囲で受け入れました。続いてD001→D002は資金分類／他program比較設計のsource契約だけを受入。実寄付・送金・人の便益を新しく観測した意味ではありません。原113件は75 done／35 todo／3 skipped。次は既存AIと持続状態の本番接続、実利用課題・U/D/V/Gの元依存順を進め、記事・新規連絡・応募は後段に保留します。

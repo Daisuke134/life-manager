@@ -890,7 +890,7 @@
       "result": "FINANCE_OWNED_PUBLIC_P1_P2_VERIFIED",
       "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
       "human_outcome": "NOT_MEASURED",
-      "versioned_result_source_commit": "254f83b98",
+      "versioned_result_source_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
       "versioned_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab",
       "provider_commit": "61909d20220fcf14132a6f5f459ce19796f1fc2d",
       "independent_readback_at": "2026-10-23T03:07:59.557833+00:00",
