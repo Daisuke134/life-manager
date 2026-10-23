@@ -9,8 +9,11 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW, PUBLIC_BASE
@@ -114,6 +117,102 @@ def _trusted_p2_observation(store, report):
         return False
 
 
+def _discard_kernel_proof(runner_temp):
+    """Remove only this run's allowlisted proof directory after later failure."""
+    try:
+        root=Path(runner_temp).resolve()
+        target=root/'manager-kernel-proof'
+        if target.parent==root and not target.is_symlink() and target.is_dir():
+            shutil.rmtree(target)
+    except OSError:
+        pass
+
+
+def _export_current_kernel_proof(checkpoint, store, report, runner_temp, *, now=None):
+    """Export proof only for the exact saved occurrence and native P1/P2 rows."""
+    from manager_core.digital_handoff import validate_intent
+    from manager_core.learning import NativeTechnicalObservation
+    from scripts import phase06_kernel_release
+
+    staging=None
+    try:
+        root=Path(runner_temp).resolve()
+        state_db=Path(checkpoint.db).resolve()
+        if (type(checkpoint) is not PrivateCheckpoint or checkpoint.broken or
+                checkpoint.owner is None or type(checkpoint.revision) is not int or
+                type(store) is not CycleStore or Path(store.db).resolve()!=state_db or
+                not state_db.is_file() or root.is_symlink() or not root.is_dir() or
+                state_db.parent.parent.resolve()!=root or
+                not _trusted_p2_observation(store,report)):
+            return False
+        effect=report['effect_key'];receipt=report['receipt_ref']
+        saved=store.journal.record(effect)
+        if saved is None or saved.status!='PRESENT' or saved.receipt_ref!=receipt:
+            return False
+        packet=json.loads(saved.packet_json)
+        validate_intent(packet)
+        if packet.get('effect_key')!=effect:
+            return False
+        candidate_sha=packet.get('candidate_sha256')
+        receipt_url=f'https://github.com/{REPOSITORY}/commit/{receipt}'
+        rows=store.learning.native_technical_observations(effect_key=effect)
+        observations=[row for row in rows if type(row) is NativeTechnicalObservation and
+            row.effect_key==effect and row.candidate_sha256==candidate_sha and
+            row.receipt_ref==receipt and row.status=='VERIFIED' and
+            row.missing_reason is None and row.human_outcome=='NOT_MEASURED']
+        if (not any(row.measure_id=='owned.pages.commit_occurrence' and
+                    row.unit=='commit_occurrence' and row.proof_level=='P1' and
+                    row.native_value==1 and receipt_url in row.provenance_refs
+                    for row in observations) or
+                not any(row.measure_id=='owned.pages.served_bundle_bytes' and
+                        row.unit=='byte' and row.proof_level=='P2' and
+                        type(row.native_value) is int and row.native_value>0 and
+                        receipt_url in row.provenance_refs and PUBLIC_BASE in row.provenance_refs
+                        for row in observations)):
+            return False
+
+        final=root/'manager-kernel-proof'
+        if final.exists() or final.is_symlink():
+            return False
+        staging=Path(tempfile.mkdtemp(prefix='.manager-kernel-proof-',dir=root))
+        private_parent=state_db.parent
+        with tempfile.TemporaryDirectory(prefix='manager-proof-intent-',dir=private_parent) as intent_root:
+            intent=Path(intent_root)/'saved-intent.json'
+            fd=os.open(intent,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+            with os.fdopen(fd,'w',encoding='utf-8') as stream:
+                json.dump(packet,stream,sort_keys=True,ensure_ascii=False,allow_nan=False)
+                stream.write('\n')
+            proved=phase06_kernel_release.prove(intent,receipt,staging,
+                now or datetime.now(timezone.utc),learner=store.learning)
+
+        proof_path=staging/'kernel-public-proof.json'
+        explorer_path=staging/'proof-explorer.html'
+        if (type(proved) is not dict or proved.get('status')!='VERIFIED_PUBLIC_ARTIFACT_ONLY' or
+                proved.get('effect_key')!=effect or proved.get('pages_commit')!=receipt or
+                proved.get('candidate_sha256')!=candidate_sha or
+                type(proved.get('served_bundle_bytes')) is not int or
+                proved['served_bundle_bytes']<=0 or
+                not any(row.measure_id=='owned.pages.served_bundle_bytes' and
+                        row.proof_level=='P2' and row.unit=='byte' and
+                        row.native_value==proved['served_bundle_bytes'] for row in observations) or
+                {path.name for path in staging.iterdir()}!=
+                    {'kernel-public-proof.json','proof-explorer.html'} or
+                any(path.is_symlink() or not path.is_file() for path in staging.iterdir())):
+            raise ValueError('public proof files do not bind to saved native evidence')
+        public_json=json.loads(proof_path.read_text(encoding='utf-8'))
+        if (public_json.get('effect_key')!=effect or public_json.get('pages_commit')!=receipt or
+                public_json.get('candidate_sha256')!=candidate_sha or
+                public_json.get('served_bundle_bytes')!=proved['served_bundle_bytes']):
+            raise ValueError('public proof JSON differs from validated proof')
+        os.replace(staging,final)
+        staging=None
+        return True
+    except Exception:
+        if staging is not None:
+            shutil.rmtree(staging,ignore_errors=True)
+        return False
+
+
 def public_summary(report, *, source_sha=None, receipt_sha=None, store=None):
     """Return only fields approved for public stdout/artifacts."""
     status = report.get('status') if isinstance(report, dict) else 'UNKNOWN'
@@ -207,6 +306,7 @@ def run_preflight(source_root=None, state_store=None):
 def run_once(state_store, pages_checkout):
     checkpoint = None
     context = None
+    proof_exported=False
     authentication = 'NOT_PROVEN'
     try:
         context = _check_main_context(pages_checkout)
@@ -245,12 +345,18 @@ def run_once(state_store, pages_checkout):
             return 2, summary
         # Persist the journal/cadence before relinquishing the remote session.
         checkpoint.save()
+        proof_exported=_export_current_kernel_proof(
+            checkpoint,store,report,context['runner_temp'])
         checkpoint.release()
         summary = public_summary(report, source_sha=context['source_sha'],store=store)
+        if not proof_exported:
+            summary['positive_canary']='NOT_RUN'
         summary['authentication'] = authentication
         return (0 if _successful_cycle_exit(report) else 2), summary
     except Exception as exc:
         # A broken checkpoint is fenced permanently. Never release it in finally.
+        if proof_exported and context is not None:
+            _discard_kernel_proof(context['runner_temp'])
         status = 'UNKNOWN'
         code = 2
         summary = public_summary({'status': status, 'reason': 'RUNTIME_UNAVAILABLE', 'writes': None},

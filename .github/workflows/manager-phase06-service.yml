@@ -137,6 +137,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: manager-owned-summary-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/manager-public-summary.json
+          path: |
+            ${{ runner.temp }}/manager-public-summary.json
+            ${{ runner.temp }}/manager-kernel-proof/kernel-public-proof.json
+            ${{ runner.temp }}/manager-kernel-proof/proof-explorer.html
           if-no-files-found: ignore
           retention-days: 7
