@@ -2,6 +2,20 @@
 
 2026-10-22 UTC。公開研究を再利用する設計変更と日本語mini-chapterの公開記録。新しいTODO正本ではなく、E16/原113件の受入状態を変更しない。Managerは仏教的AIエンティティ／デジタル仏陀として記述する。人への便益は `NOT_MEASURED`。
 
+## 最新の章改訂公開（2026-10-23）
+
+2026-10-23 UTC。既存日本語章へ、レビュー済みのB/C診断結果を含む改訂を反映。下記は公開・配信・読戻しの記録であり、人への便益を示すものではない。
+
+- Canonical source PR [life-manager #8584](https://github.com/Daisuke134/life-manager/pull/8584)（merge `730954fe82ad5c3b0ee4fc08e1a8ca331f341efe`、source head `c4a91cadd1dab14497a62cce42bce9f55a4aa0f1`）。
+- 公開package PR [life-manager #8590](https://github.com/Daisuke134/life-manager/pull/8590)（merge/content revision `a1c7489a64ce043cabc84a76f9c924b6513fd813`、package head `3863f71b77c676a38228a4d65ec8d5c6fc928e85`）。canonical記事とmanifestの厳密比較、既存package検証（67記事/34 media）を確認。
+- 配信bridge PR [anicca-products #569](https://github.com/Daisuke134/anicca-products/pull/569)（head `214338c00bd3dc7a634f5744ed5affea7c6a866c`、merge `df4a9606f4050b6b07dae3555af5e34cf7e1d8f4`）。既存installer/code revision `9a60b49e4bd4d288a491f0fb026af74e933c7eba`とchecksumを維持し、content revision pinのみを更新。
+- [Netlify Deploy run39886664886](https://github.com/Daisuke134/anicca-products/actions/runs/39886664886)はbuild、deploy、既存の決済経路smokeを含めSUCCESS。smokeはsite、`/lm` handoff、life-call health、Stripe/Checkout/legacy Payment Link経路を確認。
+- [公開章](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja)のHTTP 200と[official release receipt](https://aniccaai.com/blog/manager/release.json)を独立GETで確認。receiptはcode revision `9a60b49e4bd4d288a491f0fb026af74e933c7eba`、content revision `a1c7489a64ce043cabc84a76f9c924b6513fd813`、67記事/34 mediaを記録する。改訂章のSHA256は`b6d65176539d04be5efb6c9a627ea675af9452563f2944dddb0d577c21ab4cc0`。更新前の保存receiptと比べ、変更は対象記事hashのみ。他の66記事hashと34 media hashはすべて不変。
+- 公開本文のreadbackで、Bのpaired 95%区間が0を含み優越性未確立、Cの126対応列/84 QuestionIDは構造検査でありaccuracy未算出・生成来歴とtraining exposure unknownであること、汚染を認定していないことを確認。simulation code linkは`tianyipeng-lab/Digital-Twin-Simulation` revision `f1eed510c9a4fb47aaa9bb46e178aaa2d9224623`。Twin-2K-500 datasetと`TianyiPeng/Twin-2K-500-Mega-Study`の研究コードを区別する既存記述も確認。
+- 改訂版PDF `/workspace/library-files/Manager-Artificial-Societies-20261023-ja.pdf`は11ページ、SHA256 `d0eea2c68a655df1231666c91077505753cb8385ae6a5d4f7bb009a0b6e2d160`。これは検証済みのローカルartifactで、website bridgeから配信したPDFではない。
+
+公開と技術的読戻しを確認した記録であり、人間の行動変化、福祉改善、または介入効果を主張しない。source-boundary guardはcloud上でcanonical pathが不在のためFAILのまま記録し、PASSとは扱わない。
+
 ## 公開物
 
 - [日本語章・公開URL](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja)：18,441文字、12主節、52引用URL。公式掲載25件と公式事例7件を棚卸し、取得できた本文・部分取得・訂正情報を区別。
