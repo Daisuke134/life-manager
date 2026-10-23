@@ -243,6 +243,22 @@ def _fail_product_write(case, monkeypatch):
     return write
 
 
+def test_first_portfolio_receipt_enospc_keeps_confirmed_id(tmp_path, monkeypatch):
+    case = _first_portfolio(tmp_path, monkeypatch)
+
+    def full(*_args):
+        raise OSError(errno.ENOSPC, "fixture full")
+
+    monkeypatch.setattr(case.module, "_write_receipt", full)
+    result = case.module.run(True, case.path, case.state)
+
+    assert result["ok"] is False and result["logged_in"] is True
+    assert result.get("software_portfolio_external_id") == "88001"
+    assert _json(case.path)[case.key]["external_id"] == "88001"
+    assert case.calls.created == [case.key] and case.calls.forbidden == []
+    assert case.tick.opened_pages == case.tick.closed_pages == 1
+
+
 def test_first_portfolio_product_enospc_recovers_by_readback_without_second_create(tmp_path, monkeypatch):
     case = _first_portfolio(tmp_path, monkeypatch)
     before = _json(case.path)
