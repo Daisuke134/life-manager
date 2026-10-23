@@ -26,7 +26,7 @@ source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを�
 
 host設定は`~/.config/life-manager/host.json`。実行中に別HOMEの設定を拒否し、runtime Python/Node、source checkout、private env/agent config/browser registryの参照を全managed jobへ渡す。既存本人設定と既存browser leaseを上書きせず、設定がない既存Mac Miniは従来の経路を維持する。Codexのrouting/modelは既存runtime設定を保持し、本人HOMEに存在する認証席だけを使用する。venv Pythonのsymlinkをbase Pythonへ解決しない。eBookのtenantはhost設定がある場合のみ本人host IDへ束縛する。
 
-実装済みsource: 全fleet manifest、private host binding、全191 plistへの本人runtime/config注入、venv path保持、`local plan/prepare/install/apply`、既存watchdogとMercor browserへの限定委譲、Coconala全7jobのcanonical activationを追加する。隔離HOMEのfocused検証35件とloop-contract（18/191/errors0）がPASSする。Coconalaの個別focused55件は担当検証でPASS、primary再検証中。現在cursorはMAC04の独立review/CI/main統合。全providerのguided setup、友人Mac/Intel実機、自然業務と公式成果は未完で、MAC02–05の完了チェックを入れない。
+実装済みsource: 全fleet manifest、private host binding、全191 plistへの本人runtime/config注入、venv path保持、`local plan/prepare/install/apply`、既存watchdogとMercor browserへの限定委譲、Coconala全7jobのcanonical activationを追加する。隔離HOMEのfocused検証35件とloop-contract（18/191/errors0）がPASSする。Coconalaの個別focused55件は担当検証でPASS、primary再検証中。独立review初回のBlocking3件（installer制御envの誤比較、Reply/Paidのvenv喪失、死んだPythonを持つreleaseの再利用）をREDで再現して修復する。既存JobHunterのcheckout直指しへ戻る統合欠陥も、本人host設定時は同じimmutable経路へ修復する。HOME alias・明示host path・Node/npm・再実行時venv・Intel managed Nodeの回帰を追加し、関連94 unittest、64 pytest、apply199件がPASSする。9a2517658bではCI13項目も成功する。後続JobHunter/Intel修正の差分reviewとCIは進行中。現在cursorはMAC04の差分review/最新CI/main統合。全providerのguided setup、友人Mac/Intel実機、自然業務と公式成果は未完で、MAC02–05の完了チェックを入れない。Symphonyの別artifact/Erlang依存と専用Cloud tenant binding、既存JobHunterのcustom browser port追従はこのpatchで受入済みにせず、MAC03/05へ残す。
 
 ## Local / Cloud 全体復旧の現行spec・実行計画
 

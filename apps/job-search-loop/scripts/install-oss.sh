@@ -2,6 +2,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
+if [[ -z "${JOB_SEARCH_PYTHON:-}" ]]; then
+  for job_search_prepared_python in \
+      "${XDG_DATA_HOME:-$HOME/.local/share}/anicca/job-search/venv/bin/python" \
+      "$HOME/.local/share/life-manager/venv/bin/python"; do
+    if [[ -x "$job_search_prepared_python" ]]; then
+      export JOB_SEARCH_PYTHON="$job_search_prepared_python"
+      break
+    fi
+  done
+fi
 source "$SCRIPT_DIR/runtime-paths.sh"
 COMMAND="${1:-auto}"
 [[ "$#" -eq 0 ]] || shift
@@ -201,7 +211,7 @@ start_setup() {
   local install_args=(--profile "$JOB_SEARCH_PROFILE" --provider auto --scheduler none)
   [[ "$replace" == "0" ]] || install_args+=(--replace-profile)
   "$SCRIPT_DIR/install-local.sh" "${install_args[@]}" >/dev/null
-  "$SCRIPT_DIR/install-launchd.sh" --browser-only
+  "$SCRIPT_DIR/install-launchd.sh" --browser-only || return "$?"
   local ready=false
   for _ in {1..30}; do
     if curl -fsS --max-time 3 http://localhost:9222/json/version >/dev/null 2>&1; then
@@ -272,7 +282,7 @@ finished() {
     print '{"status":"blocked","missing":["gmail_or_telegram"]}'
     return 2
   fi
-  "$SCRIPT_DIR/install-launchd.sh"
+  "$SCRIPT_DIR/install-launchd.sh" || return "$?"
   record_state activated
   "$JOB_SEARCH_PYTHON" - "$connector_receipt" <<'PY'
 import json,sys
@@ -304,6 +314,10 @@ PY
 
 stop_or_uninstall() {
   local uninstall="$1" domain="gui/$(id -u)"
+  if [[ -n "${LIFE_MANAGER_HOST_PROFILE:-}" || -f "$HOME/.config/life-manager/host.json" ]]; then
+    "$SCRIPT_DIR/install-launchd.sh" "--$uninstall"
+    return "$?"
+  fi
   for label in ai.anicca.job-search-browser ai.anicca.job-search-daily ai.anicca.job-search-inbox ai.anicca.job-search-learning ai.anicca.job-search-health; do
     "$JOB_SEARCH_LAUNCHCTL" bootout "$domain/$label" >/dev/null 2>&1 || true
     [[ "$uninstall" == "uninstall" ]] && rm -f "$JOB_SEARCH_LAUNCH_AGENT_DIR/$label.plist"
@@ -312,7 +326,7 @@ stop_or_uninstall() {
 }
 
 case "$COMMAND" in
-  auto) [[ -f "$JOB_SEARCH_INSTALL_CONFIG" ]] && finished || start_setup "$@" ;;
+  auto) if [[ -f "$JOB_SEARCH_INSTALL_CONFIG" ]]; then finished; else start_setup "$@"; fi ;;
   preflight) preflight ;;
   prepare) prepare ;;
   start) start_setup "$@" ;;
