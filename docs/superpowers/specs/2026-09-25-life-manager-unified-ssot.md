@@ -126,7 +126,7 @@ SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1
 
 実装の中間証拠: 欠損/壊れた本人入力と別accountの12ケースをRED→GREENで確認する（Python 3.14）。AST、shell構文、source-boundary、diff checkはPASS。関連suiteは574件/29 subtestsがPASS、既存3testだけFAIL。対象testと呼出元7fileがexact base44cdb4cfからbyte不変で、新fixtureを通さない同base testのメモリ内実行でも同じ3FAILを再現する。現行のwait/例外境界marker/provider_rejected fieldへ期待値3箇所を追従し、primaryの当該3file再検証は50件/8 subtestsがPASS。全batchの再実行は空き再低下と滞留により46dot時点で中断（exit130）、全batch GREENとは数えない。private profile、browser、provider送信、実activationは0。
 
-CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼出元のfocused testsを追加する。新workflowや依存packageは増やさず、既存Python3.14/pytest/jsonschemaで公開runner上の検証を保存する。rootがworkflowと本仕様を所有し、独立review対象へ含める。
+CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼出元のfocused testsを追加する。新workflowや依存packageは増やさず、既存Python3.14/pytest/jsonschemaで公開runner上の検証を保存する。rootがworkflowと本仕様を所有し、独立review対象へ含める。 runtime/loop/tests/test_clean_user_install.pyの既存Paid wrapper fixtureも本人ID読取へ追従する。CIの全1015件でこの1件だけが旧/bin/echoと作者account期待値によりFAILとなり、本人ID helperだけをother-sellerへstubし既存state argvのassertを維持する。新sourceのGateやfenceを弱めず修復する。 当該CI RED1→primaryのfocused GREEN1（0.448秒）を確認する。
 
 容量診断: Git fetchもpack一時file作成でENOSPCとなる。process argv/cwd/text参照がなく、memory/state JSONLを含まない再取得可能なCodex runtime cacheだけを削除し、1,628,393,472 bytesを回復する。直後の空き1,901,395,968 bytesはsource保存/関連検証のための余地であり、稼働jobのdisk admissionを満たす証拠ではない。protected storesと使用中runtime/stateは変更しない。
 
