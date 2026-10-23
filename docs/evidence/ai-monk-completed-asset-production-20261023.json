@@ -199,5 +199,94 @@
     "target_absent": true,
     "floor_lowered": false,
     "forced_wake": false
+  },
+  "legacy_watercolor_hold": {
+    "checked_at": "2026-10-23T04:06:11.587280+00:00",
+    "run_id": "manual-ai-monk-legacy-watercolor-hold-20261023",
+    "owner_id": "ebook",
+    "occurrence_id": null,
+    "release_sha": "561d945fc4f3938d3bc47dad47eff031da33d0b6",
+    "phase": "legacy_lane_hold",
+    "exit_code": 0,
+    "effect": "disable_and_unload_only_idle_watercolor_owners",
+    "provider_receipt_id": null,
+    "next_action": "reconcile_old_fences_then_migrate_JA_to_realistic_avatar",
+    "readback": {
+      "owners_unloaded_disabled": 2,
+      "new_generations": 0,
+      "posts": 0,
+      "old_receipts_preserved": true
+    },
+    "owners": [
+      {
+        "owner_id": "ebook-ja-tiktok-daily",
+        "operations": [
+          {
+            "command": "launchctl-safe disable exact owner",
+            "exit_code": 0
+          },
+          {
+            "command": "lm-loop stop exact owner",
+            "exit_code": 0
+          }
+        ],
+        "idle_before": true,
+        "unloaded_after": true,
+        "disabled_after": true
+      },
+      {
+        "owner_id": "ebook-ja-instagram-daily",
+        "operations": [
+          {
+            "command": "launchctl-safe disable exact owner",
+            "exit_code": 0
+          },
+          {
+            "command": "lm-loop stop exact owner",
+            "exit_code": 0
+          }
+        ],
+        "idle_before": true,
+        "unloaded_after": true,
+        "disabled_after": true
+      }
+    ],
+    "durable_readback": [
+      {
+        "owner_id": "ebook-ja-tiktok-daily",
+        "queue_count": 0,
+        "reservation_count": 0,
+        "durable_status": "no_queued_work",
+        "fence_preserved": {
+          "state": "claimed",
+          "effect_unknown": 1
+        }
+      },
+      {
+        "owner_id": "ebook-ja-instagram-daily",
+        "queue_count": 0,
+        "reservation_count": 0,
+        "durable_status": "no_queued_work",
+        "fence_preserved": {
+          "state": "claimed",
+          "effect_unknown": 1
+        }
+      }
+    ]
+  },
+  "legacy_ja_instagram_source_review": {
+    "source_commit": "5245ee081bd4a133447ed02c4bf7c0a3d311271b",
+    "independent_read_only_review": true,
+    "findings": 0,
+    "blocking_findings": 0,
+    "reviewer_tests_passed": 202,
+    "original_runtime_event_count": 6,
+    "claimant_count": 2,
+    "raw_artifact_count": 8,
+    "preserved_source_manifest_count": 11,
+    "source_candidate_probe": "verified",
+    "production_fence_closed": false,
+    "loaded_old_release_bytes_verified": false,
+    "exit75_branch_identified": false
   }
 }
