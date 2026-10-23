@@ -2,7 +2,7 @@
 
 日付：2026-10-23。これはNature論文の公開集約値を使った後ろ向きの再採点診断であり、原著の全手順を再現した研究ではない。Source Dataは公開ページの公式ファイルを読み取り、全4ファイルのSHA-256を解析前に照合した。個票、条件名、raw study rowsはリポジトリへ含めていない。実装とfocused testsはPR #8575でmainに統合済み（merge commit [`b7c9d150`](https://github.com/Daisuke134/life-manager/commit/b7c9d150684d0278ec7011e2a9981cef2e3f952f)）。
 
-図：効果はnative signed scale `[-1,1]`、平均絶対誤差はそのfull scaleで表示する。誤差差と区間は元のfull-scale MAE差を100倍した「full-scale換算ポイント」で、確率差や相対改善率ではない。右側の差は「無効果baselineの誤差 − 比較手法の誤差」なので正なら誤差低下を表す。どちらのpaired区間も0を含む。
+効果のnative signed scaleは `[-1,1]`。図では左の平均絶対誤差、右の誤差差と区間をいずれも元の値の100倍で表示する。この「full-scale換算ポイント」は、確率差や相対改善率ではない。右側の差は「無効果baselineの誤差 − 比較手法の誤差」なので正なら誤差低下を表す。どちらのpaired区間も0を含む。下表のMAE・RMSEは100倍する前の値を示す。
 
 ![公開効果を用いた固定study-holdout診断](evidence/released-effects-diagnostic-20261023/diagnostic.png)
 
@@ -20,7 +20,7 @@ Pearson値は各unordered pairの効果と予測の両方を反対向きにも�
 
 ## 結果
 
-| 手法 | test-study macro MAE（native full scale） | test-study macro RMSE（native full scale） | 無効効果予測との差（MAE差×100、full-scale換算ポイント） |
+| 手法 | test-study macro MAE（native full scale） | test-study macro RMSE（native full scale） | 無効果予測との差（MAE差×100、full-scale換算ポイント） |
 |---|---:|---:|---:|
 | 無効果予測 | 0.06164431 | 0.10474382 | — |
 | 公開予測そのまま | 0.07513314 | 0.11241519 | −1.3489（95% paired CI −2.9001, 0.1348） |
