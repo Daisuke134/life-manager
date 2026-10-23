@@ -1,0 +1,189 @@
+"""Exercise installer runtime selection without touching the host toolchain."""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
+
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+class RuntimeSandbox:
+    def __init__(self, root: Path):
+        self.root = root
+        self.bin = root / "bin"
+        self.bin.mkdir()
+        self.home = root / "home"
+        self.home.mkdir()
+        self.repo = root / "repo"
+        self.calls = root / "calls"
+        self.apple = root / "apple"
+        self.intel = root / "intel"
+        self.python_prefix = root / "python-formula"
+        self.env = dict(os.environ, HOME=str(self.home), PATH=str(self.bin),
+                        SANDBOX_CALLS=str(self.calls), SANDBOX_BIN=str(self.bin),
+                        SANDBOX_PYTHON_PREFIX=str(self.python_prefix))
+        for name in ("PYTHON", "LIFE_MANAGER_PYTHON", "LM_PYTHON", "LM_BREW"):
+            self.env.pop(name, None)
+        for name in ("bash", "dirname", "basename", "mkdir", "mktemp", "rm", "cp"):
+            (self.bin / name).symlink_to(shutil.which(name))
+        self.executable(self.bin / "uname", '#!/bin/bash\n[ "$1" = -s ] && echo Darwin || echo arm64\n')
+        self.executable(self.bin / "codex", "#!/bin/bash\nexit 0\n")
+        self.brew_template = self.executable(root / "brew-template", """#!/bin/bash
+printf 'brew %s\n' "$*" >> "$SANDBOX_CALLS"
+case "$1" in
+  --version) echo 'Homebrew fixture' ;;
+  --prefix) printf '%s\n' "$SANDBOX_PYTHON_PREFIX" ;;
+  shellenv) printf 'export PATH="%s:%s"\n' "$(dirname "$0")" "$PATH" ;;
+  install) echo 'brew install diagnostics'; [ "${SANDBOX_BREW_FAIL:-0}" = 0 ] ;;
+  *) exit 91 ;;
+esac
+""")
+        self.env["SANDBOX_BREW_TEMPLATE"] = str(self.brew_template)
+        self.env["SANDBOX_BREW_TARGET"] = str(self.apple / "bin/brew")
+        self.executable(self.bin / "curl", """#!/bin/bash
+printf 'curl %s\n' "$*" >> "$SANDBOX_CALLS"
+destination=''
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o) destination="$2"; shift ;;
+    https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh) ;;
+    -fsSL) ;;
+    *) exit 92 ;;
+  esac
+  shift
+done
+installer='#!/bin/bash
+/bin/mkdir -p "$(dirname "$SANDBOX_BREW_TARGET")"
+/bin/cp "$SANDBOX_BREW_TEMPLATE" "$SANDBOX_BREW_TARGET"'
+if [ -n "$destination" ]; then
+  printf '%s\n' "$installer" > "$destination"
+else
+  printf '%s\n' "$installer"
+fi
+""")
+
+    @staticmethod
+    def executable(path: Path, content: str) -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        path.chmod(0o755)
+        return path
+
+    def python(self, path: Path, *, suitable: bool = True) -> Path:
+        version_exit = 0 if suitable else 1
+        return self.executable(path, f"""#!/bin/bash
+printf 'python %s %s\n' "$0" "$*" >> "$SANDBOX_CALLS"
+if [ "${{1:-}}" = -c ]; then
+  case "$2" in
+    *sys.version_info*) exit {version_exit} ;;
+    *'import websockets'*) exit "${{SANDBOX_IMPORTS_MISSING:-0}}" ;;
+  esac
+fi
+if [ "${{1:-}}" = -m ] && [ "${{2:-}}" = venv ]; then
+  target="${{@: -1}}"
+  mkdir -p "$target/bin"
+  cp "$0" "$target/bin/python"
+  printf '%s\n' "$0" >> "$SANDBOX_CALLS.venv"
+  printf '#!/bin/bash\\necho pip-diagnostics\\n' > "$target/bin/pip"
+  chmod +x "$target/bin/pip"
+fi
+exit 0
+""")
+
+    def brew(self, *, intel: bool = False, on_path: bool = True) -> Path:
+        target = (self.intel if intel else self.apple) / "bin/brew"
+        self.executable(target, self.brew_template.read_text())
+        if on_path:
+            (self.bin / "brew").symlink_to(target)
+        return target
+
+    def copy_script(self, relative: str) -> Path:
+        source = REPO / relative
+        target = self.repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.exists():
+            target.write_text(source.read_text().replace("/opt/homebrew", str(self.apple))
+                              .replace("/usr/local", str(self.intel)))
+        return target
+
+    def run_helper(self, command: str) -> subprocess.CompletedProcess[str]:
+        helper = self.copy_script("scripts/macos-runtime.sh")
+        return subprocess.run(["/bin/bash", "-c", 'set -eu; source "$1"; ' + command,
+                               "runtime-test", str(helper)], env=self.env,
+                              capture_output=True, text=True, timeout=10)
+
+    def log(self) -> str:
+        return self.calls.read_text() if self.calls.exists() else ""
+
+
+def test_source_does_not_probe_or_change_python(tmp_path):
+    box = RuntimeSandbox(tmp_path)
+    box.env["PYTHON"] = "/custom/python"
+    result = box.run_helper('printf "%s" "$PYTHON"')
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "/custom/python"
+    assert box.log() == ""
+
+
+@pytest.mark.parametrize("variable", ["LIFE_MANAGER_PYTHON", "PYTHON"])
+def test_compatible_explicit_python_needs_no_homebrew(tmp_path, variable):
+    box = RuntimeSandbox(tmp_path)
+    python = box.python(tmp_path / "chosen-python")
+    box.env[variable] = str(python)
+    result = box.run_helper('lm_ensure_python; printf "%s" "$LM_PYTHON"')
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == str(python)
+    assert "brew " not in box.log()
+    assert "curl " not in box.log()
+
+
+def test_installed_python_is_selected_from_formula_not_old_path(tmp_path):
+    box = RuntimeSandbox(tmp_path)
+    box.python(box.bin / "python3", suitable=False)
+    python = box.python(box.python_prefix / "bin/python3.14")
+    box.brew()
+    result = box.run_helper('lm_ensure_python; printf "%s" "$LM_PYTHON"')
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == str(python)
+    assert "brew install python@3.14" in box.log()
+    assert "brew --prefix python@3.14" in box.log()
+    assert "brew install diagnostics" in result.stderr
+
+
+@pytest.mark.parametrize("intel", [False, True])
+def test_new_homebrew_is_rediscovered_at_both_macos_prefixes(tmp_path, intel):
+    box = RuntimeSandbox(tmp_path)
+    expected = (box.intel if intel else box.apple) / "bin/brew"
+    box.env["SANDBOX_BREW_TARGET"] = str(expected)
+    result = box.run_helper('lm_ensure_homebrew; printf "%s" "$LM_BREW"')
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == str(expected)
+    assert "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" in box.log()
+
+
+def test_failed_python_install_does_not_select_old_interpreter(tmp_path):
+    box = RuntimeSandbox(tmp_path)
+    box.python(box.bin / "python3", suitable=False)
+    box.python(box.python_prefix / "bin/python3.14")
+    box.brew()
+    box.env["SANDBOX_BREW_FAIL"] = "1"
+    result = box.run_helper('lm_ensure_python; printf "%s" "$LM_PYTHON"')
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert "brew install python@3.14" in box.log()
+
+
+def test_python_install_must_provide_a_compatible_interpreter(tmp_path):
+    box = RuntimeSandbox(tmp_path)
+    box.python(box.bin / "python3", suitable=False)
+    box.python(box.python_prefix / "bin/python3.14", suitable=False)
+    box.brew()
+    result = box.run_helper('lm_ensure_python; printf "%s" "$LM_PYTHON"')
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert "brew --prefix python@3.14" in box.log()

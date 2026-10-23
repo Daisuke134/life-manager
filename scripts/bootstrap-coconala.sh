@@ -1,27 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-TARGET="${LIFE_MANAGER_CHECKOUT:-$HOME/life-manager}"
-
-if [ -e "$TARGET" ] && [ ! -d "$TARGET/.git" ]; then
-  echo "[coconala] $TARGET exists but is not a Git checkout; move it and retry" >&2
-  exit 2
-fi
-if ! command -v brew >/dev/null 2>&1; then
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
-if ! command -v git >/dev/null 2>&1; then
-  brew install git
-fi
-
-if [ -d "$TARGET/.git" ]; then
-  git -C "$TARGET" fetch origin main
-  git -C "$TARGET" merge --ff-only origin/main
-else
-  git clone --depth 1 --branch main https://github.com/Daisuke134/life-manager.git "$TARGET"
-fi
-
-export LIFE_MANAGER_CHECKOUT="$TARGET"
-exec "$TARGET/install.sh" coconala
+# Share checkout validation and runtime selection with the public Mac entrypoint.
+bootstrap="$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)"
+exec /bin/bash -c "$bootstrap" life-manager coconala "$@"

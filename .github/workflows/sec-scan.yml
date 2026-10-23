@@ -32,6 +32,10 @@ jobs:
           python-version: '3.14'
       - name: Install exact loop contract test dependency
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0 pytest==9.0.3
+      - name: Verify public Mac bootstrap and Coconala dependency selection
+        run: |
+          python3 -m unittest scripts.test_mac_bootstrap
+          python3 -m pytest -q scripts/test_macos_runtime.py skills/earn/gig/tests/test_coconala_installer_runtime.py
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
       - name: Verify bounded storage, real syscall failures, and recurrence
@@ -87,6 +91,8 @@ jobs:
           lib/web-funnel-report.test.js
           lib/web-page.test.js
           scripts/lm-web-funnel-report.test.js
+          lib/product-onboarding.test.js
+          scripts/product-onboarding-plan.test.js
 
   openclaw-foundation:
     name: OpenClaw offline foundations
