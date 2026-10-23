@@ -988,12 +988,12 @@
     "learn": "対象の異なる所有オンライン環境の変化を別々に観測する",
     "change": "金融案内とは別の公開情報アクセス面で改善を確認し、固有URL・SHA・独立GET・差分・復元可能性を記録",
     "verify": "異なる2ページで外部読み戻しP2。室内センサーも施設許可も要求せず、人への因果効果は未測定",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "manager_core/physical_outcomes.py"
     ],
-    "implementation_status": "P2_REVIEW_PENDING",
+    "implementation_status": "ACCEPTED_OWNED_PUBLIC_DIGITAL_P2_ONLY",
     "original_status": "todo",
     "original_depends": [
       "F007",
@@ -1006,7 +1006,24 @@
     "scope_version": 2,
     "scope_amendment": "products/manager/docs/specs/2026-10-22-phase06-owned-public-good-scope-amendment.md",
     "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
-    "beneficiary_outcome": "NOT_MEASURED"
+    "beneficiary_outcome": "NOT_MEASURED",
+    "completion_evidence": [
+      "docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json",
+      "docs/verification/PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md",
+      "docs/verification/E16_DEPLOYED_ACCEPTANCE_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T06:19:43.079260+00:00",
+      "result": "DISTINCT_MENTAL_TOPIC_P2_AND_SCOPED_RECOVERY_VERIFIED",
+      "versioned_result_source_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
+      "versioned_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab",
+      "historical_provider_commit": "374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f",
+      "historical_readback_at": "2026-10-23T04:05:49.648525+00:00",
+      "rollback_commit": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+      "current_provider_commit": "faf18b39207be69af89d9b10389a294731288a20",
+      "current_readback_at": "2026-10-23T06:03:29.912620+00:00",
+      "human_outcome": "NOT_MEASURED"
+    }
   },
   {
     "section": "06. 現実の介入と独立した効果評価",

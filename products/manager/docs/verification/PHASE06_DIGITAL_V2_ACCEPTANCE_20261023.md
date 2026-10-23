@@ -14,7 +14,7 @@ E01–E16は[限定実稼働能力の総合受入](E16_DEPLOYED_ACCEPTANCE_20261
 
 ## F008 — 別テーマのP2と復元可能性
 
-**受入: 未判定。** mentalの過去occurrence、実復元、後続の現在配信を区別して判定する。
+**受入: 別テーマの技術P2と可逆性。** 固有URL mental.html、元commit374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f／parent finance61909d2、Pages39898291117、04:05:49 UTCの独立7 GETを照合。native P1は1 commit_occurrence、P2は26,866 HTML byte。実rollback c6d5de0はmental cueを除去しfinanceの全7ファイルへ復元した。fresh resume後の新faf18b3では06:03:29 UTCにfinance／mental両cueを再確認。元のmental初回UNKNOWNを保持し、過去と現在の配信を別occurrenceとして扱う。2施設／2人間試験、精神的便益、臨床効果を認定しない。
 
 ## F009 — 共通kernelの統合
 
