@@ -51,6 +51,23 @@ def validate(tasks):
             or type(run_id) is not int or run_id <= 0
             or type(full_suite_total) is not int or full_suite_total < minimum_suite_total):
             raise ValueError(f'{stage} receipt does not meet the passed run and full-suite contract')
+    acceptance_prefix_closed = False
+    for gate_id in order['acceptance_sequence']:
+        gate = by_id[gate_id]
+        if (gate.get('evidence_scope') != 'OWNED_PUBLIC_DIGITAL_P2_ONLY'
+            or gate.get('beneficiary_outcome') != 'NOT_MEASURED'):
+            raise ValueError(f'{gate_id} must preserve P2-only scope and unmeasured beneficiary outcome')
+        if gate.get('status') == 'done':
+            if acceptance_prefix_closed:
+                raise ValueError('F acceptance gates must be a contiguous ordered prefix')
+            if completed != EXPECTED_E or order['technical_execution_cursor'] is not None:
+                raise ValueError('F acceptance requires the complete E01-E16 passed prefix')
+            evidence = gate.get('completion_evidence')
+            if (not isinstance(evidence, list) or not evidence
+                or any(not isinstance(path, str) or not path.strip() for path in evidence)):
+                raise ValueError(f'{gate_id} completion evidence must be a nonempty list of paths')
+        else:
+            acceptance_prefix_closed = True
     if (by_id.get('F004', {}).get('status') != 'skipped'
         or by_id.get('F007', {}).get('status') != 'skipped'):
         raise ValueError('retired external prerequisites or unverified field gate status')
@@ -67,6 +84,9 @@ def validate(tasks):
             raise ValueError(f"task lacks atomic acceptance: {t['id']}")
         if not set(t['depends']) <= seen:
             raise ValueError(f"dependency missing/forward/cyclic: {t['id']}")
+        unfinished = [dep for dep in t['depends'] if by_id[dep]['status'] != 'done']
+        if t['status'] == 'done' and unfinished:
+            raise ValueError(f"done task has unfinished dependencies: {t['id']}")
         if t['status'] == 'skipped' and (not t.get('waiver_reason') or not t.get('waiver_scope')):
             raise ValueError(f"skipped task without waiver: {t['id']}")
         seen.add(t['id'])
@@ -75,6 +95,12 @@ def validate(tasks):
 def render(tasks):
     by_id = {t['id']: t for t in tasks}
     cursor = by_id['F009']['technical_execution_cursor']
+    acceptance_sequence = by_id['F009']['acceptance_sequence']
+    accepted_gates = sum(by_id[gate]['status'] == 'done' for gate in acceptance_sequence)
+    beneficiary_outcomes = {by_id[gate].get('beneficiary_outcome', 'NOT_RECORDED')
+                            for gate in acceptance_sequence}
+    beneficiary_outcome = (next(iter(beneficiary_outcomes))
+                           if len(beneficiary_outcomes) == 1 else 'MIXED_OR_UNRECORDED')
     execution_progress = (
         'E01–E16実装完了。F受入は別に証拠確認'
         if cursor is None else f'**現在の次タスク:** `{cursor}`'
@@ -93,7 +119,7 @@ def render(tasks):
       '実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。', '',
       '**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の限定能力releaseの受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。', '',
       '**対象外:** F004（第三者の資金管理者）とF007（施設所有者・屋内センサー）は `skipped`（未実施・未達成）で、実装の依存条件にしない。他者の設備・口座を操作する場合の権限は引き続き必要。', '',
-      '**並行する編集作業:** P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）。E実装の現在位置は移動しない。', '',
+      '**編集作業の優先順:** Manager本体・agentを先に完成させ、P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）の新規制作は後段へ保留する。E実装の現在位置は移動しない。', '',
       '下のPhase 06表は受け入れ条件の一覧であり、時系列の作業順を示すものではない。', '',
       '## Definitions of done', '',
       '- Study: source-backed research note and stated verification succeeds.',
@@ -117,7 +143,8 @@ def render(tasks):
       '## Evidence and provenance', '',
       '- R006 rights register: `docs/research-rights.md` and `docs/research/source-rights.json`. Unknown downstream permissions remain HOLD.',
       '- imozuru research uses original links and local short excerpts; third-party original text is not automatically redistributable.',
-      '- No Manager field intervention or human suffering reduction has yet been proven.', '',
+      f'- Owned-public digital technical P2 acceptance: {accepted_gates}/{len(acceptance_sequence)} gates marked done.',
+      f'- Beneficiary human outcome: {beneficiary_outcome}.', '',
       '- Phase06–12 implementation evidence and remaining original acceptances: `docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`.', '',
     ])
     return '\n'.join(lines)
