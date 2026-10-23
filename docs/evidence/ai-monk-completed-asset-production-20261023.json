@@ -1626,5 +1626,60 @@
     "claimed_unknown_at_0945": 0,
     "new_publication_verified": false,
     "next_action": "Reconcile original completed HeyGen video cash cost through official readback; no fourth manual or new generation/resend"
+  },
+  "native_capacity_after_reviewed_database_rollout": {
+    "recorded_at": "2026-10-23T10:46:01.129392+00:00",
+    "release_sha": "247474a9df537bc863a2b970a91df8d9111af576",
+    "occupied_total": 3,
+    "finite_cap": 10,
+    "occupied_agent": 0,
+    "agent_cap": 4,
+    "free_bytes": 7867629568,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": false,
+    "target_queue_count": 0,
+    "target_claimed_or_unknown": 0,
+    "ordered_resource_waiters": 40,
+    "target_has_valid_reservation": false,
+    "eligible_for_one_native_attempt": false,
+    "production_state_mutations": 0,
+    "private_evidence_file": "ai-monk-native-capacity-readonly-20261023-1792752356371344000.json",
+    "private_evidence_sha256": "bec0cf618f885f847e282ce49c825a9bb16e022c89da52a7b41cbf0c1581b1e6"
+  },
+  "existing_asset_manual_cost_contract_correction": {
+    "basis": [
+      "apps/life-manager/scripts/ebook-distribute-daily.js:119-142",
+      "skills/earn/marketing-engine/ebook_runner.py:180-203",
+      "runtime/loop/lm_loop_run.py:1896-1907"
+    ],
+    "completed_asset_with_unknown_cash_accepted": true,
+    "new_renderer_invocation_for_rendered_receipt": false,
+    "unknown_cost_fence_preserved": true,
+    "additional_manual_issued": false,
+    "current_manual_action": "Fresh loaded/receipt/caption/official duplicate/admission readback first; respect current specified-channel owner and unknown producer investigation",
+    "source_edits": 0,
+    "provider_calls": 0
+  },
+  "database_x_independent_completion": {
+    "products_source_pr": "https://github.com/Daisuke134/anicca-products/pull/588",
+    "products_source_main": "e6fdf0b334ed6bb5448403a5b3fd8ad61f1e3dcc",
+    "directory_records": 4,
+    "pending_records": 69,
+    "excluded_records": 2,
+    "archive_records": 75,
+    "sources": 56,
+    "web_mcp_cli_scope_match": true,
+    "cli_release": "https://github.com/Daisuke134/anicca-products/releases/tag/ai-monk-index-v0.4.0",
+    "native_reply_urls": [
+      "https://x.com/selawmqt/status/2113582983580139758",
+      "https://x.com/selawmqt/status/2113583291374952934",
+      "https://x.com/selawmqt/status/2113583436426625030"
+    ],
+    "native_reply_writes": 3,
+    "resends": 0,
+    "original_postiz_receipts_preserved": true,
+    "own_browser_lease_released": true,
+    "orders_profit_inferred": false,
+    "results_pr": "https://github.com/Daisuke134/anicca-products/pull/590"
   }
 }
