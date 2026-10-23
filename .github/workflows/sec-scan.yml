@@ -32,7 +32,8 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0 pytest==9.0.3
       - name: Verify public Mac bootstrap and Coconala dependency selection
         run: |
-          python3 -m unittest scripts.test_mac_bootstrap
+          python3 -m unittest scripts.test_mac_bootstrap scripts.test_job_hunter_macos
+          python3 -m unittest runtime.host.tests.test_local_profile runtime.loop.tests.test_local_fleet runtime.loop.tests.test_local_install
           python3 -m pytest -q scripts/test_macos_runtime.py skills/earn/gig/tests/test_coconala_installer_runtime.py
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py' --durations 15

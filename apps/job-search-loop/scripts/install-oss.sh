@@ -11,9 +11,10 @@ usage() {
 }
 
 preflight() {
-  local darwin=false arm64=false python_ready=false codex_cli=false codex_authenticated=false cloakbrowser=false disk_headroom=false
+  local darwin=false arm64=false architecture_supported=false python_ready=false codex_cli=false codex_authenticated=false cloakbrowser=false disk_headroom=false
   [[ "$(uname -s 2>/dev/null)" == "Darwin" ]] && darwin=true
   [[ "$(uname -m 2>/dev/null)" == "arm64" ]] && arm64=true
+  case "$(uname -m 2>/dev/null)" in arm64|x86_64) architecture_supported=true ;; esac
   "$JOB_SEARCH_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 13))' >/dev/null 2>&1 && python_ready=true
   if command -v codex >/dev/null 2>&1; then
     codex_cli=true
@@ -22,33 +23,36 @@ preflight() {
   for candidate in "$HOME"/.cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium(N); do
     [[ -x "$candidate" ]] && cloakbrowser=true && break
   done
+  if $cloakbrowser; then
+    "$JOB_SEARCH_PYTHON" -c 'from cloakbrowser.config import check_platform_available; check_platform_available()' >/dev/null 2>&1 || cloakbrowser=false
+  fi
   local required_kib="${JOB_SEARCH_OSS_REQUIRED_KIB:-524288}"
   df -Pk "$HOME" 2>/dev/null | awk -v required="$required_kib" 'NR==2 {found=1; ok=($4 >= required)} END {exit !(found && ok)}' && disk_headroom=true
   local readiness_status=blocked code=2
-  if $darwin && $arm64 && $python_ready && $codex_cli && $codex_authenticated && $cloakbrowser && $disk_headroom; then
+  if $darwin && $architecture_supported && $python_ready && $codex_cli && $codex_authenticated && $cloakbrowser && $disk_headroom; then
     readiness_status=ready
     code=0
   fi
-  printf '{"status":"%s","darwin":%s,"arm64":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s,"disk_headroom":%s}\n' \
-    "$readiness_status" "$darwin" "$arm64" "$python_ready" "$codex_cli" "$codex_authenticated" "$cloakbrowser" "$disk_headroom"
+  printf '{"status":"%s","darwin":%s,"arm64":%s,"architecture_supported":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s,"disk_headroom":%s}\n' \
+    "$readiness_status" "$darwin" "$arm64" "$architecture_supported" "$python_ready" "$codex_cli" "$codex_authenticated" "$cloakbrowser" "$disk_headroom"
   return "$code"
 }
 
 prepare() {
-  [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]] || {
-    print -u2 "[job-hunter] requires Apple Silicon macOS"
+  [[ "$(uname -s)" == "Darwin" ]] || {
+    print -u2 "[job-hunter] requires macOS"
     return 2
   }
-  if ! command -v brew >/dev/null 2>&1; then
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-  fi
-  if ! "$JOB_SEARCH_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 13))' >/dev/null 2>&1; then
-    brew install python@3.14
-  fi
+  case "$(uname -m)" in arm64|x86_64) ;; *) print -u2 "[job-hunter] unsupported CPU"; return 2 ;; esac
+  source "$JOB_SEARCH_REPO_ROOT/scripts/macos-runtime.sh"
+  export LIFE_MANAGER_PYTHON="${LIFE_MANAGER_PYTHON:-$JOB_SEARCH_PYTHON}"
+  lm_ensure_python
   local venv="${XDG_DATA_HOME:-$HOME/.local/share}/anicca/job-search/venv"
-  [[ -x "$venv/bin/python" ]] || "$JOB_SEARCH_PYTHON" -m venv "$venv"
-  "$venv/bin/python" -c 'import cloakbrowser' >/dev/null 2>&1 || "$venv/bin/pip" install cloakbrowser
+  if ! _lm_select_python "$venv/bin/python"; then
+    "$LM_PYTHON" -m venv --clear "$venv"
+  fi
+  export JOB_SEARCH_PYTHON="$venv/bin/python"
+  "$venv/bin/python" -c 'from cloakbrowser.config import check_platform_available; check_platform_available()' >/dev/null 2>&1 || "$venv/bin/pip" install cloakbrowser==0.5.6
   if ! command -v codex >/dev/null 2>&1; then
     local installer
     installer="$(mktemp -t codex-install.XXXXXX)"
@@ -57,7 +61,8 @@ prepare() {
     rm -f "$installer"
   fi
   if ! command -v gog >/dev/null 2>&1; then
-    brew install gogcli
+    lm_ensure_homebrew
+    "$LM_BREW" install gogcli
   fi
   if ! codex login status >/dev/null 2>&1; then
     codex login

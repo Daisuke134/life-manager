@@ -353,7 +353,7 @@ for relative in "${DEPENDENCY_RELATIVES[@]}"; do
     die "locked dependency bundle failed in $package_dir"
 done
 
-RUNTIME_PYTHON="$("$RUNTIME_PYTHON" -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve())')" \
+RUNTIME_PYTHON="$("$RUNTIME_PYTHON" -c 'import pathlib,sys; print(pathlib.Path(sys.executable).absolute())')" \
   || die "runtime python identity unavailable"
 [ -x "$RUNTIME_PYTHON" ] || die "runtime python is unavailable"
 RUNTIME_PYTHON_CACHE_TAG="$("$RUNTIME_PYTHON" -c 'import sys; print(sys.implementation.cache_tag)')" \

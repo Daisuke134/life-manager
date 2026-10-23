@@ -246,12 +246,187 @@ def test_coconala_browser_running_fence_uses_process_fallback(monkeypatch):
     assert gig_release.is_running(label) is True
 
 
-def test_default_release_scope_is_only_the_three_unmigrated_coconala_business_lanes():
+def test_default_release_scope_covers_every_coconala_catalog_job():
+    catalog = json.loads((gig_release.REPO_ROOT / "apps/life-manager/config/product-loop-catalog.json").read_text())
+    product = next(row for row in catalog["loops"] if row["id"] == "gig-coconala")
+    registry = json.loads((gig_release.REPO_ROOT / "config/loop-registry.json").read_text())
     assert gig_release.activation_labels(None) == {
-        "ai.anicca.hf-gig-apply-direct",
-        "ai.anicca.hf-gig-storefront-direct",
-        "ai.anicca.hf-gig-reply-detector",
+        registry["loops"][loop_id]["label"] for loop_id in product["job_ids"]
     }
+
+
+def test_main_uses_managed_activation_without_publishing_legacy_current(monkeypatch):
+    activated = []
+    monkeypatch.setattr(gig_release, "git", lambda *args: "a" * 40)
+    monkeypatch.setattr(gig_release, "build", lambda sha: Path("/legacy-release"))
+    monkeypatch.setattr(gig_release, "managed_release", lambda sha: Path("/managed-release"), raising=False)
+    monkeypatch.setattr(gig_release, "activate_managed_jobs",
+                        lambda release, wanted, dry_run: activated.append((release, wanted, dry_run)) or 0,
+                        raising=False)
+    monkeypatch.setattr(gig_release, "publish", lambda *_: pytest.fail("must not move legacy current"))
+    monkeypatch.setattr(sys, "argv", ["gig_release.py", "activate"])
+
+    assert gig_release.main() == 0
+    assert activated == [(Path("/managed-release"), gig_release.activation_labels(None), False)]
+
+
+def _managed_release_fixture(tmp_path):
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+    }))
+    (release / "config").mkdir()
+    (release / "config/loop-registry.json").write_text(json.dumps({"loops": {
+        owner: {"label": "ai.anicca." + owner}
+        for owner in ("hf-gig-paid-direct", "hf-gig-daily-report")
+    }}))
+    return release
+
+
+def test_managed_release_cuts_a_complete_main_release_without_changing_current(tmp_path, monkeypatch):
+    loops_root = tmp_path / "loops"
+    release = loops_root / "releases" / "20261023T000000-aaaaaaaa"
+    monkeypatch.setenv("LOOPS_ROOT", str(loops_root))
+    monkeypatch.setenv("LOOPS_ACTIVATE_CURRENT", "1")
+    monkeypatch.setenv("LOOPS_RELEASE_PATHS", "skills/earn/gig")
+    monkeypatch.setattr(gig_release, "git", lambda *_: "")
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        release.mkdir(parents=True)
+        (release / "RELEASE.json").write_text(json.dumps({
+            "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+        }))
+        return SimpleNamespace(returncode=0, stdout=f"dependency build output\nrelease -> {release}  (ancestor-of-origin-main; current unchanged)\n", stderr="")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+
+    assert gig_release.managed_release("a" * 40) == release
+    assert len(calls) == 1
+    assert calls[0][0] == ["/bin/bash", str(gig_release.REPO_ROOT / "bin/cut-loop-release.sh"), "a" * 40]
+    assert calls[0][1]["env"]["LOOPS_ACTIVATE_CURRENT"] == "0"
+    assert calls[0][1]["env"]["LOOPS_RELEASE_PATHS"] == ""
+    assert calls[0][1]["env"]["LOOPS_RUNTIME_PYTHON"] == sys.executable
+    assert gig_release.managed_release("a" * 40) == release
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("provenance,paths", [
+    ("pushed-not-yet-on-main", "ALL"),
+    ("ancestor-of-origin-main", "skills/earn/gig"),
+])
+def test_managed_release_refuses_nonmain_or_sparse_receipts(tmp_path, monkeypatch, provenance, paths):
+    monkeypatch.setenv("LOOPS_ROOT", str(tmp_path / "loops"))
+    monkeypatch.setattr(gig_release, "git", lambda *_: "")
+    release = tmp_path / "loops/releases/candidate"
+
+    def run(command, **kwargs):
+        release.mkdir(parents=True)
+        (release / "RELEASE.json").write_text(json.dumps({
+            "sha": "a" * 40, "provenance": provenance, "release_paths": paths,
+        }))
+        return SimpleNamespace(returncode=0, stdout=f"release -> {release}  (pushed-not-yet-on-main; current unchanged)\n", stderr="")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+
+    with pytest.raises(ValueError, match="complete.*main"):
+        gig_release.managed_release("a" * 40)
+
+
+def test_dry_run_neither_builds_a_release_nor_observes_launchd(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["gig_release.py", "activate", "--dry-run"])
+    monkeypatch.setattr(gig_release, "git", lambda *_: pytest.fail("dry-run must not build"))
+    monkeypatch.setattr(gig_release.subprocess, "run", lambda *_a, **_k: pytest.fail("dry-run must not observe launchd"))
+
+    assert gig_release.main() == 0
+    assert len(json.loads(capsys.readouterr().out)["jobs"]) == len(gig_release.coconala_jobs())
+
+
+def test_uninstall_stops_every_catalog_owner_and_keeps_private_state(tmp_path, monkeypatch, capsys):
+    agents = tmp_path / "LaunchAgents"
+    agents.mkdir()
+    private = tmp_path / "private-state"
+    private.write_text("preserved")
+    jobs = gig_release.coconala_jobs()
+    for label in jobs:
+        (agents / f"{label}.plist").write_text("definition")
+    monkeypatch.setattr(gig_release, "LAUNCH_AGENTS", agents)
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        if command[0].endswith("launchctl-safe"):
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        owner = command[-1]
+        return SimpleNamespace(returncode=0, stdout=json.dumps([{
+            "label": "ai.anicca." + owner, "return_code": 0,
+        }]), stderr="")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+
+    assert gig_release.stop_managed_jobs(True) == 0
+    assert set(command[-1] for command in calls[1:]) == set(jobs.values())
+    assert calls[-1][-1] == "hf-gig-browser"
+    assert list(agents.iterdir()) == []
+    assert private.read_text() == "preserved"
+    assert json.loads(capsys.readouterr().out)["jobs"] == len(jobs)
+
+
+def test_managed_activation_installs_unloaded_job_and_preserves_loaded_busy_owner(tmp_path, monkeypatch, capsys):
+    release = _managed_release_fixture(tmp_path)
+    wanted = {"ai.anicca.hf-gig-paid-direct", "ai.anicca.hf-gig-daily-report"}
+    calls = []
+    monkeypatch.setattr(gig_release, "coconala_jobs", lambda *_: {
+        "ai.anicca.hf-gig-paid-direct": "hf-gig-paid-direct",
+        "ai.anicca.hf-gig-daily-report": "hf-gig-daily-report",
+    }, raising=False)
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        if command[0].endswith("launchctl-safe"):
+            if command[1] == "preflight":
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+            if command[-1].endswith("hf-gig-paid-direct"):
+                return SimpleNamespace(returncode=113, stdout="", stderr="Could not find service")
+            return SimpleNamespace(returncode=0, stdout="state = running\narguments = {\n/old/runner\n}\n", stderr="")
+        label = "ai.anicca." + kwargs["env"]["LIFE_MANAGER_APPLY_TARGET"]
+        row = {"ok": True, "label": label, "release_sha": "a" * 40}
+        if label.endswith("daily-report"):
+            row["skipped"] = "running"
+        return SimpleNamespace(returncode=0, stdout=json.dumps([row]), stderr="")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+
+    assert gig_release.activate_managed_jobs(release, wanted, False) == 2
+    applied = [(command, options["env"]) for command, options in calls
+               if command[0].endswith("/bin/lm-loop")]
+    assert len(applied) == 2
+    for command, environment in applied:
+        assert environment["LIFE_MANAGER_RELEASE_ROOT"] == str(release)
+        if environment["LIFE_MANAGER_APPLY_TARGET"].endswith("paid-direct"):
+            assert command[1:] == ["apply"]
+        else:
+            assert command[1:] == ["apply", "--loaded-idle-only"]
+    assert json.loads(capsys.readouterr().out)["status"] == "waiting"
+
+
+def test_managed_activation_never_treats_a_failed_probe_as_a_new_job(tmp_path, monkeypatch):
+    release = _managed_release_fixture(tmp_path)
+    label = "ai.anicca.hf-gig-paid-direct"
+    monkeypatch.setattr(gig_release, "coconala_jobs", lambda *_: {label: "hf-gig-paid-direct"}, raising=False)
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0 if command[1] == "preflight" else 141,
+                               stdout="", stderr="Reentrancy avoided")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+
+    assert gig_release.activate_managed_jobs(release, {label}, False) == 75
+    assert all(command[0].endswith("launchctl-safe") for command in calls)
 
 
 def test_migrated_paid_job_is_not_owned_by_legacy_manifest():
@@ -320,7 +495,7 @@ def test_release_watch_is_retired_in_favor_of_the_shared_reconciler():
     # survives here) and that the successor that owns the intent still exists
     # and still covers this skill's lanes.
     gig_release_parser_source = SCRIPT.read_text(encoding="utf-8")
-    assert 'choices=("build", "activate", "status")' in gig_release_parser_source
+    assert 'choices=("build", "activate", "status", "stop", "uninstall")' in gig_release_parser_source
     assert '"watch"' not in gig_release_parser_source
 
     reconciler = gig_release.REPO_ROOT / "bin" / "reconcile-agent-runner-release.sh"

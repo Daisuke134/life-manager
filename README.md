@@ -309,21 +309,33 @@ authenticated `/panel`; you talk to it in Telegram and it reports back there wit
 
 ### Run it yourself — local (your machine holds the data)
 
-On another Mac, inspect every product's install command and missing setup through the public entrypoint:
+Install the complete local scheduler and host bindings on an Apple Silicon or Intel Mac:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager list
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager local
 ```
 
-Replace `list` with `coconala` to install or resume Coconala, or with `coconala preflight` for diagnostics.
-Without arguments, the entrypoint opens the existing local setup screen. It verifies the existing checkout's
-origin, main branch and clean state before updating; set `LIFE_MANAGER_CHECKOUT` to use a separate destination.
-The full catalog is also available from a clone with `./install.sh list` or `./install.sh plan --all`.
+This uses the existing main-derived immutable release and `lm-loop` for all 191 managed jobs,
+including the 79 shared/platform/control jobs outside the product catalog. The existing disk watchdog
+and dedicated Mercor browser installers are included. Existing running owners are preserved; unrelated
+external provisioners and customer accounts are not copied. Re-running can report `waiting` while an older
+owner finishes. Installation does not verify provider work, publication, delivery or revenue.
 
-Coconala and Job Hunter currently require Apple Silicon. Ten catalog products still have no public installer;
-`guided` may denote a one-pass command or workspace bootstrap rather than a complete persistent setup.
-Provider account, SMS, identity and review requirements remain official setup steps. All-product and Intel-Mac
-runtime acceptance is unfinished.
+To prepare dependencies and private bindings without registering jobs, append `local prepare` instead.
+From a clone, `./install.sh local plan` prints every agent, job, requirement and external owner without
+changing the home directory. `./install.sh local apply --release /absolute/release` reuses a complete
+release; `--agent gig-coconala` limits it to one catalog product. Browser profiles, credentials and data
+belong to the person running the command. Nothing is relayed through the developer's Mac Mini.
+
+`./install.sh list` still shows the provider onboarding catalog. Coconala, Connector, Fundraiser and
+Job Hunter retain their individual setup flows. Ten products still lack a complete guided provider setup;
+the fleet installer supplies their host adapter, not their account identity, KYC, publication profile or
+provider login. Connect those requirements using the product's documented setup before expecting business
+work. Fresh Intel hardware and another person's provider outcomes remain unverified.
+
+The public bootstrap validates the existing checkout's origin, clean main branch and ancestry before
+updating; `LIFE_MANAGER_CHECKOUT` selects another destination. Without arguments it opens the existing
+local setup screen. Replace `local` with `coconala` for the Coconala setup flow.
 
 Clone once, prepare one isolated Agent Economy citizen, and inspect the runtime without installing a daemon:
 

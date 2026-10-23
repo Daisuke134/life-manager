@@ -24,6 +24,10 @@ trap 'echo "[install] FAILED on line $LINENO. nothing destructive — re-run is 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ "$#" -gt 0 ]; then
   case "$1" in
+    local)
+      shift
+      exec bash "$REPO_ROOT/scripts/install-local.sh" "$@"
+      ;;
     coconala)
       shift
       exec bash "$REPO_ROOT/skills/earn/gig/install.sh" "$@"
@@ -49,7 +53,7 @@ if [ "$#" -gt 0 ]; then
       exec node "$REPO_ROOT/apps/life-manager/scripts/product-onboarding-plan.js" --host local "$@"
       ;;
     *)
-      echo "[install] unknown product '$1'; supported: list, plan, coconala, connector, fundraiser, job-hunter" >&2
+      echo "[install] unknown product '$1'; supported: local, list, plan, coconala, connector, fundraiser, job-hunter" >&2
       exit 2
       ;;
   esac

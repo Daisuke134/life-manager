@@ -11,7 +11,7 @@
 | TODO・状態 | 完了条件 |
 |---|---|
 | [x] MAC01 | 公開bootstrapが既存checkoutを検証し、利用可能なPythonを選び、全catalogの導入状況と選択した個別installerへ到達する。PR #8602/main `7d03e61b4f30fc1588c71f7bb56aa7f7f043d305`、独立最終review ship、CI13項目成功、公開5 files HTTP200/同review code hashを確認する。全体移植の完了ではない |
-| [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
+| [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。既存catalogの全7job（Apply/Reply/Storefront/Paid/Report/GC/browser）を既存lm-loopとmain由来immutableへ結び、移管済みlaneをlegacy manifestへ二重登録しない。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
 | [ ] MAC03 | gig-lancers→gig-crowdworks→gig-mercor→promptbase→writer→affiliate→self-build→ebook→capafy→line-stickerと既存8業務・Host Steward・共通supportを同じhost導入へ結び、各業務のaccount/host要件・自然実行・公式成果を一つずつ確認する |
 | [ ] MAC04 | README named agent、191 managed jobs、external/別installerの全coverageを一つの既存導入経路へ結ぶ。当人のruntime、source checkout、private profile、browser binding、認証席だけを解決し、Mac Miniの値や他人の接続先を使わない |
 | [ ] MAC05 | 空の別home・異なるusername/source path・Intel/Apple Siliconで導入と各entrypointの依存を確認し、当人の設定後に全ownerの継続実行を確認する。plist生成だけを実業務稼働としない。友人Macのlive access/本人接続がない部分は具体的な未確認として残す |
@@ -19,6 +19,14 @@
 source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを含む36件、catalog/plan50件、公開bootstrap7件、OSS/source境界をPASSする。既存Gig関連を含む78件もPASSする。独立reviewがJob Hunterへの選択Python欠落と、設定画面用旧venvが更新されない境界を実証するため、その2ケースもREDで再現し共通入口で修復する。PRは#8602、source先行headは`0d5cd4bbe43c37e8f98dd4ca59dffb854f942a5f`。Coconalaのlegacy導入はApply/Reply/Storefrontだけであり、Paid/Report/GCを含む全jobの導入はMAC02の残件として保持する。
 
 現在cursor=MAC04。所有worktree=`.worktrees/local-fleet-portability-20261023`、branch=`feat/local-fleet-portability-20261023`、primary=`codex-local-fleet-portability`。前worktreeは統合・process/lease/dirty/ancestry確認後に削除済み。source/隔離検証の成功だけで全agentや友人Macの稼働完了とは報告しない。設計は既存runtimeを再利用し、user/host設定と導入adapterだけを分離する方式をprimaryが採る。別Mac用の第二業務実装やMac Miniへの中継は作らない。
+
+### MAC04のhost設定と導入インターフェース
+
+`./install.sh local`はprepare→main由来完全releaseの作成（current維持）→全managed jobと別管理watchdog/Mercor browserの対象限定導入を進める。`./install.sh local plan`はregistry全体・catalog・別installerを照合し、side effectなしでcoverageと不足を返す。`./install.sh local prepare`は本人HOMEのprivate host設定・browser registry・agent runner設定・各jobのstate/log directoryだけを準備し、認証値やsessionをコピーしない。`./install.sh local apply --release PATH`はmain由来の完全immutable releaseを検証し、既存`lm-loop apply`へ委譲する。全jobを列挙した事実・導入済み・自然稼働・provider成果は別に返す。external labelsは他ownerの管理範囲として明示し、顧客向けprovisionerを勝手に複製しない。
+
+host設定は`~/.config/life-manager/host.json`。実行中に別HOMEの設定を拒否し、runtime Python/Node、source checkout、private env/agent config/browser registryの参照を全managed jobへ渡す。既存本人設定と既存browser leaseを上書きせず、設定がない既存Mac Miniは従来の経路を維持する。Codexのrouting/modelは既存runtime設定を保持し、本人HOMEに存在する認証席だけを使用する。venv Pythonのsymlinkをbase Pythonへ解決しない。eBookのtenantはhost設定がある場合のみ本人host IDへ束縛する。
+
+実装済みsource: 全fleet manifest、private host binding、全191 plistへの本人runtime/config注入、venv path保持、`local plan/prepare/install/apply`、既存watchdogとMercor browserへの限定委譲、Coconala全7jobのcanonical activationを追加する。隔離HOMEのfocused検証35件とloop-contract（18/191/errors0）がPASSする。Coconalaの個別focused55件は担当検証でPASS、primary再検証中。現在cursorはMAC04の独立review/CI/main統合。全providerのguided setup、友人Mac/Intel実機、自然業務と公式成果は未完で、MAC02–05の完了チェックを入れない。
 
 ## Local / Cloud 全体復旧の現行spec・実行計画
 

@@ -17,6 +17,7 @@ from typing import Callable
 
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.loop_cleanup import release_is_reclaimed
+from runtime.host.local_profile import host_environment
 
 
 _IMMUTABLE_RELEASE_WORKING_DIRECTORY = re.compile(
@@ -68,7 +69,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_STATE_ROOT": state_root,
             "LIFE_MANAGER_LOG_ROOT": log_root,
             "LIFE_MANAGER_RUNTIME_PYTHON": str(
-                runtime_python or Path(sys.executable).resolve()
+                runtime_python or Path(sys.executable).absolute()
             ),
             "LIFE_MANAGER_RUNTIME_NODE": _managed_node(loop_id),
             # Keep three slots for revenue while support owners share the finite host.
@@ -308,6 +309,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
                 Path.home() / ".local/share/life-manager/venv/bin/python"
             ),
         })
+    value["EnvironmentVariables"].update(host_environment())
     return plistlib.dumps(value, fmt=plistlib.FMT_XML, sort_keys=True)
 
 
@@ -328,7 +330,7 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
     runtime_python = (
         Path(runtime_python_value)
         if isinstance(runtime_python_value, str) and Path(runtime_python_value).is_absolute()
-        else Path(sys.executable).resolve()
+        else Path(sys.executable).absolute()
     )
     if not runtime_python.is_file() or not os.access(runtime_python, os.X_OK):
         raise ValueError("release runtime python missing or not executable")

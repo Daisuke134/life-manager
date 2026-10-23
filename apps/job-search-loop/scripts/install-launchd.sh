@@ -100,6 +100,13 @@ if template.name == "ai.anicca.job-search-mercor-browser.plist":
         "JOB_SEARCH_BROWSER_FINGERPRINT": fingerprint,
         "JOB_SEARCH_BROWSER_STATE_NAME": state_name,
     }
+if os.environ.get("LIFE_MANAGER_HOST_PROFILE"):
+    value.setdefault("EnvironmentVariables", {}).update({
+        key: os.environ[key] for key in (
+            "LIFE_MANAGER_HOST_PROFILE", "LIFE_MANAGER_PYTHON", "LIFE_MANAGER_RUNTIME_PYTHON",
+            "JOB_SEARCH_PYTHON", "AI_BROWSER_REGISTRY", "PATH",
+        ) if key in os.environ
+    })
 temporary = output.with_suffix(".plist.tmp")
 temporary.write_bytes(plistlib.dumps(value, sort_keys=False))
 os.chmod(temporary, 0o644)

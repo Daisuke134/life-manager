@@ -218,7 +218,11 @@ def _child_environment_for_owner(
     environment["LM_DATA_DIR"] = str(
         Path(home or Path.home()).expanduser() / ".local/state/life-manager"
     )
-    environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
+    from runtime.host.local_profile import load_host_profile
+    profile = load_host_profile(home=home)
+    environment["LM_RUNTIME_TENANT_ID"] = (
+        profile["tenant_id"] if profile else EBOOK_RUNTIME_TENANT_ID
+    )
 
     # eBook renderers discover ffmpeg, ffprobe, and fontconfig through PATH.
     # launchd's default PATH omits Homebrew binaries.
