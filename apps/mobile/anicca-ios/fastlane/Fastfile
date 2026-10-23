@@ -377,6 +377,7 @@ platform :ios do
       api_key: api_key,
       app_identifier: BUNDLE_ID,
       skip_metadata: false,
+      app_version: version,
       skip_screenshots: true,
       skip_binary_upload: true,
       build_number: build_number.to_s,

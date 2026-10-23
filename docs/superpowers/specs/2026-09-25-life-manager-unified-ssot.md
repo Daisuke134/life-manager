@@ -23068,3 +23068,36 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 4. EARN02（PromptBase）: 審査結果と販売をSales tabで読み戻す。
 5. FND04/FND05/FND06、CLD03d2b/CLD04: primaryの現在cursorどおり継続する。
 6. 未解決の権限境界: `killall corespotlightd`はClaudeのauto-mode classifierで拒否される。容量の主因が再び同processになった時だけ、primaryが記録したActivity Monitor「終了」経路を使う。
+
+
+## Anicca旗艦・公開6アプリの配信と継続課金
+
+**目的・範囲・完了条件:** Aniccaを旗艦とし、公開6アプリのプロダクトと無料の既存SNS/Web配信を改善する。最初の事業成果は6アプリ合計MRR USD 10,000、その次に各アプリUSD 10,000を追う。MRRは公式の有料継続契約readbackで判定し、Apple Proceeds、ダウンロード、RevenueCat New Customers、投稿数をMRRへ置換しない。通知タップから表示本文と同一メッセージを開き、ペイウォール読込失敗で進行不能にならない版をApp Storeへ提出する。新しい配信基盤・有料広告・有料調査API・装飾アニメーションは先行条件にしない。毎週10倍は意欲的な目標であり、予測や保証として報告しない。
+
+**今回の一次証拠:** AppleのApp Analytics Weekly Summary（Gmail message 1a1652451bbb5752、受信2026-10-23 04:44 JST、対象2026-10-12〜18）は以下。App Unitsはメール記載の指標として保持し、ユニーク訪問者を分母にしない。
+
+| アプリ | 表示 / 前週比 | App Units / 前週比 | メールのProceeds |
+|---|---:|---:|---:|
+| Honne | 837 / -9% | 8 / +14% | 0 |
+| Dhamma Quotes | 259 / -12% | 4 / +33% | 0 |
+| Daily Affirmations - Anicca | 234 / +4% | 2 / -71% | 0 |
+| For Better Sleep - Sleep Reset | 94 / +19% | 1 / 比較値なし | 0 |
+| STUDIO CHERIE | 96 / -13% | 0 / 比較値なし | 0 |
+| Thankful - Gratitude Journal | 73 / +16% | 0 / 比較値なし | 0 |
+
+合計App Unitsは15。Aniccaの表示増加とApp Units減少は観測事実だが、原因を通知やペイウォールへ断定しない。vidIQの接続済みYouTubeチャンネルとInstagramアカウントはともに空で、非公開analyticsは未取得。Postiz公式GETの直近7日間は431投稿行、30接続。投稿数には他商品の配信も含むためAniccaの到達やインストールを示さない。private evidenceは `~/.local/state/life-manager/evidence/mobile-flagship/20261023/{integrations,posts}.json`。公開Apple LookupはAnicca 1.9.4（2026-06-24公開）。ASC live GETでは1.9.5 REJECTED、build391不在、最新Xcode Cloud #805 ERRORED/actions空。通知とpaywallの既存修正はcanonical `apps/mobile/anicca-ios` にあるが、新版への収録・提出・公開は未完。
+
+**正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`、branchは `growth/mobile-flagship-20261023`。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
+
+**順序更新:** 旧順序はローカルレポート修正→release→計測baseline→自然投稿→ストア/翻訳→creative/SEO→通知/paywall。新順序は下表。理由は既知の修正が未配布であることと、Apple週次でAniccaのApp Unitsが減少していること。既存slotの自然配信を止めず、過去投稿の重複再送を行わない。過去の1,000ダウンロード/日目標は計測上の別目標として維持するが、MRR達成を判定する必須gateにはしない。
+
+| 順序 | 作業 | 受入条件・現在状態 |
+|---|---|---|
+| 1 | 修正を含むAnicca新版をbuild/upload/審査提出 | 現在cursor。canonical main SHA→version/build→ASC build→審査提出receiptを結ぶ。sourceやbuild起動だけで提出済みとしない |
+| 2 | Postizの投稿別到達と6アプリの流入/課金baselineを更新 | #1と独立して進める。対象アプリIDをAppleの公開6アプリと照合し、完全な期間・欠損・取得元を保存。既存collectorが別アプリを見ていれば最小修正 |
+| 3 | Aniccaの既存slotでフック/スライド/実機デモを改善 | 同対象の成功事例URL・実測成果・模倣する仕組みを記録。元の文言/画像を複製せず、感情/場面を絞った導入、短い構成、読める画面、App Store CTAの各変数を検証。24hと7日の到達/保存/共有/流入で比較し、joinできないインストールは未帰属とする |
+| 4 | X/IG/TikTok/YouTubeとWeb/SEO/AEOを既存配信へ接続 | アカウント別cadence、native URL、広告費0、計測可能なCTAを確認。検索意図別の独自記事からアプリへ誘導。検索表示/クリックと売上を分ける |
+| 5 | 勝った型を他5アプリへ商品事実に合わせて展開 | 6商品のregistry/掲載先/計測IDの一致、各商品別の自然公開receiptと流入/課金。Aniccaと他商品の実験結果を混ぜない |
+| 6 | 毎週の結果で次の配信・課金改善を選び合計MRR USD10Kへ継続 | 施策、比較期間、基準値、観測結果、継続/停止/変更の判断を既存specへ更新。公式売上未確認を成功/0に変換しない |
+
+**補助skill:** `ParthJadhav/app-store-screenshots` の公式READMEを確認。実スクリーンショットからストア画像を作るエディタで、アプリ内アニメーション用ではない。新版と配信の先頭作業を妨げない範囲で後続へ利用する。`rosssark-motion-skill` は添付画像の名前だけで配布元未特定のため、任意の同名packageを導入しない。
