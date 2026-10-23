@@ -372,6 +372,50 @@ def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(t
         bundle.chmod(0o755)
 
 
+def test_release_capacity_accepts_a_donor_that_recorded_the_python_symlink(tmp_path: Path):
+    # 2026-10-23: one release recorded runtime_python as the Homebrew opt/ symlink while the running
+    # interpreter resolves to the Cellar path. The raw string compare then rejected that donor and
+    # every later release cut failed with "donor is not a complete immutable runtime".
+    import hashlib
+    import platform
+    guard, repo, _seed_sha, loops = _release_capacity_fixture(tmp_path)
+    donor = (loops / "current").resolve()
+    link = tmp_path / "python-link"
+    link.symlink_to(Path(sys.executable).resolve())
+    donor.chmod(0o755)
+    descriptor = json.loads((donor / "RELEASE.json").read_text())
+    descriptor["runtime_python"] = str(link)
+    (donor / "RELEASE.json").write_text(json.dumps(descriptor))
+    package = json.dumps({"name": "fixture", "version": "1.0.0"}).encode()
+    lock = b'{"lockfileVersion":3}\n'
+    (donor / "package.json").write_bytes(package)
+    (donor / "package-lock.json").write_bytes(lock)
+    header = "\0".join(("command", "npm-ci --omit=dev --ignore-scripts", "os", platform.system(),
+                        "arch", platform.machine(), "node", "node", "npm", "npm")) + "\0"
+    key_data = header.encode()
+    for label, payload in (("package-json", package), ("package-lock", lock)):
+        key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+    key = hashlib.sha256(key_data).hexdigest()
+    bundle = loops / "dependency-bundles" / ("npm-" + key)
+    (bundle / "node_modules").mkdir(parents=True)
+    (bundle / "node_modules/.package-lock.json").write_bytes(lock)
+    (bundle / ".complete").write_text(key + "\n")
+    bundle.chmod(0o555)
+    (donor / "node_modules").symlink_to(bundle / "node_modules")
+    donor.chmod(0o555)
+    (repo / "package.json").write_bytes(package)
+    (repo / "package-lock.json").write_bytes(lock)
+    subprocess.run(["git", "-C", str(repo), "add", "package.json", "package-lock.json"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "package"], check=True)
+    sha = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", sha], check=True)
+    try:
+        assert guard.release_capacity_bytes(repo, sha, loops, "node", "npm") > 0
+    finally:
+        donor.chmod(0o755)
+        bundle.chmod(0o755)
+
+
 def test_revenue_producer_runs_down_to_the_lower_revenue_floor(tmp_path, monkeypatch):
     # Kubernetes evicts low-priority pods first; a flat 12 GiB floor stopped every revenue lane
     # at 11 GiB while background batches kept the same rights (2026-10-16).
