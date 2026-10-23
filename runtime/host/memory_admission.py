@@ -42,6 +42,48 @@ def memory_free_percent() -> int | None:
     return parse_free_percent(result.stdout)
 
 
+_SWAP_USED = re.compile(r"used\s*=\s*([0-9.]+)M")
+
+
+def parse_swap_used_mb(output: str) -> float | None:
+    match = _SWAP_USED.search(output)
+    return float(match.group(1)) if match else None
+
+
+def swap_used_mb() -> float | None:
+    """macOS grows swap files on demand, so used/total is always near 1; the absolute used size
+    against physical RAM is the signal (2026-10-23: 15.7-18.1 GB on a 16 GB Mac while
+    memory_pressure -Q still read 29-31% free)."""
+    try:
+        result = subprocess.run(["/usr/sbin/sysctl", "-n", "vm.swapusage"], capture_output=True,
+                                text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return parse_swap_used_mb(result.stdout)
+
+
+def physical_memory_mb() -> float | None:
+    try:
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024 * 1024)
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
+def swap_pressure(max_percent_of_ram: int) -> dict | None:
+    """None when swap is within budget or unmeasurable; else the receipt fields for a deferral."""
+    used = swap_used_mb()
+    ram = physical_memory_mb()
+    if used is None or not ram:
+        return None
+    limit = ram * max_percent_of_ram / 100
+    if used < limit:
+        return None
+    return {"reason": "swap_pressure_high", "swap_used_mb": used, "swap_limit_mb": limit,
+            "max_swap_percent_of_ram": max_percent_of_ram}
+
+
 def _receipt_path() -> Path:
     configured = os.environ.get("LIFE_MANAGER_MEMORY_RECEIPT")
     if configured:
@@ -93,8 +135,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 64
     if not 1 <= minimum <= 100:
         return 64
+    try:
+        max_swap = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75"))
+    except ValueError:
+        return 64
+    if not 1 <= max_swap <= 1000:
+        return 64
     while True:
         available = memory_free_percent()
+        swap = swap_pressure(max_swap) if available is not None and available >= minimum else None
         if available is None:
             _write_receipt({
                 "status": "deferred", "effect": 0,
@@ -107,6 +156,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason": "memory_headroom_low", "free_percent": available,
                 "minimum_free_percent": minimum,
             })
+        elif swap is not None:
+            _write_receipt({"status": "deferred", "effect": 0, "free_percent": available,
+                            "minimum_free_percent": minimum, **swap})
         else:
             break
         if not wait_seconds:

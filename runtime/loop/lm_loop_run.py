@@ -38,7 +38,7 @@ from runtime.loop.runtime_event import (
     validate_runtime_event,
 )
 from runtime.host.disk_admission import REVENUE_FLOOR_BYTES, _producer_gate, disk_free_bytes
-from runtime.host.memory_admission import memory_free_percent
+from runtime.host.memory_admission import memory_free_percent, physical_memory_mb, swap_used_mb
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, bounded_launchd_output
@@ -1690,6 +1690,28 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return 64
     if not 1 <= minimum_free <= 100:
         return 64
+    try:
+        max_swap_percent = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75"))
+    except ValueError:
+        return 64
+    if not 1 <= max_swap_percent <= 1000:
+        return 64
+
+    available_free: int | None = None
+
+    def swap_deferral() -> dict | None:
+        # memory_pressure -Q read 29-31% free on 2026-10-23 while swap sat at 15.7-18.1 GB of a
+        # 16 GB Mac, ate the boot volume and let 84 wakes queue behind each other; absolute swap
+        # against RAM is the signal macOS free% misses. Patched to 0 in tests (conftest).
+        used = swap_used_mb()
+        ram = physical_memory_mb()
+        if used is None or not ram:
+            return None
+        limit = ram * max_swap_percent / 100
+        if used < limit:
+            return None
+        return {"status": "deferred", "effect": 0, "reason": "swap_pressure_high",
+                "swap_used_mb": used, "swap_limit_mb": limit, "free_percent": available_free}
     claim = None
     claim_started_child = False
     heartbeat_stop = threading.Event()
@@ -1846,6 +1868,16 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          "reason": "memory_headroom_unavailable" if available is None
                          else "memory_headroom_low"})
             return 75
+        available_free = available
+        swap_receipt = swap_deferral()
+        if swap_receipt is not None:
+            if durable:
+                try:
+                    defer_durable_resource(loop_id)
+                except (OSError, RuntimeError, sqlite3.Error):
+                    pass
+            _atomic_json(receipt, swap_receipt)
+            return 75
         if disk_deferred("pre_claim", check_capacity=True):
             return 75
         try:
@@ -1920,6 +1952,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                          "reason": "memory_headroom_unavailable" if available is None
                          else "memory_headroom_low"})
+            return 75
+        available_free = available
+        swap_receipt = swap_deferral()
+        if swap_receipt is not None:
+            _atomic_json(receipt, swap_receipt)
             return 75
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "resource_slot_acquired",
