@@ -166,7 +166,9 @@ def test_unresolved_or_unreadable_intent_keeps_every_fence(tmp_path, monkeypatch
     def never(*_args, **_kwargs):
         raise AssertionError("unsettled store must not read or release fences")
 
-    monkeypatch.setattr(wrapper, "_fenced_occurrences", never)
+    # Fences are listed for the per-occurrence scope; the unresolved intents keep them closed.
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [])
     monkeypatch.setattr(wrapper, "_resolve_settled", never)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     result = json.loads(capsys.readouterr().out)
@@ -185,7 +187,9 @@ def test_legacy_prepared_or_stateless_intent_keeps_every_fence(tmp_path, monkeyp
     def never(*_args, **_kwargs):
         raise AssertionError("legacy prepared intents may have crossed the boundary")
 
-    monkeypatch.setattr(wrapper, "_fenced_occurrences", never)
+    # Fences are listed for the per-occurrence scope; the unresolved intents keep them closed.
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [])
     monkeypatch.setattr(wrapper, "_resolve_settled", never)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     assert json.loads(capsys.readouterr().out)["unresolved_irreversible"] == 2
@@ -653,7 +657,9 @@ def test_present_roster_never_settles_the_global_store(tmp_path, monkeypatch, ca
     def never(*_args, **_kwargs):
         raise AssertionError("a landed, unconfirmed application must keep every owner fence")
 
-    monkeypatch.setattr(wrapper, "_fenced_occurrences", never)
+    # Fences are listed for the per-occurrence scope; the unresolved intents keep them closed.
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [])
     monkeypatch.setattr(wrapper, "_resolve_settled", never)
 
     def runner(command, **_kwargs):
@@ -872,3 +878,73 @@ def test_mixed_batch_without_a_proof_for_every_request_keeps_the_fence(tmp_path,
     result, calls, states, _commands = _mixed_batch(tmp_path, monkeypatch, **kwargs)
     assert result is None and calls == []
     assert states["5331694"] == "prepared" and states.get("5320092", "prepared") == "prepared"
+
+
+def _bound_intent(root: Path, request_id: str, state: str, run_id: str | None, mtime: float,
+                  occurrence: str | None = "hf-gig-apply-direct:18df907e3e7006f8-56001") -> None:
+    import os
+    value = {"request_id": request_id, "state": state, "version": 2,
+             "effect_phase": "irreversible_attempt_started"}
+    if run_id is not None:
+        value["runtime_run_id"] = run_id
+    if occurrence is not None:
+        value["runtime_occurrence_id"] = occurrence
+    path = root / f"{request_id}.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    os.utime(path, (mtime, mtime))
+
+
+# 2026-10-19 production: 124 legacy `prepared` intents from August kept the store-wide proof
+# from ever passing, so one released occurrence (a disk-floor defer later claimed by a run
+# that wrote no intent) fenced every Coconala application for 3.5 days.
+OCCURRENCE = "hf-gig-apply-direct:18dfcae1a7e38568-34887"
+STARTED = int("18dfcae1a7e38568", 16) / 1e9
+
+
+def _scoped_setup(tmp_path, monkeypatch):
+    wrapper = _load_wrapper()
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: None)
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", lambda owner_id: [])
+    monkeypatch.setattr(wrapper, "_released_fenced_occurrences", lambda owner_id: [OCCURRENCE])
+    _bound_intent(tmp_path, "1", "prepared", None, STARTED - 86400 * 60)  # legacy, before the occurrence
+    return wrapper
+
+
+def test_released_occurrence_closes_when_every_intent_since_it_is_bound_and_settled(
+        tmp_path, monkeypatch, capsys) -> None:
+    wrapper = _scoped_setup(tmp_path, monkeypatch)
+    _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
+    # Another occurrence's unsettled intent is that occurrence's fence, not this one.
+    _bound_intent(tmp_path, "3", "retired_absent", "18dfdf208b138ac0-86935", STARTED + 3700)
+    calls = []
+
+    def resolver(owner_id, occurrence_id, *, settled_proof, expected_state="claimed"):
+        calls.append((occurrence_id, expected_state, settled_proof()))
+        return True
+
+    monkeypatch.setattr(wrapper, "_resolve_settled", resolver)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    occurrence_id, state, proof = calls[0]
+    assert (occurrence_id, state) == (OCCURRENCE, "released")
+    assert proof["unresolved_irreversible"] == 0 and proof["scanned_intents"] == 2
+    assert proof["scope_since_unix"] == STARTED
+    assert json.loads(capsys.readouterr().out.strip().splitlines()[-1])["occurrence_id"] == OCCURRENCE
+
+
+@pytest.mark.parametrize("state, run_id, occurrence", [
+    ("prepared", "18dff4af2b0af010-88923", OCCURRENCE),  # its own attempt, unsettled
+    ("confirmed", "18dff4af2b0af010-88923", None),       # unbound: owner unknown
+    ("confirmed", None, None),                           # unbound, dated by mtime
+])
+def test_unsettled_or_unbound_intent_since_the_occurrence_keeps_it(
+        tmp_path, monkeypatch, state, run_id, occurrence) -> None:
+    wrapper = _scoped_setup(tmp_path, monkeypatch)
+    _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
+    _bound_intent(tmp_path, "3", state, run_id, STARTED + 3700, occurrence)
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("an intent written since the occurrence may be its own attempt")
+
+    monkeypatch.setattr(wrapper, "_resolve_settled", never)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
