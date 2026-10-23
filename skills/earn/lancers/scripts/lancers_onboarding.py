@@ -47,7 +47,9 @@ def _directory(home: Path) -> Path:
 
 
 def _invalidate(home: Path) -> None:
-    _write_private(_directory(home) / "onboarding-observation.json",
+    path = _directory(home) / "onboarding-observation.json"
+    path.unlink(missing_ok=True)
+    _write_private(path,
                    {"version": 1, "platform": "lancers", "snapshot": None})
 
 

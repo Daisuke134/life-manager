@@ -132,6 +132,10 @@ ACCOUNTのCI診断: PR #8733/head f13270f5e644cdfa235d6d3c0f0de553c57839f4、wor
 
 ACCOUNTの並行main受入: 同workflowのPII gateは、今回branch上ではcleanだが、PR #8735からmainへ入った `docs/team/specs/monk-db-plugin.md` のcontact email1件でFAILする。公式job logは値を出さずpath/line/categoryだけを確認する。最新mainを通常mergeして他ownerの内容を保持し、同仕様書の連絡先1行だけをprivate設定参照へ置換する。scanner/allowlist/履歴gateは緩めず、同scannerとexact-head CIを再実行する。
 
+ACCOUNTの独立review診断: 旧成功がある状態で、無効観測のatomic保存がENOSPCになると、observeはprivate_storageを返すが後続statusが旧account_connectedを返す経路を隔離再現する。観測開始時は既存latest observationを先に除き、その後の新規保存・観測・cleanup・binding失敗が古い成功を復活させないよう修復する。provider profileの本人値や他keysは保持する。既存private writer自体や他providerは変更せず、空HOME fixtureで保存失敗→後続status不成立と外部callback0を先にRED/GREENで検証する。storage自体が削除も拒否する場合はprivate_storageで停止し、書込成功や実接続済みとは報告しない。
+
+ACCOUNTのreview修復: observe/connectのENOSPCとunlink拒否を計4件RED再現し、latest observationを先にunlinkする最小修正後、新規63件＋既存identity12件=75件がworker/primary双方でPASSする。profile本人値・extra keysは不変で、外部callback0、ENOSPC後のstatusはsetup_required。unlink自体が拒否される場合は書込/guard/browser前にprivate_storageで停止する。source修正は同helperの3行だけ。AST/source-boundary/diffはPASS、独立再reviewと更新head CIへ進む。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。

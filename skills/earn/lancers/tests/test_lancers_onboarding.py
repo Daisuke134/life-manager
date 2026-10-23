@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import errno
 import json
 import os
 from pathlib import Path
@@ -257,6 +258,65 @@ def test_unleased_observe_invalidates_old_success_before_any_guard_or_cdp(isolat
     result = module.observe(isolated_home)
     assert result["error"] == "setup_required"
     assert module.ready(isolated_home)["error"] == "setup_required"
+
+
+@pytest.mark.parametrize("entrypoint", ["observe", "connect"])
+def test_enospc_invalidation_cannot_leave_previous_connection_ready(isolated_home, monkeypatch, entrypoint):
+    module = _load()
+    profile = _profile(isolated_home)
+    profile.parent.mkdir(parents=True)
+    profile.write_text(json.dumps({"account_id": "other-seller", "portfolio": ["existing-private-proof"]}))
+    assert module.connect(isolated_home, _snapshot())["status"] == "account_connected"
+    previous = profile.read_bytes()
+    callbacks = []
+
+    def no_space(_path, _value):
+        raise OSError(errno.ENOSPC, "PRIVATE-STORAGE-DETAIL")
+
+    monkeypatch.setattr(module, "_write_private", no_space)
+    monkeypatch.setattr(module, "_inherited_lease", lambda: callbacks.append("guard") or False)
+    monkeypatch.setattr(module, "_load_cdp", lambda: callbacks.append("browser"))
+
+    result = module.observe(isolated_home) if entrypoint == "observe" else module.connect(isolated_home, _snapshot())
+
+    assert result == {"ok": False, "error": "setup_required", "missing": ["private_storage"]}
+    assert profile.read_bytes() == previous
+    assert callbacks == []
+    assert module.ready(isolated_home) == {
+        "ok": False, "error": "setup_required", "missing": ["account_observation"],
+    }
+    assert not _observation(isolated_home).exists()
+
+
+@pytest.mark.parametrize("entrypoint", ["observe", "connect"])
+def test_unlink_denial_stops_before_writing_or_browser(isolated_home, monkeypatch, entrypoint):
+    module = _load()
+    module.connect(isolated_home, _snapshot())
+    previous_profile = _profile(isolated_home).read_bytes()
+    previous_observation = _observation(isolated_home).read_bytes()
+    original_unlink = Path.unlink
+    callbacks = []
+
+    def denied(path, *args, **kwargs):
+        if path == _observation(isolated_home):
+            raise PermissionError(errno.EACCES, "PRIVATE-STORAGE-DETAIL")
+        return original_unlink(path, *args, **kwargs)
+
+    def forbidden_write(_path, _value):
+        callbacks.append("write")
+        raise OSError(errno.ENOSPC, "PRIVATE-STORAGE-DETAIL")
+
+    monkeypatch.setattr(Path, "unlink", denied)
+    monkeypatch.setattr(module, "_write_private", forbidden_write)
+    monkeypatch.setattr(module, "_inherited_lease", lambda: callbacks.append("guard") or False)
+    monkeypatch.setattr(module, "_load_cdp", lambda: callbacks.append("browser"))
+
+    result = module.observe(isolated_home) if entrypoint == "observe" else module.connect(isolated_home, _snapshot())
+
+    assert result == {"ok": False, "error": "setup_required", "missing": ["private_storage"]}
+    assert callbacks == []
+    assert _profile(isolated_home).read_bytes() == previous_profile
+    assert _observation(isolated_home).read_bytes() == previous_observation
 
 
 @pytest.mark.parametrize("boundary", ["holder", "token", "host", "lease_uuid", "lease_port",
