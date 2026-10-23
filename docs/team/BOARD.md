@@ -36,7 +36,7 @@
 - 2026-10-23 22:39 Codex(Reason): Dots本人 `daisuke/chatgpt`（agent chatgpt / through Reason）を公式list_teamで確認、参加条件達成。HANDOFF.mdへ根拠と境界を記録。追加join・設定変更なし。Thankful/build 10はclaude-5専任。次: 専用PRをmain統合し参謀へ報告。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
 - 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
-- Codex Mobile: Apple購読source PR8794/mainf89260be（CI14件成功）を受入。本番採用は既存cut ownerの共有ロック使用中で未着手。Thankful1.0.2/build10はASCとUS/JP一般公開を確認し、実利用/課金は未検証。契約・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
+- Codex Mobile: Apple購読main受入とThankful公開を保持し、公開4商品のレポート対象漏れを専用branch fix/mobile-public-six-report-20261024で修復する。所有はowner_report/既存testとmetrics runner対象metadataだけ。本番採用は既存cut完了待ち。契約・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 21:57 Codex(Manager): PR8710自動reviewの公開projection整合性指摘を実装修復。RED51cases→435full成功・skip0、独立task review指摘0。次: 全体review・通常CI/main。推論/host/台帳は不変。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
