@@ -427,3 +427,49 @@ def test_first_portfolio_inspect_keeps_primary_id_strict(tmp_path, monkeypatch, 
     assert result["ok"] is False and result["error"] == "setup_required"
     assert case.calls.forbidden == [] and case.tick.opened_pages == 0
     assert _json(case.path) == before
+
+
+@pytest.mark.parametrize("kind,field", [
+    ("listing", "description"), ("listing", "external_id"),
+    ("software_portfolio", "description"),
+    ("software_portfolio", "listing_external_id"),
+    ("software_portfolio", "external_id"),
+])
+def test_created_id_save_rejects_input_changed_between_reads(tmp_path, monkeypatch, kind, field):
+    path = _private_product(tmp_path / "owner")
+    module = _module()
+    raw = _json(path)
+    if kind == "listing":
+        raw["listing_external_id"] = ""
+    else:
+        raw[kind]["external_id"] = ""
+    path.write_text(json.dumps(raw))
+    product, _, _ = module._product(path, creating=kind == "listing", applying=kind != "listing")
+    intent = module._creation_intent(product, None, kind=kind)
+    state = tmp_path / "state/application.json"
+    module._write_private(state.with_name("listing.json"), {"pending_create": intent})
+    changed = json.loads(json.dumps(raw))
+    if field == "description":
+        changed[field] += " 本人の更新"
+    elif field == "listing_external_id" or kind == "listing":
+        changed["listing_external_id"] = "91999"
+    else:
+        changed[kind]["external_id"] = "88999"
+    read = module._load_product_file
+    calls = 0
+
+    def changing_read(target):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            path.write_text(json.dumps(changed))
+        return read(target)
+
+    monkeypatch.setattr(module, "_load_product_file", changing_read)
+    with pytest.raises(module.OfferError, match="product_changed"):
+        if kind == "listing":
+            module._save_created_listing(path, state, product, "88001", intent)
+        else:
+            module._save_created_portfolio(path, state, "88001", intent)
+    assert _json(path) == changed
+    assert _json(state.with_name("listing.json"))["pending_create"] == intent
