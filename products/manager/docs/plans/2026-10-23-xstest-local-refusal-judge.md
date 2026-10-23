@@ -41,11 +41,13 @@
 ## Root execution
 
 - [x] Verify exact code/protocol/model/source bindings and tests/review; push source and dispatch exact official researchCI. Freeze private execution config before predictions. Reuse existing private watchdog monitor and offline env.
-- [ ] Run one cumulative bounded450-label session. Context overflow is unattempted; interrupted inflightUNKNOWN. Keep rule/noaction and all450 metadata. No resource/accuracy guarantee and no automatic retry.
-- [ ] Independently verify original-data binding, arithmetic/coverage/status/hash/privacy/cleanup and publish only aggregate receipt. All V tasks remaintodo pending full acceptance; parentTask3 training gate unchanged.
+- [x] Run one cumulative bounded450-label session. Context overflow is unattempted; interrupted inflightUNKNOWN. Keep rule/noaction and all450 metadata. No resource/accuracy guarantee and no automatic retry.
+- [x] Independently verify original-data binding, arithmetic/coverage/status/hash/privacy/cleanup and publish only aggregate receipt. All V tasks remaintodo pending full acceptance; parentTask3 training gate unchanged.
 
 ## Self-review
 
 The task directly addresses new-judge human-reference calibration missing from earlier released-label/NLL audits. It adds one explicit research seam while retaining original datasets/protocols and production OFF. It cannot supply missing person/time holdouts, pressure/dependency gold or human benefit and does not treat this diagnostic as closing those gates. Root chose native0.6B for already verified CPU footprint; the1.7B backend remains an alternative, not a prerequisite.
 
 Source acceptance: `088acd6c13525c9b279a0e9bb58d5d0a1479b820`; fresh task review0 findings / SPEC PASS / QUALITY Approved, focused17 and local full1064(skip5) passed. Exact-head [official CI39991619944](https://github.com/Daisuke134/life-manager/actions/runs/39991619944) full1038(skip6) passed before compute started. Local/official count difference remains unexplained. Runtime execution and final result acceptance are recorded separately below.
+
+Bounded execution accepted as a partial diagnostic: [receipt](../verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md). WALL resource stop901.519s / valid271 / UNKNOWN1 / NOT_RUN178; not450completed. All271 predictions compliance, full/partial refusal recall0/27 and0/20; this configuration is not adopted for refusal judging. Fresh actual-result verification0 findings/52 checks, root cleanup confirmed. Full V001/V002/V003 remain todo; no retry/training/promotion.
