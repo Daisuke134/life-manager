@@ -98,6 +98,42 @@ class NativeObservationBridgeTests(unittest.TestCase):
                              (None,'UNKNOWN'))
             self.assertEqual(missing[0].missing_reason,'DELIVERY_UNCONFIRMED')
 
+    def test_second_current_ref_read_failures_record_bound_missing_p2_after_p1(self):
+        collector=importlib.import_module('manager_core.owned_public_collector')
+        failures=(('read_error',OSError('temporary ref read failure')),
+                  ('malformed_json',b'{'),('invalid_utf8',b'\xff'))
+        for failure,raised in failures:
+            with self.subTest(failure=failure),TemporaryDirectory() as tmp:
+                packet,journal,receipt,observed_at,target_url,urls=(
+                    collector_fixtures.PublicCollectorTests().prepare_v1_current_fixture(tmp))
+                target_reads=0
+                def get(url):
+                    nonlocal target_reads
+                    self.assertIn(url,urls)
+                    if url==target_url:
+                        target_reads+=1
+                        if target_reads==2:
+                            if isinstance(raised,BaseException):
+                                raise raised
+                            return raised
+                    return urls[url]
+                learner=PolicyLearner(journal.path)
+                with patch.object(phase06_kernel_release,'public_get',side_effect=get):
+                    result=collector.collect_current_owned_delivery(journal,observed_at)
+                self.assertEqual(target_reads,2)
+                self.assertEqual(result['kind'],'candidate')
+                self.assertEqual(result['receipt_ref'],receipt)
+                self.assertEqual((result['evidence']['status'],result['evidence']['reason']),
+                                 ('UNKNOWN','CURRENT_TARGET_UNAVAILABLE'))
+                rows=learner.native_technical_observations(effect_key=packet['effect_key'])
+                p1,=[row for row in rows if row.proof_level=='P1']
+                self.assertEqual((p1.status,p1.receipt_ref),('VERIFIED',receipt))
+                p2,=[row for row in rows if row.proof_level=='P2']
+                self.assertEqual((p2.status,p2.native_value,p2.missing_reason),
+                                 ('UNKNOWN',None,'CURRENT_TARGET_UNAVAILABLE'))
+                self.assertEqual(p2.observed_at,observed_at)
+                self.assertEqual(journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+
     def test_v2_current_delivery_persists_p2_only_after_receipt_deployment_and_bytes_match(self):
         collector=importlib.import_module('manager_core.owned_public_collector')
         from manager_core.outbox import OwnedEffectJournal

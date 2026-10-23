@@ -508,26 +508,31 @@ def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
                             evidence.get('effect_key')==candidate.key and
                             evidence.get('receipt_ref')==candidate.receipt_ref and
                             evidence.get('candidate_sha256')==packet['candidate_sha256']):
-                        target_again=json.loads(read(target_url))
-                        if (type(target_again) is dict and
-                                target_again.get('ref')=='refs/heads/gh-pages' and
-                                type(target_again.get('object')) is dict and
-                                target_again['object'].get('type')=='commit' and
-                                target_again['object'].get('sha')==current_sha):
-                            evidence=dict(evidence,reason='EXACT_CURRENT_V1_SERVED_BUNDLE')
-                            if (get is None and evidence.get('status')=='VERIFIED' and
-                                    evidence.get('proof_level')=='P2' and len(served_bytes)==1 and
-                                    type(served_bytes[0]) is int):
-                                _record_native_observation(journal,packet,candidate.receipt_ref,
-                                    observed_at,'owned.pages.served_bundle_bytes','byte',
-                                    served_bytes[0],'P2',(occurrence.receipt['html_url'],PUBLIC_BASE))
-                            elif (get is None and evidence.get('status')=='VERIFIED' and
-                                  evidence.get('proof_level')=='P2'):
-                                record_v1_missing('SERVED_BYTES_UNAVAILABLE')
+                        try:
+                            target_again=json.loads(read(target_url))
+                        except (ValueError,UnicodeError,KeyError,TypeError,OSError,AttributeError):
+                            evidence=dict(unknown,reason='CURRENT_TARGET_UNAVAILABLE')
+                            record_v1_missing('CURRENT_TARGET_UNAVAILABLE')
                         else:
-                            evidence=dict(unknown,
-                                reason='CURRENT_TARGET_CHANGED_DURING_READBACK')
-                            record_v1_missing('CURRENT_TARGET_CHANGED_DURING_READBACK')
+                            if (type(target_again) is dict and
+                                    target_again.get('ref')=='refs/heads/gh-pages' and
+                                    type(target_again.get('object')) is dict and
+                                    target_again['object'].get('type')=='commit' and
+                                    target_again['object'].get('sha')==current_sha):
+                                evidence=dict(evidence,reason='EXACT_CURRENT_V1_SERVED_BUNDLE')
+                                if (get is None and evidence.get('status')=='VERIFIED' and
+                                        evidence.get('proof_level')=='P2' and len(served_bytes)==1 and
+                                        type(served_bytes[0]) is int):
+                                    _record_native_observation(journal,packet,candidate.receipt_ref,
+                                        observed_at,'owned.pages.served_bundle_bytes','byte',
+                                        served_bytes[0],'P2',(occurrence.receipt['html_url'],PUBLIC_BASE))
+                                elif (get is None and evidence.get('status')=='VERIFIED' and
+                                      evidence.get('proof_level')=='P2'):
+                                    record_v1_missing('SERVED_BYTES_UNAVAILABLE')
+                            else:
+                                evidence=dict(unknown,
+                                    reason='CURRENT_TARGET_CHANGED_DURING_READBACK')
+                                record_v1_missing('CURRENT_TARGET_CHANGED_DURING_READBACK')
                     else:
                         evidence=dict(unknown,reason=evidence.get(
                             'reason','EXACT_V1_SERVED_BUNDLE_UNCONFIRMED'))
