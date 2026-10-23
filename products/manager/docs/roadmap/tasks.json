@@ -1602,13 +1602,38 @@
     "learn": "実行ログと成果を別表示する",
     "change": "公開データだけの読み取り専用Proof Explorerを作る",
     "verify": "第三者が元URLから同じ観測事実を再確認し、P0/P1/P2を誤表示しない",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "docs/product/PROOF_EXPLORER.md",
       "scripts/phase06_kernel_release.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "ACCEPTED_READ_ONLY_PUBLIC_DIGITAL_PROOF_ONLY",
+    "completion_evidence": [
+      "docs/product/PROOF_EXPLORER.md",
+      "scripts/phase06_kernel_release.py",
+      "docs/verification/U005_PUBLIC_PROOF_READBACK_20261023.md",
+      "docs/verification/U005_PUBLIC_PROOF_READBACK_20261023.json"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T11:21:09.053554+00:00",
+      "result": "EXISTING_READ_ONLY_EXPLORER_AND_PUBLIC_SOURCE_READBACK_VERIFIED",
+      "scope": "READ_ONLY_PUBLIC_DIGITAL_PROOF_ONLY",
+      "ordinary_public_get_count": 30,
+      "http_200_count": 30,
+      "current_pages_commit": "faf18b39207be69af89d9b10389a294731288a20",
+      "current_live_immutable_files_matched": 7,
+      "served_pages_bytes": 26866,
+      "historical_transition": "MATCHED_PUBLIC_COMMIT_DATA",
+      "stale_historical_prove": "REJECTED_UNKNOWN_EFFECT_DO_NOT_RESEND",
+      "fresh_current_original_packet_transition_proved": false,
+      "new_publications": 0,
+      "new_ui_created": false,
+      "model_calls": 0,
+      "human_outcome": "NOT_MEASURED",
+      "causal_support": false,
+      "independent_readback": "PASS_THEN_ROOT_REHASH_AND_EXISTING_VALIDATOR_REPRODUCTION"
+    }
   },
   {
     "section": "08. 最初の受益者と製品市場適合の検証",

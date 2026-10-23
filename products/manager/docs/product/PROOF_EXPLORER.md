@@ -35,5 +35,17 @@ independent of run ID and observation time.
 
 The report records observations at a timestamp, not a promise that a mutable URL
 will never change. Its CI artifacts have bounded retention; immutable source and
-provider commit URLs remain the reproducibility anchors. This implementation is
-U005 preparation; original U003 interview/selection prerequisites are not closed.
+provider commit URLs remain the reproducibility anchors.
+
+## U005 acceptance — 2026-10-23
+
+U003's bounded technical selection and K010 are accepted. The existing Explorer
+and source-bound readback were checked against 30 actual public GETs, the exact
+current provider receipt and seven immutable/live files. U005 is accepted only
+for read-only public digital proof. The historical prove correctly rejects the
+now-different live version; a fresh complete latest-original-packet transition
+proof is not claimed. Human benefit remains NOT_MEASURED.
+
+See the [acceptance receipt](../verification/U005_PUBLIC_PROOF_READBACK_20261023.md)
+and its linked machine-readable observations for URLs, hashes, reproduction
+steps and the distinctions between P0 runs, P1 receipts and P2 artifacts.

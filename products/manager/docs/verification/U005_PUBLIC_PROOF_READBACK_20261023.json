@@ -1,0 +1,136 @@
+{
+  "task": "U005",
+  "original_conditions_met": true,
+  "scope": "READ_ONLY_PUBLIC_DIGITAL_PROOF_ONLY",
+  "observed_at_start_utc": "2026-10-23T11:15:30.176741+00:00",
+  "observed_at_end_utc": "2026-10-23T11:15:39.477327+00:00",
+  "ordinary_public_get_count": 30,
+  "http_200_count": 30,
+  "current": {
+    "receipt_url": "https://api.github.com/repos/Daisuke134/life-manager/commits/faf18b39207be69af89d9b10389a294731288a20",
+    "pages_commit": "faf18b39207be69af89d9b10389a294731288a20",
+    "parent_pages_commit": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+    "committed_at": "2026-10-23T06:01:36Z",
+    "receipt_html_url": "https://github.com/Daisuke134/life-manager/commit/faf18b39207be69af89d9b10389a294731288a20",
+    "receipt_changed_paths": [
+      "manager-support/control.html",
+      "manager-support/finance.html",
+      "manager-support/index.html",
+      "manager-support/manifest.json",
+      "manager-support/mental.html",
+      "manager-support/physical.html",
+      "manager-support/proof.html"
+    ],
+    "receipt_exact_seven_allowed_paths": true,
+    "receipt_all_statuses_modified": true,
+    "manifest_source_commit": "f8e11d27b9f98b511d6fdc55e2781cacbe26f8a5",
+    "live_manifest_equals_immutable": true,
+    "files": {
+      "manifest.json": {
+        "bytes": 773,
+        "sha256": "bd670bee1cdb6dda2cd90f35352ba1b820eb181650521759e578fa4b8ac83dff",
+        "live_sha256": "bd670bee1cdb6dda2cd90f35352ba1b820eb181650521759e578fa4b8ac83dff",
+        "live_equals_immutable": true
+      },
+      "control.html": {
+        "bytes": 4384,
+        "sha256": "d0303ba370a643960273d137f30cc8a378ef78351fe6f586c40a5565c524416c",
+        "live_sha256": "d0303ba370a643960273d137f30cc8a378ef78351fe6f586c40a5565c524416c",
+        "live_equals_immutable": true
+      },
+      "finance.html": {
+        "bytes": 4667,
+        "sha256": "815d5aa266b66f7d5c3b82f34359e6356f53cd56ef9da6288a99a25ef42fbf7d",
+        "live_sha256": "815d5aa266b66f7d5c3b82f34359e6356f53cd56ef9da6288a99a25ef42fbf7d",
+        "live_equals_immutable": true
+      },
+      "index.html": {
+        "bytes": 4457,
+        "sha256": "d51eaca8a7eaf1bff89c735d8379fb6e978f321a9e30c519548b6e761934fb47",
+        "live_sha256": "d51eaca8a7eaf1bff89c735d8379fb6e978f321a9e30c519548b6e761934fb47",
+        "live_equals_immutable": true
+      },
+      "mental.html": {
+        "bytes": 4455,
+        "sha256": "16048b6589cc0c7c24157a0e1f98a1266cd33c9775ab50b33cc4d4f43b05ef89",
+        "live_sha256": "16048b6589cc0c7c24157a0e1f98a1266cd33c9775ab50b33cc4d4f43b05ef89",
+        "live_equals_immutable": true
+      },
+      "physical.html": {
+        "bytes": 4235,
+        "sha256": "4cb5f7c3bc2928c894532b8f3b4b8d72de3f3b9cd6b454f7d7d66153a8c14aac",
+        "live_sha256": "4cb5f7c3bc2928c894532b8f3b4b8d72de3f3b9cd6b454f7d7d66153a8c14aac",
+        "live_equals_immutable": true
+      },
+      "proof.html": {
+        "bytes": 4668,
+        "sha256": "5b5f3f356e143eead6ce3e7b9dc6a8a8948d2825ecf2dc7ac5d3527387970f68",
+        "live_sha256": "5b5f3f356e143eead6ce3e7b9dc6a8a8948d2825ecf2dc7ac5d3527387970f68",
+        "live_equals_immutable": true
+      }
+    },
+    "all_seven_live_equal_immutable": true,
+    "served_pages_bytes": 26866,
+    "served_bundle_bytes_including_manifest": 27639,
+    "technical_readback": {
+      "delivery": "VERIFIED_BYTES_ONLY",
+      "technical_proof": "P2_ARTIFACT_ONLY",
+      "beneficiary_outcome": "NOT_MEASURED",
+      "causal_effect_verified": false
+    },
+    "human_outcome": "NOT_MEASURED",
+    "causal_effect_verified": false
+  },
+  "historical_transition": {
+    "status": "MATCHED_PUBLIC_COMMIT_DATA",
+    "pages_commit": "d33d251ec0b82bf541a727ead7d1ede39f0a8216",
+    "parent_pages_commit": "9fff2b30c8876a44ee2fe79a236c0d437c6ed94c",
+    "committed_at": "2026-10-23T00:34:11+00:00",
+    "changed_files": [
+      "manager-support/control.html",
+      "manager-support/finance.html",
+      "manager-support/index.html",
+      "manager-support/manifest.json",
+      "manager-support/mental.html",
+      "manager-support/physical.html",
+      "manager-support/proof.html"
+    ],
+    "changed_pages": [
+      "control.html",
+      "finance.html",
+      "index.html",
+      "mental.html",
+      "physical.html",
+      "proof.html"
+    ],
+    "human_outcome": "NOT_MEASURED",
+    "causal_effect_verified": false
+  },
+  "historical_prove_attempt": {
+    "result": "FAILED",
+    "error_type": "ValueError",
+    "reason": "public live version differs: UNKNOWN_EFFECT; do not resend"
+  },
+  "retained_official_run": {
+    "run_id": 39909274852,
+    "url": "https://github.com/Daisuke134/life-manager/actions/runs/39909274852",
+    "summary_at_utc": "2026-10-23T06:07:14.3255893Z",
+    "E16_ACCEPTANCE": "INCOMPLETE",
+    "authentication": "GATEWAY_ACKNOWLEDGED",
+    "current_proof_exported": true,
+    "current_proof_receipt_sha": "faf18b39207be69af89d9b10389a294731288a20",
+    "human_outcome": "NOT_MEASURED",
+    "positive_canary": "NOT_RUN",
+    "proof_level": "P0",
+    "reason": null,
+    "receipt_sha": null,
+    "rollback_delivery": null,
+    "source_sha": "318f3223df9b4d581ce0edf1a4db418f2eb132b2",
+    "status": "NOT_DUE",
+    "writes": 0
+  },
+  "fresh_current_original_packet_transition_proved": false,
+  "human_outcome": "NOT_MEASURED",
+  "causal_effect_verified": false,
+  "source_registry_status_changed": false
+}
