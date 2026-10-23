@@ -210,3 +210,8 @@ Only the exact commit/path/rule/line fingerprint for this finding is added to
 `.gitleaksignore`; the full fingerprint remains in that canonical baseline.
 The current-tree and full-history scans remain enabled. Different commits,
 paths, rules, and lines remain subject to detection.
+
+
+## Legacy writer retirement CI diagnostic — deterministic public demo identifiers
+
+PR 8576 current-tree findings are generic-api-key at products/manager/docs/demos/manager-public-no-action-20261022.json lines 8 and 50. Both identifiers are reproduced exactly by the same tree digital_handoff.plan_release(manifest, manifest, now).effect_key using the saved public manifest. Artifact SHA-256: 3e84e508009d3097f15a5431cd81132c5eb4e95c7566f10fa5e55b213ca7a274. No credential access or network is needed. Preserve the recorded artifact and allow only the two exact current-file fingerprints. Backport the four already adjudicated historical fingerprints from passing main b7c9d150684d0278ec7011e2a9981cef2e3f952f. All scanner rules and current-tree/full-history scans remain enabled.

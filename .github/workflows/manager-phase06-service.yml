@@ -69,7 +69,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
   publish-owned-prefix:
-    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-product-r006-20261020'
+    # The same workflow on merged main owns publication after the E16 cutover.
+    # Historical research refs retain verification and never mint a writer job.
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10

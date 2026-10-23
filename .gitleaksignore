@@ -1074,3 +1074,13 @@ bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/te
 acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:295
 acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:332
 a572c1509832e981c46959a900f5a947b6e249d3:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:368
+
+# Backport already adjudicated exact historical public-identity fingerprints from main b7c9d150.
+ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:8
+ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:50
+8dacc657fc04b35a000d08c48471af541bab5a1d:docs/evidence/lm-foundation-audit-20261022.json:generic-api-key:6059
+9ea03355acbcb8e251e3f4c79df6ca16da8a09f9:products/manager/docs/verification/E16_RECOVERY_REVIEW_20261022.md:generic-api-key:51
+# Current demo effect IDs independently reproduced by plan_release(manifest, manifest, now).
+# Exact current-file fingerprints only; no credential, rule or path-wide exemption.
+products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:8
+products/manager/docs/demos/manager-public-no-action-20261022.json:generic-api-key:50
