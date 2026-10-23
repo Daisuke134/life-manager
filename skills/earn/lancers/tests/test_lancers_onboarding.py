@@ -497,22 +497,27 @@ def test_import_does_not_read_private_input_or_invoke_browser(isolated_home, mon
     assert list(isolated_home.iterdir()) == []
 
 
-@pytest.mark.parametrize("summary_links,challenge,want", [
-    (["https://www.lancers.jp/profile/other-seller"], False, "other-seller"),
+@pytest.mark.parametrize("summary_links,title,body,want", [
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "PRIVATE-DOM", "other-seller"),
     (["https://www.lancers.jp/profile/other-seller"] * 4 + [
         "https://www.lancers.jp/profile/other-seller/feedback/0/win",
         "https://www.lancers.jp/profile/other-seller/proposal",
         "https://www.lancers.jp/profile/other-seller/feedback/0/feedback",
-    ] * 2, False, "other-seller"),
-    ([], False, None),
-    (["https://www.lancers.jp/profile/other-seller"], True, None),
+    ] * 2, "Mypage", "PRIVATE-DOM", "other-seller"),
+    ([], "Mypage", "PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Human Verification", "PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "This site uses reCAPTCHA. PRIVATE-DOM", "other-seller"),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "captcha PRIVATE-DOM", "other-seller"),
+    (["https://www.lancers.jp/profile/other-seller"], "CAPTCHA verification", "PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "Verify that you are human. PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "ユーザーが人間であることを確認する PRIVATE-DOM", None),
 ])
-def test_dom_snapshot_reads_summary_links_without_page_text(isolated_home, summary_links, challenge, want):
+def test_dom_snapshot_reads_summary_links_without_page_text(isolated_home, summary_links, title, body, want):
     module = _load()
     script = r'''
 const vm = require('node:vm'), input = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
-const document = {readyState:'complete', title:input.challenge ? 'Human Verification' : 'Mypage',
-  body:{innerText:'PRIVATE-DOM'},
+const document = {readyState:'complete', title:input.title,
+  body:{innerText:input.body},
   querySelector: () => null,
   querySelectorAll: selector => selector === '.mypage.result-summary a[href*="/profile/"]'
     ? input.links.map(href => ({href})) : [{href:'https://www.lancers.jp/profile/someone-else'}],
@@ -521,7 +526,7 @@ const location = {origin:'https://www.lancers.jp', pathname:'/mypage', href:'htt
 process.stdout.write(JSON.stringify(vm.runInNewContext(input.expression, {document, location, URL, JSON})));
 '''
     completed = subprocess.run(["node", "-e", script], input=json.dumps({
-        "expression": module.EXPRESSION, "links": summary_links, "challenge": challenge}),
+        "expression": module.EXPRESSION, "links": summary_links, "title": title, "body": body}),
         capture_output=True, text=True, timeout=10, check=True)
     snapshot = json.loads(completed.stdout)
     assert module.observed_account(snapshot) == want

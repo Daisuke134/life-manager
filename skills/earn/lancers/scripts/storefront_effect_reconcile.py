@@ -36,6 +36,7 @@ if str(ROOT) not in sys.path:
 
 from runtime.host.resource_admission import (  # noqa: E402
     resolve_unknown_occurrence, state_root as admission_state_root)
+from skills.earn.lancers.scripts import storefront_offer as offer
 
 
 OWNER_ID = "lancers-revenue-storefront"
@@ -43,7 +44,7 @@ BROWSER_IDENTITY = "lancers:dais"
 BROWSER_TARGET_OWNER = "lancers-revenue-browser"
 WITH_BROWSER = ROOT / "skills/browser/with-browser.sh"
 OFFER = SCRIPT.parent / "storefront_offer.py"
-DEFAULT_PRODUCT = SCRIPT.parents[1] / "products" / "monthly-sns-content-ops-v1.json"
+DEFAULT_PRODUCT = Path.home() / ".config/anicca/lancers/storefront-product.json"
 PORTFOLIO_KEYS = ("portfolio", "software_portfolio")
 
 
@@ -65,6 +66,7 @@ def occurrence_state(database: Path, occurrence_id: str) -> str:
 
 
 def browser_readback(state_root: Path, product: Path, *,
+                     catalog_path: Path | None = None,
                      runner: Callable[..., subprocess.CompletedProcess] | None = None) -> dict:
     environment = os.environ.copy()
     environment.update({
@@ -76,6 +78,8 @@ def browser_readback(state_root: Path, product: Path, *,
     command = ["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--", sys.executable, str(OFFER),
                "--roster-readback", "--product", str(product),
                "--state-path", str(state_root / "application.json")]
+    if catalog_path is not None:
+        command.extend(["--catalog", str(catalog_path)])
     try:
         completed = (runner or subprocess.run)(
             command, cwd=ROOT, env=environment, capture_output=True, text=True,
@@ -98,17 +102,20 @@ def browser_readback(state_root: Path, product: Path, *,
 
 
 def official_proof(occurrence_id: str, state_root: Path, product_path: Path, *,
-                   runner=None) -> dict:
+                   catalog_path: Path | None = None, runner=None) -> dict:
+    try:
+        product, _image, _avatar = offer._product(product_path, catalog_path)
+    except offer.OfferError as error:
+        raise Held("setup_required") from error
     try:
         ledger = json.loads((state_root / "listing.json").read_text(encoding="utf-8"))
-        product = json.loads(product_path.read_text(encoding="utf-8"))
         expected_ids = {str(ledger["listing_external_id"])} | {
             str(row["listing_external_id"]) for row in ledger.get("catalog_listings", {}).values()}
         superseded = [str(value) for value in product["superseded_listing_ids"]]
         portfolios = {key: str(product[key]["external_id"]) for key in PORTFOLIO_KEYS}
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise Held("owner_ledger_invalid") from error
-    live = browser_readback(state_root, product_path, runner=runner)
+    live = browser_readback(state_root, product_path, catalog_path=catalog_path, runner=runner)
     listing_ids = live.get("listing_ids")
     if (not isinstance(listing_ids, list) or len(set(listing_ids)) != len(listing_ids)
             or set(map(str, listing_ids)) != expected_ids):
@@ -138,6 +145,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     parser.add_argument("--resolve", action="store_true")
     parser.add_argument("--state-root", type=Path, default=Path("~/.local/state/anicca/lancers"))
     parser.add_argument("--product", type=Path, default=DEFAULT_PRODUCT)
+    parser.add_argument("--catalog", type=Path, default=None)
     parser.add_argument("--admission-db", type=Path, default=None)
     args = parser.parse_args(argv)
     base = {"owner_id": OWNER_ID, "occurrence_id": args.occurrence}
@@ -147,11 +155,15 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         database = args.admission_db or admission_state_root() / "admission-v2.sqlite3"
         expected_state = occurrence_state(database.expanduser(), args.occurrence)
         proof = official_proof(args.occurrence, args.state_root.expanduser().resolve(),
-                               args.product, runner=runner)
+                               args.product.expanduser().resolve(),
+                               catalog_path=args.catalog.expanduser().resolve() if args.catalog is not None else None,
+                               runner=runner)
     except Held as error:
-        print(json.dumps({**base, "state": "HELD", "verified": False, "reason": str(error),
-                          "next_action": "keep_fenced_until_official_roster_matches"},
-                         sort_keys=True))
+        result = {**base, "state": "HELD", "verified": False, "reason": str(error),
+                  "next_action": "keep_fenced_until_official_roster_matches"}
+        if str(error) == "setup_required":
+            result.update(error="setup_required", missing=["storefront_product"])
+        print(json.dumps(result, sort_keys=True))
         return 1
     resolved = args.resolve and resolve_unknown_occurrence(
         OWNER_ID, args.occurrence, official_readback=lambda: proof, expected_state=expected_state)

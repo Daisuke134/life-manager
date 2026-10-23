@@ -17,12 +17,11 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_PRODUCT = HERE.parent / "products" / "monthly-sns-content-ops-v1.json"
-DEFAULT_AVATAR = HERE.parents[2] / "gig-work" / "profile" / "avatar.jpg"
+DEFAULT_PRODUCT = Path.home() / ".config/anicca/lancers/storefront-product.json"
 # The owner's platform-agnostic listing catalog (skills/_shared/marketplace-core owns the
 # loader/projection logic; see _reach_marketplace_core). A product file may opt in to it via
 # a top-level "catalog_family" key -- see _catalog_overlay_product.
-DEFAULT_CATALOG = HERE.parents[2] / "gig-work" / "profile" / "listings" / "catalog.json"
+DEFAULT_CATALOG = Path.home() / ".config/anicca/lancers/listing-catalog.json"
 # Product-shape fields the shared catalog owns once a product file names a catalog_family.
 # Kept in one place because both the merge (_catalog_overlay_product) and the read-only
 # report (catalog_lancers_requirements) need to agree on exactly what "catalog-owned" means.
@@ -50,6 +49,10 @@ DEMAND_LABELS = {
 
 
 class OfferError(RuntimeError): pass
+
+
+def _setup_required(field: str) -> dict[str, Any]:
+    return {"ok": False, "logged_in": False, "error": "setup_required", "missing": [field]}
 
 
 def _load(name: str, path: Path) -> Any:
@@ -111,6 +114,8 @@ def _catalog_projection(catalog_module: Any, catalog_path: Path, family: str) ->
         return catalog_module.project_lancers(catalog, family)
     except catalog_module.UnknownFamily as error:
         raise OfferError(f"catalog_family_unknown: family={family}: {error}") from error
+    except catalog_module.CatalogError as error:
+        raise OfferError(f"catalog_product_invalid: family={family}: {error}") from error
 
 
 def _catalog_overlay_product(
@@ -168,23 +173,29 @@ def _load_product_file(path: Path) -> dict[str, Any]:
     return value
 
 
-def _product(path: Path) -> tuple[dict[str, Any], Path, Path]:
+def _product(path: Path, catalog_path: Path | None = None) -> tuple[dict[str, Any], Path, Path]:
+    path = path.expanduser()
     value = _load_product_file(path)
     family = value.get("catalog_family")
-    if family is None:
-        return _validate_product(value, path)
-    if not isinstance(family, str) or not family.strip():
-        raise OfferError("product_invalid")
-    merged = _catalog_overlay_product(value, family)
+    if family is not None:
+        if not isinstance(family, str) or not family.strip():
+            raise OfferError("product_invalid")
     try:
-        return _validate_product(merged, path)
+        if family is not None:
+            value = _catalog_overlay_product(value, family, catalog_path or DEFAULT_CATALOG)
+        return _validate_product(value, path)
     except OfferError as error:
+        if family is None:
+            raise
         raise OfferError(f"catalog_product_invalid: family={family}: {error}") from error
+    except (OSError, TypeError, ValueError, KeyError):
+        raise OfferError("product_invalid") from None
 
 
 def _validate_product(value: dict[str, Any], path: Path) -> tuple[dict[str, Any], Path, Path]:
     strings = ("product_id", "listing_external_id", "title_stem", "subtitle", "category", "subcategory", "service_type", "industry", "description", "notice", "image_path")
     if any(not isinstance(value.get(key), str) or not value[key].strip() for key in strings): raise OfferError("product_invalid")
+    if value.get("product_version") is None: raise OfferError("product_invalid")
     if not re.fullmatch(r"[0-9]+", value["listing_external_id"]): raise OfferError("product_invalid")
     # 25-40: Lancers' own title field label ("25文字以上で入力してください") counts the stem
     # alone, not the public title with 「ます」 appended -- see
@@ -1418,7 +1429,7 @@ def create_package(page: Any, product: Mapping[str, Any], image: Path) -> dict[s
     except OfferError as error: raise OfferError(f"publication_uncertain: {error}") from error
 
 
-def run_create(product_path: Path, state_path: Path) -> dict[str, Any]:
+def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | None = None) -> dict[str, Any]:
     """CLI/tick entry point for create_package(), parallel to run() -- separate on purpose, per
     create_package()'s own contract, so nothing about --apply/--inspect changes and nothing
     starts creating packages by accident. Reuses _product() (the same loader/validator run()
@@ -1426,9 +1437,13 @@ def run_create(product_path: Path, state_path: Path) -> dict[str, Any]:
     itself never reads listing_external_id, so whatever placeholder value a not-yet-created
     product file carries there is simply unused.
     """
+    try:
+        product, image, _avatar = _product(product_path, catalog_path)
+    except OfferError:
+        return _setup_required("storefront_product")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
-        product, image, _avatar = _product(product_path); tick = _load("lancers_storefront_create_tick", HERE / "application_tick.py")
+        tick = _load("lancers_storefront_create_tick", HERE / "application_tick.py")
         with tick.account_lock(state_path.with_name("work-sync.json")):
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
@@ -1450,9 +1465,8 @@ def run_create(product_path: Path, state_path: Path) -> dict[str, Any]:
 
 # --- Catalogue-driven creation (the storefront wake's fallback effect) ---------------------
 # create_package() gave this lane a way to reach Lancers with a *new* listing; nothing decided
-# *which* listing yet. The twenty-family shared catalogue (skills/_shared/marketplace-core,
-# skills/gig-work/profile/listings/catalog.json) is the only inventory this owner already trusts
-# for content -- Coconala reads the same rows. select_catalog_family_to_create() below is the
+# *which* listing yet. The owner's private catalogue uses the shared marketplace-core loader
+# and projection. select_catalog_family_to_create() below is the
 # decision, kept pure and browser-free so a wake never opens a page for a family it will not
 # attempt; run_catalog_create() is the one browser-touching effect main() reaches for when the
 # existing single-offer chain in run() left nothing to do this wake (result["action"] ==
@@ -1584,7 +1598,7 @@ def select_catalog_family_to_create(catalog_path: Path, state_path: Path) -> dic
     listing_catalog = _reach_marketplace_core()
     try:
         catalog = listing_catalog.load(catalog_path)
-    except listing_catalog.CatalogError as error:
+    except (listing_catalog.CatalogError, UnicodeError) as error:
         return {"action": "catalog_unavailable", "error": str(error), "skipped": []}
     order = _catalog_family_order(catalog)
     published = _read_catalog_listings(state_path)
@@ -1593,7 +1607,10 @@ def select_catalog_family_to_create(catalog_path: Path, state_path: Path) -> dic
         return {"action": "all_published", "skipped": []}
     skipped: list[dict[str, str]] = []
     for family in pending:
-        product = _family_create_product(listing_catalog, catalog, family)
+        try:
+            product = _family_create_product(listing_catalog, catalog, family)
+        except (listing_catalog.CatalogError, TypeError, ValueError, KeyError):
+            return {"action": "catalog_unavailable", "error": "catalog_product_invalid", "skipped": skipped}
         try:
             _require_create_fields(product)
         except OfferError as error:
@@ -1603,7 +1620,8 @@ def select_catalog_family_to_create(catalog_path: Path, state_path: Path) -> dic
     return {"action": "all_pending_incomplete", "skipped": skipped}
 
 
-def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG) -> dict[str, Any]:
+def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *,
+                       product_path: Path = DEFAULT_PRODUCT) -> dict[str, Any]:
     """The storefront wake's fallback effect -- main() calls this only when run()'s own
     single-offer chain produced no mutation this wake. Selects at most one family
     (select_catalog_family_to_create), attempts create_package() for it if one was selected,
@@ -1619,12 +1637,18 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG) -
         tick = _load("lancers_storefront_create_from_catalog_tick", HERE / "application_tick.py")
         with tick.account_lock(Path(state_path).with_name("work-sync.json")):
             selection = select_catalog_family_to_create(catalog_path, Path(state_path))
+            if selection["action"] == "catalog_unavailable":
+                return _setup_required("listing_catalog")
             if selection["action"] != "candidate_selected":
                 return selection
             family, product = selection["family"], selection["product"]
+            try:
+                _owner_product, image, _avatar = _product(product_path, catalog_path)
+            except OfferError:
+                return _setup_required("storefront_product")
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
-            logged_in = True; result = create_package(page, product, DEFAULT_AVATAR)
+            logged_in = True; result = create_package(page, product, image)
             listing_external_id = result.get("listing_external_id")
             if result.get("ok") is True and isinstance(listing_external_id, str) and listing_external_id:
                 _write_catalog_listing(Path(state_path), family, {
@@ -1721,10 +1745,14 @@ def _ensure_portfolio(page: Any, product: Mapping[str, Any], image: Path, key: s
     return observed | {"portfolio_effect_count": 1}
 
 
-def ensure_profile(product_path: Path, state_path: Path) -> dict[str, Any]:
+def ensure_profile(product_path: Path, state_path: Path, *, catalog_path: Path | None = None) -> dict[str, Any]:
+    try:
+        product, _image, avatar = _product(product_path, catalog_path)
+    except OfferError:
+        return _setup_required("storefront_product")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "profile_unavailable"}
     try:
-        product, _image, avatar = _product(product_path); tick = _load("lancers_profile_tick", HERE / "application_tick.py")
+        tick = _load("lancers_profile_tick", HERE / "application_tick.py")
         with tick.account_lock(state_path.with_name("work-sync.json")):
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
@@ -1759,10 +1787,15 @@ def _roster(page: Any, product: Mapping[str, Any]) -> dict[str, Any]:
             "portfolio_duplicate_external_ids": {key: value.get("portfolio_duplicate_external_ids", []) for key, value in found.items()}}
 
 
-def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = False) -> dict[str, Any]:
+def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = False,
+        catalog_path: Path | None = None) -> dict[str, Any]:
+    try:
+        product, image, avatar = _product(product_path, catalog_path)
+    except OfferError:
+        return _setup_required("storefront_product")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
-        product, image, avatar = _product(product_path); tick = _load("lancers_storefront_offer_tick", HERE / "application_tick.py")
+        tick = _load("lancers_storefront_offer_tick", HERE / "application_tick.py")
         with tick.account_lock(state_path.with_name("work-sync.json")):
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
@@ -1779,7 +1812,7 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
                     if portfolio["portfolio_effect_count"]:
                         result["action"] = "portfolio_created"; break
                 else:
-                    profile = _profile(page, product, DEFAULT_AVATAR, True); result |= profile
+                    profile = _profile(page, product, avatar, True); result |= profile
                     if profile["profile_effect_count"]: result["action"] = "profile_updated"
             if result.get("ok") is True and result.get("aligned") is True:
                 result["demand"] = _demand(page, product["listing_external_id"])
@@ -1811,20 +1844,39 @@ def main(argv: Sequence[str] | None = None) -> int:
     # side effect of the existing edit-in-place flow (see create_package()'s own docstring).
     mode.add_argument("--create-package", action="store_true", dest="create_package")
     parser.add_argument("--product", type=Path, default=DEFAULT_PRODUCT); parser.add_argument("--state-path", type=Path, default=Path.home() / ".local/state/anicca/lancers/application.json")
+    parser.add_argument("--catalog", type=Path, default=None)
     args = parser.parse_args(argv)
+    args.product = args.product.expanduser().resolve()
+    catalog_path = args.catalog or (DEFAULT_CATALOG if args.apply and DEFAULT_CATALOG.is_file() else None)
+    if catalog_path is not None:
+        catalog_path = catalog_path.expanduser().resolve()
+    if args.apply and catalog_path is not None:
+        listing_catalog = _reach_marketplace_core()
+        try:
+            listing_catalog.load(catalog_path)
+        except (listing_catalog.CatalogError, UnicodeError):
+            print(json.dumps(_setup_required("listing_catalog"), sort_keys=True), flush=True)
+            return 78
     if args.create_package:
-        result = run_create(args.product, args.state_path)
+        result = run_create(args.product, args.state_path, catalog_path=catalog_path)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")), flush=True)
-        return 0 if result.get("ok") is True else 1
-    result = (run(args.apply, args.product, args.state_path, roster=True) if args.roster_readback
-              else run(args.apply, args.product, args.state_path))
+        return 0 if result.get("ok") is True else (78 if result.get("error") == "setup_required" else 1)
+    result = (run(args.apply, args.product, args.state_path, roster=True, catalog_path=catalog_path) if args.roster_readback
+              else run(args.apply, args.product, args.state_path, catalog_path=catalog_path))
+    if result.get("error") == "setup_required":
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
+        return 78
     # The wake's fallback effect: only when the single-offer chain above left nothing to do
     # (result["action"] == "unchanged" -- no status pause, no field alignment, no portfolio, no
     # profile update) does the wake get a second, independent chance to create one new listing
     # from the shared catalogue. See run_catalog_create()'s own docstring for why this must be
     # a separate account_lock acquisition, never nested inside run()'s.
-    if args.apply and result.get("action") == "unchanged":
-        catalog = result["catalog_creation"] = run_catalog_create(args.state_path)
+    if args.apply and result.get("action") == "unchanged" and catalog_path is not None:
+        catalog = result["catalog_creation"] = run_catalog_create(args.state_path, catalog_path, product_path=args.product)
+        if catalog.get("error") == "setup_required":
+            result.update(ok=False, error="setup_required", missing=catalog["missing"])
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
+            return 78
         # create_package() runs only after logged_in=True. A failed or unread create there may
         # already be a listing whose id was never saved, so fail the wake: fenced, never pre-effect.
         if catalog.get("ok") is False and catalog.get("logged_in") is not False:

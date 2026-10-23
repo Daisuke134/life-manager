@@ -37,6 +37,8 @@ from pathlib import Path
 
 import pytest
 
+from skills.earn.lancers.tests.test_storefront_offer_reads_catalog import _private_catalog, _private_product
+
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = REPO_ROOT / "skills/earn/lancers/scripts/storefront_offer.py"
 FORM_OBSERVER_SCRIPT = REPO_ROOT / "skills/_shared/marketplace-core/scripts/form_observer.py"
@@ -2185,7 +2187,7 @@ def test_apply_cli_flag_never_invokes_create_package(monkeypatch):
     module = _module()
     called: list[object] = []
     monkeypatch.setattr(module, "create_package", lambda *a, **k: called.append((a, k)))
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True})
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True})
 
     class _Delivery:
         attempted = 0
@@ -2210,7 +2212,7 @@ def test_apply_cli_flag_never_invokes_create_package(monkeypatch):
 def test_create_package_flag_invokes_run_create_only(monkeypatch):
     module = _module()
     calls: list[tuple] = []
-    monkeypatch.setattr(module, "run_create", lambda product_path, state_path: calls.append((product_path, state_path)) or {"ok": True})
+    monkeypatch.setattr(module, "run_create", lambda product_path, state_path, **kwargs: calls.append((product_path, state_path)) or {"ok": True})
     monkeypatch.setattr(module, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("run() must not be called for --create-package")))
 
     exit_code = module.main(["--create-package"])
@@ -2232,7 +2234,7 @@ def test_create_package_and_apply_are_mutually_exclusive():
 def test_real_catalog_mvp_web_app_build_passes_require_create_fields_with_description():
     module = _module()
     listing_catalog = module._reach_marketplace_core()
-    catalog = listing_catalog.load(module.DEFAULT_CATALOG)
+    catalog = listing_catalog.load(REPO_ROOT / "skills/gig-work/profile/listings/catalog.json")
 
     product = module._family_create_product(listing_catalog, catalog, "mvp_web_app_build")
 
@@ -2297,7 +2299,8 @@ def test_catalog_selection_and_receipt_share_account_lock(tmp_path, monkeypatch)
     monkeypatch.setattr(module, "select_catalog_family_to_create", select_locked)
     monkeypatch.setattr(module, "_write_catalog_listing", write_locked)
 
-    assert module.run_catalog_create(state_path, catalog_path)["ok"] is True
+    product_path = _private_product(tmp_path / "private")
+    assert module.run_catalog_create(state_path, catalog_path, product_path=product_path)["ok"] is True
 
 
 def test_invalid_catalog_receipt_refuses_creation(tmp_path, monkeypatch):
@@ -2474,8 +2477,9 @@ def test_two_consecutive_wakes_create_two_different_families(tmp_path, monkeypat
         ],
     )
 
-    first = module.run_catalog_create(state_path, catalog_path)
-    second = module.run_catalog_create(state_path, catalog_path)
+    product_path = _private_product(tmp_path / "private")
+    first = module.run_catalog_create(state_path, catalog_path, product_path=product_path)
+    second = module.run_catalog_create(state_path, catalog_path, product_path=product_path)
 
     assert first["ok"] is True and first["family"] == "alpha" and first["listing_external_id"] == "100001"
     assert second["ok"] is True and second["family"] == "beta" and second["listing_external_id"] == "100002"
@@ -2486,7 +2490,7 @@ def test_two_consecutive_wakes_create_two_different_families(tmp_path, monkeypat
     assert listings["beta"]["listing_external_id"] == "100002"
 
     # A third wake, with nothing left pending, must not touch the browser layer at all.
-    third = module.run_catalog_create(state_path, catalog_path)
+    third = module.run_catalog_create(state_path, catalog_path, product_path=product_path)
     assert third == {"action": "all_published", "skipped": []}
     assert len(calls) == 2
 
@@ -2568,7 +2572,7 @@ def test_real_catalog_now_selects_a_real_candidate_family_to_create(tmp_path):
     module = _module()
     state_path = tmp_path / "application.json"
 
-    selection = module.select_catalog_family_to_create(module.DEFAULT_CATALOG, state_path)
+    selection = module.select_catalog_family_to_create(REPO_ROOT / "skills/gig-work/profile/listings/catalog.json", state_path)
 
     assert selection["action"] == "candidate_selected"
     assert isinstance(selection["family"], str) and selection["family"]
@@ -2609,9 +2613,10 @@ def test_run_catalog_create_never_touches_the_browser_layer_when_all_published(t
 
 def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monkeypatch, tmp_path):
     module = _module()
+    private_catalog = _private_catalog(tmp_path / "catalog")
     calls: list[Path] = []
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "action": "unchanged"})
-    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: calls.append(state_path) or {"action": "all_published", "skipped": []})
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: calls.append(state_path) or {"action": "all_published", "skipped": []})
 
     class _Delivery:
         attempted = 0
@@ -2627,7 +2632,7 @@ def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monk
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     assert exit_code == 0
     assert len(calls) == 1
@@ -2640,15 +2645,16 @@ def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monk
     ({"ok": False, "logged_in": False, "error": "account_unavailable"}, False),
     ({"action": "all_published", "skipped": []}, False),
 ])
-def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatch, catalog, uncertain):
+def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatch, tmp_path, catalog, uncertain):
     """A create attempted after login that did not persist its listing id is an unknown effect.
 
     Leaving the wake ok=True exits 0, so the host never fences it and the next wake creates the
     same family again; it must exit non-zero without any pre-effect claim instead.
     """
     module = _module()
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "logged_in": True, "action": "unchanged"})
-    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: dict(catalog))
+    private_catalog = _private_catalog(tmp_path / "catalog")
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True, "logged_in": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: dict(catalog))
     reported = []
 
     class _Delivery:
@@ -2666,7 +2672,7 @@ def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatc
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     if uncertain:
         assert exit_code == 1
@@ -2678,12 +2684,13 @@ def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatc
         assert reported[0]["ok"] is True
 
 
-def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effect(monkeypatch):
+def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effect(monkeypatch, tmp_path):
     module = _module()
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "action": "updated"})
+    private_catalog = _private_catalog(tmp_path / "catalog")
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True, "action": "updated"})
     monkeypatch.setattr(
         module, "run_catalog_create",
-        lambda state_path: (_ for _ in ()).throw(AssertionError("run_catalog_create must not run when run() already had an effect")),
+        lambda state_path, catalog_path, **kwargs: (_ for _ in ()).throw(AssertionError("run_catalog_create must not run when run() already had an effect")),
     )
 
     class _Delivery:
@@ -2700,18 +2707,19 @@ def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effec
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     assert exit_code == 0
 
 
-def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catalog_creation(monkeypatch):
+def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catalog_creation(monkeypatch, tmp_path):
     """--apply's own result dict for the existing single-offer listing keeps every field it had
     before; catalog_creation is purely additive, not a replacement of any existing key."""
     module = _module()
+    private_catalog = _private_catalog(tmp_path / "catalog")
     existing_result = {"ok": True, "action": "unchanged", "aligned": True, "canonical_url": "https://www.lancers.jp/menu/detail/1338228"}
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: dict(existing_result))
-    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: {"action": "all_published", "skipped": []})
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: dict(existing_result))
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: {"action": "all_published", "skipped": []})
 
     class _Delivery:
         attempted = 0
@@ -2731,6 +2739,182 @@ def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catal
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     assert exit_code == 0
+
+
+def _private_reporter(reported):
+    from types import SimpleNamespace
+    return SimpleNamespace(notify_storefront_wake=lambda result: (
+        reported.append(dict(result)) or SimpleNamespace(
+            attempted=0, delivered=0, delivery_uncertain=False, pre_send_failed=False, provider_rejected=0)))
+
+
+@pytest.mark.parametrize("mode", ["--apply", "--create-package", "--roster-readback"])
+@pytest.mark.parametrize("broken", ["missing", "json", "avatar_hash", "tags", "version"])
+def test_private_product_setup_stops_before_browser_create_or_notify(tmp_path, monkeypatch, capsys, mode, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = tmp_path / ".config/anicca/lancers/storefront-product.json"
+    if broken != "missing":
+        _private_product(path.parent)
+        if broken == "json":
+            path.write_text("PRIVATE-BROKEN-INPUT")
+        else:
+            value = json.loads(path.read_text())
+            if broken == "avatar_hash":
+                value["profile_avatar_sha256"] = "0" * 64
+            elif broken == "tags":
+                value["tags"] = [{}]
+            else:
+                del value["product_version"]
+            path.write_text(json.dumps(value))
+    module = _module()
+    callbacks = []
+
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("external callback reached without private setup")
+
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    code = module.main([mode])
+    result = json.loads(capsys.readouterr().out)
+    assert code != 0
+    assert result.get("error") == "setup_required"
+    assert result["logged_in"] is False
+    assert callbacks == []
+    assert "PRIVATE-" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("mode", ["--apply", "--create-package", "--roster-readback"])
+@pytest.mark.parametrize("broken", ["short_title", "missing_mapping", "mapping_type", "encoding"])
+def test_private_invalid_catalog_projection_stops_before_external_callbacks(tmp_path, monkeypatch, capsys, mode, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    product = _private_product(tmp_path / "owner", catalog_family="other")
+    catalog = _private_catalog(tmp_path / "catalog")
+    value = json.loads(catalog.read_text())
+    if broken == "short_title":
+        value["listings"][0]["title_ja"] = "短い"
+    elif broken == "missing_mapping":
+        value["listings"][0]["platform_overrides"] = {}
+    elif broken == "mapping_type":
+        value["listings"][0]["platform_overrides"]["lancers"] = 7
+    if broken == "encoding":
+        catalog.write_bytes(bytes([255]))
+    else:
+        catalog.write_text(json.dumps(value))
+    module = _module()
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("external callback reached without valid private catalog")
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    code = module.main([mode, "--product", str(product), "--catalog", str(catalog)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 78
+    assert result["error"] == "setup_required"
+    assert result["logged_in"] is False
+    assert callbacks == []
+
+
+@pytest.mark.parametrize("broken", ["short_title", "missing_mapping", "mapping_type", "encoding"])
+def test_private_invalid_auto_catalog_stops_wake_before_create_and_notify(tmp_path, monkeypatch, capsys, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    value = json.loads(catalog.read_text())
+    if broken == "short_title":
+        value["listings"][0]["title_ja"] = "短い"
+    elif broken == "missing_mapping":
+        value["listings"][0]["platform_overrides"] = {}
+    elif broken == "mapping_type":
+        value["listings"][0]["platform_overrides"]["lancers"] = 7
+    if broken == "encoding":
+        catalog.write_bytes(bytes([255]))
+    else:
+        catalog.write_text(json.dumps(value))
+    module = _module()
+    tick = _FakeTick()
+    callbacks, reported = [], []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("invalid catalog reached external callback")
+    monkeypatch.setattr(tick, "_default_browser_factory", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    monkeypatch.setattr(module, "run", lambda *_args, **_kwargs: {
+        "ok": True, "logged_in": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "_load", lambda _name, path: (
+        _private_reporter(reported) if Path(path).name == "telegram_report.py" else tick))
+    code = module.main(["--apply", "--product", str(product), "--catalog", str(catalog)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 78
+    assert result["ok"] is False
+    assert result["error"] == "setup_required"
+    direct = module.run_catalog_create(tmp_path / "state/application.json", catalog, product_path=product)
+    assert direct["error"] == "setup_required"
+    assert direct["logged_in"] is False
+    assert callbacks == []
+    assert reported == []
+
+
+def test_private_run_profile_receives_validated_avatar(tmp_path, monkeypatch):
+    path = _private_product(tmp_path / "owner")
+    module = _module()
+    tick = _FakeTick()
+    monkeypatch.setattr(module, "_load", lambda *_: tick)
+    monkeypatch.setattr(module, "_apply", lambda *_: {"ok": True, "aligned": False, "action": "unchanged"})
+    monkeypatch.setattr(module, "_ensure_portfolio", lambda _page, product, _image, key: {
+        "portfolio_external_id": product[key]["external_id"], "portfolio_effect_count": 0,
+        "portfolio_url": f"https://www.lancers.jp/profile/other-seller/portfolio_popup/{product[key]['external_id']}"})
+    avatars = []
+    monkeypatch.setattr(module, "_profile", lambda _page, _product, avatar, _apply: (
+        avatars.append(avatar) or {"profile_effect_count": 0}))
+    result = module.run(True, path, tmp_path / "state/application.json")
+    assert result["ok"] is True
+    assert avatars == [path.parent / "other-avatar.png"]
+
+
+def test_private_catalog_create_receives_validated_product_image(tmp_path, monkeypatch):
+    path = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(path.parent)
+    module = _module()
+    tick = _FakeTick()
+    monkeypatch.setattr(module, "_load", lambda *_: tick)
+    images = []
+    monkeypatch.setattr(module, "create_package", lambda _page, _product, image: (
+        images.append(image) or {"ok": True, "listing_external_id": "92001",
+                                 "canonical_url": "https://www.lancers.jp/menu/detail/92001"}))
+    result = module.run_catalog_create(tmp_path / "state/application.json", catalog, product_path=path)
+    assert result["ok"] is True
+    assert images == [path.parent / "other-image.png"]
+
+
+def test_private_main_propagates_explicit_product_and_catalog(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = _private_product(tmp_path / "chosen")
+    catalog = _private_catalog(tmp_path / "catalog")
+    module = _module()
+    calls, reported = [], []
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: (
+        calls.append(("run", product_path, kwargs)) or {"ok": True, "action": "unchanged"}))
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: (
+        calls.append(("catalog", catalog_path, kwargs)) or {"action": "all_published", "skipped": []}))
+    monkeypatch.setattr(module, "_load", lambda *_: _private_reporter(reported))
+    assert module.main(["--apply", "--product", str(path), "--catalog", str(catalog)]) == 0
+    assert calls == [("run", path, {"catalog_path": catalog}),
+                     ("catalog", catalog, {"product_path": path})]
+
+
+def test_private_main_without_catalog_keeps_single_product_lane(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = _private_product(tmp_path / ".config/anicca/lancers")
+    module = _module()
+    calls, reported = [], []
+    monkeypatch.setattr(module, "run", lambda *_args, **_kwargs: {"ok": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda *_args, **_kwargs: calls.append("catalog"))
+    monkeypatch.setattr(module, "_load", lambda *_: _private_reporter(reported))
+    assert module.main(["--apply", "--product", str(path)]) == 0
+    assert calls == []
+    assert "catalog_creation" not in reported[0]
