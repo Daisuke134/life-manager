@@ -13,7 +13,7 @@
 - [Codex / Maritime readback] readback完了: PR #8744/main5904b05bにlive evidence/checkpointを統合済み。既存X2件の公開receiptはfollowup docsへ記録。現在の実利用/費用・正式提出receiptはunknownで、製品/提出の完了は主張しない。
 - [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
-- [Codex Mobile] Anicca旗艦・公開6アプリの残6TODOを継続する。現在はEN Instagram認証の実画像/子frame確認と、metricsの10/23途中保存後失敗を診断する。Thankfulは既存審査へ合流する。所有・受入・証拠・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
+- [Codex Mobile] Anicca旗艦・公開6アプリの残6TODOを継続する。現在はEN Instagram認証の実画像/子frame確認と、metricsのTikTok写真URL誤拒否を既存2fileで修正する。Thankfulは既存審査へ合流する。所有・受入・証拠・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
 - [Codex / Manager] PR8710自動review追加指摘: 公開shadow比較の状態・理由・証拠の整合性を修復。専用branchのprojection/testのみ、推論・host・台帳・他laneは変更しない。
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
