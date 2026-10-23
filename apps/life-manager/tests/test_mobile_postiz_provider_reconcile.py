@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -633,6 +634,7 @@ def carousel_provider_rows(content: str) -> dict:
         "post": {"posts": [{
             "id": "post-1",
             "state": "PUBLISHED",
+            "publishDate": "2026-09-17T12:31:00.000Z",
             "releaseURL": "https://www.instagram.com/p/abc123/",
             "integration": {"id": "integration-1"},
             "content": content,
@@ -654,17 +656,39 @@ def write_cta_carousel_ledger(path: Path, value: dict, cta_sha256: str | None) -
 
 def cta_proof(module, tmp_path: Path, monkeypatch, *, provider_caption: str, receipt_cta_sha256: str | None):
     sidecar = tmp_path / "identity.jsonl"
-    ledger = product_scoped_ledger(tmp_path, "anicca-ios")
+    data_dir = tmp_path / "data"
+    ledger = data_dir / "tenants/dais-local/marketing/native-carousel-publication/anicca-ios/distribution.jsonl"
+    ledger.parent.mkdir(parents=True)
     value = carousel_identity()
+    media = {f"https://uploads.postiz.com/slide-{index}.jpg": f"slide-{index}".encode() for index in range(6)}
+    value["media_sha256"] = [hashlib.sha256(payload).hexdigest() for payload in media.values()]
+    value["media_order_sha256"] = hashlib.sha256(json.dumps(value["media_sha256"], separators=(",", ":")).encode()).hexdigest()
+    pack = json.dumps({"slides": [{"text": f"Slide {index}"} for index in range(6)]}).encode()
+    value["pack_sha256"] = hashlib.sha256(pack).hexdigest()
+    value["effect_key"] = f"marketing:carousel:anicca-ios:creative:{value['pack_sha256']}:{value['media_order_sha256']}:{value['caption_sha256']}"
+    objects = data_dir / "objects/sha256"
+    objects.mkdir(parents=True)
+    pack_path = objects / value["pack_sha256"]
+    pack_path.write_bytes(pack)
+    pack_path.chmod(0o600)
     write_identity(sidecar, value)
     write_cta_carousel_ledger(ledger, value, receipt_cta_sha256)
     responses = carousel_provider_rows(provider_caption)
+    responses["post"]["posts"][0]["image"] = json.dumps([{"path": url} for url in media])
+
+    def urlopen(request, timeout):
+        response = io.BytesIO(media[request.full_url])
+        response.headers = {"Content-Type": "image/jpeg"}
+        response.geturl = lambda: request.full_url
+        return response
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", urlopen)
     monkeypatch.setattr(
         module, "_request_json",
         lambda url, _api_key: responses["integrations" if url.endswith("/integrations") else "post"],
     )
     identity_value = module.read_identity(sidecar, value["loop_id"], value["occurrence_id"])
-    return module.build_official_proof(identity_value, ledger, "token")
+    return module.build_official_proof(identity_value, ledger, "token", identity_dir=tmp_path)
 
 
 def test_official_caption_with_cta_matches_the_receipt_final_hash(tmp_path: Path, monkeypatch) -> None:

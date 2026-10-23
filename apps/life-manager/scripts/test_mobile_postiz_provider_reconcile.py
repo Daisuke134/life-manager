@@ -1383,13 +1383,16 @@ def test_youtube_identity_from_existing_writer_accepts_its_exact_configured_post
         "account_id": "@anicca-affirmation-video",
     }
 
-    assert reconcile._expected_postiz_profile(identity) == "@anicca-affirmation-video"
+    assert "@anicca-affirmation-video" in reconcile._expected_postiz_profiles(identity)
 
 
-def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False, publish_date=None):
-    owner = "life-manager-anicca-jp1-tiktok"
+def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False, publish_date=None, platform="tiktok"):
+    instagram = platform == "instagram"
+    owner = "life-manager-anicca-en-affirmation-instagram" if instagram else "life-manager-anicca-jp1-tiktok"
     slot = "2026-10-07T09:00:00.000Z"
-    integration_id = "cmlrv8jq000hun60yy57eaptx"
+    integration_id = "cmp9pedr700ttqh0yj8o57fog" if instagram else "cmlrv8jq000hun60yy57eaptx"
+    account_id = "@anicca.affirmation" if instagram else "@anicca.jp1"
+    creative_id = "EN-AFFIRMATION-CAROUSEL-da8d8265" if instagram else "JA-LARRY-V1-JP1-test1"
     caption = "A short, steady reminder."
     caption_sha = hashlib.sha256(caption.encode()).hexdigest()
     media_bytes = [f"approved-slide-{index}".encode() for index in range(6)]
@@ -1416,18 +1419,18 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         "loop_id": owner,
         "job_id": "marketing-native-carousel-publication:job-1",
         "effect_key": (
-            f"marketing:carousel:anicca-ios:JA-LARRY-V1-JP1-test1:{pack_sha}:"
+            f"marketing:carousel:anicca-ios:{creative_id}:{pack_sha}:"
             f"{media_order_sha}:{caption_sha}:{hashlib.sha256(slot.encode()).hexdigest()}"
         ),
         "product_id": "anicca-ios",
         "format_id": "larry",
         "form": "affirmation-carousel",
-        "locale": "ja",
-        "platform": "tiktok",
-        "creative_id": "JA-LARRY-V1-JP1-test1",
+        "locale": "en" if instagram else "ja",
+        "platform": platform,
+        "creative_id": creative_id,
         "slot": slot,
-        "integration_ref": f"integration://postiz/tiktok/{integration_id}",
-        "account_id": "@anicca.jp1",
+        "integration_ref": f"integration://postiz/{platform}/{integration_id}",
+        "account_id": account_id,
         "video_sha256": None,
         "caption_sha256": caption_sha,
         "media_sha256": media_sha,
@@ -1475,9 +1478,9 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         details[provider_id] = {
             **row,
             "image": json.dumps(images),
-            "releaseId": f"p_pub_url~v2.{12345 + index}",
-            "releaseURL": "https://www.tiktok.com/@anicca.jp1",
-            "settings": json.dumps({
+            "releaseId": "18158245894509101" if instagram else f"p_pub_url~v2.{12345 + index}",
+            "releaseURL": "https://www.instagram.com/p/abc123/" if instagram else "https://www.tiktok.com/@anicca.jp1",
+            "settings": json.dumps({"__type": "instagram-standalone", "post_type": "post"} if instagram else {
                 "__type": "tiktok",
                 "title": "Exact title",
                 "content_posting_method": "DIRECT_POST",
@@ -1485,15 +1488,18 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         }
 
     request_urls = []
+    integration = {
+        "id": integration_id,
+        "identifier": "instagram-standalone" if instagram else "tiktok",
+        "profile": "anicca.ios" if instagram else "anicca.jpx",
+    }
 
     def request_json(url, _api_key):
         request_urls.append(url)
         if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
             return {"posts": posts}
         if url == f"{reconcile.POSTIZ_V1}/integrations":
-            return {"integrations": [{
-                "id": integration_id, "identifier": "tiktok", "profile": "anicca.jpx",
-            }]}
+            return {"integrations": [integration]}
         for provider_id, row in details.items():
             if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
                 return row
@@ -1521,6 +1527,8 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         url = request.full_url if hasattr(request, "full_url") else str(request)
         image_urls.append(url)
         assert timeout > 0
+        if instagram and request.get_header("User-agent") != "postiz-cli":
+            raise reconcile.urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
         return FakeResponse(media_by_url[url], url)
 
     class PublishedPhotoAdapter:
@@ -1531,7 +1539,8 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
 
     monkeypatch.setattr(reconcile, "_authoritative_admission_db", lambda: admission_db.resolve())
     monkeypatch.setattr(reconcile, "_request_json", request_json)
-    monkeypatch.setattr(reconcile, "_load_postiz_video_adapter", lambda: PublishedPhotoAdapter())
+    if not instagram:
+        monkeypatch.setattr(reconcile, "_load_postiz_video_adapter", lambda: PublishedPhotoAdapter())
     monkeypatch.setattr(reconcile.urllib.request, "urlopen", urlopen)
     return {
         "owner": owner,
@@ -1544,7 +1553,93 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         "request_urls": request_urls,
         "image_urls": image_urls,
         "provider_id": "post-photo-1",
+        "posts": posts,
+        "details": details,
+        "integration": integration,
     }
+
+
+@pytest.mark.parametrize("profile", ["anicca.ios", "anicca.affirmation"])
+def test_exact_instagram_carousel_recovers_standard_receipt_without_resending(tmp_path, monkeypatch, profile):
+    fixture = _native_carousel_recovery_fixture(
+        tmp_path, monkeypatch, platform="instagram", publish_date="2026-10-07T11:52:00.000Z",
+    )
+    fixture["integration"]["profile"] = profile
+    identity = fixture["identity"]
+    result = reconcile.reconcile_current_occurrence(
+        owner_id=fixture["owner"], occurrence_id=identity["occurrence_id"],
+        identity_dir=fixture["identity_dir"], data_dir=fixture["data_dir"], tenant_id="dais-local",
+        admission_db=fixture["admission_db"], api_key="test-only", apply=False,
+    )
+
+    assert result["status"] == "ready", result
+    assert result["verified"] is True
+    assert result["provider_receipt_id"] == "post-photo-1"
+    assert reconcile._READ_ONLY.evaluate_proof(identity, result)["status"] == "ready"
+    assert not fixture["ledger"].exists()
+    with sqlite3.connect(fixture["admission_db"]) as connection:
+        assert connection.execute("SELECT state,effect_unknown FROM occurrences").fetchall() == [("claimed", 1)]
+    recovered = reconcile._recovered_distribution_row(identity, result, fixture["ledger"])
+    assert recovered["effect_key"] == identity["effect_key"]
+    assert recovered["job_id"] == identity["job_id"]
+    receipt = recovered["receipt"]
+    assert receipt["kind"] == "marketing_native_carousel_distribution"
+    assert receipt["public_url"] == "https://www.instagram.com/p/abc123/"
+    assert receipt["media_sha256"] == fixture["media_sha"]
+    assert "video_path" not in receipt
+    node = shutil.which("node")
+    assert node
+    adapter_path = Path(reconcile.__file__).resolve().parents[1] / "lib" / "marketing-native-carousel-publication-adapter.js"
+    checked = subprocess.run(
+        [node, "-e", "const a=require(process.argv[1]);process.exit(a.verifyMarketingNativeCarouselPublicationReceipt(JSON.parse(process.argv[2]))?0:1)",
+         str(adapter_path), json.dumps(receipt)], capture_output=True, text=True, check=False,
+    )
+    assert checked.returncode == 0, checked.stderr or checked.stdout
+    reconcile._persist_recovered_distribution_row(identity, result, fixture["ledger"])
+    reconcile._persist_recovered_distribution_row(identity, result, fixture["ledger"])
+    stored = reconcile._safe_jsonl(fixture["ledger"])
+    assert stored == [recovered]
+    assert reconcile._local_receipt(identity, fixture["ledger"])[1] == "post-photo-1"
+
+
+@pytest.mark.parametrize("change", ["caption", "integration", "media_order", "profile", "platform", "reel_url"])
+def test_instagram_carousel_recovery_refuses_changed_provider_identity(tmp_path, monkeypatch, change):
+    fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch, platform="instagram")
+    detail = fixture["details"]["post-photo-1"]
+    if change == "caption":
+        detail["content"] = "Different caption"
+    elif change == "integration":
+        detail["integration"] = {"id": "another-integration"}
+    elif change == "media_order":
+        detail["image"] = json.dumps(list(reversed(json.loads(detail["image"]))))
+    elif change == "profile":
+        fixture["integration"]["profile"] = "anicca.jpx"
+    elif change == "platform":
+        fixture["integration"]["identifier"] = "tiktok"
+    else:
+        detail["releaseURL"] = "https://www.instagram.com/reel/abc123/"
+
+    result = reconcile.verify_official_postiz_receipt(
+        fixture["identity"], fixture["ledger"], "test-only", identity_dir=fixture["identity_dir"],
+    )
+
+    assert result["status"] == "inconclusive"
+    assert not fixture["ledger"].exists()
+
+
+def test_postiz_detail_get_accepts_proxy_requiring_cli_user_agent(monkeypatch):
+    url = reconcile.POSTIZ_DETAILS + "/post-1"
+
+    def urlopen(request, timeout):
+        assert request.full_url == url
+        assert request.get_method() == "GET"
+        assert timeout > 0
+        if request.get_header("User-agent") != "postiz-cli":
+            raise reconcile.urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+        return io.BytesIO(b'{"id":"post-1"}')
+
+    monkeypatch.setattr(reconcile.urllib.request, "urlopen", urlopen)
+    assert reconcile._request_json(url, "test-only") == {"id": "post-1"}
 
 
 def test_pending_owner_recovers_only_one_exact_native_carousel_receipt(tmp_path, monkeypatch):
