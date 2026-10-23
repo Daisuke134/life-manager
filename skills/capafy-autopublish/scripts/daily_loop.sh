@@ -417,6 +417,11 @@ $PREP_OUT
 Do only step 5b: complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above. Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last. After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index. If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial. Fill every empty or red Basic Info / 基本情報 field from CONFIG_PATH and complete the workspace tab before Pricing / 価格設定 last. Clicking the pending Skill card alone does not set is_confirmed_skills on the server; it turns true only after the card is saved. After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation. If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH. Set every plan to its printed target, run scripts/cp1_agent.py prices with the listing above, and require PRICES_MATCH. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
   fi
 fi
+SELECTED_ID="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
+try:
+    d=json.loads(sys.stdin.read())
+    print((d.get("item") or {}).get("agent_id","") if d.get("action") in ("resume_draft","retry_existing","update_existing") else "")
+except Exception: print("")' 2>/dev/null)"
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
 FRESH_EVIDENCE=0
 [ ! -e "$EVIDENCE_DIR" ] && FRESH_EVIDENCE=1
@@ -486,6 +491,28 @@ else:
     exit 0
   fi
 fi
+
+# SUBMITTED-SELECTED-BEGIN
+# The drainer submitted the agent this pass selected (retry/resume/update) and the authoritative
+# post-readback shows it now in review (occupied) or online (listed).  The queue still holds more
+# items, so the aggregate post-verdict stays PUBLISHABLE; that is not a failure of this pass.  Exiting
+# non-zero here left the parent occurrence unprovable and fenced the factory (live 2026-10-23 2576591785).
+if [ "$RC" -eq 0 ] && [ -n "${SELECTED_ID:-}" ]; then
+  SELECTED_SUBMITTED="$(printf '%s' "$POST_JSON" | tail -1 | python3 -c 'import json,sys
+d=json.load(sys.stdin); target=sys.argv[1]
+for agent in d.get("agents", []):
+    if str(agent.get("agent_id") or "") == target:
+        print("1" if agent.get("lifecycle") in ("occupied", "listed") else "0")
+        break
+else:
+    print("0")' "$SELECTED_ID" 2>>"$LOG")"
+  if [ "$SELECTED_SUBMITTED" = "1" ]; then
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (SUBMITTED — $SELECTED_ID is in review or online; post-verdict=$POST, marker touched) ===" >> "$LOG"
+    exit 0
+  fi
+fi
+# SUBMITTED-SELECTED-END
 
 # A3 (2026-07-18): a per-pass max-turns exhaustion is a BUDGET limit, not a broken pipeline. Track a
 # streak so a single/short exhaustion continues next pass (marker kept fresh) but a PERSISTENT one
