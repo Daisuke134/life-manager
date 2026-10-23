@@ -316,6 +316,32 @@ def test_broken_input_is_not_replaced_by_an_author_template(installation, capsys
     assert not getattr(case, "private_" + kind).exists()
 
 
+@pytest.mark.parametrize("fresh_ok", [True, False])
+def test_kept_running_browser_still_gets_a_fresh_account_observation(installation, monkeypatch, capsys, fresh_ok):
+    from runtime.loop import local_install
+
+    case = installation
+    case.fresh_ok = fresh_ok
+    apply = local_install.apply_targets
+
+    def keep_browser(path, owners, env):
+        rows = apply(path, owners, env)
+        if owners == [PREFIX + "browser"]:
+            rows[0]["skipped"] = "loaded-running"
+        return rows
+
+    monkeypatch.setattr(local_install, "apply_targets", keep_browser)
+    _code, result = _call(case, capsys, "install", *_inputs(case))
+    rows = _jobs(result)
+    assert "observe" in case.events
+    assert rows[PREFIX + "browser"]["state"] == "waiting"
+    for name in ("application", "storefront", "negotiate", "paid", "work-sync"):
+        assert (PREFIX + name in case.applied) is fresh_ok
+        assert ("account_observation" in rows[PREFIX + name]["missing"]) is not fresh_ok
+    assert PREFIX + "telegram-report" in case.applied
+    assert result["status"] == "waiting"
+
+
 def test_non_object_product_is_held_without_stopping_independent_jobs(installation, capsys):
     case = installation
     case.product.write_text("[]")
