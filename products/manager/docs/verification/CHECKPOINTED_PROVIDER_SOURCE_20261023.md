@@ -12,6 +12,14 @@ Manager本体を先に進めるため、既存Ampersand adapterを、既存の�
 - fresh contextの独立reviewはR1〜R3。壊れたschemaからの再送、別turnのcancel照合、復元割込み、矛盾するterminal receiptを修正し、最終未解決0件。
 - main由来の全365テストをrootが独立再実行して成功。研究branchへ同じsourceを統合した全928テストは923成功／5 skip。原113件の状態とは別のテスト母数。
 
+## mainの既存実行経路の互換確認
+
+- [既存workflowのrun39918652169](https://github.com/Daisuke134/life-manager/actions/runs/39918652169)を一度だけ起動し、main source `1e72a952b0a4b61f644e947213c50f8a91db50b1`でverify／publisherの両jobが成功した。公式publisher summaryの出力時刻は2026-10-23 07:54:33 UTC。
+- 公式結果は `authentication=GATEWAY_ACKNOWLEDGED`、`status=NO_ACTION`、`reason=MISSING_TYPED_CANDIDATE`、`writes=0`。変更候補を作るためのfixture差替えや再送は行っていない。
+- `current_proof_exported=true`、参照先は既存の `faf18b39207be69af89d9b10389a294731288a20`。今回の `receipt_sha=null`、`rollback_delivery=null`を保持し、新しい配信・介入のreceiptと数えない。
+- このrunの生の `proof_level=P0`、`E16_ACCEPTANCE=INCOMPLETE`、`positive_canary=NOT_RUN`、`human_outcome=NOT_MEASURED`も保持する。これは既存loopの後方互換の確認であり、新しい正の介入、scheduled inference、人の便益の受入ではない。過去のE16限定技術受入は別のoccurrenceを集約した証拠に基づく。
+- source同期と仕様更新の研究head `f784d106ccf9237dc414eb08c6e9dc330e4510ac`は[公式CI39919819042](https://github.com/Daisuke134/life-manager/actions/runs/39919819042)で成功。全902テスト中6 skip、失敗0。E01 receipt、P0 advisory、113件の台帳不変とManager source境界も成功した。これは同headの証拠で、この追記の後のheadへ実行結果を付け替えない。
+
 ## 再利用と変更箇所
 
 | ファイル | 接続・修正した内容 |
