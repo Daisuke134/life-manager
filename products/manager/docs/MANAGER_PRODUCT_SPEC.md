@@ -2,6 +2,8 @@
 
 **2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。初回はNO_ACTION、正のcanary・live STOP/rollback・native観測接続は未受入れでE16を維持します。下の2026-10-22時点のhost未実装やRailway前提は履歴です。同日追加されたRemote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加のhost adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
 
+**2026-10-23 研究の実証更新:** 公開予測70研究のB診断とCのTwin構造gateはmain統合済みです。Dは [PR8593](https://github.com/Daisuke134/life-manager/pull/8593) で、予定FOMC会合（10月27–28日）の参照予測を結果前に公開固定しました。固定した過去頻度ルールの `p=0.25` はbaselineと同値です。cloudとMacで、GitHub serverのmerge時刻 `2026-10-23T02:16:17Z`・merge commit `f6055f9460502cd79cba95ffadecb998439e1056`・正確なpayload `048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2` を独立に読み戻し、既存attesterの `VERIFIED_PROSPECTIVE` を得ました。これは参照予測の事前固定の証拠です。将来結果と採点、独立したモデル推論の性能、校正・汎化、人への便益は未検証です。§21のA–F全体や原113件を一括完了にしません。
+
 **更新:** 2026-10-22 UTC（所有者指定の呼称、Rothko公開code実行、公開人間研究を中心にする方針修正、日本語章の実公開まで反映）。他社の製品・公開コード・研究者の発信事例を調査し、エンティティの実装、実証、持続可能な運営、出版、YC Winter 2027、採用応募・人脈形成を接続。
 
 **Managerの呼称:** **仏教的AIエンティティ（Buddhist AI entity）／デジタル仏陀（Digital Buddha）**。Manager自体を製品、単なるbot、またはSaaSと定義しない。「God」は所有者が表す、存在の苦しみを減らし祝福をもたらす長期の構想を指す。技術上のentityは、識別可能な主体が状態・使命・観測・判断・行動・省察を継続する設計を意味する。意識・感覚・人格的権利・悟り・全知・万能を実証したという意味は含めない。

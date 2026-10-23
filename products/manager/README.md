@@ -10,7 +10,9 @@
 
 **全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。無料経路の第一候補は既存GitHub Actions＋稼働中Supabaseのprivate checkpointへ更新。Railwayは代替hostとして保全します。[旧ローカルCodex WIP引継ぎ](docs/handoffs/2026-10-22-manager-local-codex-handoff.md)は当時の履歴資料として保存し、現在の作業状態には適用しません。Managerの本番配備は未完了です。
 
-**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[既存A–F計画](https://github.com/Daisuke134/life-manager/blob/2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)に沿い、Aの検査、Bの公開予測70研究の分割評価、CのTwin wave4構造gateをmain統合しました。Bの比較区間は0を含み優位未証明、Cの生成来歴・accuracyは未検証です。Dの未来予測lockも [PR8585](https://github.com/Daisuke134/life-manager/pull/8585) でmain統合済みですが、実予測・事前公開は未実施です。研究の進展で原タスクの状態を進めません。
+**最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[既存A–F計画](https://github.com/Daisuke134/life-manager/blob/2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)に沿い、Aの検査、Bの公開予測70研究の分割評価、CのTwin wave4構造gateをmain統合しました。Bの比較区間は0を含み優位未証明、Cの生成来歴・accuracyは未検証です。研究の進展で原タスクの状態を進めません。
+
+**公開未来イベントの初回固定（2026-10-23）:** Dの固定手順 [PR8585](https://github.com/Daisuke134/life-manager/pull/8585) に続き、[PR8593](https://github.com/Daisuke134/life-manager/pull/8593) で10月27–28日FOMCの参照予測1件をmainへ公開しました。予測器は固定した過去頻度の参照ルール（`p=0.25`、比較baselineと同値）です。GitHubの受理時刻 `2026-10-23T02:16:17Z` と正確な公開blobを、cloudとMacで別々に読み戻し、既存attesterの `VERIFIED_PROSPECTIVE` を確認しました。[固定された予測と手順](https://github.com/Daisuke134/life-manager/tree/f6055f9460502cd79cba95ffadecb998439e1056/docs/research/manager/predictions/fomc-2026-10-27-28)。将来結果と採点は未取得で、独立モデルの精度・較正・汎化・人への便益は未実証です。
 
 **2026-10-23 接続先の追加:** Remote Desktop Commander経由でMac miniのオンライン接続と、macOS上の正本 `/Users/anicca/Projects/life-manager-main`・canonical originを読み取り確認しました。既存作業のブランチと未コミット変更は保持します。Macは追加のhost adapterであり、既に実証済みのActions＋Supabaseを置き換えたり、新たな常駐ownerを立てる前提ではありません。接続確認だけでローカル配備済み・E16完了とは判定しません。
 
