@@ -56,6 +56,8 @@
 
 **V001設計とTask2全体の区別:** [用途別scope](../specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md)と[限定設計受入receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)にrootの実review/適用/受入を記録済みで、既存4有限診断役割の設計だけをV001 doneとした。旧literal UNMET/HOLD、12軸のavailability UNAVAILABLE、FINALの公開/非公開隔離と公開development露出履歴は保存。将来splitは未受入。上記Task2の4 checkboxはV002の全比較/人手照合を含むため、このV001受入だけでは完了にしない。全V002/V003の一般採用条件と依存は維持する。Task3の有限train27開始だけは下記別scopeのG0有限source実採択へ接続し、全V002完了を一律前提としない。G0単独で用途rights/protocolの全実行条件を受け入れたとせず、最終統合R2は0 findings/PASS。V001/G0単独では開始せず、その後の公式CI・実資源/外部0400とG0–G6実判断を別に受け入れて、下記Task3の一attemptだけを完了した。
 
+**追加の公開評価codeから学ぶ候補:** [DarkBenchの一次資料・契約差](../research/2026-10-23-darkbench-reuse.md)を確認した。rubric/MIT scorer/著者集計は部分参考になるが、exact原responseと公開human票のbindingは未確認。上流の空category0・invalid/parse失敗・3attempts/JSON修復・現default judgeと原著3judgeの差を保持し、既存Managerのnull/全assigned/失敗区別へ無条件に直結しない。新engine/data/scorer実行を導入せず、用途に適合する実参照が成立した箇所から既存評価契約へ接続する。V002/V003 todo・現final16の採点済み状態・モデル採用HOLDは変えない。
+
 ## Task 3: 独自重みの最小研究 — V003
 
 **実在するsource:** [有限研究scope](../specs/2026-10-23-finite-private-sft-research-start.md)、[train27 manifest](../../experiments/behavior-model/helpsteer2-train27-manifest-v1.json)、[静的科学protocol](../../experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json)、[source-rights](../research/source-rights.json)、[実装subplan](2026-10-23-helpsteer2-private-sft.md)、[core](../../manager_core/helpsteer2_candidate_sft.py)、[薄いCLI](../../scripts/train_helpsteer2_candidate_sft.py)、[focused tests](../../tests/test_helpsteer2_candidate_sft.py)。runtime receipt/adapterは既存のprivate Git外保存・metadata receipt契約へ結ぶ。
