@@ -108,6 +108,52 @@ class OpportunityOutcomeTests(unittest.TestCase):
         self.assertEqual(result.evidence_status, "RECEIPT_SOURCE_MISMATCH")
         self.assertIsNone(result.declared_received_minor)
 
+    def test_d011_receipt_cannot_reuse_posting_delivery_or_approval_source(self):
+        m = module()
+        item = opportunity()
+        for earlier in ("posting", "delivery", "approval"):
+            same = getattr(item, earlier).source
+            modified = replace(
+                item,
+                settlement=m.OpportunityStage("settlement", "public", same),
+                receipt=replace(item.receipt, source=same),
+            )
+            with self.subTest(earlier=earlier):
+                outcome = m.reconcile_opportunity(modified, costs())
+                self.assertEqual(outcome.evidence_status, "RECEIPT_EVIDENCE_REUSED")
+                self.assertIsNone(outcome.declared_received_minor)
+                self.assertIsNone(outcome.declared_economic_net_minor)
+                self.assertEqual(outcome.income_status, "NOT_VERIFIED")
+
+    def test_d011_receipt_reuse_with_distinct_ids_or_urls_is_not_independent(self):
+        m = module()
+        item = opportunity()
+        approved = item.approval.source
+        original = item.receipt.source
+        fakes = (
+            replace(original, source_id="independent-label", url=approved.url),
+            replace(original, source_id="independent-label", content_sha256=approved.content_sha256),
+        )
+        for fake in fakes:
+            modified = replace(
+                item,
+                settlement=m.OpportunityStage("settlement", "public", fake),
+                receipt=replace(item.receipt, source=fake),
+            )
+            with self.subTest(fake=fake.source_id + fake.url):
+                outcome = m.reconcile_opportunity(modified, costs())
+                self.assertEqual(outcome.evidence_status, "RECEIPT_EVIDENCE_REUSED")
+                self.assertIsNone(outcome.declared_received_minor)
+                self.assertIsNone(outcome.verified_income_minor)
+
+    def test_d011_separate_docs_are_necessary_not_sufficient_for_income(self):
+        outcome = module().reconcile_opportunity(opportunity(), costs())
+        self.assertEqual(outcome.evidence_status, "DECLARED_SETTLEMENT_RECONCILED")
+        self.assertEqual(outcome.declared_received_minor, 2000)
+        self.assertEqual(outcome.income_status, "NOT_VERIFIED")
+        self.assertIsNone(outcome.verified_income_minor)
+        self.assertEqual(outcome.human_welfare_status, "NOT_MEASURED")
+
     def test_unknown_expenses_time_and_opportunity_cost_stay_unknown(self):
         m = module()
         amounts = {category: 0 for category in COST_CATEGORIES}
