@@ -221,48 +221,37 @@ def test_ebook_child_environment_exposes_renderers_only_to_ebook_lanes():
     assert base["PATH"] == inherited_path
 
 
-def test_english_ebook_child_environment_sets_scoped_heygen_cli_path(tmp_path):
+def test_ebook_avatar_child_environment_sets_scoped_heygen_cli_path(tmp_path):
     inherited_path = os.pathsep.join(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
     base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
 
-    english = loop_runner._child_environment_for_owner(
-        "ebook-en-tiktok-daily", base, home=tmp_path,
-    )
-
-    assert english["LIFE_MANAGER_HEYGEN"] == str(tmp_path / ".local/bin/heygen")
-    assert english["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
-
-    english_override = loop_runner._child_environment_for_owner(
-        "ebook-en-tiktok-daily",
-        {**base, "LIFE_MANAGER_HEYGEN": "/opt/custom/heygen"},
-        home=tmp_path,
-    )
-    assert english_override["LIFE_MANAGER_HEYGEN"] == "/opt/custom/heygen"
-
-    japanese = loop_runner._child_environment_for_owner(
-        "ebook-ja-tiktok-daily", base, home=tmp_path,
-    )
-    assert "LIFE_MANAGER_HEYGEN" not in japanese
-    assert japanese["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+    for owner in ("ebook-en-tiktok-daily", "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"):
+        child = loop_runner._child_environment_for_owner(owner, base, home=tmp_path)
+        assert child["LIFE_MANAGER_HEYGEN"] == str(tmp_path / ".local/bin/heygen")
+        assert child["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+        override = loop_runner._child_environment_for_owner(
+            owner, {**base, "LIFE_MANAGER_HEYGEN": "/opt/custom/heygen"}, home=tmp_path,
+        )
+        assert override["LIFE_MANAGER_HEYGEN"] == "/opt/custom/heygen"
     assert loop_runner._child_environment_for_owner(
         "article-daily", base, home=tmp_path,
     ) == base
+    assert loop_runner._child_environment_for_owner(
+        "ebook-en-instagram-daily", base, home=tmp_path,
+    ) == base
 
 
-def test_english_ebook_child_environment_disables_heygen_telemetry_only_for_english_owner(tmp_path):
+def test_ebook_avatar_child_environment_disables_telemetry_only_for_its_owners(tmp_path):
     base = {"PATH": "/usr/bin:/bin", "LM_EBOOK_PUBLISHING_ENABLED": "false"}
 
-    english = loop_runner._child_environment_for_owner(
-        "ebook-en-tiktok-daily", base, home=tmp_path,
-    )
-    assert english["HEYGEN_NO_ANALYTICS"] == "1"
-
-    japanese = loop_runner._child_environment_for_owner(
-        "ebook-ja-tiktok-daily", base, home=tmp_path,
-    )
-    assert "HEYGEN_NO_ANALYTICS" not in japanese
+    for owner in ("ebook-en-tiktok-daily", "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"):
+        child = loop_runner._child_environment_for_owner(owner, base, home=tmp_path)
+        assert child["HEYGEN_NO_ANALYTICS"] == "1"
     assert loop_runner._child_environment_for_owner(
         "article-daily", base, home=tmp_path,
+    ) == base
+    assert loop_runner._child_environment_for_owner(
+        "ebook-en-instagram-daily", base, home=tmp_path,
     ) == base
 
 

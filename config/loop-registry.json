@@ -1718,7 +1718,7 @@
     },
     "ebook-ja-instagram-daily": {
       "priority": "revenue",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {"calendar_interval":[{"Hour":7,"Minute":0},{"Hour":12,"Minute":30},{"Hour":20,"Minute":0}]},
       "cleanup": {"max_age_days":14,"max_runs":100},
@@ -1740,7 +1740,7 @@
     },
     "ebook-ja-tiktok-daily": {
       "priority": "revenue",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {"calendar_interval":[{"Hour":7,"Minute":0},{"Hour":12,"Minute":30},{"Hour":20,"Minute":0}]},
       "cleanup": {"max_age_days":14,"max_runs":100},

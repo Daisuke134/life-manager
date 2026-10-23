@@ -1051,5 +1051,126 @@
     "requested_language_filter_effective": false,
     "selected_existing_english_voice_japanese_support_verified": false,
     "private_voice_metadata_sha256": "240a17fbd5faa0b923c92f91941d85c38b60e7b6d745ae72274e834bc66d60d0"
+  },
+  "japanese_avatar_migration_source": {
+    "status": "local_verified_review_pending",
+    "product_id": "ebook-ja",
+    "product_name": "アニッチャ・リセット",
+    "pack_id": "ebook-ja-anicca-monk",
+    "pack_sha256": "e58df19e1de5789de288dc056e79cce6b3ed11581fb901232a88e2738b504931",
+    "renderer_id": "heygen-avatar-iv",
+    "avatar_id": "ce6ef33ff2d0484dabf8a13ce059bbe8",
+    "voice_id": "662e1397965c484e8f65fa58c77effde",
+    "voice_name": "Satoshi",
+    "japanese_locale_hint_omitted": true,
+    "english_request_fingerprint_unchanged": true,
+    "english_request_fingerprint": "4519ee11894303b3dce9316621a969334375669c333642c3163a4bf6690bf814",
+    "legacy_japanese_script_count": 21,
+    "new_japanese_script_count": 21,
+    "english_baseline_count": 21,
+    "legacy_payloads_unchanged": true,
+    "english_payloads_and_ids_unchanged": true,
+    "semantic_unique_constraint_unchanged": true,
+    "shared_renderer_account_lock": true,
+    "pending_cost_guard_retained": true,
+    "focused_tests": {
+      "python_files": 7,
+      "passed": 437,
+      "subtests_passed": 217,
+      "node_files": 2,
+      "node_passed": 41
+    },
+    "loop_contract": {
+      "products": 18,
+      "registry_jobs": 191,
+      "errors": 0
+    },
+    "source_boundary_passed": true,
+    "oss_self_contained_passed": true,
+    "diff_check_passed": true,
+    "production_owner_enable_operations": 0,
+    "new_generations": 0,
+    "posts": 0,
+    "private_english_request_rebuild_sha256": "0c14d91419f6eff0e402f1f65765f84f372398cc656af9a1feba1e791aa8ae32",
+    "remaining": [
+      "fresh_source_review",
+      "exact_head_ci",
+      "main_merge",
+      "complete_sealed_immutable",
+      "cash_cost_reconciliation",
+      "native_capacity_and_fifo",
+      "japanese_canary_and_daily_distribution",
+      "actual_sales"
+    ]
+  },
+  "native_capacity_during_ja_source_acceptance": {
+    "recorded_at": "2026-10-23T07:04:17.550445+00:00",
+    "owner_id": "ebook-en-tiktok-daily",
+    "release_sha": "d8008b3964415b8585023ccea45c7ed7d95760c9",
+    "operation": "read_only_capacity_snapshot",
+    "target_resource_class": "deterministic",
+    "database_open_mode": "ro",
+    "production_state_mutations": 0,
+    "occupied": [
+      {
+        "owner_id": "life-manager-anicca-jp4",
+        "resource_class": "agent",
+        "admission_class": "revenue",
+        "admission_policy": "revenue-floor-v1",
+        "lease_until": 1792739115.800878
+      },
+      {
+        "owner_id": "life-manager-anicca-en-affirmation-instagram",
+        "resource_class": "deterministic",
+        "admission_class": "revenue",
+        "admission_policy": "revenue-floor-v1",
+        "lease_until": 1792739115.800878
+      },
+      {
+        "owner_id": "life-manager-anicca-en-affirmation-tiktok",
+        "resource_class": "deterministic",
+        "admission_class": "revenue",
+        "admission_policy": "revenue-floor-v1",
+        "lease_until": 1792739115.800878
+      }
+    ],
+    "occupied_total": 3,
+    "finite_cap": 10,
+    "occupied_agent": 1,
+    "agent_cap": 4,
+    "revenue_resource_cap": 5,
+    "legacy_present": false,
+    "live_v1_waiters": [],
+    "uncertain_owner_markers": [],
+    "pure_capacity_available": true,
+    "free_bytes": 5364035584,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": false,
+    "target_occurrences": [
+      {
+        "state": "cancelled",
+        "effect_unknown": 0,
+        "count": 260
+      },
+      {
+        "state": "queued",
+        "effect_unknown": 0,
+        "count": 1
+      },
+      {
+        "state": "released",
+        "effect_unknown": 0,
+        "count": 3778
+      }
+    ],
+    "target_queue_count": 1,
+    "target_claimed_or_unknown": 0,
+    "target_queue_rank": null,
+    "target_queued_resource_class": "deterministic",
+    "target_has_valid_reservation": false,
+    "ordered_resource_waiters": 31,
+    "queue_head_owner": "crowdworks-revenue-paid",
+    "eligible_for_one_native_attempt": false,
+    "private_evidence_sha256": "f4004936cfd1add4c6dd0cb72032ec50af9bde0216cdd16be2063af9cfe407b5"
   }
 }

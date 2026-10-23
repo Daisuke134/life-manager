@@ -36,7 +36,7 @@ const APPROVED_CLAIMS_BY_PRODUCT = Object.freeze({
 });
 const PACK_FILES = Object.freeze({
   "ebook-en": "ebook-en-anicca-monk.json",
-  "ebook-ja": "ebook-ja-watercolor.json",
+  "ebook-ja": "ebook-ja-anicca-monk.json",
 });
 const SCRIPT_POLICY = Object.freeze({
   "ebook-en": {
@@ -67,11 +67,11 @@ const JOBS = Object.freeze({
   },
   "ebook-ja-instagram-daily": {
     productId: "ebook-ja", platform: "instagram", accountId: "instagram.obou_anicca",
-    formatId: "ebook-watercolor", form: FORM, locale: "ja",
+    formatId: "ebook-avatar-iv", form: FORM, locale: "ja",
   },
   "ebook-ja-tiktok-daily": {
     productId: "ebook-ja", platform: "tiktok", accountId: "tiktok.obou_anicca",
-    formatId: "ebook-watercolor", form: FORM, locale: "ja",
+    formatId: "ebook-avatar-iv", form: FORM, locale: "ja",
   },
 });
 
@@ -307,7 +307,7 @@ function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = proc
     LC_ALL: ownerEnv.LC_ALL || "",
     TMPDIR: ownerEnv.TMPDIR || "/tmp",
   };
-  if (product === "ebook-en") {
+  if (product === "ebook-en" || product === "ebook-ja") {
     for (const key of ["LIFE_MANAGER_HEYGEN", "HEYGEN_NO_ANALYTICS"]) {
       const value = ownerEnv[key];
       if (typeof value === "string" && value.trim()) rendererEnv[key] = value;

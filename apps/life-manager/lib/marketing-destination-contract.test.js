@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
@@ -51,6 +52,14 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
     ["@monk_anicca", "cmo5rwq2p00twn10yrsdglng3", "heygen-avatar-iv", ["08:00", "21:00"]],
   );
   assert.equal(value.holds.some((row) => row.integration_id === "cmo5rwq2p00twn10yrsdglng3"), false);
+  for (const laneId of ["ebook-ja-instagram", "ebook-ja-tiktok"]) {
+    const target = value.targets.find((row) => row.lane_id === laneId);
+    assert.equal(target.renderer_id, "heygen-avatar-iv");
+    assert.equal(target.job_format_id, "ebook-avatar-iv");
+    assert.equal(target.approved_pack, "ebook-ja-anicca-monk.json");
+    const pack = fs.readFileSync(path.resolve(__dirname, "../../../skills/earn/marketing-engine/registry/ebook-packs", target.approved_pack));
+    assert.equal(target.approved_pack_ref, `object://sha256/${crypto.createHash("sha256").update(pack).digest("hex")}`);
+  }
   assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id !== "ebook-ja"), false);
   assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id === "ebook-ja"), true);
   assert.deepEqual(
