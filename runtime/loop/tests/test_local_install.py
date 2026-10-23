@@ -14,10 +14,9 @@ ROOT = Path(__file__).resolve().parents[3]
 SHA = "a" * 40
 
 
-def release_fixture(root, *, sha=SHA):
+def release_fixture(root, *, sha=SHA, owner="life-manager-daily-driver"):
     root.mkdir(parents=True)
     registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-    owner = "life-manager-daily-driver"
     entry = registry["loops"][owner]
     for relative in ("bin/lm-loop", "bin/lm-loop-run", entry["entrypoint"]):
         path = root / relative
@@ -304,6 +303,50 @@ class LocalInstallTest(unittest.TestCase):
             self.assertEqual(result[0]["loaded_arguments"], [str(loaded / "bin/lm-loop-run"), "life-manager-daily-driver", str(loaded)])
             self.assertFalse(any("apply" in command for command in calls))
             self.assertEqual(sum(command[1:2] == ["print"] for command in calls), 1)
+
+    def test_coconala_exact_and_same_sha_adoption_require_selected_owner_python(self):
+        for same_path, host_profile in ((False, False), (True, False), (False, True), (True, True)):
+            for previous in (None, os.sys.executable, "/bin/echo"):
+                with self.subTest(same_path=same_path, host_profile=host_profile, previous=previous), tempfile.TemporaryDirectory() as temporary:
+                    home = Path(temporary).resolve()
+                    owner = "hf-gig-paid-direct"
+                    loaded = release_fixture(home / "loops/releases/20261023T000000-aaaaaaaa", owner=owner)
+                    requested = loaded if same_path else release_fixture(
+                        home / "loops/releases/20261023T010000-aaaaaaaa", owner=owner)
+                    overrides = home / ".config/anicca/gig/install.json"
+                    overrides.parent.mkdir(parents=True)
+                    overrides.write_text(json.dumps({"PYTHON": "/bin/echo"}))
+                    environment = {"LIFE_MANAGER_RUNTIME_PYTHON": os.sys.executable}
+                    if host_profile:
+                        environment["LIFE_MANAGER_HOST_PROFILE"] = str(home / "host.json")
+                    observed = {
+                        **environment,
+                        "LIFE_MANAGER_LOOP_ID": owner, "LIFE_MANAGER_RELEASE_SHA": SHA,
+                        "LIFE_MANAGER_REPO": str(loaded),
+                        "LIFE_MANAGER_RUNTIME_PYTHON": previous or os.sys.executable,
+                    }
+                    if previous is not None:
+                        observed.update(HF_GIG_PYTHON=previous, PYTHON=previous)
+                    text = f"arguments = {{\n{loaded}/bin/lm-loop-run\n{owner}\n{loaded}\n}}\nenvironment = {{\n"
+                    text += "\n".join(f"{key} => {value}" for key, value in observed.items()) + "\n}\n"
+                    calls = []
+                    def run(command, **kwargs):
+                        calls.append(command)
+                        if "apply" in command:
+                            return subprocess.CompletedProcess(command, 0, json.dumps([{
+                                "ok": True, "label": "ai.anicca.hf-gig-paid-direct", "skipped": "loaded-running"}]), "")
+                        return subprocess.CompletedProcess(command, 0, text, "")
+                    with patch.dict(os.environ, {"HOME": str(home), "LIFE_MANAGER_HOST_PROFILE": ""}), \
+                            patch("skills.earn.gig.scripts.gig_release.OVERRIDES", overrides), \
+                            patch("runtime.loop.lm_loop_apply._managed_node", return_value=os.sys.executable):
+                        result = apply_targets(requested, [owner], environment, runner=run)
+                    if previous == "/bin/echo":
+                        self.assertEqual(result[0].get("readback"),
+                                         "exact_release_loaded" if same_path else "same_sha_release_loaded")
+                        self.assertFalse(any("apply" in command for command in calls))
+                    else:
+                        self.assertEqual(result[0].get("skipped"), "loaded-running")
+                        self.assertTrue(any("--loaded-idle-only" in command for command in calls))
 
     def test_incompatible_loaded_release_or_owner_environment_stays_waiting(self):
         for invalid in ("different-sha", "foreign-runtime", "cache-tag", "reclaimed",
