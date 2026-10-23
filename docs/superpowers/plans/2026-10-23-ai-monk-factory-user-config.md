@@ -55,11 +55,11 @@ primaryは既存CLI拡張を選ぶ。独立した新CLI/packageは起動入口�
 - [x] workerは標準ライブラリと既存builderで最小実装する。primaryは既存argparseへの接続と、設定例/台本を渡す実行例・未実施範囲をREADMEへ追加する。
 - [x] 設定例にはplaceholderだけを使い、実integrationやcredentialを含めない。EN/JAの成功・失敗・隔離・zero-effect境界をGREENにする。
 - [x] `rtk proxy env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=skills/earn/marketing-engine python3 -m pytest -q skills/earn/marketing-engine/test_factory_plan.py skills/earn/marketing-engine/render_eval/test_heygen_candidate.py skills/earn/marketing-engine/publish/test_intent_cli.py`を実行する。Expected: 関連全件PASS。
-- [ ] primaryが差分を確認し、source-boundary/diff check後commit/push、remote object一致を確認する。
+- [x] primaryが差分を確認し、source-boundary/diff check後commit/push、remote object一致を確認する。
 
 ## Task 2: 公開source受入と未完条件の保持
 
-- [ ] fresh read-only reviewerがReview Focusと実CLI境界を検証する。成立した不具合は最小RED→GREENで修正する。
+- [x] fresh read-only reviewerがReview Focusと実CLI境界を検証する。成立した不具合は最小RED→GREENで修正する。
 - [ ] 最新mainの既存変更を保持し、関連tests・Loop Contract/source-boundary/OSS/diffを確認する。無関係な全suiteや新frameworkを足さない。
 - [ ] exact-head CI全成功後PR/mainへ統合する。READMEの実行例をmain由来の完全sealed releaseで呼び、外部呼出し0のJSONを確認する。
 - [ ] S11/本planへsource結果と残る実生成・投稿・費用・収益/OSS導入・MCP・subscription条件を記録する。実配信や収益の完了とは報告しない。
@@ -70,3 +70,4 @@ primaryは既存CLI拡張を選ぶ。独立した新CLI/packageは起動入口�
 - userのNo-human-loopとUIモデル選択を優先し、skillの承認待ち・モデル固定・無関係な全suiteは追加しない。独立作業の並行指示に従いbounded workerとprimaryで所有を分け、全差分reviewを保持する。
 
 - CLIのEN/JA成功assertは2 RED（argparse exit2）、pure plannerは39 RED（空plan/未検証）を先に観測する。統合した関連３filesはprimary/workerとも67 PASS。Loop Contract18業務/191jobs/errors0、OSSとdiffもPASS。whole-branch fresh reviewは進行中で、CI/main/releaseは未完。
+- whole-branch fresh reviewerはhead8d7ac26a3aで指摘0件。関連67件/新規単独44件PASS。cold importのprovider/subprocess/DB/private state操作0、既存jsonschema同梱schema20件の静的読取を観測する。PR8654のCI/main/完全releaseは未完。
