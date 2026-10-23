@@ -45,7 +45,7 @@
 |---|---|---|
 | 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
 | no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。日常の専用chat/dashboard操作を必要としない限定経路 | 広い環境で課題を見つけ、長期目標・既存channel・実結果をつないで活動する全経路の実証。初期設定・停止・監査の入口は存在する |
-| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認。mental後の明示STOPも公式ACK済み | E16全体の受入。限定rollbackの実配信と復元後のresume/replay確認は未受入 |
+| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認。mental後の明示STOPも公式ACK済み | E16全体の受入。実rollback39901996368はパス形式の不一致で書込み0件のまま停止。実形式テストと修正・レビュー後に、復元配信とresume/replayを再検証 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
 | humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。研究branchに既存adapterあり | 現在のowned mainは決定論的plannerで、Ampersand推論は未接続。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
