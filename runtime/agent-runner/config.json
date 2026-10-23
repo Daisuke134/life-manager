@@ -74,6 +74,18 @@
         }
       ]
     },
+    "writer-judge-agent": {
+      "route": "terra-medium-bounded",
+      "token_reservation": 16384,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct2"
+        }
+      ]
+    },
     "composition-agent": {
       "route": "terra-medium-bounded",
       "token_reservation": 16384,

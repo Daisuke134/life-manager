@@ -68,6 +68,9 @@ class TerraDefaultTest(unittest.TestCase):
                 if name == "self-heal-code-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "profile_alias": "acct1"}]
+                if name == "writer-judge-agent":
+                    expected = [{"provider": "codex", "model": "gpt-5.6-terra",
+                                 "effort": "medium", "profile_alias": "acct2"}]
                 if name == "self-fix-code-agent":
                     expected = [{"provider": "codex", "model": "gpt-6-luna",
                                  "effort": "max", "profile_alias": "acct2"}]
@@ -210,6 +213,8 @@ class TerraDefaultTest(unittest.TestCase):
                             "acct2" if name in {
                                 "affiliate-marketing-agent", "affiliate-escalation-agent",
                                 "self-fix-code-agent", "treg-lead-signals-agent",
+                                # Writer judges run while the Writer agent holds acct1.
+                                "writer-judge-agent",
                             } else "acct1"
                         )
                         self.assertEqual(candidate.get("profile_alias"), expected)

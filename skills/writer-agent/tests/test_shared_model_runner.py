@@ -34,6 +34,34 @@ r=e/'result.json'; r.write_text('{"classification":"ACCEPTED"}')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout), {"classification": "ACCEPTED"})
 
+    def test_judge_uses_the_writer_judge_class_that_waits_on_the_second_account(self):
+        # 2026-10-23 run 20261023-053932: the Writer agent held acct1 while every identity and
+        # conscience judge failed fast with codex_home_busy, so three articles stayed pending.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "agent-runner.py"
+            fake.write_text("""#!/usr/bin/env python3
+import json,pathlib,sys
+a=sys.argv[1:]; e=pathlib.Path(a[a.index('--evidence-dir')+1]); e.mkdir(parents=True)
+pathlib.Path(sys.argv[0]).with_name('task-class').write_text(a[a.index('--task-class')+1])
+r=e/'result.json'; r.write_text('{"verdict":"PASS"}')
+(e/'summary.json').write_text(json.dumps({'result_path':str(r)}))
+""")
+            fake.chmod(0o755)
+            prompt = root / "prompt.txt"; prompt.write_text("judge this")
+            env = {**os.environ, "AGENT_RUNNER_BIN": str(fake),
+                   "WRITER_SHARED_RUNNER_STATE": str(root / "state")}
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "judge", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((root / "task-class").read_text(), "writer-judge-agent")
+        config = json.loads((ROOT.parents[1] / "runtime/agent-runner/config.json").read_text())
+        candidates = config["task_classes"]["writer-judge-agent"]["candidates"]
+        self.assertEqual([c["profile_alias"] for c in candidates], ["acct2"])
+        self.assertFalse(candidates[0].get("fail_fast_provider_lease"))
+
     def test_judge_salvages_contract_json_after_provider_preamble(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
