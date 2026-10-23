@@ -43,7 +43,7 @@ Paths are relative to `products/manager/`. Existing files are read-only.
 
 - [ ] Write RED tests with synthetic RefusalCase/Generation only: native two-message shape; protocol mutation rejection; exact parser valid Yes/No; extra/duplicate/unsafe category/invalid EOS/128 length cases; partial-only/empty/one-class/null metrics; rule full vs same-ID matched and paired4counts; encode overflow/no generation; encode/generation failure; durable UNKNOWN; checkpoint before optional model import/load; output0600/privacy/existing/symlink failures.
 - [ ] Run focused unittest and record expected RED. Implement the narrow adapter, private CLI and standard offline model loader. Implement native stage semantics from protocol; load failure keeps450 NOT_RUN with FAILED lane. On row exception fail-stop, no retry. Reject inconsistent result metadata before export.
-- [ ] Run focused suite GREEN, then full Manager suite once on final source with no ML/downloads. `python -m unittest discover -s products/manager/tests -p 'test_*.py'`; `git diff --check`. Self-review and commit only3owned new paths via sparse staging. No push/CI/model run by worker.
+- [ ] Run focused suite GREEN, then full Manager suite once on final source with no ML/downloads. From `products/manager/` cwd, run `python -m unittest discover -s tests -q` (the existing CI/README invocation); from repo root run `git diff --check`. Self-review and commit only3owned new paths via sparse staging. No push/CI/model run by worker.
 - [ ] Root obtains fresh combined spec+quality task review before source acceptance, pushes named research branch, dispatches exact official CI and waits for full terminal success before real inference.
 
 ## Root execution and integration
