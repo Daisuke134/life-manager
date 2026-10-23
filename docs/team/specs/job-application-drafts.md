@@ -41,3 +41,15 @@
 公式フォームはAshbyの公開 `ApiJobPosting` queryとNICE/Greenhouseの埋め込み定義から読み取る。mutationや応募APIは使わない。求人URLと現行フォームの状態は各原稿に記録する。入力方式・必須/任意は取得したschemaに基づき、同意や個人情報の未確認を任意・falseへ置換しない。
 
 検証: 質問一覧との対応、事実の出典、未確認事項の明示、連絡先/secret非掲載、変更path、diffチェック、公式CI、main上の5ファイルを確認する。アプリのビルド・追加テスト・応募提出は行わない。
+
+## 追加5件のclaimと応募素材
+
+目的: 前回5件と既存応募を除外し、未claim求人から適合度の高い新規5件を確保して参謀へ渡す。
+
+範囲: `origin/main:ledger/APPLICATIONS.md` を唯一の共通台帳として読む。未claim行の既成リストは存在しないため、公式求人から新しい候補を調べ、勤務地、AI導入・実装との関連、既存経歴との一致、経験年数の不足を比較する。過去の応募・不明な送信結果・同一職種の再掲は新規候補にしない。候補ごとに `scripts/ledger-check.sh <key>` を実行し、`owner=codex`、`status=claimed` の5行をPRでmainへ統合してから原稿を作る。台帳の旧main直push手順より、最新のPR指示を優先する。
+
+成果物: 求人別の実際のフォーム項目への回答案とカバーレターを既存 `docs/team/jobs/drafts/` に追加する。経歴の出典は上記PROFILE/RESUME等を再利用し、回答不能・本人意思・経験要件の不足は明示する。提出用メールは参謀指定の値と私的正本の一致を確認し、公開原稿には連絡先の値を複製しない。
+
+完了条件: claim PRと追加5件のドラフトPRがmainへ統合され、main上の5キーと5ファイルを公式readbackで確認する。Reasonで `daisuke/cursor` へ両PR URLと5キーを返信する。応募送信、応募済みへのstatus更新、Thankful/build 10、他のCodex作業、runtimeやcronは範囲外。
+
+現在cursor: 公式求人を比較して新規5件を選定する。前回の5原稿はPR #8730で完了済みとして保持する。
