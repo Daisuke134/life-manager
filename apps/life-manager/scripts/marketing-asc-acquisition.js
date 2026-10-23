@@ -84,7 +84,7 @@ function dailyMetrics(downloads, engagement) {
       metrics: {
         first_time_downloads: dayDownloads.length ? measured(sum(dayDownloads, (row) => row["Download Type"] === "First-time download"), "app_store_connect_app_downloads_standard") : unavailable("report_pending"),
         impressions: dayEngagement.length ? measured(sum(dayEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
-        product_page_views: dayEngagement.length ? measured(sum(dayEngagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
+        product_page_views: dayEngagement.length ? measured(sum(dayEngagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
       },
     };
   });
@@ -131,8 +131,8 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
       total_downloads: measured(sum(downloads, (row) => ["First-time download", "Redownload"].includes(row["Download Type"])), downloadSource),
       impressions: measured(sum(engagement, (row) => row.Event === "Impression"), engagementSource),
       unique_impressions: measured(sum(engagement, (row) => row.Event === "Impression", "Unique Counts"), engagementSource),
-      product_page_views: measured(sum(engagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page"), engagementSource),
-      unique_product_page_views: measured(sum(engagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page", "Unique Counts"), engagementSource),
+      product_page_views: measured(sum(engagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page"), engagementSource),
+      unique_product_page_views: measured(sum(engagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page", "Unique Counts"), engagementSource),
       campaign_first_time_downloads: campaignDownloads.length ? measured(sum(campaignDownloads, () => true), "app_store_connect_app_downloads_detailed") : campaignUnavailable(),
       campaign_impressions: campaignEngagement.length ? measured(sum(campaignEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : campaignUnavailable(),
     },
