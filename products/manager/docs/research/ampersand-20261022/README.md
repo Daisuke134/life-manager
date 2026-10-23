@@ -1,5 +1,7 @@
 # Ampersand: a reproducible recalculation of public aggregates
 
+**2026-10-23 scope update:** The unauthenticated401 and no-inference statements below describe this frozen aggregate-recalculation task only. A later, separate [actual API trial](../../verification/ampersand-20261022/ten_case_receipt.json) used10 initial fictional-scenario sessions plus one same-session followup; it involved zero people/effects. It is not10 total HTTP requests or a live Manager policy. Current owned main uses a deterministic catalog planner; the research-only Ampersand adapter is not connected there. Persimmon is a user model, Ampersand is the collaborator/API, and Boba is the finished application; see [current spec §22](../../MANAGER_PRODUCT_SPEC.md) for the official-source readback and distinct reuse decisions. This update produces no article or model call and leaves the frozen aggregate calculation unchanged.
+
 This record accompanies the English and Japanese explanatory articles. It checks
 the arithmetic of the **company-published simulation chart**, using a frozen
 snapshot of public numeric aggregates. It is not an independent model benchmark,

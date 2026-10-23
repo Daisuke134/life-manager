@@ -106,8 +106,11 @@ E16本番前に次の追加crash-point検査を行う。これらは読取監査
 | 2 | [Andon Labs — AI Safety & Evals](https://andonlabs.com/join) | E16のunknown・復旧・bounded agent、既存eval改善案 | SF in-person。実用的なresearch/engineering課題、visa未確認 |
 | 3 | [Aaru — Research Engineer](https://aaru.com/careers/f04cd7a3-b53c-4797-bb8f-ebfe0467e9fe) | simulationの比較契約、eval infrastructure、薄いadapter | NYC週5 office、ML/AI systems実務3年以上。visa/relocation支援を明記 |
 | 4 | [Artificial Societies — FDE](https://societies.ai/careers/forward-deployed-engineer) / [ML](https://societies.ai/careers/ml-engineer) | population/question/timeの設計、研究をclientの実験へ落とす力 | London office。FDEはCSS/production Python、MLはstartup2年等。Radiantは同社製品 |
-| 5 | [humans& — MTS Research](https://jobs.ashbyhq.com/humans-and/3daf12ad-471f-43ba-b940-8552e9ad61aa) | Ampersandの正直な再計算/感度分析。frontier研究経験のgapを明示 | SF onsite。exceptional frontier workを要求、stretch候補 |
+| 5a | [humans& — Product Engineer (MTS)](https://jobs.ashbyhq.com/humans-and/c3a7fce6-0bb5-43c6-a2a7-01c63e4b1401) | 実際に動くagent・人が結果を理解し訂正するinteractionの実装を示す。本人の卓越したproduct/HCI実績・stack経験は未確認 | 10/23 04:28 UTC掲載確認。SF full-time onsite。現stack Convex(TypeScript)、Next.js、React Native(Expo)、Tailwind。全stackの経験が必須とは本文にない |
+| 5b | [humans& — MTS / Research部署](https://jobs.ashbyhq.com/humans-and/3daf12ad-471f-43ba-b940-8552e9ad61aa) | Ampersandの実API架空課題試験と正直な再計算/感度分析。frontier研究経験のgapを明示 | 同時刻掲載確認。SF full-time onsite。exceptional frontier workを要求、stretch候補。年数/学位を独自に必須化しない |
 | 6 | [Anthropic — Post-Training Model Evals](https://job-boards.greenhouse.io/anthropic/jobs/5198255008) | measurement、regression、信頼できるeval運用 | SF/Seattle、hybrid25%+。post-training eval fleetが職務、visa支援は保証なし |
+
+**humans&の今回の判断:** Productを先に本人の実績と照合し、Researchは別のstretch候補として扱う。公式APIは両求人の給与をUSD450,000/year＋equityと表示したが、offerや本人の所得ではない。visa/relocation支援・明示締切は未確認。今後数日を準備の目安とし、本体の実復旧とdemo、本人寄与を確認したCV/project evidence、role別noteを既存[応募packet](../founder/2026-10-23-reviewable-application-packet.md)で整える。新記事公開を前提にせず、公式formを提出時に再確認する。今回のGETは掲載と応募先URLの存在確認で、応募・連絡・数日後の自動送信予約は行っていない。
 
 **就職とYCは、準備を並行し、実行条件は正直に選ぶ。** [YC FAQ](https://www.ycombinator.com/faq)は現職があっても応募可だが、採択後はbatch中・後の会社へのfull-time commitmentを期待すると説明する。YC W27は2027年1–3月SF対面。他社のfull-time勤務と同時にfull-time創業できるという約束はしない。実際のoffer/採択/就労条件が出た時に、本人と整合する選択をする。
 

@@ -44,6 +44,7 @@
 | 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
 | 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認。mental後の明示STOPも公式ACK済み | E16全体の受入。限定rollbackの実配信と復元後のresume/replay確認は未受入 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
+| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。研究branchに既存adapterあり | 現在のowned mainは決定論的plannerで、Ampersand推論は未接続。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
 
 mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/actions/runs/39898014550)は `UNKNOWN / writes=null`。後続 [39898468888](https://github.com/Daisuke134/life-manager/actions/runs/39898468888) は `NOT_DUE / writes=0 / positive_canary=NOT_RUN` のまま、保存済みcurrent proofを出力した。新しい成功操作へ書き換えない。実行sourceとproof対象sourceは異なり得るため、各SHAを[実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md)で分ける。
@@ -105,6 +106,7 @@ flowchart LR
 | **Tianyi Peng** らのDigital Twin研究 | Twin-2K-500 datasetと公式simulation scorerを固定し、配布outputの記述監査を実行。生成runやtraining exposureの来歴を確認できていないため、新規予測のaccuracyとは呼ばない | 回答履歴baselineに勝つ条件と、生成時点・wave漏洩をどう監査するか。[dataset](https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500)・[公式simulation code](https://github.com/tianyipeng-lab/Digital-Twin-Simulation/tree/f1eed510c9a4fb47aaa9bb46e178aaa2d9224623) |
 | Simileの **Joon Sung Park、Percy Liang、Michael S. Bernstein** | 公開Generative Agents論文/codeと現企業の説明を学ぶ。公開研究codeとSimileの非公開現行systemを区別。Managerへの現商用接続は未成立 | 人がもっともらしいと感じるtraceと、未見の人間行動を予測する妥当性をどう分けるか。[論文](https://dl.acm.org/doi/10.1145/3586183.3606763)・[code](https://github.com/joonspk-research/generative_agents)・[Simile](https://www.simile.com/) |
 | Google DeepMind **Concordia** | 既存adapterと上流engineでfictional agentsのmock実行を確認済み。相互作用が必要な課題だけで再利用し、独自社会engineを作らない | environment/Game Masterとagentの記憶・traceをどう切り分けるか。[公式repo](https://github.com/google-deepmind/concordia) |
+| humans&の **Manya Bansal、Alexis Ross、Joey Hong、Niloofar Mireshghallah、Yuan Lu、Eric Zelikman** | 公式Persimmon model cardでdata/training/eval、post-training、Trickle Test、API、profile eval/playground等の担当を確認。Ampersand・Persimmon・Bobaの役割を分けて再利用する | ユーザーsimulationの妥当性、長期協働、発言しない選択、外部toolの復旧をどう接続するか。[公式cardのcontributions](https://persimmon.humansand.ai/blog/persimmon-model-card.html#contributions)・§22。既存の知人関係や提携を意味しない |
 | **Susan A. Murphy、Predrag Klasnja、Eric B. Hekler、Inbal Nahum-Shani** | HeartSteps/JITAIからdecision point、availability、近接／遠位outcome、繰返し介入の負担を借りる。H005の厳密な原解析再現はskipのまま | いつ何もしないのが適切か。欠配や負担をどう分母へ入れるか。[HeartSteps](https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/)・[JITAI](https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/) |
 | **Katy Milkman、Angela Duckworth** らのmegastudy | 公開論文・取得範囲と権利を確認した公開資料から、多介入を同じ条件で比べる設計を借りる。原実験全体の独立再現やManagerの効果とはしない | 実行動と持続性をどう測り、予測と観測を分けるか。[Nature原論文](https://www.nature.com/articles/s41586-021-04128-4) |
 | **DBOS**、Restate、Inngest、Hatchet | DBOSは固定sourceから実install/restartし現方式と計16ケースを比較。本番は未採用。他は各監査の深さを保持し、全製品を動かしたとはしない | 同じUNKNOWN・重複・再開テストを守り、運用量を実際に減らせるか。[DBOS](https://docs.dbos.dev/python)・[実比較receipt](verification/E16_RECOVERY_HARDENING_20261022.md) |
@@ -366,3 +368,38 @@ Rothko/Radiantの接続は、正規の利用経路でmodel/version、input/outpu
 [日本語の本mini-chapter原稿](https://github.com/Daisuke134/life-manager/blob/a69a8a4a66e5b2f032c13efcc6bef18c446cf448/docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md) は最新公式掲載25件・追加公式事例7件・追加研究・訂正・再利用方針を含む。取得範囲と再現receiptは同commitの `docs/research/manager/evidence/artificial-societies-20261022/`。生の人物データやcopyrighted全文はGitへ転載しない。[公開記事](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja) は既存blog bridgeで公開済み。[独立readbackと修正記録](verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)で、本番公開と後続のmobile表示修正を区別する。
 
 E16/原113件の受入状態は本修正で変更しない。自分たちの新しい介入が人へ便益を与えるかは、実際の結果と比較で判定する。
+
+## 22. humans&の三層と、直接使う範囲（2026-10-23）
+
+**方針:** 既存の完成アプリ・hosted model・公開評価法を使い、Manager側で未接続・未実証の部分を補う。「他社には存在しない」との排他的主張にはしない。新しい記事は制作せず、本体優先を維持する。
+
+公式[blog一覧](https://humansand.ai/blogs/)と以下の本文を04:27–04:28 UTCに直接HTTPS GETで取得・読取。Firecrawlは接続済みaccountのcredits不足で未実行だったため、成功したscrapeとは記録しない。購入・別accountへの切替は行っていない。
+
+| 層・公式source | 役割と公開されている利用経路 | Managerの現在値と採用判断 |
+|---|---|---|
+| [Persimmon](https://persimmon.humansand.ai/blog/persimmon.html)／[model card](https://persimmon.humansand.ai/blog/persimmon-model-card.html) | 人物profile・setting・会話historyから、利用者の応答候補を生成するuser model。研究・評価preview、playground/APIの案内あり | 直接推論は未確認。`/docs/`の未認証GETはsign-inへ到達し、認証済APIの利用条件・実動作は今回未検証。利用可能な場合に限り既存評価へ薄く接続し、応答を人の実際の信念や介入効果としない。初期依存にはしない |
+| [Ampersand](https://ampersand.humansand.ai/blog/)／[API docs](https://ampersand.humansand.ai/docs/) | 協働するAI側。Agents APIがagent設定・session履歴・turn/event・tool requestsを扱う。`ampersand-v0.1`、公式Python例は`openai==3.24.0` | 実APIを使った過去の研究と既存adapterを再利用。現在のowned mainの決定論的plannerには未接続。独自協働modelや別のAgents SDKを作らず、適切な課題でルール／NO_ACTIONと比較して必要な接続だけ行う |
+| [Boba発表](https://boba.humansand.ai/blog/)／[完成アプリ](https://boba.app/) | Ampersandを使う個人・group向けアプリ。目標の継続、memory、reminders/calendar、web research、email、予約等を案内。browser/login操作はalpha。SMS/RCS/iMessageとwebへの導線 | 未試用・未接続。日常の予定調整・follow-up等が目的なら完成アプリを直接使う比較を先に置き、同じchat/reminder/calendar UIを再実装しない。組込み用Boba API/SDKは今回確認できておらず、存在を前提にしない |
+
+学習先の人名も出典と役割で保持する。[会社の公式紹介](https://humansand.ai/)は **Georges Harik** と **Eric Zelikman** をco-founderと記載。Persimmon cardは **Manya Bansal／Alexis Ross**（data/training/eval）、**Joey Hong**（post-training）、**Niloofar Mireshghallah**（Trickle Test等）、**Yuan Lu**（API）、**Eric Zelikman**（profile eval/playground/modeling）を挙げる。名前・所属や製品利用を知人関係・提携・推薦と扱わず、具体的な再現結果と技術的な問いを今後の接点にする。
+
+### 実利用の主張を固定する
+
+実Ampersand試験は [run39713799676](https://github.com/Daisuke134/life-manager/actions/runs/39713799676)、source `66997ea549f8d1373a7670b8a11add9af17613ea`、[固定receipt](verification/ampersand-20261022/ten_case_receipt.json)。10初期session＋追加入力1件であり、HTTP/APIリクエスト総数が10という主張ではない。作者label一致7/10、prompt調整から除外したsubset4/7、実人0・実世界効果0、確定費用null。各ケース内容自体は推論promptへ送信されている。7/10を人の便益・優位性・本番運用と呼ばない。
+
+研究branchには `manager_core/ampersand_api.py`、`provider_sessions.py`、`provider_budget.py` と明示`--live`の `scripts/phase_ampersand_lab.py` がある。一方、取得したmain `fcaa273b92e2612be7215ee55c2fa57cb0564845` には同API adapter/budget/lab scriptはなく、現在配備で検査した `run_owned_digital_cycle.py → owned_cycle.py → owned_platform_host.py → owned_catalog_planner.py` は決定論的なまま。main561d945から当該call pathとworkflowのsource差分もない。E01–E15の実装receiptは、これら全てがmainへ配備済み、毎runでモデル推論する、という意味ではない。
+
+### 再利用して、追加実装を絞る
+
+1. **既存コードを昇格する。** Ampersandが必要な課題では研究branchの既存adapter/session/budgetを通常PR・source別CIでmainへ昇格する。接続済みと先に記録せず、E16の固定技術基準の変更にmodel呼出しを必須化しない。
+2. **hosted会話管理を使う。** session ID・turn・SSE・保存済stateのreadback・同一eventのidempotency等は[公式guide](https://ampersand.humansand.ai/docs/GUIDES.html#recovery)を再利用。外部tool実行は既存Manager outboxへ接続する。公式guide自身が、APIのidempotencyだけでは外部の二重送信・二重決済を防げず、結果不明時は宛先を先に照合するよう説明している。
+3. **モデルの価値を測る。** 発言／非発言、目標達成、割込負担、情報の共有先、費用を固定し、既存ルール・NO_ACTION・未見課題と比較。simulationのjudgeや満足度だけで実行動・便益を認定しない。既存の比較・採点契約を使い、第二のeval engineを作らない。
+4. **完成アプリとの重複を避ける。** Bobaで解ける利用問題なら直接利用を優先。Managerに必要な差分は、特定の使命・観測・限定操作・独立readback・結果比較・害と費用・訂正をつなぐこととして検証する。他社にそれらが一切ないという主張はしない。
+
+Boba発表の100万超messages、利用例、290完了survey・29%回答率・70%love/25%likeは会社報告で、独立試験やManagerの結果ではない。本文の家族対話は明示的なsimulation例。アプリ頁は無料・card不要と案内するが、Ampersand APIは別料金で、今回確認した公開価格は入力$1.00／cache入力$0.20／出力（reasoning込み）$5.20 per 1M tokens。アカウント残高・settled usage・利用地域・継続無料を確認したとはしない。予約やemail等の案内がある完成アプリを、単なるchat demoと説明しない。
+
+### humans&への応募準備
+
+04:28 UTCの公式[Ashby一覧](https://jobs.ashbyhq.com/humans-and)と公開posting APIで、Product Engineer (Member of Technical Staff) とMember of Technical Staff（Research部署）の2件を掲載中と確認。両方SF・FullTime・OnSite。Productは人とcomputerのinteractionに関する卓越したproduct実績、Researchはfrontier AIの卓越したresearch/engineering実績が主眼。現時点のManager証拠ではProductを先に照合する価値があるが、本人の適格性を認定しない。求人・stack・公式URLは[実行マップ](plans/2026-10-22-manager-founder-execution-map.md)へ更新。
+
+数日を準備の目安とし、既存応募packetを再利用する。本体の実復旧とdemo → 本人の寄与が確定したCV/project evidence → role別noteとSF/full-time等の条件照合 → 提出時の公式form確認、の順。新しい記事公開は応募の前提にしない。今回のGETは求人の存在確認で、フォーム項目の操作、応募、連絡、数日後の自動送信予約は行っていない。Y003/Y005の状態は変えない。
