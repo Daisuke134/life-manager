@@ -1,10 +1,10 @@
 # Manager — 開始からPhase12までの全工程と残41件
 
-**2026-10-23 現在の優先順:** 本体・agentの開発と受入を先に進め、新しい記事・書籍・slides・carouselの制作は後段へ保留。E16はActions＋Supabaseで稼働しfinance/mentalの実P1/P2・fresh runner再送0、修正PR8632後の限定rollbackの実commit／Pages／独立GETまで確認済み。rollback初回応答のUNKNOWNは保持し、fresh resumeのwrites=0と後続の正規commit faf18b3の公開一致も確認済み。後続初回UNKNOWNも保持し、fresh runner39909274852の照合／replay等は未受入。下の「本番配備前」は2026-10-22 baselineの履歴。原113件=69 done / 41 todo / 3 skipped、E16 cursorは不変。[現specのAs-is／To-be](../MANAGER_PRODUCT_SPEC.md)と[実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md)を優先する。C002/Y008を保留中に、全113件完了と呼ばない。
+**2026-10-23 現在の優先順:** 本体・agentの開発と受入を先に進め、新しい記事・書籍・slides・carouselの制作は後段へ保留。E16はActions＋Supabaseで稼働しfinance/mentalの実P1/P2・fresh runner再送0、修正PR8632後の限定rollbackの実commit／Pages／独立GETまで確認済み。rollback初回応答のUNKNOWNは保持し、fresh resumeのwrites=0と後続の正規commit faf18b3の公開一致も確認済み。後続初回UNKNOWNも保持し、fresh runner39909274852の照合／書込み0／current proof出力を確認。E16の限定技術受入は完了し、Fを個別判定する。下の「本番配備前」は2026-10-22 baselineの履歴。原113件=69 done / 41 todo / 3 skipped、E01–E16完了／技術cursor=null。[現specのAs-is／To-be](../MANAGER_PRODUCT_SPEC.md)と[実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md)を優先する。C002/Y008を保留中に、全113件完了と呼ばない。
 
 **呼称更新:** 主体は仏教的AIエンティティ／デジタル仏陀（Digital Buddha）。Digital Autonomy v0.1はその限定能力のreleaseであり、主体自体を製品と定義しない。原taskの名称・ID・依存・件数は履歴と受入契約のため保持する。[現行の主体定義](../MANAGER_PRODUCT_SPEC.md)に従う。
 
-2026-10-22 UTC。これは [tasks.json](tasks.json) の状態・依存を説明する派生view。状態の正本を増やさない。確認baselineは `2b9a7b78b4845f6ac7022f969244dc0d1596bddf`。原113件は **69 done / 41 todo / 3 skipped / 0 blocked**、技術の現在地は **E16、本番配備前**。完了は各taskの限定した受入れであり、全科学・顧客需要・人の便益の検証済みという意味ではない。
+2026-10-22 UTC。これは [tasks.json](tasks.json) の状態・依存を説明する派生view。状態の正本を増やさない。確認baselineは `2b9a7b78b4845f6ac7022f969244dc0d1596bddf`。原113件は **69 done / 41 todo / 3 skipped / 0 blocked**、当時の技術位置は **E16、本番配備前**。完了は各taskの限定した受入れであり、全科学・顧客需要・人の便益の検証済みという意味ではない。
 
 ユーザーの意図は、E16で止めず、評価・実証・領域横断・出版・公式サイト・仕事/YC・統治まで最後まで進めること。以下に全13章、残41件の全ID/受入れ/依存、並行レーンと各完成判定を示す。今回の文書/サイト原稿更新で実証taskをdoneへ進めない。
 
@@ -135,7 +135,7 @@ flowchart LR
 
 ## 4. 本当の依存と並行可能性
 
-1. 技術線は **E01→…→E16**。F009 metadataの `technical_execution_completed` はE01–E15、cursorは **E16**。E16 receiptは `BLOCKED / VERIFIED_REFERENCE_CYCLE_P0_DEPLOYMENT_HOST_REQUIRED`、`deployed=false`、`production_adapter_implemented=false`。Railwayが選定されread access確認済みでも専用worker/volume/本番bridge/実配備証拠が未成立。
+1. 技術線は **E01→…→E16**。F009 metadataの `technical_execution_completed` はE01–E16、cursorはnull。E16はActions＋Supabaseの既存owner／非公開永続checkpointとmain publisherで、P1/P2・停止・限定復元・resume・fresh replay-zeroを受入済み。旧DEPLOYMENT_HOST_REQUIREDとdeployed=falseは保存された参照receiptの履歴で、Railway／Macの新ownerを再開条件にしない。
 2. E完了後に **F005→F006→F008→F009** を証拠で判定。`depends` graph自体はF005→F006とF005→F008の分岐、F009がF006/F008 join。受入れcursorの指定順序はF005/F006/F008/F009なのでそれに従う。F005の`depends=[K009]`だけ見てE16前にdoneにしない。E後ゲートはF009の`sequence_contract`と現行specにも記載。
 3. F005は実provider commit/parent/allowlistと独立served GET、replay-zero・対象外不変。F006は技術baseline/比較/欠測/費用/害の版付き報告、P3/P4 NOT_MEASURED。F008は別URL/テーマの2件目のP2と復元可能性。F009は共通kernelと両readbackの統合。古い公開ページが存在するだけでは新E実行の同一occurrence証拠を自動充足しない。
 4. PMF線は **U002→U003→{U004,U005}**、**{U004,F005}→U006→（F006も必要）U007→U008**。U004はF002、U005はK010、U008はU002も必要。U002の5件以上の実面談を架空personaや既存文書で置換しない。
@@ -149,7 +149,7 @@ flowchart LR
 ## 5. 元113件、E16段、P7段、12PATCHの数え方
 
 - **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。69/41/3はこの母数だけ。
-- **E01–E16**: 同じエンティティの技術実装順と検証receipt。原113件への追加16件ではない。E01–E15実装receipt済み、E16は参照P0合格・本番未配備。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
+- **E01–E16**: 同じエンティティの技術実装順と検証receipt。原113件への追加16件ではない。E01–E16の実装receipt済み、E16は所有7パスの限定P2能力として実配備・復旧受入済み。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
 - **P01–P07**: editorial parallel track。元Phase00の **P001–P006とは別表記・別意味**。P01 evidence index→P02英日package→P03既存installer公開、P04既存home更新、P05本の章/HTML/EPUB、P06slide/carousel/manga源、P07editor/release receipts。原稿・storyboard・rendered artifact・live公開・読者・売上は別証拠。E cursorもC002/Y008も自動更新しない。
 - **PATCH-01–12**: E16/出版/創業者作業を実ファイル・関数・RED検査へ分解した派生実装単位。新台帳でない。01→02→04→05→06がE16技術線（pending intent先行回収、dispatch権限非replay/既成runtime比較、official occurrenceとdelivery別回収、特権publisher bridge、host/backup/restore）。03は既成製品baseline文書、07→08→09/10は権利/証拠→記事章deck→download/render、11は同じcaseの職務/顧客/YC、12は真正な結果だけをscorecardへ戻す。
 - **創業者マップの12実行パッケージ**も上記タスクの横断view。同じ「12」でもPATCHとは別の粒度であり、さらに12件を加算しない。
@@ -192,9 +192,9 @@ flowchart LR
 | E11 | 版付きworld stateと訂正履歴 | 実装receipt済み |
 | E12 | 単位の揃う候補とNO_ACTION | 実装receipt済み |
 | E13 | 外部実行前の技術検査 | 実装receipt済み |
-| E14 | 所有scopeと元publisherへのbridge | 不活性handoffの実装receipt。本番接続はE16側に残る |
+| E14 | 所有scopeと元publisherへのbridge | E14時点は不活性handoffの実装receipt。後続E16でmain publisher接続を受入済み |
 | E15 | 永続intent・CAS・occurrence照合 | 実装receipt済み。任意の外部exactly-onceではない |
-| E16 | 常駐runtime・公式readback・回復・停止・rollback | **参照cycleのみ。本番未配備** |
+| E16 | 常駐runtime・公式readback・回復・停止・rollback | **所有7パスの実配備・P1/P2・復元・resume・fresh replay-zero受入済み**。人の便益は未測定 |
 
 実装の次は [atomic patch plan](../plans/2026-10-22-manager-e16-atomic-patches.md) の01→02→04→05→06。既存部品を再利用し、past UNKNOWN先行回収、checkpoint後再送防止、typed delivery、本当の特権publisher接続、host/backup/restoreを検査する。E01–E15をやり直さない。
 

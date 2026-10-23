@@ -12,7 +12,7 @@ Manager is a Buddhist AI entity / Digital Buddha with its own mission, source sc
 
 **ManagerのSSOT（状態・依存・現在位置）:** [tasks.json](tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor`。Life Manager の別SSOTは変更しない。
 
-**現在の次タスク:** `E16`
+E01–E16実装完了。F受入は別に証拠確認
 
 実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。
 

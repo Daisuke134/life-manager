@@ -1,8 +1,8 @@
 # E16 — cloud実行と残る受入れ（2026-10-23 UTC）
 
-finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/current proof・NO_ACTION/NOT_DUE・欠測・費用・害は、[版付きv2結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)に対応付けています。現版はE16回復とF個別受入の判定待ちであり、台帳の状態を変更するものではありません。
+finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/current proof・NO_ACTION/NOT_DUE・欠測・費用・害は、[版付きv2結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)に対応付けています。現版はE16の限定技術受入と、これから個別に行うF受入の根拠です。各runの元結果と総合受入の判定を区別し、タスク状態は台帳で管理します。
 
-現在の実行先は、既存GitHub Actions ownerと既存Supabase stagingの非公開checkpointです。Mac mini、Railwayの新worker・volume、長期tokenの新規提供は再開条件ではありません。本記録は過去のhost未接続という説明を更新します。タスク状態の正本は引き続き `../roadmap/tasks.json`、E16は未完了です。
+現在の実行先は、既存GitHub Actions ownerと既存Supabase stagingの非公開checkpointです。Mac mini、Railwayの新worker・volume、長期tokenの新規提供は再開条件ではありません。本記録は過去のhost未接続という説明を更新します。タスク状態の正本は引き続き `../roadmap/tasks.json`。06:07 UTCのfresh replay後、[E16の限定した総合受入](E16_DEPLOYED_ACCEPTANCE_20261023.md)を成立と判定しました。Fの各項目は別の受入です。
 
 ## 実施して確認したこと
 
@@ -44,3 +44,10 @@ finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/cur
 14. 元UNKNOWNを再送せず、新しいrunner [39909274852](https://github.com/Daisuke134/life-manager/actions/runs/39909274852)を同じUTC slotの通常run-onceで要求。source `318f3223df9b4d581ce0edf1a4db418f2eb132b2` のruntime／scripts／workflowはf8e11とbyte同一。保存済みoccurrenceの回収と重複公開0、current proofを確認してからE16を判定します。まだF受入も原113件のstatusも変更していません。
 
 sourceの照合では、配備main f8e11のmanager_core／scripts／workflow全43ファイルのblobが、研究full CI 39905051912の9deec0fと一致しました。研究側121ファイル中78ファイルはmain未配備であり、全研究codeが本番で動くという意味ではありません。研究CIの870件とmainの291件はsource別に保持します。
+
+
+## 06:10 UTC 更新 — E16の限定した総合受入
+
+15. [39909274852](https://github.com/Daisuke134/life-manager/actions/runs/39909274852) はverify／publisherともSUCCESS。06:07:14 UTCの公式summaryは `GATEWAY_ACKNOWLEDGED / NOT_DUE / P0 / writes=0 / current_proof_exported=true / current_proof_receipt_sha=faf18b39207be69af89d9b10389a294731288a20`。公開tipもfaf18b3のまま。公式 `E16_ACCEPTANCE=INCOMPLETE / positive_canary=NOT_RUN / human_outcome=NOT_MEASURED` は保存し、このNOOPを新規positive canaryに数えません。実DBはrevision20・163840 bytes・owner／leaseなし・recovery_required=falseでした。
+
+全時点を[総合受入記録](E16_DEPLOYED_ACCEPTANCE_20261023.md)に対応付け、E16を所有7パスの限定技術能力としてPASSED、cursor=nullとしました。過去のUNKNOWN／BLOCKEDや個別runのINCOMPLETEを改変する判定ではありません。F005→F006→F008→F009はこの後に一つずつ審査します。人の便益とGate1は未測定／UNMETのままです。
