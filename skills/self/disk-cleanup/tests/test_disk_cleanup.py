@@ -3475,9 +3475,10 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
     tmp_path: Path, monkeypatch
 ) -> None:
     clock = [0.0]
-    candidate = tmp_path / "tmp" / "capafy-hf-npm.budget"
-    candidate.mkdir(parents=True)
-    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
+    candidates = [tmp_path / "tmp" / f"capafy-hf-npm.budget{index}" for index in range(37)]
+    for candidate in candidates:
+        candidate.mkdir(parents=True)
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidates[0].parent))
 
     def discover_candidates(*, deadline=None) -> list[dict]:
         clock[0] = 105.0
@@ -3487,7 +3488,9 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
                 "class": "ephemeral",
                 "owner": "temporary-run",
                 "discovery": "allowlisted",
+                "lease": {"path": tmp_path / "leases" / "fixture.lease"},
             }
+            for candidate in candidates
         ]
 
     def fake_inventory(**kwargs):
@@ -3512,12 +3515,65 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
 
     result = governor.run_once()
 
-    assert candidate.exists()
-    assert result["preserved_reasons"] == {"probe-budget-exhausted": 1}
-    assert result["budget_exhaustion_stages"] == {"before_candidate": 1}
+    assert all(candidate.exists() for candidate in candidates)
+    assert result["preserved_reasons"] == {"probe-budget-exhausted": 37}
+    assert result["budget_exhaustion_stages"] == {"before_candidate": 37}
+    expected = [{
+        "owner": "temporary-run", "path": candidate.relative_to(tmp_path).as_posix(),
+        "class": "ephemeral", "discovery": "allowlisted",
+        "reason": "probe-budget-exhausted", "stage": "before_candidate",
+        "lease_path": "leases/fixture.lease", "reported_bytes": None,
+    } for candidate in candidates]
+    assert result["preserved_candidates"] == expected
+    assert result["preserved_candidates_omitted"] == 0
+    persisted = json.loads((tmp_path / "state/last-receipt.json").read_text())
+    assert persisted["preserved_candidates"] == expected
+    assert persisted["preserved_candidates_omitted"] == 0
     assert result["phase_elapsed_ms"]["discovery"] == 105000
     assert result["sweep_start_remaining_ms"] == 0
     assert not (tmp_path / "state" / "host-inventory-full.at").exists()
+
+
+
+@pytest.mark.parametrize("segment", ["short", "長い診断パス" * 100], ids=["count-limit", "utf8-byte-limit"])
+def test_preserved_candidate_details_are_bounded_without_losing_counts(tmp_path: Path, segment: str) -> None:
+    governor = HostDiskGovernor(
+        home=tmp_path, state_dir=tmp_path / "state", clock=lambda: 1.0,
+        lsof=lambda _path: (_ for _ in ()).throw(AssertionError("no extra probe")),
+        usage=lambda: (12 * GiB, 100 * GiB),
+    )
+    result = governor.sweep([{
+        "path": tmp_path / segment / str(index), "class": "ephemeral",
+        "owner": "temporary-run", "discovery": "allowlisted",
+    } for index in range(80)], deadline=0.0)
+
+    details = result["preserved_candidates"]
+    assert 0 < len(details) <= 64
+    assert len(json.dumps(details, ensure_ascii=False).encode("utf-8")) <= 16 * 1024
+    assert result["preserved"] == 80
+    assert result["preserved_reasons"] == {"probe-budget-exhausted": 80}
+    assert result["preserved_candidates_omitted"] == 80 - len(details)
+    receipt = json.loads((tmp_path / "state/last-receipt.json").read_text())
+    assert receipt["preserved_candidates"] == details
+    assert receipt["preserved_candidates_omitted"] == 80 - len(details)
+
+
+def test_receipt_sheds_optional_preserved_details_before_64k_limit(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    payload = {
+        "value": "x" * 64000, "preserved": 2,
+        "preserved_candidates": [{"path": "a" * 1000}, {"path": "b" * 1000}],
+        "preserved_candidates_omitted": 0,
+    }
+    HostDiskGovernor(home=tmp_path, state_dir=state)._receipt(payload)
+
+    raw = (state / "last-receipt.json").read_bytes()
+    receipt = json.loads(raw)
+    assert len(raw) <= 64 * 1024
+    assert receipt["value"] == "x" * 64000
+    assert receipt["preserved"] == 2
+    assert receipt["preserved_candidates"] == [{"path": "a" * 1000}]
+    assert receipt["preserved_candidates_omitted"] == 1
 
 
 def test_run_once_rotates_candidate_start_after_budget_exhaustion(
