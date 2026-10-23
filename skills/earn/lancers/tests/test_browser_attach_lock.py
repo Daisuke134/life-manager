@@ -21,6 +21,22 @@ def _module():
     return module
 
 
+def _connected_module(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    module = _module()
+    snapshot = {
+        "url": module.DASHBOARD_URL, "ready": "complete", "login_form": False,
+        "human_verification": False,
+        "profile_links": ["https://www.lancers.jp/profile/fixture-seller"],
+    }
+    assert module._onboarding.connect(home, snapshot) == {
+        "ok": True, "status": "account_connected",
+    }
+    return module, snapshot
+
+
 def _fake_browser(page="page"):
     class _Context:
         def new_page(self):
@@ -157,9 +173,9 @@ def test_lock_is_released_when_factory_raises(tmp_path):
     assert page == "after-failure"
 
 
-def test_failed_dashboard_response_is_never_account_ready():
+def test_failed_dashboard_response_is_never_account_ready(tmp_path, monkeypatch):
     from types import SimpleNamespace
-    module = _module()
+    module, _snapshot = _connected_module(tmp_path, monkeypatch)
     for status in (405, 403, 500, None):
         class Page:
             url = module.DASHBOARD_URL
@@ -170,9 +186,9 @@ def test_failed_dashboard_response_is_never_account_ready():
         assert module._production_account_ready(Page()) is False, status
 
 
-def test_successful_dashboard_still_requires_correct_url_and_no_login_form():
+def test_successful_dashboard_still_requires_correct_url_and_no_login_form(tmp_path, monkeypatch):
     from types import SimpleNamespace
-    module = _module()
+    module, snapshot = _connected_module(tmp_path, monkeypatch)
     for url, login_count, expected in [
         (module.DASHBOARD_URL, 0, True),
         (module.DASHBOARD_URL, 1, False),
@@ -184,12 +200,15 @@ def test_successful_dashboard_still_requires_correct_url_and_no_login_form():
                 return SimpleNamespace(status=200)
             def locator(self, _selector):
                 return SimpleNamespace(count=lambda: login_count)
+            def evaluate(self, expression):
+                assert expression == module._onboarding.EXPRESSION
+                return snapshot
         assert module._production_account_ready(Page()) is expected
 
 
-def test_account_ready_solves_the_waf_challenge_like_work_sync(monkeypatch):
+def test_account_ready_solves_the_waf_challenge_like_work_sync(tmp_path, monkeypatch):
     from types import SimpleNamespace
-    module = _module()
+    module, snapshot = _connected_module(tmp_path, monkeypatch)
     calls = []
 
     def solve(page, diagnostic, solver_state_path):
@@ -202,6 +221,9 @@ def test_account_ready_solves_the_waf_challenge_like_work_sync(monkeypatch):
         url = module.DASHBOARD_URL
         def goto(self, _url):
             return SimpleNamespace(status=405)
+        def evaluate(self, expression):
+            assert expression == module._onboarding.EXPRESSION
+            return snapshot
 
     assert module._production_account_ready(Page()) is True
     assert calls == [module.DEFAULT_STATE_PATH.with_name("aws-waf-solver.json")]
