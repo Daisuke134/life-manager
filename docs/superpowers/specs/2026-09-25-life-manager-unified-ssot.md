@@ -395,12 +395,18 @@ PROVENANCEの保持readback: read-only SQLite snapshotと私有marker readerで�
 手順: credential SSOT全体とbrowser registry/leaseを値非出力で確認する。accepted新ALLからvalidate_release(newALL, profile)→installer._observe(newALL, env, home)の非None→installer plan本文の対象5件すべてmissing=[]を必須としてから、既存local_install.apply_targets(newALL, exact5, env)を実行する。_observe失敗時の旧observation fallbackやplan exit0だけを成功根拠にしない。loaded-idle-onlyとsafe preflightを保持し、skippedは採用完了にしない。未確認effect fenceは保持し、provider送信やDB直接操作をしない。新script/scheduler/第二installerは作らない。
 
 - [x] SHARED-INPUT: credential SSOT全体171entriesを値非出力で読み、service完全一致Lancers1件/0600/親0700、registry identityと既存lease空きを確認する。accepted8dfの既存_observeは5.53sで非Noneのfresh公式accountを返し、plan本文の対象5件はすべてmissing=[]。guardは既存9227のreachableな本人browserを使い、起動fallbackを無効化し、provider送信0。業務成果は未確認とする。
-- [ ] SHARED-APPLY: exact5だけを既存APIで適用し、skip/installed/loadedを対象別に確認する。
+- [x] SHARED-APPLY: accepted8dfの既存apply_targetsでexact5を適用し、21.39s/全5ok=true・changed=true・skip無しを確認する。safe preflight後の公式native printは全5exit0、installed SHA8df・loaded argvとplistは全一致。source採用だけを業務成果にしない。
 - [ ] SHARED-NATURAL: 新sourceの自然terminalと容量条件を対象別に確認する。provider成果は別の公式receiptで判定する。
 
 PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象installedが旧main885d0469のALLへ切り替わり、proof helperが8dfと異なることを検出する。release-reconcilerの遅い旧23cc runは18e145fe92426e88-85895/execute→report pass、fleet stateは885/partial/changed11/errors0/skipped14であり、同runが上書きした筋と整合するが因果は推測として区別する。unsafe sourceで自然再開させないためaccepted8dfの既存lm-loop stop lm-fence-reconcilerを対象限定で実行し、exit0/0.25s/stderr0、safe preflight PASS/native service absentを確認する。停止後も旧18markerの両digestは既存値と完全一致、新proof0、DB変更0。
 
 次の限定手順: accepted8dfの既存activate_currentをdurable_protocol_versionとprotocol/apply lock付きで使い、検証済みALL8dfをglobal currentへatomic採用する。新releaseの既存reconcile-agent-runner-release.shをHANDOFF_ONLY=1で呼び、release-reconcilerだけを既存self-handoffへ渡す。safe preflightとidle/runlock制約、旧env保持/退役source binding除去を使い、fetch/cut/全fleet applyはこの呼出で行わない。新source loaded/readbackを確認してから5対象と停止中fenceを正規経路で採用・再開する。新mainの将来採用を恒久固定せず、proof修正を含むmain由来releaseへ通常追随する。直接symlink/plist/DB書換え、新supervisor、既存runのlock迂回はしない。
+
+限定修復の実結果: safe preflight0、main祖先/ALL/readonly/host runtime一致を再確認し、既存activate_currentで8dfへatomic採用する。protocol lockの待機は自然解消し、迂回/kill/再activateは0。待機中の過去PIDが既に消えたため当時の競合元は未確定とする。HANDOFF_ONLYはexit0/0.41sで既存helperを予約し、receipt mtime1792792302.7225633/status=ok/target_release_sha=8df/readback.verified=trueを確認する。native release-reconcilerのinstalled8df/loaded argv一致も確認し、既存HANDOFF機構による採用を受け入れる。最新origin/mainのproof helper SHA256はaccepted8dfと完全一致（e078839de07dda029de9da7b78dc4962a8916414d7b316dfe80979e44765b46f）で、将来mainの通常追随を止めない。
+
+同じaccepted APIで停止中lm-fence-reconcilerを適用してchanged=true、installed8dfを照合後、既存lm-loop startを実行しexit0/0.34s/stderr0/print→kickstart→print全0。safe公式native readbackはloaded8df/argvとplist一致。新sourceの自然terminalは別に待ち、旧885 run18e146be4a896950-10665/report75を新source成功として使わない。
+
+共有採用直後のruntime readback: applicationは旧d8 run18e146f563c99070-19485/report75/swap_pressure_high、negotiateは新8df run18e1471e64c0f3f0-25236/report75/swap_pressure_high、work-syncは旧23cc run18e146f563d7d8b0-19478/report75/swap_pressure_high、paidは旧23cc run18e1464883f208f8-94811/report124/entrypoint_exit_124、telegram-reportは旧23cc run18e14702f7d83340-21298/report75/resource_effect_unknown。全件provider receipt/readback無し。free9,263,099,904bytesでもrevenue floorは満たさず、新sourceの登録やadmission待機を全業務復旧にしない。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
 
