@@ -177,9 +177,9 @@ def _load_product_file(path: Path) -> dict[str, Any]:
 
 
 def _product(path: Path, catalog_path: Path | None = None, *, creating: bool = False,
-             applying: bool = False) -> tuple[dict[str, Any], Path, Path]:
+             applying: bool = False, raw_value: dict[str, Any] | None = None) -> tuple[dict[str, Any], Path, Path]:
     path = path.expanduser()
-    value = _load_product_file(path)
+    value = _load_product_file(path) if raw_value is None else deepcopy(raw_value)
     family = value.get("catalog_family")
     if family is not None:
         if not isinstance(family, str) or not family.strip():
@@ -1495,10 +1495,11 @@ def _clear_creation(state_path: Path, intent: dict[str, Any]) -> None:
 def _save_created_listing(product_path: Path, state_path: Path, product: Mapping[str, Any],
                           listing_id: str, intent: dict[str, Any], catalog_path: Path | None = None,
                           *, record_receipt: bool = True) -> None:
-    current, _image, _avatar = _product(product_path, catalog_path, creating=True)
     raw = _load_product_file(product_path)
+    current, _image, _avatar = _product(product_path, catalog_path, creating=True, raw_value=raw)
     if (_creation_intent(current, raw.get("catalog_family")) != intent
-            or current["listing_external_id"] not in {"", listing_id}):
+            or current["listing_external_id"] not in {"", listing_id}
+            or _load_product_file(product_path) != raw):
         raise OfferError("product_changed")
     if record_receipt:
         _write_receipt(state_path, dict(product) | {"listing_external_id": listing_id}, {})
@@ -1512,12 +1513,13 @@ def _save_created_listing(product_path: Path, state_path: Path, product: Mapping
 
 def _save_created_portfolio(product_path: Path, state_path: Path, portfolio_id: str,
                             intent: dict[str, Any], catalog_path: Path | None = None) -> None:
-    current, _image, _avatar = _product(product_path, catalog_path, applying=True)
     raw = _load_product_file(product_path)
+    current, _image, _avatar = _product(product_path, catalog_path, applying=True, raw_value=raw)
     key = intent["kind"]
     if (_creation_intent(current, raw.get("catalog_family"), kind=key) != intent
             or current[key]["external_id"] not in {"", portfolio_id}
-            or _listing_state(state_path).get("pending_create") != intent):
+            or _listing_state(state_path).get("pending_create") != intent
+            or _load_product_file(product_path) != raw):
         raise OfferError("product_changed")
     raw[key]["external_id"] = portfolio_id
     _write_private(product_path, raw)
