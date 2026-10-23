@@ -92,10 +92,17 @@ def advisory_receipt(value: AdvisoryResult) -> dict:
     }
 
 
-def render_prompt(context: PlannerContext) -> str:
+def render_prompt(context: PlannerContext, *, fictional: bool = True) -> str:
     """Pass only explicitly permitted public facts, enclosed as untrusted JSON."""
     if type(context) is not PlannerContext:
         raise ValueError("typed public context required")
+    if type(fictional) is not bool:
+        raise ValueError("fictional must be boolean")
+    if not fictional and any(
+        f.source_kind != "PUBLIC_SOURCE_CLAIM" or f.source.source_id.startswith("synthetic:")
+        for f in context.facts
+    ):
+        raise ValueError("public-fact prompt cannot contain synthetic facts")
     obj = {
         "purpose": context.goal,
         "evidence": [{
@@ -108,16 +115,25 @@ def render_prompt(context: PlannerContext) -> str:
         } for f in context.facts],
         "no_action_alternative": "NO_ACTION",
     }
+    fictional_text = (
+        "This is a fictional advisory exercise: what would a good colleague SAY? "
+        if fictional else ""
+    )
+    context_text = (
+        "Do NOT choose PASS solely because no real action is authorized or "
+        "the context is fictional. "
+        if fictional else "Do NOT choose PASS solely because no real action is authorized. "
+    )
     return (
         "RESEARCH-ONLY MANAGER COLLABORATION: ADVISORY only. "
         "Return exactly one JSON object with keys decision, reason, source_ids. "
         "The reason must be concise, no more than 600 characters; "
         "source_ids must be a list of unique valid citations. "
         "decision must be PASS, ASK or PROPOSE. PASS means NO_ACTION. "
-        "This is a fictional advisory exercise: what would a good colleague SAY? "
-        "Proposing an idea is NOT execution; ASK and PROPOSE are permitted. "
-        "Do NOT choose PASS solely because no real action is authorized or "
-        "the context is fictional. ASK when clarification resolves a conflict. "
+        + fictional_text
+        + "Proposing an idea is NOT execution; ASK and PROPOSE are permitted. "
+        + context_text
+        + "ASK when clarification resolves a conflict. "
         "PROPOSE when an optional evidence-cited improvement is appropriate. "
         "Respect an explicit refusal, and avoid burdensome coaching. "
         "Do not call tools or claim any execution, permission, proven causal effect, "
