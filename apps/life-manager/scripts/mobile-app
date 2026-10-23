@@ -14,7 +14,13 @@ if [ "${LIFE_MANAGER_RELEASE_SHA+x}" = x ]; then
   RELEASE_SHA="${LIFE_MANAGER_RELEASE_SHA}"
 else
   RELEASE_SHA_BOUND=0
+  RELEASE_SHA=""
 fi
+# The file below is operator-maintained.  Make its source-time view of the
+# launchd binding immutable too: otherwise an assignment to these bookkeeping
+# variables can make the restoration block relabel (or remove) the release
+# that admitted this occurrence.
+readonly RELEASE_SHA_BOUND RELEASE_SHA
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/load-env-file.sh"
 lm_load_env_file "$ENV_FILE"
