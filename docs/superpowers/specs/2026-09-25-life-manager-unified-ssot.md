@@ -10,9 +10,11 @@
 
 **順序・現在cursor:** 既存MAC01とMAC04 source受入を保持し、README-MAC-01（比較・入口整理）とREADME-MAC-02（公開導入の呼出し境界診断・修復）を並行、統合後に既存MAC02–05へ戻る。理由は、前回の共通installerがPR #8617でmainへ入っており、再実装せず公開入口と残る停止点を直すため。所有worktree=`.worktrees/readme-mac-product-20261023`、branch=`fix/readme-mac-product-20261023`、owner=`codex-readme-mac-product`。旧portability worktreeは別ownerのleaseを維持する。
 
-- [ ] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。
-- [ ] README-MAC-02: 現mainの公開導入を検証し、再現した不具合を最小修復する。
+- [x] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。英日各52行、導入コマンドは26行目。内部情報を本文へ強制する旧assertを削除し、metadata/旧URL禁止は保持する。North StarはTHESISへ移設する。
+- [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
 - [ ] README-MAC-03: focused/context/contract、review、CI、main、公開readbackを確認し残る実機条件を記録する。
+
+現在cursor=README-MAC-03、PR #8666。primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASS、migration/shell/diff/loop contractもPASS。独立read-only reviewとCIを確認してからmainへ統合する。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
 
 **導入の再現対象:** `scripts/install-local.sh`はCodex CLIの存在だけで全job登録へ進み、本人の認証を確認しない。同じrepoのCoconala `prepare`は`codex login status`→必要時のみ公式`codex login`→再確認を実装している。この既存方式を全体`install`にも適用し、未認証・login失敗・成功応答だけで認証状態が変わらない場合はjob登録前に止める。既存認証は再loginしない。`prepare`とread-only `plan`はloginを開始しない。隔離fixtureで登録開始の有無を検証し、実account/sessionは操作しない。
 
