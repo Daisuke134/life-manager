@@ -93,7 +93,7 @@
 - [x] STOP/recovery/cadence後の同じ候補を使う既定OFFのshadow接続を実装し、control/無効設定/再読のprovider呼出し境界を回帰確認する。[PR8741と研究source5018の受入](../verification/HOST_SHADOW_CONNECTION_ACCEPTANCE_20261023.md)。実推論運用やV004全体の完了ではない。
 - [ ] 新しい行動変容channelの実範囲と観測をreviewし、既存7パスpublisherの権限を流用しない。
 - [ ] V003とD016を満たして初めて限定昇格し、停止・復元・独立readback・再送0を確認する。
-- [ ] V005の第三者再現、V006の実案件、G001/G002の憲章/監査、G003以降の異集団/接続責任/原価/未測定領域へ進む。
+- [x] G001/G002の有限source憲章/監査設計は[限定receipt](../verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に記録済みのroot実受入によるdone（実依存K007/V001→G001→G002を確認済み）。運営採択UNADOPTED・実外部監査NOT_PERFORMED、実役割/窓口/独立母集団と運用は未成立。V005第三者再現、V006実案件、G003以降の異集団/接続責任/原価/未測定領域は別受入。
 
 ## Task 7: siteの経歴・使命の訂正、その後の発信
 

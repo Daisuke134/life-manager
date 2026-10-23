@@ -119,6 +119,8 @@ portfolio は各 case、scope、metric、unit、interval、cost currency、harm 
 
 ## 4. G001–G006 / V004: 統治の準備契約
 
+**G001/G002 の現行設計範囲の明確化:** 下記の過去 engineering/test 記録を保持したまま、[公益憲章](../governance/PUBLIC_INTEREST_CHARTER_DRAFT.md)・[事故/異議/監査手順](../governance/INCIDENT_APPEAL_AND_AUDIT_PROCEDURE.md)の有限 source/offline 設計と実運営採択を分ける。[限定設計receipt](G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)による `BOUNDED_SOURCE_DESIGN_ACCEPTED` は、原依存 K007/V001 → G001 → G002 の実受入と現source確認を経てroot実受入済み。過去の実運営条件を設計doneへ読み替えない。運営採択は `UNADOPTED`、実外部監査は `NOT_PERFORMED`。将来の90日監査や任意の人研究を原設計受入の前提にしない。改訂前の文書 hash と immutable commit は [既存 checksum manifest](../governance/GOVERNANCE_DRAFTS_20261022.sha256) の履歴 comment に保持する。本明確化は新しいテスト実行や運営実績を報告するものではない。
+
 `PublicInterestCharter` は immutable version hash、owner、standing grant、budget unit、audit/appeal URL、
 operator stop・unknown effect・harm・revocation・OOD の停止条件を保持する。
 これらの URL に実際の法的窓口が存在することや憲章が採択されたことは、このデータ型では確認しない。
@@ -185,7 +187,7 @@ rights、privacy、evidence guards の regression も含む。Hosted CI、merged
 | V004 | 既存 isolated/shadow/holdout promotion と rollback、権限自己拡張拒否 | 正当な外部権限に基づく limited live execution の evidence |
 | V005 | メタデータと code version による同じ未検証判定の再現 manifest | 正当な公開許可、実ソース・集計結果の公開と第三者による P1–P4 再現 |
 | V006 | 正・負・不明・ゼロ、費用/harms/単位を保つ portfolio utility | original の数十案件の実際の outcome portfolio |
-| G001–G002 | typed charter、preflight、audit/stop/appeal 参照、append-only incident workflow | 採択された統治、実際の oversight/appeal 運用、独立監査 |
+| G001–G002 | typed charter、preflight、audit/stop/appeal 参照、append-only incident workflow。上記の過去 engineering 証拠を維持 | 有限 source 設計については、[receipt](G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)の `BOUNDED_SOURCE_DESIGN_ACCEPTED` をroot実受入済み。K007/V001→G001→G002の実依存順と現source/code/review/検証のroot確認をreceiptに記録した。実運営としての採択された統治、実際の oversight/appeal・保存/訂正/復旧運用は未成立（`UNADOPTED`）、実外部監査 `NOT_PERFORMED` |
 | G003 | 非外挿 coverage contract | 複数地域・人口構成での段階的な実測検証 |
 | G004 | 接続先ごとの source/permission/budget/responsibility 契約 | 実際の接続先合意・許可の認証、必要な API delivery |
 | G005 | 企業収益/資金/費用と人間への便益の独立 accounting | 実測コスト・外部 outcome での経済モデル検証、先行依存 |

@@ -2519,13 +2519,16 @@
     "learn": "デジタル・ブッダという比喩と公的権限の違い",
     "change": "公共利益憲章、権限・異議申し立て・停止条件を制定",
     "verify": "管理者が監査・停止でき、AIが自分の権限を変更できない",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "docs/governance/PUBLIC_INTEREST_CHARTER_DRAFT.md",
-      "manager_core/governance.py"
+      "manager_core/governance.py",
+      "docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md",
+      "tests/test_governance.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "BOUNDED_SOURCE_DESIGN_ACCEPTED",
+    "source_acceptance_scope": "FINITE_SOURCE_OFFLINE_DESIGN_ONLY; actual bounded source-design completion accepted by the recorded root events in docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md after actual dependency acceptance K007/V001 -> G001 -> G002; operational adoption UNADOPTED; external audit NOT_PERFORMED; no live authority, authenticated real population, full-world coverage, complete classification/receipt certification or human benefit accepted."
   },
   {
     "section": "12. 長期運用と統治",
@@ -2536,13 +2539,16 @@
     "learn": "介入による害を監査する仕組み",
     "change": "第三者監査と事故報告プロセスを設計する",
     "verify": "無効・悪化・未知のすべての介入の監査証拠が保全される",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "docs/governance/INCIDENT_APPEAL_AND_AUDIT_PROCEDURE.md",
-      "manager_core/governance.py"
+      "manager_core/governance.py",
+      "docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md",
+      "tests/test_governance.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "BOUNDED_SOURCE_DESIGN_ACCEPTED",
+    "source_acceptance_scope": "FINITE_SOURCE_OFFLINE_DESIGN_ONLY; actual bounded source-design completion accepted by the recorded root events in docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md after actual dependency acceptance K007/V001 -> G001 -> G002; operational adoption UNADOPTED; external audit NOT_PERFORMED; no live authority, authenticated real population, full-world coverage, complete classification/receipt certification or human benefit accepted."
   },
   {
     "section": "12. 長期運用と統治",

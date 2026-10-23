@@ -99,8 +99,8 @@
 
 | 原 ID | 現在ある実装・証拠 | 原条件・repo 内で残るもの |
 |---|---|---|
-| G001 | charter/owner/grant/hash、appeal/stop、既存 AuthorityVerifier を使う preflight（C）と [公益憲章ドラフト](../governance/PUBLIC_INTEREST_CHARTER_DRAFT.md) | 憲章は UNADOPTED。V001、実責任者の採択と停止/異議手続の運用は未成立。通常の standing scope 内の実行に毎回の承認を追加しない |
-| G002 | 既存 AuditTrail の無効・悪化・未知・害・異議・解決の保持（C）と [事故・異議・監査手順ドラフト](../governance/INCIDENT_APPEAL_AND_AUDIT_PROCEDURE.md) | 手順は UNADOPTED。実担当・独立監査・保存/訂正/復旧の運用は未成立。ローカル hash chain は改竄不可能な外部監査ではない |
+| G001 | charter/owner/grant/hash、appeal/stop、既存 AuthorityVerifier を使う [preflight](../../manager_core/governance.py)（C）と [公益憲章ドラフト](../governance/PUBLIC_INTEREST_CHARTER_DRAFT.md)。過去の engineering 証拠を保持 | `BOUNDED_SOURCE_DESIGN_ACCEPTED`（root実受入済み）。[限定設計receipt](G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に実rootイベントを記録した。K007/V001 doneを実確認後、G001を受入済み。運営採択 `UNADOPTED`、実責任者の採択と停止/異議手続の運用は未成立、実外部監査 `NOT_PERFORMED`。通常の standing scope 内の実行に毎回の承認を追加しない |
+| G002 | 既存 AuditTrail の無効・悪化・未知・害・異議・解決の保持（C）と [事故・異議・監査手順ドラフト](../governance/INCIDENT_APPEAL_AND_AUDIT_PROCEDURE.md)。過去の engineering 証拠を保持し、独立の有限宣言母集団との [ID/trace 照合契約](../../manager_core/governance.py)を設計対象とする | `BOUNDED_SOURCE_DESIGN_ACCEPTED`（root実受入済み）。[限定設計receipt](G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)に実rootイベントを記録した。V001→G001の実受入後、3badaの有限ID/trace欠落検知、既存1088 tests/skip5と独立code/doc reviewを根拠にG002設計を受入済み。90日後の実監査や人研究は原設計受入の前提ではない。運営採択 `UNADOPTED`、実担当・独立監査・保存/訂正/復旧の運用は未成立、実外部監査 `NOT_PERFORMED`。ローカル hash chain は改竄不可能な外部監査ではない |
 | G003 | scope/coverage/不公平・未測定分野の inventory、未見 scope で NO_ACTION（C） | G002/V006、複数地域・人口での段階的実検証 |
 | G004 | 接続相手・source・permission・budget・currency・responsibility の API 契約型（C） | G003、実相手の条件、承認された endpoint/schema/version の結合と公開。型が外部接続権限を付与しない |
 | G005 | 運営原価・測定費・資金・支援と beneficiary portfolio を分離する経済型（C） | 実原価・資金の出典、持続性の検証、G004。会社収益と人の純便益を足さない |

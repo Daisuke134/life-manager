@@ -2,7 +2,7 @@
 
 Status: 2026-10-23 UTC. Manager task state lives in `tasks.json`; other Life Manager lane states remain unchanged.
 
-Total: 113 · Done: 81 · Todo: 22 · Blocked: 0 · Skipped: 10
+Total: 113 · Done: 83 · Todo: 20 · Blocked: 0 · Skipped: 10
 
 ✅ = recorded acceptance version and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver or owner-scope retirement (not success). A research task is not evidence of real-world impact.
 
@@ -201,8 +201,8 @@ E01–E16実装完了。F受入は別に証拠確認
 
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
-| ⬜ `G001` | K007, V001 | デジタル・ブッダという比喩と公的権限の違い | 公共利益憲章、権限・異議申し立て・停止条件を制定 | 管理者が監査・停止でき、AIが自分の権限を変更できない |
-| ⬜ `G002` | G001 | 介入による害を監査する仕組み | 第三者監査と事故報告プロセスを設計する | 無効・悪化・未知のすべての介入の監査証拠が保全される |
+| ✅ `G001` | K007, V001 | デジタル・ブッダという比喩と公的権限の違い | 公共利益憲章、権限・異議申し立て・停止条件を制定 | 管理者が監査・停止でき、AIが自分の権限を変更できない |
+| ✅ `G002` | G001 | 介入による害を監査する仕組み | 第三者監査と事故報告プロセスを設計する | 無効・悪化・未知のすべての介入の監査証拠が保全される |
 | ⬜ `G003` | G002, V006 | 実績と普遍化の違い | 複数地域・人口構成の段階的検証を作る | 一つの地域の効果を無検証に世界へ外挿しない |
 | ⬜ `G004` | G003 | 他組織との接続と合法性 | 監督主体・非営利・自治体・企業・研究者向け公開API契約を設計 | 接続先ごとに公開情報・許可・予算・責任を明記 |
 | ⬜ `G005` | G004 | 収益と社会的便益のトレードオフ | 運営原価・資金調達・継続支援・測定コストの経済モデルを作る | 企業収益と人間への純便益を別指標で検証する |
