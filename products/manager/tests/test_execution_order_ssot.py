@@ -54,6 +54,46 @@ class ExecutionOrderContract(unittest.TestCase):
         terminal_f009 = next(task for task in terminal if task["id"] == "F009")
         self._assert_execution_cursor_and_receipts(terminal_f009)
 
+    def test_fixture_resets_done_descendants_after_resetting_acceptance_and_preserves_source(self):
+        source = deepcopy(self.tasks)
+        by_id = {task["id"]: task for task in source}
+        f009 = by_id["F009"]
+        f009["technical_execution_completed"] = EXPECTED
+        f009["technical_execution_cursor"] = None
+        e16_receipt = deepcopy(f009["technical_execution_receipts"]["E15"])
+        e16_receipt.update(run_id=99999999999, status="PASSED", full_suite_total=512)
+        f009["technical_execution_receipts"]["E16"] = e16_receipt
+        for gate in GATES:
+            by_id[gate]["status"] = "done"
+            by_id[gate]["completion_evidence"] = [f"docs/verification/fixture-{gate}.json"]
+            by_id[gate]["evidence_scope"] = "OWNED_PUBLIC_DIGITAL_P2_ONLY"
+            by_id[gate]["beneficiary_outcome"] = "NOT_MEASURED"
+        for task_id in ("D001", "D002"):
+            by_id[task_id]["status"] = "done"
+            by_id[task_id]["completion_evidence"] = [f"docs/verification/fixture-{task_id}.json"]
+        make_roadmap.validate(source)
+        source_before = deepcopy(source)
+
+        original_tasks = self.tasks
+        self.tasks = source
+        try:
+            fixtures = (
+                ("E-only", self._execution_fixture(EXPECTED[:15], "E16")),
+                ("F-prefix", self._acceptance_fixture(1)),
+            )
+        finally:
+            self.tasks = original_tasks
+
+        self.assertEqual(source, source_before)
+        for label, fixture in fixtures:
+            with self.subTest(fixture=label):
+                make_roadmap.validate(fixture)
+                fixture_by_id = {task["id"]: task for task in fixture}
+                for task_id in ("D001", "D002"):
+                    self.assertEqual(fixture_by_id[task_id]["status"], "todo")
+                    self.assertNotIn("completion_evidence", fixture_by_id[task_id])
+                    self.assertNotIn("receipt", fixture_by_id[task_id])
+
     def _assert_execution_cursor_and_receipts(self, task):
         # Only a contiguous prefix may be complete. A nonterminal cursor names
         # the next E; the full prefix has no next E and uses null.
@@ -83,6 +123,14 @@ class ExecutionOrderContract(unittest.TestCase):
             receipt = deepcopy(f009["technical_execution_receipts"]["E15"])
             receipt.update(run_id=99999999999, status="PASSED", full_suite_total=512)
             f009["technical_execution_receipts"]["E16"] = receipt
+        # Resetting completed gates can invalidate descendants in a newer task
+        # registry. Normalize this disposable copy in topological order only.
+        for task in tasks:
+            if (task["status"] == "done"
+                and any(by_id[dep]["status"] != "done" for dep in task["depends"])):
+                task["status"] = "todo"
+                task.pop("completion_evidence", None)
+                task.pop("receipt", None)
         return tasks
 
     def test_terminal_execution_cursor_requires_all_sixteen_receipts_and_renders_separately_from_F(self):
@@ -111,8 +159,7 @@ class ExecutionOrderContract(unittest.TestCase):
         return tasks
 
     def test_acceptance_gates_allow_only_evidence_backed_ordered_prefix_after_e16(self):
-        # The actual registry currently has F todo and E16 blocked. Fixtures
-        # model the allowed terminal states without rewriting canonical evidence.
+        # Fixtures model terminal states without rewriting their source registry.
         make_roadmap.validate(self._acceptance_fixture(0, EXPECTED[:15], "E16"))
         for done_count in range(1, len(GATES) + 1):
             with self.subTest(done_prefix=done_count):
