@@ -986,8 +986,110 @@ class OwnerReportRendererTest(unittest.TestCase):
         for product_name in (
             "Anicca iOS", "Honne", "BreathCalm", "SleepRitual",
             "Desk Stretch Timer", "Micro-Mood", "日本語電子書籍", "英語電子書籍",
+            "Daily Dhamma", "Sleep Reset", "STUDIO CHERIE", "Thankful",
         ):
             self.assertEqual(text.count(product_name), 1, product_name)
+        products = {item["product_id"]: item for item in event["facts"]["products"]}
+        self.assertEqual(products["honne-ai"]["mrr"], 0.0)
+        for product_id in ("dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"):
+            self.assertIsNone(products[product_id]["mrr"])
+            self.assertEqual(products[product_id]["mrr_reason"], "no_business_snapshot")
+            self.assertIsNone(products[product_id]["revenue_28d"])
+
+    def test_public_six_app_daily_sweep_preserves_scoped_source_facts(self):
+        cases = (
+            ("anicca-ios", "Anicca iOS", "6755129214", 20.73, 5, "2026-08-01"),
+            ("honne-ai", "Honne", "6759667221", 0.0, 2, "2026-08-02"),
+            ("dhamma-quotes", "Daily Dhamma", "6757726663", None, 3, "2026-08-03"),
+            ("sleep-reset", "Sleep Reset", "6762143790", None, 0, "2026-08-04"),
+            ("studio-cherie", "STUDIO CHERIE", "6766485903", None, None, None),
+            ("thankful", "Thankful", "6759514159", None, 6, "2026-08-02"),
+        )
+        rows = []
+        for product_id, _name, app_id, mrr, count, source_date in cases:
+            rows.append({
+                "schema_version": 1,
+                "product_id": product_id,
+                "business_date": "2026-08-05",
+                "observed_at": "2026-08-05T08:00:00Z",
+                "snapshot_id": f"{product_id}:2026-08-05",
+                "sources": {
+                    "revenuecat": (
+                        {"status": "available", "reason": None, "data": {"mrr": mrr}}
+                        if mrr is not None
+                        else {"status": "unavailable", "reason": "no_revenuecat_app", "data": None}
+                    ),
+                    "app_store_subscriptions": (
+                        {"status": "available", "reason": None, "data": {
+                            "app_id": app_id,
+                            "business_date": source_date,
+                            "active_standard_price_subscriptions": count,
+                            "rows": [{
+                                "subscription_id": f"{product_id}-annual",
+                                "standard_subscription_duration": "1 Year",
+                                "customer_price": "39.99",
+                                "customer_currency": "USD",
+                                "active_standard_price_subscriptions": count,
+                            }],
+                            "evidence_path": f"evidence/{product_id}.json",
+                        }} if count is not None
+                        else {"status": "unavailable", "reason": "no_app_rows", "data": None}
+                    ),
+                },
+            })
+        (self.root / "business-outcomes.jsonl").write_text(
+            "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8",
+        )
+        events = owner_report.build_events(self.root, "product_daily", product_id=None, as_of=AS_OF)
+        daily = {event["product_id"]: event for event in events}
+        self.assertEqual(set(daily), {
+            "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
+            "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en",
+            "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful",
+        })
+        for index, (product_id, name, _app_id, mrr, count, source_date) in enumerate(cases):
+            with self.subTest(product_id=product_id):
+                event = daily[product_id]
+                self.assertEqual(self.event("product_daily", product_id), event)
+                self.assertEqual(event["facts"]["mrr"], mrr)
+                self.assertEqual(event["facts"]["apple_active_standard_price_subscriptions"], count)
+                self.assertEqual(event["facts"]["apple_subscriptions_business_date"], source_date)
+                self.assertEqual(event["facts"]["snapshot_id"], f"{product_id}:2026-08-05")
+                self.assertEqual(event["evidence_refs"], [f"state/business-outcomes.jsonl#row-{index}"])
+                text = owner_report.render_japanese(event)
+                self.assertIn(f"{name}の今日の結果", text)
+                if count is None:
+                    self.assertNotIn("Appleの通常価格での有効購読数は", text)
+                else:
+                    self.assertIn(f"有効購読数は{count}件（{source_date}時点）", text)
+                if mrr is None:
+                    self.assertNotIn("MRRは", text)
+                else:
+                    self.assertIn(f"MRRは{mrr} USD", text)
+
+    def test_cli_accepts_public_app_ids_and_still_rejects_unknown_ids(self):
+        import owner_report_cli
+
+        for product_id, name in (
+            ("dhamma-quotes", "Daily Dhamma"), ("sleep-reset", "Sleep Reset"),
+            ("studio-cherie", "STUDIO CHERIE"), ("thankful", "Thankful"),
+        ):
+            with self.subTest(product_id=product_id), redirect_stdout(io.StringIO()) as output, redirect_stderr(io.StringIO()):
+                try:
+                    rc = owner_report_cli.main([
+                        "sweep", "--kind", "product_daily", "--product-id", product_id,
+                        "--state-root", str(self.root), "--as-of", "2026-08-05T12:00:00Z", "--no-send",
+                    ])
+                except SystemExit as exc:
+                    self.fail(f"登録済み商品 {product_id} をCLIが拒否しました: {exc.code}")
+                self.assertEqual(rc, 0)
+                self.assertIn(f"{name}の今日の結果", output.getvalue())
+        self.assertFalse((self.root / "owner-report-deliveries.jsonl").exists())
+        with self.assertRaisesRegex(owner_report.OwnerReportError, "unknown product_id"):
+            owner_report.build_events(self.root, "product_daily", product_id="unregistered-app", as_of=AS_OF)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as rejected:
+            owner_report_cli.main(["sweep", "--kind", "product_daily", "--product-id", "unregistered-app", "--no-send"])
+        self.assertEqual(rejected.exception.code, 2)
 
     def test_portfolio_weekly_sums_revenue_28d_and_installs_28d_across_products(self):
         event = self.event("portfolio_weekly")
