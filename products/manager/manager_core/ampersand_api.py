@@ -9,7 +9,7 @@ from hashlib import sha256
 import json
 import re
 from typing import Any
-from .provider_deadline import bounded_provider_call, observe_event
+from .provider_deadline import bounded_provider_call, observe_event, mark_followup_completed
 
 BASE_URL = "https://ampersand.humansand.ai/v1"
 MODEL = "ampersand-v0.1"
@@ -255,10 +255,15 @@ def read_followup_turn(client: Any, session_id: str, prompt: str, *,
             client.beta.agents.sessions.events.create(
                 session_id, events=[event], idempotency_key=key)
             for i, item in enumerate(stream):
+                typ = getattr(item, "type", "")
+                if typ == "agent.session.turn.completed":
+                    # If the deadline interrupts event observation or any
+                    # later saved-item read, do not run active-turn cancel
+                    # recovery: final-output uncertainty must keep the writer.
+                    mark_followup_completed()
                 observe_event(item)
                 if i >= 4000:
                     raise SessionFailure("event budget exceeded")
-                typ = getattr(item, "type", "")
                 if typ == "agent.session.turn.completed":
                     completed = True
                     completed_turn_id = getattr(item, "turn_id", None)
