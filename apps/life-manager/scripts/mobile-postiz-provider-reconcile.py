@@ -125,10 +125,16 @@ def _safe_bytes(path: Path, *, max_bytes: int = 8 * 1024 * 1024) -> bytes | None
     return data if len(data) <= max_bytes else None
 
 
-def _safe_jsonl(path: Path, *, max_bytes: int = 8 * 1024 * 1024) -> list[dict[str, Any]] | None:
+def _safe_jsonl(path: Path, *, max_bytes: int = 8 * 1024 * 1024,
+                known_prefix: tuple[int, str] | None = None) -> list[dict[str, Any]] | None:
     data = _safe_bytes(path, max_bytes=max_bytes)
     if data is None:
         return None
+    if known_prefix is not None:
+        length, expected_sha = known_prefix
+        if (length <= 0 or len(data) < length
+                or hashlib.sha256(data[:length]).hexdigest() != expected_sha):
+            return None
     rows: list[dict[str, Any]] = []
     try:
         for raw in data.splitlines():
@@ -1703,10 +1709,10 @@ JA_TIKTOK_REUSE = {
         "1a8c06ff46364663b0b02626": "b319ff3368b08b7aa211d4cdc43f475ea6f11c3d21b6a989dc49a229e2a2d3a1",
         "de2f3386e88fd1362284e198": "af8af263ab60a35f62c65fe04b5490820f5352f353173d885c6e98af12a4a967",
     },
-    "journal_prefix_sha256": {
-        "ebook/events.jsonl": "a9efc854bdaf7cfbb691880c5b3c0c1a2b7ebf4325dfcac04261e6c8ba9b1d4e",
-        "marketing/jobs.jsonl": "217fd5fb1a7505fe2a5a7106b3afd4de623c592e5783933ad18a211830d86149",
-        "marketing/receipts.jsonl": "5288f8c30dd0e308c2899a821e5b1fba6f64642d2d34480f4561ad173f074026",
+    "journal_prefix": {
+        "ebook/events.jsonl": (14810364, "71165cc56f86bb2df439432c5d45ae1d16eacfafc89d227f76e386f5124e269a"),
+        "marketing/jobs.jsonl": (41478939, "e73cd81c4c237979ffe22eb69d0acfb4469927b86cd49c113acd01ab11ce95f4"),
+        "marketing/receipts.jsonl": (6896936, "305906f338a6a06719432dd89cc697fe62e9b074f2d1f4bc7506fcf4d3a24f70"),
     },
     "job_row_sha256": [
         "ca8bc63c606f5a001b360e301a803e00b64d4bad878ca763d4f4279331267d49",
@@ -1751,17 +1757,19 @@ def build_ja_tiktok_receipt_reuse_proof(
             if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
                 return None
         journals = {}
-        for relative, prefix_sha in spec["journal_prefix_sha256"].items():
-            rows = _safe_jsonl(data_dir / relative, max_bytes=64 * 1024 * 1024)
-            if not rows or fingerprint(rows[0]) != prefix_sha:
+        for relative, prefix in spec["journal_prefix"].items():
+            rows = _safe_jsonl(data_dir / relative, max_bytes=64 * 1024 * 1024, known_prefix=prefix)
+            if not rows:
                 return None
             journals[relative] = rows
         events = journals["ebook/events.jsonl"]
         claim_ref = f"lm-occurrence://{spec['owner_id']}/{spec['occurrence_id'].split(':', 1)[1]}/claim"
         runs = {spec["occurrence_id"].split(":", 1)[1], spec["claim_run_id"]}
-        related = [row for row in events if row.get("run_id") in runs
-                   or row.get("occurrence_id") == spec["occurrence_id"]
-                   or claim_ref in (row.get("evidence_refs") or [])]
+        # Keep every identity view: a conflicting top-level value must not hide a nested claimant.
+        related = [row for row in events if any(
+            identity.get("run_id") in runs or identity.get("occurrence_id") == spec["occurrence_id"]
+            or claim_ref in (identity.get("evidence_refs") or [])
+            for identity in (row, row.get("identity"), row.get("runtime")) if isinstance(identity, dict))]
         if (len(related) != 4
                 or {row.get("event_id"): fingerprint(row) for row in related} != spec["event_sha256"]):
             return None
