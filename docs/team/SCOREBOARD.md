@@ -40,3 +40,19 @@
 | 項目 | 値 | 更新(JST) | 出典 |
 |---|---|---|---|
 | Daisuke134/life-manager stars / 目標 | 8 / 10,000 | 2026-10-23 20:06 | `gh api repos/Daisuke134/life-manager --jq .stargazers_count` |
+
+## 2026-10-23（JST）ローカル readback 計測
+
+Mac mini 上の実ファイルを read-only で集計（20:35 JST 時点）。推測なし。取れないものは「未取得」と理由。
+
+| 項目 | 値 | 更新(JST) | 出典 |
+|---|---|---|---|
+| 応募台帳 行数（type別） | 合計26 = directory 10 / gig 7 / listing 4 / job 3 / vc 2 | 2026-10-23 20:35 | `ledger/APPLICATIONS.md`（main 98241d81f1、ファイル最終変更 3bc09b272a）表の `\| 20` 始まり行を awk 集計 |
+| 応募台帳 行数（status別） | applied 20 / claimed 4 / listed 2 | 2026-10-23 20:35 | 同上 |
+| ココナラ 応募（`~/gig/applied.jsonl`） | 直近24h 26件 / 今日JST 26件（最終 20:27） | 2026-10-23 20:35 | `~/gig/applied.jsonl` の `status=="applied"` 行を `ts`（epoch秒）で JST 集計。上の「受託」表の2件（BOARD ログ由来）とは出典が異なる |
+| Anicca App Units（ASC, business-outcomes.jsonl 経路） | この経路では未取得（最新 business_date 2026-10-21 の downloads は `report_pending`。最後の available は 10/15 の first_time_downloads=1）。日別実測は上の「インストール」表の ASC Sales Report API 行を参照 | 2026-10-22 06:07 | `~/.local/state/life-manager/marketing-metrics-daily/state/business-outcomes.jsonl` product_id=`anicca-ios`、observed_at 2026-10-21T21:07:53Z、`sources.app_store_connect.data.reports.downloads.status` |
+| 無料記事公開（aniccaai.com self-owned landing） | 20本（ユニーク slug） | 2026-10-23 20:35 | `~/.local/state/life-manager/writer/checkouts/self-owned-landing` の reflog（`.git/logs/HEAD`）で今日JSTの `publish free article <slug>` をユニーク集計（rebase pick 重複を除外、生の行数は33） |
+| Postiz 投稿（Anicca 連携） | PUBLISHED 10 / ERROR 3（09:00〜16:48 JST の範囲） | 2026-10-23 16:48 | `~/.local/state/life-manager/evidence/mobile-flagship/20261023/postiz-final-official-readback-20261023T074813Z.json`（`GET /public/v1/posts`、`anicca_post_readbacks[].state`）。16:48 以降は未取得 |
+| Writer 有料記事 公開 | 0本（今日の行3件はすべて `pending: required fail-closed proofs unavailable`、`published=false`） | 2026-10-23 14:49 | `~/.local/state/life-manager/writer/articles.jsonl` の ts 今日JST行。`live_url` 列は存在しない |
+| Capafy 累計 gross / 非トライアル件数 | $112.74 / 33件 | 2026-10-23 20:07 | `~/.local/state/life-manager/state/capafy-hourly-reconcile.json` `money.gross_usd`・`money.non_trial_units`、observed_at 2026-10-23T11:07:54Z |
+| PromptBase 売上件数 / net | 0件 / $0.00 | 2026-10-23 17:52 | `~/.local/state/life-manager/state/promptbase-sales.json` `sales_count`・`net_usd`、observed_at 2026-10-23T08:52:15Z（source: PromptBase Sales tab） |
