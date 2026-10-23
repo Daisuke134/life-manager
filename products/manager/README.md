@@ -22,6 +22,17 @@ Managerは、**行動変容を通じて、苦しみを終わらせることを�
 過去の公開予測の再採点は、新しいモデル推論や、Manager自身の新しい介入の効果を
 証明するものではありません。原データや個人行をGitへ保存しません。
 
+## 有限private SFTのoffline source
+
+[用途限定scope](docs/specs/2026-10-23-finite-private-sft-research-start.md)と
+[導入・検証計画](docs/plans/2026-10-23-helpsteer2-private-sft.md)に、固定された
+元候補を使う研究専用のnative PEFT/TRL entryを置きます。既存dev8評価の
+権利・protocolは維持します。CIはsynthetic fixtureだけで検証し、原corpus・
+weights・private adapter/configはGitへ保存しません。
+
+sourceのimport・main統合は学習/評価の実行許可や本番model採用を意味しません。
+固定adapter評価の新実装は別変更です。進捗・順序は下記の単一SSOTを参照します。
+
 ## 一つの実行経路
 
 既存の [Manager workflow](../../.github/workflows/manager-phase06-service.yml) は、
