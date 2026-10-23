@@ -387,6 +387,69 @@
       },
       "risk": "Card/abstract claims 368 prompts and 31 codes; pinned bytes contain 380 rows, 376 unique prompts and 32 codes. Four identical row duplicates are retained. The model field identifies prompt generators, not evaluated models or judges.",
       "unresolved": "Independent legal authentication, source participant anonymization, pretraining contamination, person/time/transfer validity, complete upstream judge reproduction and human outcome measurement remain unverified. This review authorizes no execution or training."
+    },
+    {
+      "id": "helpsteer2-candidates",
+      "name": "NVIDIA HelpSteer2 published candidate preference and quality annotations",
+      "kind": "public response annotations; private local processing only",
+      "license_expression": "CC-BY-4.0",
+      "source_url": "https://huggingface.co/datasets/nvidia/HelpSteer2/tree/990b2711a36180dd19d9c94b8627844866f8982a",
+      "license_evidence_url": "https://huggingface.co/datasets/nvidia/HelpSteer2/blob/990b2711a36180dd19d9c94b8627844866f8982a/README.md",
+      "license_evidence_sha": "990b2711a36180dd19d9c94b8627844866f8982a",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "commercial_evaluation": "allowed_with_conditions",
+        "commercial_training": "hold",
+        "product_use": "hold",
+        "raw_redistribution": "hold"
+      },
+      "requirements": [
+        "Attribute NVIDIA, HelpSteer2, the pinned dataset revision and source/card links; include CC BY 4.0 license link and describe changes.",
+        "Only evaluate the eight frozen development candidate pairs reconstructed from original source files. Published human labels apply only to those exact original responses; no new responses, training or final-test model evaluation.",
+        "Keep raw prompts, responses, preference statements and elaborations out of Git, stdout, errors, repr and public exports. Publish only numeric labels, row IDs, hashes and evaluation metadata.",
+        "Commercial evaluation is conditional on attribution and separate third-party rights/privacy assessment. Commercial training, product use and raw redistribution are operating-purpose holds, not claims that CC BY prohibits them.",
+        "The pinned dataset card declares CC BY 4.0; the full CC BY 4.0 legalcode was reviewed. No independent dataset LICENSE file was found. Dataset declarations do not guarantee rights or privacy of ShareGPT or other third-party material.",
+        "Preserve text unchanged; add split normalization metadata, original quality-row joins, hashes, token masks and aggregate likelihood results only. P0, human benefit NOT_MEASURED, can_execute=False; no V001/V002/V003 completion inferred."
+      ],
+      "attribution": {
+        "creators": [
+          "NVIDIA"
+        ],
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "changes": "No prompt or response edits. Select frozen dev rows, join original quality labels and add hashes, masks and metadata-only candidate likelihood results."
+      },
+      "artifact": {
+        "revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+        "files": {
+          "train.jsonl.gz": {
+            "bytes": 11315813,
+            "sha256": "c0d7e91d738d42e8a08070db26c4c09a9c7631308e1f0fd380ff43d130c9f713"
+          },
+          "validation.jsonl.gz": {
+            "bytes": 581833,
+            "sha256": "610eeb5289494d613c4c0f70aade2df8df0b499f3a24e76d232f74e6909d010a"
+          },
+          "preference/preference.jsonl.gz": {
+            "bytes": 15339272,
+            "sha256": "a5cd48600fb7a330cf0ccc8f59051e24e8f236907c379f42eff1ba18da55204b"
+          },
+          "README.md": {
+            "bytes": 24960,
+            "sha256": "835effb9e7d9cd0e8b7b8c1816d1d97a8961a036543108e4a0b6a5e22712ff7b"
+          }
+        },
+        "role": "dev_candidate_evaluation_only",
+        "publication": "metadata_only"
+      },
+      "license_review": {
+        "declaration": "dataset_card",
+        "independent_license_file": "ABSENT",
+        "cc_by_4_legalcode": "REVIEWED",
+        "third_party_privacy_rights": "NOT_GUARANTEED"
+      },
+      "risk": "Generic published candidate preference is not response safety, clinical competence, behavior change or human welfare. AI-assisted eligibility screening is not human annotation or legal approval.",
+      "unresolved": "Third-party source rights/privacy, paraphrase and pretraining contamination and person/time/transfer validity remain unverified. The train proposal is NOT_READY; this scope permits no training or product activation."
     }
   ]
 }
