@@ -301,13 +301,13 @@ def cancel_and_reconcile(client,journal,session_id: str,turn_id: str, *,
         return CancellationReceipt(session_id,turn_id,
             "CANCEL_REQUEST_UNKNOWN","UNKNOWN",sent)
     after=latest_turn()
-    if after is None or after[0]!=turn_id:
+    if after is None or after[0]!=turn_id or after[1]!=state:
         return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",sent)
     result={
         "cancelled":"CANCELLED_VERIFIED",
         "completed":"FINISHED_BEFORE_CANCEL",
         "failed":"TURN_FAILED",
     }.get(state,"CANCEL_REQUESTED_UNCONFIRMED")
-    if state in terminal and after[1]==state:
+    if state in terminal:
         journal.release_writer(session_id,writer_id)
     return CancellationReceipt(session_id,turn_id,result,str(state),sent)

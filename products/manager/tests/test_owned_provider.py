@@ -694,6 +694,52 @@ class OwnedProviderRegressions(unittest.TestCase):
                     "SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'"
                 ).fetchone()[0])
 
+    def test_conflicting_exact_and_latest_cancel_statuses_stay_unknown(self):
+        import hashlib
+        cases = (
+            ("cancelled", "in_progress"),
+            ("completed", "cancelled"),
+            ("failed", "completed"),
+        )
+        for index, (exact_status, latest_status) in enumerate(cases):
+            with self.subTest(exact=exact_status, latest=latest_status), TemporaryDirectory() as tmp:
+                _, checkpoint, owner = self._owner(Path(tmp))
+                owner.journal.begin("first", hashlib.sha256(b"body").hexdigest())
+                owner.journal.bind("first", "sess_12345678")
+                class Events:
+                    create_count = 0
+                    @classmethod
+                    def create(cls, *args, **kwargs): cls.create_count += 1
+                statuses = iter(("in_progress", latest_status,
+                                 "in_progress", latest_status))
+                turns = SimpleNamespace(
+                    list=lambda *args, **kwargs: SimpleNamespace(data=[SimpleNamespace(
+                        id="turn_current1", status=next(statuses))]),
+                    retrieve=lambda turn_id, *, session_id:
+                        SimpleNamespace(id=turn_id, status=exact_status))
+                client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                    sessions=SimpleNamespace(events=Events, turns=turns))))
+                key = "cancel_conflict_" + str(index)
+                receipt = owner.cancel(client, "sess_12345678", "turn_current1",
+                    key=key, deadline_monotonic=monotonic()+10)
+                self.assertEqual(receipt.status, "CANCEL_REQUEST_UNKNOWN")
+                self.assertEqual(receipt.provider_turn_status, "UNKNOWN")
+                self.assertTrue(receipt.cancellation_sent)
+                reread = owner.cancel(client, "sess_12345678", "turn_current1",
+                    key=key, deadline_monotonic=monotonic()+10)
+                self.assertEqual(reread.status, "CANCEL_REQUEST_UNKNOWN")
+                self.assertEqual(reread.provider_turn_status, "UNKNOWN")
+                self.assertFalse(reread.cancellation_sent)
+                self.assertEqual(Events.create_count, 1)
+                with sqlite3.connect(checkpoint.db) as db:
+                    self.assertIsNotNone(db.execute(
+                        "SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'"
+                    ).fetchone()[0])
+                    self.assertIsNotNone(db.execute(
+                        "SELECT 1 FROM amp_events WHERE session_id='sess_12345678' AND event_key=?",
+                        (key,)
+                    ).fetchone())
+
     def test_invalid_usage_and_session_references_are_rejected_but_measured_overage_is_preserved(self):
         from manager_core.owned_checkpoint import _validate_database
         from manager_core.provider_budget import BudgetLedger, estimate_cost_usd, Usage
