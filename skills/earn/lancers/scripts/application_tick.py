@@ -1088,7 +1088,10 @@ def _production_account_diagnostic(
 
 
 def _production_account_ready(page: Any) -> bool:
-    return _production_account_diagnostic(page)["ready"] is True
+    # Every lane solves the AWS WAF 405 the way work_sync does; without it reply/paid/apply fail closed.
+    return _production_account_diagnostic(
+        page, solve_aws_waf=True, solver_state_path=DEFAULT_STATE_PATH.with_name("aws-waf-solver.json"),
+    )["ready"] is True
 
 
 def _project_id(opportunity: Mapping[str, object]) -> str:
