@@ -6,7 +6,9 @@ not independent field-effect tasks, and F005–F009 are acceptance gates.
 import json
 import re
 import unittest
+from copy import deepcopy
 from pathlib import Path
+from scripts import make_roadmap
 
 ROOT=Path(__file__).resolve().parents[1]
 BACKLOG=ROOT/"docs/roadmap/ATOMIC_BACKLOG.md"
@@ -55,6 +57,66 @@ class ExecutionOrderContract(unittest.TestCase):
         self.assertEqual(self.lookup["F004"]["status"],"skipped")
         self.assertEqual(self.lookup["F007"]["status"],"skipped")
         self.assertTrue(all(self.lookup[x]["status"]=="todo" for x in GATES))
+
+    def _execution_fixture(self, completed, cursor):
+        tasks = deepcopy(self.tasks)
+        f009 = next(task for task in tasks if task["id"] == "F009")
+        f009["technical_execution_completed"] = completed
+        f009["technical_execution_cursor"] = cursor
+        if "E16" in completed:
+            # Fixture only: this synthetic receipt proves the terminal schema,
+            # never the real E16 acceptance or canonical task-state completion.
+            receipt = deepcopy(f009["technical_execution_receipts"]["E15"])
+            receipt.update(run_id=99999999999, status="PASSED", full_suite_total=512)
+            f009["technical_execution_receipts"]["E16"] = receipt
+        return tasks
+
+    def test_terminal_execution_cursor_requires_all_sixteen_receipts_and_renders_separately_from_F(self):
+        tasks = self._execution_fixture(EXPECTED, None)
+        make_roadmap.validate(tasks)
+
+        rendered = make_roadmap.render(tasks)
+        self.assertIn("E01–E16実装完了。F受入は別に証拠確認", rendered)
+        self.assertNotIn("現在の次タスク:** `None`", rendered)
+        self.assertIn("Total: 113 · Done: 69 · Todo: 41 · Blocked: 0 · Skipped: 3", rendered)
+
+    def test_execution_cursor_rejects_missing_nonterminal_and_invalid_terminal_values(self):
+        invalid = [
+            (EXPECTED[:15], None),
+            (EXPECTED, "E16"),
+            (EXPECTED[:14] + ["E16"], None),
+            (EXPECTED[:4] + ["E04"], "E06"),
+            (["E02", "E01"], "E03"),
+            (EXPECTED[:15], ""),
+            (EXPECTED[:15], "DONE"),
+            (EXPECTED[:15], "F005"),
+        ]
+        for completed, cursor in invalid:
+            with self.subTest(completed=completed, cursor=cursor):
+                with self.assertRaises(ValueError):
+                    make_roadmap.validate(self._execution_fixture(completed, cursor))
+
+        for completed, cursor in ((EXPECTED[:15], "E16"), (EXPECTED, None)):
+            missing_cursor = self._execution_fixture(completed, cursor)
+            next(task for task in missing_cursor if task["id"] == "F009").pop("technical_execution_cursor")
+            with self.subTest(missing_cursor_after=len(completed)):
+                with self.assertRaises(ValueError):
+                    make_roadmap.validate(missing_cursor)
+
+    def test_completed_execution_prefix_requires_passed_run_receipts_and_full_suite_floor(self):
+        invalid_mutations = (
+            lambda task: task["technical_execution_receipts"].pop("E15"),
+            lambda task: task["technical_execution_receipts"]["E15"].update(status="BLOCKED"),
+            lambda task: task["technical_execution_receipts"]["E15"].update(run_id=0),
+            lambda task: task["technical_execution_receipts"]["E15"].update(full_suite_total=511),
+        )
+        for mutate in invalid_mutations:
+            tasks = self._execution_fixture(EXPECTED[:15], "E16")
+            f009 = next(task for task in tasks if task["id"] == "F009")
+            mutate(f009)
+            with self.subTest(mutation=mutate):
+                with self.assertRaises(ValueError):
+                    make_roadmap.validate(tasks)
 
     def test_superpowers_plan_declares_all_E_steps_once_in_order(self):
         source=PLAN.read_text(encoding="utf-8")

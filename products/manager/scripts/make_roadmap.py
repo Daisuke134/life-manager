@@ -28,9 +28,29 @@ def validate(tasks):
     order = by_id['F009']
     if (order.get('technical_execution_sequence') != EXPECTED_E
         or order.get('technical_execution_plan') != str(CORE_PLAN.relative_to(ROOT))
-        or order.get('technical_execution_cursor') not in EXPECTED_E
         or order.get('acceptance_sequence') != EXPECTED_F):
         raise ValueError('E01-E16 execution order/cursor or F acceptance order out of sync')
+    completed = order.get('technical_execution_completed')
+    receipts = order.get('technical_execution_receipts')
+    if not isinstance(completed, list) or not isinstance(receipts, dict):
+        raise ValueError('E01-E16 completed prefix and receipts are required')
+    if completed != EXPECTED_E[:len(completed)]:
+        raise ValueError('E01-E16 completed stages must be a contiguous ordered prefix')
+    expected_cursor = EXPECTED_E[len(completed)] if len(completed) < len(EXPECTED_E) else None
+    if ('technical_execution_cursor' not in order
+        or order['technical_execution_cursor'] != expected_cursor):
+        raise ValueError('E01-E16 cursor must name the next unfinished stage or be null after E16')
+    for stage in completed:
+        receipt = receipts.get(stage)
+        if not isinstance(receipt, dict):
+            raise ValueError(f'{stage} is complete without a receipt')
+        run_id = receipt.get('run_id')
+        full_suite_total = receipt.get('full_suite_total')
+        minimum_suite_total = 504 if stage == 'E01' else 512
+        if (receipt.get('status') != 'PASSED'
+            or type(run_id) is not int or run_id <= 0
+            or type(full_suite_total) is not int or full_suite_total < minimum_suite_total):
+            raise ValueError(f'{stage} receipt does not meet the passed run and full-suite contract')
     if (by_id.get('F004', {}).get('status') != 'skipped'
         or by_id.get('F007', {}).get('status') != 'skipped'):
         raise ValueError('retired external prerequisites or unverified field gate status')
@@ -54,6 +74,11 @@ def validate(tasks):
 
 def render(tasks):
     by_id = {t['id']: t for t in tasks}
+    cursor = by_id['F009']['technical_execution_cursor']
+    execution_progress = (
+        'E01–E16実装完了。F受入は別に証拠確認'
+        if cursor is None else f'**現在の次タスク:** `{cursor}`'
+    )
     groups = list(dict.fromkeys(t['section'] for t in tasks))
     sums = Counter(t['status'] for t in tasks)
     lines = [
@@ -64,7 +89,7 @@ def render(tasks):
       'Manager is a Buddhist AI entity / Digital Buddha with its own mission, source scope and runtime, even when its source is in the same GitHub repository. This identity does not establish consciousness, enlightenment or measured human benefit.', '',
       '## 唯一の実装順（E01〜E16を先に、一件ずつ）', '',
       '**ManagerのSSOT（状態・依存・現在位置）:** [tasks.json](tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor`。Life Manager の別SSOTは変更しない。', '',
-      '**現在の次タスク:** `' + by_id['F009']['technical_execution_cursor'] + '`', '',
+      execution_progress, '',
       '実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。', '',
       '**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の限定能力releaseの受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。', '',
       '**対象外:** F004（第三者の資金管理者）とF007（施設所有者・屋内センサー）は `skipped`（未実施・未達成）で、実装の依存条件にしない。他者の設備・口座を操作する場合の権限は引き続き必要。', '',
