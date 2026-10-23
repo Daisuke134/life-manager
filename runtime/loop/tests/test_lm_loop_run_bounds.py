@@ -209,7 +209,7 @@ def test_ebook_child_environment_exposes_renderers_only_to_ebook_lanes():
     base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
 
     for owner in (
-        "ebook-en-tiktok-daily",
+        "ebook-en-tiktok-daily", "ebook-en-instagram-daily",
         "ebook-ja-tiktok-daily",
         "ebook-ja-instagram-daily",
     ):
@@ -225,7 +225,7 @@ def test_ebook_avatar_child_environment_sets_scoped_heygen_cli_path(tmp_path):
     inherited_path = os.pathsep.join(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
     base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
 
-    for owner in ("ebook-en-tiktok-daily", "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"):
+    for owner in ("ebook-en-tiktok-daily", "ebook-en-instagram-daily", "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"):
         child = loop_runner._child_environment_for_owner(owner, base, home=tmp_path)
         assert child["LIFE_MANAGER_HEYGEN"] == str(tmp_path / ".local/bin/heygen")
         assert child["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
@@ -236,22 +236,16 @@ def test_ebook_avatar_child_environment_sets_scoped_heygen_cli_path(tmp_path):
     assert loop_runner._child_environment_for_owner(
         "article-daily", base, home=tmp_path,
     ) == base
-    assert loop_runner._child_environment_for_owner(
-        "ebook-en-instagram-daily", base, home=tmp_path,
-    ) == base
 
 
 def test_ebook_avatar_child_environment_disables_telemetry_only_for_its_owners(tmp_path):
     base = {"PATH": "/usr/bin:/bin", "LM_EBOOK_PUBLISHING_ENABLED": "false"}
 
-    for owner in ("ebook-en-tiktok-daily", "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"):
+    for owner in ("ebook-en-tiktok-daily", "ebook-en-instagram-daily", "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily"):
         child = loop_runner._child_environment_for_owner(owner, base, home=tmp_path)
         assert child["HEYGEN_NO_ANALYTICS"] == "1"
     assert loop_runner._child_environment_for_owner(
         "article-daily", base, home=tmp_path,
-    ) == base
-    assert loop_runner._child_environment_for_owner(
-        "ebook-en-instagram-daily", base, home=tmp_path,
     ) == base
 
 

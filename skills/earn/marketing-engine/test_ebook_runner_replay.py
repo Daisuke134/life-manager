@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import copy
+import json
+
+import pytest
 
 import ebook_runner
 from script_ledger import ScriptLedger
@@ -118,3 +122,44 @@ def test_unknown_telegram_delivery_is_never_sent_twice(tmp_path, monkeypatch):
 
     assert replay["state"] == "telegram_delivery_unknown"
     assert sends == 1
+
+
+def test_connecting_instagram_preserves_completed_render_and_identity_checks(tmp_path, monkeypatch):
+    ledger_path, script_id = registered_script(tmp_path)
+    engine = Path(ebook_runner.__file__).parent
+    packs = copy.deepcopy(ebook_runner.load_ebook_packs(engine))
+    pack = packs["ebook-en-anicca-monk"]
+    pack["accounts"][1]["integration_id"] = None
+    pack["setup_required_accounts"] = [{"platform": "instagram", "reason": "english_monk_instagram_not_connected"}]
+    monkeypatch.setattr(ebook_runner, "load_ebook_packs", lambda _engine: packs)
+    output = tmp_path / "video.mp4"
+    renders = []
+
+    def render(**kwargs):
+        renders.append(kwargs)
+        output.write_bytes(b"existing video")
+        return {"renderer_id": "heygen-avatar-iv", "state": "rendered",
+                "video_id": "video_12345678", "output": str(output), "sha256": "a" * 64,
+                "wallet_cost": None, "cost_reconciliation_required": True,
+                "external_effects": []}
+
+    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    args = dict(engine=engine, product="ebook-en", slot_at="2026-09-11T23:00:00+00:00",
+                script_id=script_id, ledger_path=ledger_path, state_root=tmp_path / "state",
+                render_output=output)
+    original = copy.deepcopy(ebook_runner.run(**args))
+    receipt_path = next((tmp_path / "state").glob("ebook-run.*.json"))
+    original_bytes = receipt_path.read_bytes()
+    pack["accounts"][1]["integration_id"] = "cmoopzaak04yop70y1yx1bwr1"
+    pack["setup_required_accounts"] = []
+
+    assert ebook_runner.run(**args) == original
+    assert len(renders) == 1
+    assert receipt_path.read_bytes() == original_bytes
+    assert original["render"]["wallet_cost"] is None
+    assert original["render"]["cost_reconciliation_required"] is True
+    for field in ("product_id", "slot_at", "script_id", "creative_id", "renderer_id"):
+        receipt_path.write_text(json.dumps(original | {field: "changed"}))
+        with pytest.raises(ValueError, match="conflicting run replay"):
+            ebook_runner.run(**args)
+    receipt_path.write_bytes(original_bytes)

@@ -83,7 +83,7 @@ class ProductRegistryTest(unittest.TestCase):
             "instagram.anicca_ios_jp": "instagram-standalone",
             "instagram.anicca_jp_videos": "instagram-standalone",
             "instagram.ani_cca1234": "instagram-standalone",
-            "instagram.monk_anicca": None,
+            "instagram.monk_anicca": "instagram-standalone",
             "instagram.obou_anicca": "instagram-standalone",
             "tiktok.anicca_buddha": "tiktok",
             "tiktok.anicca_he": "tiktok",

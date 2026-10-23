@@ -5841,6 +5841,30 @@ class PreEffectForeignClaimTests(unittest.TestCase):
             ],
         )
 
+    def test_english_instagram_input_failure_is_pre_effect_but_provider_failures_are_not(self):
+        for error in ("LM_DATA_DIR is required", "LM_RUNTIME_TENANT_ID is required",
+                      "LM_POSTIZ_API_KEY is required", "marketing publication effect fenced",
+                      "LM_DATA_DIR is required after rendering"):
+            owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
+                error, owner="ebook-en-instagram-daily",
+            )
+            with self.subTest(error=error):
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                if error in {"LM_DATA_DIR is required", "LM_RUNTIME_TENANT_ID is required"}:
+                    self.assertEqual(reason, "ok")
+                    self.assertEqual(proof["occurrence_id"], occurrence)
+                    rows[1]["evidence_refs"].append("lm-effect://heygen/video/provider-effect")
+                    proof, reason = lm_loop._pre_effect_occurrence_proof(
+                        owner, entry, occurrence, "claimed", rows,
+                    )
+                    self.assertIsNone(proof)
+                    self.assertEqual(reason, "effect_ref_present")
+                else:
+                    self.assertIsNone(proof)
+                    self.assertEqual(reason, "no_pre_effect_terminal")
+
     def test_ebook_pre_effect_is_exact_to_the_data_dir_error(self):
         owner, occurrence, entry, rows = self._ebook_pre_effect_claim(
             "LM_POSTIZ_API_KEY is required",

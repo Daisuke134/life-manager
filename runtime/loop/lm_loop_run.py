@@ -173,6 +173,7 @@ PRE_EFFECT_HINT_LOOP_IDS = frozenset({
 })
 EBOOK_POSTIZ_LOOP_IDS = frozenset({
     "ebook-en-tiktok-daily",
+    "ebook-en-instagram-daily",
     "ebook-ja-instagram-daily",
     "ebook-ja-tiktok-daily",
 })

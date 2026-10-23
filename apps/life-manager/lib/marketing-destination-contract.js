@@ -75,7 +75,16 @@ function validateMarketingDestinationContract(input) {
       && row.native_handle === "@monk_anicca"
       && row.integration_id === "cmo5rwq2p00twn10yrsdglng3"
       && row.loop_name === "ebook-en-tiktok-daily";
-    const expectedCadenceSlots = isEnglishMonkTikTok ? 2 : 3;
+    const isEnglishMonkInstagram = row.lane_id === "ebook-en-instagram"
+      && row.product_id === "ebook-en"
+      && row.job_product_id === "ebook-en"
+      && row.locale === "en"
+      && row.platform === "instagram"
+      && row.postiz_profile === "@monk.mujo"
+      && row.native_handle === "@monk.mujo"
+      && row.integration_id === "cmoopzaak04yop70y1yx1bwr1"
+      && row.loop_name === "ebook-en-instagram-daily";
+    const expectedCadenceSlots = isEnglishMonkTikTok || isEnglishMonkInstagram ? 2 : 3;
     if (!Array.isArray(row.cadence_jst) || row.cadence_jst.length !== expectedCadenceSlots
       || row.cadence_jst.some((value) => typeof value !== "string" || !TIME.test(value))
       || new Set(row.cadence_jst).size !== expectedCadenceSlots) invalid("cadence_jst");

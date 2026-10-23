@@ -15,11 +15,9 @@
   "slots_jst": ["08:00", "21:00"],
   "accounts": [
     {"account_id": "tiktok.monk_anicca", "integration_id": "cmo5rwq2p00twn10yrsdglng3"},
-    {"account_id": "instagram.monk_anicca", "integration_id": null}
+    {"account_id": "instagram.monk_anicca", "integration_id": "cmoopzaak04yop70y1yx1bwr1"}
   ],
-  "setup_required_accounts": [
-    {"platform": "instagram", "reason": "english_monk_instagram_not_connected"}
-  ],
+  "setup_required_accounts": [],
   "allowed_claims": ["English-language guided reflection ebook", "Digital access is sold through the owned checkout page"],
   "stop_rules": ["identity_preflight_failed", "duplicate_publish_key", "unverified_render_cost", "heygen_setup_required"]
 }

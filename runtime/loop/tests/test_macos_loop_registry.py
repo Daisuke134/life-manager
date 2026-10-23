@@ -151,7 +151,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS": "4",
             "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS": "5",
         }):
-            for owner_id in ("ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"):
+            for owner_id in ("ebook-en-tiktok-daily", "ebook-en-instagram-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"):
                 with self.subTest(owner_id=owner_id):
                     row = registry["loops"][owner_id]
                     self.assertTrue(_capacity_available(model_owners, _resource_class(row), "revenue"))

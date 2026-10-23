@@ -255,7 +255,8 @@ def _is_ebook_pre_effect_entrypoint_terminal(entry: dict, row: dict) -> bool:
         and error_detail == EBOOK_JA_LOCAL_PUBLICATION_FENCE_ERROR
     )
     return (
-        row.get("loop_id") in EBOOK_DISTRIBUTION_LOOP_IDS
+        (row.get("loop_id") in EBOOK_DISTRIBUTION_LOOP_IDS
+         or (row.get("loop_id") == "ebook-en-instagram-daily" and known_runtime_input_failure))
         and entry.get("entrypoint") == EBOOK_DISTRIBUTION_ENTRYPOINT
         and entry.get("effect_class") == "publish"
         and row.get("effect_class") == "publish"
