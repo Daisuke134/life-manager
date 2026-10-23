@@ -18,9 +18,9 @@
 
 - [x] Worker: contextなしの現registry/Hook Lab経路を保持する。contextありのCTA/宛先/create/preflight/route/reconcileで最小REDを観測し、既存関数への伝播だけでGREENにする。
 - [x] Primary: 厳密入力・共有host DB/route identity/承認不足/既存registry衝突/sidecar hash/run replayの最小REDを先に観測し、CLIを既存publisherへ接続する。upload/draft/promoteはstub clientで各1回/unknown再送0を確認する。
-- [ ] Primary: 変更に関係する既存Factory/publish回帰とLoop Contract/source-boundary/OSS/diffを一度実行し、source commit/push/remoteを照合する。
-- [ ] Fresh read-only reviewerが全差分を確認し、指摘修復後のexact head CIを経てmainへ統合する。main由来固定版のsource/CLI helpを照合し、live provider操作は行わない。
-- [ ] S11/本planへsource受入と実事業の残件を記録する。次の実配信は正規admission/承認/費用ガードと公式receiptを使う。
+- [x] Primary: 変更に関係する既存Factory/publish回帰とLoop Contract/source-boundary/OSS/diffを一度実行し、source commit/push/remoteを照合する。
+- [x] Fresh read-only reviewerが全差分を確認し、指摘修復後のexact head CIを経てmainへ統合する。main由来固定版のsource/CLI helpを照合し、live provider操作は行わない。
+- [x] S11/本planへsource受入と実事業の残件を記録する。次の実配信は正規admission/承認/費用ガードと公式receiptを使う。
 
 **設計判断:** 新しい投稿adapter、project別DB、既存停止accountの再登録、render成功からの承認生成は採らない。local入力は実際の所有/接続をlive integrationで検査し、hosted tenant隔離・signup・subscription・Factory MCP・事前USD cap・実売上を今回のsource受入へ混ぜない。No-human-loopの委任に従いprimaryが方式を選び、承認待ちは追加しない。
 
@@ -39,3 +39,11 @@
 - 修正head77632fce80への独立再reviewは未解決0/Blocking0、Factory38 PASS、同run等価表記replayと小数秒保持も確認する。latest mainをmergeし、main側だけの変更を保持する。CIの公開個人メール注記は1件をprivate SSOT参照へ変更し、scanner/allowlist変更なしで全repo PII scan clean。担当/範囲/次の証拠をteam BOARDへ記録する。
 
 - Exact head5e6adbb1の13checksはすべてSUCCESS。gh pr merge --adminはthe merge commit cannot be cleanly createdで拒否される。最新mainを取り込み、共有BOARD/連絡先specの競合は相手の最新全本文を保持し、当方claim/log/個人メール生値の除去だけを再適用する。後続appendとの競合を減らすため当方logはログ見出し直下に置く。Factory実行sourceはreview済み77632fceと同bytesを保持し、検査をskipせず新head CIを待つ。
+
+## source受入と現在の事業cursor
+
+PR8668は最終headcc907b387f9e0b2b9d50aa8f28e1e25da4a35106の全13checks（sec-scan39934650965）成功後、main7c63b4e32f7c564aa31662b7d74f6eed18abbda0へ統合する。修正head77632fce80のfresh再reviewは未解決0/Blocking0、独立38 PASSである。初期関連210 PASSにtimezone差の3 REDを追加し、修復後Factory38 PASSを確認する。213件の一括再実行とは報告しない。
+
+main由来ALL固定版20261023T185527-7c63b4e3はreview/head/mainと14主要fileのGit bytesが一致し、11,410entriesの書込bit0。実CLI factory/publish helpは各exit0、network/child/provider0、current activation0。private proof SHA cdcc60ae246b378e0e66816066a7ecc50c23c962c3a25d8ded5c4bd79236dcf8。これで本planのsource/固定版受入を完了する。
+
+本番ENの自然terminalはrender_not_ready/prior_heygen_effect_unresolvedで、exit0を公開成功としない。旧HeyGen個別cash cost照合、事前USD cap、実生成・日次配信・実購入/paid納品、他者導入、Factory MCP/hosted subscriptionは未完。EN書籍/Database英日X告知のリンク欠落は別のnative返信で一件ずつ補完する。実運用順と現在cursorはS11を参照する。
