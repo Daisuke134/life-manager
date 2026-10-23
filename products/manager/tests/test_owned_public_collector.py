@@ -127,6 +127,111 @@ class PublicCollectorTests(unittest.TestCase):
                     datetime.now(timezone.utc) + timedelta(seconds=1), get=get))
                 self.assertNotEqual(journal.record(packet['effect_key']).status, 'PRESENT')
 
+    def test_rollback_collector_binds_relative_bundle_to_prefixed_github_receipt(self):
+        from datetime import datetime, timezone
+        from test_candidate_verification import setup
+        from test_owned_effect_recovery import GitOccurrenceFixture
+        from manager_core.digital_handoff import ALLOWED_PATHS, MAIN_REF, WORKFLOW
+        from manager_core.outbox import (OwnedEffectJournal, plan_owned_rollback,
+            owned_rollback_commit_message)
+        from manager_core.owned_public_collector import (collect_owned_occurrence,
+            collect_owned_rollback)
+
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            before,after,_=setup(root)
+            original=plan_release(json.loads((before/'manifest.json').read_text()),
+                json.loads((after/'manifest.json').read_text()),NOW,
+                schema='manager.digital-handoff.v2')
+            git=GitOccurrenceFixture(root/'pages',before,after,original)
+            journal=OwnedEffectJournal(root/'cycle.sqlite')
+            publisher=PublisherContext(REPOSITORY,MAIN_REF,WORKFLOW,
+                original['candidate']['source_commit'],'123',
+                workflow_commit=original['candidate']['source_commit'])
+            journal.reserve(original,publisher,original['baseline'],original['candidate'],
+                            git.parent,NOW)
+            candidate_sha=git.send(git.parent)
+            journal._present(original['effect_key'],candidate_sha)
+
+            rollback=plan_owned_rollback(original,candidate_sha,git.parent,NOW,
+                                         controller_sha='b'*40)
+            journal.reserve_rollback(rollback,NOW)
+            git.copy(before)
+            git.git('add','manager-support')
+            tree=git.git('write-tree')
+            rollback_sha=git.git('commit-tree',tree,'-p',candidate_sha,'-m',
+                owned_rollback_commit_message(rollback))
+            git.git('update-ref','HEAD',rollback_sha,candidate_sha)
+            journal._rollback_present(rollback['effect_key'],rollback_sha)
+
+            candidate=git.evidence(candidate_sha)
+            rollback_files=git.git('diff-tree','--no-commit-id','--name-only','-r',
+                                   rollback_sha).splitlines()
+            rollback_receipt={'sha':rollback_sha,
+                'html_url':f'https://github.com/{REPOSITORY}/commit/{rollback_sha}',
+                'parents':[{'sha':candidate_sha}],
+                'commit':{'committer':{'date':git.git('show','-s','--format=%cI',rollback_sha)},
+                          'message':git.git('show','-s','--format=%B',rollback_sha)},
+                'files':[{'filename':name,'status':'modified'} for name in rollback_files]}
+            def detail(receipt):
+                return f"https://api.github.com/repos/{REPOSITORY}/commits/{receipt['sha']}"
+            list_url=(f'https://api.github.com/repos/{REPOSITORY}/commits'
+                      '?sha=gh-pages&per_page=100&page=1')
+            urls={list_url:json.dumps([
+                {'sha':rollback_sha,'commit':{'message':rollback_receipt['commit']['message']}},
+                {'sha':candidate_sha,'commit':{'message':candidate.receipt['commit']['message']}}
+            ]).encode(),
+                detail(candidate.receipt):json.dumps(candidate.receipt).encode(),
+                detail(rollback_receipt):json.dumps(rollback_receipt).encode()}
+            for sha,bodies in ((candidate_sha,candidate.committed_bodies),
+                               (git.parent,candidate.parent_bodies),
+                               (rollback_sha,candidate.parent_bodies)):
+                for name,raw in bodies.items():
+                    urls[f'https://raw.githubusercontent.com/{REPOSITORY}/{sha}/manager-support/{name}']=raw
+            def get(url):
+                self.assertIn(url,urls,'collector used an unexpected immutable receipt URL')
+                return urls[url]
+
+            observed_at=datetime.now(timezone.utc)+timedelta(seconds=1)
+            occurrence=collect_owned_occurrence(original['effect_key'],journal,
+                                                observed_at,get=get)
+            self.assertIsNotNone(occurrence)
+            proof=collect_owned_rollback(rollback['effect_key'],journal,observed_at,get=get)
+            self.assertIsNotNone(proof)
+            self.assertEqual(set(proof.restored_bodies),
+                             {name.removeprefix('manager-support/') for name in ALLOWED_PATHS})
+            self.assertEqual(sorted(row['filename'] for row in proof.receipt['files']),
+                             sorted(name for name in ALLOWED_PATHS
+                                    if candidate.committed_bodies[name.removeprefix('manager-support/')]
+                                    !=candidate.parent_bodies[name.removeprefix('manager-support/')]))
+
+            rollback_detail=detail(rollback_receipt)
+            pristine_receipt=json.loads(urls[rollback_detail])
+            raw_base=f'https://raw.githubusercontent.com/{REPOSITORY}/{rollback_sha}/manager-support/'
+            page_path=next(name.removeprefix('manager-support/') for name in ALLOWED_PATHS
+                           if name!='manager-support/manifest.json')
+            raw_page=urls[raw_base+page_path]
+            for bad in ('parent','missing_body','altered_body','mixed_path','outside_path'):
+                with self.subTest(bad=bad):
+                    urls[rollback_detail]=json.dumps(pristine_receipt).encode()
+                    urls[raw_base+page_path]=raw_page
+                    receipt_value=json.loads(urls[rollback_detail])
+                    if bad=='parent':
+                        receipt_value['parents'][0]['sha']='f'*40
+                        urls[rollback_detail]=json.dumps(receipt_value).encode()
+                    elif bad=='missing_body':
+                        urls[raw_base+page_path]=None
+                    elif bad=='altered_body':
+                        urls[raw_base+page_path]=raw_page+b'altered'
+                    elif bad=='mixed_path':
+                        receipt_value['files'].append({'filename':page_path,'status':'modified'})
+                        urls[rollback_detail]=json.dumps(receipt_value).encode()
+                    else:
+                        receipt_value['files'][0]['filename']='manager-support/../outside.html'
+                        urls[rollback_detail]=json.dumps(receipt_value).encode()
+                    self.assertIsNone(collect_owned_rollback(
+                        rollback['effect_key'],journal,observed_at,get=get))
+
     def test_delivery_lag_or_missing_file_does_not_rollback(self):
         for failure in ('lag', 'missing', 'hash_only'):
             with self.subTest(failure=failure), TemporaryDirectory() as tmp:
@@ -216,7 +321,8 @@ class PublicCollectorTests(unittest.TestCase):
                    'parents':[{'sha':'c'*40}]}
         evidence = OwnedOccurrenceEvidence(receipt,candidate,
             {'manager-support/'+name:raw for name,raw in candidate_pages.items()},
-            'c'*40,baseline,{'manager-support/'+name:raw for name,raw in baseline_pages.items()})
+            'c'*40,baseline,
+            {'manager-support/'+name:raw for name,raw in baseline_pages.items()})
 
         for state, expected in (('exact','VERIFIED'),('no_deployment','UNKNOWN'),
                                 ('wrong_deployment_sha','UNKNOWN'),('old_deployment','UNKNOWN'),
