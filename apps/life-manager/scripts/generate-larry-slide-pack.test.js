@@ -498,20 +498,27 @@ test("one eligible current copy pack avoids refill below the former inventory fl
   assert.equal(generated, 0);
 });
 
-test("current copy refill failure preserves eligible legacy fallback", async (t) => {
-  const dataDir = tempDataDir(t);
-  const legacy = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: null });
-  const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
-  const before = fs.readFileSync(pool, "utf8");
-  let generated = 0;
-  const result = await resolveLarryJaSlot({
-    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
-    generateCandidates: async () => { generated += 1; throw new Error("cached background missing"); },
+for (const outcome of ["empty", "failure"]) {
+  test(`current copy refill ${outcome} preserves legacy fallback with a null pool row`, async (t) => {
+    const dataDir = tempDataDir(t);
+    const legacy = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: null });
+    const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+    fs.writeFileSync(pool, "null\n" + fs.readFileSync(pool, "utf8"));
+    const before = fs.readFileSync(pool, "utf8");
+    let generated = 0;
+    const result = await resolveLarryJaSlot({
+      env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
+      generateCandidates: async () => {
+        generated += 1;
+        if (outcome === "failure") throw new Error("cached background missing");
+        return [];
+      },
+    });
+    assert.equal(generated, 1);
+    assert.ok(legacy.some((candidate) => candidate.packRef === result.selected.packRef));
+    assert.equal(fs.readFileSync(pool, "utf8"), before);
   });
-  assert.equal(generated, 1);
-  assert.ok(legacy.some((candidate) => candidate.packRef === result.selected.packRef));
-  assert.equal(fs.readFileSync(pool, "utf8"), before);
-});
+}
 
 test("ineligible current copy refills once then falls back without repeating recent copy", async (t) => {
   const dataDir = tempDataDir(t);

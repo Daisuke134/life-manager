@@ -348,7 +348,7 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
       process.stderr.write(`${JSON.stringify({ slide_pack_refill_failed: error.message })}\n`);
       generated = [];
     }
-    const existingRefs = new Set(candidates.map((c) => c.packRef));
+    const existingRefs = new Set(candidates.map((c) => c?.packRef));
     const fresh = generated.filter((c) => !existingRefs.has(c.packRef));
     appendPool(pool, fresh);
     candidates = candidates.concat(fresh);
