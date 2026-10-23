@@ -35,6 +35,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -305,7 +306,7 @@ def _historical_gate_stop_proof(
                 return None
             event_lines = [line for line in gzip.decompress(archive_bytes).decode("utf-8").splitlines()
                            if line.strip()]
-        except (OSError, UnicodeError, EOFError):
+        except (OSError, UnicodeError, EOFError, zlib.error):
             return None
     else:
         event_lines = _jsonl_lines(writer_root / "events.jsonl")
@@ -857,7 +858,7 @@ def _historical_resume_catchup_proof(occurrence_id: str, queued_at: float, *, wr
         with gzip.open(archive, "rt", encoding="utf-8") as handle:
             lines = [line for line in handle.read().splitlines() if line.strip()]
         events = [json.loads(line) for line in lines]
-    except (OSError, ValueError, EOFError):
+    except (OSError, ValueError, EOFError, zlib.error):
         return "catchup_events_unreadable"
     own = [line for line in lines if occurrence_id in line]
     if [hashlib.sha256(line.encode("utf-8")).hexdigest() for line in own] != expected["event_hashes"]:
@@ -962,7 +963,7 @@ def _historical_resume_catchup_proof(occurrence_id: str, queued_at: float, *, wr
     }
 
 
-def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
+def _pre_effect(occurrence_id: str, anchors: tuple[float, ...], state: str, rows: list, runs_root: Path,
                 resolver: Callable[..., bool] | None, resolve: bool) -> dict:
     """Close a fence whose paired run stopped before any publication intent was registered.
 
@@ -973,8 +974,7 @@ def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, ru
     """
     try:
         paired = sorted(d for d in runs_root.iterdir()
-                        if d.is_dir() and any(0 <= started - queued_at <= PAIR_WINDOW_SECONDS
-                                              for started in _run_starts(d)))
+                        if d.is_dir() and any(_paired(started, anchors) for started in _run_starts(d)))
     except OSError:
         return _inconclusive(occurrence_id, "runs_root_unreadable")
     if not paired:
@@ -1205,6 +1205,42 @@ def _central_closure_result(owner_id: str, result: dict) -> dict:
     return result
 
 
+def _pair_anchors(writer_root: Path, occurrence_id: str, queued_at: float) -> tuple[float, ...]:
+    """queued_at plus every runtime execute of this occurrence at or after it.
+
+    A disk-floor or capacity defer can hold a queued occurrence for an hour, and a requeue can
+    execute it more than once; a Writer run pairs with any of those starts, so every window is
+    checked (an earlier execute's run that published must still be seen).
+    """
+    paths = [writer_root / "events.jsonl", *sorted(writer_root.glob("events-*.jsonl.gz"))]
+    anchors = {queued_at}
+    for path in paths:
+        try:
+            if path.suffix == ".gz":
+                with gzip.open(path, "rt", encoding="utf-8") as handle:
+                    lines = handle.read().splitlines()
+            else:
+                lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError, EOFError, zlib.error):
+            continue
+        for line in lines:
+            if occurrence_id not in line:
+                continue
+            try:
+                row = json.loads(line)
+                if row.get("phase") == "execute" and row.get("occurrence_id") == occurrence_id:
+                    start = datetime.fromisoformat(str(row["timestamp"]).replace("Z", "+00:00")).timestamp()
+                    if start >= queued_at:
+                        anchors.add(start)
+            except (ValueError, KeyError, TypeError):
+                continue
+    return tuple(sorted(anchors))
+
+
+def _paired(start: float, anchors: tuple[float, ...]) -> bool:
+    return any(0 <= start - anchor <= PAIR_WINDOW_SECONDS for anchor in anchors)
+
+
 def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path = ARTICLES,
               fetch_status: Callable[[str], int] = _http_status, resolver: Callable[..., bool] | None = None,
               resolve: bool = False, now: float | None = None, runs_root: Path = RUNS_ROOT,
@@ -1229,6 +1265,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         rows = [json.loads(line) for line in articles_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except (OSError, ValueError):
         return _inconclusive(occurrence_id, "articles_ledger_unreadable")
+    anchors = _pair_anchors(writer_root, occurrence_id, queued_at)
     candidates = []
     for row in rows:
         run_id = str(row.get("run_id", ""))
@@ -1242,7 +1279,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         run_dir = runs_root / run_id
         starts = ([started] if runs_root.is_symlink() or run_dir.is_symlink() or not run_dir.is_dir()
                   else _run_starts(run_dir))
-        if any(queued_at <= start <= queued_at + PAIR_WINDOW_SECONDS for start in starts):
+        if any(_paired(start, anchors) for start in starts):
             candidates.append(row)
     proven = [row for row in candidates if fetch_status(str(row["live_url"])) == 200]
     if not proven:
@@ -1291,7 +1328,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
             absence_readback, resolver, resolve)
         if carry_over is not None:
             return _central_closure_result(OWNER_ID, carry_over)
-        result = _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
+        result = _pre_effect(occurrence_id, anchors, state, rows, runs_root,
                              pre_effect_resolver, resolve)
         return _central_closure_result(OWNER_ID, result)
     receipt = str(proven[0]["live_url"])

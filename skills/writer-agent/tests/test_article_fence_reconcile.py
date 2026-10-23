@@ -1637,3 +1637,52 @@ def test_verify_preview_fatal_line_still_precedes_the_only_publish_post():
     body = owned[owned.index("def resume_publication("):owned.index("def main(")]
     early = body.index('return {"status": "complete", "run_id": contracts[0]["run_id"]}')
     assert early < body.index("commit_contract(") and early < body.index('"push", remote')
+
+
+def test_a_disk_deferred_claim_pairs_from_its_execute_event(tmp_path):
+    # 2026-10-23: article-daily:18e10850f9d765a8-39094 was queued 01:41Z, the disk floor held it,
+    # and it executed at 02:41:10Z; its resumed attempt started 02:41:29Z with no publication
+    # state. Pairing from queued_at (60 min earlier) left it "no_run_paired_with_this_fence".
+    m = _load()
+    runs = tmp_path / "runs"
+    d = _run_dir(runs, "20261008-120000", ["git-hash.txt", "article-daily-prompt.txt", "article-ja.md"])
+    executed = datetime.fromtimestamp(GATE_QUEUED, timezone.utc) + timedelta(minutes=60)
+    (d / "gates" / "generation-state.json").write_text(json.dumps(
+        {"attempts": [{"attempt": 3, "started_at": (executed + timedelta(seconds=19))
+                       .isoformat().replace("+00:00", "Z")}]}))
+    writer = tmp_path / "writer"
+    writer.mkdir()
+    (writer / "events.jsonl").write_text(json.dumps({
+        "phase": "execute", "occurrence_id": GATE_OCC, "loop_id": OWNER,
+        "timestamp": executed.isoformat(),
+    }) + "\n")
+    closed = []
+    result = m.reconcile(GATE_OCC, queued_at=GATE_QUEUED, state="claimed",
+                         articles_path=_articles(tmp_path, []), runs_root=runs,
+                         fetch_status=lambda u: 200, writer_root=writer, resolve=True,
+                         pre_effect_resolver=lambda owner, occ, **k: closed.append(occ) or True)
+    assert result["status"] == "pre_effect" and result["closed"] is True and closed == [GATE_OCC]
+
+
+def test_an_earlier_execute_whose_run_published_keeps_the_fence(tmp_path):
+    # Review of the execute anchor: a requeued occurrence can execute twice; the run paired with
+    # the first execute published, so the later unpublished run must not close the fence.
+    m = _load()
+    runs = tmp_path / "runs"
+    first = datetime.fromtimestamp(GATE_QUEUED, timezone.utc) + timedelta(minutes=2)
+    second = first + timedelta(hours=2)
+    published = _run_dir(runs, first.strftime("%Y%m%d-%H%M%S"), ["git-hash.txt"])
+    (published / "gates" / "publication-state.json").write_text("{}")
+    _run_dir(runs, (second + timedelta(seconds=19)).strftime("%Y%m%d-%H%M%S"), ["git-hash.txt"])
+    writer = tmp_path / "writer"
+    writer.mkdir()
+    (writer / "events.jsonl").write_text("".join(json.dumps({
+        "phase": "execute", "occurrence_id": GATE_OCC, "timestamp": when.isoformat(),
+    }) + "\n" for when in (first, second)))
+    closed = []
+    result = m.reconcile(GATE_OCC, queued_at=GATE_QUEUED, state="claimed",
+                         articles_path=_articles(tmp_path, []), runs_root=runs,
+                         fetch_status=lambda u: 200, writer_root=writer, resolve=True,
+                         pre_effect_resolver=lambda owner, occ, **k: closed.append(occ) or True)
+    assert result["status"] == "inconclusive" and result["reason"] == "run_reached_publication"
+    assert closed == []
