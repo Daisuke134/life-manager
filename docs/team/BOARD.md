@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
 - [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODOの正本は統合SSOTの「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics owner採用と自然配信を担当。Thankful PR593の独立reviewで部分offering時の読込停止を再現し、別の専用branchで最小修復を担当。元ownerのworktree/branchとRC設定/価格は変更しない。build9はVALIDだが追加修正を含まないため、提出前にsource/mainと新buildを照合する。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
@@ -19,6 +20,8 @@
 - [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 ## ログ
+- 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
+- 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
 - Codex Mobile: 続行依頼を受け、既存6段階TODOを維持して再開。Apple/実機の公式readbackとmetrics/JP1の待機原因を再確認し、source統合・loaded採用・公開・MRRを区別する。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。

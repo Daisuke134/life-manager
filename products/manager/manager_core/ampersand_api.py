@@ -90,6 +90,18 @@ def _bounded_str(text: object, *, max_size=6000) -> str:
     return text
 
 
+def initial_request_body_hash(prompt: str, instructions: str = DEFAULT_INSTRUCTIONS) -> str:
+    """Hash the exact initial request identity without retaining its public text."""
+    _bounded_str(prompt)
+    _bounded_str(instructions)
+    identity = json.dumps(
+        {"model": MODEL, "instructions": instructions,
+         "input": prompt, "environment": {"type": "none"}},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf8")
+    return sha256(identity).hexdigest()
+
+
 @bounded_provider_call
 def read_initial_turn(client: Any, prompt: str,
                       instructions: str = DEFAULT_INSTRUCTIONS, *,
@@ -129,15 +141,9 @@ def read_initial_turn(client: Any, prompt: str,
     if journal is not None:
         # Avoid saving input text or secrets in the journal. Identity is a
         # stable hash of the exact model request, including instructions.
-        identity = json.dumps(
-            {"model": MODEL, "instructions": instructions,
-             "input": prompt, "environment": {"type": "none"}},
-            ensure_ascii=False, sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf8")
         from .provider_sessions import SessionConflict
         try:
-            journal.begin(request_id, sha256(identity).hexdigest())
+            journal.begin(request_id, initial_request_body_hash(prompt, instructions))
             journal.reserve_for_send(request_id)  # RESERVED→UNKNOWN before HTTP
         except SessionConflict as exc:
             raise SessionFailure(
