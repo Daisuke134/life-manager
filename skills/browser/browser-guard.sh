@@ -258,9 +258,6 @@ PYEOF
   release)
     [ -n "$IDENTITY" ] || usage
     lease="$LEASE_DIR/$(printf '%s' "$IDENTITY" | tr '/:' '__').lease"
-    # Close leaked tabs while this holder still owns the lease (best-effort; 2026-10-18).
-    sweep_port="$("$PY" -c 'import json,sys; print(json.loads(open(sys.argv[1]).read().strip().splitlines()[-1]).get("port") or "")' "$lease" 2>/dev/null || true)"
-    if [ -n "$sweep_port" ]; then "$PY" "$HERE/sweep_tabs.py" "$sweep_port" >/dev/null 2>&1 || true; fi
     if [ -n "${AI_BROWSER_HOLDER_PID:-}" ]; then
       control="${lease}.control"
       expected_start="${AI_BROWSER_HOLDER_START:-$(ps -o lstart= -p "$AI_BROWSER_HOLDER_PID" 2>/dev/null | xargs)}"

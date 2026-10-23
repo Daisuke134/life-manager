@@ -129,7 +129,7 @@ SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1
 
 CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼出元のfocused testsを追加する。新workflowや依存packageは増やさず、既存Python3.14/pytest/jsonschemaで公開runner上の検証を保存する。rootがworkflowと本仕様を所有し、独立review対象へ含める。 runtime/loop/tests/test_clean_user_install.pyの既存Paid wrapper fixtureも本人ID読取へ追従する。CIの全1015件でこの1件だけが旧/bin/echoと作者account期待値によりFAILとなり、本人ID helperだけをother-sellerへstubし既存state argvのassertを維持する。新sourceのGateやfenceを弱めず修復する。 当該CI RED1→primaryのfocused GREEN1（0.448秒）を確認する。
 
-容量診断: Git fetchもpack一時file作成でENOSPCとなる。process argv/cwd/text参照がなく、memory/state JSONLを含まない再取得可能なCodex runtime cacheだけを削除し、1,628,393,472 bytesを回復する。直後の空き1,901,395,968 bytesはsource保存/関連検証のための余地であり、稼働jobのdisk admissionを満たす証拠ではない。protected storesと使用中runtime/stateは変更しない。
+容量診断と誤操作: Git fetchもpack一時file作成でENOSPCとなる。process参照が無いことを根拠にCodex runtime cacheを削除するが、既存cleanup skillが保護する実行環境であり、この判断は誤り。削除を開示し、HOST-RESTORE-RUNTIMEの公式bundleから同じpathへ復元する。process参照が無いことを削除許可の根拠にしない。disk admissionのfloorは変更しない。
 
 独立read-only reviewはBlocking0/SHIP0。本人入力4source、変更tests、既存CI追加stepを直接読み、不正入力6類型/account-only proof/3hash/任意属性欠損/通常main・reconcile・run_loopの外部callback前停止をメモリ内で確認する。host負荷によりgit diff/showと全suiteはreviewで完走していない。既存kernelが両ownerのspawn前に作るpre_effect_failure/effect0 hintを本人入力の早期終了が保持するため、fenceやallowlistは変更しない。PR #8712のCIとmain/public readbackは継続中。
 
@@ -140,6 +140,8 @@ CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼�
 順序変更: 旧=IDENTITY→SETUP公式account観測→RUNTIME。新=完了IDENTITY→MAC03-BROWSER-RELEASE→同じSETUP→RUNTIME。理由はread-only観測の既存guard releaseに他tabのcloseが混在する自己所有の境界不具合を確認したため。既存tabを減らすことを外部依存にせず修復する。公式browserは最新PID9953/9227/reachable200、identity collision0、leaseなし、JSON listは3page。新規tab/ログイン/provider送信は0、account本人selectorは未観測。
 
 Browser releaseのbounded計画: workerはskills/browser/browser-guard.shと既存関連guard testsだけを所有し、primaryは本仕様/CI/統合を所有する。失敗テストはreleaseからunscoped sweeperが呼ばれることをfixture spyで示し、合法holderはlease解放/他holderはlease保持を併せて検証する。新GC/新registry/lease迂回/実browser操作を追加せず、所有者を検証する既存caller cleanupを再利用する。source-boundary/diff/shell、関連guard testsとCIを検証し、未検証sourceをproduction browserへ接続しない。
+
+Browser releaseのsource検証: 正常holder/別holderの2ケースがsweep呼出しでREDとなる。releaseの自動sweep 3行だけを除き、lease解放/誤holder拒否と既存acquire/beat/collision/target ownershipを含む29件がPython3.14.7でPASS。shell構文・source境界・diff checkはPASS。Loop contractは18products/192jobs/113mapped/errors0。既存CI jobへguard関連2test filesを追加し、独立read-only reviewとexact-head CI/main readbackを続ける。実browser・private入力・provider操作は0。
 
 SETUP追跡: Reply adapterのprovider既定にもCrowdWorks pathが残る。Storefrontのcreator product固定と併せ、本人入力の次atomで修復する。
 
