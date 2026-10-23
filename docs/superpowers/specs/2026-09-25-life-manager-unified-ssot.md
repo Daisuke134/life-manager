@@ -23107,6 +23107,8 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 **配信copyの今回変更:** 公式I am Reel `https://www.instagram.com/iam.affirmations/reel/Dc--fsolO-X/` を再取得し、アプリへ誘導するcaptionと約1.5K likes/7 commentsを確認する。動画映像自体と課金効果は今回再検証していない。借りるのは「特定の感情に絞ったアファメーション→アプリCTA」の仕組みで、文章・画像は独自に作る。現行 `marketing-slide-pack-text.js` はhookと無関係に16の汎用本文から4つをshuffleしており、同じ導入でも話題・順序が変わる。今回は既存のEN/JA・3family・無料生成・slot冪等性を保ち、8つの生活場面ごとに導入と4枚の本文を一組として選ぶ。朝の支度、仕事終わり、比較、失敗、休息など場面を具体化し、本文は同じ場面に対する自己への言葉として順に読める構成にする。製品の効能・売上・通知修正済みの実機デモを創作しない。受入は既存の生成/slide-pack検証に加え、同じ導入の本文がseedによって無関係に入れ替わらない回帰テスト。回帰テストは変更前に同じhookの本文不一致で失敗し、変更後は既存factory/gateを含む25 tests PASS。効果は既存slotの自然PUBLISHED receiptと24h到達/保存/共有/流入で判定し、このcopy変更だけで改善済みと報告しない。
 
+**描画の実測修正:** 実際の1080×1350画像で英語 `with` が `wit` / `h` に分断されることを確認する。文字数・contrast gateだけでは単語途中改行を検出できない。既存Pillow rendererは英語を単語単位で折り返し、日本語の文字単位改行と、1行幅を超える長い単語のfallbackは保つ。実fontで元の見出しを描画し、改行後の英単語列が元と一致する失敗テストを先に確認する。
+
 **補助skill:** `ParthJadhav/app-store-screenshots` の公式READMEを確認。実スクリーンショットからストア画像を作るエディタで、アプリ内アニメーション用ではない。新版と配信の先頭作業を妨げない範囲で後続へ利用する。`rosssark-motion-skill` は添付画像の名前だけで配布元未特定のため、任意の同名packageを導入しない。
 
 ### FND01/FND06 容量の実測：旧release固定とworktree返却 — 2026-10-23 Claude
