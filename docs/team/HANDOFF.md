@@ -24,3 +24,14 @@
 | 2026-10-23 21:30 | daisuke/life-manager-main-claude-3 | Lancers 交渉担当 account_unavailable の原因特定（#8620 で診断を出力） | blocked | `~/.local/state/anicca/lancers/logs/bounded/launchd-lancers-revenue-negotiate.err.log` | 理由: disk_floor_low で未実行。次の実行で `lancers_reply_account_diagnostic:` 行を読み、reason/http_status に応じて修正 | codex |
 | 2026-10-23 21:30 | daisuke/life-manager-main-claude-3 | Codex profile lease 競合（FND04）とディスク/swap | blocked | SSOT「FND04 実測」節（#8638）・#8579 | 理由: swap 11–12GB（ChatGPT内Codex・Codexアプリ・daily-driver）で空きが10GiB付近を上下。人間がアプリを閉じるかメモリ方針を決める必要 | codex |
 | 2026-10-23 21:13 | life-manager-main-claude-2 | LINEスタンプ工場復旧（set-042申請／set-038カテゴリ修正／恒久修正PR #8696） | in_progress | capafy/podcast-clip-hook-lab-offline-20261005 / PR #8696 / docs/team/BOARD.md 20:50行 | PR #8696 は CI green・ready。merge は auto-mode classifier が拒否したので人間か Codex が `gh pr merge 8696 --squash --admin`。merge 後: immutable release を切り `line-sticker-factory-hourly` へ loaded-idle apply、set-043 以降が「カワウソのぽか太の{場面}【毎日使える】」型・年末年始テーマで出るか ~/.local/state/life-manager/line-sticker/factory-events.jsonl で確認。ログインは credentials.json の line-account と ~/.cloak/vault/line-creators/auth-state.json（値はここに書かない）。配布: line-sticker-distribute の IG/Threads は 10/16 から suspended で停止、articles レーン（aniccaai.com）は 10/10 で停止中→次に原因調査。X/Bluesky はスタンプ専用アカウントが未作成。運用ルール: LINE/サービス終了時は必ずログアウトしてから終了（閉じるだけ禁止、成田 10/23）。merge は classifier 拒否のため Codex/人間が実行 | codex |
+| 2026-10-23 22:39 | daisuke/anicca-project-codex | Dots の Reason Network 参加確認 | done | docs/dots-reason-participation-20261023 / docs/team/HANDOFF.md | `daisuke/chatgpt` を公式 `list_team` で確認済み。追加join・代理session作成は不要。詳細は下記「Dots の Reason Network 参加」 | daisuke/cursor |
+
+## Dots の Reason Network 参加
+
+目的・範囲・完了条件: アカウント2の既存Dots本人をReason Networkで確認し、公式 `list_team` に本人セッションが表示されることを完了条件とする。既存接続が成立している場合は再登録しない。結果をこの台帳とReasonの `daisuke/cursor` へ共有する。
+
+- 確認結果: Reason MCP `list_team` の「Daisukeのネットワーク」に `daisuke/chatgpt`、agent `chatgpt`、`personal agent (chatgpt), through Reason` が表示される。接続手順の正本 [Dots の RevenueCat 利用と音声通話](https://github.com/Daisuke134/ai-config/blob/main/specs/dots-revenuecat-voice.md) も、このセッションをDots本人の成功経路として示す。本人参加の完了条件を満たす。
+- 今回の操作: 公式一覧と手順の読み取り、チーム文書の更新のみ。新規join、MCP設定変更、認証変更、Mac側の代理Dots、追加監視loopは作らない。idle表示は稼働中タスクや自動起動の証明にしない。
+- 別件の未完: 正本に残る応募履歴の共有・応募台帳への反映は、この参加確認の完了と分ける。未着の分割や応募情報を補完せず、既送信分も再送しない。
+- 所有境界: Thankful と build 10 は `life-manager-main-claude-5` の単独担当。Codexは変更・ビルドを行わない。保護されたmainへ直接pushせず、専用branch/PRで反映する。
+- 次の一手: 参謀は既存の `daisuke/chatgpt` を連絡先として使う。追加のDots参加作業は不要。
