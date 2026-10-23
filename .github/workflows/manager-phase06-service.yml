@@ -1,9 +1,14 @@
 name: Manager Phase06 Digital Environment
 on:
+  pull_request:
+    branches: [main]
+    paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
   push:
-    branches: [research/manager-product-r006-20261020, research/manager-phase06-service-execution-20261021, research/manager-completion-20261022]
+    branches: [main]
     paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
   workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
 permissions:
   contents: read
 concurrency:
@@ -19,196 +24,101 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - name: All Manager unit contracts
-        run: python -m unittest discover -s tests -v
-      - name: Boundaries, unchanged task registry, existing core
-        run: |
-          python -m manager_core
-          python scripts/check_boundaries.py
-          python scripts/make_roadmap.py --check
-          python scripts/phase05_demo.py --check
-      - name: Build immutable owned service bundle
-        run: python scripts/phase06_digital_service.py build --commit "$GITHUB_SHA"
-      - name: Install locked upstream browser and accessibility engines
+          node-version: '24'
+      - name: Focused owned-cycle and selector contracts
+        run: >-
+          env PYTHONPATH=.:tests python -m unittest
+          test_owned_cycle_cli test_owned_workflow_contract
+          test_owned_catalog_planner test_candidate_verification
+          test_owned_digital_cycle test_owned_checkpoint_order
+          test_owned_platform_host -v
+      - name: Install locked browser suite and build the reference bundle
         run: |
           cd tests/e2e
           npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium
-      - name: Real browser verification across desktop and mobile
-        run: npm --prefix tests/e2e test
-      - name: Read-only source audit and truthful outcome report
-        run: |
-          python scripts/phase06_digital_service.py audit
-          python scripts/phase06_digital_service.py outcomes
-      - name: Kernel plans a bounded release against independently served baseline
-        run: python scripts/phase06_kernel_release.py plan
-      - name: Dry-run additive release and reject unknown sources
-        run: |
-          mkdir -p output/service/release-dry-run/articles
-          printf 'existing unrelated homepage' > output/service/release-dry-run/index.html
-          printf 'preserved article' > output/service/release-dry-run/articles/existing.html
-          python scripts/phase06_release_guard.py --site output/service/site --checkout output/service/release-dry-run --audit output/service/source-audit.json
-          python scripts/phase06_release_guard.py --site output/service/site --checkout output/service/release-dry-run --audit output/service/source-audit.json
-          test "$(cat output/service/release-dry-run/index.html)" = 'existing unrelated homepage'
-          test "$(cat output/service/release-dry-run/articles/existing.html)" = 'preserved article'
-      - name: Preserve evidence and deployable site (no auto field trial)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: manager-service-${{ github.sha }}
-          path: |
-            products/manager/output/service
-            products/manager/tests/e2e/package-lock.json
-          if-no-files-found: warn
-          retention-days: 30
+          cd ../..
+          python scripts/phase06_digital_service.py build --commit "$GITHUB_SHA"
+          npm --prefix tests/e2e test
+      - name: Existing source boundaries
+        run: python scripts/check_boundaries.py
   publish-owned-prefix:
-    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-product-r006-20261020'
-    needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      actions: write
     concurrency:
       group: manager-pages-prefix-writer
       cancel-in-progress: false
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    permissions:
+      contents: write
+      id-token: write
+      actions: write
     outputs:
-      pages_commit: ${{ steps.publish.outputs.pages_commit }}
+      pages_commit: ${{ steps.cycle.outputs.pages_commit }}
+      status: ${{ steps.cycle.outputs.status }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           path: source
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - uses: actions/download-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: manager-service-${{ github.sha }}
-          path: verified
-      - name: Require same immutable source as verified artifact
-        run: |
-          python - <<'PY'
-          import json,os
-          from pathlib import Path
-          m=json.loads(Path('verified/output/service/site/manifest.json').read_text())
-          assert m['source_commit']==os.environ['GITHUB_SHA']
-          assert m['beneficiary_outcome']=='NOT_MEASURED'
-          assert not m['experiment_enabled']
-          PY
+          node-version: '24'
       - uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: pages
           fetch-depth: 0
           persist-credentials: true
-      - name: Admit kernel intent, stage exact Manager files, preserve every other git path
-        id: publish
-        env:
-          MANAGER_RELEASE_ENABLED: 'true'
-        run: |
-          python source/products/manager/scripts/phase06_kernel_release.py admit --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json --intent verified/output/service/release-intent.json --output "$RUNNER_TEMP/manager-admission.json"
-          python - <<'PY'
-          import json,os
-          from pathlib import Path
-          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'manager-admission.json').read_text())
-          (Path(os.environ['RUNNER_TEMP'])/'manager-commit-message.txt').write_text(d['commit_message'])
-          PY
-          cd pages
-          git add -- manager-support
-          python - <<'PY'
-          import subprocess
-          allowed={'manager-support/'+n for n in ('index.html','finance.html','mental.html','physical.html','control.html','proof.html','manifest.json')}
-          names=subprocess.check_output(['git','diff','--cached','--name-only','-z']).decode().split('\0')
-          assert all(not n or n in allowed for n in names), names
-          PY
-          if git diff --cached --quiet; then
-            echo 'NO_ACTION: same immutable source release already committed'
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-          else
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -F "$RUNNER_TEMP/manager-commit-message.txt"
-            git push origin HEAD:gh-pages
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          fi
-          # A replay refers to its original occurrence, not a neighboring commit.
-          message="$(cat "$RUNNER_TEMP/manager-commit-message.txt")"
-          pages_commit="$(git log -1 --format=%H --fixed-strings --grep="$message")"
-          test -n "$pages_commit"
-          echo "pages_commit=$pages_commit" >> "$GITHUB_OUTPUT"
-      - name: Delegate deployment to the ONE existing protected Pages workflow
-        if: steps.publish.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # workflow_dispatch is intentionally used: a GITHUB_TOKEN push alone
-          # does not trigger another push workflow. No environment bypass.
-          # Existing gh-pages workflow ID 307239134 owns full-site checkout,
-          # shared pages concurrency, github-pages environment, and deployment.
-          # This workflow never uploads/deploys a stale full-site snapshot.
-          printf '{"ref":"gh-pages"}' | gh api --method POST repos/Daisuke134/life-manager/actions/workflows/307239134/dispatches --input -
-  verify-live:
-    needs: [verify, publish-owned-prefix]
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: actions/download-artifact@v4
-        with:
-          name: manager-service-${{ github.sha }}
-          path: verified
-      - name: Independently wait for matching served bytes (read-only, bounded)
-        working-directory: products/manager
-        run: |
-          mkdir -p output/service
-          cp -R ../../verified/output/service/site output/service/site
-          ok=0
-          for attempt in $(seq 1 20); do
-            if python scripts/phase06_digital_service.py readback; then ok=1; break; fi
-            echo "Readback UNKNOWN attempt $attempt; no write or deploy is retried"
-            sleep 15
-          done
-          test "$ok" = 1
-      - name: Real public URL browser and accessibility verification
-        working-directory: products/manager/tests/e2e
-        env:
-          MANAGER_BASE_URL: https://daisuke134.github.io/life-manager/manager-support/
+      - name: Install locked browser dependencies before lease acquisition
+        working-directory: source/products/manager/tests/e2e
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium
-          npm test
-      - name: Bind independent public bytes to the exact kernel intent and GitHub occurrence
-        working-directory: products/manager
+      - name: Create fresh private runner state root
+        run: |
+          test ! -e "$RUNNER_TEMP/manager-owned-state"
+          install -d -m 700 "$RUNNER_TEMP/manager-owned-state"
+      # The adapter dispatches only existing Pages workflow 307239134.
+      # The retired `git push origin HEAD:gh-pages` shell sender is gone.
+      # Receipt-gated in-cycle collection provides verify-live semantics; NO_ACTION has no Pages SHA to prove.
+      - name: Restore, reconcile, and run one trusted main cycle
+        id: cycle
+        working-directory: source/products/manager
         env:
-          MANAGER_PAGES_COMMIT: ${{ needs.publish-owned-prefix.outputs.pages_commit }}
-        run: python scripts/phase06_kernel_release.py prove --intent ../../verified/output/service/release-intent.json --pages-commit "$MANAGER_PAGES_COMMIT"
-      - name: Keep actual external delivery proof and public screenshots
+          GH_TOKEN: ${{ github.token }}
+          MANAGER_RELEASE_ENABLED: 'true'
+        run: |
+          python scripts/run_owned_digital_cycle.py run-once \
+            --state-store "$RUNNER_TEMP/manager-owned-state" \
+            --pages-checkout "$GITHUB_WORKSPACE/pages" | tee "$RUNNER_TEMP/manager-public-summary.json"
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'manager-public-summary.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('status='+str(value.get('status','UNKNOWN'))+'\n')
+              receipt=value.get('receipt_sha')
+              if isinstance(receipt,str) and re.fullmatch('[0-9a-f]{40}',receipt):
+                  out.write('pages_commit='+receipt+'\n')
+          PY
+      - name: Publish only the allowlisted public summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: manager-live-readback-${{ github.sha }}
-          path: |
-            products/manager/output/service/public-readback.json
-            products/manager/output/service/browser-results.json
-            products/manager/output/service/screenshots
-            products/manager/output/service/kernel-public-proof.json
-            products/manager/output/service/proof-explorer.html
-          if-no-files-found: warn
+          name: manager-owned-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/manager-public-summary.json
+          if-no-files-found: ignore
+          retention-days: 7

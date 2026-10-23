@@ -151,14 +151,33 @@ class GitHubActionsCycleHostTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             conf, store, host, *_ = platform_fixture(Path(tmp), context_values=False)
             from scripts import phase06_kernel_release as release
+            from manager_core import owned_catalog_planner as planner
             with patch.dict('os.environ', github_environment(), clear=True), \
-                 patch.object(release, 'source_checkout_commit', return_value='b' * 40):
+                 patch.object(release, 'source_checkout_commit', return_value='b' * 40), \
+                 patch.object(planner, 'plan_catalog_change', return_value=None) as select:
                 result = run_owned_cycle(conf, store, host=host, now=NOW)
+            select.assert_called_once_with(host.checkout, host.checkpoint.db.parent / 'planning',
+                                           'b' * 40, NOW, run_id='123')
+            self.assertEqual(host.source_audit_path, host.checkpoint.db.parent / 'planning' / 'source-audit.json')
+            self.assertFalse(host.source_audit_path.exists())
             self.assertEqual(result['status'], 'NO_ACTION')
             self.assertEqual(result['writes'], 0)
             with self.assertRaises((TypeError, ValueError)):
                 GitHubActionsCycleHost(host.checkpoint, host.checkout, host.source_audit_path,
                                        context=object())
+
+
+    def test_fixed_selector_failure_is_unknown_not_a_noop_candidate(self):
+        from manager_core.owned_platform_host import CatalogSelectionUnavailable, GitHubActionsCycleHost
+        from manager_core import owned_catalog_planner as planner
+        with TemporaryDirectory() as tmp:
+            _, _, host, *_ = platform_fixture(Path(tmp), context_values=False)
+            with patch.dict('os.environ', github_environment(), clear=True), \
+                 patch.object(planner, 'plan_catalog_change', side_effect=ValueError('served mismatch')) as select:
+                with self.assertRaises(CatalogSelectionUnavailable):
+                    host.prepare_candidate(NOW)
+            select.assert_called_once()
+            self.assertEqual(host.source_audit_path, host.checkpoint.db.parent / 'planning' / 'source-audit.json')
 
     def test_expired_or_revoked_scope_is_no_action_without_staging(self):
         for changed_scope in (

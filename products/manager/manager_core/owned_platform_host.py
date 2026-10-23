@@ -31,6 +31,10 @@ SHA_RE = re.compile(r'[0-9a-f]{40}\Z')
 POSITIVE_RE = re.compile(r'[1-9][0-9]*\Z')
 
 
+class CatalogSelectionUnavailable(RuntimeError):
+    """Fixed selector could not establish a safe new-candidate decision."""
+
+
 class GitHubActionsCycleHost:
     """The only live adapter accepted by ``run_owned_cycle``.
 
@@ -65,21 +69,43 @@ class GitHubActionsCycleHost:
         self._started_at = monotonic()
 
     def prepare_candidate(self, now):
-        """Return the already typed candidate tuple at the shared cycle seam.
+        """Return fixed typed candidate data after the shared recovery gates.
 
-        A later fixed repository-owned selector can populate this method after
-        prior recovery, STOP and cadence checks. Caller-supplied callbacks never
-        participate in platform authority.
+        A complete prebound tuple is retained for the existing unit contracts.
+        Otherwise selection is imported lazily and can only use committed code,
+        the existing Pages checkout, and the actual runner identity.
         """
         from .candidate_verification import TechnicalAssessment
         from .authority import OwnedDigitalScope
-        if self.context is not None and type(self.context) is not OwnedChangeContext:
-            raise PermissionError('owned candidate unavailable')
-        if self.assessment is not None and type(self.assessment) is not TechnicalAssessment:
-            raise PermissionError('owned assessment unavailable')
-        if self.scope is not None and type(self.scope) is not OwnedDigitalScope:
-            raise PermissionError('owned scope unavailable')
-        return self.context, self.assessment, self.scope
+        if self.context is not None or self.assessment is not None or self.scope is not None:
+            if (self.context is not None and type(self.context) is not OwnedChangeContext) or \
+                    (self.assessment is not None and type(self.assessment) is not TechnicalAssessment) or \
+                    (self.scope is not None and type(self.scope) is not OwnedDigitalScope):
+                raise PermissionError('owned candidate unavailable')
+            if self.context is not None and self.assessment is not None and self.scope is not None:
+                return self.context, self.assessment, self.scope
+            raise PermissionError('incomplete owned candidate binding')
+        from .owned_catalog_planner import plan_catalog_change
+        env = os.environ
+        run_id, source_sha = env.get('GITHUB_RUN_ID'), env.get('GITHUB_SHA')
+        planning = self.checkpoint.db.parent / 'planning'
+        self.source_audit_path = planning / 'source-audit.json'
+        try:
+            selected = plan_catalog_change(self.checkout, planning, source_sha, now, run_id=run_id)
+        except Exception:
+            # Mismatch/audit/browser uncertainty blocks a new send but leaves
+            # the already-restored journal available to the cycle owner.
+            raise CatalogSelectionUnavailable('fixed catalog selection unavailable') from None
+        if selected is None:
+            return None, None, None
+        if type(selected) is not tuple or len(selected) != 3:
+            raise CatalogSelectionUnavailable('fixed catalog selection unavailable')
+        context, assessment, scope = selected
+        if (type(context) is not OwnedChangeContext or type(assessment) is not TechnicalAssessment or
+                type(scope) is not OwnedDigitalScope):
+            raise CatalogSelectionUnavailable('fixed catalog selection unavailable')
+        self.context, self.assessment, self.scope = context, assessment, scope
+        return context, assessment, scope
 
     def _environment(self, *, require_release=False):
         env = os.environ
