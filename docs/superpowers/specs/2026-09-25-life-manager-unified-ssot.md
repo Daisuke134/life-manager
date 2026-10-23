@@ -94,7 +94,7 @@ MAC02の最新read-only観測: 自然run18e13ed269a3c5b8-96717/occurrence=hf-gig
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-guided-install-20261024、base=32cb3ad451ef2006103c99da0cacaf4f0cff3b39（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINSTALL-GREEN。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-guided-install-20261024、base=b4431355ec8b1177d57f10bf226265de33f5e601（最新mainを通常mergeし、他ownerのdocs更新を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINSTALL-SHIP。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -295,7 +295,7 @@ lane適用: browser ownerを既存apply_targetsから先に扱い、既存with-b
 
 - [x] INSTALL-RED: 無い公開入口、未設定/壊れた本人入力、別HOMEの正の本人設定、相対assets/再import時の実ID保持、plan無変更、Codex未認証、observe失敗、laneごとの独立適用、ownerの初回create/既存apply/不正入力停止を最少fixtureで先に失敗再現する。追加20件に対しworkerは19 failed/201 passed（8.00s）、primaryは19 failed/201 passed（8.49s）を独立確認する。既存200件＋明示apply非create契約1件はPASSし、collection/fixture errorとproduction source差分は0。installer12件の個別assertは未実装入口で止まるためGREEN時に初めて到達する。primaryは同じfixtureへselected runtime auth home、同immutable with-browser、stderrも含むprivate本文非表示のassertを追加する。実通信・private・launchctlは0とする。
 - [x] INSTALL-GREEN: 薄い入口の初回実装で担当3files220 PASSを確認する。JSON配列productのAttributeErrorを追加1件でREDにして既存readerの再利用で修復し、workerは関連12files421 PASS/31 subtests（16.64s）とlocal identity12 PASS（0.69s）を確認する。primaryのfresh read-only reviewは対話loginの案内非表示1件をblockingとし、公式Codex CLIのURL表示とbrowser起動失敗時の待機契約で根拠を確認する。隔離fake executableの実subprocessでURL非表示を1 failed（0.36s）にしてから、対話loginだけstdout/stderrを本人端末へ継承し、statusの捕捉とselected CODEX_HOMEを保持する。最終primaryの入口/owner/create/local_installの4filesは241 PASS/31 subtests（9.93s）、既存product onboardingは47 PASS。shell/AST/compile/JSON/source-boundary/diffをPASSし、実通信・実private・browser・host操作は0とする。reviewの修正再確認後にSHIPへ進む。
-- [ ] INSTALL-SHIP: 外部向けの短い手順とcatalog commandを更新し、commit/push→必要review/既存CI→main/公式readbackへ反映する。本人実機でのaccepted immutableによる導入、READY-B、自然terminal/公式成果、別Mac/10,000 starsは残し、mock成功を全7jobsの本番成功にしない。
+- [ ] INSTALL-SHIP: 外部向けの短い手順とcatalog commandを更新し、commit/push→必要review/既存CI→main/公式readbackへ反映する。fresh read-only reviewは対話loginの修正後にblocking0とし、追加回帰を一時HOME/実通信禁止で独立1 PASS（0.32s）にする。main追加分は既存SSOTとteam docsのみで通常mergeし、保護対象memory/state差分0を確認する。本人実機でのaccepted immutableによる導入、READY-B、自然terminal/公式成果、別Mac/10,000 starsは残し、mock成功を全7jobsの本番成功にしない。
 
 #### Lancers本人入力の実装計画
 
