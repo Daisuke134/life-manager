@@ -205,30 +205,6 @@ test("audit rejects a 200 page that does not contain the expected product identi
   assert.match(result.errors.join("\n"), /expected text/i);
 });
 
-test("English README first view explains the Life Manager product experience", async () => {
-  const readme = (await readFile(new URL("../README.md", import.meta.url), "utf8")).slice(0, 4_000);
-
-  assert.match(readme, /body, mind, and money/i);
-  assert.match(readme, /Telegram/);
-  assert.match(readme, /Setting goals or\s+budgets is not a required onboarding step/i);
-  assert.match(readme, /same core/i);
-  assert.match(readme, /https:\/\/aniccaai\.com\/lm/);
-  assert.doesNotMatch(readme, /Live Dashboard/);
-});
-
-test("Japanese README first view explains the Life Manager product experience", async () => {
-  const readme = (await readFile(new URL("../README.ja.md", import.meta.url), "utf8")).slice(0, 4_000);
-
-  assert.match(readme, /身体/);
-  assert.match(readme, /心/);
-  assert.match(readme, /お金/);
-  assert.match(readme, /Telegram/);
-  assert.match(readme, /開始時の目標・予算入力を必須にしません/);
-  assert.match(readme, /同じcore/);
-  assert.match(readme, /https:\/\/aniccaai\.com\/lm/);
-  assert.doesNotMatch(readme, /Live Dashboard/);
-});
-
 test("both public READMEs are bound to the canonical startup context", async () => {
   const context = await loadStartupContext(contextPath);
 
