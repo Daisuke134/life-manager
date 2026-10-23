@@ -372,6 +372,36 @@ class CatalogShadowResultTests(unittest.TestCase):
             self.assertTrue(cp.broken)
             self.assertEqual(sessions.create_count, 1)
 
+    def test_reserved_result_name_non_table_objects_fence_restore_and_local_read(self):
+        statements = {
+            "view": "CREATE VIEW catalog_shadow_results AS SELECT 1 AS operation_id",
+            "uppercase_view": "CREATE VIEW CATALOG_SHADOW_RESULTS AS SELECT 1 AS operation_id",
+            "index": "CREATE INDEX catalog_shadow_results ON control(stopped)",
+            "trigger": "CREATE TRIGGER catalog_shadow_results AFTER UPDATE ON control BEGIN SELECT 1; END",
+        }
+        for kind, statement in statements.items():
+            with self.subTest(kind=kind), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                prepared, now, gateway, cp = self.setup_owner(root)
+                client, sessions = fixtures.client_for()
+                with sqlite3.connect(cp.db) as db:
+                    db.execute(statement)
+                # An already acquired checkpoint must not classify this as a cache miss.
+                with self.no_initialization(), self.assertRaisesRegex(
+                        CheckpointUnavailable, "^invalid private provider state; reconcile only$"):
+                    self.compare(cp, prepared, now, client_factory=lambda: self.fail("factory invoked"),
+                                 cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"))
+                self.assertTrue(cp.broken)
+                bad_gateway = MemoryGateway(raw_database_bytes(cp.db))
+                restored = PrivateCheckpoint(bad_gateway, run_id="123", run_attempt="1")
+                with self.no_initialization(), self.assertRaisesRegex(
+                        CheckpointUnavailable, "^checkpoint restore refused; reconcile only$"):
+                    restored.acquire(root / "bad_restore")
+                self.assertTrue(restored.broken)
+                self.assertIsNone(restored.db)
+                self.assertEqual(sessions.create_count, 0)
+                self.assertNotIn("checkpoint", gateway.calls)
+
     def test_corrupt_local_saved_result_fences_instead_of_cache_miss(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

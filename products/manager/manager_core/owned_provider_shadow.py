@@ -237,6 +237,10 @@ def _validated_result(text):
 
 def validate_catalog_shadow_results(db: sqlite3.Connection, tables: set[str]) -> None:
     """Validate the optional result group without DDL, clients or constructors."""
+    objects = db.execute("SELECT type,name FROM sqlite_master WHERE name=? COLLATE NOCASE",
+                         (_RESULT_TABLE,)).fetchall()
+    if objects and objects != [("table", _RESULT_TABLE)]:
+        raise ValueError("reserved saved comparison name is not its exact table")
     if _RESULT_TABLE not in tables:
         return
     if not _PROVIDER_TABLES <= tables:
