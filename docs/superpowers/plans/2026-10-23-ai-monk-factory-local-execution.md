@@ -55,13 +55,13 @@
 - [x] host gate=false、auth setup不足、renderer reconciliation、renderedだがcostunknownを成功/0ドルへ変換しないtestを追加する。
 - [x] 上記境界を最小実装でGREENにし、CLI/READMEへpaid command・既存認証/共有state・費用上限未保証・未完の投稿/売上を明記する。
 - [x] 新規testと既存`test_factory_plan.py`、`render_eval/test_heygen_candidate.py`、`publish/test_intent_cli.py`を一度実行する。Expected: 全件PASS。Loop Contract/source-boundary/OSS/diffも確認する。
-- [ ] primaryが差分を確認しcommit/push・remote object一致を確認する。
+- [x] primaryが差分を確認しcommit/push・remote object一致を確認する。
 
 ## Task 2: source受入と実事業成果の区別
 
-- [ ] fresh read-only reviewerが共有root/lock/pending/replay/host gate/秘密値/CLI境界を検証する。
-- [ ] latest mainを保持し、exact CI成功後PR/mainへ統合する。main由来の固定版で構文/CLI helpと、実providerへ進まない既存host/費用ガードの結果を確認する。
-- [ ] S11/本planにsource受入を記録する。Daisの既存費用unknownや通常admissionが未解消ならlive生成せず、その条件を残す。
+- [x] fresh read-only reviewerが共有root/lock/pending/replay/host gate/秘密値/CLI境界を検証する。
+- [x] latest mainを保持し、exact CI成功後PR/mainへ統合する。main由来の固定版で構文/CLI helpと、実providerへ進まない既存host/費用ガードの結果を確認する。
+- [x] S11/本planにsource受入を記録する。Daisの既存費用unknownや通常admissionが未解消ならlive生成せず、その条件を残す。
 - [ ] 次のAM-15cでpublisherの利用者context（native handle/provider/disclosure/caption/destination/asset承認hash等）を具体化する。既存IntentStore/PostizAdapterのfence/upload/draft/promoteを使い、第二実装を作らない。実投稿・日次全自動・実売上・Factory MCP/subscriptionは別の未完である。
 
 ## Self-review
@@ -71,4 +71,4 @@ v1 planの互換・共有費用fence・private path非固定・live provider0の
 ## 実装記録
 
 - CLI2件のargparse exit2とhelperのDID NOT RAISEをprimaryも直接観測する。workerの境界37 RED後、新規43/関連110 PASS。lock待機前の古いdisk許可を使う反例を追加してRED後、gateをlock取得後・pending確認後・renderer直前へ移す。最終新規44/既存67の計111 PASS。live provider/credential読取は0。
-- Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。新規moduleは既存lock/pending/renderの接続のみで、新provider・ledger・schedulerを追加しない。whole-branch reviewとCI/main/fixed-releaseは未完。
+- Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。新規moduleは既存lock/pending/renderの接続のみで、新provider・ledger・schedulerを追加しない。whole-branch fresh review指摘0/独立111 PASS、PR8658/head04b8d8beの全13checks/sec-scan39925919453成功、main dfa0dc02・ALL固定版20261023T174411-dfa0dc02まで受入済み。8fileのreview/main bytes一致、11,370entry sealed、実CLI help2件exit0と既存host helper許可true/provider0を確認する。render entry/新規生成/新規投稿/activationは0。private proof SHA f8a9191d2b53561e8c635e9b4f943b80914fe1beaf85aeae8bd4fb433e0b3596。費用unknown・実配信/売上とAM-15c publisherは未完である。
