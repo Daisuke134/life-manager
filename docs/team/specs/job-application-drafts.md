@@ -1,0 +1,43 @@
+# 求人応募文5件の下書き
+
+目的: 参謀が公式フォームへ提出できる、求人別の回答案とカバーレターを5件作成する。
+
+範囲: 公式求人本文とフォームを読み、既存の経歴・私的プロフィール・取得できたDots資料だけを事実根拠に使う。原稿は `docs/team/jobs/drafts/<company-role>.md` に保存する。公開repoへ連絡先・住所・生年月日・資格情報を複製せず、提出担当が私的正本から入力する。経歴や回答の不明点は明記する。応募送信・ledger・Thankful/build 10・他担当の作業領域は変更しない。
+
+完了条件: 各求人の確認状態、実際の質問と必須/任意、回答案、根拠、未確認事項、カバーレターを5ファイルへ保存する。専用branch/PRをmainへ統合し、公式readback後にReasonで `daisuke/cursor` へPR URLを送る。閉鎖・取得不能の求人では、その状態と未取得の質問を明示し、架空のフォームを実在扱いしない。
+
+## 対象と現在cursor
+
+1. [Cursor FDE Japan](../jobs/drafts/cursor-forward-deployed-engineer-japan.md) — 原稿あり。公式フォーム8項目。求人本文のブランド混在と5年以上の経験要件、説得事例の不足を明記する。
+2. [NICE Sr FDE Japan](../jobs/drafts/nice-senior-forward-deployed-engineer-japan.md) — 原稿あり。公式フォーム16項目。親族/子会社在籍など未確認回答を保留する。
+3. [OpenAI Applied AI Engineer, Codex Tokyo](../jobs/drafts/openai-applied-ai-engineer-codex-tokyo.md) — 原稿あり。公式フォーム12項目。本人記入等の宣誓を代理で同意しない。
+4. [OpenAI Applied AI Engineer Tokyo](../jobs/drafts/openai-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム10項目。Codex職と異なる質問構成を保持する。
+5. [BJAK Applied AI Engineer Tokyo](../jobs/drafts/bjak-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム17項目。3年以上の職業経験を裏付けず、言語別の職務使用と採用マーケティング同意を未確認として扱う。
+
+現在cursor: 下書き5件・全63項目の公式schema対応と事実根拠の照合を完了する。必須/任意の内訳と非公開連絡先の非掲載を確認する。ソース受入後の提出判断・未確認回答は各原稿を参照し、応募送信は参謀が所有する。PRのCI/統合状態はGitHubの当該branch/PRを正本とする。初回取得時に存在しない `docs/team/dots/` は、参謀のPR #8732で新設される。追加されたREADMEを読み、経歴・応募文メモはまだ未記入であることを確認する。参照先の既存応募履歴は読み取りのみ確認し、応募状況を職務経験の根拠へ転用しない。原稿の経歴根拠は私的プロフィールと既存英語技術職用resumeに限定する。具体的な回答を裏付けない包括的な経験attestationは、年数・言語・provider利用の根拠にしない。
+
+## 経歴根拠
+
+- **DOTS:** [共有メモREADME](../dots/README.md) と既存台帳のhistorical job application reconciliation節。READMEは今後のメモ置き場で、本文の経歴・応募文実例は未記入。過去のCursor AI Deployment Managerは今回のFDEとは別職であり、過去応募を今回の提出実績へ置換しない。台帳の編集・応募・個人メールの本文取得は行わない。原稿の正本pathは当初指定の `docs/team/jobs/drafts/` とし、別のdrafts directoryへ複製しない。
+
+公開可能な職務・成果の要旨だけを原稿へ使う。メール・電話・住所・生年月日・私的属性の値はここへ複製しない。
+
+- **PROFILE:** `/Users/anicca/.config/anicca/job-search/profile.json` の `candidate`。英字名、公開GitHub/LinkedIn、非公開連絡先の参照元。日本語氏名は依頼と私的正本に表記差があるため、原稿は共通する英字名を用い、正式氏名欄は本人IDとの照合を残す。
+- **RESUME:** `/Users/anicca/.local/share/anicca/job-search/materials/master/Daisuke_Narita_AI_Resume.html` と対応PDF。review用コピーとも職務記述を照合する。提出にはこの既存PDFを使う案を示し、PDF自体や連絡先をGitへ追加しない。
+- **MUIT:** `facts[id=muit_role_2025]`、`muit_agent_crm` とRESUME。MUITのApplied AI/AI-agent業務は2025年4月開始。MUFG Bankのrelationship manager向け内部CRMへのSalesforce Agentforce導入へ寄与する。単独主導や5年以上の実務とは書かない。
+- **LOGS:** `muit_genie_logs` とRESUME。Databricksでagentの入出力・応答品質を分析するworkflowを構築する。改善率や使用言語を補完しない。
+- **PROMPT:** `muit_rm_summary` とRESUME。会社情報summary等へのprompt tuning/context engineeringを支援する。
+- **TEACH:** `agent_club` とRESUME。研究室/大学院でClaude Code・Codex・Cursor・agent workflowを教える週次communityを設立する。参加人数・抵抗の具体例・採用結果は未記載。
+- **LM:** `life_manager`、`life_manager_open_source_operations_20260805`。Life Managerはlocal agent、永続schedule、calendar/commute/phone/Telegram等の検証付き外部操作を扱うopen-source project。公開コード: https://github.com/Daisuke134/life-manager 。
+- **RELIABILITY:** `async_operating_practices_20260805`、`agent_reliability_engineering_20260805`。限定変更、自動check、永続state、評価gate、明示handoff、曖昧な外部作用の独立確認を実践する。企業顧客への成果数値へ置換しない。
+- **ANICCA:** `anicca_consumer` とRESUME。mobile affirmation appの構築・出荷。過去のrating件数を現在値として転記しない。
+- **RESEARCH:** `naist`、`atr_research`、`education_naist` とRESUME。NAIST/ATRでEEGとmachine learningによるmind-wandering研究を行う。研究期間とMUITの在籍期間は一部重なる。修士号授与は未確認なので取得済み学位としない。
+- **LANG:** `languages` とRESUME。日本語native、TOEFL iBT 96、TOEIC 910、Duolingo English Test 140。試験実績を勤務上のfluency認定へ置換しない。
+- **JP:** `legal_japan_work_authorization_20260730`、`legal_no_japan_sponsorship_required_20260806`。日本国籍、日本国内の就労制限なし、国内就労sponsorship不要。
+- **TOKYO:** `candidate.base`、`availability_tokyo_office_three_days_20260806`。Tokyo在住、週5日office勤務も可能。
+- **START:** `candidate.start_date`、`availability_start_date_20261201`。入社可能日は2026年12月1日。契約上のnotice periodそのものは未確認。
+- **SALARY:** `candidate.desired_compensation_jpy` とcompensation target。目標約1,000万円。現在年収・希望基本給の厳格な下限・上限とは混同しない。
+
+公式フォームはAshbyの公開 `ApiJobPosting` queryとNICE/Greenhouseの埋め込み定義から読み取る。mutationや応募APIは使わない。求人URLと現行フォームの状態は各原稿に記録する。入力方式・必須/任意は取得したschemaに基づき、同意や個人情報の未確認を任意・falseへ置換しない。
+
+検証: 質問一覧との対応、事実の出典、未確認事項の明示、連絡先/secret非掲載、変更path、diffチェック、公式CI、main上の5ファイルを確認する。アプリのビルド・追加テスト・応募提出は行わない。
