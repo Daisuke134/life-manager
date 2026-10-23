@@ -9,6 +9,7 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+from types import SimpleNamespace
 import urllib.request
 
 import pytest
@@ -123,7 +124,7 @@ def _browser(module, monkeypatch, *, snapshot=None, snapshots=None, failure=None
     monkeypatch.setattr(cdp, "_browser_call", call)
     monkeypatch.setattr(cdp, "evaluate", evaluate)
     monkeypatch.setattr(module, "_load_cdp", lambda: cdp)
-    monkeypatch.setattr(module.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(module, "time", SimpleNamespace(sleep=lambda *_: None))
     return cdp, events
 
 
