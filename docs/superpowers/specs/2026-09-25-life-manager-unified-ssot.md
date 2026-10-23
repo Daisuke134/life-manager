@@ -342,7 +342,7 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 自然実行受入: lancers-revenue-work-syncはd8e4578c/run18e143af6474c8a8-49586/20:50:11Z/report/exit0/pass/effectnot_applicable、retryable=false/nextnone、admission未知false。provider receipt/公式成果は無し。Coconala snapshotのa93a3a78/reportpassは24桁install型runのため自然provider成果とは扱わない。後のhost snapshotはswap14,714.12MiB/free8,139,366,400bytesまで悪化し、別時点receiptではfree6,119,342,080bytes。未知記録や他ownerを削除/中断せず、物理回復は未完とする。
 
-順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはCAPACITY-RED。
+順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはCAPACITY-ACTUAL。
 
 原因と最小変更: 既存cleanupのbefore_initial_open_probe/二回目probe前の固定15秒＋後処理reserve判定はnative lsofの最大timeoutを最低予約時間と扱う。15秒はCLOSED証明条件ではなく、完了したrc/stderr/open-path集合が証拠である。native _open_paths/_default_lsofのtimeoutをmin(既存15秒, deadline-now-reserve)へ渡し、正の残時間だけ開始する。timeout/OSError/不明は保持し、両回fresh snapshot・二段confirmed-closed・probe後/削除前deadlineとreserve確認・owner/path保護を維持する。注入lsof(path)契約と他cleanup種類は変えず、新framework/floor/直接cache削除を追加しない。clangの既存probe-errorはclass/codeがNoneへ畳まれ復元不能であり、全エラーをbudgetと断定しない。
 
@@ -352,6 +352,8 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 - [x] CAPACITY-GREEN: nativeだけ残時間timeoutを渡し、二段fresh snapshot/confirmed-closedとreserve確認を維持する。workerは新規5条件＋既存fresh/遅延probeの7 PASS、cleanup関連4files 253 PASS（39.40s）、assert強化後の新規5条件も5 PASS。primaryは隔離HOME/実通信禁止で同4files 253 PASS（33.02s）、AST2files/source-boundary/diff PASS。独立fresh read-only reviewはblocking0/SHIP、実helperのAST抽出による残時間5.0→4.9/cache_clear/時間0/注入1引数等7assert PASS。sparse import closureは指定bin/config/runtime/cleanup＋自動skills/_sharedで閉じる。実cleanup/制御/private/provider操作は0、source acceptanceだけで本番容量回復とは扱わない。
 - [x] CAPACITY-SHIP: PR #8781/headbb5ccd126629d3cc5ecf579ff68c773cef6dafeb、workflow40024159021全13項目成功、main6b3b45d534b7ca0695799ee05d3d73d99938886eへ統合する。source/test/本仕様のGitHub公式blobはhead/main全3一致。独立review blocking0。
 - [ ] CAPACITY-ACTUAL: accepted mainから既存sparse cut（bin/config/runtime/cleanupと必要shared依存、current変更0）でwatchdogに必要なimmutableを作り、同じinstallerで対象1件だけ採用する。Lancers5jobsのALL d8e release/既存bundle/他ownerを保持し、自然receiptと容量/業務待機を照合する。Sparseは既存機構であり、全依存再installや容量guard低下で代用しない。
+
+CAPACITYの反映実結果: accepted d8e cutterからmain6b3b45d5を既存sparse allowlistでexportし、12.42s/exit0/current変更0、ROOT=~/.local/share/life-manager/watchdog-acceptance/cache-deadline/releases/20261024T061519-6b3b45d5、main祖先/readonly/source blob一致を確認する。exportにprotected entry0、npm依存再install無し、stderr310bytesは未分類（失敗を0件と断定しない）。同releaseのsafe preflight PASS/mutation_allowed=true/errors0後、既存installerを1回実行し0.44s/exit0/stderr0。adoption開始epoch1792790173.665547、直前receipt mtime1792790092.2291079。native公式readbackはrunning/PID有り/runs1/60s、plistはProgramArgumentsだけ更新し他field全保持。自然receiptはまだ未確認、unbound設計のowner/release/run ID欠損の限界を保持する。
 
 INSTALL-REUSEの次TODO（source推論、実再install失敗の証拠ではない）: currentを変えない公開導入では、次SHA更新時に既存full release/bundlesがあってもfresh容量分岐が全依存を再予算化する。次の容量回復後、current無し/既存有効donorの最小回帰で確認し、初回導入・不正current拒否を保持して再利用へ接続する。
 
