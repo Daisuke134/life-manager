@@ -115,6 +115,8 @@ flowchart LR
 
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
+**agent側の次の具体的な接続点:** mainには既にtyped advice／kernelと検証済み候補の公開経路があり、研究branchの `ampersand_api.py`、`provider_sessions.py`、`provider_budget.py`、`provider_deadline.py` をコピーするだけでは、その経路で推論は動かない。任意の助言接続には、既存 `PrivateCheckpoint` が保存する `cycle.sqlite` にsession intentと予算予約を結び、外部送信より先にcheckpointのACKを得る必要がある。別SQLiteをfresh runnerの隣へ置くだけでは復元されない。既存のUNKNOWN隔離・同じsessionのreadback・予算／期限・strict parserを再利用し、実際の公開sourceに結び付く課題で非介入・単純ルールと比較する。fictional labのpromptを実世界の判断と表示せず、モデルのPROPOSEを権限やpublisher packetへ変換しない。現在のdeterministic selectorとcurrent-page cueを保持し、実行候補は既存のsource／scope／browser／CAS検証を通す。この接続は未実装・未稼働であり、E16のページ配信実績から推論の運用完了を推定しない。
+
 再現可能な利用 → 同条件の比較 → 薄い接続／具体的な改善 → 証拠と失敗の共有 → 相手固有の技術的な問い、の順で学ぶ。記事やpodcastは後でその成果を伝える手段にする。以下の研究者・創業者は出典で確認する学習先であり、現時点の友人・提携先・紹介者を意味しない。関係、応募、返信、出演、offerにはそれぞれ実際の確認が必要。具体的な再利用と人名は§12および[研究者map](research/RESEARCHER_PUBLIC_SOURCE_MAP.md)を参照。
 
 | 学ぶ相手と成果 | 既存成果をどう使うか／現在の状態 | 具体的な技術的な問いと一次出典 |
