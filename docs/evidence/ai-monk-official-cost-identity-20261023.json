@@ -1,0 +1,128 @@
+{
+  "observed_at": "2026-10-23T11:35:48.815015+00:00",
+  "run_id": "ai-monk-cost-identity-readback-20261023",
+  "owner_id": "S11-ai-monk-operator",
+  "occurrence_id": null,
+  "release_sha": "d41feb337c9635690ff2a64af01ea899e92a5957",
+  "phase": "official_cost_and_identity_readonly",
+  "command": [
+    "GET /v1/pacific/movio_bill.list",
+    "GET /v1/api_usage/daily_breakdown",
+    "GET /v3/users/me"
+  ],
+  "exit_code": 0,
+  "effect": "read_only",
+  "readback": {
+    "bill_rows": [
+      {
+        "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+        "provider_bill_row_id": "fcb1c6ae93d947dcb503718f0b8bc7a6",
+        "action_id_matches": true,
+        "credit": 31,
+        "display_value": 0.5167,
+        "amount_source": "list_rate",
+        "amount_micro_usd": 516667,
+        "request_source": "cli:api_key",
+        "provider_writes": 0,
+        "cash_debit_verified": false,
+        "payment_transaction_id": null
+      },
+      {
+        "video_id": "b7bed467c0deeb3c3cc00a041a9e9a13",
+        "provider_bill_row_id": "33d5f011c1164c8ca427cf29f2c78737",
+        "action_id_matches": true,
+        "credit": 31,
+        "display_value": 0.5167,
+        "amount_source": "list_rate",
+        "amount_micro_usd": 516667,
+        "request_source": "api_key",
+        "provider_writes": 0,
+        "cash_debit_verified": false,
+        "payment_transaction_id": null
+      }
+    ],
+    "usage_totals": [
+      {
+        "start_ts": 1791504000,
+        "totals": {
+          "is_complete": false,
+          "credits_by_feature": {
+            "api": 31
+          },
+          "unpriced_credits_by_feature": {
+            "api": 31
+          },
+          "display_credits": 0.52,
+          "bill_rows": 1,
+          "items": 1
+        },
+        "is_truncated": false
+      },
+      {
+        "start_ts": 1792713600,
+        "totals": {
+          "is_complete": false,
+          "credits_by_feature": {
+            "api": 31
+          },
+          "unpriced_credits_by_feature": {
+            "api": 31
+          },
+          "display_credits": 0.52,
+          "bill_rows": 1,
+          "items": 1
+        },
+        "is_truncated": false
+      }
+    ],
+    "identity_metadata": {
+      "observed_at": "2026-10-23T11:31:59.055032+00:00",
+      "operation": "correct_owned_heygen_identity_metadata",
+      "service_exact_match_count": 1,
+      "browser_bill_and_api_account_match": true,
+      "owned_credential_identity_match": true,
+      "updated_fields": [
+        "email",
+        "username",
+        "updated_at"
+      ],
+      "api_key_changed": false,
+      "other_credentials_changed": false,
+      "credential_file_mode": "0o600",
+      "fresh_api_auth_http_status": 200,
+      "fresh_api_identity_match": true,
+      "login_submissions": 0,
+      "provider_writes": 0,
+      "new_generation": 0
+    },
+    "api_wallet_config_readonly": {
+      "auto_reload_enabled": true,
+      "auto_reload_threshold": 5,
+      "auto_reload_amount": 10,
+      "has_auto_reload_failures": true,
+      "auto_reload_available": true
+    },
+    "per_video_cost_cap_verified": false
+  },
+  "provider_receipt_id": "fcb1c6ae93d947dcb503718f0b8bc7a6",
+  "error_class": "official_usage_remains_unpriced",
+  "retryable": false,
+  "next_action": "obtain_official_priced_wallet_debit_or_equivalent_transaction; preserve_existing_asset_reuse_and_new_generation_guard",
+  "new_generations": 0,
+  "publication_requests": 0,
+  "wallet_cost": null,
+  "evidence_refs": [
+    {
+      "name": "ai-monk-heygen-browser-bill-private-20261023.json",
+      "sha256": "d474015be6417caa3a6bb8f742d3ffc708de121590db17121cd95af93896a779"
+    },
+    {
+      "name": "ai-monk-heygen-browser-usage-private-20261023.json",
+      "sha256": "edbd30d809a3c545b9168cb936ebeba716300ccba3ab422f627ec8b6765913fc"
+    },
+    {
+      "name": "ai-monk-heygen-identity-metadata-proof-20261023.json",
+      "sha256": "3443a09d245fc235eed2142c77efe0b94e483f1a546e40e465d2bdb208ce9659"
+    }
+  ]
+}

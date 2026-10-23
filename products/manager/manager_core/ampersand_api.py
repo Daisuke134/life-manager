@@ -6,6 +6,7 @@ Failure/unknown states must not be retried as if no work had happened.
 from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
+from importlib import metadata
 import json
 import re
 from typing import Any
@@ -13,6 +14,7 @@ from .provider_deadline import bounded_provider_call, observe_event, mark_follow
 
 BASE_URL = "https://ampersand.humansand.ai/v1"
 MODEL = "ampersand-v0.1"
+OPENAI_SDK_VERSION = "3.24.0"
 DEFAULT_INSTRUCTIONS = (
     "You are a research-only, advisory collaboration model. "
     "Never claim to have executed, authorized, verified or measured an action. "
@@ -48,9 +50,15 @@ def make_client(key: str, *, timeout: float = 120) -> Any:
     if type(timeout) not in (int, float) or not 5 <= timeout <= 180:
         raise ValueError("bounded request timeout required")
     try:
+        installed_version = metadata.version("openai")
+    except metadata.PackageNotFoundError:
+        raise SessionFailure("openai==3.24.0 is required for live inference") from None
+    if installed_version != OPENAI_SDK_VERSION:
+        raise SessionFailure("openai==3.24.0 is required for live inference")
+    try:
         from openai import OpenAI  # optional dependency, never imported by offline Manager
-    except ImportError as exc:
-        raise SessionFailure("openai==3.24.0 is required for live inference") from exc
+    except ImportError:
+        raise SessionFailure("openai==3.24.0 is required for live inference") from None
     return OpenAI(base_url=BASE_URL, api_key=key, max_retries=0, timeout=timeout)
 
 

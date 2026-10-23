@@ -48,6 +48,13 @@ behavior. This repository change does not establish those live facts.
 
 ## Optional checkpointed advisory provider
 
+An explicitly approved host may add the optional direct SDK dependency with
+`python -m pip install -r requirements-ampersand.txt` from `products/manager`.
+The adapter checks installed distribution metadata and accepts exactly
+`openai==3.24.0` before constructing a client. This file pins only the direct
+SDK dependency; it does not lock transitive packages or install the SDK in CI
+or in the scheduled owner.
+
 The `manager_core.owned_provider.CheckpointedProvider` callable adapter can
 connect an already acquired `PrivateCheckpoint` to the optional Ampersand
 session journal and budget ledger. Both SQLite stores live in that exact
