@@ -1,5 +1,9 @@
 # HelpSteer2 fixed-adapter dev8/final16 comparison plan
 
+**現在（2026-10-23 UTC）:** 評価科学sourceは学習前の19:59:07.182754Zに採択・freeze済み。親の[有限PRIVATE SFT](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)は正常終了・完全保存を独立検証し、rootが20:16:39.598466Zに単一adapterを新規採点前に固定した。薄い評価core/CLI/testsはcommit `3acd0cea9ed49e21e5720d8ea8b3a86280b260bf` に実装済み。focused22件と修正後full1145件（skip5、30.498秒、exit0）、fresh Task2 review 0 findings / SPEC・QUALITY PASSを確認した。私有review `task-2-review.md` SHA256 `763de37e9e21f45c7c6d4ea30aab2663b478d5f3717ec69c8b4e3f3c568da687`。これはsynthetic検証・静的reviewで、実native parityの証明ではない。別の最終統合review、exact-source公式CI、実resource・外部root所有0400 bindingsとG7実判断は未受入。実target-model dev8/final16採点は **NOT_RUN / G7 NOT_ACCEPTED**。全V002/V003・live/便益は未完のまま。
+
+以下の冒頭とTask1は先行metadata準備時点の記録で、PENDINGを現在の科学source採択状態や永久的な実行拒否へ読み替えない。現在の実行authorityは別G7の外部実受入で判断する。
+
 2026-10-23。PRIVATE prospective metadata only; actual root conditional evaluation-purpose decision recorded at `2026-10-23T19:47:06.592037+00:00`, receipt SHA `d3e24df1088b389788e05a09440c2fb485d53b14392d3a2a1bfbb920beaf156a`; exact scientific source adoption/freeze and G7 execution remain PENDING. No training/scoring authority. Reuse [finite SFT scope](../specs/2026-10-23-finite-private-sft-research-start.md), [parent plan](2026-10-23-helpsteer2-private-sft.md), [frozen scientific parent](../../experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json), [shared manifest](../../experiments/behavior-model/helpsteer2-train27-manifest-v1.json) and [new comparison protocol](../../experiments/behavior-model/helpsteer2-fixed-adapter-eval-protocol-v1.json). This plan creates no trainer, evaluation engine, source registry or SSOT; root owns canonical metadata/tasks/counts.
 
 ## Task1 — private metadata, actual root purpose decision and scientific source freeze
