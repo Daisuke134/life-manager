@@ -1327,11 +1327,111 @@
     "production_activation": false,
     "completed_scope": "User-configured offline plan only; no auth or provider existence validation",
     "remaining": [
-      "Generation and publication execution entry",
+      "Live generation/publication acceptance; local render source acceptance is recorded separately",
       "Cost reconciliation and actual paid orders",
       "Other-user installation",
       "Factory MCP",
       "Hosted subscription"
     ]
+  },
+  "factory_user_config_render_source_acceptance": {
+    "observed_at": "2026-10-23T08:45:25.913587+00:00",
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8658",
+    "source_head": "04b8d8be5c59f7a256cc2dc319d53747dae151aa",
+    "main_commit": "dfa0dc02e8ad240ccb854466aff92c61218159c2",
+    "checks": {
+      "exact_head_success": 13,
+      "sec_scan_run": "39925919453",
+      "focused_tests_passed": 111,
+      "fresh_read_only_findings": 0,
+      "independent_focused_tests_passed": 111,
+      "loop_contract_businesses": 18,
+      "loop_contract_jobs": 192,
+      "loop_contract_errors": 0
+    },
+    "candidate_release": "/Users/anicca/loops/releases/20261023T174411-dfa0dc02",
+    "release_paths": "ALL",
+    "critical_source_matches_review_and_main": true,
+    "critical_source_hashes": {
+      "skills/earn/marketing-engine/bin/lm": "76fc9f94a258ba408188d603daa0b2cacb873962f372f27b36c5403c469e3d08",
+      "skills/earn/marketing-engine/factory_render.py": "f3a6a84fdada8422786de7003e3710984fb33f77856ba3bfbd264ea0d4af6eb2",
+      "skills/earn/marketing-engine/factory_plan.py": "4c56be4231a0b1a0f24f54ceebda4be8cbb0002afc481bbd8a9cda5a91dbf183",
+      "skills/earn/marketing-engine/ebook_distribute_daily.py": "ee9d3f79fce3987f7baca96a09b77cd9f1d155aedc40f74cd88baaa3a302cd11",
+      "skills/earn/marketing-engine/ebook_runner.py": "8eeb5094a17e5c2df96f8ca8072e47c5b2f13f4679e529ccb7b5870dec4d5b17",
+      "skills/earn/marketing-engine/render_eval/heygen_candidate.py": "a03166ff0523ac3bd58be85d0f338dc3caa5362f091b2e3c57544870e62a9a8d",
+      "runtime/host/disk_admission.py": "214054f51c7730a712405e0e112f8a0a8f57437ee4b1cddf344c0823d83ef85e",
+      "skills/earn/marketing-engine/README.md": "4c08404b1ac223f5af7cb74a578f7339a9e1e55642191d361671360ed31e07ee"
+    },
+    "sealed_entry_count": 11370,
+    "writable_entries": 0,
+    "actual_cli_help_exit_codes": [
+      0,
+      0
+    ],
+    "actual_existing_host_gate": {
+      "host_disk_admission": true,
+      "observed_children": [
+        [
+          "/opt/homebrew/opt/python@3.14/bin/python3.14",
+          "/Users/anicca/loops/releases/20261023T174411-dfa0dc02/runtime/host/disk_admission.py",
+          "/opt/homebrew/opt/python@3.14/bin/python3.14",
+          "-c",
+          "pass"
+        ]
+      ],
+      "render_entry_invoked": false,
+      "provider_calls": 0,
+      "network_allowed": false
+    },
+    "available_bytes_snapshot": 14338805760,
+    "private_evidence_file": "ai-monk-factory-render-release-proof-20261023.json",
+    "private_evidence_sha256": "f8a9191d2b53561e8c635e9b4f943b80914fe1beaf85aeae8bd4fb433e0b3596",
+    "shared_current_readonly": "/Users/anicca/loops/releases/20261023T170529-247474a9",
+    "production_activation": false,
+    "live_render_invoked": false,
+    "new_generation": 0,
+    "new_publication": 0,
+    "completed_scope": "Local user-configured render source, shared account lock/cost fence, host gate and exact main-derived fixed release. No live provider generation.",
+    "remaining": [
+      "User publication context through existing IntentStore/PostizAdapter",
+      "Existing unknown cash cost reconciliation",
+      "Pre-render USD cap and daily autonomous cost controls",
+      "Natural daily publication and actual paid delivery/orders",
+      "Other-user installation",
+      "Factory MCP",
+      "Hosted subscription"
+    ]
+  },
+  "native_capacity_after_render_source_acceptance": {
+    "recorded_at": "2026-10-23T08:46:31.050989+00:00",
+    "owner_id": "ebook-en-tiktok-daily",
+    "release_sha": "247474a9df537bc863a2b970a91df8d9111af576",
+    "operation": "read_only_capacity_snapshot",
+    "target_resource_class": "deterministic",
+    "database_open_mode": "ro",
+    "production_state_mutations": 0,
+    "occupied_total": 10,
+    "finite_cap": 10,
+    "occupied_agent": 4,
+    "agent_cap": 4,
+    "revenue_resource_cap": 5,
+    "pure_capacity_available": false,
+    "free_bytes": 14342651904,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": true,
+    "target_queue_count": 1,
+    "target_claimed_or_unknown": 0,
+    "target_queue_rank": 40,
+    "target_next_eligible_at": 0.0,
+    "target_cooldown_remaining_seconds": 0,
+    "target_has_valid_reservation": false,
+    "ordered_resource_waiters": 48,
+    "queue_head_owner": "verify-loops-audit",
+    "fifo_eligible_without_reservation": false,
+    "eligible_for_one_native_attempt": false,
+    "private_evidence_file": "ai-monk-native-capacity-readonly-20261023-1792745186764153000.json",
+    "private_evidence_sha256": "d1e627daa37112489ceceb8ecabd5d91bd2afb0fb583f7809b14e18611a7ec1c",
+    "manual_attempt_count": 3,
+    "fourth_manual_requested": false
   }
 }
