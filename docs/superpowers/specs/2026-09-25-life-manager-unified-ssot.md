@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=ops/lancers-first-release-acceptance-20261024、base=d8e4578c9e2aaec0639d0fb766df262acdb388d2（最新main由来の所有worktreeを継続する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのREADY-B。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/disk-cache-probe-deadline-20261024、base=23cce9dc021e3376debf7e0b1738eaa4d3413500（最新mainを通常mergeし、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのCAPACITY-RED。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -335,6 +335,25 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 限定手順: accepted ALL/readonly d8e4578cのskills/self/disk-cleanup/install-launchd.shを1回実行し、既存launchctl-safe preflight→対象com.anicca.disk-watchdogだけの再登録→program/argv一致readbackを使う。workerの独立read-only比較で実行先以外のplist fieldsは全一致（env/cadence/log/WorkingDirectory変更不要）、新script/helper/safeは全て実行可能と確認する。他owner、Mac/loginwindow/app-server、閾値、fenceを変更せず、新しいcleanup機構や直接cache削除を作らない。
 
 受入: 登録先/実行状態と新しい自然receiptのmtime、errors/protected_deletions/reclaimed/free_before/afterを読み、先のstale記録や登録だけを回収成功にしない。既存cache保護と未確認effect fenceは保持する。
+
+#### RUNTIME-CAPACITYのbounded修復
+
+既存watchdog復旧の実結果: 独立read-only review blocking0後、accepted d8e4578cの既存install-launchd.shを1回実行しexit0/0.4s、argvは同immutableのbin/disk-watchdog.shと一致、他plist fields全保持。safe公式readbackはrunning/PID有り/runs1/cadence60s。新自然receiptは20:49:56Zと20:51:45Zの2回でerrors0/protected_deletions0、cursor8→9→10。回収はlogical4,371,568/1,103,072bytes、物理freeは増えず、容量回復を達成としない。native receiptは設計上unboundでowner/release/run IDを持たない限界も保持する。
+
+自然実行受入: lancers-revenue-work-syncはd8e4578c/run18e143af6474c8a8-49586/20:50:11Z/report/exit0/pass/effectnot_applicable、retryable=false/nextnone、admission未知false。provider receipt/公式成果は無し。Coconala snapshotのa93a3a78/reportpassは24桁install型runのため自然provider成果とは扱わない。後のhost snapshotはswap14,714.12MiB/free8,139,366,400bytesまで悪化し、別時点receiptではfree6,119,342,080bytes。未知記録や他ownerを削除/中断せず、物理回復は未完とする。
+
+順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはCAPACITY-RED。
+
+原因と最小変更: 既存cleanupのbefore_initial_open_probe/二回目probe前の固定15秒＋後処理reserve判定はnative lsofの最大timeoutを最低予約時間と扱う。15秒はCLOSED証明条件ではなく、完了したrc/stderr/open-path集合が証拠である。native _open_paths/_default_lsofのtimeoutをmin(既存15秒, deadline-now-reserve)へ渡し、正の残時間だけ開始する。timeout/OSError/不明は保持し、両回fresh snapshot・二段confirmed-closed・probe後/削除前deadlineとreserve確認・owner/path保護を維持する。注入lsof(path)契約と他cleanup種類は変えず、新framework/floor/直接cache削除を追加しない。clangの既存probe-errorはclass/codeがNoneへ畳まれ復元不能であり、全エラーをbudgetと断定しない。
+
+所有: workerはskills/self/disk-cleanup/disk_cleanup.pyと同tests/test_disk_cleanup.pyのnative timeout/回帰のみ、primaryは本仕様・統合/review/CI・main由来sparse immutableによる既存watchdog1件の採用/自然receiptを所有する。他者編集を戻さず、開発中の実cleanup/制御/削除/リンク差替えは禁止。
+
+- [ ] CAPACITY-RED: deadline10/reserve5でnative即時CLOSED2回が固定15秒予約により開始されないことを再現する。残時間不足、初回/二回目timeout、probe後時間超過は削除0のまま保つ。
+- [ ] CAPACITY-GREEN: nativeだけ残時間timeoutを渡し、既存cache/guard/recurrence関連testsを確認する。
+- [ ] CAPACITY-SHIP: 独立review/既存CI/main/公開source一致を確認する。
+- [ ] CAPACITY-ACTUAL: accepted mainから既存sparse cut（bin/config/runtime/cleanupと必要shared依存、current変更0）でwatchdogに必要なimmutableを作り、同じinstallerで対象1件だけ採用する。Lancers5jobsのALL d8e release/既存bundle/他ownerを保持し、自然receiptと容量/業務待機を照合する。Sparseは既存機構であり、全依存再installや容量guard低下で代用しない。
+
+INSTALL-REUSEの次TODO（source推論、実再install失敗の証拠ではない）: currentを変えない公開導入では、次SHA更新時に既存full release/bundlesがあってもfresh容量分岐が全依存を再予算化する。次の容量回復後、current無し/既存有効donorの最小回帰で確認し、初回導入・不正current拒否を保持して再利用へ接続する。
 
 #### Lancers本人入力の実装計画
 
