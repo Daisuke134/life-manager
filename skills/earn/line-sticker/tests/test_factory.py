@@ -426,5 +426,52 @@ class CostCap(unittest.TestCase):
             self.assertEqual(report["reason"], "cost_cap_exceeded")
 
 
+class ExpiredCampaignIsDroppedBeforeSubmit(unittest.TestCase):
+    def test_submit_drops_a_campaign_whose_deadline_passed(self) -> None:
+        # set-042 (2026-10-14 → 10-23): the autumn feature closed while submit was blocked, and every
+        # wake re-raised campaign_snapshot_stale instead of filing the set as a plain listing.
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            set_dir = state_root / "set-001"
+            set_dir.mkdir()
+            MODULE.write_stage(set_dir, "submit")
+            yesterday = (datetime.datetime.now(MODULE.JST) - datetime.timedelta(days=1)).date().isoformat()
+            (set_dir / "select.json").write_text(json.dumps({
+                "order": ["m0"], "main": "m0", "tab": "m0", "taste_id": "1", "character_category_id": "16",
+                "campaign_value": "811", "campaign_theme_ids": ["m0"],
+                "campaign_requirements": {"deadline": yesterday, "value": "811", "title": "秋"}}))
+            (set_dir / "listing.json").write_text(json.dumps({"title": {"ja": "t", "en": "t"}}))
+            (set_dir / "tags.json").write_text("{}")
+            (set_dir / "plan.json").write_text("{}")
+            seen = {}
+            def fake_submit(set_dir, item, listing, tags):
+                seen.update(json.loads((set_dir / "select.json").read_text()))
+                return {"product_id": "1", "state": "review_requested"}
+            MODULE.wake(state_root, _fake_deps(submit=fake_submit))
+            self.assertIsNone(seen["campaign_value"])
+            self.assertEqual(seen["campaign_theme_ids"], [])
+            events = [json.loads(l) for l in (state_root / "factory-events.jsonl").read_text().splitlines()]
+            self.assertTrue(any(e.get("status") == "campaign_expired_dropped" for e in events), events)
+
+    def test_submit_keeps_an_open_campaign(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            set_dir = state_root / "set-001"
+            set_dir.mkdir()
+            MODULE.write_stage(set_dir, "submit")
+            tomorrow = (datetime.datetime.now(MODULE.JST) + datetime.timedelta(days=1)).date().isoformat()
+            (set_dir / "select.json").write_text(json.dumps({
+                "order": ["m0"], "main": "m0", "tab": "m0", "campaign_value": "835", "campaign_theme_ids": ["m0"],
+                "campaign_requirements": {"deadline": tomorrow, "value": "835", "title": "冬"}}))
+            for name in ("listing.json", "tags.json", "plan.json"):
+                (set_dir / name).write_text("{}")
+            seen = {}
+            def fake_submit(set_dir, item, listing, tags):
+                seen.update(json.loads((set_dir / "select.json").read_text()))
+                return {"product_id": "1", "state": "review_requested"}
+            MODULE.wake(state_root, _fake_deps(submit=fake_submit))
+            self.assertEqual(seen["campaign_value"], "835")
+
+
 if __name__ == "__main__":
     unittest.main()

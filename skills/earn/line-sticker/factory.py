@@ -399,7 +399,30 @@ def run_package(set_dir: Path, deps: Deps) -> str:
     return "submit"
 
 
+def _drop_expired_campaign(set_dir: Path) -> None:
+    """A feature whose deadline passed while the set waited (set-042: login expired 10-14, feature 811
+    closed 10-19) can never be filed; every wake raised campaign_snapshot_stale. File it as a plain
+    listing instead and say so in the events."""
+    selection = _read_json(set_dir / "select.json") or {}
+    deadline = (selection.get("campaign_requirements") or {}).get("deadline")
+    if not selection.get("campaign_value") or not deadline:
+        return
+    try:
+        expired = datetime.date.fromisoformat(str(deadline)) < datetime.datetime.now(JST).date()
+    except ValueError:
+        return
+    if not expired:
+        return
+    _atomic_write_json(set_dir / "select.json", dict(selection, campaign_value=None, campaign_theme_ids=[],
+                                                     campaign_dropped={"value": selection["campaign_value"],
+                                                                       "deadline": deadline,
+                                                                       "reason": "deadline_passed"}))
+    append_event(set_dir.parent, {"set": set_dir.name, "stage": "submit", "status": "campaign_expired_dropped",
+                                  "campaign_value": selection["campaign_value"], "deadline": deadline})
+
+
 def run_submit(set_dir: Path, deps: Deps) -> str:
+    _drop_expired_campaign(set_dir)
     listing = _read_json(set_dir / "listing.json")
     tags = _read_json(set_dir / "tags.json")
     plan = _read_json(set_dir / "plan.json")

@@ -15,6 +15,12 @@ SPEC.loader.exec_module(MODULE)
 
 
 class MemoryAdmissionTests(unittest.TestCase):
+    def setUp(self):
+        # Host swap is a real signal on the developer Mac; pin it unless a test sets its own.
+        patcher = patch.object(MODULE, "swap_used_mb", return_value=0.0)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_parse_memory_pressure_percentage(self):
         self.assertEqual(
             MODULE.parse_free_percent(
@@ -33,6 +39,7 @@ class MemoryAdmissionTests(unittest.TestCase):
                     "LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": "15",
                 }, clear=True),
                 patch.object(MODULE, "memory_free_percent", return_value=9),
+                patch.object(MODULE, "swap_used_mb", return_value=0.0),
                 patch.object(MODULE.os, "execvpe") as execute,
             ):
                 self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
@@ -41,6 +48,34 @@ class MemoryAdmissionTests(unittest.TestCase):
             self.assertEqual(row["reason"], "memory_headroom_low")
             self.assertEqual(row["free_percent"], 9)
             self.assertEqual(row["effect"], 0)
+
+    def test_parse_swap_used_mb(self):
+        self.assertEqual(MODULE.parse_swap_used_mb(
+            "vm.swapusage: total = 17152.00M  used = 16625.94M  free = 526.06M  (encrypted)\n"), 16625.94)
+        self.assertIsNone(MODULE.parse_swap_used_mb("unexpected"))
+
+    def test_swap_pressure_defers_even_when_free_percent_looks_healthy(self):
+        # 2026-10-23 21:30 JST: memory_pressure -Q read 29-31% free while swap sat at 15.7-18.1 GB
+        # on a 16 GB Mac mini, ate the boot volume to 300 MiB, and 84 lm_loop_run wakes piled up.
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "memory.json"
+            with (
+                patch.dict(os.environ, {
+                    "LIFE_MANAGER_MEMORY_RECEIPT": str(receipt),
+                    "LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": "15",
+                    "LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM": "75",
+                }, clear=True),
+                patch.object(MODULE, "memory_free_percent", return_value=30),
+                patch.object(MODULE, "swap_used_mb", return_value=15700.0),
+                patch.object(MODULE, "physical_memory_mb", return_value=16384.0),
+                patch.object(MODULE.os, "execvpe") as execute,
+            ):
+                self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
+            execute.assert_not_called()
+            row = json.loads(receipt.read_text(encoding="utf-8"))
+            self.assertEqual(row["reason"], "swap_pressure_high")
+            self.assertEqual(row["swap_used_mb"], 15700.0)
+            self.assertEqual(row["swap_limit_mb"], 12288.0)
 
     def test_healthy_headroom_executes_child(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -51,6 +86,7 @@ class MemoryAdmissionTests(unittest.TestCase):
                     "LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": "15",
                 }, clear=True),
                 patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "swap_used_mb", return_value=0.0),
                 patch.object(MODULE.os, "execvpe", side_effect=SystemExit) as execute,
             ):
                 with self.assertRaises(SystemExit):

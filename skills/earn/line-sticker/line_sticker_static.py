@@ -134,7 +134,13 @@ format_gap に一言で記録する（無ければ null）。
 - main_id / tab_id: stickersの中からメインアイコン・タブアイコンにふさわしいidを選ぶ。
 - listing: title/descriptionを日本語・英語の両方で。キャラ名と「スタンプ」を含め、動く系と
   重複しないタイトルにする（既存タイトルと重複すると申請できない）。with_text なら
-  「<キャラ名>の毎日返事」のような売れ筋の付け方にする（【文字入り】の表記は自動で付く）。
+  日本語タイトルは「カワウソのぽか太の<場面>【毎日使える】」型にする（キャラがカワウソ以外なら
+  「<キャラ名>の<場面>【毎日使える】」）。<場面>はテーマを一言で（年末年始・あいさつ・仕事 等）。
+  日本語タイトルは【毎日使える】込みで全角19文字以内（LINE の上限）。収まらないときは「カワウソの」を
+  省いて「ぽか太の<場面>【毎日使える】」にし、<場面>も短くする（例: 年末年始のあいさつ→年末年始）。
+  【毎日使える】で終わるタイトルには【文字入り】を重ねない（自動付与は【…】で終わるタイトルを除く）。
+- 優先テーマ（2026-12-22まで）: 年末年始（年末のあいさつ・大掃除・クリスマス・年越し・あけおめ・お正月）を
+  優先し、このキャラクターの年末年始テーマが既存セットに3件そろうまで続ける（既存セットの theme を数えて判断）。
 - campaign_value: 参加できる特集が下の open_features にあり、この新規40個・¥190の商品が条件を満たす場合だけ、
   その value をそのまま選ぶ。campaign_theme_idsには条件に合う絵のidだけを入れ、必要数+4個に届かない場合、
   または条件に合う特集が無い場合は campaign_value=null、campaign_theme_ids=[] にする。
@@ -192,7 +198,16 @@ def mark_text_listing(listing: dict, marks: dict = TEXT_MARK) -> dict:
     for lang, title in listing["title"].items():
         mark = marks.get(lang, marks["en"])
         base = _clean(title)
+        # A title that already ends in a mark keeps that mark: either ours (idempotent) or its own
+        # 【…】 (title type 2026-10-23: 「…【毎日使える】」; a second mark would not fit). The body in
+        # front of it is still fitted: set-043 (48554244) was filed as "…返事スタンプ【文字入" because
+        # the planner wrote 【文字入り】 itself and the 44-unit title went to submit untouched.
         if base.endswith(mark.strip()):
+            base = base[: -len(mark.strip())].rstrip()
+        elif lang == "ja" and base.endswith("】") and "【" in base:
+            mark = base[base.rfind("【"):]
+            base = base[: base.rfind("【")].rstrip()
+        if _title_units(base + mark) <= TITLE_MAX and base + mark == _clean(title):
             titles[lang] = title
             continue
         limit = TITLE_MAX - _title_units(mark)
