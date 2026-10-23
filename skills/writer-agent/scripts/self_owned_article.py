@@ -618,8 +618,7 @@ def resume_publication(
             )
             commit = result["commit"]
         else:
-            commit = _git(landing_root, "rev-parse", "HEAD")
-            _git(landing_root, "push", remote, f"HEAD:refs/heads/{branch}")
+            commit = push_rebased(landing_root, remote, branch)
         store.record_delivery(commit=commit, remote=remote, branch=branch)
 
     fetch = fetch_markup
@@ -717,8 +716,22 @@ def commit_contract(
     if remote or branch:
         if not remote or not branch or re.fullmatch(r"[A-Za-z0-9._/-]+", branch) is None:
             raise SelfOwnedInvariant("push remote and branch must both be valid")
-        _git(root, "push", remote, f"HEAD:refs/heads/{branch}")
+        commit = push_rebased(root, remote, branch)
     return {"commit": commit, "paths": sorted(allowed), "pushed": bool(remote)}
+
+
+def push_rebased(root: Path, remote: str, branch: str) -> str:
+    """Replay local publication commits onto the remote tip, push, and return the pushed HEAD.
+
+    Other writers push to the same landing branch, so a plain push fails with "fetch first".
+    """
+    try:
+        _git(root, "pull", "--rebase", "-q", remote, branch)
+    except SelfOwnedInvariant:
+        subprocess.run(["git", "-C", str(root), "rebase", "--abort"], capture_output=True)
+        raise
+    _git(root, "push", remote, f"HEAD:refs/heads/{branch}")
+    return _git(root, "rev-parse", "HEAD")
 
 
 def public_receipt_markup(contract: dict) -> str:

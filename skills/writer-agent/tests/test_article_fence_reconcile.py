@@ -1648,7 +1648,7 @@ def test_verify_preview_fatal_line_still_precedes_the_only_publish_post():
     owned = (SCRIPT.parent / "self_owned_article.py").read_text(encoding="utf-8")
     body = owned[owned.index("def resume_publication("):owned.index("def main(")]
     early = body.index('return {"status": "complete", "run_id": contracts[0]["run_id"]}')
-    assert early < body.index("commit_contract(") and early < body.index('"push", remote')
+    assert early < body.index("commit_contract(") and early < body.index("push_rebased(")
 
 
 def test_a_disk_deferred_claim_pairs_from_its_execute_event(tmp_path):

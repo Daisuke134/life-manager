@@ -483,3 +483,36 @@ def test_build_contract_uses_frontmatter_title_when_h1_is_missing():
     markdown = f'---\ntitle: "A viral X post is not a funnel"\n---\n\n{body}\n\n## Paid section\n\npaid body\n'
     contract = module.build_contract(run_id="20260929-010128", lang="en", markdown=markdown)
     assert contract["title"] == "A viral X post is not a funnel"
+
+
+def test_commit_contract_rebases_onto_a_remote_that_moved_ahead(tmp_path):
+    # Production checkout was "ahead 1, behind 42": every push failed with "fetch first".
+    module = soa()
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    landing = tmp_path / "landing"
+    _init_repo(landing)
+    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=landing, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "main"], cwd=landing, check=True)
+    other = tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    for args in (["config", "user.name", "T"], ["config", "user.email", "t@e.invalid"]):
+        subprocess.run(["git", *args], cwd=other, check=True)
+    (other / "unrelated.txt").write_text("x\n", encoding="utf-8")
+    subprocess.run(["git", "add", "unrelated.txt"], cwd=other, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "other"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "main"], cwd=other, check=True)
+
+    contract = module.build_contract(run_id="20260928-132912", lang="ja", markdown=_markdown())
+    module.stage_contracts(landing, [contract])
+    article = f"apps/landing/private/writer-articles/{contract['slug']}.json"
+    result = module.commit_contract(
+        landing, [article, str(module.REGISTRY_RELATIVE)],
+        message="feat(writer): publish self-owned 20260928-132912", remote="origin", branch="main",
+    )
+    remote_head = subprocess.run(["git", "rev-parse", "main"], cwd=remote, check=True,
+                                 text=True, capture_output=True).stdout.strip()
+    assert result["commit"] == remote_head
+    files = subprocess.run(["git", "ls-tree", "-r", "--name-only", remote_head], cwd=remote,
+                           check=True, text=True, capture_output=True).stdout.split()
+    assert article in files and "unrelated.txt" in files
