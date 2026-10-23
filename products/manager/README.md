@@ -53,9 +53,21 @@ python scripts/check_boundaries.py
 認証・状態復元・公開・復元後の重複送信0件という実際の記録が揃うまで、
 ローカルテストの成功だけでE16を完了にしません。
 
+mainの明示的なworkflow dispatchでは、`operation`から`run-once`、`stop`、
+`rollback`、`resume`を選べます。定期実行は`run-once`です。STOPは非公開状態に
+保存され、別runnerでも維持します。rollbackは保存済みv2の現在の変更と元の
+7ファイルだけに限定し、Git CASで照合します。`resume`は現在の公開内容を
+改めて確認してから停止を解除します。配信待ちや不明な結果だけで復元しません。
+
+公式commitと独立した配信確認から得た技術観測は、既存SQLiteへ元の単位で
+記録します。人の結果は`NOT_MEASURED`、欠測はnullのままです。Explorerの
+集計表示はローカル描画機能で、公開サイトへの接続・実観測の受入れは別に確認します。
+
 ## 進捗の正本
 
 このREADMEは実装の入口であり、新しいTODO一覧ではありません。
 順序・状態の正本は [Life Manager統合SSOT](../../docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md)
 です。研究・出版・応募・売上の記録を、人間への便益や持続的な効果の証明に
 読み替えません。
+
+実運用の現在地は [2026-10-23 cloud実行receipt](docs/verification/E16_CLOUD_EXECUTION_20261023.md) を参照してください。gateway/main runtime、初回非公開状態移行、実OIDC復元・更新・解放を確認済みです。初回NO_ACTIONと別fresh runnerのNOT_DUE／重複公開0件を実証しました。正のcanary・停止/復旧・native観測の受入れは継続中です。

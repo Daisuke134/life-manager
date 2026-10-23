@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const { once } = require("node:events");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
@@ -40,6 +41,118 @@ function job(overrides = {}) {
 function tempDataDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "lm-marketing-ledger-"));
 }
+
+test("exact-job operations do not enumerate or read unrelated claim markers", async () => {
+  const dataDir = tempDataDir();
+  const ledger = createMarketingLocalLedger({ dataDir, now: () => "2026-08-21T02:00:00.000Z" });
+  const claimsDirectory = path.join(dataDir, "marketing", "claims");
+  const unrelatedFile = path.join(claimsDirectory, "unrelated.json");
+  fs.mkdirSync(claimsDirectory, { recursive: true });
+  fs.writeFileSync(unrelatedFile, JSON.stringify({
+    schema_version: 1, tenant_id: "other-tenant", job_id: "other-job",
+    attempt: 1, worker_id: "other-worker", lease_expires_at: "2026-08-21T02:03:00.000Z",
+  }));
+  const scans = [];
+  const unrelatedReads = [];
+  const originalReaddir = fs.readdirSync;
+  const originalRead = fs.readFileSync;
+  fs.readdirSync = (directory, ...args) => {
+    if (directory === claimsDirectory) scans.push(directory);
+    return originalReaddir(directory, ...args);
+  };
+  fs.readFileSync = (file, ...args) => {
+    if (file === unrelatedFile) unrelatedReads.push(file);
+    return originalRead(file, ...args);
+  };
+  const id = { tenantId: "dais-local", jobId: "publication-job" };
+  const worker = { ...id, capability: "marketing.video.publish", workerId: "scope-worker", leaseSeconds: 30 };
+  try {
+    assert.equal((await ledger.enqueueJob(job())).created, true);
+    assert.equal((await ledger.enqueueJob(job())).created, false);
+    await ledger.promoteJob({ ...id, confirmation: PROMOTION_CONFIRMATION });
+    const first = await ledger.claimJob(worker);
+    assert.equal((await ledger.readJob(id)).status, "running");
+    assert.ok(await ledger.readCommonJob(id));
+    await ledger.heartbeatJob({ ...worker, attempt: first.attempt });
+    await ledger.failJob({ ...worker, attempt: first.attempt, errorCode: "provider_preflight" });
+    await ledger.retryJob(id);
+    const second = await ledger.claimJob(worker);
+    await ledger.failJob({ ...worker, attempt: second.attempt, errorCode: "provider_unknown", unknownEffect: true });
+    const receipt = { status: "published", public_url: PUBLIC_URL };
+    await ledger.resolveReconciliation({ ...id, attempt: second.attempt, decision: "present", receipt });
+    const corrected = { ...receipt, public_url: "https://www.tiktok.com/@honne_reveal/video/7888888888888888888" };
+    await ledger.correctReceiptDirectUrl({ ...id, confirmation: "CORRECT_CAPTION_MATCHED_DIRECT_URL", receipt: corrected });
+    assert.deepEqual(await ledger.readReceipt(id), corrected);
+    assert.equal((await ledger.enqueueJob(job())).job.status, "completed");
+
+    const completeId = { ...id, jobId: "scope-complete-job" };
+    await ledger.enqueueJob(job({ job_id: completeId.jobId, effect_key: "scope-complete", available_at: "2026-08-21T02:00:00.000Z" }));
+    const completeClaim = await ledger.claimJob({ ...worker, jobId: completeId.jobId });
+    await ledger.completeJob({ ...completeId, workerId: worker.workerId, attempt: completeClaim.attempt, receipt });
+    assert.equal((await ledger.readJob(completeId)).status, "completed");
+    assert.deepEqual(scans, [], "exact-job operations must not enumerate all claim markers");
+    assert.deepEqual(unrelatedReads, [], "exact-job operations must not read unrelated claim markers");
+  } finally {
+    fs.readdirSync = originalReaddir;
+    fs.readFileSync = originalRead;
+  }
+});
+
+test("exact-job reads recover a claim written before its journal event and reject a corrupt target marker", async () => {
+  const dataDir = tempDataDir();
+  const first = createMarketingLocalLedger({ dataDir, now: () => "2026-08-21T02:00:00.000Z" });
+  await first.enqueueJob(job({ available_at: "2026-08-21T02:00:00.000Z" }));
+  const jobsFile = path.join(dataDir, "marketing", "jobs.jsonl");
+  const beforeClaim = fs.readFileSync(jobsFile, "utf8");
+  const id = { tenantId: "dais-local", jobId: "publication-job" };
+  const worker = { ...id, capability: "marketing.video.publish", workerId: "crashed-worker", leaseSeconds: 30 };
+  const claimed = await first.claimJob(worker);
+  fs.writeFileSync(jobsFile, beforeClaim);
+  const claimsDirectory = path.join(dataDir, "marketing", "claims");
+  const targetFile = path.join(claimsDirectory, fs.readdirSync(claimsDirectory)[0]);
+  fs.writeFileSync(path.join(claimsDirectory, "unrelated.json"), "{corrupt unrelated marker");
+
+  const restarted = createMarketingLocalLedger({ dataDir, now: () => "2026-08-21T02:00:10.000Z" });
+  const recovered = await restarted.readJob(id);
+  assert.equal(recovered.status, "running");
+  assert.equal(recovered.attempt, claimed.attempt);
+  assert.equal(recovered.lease_owner, "crashed-worker");
+  assert.equal(recovered.lease_expires_at, "2026-08-21T02:00:30.000Z");
+  assert.equal(await restarted.claimJob({ ...worker, workerId: "second-worker" }), null);
+  assert.equal(await restarted.readJob({ ...id, tenantId: "other-tenant" }), null);
+  fs.writeFileSync(targetFile, "{corrupt target marker");
+  await assert.rejects(restarted.readJob(id), /claim ledger is invalid/);
+});
+
+test("slot selection recovers other jobs' claim markers before choosing a prior publication", async () => {
+  const dataDir = tempDataDir();
+  const ledger = createMarketingLocalLedger({ dataDir });
+  const input = job({ input_refs: {
+    product_ref: "product://anicca-ios", format_ref: "format://larry",
+    locale_ref: "locale://en", platform_ref: "platform://tiktok",
+    slot_ref: "schedule-slot://2026-10-13T05:15:00.000Z",
+    tiktok_integration_ref: "integration://postiz/tiktok/cmp93bkpu01uvoh0yd3aj560g",
+  } });
+  const queued = await ledger.enqueueJob(input);
+  const duplicate = { ...queued.job, job_id: "marker-prior-job", effect_key: "marker-prior-effect" };
+  fs.appendFileSync(path.join(dataDir, "marketing", "jobs.jsonl"), `${JSON.stringify({
+    schema_version: 1, kind: "job", event: "enqueue", job: duplicate,
+  })}\n`);
+  const key = crypto.createHash("sha256").update(`${duplicate.tenant_id}\n${duplicate.job_id}`).digest("hex");
+  fs.writeFileSync(path.join(dataDir, "marketing", "claims", `${key}.json`), JSON.stringify({
+    schema_version: 1, tenant_id: duplicate.tenant_id, job_id: duplicate.job_id,
+    attempt: 1, worker_id: "slot-worker", lease_expires_at: "2026-10-13T05:18:00.000Z",
+  }));
+  const probe = { ...input, job_id: "slot-probe", effect_key: "slot-probe-effect" };
+  const prior = await ledger.readPriorPublicationForSlot(probe);
+  assert.equal(prior.slot_conflict, true);
+  assert.equal(prior.job.job_id, duplicate.job_id);
+  assert.equal(prior.job.status, "running");
+  const refused = await ledger.enqueueJob(probe);
+  assert.equal(refused.prior_slot_publication, true);
+  assert.equal(refused.job.job_id, duplicate.job_id);
+  assert.equal(refused.job.lease_owner, "slot-worker");
+});
 
 test("YouTube prior-slot lookup survives caption changes but isolates destination and future slots", async () => {
   const ledger = createMarketingLocalLedger({ dataDir: tempDataDir() });

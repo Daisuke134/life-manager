@@ -436,6 +436,11 @@ def _needs_roster_readback(intent_root: Path) -> bool:
 
 def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tuple[dict[str, object], list[dict]]:
     scan = _settled_scan(intent_root)
+    if scan["scanned_intents"] and scan["unresolved_irreversible"]:
+        # The per-occurrence proof needs no browser; serve it before the roster readback.
+        scoped = _close_scoped_fences(owner_id, intent_root)
+        if scoped:
+            return scan, scoped
     if scan["unresolved_irreversible"] and _needs_roster_readback(intent_root):
         exit_code = run_browser_reconcile(["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--",
                                            sys.executable, str(CLOSED_READBACK_SCRIPT)], runner=runner)
