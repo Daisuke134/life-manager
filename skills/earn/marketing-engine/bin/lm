@@ -201,9 +201,22 @@ def main(argv=None):
     writeback.add_argument("--perf", type=pathlib.Path,
                            default=ENGINE_ROOT / "state/hook-perf.jsonl")
     writeback.add_argument("--evidence", type=pathlib.Path, required=True)
+    factory = groups.add_parser("factory")
+    factory_commands = factory.add_subparsers(dest="factory_command", required=True)
+    factory_plan_parser = factory_commands.add_parser("plan")
+    factory_plan_parser.add_argument("--config", type=pathlib.Path, required=True)
+    factory_plan_parser.add_argument("--script", type=pathlib.Path, required=True)
     args = parser.parse_args(argv)
 
     try:
+        if args.group == "factory":
+            sys.path.insert(0, str(ENGINE_ROOT))
+            from factory_plan import build_plan
+            result = build_plan(
+                json.loads(args.config.read_text(encoding="utf-8")),
+                args.script.read_text(encoding="utf-8"))
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0
         if args.group == "measure":
             if args.measure_command == "attribution":
                 result = experiment_attribution.run_attribution(

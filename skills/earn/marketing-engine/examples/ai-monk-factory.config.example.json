@@ -1,0 +1,18 @@
+{
+  "schema_version": "ai-monk-factory.config.v1",
+  "project_id": "your-project",
+  "language": "en",
+  "heygen": {
+    "avatar_id": "your_avatar_id",
+    "voice_id": "your_voice_id"
+  },
+  "postiz": {
+    "platform": "tiktok",
+    "integration_id": "your-postiz-integration"
+  },
+  "product": {
+    "name": "Your product",
+    "url": "https://example.invalid/your-product"
+  },
+  "state_root": "~/.local/state/your-project"
+}

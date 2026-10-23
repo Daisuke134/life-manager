@@ -1244,5 +1244,33 @@
     "production_code_changed": false,
     "production_state_changed": false,
     "private_evidence_sha256": "8d41bf02e050851f2b8ba25b942f3409865dbd5e22b93959fbedfebabd9e2507"
+  },
+  "new_ai_monk_books_paid_checkout_readback": {
+    "recorded_at": "2026-10-23T07:41:11.694007+00:00",
+    "provider": "Stripe",
+    "account_identity_match": true,
+    "livemode": true,
+    "created_gte": 1792682932,
+    "scope_complete": true,
+    "completed_session_pages": 1,
+    "completed_sessions_observed": 0,
+    "paid_orders": 0,
+    "per_sku": {
+      "art_of_ai_monks_en_v1": {
+        "paid_checkout_count": 0,
+        "line_item_amount_minor": 0,
+        "currency": "usd"
+      },
+      "art_of_ai_monks_ja_v1": {
+        "paid_checkout_count": 0,
+        "line_item_amount_minor": 0,
+        "currency": "usd"
+      }
+    },
+    "cash_settlement_verified": false,
+    "fees_refunds_profit_verified": false,
+    "provider_writes": 0,
+    "self_purchase": false,
+    "private_evidence_sha256": "9fb58785fd9d6592a1ed703f7c7710cba89526a61b2ae33285d240096ae1935a"
   }
 }

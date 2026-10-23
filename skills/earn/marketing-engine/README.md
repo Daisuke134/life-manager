@@ -82,6 +82,27 @@ runnerはfreshな`manual-*` IDを発行し、durable admission・owner lockを�
 Monetization assets are a separate check: a loop may only go live with revenue links the
 agent owns (an affiliate tag owned by a human must be replaced before live).
 
+## AI Monk Factory：利用者設定から配信予定を確認する
+
+既存Marketing Engineの環境で、自分のavatar・voice・商品・Postiz連携を設定する。
+設定例をコピーし、placeholderを自分の値へ置き換える。API keyやpasswordは設定JSONへ入れない。
+
+```sh
+cp examples/ai-monk-factory.config.example.json my-monk.config.json
+printf '%s\n' 'ここに自分の僧侶avatarが話す台本を書く。' > my-script.txt
+python3 bin/lm factory plan --config my-monk.config.json --script my-script.txt
+```
+
+`language`は`en`または`ja`、Postizの`platform`は`tiktok`または`instagram`。
+`state_root`には自分専用の絶対pathを指定する。`~`も使える。
+このcommandは設定と台本を読み、生成要求・要求SHA・投稿先と商品をJSONで返す。
+出力の`status`は`planned`、`provider_calls`は`0`、`external_effects`は空配列になる。
+
+この段階ではstate directoryの作成、認証、voiceや連携のprovider照合、動画生成、投稿を行わない。
+有効な計画の出力は公開や収益の証明ではない。生成・投稿の実行入口、費用上限と照合、
+他ユーザー向け導入、Factory MCPとhosted subscriptionは残る作業である。
+Databaseを検索するAI Monk Index CLI/MCPとは別の機能として扱う。
+
 ## Files
 
 | File | Role |
