@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit
 import unittest
+from scripts import make_roadmap
 
 ROOT=Path(__file__).resolve().parents[1]
 MATRIX=ROOT/"docs/research/crossfield-20261021/SOURCES.json"
@@ -80,8 +81,11 @@ class CrossFieldResearchContracts(unittest.TestCase):
         self.assertEqual(by_id["H005"]["status"],"skipped")
         self.assertEqual(by_id["F004"]["status"],"skipped")
         self.assertEqual(by_id["F007"]["status"],"skipped")
-        self.assertEqual(by_id["F005"]["status"],"todo")
-        self.assertEqual(by_id["F008"]["status"],"todo")
+        self.assertEqual(by_id["F004"]["original_status"],"blocked")
+        self.assertEqual(by_id["F007"]["original_status"],"blocked")
+        self.assertEqual(by_id["F004"]["waiver_scope"],"RETIRED_NOT_COMPLETED")
+        self.assertEqual(by_id["F007"]["waiver_scope"],"RETIRED_NOT_COMPLETED")
+        make_roadmap.validate(tasks)
 
 
     def test_reuse_only_welfare_and_internet_first_sources(self):

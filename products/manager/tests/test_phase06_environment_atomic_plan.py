@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 import unittest
+from scripts import make_roadmap
 
 ROOT=Path(__file__).resolve().parents[1]
 ROADMAP=ROOT/"docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md"
@@ -62,11 +63,10 @@ class AtomicStructuralInterventionPlanContracts(unittest.TestCase):
         self.assertEqual(len(by),113)
         self.assertEqual(by["F004"]["status"],"skipped")
         self.assertEqual(by["F007"]["status"],"skipped")
-        self.assertEqual(by["F005"]["status"],"todo")
-        self.assertEqual(by["F006"]["status"],"todo")
-        self.assertEqual(by["F008"]["status"],"todo")
-        self.assertEqual(by["F009"]["status"],"todo")
         self.assertEqual(by["H005"]["status"],"skipped")
+        self.assertEqual(by["F004"]["original_status"],"blocked")
+        self.assertEqual(by["F007"]["original_status"],"blocked")
+        make_roadmap.validate(tasks)
 
 
 if __name__=="__main__":

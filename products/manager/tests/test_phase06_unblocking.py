@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 import unittest
+from scripts import make_roadmap
 
 ROOT=Path(__file__).resolve().parents[1]
 NOW=datetime(2026,10,21,12,0,tzinfo=timezone.utc)
@@ -132,12 +133,16 @@ class PermissionReadinessTests(unittest.TestCase):
         result=examine_authority_packet(self.data)
         self.assertTrue(all(not x["can_execute"] for x in result.values()))
         registry=json.loads((ROOT/"docs/roadmap/tasks.json").read_text(encoding="utf-8"))
-        by={x["id"]:x["status"] for x in registry}
-        self.assertEqual(by["F004"],"skipped")
-        self.assertEqual(by["F007"],"skipped")
-        self.assertEqual(by["F005"],"todo")
-        self.assertEqual(by["F008"],"todo")
-        self.assertEqual(by["F009"],"todo")
+        by={x["id"]:x for x in registry}
+        self.assertEqual(by["F004"]["status"],"skipped")
+        self.assertEqual(by["F007"]["status"],"skipped")
+        self.assertEqual(by["H005"]["status"],"skipped")
+        self.assertEqual(by["F004"]["original_status"],"blocked")
+        self.assertEqual(by["F007"]["original_status"],"blocked")
+        # Owned-public-digital P2 acceptance does not supply the missing
+        # finance/site-owner grants required for third-party field authority.
+        make_roadmap.validate(registry)
+        self.assertTrue(all(not row["can_execute"] for row in result.values()))
 
 
 if __name__=="__main__":
