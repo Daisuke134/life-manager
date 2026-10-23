@@ -13,7 +13,7 @@
 - [Codex / Maritime readback] readback完了: PR #8744/main5904b05bにlive evidence/checkpointを統合済み。既存X2件の公開receiptはfollowup docsへ記録。現在の実利用/費用・正式提出receiptはunknownで、製品/提出の完了は主張しない。
 - [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
-- [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODO正本は統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics自然収集、残3件IG復旧を担当。Thankful sourceはPR616/main25d92で受入済み。公式build10/buildUploads無し・native実process無しの確認後、既存agmsgへ通知してnative build10もprimaryが単独で引き継ぐ。原claude-5のbranch・RC設定/価格は保持し、各送信前に別ownerの実進行と重複を照合する。詳細契約・証拠は統合specを参照。
+- [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODO正本は統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics自然収集、残3件IG復旧を担当。Thankful sourceはPR616/main25d92で受入済み。公式build10/buildUploads無し・native実process無しの確認後、既存agmsgへ通知してnative build10もprimaryが単独で引き継ぐ。原claude-5のbranch・RC設定/価格は保持し、各送信前に別ownerの実進行と重複を照合する。詳細契約・証拠は統合specを参照。 Thankful専用profileの公式作成/別GET一致と固定zsign buildを確認する。native archive/Apple uploadは容量不足で未着手。EN IGは公式本人確認widget未表示・次へ無効で復旧未完、metrics新f6自然runもdisk floor延期。詳細は統合specの現境界を参照。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
 - [Codex / Manager] PR8710自動review追加指摘: 公開shadow比較の状態・理由・証拠の整合性を修復。専用branchのprojection/testのみ、推論・host・台帳・他laneは変更しない。
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
