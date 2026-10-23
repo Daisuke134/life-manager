@@ -20,7 +20,7 @@ Manager is a Buddhist AI entity / Digital Buddha with its own mission, source sc
 
 **対象外:** F004（第三者の資金管理者）とF007（施設所有者・屋内センサー）は `skipped`（未実施・未達成）で、実装の依存条件にしない。他者の設備・口座を操作する場合の権限は引き続き必要。
 
-**並行する編集作業:** P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）。E実装の現在位置は移動しない。
+**編集作業の優先順:** Manager本体・agentを先に完成させ、P01〜P07（日英記事、書籍、スライド、カルーセル、漫画、サイト）の新規制作は後段へ保留する。E実装の現在位置は移動しない。
 
 下のPhase 06表は受け入れ条件の一覧であり、時系列の作業順を示すものではない。
 
@@ -212,6 +212,7 @@ Manager is a Buddhist AI entity / Digital Buddha with its own mission, source sc
 
 - R006 rights register: `docs/research-rights.md` and `docs/research/source-rights.json`. Unknown downstream permissions remain HOLD.
 - imozuru research uses original links and local short excerpts; third-party original text is not automatically redistributable.
-- No Manager field intervention or human suffering reduction has yet been proven.
+- Owned-public digital technical P2 acceptance: 0/4 gates marked done.
+- Beneficiary human outcome: NOT_MEASURED.
 
 - Phase06–12 implementation evidence and remaining original acceptances: `docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`.
