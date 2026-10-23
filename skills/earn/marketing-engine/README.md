@@ -225,7 +225,7 @@ timeout、取消、接続終了ではこのserverが起動したprocess groupだ
 The same workspace runs as a public browser draft editor and as a local execution UI.
 The public page saves drafts in that browser and exports/imports JSON; it does not connect
 from HTTPS to a localhost API. Start the local workspace from an installed Life Manager
-checkout with the existing root Node/Python runtime dependencies and native `ffmpeg`/`ffprobe` for video review:
+checkout with Node.js 24.16+ (npm 11), the existing Python runtime dependencies, and native `ffmpeg`/`ffprobe` for video review:
 
 ```sh
 node skills/earn/marketing-engine/factory-web/server.mjs --open

@@ -6,7 +6,7 @@
 
 **Architecture:** UIの正本をLife Managerに置き、Node標準HTTPのlocalhost serverから既存Factory MCP/CLIを呼ぶ。公開productsはimmutable mainから同UIをstageする。有限Codexは利用者の既存model設定を継承する。
 
-**Tech Stack:** Node 20.19+標準API、既存MCP SDK/Zod、plain HTML/CSS/JavaScript、既存Python Factory。
+**Tech Stack:** Node 24.16+/npm 11標準API、既存MCP SDK/Zod、plain HTML/CSS/JavaScript、既存Python Factory。
 
 **Spec:** docs/superpowers/specs/2026-10-23-ai-monk-factory-web-design.md
 
@@ -54,3 +54,8 @@ Interfaces: project v1とTask1 APIを使う。UIはrootが __FACTORY_TOKEN__ を
 独立read-onlyレビューは変更0で3 blocking/1 nitを再現する。検証済み動画からserver抽出したframe/hashへの固定、予約中shutdownの中断/完了待機、run全体の費用未照合/失敗集約、日本語draftのUTF-8上限統一を最小REDから修正し、関連testsと差分レビュー後にCI/mainへ進む。実provider/日次投稿は操作しない。
 
 3 blocking/1 nitは旧REDを観測して最小修正する。関連4file suiteは36 PASS/0 FAIL/0 SKIP（実SDK stdio、実Python offline plan、実ffmpeg/ffprobe抽出と画像hash、EOF所有子孫回収を含む）。停止予約/費用未照合/偽frame/日本語file往復の回帰を含む。差分fresh reviewを実行中。実Codex plan/local browser受入・CI/main・immutable releaseは次cursorのまま保持する。
+
+## CI導入境界の修正
+新jobのNode20.19/npm10.8.2でnpm ciがzod3のlock不整合としてテスト開始前に失敗する。同一lockはnpm11.9の隔離dry-runでexit0（754 packages）。既存repo jobsのcanonical Node24.16へ揃え、UI/READMEの起動要件も訂正する。dependency/lock版は変更しない。
+
+固定版canaryは本件専用LOOPS_ROOT/LM_DATA_DIRで作り、既存current/loop/他releaseのGCを操作しない。main由来の必要sourceを既存builderでimmutable化し、protected memoryとstate/jsonlをexport対象に含めない。理由はDaisのGrok担当/no-action境界と不可侵storeを保持するため。

@@ -42,7 +42,7 @@
     "skills/earn/marketing-engine/factory-web/app.css": "2aa9e429aa9ce360a57b851c74684f78e598d7d860ce3bc65d980f7db69cc71e",
     "skills/earn/marketing-engine/factory-web/app.mjs": "a70dbafdb704a926fb0056e4a6fd7470338ddf3b161ae09fc456aca8ab48e33a",
     "skills/earn/marketing-engine/factory-web/app.test.mjs": "b03800e4d08892cdfdac047136d3d6fbcb71cb8b66b19565e0521578d9dcd27f",
-    "skills/earn/marketing-engine/factory-web/index.html": "ca6f8b57b384da7e038786f0edf39a839fff11319da95bcf10793b5070cc8a1b",
+    "skills/earn/marketing-engine/factory-web/index.html": "b83310a0689ff3ffff09ddf75f2fbfb6761f83350cfe63ca9039bc9fe94bb098",
     "skills/earn/marketing-engine/factory-web/project.mjs": "71baea8f3021841c0914d96f9229bef16aba3250391cc49bee8cde5207538e84",
     "skills/earn/marketing-engine/factory-web/project.test.mjs": "50a87f71dc0e273fefdb60514e602701a84f79470cccf73230b1790a6caf3f88",
     "skills/earn/marketing-engine/factory-web/server.mjs": "93501588e50794888ef56fd4a801e53222b7edcfea1c3b4dfeabd1062fa05b9b",
@@ -74,5 +74,13 @@
     "ffprobe_decode": true,
     "ffmpeg_frames": 3,
     "provider_calls": 0
+  },
+  "ci_dependency_probe": {
+    "initial_node": "20.19.0",
+    "initial_npm": "10.8.2",
+    "failure": "npm ci lock resolution before tests",
+    "canonical_node": "24.16.0",
+    "npm_11_9_same_lock_dry_run_exit": 0,
+    "lock_or_dependency_versions_changed": false
   }
 }

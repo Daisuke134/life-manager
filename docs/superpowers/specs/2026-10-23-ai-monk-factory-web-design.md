@@ -1,7 +1,7 @@
 # Monk Factory Web 設計
 
 ## 目的・範囲・完了条件
-DaisのDatabaseとMonk Factory Web appを公開する依頼を実装する。日次投稿はGrok Botが所有し、既存自社アカウント・loop・未完投稿・容量復旧は操作しない。既存Factory CLI/MCPを使い、利用者がWebで制作内容を保存し、手元の有限agentから台本→計画→生成→素材確認→投稿と公式状態照合を進められるアプリを公開する。無料で公開できるため販売/契約を公開gateにしない。収益・最大followers・USD10K MRRの達成は別の実測成果として未達を保持する。
+DaisのDatabaseとMonk Factory Web appを公開する依頼を実装する。日次投稿はGrok Botが所有し、既存自社アカウント・loop・未完投稿・容量復旧は操作しない。既存Factory CLI/MCPとrepoのNode.js 24.16+/npm 11 runtimeを使い、利用者がWebで制作内容を保存し、手元の有限agentから台本→計画→生成→素材確認→投稿と公式状態照合を進められるアプリを公開する。無料で公開できるため販売/契約を公開gateにしない。収益・最大followers・USD10K MRRの達成は別の実測成果として未達を保持する。
 
 完了条件は公開Webの実draft作成/保存/export、同一UIのlocalhost起動、project/runの永続保存、実CLI offline planと有限agent接続、既存provider/fence/unknownの保持、必要なfocused tests・独立レビュー・CI/main・固定版/公開URL readbackである。自社への実課金/実投稿は今回実行しない。provider未設定や費用不明を生成/公開成功へ変えない。
 
