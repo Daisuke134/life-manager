@@ -3160,3 +3160,32 @@ def test_first_listing_changed_during_create_keeps_new_owner_input_unbound(tmp_p
     assert json.loads(path.read_text()) == changed
     assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("ledger", ["pending", "broken"])
+@pytest.mark.parametrize("catalog", ["missing", "broken"])
+def test_catalog_setup_failure_preserves_unknown_effect(tmp_path, monkeypatch, capsys, ledger, catalog):
+    module = _module()
+    product = _private_product(tmp_path / "owner")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    state.with_name("listing.json").write_text(
+        json.dumps({"pending_create": {"product_id": "unconfirmed"}}) if ledger == "pending" else "{broken")
+    catalog_path = tmp_path / "catalog.json"
+    if catalog == "broken":
+        catalog_path.write_text("{broken")
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("catalog setup failure reached external callback")
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+
+    code = module.main(["--apply", "--product", str(product), "--catalog", str(catalog_path),
+                        "--state-path", str(state)])
+    result = json.loads(capsys.readouterr().out)
+
+    assert code == 78 and result["error"] == "setup_required"
+    assert result["missing"] == ["listing_catalog"]
+    assert result["logged_in"] is None and result["next_action"] == "official_readback_required"
+    assert callbacks == []

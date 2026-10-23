@@ -1456,8 +1456,8 @@ def _pending_creation() -> dict[str, Any]:
             "next_action": "official_readback_required"}
 
 
-def _product_setup_required(state_path: Path) -> dict[str, Any]:
-    result = _setup_required("storefront_product")
+def _product_setup_required(state_path: Path, field: str = "storefront_product") -> dict[str, Any]:
+    result = _setup_required(field)
     try:
         uncertain = "pending_create" in _listing_state(state_path)
     except OfferError:
@@ -1985,7 +1985,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             listing_catalog.load(catalog_path)
         except (listing_catalog.CatalogError, UnicodeError):
-            print(json.dumps(_setup_required("listing_catalog"), sort_keys=True), flush=True)
+            print(json.dumps(_product_setup_required(args.state_path, "listing_catalog"), sort_keys=True), flush=True)
             return 78
     if args.create_package:
         result = run_create(args.product, args.state_path, catalog_path=catalog_path)

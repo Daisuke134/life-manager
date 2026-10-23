@@ -201,6 +201,10 @@ INPUTS-B1の実行境界: hostのall-owner status取得は60秒timeout、swap使
 
 INPUTS-B1のsource受入: 担当2source/既存2testをfreezeする。初回12ケース、追加保存境界3件、作成中input変更1件、ローカル復旧が既存receipt.observed_atを新しい公式観測時刻へ書き換える1件をRED/GREENで確認する。現在auth未観測のpending/ローカル復旧はlogged_in=None、実login後の保存失敗はTrueとし、ownerのFalseだけをpre-effectとする契約を保持する。primaryは隔離HOME/依存先import/不要plugin自動load無しの単一プロセスで関連10files297件PASS（13.25s）、AST4files/source-boundary/diff/Loop contract18/192/113/errors0を確認する。新機能の実private/browser/provider操作0。独立review/公開CI/mainを継続し、B2のapply portfolio保存とINSTALL/READYは未完。
 
+INPUTS-B1の独立review診断: PR #8747/head21446c76180edce073c1601662926062857c6a08のread-only reviewはblocking1。mainの--apply catalog事前検証がpendingの確認より先にlogged_in=False/exit78を返し、既存ownerがpre_effect_failure/effect0へ戻す経路をメモリ内probeで再現する。既存のstateを読むsetup_required helperを同じcatalog早期returnでも再利用し、pending存在/ledger読取不能はauth未観測Noneとofficial_readback_requiredを保持する。通常の入力不備・pending無しのpre-effect契約は維持し、同じ既存testsで最小RED/GREEN後、独立再reviewと更新head CI/mainを確認する。
+
+INPUTS-B1のreview修復: catalog欠損/破損とpending存在/ledger破損の4組合せをRED再現し、既存helperの不足field指定とmainの早期returnを計3行で修復する。workerは通常入力不備とowner境界を含む16件PASS、primaryは関連setup/ownerケースを再確認する。最初のhead21446c7618のworkflow39986559859は全13checksが成功するが、blocking修復前なので統合せず、更新headの独立再review/CIを通す。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
