@@ -32,6 +32,8 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 **現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
 
+**現在Macの追加観測:** immutable current `20261023T182457-409c568f`から同じownerをread-onlyで再確認する。installed/event SHA=`409c568f9116a3b61bb03e37ee36461e2198875b`、run=`18e1200ea94addd8-82363`、occurrence=`hf-gig-reply-detector:18e1200ea94addd8-82363`、phase=`report`、exit=75、effect=`not_applicable`、receipt/readback=null、blocker=`host_admission_deferred:disk_floor_low`、retryable=true、next=`retry_after_eligibility`へ変化する。前のcapacity busy snapshotを現在原因として使わない。`df`の空きは736,256 KiB、`vm.swapusage`は19,456 MiB使用である。既存disk governorの最新unbound receiptはerrors=0/protected_deletions=0/reclaimed=0/capacity recovery unmet、候補10件はopen6/protected_path4で保護される。Git重複もprune-packable10件のみで、repo全体や使用中cacheを削除して容量復旧を偽装しない。古い4 effect fenceは引き続きofficial receipt未取得。新規Mac向けsource修復は独立継続し、現Macの空容量・未照合effectと別Mac実機の受入はMAC02/05の未完として保持する。
+
 ### MAC02の本人設定・再開の修復
 
 **目的・範囲:** README改善後も、本人のCoconala設定が全7 canonical jobsへ渡り、再開時には現在の認証観測で開始可否を決める。既存のprivate設定とcanonical activationを再利用する。productionのbrowser/session/state、effect fence、provider送信には触れない。
