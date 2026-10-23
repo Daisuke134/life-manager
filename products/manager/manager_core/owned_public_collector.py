@@ -92,6 +92,20 @@ def _workflow_bound_to_candidate(value, candidate_sha, committed_at):
     return False
 
 
+def _record_native_observation(journal, packet, receipt_ref, observed_at, measure_id,
+                               unit, native_value, proof_level, provenance_refs,
+                               status='VERIFIED'):
+    """Append an already validated provider fact to the existing private DB."""
+    from .learning import NativeTechnicalObservation, PolicyLearner
+    observation = NativeTechnicalObservation(
+        effect_key=packet['effect_key'], candidate_sha256=packet['candidate_sha256'],
+        receipt_ref=receipt_ref, observed_at=observed_at, measure_id=measure_id,
+        unit=unit, status=status, proof_level=proof_level,
+        native_value=native_value, missing_reason=None, human_outcome='NOT_MEASURED',
+        provenance_refs=tuple(provenance_refs))
+    return PolicyLearner(journal.path).record_native_technical_observation(observation)
+
+
 @dataclass(frozen=True)
 class DeliveryObservation:
     status: str
@@ -138,6 +152,13 @@ def collect_owned_occurrence(key, journal, observed_at=None, *, get=None, max_pa
                     validate_commit_receipt(packet,receipt,manifest,observed_at,
                         committed_bodies=bodies,parent_commit=record.expected_parent,
                         parent_manifest=parent,parent_bodies=old_bodies)
+                    if get is None:
+                        committed_at=datetime.fromisoformat(
+                            receipt['commit']['committer']['date'].replace('Z','+00:00'))
+                        _aware(committed_at)
+                        _record_native_observation(journal,packet,sha,committed_at,
+                            'owned.pages.commit_occurrence','commit_occurrence',1,'P1',
+                            (receipt['html_url'],))
                     return OwnedOccurrenceEvidence(receipt,manifest,bodies,
                                                     record.expected_parent,parent,old_bodies)
                 except (ValueError,KeyError,TypeError,OSError):
@@ -293,7 +314,7 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
     Public mismatch cannot bind corrupted bytes to a completed deployment, so
     this collector alone never reports REGRESSION or requests rollback.
     """
-    from scripts.phase06_kernel_release import served_snapshot
+    from scripts.phase06_kernel_release import public_get, served_snapshot
     observed_at=observed_at or datetime.now(timezone.utc); _aware(observed_at)
     record=journal.record(key)
     if record is None or record.status!='PRESENT':
@@ -308,7 +329,7 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
         try:
             # Rebind this read to the exact immutable provider commit and its
             # parent; a journal receipt or current branch name alone is not proof.
-            evidence=collect_owned_occurrence(key,journal,observed_at,get=read)
+            evidence=collect_owned_occurrence(key,journal,observed_at,get=get)
             if (type(evidence) is not OwnedOccurrenceEvidence or
                     evidence.receipt.get('sha') != record.receipt_ref or
                     evidence.parent_commit != record.expected_parent or
@@ -341,6 +362,11 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
                 return dict(result,reason='SERVED_CANDIDATE_NOT_CURRENT')
             try:
                 verify_readback(packet['candidate'],bodies)
+                if get is None:
+                    _record_native_observation(journal,packet,record.receipt_ref,observed_at,
+                        'owned.pages.served_bundle_bytes','byte',
+                        sum(len(body) for body in bodies.values()),'P2',
+                        (evidence.receipt['html_url'],PUBLIC_BASE))
                 return dict(result,status='VERIFIED',reason='EXACT_DEPLOYED_CANDIDATE',proof_level='P2')
             except ValueError:
                 pass
@@ -363,9 +389,19 @@ def collect_owned_delivery(key, journal, observed_at=None, *, get=None):
                         return dict(result,status='REGRESSION',proof_level='P2',
                                    reason='BOUND_FIXED_HTML_CSP_FAILURE')
                     if not safety.safe or not safety.csp:
+                        if get is None:
+                            _record_native_observation(journal,packet,record.receipt_ref,
+                                observed_at,'owned.pages.served_bundle_bytes','byte',
+                                sum(len(raw) for raw in bodies.values()),'P2',
+                                (evidence.receipt['html_url'],PUBLIC_BASE),status='REGRESSION')
                         return dict(result,status='REGRESSION',proof_level='P2',
                                    reason='BOUND_FIXED_HTML_CSP_FAILURE')
                 if _fixed_cue_ok(expected,page) and not _fixed_cue_ok(served,page):
+                    if get is None:
+                        _record_native_observation(journal,packet,record.receipt_ref,
+                            observed_at,'owned.pages.served_bundle_bytes','byte',
+                            sum(len(raw) for raw in bodies.values()),'P2',
+                            (evidence.receipt['html_url'],PUBLIC_BASE),status='REGRESSION')
                     return dict(result,status='REGRESSION',proof_level='P2',
                                reason='BOUND_CURRENT_PAGE_CUE_FAILURE')
             return dict(result,reason='HASH_MISMATCH_ONLY')
@@ -442,6 +478,13 @@ def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
                                 target_again['object'].get('type')=='commit' and
                                 target_again['object'].get('sha')==current_sha):
                             evidence=dict(evidence,reason='EXACT_CURRENT_V1_SERVED_BUNDLE')
+                            if (get is None and evidence.get('status')=='VERIFIED' and
+                                    evidence.get('proof_level')=='P2'):
+                                record=json.loads(candidate.packet_json)
+                                _record_native_observation(journal,record,candidate.receipt_ref,
+                                    observed_at,'owned.pages.served_bundle_bytes','byte',
+                                    sum(len(body) for body in occurrence.committed_bodies.values()),
+                                    'P2',(occurrence.receipt['html_url'],PUBLIC_BASE))
                         else:
                             evidence=dict(unknown,
                                 reason='CURRENT_TARGET_CHANGED_DURING_READBACK')
@@ -449,7 +492,7 @@ def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
                         evidence=dict(unknown,reason=evidence.get(
                             'reason','EXACT_V1_SERVED_BUNDLE_UNCONFIRMED'))
             else:
-                evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=read)
+                evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=get)
             return {'kind':'candidate','effect_key':candidate.key,
                     'receipt_ref':candidate.receipt_ref,'evidence':evidence}
         rollback=journal.rollback_for_receipt(current_sha)

@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW
+from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW, PUBLIC_BASE
 from manager_core.owned_checkpoint import CheckpointUnavailable, PrivateCheckpoint, SOURCE_ROOT
 from manager_core.owned_cycle import CycleConfig, CycleStore, run_owned_cycle, _recover_owned_deliveries
 from manager_core.owned_platform_host import (
@@ -86,7 +86,35 @@ def _private_fresh_root(path, runner_temp):
     return target
 
 
-def public_summary(report, *, source_sha=None, receipt_sha=None):
+def _trusted_p2_observation(store, report):
+    """Require the cycle journal binding and private native P2 row to agree."""
+    if (type(store) is not CycleStore or not isinstance(report, dict) or
+            report.get('status')!='VERIFIED_PUBLIC_ARTIFACT_ONLY' or
+            report.get('proof_level')!='P2' or report.get('deployed') is not True):
+        return False
+    effect=report.get('effect_key');receipt=report.get('receipt_ref')
+    if (type(effect) is not str or not re.fullmatch(r'[0-9a-f]{64}',effect) or
+            type(receipt) is not str or not _SHA.fullmatch(receipt)):
+        return False
+    try:
+        saved=store.journal.record(effect)
+        if saved is None or saved.status!='PRESENT' or saved.receipt_ref!=receipt:
+            return False
+        packet=json.loads(saved.packet_json)
+        return any(
+            row.effect_key==effect and row.candidate_sha256==packet.get('candidate_sha256') and
+            row.receipt_ref==receipt and row.measure_id=='owned.pages.served_bundle_bytes' and
+            row.unit=='byte' and row.status=='VERIFIED' and row.proof_level=='P2' and
+            type(row.native_value) is int and row.native_value>0 and
+            row.missing_reason is None and row.human_outcome=='NOT_MEASURED' and
+            f'https://github.com/{REPOSITORY}/commit/{receipt}' in row.provenance_refs and
+            PUBLIC_BASE in row.provenance_refs
+            for row in store.learning.native_technical_observations(effect_key=effect))
+    except (AttributeError, KeyError, TypeError, ValueError, OSError):
+        return False
+
+
+def public_summary(report, *, source_sha=None, receipt_sha=None, store=None):
     """Return only fields approved for public stdout/artifacts."""
     status = report.get('status') if isinstance(report, dict) else 'UNKNOWN'
     if status not in {'UNKNOWN', 'NO_ACTION', 'OWNER_BUSY', 'NOT_DUE', 'STOPPED_REGRESSION',
@@ -125,6 +153,8 @@ def public_summary(report, *, source_sha=None, receipt_sha=None):
     }
     if summary['status'] in ('NO_ACTION', 'NOT_DUE', 'OWNER_BUSY'):
         summary['positive_canary'] = 'NOT_RUN'
+    elif _trusted_p2_observation(store, report):
+        summary['positive_canary'] = 'P2_ARTIFACT_VERIFIED'
     return summary
 
 
@@ -209,14 +239,14 @@ def run_once(state_store, pages_checkout):
             # journal evidence before ending this otherwise healthy session.
             checkpoint.save()
             checkpoint.release()
-            summary = public_summary(report, source_sha=context['source_sha'])
+            summary = public_summary(report, source_sha=context['source_sha'],store=store)
             summary['writes'] = None
             summary['authentication'] = authentication
             return 2, summary
         # Persist the journal/cadence before relinquishing the remote session.
         checkpoint.save()
         checkpoint.release()
-        summary = public_summary(report, source_sha=context['source_sha'])
+        summary = public_summary(report, source_sha=context['source_sha'],store=store)
         summary['authentication'] = authentication
         return (0 if _successful_cycle_exit(report) else 2), summary
     except Exception as exc:
