@@ -195,11 +195,16 @@ class OwnedProviderShadowTests(unittest.TestCase):
             kwargs = dict(now=now, run_id="123", enabled=True, deadline_monotonic=monotonic()+10)
             first = shadow.compare_prepared_catalog_shadow(checkpoint, prepared,
                 client_factory=lambda: client, cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"), **kwargs)
+            # An intent with no saved comparison is not a completed result.
+            with sqlite3.connect(checkpoint.db) as db:
+                db.execute("DELETE FROM catalog_shadow_results")
+            checkpoint.save()
             calls = []
             with patch.object(shadow, "CheckpointedProvider", side_effect=AssertionError("initialized")):
                 prior = shadow.compare_prepared_catalog_shadow(checkpoint, prepared,
                     client_factory=lambda: calls.append(True), **kwargs)
-            self.assertEqual(prior["reason"], "PRIOR_INTENT_RECONCILIATION_REQUIRED")
+            self.assertEqual((prior["status"], prior["reason"]),
+                             ("UNKNOWN", "PRIOR_INTENT_RECONCILIATION_REQUIRED"))
             self.assertEqual(prior["operation_id"], first["operation_id"])
             self.assertEqual(calls, [])
             self.assertEqual(sessions.create_count, 1)
@@ -349,8 +354,8 @@ class OwnedProviderShadowTests(unittest.TestCase):
                     run_id="999", enabled=True, cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"),
                     deadline_monotonic=monotonic()+10)
             self.assertEqual(first["operation_id"], second["operation_id"])
-            self.assertEqual(second["status"], "SKIPPED")
-            self.assertIn("PRIOR_INTENT", second["reason"])
+            self.assertEqual((second["status"], second["reason"]),
+                             ("UNKNOWN", "INPUT_BINDING_MISMATCH"))
             self.assertEqual(sessions.create_count, 1)
             self.assertEqual(sessions2.create_count, 0)
 
