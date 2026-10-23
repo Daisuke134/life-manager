@@ -54,6 +54,12 @@ explicitly use the shared Postiz publication adapter when their registry owner
 declares a Postiz integration. Keep each owner on its declared route; never mix
 or silently switch providers.
 
+英語eBookの完成済みHeyGen動画は、同じrequest/video IDの公式completed確認と
+保存済み出力hashの照合後に再利用する。当時の費用が欠ける場合はrender receiptの
+`wallet_cost=null`・`cost_reconciliation_required=true`を保持し、費用0とは扱わない。
+sidecarも`cost_reconciliation_required`を維持し、別slotの新規生成は保留する。
+既存素材のmanual投稿も、同じprovider receipt ID・出力hash・未照合状態の一致が必要。
+
 | Legacy `MKT_CONTENT_ADAPTER` | Instagram media | `poster.py` route |
 |---|---|---|
 | `faceless-video` | Reel | instagrapi `clip_upload` |

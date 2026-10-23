@@ -222,7 +222,7 @@ test("manual slot override refuses to call the renderer when the existing receip
   }
 });
 
-for (const receiptLookup of [1, 2]) test(`receipt lookup ${receiptLookup} reuses the completed publication without a new effect`, async () => {
+for (const costPending of [false, true]) for (const receiptLookup of [1, 2]) test(`receipt lookup ${receiptLookup} reuses the completed publication without a new effect (cost pending ${costPending})`, async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-manual-reuse-"));
   const dataDir = path.join(temporaryRoot, "data");
   const stateRoot = path.join(dataDir, "marketing", "ebook");
@@ -255,6 +255,7 @@ for (const receiptLookup of [1, 2]) test(`receipt lookup ${receiptLookup} reuses
       output,
       sha256: videoSha,
       video_id: "db2dab0924e19b88c14e03a6a7849069",
+      ...(costPending ? { wallet_cost: null, cost_reconciliation_required: true } : {}),
     },
   };
   const ownerInput = {
@@ -304,10 +305,11 @@ for (const receiptLookup of [1, 2]) test(`receipt lookup ${receiptLookup} reuses
     fs.writeFileSync(output, videoBytes);
     fs.writeFileSync(path.join(stateRoot, "runs", `${runId}.json`), JSON.stringify(renderReceipt));
     fs.writeFileSync(path.join(stateRoot, "runs", `${runId}.heygen-effect.json`), JSON.stringify({
-      state: "completed",
+      state: costPending ? "cost_reconciliation_required" : "completed",
       provider_status: "completed",
       video_id: renderReceipt.render.video_id,
       provider_receipt_id: renderReceipt.render.video_id,
+      ...(costPending ? { wallet_cost: null, output_sha256: videoSha } : {}),
     }));
     fs.writeFileSync(path.join(stateRoot, "owner-input.json"), JSON.stringify(ownerInput));
 
@@ -331,6 +333,15 @@ for (const receiptLookup of [1, 2]) test(`receipt lookup ${receiptLookup} reuses
     const previousEnv = Object.fromEntries(processEnv.map((key) => [key, process.env[key] ?? null]));
     Object.assign(process.env, Object.fromEntries(processEnv.map((key) => [key, env[key]])));
     try {
+      if (costPending) {
+        const sidecarPath = path.join(stateRoot, "runs", `${runId}.heygen-effect.json`);
+        const sidecar = JSON.parse(fs.readFileSync(sidecarPath, "utf8"));
+        fs.writeFileSync(sidecarPath, JSON.stringify({ ...sidecar, output_sha256: "0".repeat(64) }));
+        await assert.rejects(run([ownerId, "--slot-at", slotAt], {
+          env, nowMs: Date.parse("2026-10-09T07:30:00+09:00"), store,
+        }), /matching completed HeyGen receipt/);
+        fs.writeFileSync(sidecarPath, JSON.stringify(sidecar));
+      }
       const result = await run([ownerId, "--slot-at", slotAt], {
         env,
         nowMs: Date.parse("2026-10-09T07:30:00+09:00"),

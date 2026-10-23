@@ -131,7 +131,12 @@ function requireExistingRenderedReceipt(stateRoot, productId, slotAt) {
       throw new Error("eBook manual slot has no completed HeyGen receipt");
     }
     const sidecar = readJson(sidecarPath, "eBook manual HeyGen receipt");
-    if (sidecar.state !== "completed" || sidecar.provider_status !== "completed"
+    const costPendingAsset = sidecar.state === "cost_reconciliation_required"
+      && sidecar.wallet_cost === null
+      && render.wallet_cost === null
+      && render.cost_reconciliation_required === true
+      && sidecar.output_sha256 === render.sha256;
+    if ((!costPendingAsset && sidecar.state !== "completed") || sidecar.provider_status !== "completed"
         || !sidecar.video_id || sidecar.provider_receipt_id !== sidecar.video_id
         || sidecar.video_id !== render.video_id) {
       throw new Error("eBook manual slot has no matching completed HeyGen receipt");
