@@ -136,6 +136,16 @@ ACCOUNTの独立review診断: 旧成功がある状態で、無効観測のatomi
 
 ACCOUNTのreview修復: observe/connectのENOSPCとunlink拒否を計4件RED再現し、latest observationを先にunlinkする最小修正後、新規63件＋既存identity12件=75件がworker/primary双方でPASSする。profile本人値・extra keysは不変で、外部callback0、ENOSPC後のstatusはsetup_required。unlink自体が拒否される場合は書込/guard/browser前にprivate_storageで停止する。source修正は同helperの3行だけ。AST/source-boundary/diffはPASS、独立再reviewと更新head CIへ進む。
 
+ACCOUNTのsource受入: PR #8733/head839ebd31e0b8bd4bb45cdee2336d22cc34039b4cはworkflow39973545605の全13checksがPASS、独立再reviewはblocking0（メモリ内8ケース）。maina8954faa832f7c3676026926ac0012354f4f0665へ統合し、helper/test/CIのGitHub公式merged bytesを全一致で確認する。readonly filesystemがunlinkも拒否する場合は操作がprivate_storageで止まり、保存済み判定自体を消せないという外部storageの限界は保持する。公開installerは失敗したobserveを旧statusで成功へ置換しない。
+
+ACCOUNTの実機診断: 同mainから既存cutterで `~/.local/share/life-manager/account-probes/lancers-local-setup/releases/20261024T000151-a8954faa` を作る（browser＋helper/writer依存56files、memory entry0、current不変）。資格情報SSOT全体とLancers完全一致1件、registryのlancers:dais/owner=lancers-revenue-browserを確認し、既存with-browserからobserveを実行する。exit78/account_observation、provider profile未作成、latest observationは無効、所有tab残0。追加read-only phase probeではsample0がofficial_mypage=false/ready=complete/links0、その後19samplesがofficial_mypage=true/ready=complete/human_verification=true/links0、最後に所有tabを閉じる。raw account/DOM/secretは出力せず、provider送信0。source受入を実接続成功へ置換しない。
+
+ACCOUNTの次修復: 新しいtabの空DOMをready=completeだけで打ち切らず、既存observed_accountが正の本人証拠を返すまで現20回の範囲で待つ。明示login/challengeや不正origin/曖昧accountは引き続き接続しない。timeout/回数を増やさず、sample列=空complete→公式summary未完complete→正の本人DOMをfixtureでRED/GREENにする。workerは同helper/test2filesだけ、primaryは本仕様/CI/統合/別原因のchallenge診断。現在cursorはACCOUNTのままでINPUTSへ進めない。
+
+ACCOUNTのDOM修復: 段階的DOMと5種類の拒否条件を計6件RED再現し、打切り条件1行を既存observed_accountの正の結果へ変更する。回数20/間隔0.5秒は不変。新規69件＋identity12件=81件がworker/primaryでPASS、AST/source-boundary/diff/Loop contract18/192/113/errors0もPASS。現在worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/lancers-onboarding-dom-ready-20261024`、base=`a8954faa832f7c3676026926ac0012354f4f0665`、owner=`codex-lancers-local-setup`。独立review/CI/main/immutableの更新を続ける。
+
+ACCOUNTのchallenge画面: 公式mypageで「ユーザーが人間であることを確認する」と開始ボタンが描画される。reCAPTCHA/hCaptcha/Turnstile iframe、reCAPTCHA response/sitekey widget、password formはいずれも0で、summary profile linksも0。対応しないreCAPTCHA helperやsolver keyは使用せず、既存registered sessionの正規画面を調べる。各probeは本人binding保存0で所有tabを閉じる。with-browserが指定するidentity別ownership ledgerを実際に読み、lancers-onboarding残0を確認する（共通既定ledgerの0だけを根拠にしない）。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。

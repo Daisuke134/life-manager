@@ -89,9 +89,10 @@ def _lease(home, monkeypatch, *, row_updates=None, holder_updates=None, status_u
     return calls
 
 
-def _browser(module, monkeypatch, *, snapshot=None, failure=None):
+def _browser(module, monkeypatch, *, snapshot=None, snapshots=None, failure=None):
     cdp = module._load_cdp()
     events = []
+    samples = iter(snapshots) if snapshots is not None else None
 
     def call(method, params):
         if method == "Target.getTargets":
@@ -115,6 +116,8 @@ def _browser(module, monkeypatch, *, snapshot=None, failure=None):
         events.append("evaluate")
         if failure == "evaluate":
             raise TimeoutError("PRIVATE-EXCEPTION")
+        if samples is not None:
+            return next(samples)
         return snapshot if snapshot is not None else _snapshot(body="PRIVATE-DOM", token="PRIVATE-TOKEN")
 
     monkeypatch.setattr(cdp, "_browser_call", call)
@@ -398,6 +401,50 @@ def test_observe_closes_only_owned_target_before_private_connection(isolated_hom
     assert calls.read_text() == "status"
     assert cdp.BASE == ENDPOINT
     assert module.ready(isolated_home) == result
+
+
+def test_observe_waits_for_positive_account_dom_after_empty_complete(isolated_home, monkeypatch):
+    module = _load()
+    _lease(isolated_home, monkeypatch)
+    cdp, events = _browser(module, monkeypatch, snapshots=[
+        _snapshot(url="about:blank", profile_links=[]),
+        _snapshot(profile_links=[]),
+        _snapshot(),
+    ])
+    sleeps = []
+    monkeypatch.setattr(module.time, "sleep", sleeps.append)
+
+    result = module.observe(isolated_home)
+
+    assert result == {"ok": True, "status": "account_connected"}
+    assert events == ["open", "evaluate", "evaluate", "evaluate", "close"]
+    assert sleeps == [0.5, 0.5]
+    assert cdp.target_ownership.targets_for_owner("lancers-onboarding") == set()
+    assert module.ready(isolated_home) == result
+
+
+@pytest.mark.parametrize("snapshot", [
+    _snapshot(profile_links=[]),
+    _snapshot(login_form=True),
+    _snapshot(human_verification=True),
+    _snapshot(url="https://www.lancers.jp.evil.example/mypage"),
+    _snapshot(profile_links=["https://www.lancers.jp/profile/other-seller",
+                             "https://www.lancers.jp/profile/someone-else"]),
+])
+def test_observe_stops_at_existing_attempt_limit_without_positive_account(isolated_home, monkeypatch, snapshot):
+    module = _load()
+    _lease(isolated_home, monkeypatch)
+    cdp, events = _browser(module, monkeypatch, snapshots=[snapshot] * 20)
+    sleeps = []
+    monkeypatch.setattr(module.time, "sleep", sleeps.append)
+
+    result = module.observe(isolated_home)
+
+    assert result["error"] == "setup_required"
+    assert events == ["open"] + ["evaluate"] * 20 + ["close"]
+    assert sleeps == [0.5] * 20
+    assert cdp.target_ownership.targets_for_owner("lancers-onboarding") == set()
+    assert not _profile(isolated_home).exists()
 
 
 @pytest.mark.parametrize("failure", ["open", "evaluate", "close"])
