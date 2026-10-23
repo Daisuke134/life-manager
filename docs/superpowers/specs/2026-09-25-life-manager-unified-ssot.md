@@ -23395,3 +23395,11 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 Manager（仏教的AIエンティティ／デジタル仏陀）の実行先は既存GitHub Actions＋既存Supabase staging。gateway PR8573/main4c565、runtime PR8577/maind002を正規統合・限定適用し、legacy writerはPR8576と自然run39880994343のpublish SKIPPEDで退役を確認。元7件の公式履歴と配信bytesを照合した非公開SQLiteを一度だけ初期移行し、実main run39882336050でGitHub OIDCによる復元・CAS更新・解放を確認した。結果はNO_ACTION/writes0。別fresh runner39882784491もSUCCESS/GATEWAY_ACKNOWLEDGED/NOT_DUE/writes0、private revision2・owner解放・公開七bytes不変を独立確認。正のcanaryはNOT_RUNでE16 INCOMPLETE。Mac miniやRailway新worker/volumeの提供を再開条件に戻さない。
 
 [実receiptと残る有限受入れ](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md): versioned current-page cueのfinance/mental各P1/P2、durable STOP/限定CAS rollback、native技術観測とExplorer/shadow接続を続行する。Manager原113件は69 done/41 todo/3 skipped、E16カーソル維持。原台帳への固定版参照はreceipt内。人の便益・課金/収益・応募/採択の実績はこの技術実行から推定しない。
+
+### FND04 実測：Writer入れ子judgeのprofile lease自己競合 — 2026-10-23 Claude
+
+- 現象: run `20261023-053932` は台帳3行（note ja / Substack ja・en）を `pending: required fail-closed proofs unavailable (headline-image API credential; judge broker returned no verdict for identity and conscience)` で記録し、公開0。`gates/judge-broker/broker.err` は全judgeが `rc=75 codex_home_busy` / `provider profile lease is busy`（attempt 1・2の両profile）。
+- 原因（コード読み）: `runtime/agent-runner/agent_runner.py` の `acquire_provider_lease` は `automation_home/.agent-runner-profile-provider.lock` をprofile単位の排他flockで取り、deadline無しの呼び出しは即 `ProviderLeaseBusy`。Writer本体のCodexがacct lease を保持したまま、同じrunのjudge broker（identity/conscience/editorial）が同profileを要求するため、親が子の結果を待ちつつlockを保持する入れ子の自己競合になる。もう一方のprofileも他ownerが保持中だと全judgeが失敗する。待機（deadline）を付けても親が解放しないため解消しない。
+- 同じ原因の影響: PromptBase `gen_examples`（10/19–22 acct1 `codex_home_busy` / acct2 `transient_unavailable`）。PromptBaseは#8630で同日再試行に変更済み（根本は未解決）。
+- 見出し画像: #8603のwrapper側生成は、エージェントが自ら `pending` 台帳行を書いた run では `prepublication-finish: skip ledger-row-present` となり実行されない。
+- 次の手（FND04 owner判断）: 既存profile lease維持の方針と両立する案として、同一run（同じ `LIFE_MANAGER_RUN_ID` / judge broker）からの入れ子judgeに親のlease保持を引き継ぐ（再入可能lease）か、judge brokerを親エージェントのturn外で実行する。どちらもlease方針の変更を伴うため、Claudeは実装せず証拠のみ記録する。
