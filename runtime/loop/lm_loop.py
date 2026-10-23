@@ -3050,6 +3050,10 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                         # stale Claude binary cannot bypass the immutable release.
                         "ARTICLE_CLAUDE_BIN", "ARTICLE_CODEX_BIN",
                         "ARTICLE_CODEX_PROVIDER_API_KEY", "ARTICLE_MODEL_RUNNER",
+                        # 7cd0d0e486 retired the local proxy route; model-runner exits 64
+                        # for any provider id other than the direct Codex CLI provider.
+                        "ARTICLE_CODEX_PROVIDER_ID", "ARTICLE_CODEX_PROVIDER_ENV_KEY",
+                        "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE",
                     )
                     if item["loop_id"] in writer_loop_ids else ()
                 )
