@@ -115,6 +115,9 @@ function ascSevenDayMetrics(dataDir, reportDay, productId, objectStore) {
       for (const name of ASC_SEVEN_DAY_METRICS) {
         if (observations[name].has(daily.date)) continue;
         const metric = daily.metrics?.[name];
+        if (metric?.status === "unavailable" && metric.value === null) {
+          observations[name].set(daily.date, null); used = true; continue;
+        }
         if (metric?.status !== "measured" || typeof metric.value !== "number" || !Number.isFinite(metric.value) || metric.value < 0) continue;
         observations[name].set(daily.date, metric.value); used = true;
       }
@@ -122,7 +125,7 @@ function ascSevenDayMetrics(dataDir, reportDay, productId, objectStore) {
     if (used) sourceRefs.add(snapshot.snapshot_ref);
   }
   const metrics = Object.fromEntries(ASC_SEVEN_DAY_METRICS.map((name) => {
-    const values = observations[name]; const missingDates = days.filter((day) => !values.has(day)); const observedDays = values.size;
+    const values = new Map([...observations[name]].filter(([, value]) => value !== null)); const missingDates = days.filter((day) => !values.has(day)); const observedDays = values.size;
     const status = observedDays === 7 ? "measured" : observedDays ? "partial" : "unavailable";
     const average = status === "measured" ? [...values.values()].reduce((total, value) => total + value, 0) / 7 : null;
     return [name, { status, value: average, aggregation: "mean_daily", unit: "count", data_from: windowStart, data_to: windowEnd,

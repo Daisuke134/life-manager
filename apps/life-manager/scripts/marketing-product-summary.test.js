@@ -94,8 +94,9 @@ test("attribution funnel reports app-scoped RevenueCat customer activity and kee
   assert.match(result.snapshot.message, /Honne AI: .*新規顧客（直近28日）取得不可/);
 });
 
-test("ASC trailing seven-day averages use distinct source dates and keep partial coverage null", () => {
+test("ASC trailing seven-day averages use latest suppressions and keep partial coverage null", (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-seven-day-summary-")); const reportDay = "2026-10-12"; const objectDir = path.join(dataDir, "objects");
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const writeSnapshot = (snapshot) => {
     const source = path.join(dataDir, `asc-${snapshot.report_day}.json`); fs.writeFileSync(source, `${JSON.stringify(snapshot)}\n`);
     const ref = importContentObject(source, { objectDir }).ref; const directory = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", snapshot.report_day); fs.mkdirSync(directory, { recursive: true });
@@ -112,12 +113,13 @@ test("ASC trailing seven-day averages use distinct source dates and keep partial
     ["2026-10-05", dailyRow("2026-10-05", 1, 10, 2)], ["2026-10-06", dailyRow("2026-10-06", 2, 20, 4)],
     ["2026-10-07", dailyRow("2026-10-07", 3, 30, 6)], ["2026-10-08", dailyRow("2026-10-08", 4, 40, 8)],
     ["2026-10-09", dailyRow("2026-10-09", 5, 50, 10)], ["2026-10-10", dailyRow("2026-10-10", 6, 60, 12)],
-    ["2026-10-11", dailyRow("2026-10-11", 7, 70, 14, true)],
-    ["2026-10-12", dailyRow("2026-10-07", 300, 30, 6)],
+    ["2026-10-11", dailyRow("2026-10-11", 7, 70, 0)],
+    // The latest explicit suppression must supersede the old fabricated zero.
+    ["2026-10-12", [dailyRow("2026-10-07", 300, 30, 6), dailyRow("2026-10-11", 7, 70, 14, true)]],
   ];
   let currentAscRef;
   for (const [day, daily] of reports) {
-    const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: day, lineage_ref: "fixture-lineage", products: [acquisitionProduct("anicca-ios", [daily]), acquisitionProduct("honne-ai", [])], rows: [] };
+    const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: day, lineage_ref: "fixture-lineage", products: [acquisitionProduct("anicca-ios", Array.isArray(daily) ? daily : [daily]), acquisitionProduct("honne-ai", [])], rows: [] };
     const ref = writeSnapshot(snapshot); if (day === reportDay) currentAscRef = ref;
   }
   const rcSource = path.join(dataDir, "rc-source.json"); fs.writeFileSync(rcSource, "{}\n"); const rcRef = importContentObject(rcSource, { objectDir }).ref;
