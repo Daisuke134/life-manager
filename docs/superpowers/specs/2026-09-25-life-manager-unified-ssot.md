@@ -72,6 +72,18 @@ source実装: kernel RED11件、reconciler RED9件を確認し、両file計75件
 
 所有worktree=`.worktrees/coconala-reply-evidence-20261023`、branch=`fix/coconala-reply-evidence-20261023`、owner=`codex-coconala-reply-evidence`、base=`178b6c46b30fc2e0540f12ccc741b3a8eef605cf`。現在cursor=REPLY-EVIDENCE-03、既存MAC02→03の順序は変えない。旧setup/readme worktreesは統合・退役済み。
 
+### MAC02-SELECTED-PYTHON: 準備済みPythonを実ownerまで保持する
+
+目的・範囲: REPLY-EVIDENCEのPR #8692は全13 CI、review round2のfinding0/SHIPを経てmain 0a54cd06315a6be3ddec6de06032e2614dd51ad5へ統合し、公開2 sourceとmanifestが検証済みbyteと一致する。完全immutable candidate 20261023T203225-0a54cd06を作成するが、現Coconala Pythonにcloakbrowserが無い。既存common venvもbs4無しであるため、target applyは実行していない。private host profileは無く、global prepareによる空browser bindingsの生成は既存稼働へ持ち込まない。
+
+原因境界: Coconala prepare/configure-pythonが選ぶprivate PYTHONがcanonical plistでHF_GIG_PYTHONへ届かず、shared release runtime Pythonで上書きされる。明示された本人PYTHONだけを既存Coconala env解決へ含め、7 canonical jobsとsame-SHA adoptionで同じ値を使う。既定の作者Mac用Pythonや任意envは注入しない。他のmarketplace/ownerには渡さない。新しいglobal host profile/browser registryを作らない。
+
+- [ ] SELECTED-PYTHON-01: private PYTHONをcanonical plistとsame-SHA adoptionへ渡す最小RED/GREEN。明示path欠損は起動前に拒否する。
+- [ ] SELECTED-PYTHON-02: 公開installerが使う本人Coconala venvを準備し、既存locked requirementsの必要依存でimportを確認する。本人Python設定だけ保存し、認証/ブラウザは変更しない。
+- [ ] SELECTED-PYTHON-03: review/CI/main/public source→immutable→target loaded-idle apply→自然実行のsource/結果を照合する。旧4effectは公式証拠なしで解除/再送しない。
+
+branch=fix/coconala-selected-python-20261023、base=0a54cd06315a6be3ddec6de06032e2614dd51ad5。同じMAC02の所有worktree/leaseを継続し、owner=codex-coconala-reply-evidence。現在cursor=SELECTED-PYTHON-01/02、MAC02→MAC03の順序は変えない。次のLancersは共通導入済みだがguided dispatch/本人account・work profileの固定依存が残り、本人setup実測だけでは閉じないことをread-only探索で確認する。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
