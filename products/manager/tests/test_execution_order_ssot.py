@@ -34,19 +34,8 @@ class ExecutionOrderContract(unittest.TestCase):
         self.assertEqual(len(self.tasks),113)
         self.assertEqual(len(self.lookup),113)
         self.assertEqual(t["technical_execution_sequence"],EXPECTED)
-        # The cursor is the next unfinished E task. Only a tested contiguous
-        # prefix of the immutable E order may be recorded as completed.
-        completed = t["technical_execution_completed"]
-        self.assertGreaterEqual(len(completed), 2)
-        self.assertEqual(completed, EXPECTED[:len(completed)])
-        self.assertLess(len(completed), len(EXPECTED))
-        self.assertEqual(t["technical_execution_cursor"], EXPECTED[len(completed)])
-        for stage in completed:
-            self.assertIn(stage, t["technical_execution_receipts"])
-            receipt = t["technical_execution_receipts"][stage]
-            self.assertGreater(receipt["run_id"], 0)
-            self.assertEqual(receipt["status"], "PASSED")
-            self.assertGreaterEqual(receipt["full_suite_total"], 504 if stage == "E01" else 512)
+        self.assertGreaterEqual(len(t["technical_execution_completed"]), 2)
+        self._assert_execution_cursor_and_receipts(t)
         e01 = t["technical_execution_receipts"]["E01"]
         self.assertEqual(e01["run_id"], 39727976132)
         self.assertEqual(e01["raw_sha256"], "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585")
@@ -57,6 +46,26 @@ class ExecutionOrderContract(unittest.TestCase):
         self.assertEqual(self.lookup["F004"]["status"],"skipped")
         self.assertEqual(self.lookup["F007"]["status"],"skipped")
         self.assertTrue(all(self.lookup[x]["status"]=="todo" for x in GATES))
+
+        # Run the same canonical sequence/receipt contract on a terminal-state
+        # fixture; this synthetic receipt does not change actual task state.
+        terminal = self._execution_fixture(EXPECTED, None)
+        terminal_f009 = next(task for task in terminal if task["id"] == "F009")
+        self._assert_execution_cursor_and_receipts(terminal_f009)
+
+    def _assert_execution_cursor_and_receipts(self, task):
+        # Only a contiguous prefix may be complete. A nonterminal cursor names
+        # the next E; the full prefix has no next E and uses null.
+        completed = task["technical_execution_completed"]
+        self.assertEqual(completed, EXPECTED[:len(completed)])
+        expected_cursor = EXPECTED[len(completed)] if len(completed) < len(EXPECTED) else None
+        self.assertEqual(task["technical_execution_cursor"], expected_cursor)
+        for stage in completed:
+            self.assertIn(stage, task["technical_execution_receipts"])
+            receipt = task["technical_execution_receipts"][stage]
+            self.assertGreater(receipt["run_id"], 0)
+            self.assertEqual(receipt["status"], "PASSED")
+            self.assertGreaterEqual(receipt["full_suite_total"], 504 if stage == "E01" else 512)
 
     def _execution_fixture(self, completed, cursor):
         tasks = deepcopy(self.tasks)
