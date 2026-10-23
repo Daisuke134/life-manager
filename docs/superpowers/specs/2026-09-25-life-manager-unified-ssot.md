@@ -92,16 +92,24 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/browser-lease-tab-preservation-20261023、base=2f2b467699feb027deaea6a0503b8a6d80b9953c（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-BROWSER-RELEASE。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=feat/lancers-guided-setup-20261023、base=742479ee2e57b1ef6153ef780cc1d4628c22a4d6（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのACCOUNT。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
-- [ ] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。現在はholder照合より前にsweep_tabs.pyを呼び、4page以上で所有者を区別せずcloseし得る。authorized/wrong-holder両方のreleaseを隔離fixtureでRED再現し、既存lease ownership/beat/acquire/collision条件を保持して不要なsweep呼出を除く。callerの既存actor限定close_targetとcontext GCは保持する。source/test、独立review、既存CI、main/public readback後に公式account観測を続ける。
+- [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
 - [ ] MAC03-LANCERS-SETUP: 公開Lancers入口を既存bootstrap/install dispatch/catalogへ結び、同じprivate本人入力と現在の公式ログイン/本人account観測をreadyで照合する。既存Coconalaのreceipt bindingとlocal applyを手本にし、Coconala固有SMS/eKYC/bank条件を複製しない。新規accountでも観測できる本人IDを確認するまではreadyにしない。未設定やHuman Verificationを成功へ置換しない。
 - [ ] MAC03-LANCERS-RUNTIME: review/CI/main/public readback→immutable→owner限定反映→自然terminalと公式成果を確認する。別Macの本人接続が無い部分を明示し、全Lancers/全20機能/10,000 starsの完了とはしない。
 
 実装判断: 既存Python/Playwright/共通profile validatorとlocal applyを再利用する。候補者の事実には既存job-search profile v1のnameとevidence付きfactsを使う。Lancers固有accountとprovider証拠は本人private入力を明示接続し、必要最小の契約を同じcaller群へ通す。source/templateの作者値は本人証拠の代替にしない。新scheduler/独自業務core/global host profile移行/任意の新依存は追加しない。brainstormingの質問はユーザーが明示的にopt outしているため進行条件にしない。building-agentsの古いmodel/provider指定は今回のChatGPT Plus/Codex要件を上書きしない。
 
-SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。専用Lancers browserは登録済みendpointで到達可能だが、with-browser guardの有限read-only probeはBUSY/exit75で実行されず、page作成・ログイン・送信は0。leaseはdead holderでも既存fresh-graceを保持するため、解除/再試行で迂回せず原ownerのreleaseまたはguardの正規判定後に公式観測を続ける。
+SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。登録済みbrowserの公式mypage観測は新しいmain版guardから成功するが、Lancers専用provider profileは未作成。公開installerがこの本人接続を行う経路が次の修正対象。
+
+SETUPの実行順と受入:
+- [ ] ACCOUNT: 既存Coconala onboardingの公式観測・private receiptの形を再利用し、Lancersの公式mypage内で確認できる本人accountを接続する。現在のpositive precedentは `.mypage.result-summary a[href*="/profile/"]` が一つのaccountを指すこと。公式origin/path、ready、login/challenge、リンクの一意性を検証し、未設定・曖昧・他人の公開profileをreadyにしない。候補者の事実やaccountを作者値で補わず、既存load_identity/account-idの契約を保つ。source fixtureのRED→GREEN後に受入・main反映し、同じ公式観測から本人private入力へ接続する。
+- [ ] INPUTS: ReplyのCrowdWorks provider既定と、Storefrontのcreator product/avatar/catalogへの戻りを本人入力へ修復する。既存--product、validator、catalog_path、同じreconcile pathを再利用する。未設定の本人product/proofを作者画像・仮listing ID・repo実績で埋めず、setup_requiredとして扱う。profile更新は検証済みavatarを使う。初回listingとcatalogの外部effectは本人設定・公式証拠が成立する経路だけで行う。
+- [ ] INSTALL: 既存bootstrap/install dispatch/catalog/common local applyへ公開Lancers入口を接続する。ChatGPT認証と導入済み適合Python/browserを再利用し、別Macのhost/browser bindingを先に確認する。新scheduler/第二業務core/独自profile frameworkを作らない。
+- [ ] READY: 本人入力・公式account照合・必要なproduct/proofとlaneごとの要件が満たされるownerだけを既存local applyから導入する。sourceの受入とimmutable反映を済ませてから自然terminal/公式成果へ進み、全7jobsや別Macの成功を設定fileだけで報告しない。
+
+Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、公開workflow39965643774は成功。guard/testのGitHub公式main bytesは全一致し、追加CI stepも一致する。workflow全体の別差分はmainに統合済みのMonk Factory Web jobで、今回のbrowser stepは変わらない。既存cutterの限定候補は `~/.local/share/life-manager/browser-probes/lancers-local-setup/releases/20261023T230521-742479ee`（provenance=ancestor-of-origin-main、skills/browser、current不変）。同cwdから既存with-browserを使い、公式https://www.lancers.jp/mypageのready=complete/login_form=false/human_verification=falseと、本人summary内のprofile linksが同一accountを指すことを読む。raw account値は出力せず、lease解放とowned target残0を確認する。browser起動・login・provider送信・業務owner applyは0。公開Lancers導入、別Mac実機、全機能、10,000 starsは未完（GitHub公式現在値8 stars/2 forks）。
 
 #### Lancers本人入力の実装計画
 
