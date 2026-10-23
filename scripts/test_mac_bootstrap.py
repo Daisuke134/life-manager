@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,7 +27,7 @@ class MacBootstrapTest(unittest.TestCase):
         scripts = self.checkout / "scripts"
         scripts.mkdir()
         (scripts / "macos-runtime.sh").write_text(
-            'lm_ensure_python() { LM_PYTHON="$(command -v python3)"; }\n'
+            'lm_ensure_python() { LM_PYTHON="${BOOTSTRAP_SELECTED_PYTHON:-$(command -v python3)}"; }\n'
             'lm_ensure_homebrew() { echo unexpected-brew >> "$BOOTSTRAP_TEST_LOG"; return 91; }\n'
         )
         installer = self.checkout / "install.sh"
@@ -56,14 +57,15 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
         return subprocess.run([self.git, "-C", str(self.checkout), *args],
                               check=True, capture_output=True, text=True).stdout.strip()
 
-    def bootstrap(self, *args, script="bootstrap.sh"):
+    def bootstrap(self, *args, script="bootstrap.sh", extra_env=None):
         return subprocess.run(
             ["/bin/bash", str(ROOT / "scripts" / script), *args],
             env={**os.environ, "HOME": str(self.root / "home"),
                  "LIFE_MANAGER_CHECKOUT": str(self.checkout),
                  "BOOTSTRAP_TEST_SOURCE": str(self.root / "checkout"),
                  "BOOTSTRAP_TEST_ENTRY": str(ROOT / "scripts/bootstrap.sh"),
-                 "BASH_ENV": str(self.env_file), "BOOTSTRAP_TEST_LOG": str(self.log)},
+                 "BASH_ENV": str(self.env_file), "BOOTSTRAP_TEST_LOG": str(self.log),
+                 **(extra_env or {})},
             capture_output=True, text=True, timeout=15,
         )
 
@@ -123,6 +125,41 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
                 result = self.bootstrap("preflight", script=f"bootstrap-{product}.sh")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"dispatch:{product}\ndispatch:preflight", result.stdout)
+
+    @unittest.skipUnless(shutil.which("zsh"), "Job Hunter uses zsh")
+    def test_job_hunter_runtime_receives_selected_python_and_preserves_override(self):
+        runtime = self.checkout / "apps/job-search-loop/scripts/runtime-paths.sh"
+        runtime.parent.mkdir(parents=True)
+        shutil.copyfile(ROOT / "apps/job-search-loop/scripts/runtime-paths.sh", runtime)
+        (self.checkout / "install.sh").write_text(
+            '#!/bin/bash\nexec ' + shutil.which("zsh") + ' -c \'source "$LIFE_MANAGER_CHECKOUT/apps/job-search-loop/scripts/runtime-paths.sh"; printf "%s" "$JOB_SEARCH_PYTHON"\'\n'
+        )
+        self.run_git("add", ".")
+        self.run_git("commit", "-m", "job-hunter runtime fixture")
+        self.run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        for override in ("", "/owner/chosen-python"):
+            with self.subTest(override=override):
+                result = self.bootstrap("job-hunter", "preflight", extra_env={
+                    "BOOTSTRAP_SELECTED_PYTHON": sys.executable, "JOB_SEARCH_PYTHON": override,
+                })
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, override or sys.executable)
+
+    def test_default_setup_replaces_an_incompatible_existing_venv(self):
+        (self.checkout / "requirements-runtime.txt").write_text("")
+        (self.checkout / "scripts/life-manager-onboarding-server.py").write_text(
+            'print("onboarding-ready")\n'
+        )
+        self.run_git("add", ".")
+        self.run_git("commit", "-m", "setup screen fixture")
+        self.run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        venv_python = self.root / "home/.local/share/life-manager/venv/bin/python"
+        venv_python.parent.mkdir(parents=True)
+        venv_python.write_text('#!/bin/bash\nexit 95\n')
+        venv_python.chmod(0o755)
+        result = self.bootstrap(extra_env={"BOOTSTRAP_SELECTED_PYTHON": sys.executable})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "onboarding-ready\n")
 
 
 if __name__ == "__main__":

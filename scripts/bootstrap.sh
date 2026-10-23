@@ -53,6 +53,9 @@ export LIFE_MANAGER_PYTHON="$LM_PYTHON"
 
 if [ "$#" -gt 0 ]; then
   case "$1" in
+    job-hunter)
+      export JOB_SEARCH_PYTHON="${JOB_SEARCH_PYTHON:-$LM_PYTHON}"
+      ;;
     list|plan)
       if ! command -v node >/dev/null 2>&1; then
         lm_ensure_homebrew
@@ -66,7 +69,7 @@ fi
 VENV="$HOME/.local/share/life-manager/venv"
 if [ ! -x "$VENV/bin/python" ] \
   || ! "$VENV/bin/python" -c 'import sys; raise SystemExit(sys.version_info < (3, 13))'; then
-  "$LM_PYTHON" -m venv "$VENV"
+  "$LM_PYTHON" -m venv --clear "$VENV"
 fi
 "$VENV/bin/python" -m pip install --disable-pip-version-check -r "$TARGET/requirements-runtime.txt" >&2
 

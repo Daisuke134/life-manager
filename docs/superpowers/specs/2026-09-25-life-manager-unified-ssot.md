@@ -14,7 +14,9 @@
 | [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
 | [ ] MAC03 | gig-lancers→gig-crowdworks→gig-mercor→promptbase→writer→affiliate→self-build→ebook→capafy→line-stickerのpublic installerを既存実装へ結び、各業務のaccount/host要件・自然実行・公式成果を一つずつ確認する。guidedの他8業務も同じ基準で検証する |
 
-現在cursor=MAC01/MAC02の既知の導入不具合を最小REDで再現する。所有worktree=`.worktrees/mac-product-command-20261023`、branch=`fix/mac-product-command-20261023`、primary=`codex-mac-product-command`。source/隔離検証の成功だけで全18業務や友人Macの稼働完了とは報告しない。
+source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを含む36件、catalog/plan50件、公開bootstrap7件、OSS/source境界をPASSする。既存Gig関連を含む78件もPASSする。独立reviewがJob Hunterへの選択Python欠落と、設定画面用旧venvが更新されない境界を実証するため、その2ケースもREDで再現し共通入口で修復する。PRは#8602、source先行headは`0d5cd4bbe43c37e8f98dd4ca59dffb854f942a5f`。Coconalaのlegacy導入はApply/Reply/Storefrontだけであり、Paid/Report/GCを含む全jobの導入はMAC02の残件として保持する。
+
+現在cursor=MAC01/MAC02の追加2ケースを含む検証→独立再review→CI→main公開readback。所有worktree=`.worktrees/mac-product-command-20261023`、branch=`fix/mac-product-command-20261023`、primary=`codex-mac-product-command`。source/隔離検証の成功だけで全18業務や友人Macの稼働完了とは報告しない。
 
 ## Local / Cloud 全体復旧の現行spec・実行計画
 
