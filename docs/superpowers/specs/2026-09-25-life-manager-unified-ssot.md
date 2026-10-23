@@ -227,6 +227,8 @@ INPUTS-B1の起動境界GREEN: 既存のsetup helperにあるpending/読取不�
 
 INPUTS-B1のSHIP受入: PR #8747/head9abe32fb2cbe433bc18deeb211b270c702ac32cd、workflow39990171611は全13checks成功、独立追加reviewはblocking0（実関数AST probe27+読取不能3件PASS）。main6abdcdcc2ae7af284f2eb914b03c3d8e40dddea4への統合と、GitHub公式の2source/2testのblob全4一致を確認する。B1だけで全INPUTS-B/公開INSTALL/業務ready/別Mac/10,000 starsを完了扱いしない。
 
+B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
+
 - [ ] B3-READBACK: pendingだけ残りreceipt/実IDが未保存の場合、既存公式一覧候補と_publicの全内容照合を実ID保存へ接続する。0件/曖昧/本人不一致で再createやeffect0へ戻さない。旧順=B1→B2→INSTALL、新順=B1→B2→B3→INSTALL。理由は現callerが公式readbackへ進まず永続pendingになることを実呼出元で確認したためで、現在cursor=B2-RED。進行中の外部effectは0。
 
 #### Lancers本人入力の実装計画
