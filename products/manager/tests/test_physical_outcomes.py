@@ -98,6 +98,33 @@ class PhysicalOutcomeTests(unittest.TestCase):
         self.assertEqual(result.readings, tuple(rows))
         self.assertIsNone(result.comparison.change_in_gap)
 
+    def test_source_quality_flag_excludes_finite_reading_from_descriptive_comparison(self):
+        rows = list(complete_readings())
+        flagged = replace(rows[0], missing_reason="source_incident_partial_hour_average")
+        rows[0] = flagged
+
+        result = analyze(tuple(rows))
+
+        rejected = {item.reading.observation_id: item for item in result.excluded}
+        self.assertIn(flagged.observation_id, rejected)
+        self.assertEqual(rejected[flagged.observation_id].reason, "SOURCE_QUALITY_FLAG")
+        rejected_reading = rejected[flagged.observation_id].reading
+        self.assertIs(rejected_reading, flagged)
+        self.assertEqual(rejected_reading.value, 20)
+        self.assertEqual(rejected_reading.source, flagged.source)
+        self.assertEqual(rejected_reading.missing_reason, "source_incident_partial_hour_average")
+        self.assertEqual(result.readings, tuple(rows))
+        self.assertFalse(any(observation.observation_id == flagged.observation_id
+                             for frame in result.frames for observation in frame.observations))
+        self.assertEqual(len(result.pairs), 1)
+        self.assertIsNone(result.comparison.before_gap)
+        self.assertEqual(result.comparison.after_gap, 2)
+        self.assertIsNone(result.comparison.change_in_gap)
+        self.assertEqual(result.comparison.status, "INCOMPLETE_CONTEMPORANEOUS_COMPARISON")
+        self.assertEqual(result.proof_level, "P0")
+        self.assertEqual(result.action, "NO_ACTION")
+        self.assertEqual(result.health_outcome_status, "NOT_MEASURED")
+
     def test_units_calibration_binding_and_expiry_are_not_guessed(self):
         original = complete_readings()
         variants = (

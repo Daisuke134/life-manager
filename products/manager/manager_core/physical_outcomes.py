@@ -205,6 +205,8 @@ def _quality(design, row):
         return "UNIT_MISMATCH"
     if row.value is None:
         return "MISSING_VALUE"
+    if row.missing_reason is not None:
+        return "SOURCE_QUALITY_FLAG"
     if not _finite(row.value):
         return "INVALID_VALUE"
     if ((row.channel in ("indoor_pm25", "outdoor_pm25", "power") and row.value < 0)
