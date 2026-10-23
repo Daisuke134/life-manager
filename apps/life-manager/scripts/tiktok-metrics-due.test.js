@@ -603,3 +603,18 @@ test("missing Honne weekly data stays unavailable and does not stop Anicca metri
     global.fetch = originalFetch;
   }
 });
+
+
+test("unpublished photo target ignores unrelated receipts while malformed exact receipts still fail", (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-photo-unpublished-receipts-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const target = TARGETS.find((row) => row.postiz_photo_only);
+  const file = path.join(dataDir, "marketing/receipts.jsonl");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ job_id: "marketing-liveness:other-summary", receipt: { message_id: 708 } }) + "\n");
+  assert.deepEqual(discoverTarget(dataDir, target), []);
+  for (const row of [{ job_id: target.receipt_job_id }, { job_id: target.receipt_job_id, receipt: { status: "failed" } }]) {
+    fs.writeFileSync(file, JSON.stringify(row) + "\n");
+    assert.throws(() => discoverTarget(dataDir, target), /Postiz photo receipt invalid/);
+  }
+});
