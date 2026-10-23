@@ -38,7 +38,7 @@
 
 ## 検証範囲
 
-新規22 tests、既存rights/Source/OutcomeBench/INTIMA46 tests、local full1047 tests / skip5 / failure0。fresh task reviewと実結果の独立照合は各0 findings、限定SPEC/QUALITY PASS。
+新規22 tests、既存rights/Source/OutcomeBench/INTIMA46 tests、local full1047 tests / skip5 / failure0。fresh task reviewと実結果の独立照合は各0 findings、限定SPEC/QUALITY PASS。 実装とprotocol・全metadata差分を含むfresh whole-branch reviewもHEAD `797012f9418907082417d10523c59f5d816cbbd0`で0 findings、限定SPEC/QUALITY PASS。
 
 同じ実装commitの[公式CI39984363992](https://github.com/Daisuke134/life-manager/actions/runs/39984363992)はfull1021 / skip6 / failure0、別focused suites6・21、1 job10 stepsすべて成功。local/officialの件数差の原因は未確定。GitHub server created16:09:08Zはcompute開始前、CI完了16:09:57Zはcompute開始後。local testsとfresh source reviewはcompute前に完了していたが、公式CIも開始前に完了していたとは記さない。
 

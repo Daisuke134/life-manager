@@ -92,6 +92,8 @@ rootは、この範囲と不確実性を記録した**CONDITIONAL_PRIVATE_EVALUA
 
 同じ原response/ID/hashを全450件で照合してから比較でき、新しいmodel生成・GPUを必須にしない。refusal/complianceは回答の試行/拒否の分類であり、正確性・response harm・圧力/依存・便益を測らない。配布string判定の再集計と、上流判定algorithmの再実行も別に記録する。
 
+**その後の限定再集計:** [Mistral450応答の配布string判定を元human goldと比較](../verification/XSTEST_RELEASED_REFUSAL_CALIBRATION_20261023.md)した。全体383/450一致でも、full-refusal recall12/49・partial-refusal recall0/27で見落としが大きい。別prompt版との対応未成立によりsafe/unsafe別集計はNOT_RUN。v1失敗・v2未実行・指標前v3改訂と、初回要約誤記の訂正を保持する。上流algorithm再実行や新model judgeの検証ではない。
+
 ## 6. WildGuardTest: 直接的なharm/refusal候補、取得gate未通過
 
 一次資料: [paper v1](https://arxiv.org/html/2406.18495v1)、[公式repo固定版](https://github.com/allenai/wildguard/tree/495b9dc837be594c6c5665b0f7f56169baf0d5be)、[code LICENSE](https://github.com/allenai/wildguard/blob/495b9dc837be594c6c5665b0f7f56169baf0d5be/LICENSE.md)、[dataset API](https://huggingface.co/api/datasets/allenai/wildguardmix)、[固定dataset](https://huggingface.co/datasets/allenai/wildguardmix/tree/d29c47f41c8b51348b5c8e8c81c039b3132b66d1)。
