@@ -434,7 +434,7 @@ PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象ins
 
 所有: workerはruntime/loop/central_cleanup.py、bin/cut-loop-release.sh、runtime/loop/tests/test_cut_loop_release.pyの3filesのみ。他者編集を戻さずstage/commit/push/実cleanup/private読取/制御/通信をしない。primaryは本仕様、必要な既存CI接続、review/統合/受入後の候補限定実行と公式readbackを所有する。追加ファイルや変更が必要なら実原因を報告し、独自実装を増やさない。
 
-- [ ] BUNDLE-GC-RED: source未変更の最小fixtureでcurrent無し/keep0/完全readonly bundleが回収されないことを再現する。既存参照・UID・保護store・probe不明・lock/inode不一致は保存する条件を追加し、実dataやnative cleanupへ到達しない。
+- [x] BUNDLE-GC-RED: primaryがsource未変更の隔離fixtureで2failed/15passed/4subtests（0.35s）を確認する。失敗はcurrent無し/keep0で残存する完全readonly bundleと、native plist fallbackが有効でも残存するbundleの2件。既存参照・UID・保護store・probe不明・lock/inode不一致の保持15件は成功する。native subprocessはfixture probeへ限定し、実data/cleanupへ到達しない。
 - [ ] BUNDLE-GC-GREEN: 既存回収入口へ最小統合し、current/readonly release/protected保持の既存testsを再利用する。GC再実行は削除0、同rootの新release/bundleやopen対象を削除しない。必要なrelated tests/source boundary/diff/shell構文を確認する。
 - [ ] BUNDLE-GC-SHIP: fresh read-only review/既存CI13jobs成功/main/public byte readbackを確認する。check登録前の部分的成功や別headをPASSにしない。
 - [ ] BUNDLE-GC-ACTUAL: accepted mainから既存--release-gc-onlyを候補root/keep0へ対象限定実行し、fresh参照・所有・保護条件とreceipt/free-before-afterを確認する。logical/allocatedとAPFS物理増加を混同せず、floor未到達・swap/旧effect未確定はそのまま残す。

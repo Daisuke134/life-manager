@@ -1,10 +1,14 @@
 import json
 import hashlib
+import io
 import os
+import plistlib
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -882,6 +886,263 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
             self.assertEqual(len(calls.read_text().splitlines()), 3)
+
+
+class CentralReleaseBundleGCTest(unittest.TestCase):
+    def setUp(self):
+        from runtime.loop import central_cleanup
+        self.cleanup = central_cleanup
+        fixture = tempfile.TemporaryDirectory()
+        self.addCleanup(fixture.cleanup)
+        self.root = Path(fixture.name)
+        self.addCleanup(self._restore_directories)
+        self.loops = self.root / "loops"
+        self.releases = self.loops / "releases"
+        self.agents = self.root / "agents"
+        self.source_repo = self.root / "source"
+        for path in (self.releases, self.agents, self.source_repo):
+            path.mkdir(parents=True)
+        self.protected = self.root / "protected-releases.json"
+        self.protected.write_text("[]")
+        self.enterContext(mock.patch.dict(os.environ, {
+            "HOME": str(self.root), "LOOPS_ROOT": str(self.loops),
+            "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(self.agents),
+            "LIFE_MANAGER_PROTECTED_RELEASES": str(self.protected),
+            "LIFE_MANAGER_SOURCE_REPO": str(self.source_repo),
+        }))
+        self.ps_stdout = self.lsof_stdout = self.lsof_stderr = ""
+        self.ps_code = self.lsof_code = 0
+        self.native_plist = None
+        self.commands = []
+
+    def _restore_directories(self):
+        for current, directories, _files in os.walk(self.root, followlinks=False):
+            Path(current).chmod(0o755)
+            for name in directories:
+                path = Path(current) / name
+                if not path.is_symlink():
+                    path.chmod(0o755)
+
+    def _seal(self, root):
+        for path in root.rglob("*"):
+            if not path.is_symlink():
+                path.chmod(0o555 if path.is_dir() else 0o444)
+        root.chmod(0o555)
+
+    def _bundle(self, key="a" * 64, *, protected_path=None):
+        bundle = self.loops / "dependency-bundles" / ("npm-" + key)
+        modules = bundle / "node_modules"
+        modules.mkdir(parents=True)
+        (bundle / "package.json").write_text('{"name":"fixture"}\n')
+        for path in (bundle / "package-lock.json", modules / ".package-lock.json"):
+            path.write_text('{"lockfileVersion":3}\n')
+        (bundle / ".complete").write_text(key + "\n")
+        (modules / "fixture.js").write_text("sealed dependency\n")
+        if protected_path:
+            path = bundle / protected_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("protected fixture\n")
+        self._seal(bundle)
+        return bundle
+
+    def _release(self, bundle):
+        release = self.releases / "20260101T000000-aaaaaaaa"
+        (release / "bin").mkdir(parents=True)
+        (release / "bin/run.py").write_text("pass\n")
+        (release / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+        (release / "node_modules").symlink_to(bundle / "node_modules")
+        self._seal(release)
+        return release
+
+    def _probe(self, command, **kwargs):
+        command = list(map(str, command))
+        self.commands.append(command)
+        tool = Path(command[0]).name
+        if tool == "ps":
+            code, stdout, stderr = self.ps_code, self.ps_stdout, ""
+        elif tool == "lsof":
+            code, stdout, stderr = self.lsof_code, self.lsof_stdout, self.lsof_stderr
+        elif tool == "git" and command[1:3] == ["-C", str(self.source_repo)]:
+            code, stdout, stderr = 0, "", ""
+        elif command == ["/usr/bin/plutil", "-convert", "json", "-o", "-",
+                         str(self.agents / "ai.anicca.fixture.plist")]:
+            code = 1 if self.native_plist is None else 0
+            stdout = "" if self.native_plist is None else json.dumps(self.native_plist)
+            stderr = ""
+        else:
+            raise AssertionError(f"unexpected fixture subprocess: {command!r}")
+        if code and kwargs.get("check"):
+            raise subprocess.CalledProcessError(code, command, output=stdout, stderr=stderr)
+        return subprocess.CompletedProcess(command, code, stdout, stderr)
+
+    def _gc(self, keep=0):
+        output = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_KEEP": str(keep)}),
+            mock.patch.object(sys, "argv", ["central_cleanup.py", "--release-gc-only"]),
+            mock.patch.object(subprocess, "run", side_effect=self._probe),
+            mock.patch.object(subprocess, "Popen", side_effect=AssertionError("host subprocess forbidden")),
+            mock.patch.object(subprocess, "check_output", side_effect=AssertionError("host subprocess forbidden")),
+            redirect_stdout(output),
+        ):
+            code = self.cleanup.main()
+        return code, json.loads(output.getvalue())
+
+    def test_release_gc_only_reclaims_readonly_bundle_without_current_and_replays_zero(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        code, result = self._gc()
+        self.assertFalse(release.exists())
+        self.assertFalse(bundle.exists(), "release-gc-only left its unreferenced readonly bundle")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["removed_releases"], 1)
+        self.assertGreater(result["reclaimed_bytes"], 0)
+        self.assertFalse(any(Path(command[0]).name == "git" for command in self.commands))
+        code, replay = self._gc()
+        self.assertEqual(code, 0, replay)
+        self.assertEqual(replay["removed_releases"], 0)
+        self.assertEqual(replay["reclaimed_bytes"], 0)
+
+    def test_release_gc_only_preserves_current_bundle(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        (self.loops / "current").symlink_to(release)
+        self._gc()
+        self.assertTrue(release.exists())
+        self.assertEqual((bundle / "node_modules/fixture.js").read_text(), "sealed dependency\n")
+
+    def test_release_gc_only_preserves_pinned_bundle(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        self.protected.write_text(json.dumps([str(release)]))
+        self._gc()
+        self.assertTrue(release.exists())
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_linked_by_retained_release(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        self._gc(keep=1)
+        self.assertTrue(release.exists())
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_named_by_plist(self):
+        bundle = self._bundle()
+        (self.agents / "ai.anicca.fixture.plist").write_bytes(plistlib.dumps({
+            "ProgramArguments": [str(bundle / "node_modules/fixture.js")],
+        }))
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_named_by_process(self):
+        bundle = self._bundle()
+        self.ps_stdout = f"999999 node {bundle}/node_modules/fixture.js\n"
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_unowned_fd_even_in_its_own_process(self):
+        bundle = self._bundle()
+        self.lsof_stdout = f"p{os.getpid()}\nf999999\nn{bundle}/node_modules/fixture.js\n"
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_protected_bundle_stores(self):
+        paths = ("nested/memory/owner.md", "nested/state/events.jsonl", ".lm-protected")
+        bundles = [self._bundle(f"{index:064x}", protected_path=path)
+                   for index, path in enumerate(paths, 1)]
+        self._gc()
+        for bundle, path in zip(bundles, paths):
+            self.assertEqual((bundle / path).read_text(), "protected fixture\n")
+
+    def test_release_gc_only_preserves_bundle_when_fd_inventory_is_unknown(self):
+        bundle = self._bundle()
+        for code, stderr in ((1, ""), (0, "coverage gap")):
+            with self.subTest(code=code, stderr=stderr):
+                self.lsof_code, self.lsof_stderr = code, stderr
+                self._gc()
+                self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_when_process_inventory_is_unknown(self):
+        bundle = self._bundle()
+        self.ps_code = 1
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_when_plist_fallback_fails(self):
+        bundle = self._bundle()
+        (self.agents / "ai.anicca.fixture.plist").write_text("<plist><dict>malformed")
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_accepts_native_plist_fallback_before_bundle_reclaim(self):
+        bundle = self._bundle()
+        (self.agents / "ai.anicca.fixture.plist").write_text("<plist><dict>malformed")
+        unrelated = self.root / "unrelated-fixture"
+        unrelated.write_text("unrelated executable fixture\n")
+        self.native_plist = {"ProgramArguments": [str(unrelated)]}
+        self._gc()
+        self.assertFalse(bundle.exists(), "valid native plist fallback must permit safe bundle reclaim")
+
+    def test_release_gc_only_preserves_bundle_when_pins_are_unknown(self):
+        bundle = self._bundle()
+        self.protected.write_text("{")
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_for_dangling_current(self):
+        bundle = self._bundle()
+        (self.loops / "current").symlink_to(self.releases / "missing")
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_preserves_bundle_with_other_cut_lock_owner(self):
+        bundle = self._bundle()
+        lock = self.loops / ".release-cut.lock"
+        lock.mkdir()
+        (lock / "pid").write_text(str(os.getpid()) + "\n")
+        inode = lock.stat().st_ino
+        self._gc()
+        self.assertTrue(bundle.exists())
+        self.assertEqual(lock.stat().st_ino, inode)
+        self.assertEqual((lock / "pid").read_text(), str(os.getpid()) + "\n")
+
+    def test_release_gc_only_preserves_foreign_uid_and_changed_bundle_inode(self):
+        bundle = self._bundle()
+        expected = bundle.stat()
+        fstat = os.fstat
+        for field, value in ((4, os.getuid() + 1), (1, expected.st_ino + 1)):
+            with self.subTest(field=field):
+                def changed_info(descriptor):
+                    info = fstat(descriptor)
+                    if (info.st_dev, info.st_ino) == (expected.st_dev, expected.st_ino):
+                        values = list(info)
+                        values[field] = value
+                        return os.stat_result(values)
+                    return info
+                with mock.patch.object(os, "fstat", side_effect=changed_info):
+                    self._gc()
+                self.assertEqual(bundle.stat().st_ino, expected.st_ino)
+                self.assertEqual(stat.S_IMODE(bundle.stat().st_mode), 0o555)
+
+    def test_release_gc_only_preserves_incomplete_or_writable_bundle(self):
+        incomplete = self._bundle("b" * 64)
+        incomplete.chmod(0o755)
+        (incomplete / ".complete").unlink()
+        incomplete.chmod(0o555)
+        writable = self._bundle("c" * 64)
+        writable.chmod(0o755)
+        writable_leaf = self._bundle("d" * 64)
+        (writable_leaf / "node_modules/fixture.js").chmod(0o644)
+        wrong_marker = self._bundle("e" * 64)
+        marker = wrong_marker / ".complete"
+        marker.chmod(0o644)
+        marker.write_text("f" * 64 + "\n")
+        marker.chmod(0o444)
+        self._gc()
+        self.assertTrue(incomplete.exists())
+        self.assertTrue(writable.exists())
+        self.assertTrue(writable_leaf.exists())
+        self.assertTrue(wrong_marker.exists())
 
 
 if __name__ == "__main__":
