@@ -1841,12 +1841,38 @@
     "learn": "公開済み報奨と実際の受け取りの違い",
     "change": "承認された成果物と独立して確認可能な受領証拠を照合",
     "verify": "支払完了を証明できなければ収入増と主張しない",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
-      "manager_core/opportunity_outcomes.py"
+      "manager_core/opportunity_outcomes.py",
+      "manager_core/public_opportunity_payment.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "ACCEPTED_PUBLIC_SOURCE_CONNECTION_ONLY",
+    "completion_evidence": [
+      "manager_core/public_opportunity_payment.py",
+      "tests/test_public_opportunity_payment.py",
+      "docs/research/JHIPSTER_D011_SOURCE_20261023.json",
+      "docs/verification/D011_PUBLIC_SOURCE_CONNECTION_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T10:29:43.321917+00:00",
+      "result": "PUBLIC_APPROVED_ARTIFACT_AND_SEPARATE_PLATFORM_PAID_CONNECTED",
+      "scope": "PUBLIC_SOURCE_CONNECTION_P0_ONLY",
+      "source_commit": "13b8c12f481fd0dae893ed6ae0b45a33a8c4c00d",
+      "source_pr": 8675,
+      "source_merged_at_utc": "2026-10-23T10:27:12Z",
+      "module_sha256": "15652fde6869d3720448da05125f6cfc15aa087b4a206552690f3575e72043e3",
+      "main_source_merged": true,
+      "scheduled_runtime_connected": false,
+      "public_platform_paid_observed": true,
+      "bank_settlement_authenticated": false,
+      "prior_posting_verified": false,
+      "new_manager_payment": false,
+      "manager_income_verified": false,
+      "causal_support": false,
+      "human_outcome": "NOT_MEASURED",
+      "independent_review": "SOURCE_SPEC_QUALITY_PASS_ALL_FINDINGS_CLOSED"
+    }
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",

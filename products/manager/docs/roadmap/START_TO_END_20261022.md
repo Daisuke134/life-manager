@@ -1,8 +1,10 @@
-# Manager — Phase12までの全工程と残34件
+# Manager — Phase12までの全工程と残33件
 
-**2026-10-23 現在:** 原113件は **76 done / 34 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
+**2026-10-23 現在:** 原113件は **77 done / 33 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
 
 **D003受入更新:** [PR8670](https://github.com/Daisuke134/life-manager/pull/8670)の通常main統合・公開packetの実readback・独立reviewを確認し、資金移動と別の受益報告の接続だけを受入。送金・人の便益・因果効果は未検証のまま。[限定受入receipt](../verification/D003_PUBLIC_SOURCE_CONNECTION_20261023.md)。
+
+**D011受入更新:** [PR8675](https://github.com/Daisuke134/life-manager/pull/8675)の通常main統合・独立review・実source照合後、公開OSS成果物と別のplatform Paidの照合だけを受入。事前募集・銀行着金・Manager所得増・D012の純額は未検証。[限定受入receipt](../verification/D011_PUBLIC_SOURCE_CONNECTION_20261023.md)。
 
 主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは、人のapp/chat/messenger操作や対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働くこと。BobaのMessages/iMessage/webにはUIがあり、この意味のno UIの先例とはしない。実行試験の7パスは主体全体の完成像ではない。
 
@@ -35,15 +37,15 @@ flowchart LR
 | 06. 現実の介入と独立した効果評価 | 9 | 7 | 0 | 2 |
 | 07. 研究発表・説明責任 | 2 | 1 | 1 | 0 |
 | 08. 最初の受益者・利用課題・継続利用の検証 | 8 | 1 | 7 | 0 |
-| 09. 領域横断の祝福・成果証拠 | 16 | 5 | 11 | 0 |
+| 09. 領域横断の祝福・成果証拠 | 16 | 6 | 10 | 0 |
 | 10. ベンチマーク・一般化・自己改善 | 6 | 0 | 6 | 0 |
 | 11. YC・研究者ネットワーク・英語発信 | 8 | 5 | 3 | 0 |
 | 12. 長期運用と統治 | 6 | 0 | 6 | 0 |
-| **合計** | **113** | **76** | **34** | **3** |
+| **合計** | **113** | **77** | **33** | **3** |
 
 Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない。Fの4件は所有デジタルP2、D001/D002は研究branchのP0 source契約であり本番送金ではない。H005/F004/F007は未実施のskippedで、Gate1独立RCT再現はUNMET。
 
-## 2. 残る34件の全ID・実施内容・依存・既存ファイル
+## 2. 残る33件の全ID・実施内容・依存・既存ファイル
 
 一覧は元のPhase順。C/Yは本体優先の後段に保留する。実施内容・verify・dependsは台帳から転記した。†はその依存もtodo。準備コードや文書の存在だけでdoneにはせず、各verifyを個別に満たす。
 
@@ -65,7 +67,7 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 | U007 | 人の便益・費用・置換効果の事前登録済み比較レポートを作る | U006†、F006 | 一次指標の効果量と不確実性を示し、未測定は未測定と報告 | `manager_core/causal_analysis.py` |
 | U008 | 協力者に成果レポートを提示し継続利用の意思と運用費を記録 | U007†、U002† | 実際の有料/支援コミットまたは継続利用意向の出典付き記録。収益未確認はUNKNOWN。対象期間・商品・口座の公式source coverageを照合してゼロ件と確定した場合だけ0を記録し、単発pilotをMRRにしない | `manager_core/governance.py` |
 
-### 09. 領域横断の祝福・成果証拠（残11）
+### 09. 領域横断の祝福・成果証拠（残10）
 
 | ID | 実施内容 | 台帳の依存 | 完了の確認 | 既存ファイル |
 |---|---|---|---|---|
@@ -75,8 +77,7 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 | D007 | 改善量と電力・騒音・費用の独立計測を合わせる | D006† | 環境改善の純効果と副作用を別指標で開示する | `manager_core/physical_outcomes.py` |
 | D008 | PM2.5などの減少と直接的な健康効果を別の証拠ランクに格納 | D007† | 曝露データを病気が減ったという臨床成果と誤表示しない | `manager_core/outcome_bench.py` |
 | D009 | 別施設で同一の環境介入証拠フローを再現する | D008†、U007† | 許可された複数施設で再現可能なP2以上の成果を報告 | `manager_core/outcome_bench.py` |
-| D011 | 承認された成果物と独立して確認可能な受領証拠を照合 | D010 | 支払完了を証明できなければ収入増と主張しない | `manager_core/opportunity_outcomes.py` |
-| D012 | 収入機会の純増と労働時間・費用・その他機会損失を評価 | D011† | 名目報奨額ではなく純額と分母を示す | `manager_core/opportunity_outcomes.py` |
+| D012 | 収入機会の純増と労働時間・費用・その他機会損失を評価 | D011 | 名目報奨額ではなく純額と分母を示す | `manager_core/opportunity_outcomes.py` |
 | D014 | 支援団体/公的機関の公表集計との協働プロトコルを作る | D013 | 同意・倫理・匿名集計を守り、公開しない個票をManagerに取得しない | `pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md` |
 | D015 | 当事者保護、過剰介入、誤評価、否定的影響の停止基準を定義 | D014† | 被害や不確実性がある場合はno_action・専門家による評価へ | `pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md` |
 | D016 | 経済・身体・精神の各アウトカムを比較可能な証拠階層にまとめる | D015†、D012†、D009† | 各分野の指標を単純合算しない。合成スコアは根拠と重みを明示 | `manager_core/outcome_bench.py` |
@@ -115,7 +116,7 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 
 - **H005**: 公開releaseから元論文の7,540/6,061 decision populationを曖昧さなく再構成できないため、exact analysis-set reproductionだけを科学的にwaive。解析集団を都合よく補完しない。RCT因果効果再現の成功扱いにはしない。
 - **F004/F007**: 2026-10-22承認済みv2 amendmentにより、第三者資金/送金grantと室内設備/センサーgrantの旧試験を **RETIRED_NOT_COMPLETED** にした。`original_*`、元blocked状態、元受入れを保存。いまの「blocked」ではなく「skipped」、doneでもない。F005とF008から旧依存を除去済み。
-- **Phase09残11 todo（D001/D002/D003は限定source受入済み）**: v0.1のリリース前提に追加しない。とくに **D003–D004（資金/受益/追試）とD005–D009（室内測定・比較・副作用・健康/施設追試）** はv2 amendmentがoptional separate researchとした旧金融/air-quality章。実施を選び、その成果を主張するなら元の資金・測定・比較・許諾・追試条件を満たす必要がある。無期限に全件不要と削除する許可ではない。
+- **Phase09残10 todo（D001/D002/D003/D011は限定source受入済み）**: v0.1のリリース前提に追加しない。とくに **D003–D004（資金/受益/追試）とD005–D009（室内測定・比較・副作用・健康/施設追試）** はv2 amendmentがoptional separate researchとした旧金融/air-quality章。実施を選び、その成果を主張するなら元の資金・測定・比較・許諾・追試条件を満たす必要がある。無期限に全件不要と削除する許可ではない。
 - **D011/D012** の実受領・純収入と **D014/D015** の協働・倫理・当事者保護も、人の成果を主張する別研究/事業実証レーン。**D016** はD015/D012/D009の真正な結果を統合する原課題のままtodo。これらは今回v0.1の二つの情報ページからdoneへ昇格させない。
 - v0.1にも「異なる単位を足さない」「費用/害/UNKNOWNの保存」「公開範囲・revocation・NO_ACTION」「P0/P1/P2/P3/P4の分離」は必要。その技術的不変条件を実装することと、Dタスクの人間・環境成果を達成することは別。
 
@@ -132,11 +133,11 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 7. **D016/K014→V001→V002→V003→V004→V005→V006**。**K007/V001→G001→G002**、**G002/V006→G003→G004→G005→G006**。G001はV001までが依存で、全V006後にしか開始不可というgraphではない。元V/G全件をE16の前提にしない。
 8. **Y002(done)→Y003** と **Y004(done)→Y005** は技術線/全113件の完了待ちではない。W27提出は本人情報/内容確認と公式提出確認、接点は承認された対象・内容と実送信/返信/拒否記録が必要。現行既存資料の締切記録は2026-11-03 13:00 JST、今回新規Web再確認はしていない。
 
-台帳上、未完了依存のないtodoは **C002/U002/D005/D011/D014/Y003/Y005** の7件。C002と応募・新規連絡は本体優先の後段へ保留。公開資料で進められるsource／設計と、U002の実面談等の現実条件を区別し、各原verifyに照合する。「graphでready」は実行権限や成果の代替ではない。
+台帳上、未完了依存のないtodoは **C002/U002/D005/D012/D014/Y003/Y005** の7件。C002と応募・新規連絡は本体優先の後段へ保留。公開資料で進められるsource／設計と、U002の実面談等の現実条件を区別し、各原verifyに照合する。「graphでready」は実行権限や成果の代替ではない。
 
 ## 5. 元113件、E16段、P7段、12PATCHの数え方
 
-- **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。76/34/3はこの母数だけ。
+- **元113件**: P001–P006/R001–R008/L001–L012/H001–H010/S001–S008/K001–K014/F001–F009/C001–C002/U001–U008/D001–D016/V001–V006/Y001–Y008/G001–G006。唯一のタスク状態・依存台帳。77/33/3はこの母数だけ。
 - **E01–E16**: 同じエンティティの技術実装順と検証receipt。原113件への追加16件ではない。E01–E16の実装receipt済み、E16は所有7パスの限定P2能力として実配備・復旧受入済み。16/16を達成しても原U/D/V/G/Yの全受入れは終わらない。
 - **P01–P07**: editorial parallel track。元Phase00の **P001–P006とは別表記・別意味**。P01 evidence index→P02英日package→P03既存installer公開、P04既存home更新、P05本の章/HTML/EPUB、P06slide/carousel/manga源、P07editor/release receipts。原稿・storyboard・rendered artifact・live公開・読者・売上は別証拠。E cursorもC002/Y008も自動更新しない。
 - **PATCH-01–12**: E16/出版/創業者作業を実ファイル・関数・RED検査へ分解した派生実装単位。新台帳でない。01→02→04→05→06がE16技術線（pending intent先行回収、dispatch権限非replay/既成runtime比較、official occurrenceとdelivery別回収、特権publisher bridge、host/backup/restore）。03は既成製品baseline文書、07→08→09/10は権利/証拠→記事章deck→download/render、11は同じcaseの職務/顧客/YC、12は真正な結果だけをscorecardへ戻す。
@@ -236,4 +237,4 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 5. **採用/YC:** 実提出、面談、offer、採択を各providerの実結果で判定。
 6. **持続運用:** Gの採択・監査・実接続・持続性を検証し、G006は以降も定期更新する。
 
-残34件を含む原113件の記録上の終了と、世界の苦しみの終焉は同じ判定ではない。失敗・害・未測定・不公平を残し、次versionの検証を続ける。
+残33件を含む原113件の記録上の終了と、世界の苦しみの終焉は同じ判定ではない。失敗・害・未測定・不公平を残し、次versionの検証を続ける。

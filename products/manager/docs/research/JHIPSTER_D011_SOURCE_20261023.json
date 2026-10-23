@@ -1,0 +1,186 @@
+{
+  "schema": "manager.d011.public-opportunity-evidence.v1",
+  "opportunity_id": "jhipster-pr-34939",
+  "subject_scope": "EXTERNAL_HISTORICAL_PUBLIC_WORK_NOT_MANAGER_INCOME",
+  "public_artifact": {
+    "pr_metadata": {
+      "pr_url": "https://github.com/jhipster/generator-jhipster/pull/34939",
+      "pr_number": 34939,
+      "merged": true,
+      "merged_at": "2026-09-13T20:14:31Z",
+      "head_commit_git_sha1": "3dc3a668b18f11ff8e72c1bf485ad3664132dc12",
+      "merge_commit_git_sha1": "89bf4156f9c1a64a8ac6282908f1fb11cc3a0536"
+    },
+    "diff_snapshot": {
+      "pr_url": "https://github.com/jhipster/generator-jhipster/pull/34939",
+      "diff_url": "https://github.com/jhipster/generator-jhipster/pull/34939.diff",
+      "diff_snapshot_sha256": "367e082928145cd09777330dfebaf08357c992d95f8e14c510dd480ca80affda",
+      "head_commit_git_sha1": "3dc3a668b18f11ff8e72c1bf485ad3664132dc12",
+      "merge_commit_git_sha1": "89bf4156f9c1a64a8ac6282908f1fb11cc3a0536"
+    },
+    "approval_basis": "PUBLIC_MERGED_PR_METADATA",
+    "diff_hash_binding": "ADAPTER_DERIVED_SNAPSHOT_NOT_PAYMENT_PROVIDER_ATTESTATION"
+  },
+  "platform_payment": {
+    "expense_url": "https://opencollective.com/generator-jhipster/expenses/346205",
+    "expense_id": 346205,
+    "invoice_item_pr_url": "https://github.com/jhipster/generator-jhipster/pull/34939",
+    "expense_description_pr_url": "https://github.com/jhipster/generator-jhipster/pull/34939",
+    "expense_status": "PAID",
+    "currency": "USD",
+    "expense_amount_minor": 10000,
+    "invoice_item_amount_minor": 10000,
+    "expense_approved_at": "2026-09-13T20:26:05.492Z",
+    "paid_activity_type": "COLLECTIVE_EXPENSE_PAID",
+    "paid_at": "2026-09-15T17:00:57.283Z",
+    "platform_paid_debit_minor": -10000,
+    "bank_or_processor_settlement": "NOT_VERIFIED"
+  },
+  "crosslinks": {
+    "pr_url": "https://github.com/jhipster/generator-jhipster/pull/34939",
+    "comment_url": "https://github.com/jhipster/generator-jhipster/pull/34939#issuecomment-5655851568",
+    "comment_created_at": "2026-09-13T20:18:09Z",
+    "linked_expense_url": "https://opencollective.com/generator-jhipster/expenses/346205"
+  },
+  "prior_posting": {
+    "nominal_award_minor": null,
+    "pr_url": "https://github.com/jhipster/generator-jhipster/pull/34939",
+    "label_events": [
+      {
+        "label": "$100",
+        "observed_event_at": "2026-09-13T20:14:44Z"
+      },
+      {
+        "label": "$$ bug-bounty $$",
+        "observed_event_at": "2026-09-13T20:14:44Z"
+      }
+    ],
+    "prior_posting_status": "UNKNOWN",
+    "labels_precede_merge": false
+  },
+  "raw_sources": [
+    {
+      "source_id": "d011:jhipster34939:pr",
+      "upstream_url": "https://api.github.com/repos/jhipster/generator-jhipster/pulls/34939",
+      "upstream_snapshot": {
+        "url": "https://api.github.com/repos/jhipster/generator-jhipster/pulls/34939",
+        "final_url": "https://api.github.com/repos/jhipster/generator-jhipster/pulls/34939",
+        "retrieved_at_utc": "2026-10-23T05:31:45.193108+00:00",
+        "http_status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "bytes": 20953,
+        "sha256": "506e05df372379e8e06649ee7179e8b4773d256f089b1cffb46604ce7288c1f3"
+      },
+      "packet_facts_path": "/public_artifact/pr_metadata",
+      "raw_selector": "GitHub pull request 34939: number/html_url/merged/merged_at/head.sha/merge_commit_sha"
+    },
+    {
+      "source_id": "d011:jhipster34939:artifact",
+      "upstream_url": "https://github.com/jhipster/generator-jhipster/pull/34939.diff",
+      "upstream_snapshot": {
+        "url": "https://github.com/jhipster/generator-jhipster/pull/34939.diff",
+        "final_url": "https://patch-diff.githubusercontent.com/raw/jhipster/generator-jhipster/pull/34939.diff",
+        "retrieved_at_utc": "2026-10-23T05:31:45.843204+00:00",
+        "http_status": 200,
+        "content_type": "text/plain; charset=utf-8",
+        "bytes": 6432,
+        "sha256": "367e082928145cd09777330dfebaf08357c992d95f8e14c510dd480ca80affda"
+      },
+      "packet_facts_path": "/public_artifact/diff_snapshot",
+      "raw_selector": "Acquired exact PR34939.diff bytes; hash separately from Git SHA1 metadata"
+    },
+    {
+      "source_id": "d011:jhipster34939:crosslink",
+      "upstream_url": "https://api.github.com/repos/jhipster/generator-jhipster/issues/34939/comments?per_page=100",
+      "upstream_snapshot": {
+        "url": "https://api.github.com/repos/jhipster/generator-jhipster/issues/34939/comments?per_page=100",
+        "final_url": "https://api.github.com/repos/jhipster/generator-jhipster/issues/34939/comments?per_page=100",
+        "retrieved_at_utc": "2026-10-23T05:31:46.188257+00:00",
+        "http_status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "bytes": 1724,
+        "sha256": "a69f054e23c1a7bba3c4d217510d30b61263e6227522af083f0ddef23c2ce0cc"
+      },
+      "packet_facts_path": "/crosslinks",
+      "raw_selector": "Public issue comment html_url ending issuecomment-5655851568; exact expense URL only from body"
+    },
+    {
+      "source_id": "d011:jhipster34939:labels",
+      "upstream_url": "https://api.github.com/repos/jhipster/generator-jhipster/issues/34939/events?per_page=100",
+      "upstream_snapshot": {
+        "url": "https://api.github.com/repos/jhipster/generator-jhipster/issues/34939/events?per_page=100",
+        "final_url": "https://api.github.com/repos/jhipster/generator-jhipster/issues/34939/events?per_page=100",
+        "retrieved_at_utc": "2026-10-23T05:33:16.989281+00:00",
+        "http_status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "bytes": 12983,
+        "sha256": "a78f2270fa646189d1e234854e6c403e69e8365fe07c35faa0aab1a73f392cc5"
+      },
+      "packet_facts_path": "/prior_posting (without nominal_award_minor)",
+      "raw_selector": "Public labeled events for $100 and $$ bug-bounty $$; label.name and created_at only"
+    },
+    {
+      "source_id": "d011:jhipster34939:payment",
+      "upstream_url": "https://opencollective.com/generator-jhipster/expenses/346205",
+      "upstream_snapshot": {
+        "url": "https://opencollective.com/generator-jhipster/expenses/346205",
+        "final_url": "https://opencollective.com/generator-jhipster/expenses/346205",
+        "retrieved_at_utc": "2026-10-23T05:31:47.582132+00:00",
+        "http_status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "bytes": 271161,
+        "sha256": "044221c8398fd823479c47df45d34ec73fdd10ff49bb697e117d8ac4ba3ae64c"
+      },
+      "packet_facts_path": "/platform_payment",
+      "raw_selector": "__NEXT_DATA__.props.pageProps.__APOLLO_QUERY_DATA__.expense: expense fields, exact PR URL from description/item, approved/paid activities and matching debit"
+    }
+  ],
+  "unknown_costs": {
+    "expenses_minor": {
+      "platform": null,
+      "compute": null,
+      "goods": null,
+      "marketing": null,
+      "labor": null,
+      "refunds": null,
+      "tax": null,
+      "other": null
+    },
+    "labor_minutes": null,
+    "opportunity_cost_minor": null,
+    "opportunities_considered": null
+  },
+  "claim_limits": {
+    "evidence_status": "PUBLIC_EVIDENCE_CHAIN_INCOMPLETE",
+    "declared_received_minor": null,
+    "verified_income_minor": null,
+    "income_status": "NOT_VERIFIED",
+    "declared_cash_net_minor": null,
+    "declared_economic_net_minor": null,
+    "net_per_labor_hour_minor": null,
+    "net_per_opportunity_minor": null,
+    "human_welfare_status": "NOT_MEASURED"
+  },
+  "limitations": [
+    "Historical payment to an external contributor; no Manager income or causal increment established",
+    "Open Collective platform Paid record is independently readable from GitHub; underlying processor/bank receipt not inspected",
+    "Expense references exact PR URL but does not attest the diff SHA256; binding is adapter-derived",
+    "Posting remains unknown; generic bounty policy and after-merge labels are not evidence of prior posting",
+    "No labor, full cost, opportunity denominator, comparator or welfare effect data"
+  ],
+  "limited_rights": {
+    "scope": "ATTRIBUTED_MINIMAL_PUBLIC_FACTS_AND_LINKS_ONLY",
+    "raw_code_redistribution": false,
+    "raw_api_or_html_redistribution": false,
+    "personal_or_payee_fields": false,
+    "private_invoice_or_payout_access": false,
+    "upstream_code_license_not_extended_to_personal_metadata": true
+  },
+  "attribution": "JHipster / generator-jhipster: public PR and artifact references; Open Collective: public expense and platform payment facts.",
+  "extraction": {
+    "version": "d011-aggregate-projection-v1",
+    "checked_on": "2026-10-23",
+    "method": "minimal_facts_from_retained_public_snapshots",
+    "raw_redistribution": false
+  }
+}
