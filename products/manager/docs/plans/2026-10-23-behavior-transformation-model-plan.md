@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 使命は「行動変容を通じて、苦しみを終わらせることを目指す」。宗教は必須条件/採点基準ではない。
-- 113 IDs、改訂時点の状態は80 done / 23 todo / 10 skipped。退役7件は未達成。旧done/receipt/protocol hashは保存。
+- 113 IDs、先行scope改訂時点のsnapshotは80 done / 23 todo / 10 skipped。rootが[限定V001設計receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)で実受入した現在状態は81 done / 22 todo / 10 skipped。退役7件は未達成。旧done/receipt/protocol hashは保存。
 - 目的と評価基準を保ち、モデル系列/規模/量子化/runtime/学習方法は実測で更新する。GPU/特定4B候補を全体の開始条件にしない。既存CPUで公開モデル推論を進め、訓練と推論の必要資源を分ける。
 - 独自modelは将来像へ含める。最初のLoRA/SFT研究はoffline評価条件成立後に開始でき、実研究全体の完了を待たない。
 - 新規費用・GPU・データ利用権・live推論は仮定しない。既存予算・契約・資源を確認してから実行する。
@@ -48,11 +48,13 @@
 - [ ] 上流scorer/既存関数を薄く接続し、同じ境界のGREENを確認する。
 - [ ] NO_ACTION/ルール/既存modelを同じ入力・予算・failure denominatorで比較し、judgeの人手照合と限界を報告する。
 
-**限定sliceの実績（全受入ではない）:** INTIMAの固定input受入と未採点32組診断に続き、[HelpSteer2 dev subplan](2026-10-23-helpsteer2-dev-likelihood.md)を実装・実行した。[実結果](../verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)は16/16完了、model4/8・短い候補ルール4/8、NO_ACTION8棄権。generic preferenceへの一致だけでモデル優位や人の便益は示されない。[追加の人参照artifact監査](../research/2026-10-23-human-reference-artifact-audit.md)から用途・利用条件を照合し、元回答に対する採点者の校正、圧力/依存等の評価、未見比較を埋める。[既存XSTest string判定の人参照450件照合](../verification/XSTEST_RELEASED_REFUSAL_CALIBRATION_20261023.md)はfull-refusal recall12/49・partial0/27で不足を示したが、新しいManager judgeの校正ではない。さらに[local judge subplan](2026-10-23-xstest-local-refusal-judge.md)を実装・実行し、[900秒診断](../verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)で271/450有効、UNKNOWN1/未着手178。全271をcomplianceと判定して拒否recallは0/27・0/20、この設定は不採用。同じ有効集合でmodel224/271・配布rule230/271。専用binary judgeは別の事前固定候補とし、3class・害・圧力評価の代わりにしない。V001/V002全体とV003はtodo。
+**限定sliceの実績（全受入ではない）:** INTIMAの固定input受入と未採点32組診断に続き、[HelpSteer2 dev subplan](2026-10-23-helpsteer2-dev-likelihood.md)を実装・実行した。[実結果](../verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)は16/16完了、model4/8・短い候補ルール4/8、NO_ACTION8棄権。generic preferenceへの一致だけでモデル優位や人の便益は示されない。[追加の人参照artifact監査](../research/2026-10-23-human-reference-artifact-audit.md)から用途・利用条件を照合し、元回答に対する採点者の校正、圧力/依存等の評価、未見比較を埋める。[既存XSTest string判定の人参照450件照合](../verification/XSTEST_RELEASED_REFUSAL_CALIBRATION_20261023.md)はfull-refusal recall12/49・partial0/27で不足を示したが、新しいManager judgeの校正ではない。さらに[local judge subplan](2026-10-23-xstest-local-refusal-judge.md)を実装・実行し、[900秒診断](../verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)で271/450有効、UNKNOWN1/未着手178。全271をcomplianceと判定して拒否recallは0/27・0/20、この設定は不採用。同じ有効集合でmodel224/271・配布rule230/271。専用binary judgeは別の事前固定候補とし、3class・害・圧力評価の代わりにしない。当時V001/V002全体とV003はtodoだった。今回のV001設計のみの提案受入は下記別receiptに結び、V002/V003はtodoのまま。
 
 [専用native binary subplan](2026-10-23-qwen3guard-binary-diagnostic.md)も一度実行し、[実結果](../verification/QWEN3GUARD_BINARY_CPU_20261023.md)は450/450規定形式、primary377/423対rule383/423、拒否recall20/49・誤検出17。partial27は無採点。監視再接続の空白と未reapを保存し、全資源protocol準拠や自動採用を認定しない。旧3classと直接accuracy比較せず、Task2全体/V002は未完。
 
-[V001 mapping subplan](2026-10-23-v001-evaluation-contract.md)と[metadata受入](../verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)により、既存3診断のscope/役割/scoring/refusal/null/split availabilityの対応を固定した。person/study/time holdoutの実情報は増えておらず、Task2全体とV001/V002は未完。新規推論・追加学習・評価engineは導入していない。
+[V001 mapping subplan](2026-10-23-v001-evaluation-contract.md)と[metadata受入](../verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)により、既存3診断のscope/役割/scoring/refusal/null/split availabilityの対応を固定した。person/study/time holdoutの実情報は増えておらず、当時Task2全体とV001/V002は未完だった。新規推論・追加学習・評価engineは導入していない。
+
+**V001設計とTask2全体の区別:** [用途別scope](../specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md)と[限定設計受入receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)にrootの実review/適用/受入を記録した場合だけ、既存4有限診断役割の設計をV001 doneとする私有提案。旧literal UNMET/HOLD、12軸のavailability UNAVAILABLE、FINALの公開/非公開隔離と公開development露出履歴は保存。将来splitは未受入。上記Task2の4 checkboxはV002の全比較/人手照合を含むため、このV001受入だけでは完了にしない。Task3開始はV002別受入と適法data/base・不足・実資源・manifestを要し、現V003条件を満たせない用途は研究開始scopeの別改訂を先に審査する。
 
 ## Task 3: 独自重みの最小研究 — V003
 

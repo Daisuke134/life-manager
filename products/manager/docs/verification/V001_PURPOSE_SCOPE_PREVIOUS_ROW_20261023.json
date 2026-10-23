@@ -1,0 +1,39 @@
+{
+  "schema": "manager.v001-purpose-scope-previous-row.v1",
+  "baseline_commit": "42e3281a14d6f98360b6d9ff34587c22afc032e2",
+  "task_registry": "products/manager/docs/roadmap/tasks.json",
+  "previous_rows": {
+    "V001": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V001",
+      "depends": [
+        "K014",
+        "R006",
+        "S003"
+      ],
+      "learn": "既存benchmarkと利用権を再利用して評価契約を作る",
+      "change": "行動変容の公開benchmark/data/modelの版・権利・対象・split・採点契約を既存OutcomeBenchへ対応付ける",
+      "verify": "人対象研究を待たずoffline評価を開始できる。source/model/judge版、人物/研究単位と時間holdout、未評価null、拒否/失敗/分母を固定し、人の便益を主張しない",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/adapters/fixtures.py",
+        "tests/test_outcome_bench.py"
+      ],
+      "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+      "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+      "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+      "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+      "original_depends": [
+        "K014",
+        "D016"
+      ],
+      "original_learn": "構造上の一般性と性能上の一般性を分ける",
+      "original_change": "金融・環境・仕事/社会支援の3アダプタで同じカーネルの契約テスト",
+      "original_verify": "分野固有の分岐をカーネルへ追加せず、共通の契約を満たす",
+      "original_status": "todo",
+      "original_external": "none"
+    }
+  },
+  "meaning": "Full exact V001 row before the purpose-specific design scope amendment. Historical evidence only; prior original_* fields and the earlier archive remain unchanged."
+}

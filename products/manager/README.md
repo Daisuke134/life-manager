@@ -4,19 +4,19 @@
 
 **実行原則 — 柔軟性:** 目的と評価基準を保ち、モデル・規模・量子化・runtime・学習方法を実測で選び直す。GPUや特定4B候補を全体の前提にしない。[既存8GiB CPUでQwen3-1.7Bの実推論を確認](docs/verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)。独自学習・人の便益とは別の受入。
 
-**2026-10-23 最新scope:** [tasks.json](docs/roadmap/tasks.json)は113 IDs、**80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件は今回の必須経路から退役し、未達成のskippedとして元の行を保存した。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009も所有7パスの技術P2として受入済み。H005/F004/F007の既存waiverは保持する。人の便益はNOT_MEASURED。
+**2026-10-23 最新scope:** [tasks.json](docs/roadmap/tasks.json)は113 IDs、**81 done / 22 todo / 10 skipped**（下記限定V001設計受入を反映）。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件は今回の必須経路から退役し、未達成のskippedとして元の行を保存した。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009も所有7パスの技術P2として受入済み。H005/F004/F007の既存waiverは保持する。人の便益はNOT_MEASURED。
 
 **拒否judgeの実測:** [XSTest local judgeの実CPU診断](docs/verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)は900秒で271/450件を有効採点し、処理中1件UNKNOWN・未着手178件を保存。全271件をcomplianceと判定し、完全拒否0/27・部分拒否0/20で、この設定は拒否判定に不採用。同じ271件でmodel224正答・配布rule230正答。全450完了やモデル優位とは扱わない。 [専用小型judgeの一次資料](docs/research/2026-10-23-small-refusal-judge-reuse.md)から別protocolのQwen3Guard binary診断へ進み、次段落に結果を保存した。旧3classの条件・結果は変更しない。
 
 **専用binary judgeの実測:** [Qwen3Guard native診断](docs/verification/QWEN3GUARD_BINARY_CPU_20261023.md)は450/450件が規定形式。primary423ではmodel377一致・配布rule383一致。完全拒否recallは20/49へ増えたが誤検出も増え、自動判定へ採用しない。partial27は無採点。再接続で元watcherが失われたため監視の空白を明記し、全期間の資源監視は未認定。元の時間予算内で同じプロセスが完了し、retry/resumeは0。
 
-**評価契約の整理:** [V001の評価契約対応](docs/verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)で、既存INTIMA未採点生成・HelpSteer2 dev NLL・XSTest元応答の拒否診断を13参照/3権利recordへ結び、モデル役割・採点・split availability・分母/nullを固定した。解消したのは対応表のgapで、実person/study/time holdoutは未成立のためV001全体はtodo。
+**評価契約の整理:** [V001の評価契約対応](docs/verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)で、既存INTIMA未採点生成・HelpSteer2 dev NLL・XSTest元応答の拒否診断を13参照/3権利recordへ結び、モデル役割・採点・split availability・分母/nullを固定した。先行mapping受入時点はV001 todoだった。[用途別scope](docs/specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md)と[限定設計受入receipt](docs/verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)により、rootの実受入後は既存4有限診断役割の設計だけをV001 doneとする。旧literal UNMET/HOLD、12軸のavailability UNAVAILABLEと一般化HOLDは保持。native実験成績は設計受入の根拠にしない。独立最終reviewと実適用・限定設計受入をreceiptに記録した。
 
-**次の順序:** sourceの研究branch同期/CIは受入済み。既定OFFのagent接続sourceは受入済み。次はV001/V002の既存評価・権利・採点者の人参照との照合・未見baselineを整え、その後V003の最小独自adapter研究へ進む。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
+**次の順序:** sourceの研究branch同期/CIは受入済み。既定OFFのagent接続sourceは受入済み。次はV002の同条件比較・権利・採点者の人参照との照合・未見baselineを別受入し、必要ならV003研究開始scopeの別改訂を審査する。V001だけで訓練を開始しない。G001/G002の憲章・責任・設計作業はrootのV001実受入後に進められるが、両taskはtodoのまま。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
 
 **現状:** Actions＋既存private checkpointの単一owner、STOP/復元/独立readbackは限定受入済み。Ampersand prepared比較とhost/CLI/Actions接続sourceはPR8710/8715/8741でmain受入、同じsourceの研究同期5018a30938acと公式CI39980993977を確認。shadowは既定OFFで、固定SDKの実推論運用は未実施。別のlocal CPU研究では[HelpSteer2 dev8を実採点](docs/verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)し、model4/8・単純ルール4/8。今回のモデル優位は示されず、独自学習・人の便益は未実証。
 
-[最新仕様](docs/MANAGER_PRODUCT_SPEC.md) · [scope改訂と一次資料](docs/specs/2026-10-23-behavior-transformation-scope-amendment.md) · [実ファイル別のmodel計画](docs/plans/2026-10-23-behavior-transformation-model-plan.md) · [全Phaseと残23件](docs/roadmap/START_TO_END_20261022.md) · [自動生成backlog](docs/roadmap/ATOMIC_BACKLOG.md) · [新研究protocol草案](pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)
+[最新仕様](docs/MANAGER_PRODUCT_SPEC.md) · [scope改訂と一次資料](docs/specs/2026-10-23-behavior-transformation-scope-amendment.md) · [実ファイル別のmodel計画](docs/plans/2026-10-23-behavior-transformation-model-plan.md) · [全Phaseと残22件](docs/roadmap/START_TO_END_20261022.md) · [自動生成backlog](docs/roadmap/ATOMIC_BACKLOG.md) · [新研究protocol草案](pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)
 
 記事/書籍等の新しい制作は本体優先の後段。YC/接点は期限・実提出・応答を別管理。既存homeのA10 Lab→neurofeedback→AIというbio/使命の訂正sourceと、新記事公開は区別する。この研究branch更新だけでlive homeは変わらない。
 

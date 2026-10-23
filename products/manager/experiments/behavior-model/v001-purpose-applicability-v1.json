@@ -1,0 +1,222 @@
+{
+  "schema": "manager.v001-purpose-applicability.v1",
+  "status": "FINITE_DESCRIPTIVE_DESIGN_ACCEPTED",
+  "purpose": "Accepted finite descriptive design for the existing four constructed-benchmark intake/development roles only; actual root review/application/acceptance recorded in receipt. No new evaluation or preregistration.",
+  "authority": {
+    "task_registry": "products/manager/docs/roadmap/tasks.json",
+    "v001_status": "DONE_FINITE_DESCRIPTIVE_DESIGN_ONLY",
+    "original_literal_requirement_verdict": "UNMET_HOLD_UNCHANGED",
+    "root_scope_decision": "ADOPTED_FINITE_DESCRIPTIVE_SCOPE",
+    "independent_review": "DESIGN_SOURCE_AND_FINAL_INTEGRATION_REVIEW_PASS",
+    "can_execute": false,
+    "training": "HOLD",
+    "generalization": "HOLD",
+    "production": "HOLD",
+    "human_benefit": "NOT_MEASURED",
+    "source_amendment": "products/manager/docs/specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md",
+    "purpose_scope_previous_archive": "products/manager/docs/verification/V001_PURPOSE_SCOPE_PREVIOUS_ROW_20261023.json",
+    "event_evidence": "Actual root AI technical/design acceptance is recorded in the receipt; no human signature, new holdout, training, benefit or final commit is asserted here.",
+    "acceptance_receipt": "products/manager/docs/verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md"
+  },
+  "existing_contract": {
+    "path": "products/manager/experiments/behavior-model/v001-evaluation-contract-v1.json",
+    "sha256": "f0b0644e52a92516a05273cf7cb663a5ef056f0646ecb0ec28e61f97b870a8a8",
+    "schema": "manager.v001-evaluation-contract.v1",
+    "reuse": "All 13 refs, all 3 slice rights selections, all shared rules, existing model/scorer/denominator/result bindings and historical verdicts remain in this contract. No copied license grants or replacement definitions.",
+    "refs_pointer": "/refs",
+    "rights_selection_pointers": [
+      "/slices/0/source_dataset/rights",
+      "/slices/1/source_dataset/rights",
+      "/slices/2/source_dataset/rights"
+    ],
+    "historical_acceptance_pointer": "/authority/acceptance",
+    "historical_hold_reason_pointer": "/authority/hold_reason",
+    "contamination_pointer": "/shared_contract/group_overlap"
+  },
+  "separate_native_binary_protocol": {
+    "path": "products/manager/experiments/behavior-model/xstest-qwen3guard-binary-protocol-v1.json",
+    "sha256": "58c15f812202236e92b27bd704ea37f3803288749f03c1fcb4039f58600cec7f",
+    "schema": "manager.xstest-qwen3guard-binary-refusal.v1",
+    "purpose_pointer": "/purpose",
+    "existing_rights_via_contract_pointer": "/slices/2/source_dataset/rights",
+    "relationship": "Separate frozen protocol; not an overwrite of the old 3-class judge protocol. Native predictions/results were not inspected at scope design/independent design review time and are not a basis for this design acceptance; the later native receipt owns its observations.",
+    "assigned": 450,
+    "primary_eligible": 423,
+    "partial_scope_out": 27,
+    "reference_scope": "Derived extreme-label agreement, not independent native binary gold; partial27 distribution only; native policy mismatch remains."
+  },
+  "rules": {
+    "applicability": "NOT_APPLICABLE below is conditional on the explicitly adopted finite-set descriptive design target on source application; never a blanket dataset exemption, validated holdout or new evidence of independence. Missing fields alone cannot justify N/A.",
+    "availability": "Historical UNAVAILABLE/UNKNOWN values remain untouched. Availability and purpose applicability are separate questions.",
+    "outside_declared_target": "HOLD. Reassess every relevant axis and obtain claim-appropriate independent evidence before extending the target; V001 N/A never supplies that evidence.",
+    "design_status": "FINITE_DESCRIPTIVE_DESIGN_ONLY; finite development membership is not a train/test split. No new keys, membership, cutoffs, labels or scores are created.",
+    "not_run": "At scope design/independent design review time, native predictions/results were not inspected. Later native completion is separately recorded and is not a basis for scope/design acceptance. Existing receipts alone own observations and all assigned/valid/UNKNOWN/NOT_RUN counts.",
+    "proof": "P0 only; pressure/dependency/harms/behavior_change unmeasured null; no superiority, equivalence, safety, behavior-change or benefit acceptance.",
+    "prohibited_claims": [
+      "Unseen person/study/time or other target generalization",
+      "N/A counted as a passed holdout",
+      "Independent-test, training, safety, human-benefit or production acceptance"
+    ],
+    "isolation": "Prospective purpose-specific design: reserve FINAL evaluation data, public or private, outside training, few-shot, retrieval and model selection. Public benchmarks explicitly used for development/calibration retain exposure/selection history and cannot later be independent final tests. Preserve existing frozen protocols and contract restrictions verbatim, including their evaluation-only prohibitions; this amendment grants no new use rights and no retrospective pristine-test claim."
+  },
+  "shared_definitions": {
+    "finite_descriptive_axis": {
+      "applicability": "NOT_APPLICABLE",
+      "availability": "UNAVAILABLE",
+      "design_status": "NO_SUCH_HOLDOUT_ESTABLISHED; FINITE_DESCRIPTIVE_PURPOSE_LIMIT_ONLY",
+      "scope": "Only the enclosing slice target_claim, explicitly limited to finite-set description; no blanket exemption. Missing keys alone do not justify N/A. Historical UNAVAILABLE/UNKNOWN remain unchanged.",
+      "prohibited_claims": {
+        "metadata_pointer": "/rules/prohibited_claims"
+      }
+    }
+  },
+  "slices": [
+    {
+      "slice_id": "INTIMA_INTAKE_UNSCORED_DIAGNOSTIC",
+      "evidence_ref": "existing_contract#/slices/0",
+      "target_claim": "Fixed synthetic prompt intake and unscored 32-prompt x 3-condition generation feasibility only; no scored dependence/pressure estimand.",
+      "observational_unit": "Original prompt row; condition x selected prompt for 96 assigned response rows.",
+      "role_preserved": "INTAKE_AND_UNSCORED_GENERATION_ONLY; scoring remains NOT_SCORED, not accepted benchmark performance.",
+      "axes": {
+        "person": {
+          "reason": "Synthetic prompts have no actual participant cohort.",
+          "evidence_ref": "existing_contract#/slices/0/holdout_axes/person"
+        },
+        "study": {
+          "reason": "One constructed benchmark; code is not an independent study.",
+          "evidence_ref": "existing_contract#/slices/0/holdout_axes/study"
+        },
+        "time": {
+          "reason": "No observational chronology in this fixed descriptive target.",
+          "evidence_ref": "existing_contract#/slices/0/holdout_axes/time"
+        }
+      },
+      "content_binding": {
+        "applicability": "APPLICABLE_FOR_EXACT_ORIGINAL_MEMBERSHIP_AND_LABEL_BINDING",
+        "design_status": "EXISTING_FROZEN_DEVELOPMENT_BINDING_ONLY; NOT_INDEPENDENT_TEST",
+        "evidence_ref": "existing_contract#/slices/0/split",
+        "unresolved": "Semantic/template-family grouping and pretraining contamination are not certified by exact hashes; retain UNKNOWN where unestablished."
+      },
+      "outside_target_required_use": "HOLD",
+      "axis_definition_ref": {
+        "metadata_pointer": "/shared_definitions/finite_descriptive_axis"
+      }
+    },
+    {
+      "slice_id": "HELPSTEER2_FIXED_DEV_CANDIDATE_NLL",
+      "evidence_ref": "existing_contract#/slices/1",
+      "target_claim": "Describe native completion-token NLL candidate selection agreement with original preference in the fixed dev8 only; no new-response quality or human behavior target.",
+      "observational_unit": "Exact original prompt and paired candidates; 8 assigned groups / 16 candidate forwards; NLL unit remains token.",
+      "role_preserved": "DEVELOPMENT_ONLY; final16 PROPOSED/NOT_RUN, train27/32 NOT_READY and training rights HOLD remain.",
+      "axes": {
+        "person": {
+          "reason": "Candidate preference labels do not identify users/participants; this target is finite pair agreement.",
+          "evidence_ref": "existing_contract#/slices/1/holdout_axes/person"
+        },
+        "study": {
+          "reason": "Quality/preference joins are not independent studies; only the fixed dev8 target is described.",
+          "evidence_ref": "existing_contract#/slices/1/holdout_axes/study"
+        },
+        "time": {
+          "reason": "Finite dev8 agreement has no future-time target.",
+          "evidence_ref": "existing_contract#/slices/1/holdout_axes/time"
+        }
+      },
+      "content_binding": {
+        "applicability": "APPLICABLE_FOR_EXACT_ORIGINAL_MEMBERSHIP_AND_LABEL_BINDING",
+        "design_status": "EXISTING_FROZEN_DEVELOPMENT_BINDING_ONLY; NOT_INDEPENDENT_TEST",
+        "evidence_ref": "existing_contract#/slices/1/split",
+        "unresolved": "Semantic/template-family grouping and pretraining contamination are not certified by exact hashes; retain UNKNOWN where unestablished."
+      },
+      "outside_target_required_use": "HOLD",
+      "axis_definition_ref": {
+        "metadata_pointer": "/shared_definitions/finite_descriptive_axis"
+      }
+    },
+    {
+      "slice_id": "XSTEST_EXACT_ORIGINAL_RESPONSE_REFUSAL",
+      "evidence_ref": "existing_contract#/slices/2",
+      "target_claim": "Describe existing released-rule/local 3-class refusal-label agreement/errors on exactly joined original Mistral responses; historical local configuration remains DECLINED.",
+      "observational_unit": "Exact original response; all450 development assignments, with historical observed partial coverage only in existing receipts.",
+      "role_preserved": "DEVELOPMENT_CALIBRATION_ONLY; no resume, acceptance or independent final-test reclassification.",
+      "axes": {
+        "person": {
+          "reason": "Constructed response set has no actual participant cohort.",
+          "evidence_ref": "existing_contract#/slices/2/holdout_axes/person"
+        },
+        "study": {
+          "reason": "One published benchmark response set; no multi-study target.",
+          "evidence_ref": "existing_contract#/slices/2/holdout_axes/study"
+        },
+        "time": {
+          "reason": "Finite original-response agreement has no future-time target.",
+          "evidence_ref": "existing_contract#/slices/2/holdout_axes/time"
+        }
+      },
+      "content_binding": {
+        "applicability": "APPLICABLE_FOR_EXACT_ORIGINAL_MEMBERSHIP_AND_LABEL_BINDING",
+        "design_status": "EXISTING_FROZEN_DEVELOPMENT_BINDING_ONLY; NOT_INDEPENDENT_TEST",
+        "evidence_ref": "existing_contract#/slices/2/split",
+        "unresolved": "Semantic/template-family grouping and pretraining contamination are not certified by exact hashes; retain UNKNOWN where unestablished."
+      },
+      "outside_target_required_use": "HOLD",
+      "axis_definition_ref": {
+        "metadata_pointer": "/shared_definitions/finite_descriptive_axis"
+      }
+    },
+    {
+      "slice_id": "XSTEST_QWEN3GUARD_NATIVE_EXTREME_BINARY",
+      "evidence_ref": "separate_native_binary_protocol#/evaluation_contract",
+      "target_claim": "Describe only predeclared native binary agreement with original-label-derived extremes on fixed original Mistral responses; no independent native binary gold or new responses.",
+      "observational_unit": "Exact original response; all450 assigned, primary423 extreme-label eligible, partial27 separately unscored.",
+      "role_preserved": "SEPARATE_FROZEN_NATIVE_PROTOCOL; predictions/results NOT_INSPECTED_AT_SCOPE_DESIGN_REVIEW_TIME_AND_NOT_ACCEPTANCE_BASIS; no historical3class accuracy comparison.",
+      "axes": {
+        "person": {
+          "reason": "Same constructed response set, no actual participant cohort.",
+          "evidence_ref": "separate_native_binary_protocol#/evaluation_contract/person_holdout"
+        },
+        "study": {
+          "reason": "Same single published benchmark; separate protocol is not a second independent study.",
+          "evidence_ref": "separate_native_binary_protocol#/evaluation_contract/study_holdout"
+        },
+        "time": {
+          "reason": "No observational chronology or future-time estimand in this finite response description.",
+          "evidence_ref": "separate_native_binary_protocol#/evaluation_contract/time_holdout"
+        }
+      },
+      "content_binding": {
+        "applicability": "APPLICABLE_FOR_EXACT_ORIGINAL_MEMBERSHIP_AND_LABEL_BINDING",
+        "design_status": "EXISTING_FROZEN_DEVELOPMENT_BINDING_ONLY; NOT_INDEPENDENT_TEST",
+        "evidence_ref": "separate_native_binary_protocol#/evaluation_contract/split",
+        "unresolved": "Semantic/template-family grouping and pretraining contamination are not certified by exact hashes; retain UNKNOWN where unestablished."
+      },
+      "outside_target_required_use": "HOLD",
+      "axis_definition_ref": {
+        "metadata_pointer": "/shared_definitions/finite_descriptive_axis"
+      }
+    }
+  ],
+  "dependency_boundaries": {
+    "V001": "Existing dependencies K014/R006/S003 are done and unchanged. Proposed V001 done is only the four-role finite descriptive design acceptance on separate root acceptance; old full literal requirement remains UNMET/HOLD.",
+    "V002": "V001 design acceptance permits only rights-compliant scoped comparisons; V002 acceptance separately required, with its human checks and null measures.",
+    "V003_start": "V002 acceptance, lawful adopted base/data, concrete trainable deficit, final manifests/exposure history, real compute/budget and separate execution decision required; current train rights HOLD and27/32 NOT_READY remain.",
+    "V003_evaluation_adoption": "Existing person/context/language/time/OOD requirements remain; unseen studies or other targets require relevant evidence. Claim-appropriate genuinely unused tests and baseline comparison required. If current V003 scope cannot be met, a separate explicit amendment/review is required before such work.",
+    "V004_D016": "Existing V003/D016 dependencies, genuine outcomes/protection, default OFF, budget/authority, STOP/recovery and independent readback unchanged.",
+    "G": "V001 dependency release permits charter/responsibility/design progress only; G and V005/V006 retain their own evidence gates."
+  },
+  "reference_convention": "existing_contract# and separate_native_binary_protocol# resolve JSON pointers in the documents selected by their path+sha256; metadata_pointer resolves in this metadata. Each slice axis_definition_ref identifies the shared descriptive terms for all of that slice axes; their target_claim is the enclosing slice target_claim, and each axis retains its own reason/evidence_ref. This is human-readable factoring only: no runtime consumer, merge engine or validator is defined.",
+  "historical_acceptance_prerequisites": [
+    "Root verification of source application, adopted finite target/effective scope and preserved old literal unmet verdict; source application alone is not V001 acceptance.",
+    "Consistent tasks/spec/main-spec amendment and reference/syntax/diff checks; old contract/protocol/result bytes unchanged.",
+    "Source acceptance audit/review of all13refs/3 existing rights selections, exact-response binding, scales/denominators/null/isolation, preserving the completed independent design review of N/A versus UNAVAILABLE/UNKNOWN.",
+    "Any future independent evaluation requires actual keys/membership, group/family nonoverlap, time bounds where applicable and exposure/selection history before execution.",
+    "Root records acceptance separately; this metadata and experiment performance cannot mark V001 done."
+  ],
+  "acceptance_record": {
+    "receipt": "products/manager/docs/verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md",
+    "state": "ACTUAL_ROOT_FINITE_DESCRIPTIVE_DESIGN_ACCEPTANCE_RECORDED",
+    "accepted_target": "Existing four finite diagnostic design roles only; no future train/dev/test split accepted.",
+    "historical_prerequisites": "Historical requirements preserved above; actual source audit, final review and root acceptance are recorded in receipt.",
+    "future_independent_evaluation": "Actual keys/membership, group/family nonoverlap, time bounds where applicable, exposure/selection history and lawful use must be accepted separately before execution."
+  }
+}

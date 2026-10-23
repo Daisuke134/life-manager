@@ -2208,17 +2208,21 @@
       "S003"
     ],
     "learn": "既存benchmarkと利用権を再利用して評価契約を作る",
-    "change": "行動変容の公開benchmark/data/modelの版・権利・対象・split・採点契約を既存OutcomeBenchへ対応付ける",
-    "verify": "人対象研究を待たずoffline評価を開始できる。source/model/judge版、人物/研究単位と時間holdout、未評価null、拒否/失敗/分母を固定し、人の便益を主張しない",
-    "status": "todo",
+    "change": "行動変容に関する採用artifactと用途ごとに、版・権利・対象/推定量・評価単位・split設計・採点契約を既存OutcomeBenchへ対応付ける。取込、開発診断、独立未見評価を区別する。",
+    "verify": "人対象研究全体の完了を待たず、用途別のoffline評価設計を受入できる。採用artifactごとにsource/dataset/model/judge版、利用権、対象集団/推定量、独立単位、最終評価用に予約したdataの隔離、採点/未評価null、拒否/失敗/UNKNOWN/分母を固定する。人物・研究・時間および対象に必要な内容family等の各軸について、適用の有無、理由、利用可能field、分割状態と証拠を記録する。最終評価用に予約したdataは公開/非公開を問わず学習・few-shot・retrieval・モデル選別から隔離する。開発/校正に明示利用する公開benchmarkは露出・選別履歴を残し、後から独立した最終testと呼ばない。既存の凍結protocolの用途制限と権利条件は変更しない。適用する未見評価は実key・membership・非重複・時間順序/境界・許容用途を実行前に固定する。利用不能/不明/未分割の必須軸はその用途の評価受入・一般化主張をHOLDし、NOT_APPLICABLEを達成済みholdoutに数えない。固定診断/設計の受入は、訓練受入、独立一般化、優位、人の便益、実行権限を与えない。",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "manager_core/adapters/fixtures.py",
-      "tests/test_outcome_bench.py"
+      "tests/test_outcome_bench.py",
+      "docs/verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md",
+      "experiments/behavior-model/v001-evaluation-contract-v1.json",
+      "experiments/behavior-model/v001-purpose-applicability-v1.json",
+      "docs/specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md"
     ],
-    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
-    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
-    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "implementation_status": "FINITE_DESCRIPTIVE_DESIGN_ACCEPTED",
+    "scope_revision": "V001_PURPOSE_SPECIFIC_DESIGN_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md",
     "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
     "original_depends": [
       "K014",
@@ -2228,7 +2232,8 @@
     "original_change": "金融・環境・仕事/社会支援の3アダプタで同じカーネルの契約テスト",
     "original_verify": "分野固有の分岐をカーネルへ追加せず、共通の契約を満たす",
     "original_status": "todo",
-    "original_external": "none"
+    "original_external": "none",
+    "purpose_scope_previous_archive": "docs/verification/V001_PURPOSE_SCOPE_PREVIOUS_ROW_20261023.json"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",

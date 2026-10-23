@@ -2,7 +2,7 @@
 
 Status: 2026-10-23 UTC. Manager task state lives in `tasks.json`; other Life Manager lane states remain unchanged.
 
-Total: 113 · Done: 80 · Todo: 23 · Blocked: 0 · Skipped: 10
+Total: 113 · Done: 81 · Todo: 22 · Blocked: 0 · Skipped: 10
 
 ✅ = recorded acceptance version and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver or owner-scope retirement (not success). A research task is not evidence of real-world impact.
 
@@ -177,7 +177,7 @@ E01–E16実装完了。F受入は別に証拠確認
 
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
-| ⬜ `V001` | K014, R006, S003 | 既存benchmarkと利用権を再利用して評価契約を作る | 行動変容の公開benchmark/data/modelの版・権利・対象・split・採点契約を既存OutcomeBenchへ対応付ける | 人対象研究を待たずoffline評価を開始できる。source/model/judge版、人物/研究単位と時間holdout、未評価null、拒否/失敗/分母を固定し、人の便益を主張しない |
+| ✅ `V001` | K014, R006, S003 | 既存benchmarkと利用権を再利用して評価契約を作る | 行動変容に関する採用artifactと用途ごとに、版・権利・対象/推定量・評価単位・split設計・採点契約を既存OutcomeBenchへ対応付ける。取込、開発診断、独立未見評価を区別する。 | 人対象研究全体の完了を待たず、用途別のoffline評価設計を受入できる。採用artifactごとにsource/dataset/model/judge版、利用権、対象集団/推定量、独立単位、最終評価用に予約したdataの隔離、採点/未評価null、拒否/失敗/UNKNOWN/分母を固定する。人物・研究・時間および対象に必要な内容family等の各軸について、適用の有無、理由、利用可能field、分割状態と証拠を記録する。最終評価用に予約したdataは公開/非公開を問わず学習・few-shot・retrieval・モデル選別から隔離する。開発/校正に明示利用する公開benchmarkは露出・選別履歴を残し、後から独立した最終testと呼ばない。既存の凍結protocolの用途制限と権利条件は変更しない。適用する未見評価は実key・membership・非重複・時間順序/境界・許容用途を実行前に固定する。利用不能/不明/未分割の必須軸はその用途の評価受入・一般化主張をHOLDし、NOT_APPLICABLEを達成済みholdoutに数えない。固定診断/設計の受入は、訓練受入、独立一般化、優位、人の便益、実行権限を与えない。 |
 | ⬜ `V002` | V001 | 説得・行動予測・苦しみへの価値を別採点する | NO_ACTION/ルール/既存API/open-weightモデルを同じ入力・分母・予算条件で比較し、attempt・refusal・予測誤差・根拠・圧力/依存・害を独立評価する | 上流scorer/公開結果の再利用と人手照合を記録。LLM judge単独で行動効果や人の便益を認定せず、未実測欄をnullで保つ |
 | ⬜ `V003` | V002 | 独自重みの追加学習と未見評価を漏洩なく比較する | 権利確認済みbase/dataで最小SFT/LoRAの独自adapter研究を行い、人物・文脈・言語・時間holdoutと分布外検知で既存baselineに再比較する | 学習data/権利/分割、base/adapter/tokenizer/hash、recipe、seed、実compute/費用、失敗を固定。NC/ND評価資料を商用学習へ流用せず、根拠ある優位と安全性がなければ採用しない。offline研究は人対象実証全体の完了を待たない |
 | ⬜ `V004` | V003, D016 | 研究用モデルと人に届く運用への昇格を区別する | 評価したモデル/ポリシーを既存ownerの隔離→shadow→適切な限定運用へ段階昇格する | D016の実結果・保護とV003の未見評価を確認。既定OFF、予算/権限、STOP/復元、独立readbackを維持。学習成功やbenchmark向上だけで本番へ昇格しない |

@@ -42,13 +42,15 @@ Digital Buddha／Transparent Godは所有者の長期構想・呼称として保
 
 | 段階 | 進む条件／採用判断 |
 |---|---|
-| V001: 評価・権利・split | 利用するartifactごとにsource/版/license/対象を確認。人物・研究・時間のholdoutを固定し、公開testを学習に混ぜない |
+| V001: 評価・権利・split | 利用するartifact・用途ごとにsource/版/license/対象/推定量と評価契約を確認し、適用する独立単位・splitを固定する。人物/研究/時間等の各軸を用途に照らして適用/非該当/利用不能/不明と判定し、必須軸が未成立の用途はHOLD。最終評価用に予約したdataは公開/非公開を問わず学習・few-shot・retrieval・モデル選別から隔離する。開発/校正に明示利用する公開benchmarkは露出・選別履歴を残し、後から独立した最終testと呼ばない。既存の凍結protocolの用途制限と権利条件は変更しない。設計/既存診断の受入と実未見一般化の受入を分ける。 |
 | V002: 既存モデル比較 | NO_ACTION/ルール/既存API/open-weightを同条件で比較し、対象能力の不足・採点誤差・費用を記録。一般APIだけで足りる部分を再実装しない |
 | V003: 最小の独自adapter | 権利確認済みbase/data、固定評価、追加学習で解く具体的な不足、利用可能な実compute/予算が揃えばoffline SFT/LoRAを開始。人対象研究全体の完了を待たない。優位がなければ採用しない |
 | V003以降: SFT拡張/DPO/蒸留 | 専門的に評価したsupervision/preferenceが必要。既存judgeの同意を量産しない。蒸留はproviderの出力利用条件を満たす場合だけ。自動的なRL段階を設定しない |
 | V004: 人に届く限定運用 | V003の未見評価とD016の真正な結果・保護を満たして、隔離→shadow→限定昇格。source受入・重み生成・benchmark改善と、実運用/便益の受入を分ける |
 | V005/V006/G: 再現・継続 | code/recipe/版/権利に沿うadapter公開、独立再現、持続・異なる集団・失敗を検証 |
 | scratch pretraining | 既存base/追加学習で解けない不足、適法な大規模corpus、実測compute/運用費、比較優位、実行体制が揃ったときの別設計。必ずscratchへ進むと約束しない |
+
+V001の現行設計scopeは[用途別追補](2026-10-23-v001-purpose-specific-acceptance-amendment.md)を参照する。[別の限定設計受入receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)にrootの実判断を記録した場合に限り、既存4有限役割の設計を受入する。私有統合提案の作成時点では実受入ではない。旧literalの人物・研究・時間holdout条件はUNMET/HOLDのまま保存し、既存の後続gateと本書の過去の件数は変更しない。
 
 候補baseの[Qwen3-4B-Base](https://huggingface.co/Qwen/Qwen3-4B-Base)は公式cardと実LICENSEのApache 2.0を確認した。最初の比較候補であり、実験開始時には正確なrevision・tokenizer・recipeを固定する。学習は[PEFT](https://huggingface.co/docs/peft/index)・[TRL SFTTrainer](https://huggingface.co/docs/trl/sft_trainer)等を再利用し、新trainerを作らない。データは商用利用・追加学習の権利を確認したもの、または利用権を持つ専門家作成supervisionから始める。費用/資源未確認を0や利用可能なGPUとしない。
 
