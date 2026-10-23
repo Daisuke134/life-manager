@@ -1299,11 +1299,16 @@ def claim_durable(resource_class: str, owner_id: str, *,
                 return None, "capacity_busy"
             if not reserved and (head is None or head["owner_id"] != owner_id):
                 return None, "fifo_wait"
-            if coalesced_name is not None and (occurrence is None or occurrence[0] != coalesced_name):
-                if connection.execute(
-                        "SELECT 1 FROM occurrences WHERE occurrence_id=?",
-                        (coalesced_name,)).fetchone():
+            if coalesced_name is not None:
+                existing = connection.execute(
+                    """SELECT owner_id,resource_class,admission_class,base_priority,state,effect_unknown
+                       FROM occurrences WHERE occurrence_id=?""", (coalesced_name,),
+                ).fetchone()
+                if existing is not None and existing != (
+                        owner_id, resource_class, admission_class,
+                        row[3] or _default_priority(admission_class), "queued", 0):
                     return None, "occurrence_inflight"
+            if coalesced_name is not None and (occurrence is None or occurrence[0] != coalesced_name):
                 if occurrence is not None:
                     connection.execute(
                         """UPDATE occurrences SET state='cancelled'

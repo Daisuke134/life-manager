@@ -431,10 +431,11 @@ def test_ebook_entrypoint_forwards_registry_occurrence_scope_to_admission(tmp_pa
 
     enqueue.assert_called_once_with(
         "agent", owner, admission_class="revenue", priority="distribution",
-        occurrence_id=occurrence_id, effect_scope="occurrence",
+        occurrence_id=occurrence_id, effect_scope="occurrence", coalesce_reserved=True,
     )
     claim.assert_called_once_with(
         "agent", owner, admission_class="revenue", effect_scope="occurrence",
+        coalesced_occurrence_id=occurrence_id,
     )
     run.assert_not_called()
 
@@ -4091,7 +4092,7 @@ def manual_slot_runtime(tmp_path, monkeypatch):
                                occurrence_id=f"{owner}:{run_id}")
         return result, json.loads(receipt.read_text())
 
-    return SimpleNamespace(owner=owner, root=root, children=children, invoke=invoke)
+    return SimpleNamespace(owner=owner, root=root, entry=entry, children=children, invoke=invoke)
 
 
 def test_manual_slot_dispatches_only_its_exact_claim(manual_slot_runtime):
@@ -4105,6 +4106,7 @@ def test_manual_slot_dispatches_only_its_exact_claim(manual_slot_runtime):
 
 def test_manual_slot_foreign_fifo_claim_does_not_dispatch_or_starve_normal(manual_slot_runtime):
     runtime = manual_slot_runtime
+    runtime.entry["coalesce_queued_wakes"] = False
     admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
                               priority="distribution", effect_scope="occurrence",
                               occurrence_id=f"{runtime.owner}:older-normal")
@@ -4131,16 +4133,29 @@ def test_manual_slot_capacity_deferral_is_discarded_without_automatic_override(
     assert runtime.invoke("manual-deferred", manual=True)[0] == 75
     assert runtime.children == []
     monkeypatch.setattr(loop_runner, "memory_free_percent", lambda: 50)
-    code, receipt = runtime.invoke("normal-after-deferral")
-    assert code == 75 and receipt["reason"] == "manual_slot_request_expired"
-    assert runtime.children == []
-    assert runtime.invoke("normal-after-discard")[0] == 0
+    assert runtime.invoke("normal-after-deferral")[0] == 0
     assert runtime.children == [([
         "/fixture/ebook-distribute-daily.sh", runtime.owner,
     ], f"{runtime.owner}:normal-after-deferral")]
     with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
         assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
-                          (f"{runtime.owner}:manual-deferred",)).fetchone() == ("released", 0)
+                          (f"{runtime.owner}:manual-deferred",)).fetchone() == ("cancelled", 0)
+
+
+def test_manual_slot_coalesces_orphaned_wakes_under_its_exact_identity(manual_slot_runtime):
+    runtime = manual_slot_runtime
+    admission.enqueue_durable("agent", runtime.owner, admission_class="revenue",
+                              priority="distribution", effect_scope="occurrence",
+                              occurrence_id=f"{runtime.owner}:older-normal")
+    assert admission.cancel_durable(runtime.owner) is True
+    assert runtime.invoke("manual-after-orphan", manual=True)[0] == 0
+    assert runtime.children == [([
+        "/fixture/ebook-distribute-daily.sh", runtime.owner,
+        "--slot-at", "2026-10-08T23:00:00.000Z",
+    ], f"{runtime.owner}:manual-after-orphan")]
+    with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
+        assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (f"{runtime.owner}:older-normal",)).fetchone() == ("cancelled", 0)
 
 
 def test_manual_slot_unknown_claim_never_starts_child(manual_slot_runtime):
@@ -4181,13 +4196,12 @@ def test_manual_slot_capacity_busy_leaves_only_discardable_manual_work(manual_sl
         assert runtime.children == []
     finally:
         admission.release_and_reserve(busy, reserve=False)
-    assert runtime.invoke("normal-after-capacity")[1]["reason"] == "manual_slot_request_expired"
-    assert runtime.invoke("normal-capacity-progress")[0] == 0
+    assert runtime.invoke("normal-after-capacity")[0] == 0
     assert len(runtime.children) == 1
     assert runtime.children[0][1] == f"{runtime.owner}:normal-after-capacity"
     with sqlite3.connect(runtime.root / "admission-v2.sqlite3") as db:
         assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
-                          (f"{runtime.owner}:manual-capacity",)).fetchone() == ("released", 0)
+                          (f"{runtime.owner}:manual-capacity",)).fetchone() == ("cancelled", 0)
 
 
 @pytest.fixture
