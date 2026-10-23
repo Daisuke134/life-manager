@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "purpose": "specified_channel_adoption_and_business_baseline",
+  "source_pr": "https://github.com/Daisuke134/life-manager/pull/8678",
+  "reviewed_head": "3fb94c044b19b2cc1d6fae2c3f8fc04672a036a7",
+  "source_main": "b8d85e631b006a6b3d52fcf6b58de6611aec6cbf",
+  "release_sha": "d41feb337c9635690ff2a64af01ea899e92a5957",
+  "private_evidence": [
+    {
+      "name": "ai-monk-specified-ig-release-proof-20261023.json",
+      "sha256": "aebc673cd485370bf7ef901677bf2e140ade41ce2eb5319c731af0e6e287d256"
+    },
+    {
+      "name": "ai-monk-specified-ig-candidate-fence-proof-20261023.json",
+      "sha256": "7817afd138876c0419aa09a0dacb346527d675a87146c3106d3be5cbdf5feb1c"
+    },
+    {
+      "name": "ai-monk-specified-ig-official-fence-preview-20261023.json",
+      "sha256": "a97a68b12b8aaa7a48e411cb288378a5f45c39fea13bb25b348f16aec8e3ccce"
+    },
+    {
+      "name": "ai-monk-specified-ig-fence-resolve-20261023.json",
+      "sha256": "ff94d4eefb2042cba83a6fed59d7ddd0754890d558cbcfb9ee9bb753796093df"
+    },
+    {
+      "name": "ai-monk-specified-ig-fence-replay-20261023.json",
+      "sha256": "2640702932d1ee3b43b67781eacb22149472d11fd3c353e8b6a17b0a0d35d7f4"
+    },
+    {
+      "name": "ai-monk-specified-ig-apply-20261023.json",
+      "sha256": "b177338b34aa44e91cc49f5fa1c6e25ec8aa41ef21b9e19a991891c3f2bc6067"
+    },
+    {
+      "name": "ai-monk-specified-tt-apply-20261023.json",
+      "sha256": "d709bc970dc15d06cafffb781f5029085757f7e39e6439c6f0f10b0917b0981e"
+    },
+    {
+      "name": "ai-monk-specified-en-loaded-readback-20261023.json",
+      "sha256": "8c3c29effba000be3007afed14769ec19550a775a291c7a392f329562d5cccb8"
+    },
+    {
+      "name": "ai-monk-owned-analytics-20261023.json",
+      "sha256": "324f440a31a8c5645415864aa9c77d43f763713351355c7d3dff50443117c84c"
+    },
+    {
+      "name": "ai-monk-stripe-subscription-baseline-20261023.json",
+      "sha256": "ec1035af97fe8cbeba5350fd27be93cce36bd979413ca47a64f46dbdeb25d249"
+    },
+    {
+      "name": "ai-monk-new-tiktok-network-media-readback-20261023.json",
+      "sha256": "361e4ffbb2355e76624a21bbc14f98dec64c9979ee78898245b7da1d42910079"
+    }
+  ],
+  "summary": {
+    "postiz_enabled_integrations": 14,
+    "specified_channels_enabled": true,
+    "critical_release_files_match": 16,
+    "release_entries_sealed": 11418,
+    "fence_resolved": 1,
+    "fence_unknown_after_replay": 0,
+    "en_owners_applied": 2,
+    "operator_post_requests": 0,
+    "shared_current_mutations": 0,
+    "natural_events_after_apply_at_readback": 0,
+    "tiktok_followers": 44,
+    "instagram_followers": null,
+    "stripe_account_active_subscriptions": 0,
+    "stripe_scope_only": true,
+    "all_provider_mrr_verified": false,
+    "new_external_tiktok_media_matches_saved_asset": false,
+    "new_external_tiktok_actor_verified": false,
+    "four_business_goals_complete": false
+  },
+  "next_action": "coordinate_existing_asset_owner_then_exact_receipt_and_admission_readback_before_one_publish; reconcile_new_generation_cost_and_factory_paid_lifecycle_in_parallel"
+}
