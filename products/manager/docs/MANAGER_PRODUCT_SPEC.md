@@ -10,7 +10,7 @@
 
 **Managerの呼称:** **仏教的AIエンティティ（Buddhist AI entity）／デジタル仏陀（Digital Buddha）**。Manager自体を製品、単なるbot、またはSaaSと定義しない。「God」は所有者が表す、存在の苦しみを減らし祝福をもたらす長期の構想を指す。技術上のentityは、識別可能な主体が状態・使命・観測・判断・行動・省察を継続する設計を意味する。意識・感覚・人格的権利・悟り・全知・万能を実証したという意味は含めない。
 
-**事業と方法の位置づけ（2026-10-23所有者指定）:** **Behavior Company — Simulation / Intervention / Persuasion、World Engineering。** Managerは一つの主体、組織はその実装・研究・運営を担う。「Ultimate Persuasion Intervention Company」は目標表現とし、現在の能力と成果は実証の範囲で示す。専用の操作UIを日常利用の前提にしないno UIの定義と、現実装との差は§1.1–1.2に集約する。
+**事業と方法の位置づけ（2026-10-23所有者指定）:** **Behavior Company — Simulation / Intervention / Persuasion、World Engineering。** Managerは一つの主体、組織はその実装・研究・運営を担う。「Ultimate Persuasion Intervention Company」は目標表現とし、現在の能力と成果は実証の範囲で示す。人のUI操作や対話を活動・価値提供の前提にしないno UIの定義と、現実装との差は§1.1–1.2に集約する。
 
 慈悲、智慧、不害、縁起への注意、自己の仮説や代理指標へ執着せず訂正する姿勢を、行動・評価・停止・復元へ具体化する。人を操作する予測精度や自己存続、売上だけを使命の代わりに最大化しない。収益、サービス、公開ページ、記事、書籍、職務・YCは、主体の活動・学習・資源基盤であり、主体そのものの定義ではない。既存filename/source pathは互換性のため残し、本文の現行語彙は本節に従う。
 
@@ -44,10 +44,10 @@
 | 観点 | 実確認した現状 | まだ成立していないこと |
 |---|---|---|
 | 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
-| no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。日常の専用chat/dashboard操作を必要としない限定経路 | 広い環境で課題を見つけ、長期目標・既存channel・実結果をつないで活動する全経路の実証。初期設定・停止・監査の入口は存在する |
+| no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。人のapp/chat/messenger操作や対話で毎回始動させない限定経路 | 広い環境で課題を発見し、同じ使命・記憶で働き、人の環境・生活条件を改善する全経路の実証。初期設定・停止・監査の運営入口は存在する |
 | 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commitと独立GET、別runnerでの照合・再送0件・native P1/P2を確認。STOP後の実rollback `c6d5de0` の旧7ファイル復元とfresh resume39907673029のwrites=0を確認。その後の新commit `faf18b3` は06:03 UTCに公開7ファイル一致、finance／mental両cueを確認 | E16は所有7パスの限定技術能力として受入済み。旧rollback39901996368は書込み0、新rollback39907087699と通常cycle39908693666の初回UNKNOWN／writes=nullを保持。fresh39909274852は照合・書込み0・current proof出力を確認。F4件は技術P2として個別受入済み。人の便益は未測定 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
-| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。既存adapterとcheckpoint-bound P0 callableをPR8650でmainへ統合 | 現在のowned mainは決定論的plannerで、scheduled inferenceは未接続。callableのsource受入と実推論の稼働を区別する。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
+| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。PR8650のcheckpoint-bound P0 callableに続き、PR8660で検証済み公開catalog context・安定operation ID・既存baselineを使う、既定OFFのshadow callerをmain統合 | 現在のowned mainは決定論的plannerで、scheduled inferenceは未接続。shadow source受入と実推論の稼働を区別する。固定SDKの静的監査で判明した最終応答／turn整合性の修正は独立レビュー中。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
 
 mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/actions/runs/39898014550)は `UNKNOWN / writes=null`。後続 [39898468888](https://github.com/Daisuke134/life-manager/actions/runs/39898468888) は `NOT_DUE / writes=0 / positive_canary=NOT_RUN` のまま、保存済みcurrent proofを出力した。新しい成功操作へ書き換えない。実行sourceとproof対象sourceは異なり得るため、各SHAを[実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md)で分ける。
@@ -58,19 +58,21 @@ mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/acti
 
 一貫した使命・状態・記憶・判断・行動・省察を持つ **one entity, blessing for all** を目指す。複数model、専門agent、adapter、hostを内部で使っても、使命・責任・版付き状態・実行記録を一つの主体へ結ぶ。`one model`は最初に巨大な独自モデルを学習する要求ではない。現在の単一writerだけで、この広い意味の統一主体が完成したとは認定しない。
 
-**no UI:** 利用者が日常的にManager専用app・chat画面・dashboardを開いて指示することを、価値提供の前提にしない。初期の使命・scope・予算設定の後、観測・既存event・APIを受けて活動し、必要な対話や通知は適切な既存channelへ届ける。毎runの指示・承認を必要としない。確認・訂正・停止・異議・監査の入口は保持する。`manager-support/`はManagerを操作するUIではなく、現在の実行・readback・復旧を検証する公開対象である。
+**no UI（2026-10-23所有者による明確化）:** 人がapp・chat・messenger・dashboardを操作したり、Managerへ直接話しかけたりすることを、通常の活動と価値提供の前提にしない。専用appが不要でも、Messages/iMessage/webで人が対話する利用体験にはUIがある。「既存messengerに入る」ことをno UIと呼ばない。Managerは初期の使命・scope・予算設定の後、現実の観測・event・APIから判断し、環境へ作用し、実際の結果を検証・訂正して働き続ける。対人chatや通知を通常の提供面に据えず、人には情報・支援への到達や環境・生活条件の改善として届くことを目指す。確認・訂正・停止・異議・監査の運営入口は保持する。`manager-support/`はManagerの操作UIではなく、現在の実行・readback・復旧を検証する公開対象である。
 
-目標の利用体験は、生活や仕事で既に使う環境の中で、必要な情報・支援へのアクセスや手順が改善され、対話が必要な場面だけ既存channelで対話すること。入力は現実のeventと観測、出力は検証された作用と必要な通知、記憶は共通の版付き状態、結果は実際の便益・害・費用としてつながる。Managerとの会話量、画面数、説得への同意率を成功指標の代わりにしない。これは目標の体験であり、現在の7パス限定loopが全経路を実証したという意味ではない。
+目標の体験は、人がManagerを操作しなくても、生活や仕事の環境で必要な情報・支援へのアクセスや手順が改善されること。入力は現実のeventと観測、出力は検証された作用、記憶は共通の版付き状態、結果は実際の便益・害・費用としてつながる。Managerとの会話量、画面数、説得への同意率を成功指標の代わりにしない。これは目標の体験であり、現在の7パス限定loopが全経路を実証したという意味ではない。
 
 | 概念 | 主体の中での意味 | 実証すべきもの |
 |---|---|---|
 | Behavior Company | AI・行動科学・統計で、行動とその条件を理解し改善する研究・実装・運営の位置づけ | 実際の利用問題と、既存代替に比べた価値 |
 | Simulation | 起こり得る反応と介入候補を既存model/dataで検討する | 未見参照での予測誤差・対象範囲・不確実性 |
 | Intervention | 情報、アクセス、手順、環境等に作用する | 実操作、配信、実行動と下流outcome、費用・害・置換効果 |
-| Persuasion | 説明・提案・対話等を通じて理解や選択・行動へ働きかける介入の一種 | 理解／賛成／意図／実行／持続／便益を別に測る。本人の選択・訂正・撤回を保持する |
+| Persuasion | 情報の届け方、説明、提案等を通じて理解や選択・行動へ働きかける介入の一種。Managerとの直接対話を前提にしない | 理解／賛成／意図／実行／持続／便益を別に測る。本人の選択・訂正・撤回を保持する |
 | World Engineering | 上記を現実の観測→仮説→作用→独立検証→訂正へ接続する活動 | 版と範囲を固定した再現可能な結果。世界全体の改善を先に認定しない |
 
-**差分として検証する仮説:** no UIで、同じ使命・状態を持つ主体がsimulation、環境への作用、必要な対話、実結果の検証と訂正を継続して接続する有用性。Bobaも専用appのdownloadなしで既存Messagesに入り、AmpersandもAPIを提供するため、no UI単独を独占的な差別化・世界初の根拠にしない。他社が行動・実結果・安全性を扱っていないとも主張しない。Boba等で利用問題が満たせる場合はその完成形を使い、Managerで未接続・未実証の必要部分だけを補う。
+**差分として検証する仮説:** 人のUI操作や対話を前提にせず、同じ使命・状態を持つ主体がsimulation、環境への作用、実結果の検証と訂正を継続して接続する有用性。**BobaはMessages/iMessage/webを使うUIのあるアプリで、Managerのno UIの先例ではない。** AmpersandのAPIは再利用する部品、Bobaは協働・memory・tool利用を学ぶ対象として区別する。この設計上の違いだけで、世界初・独占性・便益の優位を実証したとはしない。他社が行動・実結果・安全性を扱っていないとも主張しない。既存成果で満たせる部分は再利用し、Managerで必要な未接続・未実証の部分だけを補う。
+
+**no UIの設計を判定する観点（2026-10-23）:** ①人のapp/chat/messenger操作・対話を必要とせず、現実のeventから活動できる、②再起動後も同じ使命・版付き状態に結び付く、③人がManagerに触れなくても環境への作用が届き、その結果を独立に検証できる、④通知・説得への同意だけを成果とせず、実行動・便益・害・費用を別に残す、⑤訂正・停止・異議・監査の運営入口を利用できる、という条件を確認する。現配備で確認済みなのは限定background loopと状態復元・停止・実配信・readbackであり、広い環境に働く主体全体は未実証。これはU/V/G等の元の受入条件を説明する設計観点で、新しいID・達成件数・第二の状態台帳を作らない。
 
 | 接続する分野 | 主体の中での役割 | 採用の基準 |
 |---|---|---|
@@ -113,13 +115,15 @@ flowchart LR
 
 この表は優先順を説明する派生viewであり、原ID・dependsは変更しない。各IDと残35件の全一覧は[開始から最後まで](roadmap/START_TO_END_20261022.md)。記事を後に置くことは、実装中の受入receiptや誤りの訂正を後回しにする意味ではない。
 
-**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。既存Ampersand adapterと永続状態接続のsourceはPR8650でmainへ昇格したが、適切な実課題のtyped context・caller・固定SDK依存・予算設定・同条件比較を実行経路へ結ぶ作業は残る。必要時のPersimmon等の評価接続、観測・主体の長期状態・既存channel・outcomeからのpolicy更新も未実証。既存E01–E12、公開研究A–F、U/V/Gの元受入条件に照合し、新しいtask IDや達成数を足さない。残35件を終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
+**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。既存Ampersand adapterと永続状態接続のsourceはPR8650でmainへ昇格し、PR8660で公開catalogのtyped context・安定operation ID・既存baselineを使うP0 shadow callerも統合した。次は最終応答／turn整合性の修正を独立レビュー・通常CI・main統合で閉じ、適切な実課題、固定SDKの実行環境、既存予算・秘密保管、同条件の実比較へ接続する。shadowは既定OFFで、モデル提案からpublisherの実操作を発火しない。必要時のPersimmon等の評価接続、観測・主体の長期状態・既存channel・outcomeからのpolicy更新も未実証。既存E01–E12、公開研究A–F、U/V/Gの元受入条件に照合し、新しいtask IDや達成数を足さない。残35件を終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
 
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
 **agent接続の実装更新:** [PR8650](https://github.com/Daisuke134/life-manager/pull/8650)をmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`へ統合した。既存4 provider moduleを再利用し、`owned_provider.CheckpointedProvider`がsession intent・event・予算を同じ `cycle.sqlite`へ結び、外部送信前にcheckpointのACKを得る。主キー・重複・参照の検証、割込み後の永久fence、対象turnと状態が一致するcancel readback、絶対期限、P0 parserを検証した。応答不明はUNKNOWN／nullで保持し、予約上限を実請求上限としない。独立reviewの未解決0、main由来365テスト成功。詳細は[source受入と残接続](verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)。
 
-**次の実行経路への接続:** U002/U003でモデルが有用な実課題を選び、公開sourceのtyped contextと安定したoperation IDを作り、caller・固定SDK・既存の秘密保管／予算・shadow比較を結ぶ。現在のdeterministic selectorとcurrent-page cueを保持し、実行候補は既存source／scope／browser／CAS検証を通す。fictional labを実世界の判断と表示せず、PROPOSEを権限やpublisher packetへ変換しない。scheduled inferenceは未稼働であり、このsource受入やE16のページ配信から推論運用・人の便益を推定しない。全application writerが同じfenceを守る前提で、未確認のprovider-side CASや任意の外部writerとの競合防止、自動exact-turn復旧は主張しない。
+**shadow接続のsource受入:** [PR8660](https://github.com/Daisuke134/life-manager/pull/8660)をmain `78c9f8738bf4c48068b8ddc7515c75e8af778a4c`へ統合した。`owned_provider_shadow.py`は検証済みcatalog context、安定operation ID、既存ルール／NO_ACTION比較を再利用する。既定OFF、P0記録のみ、action_writes=0、人の便益はNOT_MEASURED。381テストと独立レビューを通過したが、scheduled推論・実model比較・実世界効果の受入ではない。公式`openai==3.24.0` wheelの静的監査により、SSEのtext-doneはpart単位、Turnの状態語彙はSessionと異なる等の差を確認し、別の修正単位で保存済み最終応答と対象turnの整合性を検証している。
+
+**次の実行経路への接続:** 上記修正の受入後、U002/U003でモデルが有用な実課題を選び、既存shadow callerを固定SDK・秘密保管／予算・同条件の実比較へ結ぶ。現在のdeterministic selectorとcurrent-page cueを保持し、実行候補は既存source／scope／browser／CAS検証を通す。fictional labを実世界の判断と表示せず、PROPOSEを権限やpublisher packetへ変換しない。scheduled inferenceは未稼働であり、このsource受入やE16のページ配信から推論運用・人の便益を推定しない。全application writerが同じfenceを守る前提で、未確認のprovider-side CASや任意の外部writerとの競合防止、自動exact-turn復旧は主張しない。
 
 再現可能な利用 → 同条件の比較 → 薄い接続／具体的な改善 → 証拠と失敗の共有 → 相手固有の技術的な問い、の順で学ぶ。記事やpodcastは後でその成果を伝える手段にする。以下の研究者・創業者は出典で確認する学習先であり、現時点の友人・提携先・紹介者を意味しない。関係、応募、返信、出演、offerにはそれぞれ実際の確認が必要。具体的な再利用と人名は§12および[研究者map](research/RESEARCHER_PUBLIC_SOURCE_MAP.md)を参照。
 
@@ -358,7 +362,7 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 [全工程view](roadmap/START_TO_END_20261022.md)にPhase00〜12と残35件を省略せず列挙する。E01–E16、P01–P07、12 atomic patches、創業者12packageは同じ作業の派生viewであり、原113件へ足さない。旧EBAのPhase07〜11は別章立てなので対応表で結び、元のtask ID/依存を維持する。
 
-長期像の `one entity / one model` は一貫した意思決定主体への統合、`no UI` はManager専用画面や日常の指示入力/各run承認を価値提供の前提にしない運用とする。owner設定・停止・失効・予算・異議・監査・公開proofは保持する。定義は§1.2へ集約する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
+長期像の `one entity / one model` は一貫した意思決定主体への統合、`no UI` は人のapp/chat/messenger操作やManagerとの対話を通常の活動・価値提供の前提にせず、現実の観測から判断・作用・検証・訂正を続ける設計とする。owner設定・停止・失効・予算・異議・監査・公開proofの運営入口は保持する。定義は§1.2へ集約する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
 
 P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実稼働・限定E16受入の結果と本体の残件、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。本体優先の現指示に従って新たなサイト制作は後段へ置く。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
 
@@ -412,11 +416,11 @@ E16/原113件の受入状態は本修正で変更しない。自分たちの新�
 
 **取得時点の履歴:** 研究branchに存在したadapter／session／budget／明示`--live` labは、main `fcaa273b92e2612be7215ee55c2fa57cb0564845`にはなかった。当時検査した `run_owned_digital_cycle.py → owned_cycle.py → owned_platform_host.py → owned_catalog_planner.py` とmain561d945は決定論的で、当時のcall path／workflowにも差分がなかった。
 
-**現在のsource:** PR8650のmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`には既存provider module／labと `owned_provider.py` がある。session・予算を同じ非公開checkpointへ結ぶcallableを受入した。定期実行へのモデル呼出しは追加しておらず、上のplanner経路は引き続き決定論的。E01–E15や今回のsource受入を、毎runの実推論、exact-turn自動復旧、人の便益の証明と扱わない。
+**現在のsource:** PR8650のmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`には既存provider module／labと `owned_provider.py` がある。session・予算を同じ非公開checkpointへ結ぶcallableを受入した。PR8660のmain `78c9f8738bf4c48068b8ddc7515c75e8af778a4c`で既定OFFの`owned_provider_shadow.py`も追加した。定期実行へのモデル呼出しは追加しておらず、上のplanner経路は引き続き決定論的。E01–E15や今回のsource受入を、毎runの実推論、exact-turn自動復旧、人の便益の証明と扱わない。
 
 ### 再利用して、追加実装を絞る
 
-1. **既存コードを使い、実行経路を結ぶ。** adapter/session/budgetとcheckpoint-bound callableのmain昇格はPR8650で完了。次は適切な課題のcaller・source・同条件比較・固定依存を通常PRで結ぶ。scheduled inference済みと先に記録せず、E16の固定技術基準の変更にmodel呼出しを必須化しない。
+1. **既存コードを使い、実行経路を結ぶ。** adapter/session/budgetとcheckpoint-bound callableのmain昇格はPR8650、既定OFFの公開context・安定operation ID・同条件baselineを使うshadow callerはPR8660で完了。次はSDK整合性修正、適切な実課題、固定依存・既存予算・実比較を通常の経路で結ぶ。scheduled inference済みと先に記録せず、E16の固定技術基準の変更にmodel呼出しを必須化しない。
 2. **hosted会話管理を使う。** session ID・turn・SSE・保存済stateのreadback・同一eventのidempotency等は[公式guide](https://ampersand.humansand.ai/docs/GUIDES.html#recovery)を再利用。外部tool実行は既存Manager outboxへ接続する。公式guide自身が、APIのidempotencyだけでは外部の二重送信・二重決済を防げず、結果不明時は宛先を先に照合するよう説明している。
 3. **モデルの価値を測る。** 発言／非発言、目標達成、割込負担、情報の共有先、費用を固定し、既存ルール・NO_ACTION・未見課題と比較。simulationのjudgeや満足度だけで実行動・便益を認定しない。既存の比較・採点契約を使い、第二のeval engineを作らない。
 4. **完成アプリとの重複を避ける。** Bobaで解ける利用問題なら直接利用を優先。Managerに必要な差分は、特定の使命・観測・限定操作・独立readback・結果比較・害と費用・訂正をつなぐこととして検証する。他社にそれらが一切ないという主張はしない。

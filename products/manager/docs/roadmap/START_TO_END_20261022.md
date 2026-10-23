@@ -2,7 +2,7 @@
 
 **2026-10-23 現在:** 原113件は **75 done / 35 todo / 3 skipped**。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009を技術P2として個別受入し、D001→D002は分類実装／比較設計のsource契約だけを個別受入した。人の便益、資金増、汎用AGIの達成を意味しない。
 
-主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは専用app/chat/dashboardを日常操作の前提にせず、既存環境・channel・APIを通じて働くこと。実行試験の7パスは主体全体の完成像ではない。
+主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは、人のapp/chat/messenger操作や対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働くこと。BobaのMessages/iMessage/webにはUIがあり、この意味のno UIの先例とはしない。実行試験の7パスは主体全体の完成像ではない。
 
 **優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。session intent／予算を既存checkpointへ結ぶP0 callable、ACK先行、UNKNOWN隔離、期限、strict parserのsourceはPR8650でmain統合済み（[受入と残接続](../verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)）。定期実行のモデル呼出しは未接続で、次はU002/U003の実課題・公開context・安定ID・caller・同条件比較・既存運用設定を結ぶ。C002/Y008を保留中に全113件完了とは呼ばない。
 
@@ -224,7 +224,7 @@ Eの16段、editorial P01–P07、atomic patchesは原113件へ加算しない�
 
 `one model` は一貫した意思決定主体へ統合する長期像として扱う。独自foundation modelの学習や全部品の単一モデル化を、E16配備や実顧客確認の前提にしない。現段階では既存model/tool/評価器を適合範囲で接続し、比較と実証から統合方針を更新する。
 
-`no UI` は日常の指示入力・各run承認を必要としない通常運用。owner設定、権限取消し、予算、停止、異議、公開proofまで無くすという意味にはしない。通常は自律運用し、実行と結果を第三者が確認できる形にする。
+`no UI` は、人のapp/chat/messenger操作やManagerとの直接対話を通常の活動・価値提供の前提にしない設計。現実のeventから働き、環境・生活条件への作用と結果を検証する。専用download不要とUIなしを混同しない。owner設定、権限取消し、予算、停止、異議、公開proofの運営入口は保持する。
 
 ## 10. どこで何を完成と呼べるか
 

@@ -12,7 +12,7 @@ E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh r
 
 **humans&再利用の確認（04:28 UTC）:** Ampersandの過去の実API架空課題試験と、現owned-mainの決定論的plannerを区別する。Persimmonはuser model、Ampersandはcollaborator/API、Bobaは完成アプリ。現行の接続・未使用・公式API/appの利用方針は[spec §22](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。humans&のProduct/Research2求人は公式掲載を確認し、既存応募packetへ追加。数日を準備の目安とするが、記事再開・応募済み・自動送信予約とは扱わない。この04:28時点では原113件とE16cursorを変更しなかった。
 
-**主体と事業の定義（所有者指定）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは専用のapp/chat/dashboardを日常の前提にしない運用とし、既存channelと停止・監査の入口を保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。no UI単独の独占性や、残35件を含む原計画を終えればAGI／世界の苦の終結を証明できるとの主張はしない。新規UI・基盤実装・記事を今回の定義更新で始めない。
+**主体と事業の定義（所有者指定、no UI明確化）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは、人のapp/chat/messenger操作やManagerへの対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働く設計。BobaのMessages/iMessage/webはUIであり、no UIの先例としない。停止・監査の運営入口は保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。設計上の違いだけで世界初・AGI・世界の苦の終結を実証済みとはせず、原ID/依存/件数と他laneのcursorは変更しない。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 
