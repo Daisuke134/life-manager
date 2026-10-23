@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-bundle-gc-reference-budget-20261024、base=08114bfbe3（最新origin/main）（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのBUNDLE-GC-PERF-GREEN。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-bundle-gc-reference-budget-20261024、base=08114bfbe3（最新origin/main）（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのBUNDLE-GC-PERF-SHIP。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -468,7 +468,7 @@ BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with space
 診断追加: 最初のset/seen修復だけでは同じ4nodeが1 FAIL/3 PASS（0.40s）となる。ProgramArguments反復aliasをlegacy loaded_release_rootsがstrict=Trueで24回resolveし、仮想clock100秒、B開始時timeoutを確認する。fixtureを別plist fieldへ移してこの経路を避けず、元のProgramArguments fixtureを使い、真に空のrelease inventoryだけlegacy再観測を省く最小条件を上記契約へ追加する。正のrelease参照・A/B/Cの観測は減らさない。
 
 - [x] BUNDLE-GC-PERF-RED: 重複aliasのresolveへ仮想時間を課し、修復前は期限超過で保持、修復後は同じ15秒内にFD再確認と回収へ到達する最小fixtureを先に失敗させる。別snapshotで同じaliasの参照先変更・新FD参照を認識し保持する反例を含める。 source未変更の4nodeは1 FAIL/3 PASS（0.79s）。反復aliasの未参照bundleが残る実体assertで失敗し、alias変更/新FD/期限超過全保持の3反例はPASS。test差分89行、diffcheck PASS。
-- [ ] BUNDLE-GC-PERF-GREEN: 上記2filesの最小修復、既存空白/=alias/長いps/unknown/FD/保護store/lock条件と関連suiteをPASSする。実機15秒完走はsourceテストと別に評価する。
+- [x] BUNDLE-GC-PERF-GREEN: 上記2filesの最小修復、既存空白/=alias/長いps/unknown/FD/保護store/lock条件と関連suiteをPASSする。実機15秒完走はsourceテストと別に評価する。 最小source19行（+11/-8）で元のProgramArguments fixture4 PASS（0.30s）、GC class35 PASS/9subtests（0.55s）、primaryの隔離HOMEによる関連4filesは162 PASS/33subtests（70.80s）。AST/diff/source-boundary/OSS self-containedはPASS。source SHA256=c92708e10d9b62bcbdbf4782dbde28bd6aa4e3229137e0d528d6ef9241bd5130、test SHA256=72bb5e3b1cadfec8a979b938907fd2525338a66969ee4745356f5e1570970af3。fresh reviewと最終head CIは未完。
 - [ ] BUNDLE-GC-PERF-SHIP: fresh read-only review、最終headに対する既存workflow全13jobs success、main/public source照合を受け入れる。
 - [ ] BUNDLE-GC-PERF-ACTUAL: accepted main由来の同じGig依存closureを含むimmutableを作り、同じ対象rootの残7bundlesへ既存入口を実行する。receipt・残件・free・replay結果を記録し、時間不足なら境界を追加計測して最小修復を続ける。全業務/別Mac/10,000starsは未完。
 

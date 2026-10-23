@@ -611,33 +611,35 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
         text=True, timeout=min(5, max(.01, deadline-time.monotonic())))
     if process.stderr:
         raise OSError("process inventory has coverage gaps")
-    path_values = []
+    path_values = set()
     for value in values:
         if "\n" not in value:
-            path_values.append(value)
-        path_values.extend(value.split())
+            path_values.add(value)
+        path_values.update(value.split())
     for line in process.stdout.splitlines():
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired("process references", 0)
         try:
-            path_values.extend(shlex.split(line))
+            path_values.update(shlex.split(line))
         except ValueError:
             # ps renders argv, so a literal apostrophe need not be shell syntax.
-            path_values.extend(line.split())
+            path_values.update(line.split())
         # ps may omit quotes; each whitespace boundary can end a spaced path.
         for match in re.finditer(r"(?:^|[\s='\":])(/)", line):
             suffix = line[match.start(1):match.start(1) + 4097]
             for boundary in re.finditer(r"\s|$", suffix):
                 if time.monotonic() >= deadline:
                     raise subprocess.TimeoutExpired("process path boundaries", 0)
-                path_values.append(suffix[:boundary.start()])
+                path_values.add(suffix[:boundary.start()])
+    resolved_paths = set()
     for word in path_values:
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired("reference path resolution", 0)
         for path in word.strip("'\"").split(os.pathsep):
             if not path.startswith("/"):
                 path = path.split("=", 1)[-1]
-            if path.startswith("/") and len(os.fsencode(path)) <= 4096:
+            if path.startswith("/") and len(os.fsencode(path)) <= 4096 and path not in resolved_paths:
+                resolved_paths.add(path)
                 values.append(str(Path(path).resolve()))
     values.append(process.stdout)
     values.extend(map(str, _open_reference_paths((releases, bundles),
@@ -808,7 +810,8 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
                                            "reclaimed_bytes": 0, "errors": 0}}
         with _source_reclaim_lock(current, deadline), _release_cut_lock(current):
             protected, _references = _bundle_references(releases, current, agents, bundles, deadline)
-            protected |= loaded_release_roots(agents, releases) | open_release_roots(releases)
+            if any(releases.iterdir()):
+                protected |= loaded_release_roots(agents, releases) | open_release_roots(releases)
             result = gc_releases(releases, current, keep=keep, protected=protected)
             result["protected_release_count"] = len(protected)
             bundle_result = _gc_dependency_bundles(releases, current, agents, bundles, deadline)
