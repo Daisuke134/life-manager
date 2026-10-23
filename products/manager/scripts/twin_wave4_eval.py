@@ -289,10 +289,11 @@ def inspect_snapshot(input_dir: Path, pins: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _load_pins(path: Path) -> dict[str, Any]:
+def _load_repository_pins() -> dict[str, Any]:
+    path = Path(__file__).resolve().parents[3] / "docs/research/manager/evidence/artificial-societies-20261022/reuse.json"
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-        dataset = value.get("dataset") if isinstance(value, dict) and "dataset" in value else value
+        dataset = value.get("dataset") if isinstance(value, dict) else None
         snapshot = dataset.get("wave4_inspection") if isinstance(dataset, dict) else None
         if not isinstance(snapshot, dict):
             _fail("INVALID_METADATA")
@@ -302,14 +303,16 @@ def _load_pins(path: Path) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    arguments = sys.argv[1:] if argv is None else argv
+    if any(argument == "--pins" or argument.startswith("--pins=") for argument in arguments):
+        print("twin-wave4: PIN_OVERRIDE_FORBIDDEN", file=sys.stderr)
+        return 2
     parser = argparse.ArgumentParser(prog="twin-wave4")
     parser.add_argument("mode", choices=("inspect",))
     parser.add_argument("input_dir", type=Path)
-    parser.add_argument("--pins", type=Path)
-    args = parser.parse_args(argv)
+    args = parser.parse_args(arguments)
     try:
-        pin_path = args.pins or Path(__file__).resolve().parents[3] / "docs/research/manager/evidence/artificial-societies-20261022/reuse.json"
-        report = inspect_snapshot(args.input_dir, _load_pins(pin_path))
+        report = inspect_snapshot(args.input_dir, _load_repository_pins())
     except InspectionError as error:
         print(f"twin-wave4: {error.code}", file=sys.stderr)
         return 2

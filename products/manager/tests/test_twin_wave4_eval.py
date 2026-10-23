@@ -179,18 +179,24 @@ class TwinWave4GateTests(unittest.TestCase):
                 gate.inspect_snapshot(root, pins)
         self.assertEqual(raised.exception.code, "DESCRIPTION_ROW_MISMATCH")
 
-    def test_cli_failure_has_empty_stdout_and_sanitized_error(self):
+    def test_cli_rejects_custom_pins_override_with_empty_stdout(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             pins = fixture(root)
-            pins["files"][0]["sha256"] = "0" * 64
             pins_path = root / "pins.json"
             pins_path.write_text(json.dumps({"wave4_inspection": pins}))
             completed = subprocess.run([sys.executable, str(SCRIPT), "inspect", temp, "--pins", str(pins_path)], text=True, capture_output=True)
         self.assertEqual(completed.returncode, 2)
         self.assertEqual(completed.stdout, "")
+        self.assertEqual(completed.stderr.strip(), "twin-wave4: PIN_OVERRIDE_FORBIDDEN")
+
+    def test_cli_uses_repository_pins_for_synthetic_inputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            fixture(Path(temp))
+            completed = subprocess.run([sys.executable, str(SCRIPT), "inspect", temp], text=True, capture_output=True)
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
         self.assertEqual(completed.stderr.strip(), "twin-wave4: SOURCE_HASH_MISMATCH")
-        self.assertNotIn(temp, completed.stderr)
 
 
 if __name__ == "__main__":
