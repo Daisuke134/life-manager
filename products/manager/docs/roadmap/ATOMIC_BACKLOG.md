@@ -2,7 +2,7 @@
 
 Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 70 · Todo: 40 · Blocked: 0 · Skipped: 3
+Total: 113 · Done: 71 · Todo: 39 · Blocked: 0 · Skipped: 3
 
 ✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -127,7 +127,7 @@ E01–E16実装完了。F受入は別に証拠確認
 | ✅ `F003` | F002 | 仮想テストと現実証明を分離する | finance read-only adapterと初期fixtureを実装 | 公開送金/公開台帳を第三者でreadbackできる |
 | ⏭️ `F004` | F003, K007 | 資金管理者の許可待ちをManager開発の前提にしない | 旧・第三者の資金管理者承認と寄付予算取得の実地試験を必須ルートから廃止。所有サイトの情報環境改善へ移行 | 旧試験は未実施のまま履歴へ保存。実送金や外部資金確保を完了と主張せず、依存経路から除外 **Waiver (not completed):** 2026-10-22 founder-requested scope revision: external finance operators, transfers and allocated funds are not prerequisites for first-party digital Manager. Original finance field trial retired, NOT completed. |
 | ✅ `F005` | K009 | 所有する公開デジタル環境の実更新と外部readbackを区別する | Manager所有の公式情報案内ページを限定公開し、実際の提供者commitと配信中のSHA256を独立照合 | 提供者receipt P1＋公開ページ外部GET P2＋NO_ACTION replay-zeroと他のパス不変。人の便益はNOT_MEASURED |
-| ⬜ `F006` | F005, K011 | 公開コンテンツの状態変化と人の苦しみの減少を混同しない | 公開ページ変化、初期状態、比較対象、欠測、費用、害を版付きで報告。人間アウトカムと因果効果の未測定を明示 | P1/P2出典・SHA・時刻を確認。利用者のP3/P4はNOT_MEASURED、標本がないのに信頼区間を捏造しない |
+| ✅ `F006` | F005, K011 | 公開コンテンツの状態変化と人の苦しみの減少を混同しない | 公開ページ変化、初期状態、比較対象、欠測、費用、害を版付きで報告。人間アウトカムと因果効果の未測定を明示 | P1/P2出典・SHA・時刻を確認。利用者のP3/P4はNOT_MEASURED、標本がないのに信頼区間を捏造しない |
 | ⏭️ `F007` | F001 | 屋内設備介入なしに情報アクセス環境を改善する | 旧・共有屋内施設やセンサーの取得・操作権限の確保を必須ルートから廃止。所有オンライン案内面の改善へ移行 | 旧屋内試験は未実施のまま履歴保存。屋内の曝露・疾患改善を主張せず、F008の依存を解除 **Waiver (not completed):** 2026-10-22 founder-requested scope revision: physical facilities and indoor sensors are unnecessary prerequisites to a first-party digital environmental intervention. Original indoor field trial retired, NOT completed. |
 | ⬜ `F008` | F005, K010 | 対象の異なる所有オンライン環境の変化を別々に観測する | 金融案内とは別の公開情報アクセス面で改善を確認し、固有URL・SHA・独立GET・差分・復元可能性を記録 | 異なる2ページで外部読み戻しP2。室内センサーも施設許可も要求せず、人への因果効果は未測定 |
 | ⬜ `F009` | F006, F008 | ひとつの共通カーネルで異なる情報アクセス面を監査する | 所有サイト上の対象2件のP2証拠、共通NO_ACTION・公開release・検証・限界を統合レポートにまとめる | 同一kernelと独立GETで対象2件を証明。人への便益はNOT_MEASURED、2ページを独立した人間試験と数えない |
@@ -212,7 +212,7 @@ E01–E16実装完了。F受入は別に証拠確認
 
 - R006 rights register: `docs/research-rights.md` and `docs/research/source-rights.json`. Unknown downstream permissions remain HOLD.
 - imozuru research uses original links and local short excerpts; third-party original text is not automatically redistributable.
-- Owned-public digital technical P2 acceptance: 1/4 gates marked done.
+- Owned-public digital technical P2 acceptance: 2/4 gates marked done.
 - Beneficiary human outcome: NOT_MEASURED.
 
 - Phase06–12 implementation evidence and remaining original acceptances: `docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`.

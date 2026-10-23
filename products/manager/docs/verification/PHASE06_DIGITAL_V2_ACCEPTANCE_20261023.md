@@ -10,7 +10,7 @@ E01–E16は[限定実稼働能力の総合受入](E16_DEPLOYED_ACCEPTANCE_20261
 
 ## F006 — 版付き報告
 
-**受入: 未判定。** 判定時にbaseline／比較／欠測／費用／害と、技術基準の事前固定・人間outcomeの未測定を個別に照合する。
+**受入: 版付き技術報告。** 結果JSON v5にbaseline d33d、finance／mentalの各parent・SHA・時刻、NO_ACTIONとNOT_DUEの別記録、欠測・費用・害を照合した。技術criterion／厳密byte verifierは公開main3402fcfb30302e5dd2ef2d9b4fd0797771e761ad（02:48:54 UTC）で、baseline観測02:46の後、介入03:05／04:03より前に固定。結果報告は05:10以後の事後作成であり、人間試験の事前登録と呼ばない。human n／効果量／CIはnull、P3/P4はNOT_MEASURED、費用実請求UNKNOWN、害UNKNOWN_HARMSを保持した。
 
 ## F008 — 別テーマのP2と復元可能性
 

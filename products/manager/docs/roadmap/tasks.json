@@ -909,13 +909,13 @@
     "learn": "公開コンテンツの状態変化と人の苦しみの減少を混同しない",
     "change": "公開ページ変化、初期状態、比較対象、欠測、費用、害を版付きで報告。人間アウトカムと因果効果の未測定を明示",
     "verify": "P1/P2出典・SHA・時刻を確認。利用者のP3/P4はNOT_MEASURED、標本がないのに信頼区間を捏造しない",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "manager_core/causal_analysis.py",
       "docs/verification/INDEPENDENT_FINANCIAL_OUTCOME_PROTOCOL.md"
     ],
-    "implementation_status": "P2_REVIEW_PENDING",
+    "implementation_status": "ACCEPTED_OWNED_PUBLIC_DIGITAL_P2_ONLY",
     "original_status": "todo",
     "original_depends": [
       "F005",
@@ -928,7 +928,25 @@
     "scope_version": 2,
     "scope_amendment": "products/manager/docs/specs/2026-10-22-phase06-owned-public-good-scope-amendment.md",
     "evidence_scope": "OWNED_PUBLIC_DIGITAL_P2_ONLY",
-    "beneficiary_outcome": "NOT_MEASURED"
+    "beneficiary_outcome": "NOT_MEASURED",
+    "completion_evidence": [
+      "docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json",
+      "docs/verification/PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T06:19:26.088888+00:00",
+      "result": "VERSIONED_TECHNICAL_REPORT_WITH_NULL_HUMAN_OUTCOMES",
+      "versioned_result_source_commit": "254f83b98ae37fd98a34b67cfb6592abcc18c6fd",
+      "versioned_result_sha256": "ae40dc20a396a6f66e6b2a4f8872553d6d5be898435ea7bfb57b5eb9726357ab",
+      "technical_criterion_fixed_commit": "3402fcfb30302e5dd2ef2d9b4fd0797771e761ad",
+      "technical_criterion_fixed_at": "2026-10-23T02:48:54Z",
+      "human_preregistration": null,
+      "human_outcome": "NOT_MEASURED",
+      "human_effect": null,
+      "human_ci_95": null,
+      "actual_settled_total": null,
+      "harms": "UNKNOWN_HARMS"
+    }
   },
   {
     "section": "06. 現実の介入と独立した効果評価",
