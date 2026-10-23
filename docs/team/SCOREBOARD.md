@@ -26,7 +26,7 @@
 
 | 項目 | 値 | 更新(JST) | 出典 |
 |---|---|---|---|
-| Anicca App Units 日別 10/18・10/19・10/20・10/21 | 1・2・0・1 | 2026-10-23 20:06 | daisuke/cursor の Reason 依頼文（ASC 一次出典は repo 未記録。次回更新で ASC Sales and Trends の readback に差し替える） |
+| Anicca 新規ダウンロード 日別 10/18・10/19・10/20・10/21・10/22 | 1・2・0・1・0（他に再ダウンロード 10/18 に1） | 2026-10-23 20:45 | ASC Sales Report API（DAILY SALES SUMMARY、Apple ID 6755129214、Product Type 1=新規・3=再DL）を `business_outcomes.read_asc_sales_report` で読取。10/22 は Apple『There were no sales for the date specified.』 |
 | Anicca App Units 週次（10/12〜10/18） | 2（前週比 -71%） | 2026-10-23 04:44 | Apple App Analytics Weekly Summary メール → 統合SSOT「今回の一次証拠」 |
 
 ## 資金調達パイプライン
