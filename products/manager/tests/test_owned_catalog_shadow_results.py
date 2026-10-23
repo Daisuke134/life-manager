@@ -268,6 +268,8 @@ class CatalogShadowResultTests(unittest.TestCase):
                 "timestamp": lambda r: r.update(compared_at="2026-10-23T00:00:00"),
                 "baseline_key": lambda r: r["baseline"].update(extra={}),
                 "model_status": lambda r: r.update(model_status="INVALID_MODEL_OUTPUT"),
+                "escaped_high_surrogate": lambda r: r["model_advice"].update(reason=chr(0xD800)),
+                "escaped_low_surrogate": lambda r: r["model_advice"].update(reason=chr(0xDFFF)),
             }
             sql_changes = {
                 "body": "UPDATE catalog_shadow_results SET body_hash='"+"a"*64+"'",
@@ -276,6 +278,7 @@ class CatalogShadowResultTests(unittest.TestCase):
                 "budget_missing": "DELETE FROM budget_reservations",
                 "budget_reserved": "UPDATE budget_reservations SET status='RESERVED',usage_json=NULL,measured_cost_units=NULL",
                 "budget_settled": "UPDATE budget_reservations SET settled_units=0",
+                "budget_unknown_complete_tokens": "UPDATE budget_reservations SET status='UNKNOWN_USAGE',usage_json=NULL,measured_cost_units=NULL",
                 "provider_missing": "DROP TABLE amp_events",
             }
             schema_changes = {
@@ -438,6 +441,85 @@ class CatalogShadowResultTests(unittest.TestCase):
                     self.assertNotIn(secret, json.dumps(public))
             self.assertEqual((gateway.value, gateway.calls), before)
             self.assertEqual(sessions.create_count, 1)
+
+    def test_partial_token_usage_is_durable_without_invented_cost(self):
+        from types import SimpleNamespace
+        for input_tokens, output_tokens in ((10, None), (None, 20), (0, None), (None, 0)):
+            with self.subTest(tokens=(input_tokens, output_tokens)), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                prepared, now, gateway, cp = self.setup_owner(root)
+                client, sessions = fixtures.client_for()
+                usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens,
+                                        input_tokens_details=None, output_tokens_details=None)
+                client.beta.agents.sessions.turns = SimpleNamespace(list=lambda *a, **k:
+                    SimpleNamespace(data=[SimpleNamespace(id="turn_12345678", status="completed", usage=usage)]))
+                try:
+                    first = self.compare(cp, prepared, now, client_factory=lambda: client,
+                        cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"))
+                except CheckpointUnavailable:
+                    self.fail("legitimate partial token evidence fenced the checkpoint")
+                self.assertEqual(first["status"], "COMPARED_P0")
+                self.assertFalse(cp.broken)
+                self.assertEqual((first["provider"]["input_tokens"], first["provider"]["output_tokens"]),
+                                 (input_tokens, output_tokens))
+                self.assertIsNone(first["settled_cost_usd"])
+                rows = snapshot_rows(base64.b64decode(gateway.value["snapshot"]))
+                self.assertEqual(json.loads(rows["catalog_shadow_results"][0][2]), first)
+                self.assertEqual(rows["budget_reservations"][0][2:],
+                                 ("UNKNOWN_USAGE", None, None, None))
+                restored = self.restore(root / "restored", gateway)
+                before = deepcopy(gateway.value), list(gateway.calls), _database_bytes(restored.db)
+                with self.no_initialization():
+                    replayed = self.compare(restored, prepared, now, run_id="999",
+                        client_factory=lambda: self.fail("factory invoked"))
+                self.assertEqual(replayed, first)
+                self.assertEqual((replayed["run_id"], replayed["compared_at"]),
+                                 (first["run_id"], first["compared_at"]))
+                self.assertEqual((gateway.value, gateway.calls, _database_bytes(restored.db)), before)
+                self.assertEqual(len(snapshot_rows(_database_bytes(restored.db))["budget_reservations"]), 1)
+                self.assertEqual(sessions.create_count, 1)
+
+    def test_unencodable_model_advice_is_durable_invalid_output(self):
+        for name, reason, model_status in (
+                ("high", chr(0xD800), "INVALID_MODEL_OUTPUT"),
+                ("low", chr(0xDFFF), "INVALID_MODEL_OUTPUT"),
+                ("valid_unicode", "公式リンクを修正します。😀", "MODEL_ADVICE_P0")):
+            with self.subTest(kind=name), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                prepared, now, gateway, cp = self.setup_owner(root)
+                output = json.dumps({"decision": "PROPOSE", "reason": reason,
+                                     "source_ids": ["official:livelihood"]}, ensure_ascii=True)
+                client, sessions = fixtures.client_for(output=output)
+                try:
+                    first = self.compare(cp, prepared, now, client_factory=lambda: client,
+                        cap_usd=Decimal("0.05"), upper_usd=Decimal("0.03"))
+                except CheckpointUnavailable:
+                    self.fail("unencodable model advice fenced instead of saving INVALID_MODEL_OUTPUT")
+                self.assertEqual(first["status"], "COMPARED_P0")
+                self.assertEqual(first["model_status"], model_status)
+                self.assertFalse(cp.broken)
+                rows = snapshot_rows(base64.b64decode(gateway.value["snapshot"]))
+                saved = rows["catalog_shadow_results"][0][2]
+                self.assertEqual(json.loads(saved), first)
+                self.assertEqual(rows["budget_reservations"][0][2], "TOKENS_OBSERVED_COST_UNSETTLED")
+                public = shadow.public_catalog_shadow_summary(first)
+                self.assertNotIn("model_advice", public)
+                self.assertNotIn(reason, json.dumps(public, ensure_ascii=False))
+                if model_status == "INVALID_MODEL_OUTPUT":
+                    self.assertIsNone(first["model_comparison"])
+                    self.assertNotIn("model_advice", first)
+                    self.assertNotIn(reason, saved)
+                    self.assertNotIn(json.dumps(reason)[1:-1], saved)
+                else:
+                    self.assertEqual(first["model_advice"]["reason"], reason)
+                    self.assertIn(reason, saved)
+                restored = self.restore(root / "restored", gateway)
+                before = deepcopy(gateway.value), list(gateway.calls)
+                with self.no_initialization():
+                    self.assertEqual(self.compare(restored, prepared, now, run_id="999",
+                        client_factory=lambda: self.fail("factory invoked")), first)
+                self.assertEqual((gateway.value, gateway.calls), before)
+                self.assertEqual(sessions.create_count, 1)
 
     def test_invalid_model_output_and_unknown_usage_are_durable_p0(self):
         for unknown_usage in (False, True):

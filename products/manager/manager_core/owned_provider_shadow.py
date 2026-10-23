@@ -162,6 +162,8 @@ def _validated_result(text):
                         parse_constant=_no_nonfinite_constant)
     if type(result) is not dict:
         raise ValueError("invalid saved comparison")
+    # JSON escapes can decode to lone surrogates even when the text was ASCII.
+    _result_json(result).encode("utf-8")
     model_status = result.get("model_status")
     keys = _RESULT_KEYS | ({"model_advice"} if model_status == "MODEL_ADVICE_P0" else set())
     if (set(result) != keys or result.get("status") != "COMPARED_P0"
@@ -279,8 +281,8 @@ def validate_catalog_shadow_results(db: sqlite3.Connection, tables: set[str]) ->
                                        parse_constant=_no_nonfinite_constant))
             if tokens != (usage.input_tokens, usage.output_tokens):
                 raise ValueError("saved comparison token binding mismatch")
-        elif tokens != (None, None):
-            raise ValueError("unknown usage cannot become measured tokens")
+        elif all(token is not None for token in tokens):
+            raise ValueError("unknown usage cannot become complete measured tokens")
 
 
 def _read_saved_comparison(checkpoint: PrivateCheckpoint, *, operation_id: str,
@@ -479,10 +481,14 @@ def compare_prepared_catalog_shadow(
         "input_tokens": evidence.input_tokens,
         "output_tokens": evidence.output_tokens,
     }
-    if advice.advice.status == "INVALID_MODEL_OUTPUT":
+    model_receipt = advisory_receipt(advice.advice)
+    try:
+        _result_json(model_receipt).encode("utf-8")
+    except UnicodeEncodeError:
+        model_receipt = None
+    if advice.advice.status == "INVALID_MODEL_OUTPUT" or model_receipt is None:
         fields["model_status"] = "INVALID_MODEL_OUTPUT"
     else:
-        model_receipt = advisory_receipt(advice.advice)
         fields["model_status"] = advice.advice.status
         fields["model_advice"] = model_receipt
         fields["model_comparison"] = {
