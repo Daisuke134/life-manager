@@ -775,6 +775,10 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
             normalized_mad_reason = "OFFICIAL_METRIC_EXECUTION_FAILED"
             mad_values_by_item = {}
 
+    has_privacy_suppressed_numeric_items = any(
+        0 < len(candidate["indices"]) < MIN_PUBLISHABLE_CELLS
+        for candidate in mad_candidates
+    )
     mad_items = []
     for candidate in mad_candidates:
         values = mad_values_by_item.get(candidate["item_code"])
@@ -786,9 +790,12 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
             "numeric_basis": candidate["numeric_basis"],
             "value_unit": "UNSPECIFIED_NATIVE_RESPONSE_UNIT",
             "official_range": list(candidate["range"]),
-            "common_native_valid_cells": _suppressible_count(candidate["native_valid_cells"]),
+            "common_native_valid_cells": (
+                None if privacy_suppressed
+                else _suppressible_count(candidate["native_valid_cells"])
+            ),
             "official_range_excluded_cells_by_role": {
-                role: _suppressible_count(count)
+                role: None if privacy_suppressed else _suppressible_count(count)
                 for role, count in candidate["official_range_excluded_cells_by_role"].items()
             },
             "common_numeric_cells": _suppressible_count(numeric_count),
@@ -879,7 +886,10 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
             "invalid_native_cells_by_role": {role: _suppressible_count(value) for role, value in invalid_counts.items()},
             "native_range_invalid_cells_by_role": {role: _suppressible_count(value) for role, value in native_range_counts.items()},
             "numeric_parse_invalid_cells_by_role": {role: _suppressible_count(value) for role, value in numeric_parse_counts.items()},
-            "official_range_invalid_cells_by_role": {role: _suppressible_count(value) for role, value in official_range_counts.items()},
+            "official_range_invalid_cells_by_role": {
+                role: None if has_privacy_suppressed_numeric_items else _suppressible_count(value)
+                for role, value in official_range_counts.items()
+            },
         },
         "normalized_mad": {
             "status": normalized_mad_status,
@@ -893,7 +903,10 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
             "numeric_scale_scored_columns": sum(
                 1 for item in mad_items if item["status"] == "SCORED"
             ) if normalized_mad_status == "AVAILABLE" else None,
-            "common_numeric_cells": _suppressible_count(total_numeric_cells) if official_definitions_available else None,
+            "common_numeric_cells": (
+                None if not official_definitions_available or has_privacy_suppressed_numeric_items
+                else _suppressible_count(total_numeric_cells)
+            ),
             "excluded_by_reason": dict(sorted(excluded_by_reason.items())) if official_definitions_available else None,
             "items": mad_items if official_definitions_available else [],
         },

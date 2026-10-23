@@ -476,15 +476,26 @@ class TwinWave4GateTests(unittest.TestCase):
             root = Path(temp)
             pins = agreement_fixture(root, n=30, specials=False)
             pins = _rewrite_agreement_column(
-                root, pins, "output.csv", "Numeric Entry", ["5"] * 19 + ["101"] * 11
+                root, pins, "output.csv", "Numeric Entry", ["5"] * 5 + ["101"] * 25
             )
             result = _run_agreement_fixture(root, pins)
         numeric = next(item for item in result["normalized_mad"]["items"] if item["item_code"] == "NUM")
+        agreement_numeric = next(item for item in result["agreement"]["items"] if item["item_code"] == "NUM")
         self.assertEqual(numeric["status"], "SUPPRESSED")
         self.assertEqual(numeric["reason"], "SMALL_AGGREGATE_SUPPRESSED")
         self.assertTrue(numeric["suppressed"])
-        self.assertEqual(numeric["common_native_valid_cells"], 30)
+        self.assertIsNone(numeric["common_native_valid_cells"])
         self.assertIsNone(numeric["common_numeric_cells"])
+        self.assertTrue(all(
+            count is None
+            for count in numeric["official_range_excluded_cells_by_role"].values()
+        ))
+        self.assertEqual(agreement_numeric["native_valid_cells"], 30)
+        self.assertIsNone(result["normalized_mad"]["common_numeric_cells"])
+        self.assertTrue(all(
+            count is None
+            for count in result["quality"]["official_range_invalid_cells_by_role"].values()
+        ))
         self.assertEqual(result["normalized_mad"]["numeric_scale_candidate_columns"], 2)
         self.assertEqual(result["normalized_mad"]["numeric_scale_scored_columns"], 1)
 
