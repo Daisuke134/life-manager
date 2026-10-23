@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex / Job drafts] 求人5件のフォーム回答案とカバーレター。所有: docs/team/jobs/drafts/の指定5原稿と限定spec/進捗。応募送信・ledger・Thankful/build 10は変更しない。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
 - [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODOの正本は統合SSOTの「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics owner採用と自然配信を担当。Thankful PR593の独立reviewで部分offering時の読込停止を再現し、別の専用branchで最小修復を担当。元ownerのworktree/branchとRC設定/価格は変更しない。build9はVALIDだが追加修正を含まないため、提出前にsource/mainと新buildを照合する。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
