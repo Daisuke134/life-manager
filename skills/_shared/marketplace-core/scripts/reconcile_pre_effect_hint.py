@@ -4,21 +4,24 @@
 The runtime creates ``loop-tmp/<owner>/<run>/entrypoint-result.json`` before
 starting an allowlisted owner.  This adapter accepts only the exact private
 marker ``{"status":"pre_effect_failure","effect":0}``, bound to the
-occurrence supplied by the fence loop.  It never contacts a provider and never
-retries a mutation; missing, stale, symlinked, or differently-shaped evidence
-keeps the occurrence fenced.
+occurrence supplied by the fence loop and a historical release with the same
+verified writer contract as this release.  It never contacts a provider and
+never retries a mutation; missing or mismatched provenance and private marker
+evidence keep the occurrence fenced.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import stat
+import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -26,10 +29,64 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runtime.host.resource_admission import resolve_pre_effect_occurrence  # noqa: E402
+from runtime.host.local_profile import host_environment  # noqa: E402
+from runtime.loop.fence_reconcile import _runtime_release_shas  # noqa: E402
 
 
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 MARKER_NAME = "entrypoint-result.json"
+WRITER_CONTRACT_SOURCES = {
+    "lancers-revenue-application": (
+        "skills/earn/lancers/scripts/application-owner",
+        "skills/earn/lancers/scripts/application_loop.py",
+        "skills/earn/lancers/scripts/application_tick.py",
+        "skills/_shared/marketplace-core/scripts/application_transaction.py",
+    ),
+    "lancers-revenue-negotiate": (
+        "skills/earn/lancers/scripts/negotiate-owner",
+        "skills/_shared/marketplace-core/scripts/reply_kernel.py",
+        "skills/earn/lancers/scripts/reply_adapter.py",
+    ),
+}
+
+
+def _writer_contract_matches(state_root: Path, owner: str, occurrence: str) -> bool:
+    sources = WRITER_CONTRACT_SOURCES.get(owner)
+    if sources is None:
+        return False
+    try:
+        release_sha = _runtime_release_shas(
+            owner, {occurrence}, {owner: {"state_root": str(state_root)}}
+        )[occurrence]
+        if release_sha is None:
+            return False
+        binding = (os.environ.get("LIFE_MANAGER_SOURCE_REPO")
+                   or host_environment().get("LIFE_MANAGER_SOURCE_REPO"))
+        if not binding:
+            return False
+        source_repo = Path(binding).expanduser()
+        if (not source_repo.is_absolute() or source_repo.is_symlink()
+                or not source_repo.is_dir()):
+            return False
+        ancestry = subprocess.run(
+            ["git", "-C", str(source_repo), "merge-base", "--is-ancestor",
+             release_sha, "refs/remotes/origin/main"],
+            capture_output=True, timeout=10, check=False,
+        )
+        if ancestry.returncode != 0:
+            return False
+        for name in sources:
+            expected = hashlib.sha256((ROOT / name).read_bytes()).digest()
+            historical = subprocess.run(
+                ["git", "-C", str(source_repo), "show", f"{release_sha}:{name}"],
+                capture_output=True, timeout=10, check=False,
+            )
+            if (historical.returncode != 0
+                    or hashlib.sha256(historical.stdout).digest() != expected):
+                return False
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, subprocess.SubprocessError):
+        return False
+    return True
 
 
 def _read_private_marker(path: Path) -> dict[str, Any] | None:
@@ -79,7 +136,8 @@ def find_pre_effect_proof(
     state_root: Path, owner: str, occurrence: str
 ) -> dict[str, object] | None:
     path = marker_path(state_root, owner, occurrence)
-    if path is None or _read_private_marker(path) is None:
+    if (path is None or _read_private_marker(path) is None
+            or not _writer_contract_matches(state_root, owner, occurrence)):
         return None
     run_id = occurrence[len(owner) + 1 :]
     return {

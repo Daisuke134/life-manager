@@ -38,7 +38,7 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 **現在Macの追加観測:** immutable current `20261023T182457-409c568f`から同じownerをread-onlyで再確認する。installed/event SHA=`409c568f9116a3b61bb03e37ee36461e2198875b`、run=`18e1200ea94addd8-82363`、occurrence=`hf-gig-reply-detector:18e1200ea94addd8-82363`、phase=`report`、exit=75、effect=`not_applicable`、receipt/readback=null、blocker=`host_admission_deferred:disk_floor_low`、retryable=true、next=`retry_after_eligibility`へ変化する。前のcapacity busy snapshotを現在原因として使わない。`df`の空きは736,256 KiB、`vm.swapusage`は19,456 MiB使用である。既存disk governorの最新unbound receiptはerrors=0/protected_deletions=0/reclaimed=0/capacity recovery unmet、候補10件はopen6/protected_path4で保護される。Git重複もprune-packable10件のみで、repo全体や使用中cacheを削除して容量復旧を偽装しない。古い4 effect fenceは引き続きofficial receipt未取得。新規Mac向けsource修復は独立継続し、現Macの空容量・未照合effectと別Mac実機の受入はMAC02/05の未完として保持する。
 
-既存の容量回復経路として、main由来immutable releaseの`central_cleanup.codex_history_cleanup(home)`を独立read-only検証する。既存の本人ownership・native version・protected path・staging capacityの条件を一切緩めず、条件を満たす時だけCodex自身へ古い履歴のlossless maintenanceを依頼する。session JSONLの直接削除/書換え、app-server再起動、他ownerのlock解除、Telegram配信は行わない。requestを完了や空き容量回復と同一視せず、native返答と実空き容量を区別して記録する。 独立検証ではhelper内部のnative保護条件は維持する一方、単独callは中央cleanup owner bindingを通らないと判明する。既存owner境界を保持した実行根拠が揃うまではRPCを実行せず、直接履歴削除やlock解除で代用しない。
+既存の容量回復経路はowner-bound自然実行で観測する。life-manager-disk-cleanupはaccepted ALL23cce9dc/run18e144fe81ea4520-3098/report/exit0/effectnot_applicableである。同runのbounded launchd out log（mtime1792790293.8984833）もowner/release/run bindingが一致し、ok=true/errors0、codex_storage=no_cold_rollouts、git_cleanup=pass/prune_packable_after0/loose_bytes_after9,048,064、release GC reclaimed_bytes0/protected_deletions0である。native履歴メンテナンスの追加対象や回収成果を作らず、RPC要求・履歴直接変更・lock解除・Mac/app-server restartは0とする。legacy StandardOutPathの古いsnapshot（mtime1792601594）は現在成果に流用せず、現在のbounded logを根拠にする。容量floorは未到達のため、既存host inventoryと書込みの観測へ進む。
 
 ### MAC02の本人設定・再開の修復
 
@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/disk-cache-probe-deadline-20261024、base=23cce9dc021e3376debf7e0b1738eaa4d3413500（最新mainを通常mergeし、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのCAPACITY-RED。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-pre-effect-provenance-20261024、base=6b3b45d534b7ca0695799ee05d3d73d99938886e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのPROVENANCE-SHIPと容量診断。CAPACITYのsource/自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -342,7 +342,7 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 自然実行受入: lancers-revenue-work-syncはd8e4578c/run18e143af6474c8a8-49586/20:50:11Z/report/exit0/pass/effectnot_applicable、retryable=false/nextnone、admission未知false。provider receipt/公式成果は無し。Coconala snapshotのa93a3a78/reportpassは24桁install型runのため自然provider成果とは扱わない。後のhost snapshotはswap14,714.12MiB/free8,139,366,400bytesまで悪化し、別時点receiptではfree6,119,342,080bytes。未知記録や他ownerを削除/中断せず、物理回復は未完とする。
 
-順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはCAPACITY-RED。
+順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはPROVENANCE-SHIPとRUNTIMEの容量診断。
 
 原因と最小変更: 既存cleanupのbefore_initial_open_probe/二回目probe前の固定15秒＋後処理reserve判定はnative lsofの最大timeoutを最低予約時間と扱う。15秒はCLOSED証明条件ではなく、完了したrc/stderr/open-path集合が証拠である。native _open_paths/_default_lsofのtimeoutをmin(既存15秒, deadline-now-reserve)へ渡し、正の残時間だけ開始する。timeout/OSError/不明は保持し、両回fresh snapshot・二段confirmed-closed・probe後/削除前deadlineとreserve確認・owner/path保護を維持する。注入lsof(path)契約と他cleanup種類は変えず、新framework/floor/直接cache削除を追加しない。clangの既存probe-errorはclass/codeがNoneへ畳まれ復元不能であり、全エラーをbudgetと断定しない。
 
@@ -350,12 +350,37 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 - [x] CAPACITY-RED: source未変更の追加5条件は4 FAIL/1 PASS/192 deselected（0.56s）。closed/initial-timeout/final-timeout/reserve-spentは固定15秒+reserve gateでnative呼出0となり期待と不一致、no-timeはPASS。deadline10/reserve5でnative即時CLOSED2回を開始できることを検証し、残時間不足、初回/二回目timeout、probe後時間超過の削除0は維持する。
 - [x] CAPACITY-GREEN: nativeだけ残時間timeoutを渡し、二段fresh snapshot/confirmed-closedとreserve確認を維持する。workerは新規5条件＋既存fresh/遅延probeの7 PASS、cleanup関連4files 253 PASS（39.40s）、assert強化後の新規5条件も5 PASS。primaryは隔離HOME/実通信禁止で同4files 253 PASS（33.02s）、AST2files/source-boundary/diff PASS。独立fresh read-only reviewはblocking0/SHIP、実helperのAST抽出による残時間5.0→4.9/cache_clear/時間0/注入1引数等7assert PASS。sparse import closureは指定bin/config/runtime/cleanup＋自動skills/_sharedで閉じる。実cleanup/制御/private/provider操作は0、source acceptanceだけで本番容量回復とは扱わない。
-- [ ] CAPACITY-SHIP: 独立review/既存CI/main/公開source一致を確認する。
-- [ ] CAPACITY-ACTUAL: accepted mainから既存sparse cut（bin/config/runtime/cleanupと必要shared依存、current変更0）でwatchdogに必要なimmutableを作り、同じinstallerで対象1件だけ採用する。Lancers5jobsのALL d8e release/既存bundle/他ownerを保持し、自然receiptと容量/業務待機を照合する。Sparseは既存機構であり、全依存再installや容量guard低下で代用しない。
+- [x] CAPACITY-SHIP: PR #8781/headbb5ccd126629d3cc5ecf579ff68c773cef6dafeb、workflow40024159021全13項目成功、main6b3b45d534b7ca0695799ee05d3d73d99938886eへ統合する。source/test/本仕様のGitHub公式blobはhead/main全3一致。独立review blocking0。
+- [x] CAPACITY-ACTUAL: accepted mainから既存sparse cut（bin/config/runtime/cleanupと必要shared依存、current変更0）でwatchdogに必要なimmutableを作り、同じinstallerで対象1件だけ採用する。Lancers5jobsのALL d8e release/既存bundle/他ownerを保持し、下記の自然receiptでnative cache確認と回収の修復を受け入れる。容量floor到達/全業務復旧は未完のMAC03-LANCERS-RUNTIMEに残す。Sparseは既存機構であり、全依存再installや容量guard低下で代用しない。
+
+CAPACITYの反映実結果: accepted d8e cutterからmain6b3b45d5を既存sparse allowlistでexportし、12.42s/exit0/current変更0、ROOT=~/.local/share/life-manager/watchdog-acceptance/cache-deadline/releases/20261024T061519-6b3b45d5、main祖先/readonly/source blob一致を確認する。exportにprotected entry0、npm依存再install無し、stderr310bytesは未分類（失敗を0件と断定しない）。同releaseのsafe preflight PASS/mutation_allowed=true/errors0後、既存installerを1回実行し0.44s/exit0/stderr0。adoption開始epoch1792790173.665547、直前receipt mtime1792790092.2291079。native公式readbackはrunning/PID有り/runs1/60s、plistはProgramArgumentsだけ更新し他field全保持。自然receiptの詳細は次段落を参照する。unbound設計のowner/release/run ID欠損の限界を保持する。
+
+CAPACITYの自然受入: 更新後receiptは21:16:48Z/mtime1792790208.6259868（更新開始後）、ok=true/errors0/protected_deletions0、native npm-cacheをconfirmed-closed後40,566,686logical bytes回収、npx-cacheはopenで保持する。budget_exhaustion_stagesは空、preserved=open5/protected_path4、free7,518,396,416→7,560,613,888bytes（物理+42,217,472）、fast/total33.362s。live free7,547,904,000/swap12,887.38MiBでfloorは未到達。full accepted d8eの公式statusでwork-syncの次自然run18e1450cddd59fe8-5167はreport75/host_admission_deferred:disk_floor_low/retrytrue/effectnot_applicable/unknownfalse、provider receipt無しと照合する。watchdog用sparseから汎用statusを試した1回はexit1/stderr673bytesで、汎用CLIのclosureを保証した構成ではないためfull受入済みreleaseへ戻して観測する。runtime全体の成功や容量回復とは扱わない。
 
 INSTALL-REUSEの次TODO（source推論、実再install失敗の証拠ではない）: currentを変えない公開導入では、次SHA更新時に既存full release/bundlesがあってもfresh容量分岐が全依存を再予算化する。次の容量回復後、current無し/既存有効donorの最小回帰で確認し、初回導入・不正current拒否を保持して再利用へ接続する。
 
 旧effect fenceの追加診断: accepted d8e4578cの既存private journal validator/proof evaluatorで、利用可能な全18 journalを読み、対象5ownersの239,727rowsを照合する。SQLiteはmode=ro/query_only、state変更0。unknown416件はapplication186（no_pre_effect_terminal151/claimed_by_other_run19/terminal_not_claiming_run16）、negotiate226（no_pre_effect_terminal225/claimed_by_other_run1）、paid2/report1（全てno_pre_effect_terminal）、storefront1（terminal_not_claiming_run1）。provable0、53.87s。最新4archive限定によるhistory_incompleteだけが原因ではなく、全既存履歴でもno-effect証明が無い。archive上限拡大やDB直接解除を追加せず、既存provider別reconcileの公式readbackで未確定effectを解決する。本人商品入力不足は別の未完条件として保持する。
+
+CAPACITYの継続受入: 次の21:19:50Z/mtime1792790390.1365283もok=true/errors0/protected_deletions0、budget_exhaustion_stages空、reclaimed0、open5/protected_path4を維持する。free7,415,955,456→7,506,137,088の増加は回収0であり、掃除による追加成果とは扱わない。candidate9/cursor0→1をpersistし、使用中候補を保持した自然反復を確認する。
+
+#### PROVENANCEのbounded修復
+
+追加のexact private marker診断はapplication9/negotiate9を候補にするが、markerだけで解除しない。fresh read-only reviewerは全18journals/309,688rowsから18件を同owner/runのhistorical releaseへ一意に結合する（SHA14種類、未結合/衝突/object不足0）。当時sourceを照合するとapplication7件（claimed6/released1）は送信前marker解除契約を持たず、現在の2field markerだけでは未送信を証明できない。契約ありはapplication2件（released2）とnegotiate9件（claimed7/released2）。現行sourceだけを見た初期のclaimed13許容判断は撤回し、実resolve/DB変更/再送は0とする。
+
+具体的な自己所有不具合: 既存reconcile_pre_effect_hint.find_pre_effect_proofはunsafeな古いapplication7件もproofにし、fence_reconcileの自然wakeはregistryから--resolveを加える。operatorが7件を除外するだけではclaimed6件の自然誤解除を防げない。当時writerで送信前解除が無い例はmain ancestor1c21656eeffcd70f130057b22429315affab71b0、契約ありのapplication例はbaac8c681314edd1fc430199f30da410d31a4c1c。live reconcilerはaccepted ALL23cce9dcを採用中であり、開発sourceを実private stateへ直接接続しない。
+
+最小方針: adapterのproof判定へ対象owner/occurrenceのjournal releaseと検証済みwriter source digestの照合を加える。既存fence_reconcile._runtime_release_shas、local_profile.host_environmentのsource_checkout→LIFE_MANAGER_SOURCE_REPO binding、既存Writer historical proofのgit ancestry/git show/SHA256照合を再利用する。reconciler自身のLIFE_MANAGER_RELEASE_SHAを対象runのSHAに流用しない。私有markerのowner/UID/0600/nlink/厳密shapeを維持する。binding/event/歴史object/祖先性/digest欠損・不一致・曖昧さはproof無し、resolver0。全履歴scanner/新framework/新provider/send/fence bypassを作らない。4MiB tail外の古い行が証明不能な限界は保持し、単にarchiveを増やして成功扱いしない。released対応の拡張は証明gateの受入後に必要分だけ扱う。
+
+所有: workerはskills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.pyとskills/earn/lancers/tests/test_pre_effect_hint_reconcile.pyのみ。primaryは本仕様、既存CI、独立review/main/immutable反映と本番readbackを所有する。workerは他者編集を戻さずstage/commit/push/実private/通信/制御を行わない。
+
+- [x] PROVENANCE-RED: source未変更でunsafe historical writerの2field markerを誤受理しresolverを1回呼ぶ2件を失敗させる。worker2 FAIL/既存3 PASS（1.21s）、primary同結果2 FAIL/3 PASS（1.13s）。tmp内git fixtureだけでunsafe ancestor→safe source main、対象eventはunsafe SHA/reconciler自身SHAはsafeとして境界を再現する。isolated HOME/git config/no network、実private/DB/resolve変更0。binding/event/祖先性/digest欠損等の保持回帰はGREEN段階に加える。
+- [x] PROVENANCE-GREEN: 検証済み契約のwriterだけproofを返し、既存marker fail-closedとresolver CASを保つ。workerは追加negativeのRED24 FAIL/11 PASS、malformed host bindingのRED1を経て37 focused PASS、関連4files136 PASS/8 subtests（9.21s）。primaryも隔離HOME/実通信禁止で同136 PASS/8 subtests（9.09s）、source-boundary/diff PASS。target event SHA→host source binding→main ancestry→owner別current安全source4/3filesのSHA256一致だけを許容し、reconciler自身SHAは使わない。private markerとproof形/CAS claimedを維持する。既存CIのLancers stepへ本回帰/既存application marker/reply kernelの3filesを追加し、新workflow/依存を増やさない。独立fresh read-only reviewはblocking0/SHIP、対象37 PASS（9.64s）と両writerの送信前解除/caller closure、CI3files追加を直接確認する。primary AST2filesもPASS。実private/DB/resolve/通信は0。CI/main反映は未完。
+- [ ] PROVENANCE-SHIP: 独立fresh review/既存CI/main/公開source一致を確認する。
+
+PROVENANCEのCI修復: PR #8784/head3cb947e5cd2589326af9fc6dc74be0f2ba5ed591/workflow40026536245はOSS self-contained boundaryがmanifest_inventory_mismatch(skills/_shared)でFAILする。source変更後の既存classified inventory更新漏れであり、既存validatorと同じ190 files/locale sort/各SHA256連結式でdocs/manifests/oss-merge-1-sources.jsonの対象inventory_sha256一箇所だけを再生成する。source/保護規則/allowlist/scannerは変えず、既存公開boundary検証を再実行する。別のaccepted d8e helperによるread-only容量probeはcandidate source3cb947をglobal current23cce9dc donorと照合し、2.35s/exit0/required323,166,208bytes/fresh_install_budgeted=false/free8,171,704,320bytes/state変更0。これはsource未受入の事前測定であり本番反映ではない。
+- [ ] PROVENANCE-ACTUAL: accepted main由来releaseへ既存reconciler1ownerだけ採用し、unsafe historical候補が未解除で保持されることを公式readbackで確認する。証明成立対象もcanonical resolver/生存owner条件に従い、DB直接更新/解除・provider再送をしない。
+
+順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
 
 #### Lancers本人入力の実装計画
 
