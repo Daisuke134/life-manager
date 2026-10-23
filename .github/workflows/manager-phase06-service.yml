@@ -76,7 +76,7 @@ jobs:
           test_evaluation test_outcome_bench test_collaboration_rubric
           test_helpsteer2_candidate_eval test_xstest_refusal_eval
           test_helpsteer2_candidate_sft test_helpsteer2_fixed_adapter_eval
-          test_governance test_advice_protocol test_collaboration_authority test_safetybench_mcq -v
+          test_governance test_advice_protocol test_collaboration_authority test_safetybench_mcq test_safetybench_local_model -v
       - name: Install locked browser suite and build the reference bundle
         run: |
           cd tests/e2e
