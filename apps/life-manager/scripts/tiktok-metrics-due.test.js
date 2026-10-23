@@ -524,8 +524,11 @@ test("missing Honne weekly data stays unavailable and does not stop Anicca metri
     };
     const api = await runDue(Date.parse("2026-10-12T14:30:00.000Z"), env, null, "api");
     assert.equal(api.some((row) => row.window === "daily-product" || row.window === "daily"), false);
+    fs.unlinkSync(metricFile);
     const final = await runDue(Date.parse("2026-10-12T14:30:00.000Z"), env, null, "finalize");
     assert.equal(final.some((row) => row.window === "asc-daily" || row.window === "weekly-product" || row.window === "2h"), false);
+    assert.equal(final.find((row) => row.video_id === videoId && row.window === "daily").state, "pending");
+    assert.equal(final.find((row) => row.video_id === videoId && row.window === "daily").reason, "no_metric_snapshot");
     const results = [...api, ...final];
     assert.equal(results.find((row) => row.window === "weekly-product").state, "partial");
     assert.equal(results.find((row) => row.product_id === "honne-ai" && row.window === "daily-product").state, "unavailable");

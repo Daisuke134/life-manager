@@ -198,7 +198,15 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null, mo
     }
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${parts.year}-${parts.month}-${parts.day}`;
     if (mode === "all" || mode === "finalize") {
-      if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) { const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected }); results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "persisted" : "complete" }); }
+      if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) {
+        try {
+          const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected });
+          results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "persisted" : "complete" });
+        } catch (error) {
+          if (error?.message !== "Instagram daily digest has no metric snapshot") throw error;
+          results.push({ video_id: expected.video_id, window: "daily", state: "pending", reason: "no_metric_snapshot" });
+        }
+      }
       else results.push({ video_id: expected.video_id, window: "daily", state: "pending", due_at: `${reportDay}T17:30:00+09:00` });
     }
   }
