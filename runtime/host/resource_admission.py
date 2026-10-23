@@ -1998,6 +1998,7 @@ def resolve_verified_no_effect_occurrence(
 _HISTORICAL_NO_DISPATCH_PROOFS = {
     ("historical_account_bound_no_dispatch", "coconala"): "historical_account_id",
     ("historical_integration_bound_no_dispatch", "postiz"): "historical_integration_id",
+    ("historical_postiz_receipt_reuse_no_dispatch", "postiz"): "claim_run_id",
     ("historical_writer_gate_stop_no_dispatch", "writer"): "runtime_run_id",
     ("historical_writer_resume_no_dispatch", "writer"): "runtime_run_id",
 }
@@ -2012,9 +2013,9 @@ def resolve_historical_no_dispatch_occurrence(
     This is intentionally separate from both ``resolve_unknown_occurrence`` and
     ``resolve_pre_effect_occurrence``.  A provider receipt proves an effect; a
     pre-effect proof proves the irreversible marker was never crossed.  A
-    historical account-bound no-dispatch proof is a third, provider-specific
-    boundary: the provider's complete roster is read back and the exact
-    historical authenticated account is absent.  Callers must validate the
+    historical no-dispatch proof is a third, provider-specific boundary: an
+    account/integration is absent, or an exact old claimant only reused an
+    already completed publication receipt. Callers must validate the
     provider-specific evidence before invoking this function; the admission
     layer only enforces the proof type and occurrence binding.
     """
@@ -2031,8 +2032,7 @@ def resolve_historical_no_dispatch_occurrence(
                 and isinstance(proof.get("evidence_ref"), str)
                 and bool(proof["evidence_ref"].strip())):
             return False
-        # One (proof_type, provider, bound-key) triple per provider; the key names the
-        # exact account/integration whose full roster was read back and found empty.
+        # Each type names the exact account, integration, or no-dispatch claimant.
         bound_key = _HISTORICAL_NO_DISPATCH_PROOFS.get(
             (proof.get("proof_type"), proof.get("provider")))
         return (bound_key is not None

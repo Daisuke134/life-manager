@@ -3919,6 +3919,29 @@ def test_postiz_no_dispatch_proof_is_rejected_without_an_integration_or_with_the
     assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
 
 
+def test_historical_postiz_receipt_reuse_requires_exact_claim_binding(tmp_path, monkeypatch):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = _fenced_growth_occurrence(tmp_path, monkeypatch, owner, "receipt-reused")
+    proof = {
+        "owner_id": owner, "occurrence_id": occurrence, "verified": True,
+        "proof_type": "historical_postiz_receipt_reuse_no_dispatch", "provider": "postiz",
+        "claim_run_id": "original-claimant", "evidence_ref": "lm-event://retained-claim",
+    }
+    for field, value in (("claim_run_id", ""), ("provider", "other"),
+                         ("occurrence_id", f"{owner}:other"), ("owner_id", "other")):
+        assert admission.resolve_historical_no_dispatch_occurrence(
+            owner, occurrence, no_dispatch_proof=lambda: {**proof, field: value}) is False
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence, no_dispatch_proof=lambda: proof) is True
+    settled = durable_rows(tmp_path, "occurrences")
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence, no_dispatch_proof=lambda: proof) is True
+    assert durable_rows(tmp_path, "occurrences") == settled
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_unknown_article_daily_occurrence_can_close_with_historical_gate_stop_proof(
         tmp_path, monkeypatch):
     owner = "article-daily"

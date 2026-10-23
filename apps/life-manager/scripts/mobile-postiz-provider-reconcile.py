@@ -103,23 +103,31 @@ def _request_json(url: str, api_key: str) -> Any:
         raise ValueError("Postiz official readback failed") from exc
 
 
-def _safe_jsonl(path: Path) -> list[dict[str, Any]] | None:
+def _safe_bytes(path: Path, *, max_bytes: int = 8 * 1024 * 1024) -> bytes | None:
     try:
         info = path.lstat()
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-                or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600):
+        if not stat.S_ISREG(info.st_mode):
             return None
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         try:
+            info = os.fstat(descriptor)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600):
+                return None
             with os.fdopen(descriptor, "rb") as handle:
                 descriptor = -1
-                data = handle.read(8 * 1024 * 1024 + 1)
+                data = handle.read(max_bytes + 1)
         finally:
             if descriptor >= 0:
                 os.close(descriptor)
     except OSError:
         return None
-    if len(data) > 8 * 1024 * 1024:
+    return data if len(data) <= max_bytes else None
+
+
+def _safe_jsonl(path: Path, *, max_bytes: int = 8 * 1024 * 1024) -> list[dict[str, Any]] | None:
+    data = _safe_bytes(path, max_bytes=max_bytes)
+    if data is None:
         return None
     rows: list[dict[str, Any]] = []
     try:
@@ -1672,15 +1680,187 @@ def build_claim_run_no_dispatch_proof(
     }
 
 
+# One retained incident: these are row/prefix fingerprints, never whole mutable ledgers.
+JA_TIKTOK_REUSE_RELEASE = ROOT.parent / "20261019T150829-baac8c68"
+JA_TIKTOK_REUSE = {
+    "owner_id": "ebook-ja-tiktok-daily",
+    "occurrence_id": "ebook-ja-tiktok-daily:18dfbf4b313011a8-82806",
+    "claim_run_id": "18dff3a41b433450-51537",
+    "origin_occurrence_id": "ebook-ja-tiktok-daily:18dfbec0c5a2d540-51433",
+    "job_id": "marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c",
+    "post_id": "cmvf5cw4503uemw0y3fmvizy7", "integration_id": "cmo5s4edx00vgn10ygnu34a0n",
+    "public_url": "https://www.tiktok.com/@obou_anicca/video/7698333137004268821",
+    "video_sha256": "6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4",
+    "caption_sha256": "417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8",
+    "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+    "source_sha256": {
+        "apps/life-manager/scripts/ebook-distribute-daily.js": "f2552df9f307569843f0d233b0d9fcccc6f50c242bc13342bba017c5994835bd",
+        "apps/life-manager/lib/marketing-local-ledger.js": "a230f81dd96d6a47da0a657acddc6c6b490b94e235569304954f3df6831c4729",
+    },
+    "event_sha256": {
+        "1794a0572e6285ff87038ae5": "49ae5b648a6a05a3afe8f50c35f543d5cc6a3072dda0e351cd89b8c4324a2b32",
+        "1bfe0270a14f2cc9528538a2": "231d79c42c48fe7f861f159b9c77d453aa7f4f87a9cdc87de3011d8eed69e7fa",
+        "1a8c06ff46364663b0b02626": "b319ff3368b08b7aa211d4cdc43f475ea6f11c3d21b6a989dc49a229e2a2d3a1",
+        "de2f3386e88fd1362284e198": "af8af263ab60a35f62c65fe04b5490820f5352f353173d885c6e98af12a4a967",
+    },
+    "journal_prefix_sha256": {
+        "ebook/events.jsonl": "a9efc854bdaf7cfbb691880c5b3c0c1a2b7ebf4325dfcac04261e6c8ba9b1d4e",
+        "marketing/jobs.jsonl": "217fd5fb1a7505fe2a5a7106b3afd4de623c592e5783933ad18a211830d86149",
+        "marketing/receipts.jsonl": "5288f8c30dd0e308c2899a821e5b1fba6f64642d2d34480f4561ad173f074026",
+    },
+    "job_row_sha256": [
+        "ca8bc63c606f5a001b360e301a803e00b64d4bad878ca763d4f4279331267d49",
+        "8489a1e44e0f393d2f03bfde2525db3fc0470a80d8f4a78e80279519ebcde7da",
+        "75c23f7ae9ed870f14a2eb17ba2fd043b56423e1648e0747c1404f3e2fbae621",
+        "ab7771a0a8b3cd29ed7a70fd635b78c4256b63700ba651192fe76c244ed3c7ce",
+    ],
+    "receipt_row_sha256": [
+        "df5e295b35eb76f809badc2af147a4001bef94928ce37c95c3b0575b7110a338",
+        "64cf60d262bde1dc9d8d6d07a35efeb1bee22aa0723ad2bf37d2b088562c753d",
+    ],
+    "distribution_sha256": "d2c098130a716d17e933e19c068f9fc5d4d2ea2174676226a3ff4504f22e9f50",
+    "current_receipt_sha256": "3562d1c75f45925d8e5a87e7c0b1e8daff67bc6c0d368f20aaf7b3fc77a83487",
+}
+
+
+def build_ja_tiktok_receipt_reuse_proof(
+    *, identity_dir: Path, data_dir: Path, api_key: str,
+) -> dict[str, Any] | None:
+    """Prove this old claimant returned an earlier receipt, without assigning it the post."""
+    spec = JA_TIKTOK_REUSE
+    fingerprint = lambda value: hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    try:
+        data_dir = data_dir.expanduser().resolve()
+        if identity_dir.expanduser().resolve() != data_dir / "ebook/effect-identities":
+            return None
+        # A newly supplied sidecar cannot turn this legacy no-dispatch join into an effect join.
+        for sidecar in identity_dir.glob("*.jsonl"):
+            identities = _safe_jsonl(sidecar)
+            if identities is None or any(row.get("occurrence_id") == spec["occurrence_id"]
+                                         for row in identities):
+                return None
+        retained = JA_TIKTOK_REUSE_RELEASE
+        if retained.is_symlink() or not retained.is_dir():
+            return None
+        manifest = json.loads((retained / "RELEASE.json").read_text())
+        if not isinstance(manifest, dict) or manifest.get("sha") != spec["release_sha"]:
+            return None
+        for relative, expected in spec["source_sha256"].items():
+            path = retained / relative
+            if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+                return None
+        journals = {}
+        for relative, prefix_sha in spec["journal_prefix_sha256"].items():
+            rows = _safe_jsonl(data_dir / relative, max_bytes=64 * 1024 * 1024)
+            if not rows or fingerprint(rows[0]) != prefix_sha:
+                return None
+            journals[relative] = rows
+        events = journals["ebook/events.jsonl"]
+        claim_ref = f"lm-occurrence://{spec['owner_id']}/{spec['occurrence_id'].split(':', 1)[1]}/claim"
+        runs = {spec["occurrence_id"].split(":", 1)[1], spec["claim_run_id"]}
+        related = [row for row in events if row.get("run_id") in runs
+                   or row.get("occurrence_id") == spec["occurrence_id"]
+                   or claim_ref in (row.get("evidence_refs") or [])]
+        if (len(related) != 4
+                or {row.get("event_id"): fingerprint(row) for row in related} != spec["event_sha256"]):
+            return None
+        claim_events = [row for row in related if row.get("run_id") == spec["claim_run_id"]]
+        start = next(row for row in claim_events if row["phase"] == "execute")
+        terminal = next(row for row in claim_events if row["phase"] == "report")
+        started, ended = _iso_ts(start["timestamp"]), _iso_ts(terminal["timestamp"])
+        jobs = journals["marketing/jobs.jsonl"]
+        receipts = journals["marketing/receipts.jsonl"]
+        if (any(not isinstance(row.get("job"), dict) for row in jobs[1:])
+                or any(not isinstance(row.get("receipt"), dict) for row in receipts[1:])):
+            return None
+        job_history = [row for row in jobs if row.get("job", {}).get("job_id") == spec["job_id"]]
+        receipt_history = [row for row in receipts if row.get("job_id") == spec["job_id"]]
+        if ([fingerprint(row) for row in job_history] != spec["job_row_sha256"]
+                or [fingerprint(row) for row in receipt_history] != spec["receipt_row_sha256"]):
+            return None
+        completed = job_history[2]["job"]
+        original, corrected = (row["receipt"] for row in receipt_history)
+        if (not _iso_ts(completed["completed_at"]) < started
+                or corrected != {**original, "public_url": spec["public_url"]}
+                or original["origin_occurrence_id"] != spec["origin_occurrence_id"]
+                or original["origin_occurrence_id"] == spec["occurrence_id"]
+                or original["provider_effect_created"] is not True):
+            return None
+        for row in jobs[1:]:
+            job = row["job"]
+            refs = job.get("input_refs") or {}
+            if (refs.get("product_ref") == "product://ebook-ja" and refs.get("platform_ref") == "platform://tiktok"
+                    and started <= _iso_ts(job.get("updated_at")) <= ended):
+                return None
+        provider_jobs = set()
+        for row in receipts[1:]:
+            receipt = row["receipt"]
+            if receipt.get("provider_post_id") == spec["post_id"]:
+                provider_jobs.add(row.get("job_id"))
+            if (receipt.get("product_id") == "ebook-ja" and receipt.get("platform") == "tiktok"
+                    and started <= _iso_ts(receipt.get("published_at")) <= ended):
+                return None
+        if provider_jobs != {spec["job_id"]}:
+            return None
+        receipt_key = hashlib.sha256(f"{EBOOK_TENANT}\n{spec['job_id']}".encode()).hexdigest()
+        receipt_path = data_dir / "marketing/receipts" / f"{receipt_key}.json"
+        current_bytes = _safe_bytes(receipt_path)
+        if current_bytes is None or hashlib.sha256(current_bytes).hexdigest() != spec["current_receipt_sha256"]:
+            return None
+        current = json.loads(current_bytes)
+        if (current.get("tenant_id") != EBOOK_TENANT or current.get("job_id") != spec["job_id"]
+                or current.get("receipt") != corrected):
+            return None
+        ledger = data_dir / "tenants/dais-local/marketing/video-publication/ebook-ja/distribution.jsonl"
+        rows = _safe_jsonl(ledger)
+        if rows is None:
+            return None
+        distributions = [row for row in rows if row.get("provider_id") == spec["post_id"]]
+        if len(distributions) != 1:
+            return None
+        distribution = distributions[0]
+        if fingerprint({key: value for key, value in distribution.items()
+                        if key not in {"video_path", "caption_path"}}) != spec["distribution_sha256"]:
+            return None
+        for kind in ("video", "caption"):
+            expected = spec[f"{kind}_sha256"]
+            path = data_dir / "objects/sha256" / expected
+            content = _safe_bytes(path, max_bytes=64 * 1024 * 1024)
+            if (distribution.get(f"{kind}_path") != str(path) or content is None
+                    or hashlib.sha256(content).hexdigest() != expected
+                    or original[f"{kind}_sha256"] != expected):
+                return None
+        context = {**original, "loop_id": spec["owner_id"], "occurrence_id": spec["origin_occurrence_id"],
+                   "account_id": "@obou_anicca", "integration_ref": f"integration://postiz/tiktok/{spec['integration_id']}"}
+        readback = _provider_readback(context, spec["post_id"], api_key)
+        if readback.get("public_url") != spec["public_url"] or _safe_bytes(receipt_path) != current_bytes:
+            return None
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, StopIteration):
+        return None
+    return {
+        "owner_id": spec["owner_id"], "occurrence_id": spec["occurrence_id"], "verified": True,
+        "proof_type": "historical_postiz_receipt_reuse_no_dispatch", "provider": "postiz", "effect": 0,
+        "claim_run_id": spec["claim_run_id"], "existing_job_id": spec["job_id"],
+        "provider_receipt_id": spec["post_id"], "original_origin_occurrence_id": spec["origin_occurrence_id"],
+        "original_provider_effect_created": True, "original_publication_readback": readback,
+        "fresh_upload_hash_verified": False,
+        "evidence_ref": f"lm-event://{spec['owner_id']}/{spec['claim_run_id']}/{terminal['event_id']}",
+    }
+
+
 def _reconcile_identityless_occurrence(
     owner_id: str, occurrence_id: str, *, state: str, identity_dir: Path, data_dir: Path,
     admission_db: Path, api_key: str, apply: bool,
 ) -> dict[str, Any]:
     if not api_key.strip():
         return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
-    proof = build_claim_run_no_dispatch_proof(
-        owner_id, occurrence_id, events=identity_dir.expanduser().parent / "events.jsonl",
-        identity_dir=identity_dir, data_dir=data_dir, api_key=api_key)
+    if (owner_id, occurrence_id) == (JA_TIKTOK_REUSE["owner_id"], JA_TIKTOK_REUSE["occurrence_id"]):
+        proof = build_ja_tiktok_receipt_reuse_proof(identity_dir=identity_dir, data_dir=data_dir, api_key=api_key)
+    else:
+        proof = build_claim_run_no_dispatch_proof(
+            owner_id, occurrence_id, events=identity_dir.expanduser().parent / "events.jsonl",
+            identity_dir=identity_dir, data_dir=data_dir, api_key=api_key)
     if proof is None:
         return _inconclusive(owner_id, occurrence_id, "identity_missing_and_no_dispatch_unproven")
     if not apply:
@@ -1724,6 +1904,12 @@ def reconcile_current_occurrence(
     if state not in {"claimed", "released"} or effect_unknown != 1:
         return _inconclusive(owner_id, occurrence_id, "admission_occurrence_missing_or_invalid")
 
+    if (owner_id, occurrence_id) == (JA_TIKTOK_REUSE["owner_id"], JA_TIKTOK_REUSE["occurrence_id"]):
+        if tenant_id != EBOOK_TENANT:
+            return _inconclusive(owner_id, occurrence_id, "tenant_scope_mismatch")
+        return _reconcile_identityless_occurrence(
+            owner_id, occurrence_id, state=state, identity_dir=identity_dir, data_dir=data_dir,
+            admission_db=admission_db, api_key=api_key, apply=apply)
     identity = _identity_for_occurrence(identity_dir, owner_id, occurrence_id)
     if identity is None:
         if owner_id not in IDENTITYLESS_POSTIZ_OWNERS:
