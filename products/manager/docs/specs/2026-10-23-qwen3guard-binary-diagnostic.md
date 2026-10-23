@@ -11,7 +11,7 @@
 - 既存`xstest_refusal_eval.py`のexact CSV join、`RefusalCase`、membership/order、Source/model-file/rights検証を呼び出す。元のprotocol・source・結果・V001 retrospective contractのbytesは変更しない。
 - 新規部品はnative template/厳密parser/二値集計のresearch adapter、薄い明示CLI、合成テストのみ。CLIは既存のFD silenceを再利用し、元CLIと同じ0600 atomic/fsync checkpointを用いる。元CLIを変えないための小さな保存処理はこの入口に限定する。
 
-完全な値と解釈は[固定protocol](../../experiments/behavior-model/xstest-qwen3guard-binary-protocol-v1.json)、SHA256 `58c15f812202236e92b27bd704ea37f3803288749f03c1fcb4039f58600cec7f`を正とする。予測はまだ0。元のreleased-rule/汎用Qwen結果は既知なので、独立した事前仮説検定と呼ばない。
+完全な値と解釈は[固定protocol](../../experiments/behavior-model/xstest-qwen3guard-binary-protocol-v1.json)、SHA256 `58c15f812202236e92b27bd704ea37f3803288749f03c1fcb4039f58600cec7f`を正とする。このprotocolを予測0で固定し、その後の[実測](../verification/QWEN3GUARD_BINARY_CPU_20261023.md)で450/450規定形式を保存した。primary377/423対rule383/423、partial27無採点、監視の空白により全期間の資源準拠は未認定。自動採用はHOLD。元のreleased-rule/汎用Qwen結果は既知なので、独立した事前仮説検定と呼ばない。
 
 ## 測るものと分母
 

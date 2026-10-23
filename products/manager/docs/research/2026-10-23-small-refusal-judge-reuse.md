@@ -1,5 +1,9 @@
 # V002: 小型 refusal judge 再利用候補の根拠 metadata
 
+**後続の実測（2026-10-23）:** [Qwen3Guard native binary診断](../verification/QWEN3GUARD_BINARY_CPU_20261023.md)を別protocolで一度実行し450/450規定形式を得た。primaryは377/423、配布rule383/423。Yes recall20/49・precision20/37、partial27無採点。自動採用はHOLD。固定revision/751,632,384 params/8 native assets/Genとbaseの実Apache LICENSEを後続確認し、GitHub評価codeは未使用。監視の空白と未reapを含む実行限界はreceiptを参照。
+
+以下は実測前の調査と、その時点の未確認事項を保存した履歴。CPU未実測・次候補・license未確認の記述はこの後続結果で上書きする範囲を持つ。他候補が実測済みという意味ではない。
+
 調査日: 2026-10-23 UTC。V002の研究設計で既存judgeを選ぶための公開資料メモ。
 既存の汎用 Qwen3-0.6B / XSTest450 実験に対する条件変更は **0**。
 このメモを根拠にモデル、prompt、gold、分類規則、実行条件を変更していない。

@@ -16,6 +16,8 @@ XSTestの元人手goldに対するlocal judgeも実CPUで診断した。[固定9
 
 既存3診断の評価契約は `v001-evaluation-contract-v1.json` へ対応付けた。[metadata限定受入](../../../products/manager/docs/verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)は13 immutable refs/3 rights record、モデル役割・採点・split availability・分母/nullを固定。実holdoutの証拠は増えておらず、V001/V002/V003と残23件をtodoのまま保持する。新model/CI/学習/runtimeを再実行・追加した記録ではない。
 
+専用[Qwen3Guard native binary診断](../../../products/manager/docs/verification/QWEN3GUARD_BINARY_CPU_20261023.md)も別protocolで一度実行し450/450規定形式を保存。primaryは377/423対rule383/423、拒否recall20/49・誤検出17、partial27無採点。元watcherが再接続で失われた監視の空白と未reapを明記し、元時間予算内で同じモデル処理が完了した。全期間資源準拠/自動採用/人の便益は認定しない。残23件/V001–V003はtodo、training/optimizer/HelpSteer2 final採点はNOT_RUN。
+
 実行原則は柔軟性。使命と根拠の基準を保ち、モデル系列/規模/量子化/runtime/学習方法を実測で更新する。GPU/特定4Bは全体の開始条件にしない。既存8GiBCPUでQwen3-1.7Bの単発実推論を確認、学習/便益は別受入。[実測と候補](../../../products/manager/docs/verification/LOCAL_CPU_MODEL_ACCEPTANCE_20261023.md)。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）

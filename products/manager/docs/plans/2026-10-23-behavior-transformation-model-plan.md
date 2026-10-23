@@ -50,6 +50,8 @@
 
 **限定sliceの実績（全受入ではない）:** INTIMAの固定input受入と未採点32組診断に続き、[HelpSteer2 dev subplan](2026-10-23-helpsteer2-dev-likelihood.md)を実装・実行した。[実結果](../verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)は16/16完了、model4/8・短い候補ルール4/8、NO_ACTION8棄権。generic preferenceへの一致だけでモデル優位や人の便益は示されない。[追加の人参照artifact監査](../research/2026-10-23-human-reference-artifact-audit.md)から用途・利用条件を照合し、元回答に対する採点者の校正、圧力/依存等の評価、未見比較を埋める。[既存XSTest string判定の人参照450件照合](../verification/XSTEST_RELEASED_REFUSAL_CALIBRATION_20261023.md)はfull-refusal recall12/49・partial0/27で不足を示したが、新しいManager judgeの校正ではない。さらに[local judge subplan](2026-10-23-xstest-local-refusal-judge.md)を実装・実行し、[900秒診断](../verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)で271/450有効、UNKNOWN1/未着手178。全271をcomplianceと判定して拒否recallは0/27・0/20、この設定は不採用。同じ有効集合でmodel224/271・配布rule230/271。専用binary judgeは別の事前固定候補とし、3class・害・圧力評価の代わりにしない。V001/V002全体とV003はtodo。
 
+[専用native binary subplan](2026-10-23-qwen3guard-binary-diagnostic.md)も一度実行し、[実結果](../verification/QWEN3GUARD_BINARY_CPU_20261023.md)は450/450規定形式、primary377/423対rule383/423、拒否recall20/49・誤検出17。partial27は無採点。監視再接続の空白と未reapを保存し、全資源protocol準拠や自動採用を認定しない。旧3classと直接accuracy比較せず、Task2全体/V002は未完。
+
 [V001 mapping subplan](2026-10-23-v001-evaluation-contract.md)と[metadata受入](../verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)により、既存3診断のscope/役割/scoring/refusal/null/split availabilityの対応を固定した。person/study/time holdoutの実情報は増えておらず、Task2全体とV001/V002は未完。新規推論・追加学習・評価engineは導入していない。
 
 ## Task 3: 独自重みの最小研究 — V003

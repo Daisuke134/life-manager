@@ -6,7 +6,9 @@
 
 **2026-10-23 最新scope:** [tasks.json](docs/roadmap/tasks.json)は113 IDs、**80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件は今回の必須経路から退役し、未達成のskippedとして元の行を保存した。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009も所有7パスの技術P2として受入済み。H005/F004/F007の既存waiverは保持する。人の便益はNOT_MEASURED。
 
-**拒否judgeの実測:** [XSTest local judgeの実CPU診断](docs/verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)は900秒で271/450件を有効採点し、処理中1件UNKNOWN・未着手178件を保存。全271件をcomplianceと判定し、完全拒否0/27・部分拒否0/20で、この設定は拒否判定に不採用。同じ271件でmodel224正答・配布rule230正答。全450完了やモデル優位とは扱わない。 [専用小型judgeの一次資料](docs/research/2026-10-23-small-refusal-judge-reuse.md)からQwen3Guardのbinary拒否判定を次候補とする。今回の3classを途中変更せず、用途・権利・条件を別途固定する。
+**拒否judgeの実測:** [XSTest local judgeの実CPU診断](docs/verification/XSTEST_LOCAL_JUDGE_CPU_20261023.md)は900秒で271/450件を有効採点し、処理中1件UNKNOWN・未着手178件を保存。全271件をcomplianceと判定し、完全拒否0/27・部分拒否0/20で、この設定は拒否判定に不採用。同じ271件でmodel224正答・配布rule230正答。全450完了やモデル優位とは扱わない。 [専用小型judgeの一次資料](docs/research/2026-10-23-small-refusal-judge-reuse.md)から別protocolのQwen3Guard binary診断へ進み、次段落に結果を保存した。旧3classの条件・結果は変更しない。
+
+**専用binary judgeの実測:** [Qwen3Guard native診断](docs/verification/QWEN3GUARD_BINARY_CPU_20261023.md)は450/450件が規定形式。primary423ではmodel377一致・配布rule383一致。完全拒否recallは20/49へ増えたが誤検出も増え、自動判定へ採用しない。partial27は無採点。再接続で元watcherが失われたため監視の空白を明記し、全期間の資源監視は未認定。元の時間予算内で同じプロセスが完了し、retry/resumeは0。
 
 **評価契約の整理:** [V001の評価契約対応](docs/verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)で、既存INTIMA未採点生成・HelpSteer2 dev NLL・XSTest元応答の拒否診断を13参照/3権利recordへ結び、モデル役割・採点・split availability・分母/nullを固定した。解消したのは対応表のgapで、実person/study/time holdoutは未成立のためV001全体はtodo。
 
