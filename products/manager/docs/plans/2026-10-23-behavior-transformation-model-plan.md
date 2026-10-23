@@ -79,8 +79,8 @@
 
 **D014/D015有限protocol/定義受入:** D014は現scopeの公表非個人published-effect protocol taskに限り実受入・台帳記録済み。D015の9つの非診断signal→該当作用の停止/通常支援保持→適した実独立判断と自由な再選択/版固定による復旧の有限定義は、別contextの実適用YES reviewを受け、rootが2026-10-23T21:16:58.283242Zにsource採用し、同21:16:58.283436Zに定義taskを別受入した。D015もこの有限定義scopeに限るdone。U004はDRAFT/NOT_REGISTERED/参加者0/介入0のtodo。[実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)。旧original_*の実団体協力UNMET、正式制度適用UNKNOWN・承認/免除NOT_OBTAINED・臨床承認NOT_GRANTEDを保持する。新規人介入・実協働・臨床・人便益・モデル採用の受入ではなく、モデル採用HOLD/親目標ACTIVEを維持する。D014の原要件/依存/original_*は変更しない。
 
-- [x] D014の実root task判断を現scopeの公表非個人protocolに限る受入として記録した。D014台帳はrootの21:16:35.340175Z実適用/readbackでdone記録済み。D014 R1のreceipt表記Nitは修正済みだがSol delta R2は未完、commit/pushは未実施。
-- [x] D015の依存signal・停止/本人選択の通常支援/復旧定義と現scopeへの有限独立適用判断を、新Safety定義と21:12:45.444261Z別context実review YESで満たした。rootはsource採用21:16:58.283242Zと別task判断21:16:58.283436Zを実記録した（[実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。台帳反映はこのPRIVATE差分の後続root実適用で、人研究/個人安全/clinical承認は未発動。
+- [x] D014の実root task判断を現scopeの公表非個人protocolに限る受入として記録した。D014台帳はrootの21:16:35.340175Z実適用/readbackでdone記録済み。D014 R1のreceipt表記Nitは修正済み。Sol delta R2は0 findings/0 blocking・Nit FIXED/CLOSEDで完了し、D014/D015の台帳記録はcommit `ddcbf91dcd9be0337ede3075a28490e6c3c27f49` でpush・公式readback一致を確認済み。
+- [x] D015の依存signal・停止/本人選択の通常支援/復旧定義と現scopeへの有限独立適用判断を、新Safety定義と21:12:45.444261Z別context実review YESで満たした。rootはsource採用21:16:58.283242Zと別task判断21:16:58.283436Zを実記録した（[実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。台帳反映はcommit `ddcbf91dcd9be0337ede3075a28490e6c3c27f49` で実施し、push・公式readback一致を確認済み。人研究/個人安全/clinical承認は未発動。
 
 **Interface:** 以下の新規人研究の条件は別に未完。現対象の一次的な課題確認、適用判断・必要な同意/役割、主要結果・比較・検出力・追跡・害/停止を固定した研究versionを出す。旧120世帯/58日のhashは変えない。
 

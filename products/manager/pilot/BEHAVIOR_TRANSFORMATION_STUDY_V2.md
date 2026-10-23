@@ -31,7 +31,7 @@
 
 ## 公開既存研究の有限offline再利用案との関係
 
-[Step-by-Step公表集計のsource-specific protocol案](STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md)は、既公表Table3効果・欠測仮定のretrospective auditを候補とする。rootの条件付用途/有限offline技術適用判断とfresh AI technical review R1/source再照合は、同案§4の実receiptにより実施済み。同じ別context AI reviewerの実R2は0 findings/0 blocking、Nit FIXED（私有receipt `task-1-review-r2.md` SHA-256 `79710ab80c7f3bae0a6614b9b2628215a01627a3c6e422435fd553df1aa786fc`）。source統合およびD014/D015 source/task受入は **PENDING**。これは実施済みの新規研究や公開原個票の独立再解析ではない。
+[Step-by-Step公表集計のsource-specific protocol案](STEP_BY_STEP_PUBLISHED_EFFECT_AUDIT_V1.md)は、既公表Table3効果・欠測仮定のretrospective auditを候補とする。rootの条件付用途/有限offline技術適用判断とfresh AI technical review R1/source再照合は、同案§4の実receiptにより実施済み。同じ別context AI reviewerの実R2は0 findings/0 blocking、Nit FIXED（私有receipt `task-1-review-r2.md` SHA-256 `79710ab80c7f3bae0a6614b9b2628215a01627a3c6e422435fd553df1aa786fc`）。この公開案作成時のPENDING以降、公開source統合はcommit `4f6a063a0339bd327529659b1c975361476708e7`、D014/D015現scopeの有限source/task受入の台帳記録はcommit `ddcbf91dcd9be0337ede3075a28490e6c3c27f49` で実施し、push・公式readback一致を確認済み（[実receipt](../docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。これは実施済みの新規研究や公開原個票の独立再解析ではない。
 
 このsource案は本v2の対象行動・需要・測定権利・検出力・実施協力・独立した適用判断・媒体・同意/停止・登録の空欄を埋めない。**本v2はDRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、U004はtodo。** 原著の569人は歴史的なsource母集団で、Manager参加者数へ加算しない。旧FIRST_STUDYや120世帯/58日、旧manifest/hashを置き換えない。
 
