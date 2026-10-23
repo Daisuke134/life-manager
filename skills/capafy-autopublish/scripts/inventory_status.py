@@ -904,8 +904,13 @@ def main():
     resumable_drafts = drop_frozen([d for d in resumable_drafts if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS])
     stub_retry_items = drop_frozen([d for d in stub_retry_items if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS])
     ready_publish_items = drop_frozen(ready_publish_items)
+    # A review_rejected agent holds one of the five slots and Capafy lets its version be edited and
+    # resubmitted; leaving it there blocks every fresh create. Only rejected agents whose title still
+    # matches a ready listing are retried (retry_items), never a frozen seller or an offline agent.
+    rejected_retries = drop_frozen([r for r in retry_items
+                                    if attempts.get(str(r["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS])
     v = allocate_action(
-        normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
+        normalized, rejected_retries, fresh_items, resumable_drafts, [], ready_publish_items,
         updates=drop_profitable_updates(update_items), stub_retries=stub_retry_items,
         revenue_by_agent=load_revenue_by_agent(),
     )
