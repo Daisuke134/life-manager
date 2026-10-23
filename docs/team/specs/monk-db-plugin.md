@@ -1,6 +1,6 @@
 # Monk DB plugin — ChatGPT app, Muse connector, Claude connector (and every other store)
 
-Owner: 参謀 · Status: phase 1 code merged in `apps/monk-mcp`; not deployed or submitted yet · Updated 2026-10-23 JST
+Owner: 参謀 · Status: both MCP endpoints live on aniccaai.com (Netlify); store listings pending · Updated 2026-10-23 23:55 JST
 
 ## 0. What exists today (read this first)
 
@@ -12,7 +12,13 @@ Owner: 参謀 · Status: phase 1 code merged in `apps/monk-mcp`; not deployed or
 | `/dais` card | `life-manager` branch `dais-ai-monk-db-pin` (2 commits ahead, 412 behind main) | Marketing card only, no data. |
 | **Monk teachings DB (new)** | `life-manager/apps/monk-mcp` | This spec. Teachings by topic/teacher with sources. Seed: full Dhammapada (423 verses, CC0). |
 
-Decision: ship the **teachings** server as the consumer plugin ("ask a monk anything"). It has a broader audience than the avatar directory. Phase 1b adds the avatar-directory tools to the same server, so there is one listing per store.
+**Decision (成田さん, 2026-10-23): the product is the AI Monk accounts database.** The plugin centres on the 75 AI monk avatar accounts and how they win: followers, formats, hooks, scripts, monetization and sources. The Dhammapada teachings server is a minor extra.
+
+Live endpoints (no auth, free on the existing Netlify site):
+- **AI Monk DB (main):** `https://aniccaai.com/.netlify/functions/ai-monk-mcp`. Tools: `search_ai_monks`, `get_ai_monk`, `ai_monk_index_stats`, plus `top_formats` (sampled videos ranked by dated views, with format/hook/script structure; PR anicca-products#605), `how_they_monetize` (offers, prices, seller counters, unaudited revenue claims; #605) and `winning_playbooks` (creator-published playbooks; #606).
+- **Teachings (extra):** `https://aniccaai.com/.netlify/functions/monk-teachings-mcp`, with pages at aniccaai.com/monk-teachings/{privacy,terms,support} (#604).
+
+Next DB enrichment: transcripts and scripts of the top sampled videos (fair-use excerpts plus our structure notes, never full re-uploads), posting-time patterns per account, and more creator playbooks found on X. The daily `ai-monk-database` Codex automation (Mac mini, 09:00 JST) owns the metric refreshes, so don't edit the same records in parallel.
 
 ## 1. Server (phase 1)
 
@@ -68,6 +74,25 @@ Contact email for all forms: **keiodaisuke@gmail.com** (team rule).
      "Every morning I pick one verse for the whole world. Today's is: *[daily_dhamma text]*. Want tomorrow's before I even wake up? Ask me in ChatGPT, Claude, or Muse: 'daily dhamma'. Yes, even monks have plugins now."
    - **Script C — "Ask me anything (seriously)"**
      "People ask me, 'Monk, are you real?' I am 2,500 years of teachings in one database. Real enough. Type any problem into ChatGPT or Claude with Anicca Monk connected, and I will find the verse for it. Try 'my boss'. I dare you."
+
+## 4b. Shalev playbook (Yang Mun creator) and how it feeds our factory
+
+Source: Shalev (@shalevhvs), *I Built a Fake AI Monk, Made $500K in 6 Months (Full Guide)*, X article, 2026-04-09 (https://x.com/shalevhvs/status/2042242260784537736), plus his 2026-09-08 "stages" thread and posts from 2026-09/10. All figures are his own claims and unaudited. It's stored in the DB as `playbooks[shalev-yang-mun-playbook]`.
+
+- **Character:** looks different from the feed and carries authority. A monk in orange robes in a temple, photoreal ("unexpected + real"). Pick a niche where trust matters.
+- **Script formula:** (1) 0–2 s: show you understand their pain, no judgment; (2) 2–5 s: flip it positive or promise a specific fix; (3) 20–40 s: teach ONE thing usable tonight; (4) last 3 s: an identity line ("The calm ones aren't lucky. They just learned this first.").
+- **Winning hooks:** "If you're going to overthink… then overthink the positive." (24M views) and "How to fall asleep fast in two minutes even when your mind doesn't want you to." (6.5M views). Empathy reframe and solution hook.
+- **Voice:** the exact same AI voice, speed and tone on every video.
+- **Cadence:** 3 videos a day per character, native-uploaded to TikTok, IG Reels, YT Shorts and FB Reels at the same time through a scheduler.
+- **Funnel and money:** content builds trust, then link in bio, then **digital products only** (no affiliates, sponsorships or ads). He claims $300K in 3 months and $500K in 6 months, sold one character for $170K, and now sells AI Growth Lab. Once a character works, he spins up 5 more in the same lane the same day.
+- His thesis: "the script IS the business"; the tool doesn't matter.
+
+**Applied to our monk factory** (`/workspace/marketing/monk-factory/monk_daily.py`; versioned copy in `apps/monk-mcp/factory/`):
+- The default daily script now follows his 4-part formula. There are 7 weekday scripts: overthink-positive, 2-minute sleep, feelings-are-weather, approval, morning, anger, loneliness.
+- Every video ends with a soft ebook CTA ("…it is in The Anicca Reset. Link in my bio.") and every caption carries the ebook line plus "Not medical advice". Before, the CTA ran on 2 of 7 days.
+- The voice stays fixed (Simon, Calm & Gentle). The old banks are still reachable with `--topic db|art|truth|breath|letgo|night`. Hooks live in `sources/winning-hooks.json`.
+- **Not changed yet:** cadence stays at 1 video a day (HeyGen budget guardrail, about $0.5/video). Moving to his 3/day across TikTok, IG, YT Shorts and FB costs about $45/month and needs the budget raised and YT/FB channels added in Postiz.
+- **Ebook agent:** use `winning_playbooks` and `how_they_monetize` to write chapter hooks and the sales page. The winners sell $50–60 guided programs and bundles next to the $10.99 entry book (Yang Mun's 30-Day Healing Journey at $49.99 and Complete Collection at $59.99), so plan a $49 program as the upsell.
 
 ## 5. Meta Global AI Developer Hackathon (Oct 26 to Nov 4, 2026)
 
