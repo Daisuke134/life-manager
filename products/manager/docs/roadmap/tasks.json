@@ -1652,12 +1652,29 @@
     "learn": "寄付の横取り（クラウディングアウト）を理解する",
     "change": "他プロジェクトへの寄付減少を検出可能な比較設計を追加",
     "verify": "金融プロジェクト単体の売上増だけを社会全体の純便益としない",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
       "manager_core/program_funding.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "ACCEPTED_SOURCE_COMPARISON_DESIGN_ONLY",
+    "completion_evidence": [
+      "manager_core/program_funding.py",
+      "tests/test_program_funding.py",
+      "docs/verification/D001_D002_SOURCE_ACCEPTANCE_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T06:25:08.663166+00:00",
+      "result": "CROSS_PROGRAM_DISPLACEMENT_COMPARISON_DESIGN_IMPLEMENTED",
+      "scope": "SOURCE_CONTRACT_P0_ONLY",
+      "source_commit": "9354367fc10ae0d24a9f1167660d291562af1be6",
+      "module_sha256": "6b1c7896101434347a3b6b2d7b23ab8e0dac3c256d56b05674b9c5ece2dab890",
+      "live_funding_observed": false,
+      "deployed_main_runtime": false,
+      "causal_support": false,
+      "human_outcome": "NOT_MEASURED",
+      "independent_review": "SOURCE_CONTRACT_ZERO_FINDINGS"
+    }
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",

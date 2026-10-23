@@ -8,7 +8,7 @@ F006の版付き技術報告受入後、原タスクの分類実装／比較設�
 
 ## D002
 
-**受入: 未判定。** D001後、同時期の他program比較、負の置換、未観測scopeの扱いを個別判定する。
+**受入: sourceの比較設計契約のみ。** D001受入後、`ProgramComparison`／`DisplacementScope`が同時期・同通貨・別programの比較と対象scopeを保持することを照合。負の他program変化を捨てず、scope／coverage不足はUNKNOWN、単一programの名目増加を社会純便益にしない。出典矛盾・重複比較・異期間を拒否する既存テストと独立source監査を通過。実際の寄付置換の推定を完了した意味ではない。
 
 ## 限界
 
