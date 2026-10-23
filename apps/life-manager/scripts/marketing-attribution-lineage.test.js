@@ -160,3 +160,41 @@ test("ASC acquisition preserves unprovable publication lineage", async (t) => {
   assert.equal(row.acquisition_status, "unprovable");
   assert.equal(row.acquisition_reason, "publication_receipt_missing");
 });
+
+
+test("photo-only snapshots retain unprovable attribution without stopping ASC collection", async (t) => {
+  const dataDir = fixtureDataDir();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  addMetricFixture(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@video", postId: "video-row" });
+  addMetricFixture(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@photo", postId: "photo-row", receiptCopies: 0 });
+  const file = path.join(dataDir, "tenants/dais-local/marketing/metrics/@photo/photo-row/24h.combined.json");
+  const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  snapshot.kind = "tiktok_postiz_photo_metric_snapshot";
+  snapshot.public_url = "unavailable";
+  fs.writeFileSync(file, JSON.stringify(snapshot));
+  const lineage = persistLineage({ dataDir });
+  const photo = lineage.rows.find((row) => row.account_id === "@photo");
+  assert.equal(photo.platform, "tiktok");
+  assert.equal(photo.publication_match_status, "unprovable");
+  assert.equal(photo.attribution_reason, "publication_receipt_missing");
+  assert.equal(photo.video_ref, null);
+  assert.equal(lineage.coverage.exact_publication_lineage, 1);
+  let collected = 0;
+  const acquisition = await persistAscAcquisition(dataDir, "2026-08-21", async (product) => {
+    collected += 1;
+    return { product_id: product.product_id, source_status: "unavailable" };
+  });
+  assert.ok(collected > 0);
+  assert.equal(acquisition.rows.find((row) => row.account_id === "@photo").acquisition_status, "unprovable");
+});
+
+test("unknown metric snapshot kinds remain rejected", (t) => {
+  const dataDir = fixtureDataDir();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  addMetricFixture(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@unknown", postId: "unknown-row", receiptCopies: 0 });
+  const file = path.join(dataDir, "tenants/dais-local/marketing/metrics/@unknown/unknown-row/24h.combined.json");
+  const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  snapshot.kind = "tiktok_unrecognized_metric_snapshot";
+  fs.writeFileSync(file, JSON.stringify(snapshot));
+  assert.throws(() => buildLineage({ dataDir }), /unsupported metric snapshot kind/);
+});

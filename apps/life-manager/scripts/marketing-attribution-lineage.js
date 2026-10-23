@@ -24,7 +24,7 @@ function readReceipts(file) {
 }
 
 function platformOf(snapshot) {
-  if (snapshot.kind === "tiktok_combined_metric_snapshot") return "tiktok";
+  if (["tiktok_combined_metric_snapshot", "tiktok_postiz_photo_metric_snapshot"].includes(snapshot.kind)) return "tiktok";
   if (snapshot.kind === "instagram_combined_metric_snapshot") return "instagram";
   throw new Error(`unsupported metric snapshot kind: ${snapshot.kind}`);
 }
