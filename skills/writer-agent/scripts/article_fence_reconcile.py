@@ -35,6 +35,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -305,7 +306,7 @@ def _historical_gate_stop_proof(
                 return None
             event_lines = [line for line in gzip.decompress(archive_bytes).decode("utf-8").splitlines()
                            if line.strip()]
-        except (OSError, UnicodeError, EOFError):
+        except (OSError, UnicodeError, EOFError, zlib.error):
             return None
     else:
         event_lines = _jsonl_lines(writer_root / "events.jsonl")
@@ -857,7 +858,7 @@ def _historical_resume_catchup_proof(occurrence_id: str, queued_at: float, *, wr
         with gzip.open(archive, "rt", encoding="utf-8") as handle:
             lines = [line for line in handle.read().splitlines() if line.strip()]
         events = [json.loads(line) for line in lines]
-    except (OSError, ValueError, EOFError):
+    except (OSError, ValueError, EOFError, zlib.error):
         return "catchup_events_unreadable"
     own = [line for line in lines if occurrence_id in line]
     if [hashlib.sha256(line.encode("utf-8")).hexdigest() for line in own] != expected["event_hashes"]:
@@ -1220,7 +1221,7 @@ def _pair_anchors(writer_root: Path, occurrence_id: str, queued_at: float) -> tu
                     lines = handle.read().splitlines()
             else:
                 lines = path.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeError, EOFError):
+        except (OSError, UnicodeError, EOFError, zlib.error):
             continue
         for line in lines:
             if occurrence_id not in line:
