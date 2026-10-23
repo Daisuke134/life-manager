@@ -114,6 +114,8 @@ def _catalog_projection(catalog_module: Any, catalog_path: Path, family: str) ->
         return catalog_module.project_lancers(catalog, family)
     except catalog_module.UnknownFamily as error:
         raise OfferError(f"catalog_family_unknown: family={family}: {error}") from error
+    except catalog_module.CatalogError as error:
+        raise OfferError(f"catalog_product_invalid: family={family}: {error}") from error
 
 
 def _catalog_overlay_product(
@@ -178,8 +180,9 @@ def _product(path: Path, catalog_path: Path | None = None) -> tuple[dict[str, An
     if family is not None:
         if not isinstance(family, str) or not family.strip():
             raise OfferError("product_invalid")
-        value = _catalog_overlay_product(value, family, catalog_path or DEFAULT_CATALOG)
     try:
+        if family is not None:
+            value = _catalog_overlay_product(value, family, catalog_path or DEFAULT_CATALOG)
         return _validate_product(value, path)
     except OfferError as error:
         if family is None:
@@ -1848,7 +1851,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         listing_catalog = _reach_marketplace_core()
         try:
             listing_catalog.load(catalog_path)
-        except listing_catalog.CatalogError:
+        except (listing_catalog.CatalogError, UnicodeError):
             print(json.dumps(_setup_required("listing_catalog"), sort_keys=True), flush=True)
             return 78
     if args.create_package:

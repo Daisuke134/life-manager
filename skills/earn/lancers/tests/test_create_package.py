@@ -2787,6 +2787,38 @@ def test_private_product_setup_stops_before_browser_create_or_notify(tmp_path, m
     assert "PRIVATE-" not in json.dumps(result)
 
 
+@pytest.mark.parametrize("mode", ["--apply", "--create-package", "--roster-readback"])
+@pytest.mark.parametrize("broken", ["short_title", "missing_mapping", "mapping_type", "encoding"])
+def test_private_invalid_catalog_projection_stops_before_external_callbacks(tmp_path, monkeypatch, capsys, mode, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    product = _private_product(tmp_path / "owner", catalog_family="other")
+    catalog = _private_catalog(tmp_path / "catalog")
+    value = json.loads(catalog.read_text())
+    if broken == "short_title":
+        value["listings"][0]["title_ja"] = "短い"
+    elif broken == "missing_mapping":
+        value["listings"][0]["platform_overrides"] = {}
+    elif broken == "mapping_type":
+        value["listings"][0]["platform_overrides"]["lancers"] = 7
+    if broken == "encoding":
+        catalog.write_bytes(bytes([255]))
+    else:
+        catalog.write_text(json.dumps(value))
+    module = _module()
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("external callback reached without valid private catalog")
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    code = module.main([mode, "--product", str(product), "--catalog", str(catalog)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 78
+    assert result["error"] == "setup_required"
+    assert result["logged_in"] is False
+    assert callbacks == []
+
+
 def test_private_run_profile_receives_validated_avatar(tmp_path, monkeypatch):
     path = _private_product(tmp_path / "owner")
     module = _module()
