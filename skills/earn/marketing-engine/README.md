@@ -66,6 +66,7 @@ env -u LIFE_MANAGER_RUN_ID /absolute/immutable/release/bin/lm-loop-run ebook-en-
 ```
 
 runnerはfreshな`manual-*` IDを発行し、durable admission・owner lockを通す。
+`--slot-at`と環境の非空`LIFE_MANAGER_RUN_ID`の併用はadmission前に拒否する。
 自分のactual claimと一致する時だけ指定slotを子へ渡し、Nodeは既存render receiptを必須とする。
 別FIFO/容量待ち/unknownで実行できなければ新規生成・投稿は行わない。
 後の通常wakeが保留manualをclaimした場合は`manual_slot_request_expired`として未実行で終端し、
