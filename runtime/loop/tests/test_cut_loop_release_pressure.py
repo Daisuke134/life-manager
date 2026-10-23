@@ -297,6 +297,30 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertEqual(len(releases), 1)
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
 
+    def test_selected_python_does_not_require_ambient_python3(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_home:
+            home = Path(raw_home)
+            repo = self.make_sparse_release_repo(home)
+            trace = home / "unselected-python-calls"
+            bash_env = home / "no-ambient-python.sh"
+            bash_env.write_text(
+                'python3() {\n'
+                '  printf "unselected\\n" >> "$UNSELECTED_PYTHON_TRACE"\n'
+                '  return 127\n'
+                '}\n'
+                'export -f python3\n'
+            )
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(bash_env),
+                UNSELECTED_PYTHON_TRACE=str(trace),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release, = (loops / "releases").iterdir()
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            self.assertEqual(manifest["runtime_python"], sys.executable)
+            self.assertFalse(trace.exists(), "cutter used unselected python3")
+
     def test_legacy_archive_size_limit_does_not_block_sparse_release(self) -> None:
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)

@@ -85,7 +85,7 @@ trap cleanup EXIT INT TERM HUP
 prune_releases_after() {
   local keep="$1"
   LIFE_MANAGER_RELEASE_KEEP="$keep" \
-    python3 "$SCRIPT_ROOT/runtime/loop/central_cleanup.py" --release-gc-only >/dev/null || \
+    "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/loop/central_cleanup.py" --release-gc-only >/dev/null || \
     die "safe release pruning failed"
 }
 
@@ -249,7 +249,7 @@ matching_locked_dependencies() {
   for donor in "$RELEASES"/*; do
     [ "$donor" != "$DEST" ] || continue
     [ -f "$donor/RELEASE.json" ] || continue
-    PYTHONPATH="$SCRIPT_ROOT" python3 -c \
+    PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -c \
       'import sys; from pathlib import Path; from runtime.loop.loop_cleanup import release_is_reclaimed; sys.exit(release_is_reclaimed(Path(sys.argv[1])))' \
       "$donor" || continue
     donor_package="$donor$relative"
@@ -386,7 +386,7 @@ if [ "$ACTIVATE_CURRENT" = "1" ]; then
   # Never let that late, older ancestor move the shared pointer backwards.
   CURRENT_SHA=""
   if [ -f "$CURRENT/RELEASE.json" ]; then
-    CURRENT_SHA="$(python3 - "$CURRENT/RELEASE.json" <<'PY'
+    CURRENT_SHA="$("$RUNTIME_PYTHON" - "$CURRENT/RELEASE.json" <<'PY'
 import json, sys
 try:
     value = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -406,7 +406,7 @@ PY
 
   # Use the same host-wide owner lock as `lm-loop apply` while replacing `current` atomically.
   PYTHONPATH="$SCRIPT_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -c 'import sys; from pathlib import Path; from runtime.host.resource_admission import durable_protocol_version; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), protocol_reader=durable_protocol_version)' \
+    "$RUNTIME_PYTHON" -c 'import sys; from pathlib import Path; from runtime.host.resource_admission import durable_protocol_version; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), protocol_reader=durable_protocol_version)' \
     "$CURRENT" "$DEST" "$LOOPS_ROOT/.apply.lock" || die "could not activate current release"
 
   # Keep a few older releases so rollback is a symlink move rather than a rebuild.
