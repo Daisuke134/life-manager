@@ -23,12 +23,18 @@ from .owned_checkpoint import PrivateCheckpoint, SOURCE_ROOT
 
 WORKFLOW_NAME = 'Manager Phase06 Digital Environment'
 PAGES_REMOTE = f'https://github.com/{REPOSITORY}.git'
+_CANONICAL_REMOTES = (PAGES_REMOTE, PAGES_REMOTE.removesuffix('.git'))
 PAGES_BRANCH = 'refs/heads/gh-pages'
 PAGES_WORKFLOW_ID = '307239134'
 MAX_HOST_SECONDS = 600
 COMMAND_TIMEOUT_SECONDS = 15
 SHA_RE = re.compile(r'[0-9a-f]{40}\Z')
 POSITIVE_RE = re.compile(r'[1-9][0-9]*\Z')
+
+
+def is_canonical_remote(remote):
+    """Accept only GitHub's exact canonical URL with or without `.git`."""
+    return remote in _CANONICAL_REMOTES
 
 
 class CatalogSelectionUnavailable(RuntimeError):
@@ -235,7 +241,7 @@ class GitHubActionsCycleHost:
         source = SOURCE_ROOT.resolve()
         if (top != self.checkout.resolve() or top == source or top in source.parents or
                 source in top.parents or branch != PAGES_BRANCH or
-                fetch_url != PAGES_REMOTE or push_url != PAGES_REMOTE or
+                not is_canonical_remote(fetch_url) or not is_canonical_remote(push_url) or
                 (clean and status)):
             raise PermissionError('canonical clean gh-pages checkout required')
 
