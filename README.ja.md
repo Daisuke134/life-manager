@@ -171,6 +171,21 @@ founder証言ではLife Managerはapproximately $1,000の収益を生み出し�
 
 ### ローカルloopを確認・運用する
 
+別のMacから使う公開入口は次です。全18業務の導入コマンドと不足条件を表示します。
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager list
+```
+
+Coconalaの導入・再開は、同じ入口で`list`を`coconala`へ変えます。診断だけなら末尾に
+`coconala preflight`を渡します。引数なしは既存のブラウザ設定画面を開きます。
+既存checkoutはorigin・cleanなmainを検証してから更新し、別branchや未commitの変更は保護します。
+`LIFE_MANAGER_CHECKOUT`で別の導入先を指定できます。
+
+現時点でCoconalaとJob HunterはApple Silicon限定です。catalogの`command: null`は公開installer未完成で、
+`guided`も全jobの常駐開始を意味しません。本人のaccount・SMS・本人確認・審査は各公式providerで完了します。
+全18業務やIntel Macでの稼働確認は未完です。
+
 一度cloneし、独立したAgent Economy citizenを準備して、daemonを入れずにruntimeを確認できます。
 
 ```bash

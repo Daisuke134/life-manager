@@ -1,5 +1,23 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## 別Macへ配布するLocal製品の実行契約
+
+目的は、友人のMacで公開コマンドからLife Managerを導入し、本人のaccount・private stateで各業務を継続実行すること。既存の業務core、catalog、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
+
+現測sourceは`fb0b5d5d3b70e9907b66ba7263c954cca4d71a53`。catalogは18業務であり、「20 agent」に合わせて未登録業務を捏造しない。10業務のlocal commandがnullで、全業務のpublic installは未完成。Coconalaのprepare/preflightはvenvのPythonを一貫して使わず、Homebrewを`/opt/homebrew`へ固定する。共通bootstrapにも同じPython解決問題と既存checkoutのorigin/branchを検証せず更新する境界がある。
+
+**順序変更:** 旧順=既存FND/CLD/EARN/EVO。新順=独立するMAC01の公開導入経路修復→MAC02のCoconala導入→MAC03の残る個別業務製品化を進め、既存ownerのFND/CLD/EARN/EVOは並行継続する。理由は友人の別Mac導入をユーザーが明示し、この入口が全業務に共通するため。稼働中owner・browser lease・未確定effectを中断/再送しない。
+
+| TODO・状態 | 完了条件 |
+|---|---|
+| [ ] MAC01 | 公開bootstrapが既存checkoutを検証し、利用可能なPythonを選び、全catalogの導入状況と選択した個別installerへ到達する。空のprivate homeを使う隔離検証、CI、main統合、公開raw readbackを確認する |
+| [ ] MAC02 | Coconalaのprepare/preflightが同じ適合Pythonを使い、欠落依存だけを導入する。本人のofficial setup後、対象ownerと公式成果を確認する。別Macのlive確認は未取得として保持する |
+| [ ] MAC03 | gig-lancers→gig-crowdworks→gig-mercor→promptbase→writer→affiliate→self-build→ebook→capafy→line-stickerのpublic installerを既存実装へ結び、各業務のaccount/host要件・自然実行・公式成果を一つずつ確認する。guidedの他8業務も同じ基準で検証する |
+
+source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを含む36件、catalog/plan50件、公開bootstrap7件、OSS/source境界をPASSする。既存Gig関連を含む78件もPASSする。独立reviewがJob Hunterへの選択Python欠落と、設定画面用旧venvが更新されない境界を実証するため、その2ケースもREDで再現し共通入口で修復する。PRは#8602、source先行headは`0d5cd4bbe43c37e8f98dd4ca59dffb854f942a5f`。Coconalaのlegacy導入はApply/Reply/Storefrontだけであり、Paid/Report/GCを含む全jobの導入はMAC02の残件として保持する。
+
+現在cursor=MAC01/MAC02の追加2ケースを含む検証→独立再review→CI→main公開readback。所有worktree=`.worktrees/mac-product-command-20261023`、branch=`fix/mac-product-command-20261023`、primary=`codex-mac-product-command`。source/隔離検証の成功だけで全18業務や友人Macの稼働完了とは報告しない。
+
 ## Local / Cloud 全体復旧の現行spec・実行計画
 
 > **実行者へ:** 実装時は `superpowers:executing-plans` を用いて本節の原子的TODOを順に進める。primaryが逐次実行を所有し、独立したLocal/Cloudのファイル所有だけを並行できる。新しい判断・追加承認を待たず、ユーザーの既存scope/owner/spend-capを守る。

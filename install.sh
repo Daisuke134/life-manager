@@ -40,12 +40,16 @@ if [ "$#" -gt 0 ]; then
       shift
       exec bash "$REPO_ROOT/skills/fundraiser-agent/runtime/install.sh" "$@"
       ;;
+    list)
+      shift
+      exec node "$REPO_ROOT/apps/life-manager/scripts/product-onboarding-plan.js" --host local --all "$@"
+      ;;
     plan)
       shift
       exec node "$REPO_ROOT/apps/life-manager/scripts/product-onboarding-plan.js" --host local "$@"
       ;;
     *)
-      echo "[install] unknown product '$1'; supported: plan, coconala, connector, fundraiser, job-hunter" >&2
+      echo "[install] unknown product '$1'; supported: list, plan, coconala, connector, fundraiser, job-hunter" >&2
       exit 2
       ;;
   esac

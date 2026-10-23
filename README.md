@@ -309,6 +309,22 @@ authenticated `/panel`; you talk to it in Telegram and it reports back there wit
 
 ### Run it yourself — local (your machine holds the data)
 
+On another Mac, inspect every product's install command and missing setup through the public entrypoint:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager list
+```
+
+Replace `list` with `coconala` to install or resume Coconala, or with `coconala preflight` for diagnostics.
+Without arguments, the entrypoint opens the existing local setup screen. It verifies the existing checkout's
+origin, main branch and clean state before updating; set `LIFE_MANAGER_CHECKOUT` to use a separate destination.
+The full catalog is also available from a clone with `./install.sh list` or `./install.sh plan --all`.
+
+Coconala and Job Hunter currently require Apple Silicon. Ten catalog products still have no public installer;
+`guided` may denote a one-pass command or workspace bootstrap rather than a complete persistent setup.
+Provider account, SMS, identity and review requirements remain official setup steps. All-product and Intel-Mac
+runtime acceptance is unfinished.
+
 Clone once, prepare one isolated Agent Economy citizen, and inspect the runtime without installing a daemon:
 
 ```bash
