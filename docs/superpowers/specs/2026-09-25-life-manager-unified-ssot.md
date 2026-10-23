@@ -12,9 +12,13 @@
 
 - [x] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。英日各52行、導入コマンドは26行目。内部情報を本文へ強制する旧assertを削除し、metadata/旧URL禁止は保持する。North StarはTHESISへ移設する。
 - [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
-- [ ] README-MAC-03: focused/context/contract、review、CI、main、公開readbackを確認し残る実機条件を記録する。
+- [x] README-MAC-03: focused/context/contract、review、CI14項目すべて成功。PR #8666をmain `6b93057b41dcf8fdf8d983e85ecdb676d90bf041`へ統合する。英日README、公開installer、requirements、導入guide、agent catalogの6ファイルをGitHub公式main readbackとbyte一致で確認する。別Mac実機・全provider成果と既存Coconala待機の未完条件は保持する。
 
-現在cursor=README-MAC-03、PR #8666。primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASS、migration/shell/diff/loop contractもPASS。独立read-only reviewとCIを確認してからmainへ統合する。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
+README-MAC-01–03は完了、現在cursor=MAC02-C（PR #8677のCI/main/readback）。
+
+- [x] README-MAC-04: 並行PR #8672のhosted agent手順表・promptを既存`docs/getting-started.md`へ移し、英日READMEは詳細への短い案内にする。追加内容を失わず、未検証のany-agent対応を導入保証として見せない。Local Mac/ChatGPT Plus/awake Macの入口は維持する。Git登録worktree/leaseに該当README ownerは見つからず、agmsg teamのlive照会は30秒でtimeoutするため、他席へ作業開始や連絡済みと断定しない。
+
+primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASSに加え、Web CTA122件とclean-user23件がPASS、migration/shell/diff/loop contractもPASS。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
 
 独立reviewはcode/doc head `7485228e62`で0 findings/SHIP、installer28/context20/リンク42件とURL・shell・diffを再確認する。Intel macOS14/Python3.14の全requirements wheel解決もexit0で、実機検証とは分ける。CIはcatalog全18名称を英日READMEへ要求する旧assertだけが失敗するため、名前一覧の移設先`docs/agents.md`へ参照を揃える。catalog構造・runtime・financial契約のassertは保持する。
 
@@ -31,6 +35,26 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 追加回帰は旧実装で1 fail、修正後はinstaller関連28件PASS。空venvで更新した全requirementsのinstall exit0と5 imports exit0も確認する。READMEの比較はn8n 208,370/OpenHands 91,618/Open Interpreter 68,640/AutoGPT 187,713 starsの公式repo/README/installerに基づく。starsはREADMEによる成長因果の証拠とはしない。英日READMEは各52行、Quick startは冒頭、比較根拠と移設先は`docs/readme-references.md`。公式repo trafficの観測窓合計はclones=84,297/unique=4,515、views=66/unique=31で、自分たちのCI/automationと外部利用者を分離できないため実利用人数やconversion rateとは扱わない。
 
 **現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
+
+**現在Macの追加観測:** immutable current `20261023T182457-409c568f`から同じownerをread-onlyで再確認する。installed/event SHA=`409c568f9116a3b61bb03e37ee36461e2198875b`、run=`18e1200ea94addd8-82363`、occurrence=`hf-gig-reply-detector:18e1200ea94addd8-82363`、phase=`report`、exit=75、effect=`not_applicable`、receipt/readback=null、blocker=`host_admission_deferred:disk_floor_low`、retryable=true、next=`retry_after_eligibility`へ変化する。前のcapacity busy snapshotを現在原因として使わない。`df`の空きは736,256 KiB、`vm.swapusage`は19,456 MiB使用である。既存disk governorの最新unbound receiptはerrors=0/protected_deletions=0/reclaimed=0/capacity recovery unmet、候補10件はopen6/protected_path4で保護される。Git重複もprune-packable10件のみで、repo全体や使用中cacheを削除して容量復旧を偽装しない。古い4 effect fenceは引き続きofficial receipt未取得。新規Mac向けsource修復は独立継続し、現Macの空容量・未照合effectと別Mac実機の受入はMAC02/05の未完として保持する。
+
+既存の容量回復経路として、main由来immutable releaseの`central_cleanup.codex_history_cleanup(home)`を独立read-only検証する。既存の本人ownership・native version・protected path・staging capacityの条件を一切緩めず、条件を満たす時だけCodex自身へ古い履歴のlossless maintenanceを依頼する。session JSONLの直接削除/書換え、app-server再起動、他ownerのlock解除、Telegram配信は行わない。requestを完了や空き容量回復と同一視せず、native返答と実空き容量を区別して記録する。 独立検証ではhelper内部のnative保護条件は維持する一方、単独callは中央cleanup owner bindingを通らないと判明する。既存owner境界を保持した実行根拠が揃うまではRPCを実行せず、直接履歴削除やlock解除で代用しない。
+
+### MAC02の本人設定・再開の修復
+
+**目的・範囲:** README改善後も、本人のCoconala設定が全7 canonical jobsへ渡り、再開時には現在の認証観測で開始可否を決める。既存のprivate設定とcanonical activationを再利用する。productionのbrowser/session/state、effect fence、provider送信には触れない。
+
+**完了条件:** 下記2つの再現を最小RED/GREENで修復し、既存関連検証、独立read-only review、CI、PR/main、公開source readbackを閉じる。現在の本人認証と過去の本人確認履歴を区別し、過去の有効な履歴を根拠なく削除しない。本人の別Mac・実provider成果はMAC05の未完として残す。
+
+- [x] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。 実際の`runtime/loop/lm_loop_apply.py:_plist()`まで通す全7job生成fixtureで確認し、Coconalaの7ownersだけへ`GIG_GOG_ACCOUNT`/`GIG_NOTIFY_EMAIL`を渡す。任意env passthroughや他ownerへの注入は追加しない。同一release SHAの既存ownerでも、通知設定の初回追加・変更をexact-releaseの採用判定で見落とさない。`runtime/loop/local_install.py`と対応する既存testsまでを必要なshared境界として修復し、稼働中ownerをskipする保護は維持する。
+- [x] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。 初回の独立検証はHOLD。要求URLのままbody=`403 Forbidden`/ready=completeでも認証成功になるP1と、pagesのないauthenticated=trueだけの観測が開始を通すP2を隔離fixtureで再現する。URLだけではなく正の認証証拠と現在の観測形式との整合を検証し、KYC/銀行の履歴は保持する。
+- [ ] MAC02-C: focused/source/review/CI/main/readbackと残る外部条件を記録する。 PR #8677、source head `932ef1794879d51a98040fd2f8ca62263a9f80c3`は再reviewで確定finding0/SHIP、primaryのonboarding/gig-release計64件と独立focused25件がPASS。最新CI/main/readbackは本cursorで進める。
+
+source受入は通知追加7回帰と関連271 tests/298 subtests、認証関連108 tests、shell/diff/source-boundary、loop契約18/192/113/errors0がPASS。本人profileの正のDOM証拠は既存`application_parent`の同provider形を再利用し、safe snapshotへ真偽だけ保存する。本人profileが確認できるmaintenance表示は認証を否定する根拠とは限らず、provider availabilityをこのgateだけで保証しない。READMEの互換性詳細はguideへ保存し、英日各54行、startup context20/adapter registry15/URL migration/relative linksがPASS。
+
+現在Macのfree bytesは5,801,807,872へ回復したことを実測する。既存native maintenance markerは同UIDのregular fileで約2,100秒前の記録があり、rootは重複RPCやowner実行を開始しない。markerだけでnative完了や空き回復の因果を断定しない。過去4 effect fenceと別Mac実機/全provider成果の未完は保持する。
+
+現在owner=`codex-coconala-owner-setup`、worktree=`.worktrees/coconala-owner-setup-20261023`、branch=`fix/coconala-owner-setup-20261023`、base=`6b93057b41dcf8fdf8d983e85ecdb676d90bf041`。旧README worktreeは統合済みで、参照process・lease・dirty・ancestryを確認して片付ける。順序は既存MAC02→MAC03を維持する。
 
 ## 別Macへ配布するLocal製品の実行契約
 

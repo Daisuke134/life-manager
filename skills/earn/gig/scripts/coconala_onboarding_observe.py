@@ -11,7 +11,6 @@ import re
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urlparse
 
 SCRIPTS = Path(__file__).resolve().parent
 GIG_ROOT = SCRIPTS.parent
@@ -20,20 +19,23 @@ sys.path.insert(0, str(BROWSER_SCRIPTS))
 
 import cdp_default_tab  # noqa: E402
 import websockets  # noqa: E402
-from coconala_onboarding import _write_private, record  # noqa: E402
+from coconala_onboarding import (  # noqa: E402
+    OBSERVATION_PAGES as PAGES, _write_private, observed_authentication, record,
+)
 
-
-PAGES = {
-    "authenticated": "https://coconala.com/mypage",
-    "sms_verified": "https://coconala.com/mypage/sms",
-    "seller_information": "https://coconala.com/mypage/user_information",
-    "identity_approved": "https://coconala.com/mypage/user_identification",
-    "bank_registered": "https://coconala.com/mypage/bank",
-}
-
-EXPRESSION = r"""(()=>JSON.stringify({
+# Use the own-profile navigation proof from application_parent._authenticated_identity_async.
+EXPRESSION = r"""(()=>{
+  const path=a=>{try{
+    const u=new URL(a.href,location.origin), m=u.pathname.match(/^\/(?:users|smartphone\/users)\/(\d+)\/?$/);
+    return u.origin==='https://coconala.com'&&m?`/users/${m[1]}`:null;
+  }catch(_){return null}};
+  const links=[...document.querySelectorAll('a[href]')].map(node=>({node,path:path(node)})).filter(x=>x.path);
+  const own=links.find(x=>x.node.closest('.sidebar-profile'))||
+    links.find(x=>x.node.closest('header,nav,[class*="header"],[class*="Header"]'));
+  return JSON.stringify({
   url: location.origin + location.pathname,
   ready: document.readyState,
+  own_user_path: own?.path||null,
   forms: document.forms.length,
   controls: [...document.querySelectorAll('input,select,textarea')].map(x=>({
     tag:x.tagName.toLowerCase(), type:(x.type||''), name:(x.name||''), id:(x.id||''),
@@ -41,7 +43,7 @@ EXPRESSION = r"""(()=>JSON.stringify({
     has_value: x.type==='file' ? x.files.length>0 : String(x.value||'').trim().length>0
   })),
   body: (document.body?.innerText||'').trim()
-}))()"""
+})})()"""
 
 
 async def _evaluate(ws_url: str) -> dict[str, object]:
@@ -72,6 +74,7 @@ def _safe_snapshot(raw: dict[str, object]) -> dict[str, object]:
     return {
         "url": str(raw.get("url") or ""),
         "ready": raw.get("ready"),
+        "authenticated_identity": re.fullmatch(r"/users/[1-9][0-9]*", str(raw.get("own_user_path") or "")) is not None,
         "forms": int(raw.get("forms") or 0),
         "controls": safe_controls,
         "body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
@@ -109,6 +112,10 @@ def _identity_approved(body: str) -> bool:
 
 
 def observe(home: Path) -> dict[str, object]:
+    output = home / ".config" / "anicca" / "gig" / "onboarding-observation.json"
+    # A failed current attempt must not leave a previous authentication success current.
+    _write_private(output, {"version": 1, "platform": "coconala", "pages": {},
+                            "classifications": {"authenticated": None}})
     os.environ["CLOAK_CDP_BASE_URL"] = "http://127.0.0.1:9223"
     os.environ["CLOAK_TARGET_OWNERS_FILE"] = str(
         home / ".cloak" / "vault" / "gig-target-owners.json"
@@ -129,13 +136,11 @@ def observe(home: Path) -> dict[str, object]:
         finally:
             cdp_default_tab.close_tab(str(tab["target_id"]), owner="gig-onboarding")
     evidence = {"version": 1, "platform": "coconala", "pages": snapshots}
-    output = home / ".config" / "anicca" / "gig" / "onboarding-observation.json"
 
     classifications = {state: False for state in PAGES}
     classifications["email_verified"] = False
-    auth_url = str(snapshots["authenticated"].get("url") or "")
-    parsed = urlparse(auth_url)
-    if parsed.hostname == "coconala.com" and parsed.path.startswith("/mypage"):
+    classifications["authenticated"] = observed_authentication(snapshots)
+    if classifications["authenticated"] is True:
         digest = hashlib.sha256(
             json.dumps(snapshots["authenticated"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
@@ -144,19 +149,19 @@ def observe(home: Path) -> dict[str, object]:
         classifications["authenticated"] = True
         classifications["email_verified"] = True
     for state in ("seller_information", "bank_registered"):
-        if _required_form_complete(snapshots[state]):
+        if classifications["authenticated"] is True and _required_form_complete(snapshots[state]):
             digest = hashlib.sha256(
                 json.dumps(snapshots[state], sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
             record(home, state, digest)
             classifications[state] = True
-    if _sms_approved(raw_bodies.get("sms_verified", "")):
+    if classifications["authenticated"] is True and _sms_approved(raw_bodies.get("sms_verified", "")):
         digest = hashlib.sha256(
             json.dumps(snapshots["sms_verified"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
         record(home, "sms_verified", digest)
         classifications["sms_verified"] = True
-    if _identity_approved(raw_bodies.get("identity_approved", "")):
+    if classifications["authenticated"] is True and _identity_approved(raw_bodies.get("identity_approved", "")):
         digest = hashlib.sha256(
             json.dumps(snapshots["identity_approved"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()

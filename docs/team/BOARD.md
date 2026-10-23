@@ -8,7 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 ## タスク
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
-- [Codex] READMEの外部向け整理・Mac初回導入修復（PR #8666、CI確認中）
+- [Codex] README・Mac初回導入はPR #8666/main反映済み。Coconalaの本人通知設定・現在認証のsource修復と再reviewを完了、PR #8677のCI/main確認中（TODO正本は統合SSOTのMAC02-C）
 - [参謀] ランサーズ/ココナラ応募・返信、X読み取り＋数字分析
 - [Muse] Instagram配信
 - [Local LM] Mac mini上のジョブ
@@ -26,3 +26,5 @@
 - 2026-10-23 18:32 参謀: リスティクル掲載依頼メール送信(lifemanager.jp@agentmail.to)=5件: MyBeing hello@enthu.ai / LoA hello@loa-lawofattraction.co / Say After Me hello@igwestudios.com / Life Note daniel@mylifenote.ai / HabitBox support@habitbox.app。残り4件(Kicks Therapy, SleepingOnTheEdge, App Store Tracker, SnoreCam)はAgentMail送信上限(初回1時間5宛先)で未送信、19:30 JST以降に再送。mindfulsuiteはフォームがブラウザ必須(Cloudflare)でスキップ。
 - 2026-10-23 18:55 参謀(チーム収益ループ): 受託=ココナラ新規2件応募（AI活用SNS動画/note効率化 5339402 ¥30,000 納期11/8／外国人向け日本語学習Webアプリ 5340997 ¥180,000 納期12/18）、受信2件は不採用連絡(nakanakano)と投資相談の年収アンケート(ごんちゃん、外部Googleフォーム=回答せず)で実案件なし、Ryuさん修正3点は17:38返信済み。ランサーズはAWS WAFのCAPTCHAでHTTP/ヘッドレス不可→受信確認・応募できず。自社=本音翻訳AIへローテ: 28日MRR$4・売上$38(年額1+週額1、更新のみ)・新規24・トライアル0、7日内転換 0/41(7月〜)、Paywall表示記録0/24。原因=閉じられるソフトペイウォール＋1日3回無料＋年額¥1,810≒週額¥1,300。スペック docs/team/specs/honne-paywall.md（ハードペイウォール＋年額3日無料トライアル＋価格再設計、RCライブ設定は無変更）。次: ASCで年額価格確認と3日トライアル作成→PaywallView改修→審査提出、ランサーズはブラウザでCAPTCHA通過後に受信確認。
 - 2026-10-23 18:53 Codex(Manager): D003公開支出・別報告の固定source接続を実装。9focused/400full成功、便益未測定・作用0。独立reviewのboard配置1nitを訂正、次: 通常CI/main統合と原タスク受入。
+- 2026-10-23 18:57 Codex: PR #8666はCI14件成功でmain 6b93057b41へ統合、公開6ファイルのbyte一致を確認。英日READMEは各52行。starsは8、目標10,000は未達。現在はMAC02の通知設定がcanonical7jobsへ渡らない問題と再認証観測の回帰を修復中。production/provider送信は操作しない。
+- 2026-10-23 19:27 Codex: Coconala通知7 jobs/最新認証の修復をPR #8677へ提出。独立reviewの2反例を修復し再判定SHIP、primary64件/独立25件PASS。READMEの他agent手順はguideへ移し英日54行。次: exact CI/main/公開readback。本番・provider送信0。

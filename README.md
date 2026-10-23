@@ -31,28 +31,7 @@ The installer prepares the dependencies. No Docker is required.
 
 [Full setup, keeping your Mac awake, checking progress, and stopping agents →](docs/getting-started.md)
 
-## Works with any agent
-
-**Local (ChatGPT / Codex)** · **Grok Bot** · **Dots** · **Muse**
-
-Life Manager is a plain GitHub repository with agent instructions (`AGENTS.md`), so you can run it locally with your ChatGPT subscription or hand it to a hosted agent.
-
-| Where | 1 | 2 | 3 |
-|---|---|---|---|
-| **Local Mac (ChatGPT subscription)** | Run the install command above | Sign in with ChatGPT (Codex) | Connect the services you want |
-| **Grok Bot** | Open a chat with your bot | Paste the prompt below | Approve account connections when asked |
-| **Dots** | Open a chat with your agent | Paste the prompt below | Approve account connections when asked |
-| **Muse** | Open a chat with your agent | Paste the prompt below | Approve account connections when asked |
-
-Prompt for hosted agents:
-
-```
-Clone https://github.com/Daisuke134/life-manager, read AGENTS.md and
-docs/getting-started.md, then set up the agents I pick and report results to me here.
-```
-
-> The local Mac install is the supported path. Hosted agents follow the same repo instructions,
-> but scheduling and Mac-only steps can differ by platform.
+Using another agent? [See compatibility and setup](docs/getting-started.md#other-agents).
 
 ## What can you use it for?
 
