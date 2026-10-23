@@ -178,6 +178,18 @@ def reconcile_opportunity(record: OpportunityRecord, costs: OpportunityCosts, *,
         status = "RECEIPT_BINDING_MISMATCH"
     elif receipt.source != record.settlement.source:
         status = "RECEIPT_SOURCE_MISMATCH"
+    elif any(
+        stage.source is not None and (
+            stage.source.source_id == receipt.source.source_id
+            or stage.source.url == receipt.source.url
+            or stage.source.content_sha256.lower() == receipt.source.content_sha256.lower()
+        )
+        for stage in stages if stage.name != "settlement"
+    ):
+        # A copied approval/delivery/posting page is not a separate payment
+        # receipt, even when relabeled with a new source ID or URL. Passing
+        # this necessary condition still does NOT authenticate bank receipt.
+        status = "RECEIPT_EVIDENCE_REUSED"
     else:
         status = "DECLARED_SETTLEMENT_RECONCILED"
         received = receipt.amount_minor
