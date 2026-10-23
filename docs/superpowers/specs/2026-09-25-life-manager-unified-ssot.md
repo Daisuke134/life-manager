@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-pre-effect-provenance-20261024、base=6b3b45d534b7ca0695799ee05d3d73d99938886e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのPROVENANCE-GREENと容量診断。CAPACITYのsource/自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-pre-effect-provenance-20261024、base=6b3b45d534b7ca0695799ee05d3d73d99938886e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのPROVENANCE-SHIPと容量診断。CAPACITYのsource/自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -342,7 +342,7 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 自然実行受入: lancers-revenue-work-syncはd8e4578c/run18e143af6474c8a8-49586/20:50:11Z/report/exit0/pass/effectnot_applicable、retryable=false/nextnone、admission未知false。provider receipt/公式成果は無し。Coconala snapshotのa93a3a78/reportpassは24桁install型runのため自然provider成果とは扱わない。後のhost snapshotはswap14,714.12MiB/free8,139,366,400bytesまで悪化し、別時点receiptではfree6,119,342,080bytes。未知記録や他ownerを削除/中断せず、物理回復は未完とする。
 
-順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはPROVENANCE-GREENとRUNTIMEの容量診断。
+順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはPROVENANCE-SHIPとRUNTIMEの容量診断。
 
 原因と最小変更: 既存cleanupのbefore_initial_open_probe/二回目probe前の固定15秒＋後処理reserve判定はnative lsofの最大timeoutを最低予約時間と扱う。15秒はCLOSED証明条件ではなく、完了したrc/stderr/open-path集合が証拠である。native _open_paths/_default_lsofのtimeoutをmin(既存15秒, deadline-now-reserve)へ渡し、正の残時間だけ開始する。timeout/OSError/不明は保持し、両回fresh snapshot・二段confirmed-closed・probe後/削除前deadlineとreserve確認・owner/path保護を維持する。注入lsof(path)契約と他cleanup種類は変えず、新framework/floor/直接cache削除を追加しない。clangの既存probe-errorはclass/codeがNoneへ畳まれ復元不能であり、全エラーをbudgetと断定しない。
 
@@ -374,7 +374,7 @@ CAPACITYの継続受入: 次の21:19:50Z/mtime1792790390.1365283もok=true/error
 所有: workerはskills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.pyとskills/earn/lancers/tests/test_pre_effect_hint_reconcile.pyのみ。primaryは本仕様、既存CI、独立review/main/immutable反映と本番readbackを所有する。workerは他者編集を戻さずstage/commit/push/実private/通信/制御を行わない。
 
 - [x] PROVENANCE-RED: source未変更でunsafe historical writerの2field markerを誤受理しresolverを1回呼ぶ2件を失敗させる。worker2 FAIL/既存3 PASS（1.21s）、primary同結果2 FAIL/3 PASS（1.13s）。tmp内git fixtureだけでunsafe ancestor→safe source main、対象eventはunsafe SHA/reconciler自身SHAはsafeとして境界を再現する。isolated HOME/git config/no network、実private/DB/resolve変更0。binding/event/祖先性/digest欠損等の保持回帰はGREEN段階に加える。
-- [ ] PROVENANCE-GREEN: 検証済み契約のwriterだけproofを返し、既存marker fail-closedとresolver CASを保つ。関連tests/source-boundary/AST/diffをPASSする。
+- [x] PROVENANCE-GREEN: 検証済み契約のwriterだけproofを返し、既存marker fail-closedとresolver CASを保つ。workerは追加negativeのRED24 FAIL/11 PASS、malformed host bindingのRED1を経て37 focused PASS、関連4files136 PASS/8 subtests（9.21s）。primaryも隔離HOME/実通信禁止で同136 PASS/8 subtests（9.09s）、source-boundary/diff PASS。target event SHA→host source binding→main ancestry→owner別current安全source4/3filesのSHA256一致だけを許容し、reconciler自身SHAは使わない。private markerとproof形/CAS claimedを維持する。既存CIのLancers stepへ本回帰/既存application marker/reply kernelの3filesを追加し、新workflow/依存を増やさない。独立fresh read-only reviewはblocking0/SHIP、対象37 PASS（9.64s）と両writerの送信前解除/caller closure、CI3files追加を直接確認する。primary AST2filesもPASS。実private/DB/resolve/通信は0。CI/main反映は未完。
 - [ ] PROVENANCE-SHIP: 独立fresh review/既存CI/main/公開source一致を確認する。
 - [ ] PROVENANCE-ACTUAL: accepted main由来releaseへ既存reconciler1ownerだけ採用し、unsafe historical候補が未解除で保持されることを公式readbackで確認する。証明成立対象もcanonical resolver/生存owner条件に従い、DB直接更新/解除・provider再送をしない。
 

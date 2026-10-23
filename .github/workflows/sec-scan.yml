@@ -39,6 +39,9 @@ jobs:
         run: >-
           python3 -m pytest -q
           skills/earn/lancers/tests/test_local_identity.py
+          skills/earn/lancers/tests/test_pre_effect_hint_reconcile.py
+          skills/earn/lancers/tests/test_application_pre_effect_hint.py
+          skills/_shared/marketplace-core/tests/test_reply_kernel.py
           skills/earn/lancers/tests/test_lancers_onboarding.py
           skills/earn/lancers/tests/test_application_prompt_handoff.py
           skills/earn/lancers/tests/test_discovery_reads_through_browser.py
