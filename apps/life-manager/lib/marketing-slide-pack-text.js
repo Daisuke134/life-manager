@@ -6,121 +6,119 @@ const crypto = require("node:crypto");
 // call a paid model; vary a seed per scheduled slot and render with Pillow.
 const FAMILY_BRIEFS_BY_LOCALE = Object.freeze({
   ja: Object.freeze({
-    "question-hook": "short question followed by a gentle reframe",
-    listicle: "four numbered small habits",
-    "myth-vs-fact": "a common belief followed by a gentle alternative",
+    "question-hook": "specific everyday situation followed by four coherent affirmations",
+    listicle: "four numbered affirmations for one everyday situation",
+    "myth-vs-fact": "a situation-specific belief followed by four gentle alternatives",
   }),
   en: Object.freeze({
-    "question-hook": "short question followed by a gentle reframe",
-    listicle: "four numbered small habits",
-    "myth-vs-fact": "a common belief followed by a gentle alternative",
+    "question-hook": "specific everyday situation followed by four coherent affirmations",
+    listicle: "four numbered affirmations for one everyday situation",
+    "myth-vs-fact": "a situation-specific belief followed by four gentle alternatives",
   }),
 });
 const FAMILY_BRIEFS = FAMILY_BRIEFS_BY_LOCALE.ja;
 
-const BANKS = Object.freeze({
-  ja: Object.freeze({
-    "question-hook": Object.freeze([
-      "今日の自分に、\n厳しすぎない？",
-      "「まだ足りない」が\n口癖になってない？",
-      "疲れた自分に、\n何と声をかける？",
-      "小さくできたこと、\n見落としてない？",
-      "うまくいかない日も、\n自分を責めてない？",
-      "予定の前に、\n気分を確かめてる？",
-      "休むことまで、\n後回しにしてない？",
-      "不安な夜、\nひとりで抱えてない？",
-    ]),
-    listicle: Object.freeze([
-      "気持ちを整える\n小さな習慣４選",
-      "朝の自分を助ける\nやさしい習慣４つ",
-      "心に余白をつくる\n小さなヒント４選",
-      "疲れた日に試す\n自分への声かけ４選",
-      "今日からできる\n気分の切り替え４選",
-      "自分を責めないための\n小さな工夫４選",
-      "忙しい朝にできる\n心の整え方４つ",
-      "落ち着きたい時の\n小さな合図４選",
-    ]),
-    "myth-vs-fact": Object.freeze([
-      "「気合いで直す」は\n本当に近道？",
-      "いつも前向きで\nいなきゃダメ？",
-      "休むのは遅れ？\n整える時間？",
-      "完璧にできないと\n意味がない？",
-      "「まだ足りない」は\n本当のこと？",
-      "比べ続ければ\n前に進める？",
-      "自分を責めるほど\n早く変われる？",
-      "強くなるとは\n無理を続けること？",
-    ]),
-  }),
-  en: Object.freeze({
-    "question-hook": Object.freeze([
-      "Are you asking too much of yourself?",
-      "What would a kinder inner voice say?",
-      "Are you leaving room to rest today?",
-      "Do you notice what went well?",
-      "Are you carrying this alone?",
-      "What is one small step for today?",
-      "Can you pause before judging yourself?",
-      "What would make this morning gentler?",
-    ]),
-    listicle: Object.freeze([
-      "4 small habits for a calmer day",
-      "4 kinder ways to start your morning",
-      "4 small steps to make room to breathe",
-      "4 reminders for a difficult day",
-      "4 ways to be less hard on yourself",
-      "4 gentle habits you can try today",
-      "4 ways to reset your attention",
-      "4 calm starts for a busy morning",
-    ]),
-    "myth-vs-fact": Object.freeze([
-      "Does willpower fix every hard day?",
-      "Do you have to stay positive all the time?",
-      "Is rest really falling behind?",
-      "Does perfect mean worthwhile?",
-      "Is not enough always a fact?",
-      "Does comparing help you move forward?",
-      "Does self-criticism create change?",
-      "Does being strong mean never pausing?",
-    ]),
-  }),
-});
-
-const BODY_BANKS = Object.freeze({
+// Keep the opening and its four-slide narrative together when rotating slots.
+const SCENES = Object.freeze({
   ja: Object.freeze([
-    "できたことをひとつ数える",
-    "比べる時間を少しだけ減らす",
-    "疲れた日は基準を下げていい",
-    "深呼吸して肩の力を抜く",
-    "予定の前に気分を確かめる",
-    "完璧より続けやすさを選ぶ",
-    "休む時間を先に決めておく",
-    "今できる一歩を小さく選ぶ",
-    "気持ちを短くノートに書く",
-    "迷ったらひとつだけ進める",
-    "朝はやさしい一言から始める",
-    "夜はできたことを振り返る",
-    "心配ごとを紙に書き分ける",
-    "できない日も予定の一部にする",
-    "自分のペースを先に決めておく",
-    "必要なら信頼できる人に話す",
+    {
+      "question-hook": "寝る前に、今日の失敗ばかり\n思い出してない？",
+      listicle: "一日の終わりに読みたい\n自分への言葉４つ",
+      "myth-vs-fact": "うまくいかない一日＝\nダメな自分？",
+      body: ["今日の失敗だけが、私のすべてじゃない", "できなかったことは、明日考えてもいい", "終わった一日を、今夜やり直さなくていい", "今日の私は、ここまででいい"],
+    },
+    {
+      "question-hook": "SNSを閉じたあと、\n自分だけ遅れて見える？",
+      listicle: "誰かと比べたあとに読む\n自分への言葉４つ",
+      "myth-vs-fact": "誰かの近況＝\n私の締め切り？",
+      body: ["誰かの近況は、私の締め切りじゃない", "見えているのは、その人の一部分", "私には、私が知っている積み重ねがある", "今日は、自分の次の一歩に戻ろう"],
+    },
+    {
+      "question-hook": "仕事は終わったのに、\n頭の中では残業してる？",
+      listicle: "仕事から帰った自分へ\n伝えたい言葉４つ",
+      "myth-vs-fact": "仕事を考え続けるほど\nちゃんとした人？",
+      body: ["今日の仕事は、ここで一区切り", "返信のない時間に、答えを作らなくていい", "仕事以外の時間も、私の時間", "続きは、次の勤務時間の私に任せよう"],
+    },
+    {
+      "question-hook": "ひとつのミスで、\n今日全部を否定してない？",
+      listicle: "ミスした日に読みたい\n自分への言葉４つ",
+      "myth-vs-fact": "ミスをした私には\nやさしくしちゃダメ？",
+      body: ["ミスをしたことと、私の価値は別の話", "直せるところを、ひとつずつ直そう", "自分を責め続けなくても、学べる", "次の行動を選ぶ余地は、まだある"],
+    },
+    {
+      "question-hook": "朝、予定を見ただけで\nもう疲れてない？",
+      listicle: "忙しい朝の自分へ\n伝えたい言葉４つ",
+      "myth-vs-fact": "一日分の予定を\n今すべて背負う必要ある？",
+      body: ["一日を全部、今こなさなくていい", "まずは、最初のひとつから", "私のペースを、途中で調整してもいい", "小さく始めることも、始めること"],
+    },
+    {
+      "question-hook": "休んでいるのに、\n何もしてない自分を責めてる？",
+      listicle: "休むのが苦手な自分へ\n伝えたい言葉４つ",
+      "myth-vs-fact": "全部終わらないと\n休んじゃダメ？",
+      body: ["休むために、すべてを終える必要はない", "何も生み出さない時間も、持っていい", "私の価値は、今日の成果だけでは決まらない", "今は休む、という選択をしていい"],
+    },
+    {
+      "question-hook": "さっきの一言、\n頭の中で何度も再生してる？",
+      listicle: "会話を振り返りすぎた時の\n自分への言葉４つ",
+      "myth-vs-fact": "相手の沈黙＝\n私への悪い評価？",
+      body: ["相手の気持ちを、今すべて知ることはできない", "想像と、実際に言われたことは分けよう", "必要なら、次に会った時に確かめられる", "ひとつの会話で、私のすべては決まらない"],
+    },
+    {
+      "question-hook": "三日空いただけで、\nもう続かない人だと思ってる？",
+      listicle: "習慣が途切れた日の\n自分への言葉４つ",
+      "myth-vs-fact": "途切れたら\n最初から全部やり直し？",
+      body: ["空いた日があっても、積み重ねは消えない", "前と同じ大きさで、再開しなくていい", "今日は、小さくひとつだけ", "戻ってくることも、続けることの一部"],
+    },
   ]),
   en: Object.freeze([
-    "Count one thing you finished today.",
-    "Take a slow breath and lower your shoulders.",
-    "Make one next step small enough to start.",
-    "Choose a pace you can keep.",
-    "Write the worry down and sort it later.",
-    "Leave a little time to rest.",
-    "Notice what went well before moving on.",
-    "Ask someone you trust for support.",
-    "Pause before comparing your day to theirs.",
-    "Let a difficult day be one part of your week.",
-    "Check how you feel before checking the schedule.",
-    "Use one gentle reminder to begin the morning.",
-    "Pick one task instead of chasing every task.",
-    "Give yourself permission to do a smaller version.",
-    "Close the day by naming one good moment.",
-    "Keep the next step simple and clear.",
+    {
+      "question-hook": "Still replaying today when you get into bed?",
+      listicle: "4 lines for when your day follows you to bed",
+      "myth-vs-fact": "Does one hard day mean you failed?",
+      body: ["Today's mistakes are not my whole story.", "I can leave unfinished things for tomorrow.", "I do not have to redo this day tonight.", "I have done enough for this moment."],
+    },
+    {
+      "question-hook": "Close the app and feel behind everyone else?",
+      listicle: "4 lines to read after comparing your life online",
+      "myth-vs-fact": "Is someone else's milestone your deadline?",
+      body: ["Someone else's milestone is not my deadline.", "A post shows one part of someone else's life.", "My quiet progress still belongs to me.", "I can return to my own next step."],
+    },
+    {
+      "question-hook": "Work is over. Why is your mind still at work?",
+      listicle: "4 reminders for when you bring work home in your head",
+      "myth-vs-fact": "Do you have to stay mentally on the clock?",
+      body: ["I can put today's work down for now.", "An unanswered message does not need an imagined answer.", "My time outside work belongs to me too.", "The next workday can hold the next work task."],
+    },
+    {
+      "question-hook": "Letting one mistake rewrite your entire day?",
+      listicle: "4 things to tell yourself after making a mistake",
+      "myth-vs-fact": "Do you need to be cruel to yourself to improve?",
+      body: ["Making a mistake does not define my worth.", "I can repair what is mine to repair.", "I can learn without insulting myself.", "I still get to choose what I do next."],
+    },
+    {
+      "question-hook": "Already overwhelmed before your morning starts?",
+      listicle: "4 lines for a morning with too much on your list",
+      "myth-vs-fact": "Do you have to carry the whole day at once?",
+      body: ["I do not have to finish the whole day right now.", "I can start with the first small thing.", "I am allowed to adjust my pace.", "Starting small still counts as starting."],
+    },
+    {
+      "question-hook": "Trying to rest but feeling guilty for doing nothing?",
+      listicle: "4 reminders for when resting feels unearned",
+      "myth-vs-fact": "Must everything be finished before you rest?",
+      body: ["I do not have to finish everything to take a break.", "I am allowed time that produces nothing.", "My worth is more than today's output.", "Rest can be the choice I make right now."],
+    },
+    {
+      "question-hook": "Replaying that one sentence from your conversation?",
+      listicle: "4 lines for when a conversation keeps replaying",
+      "myth-vs-fact": "Does their silence tell you what they think of you?",
+      body: ["I cannot know every thought someone else has.", "I can separate what was said from what I imagined.", "If I need clarity, I can ask when the time is right.", "One conversation is not my entire identity."],
+    },
+    {
+      "question-hook": "Missed a few days and ready to give up completely?",
+      listicle: "4 reminders for restarting a habit you dropped",
+      "myth-vs-fact": "Does missing a day erase the days you showed up?",
+      body: ["A gap does not erase what I already practiced.", "I can return with a smaller version.", "One small step is enough to begin again.", "Coming back is part of continuing."],
+    },
   ]),
 });
 
@@ -128,46 +126,33 @@ function seedNumber(seed, label) {
   return crypto.createHash("sha256").update(`${seed}\u0000${label}`).digest().readUInt32BE(0);
 }
 
-function pickHook(hooks, seed, avoidTexts) {
+function pickScene(scenes, familyId, seed, avoidTexts) {
   const used = new Set(avoidTexts.map((text) => String(text).trim().toLocaleLowerCase()));
-  const start = seedNumber(seed, "hook") % hooks.length;
-  for (let offset = 0; offset < hooks.length; offset += 1) {
-    const candidate = hooks[(start + offset) % hooks.length];
-    if (!used.has(candidate.trim().toLocaleLowerCase())) return candidate;
+  const start = seedNumber(seed, "hook") % scenes.length;
+  for (let offset = 0; offset < scenes.length; offset += 1) {
+    const scene = scenes[(start + offset) % scenes.length];
+    if (!used.has(scene[familyId].trim().toLocaleLowerCase())) return scene;
   }
-  return hooks[start];
-}
-
-function pickBodyLines(lines, seed, familyId, locale) {
-  const order = lines.map((_, index) => index);
-  let state = seedNumber(seed, `${familyId}:${locale}:body`);
-  for (let index = order.length - 1; index > 0; index -= 1) {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    const swap = state % (index + 1);
-    [order[index], order[swap]] = [order[swap], order[index]];
-  }
-  const labels = locale === "ja"
-    ? ["ひとつめ", "ふたつめ", "みっつめ", "よっつめ"]
-    : ["1", "2", "3", "4"];
-  return order.slice(0, 4).map((lineIndex, index) => (
-    familyId === "listicle" ? `${labels[index]}: ${lines[lineIndex]}` : lines[lineIndex]
-  ));
+  return scenes[start];
 }
 
 async function generateSlideCopy({ familyId, locale = "ja", variantSeed = "default", avoidTexts = [] } = {}) {
-  const normalizedLocale = BANKS[locale] ? locale : "ja";
-  const hooks = BANKS[normalizedLocale][familyId];
-  if (!hooks) throw new Error(`family ${familyId} is not configured for locale ${normalizedLocale}`);
+  const normalizedLocale = SCENES[locale] ? locale : "ja";
+  if (!Object.hasOwn(FAMILY_BRIEFS_BY_LOCALE[normalizedLocale], familyId)) {
+    throw new Error(`family ${familyId} is not configured for locale ${normalizedLocale}`);
+  }
   const seed = `${normalizedLocale}:${familyId}:${String(variantSeed)}`;
+  const scene = pickScene(SCENES[normalizedLocale], familyId, seed, avoidTexts);
+  const labels = normalizedLocale === "ja" ? ["ひとつめ", "ふたつめ", "みっつめ", "よっつめ"] : ["1", "2", "3", "4"];
   return {
-    hook: pickHook(hooks, seed, avoidTexts),
-    body: pickBodyLines(BODY_BANKS[normalizedLocale], seed, familyId, normalizedLocale),
+    hook: scene[familyId],
+    body: scene.body.map((line, index) => familyId === "listicle" ? `${labels[index]}: ${line}` : line),
     costUsd: 0,
   };
 }
 
 function familyForStyleHint(styleHint, locale = "ja") {
-  const families = Object.keys(BANKS[locale] || BANKS.ja);
+  const families = Object.keys(FAMILY_BRIEFS_BY_LOCALE[locale] || FAMILY_BRIEFS);
   const index = crypto.createHash("sha256").update(String(styleHint || "")).digest()[0] % families.length;
   return families[index];
 }

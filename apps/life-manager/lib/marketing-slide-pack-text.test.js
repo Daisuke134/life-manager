@@ -43,6 +43,19 @@ test("local copy bank covers JA and EN for each supported family", async () => {
   }
 });
 
+test("a repeated hook keeps its coherent body sequence across scheduled slots", async () => {
+  for (const locale of ["ja", "en"]) {
+    const bodies = new Map();
+    for (let slot = 0; slot < 40; slot += 1) {
+      const copy = await generateSlideCopy({ familyId: "question-hook", locale, variantSeed: `slot-${slot}` });
+      if (bodies.has(copy.hook)) {
+        assert.deepEqual(copy.body, bodies.get(copy.hook), "slot rotation must not scramble the narrative attached to a hook");
+      } else bodies.set(copy.hook, copy.body);
+    }
+    assert.ok(bodies.size > 1, "different situations must still rotate");
+  }
+});
+
 test("slide copy rejects an unconfigured local family", async () => {
   await assert.rejects(generateSlideCopy({ familyId: "unknown-family", locale: "ja", variantSeed: "slot" }), /family unknown-family is not configured/);
 });
