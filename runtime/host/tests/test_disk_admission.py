@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import urllib.request
+from threading import Event
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -345,14 +346,14 @@ def _locked_capacity_package():
     archive = io.BytesIO()
     with tarfile.open(fileobj=archive, mode="w:gz") as stream:
         entry = tarfile.TarInfo("package/index.js")
-        entry.size = 8192
+        entry.size = 1024**2
         stream.addfile(entry, io.BytesIO(b"x" * entry.size))
     payload = archive.getvalue()
     package = {"version": "1.0.0", "resolved": "https://registry.npmjs.org/fixture/-/fixture-1.0.0.tgz",
                "integrity": "sha512-" + base64.b64encode(hashlib.sha512(payload).digest()).decode()}
     metadata = {"name": "fixture", "version": "1.0.0", "dist": {
         "tarball": package["resolved"], "integrity": package["integrity"],
-        "unpackedSize": 8192, "fileCount": 1,
+        "unpackedSize": entry.size, "fileCount": 1,
     }}
     return package, metadata, payload
 
@@ -370,6 +371,8 @@ def test_release_capacity_bootstraps_without_current(monkeypatch, tmp_path, empt
     monkeypatch.setattr(urllib.request, "urlopen", fetch)
     required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
     assert required > 64 * 1024**2
+    if not empty:
+        assert required >= 67 * 1024**2
     assert install is True
     assert requests == ([] if empty else ["https://registry.npmjs.org/fixture/1.0.0"])
     assert not (loops / "current").exists()
@@ -382,12 +385,16 @@ def test_release_capacity_measures_locked_tar_only_when_metadata_lacks_sizes(mon
     metadata["dist"].pop("fileCount")
     guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {"node_modules/fixture": package})
     requests = []
+    class TarResponse(io.BytesIO):
+        def read(self, size=-1):
+            assert size >= 0, "tarball must be measured as a bounded stream"
+            return super().read(size)
     def fetch(url, **_kwargs):
         requests.append(url)
-        return io.BytesIO(payload if url == package["resolved"] else json.dumps(metadata).encode())
+        return TarResponse(payload) if url == package["resolved"] else io.BytesIO(json.dumps(metadata).encode())
     monkeypatch.setattr(urllib.request, "urlopen", fetch)
     required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
-    assert required > 64 * 1024**2 + 2 * 8192
+    assert required > 66 * 1024**2
     assert install is True
     assert requests == ["https://registry.npmjs.org/fixture/1.0.0", package["resolved"]]
     assert not (loops / "dependency-bundles").exists()
@@ -402,10 +409,23 @@ def test_first_release_measurement_failure_remains_closed(monkeypatch, tmp_path,
         metadata["version"] = "2.0.0"
     if failure == "integrity":
         metadata["dist"].pop("unpackedSize")
-        payload = b"different locked tarball"
-    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {"node_modules/fixture": package})
+        package["integrity"] = metadata["dist"]["integrity"] = "sha512-" + base64.b64encode(
+            hashlib.sha512(b"different locked tarball").digest()).decode()
+    entries = {"node_modules/fixture": package}
+    if failure == "http":
+        entries.update({f"node_modules/fixture-{index}": {
+            **package, "resolved": package["resolved"].replace("/fixture/", f"/fixture-{index}/"),
+        } for index in range(8)})
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, entries)
+    requests = []
+    first_request = Event()
     def fetch(url, **_kwargs):
+        requests.append(url)
         if failure == "http":
+            if len(requests) == 1:
+                first_request.wait(0.1)
+            elif len(requests) > 8:
+                first_request.set()
             raise OSError("fixture registry unavailable")
         return io.BytesIO(payload if url.endswith(".tgz") else json.dumps(metadata).encode())
     monkeypatch.setattr(urllib.request, "urlopen", fetch)
@@ -413,6 +433,8 @@ def test_first_release_measurement_failure_remains_closed(monkeypatch, tmp_path,
     receipt = json.loads(capsys.readouterr().err)
     assert receipt["reason"] == "release_capacity_measurement_failed"
     assert receipt["effect"] == receipt["readback"] == 0
+    if failure == "http":
+        assert len(requests) <= 8
 
 
 @pytest.mark.parametrize("invalid", ("dangling", "descriptor"))

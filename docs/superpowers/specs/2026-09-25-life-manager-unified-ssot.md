@@ -320,7 +320,7 @@ INSTALLのpoll test修復: fake guardの起動遅延だけでは再現せず、s
 所有: workerはruntime/host/disk_admission.pyとruntime/host/tests/test_disk_admission.pyの初回容量分岐・回帰のみ、primaryは必要な既存cutter integration test、本仕様、review/CI/main/実導入を所有する。他者の変更を戻さず、実GC/cutter/private/provider/launchdは開発中に実行しない。
 
 - [x] INSTALL-FIRST-RED: primaryの既存cutter integrationへcurrent無し・空v3 lockの初回を追加する。free0/128MiBの両subtestsがFileNotFoundErrorで2 FAIL/1 PASS（1.76s）、collection/fixture/通信error0となる。期待は低容量時のexport/npm0・exit75と、健康時のfresh npm ci・ALL immutable・main provenance・current変更0。既存donorの不正拒否も保持する。workerの追加host9casesはsource変更前に3 FAIL/6 PASS/39 deselected（4.31s）。初回metadata/空依存/tar fallbackが同じFileNotFoundError、不正current2件と測定不能4件はfail-closedで、urllibは必要fake以外を全面blockする。
-- [ ] INSTALL-FIRST-GREEN: 既存方式と標準libraryの最小修復で初回fresh installを予算へ含め、関連capacity/cutter testsを通す。
+- [x] INSTALL-FIRST-GREEN: 標準libraryの限定修復後、workerのhost全48 PASS（5.64s）、primaryのhost/cutter/local-install4files全94 PASS/42subtests（36.51s）を実通信禁止・isolated HOMEで確認する。primary reviewでtar全読込みとHTTP失敗後のeager全要求を2 FAIL/3 PASSへ再現し、hashing stream＋残余drainと8件batchへ修復する。有効tarと異なるSRIを拒否し、初回空lockでもfresh flagを返す。AST3/source-boundary/diffをPASSする。実7locksのpublic read-only容量CLIは58.53s/exit0、required_bytes8676335616/fresh_install_budgeted=true、stderr0となる。current無し/release0を保持し、GC/展開/依存install/本人provider操作は0。
 - [ ] INSTALL-FIRST-SHIP: 独立read-only review、必要CI、main統合、公式source一致を確認する。
 - [ ] INSTALL-FIRST-ACTUAL: accepted main immutable経路から同じ公開installerを実行し、job別結果と不足本人入力を確認する。自然業務成果・別Mac・10,000 starsの未完は維持する。
 
