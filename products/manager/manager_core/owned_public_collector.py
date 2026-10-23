@@ -409,7 +409,47 @@ def collect_current_owned_delivery(journal, observed_at=None, *, get=None):
         current_sha=target['object']['sha']
         candidate=journal.record_for_receipt(current_sha)
         if candidate is not None:
-            evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=read)
+            packet=json.loads(candidate.packet_json)
+            if packet.get('schema')=='manager.digital-handoff.v1':
+                # The frozen seed predates the v2 deployment-run binding. Its
+                # saved receipt is usable only for read-only continuity after
+                # revalidating the exact provider commit, parent and both
+                # immutable seven-file bundles, then independently serving the
+                # same saved candidate. It grants no v1 send or rollback path.
+                unknown={'status':'UNKNOWN','effect_key':candidate.key,
+                    'receipt_ref':candidate.receipt_ref,
+                    'candidate_sha256':packet['candidate_sha256'],
+                    'observed_at':observed_at.isoformat(),'proof_ref':PUBLIC_BASE,
+                    'proof_level':'P0','reason':'EXACT_V1_RECEIPT_UNAVAILABLE',
+                    'human_outcome':'NOT_MEASURED'}
+                occurrence=collect_owned_occurrence(candidate.key,journal,observed_at,get=get)
+                if (type(occurrence) is not OwnedOccurrenceEvidence or
+                        occurrence.receipt.get('sha')!=candidate.receipt_ref or
+                        occurrence.parent_commit!=candidate.expected_parent or
+                        occurrence.committed_manifest!=packet['candidate'] or
+                        occurrence.parent_manifest!=packet['baseline']):
+                    evidence=unknown
+                else:
+                    evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=get)
+                    if (evidence.get('status')=='VERIFIED' and
+                            evidence.get('effect_key')==candidate.key and
+                            evidence.get('receipt_ref')==candidate.receipt_ref and
+                            evidence.get('candidate_sha256')==packet['candidate_sha256']):
+                        target_again=json.loads(read(target_url))
+                        if (type(target_again) is dict and
+                                target_again.get('ref')=='refs/heads/gh-pages' and
+                                type(target_again.get('object')) is dict and
+                                target_again['object'].get('type')=='commit' and
+                                target_again['object'].get('sha')==current_sha):
+                            evidence=dict(evidence,reason='EXACT_CURRENT_V1_SERVED_BUNDLE')
+                        else:
+                            evidence=dict(unknown,
+                                reason='CURRENT_TARGET_CHANGED_DURING_READBACK')
+                    else:
+                        evidence=dict(unknown,reason=evidence.get(
+                            'reason','EXACT_V1_SERVED_BUNDLE_UNCONFIRMED'))
+            else:
+                evidence=collect_owned_delivery(candidate.key,journal,observed_at,get=read)
             return {'kind':'candidate','effect_key':candidate.key,
                     'receipt_ref':candidate.receipt_ref,'evidence':evidence}
         rollback=journal.rollback_for_receipt(current_sha)

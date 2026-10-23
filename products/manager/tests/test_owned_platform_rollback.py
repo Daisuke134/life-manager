@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from test_candidate_verification import NOW
 from test_owned_platform_host import github_environment, platform_fixture
 from manager_core.digital_handoff import (ALLOWED_PATHS, MAIN_REF, REPOSITORY, WORKFLOW,
-    PublisherContext, commit_message, plan_release)
+    SOURCE_REF, PublisherContext, commit_message, plan_release)
 from manager_core.owned_checkpoint import PrivateCheckpoint
 from manager_core.owned_cycle import CycleConfig, CycleStore, run_owned_cycle
 from test_digital_handoff import manifest
@@ -31,6 +31,17 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
         store.journal.reserve(packet,publisher,packet['baseline'],packet['candidate'],
                               parent_sha,NOW)
         store.journal._present(packet['effect_key'],candidate_sha)
+
+    @staticmethod
+    def _copy_saved_v1_receipt(store, packet, source_journal):
+        source=source_journal.record(packet['effect_key'])
+        publisher=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,
+            packet['candidate']['source_commit'],'12345')
+        store.journal.reserve(packet,publisher,packet['baseline'],packet['candidate'],
+                              source.expected_parent,NOW)
+        store.journal._present(packet['effect_key'],source.receipt_ref)
+        store.journal.save_delivery(packet['effect_key'],
+                                    source_journal.delivery_record(packet['effect_key']))
 
     def _install_candidate_commit(self, host, store, *, stop=True):
         from manager_core.reconcile import OwnedOccurrenceEvidence
@@ -374,6 +385,62 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
             self.assertFalse(store.stopped())
             self.assertEqual(store.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
             prepare.assert_not_called();send.assert_not_called()
+
+    def test_current_v1_seed_allows_healthy_cycle_to_reach_not_due(self):
+        from test_owned_public_collector import PublicCollectorTests
+        from scripts import phase06_kernel_release as release
+
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            conf,store,host,_,_,_,_,_=platform_fixture(root/'platform')
+            packet,source_journal,_,_,_,urls=PublicCollectorTests().prepare_v1_current_fixture(
+                root/'v1-fixture')
+            self._copy_saved_v1_receipt(store,packet,source_journal)
+            self.assertTrue(store.due(conf,NOW))
+            def get(url):
+                self.assertIn(url,urls,'current v1 cycle used an unexpected public endpoint')
+                return urls[url]
+            with patch.dict('os.environ',github_environment(),clear=True), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(release,'public_get',side_effect=get):
+                result=run_owned_cycle(conf,store,host=host,now=NOW)
+            self.assertEqual(result['status'],'NOT_DUE')
+            self.assertFalse(store.stopped())
+            self.assertEqual(store.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+
+    def test_current_v1_seed_can_resume_only_after_fresh_verified_readback(self):
+        from test_owned_public_collector import PublicCollectorTests
+        from scripts import run_owned_digital_cycle as cli
+        from scripts import phase06_kernel_release as release
+
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            _,store,host,gateway,_,_,_,pages=platform_fixture(root/'platform')
+            packet,source_journal,_,_,_,urls=PublicCollectorTests().prepare_v1_current_fixture(
+                root/'v1-fixture')
+            self._copy_saved_v1_receipt(store,packet,source_journal)
+            store.stop()
+            host.checkpoint.save();host.checkpoint.release()
+            context={'run_id':'123','attempt':'1','source_sha':'b'*40,
+                     'runner_temp':root,'pages_root':pages.root}
+            def get(url):
+                self.assertIn(url,urls,'current v1 resume used an unexpected public endpoint')
+                return urls[url]
+            with patch.dict('os.environ',github_environment(),clear=True), \
+                 patch.object(cli,'_check_main_context',return_value=context), \
+                 patch.object(cli,'_private_fresh_root',return_value=root/'resume-v1-private'), \
+                 patch.object(cli,'PrivateCheckpoint',side_effect=lambda **kwargs:
+                              PrivateCheckpoint(gateway,**kwargs)), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(release,'public_get',side_effect=get):
+                code,summary=cli.run_control('resume',root/'unused',pages.root)
+            self.assertEqual(code,0,summary)
+            self.assertEqual(summary['status'],'RESUMED_BY_OWNER')
+            checkpoint=PrivateCheckpoint(gateway,run_id='123',run_attempt='1')
+            db_path=checkpoint.acquire(root/'verify-v1-resume')
+            restored=CycleStore(db_path.parent)
+            self.assertFalse(restored.stopped())
+            self.assertEqual(restored.journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
 
     def test_resume_refuses_uncertain_occurrence_without_clearing_stop(self):
         from scripts import run_owned_digital_cycle as cli

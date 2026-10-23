@@ -21,6 +21,38 @@ from manager_core.reconcile import reconcile_owned
 
 
 class PublicCollectorTests(unittest.TestCase):
+    def prepare_v1_current_fixture(self, tmp):
+        packet,git,journal,publisher=recovery.OwnedRecoveryTests().prepare(tmp)
+        journal.reserve(packet,publisher,packet['baseline'],packet['candidate'],git.parent,NOW)
+        receipt_sha=git.send(git.parent)
+        journal._present(packet['effect_key'],receipt_sha)
+        occurrence=git.evidence(receipt_sha)
+        observed_at=datetime.now(timezone.utc)+timedelta(seconds=1)
+        journal.save_delivery(packet['effect_key'],{
+            'status':'VERIFIED','effect_key':packet['effect_key'],'receipt_ref':receipt_sha,
+            'candidate_sha256':packet['candidate_sha256'],'observed_at':observed_at.isoformat(),
+            'proof_ref':PUBLIC_BASE,'proof_level':'P2','reason':'EXACT_SERVED_CANDIDATE',
+            'human_outcome':'NOT_MEASURED'})
+        target_url=f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/gh-pages'
+        list_url=(f'https://api.github.com/repos/{REPOSITORY}/commits'
+                  '?sha=gh-pages&per_page=100&page=1')
+        detail_url=f'https://api.github.com/repos/{REPOSITORY}/commits/{receipt_sha}'
+        urls={
+            target_url:json.dumps({'ref':'refs/heads/gh-pages',
+                'object':{'type':'commit','sha':receipt_sha}}).encode(),
+            list_url:json.dumps([{'sha':receipt_sha,
+                'commit':{'message':occurrence.receipt['commit']['message']}}]).encode(),
+            detail_url:json.dumps(occurrence.receipt).encode(),
+        }
+        for commit,bodies in ((receipt_sha,occurrence.committed_bodies),
+                              (git.parent,occurrence.parent_bodies)):
+            for name,raw in bodies.items():
+                urls[f'https://raw.githubusercontent.com/{REPOSITORY}/{commit}/manager-support/{name}']=raw
+        urls[PUBLIC_BASE+'manifest.json']=json.dumps(packet['candidate']).encode()
+        urls.update({PUBLIC_BASE+name:raw for name,raw in occurrence.committed_bodies.items()
+                     if name!='manifest.json'})
+        return packet,journal,receipt_sha,observed_at,target_url,urls
+
     def provider_fixture(self, tmp):
         packet, git, journal, context = recovery.OwnedRecoveryTests().prepare(tmp)
         journal.reserve(packet, context, packet['baseline'], packet['candidate'], git.parent, NOW)
@@ -300,3 +332,61 @@ class PublicCollectorTests(unittest.TestCase):
             self.assertEqual(result['kind'],'rollback')
             self.assertEqual(result['evidence'],expected)
             observe.assert_called_once_with(rollback['effect_key'],journal,NOW,get=get)
+
+    def test_current_v1_receipt_gets_fresh_provider_parent_and_served_p2(self):
+        collector=importlib.import_module('manager_core.owned_public_collector')
+        from scripts import phase06_kernel_release as release
+
+        with TemporaryDirectory() as tmp:
+            packet,journal,receipt_sha,observed_at,target_url,urls=self.prepare_v1_current_fixture(tmp)
+            def get(url):
+                self.assertIn(url,urls,'v1 current collector used an unexpected public endpoint')
+                return urls[url]
+            with patch.object(release,'public_get',side_effect=get):
+                current=collector.collect_current_owned_delivery(journal,observed_at)
+            self.assertEqual(current['kind'],'candidate')
+            self.assertEqual(current['effect_key'],packet['effect_key'])
+            self.assertEqual(current['receipt_ref'],receipt_sha)
+            self.assertEqual(current['evidence']['status'],'VERIFIED')
+            self.assertEqual(current['evidence']['proof_level'],'P2')
+            self.assertEqual(current['evidence']['reason'],'EXACT_CURRENT_V1_SERVED_BUNDLE')
+            self.assertEqual(journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')
+            saved=journal.record(packet['effect_key'])
+            self.assertFalse(saved.dispatch)
+            self.assertEqual(json.loads(saved.packet_json),packet)
+            from manager_core.outbox import plan_owned_rollback
+            with self.assertRaises(ValueError):
+                plan_owned_rollback(packet,receipt_sha,saved.expected_parent,observed_at,
+                                    controller_sha='b'*40)
+
+    def test_current_v1_source_target_or_served_body_mismatch_stays_unknown(self):
+        collector=importlib.import_module('manager_core.owned_public_collector')
+        from scripts import phase06_kernel_release as release
+
+        for failure in ('source','sha','body','move'):
+            with self.subTest(failure=failure),TemporaryDirectory() as tmp:
+                packet,journal,receipt_sha,observed_at,target_url,urls=self.prepare_v1_current_fixture(tmp)
+                if failure=='source':
+                    key=f'https://raw.githubusercontent.com/{REPOSITORY}/{receipt_sha}/manager-support/manifest.json'
+                    changed=json.loads(urls[key]);changed['source_commit']='e'*40
+                    urls[key]=json.dumps(changed).encode()
+                elif failure=='sha':
+                    target=json.loads(urls[target_url]);target['object']['sha']='e'*40
+                    urls[target_url]=json.dumps(target).encode()
+                elif failure=='body':
+                    urls[PUBLIC_BASE+'finance.html']+=b'\n'
+                target_reads=0
+                def get(url):
+                    nonlocal target_reads
+                    self.assertIn(url,urls,'v1 current collector used an unexpected public endpoint')
+                    if failure=='move' and url==target_url:
+                        target_reads+=1
+                        if target_reads>1:
+                            return json.dumps({'ref':'refs/heads/gh-pages',
+                                'object':{'type':'commit','sha':'e'*40}}).encode()
+                    return urls[url]
+                with patch.object(release,'public_get',side_effect=get):
+                    current=collector.collect_current_owned_delivery(journal,observed_at)
+                self.assertIn(current['kind'],('candidate','unmatched'))
+                self.assertEqual(current['evidence']['status'],'UNKNOWN')
+                self.assertEqual(journal.delivery_record(packet['effect_key'])['status'],'VERIFIED')

@@ -423,7 +423,8 @@ class OwnedEffectJournal:
         if len(rows)!=1:return None
         from .digital_handoff import validate_intent
         row=rows[0];packet=json.loads(row[1]);validate_intent(packet)
-        return OwnedEffectRecord(*row) if packet.get('schema')=='manager.digital-handoff.v2' else None
+        return OwnedEffectRecord(*row) if packet.get('schema') in (
+            'manager.digital-handoff.v1','manager.digital-handoff.v2') else None
 
     def rollback_for_receipt(self,receipt_ref):
         """Resolve one current Pages SHA to its unique saved rollback receipt."""
