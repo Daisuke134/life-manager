@@ -2,7 +2,7 @@
 
 **2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、現在cursorは **E16**、受入順は **F005 → F006 → F008 → F009**。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **69 done / 41 todo / 3 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
 
-**2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。STOPの別runnerでの維持と明示resume、finance/mentalの公式commitと公開7ファイル一致、再送0件のcurrent proofとnative P1/P2のExplorer接続を実確認しました。両初回cycleのUNKNOWN／writes=nullは保持します。mental後の限定rollbackの実配信等が残り、E16は維持します。下の2026-10-22時点のhost未実装やRailway前提は履歴です。Remote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加の検証adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
+**2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。STOPの別runnerでの維持と明示resume、finance/mentalの公式commitと公開7ファイル一致、再送0件のcurrent proofとnative P1/P2のExplorer接続を実確認しました。両初回cycleのUNKNOWN／writes=nullは保持します。rollbackのパス形式修正はPR8632でmain統合済み。限定復元の初回run39907087699はUNKNOWN／writes=nullですが、公式commit `c6d5de0`、Pages成功、05:46 UTCの独立GETでfinanceの旧7ファイルへの復元を確認しました。この外部事実で初回UNKNOWNを上書きせず、fresh resume39907673029で保存済みintentを照合中です。復元後のresume／通常cycle／replay等が未受入のためE16は維持します。下の2026-10-22時点のhost未実装やRailway前提は履歴です。Remote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加の検証adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
 
 **2026-10-23 研究の実証更新:** 公開予測70研究のB診断、CのTwin構造gateとreleased outputの記述的一致・公式normalized-MAD監査はmain統合済みです。Cの生成来歴はUNVERIFIED、run binding／training exposureはUNKNOWN、predictive accuracyはnull、scientific passはfalseのままです。Python3.12の隔離環境で固定依存と公式scorerのimport依存を揃え、C aggregateの全bytes一致とB/C 73 testsを確認しました。方法・任意依存の再現手順は[公開研究の再利用計画](../../../docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)を参照。Dは [PR8593](https://github.com/Daisuke134/life-manager/pull/8593) で、予定FOMC会合（10月27–28日）の参照予測を結果前に公開固定しました。固定した過去頻度ルールの `p=0.25` はbaselineと同値です。cloudとMacで、GitHub serverのmerge時刻 `2026-10-23T02:16:17Z`・merge commit `f6055f9460502cd79cba95ffadecb998439e1056`・正確なpayload `048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2` を独立に読み戻し、既存attesterの `VERIFIED_PROSPECTIVE` を得ました。これは参照予測の事前固定の証拠です。将来結果と採点、独立したモデル推論の性能、校正・汎化、人への便益は未検証です。§21のA–F全体や原113件を一括完了にしません。
 
@@ -17,7 +17,7 @@
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
-**2026-10-23確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のgateway/runtimeは通常mainへ統合し、既存Actions＋Supabase private checkpointで実OIDCと別fresh runnerの状態復元・重複公開0を確認しました。`DEPLOYMENT_HOST_REQUIRED`という旧説明は現在の再開条件ではありません。finance/mentalのP1/P2とnative Explorer接続、durable STOPとresumeは実確認済みです。mental後の限定rollbackの実配信等が残るため、Digital Autonomy v0.1全体とE16は未完了です。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
+**2026-10-23確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のgateway/runtimeは通常mainへ統合し、既存Actions＋Supabase private checkpointで実OIDCと別fresh runnerの状態復元・重複公開0を確認しました。`DEPLOYMENT_HOST_REQUIRED`という旧説明は現在の再開条件ではありません。finance/mentalのP1/P2とnative Explorer接続、durable STOPと最初のresume、mental後の限定rollbackの外部配信は実確認済みです。復元後のjournal照合・resume／通常cycle／replay等が未受入のため、Digital Autonomy v0.1全体とE16は未完了です。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
@@ -45,7 +45,7 @@
 |---|---|---|
 | 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
 | no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。日常の専用chat/dashboard操作を必要としない限定経路 | 広い環境で課題を見つけ、長期目標・既存channel・実結果をつないで活動する全経路の実証。初期設定・停止・監査の入口は存在する |
-| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認。mental後の明示STOPも公式ACK済み | E16全体の受入。実rollback39901996368はパス形式の不一致で書込み0件のまま停止。実形式テストと修正・レビュー後に、復元配信とresume/replayを再検証 |
+| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commitと独立GET、別runnerでの照合・再送0件・native P1/P2を確認。STOP後に修正PR8632をmain統合し、実rollback `c6d5de0` とPages／独立GETでfinanceの7ファイルへの復元を確認。mentalのcueは現在除去済み | E16全体の受入。旧rollback39901996368は書込み0で停止、新rollback39907087699の初回応答はUNKNOWN／writes=null。外部復元を理由にこの履歴を成功へ変更せず、fresh resume39907673029とその後の通常cycle／replayを検証中 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
 | humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。研究branchに既存adapterあり | 現在のowned mainは決定論的plannerで、Ampersand推論は未接続。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
@@ -59,6 +59,8 @@ mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/acti
 一貫した使命・状態・記憶・判断・行動・省察を持つ **one entity, blessing for all** を目指す。複数model、専門agent、adapter、hostを内部で使っても、使命・責任・版付き状態・実行記録を一つの主体へ結ぶ。`one model`は最初に巨大な独自モデルを学習する要求ではない。現在の単一writerだけで、この広い意味の統一主体が完成したとは認定しない。
 
 **no UI:** 利用者が日常的にManager専用app・chat画面・dashboardを開いて指示することを、価値提供の前提にしない。初期の使命・scope・予算設定の後、観測・既存event・APIを受けて活動し、必要な対話や通知は適切な既存channelへ届ける。毎runの指示・承認を必要としない。確認・訂正・停止・異議・監査の入口は保持する。`manager-support/`はManagerを操作するUIではなく、現在の実行・readback・復旧を検証する公開対象である。
+
+目標の利用体験は、生活や仕事で既に使う環境の中で、必要な情報・支援へのアクセスや手順が改善され、対話が必要な場面だけ既存channelで対話すること。入力は現実のeventと観測、出力は検証された作用と必要な通知、記憶は共通の版付き状態、結果は実際の便益・害・費用としてつながる。Managerとの会話量、画面数、説得への同意率を成功指標の代わりにしない。これは目標の体験であり、現在の7パス限定loopが全経路を実証したという意味ではない。
 
 | 概念 | 主体の中での意味 | 実証すべきもの |
 |---|---|---|
@@ -99,7 +101,7 @@ flowchart LR
 
 | 順序 | 作業と既存ファイル | 完了の判定 |
 |---|---|---|
-| 1 | E16: `scripts/run_owned_digital_cycle.py` と `.github/workflows/manager-phase06-service.yml` の既存 `stop → rollback → resume → run-once`。新ownerや別schedulerを作らない | mentalの現在commitと親financeをCASで結び、許可7パスのみ旧bundleへ戻った実commit・Pages配信・独立GET、fresh runner再送0を確認。UNKNOWNは再送しない |
+| 1 | E16: `scripts/run_owned_digital_cycle.py` と `.github/workflows/manager-phase06-service.yml` の既存 `stop → rollback → resume → run-once`。新ownerや別schedulerを作らない | `c6d5de0` のparentがmental `374cb9a`、復元bytesがfinance `61909d2` の許可7パスと一致することは確認済み。残るfresh runnerのjournal照合・resume・通常cycle／再送0を確認。UNKNOWNのrollbackを再送しない |
 | 2 | E16: `docs/verification/E16_CLOUD_EXECUTION_20261023.md` にsource別CI・実P1/P2・復旧・native units・費用と限界をまとめる | 元の固定時計catch-up/競合/負metricテストと実復旧の各要件を照合後にのみ、`tasks.json` のE16 receipt/cursorを更新 |
 | 3 | F005→F006→F008→F009: 同じreceipt、`public_good_readback.py`、既存report/evidence契約を再利用 | 2テーマを別々に受入れ、統合reportで技術P2と人のP3/P4未測定を区別。4件を文書の存在だけでdoneにしない |
 | 4 | U002→U003→U004、U005/U006→U007→U008: `docs/product/FIRST_WEDGE.md`、`pilot/FIRST_STUDY.md`、`docs/product/PROOF_EXPLORER.md`、既存outcome/causal契約 | 5件以上の実面談で問題を確かめ、対象と比較を固定し、実利用・便益／害／費用・継続意思を出典付きで確認。架空参加者や支払を補わない |

@@ -1,6 +1,6 @@
 {
   "schema": "manager.phase06-digital-v2-result.v1",
-  "report_version": 2,
+  "report_version": 3,
   "created_at": "2026-10-23T05:10:04.421349+00:00",
   "report_role": "Versioned occurrence evidence report; task statuses only in ../roadmap/tasks.json. Filename follows the 2026-10-22 scope amendment; observations are dated 2026-10-23 UTC.",
   "scope_version": 2,
@@ -402,13 +402,102 @@
     "failed_rollback_result": "ROLLBACK_BLOCKED",
     "failed_rollback_reason": "IMMUTABLE_PARENT_UNAVAILABLE",
     "failed_rollback_writes": 0,
-    "rollback_commit": null,
-    "restored_readback": null,
-    "resume_after_rollback": null,
+    "rollback_commit": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+    "restored_readback": {
+      "all_seven_http_200": true,
+      "all_seven_match_immutable_finance_619_bytes": true,
+      "base_url": "https://daisuke134.github.io/life-manager/manager-support/",
+      "files": {
+        "control.html": {
+          "bytes": 4384,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "f32f15aa0a50d119ccd25949cc3a4cb2ccf882285fb49b068b4954ddb7e926a9"
+        },
+        "finance.html": {
+          "bytes": 4667,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "504e663330bb25c7f24b65a6dbb187778ffc373633d6549f64c679a3c493d6e9"
+        },
+        "index.html": {
+          "bytes": 4457,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "ba6016142788cd89516b1cf0360979b0ddd9697a23038fb31e16ae85eabddd1e"
+        },
+        "manifest.json": {
+          "bytes": 773,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "9a76195a6bd0550a9458daf3b8da9ee5380b23225acc0899c3d04efcda92dcad"
+        },
+        "mental.html": {
+          "bytes": 4435,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "c1e54455b826e935d433a8d24f8670f7e4b78485243e44cc73ac1b12f3e15201"
+        },
+        "physical.html": {
+          "bytes": 4235,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "6df426dd816ffd18fdf2eedb620ac37884d526d5a1fb581039561eb44586da18"
+        },
+        "proof.html": {
+          "bytes": 4668,
+          "http_status": 200,
+          "matches_immutable_finance_619_bytes": true,
+          "sha256": "ae5ff39d3ed230ccc24dca8e439168955eb1dee91d58678b31739702318e0d23"
+        }
+      },
+      "finance_current_page_cue": true,
+      "mental_current_page_cue": false,
+      "observed_at_utc": "2026-10-23T05:46:02.332414+00:00"
+    },
+    "resume_after_rollback": {
+      "run_id": 39907673029,
+      "status": "PENDING",
+      "requested_operation": "resume",
+      "expected_source": "808d041052c05f766d9b9755e417ec057c122f60"
+    },
     "fresh_replay_after_rollback": null,
-    "known_current_pages_commit": "374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f",
+    "known_current_pages_commit": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
     "current_control_state": "STOPPED",
-    "last_control_observed_at": "2026-10-23T04:47:33.5565330Z"
+    "last_control_observed_at": "2026-10-23T04:47:33.5565330Z",
+    "last_control_observation_scope": "Official pre-send rollback refusal retained STOP; the later public GET does not observe private control or journal state. Fresh resume acceptance is pending.",
+    "rollback_parent": "374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f",
+    "restored_baseline": "61909d20220fcf14132a6f5f459ce19796f1fc2d",
+    "journal_rollback_acceptance": "PENDING_FRESH_RESUME",
+    "subsequent_rollback_attempt": {
+      "run_id": 39907087699,
+      "source_commit": "5f1f8ed9188d611ab0d43134ac750f0f65d50a0f",
+      "official_summary": {
+        "E16_ACCEPTANCE": "INCOMPLETE",
+        "authentication": "GATEWAY_ACKNOWLEDGED",
+        "human_outcome": "NOT_MEASURED",
+        "positive_canary": "NOT_RUN",
+        "proof_level": null,
+        "reason": "ROLLBACK_RECEIPT_PENDING",
+        "receipt_sha": null,
+        "rollback_delivery": null,
+        "source_sha": "5f1f8ed9188d611ab0d43134ac750f0f65d50a0f",
+        "status": "UNKNOWN",
+        "writes": null
+      },
+      "official_summary_at": "2026-10-23T05:43:52.7579107Z",
+      "publisher_job_id": 120261729573,
+      "official_log_sha256": "4cbf6ee33d75a8583b18d672fb3d126093cf7f678f6343cf52b59c76a7ab12ed",
+      "independent_provider_commit": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+      "parent": "374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f",
+      "effect_sha256": "d0e5aded43913bebebcaf28575d5336d0786cfb999b2c52d704741e9a265bf80",
+      "only_seven_allowed_paths_changed": true,
+      "pages_run_id": 39907376445,
+      "pages_run_conclusion": "success",
+      "pages_run_head": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+      "original_unknown_preserved": true,
+      "rollback_resent": false
+    }
   },
   "limits": [
     "Two topic pages share one site, owner and technical pipeline; they are not independent human trials or independent field replications.",
