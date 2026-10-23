@@ -1,5 +1,7 @@
 # E16 — cloud実行と残る受入れ（2026-10-23 UTC）
 
+finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/current proof・NO_ACTION/NOT_DUE・欠測・費用・害は、[版付きv2結果](PHASE06_DIGITAL_V2_RESULT_20261022.json)に対応付けています。現版はE16回復とF個別受入の判定待ちであり、台帳の状態を変更するものではありません。
+
 現在の実行先は、既存GitHub Actions ownerと既存Supabase stagingの非公開checkpointです。Mac mini、Railwayの新worker・volume、長期tokenの新規提供は再開条件ではありません。本記録は過去のhost未接続という説明を更新します。タスク状態の正本は引き続き `../roadmap/tasks.json`、E16は未完了です。
 
 ## 実施して確認したこと

@@ -1,4 +1,8 @@
-# E16 — reference cycle verified; production deployment blocked
+# E16 — historical reference-cycle and deployment-gate record
+
+**2026-10-23 current-state pointer:** The deployment-host blocker below describes the saved 2026-10-22 reference implementation. The actual main runtime now uses the existing Actions owner and Supabase checkpoint. Finance/mental provider commits, independent public-byte readbacks, durable STOP and resume have been observed. The latest scoped rollback was blocked with zero writes; its repair and real recovery acceptance remain pending. Read [the current execution receipt](E16_CLOUD_EXECUTION_20261023.md) and `../roadmap/tasks.json` before resuming. Do not create a Railway or Mac owner to satisfy this historical gate.
+
+## Saved 2026-10-22 baseline
 
 **Stage remains E16 / DEPLOYMENT_HOST_REQUIRED. Digital Autonomy v0.1 is not deployed.**
 
