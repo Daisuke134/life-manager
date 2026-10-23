@@ -263,3 +263,15 @@ def test_publish_flags_preserve_utf8_and_one_shell_argument_across_locales() -> 
             flags = result.stdout.decode('utf-8').split('\0')[:-1]
             assert flags == ['--title-must-contain', query,
                              '--indexnow-key', 'test']
+
+
+def test_every_distributable_seller_has_issued_blog_and_x_promotion_links() -> None:
+    # Capafy counts a ?ct= visit only when that token was created in the seller console, and it
+    # rewrites the name (hyphens -> underscores). A skill without an issued pair is measured as zero.
+    import re
+
+    text = SCRIPT.read_text()
+    block = text[text.index('case "$CAPAFY_SKILL_SLUG" in'):text.index("esac", text.index('case "$CAPAFY_SKILL_SLUG" in'))]
+    mapped = dict(re.findall(r"^\s{2}([a-z-]+)\) CAPAFY_CT=(\w+); X_CT=\w+ ;;", block, re.M))
+    assert mapped["tiktok-series-continuity-planner"] == "tiktok_series_blog"
+    assert "X_CT=tiktok_series_x" in block

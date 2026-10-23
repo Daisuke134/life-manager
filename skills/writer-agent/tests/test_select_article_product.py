@@ -29,13 +29,14 @@ def load_config() -> dict:
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
-def test_config_has_six_named_best_sellers_with_real_agent_ids():
+def test_config_has_seven_named_best_sellers_with_real_agent_ids():
     config = load_config()
     skills = config["products"]["capafy-skills"]["skills"]
-    assert len(skills) == 6
+    assert len(skills) == 7
     expected_agent_ids = {
         "8123079349", "8828622062", "9563867391",
         "2844813315", "7686597754", "3798949471",
+        "9425449917",  # TikTok Series Continuity Planner: first no-trial weekly sale, 2026-10-23
     }
     assert {skill["agent_id"] for skill in skills.values()} == expected_agent_ids
     for slug, skill in skills.items():

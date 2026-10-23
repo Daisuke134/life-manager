@@ -39,6 +39,16 @@
             "hook"
           ]
         },
+        "tiktok-series-continuity-planner": {
+          "agent_id": "9425449917",
+          "buyer_problem": "a creator posting a recurring TikTok series loses the thread between episodes and cannot write the next one without contradicting what viewers already know.",
+          "seo_seed": "plan next episode of a tiktok series",
+          "seo_core_terms": [
+            "tiktok series",
+            "series planner",
+            "episode"
+          ]
+        },
         "slide-maker": {
           "agent_id": "8828622062",
           "buyer_problem": "turning a raw outline into a presentable slide deck eats hours the person doesn't have before a pitch or class.",
