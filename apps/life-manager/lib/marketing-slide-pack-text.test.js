@@ -56,6 +56,28 @@ test("a repeated hook keeps its coherent body sequence across scheduled slots", 
   }
 });
 
+test("each locale offers 72 distinct hooks and avoids formatting-only repeats", async () => {
+  const normalize = (text) => text.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  for (const locale of ["ja", "en"]) {
+    const allHooks = new Set();
+    for (const familyId of Object.keys(FAMILY_BRIEFS_BY_LOCALE[locale])) {
+      const seen = new Set();
+      const avoidTexts = [];
+      for (let variant = 0; variant < 24; variant += 1) {
+        const copy = await generateSlideCopy({ familyId, locale, variantSeed: "same-seed", avoidTexts });
+        const key = normalize(copy.hook);
+        assert.ok(!seen.has(key), `${locale}/${familyId} repeats after only ${seen.size} hooks`);
+        seen.add(key);
+        allHooks.add(key);
+        avoidTexts.push(normalize(copy.hook).toLocaleUpperCase());
+        assert.equal(copy.body.length, 4);
+        assert.equal(copy.costUsd, 0);
+      }
+    }
+    assert.equal(allHooks.size, 72);
+  }
+});
+
 test("slide copy rejects an unconfigured local family", async () => {
   await assert.rejects(generateSlideCopy({ familyId: "unknown-family", locale: "ja", variantSeed: "slot" }), /family unknown-family is not configured/);
 });
