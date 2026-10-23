@@ -1,5 +1,17 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## README整理とMac導入の継続修復
+
+**目的・範囲:** READMEを初めて使う人が用途とMac導入をすぐ理解できる長さへ整理し、公開bootstrapから本人のMacで起動する経路の再現済み不具合を修復する。人気公開repoの実READMEとinstallerを一次資料として比較する。WebMCP/ハッカソン、個別運用履歴、内部owner名は入口から外し、必要な詳細は既存docsへ案内する。既存MAC02–05の全agent・本人設定・自然実行の受入範囲は維持し、別Mac実機やprovider成果を隔離テストで代用しない。他sessionのworktree、production browser、進行中effectは変更しない。
+
+**完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
+
+**順序・現在cursor:** 既存MAC01とMAC04 source受入を保持し、README-MAC-01（比較・入口整理）とREADME-MAC-02（公開導入の呼出し境界診断・修復）を並行、統合後に既存MAC02–05へ戻る。理由は、前回の共通installerがPR #8617でmainへ入っており、再実装せず公開入口と残る停止点を直すため。所有worktree=`.worktrees/readme-mac-product-20261023`、branch=`fix/readme-mac-product-20261023`、owner=`codex-readme-mac-product`。旧portability worktreeは別ownerのleaseを維持する。
+
+- [ ] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。
+- [ ] README-MAC-02: 現mainの公開導入を検証し、再現した不具合を最小修復する。
+- [ ] README-MAC-03: focused/context/contract、review、CI、main、公開readbackを確認し残る実機条件を記録する。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
