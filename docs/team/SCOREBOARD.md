@@ -3,15 +3,25 @@
 数字はこのファイルが正本。出典のある数字だけ書く。推測・未確認は書かない（不明は「未計測」）。
 更新したら該当行の「更新(JST)」と「出典」を書き換え、BOARD.md のログに1行追記する。
 
-## 最新（毎時更新） 2026-10-23 22:12 JST
+## 最新（毎時更新） 2026-10-23 23:16 JST
 
 | 項目 | 値 | 出典 |
 |---|---|---|
-| 共有応募台帳 行数 | 29（applied 21 / claimed 4 / listed 2 / needs-owner 2） | `ledger/APPLICATIONS.md` @ origin/main 8114f92c39 |
-| Coconala 応募（今日JST） | 29件 | `~/gig/applied.jsonl` status==applied, ts>=今日0時JST |
+| 共有応募台帳 行数 | 29（applied 21 / claimed 4 / listed 2 / needs-owner 2） | `ledger/APPLICATIONS.md` @ origin/main 3c07308015 |
+| Coconala 応募（今日JST） | 31件 | `~/gig/applied.jsonl` status==applied, ts>=今日0時JST |
 | Writer 有料記事 公開（今日） | 0本（台帳行 3） | `~/.local/state/life-manager/writer/articles.jsonl` live_url あり |
-| Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-23T11:07:54Z |
-| PromptBase 売上 | 0件 / $0.0 | `promptbase-sales.json` observed_at 2026-10-23T08:52:15Z |
+| Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-23T13:21:44Z |
+| PromptBase 売上 | 0件 / $0.0 | `promptbase-sales.json` observed_at 2026-10-23T13:24:33Z |
+
+## 2026-10-23 夜（参謀依頼）
+
+| 項目 | 値 | 時刻 | 出典 |
+|---|---|---|---|
+| Grok for Startups 提出 | 提出済み | 22:32 JST | 参謀(daisuke/cursor) の Reason 報告 2026-10-23。`ledger/APPLICATIONS.md` には未記載（照合未了） |
+| Coconala 提案 5338722 | applied ¥10,000 | 22:02 JST | `~/gig/applied.jsonl` requestId=5338722 status=applied |
+| Coconala 提案 5338965 | applied ¥30,000 | 22:02 JST | `~/gig/applied.jsonl` requestId=5338965 status=applied |
+| Coconala 提案 5341300 | applied ¥80,000 | 22:02 JST | `~/gig/applied.jsonl` requestId=5341300 status=applied |
+| 今夜の売上 | ¥0 | 23:00 JST 時点 | 参謀の Reason 報告。ローカルの Coconala 売上台帳（`~/gig/earnings.jsonl`）は 9/27 で停止のため未照合 |
 
 ## 売上 / MRR
 
