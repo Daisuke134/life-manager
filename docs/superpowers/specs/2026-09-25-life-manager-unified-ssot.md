@@ -23315,6 +23315,12 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 ## Anicca旗艦・公開6アプリの配信と継続課金
 
+**4アプリ正式登録のsource範囲:** Dhamma Quotes (`dhamma-quotes` / `6757726663`)、Sleep Reset (`sleep-reset` / `6762143790`)、STUDIO CHERIE (`studio-cherie` / `6766485903`)、Thankful (`thankful` / `6759514159`) を既存marketing product registryの正式manifestへ移し、同じ差分でTreg extrasの4行を除く。既存の商品事実・対象者・App Store URLを保ち、投稿経路・account・timer・hook・copy生成・Apple campaign validatorは変更しない。未登録のSNS accountは空のままとし、Anicca/Honneのaccountやslotを転用しない。
+
+**4アプリ正式登録の受入とcursor:** 専用 `.worktrees/mobile-four-app-products-20261023` / `feat/mobile-four-app-products-20261023`、owner lease `codex-four-app-products-20261023` がsourceだけを所有する。最小testは変更前に4商品の正式未登録で1件FAIL、移行後はTreg既存分を含む5件とschema/実loader/1account=1product等のrouting17件、diff checkがPASS。4商品のformal＋extrasのunionは各IDが1回で、Treg研究入力は元の対象者・App Store URLを保持し、SNS accountは各0件である。source受入を満たして[PR #8636](https://github.com/Daisuke134/life-manager/pull/8636)を作成し、現在cursorはprimaryのreview/CI確認である。main統合・immutable release・本番反映・公式readbackはprimaryが所有し、このsource受入を投稿成功やMRR改善と扱わない。
+
+**4アプリの価格・計測根拠と限界:** 既存のApple公式[US lookup](https://itunes.apple.com/lookup?id=6757726663,6762143790,6766485903,6759514159&country=us)の4件はdownload価格がFree / USD0で、manifestの`price.basis=free_download_us_store`はその価格だけを示す。購読価格や収益0を意味しない。証拠はprivate `~/.local/state/life-manager/evidence/mobile-flagship/20261023/four-app-billing-readback.json` の `apple_public_lookup`（observed_at `2026-10-23T03:13:11Z`、response SHA256 `7ad8365372738d1a8a60db909f54be41ae7c66977a78d21c17cbd8574172dec5`）。approved claimsは既存 `apps/landing/marketing/assets/published-apps.json` の商品事実を用いる。metric adapterは既存ASCだけ、primary metricは`first_time_downloads`、帰属はアプリ単位集計とし、未登録のRevenueCatやSNS campaign接続を作らない。Tregの全商品数は移行前後とも10件で、既存の2route/商品に対する`MAX_ROUTES=18`では全商品実行が`all_products_exceed_weekly_route_budget`になる境界が残る。この移行では予算・研究実行経路を変更しない。
+
 **目的・範囲・完了条件:** Aniccaを旗艦とし、公開6アプリのプロダクトと無料の既存SNS/Web配信を改善する。最初の事業成果は6アプリ合計MRR USD 10,000、その次に各アプリUSD 10,000を追う。MRRは公式の有料継続契約readbackで判定し、Apple Proceeds、ダウンロード、RevenueCat New Customers、投稿数をMRRへ置換しない。通知タップから表示本文と同一メッセージを開き、ペイウォール読込失敗で進行不能にならない版をApp Storeへ提出する。新しい配信基盤・有料広告・有料調査API・装飾アニメーションは先行条件にしない。毎週10倍は意欲的な目標であり、予測や保証として報告しない。
 
 **今回の一次証拠:** AppleのApp Analytics Weekly Summary（Gmail message 1a1652451bbb5752、受信2026-10-23 04:44 JST、対象2026-10-12〜18）は以下。App Unitsはメール記載の指標として保持し、ユニーク訪問者を分母にしない。
