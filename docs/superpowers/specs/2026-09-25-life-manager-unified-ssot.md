@@ -445,6 +445,8 @@ BUNDLE-GCのprimary受入とreview修復: 最新main9da021244fを取り込んだ
 
 BUNDLE-GCのP1修復候補: source未変更でquoted/unquoted/unclosed-quote aliasの3 FAIL、無関係process1 PASS（0.65s）を再現する。stdlib shlexの行単位解析と、引用が落ちた場合のbounded絶対path/whitespace境界候補を既存resolverへ渡す19行の修復で、新旧30 PASS/6subtests（0.42s）、既存GC/FD/cutter subset8 PASS（1.37s）、source境界/diff PASSとする。literal apostropheだけで全体を停止せず、path解決不明と既存15s期限は保持へ戻す。追加依存/新native argv framework/cutter変更/実cleanupは0。primaryのexacttree再検証と再reviewを残す。
 
+BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with spacesで同じ消失を再現し、先のSHIPを取り消す。無条件のpath.split('=',1)は環境代入だけでなく有効な絶対pathも壊す。独立bundleを使う3形式のREDは引用あり/なしの2 FAIL、--require=の1 PASS（0.441s）。最初から/で始まるpathは分割しない2行修復後、新旧31 unittestはPASS（2.388s）。初回の同一bundle再利用版は先行削除の影響を受けるため、各形式に独立bundleを使うfixtureへ訂正してから上のREDを確認する。PR #8792/head43a699728fのCI13jobsは修復前なので受入に使わず、修復後exactheadの全13成功と再reviewを待つ。実cleanup/main統合は未実行。
+
 順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAPの全13job成功とGCのsource受入を確認し、現在cursorはBUNDLE-GC-SHIP。全業務/別Mac/10,000starsは未完。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。

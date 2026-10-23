@@ -1108,6 +1108,17 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self._gc()
         self.assertTrue(bundle.exists())
 
+    def test_release_gc_only_preserves_process_alias_with_equals_in_its_path(self):
+        for index, template in enumerate(("--require '{}'", "--require {}", "--require='{}'"), 1):
+            with self.subTest(argument_form=index):
+                bundle = self._bundle(f"{index:064x}")
+                alias = self.root / f"dependency=alias {index} with spaces"
+                alias.symlink_to(bundle)
+                argument = template.format(alias / "node_modules/fixture.js")
+                self.ps_stdout = f"node {argument} worker.js\n"
+                self._gc()
+                self.assertTrue(bundle.exists())
+
     def test_release_gc_only_preserves_bundle_when_process_quotes_are_unknown(self):
         bundle = self._bundle()
         alias = self.root / "dependency alias"

@@ -635,7 +635,8 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired("reference path resolution", 0)
         for path in word.strip("'\"").split(os.pathsep):
-            path = path.split("=", 1)[-1]
+            if not path.startswith("/"):
+                path = path.split("=", 1)[-1]
             if path.startswith("/") and len(os.fsencode(path)) <= 4096:
                 values.append(str(Path(path).resolve()))
     values.append(process.stdout)
