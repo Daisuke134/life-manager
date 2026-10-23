@@ -8,12 +8,34 @@
 
 ## 対象と現在cursor
 
-1. Cursor FDE Japan — 公式求人・質問を調査中: https://jobs.ashbyhq.com/cursor/38bd03a3-3d65-4868-87df-cb248d0a45e3
-2. NICE Sr FDE Japan — 公式求人・質問を調査中: https://boards.eu.greenhouse.io/nice/jobs/4981245101
-3. OpenAI Applied AI Engineer, Codex Tokyo — 公式求人・質問を調査中: https://jobs.ashbyhq.com/openai/6668417f-6878-4244-940f-9a99ae4ebcb0
-4. OpenAI Applied AI Engineer Tokyo — 公式求人・質問を調査中: https://jobs.ashbyhq.com/Openai/4762783e-61e1-4d36-af1d-8dee3c5f70e2
-5. BJAK Applied AI Engineer Tokyo — 公式求人・質問を調査中: https://jobs.ashbyhq.com/bjakcareer/bdaca888-9ed5-402f-bd73-48ae269da06e
+1. [Cursor FDE Japan](../jobs/drafts/cursor-forward-deployed-engineer-japan.md) — 原稿あり。公式フォーム8項目。求人本文のブランド混在と5年以上の経験要件、説得事例の不足を明記する。
+2. [NICE Sr FDE Japan](../jobs/drafts/nice-senior-forward-deployed-engineer-japan.md) — 原稿あり。公式フォーム16項目。親族/子会社在籍など未確認回答を保留する。
+3. [OpenAI Applied AI Engineer, Codex Tokyo](../jobs/drafts/openai-applied-ai-engineer-codex-tokyo.md) — 原稿あり。公式フォーム12項目。本人記入等の宣誓を代理で同意しない。
+4. [OpenAI Applied AI Engineer Tokyo](../jobs/drafts/openai-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム10項目。Codex職と異なる質問構成を保持する。
+5. [BJAK Applied AI Engineer Tokyo](../jobs/drafts/bjak-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム17項目。3年以上の職業経験を裏付けず、言語別の職務使用と採用マーケティング同意を未確認として扱う。
 
-現在cursor: 公式質問の抽出と経歴根拠の照合。`docs/team/dots/` は取得したmainに存在せず、参謀へ所在を照会する。既存の私的プロフィールと英語技術職用resumeを確認する。
+現在cursor: 全63項目の対応・事実根拠・限定差分を検証して専用PRへ進む。`docs/team/dots/` は取得したmainにもGitHub contents APIにも存在せず、参謀へ所在を照会済み。受領前のDots資料を読んだとは扱わず、取得済みの私的プロフィールと既存英語技術職用resumeに基づいて下書きする。具体的な回答を裏付けない包括的な経験attestationは、年数・言語・provider利用の根拠にしない。
+
+## 経歴根拠
+
+公開可能な職務・成果の要旨だけを原稿へ使う。メール・電話・住所・生年月日・私的属性の値はここへ複製しない。
+
+- **PROFILE:** `/Users/anicca/.config/anicca/job-search/profile.json` の `candidate`。英字名、公開GitHub/LinkedIn、非公開連絡先の参照元。日本語氏名は依頼と私的正本に表記差があるため、原稿は共通する英字名を用い、正式氏名欄は本人IDとの照合を残す。
+- **RESUME:** `/Users/anicca/.local/share/anicca/job-search/materials/master/Daisuke_Narita_AI_Resume.html` と対応PDF。review用コピーとも職務記述を照合する。提出にはこの既存PDFを使う案を示し、PDF自体や連絡先をGitへ追加しない。
+- **MUIT:** `facts[id=muit_role_2025]`、`muit_agent_crm` とRESUME。MUITのApplied AI/AI-agent業務は2025年4月開始。MUFG Bankのrelationship manager向け内部CRMへのSalesforce Agentforce導入へ寄与する。単独主導や5年以上の実務とは書かない。
+- **LOGS:** `muit_genie_logs` とRESUME。Databricksでagentの入出力・応答品質を分析するworkflowを構築する。改善率や使用言語を補完しない。
+- **PROMPT:** `muit_rm_summary` とRESUME。会社情報summary等へのprompt tuning/context engineeringを支援する。
+- **TEACH:** `agent_club` とRESUME。研究室/大学院でClaude Code・Codex・Cursor・agent workflowを教える週次communityを設立する。参加人数・抵抗の具体例・採用結果は未記載。
+- **LM:** `life_manager`、`life_manager_open_source_operations_20260805`。Life Managerはlocal agent、永続schedule、calendar/commute/phone/Telegram等の検証付き外部操作を扱うopen-source project。公開コード: https://github.com/Daisuke134/life-manager 。
+- **RELIABILITY:** `async_operating_practices_20260805`、`agent_reliability_engineering_20260805`。限定変更、自動check、永続state、評価gate、明示handoff、曖昧な外部作用の独立確認を実践する。企業顧客への成果数値へ置換しない。
+- **ANICCA:** `anicca_consumer` とRESUME。mobile affirmation appの構築・出荷。過去のrating件数を現在値として転記しない。
+- **RESEARCH:** `naist`、`atr_research`、`education_naist` とRESUME。NAIST/ATRでEEGとmachine learningによるmind-wandering研究を行う。研究期間とMUITの在籍期間は一部重なる。修士号授与は未確認なので取得済み学位としない。
+- **LANG:** `languages` とRESUME。日本語native、TOEFL iBT 96、TOEIC 910、Duolingo English Test 140。試験実績を勤務上のfluency認定へ置換しない。
+- **JP:** `legal_japan_work_authorization_20260730`、`legal_no_japan_sponsorship_required_20260806`。日本国籍、日本国内の就労制限なし、国内就労sponsorship不要。
+- **TOKYO:** `candidate.base`、`availability_tokyo_office_three_days_20260806`。Tokyo在住、週5日office勤務も可能。
+- **START:** `candidate.start_date`、`availability_start_date_20261201`。入社可能日は2026年12月1日。契約上のnotice periodそのものは未確認。
+- **SALARY:** `candidate.desired_compensation_jpy` とcompensation target。目標約1,000万円。現在年収・希望基本給の厳格な下限・上限とは混同しない。
+
+公式フォームはAshbyの公開 `ApiJobPosting` queryとNICE/Greenhouseの埋め込み定義から読み取る。mutationや応募APIは使わない。求人URLと現行フォームの状態は各原稿に記録する。入力方式・必須/任意は取得したschemaに基づき、同意や個人情報の未確認を任意・falseへ置換しない。
 
 検証: 質問一覧との対応、事実の出典、未確認事項の明示、連絡先/secret非掲載、変更path、diffチェック、公式CI、main上の5ファイルを確認する。アプリのビルド・追加テスト・応募提出は行わない。
