@@ -56,6 +56,20 @@ source受入は通知追加7回帰と関連271 tests/298 subtests、認証関連
 
 現在owner=`codex-coconala-owner-setup`、worktree=`.worktrees/coconala-owner-setup-20261023`、branch=`fix/coconala-owner-setup-20261023`、base=`6b93057b41dcf8fdf8d983e85ecdb676d90bf041`。旧README worktreeは統合済みで、参照process・lease・dirty・ancestryを確認して片付ける。順序は既存MAC02→MAC03を維持する。
 
+### MAC02-REPLY-EVIDENCE: 未照合の返信を実行単位で保持する
+
+目的・範囲: 現Macの返信ownerが過去の未照合effectを公式確認できるよう、既存kernelのruns artifactへ当時のintent/receiptと元occurrenceを保存する。新しいscheduler/state storeは作らない。各threadの既存lock内でsnapshotを採取し、run markerだけにprivate stateとして保持し、CLI/reportへ本文を出さない。reconcilerは実行内の全対象を照合し、一部のstateが消失しても残った1件だけでfenceを解除しない。
+
+根拠: 4旧occurrencesのrun markerは存在するが、203 thread statesのclaimed/verified一致は0。元occurrenceのraw一致も最初の実行の2件のみで、現在はno_reply/intent無し。最初のrunにはsubmitted2件、継続unknown9件、観測不能1件等があり、後3runも旧unknownを引き継ぐ。正規のreconcile_unknown保存にdiagnosticが無い形と、後続wakeによるdiagnostic/intent置換をsourceで確認する。本文・private thread IDは公開しない。
+
+完了条件: 保存→次wake/新event→当該occurrenceの公式readbackの回帰を先にREDで再現し、既存run artifact契約を最小拡張してGREENにする。各runの全対象、tamper/欠落/重複、legacyの保留、CLIに本文が出ないことを確認する。source review・関連test・CI・main・公開readback後、main由来immutable経路で対象ownerの自然実行とreadbackを検証する。旧4件の元intentが失われた部分は推測で再構成せず、公式証拠の不足として保持し、再送しない。
+
+- [ ] REPLY-EVIDENCE-01: 既存runs markerで各thread lock内の完全な照合snapshotを保存する。
+- [ ] REPLY-EVIDENCE-02: 全run対象を読み、元state更新後も完全性を検証して公式readbackへ渡す。
+- [ ] REPLY-EVIDENCE-03: review/CI/main/public source、対象ownerの適用条件・自然実行・公式成果を確認する。
+
+所有worktree=`.worktrees/coconala-reply-evidence-20261023`、branch=`fix/coconala-reply-evidence-20261023`、owner=`codex-coconala-reply-evidence`、base=`178b6c46b30fc2e0540f12ccc741b3a8eef605cf`。現在cursor=REPLY-EVIDENCE-01/02、既存MAC02→03の順序は変えない。旧setup/readme worktreesは統合・退役済み。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
