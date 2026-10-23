@@ -21,7 +21,7 @@ class Stream:
     def __exit__(self,*args): return False
     def __iter__(self): return iter(self.events())
     def get_final_result(self):
-        return NS(session_id='sess_abcdefgh',output_text='advice')
+        return NS(session_id='sess_abcdefgh',output_text='advice',turn_id='turn_abcdefgh')
 
 
 def client_for(events, posted, saved_status='cancelled'):

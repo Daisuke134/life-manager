@@ -90,3 +90,20 @@ def test_new_rejected_version_creates_new_queue_item_same_agent() -> None:
 
     assert [item["agent_id"] for item in second["items"]] == ["1037238583", "1037238583"]
     assert second["items"][-1]["target_version_no"] == 6
+
+
+def test_agent_brief_points_at_the_file_the_queue_is_actually_written_to() -> None:
+    # 2026-10-23: DAILY_LOOP.md told the drainer agent to read `state/capafy-rejection-repair-queue.json`
+    # (relative to CAPAFY_STATE_DIR = .../state/capafy-autopublish), but rejection_queue.py writes it one
+    # level up. The agent found no file, refused a "blind" resubmission, and both rejected agents stayed
+    # in the five slots.
+    from pathlib import Path
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import rejection_queue
+
+    brief = (Path(__file__).resolve().parents[1] / "DAILY_LOOP.md").read_text()
+    written = str(rejection_queue.DEFAULT_QUEUE).replace(str(Path.home()), "~")
+    assert written in brief
+    assert "`state/capafy-rejection-repair-queue.json`" not in brief
