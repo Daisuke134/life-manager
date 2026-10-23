@@ -417,7 +417,7 @@ def test_allocator_contract_is_bounded_and_replay_stable() -> None:
     fresh = {"feature": "capafy-o1-fresh", "title": "Fresh Skill"}
     cases = [
         ({"readable": False, "counts": {"occupied": None}}, [retry], [fresh], "SERVER_UNREADABLE", None),
-        ({"readable": True, "counts": {"occupied": 5}}, [retry], [fresh], "CAP_FULL", None),
+        ({"readable": True, "counts": {"occupied": 5}}, [retry], [fresh], "PUBLISHABLE", "retry_existing"),
         ({"readable": True, "counts": {"occupied": 4}}, [retry], [fresh], "PUBLISHABLE", "retry_existing"),
         ({"readable": True, "counts": {"occupied": 5}}, [], [fresh], "CAP_FULL", None),
         ({"readable": True, "counts": {"occupied": 4}}, [], [fresh], "PUBLISHABLE", "create_fresh"),
@@ -470,7 +470,14 @@ def test_allocator_resumes_matching_draft_at_full_cap_but_blocks_without_one() -
     assert resumed["action_key"] == "resume:draft-42"
     assert resumed["item"] == draft
 
-    blocked = module.allocate_action(normalized, [retry], [fresh], [])
+    # A rejected agent already holds its slot: its retry is not a sixth submission, so it still runs
+    # at full cap; only a fresh create (no retry, no matching draft) is blocked.
+    retried = module.allocate_action(normalized, [retry], [fresh], [])
+
+    assert retried["action"] == "retry_existing"
+    assert retried["action_key"] == "retry:rejected-1"
+
+    blocked = module.allocate_action(normalized, [], [fresh], [])
 
     assert blocked == {"verdict": "CAP_FULL", "occupied": 5}
 
