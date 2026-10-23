@@ -54,7 +54,7 @@ jobs:
           test_owned_native_observation_bridge test_owned_provider
           test_owned_checkpoint test_provider_session_recovery
           test_provider_budget test_provider_deadlines test_provider_final_readback
-          test_owned_provider_shadow -v
+          test_owned_provider_shadow test_public_opportunity_payment -v
       - name: Install locked browser suite and build the reference bundle
         run: |
           cd tests/e2e
