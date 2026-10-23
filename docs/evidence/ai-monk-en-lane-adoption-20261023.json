@@ -1,0 +1,41 @@
+{
+  "observed_at": "2026-10-23T11:55:24.648Z",
+  "run_id": "b542746a-4446-4b13-966a-380193371951",
+  "owner_id": "codex-monk-en-lane",
+  "release_sha": "6716deb16d75257369ecf6926d7621f63805cb7c",
+  "phase": "production_lane_manifest_adoption",
+  "command": "official integrations GET -> createMarketingLaneManifest -> writeMarketingLaneManifest",
+  "exit_code": 0,
+  "effect": "EN two lanes adopted; provider writes zero",
+  "readback": {
+    "manifest_id": "marketing-lane-manifest:f998d49fa4e29fd33eef9cfad3ca02566ce145148bb692ebf0e15703707ee455",
+    "before_sha256": "4e25e630c54bbb3c5255404f627f096d98182196421ad7c50621b2b23bbcf368",
+    "after_sha256": "ff1947ac54a8edc5cac96597b8b6d1dc970e3bc16ad31d7b86d3fd6e6acc4942",
+    "added_lane_count": 2,
+    "removed_target_hold_count": 1,
+    "other_lanes_unchanged": true,
+    "other_holds_unchanged": true,
+    "global_fence_state": "closed",
+    "global_fence_bytes_unchanged": true,
+    "mode": "0600",
+    "target_integrations": [
+      "cmo5rwq2p00twn10yrsdglng3",
+      "cmoopzaak04yop70y1yx1bwr1"
+    ],
+    "canary_state": "authorized-canary-pending",
+    "target_daily_limit": 2
+  },
+  "provider_receipt_id": null,
+  "evidence_refs": [
+    {
+      "private_backup_name": "ai-monk-lane-manifest-before-b542746a-4446-4b13-966a-380193371951.json",
+      "sha256": "4e25e630c54bbb3c5255404f627f096d98182196421ad7c50621b2b23bbcf368"
+    }
+  ],
+  "error_class": null,
+  "retryable": false,
+  "next_action": "fresh_native_manual_existing_asset_once_and_official_readback",
+  "new_generations": 0,
+  "publication_requests": 0,
+  "provider_writes": 0
+}
