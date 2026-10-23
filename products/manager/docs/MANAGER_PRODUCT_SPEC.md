@@ -132,6 +132,20 @@ D003/D011は通常main統合後に限定source接続として受入した。残3
 
 これは原ID・dependsを変えない接続条件の説明で、新しいtask台帳や全公開研究への契約・NDA要求ではない。既存測定のsource監査と品質判定の修復を先に行い、受入条件が未充足の項目はtodoのまま保持する。記事制作・外部連絡・応募は本体優先の後段を維持する。
 
+### 1.3.2 agentの運用接続に残る具体的な差分
+
+残30件は原受入の件数であり、目標像までの実装差分をすべて30ファイルに対応させる表ではない。既存sourceを実際の継続主体へ結ぶ差分は以下。新しいtask IDや達成件数は加算しない。
+
+| 順 | 既存ファイル・関数 | 現在と次の差分・受入条件 |
+|---|---|---|
+| 1 | `ampersand_api.make_client`、`requirements-ampersand.txt` | [PR8693](https://github.com/Daisuke134/life-manager/pull/8693)で任意のSDKを公式3.24.0へ固定し、異なる版をclient生成前に拒否する修復を審査中。Manager410 tests・独立review・隔離した実SDKのconstructor確認は成功、model要求0。必須CIの既存process-group testに未考慮の正当な停止経路があり、テスト側を修復して通常main統合へ進める。まだmain済み／定期推論済みとはしない |
+| 2 | `owned_provider_shadow.py`、`owned_checkpoint._validate_database` | 次のsource差分。hostが既に検証した同じcontext/assessment/scopeから比較し、二重planningを避ける。P0比較を同じprivate `cycle.sqlite`へ保存しcheckpoint ACK後に提示する。保存結果の再読で新しいcreateをしない。intentだけ残る場合はUNKNOWN／要照合のまま。public出力は固定したstatus・hash・baseline/model判定などに限定し、raw応答・provider ID・秘密を出さない。旧checkpointとの互換も検証する |
+| 3 | `owned_platform_host.prepare_candidate`、`run_owned_digital_cycle.py`、`manager-phase06-service.yml` | 次のsource差分。既存lock/recovery/STOP/cadenceを通った後、同じ候補で任意の比較を行う。SDK導入はlease前、provider初期化は適合候補と明示設定の確認後。既定OFF、scheduleはOFF、数値予算の空欄を勝手な額へ変えない。control操作や無効設定ではprovider呼出し0。既存のdeterministic選定・source/browser/CAS/publisher権限は独立して保持する |
+| 4 | 既存shadow／baseline／provider receipt | 実運用の証拠。適合する実課題、利用可能なproviderと実際の予算条件、同じ入力・版・失敗分母を固定し、保存session/turn/final応答と比較を照合する。再読でnew create0を確認する。候補なしならSKIPPED、比較不要なら既存ルールを使う。SDK導入や判定一致だけでmodel有用性・人の便益を認定しない |
+| 5 | 既存観測・`world_state.py`・channel・outcome/policy契約 | 長期主体の実証。研究sourceの状態表現を実ownerの観測・永続状態へ適合させ、結果と失敗からの訂正を版付きで確認する。研究branchのmodule存在を実稼働と表示せず、第二の記憶engine／scheduler／agent frameworkを作らない。実績をU/V/Gの元条件へ照合する |
+
+2/3はまだ実装・受入していない。単純なリンク修正へmodelを足すこと自体は目的にせず、比較に意味がある対象で薄く接続する。今回の公開面談・選定・proofの受入は、このAI接続や人間研究の実施を代わりに完了させない。
+
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
 **agent接続の実装更新:** [PR8650](https://github.com/Daisuke134/life-manager/pull/8650)をmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`へ統合した。既存4 provider moduleを再利用し、`owned_provider.CheckpointedProvider`がsession intent・event・予算を同じ `cycle.sqlite`へ結び、外部送信前にcheckpointのACKを得る。主キー・重複・参照の検証、割込み後の永久fence、対象turnと状態が一致するcancel readback、絶対期限、P0 parserを検証した。応答不明はUNKNOWN／nullで保持し、予約上限を実請求上限としない。独立reviewの未解決0、main由来365テスト成功。詳細は[source受入と残接続](verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)。
