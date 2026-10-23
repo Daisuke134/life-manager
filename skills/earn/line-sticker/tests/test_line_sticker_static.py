@@ -338,5 +338,22 @@ class TextBearingVariant(unittest.TestCase):
         self.assertEqual(listing["title"]["ja"], "星くずカワウソの毎日返事【文字入り】")
 
 
+    def test_a_title_that_already_carries_a_bracket_mark_is_not_marked_twice(self) -> None:
+        # 2026-10-23 title type: 「カワウソのぽか太の<場面>【毎日使える】」; a second 【文字入り】 would not fit.
+        listing = STATIC.mark_text_listing({"title": {"ja": "カワウソのぽか太の年末年始【毎日使える】",
+                                                      "en": "Pokata Otter New Year"},
+                                            "description": {"ja": "説明", "en": "desc"}})
+        self.assertEqual(listing["title"]["ja"], "カワウソのぽか太の年末年始【毎日使える】")
+        self.assertIn("with text", listing["title"]["en"].lower())
+        self.assertEqual(STATIC.mark_text_listing(listing), listing)
+
+
+class StaticPlanPromptTitleType(unittest.TestCase):
+    def test_prompt_asks_for_the_pokata_title_type_and_new_year_priority(self) -> None:
+        prompt = STATIC._build_static_plan_prompt([], None)
+        self.assertIn("カワウソのぽか太の<場面>【毎日使える】", prompt)
+        self.assertIn("年末年始", prompt)
+
+
 if __name__ == "__main__":
     unittest.main()
