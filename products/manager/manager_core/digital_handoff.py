@@ -226,14 +226,15 @@ def prepare_owned_change(context,assessment,standing_scope,now,*,schema='manager
     from dataclasses import asdict
     from .authority import OwnedDigitalScope
     from .collaboration import PlannerContext
-    from .candidate_verification import TechnicalCriteria,TechnicalAssessment,verify_candidate,_load
+    from .candidate_verification import CurrentPageCriteria,TechnicalCriteria,TechnicalAssessment,verify_candidate,_load
     _aware(now)
     if type(context) is not OwnedChangeContext:raise ValueError('host-owned context required')
     run=context.run_id
     if type(run) is not str or not run.strip() or len(run)>256:raise ValueError('bounded run ID required')
     def no(reason):return OwnedReleaseIntent('NO_ACTION',run,reason)
     if type(standing_scope) is not OwnedDigitalScope:return no('MISSING_HOST_SCOPE')
-    if type(context.planner) is not PlannerContext or type(context.criteria) is not TechnicalCriteria:
+    if (type(context.planner) is not PlannerContext
+            or type(context.criteria) not in (TechnicalCriteria,CurrentPageCriteria)):
         return no('INVALID_HOST_CONTEXT')
     scope=standing_scope;c=context.criteria
     if c.at>now or context.planner.observed_at>now:return no('FUTURE_CONTEXT')
