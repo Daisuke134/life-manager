@@ -1,0 +1,88 @@
+{
+  "schema": "manager.public-aggregate-context-source.v1",
+  "source_id": "dcms-cls-2024-25-a1a-national",
+  "publisher": "Department for Culture, Media and Sport (DCMS)",
+  "source_name": "Community Life Survey 2024/25",
+  "retrievals": [
+    {
+      "url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication",
+      "sha256": "e830d6ca4577612a557b8d2971c093213911d690c5d7b2d44f3051ede9045b89",
+      "bytes": 106829,
+      "retrieved_at": "2026-10-23T05:30:33.683760+00:00",
+      "retrieval_time_note": null
+    },
+    {
+      "url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication/community-life-survey-202425-loneliness-and-support-networks",
+      "sha256": "c0f3f7887ca39cbc5517022803458ca3296ceb3b9f98e950308cf78562f6fb5e",
+      "bytes": 160152,
+      "retrieved_at": null,
+      "retrieval_time_note": "Retrieved on 2026-10-23 UTC; exact clock not present in retained manifest. Do not invent a timestamp."
+    },
+    {
+      "url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication/community-life-survey-202425-technical-report",
+      "sha256": "6e5a8aef190c7a0555be9b390fd4a4d73f93b9055e08f0be48d43f3872bfcc63",
+      "bytes": 202372,
+      "retrieved_at": "2026-10-23T05:30:56.293612+00:00",
+      "retrieval_time_note": null
+    },
+    {
+      "url": "https://assets.publishing.service.gov.uk/media/6a6b26e30c36759b5ccaa210/Community_Life_Survey_2024_25_Annual_data_tables.FINAL.ods",
+      "sha256": "d4d0d7937234426d1145b294a80825d21fe388fb7a4a3518983dca127cba46a1",
+      "bytes": 2885037,
+      "retrieved_at": "2026-10-23T05:30:54.581657+00:00",
+      "retrieval_time_note": null
+    }
+  ],
+  "ods_last_modified": "2026-07-30T10:26:43Z",
+  "table": "A1a",
+  "row": 8,
+  "population": "People aged 16 and over, England",
+  "observation_window": "October 2024 to March 2025",
+  "construct": "Direct self-reported frequency of loneliness",
+  "response_category": "Often/Always",
+  "weighted_estimate_percent_rounded": 7,
+  "narrative_estimate_percent": 6.6,
+  "ci_95_percent_rounded": [
+    6,
+    7
+  ],
+  "unweighted_category_valid_respondents": 10061,
+  "unweighted_question_base": 170971,
+  "notes": {
+    "ci": "95% confidence intervals; displayed endpoints rounded",
+    "base": "All respondents asked the question; not population count",
+    "category_count": "Valid respondents in the selected response category, not all valid respondents",
+    "missing": "Tables exclude do-not-know and/or missing answers",
+    "suppression": "x if fewer than 30 asked or fewer than 3 answering; N/A is unavailable",
+    "selected_row_suppressed": false,
+    "weights": "Weighted percentage is not the simple category_count/base ratio"
+  },
+  "relation_to_manager": "context_only",
+  "manager_intervention": false,
+  "manager_benefit_measured": false,
+  "causal_effect_verified": false,
+  "rights": {
+    "notice": "Crown copyright 2026; Open Government Licence v3.0 except where otherwise stated",
+    "notice_evidence_url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication/community-life-survey-202425-loneliness-and-support-networks",
+    "third_party_exception": "Identified third-party copyright requires separate permission",
+    "license_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+    "license_fulltext_retrieval": "HTTP_403_NOT_INDEPENDENTLY_REVERIFIED",
+    "permitted_current_scope": "Source-attributed national numerical context and minimal metadata only",
+    "excluded": [
+      "microdata",
+      "individual linkage",
+      "subgroup extraction",
+      "instrument administration or full item reproduction",
+      "figures/logos",
+      "raw ODS redistribution",
+      "Manager benefit attribution"
+    ]
+  },
+  "ethics": {
+    "current_activity": "Reading and citing pre-existing national public aggregates only; no new recruitment, assignment, participant contact, private answers or person linkage",
+    "institutional_applicability": "UNKNOWN",
+    "formal_approval_or_waiver": "NOT_OBTAINED",
+    "route_b_activation": "NOT_ACTIVATED"
+  },
+  "cooperation_interpretation": "Official publication establishes availability and stated general reuse terms only. Original D014 external cooperation is not verified; no individual Manager endorsement, partnership or agreement is claimed."
+}

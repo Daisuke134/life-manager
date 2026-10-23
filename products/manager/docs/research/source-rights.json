@@ -238,6 +238,30 @@
       ],
       "risk": "Published 10k rows are the first records rather than a representative random sample; repeated user exposure and extreme importance weights can break naive causal confidence intervals.",
       "unresolved": "Independent representativeness of first 10k rows and exact reward estimator mapping to authors' full OPE benchmark not verified."
+    },
+    {
+      "id": "dcms-cls-2024-25-national-context",
+      "name": "DCMS Community Life Survey 2024/25 national Table A1a context",
+      "kind": "already published national aggregate statistics; no microdata",
+      "license_expression": "OGL-3.0_OFFICIAL_NOTICE_EXCEPT_STATED_EXCEPTIONS",
+      "source_url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication",
+      "license_evidence_url": "https://www.gov.uk/government/statistics/community-life-survey-202425-annual-publication/community-life-survey-202425-loneliness-and-support-networks",
+      "license_evidence_sha": "sha256:c0f3f7887ca39cbc5517022803458ca3296ceb3b9f98e950308cf78562f6fb5e",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "Current use is limited to attributed national numerical context and minimal provenance metadata in DCMS_CLS_ROUTE_A_SOURCE_20261023.json.",
+        "Credit DCMS, Community Life Survey 2024/25, England adults16+, observation window, official source URLs and OGL v3.0 notice; explain rounding and any changes.",
+        "Keep third-party rights exceptions; do not reproduce instruments, figures, logos or the raw ODS, infer individuals or join to Manager traffic.",
+        "National Archives license full text returned HTTP403; independently verify full terms before any expanded reuse.",
+        "No formal ethics approval/waiver or individual collaboration is claimed; assess applicable institutional requirements before any new research activity."
+      ],
+      "risk": "England survey context is not a baseline, comparator or causal benefit estimate for Manager visitors. Weighted percentages differ from unweighted category/base ratios.",
+      "unresolved": "Institutional applicability UNKNOWN; Route B partnership/ethics/consent inactive; expanded reuse and full license text remain unverified."
     }
   ]
 }
