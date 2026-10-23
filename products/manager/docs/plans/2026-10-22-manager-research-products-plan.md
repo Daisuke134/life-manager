@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **Publication scope and this turn:** Earlier approved publication work covers reviewed English/Japanese research articles and the owned site through its existing bridge. The present user request is to research, update the specification/plan and discuss it; this turn does not invoke publication. A future execution must use the actually authorized channel/scope and independent readback. No article may imply simulated welfare outcomes are field causal effects.
+- **Publication scope:** The user authorized implementation and publication through the existing owned-site bridge. The revised Artificial Societies chapter is actually live; see the dated [publication receipt](../verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md). Continue within that channel and preserve independent readback. No article may imply simulated welfare outcomes are field causal effects.
 - Publisher/source separation: content in `life-manager`; dedicated bridge in `Daisuke134/anicca-products`; live source in `apps/landing/marketing/pages/`; do not install or overwrite the whole site blindly.
 - Baseline publication package: at least 65 published Manager articles / 33 media in the earlier verified release. Preserve earlier package hashes, existing unrelated articles/assets, cross-language canonical links and sitemap; independently re-audit current production rather than assuming baselines unchanged.
 - Existing `articles-2026-10-22.json` and `BLOG_PUBLICATION_PACKAGE_20261022.json` use a *frozen source revision*. Never silently repoint its source hashes or mutate an existing published article without an explicit revision and integrity checks.
@@ -146,7 +146,7 @@ The existing three-volume teaching proposal is a packaging view of these same ca
 
 ### Immediate work order without adding a second technical cursor
 
-The next product patch is E16: the selected Railway single-worker runtime and actual deployment proof. E01–E15 have source-specific receipts and must not be repeated. P01 source indexing, the first evidence-backed chapter/case study and U/Y application/customer/career preparation proceed alongside E16; W27 submission does not wait for a finished book or field RCT. Shared schemas, source manifests, publication branch, SSOT and runtime owner are serialized. No manuscript or YC milestone advances E status. No E unit test completes the original U/D/V/G field gate.
+The current engineering step is E16: finish positive finance/mental canaries, actual recovery and native Explorer proof using the already running main-only GitHub Actions owner and existing Supabase checkpoint. Real OIDC, cross-run restore/replay-zero and a zero-write STOP are verified; [PR8594](https://github.com/Daisuke134/life-manager/pull/8594) merged recovery/native source. Railway is a preserved alternative, and the connected Mac is an additional test adapter. E01–E15 have source-specific receipts and must not be repeated. P01 source indexing, the first evidence-backed chapter/case study and U/Y application/customer/career preparation proceed alongside E16; W27 submission does not wait for a finished book or field RCT. Shared schemas, source manifests, publication branch, SSOT and runtime owner are serialized. No manuscript or YC milestone advances E status. No E unit test completes the original U/D/V/G field gate.
 
 
 ## 2026-10-22 precedent-based founder execution update

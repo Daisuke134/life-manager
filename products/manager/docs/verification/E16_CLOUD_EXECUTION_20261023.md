@@ -14,8 +14,10 @@
 
 1. 別のfresh runner [39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491) は2026-10-23 01:22:53 UTCにSUCCESS。公式summaryで `GATEWAY_ACKNOWLEDGED / NOT_DUE / writes=0`、実DBでrevision2・同じ90112-byte snapshot hash・owner/leaseなし・recovery_required=falseを確認しました。公開全7ファイルのhashとgh-pages tipが元のd33dから変わっていないことも独立に読み戻しました。これで実OIDCとcross-run restore/replay-zeroの限定受入れは成立。正のcanary・停止/復旧の受入れを続けます。
 2. 実在する改善としてfinance/mental各ページの一意なself navigationへ `aria-current="page"` を付与するversioned typed criterionを追加する。旧v1 link/label検証は維持する。これはW3Cに沿う位置情報の付加で、WCAG違反や人への便益を主張しません。
-3. private checkpointを跨ぐSTOPと、当該candidateだけを対象にした明示的CAS rollbackを既存journal/publisherへ接続する。lag・timeout・hash mismatchだけではrollbackしません。
+3. private checkpointを跨ぐSTOPと、当該candidateだけを対象にした明示的CAS rollback、現在配信の監視、native P1/P2は [PR8594](https://github.com/Daisuke134/life-manager/pull/8594)でmain `b47aa061ae9ecccf5baf04704f8f8eb7e54d1571` へ統合。263 Manager tests、CI相当113件、独立統合レビューR3の残件0を確認済みです。実STOP [39890247403](https://github.com/Daisuke134/life-manager/actions/runs/39890247403)は2026-10-23 02:36:21 UTCの公式summaryで `GATEWAY_ACKNOWLEDGED / STOPPED_BY_OWNER / writes=0`、実DB revision3・owner/leaseなし・recovery_required=false。別runner [39890599654](https://github.com/Daisuke134/life-manager/actions/runs/39890599654)の停止維持、再開、正のv2 candidateの限定復元は引き続き実確認が必要です。lag・timeout・hash mismatchだけではrollbackしません。
 4. exact P1と独立served P2を、既存Explorer/shadowへ元の単位と欠測理由で接続する。sandboxのlossや人間の成果へ読み替えません。
 5. reviewed mainで限定canary、別テーマのP1/P2、restart/catch-up、STOP/rollback、replay-zero、対象外不変を実観測してからE16を判定し、その後F005→F006→F008→F009を個別に受け入れる。
 
-新しい有料resource・upgradeは作成していません。Actionsの開始時刻は保証されず、既存catch-up-onceを用います。費用の実請求や無制限無料稼働は未認定。人の行動変化・苦痛低減はNOT_MEASUREDです。Mac専用source-boundary guardはcanonical path不在でFAILのままです。所有者の明示的なcloud作業指示に従って専用worktreeで開発しており、このguardをPASSと表示していません。
+接続されたMac miniのcanonical repository配下に専用worktreeを設け、同じmain source `b47aa061ae9ecccf5baf04704f8f8eb7e54d1571` を検査しました。Mac source guardはPASS。既存HomebrewのPython command directoryと物理temp pathを使い、同一時刻のUTC/JST文字列比較をdatetime比較へ直したテスト修正 [PR8598](https://github.com/Daisuke134/life-manager/pull/8598)で113件すべてPASS。Macの通常checkoutの別作業とruntimeは保持し、第二の運用ownerは設けていません。
+
+新しい有料resource・upgradeは作成していません。Actionsの開始時刻は保証されず、既存catch-up-onceを用います。費用の実請求や無制限無料稼働は未認定。人の行動変化・苦痛低減はNOT_MEASUREDです。クラウド側source-boundary guardはcanonical path不在でFAILのままです。所有者の明示的なcloud作業指示に従って専用worktreeで開発しており、MacでのPASSとは別の実測として保持しています。

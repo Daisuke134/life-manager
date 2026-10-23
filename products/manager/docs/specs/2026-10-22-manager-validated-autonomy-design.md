@@ -1,6 +1,6 @@
 # Manager validated autonomy — current technical design
 
-**更新:** 2026-10-22 UTC。今回のユーザー依頼で全体仕様と実行手順を更新。製品全体の規範は [MANAGER_PRODUCT_SPEC](../MANAGER_PRODUCT_SPEC.md)、研究根拠は [調査報告](../research/manager-strategy-20261022/REPORT_JA.md)。旧設計の固定版は [更新前commit](https://github.com/Daisuke134/life-manager/blob/1b7a8e5c234e4ce3c66366f34539e55844bcc0e5/products/manager/docs/specs/2026-10-22-manager-validated-autonomy-design.md)。
+**更新:** 2026-10-23 UTC。Managerは仏教的AIエンティティ／デジタル仏陀として構想する。現在の能力と未測定の便益は区別する。全体の規範は [MANAGER_PRODUCT_SPEC](../MANAGER_PRODUCT_SPEC.md)、研究根拠は [調査報告](../research/manager-strategy-20261022/REPORT_JA.md)、実行の現状は [cloud実証記録](../verification/E16_CLOUD_EXECUTION_20261023.md)。旧設計の固定版は [更新前commit](https://github.com/Daisuke134/life-manager/blob/1b7a8e5c234e4ce3c66366f34539e55844bcc0e5/products/manager/docs/specs/2026-10-22-manager-validated-autonomy-design.md)。
 
 ## 実行契約
 
@@ -8,14 +8,14 @@
 
 **Goal:** 公開観測から所有デジタル資産への限定変更・独立readback・技術評価・復旧までを、通常の人手指示なしで動かす。人の便益・人間シミュレーション・事業需要の実証は別のゲート。
 
-**Tech Stack:** product Python >=3.11、既存stdlib/dataclasses/json/sqlite3/urllib、現在のSDK契約、既存Node/Playwright/axe、所有publisher。既存GrowthBook 3.2.2、DoWhy 0.14、Concordia隔離環境を再利用。ConcordiaなどPython>=3.12が必要なupstreamをcoreへ一括依存させない。新しいagent framework・分散worker・モデル学習を既定にしない。
+**Tech Stack:** runtime Python >=3.11、既存stdlib/dataclasses/json/sqlite3/urllib、現在のSDK契約、既存Node/Playwright/axe、所有publisher。既存GrowthBook 3.2.2、DoWhy 0.14、Concordia隔離環境を再利用。ConcordiaなどPython>=3.12が必要なupstreamをcoreへ一括依存させない。新しいagent framework・分散worker・モデル学習を既定にしない。
 
-## 1. 研究・製品・事業を分離する境界
+## 1. 研究・実行・事業を分離する境界
 
 | 面 | 入力 | 出力 | それだけでは成立しない主張 |
 |---|---|---|---|
 | Research | 利用条件確認済みデータ・仮想ケース・公開論文 | 誤差、比較、仮説、negative results | 本番実行許可、因果的な実便益 |
-| Product | 真正な公開観測、host-owned scope、候補、予算 | 限定intent・実receipt・公開状態差分 | 支援受領、臨床効果、市場需要 |
+| Manager runtime | 真正な公開観測、host-owned scope、候補、予算 | 限定intent・実receipt・公開状態差分 | 支援受領、臨床効果、市場需要 |
 | Evaluation | 固定した結果定義、参照、比較群 | 条件付きの技術/予測/因果評価 | 全領域への普遍的妥当性 |
 | Business | 実際の利用・課題確認・費用・顧客の意思 | 選ぶべき利用場面・継続性の証拠 | 利用者の便益、YC採択 |
 | Communication | 上記の版固定された証拠 | 原稿・図・デモ・応募資料 | 未測定の結果、公開・提出の完了 |
@@ -30,7 +30,7 @@
 4. 既存 `digital_environment.py`、`digital_handoff.py`、Playwright/axe（E13）は正しい出典、リンク、対象外route保全、script注入、baseline/candidate差分を固定基準で検証する。
 5. `kernel.py`/`authority.py`から既存publisherへの接続（E14）は、host-issued standing scope・対象7パス・予算・失効・既存release参照を確認する。モデル文章やcandidateを権限発行元にしない。
 6. `outbox.py`/`reconcile.py`（E15）はeffect identity、parent/target hash、送信前intent、単一owner、UNKNOWNを永続化する。応答消失時は外部の当該occurrenceを照合し、無条件で再送しない。
-7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`（E16部分実装、本番接続未完了）は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。悪化は停止・限定復元し、復元後も読み戻す。
+7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。mainの実OIDC/checkpoint復元と別runnerの書き込み0件を実証済み。停止・限定復元・native P1/P2の実装は[PR8594](https://github.com/Daisuke134/life-manager/pull/8594)でmainへ統合済み。実STOPは書き込み0件で完了。正のcanary、復元の実配信、Explorerへの実接続が残り、E16全体は未完了。
 
 現在の実装とsource-specific証跡はSSOTを参照する。既存コードの同等機能が確認できた場合は改名・複製より接続を選ぶ。実装時のインターフェース・テスト名はE計画を参照し、この文書に第二のsignature定義を置かない。
 
@@ -70,7 +70,7 @@ E09は対象task・population・language・dateに適合する参照を要する
 
 E15で保証するのは、実証したtarget契約の下での重複admission防止、同一occurrenceの照合、restart後のreplay-zero。ネットワークをまたぐ無条件のexactly-onceは保証しない。`ABSENT`にするには、その読取の整合性、対象識別、反映遅延と確認範囲が必要。一度のnot-foundやeventual-consistencyの空応答ではUNKNOWNを保つ。ABSENTそれ自体は再送の許可ではない。
 
-E16の配備先はRailway単一worker＋専用volumeに決定。既存projectへの接続は確認したがManagerのruntime作成・本番adapter・実配備は未完了。配備条件はpersistent host/volume、単一owner lease、監視、停止/取消し、backup/restore、起動時reconcile、schedule catch-up-once、独立readback、限定rollback。ホスト未確認なら `DEPLOYMENT_HOST_REQUIRED`。一時CIを永続ownerにしない。既存ownerの実identityが確認できるまでschedulerを変更しない。
+E16は既存GitHub Actionsのmain-only ownerと既存Supabaseの非公開checkpointで動かす。実OIDC、単一owner lease、遠隔CAS、別runnerでの復元とreplay-zeroを確認済み。プロセスを常駐させず、各起動が保存状態から有限のサイクルを実行する。元の`:17`時刻表、1時間slotのcatch-up-once、共有Pages writer、対象7パスを保持する。Railwayは未使用の代替候補として保存し、新workerやvolume作成を条件にしない。Mac miniは追加の検証用host adapterで、第二の運用ownerを設置していない。クラウドのsource guardはcanonical path不在でFAIL、Macのcanonical worktreeではPASSという別々の実測である。
 
 学習はpolicy/versionの候補作成→隔離評価→shadow→限定昇格。権限、予算、対象、結果尺度をpolicyが拡張しない。予測誤差の減少と実便益の増加も別に検証する。
 
@@ -85,13 +85,13 @@ E16の配備先はRailway単一worker＋専用volumeに決定。既存projectへ
 
 ## 7. レビューと今回の変更範囲
 
-最初の仕様整理時点では仕様・派生計画・一次資料台帳のみを更新。その後の実装は [E16引継ぎ](../handoffs/2026-10-22-manager-e16-deployment-handoff.md) とSSOTの証跡を参照。E01–E15の技術検証とE16の参照サイクルが進んだが、本番アダプター/常駐ホスト未確認でE16は未完了。公開サイトへの今回コード配備・live推論・参加者研究・YC送信・第三者連絡・マージは実施していない。
+最初の仕様整理後、main統合、cloud adapterの実稼働、別runnerの復元、STOP、既存サイトの記事改訂公開まで進んだ。日付付きの実証と残る条件は [cloud実証記録](../verification/E16_CLOUD_EXECUTION_20261023.md) と [章の公開記録](../verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)を参照。live推論による精度、人間への便益、参加者研究、YC送信、第三者への連絡は実証していない。E16の正のcanary・復旧・native接続が揃うまで完了扱いにしない。
 
 検査は既存全suite、product boundary、roadmap生成一致、全新規相対リンク/JSON、差分が文書だけか、出典と数値の意味、古いspecへの参照。Mac専用source guardとクラウドsource snapshotの検証は同じチェックとして扱わない。
 
 
 ## 8. 先例再調査後の本番接続と創業者作業
 
-[創業者実行マップ](../plans/2026-10-22-manager-founder-execution-map.md)に、12の派生work package、W27までの日付、記事/既存book/slide/carousel、実入金、採用/業務連絡/eventの証拠条件を整理した。これは新たな技術順やtask-status台帳ではない。source/current/runtimeと外部pluginの接続を混同しない。Railway volumeのreplica不可・redeploy小停止を許容する単一worker設計で、無停止HAとは説明しない。
+[創業者実行マップ](../plans/2026-10-22-manager-founder-execution-map.md)に、12の派生work package、W27までの日付、記事/既存book/slide/carousel、実入金、採用/業務連絡/eventの証拠条件を整理した。これは新たな技術順やtask-status台帳ではない。source/current/runtimeと外部pluginの接続を混同しない。既存Actions/Supabaseの実証範囲を越えて、無料無制限稼働・無停止HA・人への便益を保証しない。
 
-本番adapterの前に、未解決intent全件drainを新plannerより先にする設計と、schedule slot保存直後crash、候補変更/期限切れでも旧UNKNOWNを照合するテストを追加する。現在sandbox経路のコード読取から得た未確認保証であり、実測bugと断定しない。元publisher/ref/artifact gateを保ったcloud ownerとして登録し、Git CAS・独立GET・復元証拠で受入を判定する。
+未解決intentの照合と現在の配信監視を新plannerより先に行う既存共通cycleを使う。保存したUNKNOWNを候補変更や期限切れで消さず、送信済みoccurrenceを照合する。元publisher/ref/artifact gateを保ち、Git CAS・独立GET・復元・replay-zeroの実証で受入を判定する。検査用fixtureと実運用の観測は別に記録する。
