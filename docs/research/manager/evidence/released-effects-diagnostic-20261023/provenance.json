@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "kind": "released_effects_fixed_study_holdout_diagnostic",
+  "date": "2026-10-23",
+  "data_source": {
+    "doi": "10.1038/s41586-026-10742-x",
+    "version": "2026-07-08 version of record",
+    "verified_files": [
+      {
+        "name": "supplement.pdf",
+        "sha256": "c747529d8031695b101963aec3cdff8669dadc47fed569112a004ce1a719f001"
+      },
+      {
+        "name": "fig1.xlsx",
+        "sha256": "6b3bfc2566584a04ab65108e97ca27ab657f276583b7d61889cc9378198582e0"
+      },
+      {
+        "name": "fig2.xlsx",
+        "sha256": "c129c1f3ba5485cf2449685ac5143e98c989c28d2c531ef4f8c40f0874b0d548"
+      },
+      {
+        "name": "fig3.xlsx",
+        "sha256": "67c6c957b51ce5f2fcbe93985672ffe9d7d49e4b26c946c7413c90c4f8c8a0d7"
+      }
+    ]
+  },
+  "aggregate_receipt_sha256": "5427bfdc2fae204a197d4bb9b054cf9cd57780eb7c42f28111bd9b84a0eb35a5",
+  "implementation_revision": "92ebc7bfdef124d2594643088d0c79fb5db6413c",
+  "protocol": {
+    "effect_scale": "full_scale_signed_difference_in[-1,1]",
+    "study_counts": {
+      "train": 35,
+      "test": 35
+    },
+    "split_algorithm": "sha256_stratified_study_id_v1",
+    "split_seed": 20261022,
+    "split_digest_sha256": "1f114592643d6ed78624964b7cd5f2f73e340752df3c099dee3e1a1eeed62f14",
+    "bootstrap": {
+      "unit": "test_study",
+      "resamples": 2000,
+      "seed": 20261022,
+      "interval": "paired percentile 95%; conditional on the one fixed training fit"
+    },
+    "correlation": "SciPy Pearson statistic on both symmetric directions per unordered pair; descriptive antisymmetric association only; no p-value or row-level interval",
+    "new_model_inference": false
+  },
+  "results": {
+    "beta": 0.5497078235601773,
+    "mae_full_scale": {
+      "zero": 0.06164431446147116,
+      "raw": 0.07513314131622567,
+      "calibrated": 0.04701230743587394
+    },
+    "rmse_full_scale": {
+      "zero": 0.10474381719251659,
+      "raw": 0.11241518837688809,
+      "calibrated": 0.06831260023130444
+    },
+    "zero_minus_candidate_mae_gap_and_interval": {
+      "raw": {
+        "mean": -0.01348882685475451,
+        "ci95": [-0.02900138210861027, 0.0013479913302560022]
+      },
+      "calibrated": {
+        "mean": 0.014632007025597228,
+        "ci95": [-0.000993204331056103, 0.03505315247498338]
+      }
+    },
+    "interpretation": "both paired intervals include zero; no superiority claim"
+  },
+  "figures": [
+    {
+      "path": "diagnostic.png",
+      "sha256": "5910b967e356c3b0d94428774b9e5167a09b27afa6c9094cf1f20b5ad0bf73d4",
+      "bytes": 260637
+    },
+    {
+      "path": "diagnostic.pdf",
+      "sha256": "f73d9a1c5c4729a79156c6c6a88378f9c542fdb5732b9bef5379e9657cff5f34",
+      "bytes": 60554
+    }
+  ],
+  "limitations": [
+    "3356 directed rows are not independent observations; study is the split and bootstrap unit.",
+    "The test interval is conditional on a single fixed training fit and excludes full training-fit and effect-sampling uncertainty.",
+    "Study holdout does not establish that studies were unseen during model pretraining.",
+    "This does not reproduce the original random-reference, attenuation correction, LOSO pilot, or megastudy top-20-percent selection protocol.",
+    "No human benefit, harm, cost, welfare, individual behavior change, or superiority is established; no P4 or E16 completion claim follows."
+  ]
+}
