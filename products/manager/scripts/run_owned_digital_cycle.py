@@ -16,7 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW
 from manager_core.owned_checkpoint import CheckpointUnavailable, PrivateCheckpoint, SOURCE_ROOT
 from manager_core.owned_cycle import CycleConfig, CycleStore, run_owned_cycle
-from manager_core.owned_platform_host import CatalogSelectionUnavailable, GitHubActionsCycleHost
+from manager_core.owned_platform_host import (
+    CatalogSelectionUnavailable, GitHubActionsCycleHost, is_canonical_remote,
+)
 
 WORKFLOW_NAME = 'Manager Phase06 Digital Environment'
 STATE_OWNER = 'manager-owned-main-v2'
@@ -53,7 +55,7 @@ def _check_main_context(pages_checkout):
     actual_source = phase06_kernel_release.source_checkout_commit()
     source_root = SOURCE_ROOT.resolve()
     if (actual_source != sha or Path(phase06_kernel_release.ROOT.parents[1]).resolve() != source_root or
-            _git(source_root, 'remote', 'get-url', 'origin') != 'https://github.com/Daisuke134/life-manager.git'):
+            not is_canonical_remote(_git(source_root, 'remote', 'get-url', 'origin'))):
         raise PermissionError('immutable source checkout mismatch')
     pages = Path(pages_checkout)
     if pages.is_symlink() or not pages.is_dir():
@@ -62,8 +64,8 @@ def _check_main_context(pages_checkout):
     if (pages_root != pages.resolve() or pages_root == source_root or
             pages_root in source_root.parents or source_root in pages_root.parents or
             _git(pages_root, 'symbolic-ref', '--quiet', 'HEAD') != 'refs/heads/gh-pages' or
-            _git(pages_root, 'remote', 'get-url', 'origin') != 'https://github.com/Daisuke134/life-manager.git' or
-            _git(pages_root, 'remote', 'get-url', '--push', 'origin') != 'https://github.com/Daisuke134/life-manager.git' or
+            not is_canonical_remote(_git(pages_root, 'remote', 'get-url', 'origin')) or
+            not is_canonical_remote(_git(pages_root, 'remote', 'get-url', '--push', 'origin')) or
             _git(pages_root, 'status', '--porcelain=v1', '--untracked-files=all')):
         raise PermissionError('clean canonical Pages checkout required')
     runner_temp = Path(env.get('RUNNER_TEMP', '')).resolve()
@@ -147,7 +149,7 @@ def run_preflight(source_root=None, state_store=None):
         from scripts import phase06_kernel_release
         sha = phase06_kernel_release.source_checkout_commit()
         valid = (source == SOURCE_ROOT.resolve() and bool(_SHA.fullmatch(sha)) and
-                 _git(source, 'remote', 'get-url', 'origin') == 'https://github.com/Daisuke134/life-manager.git')
+                 is_canonical_remote(_git(source, 'remote', 'get-url', 'origin')))
         if state_store is not None:
             path = Path(os.path.abspath(state_store))
             valid = (valid and not path.is_symlink() and

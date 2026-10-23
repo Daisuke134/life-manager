@@ -93,6 +93,39 @@ def platform_fixture(root, *, context_values=True, audit=True):
 
 
 class GitHubActionsCycleHostTests(unittest.TestCase):
+    def test_canonical_remote_helper_accepts_only_two_exact_https_spellings(self):
+        from manager_core.owned_platform_host import is_canonical_remote, PAGES_REMOTE
+        self.assertEqual(PAGES_REMOTE, 'https://github.com/Daisuke134/life-manager.git')
+        self.assertTrue(is_canonical_remote(PAGES_REMOTE))
+        self.assertTrue(is_canonical_remote('https://github.com/Daisuke134/life-manager'))
+        for remote in (
+            'https://github.com/Other/life-manager.git',
+            'https://github.com/Daisuke134/life-manager-evil.git',
+            'https://user@github.com/Daisuke134/life-manager.git',
+            'https://github.com:443/Daisuke134/life-manager.git',
+            'https://github.com/Daisuke134/life-manager.git?query=1',
+            'https://github.com/Daisuke134/life-manager.git/',
+            'https://github.com/Daisuke134/life-manager/',
+            'http://github.com/Daisuke134/life-manager.git',
+            'ssh://git@github.com/Daisuke134/life-manager.git',
+            'git@github.com:Daisuke134/life-manager.git',
+        ):
+            with self.subTest(remote=remote):
+                self.assertFalse(is_canonical_remote(remote))
+
+    def test_host_accepts_checkout_origin_without_git_suffix(self):
+        with TemporaryDirectory() as tmp:
+            fixture = platform_fixture(Path(tmp))
+            host, pages = fixture[2], fixture[-1]
+            canonical = 'https://github.com/Daisuke134/life-manager'
+            pages.git('remote', 'set-url', 'origin', canonical)
+            pages.git('remote', 'set-url', '--push', 'origin', canonical)
+            host._assert_checkout_identity(clean=True)
+            pages.git('remote', 'set-url', '--push', 'origin',
+                      'https://github.com/Daisuke134/life-manager-evil.git')
+            with self.assertRaises(PermissionError):
+                host._assert_checkout_identity(clean=True)
+
     def run_platform(self, root, env=None):
         conf, store, host, gateway, *_ = platform_fixture(root)
         from scripts import phase06_kernel_release as release

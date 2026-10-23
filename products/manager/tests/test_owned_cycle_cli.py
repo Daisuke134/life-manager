@@ -22,6 +22,81 @@ class OwnedCycleCLITests(unittest.TestCase):
             self.assertEqual(summary['authentication'], 'NOT_PROVEN')
             self.assertFalse(state.exists())
 
+    def test_main_context_accepts_actions_checkout_origin_without_git_suffix(self):
+        from scripts import phase06_kernel_release as release
+        from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, pages, runner_temp = root / 'source', root / 'pages', root / 'runner-temp'
+            runner_temp.mkdir()
+            def initialize(path, branch):
+                path.mkdir(parents=True)
+                subprocess.run(['git', '-C', str(path), 'init', '-q'], check=True)
+                subprocess.run(['git', '-C', str(path), 'config', 'user.name', 'Origin fixture'], check=True)
+                subprocess.run(['git', '-C', str(path), 'config', 'user.email', 'origin@example.invalid'], check=True)
+                (path / 'fixture.txt').write_text('fixture')
+                subprocess.run(['git', '-C', str(path), 'add', '.'], check=True)
+                subprocess.run(['git', '-C', str(path), 'commit', '-qm', 'fixture'], check=True)
+                subprocess.run(['git', '-C', str(path), 'branch', '-M', branch], check=True)
+                subprocess.run(['git', '-C', str(path), 'remote', 'add', 'origin',
+                                'https://github.com/Daisuke134/life-manager'], check=True)
+            initialize(source, 'main')
+            initialize(pages, 'gh-pages')
+            source_sha = subprocess.check_output(
+                ['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
+            env = {
+                'GITHUB_REPOSITORY': REPOSITORY,
+                'GITHUB_REF': MAIN_REF,
+                'GITHUB_WORKFLOW_REF': f'{REPOSITORY}/{WORKFLOW}@{MAIN_REF}',
+                'GITHUB_WORKFLOW': cli.WORKFLOW_NAME,
+                'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                'GITHUB_SHA': source_sha,
+                'GITHUB_WORKFLOW_SHA': source_sha,
+                'GITHUB_RUN_ID': '123',
+                'GITHUB_RUN_ATTEMPT': '1',
+                'RUNNER_ENVIRONMENT': 'github-hosted',
+                'RUNNER_TEMP': str(runner_temp),
+            }
+            with patch.object(cli, 'SOURCE_ROOT', source), \
+                 patch.object(release, 'ROOT', source / 'products' / 'manager'), \
+                 patch.object(release, 'source_checkout_commit', return_value=source_sha), \
+                 patch.dict('os.environ', env, clear=True):
+                context = cli._check_main_context(pages)
+            self.assertEqual(context['source_root'], source.resolve())
+            self.assertEqual(context['pages_root'], pages.resolve())
+            with patch.object(cli, 'SOURCE_ROOT', source), \
+                 patch.object(release, 'source_checkout_commit', return_value=source_sha):
+                preflight_code, preflight = cli.run_preflight(source)
+            self.assertEqual(preflight_code, 0)
+            self.assertEqual(preflight['status'], 'PREFLIGHT_READY')
+
+            subprocess.run(['git', '-C', str(pages), 'remote', 'set-url', '--push', 'origin',
+                            'https://github.com/Daisuke134/life-manager'], check=True)
+            subprocess.run(['git', '-C', str(pages), 'remote', 'set-url', '--push', 'origin',
+                            'https://github.com/Daisuke134/life-manager-evil.git'], check=True)
+            with patch.object(cli, 'SOURCE_ROOT', source), \
+                 patch.object(release, 'ROOT', source / 'products' / 'manager'), \
+                 patch.object(release, 'source_checkout_commit', return_value=source_sha), \
+                 patch.dict('os.environ', env, clear=True):
+                with self.assertRaises(PermissionError):
+                    cli._check_main_context(pages)
+            subprocess.run(['git', '-C', str(pages), 'remote', 'set-url', '--push', 'origin',
+                            'https://github.com/Daisuke134/life-manager'], check=True)
+
+            subprocess.run(['git', '-C', str(source), 'remote', 'set-url', 'origin',
+                            'https://github.com/Daisuke134/life-manager/'], check=True)
+            with patch.object(cli, 'SOURCE_ROOT', source), \
+                 patch.object(release, 'ROOT', source / 'products' / 'manager'), \
+                 patch.object(release, 'source_checkout_commit', return_value=source_sha), \
+                 patch.dict('os.environ', env, clear=True):
+                with self.assertRaises(PermissionError):
+                    cli._check_main_context(pages)
+            with patch.object(cli, 'SOURCE_ROOT', source), \
+                 patch.object(release, 'source_checkout_commit', return_value=source_sha):
+                rejected_code, rejected = cli.run_preflight(source)
+            self.assertEqual(rejected_code, 2)
+            self.assertEqual(rejected['status'], 'PREFLIGHT_BLOCKED')
+
     def test_run_once_restores_before_store_and_calls_one_cycle(self):
         events = []
         class Checkpoint:
