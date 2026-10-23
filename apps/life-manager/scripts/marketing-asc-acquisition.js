@@ -22,6 +22,10 @@ const PRODUCTS = Object.freeze([
   Object.freeze({ product_id: "sleep-ritual", app_id: "6759916261", app_name: "SleepRitual", request_id: "d48b40a7-fd84-4ec7-a448-317c376457e0" }),
   Object.freeze({ product_id: "desk-stretch-timer", app_id: "6760048397", app_name: "Desk Stretch Timer", request_id: "0ffe9de3-7072-4dbc-9d49-afe1a70534b3" }),
   Object.freeze({ product_id: "micro-mood", app_id: "6759877003", app_name: "Micro-Mood", request_id: "4e9b2fc8-6abb-4c6a-b58d-878f7a55e7e7" }),
+  Object.freeze({ product_id: "dhamma-quotes", app_id: "6757726663", app_name: "Dhamma Quotes", request_id: "25b5906d-025b-4b9d-8226-dc1ea25bd13f" }),
+  Object.freeze({ product_id: "sleep-reset", app_id: "6762143790", app_name: "For Better Sleep - Sleep Reset", request_id: "f4f4e486-d5cd-4b16-9d06-a1850fc9a477" }),
+  Object.freeze({ product_id: "studio-cherie", app_id: "6766485903", app_name: "STUDIO CHERIE", request_id: "b1c18c4e-77f3-4b63-bee4-259353531c3d" }),
+  Object.freeze({ product_id: "thankful", app_id: "6759514159", app_name: "Thankful - Gratitude Journal", request_id: "a1149f87-b22a-42cb-85a8-324eb54d2f1a" }),
 ]);
 const ASC_ENV = Object.freeze({ ...process.env, ASC_BYPASS_KEYCHAIN: "true", ASC_TIMEOUT: "90s" });
 
