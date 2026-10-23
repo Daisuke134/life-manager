@@ -3,6 +3,11 @@
 set -euo pipefail
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+GIG_PYTHON="${PYTHON:-/usr/bin/python3}"
+if [ ! -x "$GIG_PYTHON" ]; then
+  echo "Gig browser Python is unavailable" >&2
+  exit 69
+fi
 
 # The launchd plist points at the stable `current` release symlink. Keep this
 # preflight in the executable so unsafe control state is rejected before startup.
@@ -13,7 +18,7 @@ unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR LIFE_MANAGER_HOST_STATE_DIR
 export GIG_HOST_STATE_DIR GIG_STATE_DIR
 GIG_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DISK_GUARD="$GIG_SCRIPT_DIR/gig_disk_guard.py"
-if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true; then
+if ! "$GIG_PYTHON" "$DISK_GUARD" /usr/bin/true; then
   echo "Gig control-state validation blocked browser start" >&2
   exit 1
 fi
@@ -35,14 +40,14 @@ if [ "${GIG_BROWSER_PORT_OWNED:-0}" != 1 ]; then
   }
   if [ -n "${GIG_BROWSER_PORT_STATE_DIR:-}" ]; then
     case "$GIG_BROWSER_PORT_STATE_DIR" in /*) ;; *) exit 64 ;; esac
-    exec /usr/bin/python3 -I "$PORT_OWNER" run \
+    exec "$GIG_PYTHON" -I "$PORT_OWNER" run \
       --state-dir "$GIG_BROWSER_PORT_STATE_DIR" \
       --port "$GIG_BROWSER_PORT" \
       --profile "$GIG_BROWSER_PROFILE" \
       --owner "$GIG_BROWSER_OWNER" \
       -- /usr/bin/env GIG_BROWSER_PORT_OWNED=1 "$0"
   fi
-  exec /usr/bin/python3 -I "$PORT_OWNER" run \
+  exec "$GIG_PYTHON" -I "$PORT_OWNER" run \
     --port "$GIG_BROWSER_PORT" \
     --profile "$GIG_BROWSER_PROFILE" \
     --owner "$GIG_BROWSER_OWNER" \
@@ -134,7 +139,7 @@ for _ in $(jot 30); do
   kill -0 "$browser_pid" 2>/dev/null || break
   if /usr/bin/curl -fsS --max-time 1 "$cdp_base/json/version" >/dev/null 2>&1; then
     if [ -r "$vault_dir/auth-state.json" ] && [ -r "$vault_helper" ]; then
-      vault_python=/opt/homebrew/bin/python3
+      vault_python="${PYTHON:-/opt/homebrew/bin/python3}"
       [ -x "$vault_python" ] || vault_python=/usr/bin/python3
       SESSION_VAULT_DIR="$vault_dir" SESSION_VAULT_PORT="$GIG_BROWSER_PORT" \
         CLOAK_CDP_BASE_URL="$cdp_base" \

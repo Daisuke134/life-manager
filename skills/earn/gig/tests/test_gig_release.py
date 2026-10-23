@@ -1,6 +1,9 @@
 import importlib.util
 import json
+import os
 import plistlib
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -452,6 +455,7 @@ def _configured_email_fixture(tmp_path, monkeypatch):
     for module in (gig_release, canonical_release):
         monkeypatch.setattr(module, "OVERRIDES", home / ".config/anicca/gig/install.json")
     configure_email(home, "owner@example.test")
+    return home
 
 
 def _coconala_release_fixture(tmp_path):
@@ -463,10 +467,14 @@ def _coconala_release_fixture(tmp_path):
     return release
 
 
-def test_managed_activation_keeps_configured_email_in_every_coconala_plist(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("selected_python", [None, "/bin/echo"])
+def test_managed_activation_keeps_configured_bindings_in_every_coconala_plist(tmp_path, monkeypatch, capsys, selected_python):
     from runtime.loop import lm_loop_apply
 
-    _configured_email_fixture(tmp_path, monkeypatch)
+    home = _configured_email_fixture(tmp_path, monkeypatch)
+    from coconala_onboarding import configure
+    if selected_python:
+        configure(home, PYTHON=selected_python, UNRELATED_ENV="never-inject")
     release = _coconala_release_fixture(tmp_path)
     registry = json.loads((release / "config/loop-registry.json").read_text())["loops"]
     generated = {}
@@ -498,13 +506,77 @@ def test_managed_activation_keeps_configured_email_in_every_coconala_plist(tmp_p
     for environment in generated.values():
         assert environment.get("GIG_GOG_ACCOUNT") == "owner@example.test"
         assert environment.get("GIG_NOTIFY_EMAIL") == "owner@example.test"
+        assert environment["HF_GIG_PYTHON"] == (selected_python or sys.executable)
+        assert environment["LIFE_MANAGER_RUNTIME_PYTHON"] == (selected_python or sys.executable)
+        assert environment.get("PYTHON") == selected_python
+        assert "UNRELATED_ENV" not in environment
     for owner in ("hf-gig-apply-reconcile", "article-daily"):
         environment = plistlib.loads(lm_loop_apply._plist(
             owner, registry[owner], release, "a" * 40,
         ))["EnvironmentVariables"]
         assert "GIG_GOG_ACCOUNT" not in environment
         assert "GIG_NOTIFY_EMAIL" not in environment
+        assert environment["LIFE_MANAGER_RUNTIME_PYTHON"] == sys.executable
+        assert "PYTHON" not in environment
+        if owner.startswith("hf-gig-"):
+            assert environment["HF_GIG_PYTHON"] == sys.executable
+        else:
+            assert "HF_GIG_PYTHON" not in environment
     assert "owner@example.test" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("invalid", ["missing", "not-executable", "directory", "relative", "empty"])
+def test_managed_activation_rejects_invalid_configured_python_before_apply(tmp_path, monkeypatch, invalid):
+    home = _configured_email_fixture(tmp_path, monkeypatch)
+    from coconala_onboarding import configure
+    python = home / invalid
+    if invalid == "not-executable":
+        python.write_text("not executable")
+    elif invalid == "directory":
+        python.mkdir()
+    value = "relative/python" if invalid == "relative" else "" if invalid == "empty" else str(python)
+    configure(home, PYTHON=value)
+    release = _coconala_release_fixture(tmp_path)
+
+    def run(*_args, **_kwargs):
+        pytest.fail("invalid owner Python must be rejected before calling the control plane")
+
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+    with pytest.raises(ValueError, match="Coconala Python"):
+        gig_release.activate_managed_jobs(release, {"ai.anicca.hf-gig-reply-detector"}, False)
+
+
+@pytest.mark.parametrize("owner,script,first_arguments", [
+    ("hf-gig-reply-detector", "skills/earn/gig/scripts/coconala-reply-owner",
+     ["skills/_shared/marketplace-core/scripts/reply_kernel.py"]),
+    ("hf-gig-paid-direct", "skills/earn/gig/scripts/paid-direct-owner",
+     ["skills/earn/gig/scripts/gig_disk_guard.py", "/bin/echo", "skills/earn/gig/scripts/paid_direct.py"]),
+    ("hf-gig-daily-report", "skills/earn/gig/gig_daily_report.sh",
+     ["skills/earn/gig/scripts/telegram_report.py", "daily"]),
+])
+def test_selected_python_reaches_real_coconala_wrappers(tmp_path, monkeypatch, owner, script, first_arguments):
+    from runtime.loop import lm_loop_apply
+
+    home = _configured_email_fixture(tmp_path, monkeypatch)
+    from coconala_onboarding import configure_python
+    configure_python(home, Path("/bin/echo"))
+    root = gig_release.REPO_ROOT
+    registry = json.loads((root / "config/loop-registry.json").read_text())["loops"]
+    monkeypatch.setattr(lm_loop_apply, "_managed_node", lambda *_: "/fixture/bin/node")
+    environment = plistlib.loads(lm_loop_apply._plist(owner, registry[owner], root, "a" * 40))["EnvironmentVariables"]
+    assert environment["HF_GIG_PYTHON"] == "/bin/echo"
+    assert environment.get("PYTHON") == "/bin/echo"
+    assert environment["LIFE_MANAGER_RUNTIME_PYTHON"] == "/bin/echo"
+    environment.pop("LIFE_MANAGER_BROWSER_IDENTITY", None)
+    result = subprocess.run([str(root / script)],
+                            env={"HOME": str(home), "PATH": os.defpath, **environment},
+                            check=True, capture_output=True, text=True)
+    expected = [str(root / value) if value.startswith("skills/") else value for value in first_arguments]
+    assert shlex.split(result.stdout)[:len(expected)] == expected
+    lifecycle = subprocess.run([str(root / "bin/lm-loop-run"), owner, str(root)],
+                               env={"HOME": str(home), "PATH": os.defpath, **environment},
+                               check=True, capture_output=True, text=True)
+    assert shlex.split(lifecycle.stdout) == ["-m", "runtime.loop.lm_loop_run", owner, str(root)]
 
 
 @pytest.mark.parametrize("previous", [None, "previous@example.test", "owner@example.test"])

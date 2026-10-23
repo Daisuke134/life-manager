@@ -18,7 +18,7 @@ from typing import Callable
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.loop_cleanup import release_is_reclaimed
 from runtime.host.local_profile import host_environment
-from skills.earn.gig.scripts.gig_release import coconala_notification_environment
+from skills.earn.gig.scripts.gig_release import coconala_job_environment
 
 
 _IMMUTABLE_RELEASE_WORKING_DIRECTORY = re.compile(
@@ -317,9 +317,9 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             str(Path(python).parent), str(Path(node).parent), str(Path.home() / ".local/bin"),
             "/opt/homebrew/bin", "/usr/local/bin", *os.defpath.split(os.pathsep))))
     value["EnvironmentVariables"].update(host)
-    value["EnvironmentVariables"].update(coconala_notification_environment(release_root, loop_id))
     if loop_id.startswith("hf-gig-"):
         value["EnvironmentVariables"]["HF_GIG_PYTHON"] = value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"]
+    value["EnvironmentVariables"].update(coconala_job_environment(release_root, loop_id))
     return plistlib.dumps(value, fmt=plistlib.FMT_XML, sort_keys=True)
 
 
