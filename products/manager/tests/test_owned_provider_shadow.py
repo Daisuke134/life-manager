@@ -1,5 +1,6 @@
 """Offline public catalog shadow contract tests over the existing owner components."""
 import base64
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
@@ -287,6 +288,99 @@ class OwnedProviderShadowTests(unittest.TestCase):
             self.assertEqual(set(skipped), keys)
             self.assertIsNone(skipped["compared_at"])
             self.assertEqual(skipped["baseline_decisions"], {"no_action": None, "rules": None})
+
+    def test_public_projection_rejects_inconsistent_status_reason(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            result, _, _, _, _ = self.run_shadow(Path(tmp))
+            for status, reason in (
+                    ("COMPARED_P0", "DISABLED"),
+                    ("COMPARED_P0", "PROVIDER_TRANSPORT_UNKNOWN"),
+                    ("UNKNOWN", "MODEL_RESPONSE_PARSED"),
+                    ("SKIPPED", "PRIOR_INTENT_RECONCILIATION_REQUIRED")):
+                record = result if status == "COMPARED_P0" else shadow._record(status, reason, "123")
+                with self.subTest(status=status, reason=reason), self.assertRaisesRegex(
+                        ValueError, "^invalid catalog shadow record$"):
+                    shadow.public_catalog_shadow_summary(record | {"status": status, "reason": reason})
+
+    def test_public_projection_requires_completed_comparison_evidence(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            result, _, _, _, _ = self.run_shadow(Path(tmp))
+            self.assertEqual(shadow.public_catalog_shadow_summary(result)["status"], "COMPARED_P0")
+            required = ("compared_at", "operation_id", "context_sha256", "baseline_digest",
+                        "candidate_digest", "baseline", "model_status", "model_advice", "model_comparison")
+            paths = [(key,) for key in required] + [
+                ("baseline", key) for key in ("no_action", "rules")] + [
+                ("baseline", key, "decision") for key in ("no_action", "rules")] + [
+                ("model_advice", "decision"),
+                ("model_comparison", "no_action_same_decision"),
+                ("model_comparison", "rules_same_decision")]
+            for path in paths:
+                for missing in (True, False):
+                    record = deepcopy(result)
+                    parent = record
+                    for key in path[:-1]:
+                        parent = parent[key]
+                    if missing:
+                        del parent[path[-1]]
+                    else:
+                        parent[path[-1]] = None
+                    with self.subTest(path=path, missing=missing), self.assertRaisesRegex(
+                            ValueError, "^invalid catalog shadow record$"):
+                        shadow.public_catalog_shadow_summary(record)
+            for key in ("no_action_same_decision", "rules_same_decision"):
+                record = deepcopy(result)
+                record["model_comparison"][key] = not record["model_comparison"][key]
+                with self.subTest(inverted=key), self.assertRaisesRegex(
+                        ValueError, "^invalid catalog shadow record$"):
+                    shadow.public_catalog_shadow_summary(record)
+            invalid = deepcopy(result)
+            invalid["model_status"] = "INVALID_MODEL_OUTPUT"
+            invalid.pop("model_advice")
+            invalid.pop("model_comparison")
+            for advice_present in (False, True):
+                for comparison_present in (False, True):
+                    record = deepcopy(invalid)
+                    if advice_present:
+                        record["model_advice"] = None
+                    if comparison_present:
+                        record["model_comparison"] = None
+                    with self.subTest(advice_present=advice_present, comparison_present=comparison_present):
+                        public = shadow.public_catalog_shadow_summary(record)
+                        self.assertIsNone(public["model_decision"])
+                        self.assertEqual(public["model_comparison"],
+                            {"no_action_same_decision": None, "rules_same_decision": None})
+            for key in ("model_advice", "model_comparison"):
+                for value in ({}, result[key]):
+                    with self.subTest(invalid_output_key=key, value=value), self.assertRaisesRegex(
+                            ValueError, "^invalid catalog shadow record$"):
+                        shadow.public_catalog_shadow_summary(invalid | {key: value})
+
+    def test_public_projection_rejects_model_evidence_on_noncompared_results(self):
+        from manager_core import owned_provider_shadow as shadow
+        with TemporaryDirectory() as tmp:
+            result, _, _, _, _ = self.run_shadow(Path(tmp))
+            prepared = {key: result[key] for key in ("operation_id", "context_sha256",
+                "baseline_digest", "candidate_digest", "baseline")}
+            for status, reason in (("SKIPPED", "DISABLED"),
+                                   ("UNKNOWN", "PROVIDER_TRANSPORT_UNKNOWN")):
+                record = shadow._record(status, reason, "123")
+                for fields in ({}, prepared, prepared | {"compared_at": None, "model_status": None,
+                        "model_advice": None, "model_comparison": None}):
+                    with self.subTest(status=status, fields=tuple(fields)):
+                        public = shadow.public_catalog_shadow_summary(record | fields)
+                        self.assertEqual((public["status"], public["reason"]), (status, reason))
+                for key in ("compared_at", "model_status", "model_advice", "model_comparison"):
+                    values = [result[key]]
+                    if key in ("model_advice", "model_comparison"):
+                        values.append({})
+                    elif key == "model_status":
+                        values.append("INVALID_MODEL_OUTPUT")
+                    for value in values:
+                        with self.subTest(status=status, key=key, value=value), self.assertRaisesRegex(
+                                ValueError, "^invalid catalog shadow record$"):
+                            shadow.public_catalog_shadow_summary(record | prepared | {key: value})
 
     def owner(self, root, cap=Decimal("0.05")):
         raw, _ = snapshot(root / "seed")
