@@ -9,7 +9,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import inspect_external_behavior_benchmark as inspector  # noqa: E402
-from manager_core.external_behavior_eval import evaluate_released_effects, make_fixed_study_split  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,6 +17,8 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR SNAPSHOT_INVALID", file=sys.stderr)
         return 2
     try:
+        from manager_core.external_behavior_eval import evaluate_released_effects, make_fixed_study_split
+
         rows, legacy_report = inspector.load_validated_snapshot(
             Path(arguments[0]), inspector._load_repository_nature()
         )

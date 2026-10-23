@@ -126,55 +126,73 @@ def _score_metrics(pairs: Mapping[tuple[str, str], list[tuple[float, float]]], s
             continue
         block_abs: dict[tuple[str, str], list[float]] = defaultdict(list)
         block_sq: dict[tuple[str, str], list[float]] = defaultdict(list)
-        by_study: dict[str, dict[str, list[float]]] = defaultdict(lambda: {"abs": [], "sq": []})
+        block_directions: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
+        by_study: dict[str, dict[str, list[float]]] = defaultdict(lambda: {"abs": [], "sq": [], "direction": []})
         directions = {"agreement": 0, "observed_zero": 0, "prediction_tie": 0, "eligible": 0}
-        study_direction_rates: list[float] = []
-        observed: list[float] = []
-        predicted: list[float] = []
+        symmetric_associations: list[tuple[float, float]] = []
+        test_blocks = 0
         for (study, _outcome), contrasts in pairs.items():
             if study not in studies:
                 continue
+            test_blocks += 1
             for estimate, prediction in contrasts:
                 forecast = 0.0 if name == "zero" else prediction if name == "raw" else beta * prediction
                 error = forecast - estimate
                 block_abs[(study, _outcome)].append(abs(error))
                 block_sq[(study, _outcome)].append(error * error)
-                observed.append(estimate)
-                predicted.append(forecast)
+                symmetric_associations.extend(((estimate, forecast), (-estimate, -forecast)))
                 if abs(estimate) <= _TOL:
                     directions["observed_zero"] += 1
                 if abs(forecast) <= _TOL:
                     directions["prediction_tie"] += 1
                 if abs(estimate) > _TOL and abs(forecast) > _TOL:
                     directions["eligible"] += 1
-                    directions["agreement"] += int(math.copysign(1, estimate) == math.copysign(1, forecast))
+                    correct = int(math.copysign(1, estimate) == math.copysign(1, forecast))
+                    directions["agreement"] += correct
+                    block_directions[(study, _outcome)][0] += correct
+                    block_directions[(study, _outcome)][1] += 1
         for (study, outcome), losses in block_abs.items():
             by_study[study]["abs"].append(float(np.mean(losses)))
             by_study[study]["sq"].append(float(np.mean(block_sq[(study, outcome)])))
-        for study in by_study:
-            study_blocks = [(key, values) for key, values in pairs.items() if key[0] == study]
-            correct = eligible = 0
-            for (_s, _outcome), contrasts in study_blocks:
-                for estimate, prediction in contrasts:
-                    forecast = 0.0 if name == "zero" else prediction if name == "raw" else beta * prediction
-                    if abs(estimate) > _TOL and abs(forecast) > _TOL:
-                        eligible += 1
-                        correct += int(math.copysign(1, estimate) == math.copysign(1, forecast))
+        for key, (correct, eligible) in block_directions.items():
             if eligible:
-                study_direction_rates.append(correct / eligible)
+                by_study[key[0]]["direction"].append(correct / eligible)
         if not by_study:
             raise EvaluationError("EMPTY_SPLIT")
         macro_abs = [float(np.mean(values["abs"])) for values in by_study.values()]
         macro_sq = [float(np.mean(values["sq"])) for values in by_study.values()]
+        study_direction_rates = [float(np.mean(values["direction"])) for values in by_study.values() if values["direction"]]
         corr: dict[str, Any]
+        # Include both directions of every unordered pair, then sort the
+        # symmetric multiset so arbitrary condition names cannot set signs.
+        symmetric_associations.sort()
+        observed = np.asarray([pair[0] for pair in symmetric_associations], dtype=float)
+        predicted = np.asarray([pair[1] for pair in symmetric_associations], dtype=float)
         if np.ptp(observed) == 0 or np.ptp(predicted) == 0:
-            corr = {"value": None, "reason": "CONSTANT_INPUT"}
+            corr = {"value": None, "reason": "CONSTANT_INPUT", "kind": "antisymmetric_pair_symmetrized"}
         else:
-            corr = {"value": float(stats.pearsonr(observed, predicted).statistic), "reason": None}
+            corr = {
+                "value": float(stats.pearsonr(observed, predicted).statistic),
+                "reason": None,
+                "kind": "antisymmetric_pair_symmetrized",
+            }
         metrics[name] = {
             "mae_full_scale": float(np.mean(macro_abs)),
             "rmse_full_scale": float(np.sqrt(np.mean(macro_sq))),
-            "direction": {**directions, "agreement_rate_among_non_ties": (float(np.mean(study_direction_rates)) if study_direction_rates else None), "agreement_rate_weighting": "study_macro_among_studies_with_eligible_pairs"},
+            "direction": {
+                **directions,
+                "agreement_rate_among_non_ties": float(np.mean(study_direction_rates)) if study_direction_rates else None,
+                "agreement_rate_weighting": "pair_mean_then_outcome_mean_then_study_mean_then_test_study_mean",
+                "coverage": {
+                    "eligible_pairs": directions["eligible"],
+                    "test_pairs": sum(len(values) for (study, _), values in pairs.items() if study in studies),
+                    "eligible_outcome_blocks": sum(eligible > 0 for _key, (_correct, eligible) in block_directions.items()),
+                    "test_outcome_blocks": test_blocks,
+                    "eligible_test_studies": len(study_direction_rates),
+                    "test_studies": len(by_study),
+                },
+                "reason": None if study_direction_rates else "NO_ELIGIBLE_DIRECTION_COVERAGE",
+            },
             "pearson_r_descriptive_only": corr,
         }
     return metrics
@@ -207,28 +225,52 @@ def _bootstrap(study_scores: Mapping[str, Mapping[str, Any]], seed: int, n_resam
 def _selection(pairs: Mapping[tuple[str, str], list[tuple[float, float]]], split: Mapping[str, str], objectives: Mapping[tuple[str, str], int] | None, beta: float | None) -> dict[str, Any]:
     if objectives is None:
         return {"status": "OBJECTIVE_NOT_SPECIFIED", "regret": None}
-    regrets: dict[str, list[float]] = {name: [] for name in ("zero", "raw", "calibrated")}
+    regrets: dict[str, dict[str, list[float]]] = {name: defaultdict(list) for name in ("zero", "raw", "calibrated")}
+    ties = {name: 0 for name in regrets}
+    covered_pairs = 0
+    covered_blocks: set[tuple[str, str]] = set()
     for (study, outcome), contrasts in pairs.items():
         if split[study] != "test" or (study, outcome) not in objectives:
             continue
+        covered_blocks.add((study, outcome))
         sign = objectives[(study, outcome)]
         if type(sign) is not int or sign not in (-1, 1):
             raise EvaluationError("INVALID_OBJECTIVE")
+        covered_pairs += len(contrasts)
         for name in regrets:
             if name == "calibrated" and beta is None:
                 continue
             loss = []
             for estimate, prediction in contrasts:
-                y = sign * estimate
-                p = 0.0 if name == "zero" else sign * prediction * (beta if name == "calibrated" else 1.0)
-                choice = 1.0 if p > _TOL else 0.0 if p < -_TOL else 0.5
-                loss.append(max(0.0, y) - choice * y)
-            regrets[name].append(float(np.mean(loss)))
-    coverage = len(regrets["zero"])
-    if not coverage:
+                forecast = 0.0 if name == "zero" else prediction * (beta if name == "calibrated" else 1.0)
+                if abs(forecast) <= _TOL:
+                    ties[name] += 1
+                oriented_losses = []
+                for orientation in (1.0, -1.0):
+                    y = sign * orientation * estimate
+                    p = sign * orientation * forecast
+                    choice = 1.0 if p > _TOL else 0.0 if p < -_TOL else 0.5
+                    oriented_losses.append(max(0.0, y) - choice * y)
+                loss.append(float(np.mean(oriented_losses)))
+            regrets[name][study].append(float(np.mean(loss)))
+    if not covered_blocks:
         return {"status": "NO_COMMON_OBJECTIVE_COVERAGE", "regret": None}
-    return {"status": "DESCRIPTIVE_PAIRWISE_REGRET", "coverage_outcome_blocks": coverage,
-            "regret": {name: (float(np.mean(values)) if values else None) for name, values in regrets.items()}}
+    study_macro = {
+        name: [float(np.mean(outcome_regrets)) for outcome_regrets in by_study.values()]
+        for name, by_study in regrets.items()
+    }
+    return {
+        "status": "DESCRIPTIVE_PAIRWISE_REGRET",
+        "regret": {name: (float(np.mean(values)) if values else None) for name, values in study_macro.items()},
+        "weighting": "pair_mean_then_objective_outcome_mean_then_test_study_mean",
+        "tie_counts": ties,
+        "coverage": {
+            "eligible_pairs": covered_pairs,
+            "eligible_outcome_blocks": len(covered_blocks),
+            "eligible_test_studies": len({study for study, _ in covered_blocks}),
+            "test_studies": sum(label == "test" for label in split.values()),
+        },
+    }
 
 
 def evaluate_released_effects(
@@ -289,6 +331,9 @@ def evaluate_released_effects(
             "bootstrap_seed": bootstrap_seed,
             "n_resamples": n_resamples,
             "weighting": "pair_mean_then_outcome_mean_then_study_mean_then_test_study_mean",
+            "direction_weighting": "eligible_pair_rate_then_eligible_outcome_mean_then_eligible_study_mean_then_eligible_test_study_mean",
+            "correlation": "SciPy Pearson statistic on both symmetric directions per unordered pair; descriptive antisymmetric association only",
+            "correlation_inference": "no p-value, confidence interval, or independent-row interpretation",
             "effect_scale": "full_scale_signed_difference_in[-1,1]",
             "calibration": "train_only_weighted_through_origin_unconstrained_beta",
         },
@@ -311,5 +356,7 @@ def evaluate_released_effects(
             "exposure": "Study holdout does not establish that predictions were unseen during model pretraining.",
             "reproduction": "Does not reproduce original random-reference, attenuation correction, LOSO pilot, or megastudy top-20-percent selection protocols.",
             "benefit": "No human benefit, harm, cost, or welfare is estimated.",
+            "association": "Pearson is computed on the symmetric directed representation of each unordered pair to make the descriptive antisymmetric association invariant to condition names; it is not the original random-reference protocol or an independent-N analysis.",
+            "selection": "Optional regret symmetrizes both directions of each unordered pair; without condition-specific utilities this is descriptive pairwise regret, not a policy recommendation.",
         },
     }

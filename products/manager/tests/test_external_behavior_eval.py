@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import math
+import importlib.util
 import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
+    raise unittest.SkipTest("optional NumPy/SciPy research dependencies are unavailable")
 sys.path.insert(0, str(REPO_ROOT / "products/manager/manager_core"))
 sys.path.insert(0, str(REPO_ROOT / "products/manager/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,6 +42,25 @@ def fixture():
         rows.extend(rows_for(*spec))
     split = {"s1": "train", "s2": "train", "s3": "test", "s4": "test"}
     return rows, split
+
+
+def contrast(study, outcome, pairs, *, group="published", swap_labels=False):
+    rows = []
+    for index, (estimate, prediction) in enumerate(pairs):
+        if len(pairs) == 3:
+            reference, condition = (("A", "B"), ("A", "C"), ("B", "C"))[index]
+        else:
+            reference, condition = "A", "B"
+        if swap_labels:
+            reference = {"A": "B", "B": "A", "C": "C"}[reference]
+            condition = {"A": "B", "B": "A", "C": "C"}[condition]
+        rows.extend([
+            {"study": study, "outcome.name": outcome, "reference_condition": reference, "condition.name": condition,
+             "estimate": estimate, "prediction": prediction, "group": group},
+            {"study": study, "outcome.name": outcome, "reference_condition": condition, "condition.name": reference,
+             "estimate": -estimate, "prediction": -prediction, "group": group},
+        ])
+    return rows
 
 
 class ExternalBehaviorEvaluationTests(unittest.TestCase):
@@ -95,6 +117,8 @@ class ExternalBehaviorEvaluationTests(unittest.TestCase):
         self.assertEqual(gap["reason"], "FEWER_THAN_TWO_TEST_STUDIES")
         self.assertEqual(result["scores"]["raw"]["direction"]["observed_zero"], 1)
         self.assertEqual(result["scores"]["raw"]["direction"]["prediction_tie"], 1)
+        self.assertEqual(result["scores"]["raw"]["direction"]["coverage"]["eligible_pairs"], 0)
+        self.assertEqual(result["scores"]["raw"]["direction"]["reason"], "NO_ELIGIBLE_DIRECTION_COVERAGE")
 
     def test_loader_returns_the_same_validated_rows_and_legacy_report(self):
         input_dir, nature, source_rows = a_tests.make_snapshot(self)
@@ -140,6 +164,26 @@ class ExternalBehaviorEvaluationTests(unittest.TestCase):
         self.assertEqual(completed.stdout, "")
         self.assertEqual(completed.stderr, "ERROR SNAPSHOT_INVALID\n")
 
+    def test_minimal_python_discovery_skips_only_the_optional_research_module(self):
+        completed = subprocess.run(
+            [sys.executable, "-S", "-m", "unittest", "discover", "-s",
+             str(REPO_ROOT / "products/manager/tests"), "-p", "test_external_behavior_eval.py"],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("skipped=1", completed.stderr)
+
+    def test_minimal_python_cli_error_stays_sanitized_without_research_dependencies(self):
+        cli = REPO_ROOT / "products/manager/scripts/evaluate_external_behavior_benchmark.py"
+        private_marker = "/private/path/marker-that-must-not-leak"
+        completed = subprocess.run(
+            [sys.executable, "-S", str(cli), private_marker], capture_output=True, text=True, check=False
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
+        self.assertEqual(completed.stderr, "ERROR SNAPSHOT_INVALID\n")
+        self.assertNotIn(private_marker, completed.stderr + completed.stdout)
+
     def test_explicit_objective_regret_respects_pair_orientation(self):
         rows = rows_for("s1", "o", 0.2, -0.1) + rows_for("s2", "o", -0.4, -0.2)
         split = {"s1": "train", "s2": "test"}
@@ -148,6 +192,76 @@ class ExternalBehaviorEvaluationTests(unittest.TestCase):
         )
         self.assertEqual(result["selection"]["status"], "DESCRIPTIVE_PAIRWISE_REGRET")
         self.assertIn("raw", result["selection"]["regret"])
+        self.assertEqual(result["selection"]["tie_counts"]["zero"], 1)
+        self.assertEqual(result["selection"]["coverage"]["eligible_pairs"], 1)
+
+    def test_direction_uses_pair_outcome_study_test_hierarchy_and_reports_coverage(self):
+        rows = contrast("train", "baseline", [(0.1, 0.1)])
+        rows += contrast("s1", "many_arms", [(0.1, 0.1)] * 3)
+        rows += contrast("s1", "one_arm", [(0.1, -0.1)])
+        rows += contrast("s2", "one_arm", [(0.1, -0.1)])
+        result = evaluation.evaluate_released_effects(
+            rows, study_split={"train": "train", "s1": "test", "s2": "test"}, bootstrap_seed=14
+        )
+        direction = result["scores"]["raw"]["direction"]
+        self.assertAlmostEqual(direction["agreement_rate_among_non_ties"], 0.25)
+        self.assertEqual(direction["coverage"], {
+            "eligible_pairs": 5,
+            "test_pairs": 5,
+            "eligible_outcome_blocks": 3,
+            "test_outcome_blocks": 3,
+            "eligible_test_studies": 2,
+            "test_studies": 2,
+        })
+
+    def test_selection_uses_pair_outcome_study_test_hierarchy(self):
+        rows = contrast("train", "baseline", [(0.1, 0.1)])
+        rows += contrast("s1", "many_arms", [(0.1, 0.1)] * 3)
+        rows += contrast("s1", "one_arm", [(0.1, -0.1)])
+        rows += contrast("s2", "one_arm", [(0.1, -0.1)])
+        signs = {(study, outcome): 1 for study, outcome in (("s1", "many_arms"), ("s1", "one_arm"), ("s2", "one_arm"))}
+        result = evaluation.evaluate_released_effects(
+            rows, study_split={"train": "train", "s1": "test", "s2": "test"}, bootstrap_seed=14,
+            objective_signs=signs,
+        )
+        selection = result["selection"]
+        self.assertAlmostEqual(selection["regret"]["raw"], 0.075)
+        self.assertEqual(selection["coverage"], {
+            "eligible_pairs": 5,
+            "eligible_outcome_blocks": 3,
+            "eligible_test_studies": 2,
+            "test_studies": 2,
+        })
+
+    def test_pearson_and_all_scientific_values_ignore_condition_relabeling(self):
+        rows = contrast("train", "baseline", [(0.1, 0.2)])
+        specs = [(0.1, 0.3), (0.2, 0.2), (0.3, 0.1)]
+        for index, pair in enumerate(specs, start=1):
+            rows += contrast(f"s{index}", "outcome", [pair], group="unpublished", swap_labels=index in {1, 3})
+        split = {"train": "train", "s1": "test", "s2": "test", "s3": "test"}
+        signs = {(f"s{i}", "outcome"): 1 for i in range(1, 4)}
+        # Compare with the same data under the original condition names.
+        relabeled = evaluation.evaluate_released_effects(rows, study_split=split, bootstrap_seed=71, objective_signs=signs)
+        canonical_rows = contrast("train", "baseline", [(0.1, 0.2)])
+        for index, pair in enumerate(specs, start=1):
+            canonical_rows += contrast(f"s{index}", "outcome", [pair], group="unpublished")
+        canonical = evaluation.evaluate_released_effects(canonical_rows, study_split=split, bootstrap_seed=71, objective_signs=signs)
+        self.assertEqual(relabeled, canonical)
+        self.assertEqual(canonical["scores"]["raw"]["pearson_r_descriptive_only"]["kind"], "antisymmetric_pair_symmetrized")
+        reversed_rows = [
+            {
+                **row,
+                "reference_condition": row["condition.name"],
+                "condition.name": row["reference_condition"],
+                "estimate": -row["estimate"],
+                "prediction": -row["prediction"],
+            }
+            for row in canonical_rows
+        ]
+        reversed_result = evaluation.evaluate_released_effects(
+            reversed_rows, study_split=split, bootstrap_seed=71, objective_signs=signs
+        )
+        self.assertEqual(reversed_result, canonical)
 
     def test_heldout_labels_cannot_change_the_train_fit(self):
         rows, split = fixture()
