@@ -1,0 +1,331 @@
+{
+  "schema": "manager.presentation.chapter-derivative.v1",
+  "title": "人工社会を借りて、現実から学ぶ",
+  "language": "ja",
+  "created_date": "2026-10-23",
+  "chapter_source": {
+    "path": "docs/research/manager/publication/2026-10-19/ja/manager-artificial-societies-open-behavior-research-ja.md",
+    "source_commit": "a1c7489a64ce043cabc84a76f9c924b6513fd813",
+    "sha256": "b6d65176539d04be5efb6c9a627ea675af9452563f2944dddb0d577c21ab4cc0",
+    "released_pdf": "Manager-Artificial-Societies-20261023-ja.pdf",
+    "released_pdf_sha256": "d0eea2c68a655df1231666c91077505753cb8385ae6a5d4f7bb009a0b6e2d160"
+  },
+  "derivative_policy": {
+    "purpose": "Unposted educational talk deck and eight selected 16:9 carousel cards derived from the exact published Japanese chapter.",
+    "audience": "General research and product audience",
+    "platform": "Unspecified; 16:9 export",
+    "claim_ids": [
+      "AS-2026",
+      "AS-2026-11TEST",
+      "AS-2024"
+    ],
+    "identity": "Manager is described as a Buddhist AI entity / Digital Buddha by its project definition; this does not establish consciousness, enlightenment, omniscience, or measured benefit.",
+    "global_limits": [
+      "No claim that Manager independently verified Rothko or the vendor-reported benchmark.",
+      "No claim of individual-level accuracy from aggregate distribution metrics.",
+      "No claim that released-effect results establish superiority; paired intervals include zero.",
+      "Twin evidence is structural only; behavior accuracy is unscored and provenance is unknown; PR #8599 is unmerged and excluded.",
+      "The prospective FOMC reference is fixed historical frequency p=0.25, equal to baseline by design; it is not AI inference. Official outcome and score are pending.",
+      "No established human outcome, welfare benefit, or independent performance claim."
+    ],
+    "renderer": "Reuses products/manager/scripts/build_manager_completion_presentations.py helpers; no new renderer or dependency."
+  },
+  "sources": {
+    "CHAPTER": {
+      "label": "公開済み日本語小章 (2026-10-19 source; 2026-10-22 researched)",
+      "path": "docs/research/manager/publication/2026-10-19/ja/manager-artificial-societies-open-behavior-research-ja.md",
+      "url": "https://github.com/Daisuke134/life-manager/blob/a1c7489a64ce043cabc84a76f9c924b6513fd813/docs/research/manager/publication/2026-10-19/ja/manager-artificial-societies-open-behavior-research-ja.md"
+    },
+    "AS-BENCH": {
+      "label": "Artificial Societies AS Benchmark (vendor-reported evaluation)",
+      "url": "https://societies.ai/as-benchmark"
+    },
+    "AS-11": {
+      "label": "AS Benchmark validation framework, arXiv:2609.30030v2 (company-authored preprint)",
+      "url": "https://arxiv.org/html/2609.30030v2"
+    },
+    "AS-HOMOPHILY": {
+      "label": "AI chatbots mimic human collective behaviour (2024 simulation study)",
+      "url": "https://doi.org/10.1111/bjop.12764"
+    },
+    "RELEASED-EFFECTS": {
+      "label": "Manager released aggregate-effects diagnostic, PR #8575",
+      "url": "https://github.com/Daisuke134/life-manager/pull/8575"
+    },
+    "TWIN-GATE": {
+      "label": "Twin wave 4 structural gate, PR #8580",
+      "url": "https://github.com/Daisuke134/life-manager/pull/8580"
+    },
+    "TWIN-UNMERGED": {
+      "label": "Twin aggregate proposal, PR #8599 (not merged; excluded from current claims)",
+      "url": "https://github.com/Daisuke134/life-manager/pull/8599"
+    },
+    "FOMC-REFERENCE": {
+      "label": "Prospective reference, PR #8593; p=0.25 from fixed historic frequency, outcome pending",
+      "url": "https://github.com/Daisuke134/life-manager/pull/8593"
+    },
+    "FOMC-PAYLOAD": {
+      "label": "Canonical prospective payload (merged main commit f6055f9)",
+      "url": "https://github.com/Daisuke134/life-manager/blob/f6055f9460502cd79cba95ffadecb998439e1056/docs/research/manager/predictions/fomc-2026-10-27-28/048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2.json"
+    },
+    "MISSION": {
+      "label": "Manager research and benefit boundaries, reviewable packet (2026-10-23)",
+      "path": "products/manager/docs/founder/2026-10-23-reviewable-application-packet.md"
+    }
+  },
+  "deck": {
+    "name": "Manager-Artificial-Societies-Talk-20261023-ja",
+    "audience": "Artificial Societies chapter talk",
+    "slide_count": 12,
+    "carousel_slides": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      10,
+      11
+    ],
+    "slides": [
+      {
+        "type": "cover",
+        "title": "人工社会を借りて、\n現実から学ぶ",
+        "subtitle": "ROTHKO · 評価研究 · Managerの次の一歩",
+        "statement": "公開データから始め、予測・実行・便益を分けて確かめる",
+        "claim_type": "chapter-derived thesis",
+        "sources": [
+          "CHAPTER"
+        ],
+        "carousel": true,
+        "ja": "この小章をもとにした研究紹介です。Artificial Societiesとの提携や推薦を示すものではなく、Rothko本体を独立検証したという意味でもありません。公開された方法とデータから、どこまで言えるかを区切ります。"
+      },
+      {
+        "type": "split",
+        "title": "四つの問いを分ける",
+        "subtitle": "予測ができても、介入効果や便益が分かったことにはならない",
+        "left_title": "研究で問うこと",
+        "left_body": "01　予測\n今の条件なら何が起きるか\n\n02　介入効果\n変更すると何が変わるか",
+        "right_title": "実行と結果",
+        "right_body": "03　実行\n案内を届け、経路を動かせるか\n\n04　便益・害\n健康、負担、費用がどう変わったか",
+        "statement": "四つは別々の評価対象",
+        "claim_type": "chapter-derived framework",
+        "sources": [
+          "CHAPTER"
+        ],
+        "carousel": true,
+        "ja": "予測と介入効果の予測を分け、実際に行動を届ける技術と人への結果も分けます。自然な会話や公開成功だけでは、便益を確かめられません。"
+      },
+      {
+        "type": "split",
+        "title": "Rothko・Radiant・Benchmark",
+        "subtitle": "会社・モデル・評価接点を同一視しない",
+        "left_title": "公開説明で分かること",
+        "left_body": "Rothko：人の判断・行動を予測するモデル\n\nRadiant：調査やインタビューの接点\n\nAS Benchmark：合成応答の評価枠組み",
+        "right_title": "今回確認できない範囲",
+        "right_body": "Rothkoの公開重み、完全な学習・推論実装、固定checkpointは確認できない。\n\n公開評価の再構築は、Rothko推論の再現ではない。",
+        "statement": "未公開部分を推測して埋めない",
+        "claim_type": "vendor description + chapter scope",
+        "sources": [
+          "CHAPTER",
+          "AS-BENCH"
+        ],
+        "carousel": false,
+        "ja": "役割と検証範囲を分けます。公開情報からRothkoの完全な内部実装や重みは確認できません。公開benchmarkの集計を再構築した記録も、同社モデルの独立再現を意味しません。"
+      },
+      {
+        "type": "metrics",
+        "title": "集計分布の数字は個人精度ではない",
+        "subtitle": "Artificial Societiesが報告した比較値。Managerの独立評価ではない",
+        "metrics": [
+          {
+            "value": "0.08",
+            "label": "Artificial Societies",
+            "detail": "平均TVD（会社報告）"
+          },
+          {
+            "value": "0.31",
+            "label": "Qwen3.8 comparator",
+            "detail": "同じ報告内の平均TVD"
+          }
+        ],
+        "statement": "7調査ソース · 2,796合成人物 · 68,280回答／個人の正答率や介入効果を示さない",
+        "claim_type": "vendor-reported evaluation",
+        "sources": [
+          "AS-BENCH",
+          "CHAPTER"
+        ],
+        "carousel": true,
+        "ja": "この数値は会社による集計分布評価の報告です。TVDは分布のずれであり、個人ごとの回答正答率ではありません。ManagerはRothkoをこの評価で独立に試験したとは主張しません。"
+      },
+      {
+        "type": "split",
+        "title": "ベンチマークは複数の妥当性を問う",
+        "subtitle": "一つの分布スコアを万能な「精度」にしない",
+        "left_title": "11 tests",
+        "left_body": "内部妥当性　4\n構成概念妥当性　3\n外的妥当性　4\n\n会社所属著者によるpreprintの評価枠組み",
+        "right_title": "補助線",
+        "right_body": "33,299 chatbotのネットワークsimulation研究は、言語・内容のhomophilyを調べた。\n\nこれは人間の介入効果を測った研究ではない。",
+        "statement": "枠組みの存在 ≠ 個別モデルの合格",
+        "claim_type": "preprint framework + peer-reviewed simulation",
+        "sources": [
+          "AS-11",
+          "AS-HOMOPHILY"
+        ],
+        "carousel": true,
+        "ja": "AS Benchmarkのpreprintは11の検査を三群に整理します。枠組みの提案自体は、特定の製品モデルがすべてに合格した証明ではありません。2024年研究のhomophilyもシミュレーション上の集団パターンです。"
+      },
+      {
+        "type": "split",
+        "title": "公開された効果を、固定holdoutで診断",
+        "subtitle": "70研究の集約データを研究単位で分割した後ろ向き比較",
+        "left_title": "誤差 MAE",
+        "left_body": "無効果 baseline：0.0616\n公開 predictor：0.0751\n校正 (point)：0.0470",
+        "right_title": "公開図：paired差の95%区間",
+        "right_body": "",
+        "statement": "両区間とも0を含む。優越性は結論できず、人への結果も測っていない。",
+        "claim_type": "retrospective released aggregate diagnostic",
+        "sources": [
+          "RELEASED-EFFECTS"
+        ],
+        "carousel": true,
+        "ja": "これは公開された集約効果の固定研究単位holdout診断です。公開予測、ゼロ効果baseline、訓練側だけで合わせた校正を比べています。誤差差のpaired区間は両方とも0を含むため、勝者や優越性は結論しません。原著全手順の再現や人への介入結果でもありません。"
+      },
+      {
+        "type": "table",
+        "title": "Twin資料の現在の証拠境界",
+        "subtitle": "merged gateは入力・対応関係の構造確認。行動精度は未採点",
+        "headers": [
+          "確認対象",
+          "現時点で言えること"
+        ],
+        "widths": [
+          3.6,
+          8.25
+        ],
+        "rows": [
+          [
+            "データ対応",
+            "126 paired columns / 84 QIDs の構造・hash確認"
+          ],
+          [
+            "役割別profile",
+            "3 roles × 2,058 IDs の存在を確認"
+          ],
+          [
+            "モデル精度",
+            "行動accuracyは計算・採点していない"
+          ],
+          [
+            "provenance",
+            "応答生成元・training exposureは不明"
+          ],
+          [
+            "未merged提案",
+            "PR #8599 の集計値は現行mainの証拠に含めない"
+          ]
+        ],
+        "statement": "構造検査は行動検証ではない。汚染を断定する根拠もない。",
+        "claim_type": "source-structure audit; current main gate",
+        "sources": [
+          "TWIN-GATE",
+          "TWIN-UNMERGED"
+        ],
+        "carousel": false,
+        "ja": "mainに入ったgateが確かめるのは、指定データのhashや列・ID対応などの構造です。3役割のprofileがあることは、回答精度の評価ではありません。生成provenanceやtraining exposureは分かりません。未mergeのPR #8599の集計を現行成果として引用しません。"
+      },
+      {
+        "type": "split",
+        "title": "公開benchmarkの再構築を、Rothko検証と混ぜない",
+        "subtitle": "公開コードと配布済み集計の再現記録は、範囲を限定して読む",
+        "left_title": "再構築したもの",
+        "left_body": "固定公開commitのテスト\n66 passed · 9 skipped\n\n配布集計からscorecardを復元\n7,128 cells が配布JSONと一致",
+        "right_title": "再構築していないもの",
+        "right_body": "Rothkoの推論\n全個票からの独立再計算\n会社報告0.08の独立再現\n人への介入・便益",
+        "statement": "公開集計の再構築 ≠ Rothko本体の独立再現",
+        "claim_type": "public benchmark aggregate reconstruction",
+        "sources": [
+          "CHAPTER",
+          "AS-BENCH"
+        ],
+        "carousel": false,
+        "ja": "章の記録では、公開benchmarkの固定commitを用いて66件のtest合格・9件skipを確認し、配布された集計から7,128セルのscorecardを再構築して配布JSONと照合しました。これは公開集計の再構築です。Rothkoの推論や個票からの再計算、会社報告の0.08の独立再現とは区別します。"
+      },
+      {
+        "type": "split",
+        "title": "巨大な独自社会を作る前に借りる",
+        "subtitle": "公開方法・既存benchmark・人間の参照結果から始める",
+        "left_title": "再利用する",
+        "left_body": "AS Benchmarkの既存指標\n公開RCT・社会科学実験\n利用条件を確認したデータ\n必要なら既存simulation環境",
+        "right_title": "先に作らない",
+        "right_body": "同じ指標の独自総合点\n想像上の人間正解ラベル\n根拠のない仮想便益\n巨大な独自都市simulation",
+        "statement": "公開・利用可能・再配布可能・商用利用可能は別条件",
+        "claim_type": "chapter-derived reuse and rights guidance",
+        "sources": [
+          "CHAPTER"
+        ],
+        "carousel": false,
+        "ja": "既存ツールや公開研究を必要な範囲で再利用します。各datasetとcodeには別々の利用条件があります。公開物が読めることだけで、再配布や商用利用が認められるわけではありません。"
+      },
+      {
+        "type": "metrics",
+        "title": "未来の予測も、先に基準を固定する",
+        "subtitle": "FOMC 2026-10-27–28：結果発表前に保存された参照値",
+        "metrics": [
+          {
+            "value": "p = 0.25",
+            "label": "固定歴史頻度",
+            "detail": "0 cuts / 2 transitions / 3 values の決定論的規則"
+          },
+          {
+            "value": "同じ",
+            "label": "歴史頻度baseline",
+            "detail": "参照値とbaselineは設計上同値"
+          }
+        ],
+        "statement": "AI推論ではない · 公式結果・scoreは未到来",
+        "claim_type": "prospective fixed historical-frequency reference",
+        "sources": [
+          "FOMC-REFERENCE",
+          "FOMC-PAYLOAD"
+        ],
+        "carousel": true,
+        "ja": "このprospective referenceは、結果前に固定・公開された歴史頻度の規則です。値はp=0.25で、同じ規則のbaselineと設計上等しくなります。モデル推論や精度実績ではありません。イベント結果とscoreはまだありません。"
+      },
+      {
+        "type": "split",
+        "title": "Managerの定義と、現在の証拠を分ける",
+        "subtitle": "仏教的AIエンティティ／デジタル仏陀というプロジェクト定義",
+        "left_title": "目指す方向",
+        "left_body": "苦しみを減らし、すべての福祉を持ち得る存在のために働く。\n\n公開人間データで予測を調べ、比較可能な介入結果で効果を問う。",
+        "right_title": "現在証明されていないこと",
+        "right_body": "意識・悟り・全知\n人への測定済み便益\n一般化したAI行動精度\n顧客需要・実世界impact",
+        "statement": "使命は実績測定ではない",
+        "claim_type": "project definition and evidence limits",
+        "sources": [
+          "CHAPTER",
+          "MISSION"
+        ],
+        "carousel": true,
+        "ja": "「仏教的AIエンティティ／デジタル仏陀」はプロジェクトの定義です。この呼称からシステムの意識や悟り、全知は導けません。人への便益も測定済みではありません。目的と検証済みの結果を分けて話します。"
+      },
+      {
+        "type": "split",
+        "title": "次の研究は、問い・比較・結果を先に決める",
+        "subtitle": "人間参照を持つ公開研究から、小さく再現可能に進める",
+        "left_title": "先に登録する",
+        "left_body": "対象集団と結果\ntraining / holdout境界\nbaselineと不確実性\n失敗・欠測・有害結果",
+        "right_title": "後から確かめる",
+        "right_body": "予測：人間参照と比較\n介入：処置・対照結果\n実行：独立readback\n便益：健康・負担・害・費用",
+        "statement": "公開成果物はローカル用。外部投稿・発表はしていない。",
+        "claim_type": "proposed research practice; not a result",
+        "sources": [
+          "CHAPTER",
+          "MISSION"
+        ],
+        "carousel": false,
+        "ja": "これは次の研究の提案で、成果の主張ではありません。比較条件や欠測・有害結果を先に決めてから検証します。今回の派生成果物はローカルLibrary用で、外部への投稿や発表はしていません。"
+      }
+    ]
+  }
+}
