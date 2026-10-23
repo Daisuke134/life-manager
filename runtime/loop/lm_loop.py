@@ -240,7 +240,9 @@ def _is_ebook_verified_no_effect_terminal(entry: dict, row: dict) -> bool:
     no_effect_refs = [ref for ref in refs
                       if isinstance(ref, str) and ref.startswith("lm-no-effect://")]
     return (
-        loop_id in EBOOK_DISTRIBUTION_LOOP_IDS
+        (loop_id in EBOOK_DISTRIBUTION_LOOP_IDS
+         or (loop_id == "ebook-en-instagram-daily"
+             and no_effect_refs == [f"lm-no-effect://{loop_id}/{occurrence_id}/receipt_reused"]))
         and entry.get("entrypoint") == EBOOK_DISTRIBUTION_ENTRYPOINT
         and entry.get("effect_class") == "publish"
         and row.get("owner_id") == loop_id
@@ -258,6 +260,7 @@ def _is_ebook_verified_no_effect_terminal(entry: dict, row: dict) -> bool:
             f"lm-no-effect://{loop_id}/{occurrence_id}/setup_required",
             f"lm-no-effect://{loop_id}/{occurrence_id}/no_due_slot",
             f"lm-no-effect://{loop_id}/{occurrence_id}/render_not_ready",
+            f"lm-no-effect://{loop_id}/{occurrence_id}/receipt_reused",
         }
     )
 

@@ -5774,6 +5774,13 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertEqual(proof['occurrence_id'], occurrence)
         self.assertEqual(proof['evidence_refs'], [f'lm-event://{owner}/{run_id}/' + 'a' * 24])
 
+        terminal['evidence_refs'][-1] = f'lm-no-effect://{owner}/{occurrence}/receipt_reused'
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, 'claimed', [terminal],
+        )
+        self.assertEqual(reason, 'ok')
+        self.assertEqual(proof['occurrence_id'], occurrence)
+
         contradictory_terminals = [
             {**terminal, 'provider_receipt_id': 'post-1'},
             {**terminal, 'official_readback_ref': 'postiz://posts/post-1'},
@@ -5794,6 +5801,42 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         )
         self.assertIsNone(proof)
         self.assertEqual(reason, 'no_pre_effect_terminal')
+
+    def test_reused_receipt_terminal_covers_all_four_ebook_owners(self):
+        entry = {
+            'effect_class': 'publish',
+            'entrypoint': 'apps/life-manager/scripts/ebook-distribute-daily.sh',
+            'state_root': '/private/state/ebook',
+        }
+        owners = ('ebook-ja-tiktok-daily', 'ebook-ja-instagram-daily',
+                  'ebook-en-tiktok-daily', 'ebook-en-instagram-daily')
+        for owner in owners:
+            occurrence = f'{owner}:receipt-reuse'
+            run_id = 'execution-receipt-reuse'
+            terminal = {
+                'loop_id': owner, 'run_id': run_id, 'occurrence_id': occurrence,
+                'owner_id': owner, 'phase': 'report', 'status': 'pass',
+                'effect_class': 'none', 'effect_status': 'not_applicable', 'blocker': None,
+                'event_id': 'e' * 24, 'timestamp': '2026-10-23T00:00:00+00:00',
+                'evidence_refs': [f'lm-loop://{owner}/{run_id}/summary.json',
+                                  f'lm-occurrence://{owner}/receipt-reuse/claim',
+                                  f'lm-no-effect://{owner}/{occurrence}/receipt_reused'],
+            }
+            with self.subTest(owner=owner):
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, 'claimed', [terminal],
+                )
+                self.assertEqual(reason, 'ok')
+                self.assertEqual(proof['occurrence_id'], occurrence)
+            if owner == 'ebook-en-instagram-daily':
+                for other_reason in ('setup_required', 'no_due_slot', 'render_not_ready'):
+                    with self.subTest(owner=owner, reason=other_reason):
+                        terminal['evidence_refs'][-1] = f'lm-no-effect://{owner}/{occurrence}/{other_reason}'
+                        proof, reason = lm_loop._pre_effect_occurrence_proof(
+                            owner, entry, occurrence, 'claimed', [terminal],
+                        )
+                        self.assertIsNone(proof)
+                        self.assertEqual(reason, 'no_pre_effect_terminal')
 
     def test_english_render_not_ready_terminal_proves_no_postiz_effect_for_exact_occurrence(self):
         owner = 'ebook-en-tiktok-daily'
