@@ -181,12 +181,16 @@ class BudgetContract(unittest.TestCase):
                 yield SimpleNamespace(type="agent.session.turn.output_text.delta",
                                       turn_id="turn_abcdefgh",delta="partial")
         posted=[]
+        latest_states=iter(("in_progress", "cancelled"))
         sessions=SimpleNamespace(
             events=SimpleNamespace(
                 stream=lambda sid:Stream(),
                 create=lambda sid,**kwargs:posted.append(kwargs)),
-            turns=SimpleNamespace(retrieve=lambda turn_id,*,session_id:
-                                  SimpleNamespace(id=turn_id,status="cancelled")))
+            turns=SimpleNamespace(
+                list=lambda *args,**kwargs:SimpleNamespace(data=[SimpleNamespace(
+                    id="turn_abcdefgh",status=next(latest_states))]),
+                retrieve=lambda turn_id,*,session_id:
+                    SimpleNamespace(id=turn_id,status="cancelled")))
         client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
         with TemporaryDirectory() as d:
             journal=SessionJournal(Path(d)/"journal.sqlite")
@@ -209,8 +213,13 @@ class BudgetContract(unittest.TestCase):
             journal.bind("req_a","sess_abcdefgh")
             calls=[]
             saved=SimpleNamespace(id="turn_abcdefgh",status="in_progress")
+            latest_status=iter(("in_progress", "in_progress", "cancelled", "cancelled"))
+            def latest(*args, **kwargs):
+                return SimpleNamespace(data=[SimpleNamespace(
+                    id="turn_abcdefgh",status=next(latest_status))])
             sessions=SimpleNamespace(
-                turns=SimpleNamespace(retrieve=lambda tid,*,session_id:saved),
+                turns=SimpleNamespace(retrieve=lambda tid,*,session_id:saved,
+                                      list=latest),
                 events=SimpleNamespace(create=lambda sid,**kw:calls.append((sid,kw))))
             client=SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(sessions=sessions)))
             receipt=cancel_and_reconcile(client,journal,"sess_abcdefgh","turn_abcdefgh",

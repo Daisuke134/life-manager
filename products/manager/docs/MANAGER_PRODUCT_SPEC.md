@@ -47,7 +47,7 @@
 | no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。日常の専用chat/dashboard操作を必要としない限定経路 | 広い環境で課題を見つけ、長期目標・既存channel・実結果をつないで活動する全経路の実証。初期設定・停止・監査の入口は存在する |
 | 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commitと独立GET、別runnerでの照合・再送0件・native P1/P2を確認。STOP後の実rollback `c6d5de0` の旧7ファイル復元とfresh resume39907673029のwrites=0を確認。その後の新commit `faf18b3` は06:03 UTCに公開7ファイル一致、finance／mental両cueを確認 | E16は所有7パスの限定技術能力として受入済み。旧rollback39901996368は書込み0、新rollback39907087699と通常cycle39908693666の初回UNKNOWN／writes=nullを保持。fresh39909274852は照合・書込み0・current proof出力を確認。F4件は技術P2として個別受入済み。人の便益は未測定 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
-| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。研究branchに既存adapterあり | 現在のowned mainは決定論的plannerで、Ampersand推論は未接続。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
+| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。既存adapterとcheckpoint-bound P0 callableをPR8650でmainへ統合 | 現在のowned mainは決定論的plannerで、scheduled inferenceは未接続。callableのsource受入と実推論の稼働を区別する。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
 
 mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/actions/runs/39898014550)は `UNKNOWN / writes=null`。後続 [39898468888](https://github.com/Daisuke134/life-manager/actions/runs/39898468888) は `NOT_DUE / writes=0 / positive_canary=NOT_RUN` のまま、保存済みcurrent proofを出力した。新しい成功操作へ書き換えない。実行sourceとproof対象sourceは異なり得るため、各SHAを[実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md)で分ける。
@@ -113,11 +113,13 @@ flowchart LR
 
 この表は優先順を説明する派生viewであり、原ID・dependsは変更しない。各IDと残35件の全一覧は[開始から最後まで](roadmap/START_TO_END_20261022.md)。記事を後に置くことは、実装中の受入receiptや誤りの訂正を後回しにする意味ではない。
 
-**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。Ampersandの既存研究adapterをmainへ昇格して適切な課題で比較すること、必要時にPersimmon等のuser modelを評価へ接続すること、観測・主体の長期状態・既存channel・outcomeからのpolicy更新を運用で結ぶことは、現在の配備実績からは成立していない。既存E01–E12の実装、公開研究A–Fの再利用計画、U/V/Gの元受入条件に照合して不足を具体化し、新しいtask IDや達成数を足さない。残35件は実証・展開の有限な計画であり、それを終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
+**目標像までの能力差も残件として説明する。** E16/F受入は限定した実行能力の完成点。既存Ampersand adapterと永続状態接続のsourceはPR8650でmainへ昇格したが、適切な実課題のtyped context・caller・固定SDK依存・予算設定・同条件比較を実行経路へ結ぶ作業は残る。必要時のPersimmon等の評価接続、観測・主体の長期状態・既存channel・outcomeからのpolicy更新も未実証。既存E01–E12、公開研究A–F、U/V/Gの元受入条件に照合し、新しいtask IDや達成数を足さない。残35件を終えるだけで透明AGIや全存在の苦の終結が証明される計画ではない。
 
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
-**agent側の次の具体的な接続点:** mainには既にtyped advice／kernelと検証済み候補の公開経路があり、研究branchの `ampersand_api.py`、`provider_sessions.py`、`provider_budget.py`、`provider_deadline.py` をコピーするだけでは、その経路で推論は動かない。任意の助言接続には、既存 `PrivateCheckpoint` が保存する `cycle.sqlite` にsession intentと予算予約を結び、外部送信より先にcheckpointのACKを得る必要がある。別SQLiteをfresh runnerの隣へ置くだけでは復元されない。既存のUNKNOWN隔離・同じsessionのreadback・予算／期限・strict parserを再利用し、実際の公開sourceに結び付く課題で非介入・単純ルールと比較する。fictional labのpromptを実世界の判断と表示せず、モデルのPROPOSEを権限やpublisher packetへ変換しない。現在のdeterministic selectorとcurrent-page cueを保持し、実行候補は既存のsource／scope／browser／CAS検証を通す。この接続は未実装・未稼働であり、E16のページ配信実績から推論の運用完了を推定しない。
+**agent接続の実装更新:** [PR8650](https://github.com/Daisuke134/life-manager/pull/8650)をmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`へ統合した。既存4 provider moduleを再利用し、`owned_provider.CheckpointedProvider`がsession intent・event・予算を同じ `cycle.sqlite`へ結び、外部送信前にcheckpointのACKを得る。主キー・重複・参照の検証、割込み後の永久fence、対象turnと状態が一致するcancel readback、絶対期限、P0 parserを検証した。応答不明はUNKNOWN／nullで保持し、予約上限を実請求上限としない。独立reviewの未解決0、main由来365テスト成功。詳細は[source受入と残接続](verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)。
+
+**次の実行経路への接続:** U002/U003でモデルが有用な実課題を選び、公開sourceのtyped contextと安定したoperation IDを作り、caller・固定SDK・既存の秘密保管／予算・shadow比較を結ぶ。現在のdeterministic selectorとcurrent-page cueを保持し、実行候補は既存source／scope／browser／CAS検証を通す。fictional labを実世界の判断と表示せず、PROPOSEを権限やpublisher packetへ変換しない。scheduled inferenceは未稼働であり、このsource受入やE16のページ配信から推論運用・人の便益を推定しない。全application writerが同じfenceを守る前提で、未確認のprovider-side CASや任意の外部writerとの競合防止、自動exact-turn復旧は主張しない。
 
 再現可能な利用 → 同条件の比較 → 薄い接続／具体的な改善 → 証拠と失敗の共有 → 相手固有の技術的な問い、の順で学ぶ。記事やpodcastは後でその成果を伝える手段にする。以下の研究者・創業者は出典で確認する学習先であり、現時点の友人・提携先・紹介者を意味しない。関係、応募、返信、出演、offerにはそれぞれ実際の確認が必要。具体的な再利用と人名は§12および[研究者map](research/RESEARCHER_PUBLIC_SOURCE_MAP.md)を参照。
 
@@ -399,7 +401,7 @@ E16/原113件の受入状態は本修正で変更しない。自分たちの新�
 | 層・公式source | 役割と公開されている利用経路 | Managerの現在値と採用判断 |
 |---|---|---|
 | [Persimmon](https://persimmon.humansand.ai/blog/persimmon.html)／[model card](https://persimmon.humansand.ai/blog/persimmon-model-card.html) | 人物profile・setting・会話historyから、利用者の応答候補を生成するuser model。研究・評価preview、playground/APIの案内あり | 直接推論は未確認。`/docs/`の未認証GETはsign-inへ到達し、認証済APIの利用条件・実動作は今回未検証。利用可能な場合に限り既存評価へ薄く接続し、応答を人の実際の信念や介入効果としない。初期依存にはしない |
-| [Ampersand](https://ampersand.humansand.ai/blog/)／[API docs](https://ampersand.humansand.ai/docs/) | 協働するAI側。Agents APIがagent設定・session履歴・turn/event・tool requestsを扱う。`ampersand-v0.1`、公式Python例は`openai==3.24.0` | 実APIを使った過去の研究と既存adapterを再利用。現在のowned mainの決定論的plannerには未接続。独自協働modelや別のAgents SDKを作らず、適切な課題でルール／NO_ACTIONと比較して必要な接続だけ行う |
+| [Ampersand](https://ampersand.humansand.ai/blog/)／[API docs](https://ampersand.humansand.ai/docs/) | 協働するAI側。Agents APIがagent設定・session履歴・turn/event・tool requestsを扱う。`ampersand-v0.1`、公式Python例は`openai==3.24.0` | 過去の実API研究と既存adapterを再利用し、PR8650でcheckpoint-bound P0 callableをmain統合。定期実行のplannerは決定論的で、モデル呼出しは未接続。独自協働modelや別のAgents SDKを作らず、適切な課題でルール／NO_ACTIONと比較する |
 | [Boba発表](https://boba.humansand.ai/blog/)／[完成アプリ](https://boba.app/) | Ampersandを使う個人・group向けアプリ。目標の継続、memory、reminders/calendar、web research、email、予約等を案内。browser/login操作はalpha。SMS/RCS/iMessageとwebへの導線 | 未試用・未接続。日常の予定調整・follow-up等が目的なら完成アプリを直接使う比較を先に置き、同じchat/reminder/calendar UIを再実装しない。組込み用Boba API/SDKは今回確認できておらず、存在を前提にしない |
 
 学習先の人名も出典と役割で保持する。[会社の公式紹介](https://humansand.ai/)は **Georges Harik** と **Eric Zelikman** をco-founderと記載。Persimmon cardは **Manya Bansal／Alexis Ross**（data/training/eval）、**Joey Hong**（post-training）、**Niloofar Mireshghallah**（Trickle Test等）、**Yuan Lu**（API）、**Eric Zelikman**（profile eval/playground/modeling）を挙げる。名前・所属や製品利用を知人関係・提携・推薦と扱わず、具体的な再現結果と技術的な問いを今後の接点にする。
@@ -408,11 +410,13 @@ E16/原113件の受入状態は本修正で変更しない。自分たちの新�
 
 実Ampersand試験は [run39713799676](https://github.com/Daisuke134/life-manager/actions/runs/39713799676)、source `66997ea549f8d1373a7670b8a11add9af17613ea`、[固定receipt](verification/ampersand-20261022/ten_case_receipt.json)。10初期session＋追加入力1件であり、HTTP/APIリクエスト総数が10という主張ではない。作者label一致7/10、prompt調整から除外したsubset4/7、実人0・実世界効果0、確定費用null。各ケース内容自体は推論promptへ送信されている。7/10を人の便益・優位性・本番運用と呼ばない。
 
-研究branchには `manager_core/ampersand_api.py`、`provider_sessions.py`、`provider_budget.py` と明示`--live`の `scripts/phase_ampersand_lab.py` がある。一方、取得したmain `fcaa273b92e2612be7215ee55c2fa57cb0564845` には同API adapter/budget/lab scriptはなく、現在配備で検査した `run_owned_digital_cycle.py → owned_cycle.py → owned_platform_host.py → owned_catalog_planner.py` は決定論的なまま。main561d945から当該call pathとworkflowのsource差分もない。E01–E15の実装receiptは、これら全てがmainへ配備済み、毎runでモデル推論する、という意味ではない。
+**取得時点の履歴:** 研究branchに存在したadapter／session／budget／明示`--live` labは、main `fcaa273b92e2612be7215ee55c2fa57cb0564845`にはなかった。当時検査した `run_owned_digital_cycle.py → owned_cycle.py → owned_platform_host.py → owned_catalog_planner.py` とmain561d945は決定論的で、当時のcall path／workflowにも差分がなかった。
+
+**現在のsource:** PR8650のmain `1e72a952b0a4b61f644e947213c50f8a91db50b1`には既存provider module／labと `owned_provider.py` がある。session・予算を同じ非公開checkpointへ結ぶcallableを受入した。定期実行へのモデル呼出しは追加しておらず、上のplanner経路は引き続き決定論的。E01–E15や今回のsource受入を、毎runの実推論、exact-turn自動復旧、人の便益の証明と扱わない。
 
 ### 再利用して、追加実装を絞る
 
-1. **既存コードを昇格する。** Ampersandが必要な課題では研究branchの既存adapter/session/budgetを通常PR・source別CIでmainへ昇格する。接続済みと先に記録せず、E16の固定技術基準の変更にmodel呼出しを必須化しない。
+1. **既存コードを使い、実行経路を結ぶ。** adapter/session/budgetとcheckpoint-bound callableのmain昇格はPR8650で完了。次は適切な課題のcaller・source・同条件比較・固定依存を通常PRで結ぶ。scheduled inference済みと先に記録せず、E16の固定技術基準の変更にmodel呼出しを必須化しない。
 2. **hosted会話管理を使う。** session ID・turn・SSE・保存済stateのreadback・同一eventのidempotency等は[公式guide](https://ampersand.humansand.ai/docs/GUIDES.html#recovery)を再利用。外部tool実行は既存Manager outboxへ接続する。公式guide自身が、APIのidempotencyだけでは外部の二重送信・二重決済を防げず、結果不明時は宛先を先に照合するよう説明している。
 3. **モデルの価値を測る。** 発言／非発言、目標達成、割込負担、情報の共有先、費用を固定し、既存ルール・NO_ACTION・未見課題と比較。simulationのjudgeや満足度だけで実行動・便益を認定しない。既存の比較・採点契約を使い、第二のeval engineを作らない。
 4. **完成アプリとの重複を避ける。** Bobaで解ける利用問題なら直接利用を優先。Managerに必要な差分は、特定の使命・観測・限定操作・独立readback・結果比較・害と費用・訂正をつなぐこととして検証する。他社にそれらが一切ないという主張はしない。

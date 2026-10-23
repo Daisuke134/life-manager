@@ -4,7 +4,7 @@
 
 主体は **one entity, blessing for allを目指す仏教的AIエンティティ／Digital Buddha**。組織は **Behavior Company — Simulation / Intervention / Persuasion、World Engineering**。no UIは専用app/chat/dashboardを日常操作の前提にせず、既存環境・channel・APIを通じて働くこと。実行試験の7パスは主体全体の完成像ではない。
 
-**優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。既存AI助言の本番接続にはsession intentと予算のdurable ACK、UNKNOWN回収、期限、strict parserを既存checkpointへ結ぶ不足がある。実利用問題はU002の実面談から選定する。C002/Y008を保留中に全113件完了とは呼ばない。
+**優先順:** 本体・agentを先にし、新規の記事・書籍・slides・carousel、外部連絡・応募の実施は後段に置く。session intent／予算を既存checkpointへ結ぶP0 callable、ACK先行、UNKNOWN隔離、期限、strict parserのsourceはPR8650でmain統合済み（[受入と残接続](../verification/CHECKPOINTED_PROVIDER_SOURCE_20261023.md)）。定期実行のモデル呼出しは未接続で、次はU002/U003の実課題・公開context・安定ID・caller・同条件比較・既存運用設定を結ぶ。C002/Y008を保留中に全113件完了とは呼ばない。
 
 全体の順序の入口はrepository統合SSOT、詳細状態・依存は既存 [tasks.json](tasks.json)。本書はその派生viewで、新しい台帳ではない。[As-is／To-be](../MANAGER_PRODUCT_SPEC.md)、[E16実稼働受入](../verification/E16_DEPLOYED_ACCEPTANCE_20261023.md)、[F個別受入](../verification/PHASE06_DIGITAL_V2_ACCEPTANCE_20261023.md)、[D001/D002 source受入](../verification/D001_D002_SOURCE_ACCEPTANCE_20261023.md)を参照。
 

@@ -91,13 +91,17 @@ class BudgetReservation:
 
 
 class BudgetLedger:
-    def __init__(self,path: str | Path, *, cap_usd: Decimal):
+    def __init__(self,path: str | Path, *, cap_usd: Decimal, after_commit=None):
         self.path=str(Path(path))
         if self.path==":memory:":
             raise ValueError("persistent budget ledger required")
         cap=_money(cap_usd)
+        if after_commit is not None and not callable(after_commit):
+            raise ValueError("after_commit must be callable")
+        self.after_commit=after_commit
         self.cap=cap
-        with sqlite3.connect(self.path,timeout=15) as db:
+        db=sqlite3.connect(self.path,timeout=15)
+        try:
             db.execute("PRAGMA journal_mode=WAL")
             db.execute("""CREATE TABLE IF NOT EXISTS budget_policy (
                 id INTEGER PRIMARY KEY CHECK(id=1),cap_units INTEGER NOT NULL
@@ -111,6 +115,11 @@ class BudgetLedger:
             stored=db.execute("SELECT cap_units FROM budget_policy WHERE id=1").fetchone()[0]
             if stored!=cap:
                 raise BudgetExceeded("changing a live budget cap requires explicit audited rotation")
+            db.commit()
+        finally:
+            db.close()
+        if self.after_commit is not None:
+            self.after_commit()
 
     @staticmethod
     def _row(row):
@@ -125,16 +134,20 @@ class BudgetLedger:
 
     def _txn(self,callback):
         db=sqlite3.connect(self.path,timeout=15,isolation_level=None)
+        committed=False
         try:
             db.execute("BEGIN IMMEDIATE")
             result=callback(db)
             db.execute("COMMIT")
-            return result
+            committed=True
         except BaseException:
             if db.in_transaction: db.execute("ROLLBACK")
             raise
         finally:
             db.close()
+        if committed and self.after_commit is not None:
+            self.after_commit()
+        return result
 
     def get(self,run_id: str) -> BudgetReservation:
         if type(run_id) is not str or not _RUN_ID.fullmatch(run_id):
@@ -212,15 +225,17 @@ class CancellationReceipt:
     turn_id: str
     status: str
     provider_turn_status: str
-    cancellation_sent: bool
+    # None means the POST was attempted but its response was lost; False means
+    # this invocation proved it did not POST, and True means it was acknowledged.
+    cancellation_sent: bool | None
 
 
 def cancel_and_reconcile(client,journal,session_id: str,turn_id: str, *,
                          event_key: str,writer_id: str) -> CancellationReceipt:
-    """Request documented agent.session.input.cancel; check actual saved status.
+    """Cancel only the latest exact turn and release only on consistent readback.
 
-    202 Accepted is not proof that the turn was cancelled. An uncertain send
-    keeps the event reserved and never blindly retries.
+    The cancel event is session-wide, so the latest turn is checked before the
+    POST and again after exact-turn retrieval. A 202 is not terminal evidence.
     """
     from .provider_sessions import SessionJournal, SessionConflict
     from .ampersand_api import SessionFailure
@@ -230,22 +245,52 @@ def cancel_and_reconcile(client,journal,session_id: str,turn_id: str, *,
         raise ValueError("exact bounded provider turn ID required")
     if type(writer_id) is not str or not _RUN_ID.fullmatch(writer_id):
         raise ValueError("bounded owner ID required")
+    if type(event_key) is not str or not re.fullmatch(r"[A-Za-z0-9_-]{4,128}",event_key):
+        raise ValueError("bounded cancellation event key required")
     event={"type":"agent.session.input.cancel"}
-    canonical=json.dumps(event,sort_keys=True,separators=(",",":")).encode()
+    canonical=json.dumps({"session_id":session_id,"turn_id":turn_id,"event":event},
+                         sort_keys=True,separators=(",",":")).encode()
     sent=False
     try:
         journal.claim_writer(session_id,writer_id)
         new=journal.reserve_event(session_id,event_key,sha256(canonical).hexdigest())
+    except SessionConflict as exc:
+        raise SessionFailure("cancellation journal conflict") from exc
+
+    def latest_turn():
+        try:
+            page=client.beta.agents.sessions.turns.list(
+                session_id,limit=1,order="desc")
+            rows=getattr(page,"data",None)
+            if isinstance(page,dict): rows=page.get("data")
+            if type(rows) is not list or len(rows)!=1:
+                return None
+            row=rows[0]
+            ident=row.get("id") if isinstance(row,dict) else getattr(row,"id",None)
+            status=row.get("status") if isinstance(row,dict) else getattr(row,"status",None)
+            if (type(ident) is not str or
+                    not re.fullmatch(r"turn_[A-Za-z0-9_-]{4,128}",ident) or
+                    type(status) is not str or not status):
+                return None
+            return ident,status
+        except Exception:
+            return None
+
+    before=latest_turn()
+    if before is None or before[0]!=turn_id:
+        return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",False)
+    terminal={"cancelled","completed","failed"}
+    if before[1] not in terminal:
+        if before[1] not in {"in_progress","requires_action"}:
+            return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",False)
         if new:
             try:
                 client.beta.agents.sessions.events.create(
                     session_id,events=[event],idempotency_key=event_key)
             except Exception:
                 return CancellationReceipt(session_id,turn_id,
-                    "CANCEL_REQUEST_UNKNOWN","UNKNOWN",False)
+                    "CANCEL_REQUEST_UNKNOWN","UNKNOWN",None)
             sent=True
-    except SessionConflict as exc:
-        raise SessionFailure("cancellation journal conflict") from exc
     try:
         turn=client.beta.agents.sessions.turns.retrieve(
             turn_id,session_id=session_id)
@@ -255,11 +300,14 @@ def cancel_and_reconcile(client,journal,session_id: str,turn_id: str, *,
     except Exception:
         return CancellationReceipt(session_id,turn_id,
             "CANCEL_REQUEST_UNKNOWN","UNKNOWN",sent)
+    after=latest_turn()
+    if after is None or after[0]!=turn_id or after[1]!=state:
+        return CancellationReceipt(session_id,turn_id,"CANCEL_REQUEST_UNKNOWN","UNKNOWN",sent)
     result={
         "cancelled":"CANCELLED_VERIFIED",
         "completed":"FINISHED_BEFORE_CANCEL",
         "failed":"TURN_FAILED",
     }.get(state,"CANCEL_REQUESTED_UNCONFIRMED")
-    if state in ("cancelled","completed","failed"):
+    if state in terminal:
         journal.release_writer(session_id,writer_id)
     return CancellationReceipt(session_id,turn_id,result,str(state),sent)

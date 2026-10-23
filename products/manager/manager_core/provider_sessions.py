@@ -44,11 +44,15 @@ class SessionJournal:
     One writer at a time; no time-based lease expiry that can enable duplicate
     sends after a stalled worker. Operators must reconcile/release explicitly.
     """
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, *, after_commit=None):
         self.path = str(Path(path))
         if self.path == ":memory:":
             raise ValueError("persistent path required for remote effects")
-        with sqlite3.connect(self.path, timeout=15) as db:
+        if after_commit is not None and not callable(after_commit):
+            raise ValueError("after_commit must be callable")
+        self.after_commit = after_commit
+        db = sqlite3.connect(self.path, timeout=15)
+        try:
             db.execute("PRAGMA journal_mode=WAL")
             db.execute("""CREATE TABLE IF NOT EXISTS amp_sessions (
                 request_id TEXT PRIMARY KEY,
@@ -65,21 +69,30 @@ class SessionJournal:
                 PRIMARY KEY(session_id,event_key),
                 FOREIGN KEY(session_id) REFERENCES amp_sessions(session_id)
             )""")
+            db.commit()
+        finally:
+            db.close()
+        if self.after_commit is not None:
+            self.after_commit()
 
     def _txn(self, callback):
         db = sqlite3.connect(self.path, timeout=15, isolation_level=None)
+        committed = False
         try:
             db.execute("PRAGMA foreign_keys=ON")
             db.execute("BEGIN IMMEDIATE")
             result = callback(db)
             db.execute("COMMIT")
-            return result
+            committed = True
         except BaseException:
             if db.in_transaction:
                 db.execute("ROLLBACK")
             raise
         finally:
             db.close()
+        if committed and self.after_commit is not None:
+            self.after_commit()
+        return result
 
     @staticmethod
     def _as_intent(row) -> Intent:
