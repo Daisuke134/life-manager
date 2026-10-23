@@ -62,6 +62,7 @@ class CutLoopReleaseTest(unittest.TestCase):
         home = Path(fixture.name)
         agents = home / "agents"
         agents.mkdir()
+        (agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
         protected = home / "protected-releases.json"
         protected.write_text("[]")
         self.enterContext(mock.patch.dict(os.environ, {
@@ -939,6 +940,7 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.source_repo = self.root / "source"
         for path in (self.releases, self.agents, self.source_repo):
             path.mkdir(parents=True)
+        (self.agents / "com.example.unrelated.plist").write_bytes(plistlib.dumps({"Label": "com.example.unrelated", "ProgramArguments": ["/usr/bin/true"]}))
         self.protected = self.root / "protected-releases.json"
         self.protected.write_text("[]")
         self.enterContext(mock.patch.dict(os.environ, {
