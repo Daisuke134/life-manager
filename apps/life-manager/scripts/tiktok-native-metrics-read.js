@@ -106,7 +106,7 @@ async function collectPostizPhotoWindow(input, env = process.env, observedAt = n
   return { created: result.created, file: result.file, snapshot: result.snapshot, post: result.snapshot.post, account: result.snapshot.account_metrics, telegramCredentials };
 }
 
-if (require.main === module) collectTikTokWindow(JSON.parse(fs.readFileSync(process.argv[2], "utf8"))).then((result) => process.stdout.write(`${JSON.stringify({ created: result.created, file: result.file, post: result.post, account: result.account })}\n`)).catch((error) => {
+if (require.main === module) collectTikTokWindow(JSON.parse(fs.readFileSync(process.argv[2], "utf8")), process.env, process.argv[3]).then((result) => process.stdout.write(`${JSON.stringify({ created: result.created, file: result.file, post: result.post, account: result.account })}\n`)).catch((error) => {
   process.stderr.write(`${error.message}\n`);
   process.exitCode = 1;
 });

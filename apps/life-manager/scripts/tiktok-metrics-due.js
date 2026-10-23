@@ -3,11 +3,13 @@
 
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
 const { verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
-const { persistDailyDigest, sendMetricSnapshot } = require("./instagram-metrics-read.js");
-const { collectPostizPhotoWindow, collectTikTokWindow, postizPhotoPermalink } = require("./tiktok-native-metrics-read.js");
+const { loadLocalTelegramCredentials, persistDailyDigest, sendMetricSnapshot } = require("./instagram-metrics-read.js");
+const { collectPostizPhotoWindow, postizPhotoPermalink } = require("./tiktok-native-metrics-read.js");
 const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview, sendSummary } = require("./marketing-product-summary.js");
 const { persistAscAcquisition } = require("./marketing-asc-acquisition.js");
 const { persistRevenueCatSubscriptionsDaily } = require("./marketing-revenuecat-subscriptions.js");
@@ -135,11 +137,31 @@ function summaryResultState(summary) {
   return status === "partial" || status === "unavailable" ? status : summary.created ? "reported" : "complete";
 }
 
+async function collectGuardedTikTokWindow(input, env, observedAt) {
+  const telegramCredentials = loadLocalTelegramCredentials(env);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-window-"));
+  try {
+    const file = path.join(directory, "input.json");
+    fs.writeFileSync(file, JSON.stringify(input), { mode: 0o600 });
+    const result = spawnSync("/bin/bash", [
+      path.resolve(__dirname, "../../../skills/browser/with-browser.sh"), "tiktok-anicca-jp", "--",
+      "/bin/bash", "-c", 'export LM_CDP_ENDPOINT="$CLOAK_CDP_BASE_URL"; exec "$@"', "--",
+      env.LM_NODE || process.execPath, path.join(__dirname, "tiktok-native-metrics-read.js"), file, observedAt,
+    ], { env, encoding: "utf8", maxBuffer: 1024 * 1024 });
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(result.stderr.trim() || `TikTok browser collection exit ${result.status}`);
+    const observation = JSON.parse(result.stdout);
+    return { ...observation, snapshot: JSON.parse(fs.readFileSync(observation.file, "utf8")), telegramCredentials };
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
   const dataDir = resolveDataRoot(env); const results = []; const expecteds = (provided || discoverTargets(dataDir, nowMs)).filter((expected) => {
     const publishedMs = Date.parse(expected.published_at);
     return Number.isFinite(publishedMs) && nowMs >= publishedMs && nowMs - publishedMs <= MAX_POST_AGE_MS;
-  });
+  }).sort((left, right) => Number(Boolean(right.postiz_photo_only)) - Number(Boolean(left.postiz_photo_only)));
   const reportParts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${reportParts.year}-${reportParts.month}-${reportParts.day}`;
   if (Number(reportParts.hour) >= 22 && !provided) { const asc = await persistAscAcquisition(dataDir, reportDay); results.push({ product_id: "mobile-marketing", window: "asc-daily", state: asc.created ? "measured" : "complete", snapshot_ref: asc.snapshot_ref }); const revenuecat = await persistRevenueCatSubscriptionsDaily(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "revenuecat-daily", state: revenuecat.created ? "observed" : "complete", source_status: revenuecat.customer_activity_status || "unavailable", snapshot_ref: revenuecat.snapshot_ref }); const coverage = persistAttributionCoverage(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "attribution-daily", state: coverage.created ? "reported" : "complete", telegram: await sendSummary(coverage, env, dataDir), snapshot_ref: coverage.snapshot.snapshot_ref }); const weekly = persistWeeklyReview(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "weekly-product", state: summaryResultState(weekly), source_status: weekly.snapshot.source_status, missing_products: weekly.snapshot.missing_products, telegram: await sendSummary(weekly, env, dataDir) }); }
   for (const expected of expecteds) {
@@ -162,7 +184,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
       // One deleted/unavailable post ("item doesn't exist", live 2026-09-30) used to throw and stop every other
       // account's metrics since 9/27. Record it like the source_delayed branch above and keep going.
       let observation;
-      try { observation = await (expected.postiz_photo_only ? collectPostizPhotoWindow : collectTikTokWindow)(input, env, new Date(nowMs).toISOString()); }
+      try { observation = await (expected.postiz_photo_only ? collectPostizPhotoWindow : collectGuardedTikTokWindow)(input, env, new Date(nowMs).toISOString()); }
       catch (error) { results.push({ video_id: expected.video_id, window, state: "source_unavailable", error: String(error.message || error).slice(0, 200) }); continue; }
       if (observation?.deferred === true) {
         results.push({ video_id: expected.video_id, window, state: "pending", reason: observation.reason || "source_delayed" });
@@ -181,4 +203,4 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
 }
 
 if (require.main === module) runDue().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { GRACE_MS, TARGETS, WINDOWS, delayed, discoverJp4, discoverNativeCarouselTargets, discoverTarget, discoverTargets, runDue, snapshotFile };
+module.exports = { GRACE_MS, TARGETS, WINDOWS, collectGuardedTikTokWindow, delayed, discoverJp4, discoverNativeCarouselTargets, discoverTarget, discoverTargets, runDue, snapshotFile };

@@ -1,7 +1,7 @@
 "use strict";
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test");
 const crypto = require("node:crypto");
-const { TARGETS, discoverTarget, discoverTargets, runDue, snapshotFile } = require("./tiktok-metrics-due.js");
+const { TARGETS, collectGuardedTikTokWindow, discoverTarget, discoverTargets, runDue, snapshotFile } = require("./tiktok-metrics-due.js");
 const { postizAnalytics } = require("./tiktok-native-metrics-read.js");
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
@@ -18,6 +18,88 @@ test("TikTok due runner leaves no snapshot when the local Telegram credential is
   assert.equal(checkpoint.state, "source_unavailable");
   assert.match(checkpoint.error, /local_telegram_credential_unavailable/);
   assert.equal(fs.existsSync(snapshotFile(dataDir, expected, "2h")), false);
+});
+
+test("photo API metrics run before a due native video's failed browser acquisition", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-api-before-browser-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const guard = path.join(dataDir, "guard");
+  const marker = path.join(dataDir, "guard-called");
+  const credentials = path.join(dataDir, ".local/share/anicca/credentials.json");
+  fs.mkdirSync(path.dirname(credentials), { recursive: true });
+  fs.writeFileSync(credentials, JSON.stringify({ credentials: [
+    { service: "telegram-life-manager", bot_token: "test-only-token", chat_id: "test-only-chat" },
+  ] }), { mode: 0o600 });
+  fs.writeFileSync(guard, '#!/bin/bash\nprintf "%s\\n" "$2" >> "$TEST_BROWSER_MARKER"\nexit 10\n', { mode: 0o700 });
+  const native = { ...EXPECTED, published_at: "2026-10-23T00:00:00.000Z" };
+  const photo = { ...native, provider_post_id: "photo-post", video_id: "photo-post", shortcode: "photo-post", postiz_photo_only: true, public_url: "unavailable" };
+  let apiBeforeBrowser = false;
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    if (String(url).includes("api.postiz.com")) {
+      apiBeforeBrowser = !fs.existsSync(marker);
+      return { ok: true, json: async () => [] };
+    }
+    throw new Error("unexpected external request");
+  };
+  t.after(() => { global.fetch = originalFetch; });
+  const results = await runDue(Date.parse("2026-10-23T02:00:00.000Z"), {
+    ...process.env, LM_DATA_DIR: dataDir, HOME: dataDir, LM_POSTIZ_API_KEY: "test-only",
+    LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+    AI_BROWSER_GUARD: guard, AI_ENSURE_PROVISION_BROWSER: guard, AI_ENSURE_BROWSER: guard,
+    BROWSER_WAIT_SECONDS: "0", TEST_BROWSER_MARKER: marker,
+  }, [native, photo]);
+  assert.equal(apiBeforeBrowser, true);
+  assert.equal(fs.existsSync(marker), true, "a due native video must acquire its browser identity");
+  assert.match(fs.readFileSync(marker, "utf8"), /^tiktok-anicca-jp\n/);
+  assert.equal(results.find((row) => row.video_id === photo.video_id && row.window === "2h").state, "pending");
+  const unavailable = results.find((row) => row.video_id === native.video_id && row.window === "2h");
+  assert.equal(unavailable.state, "source_unavailable");
+  assert.match(unavailable.error, /unreachable/);
+  assert.equal(fs.existsSync(snapshotFile(dataDir, native, "2h")), false);
+  const replay = await runDue(Date.parse("2026-10-23T01:00:00.000Z"), {
+    LM_DATA_DIR: dataDir, TEST_BROWSER_MARKER: marker,
+  }, [native]);
+  assert.equal(replay.find((row) => row.window === "2h").state, "pending");
+});
+
+test("native collection uses the leased endpoint, releases the lease and removes its private input", async (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-guarded-window-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const guard = path.join(home, "guard");
+  const node = path.join(home, "native-reader-boundary");
+  const seen = path.join(home, "seen.json");
+  const snapshot = path.join(home, "snapshot.json");
+  const released = path.join(home, "released");
+  const credentials = path.join(home, ".local/share/anicca/credentials.json");
+  fs.mkdirSync(path.dirname(credentials), { recursive: true });
+  fs.writeFileSync(credentials, JSON.stringify({ credentials: [
+    { service: "telegram-life-manager", bot_token: "test-only-token", chat_id: "test-only-chat" },
+  ] }), { mode: 0o600 });
+  fs.writeFileSync(guard, '#!/bin/bash\ncase "$1" in\nacquire) printf "http://127.0.0.1:13377\\n";;\nrelease) touch "$TEST_RELEASED";;\n*) exit 64;;\nesac\n', { mode: 0o700 });
+  fs.writeFileSync(node, `#!/bin/bash
+"$TEST_REAL_NODE" - "$@" <<'JS'
+const fs = require("node:fs");
+const [reader, input, observedAt] = process.argv.slice(2);
+fs.writeFileSync(process.env.TEST_SEEN, JSON.stringify({ reader, input, inputMode: fs.statSync(input).mode & 0o777, body: JSON.parse(fs.readFileSync(input)), observedAt, endpoint: process.env.LM_CDP_ENDPOINT }));
+fs.writeFileSync(process.env.TEST_SNAPSHOT, JSON.stringify({ post: { views: { status: "measured", value: 23 } } }));
+process.stdout.write(JSON.stringify({ created: true, file: process.env.TEST_SNAPSHOT }));
+JS
+`, { mode: 0o700 });
+  const observation = await collectGuardedTikTokWindow({ publicUrl: EXPECTED.public_url, window: "2h" }, {
+    ...process.env, HOME: home, LM_NODE: node, AI_BROWSER_GUARD: guard,
+    LM_CDP_ENDPOINT: "http://127.0.0.1:19999", TEST_REAL_NODE: process.execPath,
+    TEST_SEEN: seen, TEST_SNAPSHOT: snapshot, TEST_RELEASED: released,
+  }, "2026-10-23T02:00:00.000Z");
+  const call = JSON.parse(fs.readFileSync(seen, "utf8"));
+  assert.equal(call.endpoint, "http://127.0.0.1:13377");
+  assert.equal(call.observedAt, "2026-10-23T02:00:00.000Z");
+  assert.deepEqual(call.body, { publicUrl: EXPECTED.public_url, window: "2h" });
+  assert.equal(call.inputMode, 0o600);
+  assert.match(call.reader, /tiktok-native-metrics-read\.js$/);
+  assert.equal(observation.snapshot.post.views.value, 23);
+  assert.equal(fs.existsSync(released), true);
+  assert.equal(fs.existsSync(path.dirname(call.input)), false);
 });
 
 test("missed TikTok windows and per-post daily snapshots stay local while true 24h stays pending", async (t) => {
