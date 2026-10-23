@@ -51,7 +51,7 @@ not raw redistribution or narrative reuse. Preserve the limited rights notice.
 `connect_published_program(packet_bytes: bytes, packet_source: Source) -> dict`
 lives in `manager_core/public_program_disbursement.py`.
 
-Require the actual existing Source type, exact immutable packet URL, reviewed
+Require the actual existing Source type, exact source_id givedirectly-d003-aggregate-20261023, exact immutable packet URL, reviewed
 packet SHA and bounded bytes (maximum 32768). Call Source.verify_content before
 parsing. The separate root data/design commit supplies the URL/SHA to the task
 brief, avoiding a self-referential packet hash. Use stdlib JSON and no network,

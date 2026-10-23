@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - No UI, model/provider/network/runtime effects, secrets, dependencies, scheduler, new production owner, article, payment or source/registry mutation by worker.
-- Only the reviewed aggregate packet is accepted; caller-controlled replacement hash must not admit altered data. Source must point to the packet's exact immutable URL, not an upstream raw URL.
+- Only the reviewed aggregate packet is accepted; Source.source_id must be givedirectly-d003-aggregate-20261023, and caller-controlled replacement hash must not admit altered data. Source must point to the packet's exact immutable URL, not an upstream raw URL.
 - Maximum input32768 bytes. Reuse actual Source.verify_content, stdlib JSON and the pinned-artifact shape. No generic schema/PII engine or unrelated funding/outcome imports.
 - Selected outgoing total290390000 USD minor is separate from reported87percent and followup sample484 households. Income-item valid denominator/positive count/window remain unknown.
 - same_program_only, partial coverage, day precision, implementer report, third_party_evaluation=false, unknown costs/refunds/displacement and limited rights remain explicit.
