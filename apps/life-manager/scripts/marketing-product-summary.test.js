@@ -220,3 +220,42 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
   assert.match(summary.snapshot.message, /https:\/\/www\.instagram\.com\/reel\/DdvxhT1jm8F/); assert.doesNotMatch(summary.snapshot.message, /object:\/\/sha256|Views|Reach|Saves|Likes|Comments|Shares|Source status|Source:|Funnel:|Campaign attribution/);
   assert.doesNotMatch(summary.snapshot.message, /999999|888888|777777|Account totals 7/);
 });
+
+
+test("Anicca daily summary persists native TikTok photos without weakening source validation", async (t) => {
+  const day = "2026-10-23";
+  const photo = {
+    kind: "tiktok_daily_metric_digest", window: "daily", observed_at: "2026-10-23T13:00:00.000Z",
+    published_at: "2026-10-23T07:00:00.000Z", account_id: "@anicca.jp", locale: "ja",
+    public_url: "https://www.tiktok.com/@anicca.jp/photo/7564191602695326977",
+    post: { views: { status: "measured", value: 42 } }, account_metrics: { status: "unavailable" },
+  };
+  for (const [name, changed, accepted] of [
+    ["photo permalink", {}, true],
+    ["different account", { account_id: "@honnevideo" }, false],
+    ["different locale", { locale: "en" }, false],
+    ["non-numeric post", { public_url: "https://www.tiktok.com/@anicca.jp/photo/not-a-post" }, false],
+    ["foreign host", { public_url: "https://example.com/@anicca.jp/photo/7564191602695326977" }, false],
+  ]) {
+    await t.test(name, () => {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-photo-summary-"));
+      t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+      const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.jp/photo1/daily");
+      fs.mkdirSync(directory, { recursive: true });
+      fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ ...photo, ...changed }));
+      const persist = () => persistAniccaDaily(dataDir, day, "2026-10-23T14:00:00.000Z");
+      if (!accepted) {
+        assert.throws(persist, /Anicca iOS @anicca\.jp daily source mismatch/);
+        assert.equal(fs.existsSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/anicca-ios/daily", `${day}.json`)), false);
+        return;
+      }
+      const first = persist();
+      assert.equal(first.created, true);
+      assert.equal(first.snapshot.source_refs.length, 1);
+      assert.match(first.snapshot.message, /@anicca\.jp TikTok: 閲覧数 42/);
+      assert.ok(first.snapshot.message.includes(photo.public_url));
+      assert.equal(JSON.parse(fs.readFileSync(first.file, "utf8")).source_refs[0], first.snapshot.source_refs[0]);
+      assert.equal(persist().created, false);
+    });
+  }
+});
