@@ -64,11 +64,13 @@ source受入は通知追加7回帰と関連271 tests/298 subtests、認証関連
 
 完了条件: 保存→次wake/新event→当該occurrenceの公式readbackの回帰を先にREDで再現し、既存run artifact契約を最小拡張してGREENにする。各runの全対象、tamper/欠落/重複、legacyの保留、CLIに本文が出ないことを確認する。source review・関連test・CI・main・公開readback後、main由来immutable経路で対象ownerの自然実行とreadbackを検証する。旧4件の元intentが失われた部分は推測で再構成せず、公式証拠の不足として保持し、再送しない。
 
-- [ ] REPLY-EVIDENCE-01: 既存runs markerで各thread lock内の完全な照合snapshotを保存する。
-- [ ] REPLY-EVIDENCE-02: 全run対象を読み、元state更新後も完全性を検証して公式readbackへ渡す。
+- [x] REPLY-EVIDENCE-01: 既存runs markerで各thread lock内の完全な照合snapshotを保存する。
+- [x] REPLY-EVIDENCE-02: 全run対象を読み、元state更新後も完全性を検証して公式readbackへ渡す。
 - [ ] REPLY-EVIDENCE-03: review/CI/main/public source、対象ownerの適用条件・自然実行・公式成果を確認する。
 
-所有worktree=`.worktrees/coconala-reply-evidence-20261023`、branch=`fix/coconala-reply-evidence-20261023`、owner=`codex-coconala-reply-evidence`、base=`178b6c46b30fc2e0540f12ccc741b3a8eef605cf`。現在cursor=REPLY-EVIDENCE-01/02、既存MAC02→03の順序は変えない。旧setup/readme worktreesは統合・退役済み。
+source実装: kernel RED11件、reconciler RED9件を確認し、両file計75件がPASS。元intent/receiptのsnapshotは各thread lock内で採取し、既存run marker v2のprivate fieldへ保存する。通常result/itemsへ本文を追加しない。同occurrenceの初回snapshotは保持し、異intent/壊れ/旧marker衝突では上書きしない。現markerが欠損または全対象不一致なら残ったthreadだけで解決せず、旧4件の不足証拠を保留する。自然観測はinstalled SHA=d41feb337c9635690ff2a64af01ea899e92a5957、run=18e12420ba8d8fa8-18980、loaded-idle、exit75、host_admission_deferred:resource_fifo_waitであり、provider成功ではない。独立review・CI・main・実稼働は継続する。
+
+所有worktree=`.worktrees/coconala-reply-evidence-20261023`、branch=`fix/coconala-reply-evidence-20261023`、owner=`codex-coconala-reply-evidence`、base=`178b6c46b30fc2e0540f12ccc741b3a8eef605cf`。現在cursor=REPLY-EVIDENCE-03、既存MAC02→03の順序は変えない。旧setup/readme worktreesは統合・退役済み。
 
 ## 別Macへ配布するLocal製品の実行契約
 

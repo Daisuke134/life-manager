@@ -1,4 +1,5 @@
 import importlib.util
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import threading
@@ -144,6 +145,117 @@ def test_state_records_runtime_occurrence_and_run_marker(monkeypatch, tmp_path):
     assert state["occurrence_id"] == "fixture-reply:run-1"
     marker = reply_kernel._run_marker_path(tmp_path, "fixture-reply:run-1")
     assert json.loads(marker.read_text())["occurrence_id"] == "fixture-reply:run-1"
+
+
+def test_run_marker_keeps_unknown_intent_without_exposing_private_snapshot(monkeypatch, tmp_path):
+    row = event(thread="12")
+    row.update({"provider": "coconala", "account_id": "default"})
+
+    class Unknown(Adapter):
+        def readback(self, _intent):
+            return {"authoritative_absent": True}
+
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:unknown")
+    result = reply_kernel.run_wake(
+        adapter=Unknown([row]),
+        decide=lambda _context: {"action": "reply", "payload": {"body": "PRIVATE_REPLY"}},
+        state_root=tmp_path,
+    )
+    marker = json.loads(reply_kernel._run_marker_path(tmp_path, "fixture-reply:unknown").read_text())
+    assert marker["version"] == 2
+    snapshot = marker["items"][0]["reconcile_state"]
+    assert snapshot["status"] == "reconcile_unknown"
+    assert snapshot["occurrence_id"] == "fixture-reply:unknown"
+    assert snapshot["intent"]["payload"] == {"body": "PRIVATE_REPLY"}
+    assert "send_diagnostic" not in snapshot
+    assert "reconcile_state" not in json.dumps(result)
+    assert "PRIVATE_REPLY" not in json.dumps(result)
+    assert reply_kernel.run_marker_accounted(tmp_path, "fixture-reply:unknown", "12") is True
+
+
+def test_run_marker_captures_snapshot_before_thread_lock_is_released(monkeypatch, tmp_path):
+    original_lock = reply_kernel._lock
+
+    @contextmanager
+    def replace_after_unlock(path):
+        with original_lock(path):
+            yield
+        if path.name == "state.json":
+            reply_kernel._write(path, {"version": 1, "status": "no_reply"})
+
+    monkeypatch.setattr(reply_kernel, "_lock", replace_after_unlock)
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:locked")
+    reply_kernel.run_wake(
+        adapter=Adapter(),
+        decide=lambda _context: {"action": "reply", "payload": {"body": "PRIVATE_LOCKED"}},
+        state_root=tmp_path,
+    )
+    assert reply_kernel._load(next(tmp_path.glob("threads/*/state.json")))["status"] == "no_reply"
+    marker = json.loads(reply_kernel._run_marker_path(tmp_path, "fixture-reply:locked").read_text())
+    snapshot = marker["items"][0]["reconcile_state"]
+    assert snapshot["intent"]["payload"] == {"body": "PRIVATE_LOCKED"}
+    assert snapshot["receipt"]["provider_receipt_id"] == "message-1"
+
+
+def test_parallel_run_marker_snapshots_follow_their_own_threads(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:parallel")
+    rows = [event(thread=thread_id) for thread_id in ("thread-A", "thread-B", "thread-C")]
+    result = reply_kernel.run_wake(
+        adapter=Adapter(rows),
+        decide=lambda row: (
+            {"action": "noop", "classification": "no_reply"}
+            if row["thread_id"] == "thread-C"
+            else {"action": "reply", "payload": {"body": f"PRIVATE_{row['thread_id']}"}}
+        ),
+        state_root=tmp_path,
+        max_workers=2,
+    )
+    marker = json.loads(reply_kernel._run_marker_path(tmp_path, "fixture-reply:parallel").read_text())
+    assert [item["thread_id"] for item in marker["items"]] == ["thread-A", "thread-B", "thread-C"]
+    assert marker["items"][0]["reconcile_state"]["intent"]["payload"] == {"body": "PRIVATE_thread-A"}
+    assert marker["items"][1]["reconcile_state"]["intent"]["payload"] == {"body": "PRIVATE_thread-B"}
+    assert "reconcile_state" not in marker["items"][2]
+    assert "PRIVATE_" not in json.dumps(result)
+
+
+def test_same_occurrence_replay_preserves_first_run_marker(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:immutable")
+    adapter = Adapter()
+    decide = lambda _context: {"action": "reply", "payload": {"body": "original"}}
+    reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    path = reply_kernel._run_marker_path(tmp_path, "fixture-reply:immutable")
+    before = path.read_bytes()
+    assert reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)["effect"] == 0
+    assert path.read_bytes() == before
+
+
+def test_same_occurrence_cannot_replace_original_intent_binding(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:conflict")
+    adapter = Adapter()
+    decide = lambda _context: {"action": "reply", "payload": {"body": "original"}}
+    reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    path = reply_kernel._run_marker_path(tmp_path, "fixture-reply:conflict")
+    before = path.read_bytes()
+    adapter.rows = [event(latest="buyer-2")]
+    with pytest.raises(ValueError, match="reply_run_marker"):
+        reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("existing", ["{broken", "{}", '{"version": 2, "occurrence_id": "other", "items": []}',
+                                      '{"version": 1, "occurrence_id": "fixture-reply:invalid", "items": []}'])
+def test_invalid_existing_run_marker_is_not_replaced(monkeypatch, tmp_path, existing):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:invalid")
+    path = reply_kernel._run_marker_path(tmp_path, "fixture-reply:invalid")
+    path.parent.mkdir(parents=True)
+    path.write_text(existing)
+    with pytest.raises(ValueError, match="reply_run_marker"):
+        reply_kernel.run_wake(
+            adapter=Adapter(),
+            decide=lambda _context: {"action": "noop", "classification": "no_reply"},
+            state_root=tmp_path,
+        )
+    assert path.read_text() == existing
 
 
 def test_reconcile_preserves_original_occurrence_binding(monkeypatch, tmp_path):
@@ -880,7 +992,14 @@ def test_verified_old_unknown_receipt_keeps_event_binding_then_processes_new_eve
     assert saved_old["occurrence_id"] == "fixture-reply:run-A"
     assert saved_old["receipt"]["provider_receipt_id"] == "provider-receipt-A"
     assert notifications == [("event-A", "provider-receipt-A")]
+    marker_path = reply_kernel._run_marker_path(tmp_path, "fixture-reply:run-B")
+    marker_before = marker_path.read_bytes()
+    snapshot = json.loads(marker_before)["items"][0]["reconcile_state"]
+    assert snapshot["occurrence_id"] == "fixture-reply:run-A"
+    assert snapshot["intent"]["latest_event_id"] == "event-A"
+    assert snapshot["receipt"]["provider_receipt_id"] == "provider-receipt-A"
 
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-C")
     second = reply_kernel.run_wake(
         adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
     )
@@ -894,12 +1013,14 @@ def test_verified_old_unknown_receipt_keeps_event_binding_then_processes_new_eve
     assert new_intent["effect_key"] != old_intent["effect_key"]
     assert saved_new["inventory_event_id"] == "event-B"
     assert saved_new["observation"]["latest_event_id"] == "event-B"
-    assert saved_new["occurrence_id"] == "fixture-reply:run-B"
+    assert saved_new["occurrence_id"] == "fixture-reply:run-C"
+    assert marker_path.read_bytes() == marker_before
     assert notifications == [
         ("event-A", "provider-receipt-A"),
         ("event-B", "message-1"),
     ]
 
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-D")
     replay = reply_kernel.run_wake(
         adapter=adapter, decide=decide, state_root=tmp_path, notify=notify,
     )
@@ -1066,6 +1187,20 @@ def test_prior_unknown_observation_error_is_bound_to_old_intent_without_mutating
     assert diagnostic["error_code"] == "collector_unhealthy:unexpected_title"
     assert adapter.effects == []
     assert result["items"][0]["reason"] == "provider_inbox_observation_unavailable"
+    marker_path = reply_kernel._run_marker_path(tmp_path, "fixture-occurrence-new")
+    before = marker_path.read_bytes()
+    snapshot = json.loads(before)["items"][0]["reconcile_state"]
+    assert snapshot == saved
+
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-occurrence-next")
+    reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: (_ for _ in ()).throw(AssertionError("must not reconsider")),
+        state_root=tmp_path,
+        max_workers=1,
+    )
+    assert reply_kernel._load(state_path)["send_diagnostic"]["current_claimed_occurrence_id"] == "fixture-occurrence-next"
+    assert marker_path.read_bytes() == before
 
 
 def test_provenance_write_failure_keeps_existing_intent_fence_and_raises(tmp_path, monkeypatch):
