@@ -19,7 +19,6 @@ AGENT_RUNNER = REPO / "runtime" / "agent-runner" / "agent_runner.py"
 AGENT_RUNNER_PATH = AGENT_RUNNER
 PLANNER_SCHEMA = SKILLS_ROOT / "gig-work" / "schemas" / "application_decisions.schema.json"
 SCHEMA_PATH = PLANNER_SCHEMA
-PRODUCT_PATH = HERE.parent / "products" / "monthly-sns-content-ops-v1.json"
 PLATFORM = "lancers"
 MAX_OPPORTUNITIES = 20
 # Left over from before the catalogue drove discovery. SNS運用 is work the fleet refuses under
@@ -110,10 +109,6 @@ DISCOVERY_CATEGORIES = ("system", "web", "business", "writing", "design",
 # The lane wakes every 60 seconds (config/loop-registry.json), and the window steps by one query
 # per admitted wake; _discovery_source cycles every category page before the keywords.
 WAKE_INTERVAL_SECONDS = 60
-PUBLIC_SOFTWARE_PROOF = {
-    "source_url": "https://github.com/Daisuke134/life-manager", "title": "Life Manager", "license": "MIT",
-    "description": "API、scheduler、worker、Postgres、object store、Telegram reporting、公式readback付き外部action loopを同一repositoryで実装したMIT公開のpersonal managerです。",
-}
 PLANNER_TASK_CLASS = "application-intent-planner"
 SAFETY_TASK_CLASS = "diagnostic-agent"
 ESCALATION_REASON = "application decision and client-facing proposal text come from this single call"
@@ -138,32 +133,30 @@ DEFAULT_EVIDENCE_ROOT = Path.home() / ".local/state/anicca/lancers/planner"
 DEFAULT_EVIDENCE_DIR = DEFAULT_EVIDENCE_ROOT
 DECISION_FIELDS = frozenset({"request_id", "business_class", "reason_codes", "proposal_text", "price_jpy", "deliver_date"})
 BUSINESS_CLASSES = frozenset({"submit_required", "hard_prohibited"})
-def _persona_facts() -> dict[str, str]:
-    """The attributes an application form can ask about, from the private profile SSOT.
-
-    Without these the planner cannot tell a requirement it satisfies from one it would have to lie
-    about, and defaults to refusing. Only what a posting may ask -- age, residence, citizenship --
-    is read; the name and history stay out of the prompt.
-    """
-    fallback = {"age": "24", "base": "東京 (日本)", "citizenship": "日本"}
+def _persona_facts(candidate: Mapping[str, object]) -> dict[str, str]:
+    """Derive only supplied attributes; omitted personal facts remain unconfirmed."""
+    facts = {}
     try:
-        data = json.loads(Path("~/.config/anicca/job-search/profile.json").expanduser()
-                          .read_text(encoding="utf-8"))
-        candidate = data.get("candidate") or {}
         born = date.fromisoformat(str(candidate["date_of_birth"]))
         today = date.today()
         age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-        citizenships = candidate.get("citizenships") or []
-        return {
-            "age": str(age),
-            "base": str(candidate.get("base") or fallback["base"]),
-            "citizenship": "・".join(str(value) for value in citizenships) or fallback["citizenship"],
-        }
-    except Exception:
-        return fallback
+        if age >= 0:
+            facts["age"] = str(age)
+    except (KeyError, ValueError):
+        pass
+    base = candidate.get("base")
+    if isinstance(base, str) and base.strip():
+        facts["base"] = base.strip()
+    citizenships = candidate.get("citizenships")
+    if isinstance(citizenships, list):
+        citizenship = "・".join(value.strip() for value in citizenships if isinstance(value, str) and value.strip())
+    else:
+        citizenship = candidate.get("nationality")
+    if isinstance(citizenship, str) and citizenship.strip():
+        facts["citizenship"] = citizenship.strip()
+    return facts
 
 
-PERSONA_FACTS = _persona_facts()
 def _work_fit():
     """The refusals are shared with Coconala and CrowdWorks. Lancers wrote them first; keeping a
     second copy here is how CrowdWorks ended up refusing work this list allows."""
@@ -201,6 +194,7 @@ def _load(name: str, path: Path) -> Any:
     module = importlib.util.module_from_spec(spec); sys.modules[name] = module; spec.loader.exec_module(module)
     return module
 
+local_identity = _load("_anicca_lancers_local_identity", HERE / "local_identity.py")
 status = _load("_anicca_lancers_application_loop_status", STATUS_PATH)
 application_tick = _load("_anicca_lancers_application_loop_tick", APPLICATION_TICK_PATH)
 
@@ -462,29 +456,20 @@ def _attribution_hash(value: object) -> str:
 
 
 def _seller_proof() -> dict[str, object]:
-    product = json.loads(PRODUCT_PATH.read_text(encoding="utf-8")); portfolio = product["portfolio"]; software_portfolio = product["software_portfolio"]; software = PUBLIC_SOFTWARE_PROOF
-    product_id, product_version = product.get("product_id"), product.get("product_version")
-    if not isinstance(product_id, str) or not product_id.strip() or type(product_version) is not int or product_version < 1:
-        raise ValueError
-    ids = (product["listing_external_id"], portfolio["external_id"], software_portfolio["external_id"])
-    strings = (product["title_stem"], product["description"], product["notice"], portfolio["title_stem"], portfolio["description"], software_portfolio["title_stem"], software_portfolio["description"])
-    if not isinstance(software, Mapping) or set(software) != {"source_url", "title", "description", "license"} or software.get("source_url") != "https://github.com/Daisuke134/life-manager" or any(not isinstance(software.get(key), str) or not software[key].strip() for key in ("title", "description", "license")): raise ValueError
-    if any(not isinstance(value, str) or not value.strip() for value in ids + strings) or any(ID_RE.fullmatch(value) is None for value in ids): raise ValueError
-    plans = [{key: plan[key] for key in ("description", "delivery_days", "price_jpy")} for plan in product["plans"]]
+    identity = local_identity.load_identity()
+    profile, provider, account = identity["candidate"], identity["provider"], identity["account_id"]
+    candidate = {"name": profile["candidate"]["name"], **_persona_facts(profile["candidate"])}
+    portfolio, pricing = provider.get("portfolio", []), provider.get("pricing", [])
     return {
-        "catalog_product_id": product_id,
-        "catalog_product_version": product_version,
-        "profile_version": _attribution_hash(product["seller_profile"]),
-        "proof_version": _attribution_hash({"portfolio": portfolio, "software_portfolio": software_portfolio}),
-        "price_version": _attribution_hash(plans),
-        "profile_url": "https://www.lancers.jp/profile/keiodaisuke",
-        "portfolio_id": ids[1], "portfolio_url": f"https://www.lancers.jp/profile/keiodaisuke/portfolio_popup/{ids[1]}",
-        "portfolio_title": portfolio["title_stem"] + "ました", "portfolio_description": portfolio["description"],
-        "software_portfolio_id": ids[2], "software_portfolio_url": f"https://www.lancers.jp/profile/keiodaisuke/portfolio_popup/{ids[2]}",
-        "software_portfolio_title": software_portfolio["title_stem"] + "ました", "software_portfolio_description": software_portfolio["description"],
-        "package_id": ids[0], "package_url": f"https://www.lancers.jp/menu/detail/{ids[0]}",
-        "package_title": product["title_stem"] + "ます", "package_scope": product["description"], "package_exclusions": product["notice"], "plans": plans,
-        "public_software_proof": dict(software),
+        "profile_version": _attribution_hash({"candidate": profile["candidate"], "account_id": account}),
+        "proof_version": _attribution_hash({"facts": profile["facts"], "portfolio": portfolio}),
+        "price_version": _attribution_hash(pricing),
+        "account_id": account,
+        "candidate": candidate,
+        "facts": profile["facts"],
+        "portfolio": portfolio,
+        "pricing": pricing,
+        **{key: provider[key] for key in ("catalog_product_id", "catalog_product_version") if key in provider},
     }
 
 
@@ -544,17 +529,13 @@ def _snapshot(rows: Sequence[Mapping[str, object]], today: date) -> dict[str, ob
 PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent plannerである。planner自身はツールを使わず（browser、code mode、外部通信も使わない）、入力されたSNAPSHOTだけで判断する。delivery systemの外部操作は別の検証済み処理が担当する。submit_requiredの場合はproposal_text・price_jpy・deliver_dateをnullにしない。proposal_textは200〜3000文字、price_jpyは1以上の整数、deliver_dateは今日の翌日から60日以内のYYYY-MM-DDにする。hard_prohibitedの場合だけ、その3項目をnullにする。"
     "Coconalaと同じcommon marketplace feasibility policyを使う。合法で、別のdelivery systemがcomputer、browser、code、research、writing、design、dataその他の利用可能なtoolsを使って全必須成果物を正直に完遂できる案件は広く応募する。planner自身はその操作を実行せず、判定はsubmit_requiredまたはhard_prohibitedの二択であり、前者を既定とする。"
     "確認済みのdelivery能力は、非同期のresearch、文章作成・編集・翻訳、digital content設計、code・software・data・AI automation、web/browser上の操作・調査・monitor、必要なtoolの導入・設定・利用、利用可能なtoolで生成できるdigital artifactである。現在未導入のsoftwareや未利用のweb serviceでも、公開または依頼者提供の通常accessで導入・利用・検証できるなら完遂可能として扱う。未提示の個人職歴、雇用経験、資格、電話営業、常駐staff稼働、専用hardwareや入手不能な外部credentialを能力として仮定しない。"
-    "SNAPSHOTのseller_proofは現在のLancers公開profile、portfolio、packageとMIT公開source codeで買い手が確認できる証拠であり、能力の固定whitelistではない。案件scopeに合う証拠だけを具体的に活用し、未掲載の顧客実績、評価、売上効果、専門職歴を捏造しない。exactな同業実績や完成済みportfolioがなくても、転用可能な確認済み能力と案件固有の実行planで全必須scopeを完遂できるならsubmit_requiredにする。"
+    "SNAPSHOTのseller_proofは本人のcandidate、evidence付きfacts、Lancers accountと本人が入力したportfolio・pricingであり、能力の固定whitelistではない。案件scopeに合う証拠だけを具体的に活用し、未掲載の顧客実績、評価、売上効果、専門職歴を捏造しない。exactな同業実績や完成済みportfolioがなくても、転用可能な確認済み能力と案件固有の実行planで全必須scopeを完遂できるならsubmit_requiredにする。"
     "各案件を実際の公開内容全体から自分で判断し、指定schemaのJSONだけを返す。現在の自律delivery systemが全必須成果物を正直に完成できるならsubmit_requiredとする。専用Skill、同業職歴、実績、portfolio、testimonial、tool利用歴、資格を必要としない経験年数、難易度、競争、単発、曖昧な通常実装詳細は拒否理由にしない。未経験を経験済みと偽らず、転用可能な確認済み能力と案件固有の実行planを示す。reason_codesは空、買い手向けの具体的な日本語proposalを200〜3000文字、正直な価格、現実的な納期で返す。"
     "proposalは自己紹介だけで始めず、冒頭で依頼内容の理解と提供価値を案件固有に示す。依頼文の応募質問へ漏れなく直接答え、実行手順・schedule・納品物を明記し、案件に関係する場合だけ修正回数とLancersメッセージでの連絡方法を示す。検証済みでない実績は作らない。"
     "hard_prohibitedは案件全体が次のいずれかを必須とする場合だけ使う: "
     + "; ".join(f"{key}={value}" for key, value in HARD_PROHIBITION_CLASSES.items()) + "。"
     "hard_prohibitedではreason_codes[0]を正確なclass key、reason_codes[1]をtitle・description・categoryのいずれかに連続して存在する200文字以内の原文引用にし、proposal・price・dateはnullにする。任意・推奨・否定・引用中の単語だけで拒否しない。"
-    # Measured 2026-09-07: every attribute requirement was read as fabrication because the planner
-    # was asked to judge personal attributes without being told any. 「・年齢：」-- a form field --
-    # and 「・20歳以上の方」, which the persona satisfies at 24, were both refused. The class is
-    # correct; it was being applied to requirements that can be answered honestly.
-    f"応募者の確認済み属性: 年齢{PERSONA_FACTS['age']}歳、居住地{PERSONA_FACTS['base']}、国籍{PERSONA_FACTS['citizenship']}、日本語ネイティブ。"
+    "応募者の確認済み属性はseller_proofのcandidateとfactsだけを使う。年齢・居住地・国籍・言語など未記載の属性は未確認であり、推測で補わない。"
     "mandatory_attribute_fabricationはこの確認済み属性と矛盾する必須要件だけに使う。属性を尋ねる入力欄の存在や、確認済み属性が満たす年齢・居住地・国籍・言語の条件は、正直に答えられるので拒否理由にしない。"
     "reason_codes[1]は公開原文から一文字も足さずcopyし、長い引用に自信がなければ判断根拠を直接示す短い連続原文を使う。"
     "案件全体から納品可能性をpriorityより先に確定する。完成動画そのものの生成・編集・書き出しが必須ならvideo_or_animation、企画・構成・台本・文章だけで完成動画制作が不要ならvideo_or_animationではない。機械的なkeyword ruleは使わない。"
@@ -767,6 +748,13 @@ def _tick_result(value: object, project_id: str) -> ApplicationLoopResult:
 
 def _emit(result: ApplicationLoopResult, stream: TextIO) -> None:
     stream.write(json.dumps(result.to_dict(), ensure_ascii=False, separators=(",", ":")) + "\n"); stream.flush()
+
+def _setup_required_result(error: local_identity.SetupRequired, stream: Optional[TextIO]) -> dict[str, object]:
+    result = {**ApplicationLoopResult(False, error="setup_required").to_dict(), "missing": error.missing}
+    if stream is not None:
+        stream.write(json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n")
+        stream.flush()
+    return result
 
 def _pending_submitter_override(*_args: object, **_kwargs: object) -> Mapping[str, object]:
     raise RuntimeError("pending_reconciliation_submitter_disabled")
@@ -1072,8 +1060,7 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
                         "profile_version": str(proof["profile_version"]),
                         "proof_version": str(proof["proof_version"]),
                         "price_version": str(proof["price_version"]),
-                        "catalog_product_id": proof["catalog_product_id"],
-                        "catalog_product_version": proof["catalog_product_version"],
+                        **{key: proof[key] for key in ("catalog_product_id", "catalog_product_version") if key in proof},
                         "proposed_amount_minor": amount,
                     },
                 )
@@ -1096,6 +1083,10 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
     return _batch_summary(final, observed_count, len(eligible), verified, blocked, ok=True, submitted=any(item.submitted for item in verified))
 
 def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH, evidence_root: Optional[Path] = None, discoverer: Optional[Callable[..., Mapping[str, object]]] = None, planner: Optional[Callable[..., object]] = None, safety_verifier: Optional[Callable[..., object]] = None, submitter: Optional[Callable[..., object]] = None, clock: Optional[Callable[[], object]] = None, discovery: Optional[Callable[..., Mapping[str, object]]] = None, now: Optional[Callable[[], object]] = None, evidence_dir: Optional[Path] = None, output_stream: Optional[TextIO] = None, query: Optional[str] = None, timeout: float = 20.0) -> dict[str, object]:
+    try:
+        local_identity.load_identity()
+    except local_identity.SetupRequired as error:
+        return _setup_required_result(error, output_stream)
     try:
         tick_value = (clock or now or (lambda: datetime.now(timezone.utc)))()
     except Exception:
@@ -1234,7 +1225,14 @@ def _durable_uncertain_pending(result: Mapping[str, object], state_path: Path) -
 def main(argv: Optional[Sequence[str]] = None, *, discovery: Optional[Callable[..., Mapping[str, object]]] = None, planner: Optional[Callable[..., object]] = None, submitter: Optional[Callable[..., object]] = None, now: Optional[Callable[[], object]] = None, clock: Optional[Callable[[], object]] = None, stdout: Optional[TextIO] = None) -> int:
     parser = argparse.ArgumentParser(allow_abbrev=False); parser.add_argument("--json", action="store_true", required=True); parser.add_argument("--reconcile-only", action="store_true"); parser.add_argument("--state-path", default=str(DEFAULT_STATE_PATH)); parser.add_argument("--exhaustive", action="store_true", help="union every discovery query instead of stopping at the first fruitful one"); parser.add_argument("--discovery-timeout", type=float, default=20.0, help="seconds per discovery request (provider bound: 0 < t <= 60). The exhaustive budget is this multiplied by the number of queries, not a larger single request."); args = parser.parse_args(list(argv) if argv is not None else None)
     output_stream = sys.stdout if stdout is None else stdout
+    try:
+        local_identity.load_identity()
+    except local_identity.SetupRequired as error:
+        _setup_required_result(error, output_stream)
+        return 1
     result = run_reconcile_only(Path(args.state_path), output_stream=output_stream) if args.reconcile_only else run_loop(discoverer=discovery, planner=planner, submitter=submitter, clock=clock or now, state_path=Path(args.state_path), output_stream=output_stream, exhaustive=args.exhaustive, timeout=args.discovery_timeout)
+    if result.get("error") == "setup_required":
+        return 1
     if not args.reconcile_only and discovery is None and planner is None and submitter is None and now is None and clock is None:
         reporter = _load("_anicca_lancers_application_reporter", HERE / "telegram_report.py")
         delivery = reporter.notify_application_wake(result)

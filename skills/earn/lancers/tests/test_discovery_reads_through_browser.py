@@ -7,6 +7,7 @@ discovered, while work-sync read /mypage through the leased browser with 200 at 
 from datetime import datetime, timezone
 import importlib.util
 from pathlib import Path
+from skills.earn.lancers.tests.identity_fixture import write_identity
 import sys
 from unittest.mock import patch
 
@@ -79,7 +80,10 @@ def _patched_browser(loop, *, ready=True):
     )
 
 
-def test_default_wake_discovers_through_the_leased_page_and_releases_it(tmp_path):
+def test_default_wake_discovers_through_the_leased_page_and_releases_it(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    write_identity(home)
+    monkeypatch.setenv("HOME", str(home))
     loop = _load("lancers_application_loop_browser_discovery", "application_loop.py")
     page, closed, patches = _patched_browser(loop)
     seen = []
@@ -98,7 +102,10 @@ def test_default_wake_discovers_through_the_leased_page_and_releases_it(tmp_path
     assert closed == [page]
 
 
-def test_default_wake_names_a_logged_out_browser_and_does_not_discover(tmp_path):
+def test_default_wake_names_a_logged_out_browser_and_does_not_discover(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    write_identity(home)
+    monkeypatch.setenv("HOME", str(home))
     loop = _load("lancers_application_loop_browser_logged_out", "application_loop.py")
     page, closed, patches = _patched_browser(loop, ready=False)
 

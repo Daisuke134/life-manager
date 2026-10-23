@@ -3,6 +3,8 @@ import importlib.util
 from datetime import date, datetime, timedelta, timezone
 import sys
 
+from skills.earn.lancers.tests.identity_fixture import write_identity
+
 
 def _load_application_loop():
     path = Path(__file__).resolve().parents[1] / "scripts" / "application_loop.py"
@@ -26,7 +28,10 @@ def test_bounded_live_meeting_handoff_does_not_conflict_with_human_deliverable_r
     assert "SKIP_CACHE_VERSION = 3" in source
 
 
-def test_planner_prompt_forbids_tools_and_requires_complete_submit_fields():
+def test_planner_prompt_forbids_tools_and_requires_complete_submit_fields(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    write_identity(home)
+    monkeypatch.setenv("HOME", str(home))
     module = _load_application_loop()
     prompt = module.build_planner_prompt(
         [{
@@ -62,6 +67,9 @@ def test_exhaustive_discovery_has_one_bounded_turn():
 
 
 def test_transient_pending_failure_does_not_abort_fresh_discovery(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    write_identity(home)
+    monkeypatch.setenv("HOME", str(home))
     module = _load_application_loop()
     pending = {
         "project_id": "5601059",

@@ -11,6 +11,12 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 
+ACCOUNT_ID="$("$PYTHON" "$ROOT/skills/earn/lancers/scripts/local_identity.py" account-id)" || {
+  IDENTITY_RC=$?
+  printf '%s\n' "$ACCOUNT_ID"
+  exit "$IDENTITY_RC"
+}
+
 set +e
 "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/paid_kernel.py" \
   --require-paid-handoff \
@@ -19,7 +25,7 @@ set +e
   --output "$PAID_OUTPUT" \
   --max-workers 1 \
   -- \
-  --account-id keiodaisuke \
+  --account-id "$ACCOUNT_ID" \
   --state-path "$STATE_ROOT/application.json"
 KERNEL_RC=$?
 set -e

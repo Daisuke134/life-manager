@@ -117,12 +117,16 @@ SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1
 **Files:** `skills/earn/lancers/scripts/local_identity.py`（本人入力の読取/既存validate_profile呼出/CLI account-id）、`application_loop.py`（動的な本人事実と3hash・setup停止）、`paid-owner`（明示本人account）、`paid_adapter.py`（Lancers provider path）、関連Lancers tests。4sourceへの変更は同じ入力不具合のApply/Paid両callerを閉じるため必要。rootは本仕様、統合、実機確認を所有する。
 **Interfaces:** local_identity.load_identity(candidate_path: Path | None = None, provider_path: Path | None = None) -> dict はcandidate/provider/account_idを返す。既定は本人 `~/.config/anicca/job-search/profile.json` と `~/.config/anicca/lancers/public-profile.json`。後者の最小形は account_idだけのobject。SetupRequired.missing: list[str] は値を含まない不足項目。CLI account-idは同じ検証後のIDだけをstdoutへ出し、未設定はsetup_required JSONとexit78を返す。
 
-- [ ] RED: 空HOME/壊れたprofileでrun_loop/mainのplanner/discovery/browser/notifyが0、error=setup_requiredとmissing項目を返すtestを追加し、既存fallback/外部到達で失敗を確認する。
-- [ ] INPUT: local_identityで既存validate_profileを呼ぶ。候補者最小fixtureはversion1、candidate.name=別の利用者、facts=[id/claim/evidence]。provider最小fixtureはaccount_id=other-seller。自動作成やCrowdWorks参照はしない。
-- [ ] APPLY: _persona_factsは入力がある属性だけを返し、PERSONA_FACTSのimport-time読取と日本語nativeの固定文を除く。_seller_proofは本人candidate/facts/accountだけを表し、profile_version/proof_version/price_versionの3hashを維持する。未設定portfolio/pricingは空の入力としてhash化し能力を制限しない。catalog_product_id/versionはattribution callerでも存在時だけ渡す。main/run_loopは不足を外部操作・通知前に返す。
-- [ ] PAID: paid-ownerは同じhelperのaccount-idを引用した単一argvとして渡し、paid_adapterのprovider既定をLancers pathへ修正する。Noneの新interfaceは追加せず、account-only provider objectを共通reply groundingで扱う。quality/readback/既存no-effect reconcileを保持する。
+- [x] RED: 空HOME/壊れたprofileでrun_loop/mainのplanner/discovery/browser/notifyが0、error=setup_requiredとmissing項目を返すtestを追加し、既存fallback/外部到達で失敗を確認する。
+- [x] INPUT: local_identityで既存validate_profileを呼ぶ。候補者最小fixtureはversion1、candidate.name=別の利用者、facts=[id/claim/evidence]。provider最小fixtureはaccount_id=other-seller。自動作成やCrowdWorks参照はしない。
+- [x] APPLY: _persona_factsは入力がある属性だけを返し、PERSONA_FACTSのimport-time読取と日本語nativeの固定文を除く。_seller_proofは本人candidate/facts/accountだけを表し、profile_version/proof_version/price_versionの3hashを維持する。未設定portfolio/pricingは空の入力としてhash化し能力を制限しない。catalog_product_id/versionはattribution callerでも存在時だけ渡す。main/run_loopは不足を外部操作・通知前に返す。
+- [x] PAID: paid-ownerは同じhelperのaccount-idを引用した単一argvとして渡し、paid_adapterのprovider既定をLancers pathへ修正する。Noneの新interfaceは追加せず、account-only provider objectを共通reply groundingで扱う。quality/readback/既存no-effect reconcileを保持する。
 - [ ] GREEN: 本人fixtureでprompt/safetyとpaid argvがother-sellerの値だけを使い、属性/portfolioなしでも作者値を含まない。CrowdWorks fixtureだけではsetup成功しない。既存persona/attribution/paid fixtureを本人入力契約へ更新し、関連suite・source-boundary・diffをPASSする。
 - [ ] SHIP: source commit/push→独立review→必要CI/main/public byte readback。実Lancers activationはSETUP/RUNTIMEのTODOで本人観測後に行い、sourceだけで業務完了にしない。
+
+実装の中間証拠: 欠損/壊れた本人入力と別accountの12ケースをRED→GREENで確認する（Python 3.14）。AST、shell構文、source-boundary、diff checkはPASS。関連全suiteは最初の起動前にENOSPCで止まるため未受入とし、容量回復後に再実行する。private profile、browser、provider送信、実activationは0。
+
+容量診断: Git fetchもpack一時file作成でENOSPCとなる。process argv/cwd/text参照がなく、memory/state JSONLを含まない再取得可能なCodex runtime cacheだけを削除し、1,628,393,472 bytesを回復する。直後の空き1,901,395,968 bytesはsource保存/関連検証のための余地であり、稼働jobのdisk admissionを満たす証拠ではない。protected storesと使用中runtime/stateは変更しない。
 
 ## 別Macへ配布するLocal製品の実行契約
 
