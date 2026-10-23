@@ -35,6 +35,19 @@ jobs:
           python3 -m unittest scripts.test_mac_bootstrap scripts.test_job_hunter_macos
           python3 -m unittest runtime.host.tests.test_local_profile runtime.loop.tests.test_local_fleet runtime.loop.tests.test_local_install
           python3 -m pytest -q scripts/test_macos_runtime.py skills/earn/gig/tests/test_coconala_installer_runtime.py
+      - name: Verify Lancers local identity and caller contracts
+        run: >-
+          python3 -m pytest -q
+          skills/earn/lancers/tests/test_local_identity.py
+          skills/earn/lancers/tests/test_application_prompt_handoff.py
+          skills/earn/lancers/tests/test_discovery_reads_through_browser.py
+          skills/earn/lancers/tests/test_owner_browser_attach_busy_exit_75.py
+          skills/earn/lancers/tests/test_paid_owner_reconcile.py
+          skills/earn/lancers/tests/test_reply_adapter.py
+          apps/lancers-revenue/tests/test_application_attribution.py
+          apps/lancers-revenue/tests/test_persona_facts_in_planner.py
+          apps/lancers-revenue/tests/test_form_failures_name_themselves.py
+          apps/lancers-revenue/tests/test_telegram_report.py
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py' --durations 15
       - name: Verify bounded storage, real syscall failures, and recurrence

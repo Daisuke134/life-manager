@@ -427,24 +427,36 @@ class CleanUserInstallTest(unittest.TestCase):
         wrapper = ROOT / "skills/earn/lancers/scripts/paid-owner"
         self.assertTrue(os.access(wrapper, os.X_OK))
         state_root = "/private/life-manager-state/lancers"
-        result = subprocess.run(
-            [str(wrapper)],
-            env={
-                **os.environ,
-                "LIFE_MANAGER_PYTHON": "/bin/echo",
-                "LIFE_MANAGER_STATE_ROOT": state_root,
-            },
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            python = Path(directory) / "python"
+            python.write_text(
+                '#!/bin/sh\n'
+                'case "$1" in\n'
+                '  */skills/earn/lancers/scripts/local_identity.py)\n'
+                '    [ "$#" -eq 2 ] && [ "$2" = account-id ] || exit 2\n'
+                '    printf "%s\\n" other-seller ;;\n'
+                '  *) /bin/echo "$@" ;;\n'
+                'esac\n'
+            )
+            python.chmod(0o700)
+            result = subprocess.run(
+                [str(wrapper)],
+                env={
+                    **os.environ,
+                    "LIFE_MANAGER_PYTHON": str(python),
+                    "LIFE_MANAGER_STATE_ROOT": state_root,
+                },
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         self.assertEqual(result.stdout.strip().splitlines(), [
             f"{ROOT}/skills/_shared/marketplace-core/scripts/paid_kernel.py "
             "--require-paid-handoff "
             f"--provider-adapter {ROOT}/skills/earn/lancers/scripts/paid_adapter.py "
             f"--state-root {state_root}/paid --output {state_root}/paid-latest.json "
             f"--max-workers 1 "
-            f"-- --account-id keiodaisuke --state-path {state_root}/application.json",
+            f"-- --account-id other-seller --state-path {state_root}/application.json",
             f"{ROOT}/skills/earn/lancers/scripts/lane_report.py "
             f"--lane paid --state-path {state_root}/contracts.json",
         ])

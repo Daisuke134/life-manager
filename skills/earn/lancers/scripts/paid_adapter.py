@@ -66,7 +66,7 @@ _PAID_HANDOFF = _load_shared(
 )
 
 DEFAULT_CANDIDATE_PROFILE = Path.home() / ".config/anicca/job-search/profile.json"
-DEFAULT_PROVIDER_PROFILE = Path.home() / ".config/anicca/crowdworks/public-profile.json"
+DEFAULT_PROVIDER_PROFILE = Path.home() / ".config/anicca/lancers/public-profile.json"
 _SAFE_ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{1,127}\Z")
 
 

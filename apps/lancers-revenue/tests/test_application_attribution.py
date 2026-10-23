@@ -26,8 +26,9 @@ class ApplicationAttributionTests(unittest.TestCase):
     def test_seller_proof_exposes_stable_conversion_attribution_versions(self):
         proof = load()._seller_proof()
 
-        self.assertEqual(proof["catalog_product_id"], "monthly-sns-content-ops-v1")
-        self.assertEqual(proof["catalog_product_version"], 6)
+        self.assertEqual(proof["account_id"], "other-seller")
+        self.assertNotIn("catalog_product_id", proof)
+        self.assertNotIn("catalog_product_version", proof)
         for field in ("profile_version", "proof_version", "price_version"):
             self.assertRegex(proof[field], r"^[0-9a-f]{64}$")
         self.assertEqual(len({proof["profile_version"], proof["proof_version"], proof["price_version"]}), 3)
@@ -89,6 +90,7 @@ class ApplicationAttributionTests(unittest.TestCase):
         self.assertEqual(result.verified_count, 1)
         self.assertEqual(rows[0]["application_external_id"], "27999998")
         self.assertEqual(rows[0]["opportunity_external_id"], "5609998")
+        self.assertNotIn("catalog_product_id", rows[0])
 
 
 if __name__ == "__main__":

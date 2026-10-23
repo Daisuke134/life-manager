@@ -80,13 +80,59 @@ source実装: kernel RED11件、reconciler RED9件を確認し、両file計75件
 
 - [x] SELECTED-PYTHON-01: private PYTHONをcanonical plistとsame-SHA adoptionへ渡す最小RED/GREEN。明示path欠損は起動前に拒否する。
 - [x] SELECTED-PYTHON-02: 公開installerが使う本人Coconala venvを準備し、既存locked requirementsの必要依存でimportを確認する。本人Python設定だけ保存し、認証/ブラウザは変更しない。
-- [ ] SELECTED-PYTHON-03: review/CI/main/public source→immutable→target loaded-idle apply→自然実行のsource/結果を照合する。旧4effectは公式証拠なしで解除/再送しない。
+- [x] SELECTED-PYTHON-03: review/CI/main/public source→immutable→target loaded-idle apply→自然実行のsource/結果を照合する。旧4effectは公式証拠なしで解除/再送しない。
 
-source受入: 明示private PYTHONだけをcanonical7ownersへ白名单で渡し、Reply/PaidのHF_GIG_PYTHON、Apply/Storefront/GCの既存lifecycle→sys.executable、Report/browserのPYTHONへ接続する。source差分は既存helper/apply/local-install/browserの4filesで、新しいhost profileやbrowser bindingは追加しない。同SHAでも共通release runtimeと本人owner runtimeの期待値を分離し、exact/same-SHA adoptionで衝突しない。新しい13 tests+6subtestsと追加host binding回帰をRED→GREEN、関連4file計301 tests/123subtests、source-boundary/bash/diffがPASS。全runtime unittest1014 tests、loop契約18/192/113/errors0、adapter15 testsがPASS。doctorはmissing/retired0、別ownerのunmanaged browser1を返し、対象外なので変更しない。fresh reviewは、private PYTHON削除後のexact-release採用が旧overrideを残す反例を再現する。未指定のPYTHONもabsenceを比較し、running ownerは既存loaded-idle applyへ委ねる最小修正でRED→GREEN。local-install19 tests/31subtestsがPASS、新差分の再reviewへ進む。CI・main・自然実行は継続する。
+source受入: 明示private PYTHONだけをcanonical7ownersへ白名单で渡し、Reply/PaidのHF_GIG_PYTHON、Apply/Storefront/GCの既存lifecycle→sys.executable、Report/browserのPYTHONへ接続する。source差分は既存helper/apply/local-install/browserの4filesで、新しいhost profileやbrowser bindingは追加しない。同SHAでも共通release runtimeと本人owner runtimeの期待値を分離し、exact/same-SHA adoptionで衝突しない。新しい13 tests+6subtestsと追加host binding回帰をRED→GREEN、関連4file計301 tests/123subtests、source-boundary/bash/diffがPASS。全runtime unittest1014 tests、loop契約18/192/113/errors0、adapter15 testsがPASS。doctorはmissing/retired0、別ownerのunmanaged browser1を返し、対象外なので変更しない。fresh reviewは、private PYTHON削除後のexact-release採用が旧overrideを残す反例を再現する。未指定のPYTHONもabsenceを比較し、running ownerは既存loaded-idle applyへ委ねる最小修正でRED→GREEN。local-install19 tests/31subtests、最終関連302 tests/127subtestsがPASS。再reviewはfinding0/SHIP、PR #8702のhead b3336159c04b81b943776879eac199982d8ca4b1のCI13項目とworkflow39949336988が全成功し、main44cdb4cf8102fe3d6aecae91f5202c2039c83869へ統合する。公開4sourceのbyte一致を確認する。
 
 runtime準備結果: 既存public Coconala venv pathが無いことと本人UID/symlink無しを確認し作成する。main由来requirements-runtimeのconstraintsとrequirements-ciのwebsockets pinを使い、必要5依存とPlaywright1.59.0/cryptography46.0.5を揃える。exact venvで全5import・Coconala adapter importがPASS。native configure-pythonでPYTHONだけを保存し、private file0600/本人UIDをreadbackする。認証・browser・owner再起動・provider送信は行わない。candidate 20261023T203225-0a54cd06は未使用のため既存GCに回収され、現在は20261023T203452-98241d81へ自然更新する。未使用candidateの再利用を試みず、source修復後のmain由来releaseへ適用する。
 
-branch=fix/coconala-selected-python-20261023、base=6b1d48027a309530014d688324b166ba49320ba7。同じMAC02の所有worktree/leaseを継続し、owner=codex-coconala-reply-evidence。現在cursor=SELECTED-PYTHON-03、MAC02→MAC03の順序は変えない。次のLancersは共通導入済みだがguided dispatch/本人account・work profileの固定依存が残り、本人setup実測だけでは閉じないことをread-only探索で確認する。
+branch=fix/coconala-selected-python-20261023、base=6b1d48027a309530014d688324b166ba49320ba7。同じMAC02の所有worktree/leaseを継続し、owner=codex-coconala-reply-evidence。現在cursor=MAC03-LANCERS-IDENTITY。順序変更: 旧順=MAC02の全live成果を待つ→MAC03。新順=MAC02のsourceと対象1ownerの反映を受け入れ、容量/旧receipt待ちは保持→独立するMAC03 Lancers sourceを修復→MAC02/03の自然実行と公式成果を照合する。理由は現hostのdisk_floor_lowと旧4replyの公式証拠待ちがあり、他人のownerを止めずにLancersの作者依存を除く方が全Mac配布へ早く到達するため。次のLancersは共通導入済みだがguided dispatch/本人account・work profileの固定依存が残り、本人setup実測だけでは閉じないことをread-only探索で確認する。
+
+SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops/releases/20261023T210125-44cdb4cf` をcurrentを変えずに作成する。exact selected venvの5importとruntime import、native UID501/Directory Services/Aqua/manager UID501/PID1のpreflightがPASS。初回applyはloaded-runningでchanged=false、終了の追加readback後にtarget=`hf-gig-reply-detector`だけのloaded-idle applyがchanged=true/admission_resumed=trueとなる。install event=`3c4ab601f5a3bd7fd2e16825`。公式launchd readbackのargv/installed SHA/plist/state pathとPYTHON/HF_GIG_PYTHON/LIFE_MANAGER_RUNTIME_PYTHONの3値が一致する。他6ownerは生成計画だけで、実反映済みとはしない。新releaseの自然terminal run=`18e12723acf84350-55787`、occurrence=`hf-gig-reply-detector:18e12723acf84350-55787`、phase=report、exit75、effect=not_applicable、receipt=null、error_class=`host_admission_deferred:disk_floor_low`、retryable=true。次は既存disk ownerの回復後に自然実行を照合する。旧4effectは保持し、provider送信/照合済みとはしない。新規Mac/Intelの実機は未検証。接続済みdeviceは本人Mac mini1台のみ。
+
+### MAC03-LANCERS: 外部利用者の本人設定へ接続する
+
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。main由来branch=`fix/lancers-local-setup-20261023`、base=`44cdb4cf8102fe3d6aecae91f5202c2039c83869`、worktree=`.worktrees/lancers-local-setup-20261023`、lease owner=`codex-lancers-local-setup`。primaryが本節の受入を所有する。現在cursor=MAC03-LANCERS-IDENTITY。
+
+- [ ] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
+- [ ] MAC03-LANCERS-SETUP: 公開Lancers入口を既存bootstrap/install dispatch/catalogへ結び、同じprivate本人入力と現在の公式ログイン/本人account観測をreadyで照合する。既存Coconalaのreceipt bindingとlocal applyを手本にし、Coconala固有SMS/eKYC/bank条件を複製しない。新規accountでも観測できる本人IDを確認するまではreadyにしない。未設定やHuman Verificationを成功へ置換しない。
+- [ ] MAC03-LANCERS-RUNTIME: review/CI/main/public readback→immutable→owner限定反映→自然terminalと公式成果を確認する。別Macの本人接続が無い部分を明示し、全Lancers/全20機能/10,000 starsの完了とはしない。
+
+実装判断: 既存Python/Playwright/共通profile validatorとlocal applyを再利用する。候補者の事実には既存job-search profile v1のnameとevidence付きfactsを使う。Lancers固有accountとprovider証拠は本人private入力を明示接続し、必要最小の契約を同じcaller群へ通す。source/templateの作者値は本人証拠の代替にしない。新scheduler/独自業務core/global host profile移行/任意の新依存は追加しない。brainstormingの質問はユーザーが明示的にopt outしているため進行条件にしない。building-agentsの古いmodel/provider指定は今回のChatGPT Plus/Codex要件を上書きしない。
+
+SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。専用Lancers browserは登録済みendpointで到達可能だが、with-browser guardの有限read-only probeはBUSY/exit75で実行されず、page作成・ログイン・送信は0。leaseはdead holderでも既存fresh-graceを保持するため、解除/再試行で迂回せず原ownerのreleaseまたはguardの正規判定後に公式観測を続ける。
+
+#### Lancers本人入力の実装計画
+
+> 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
+
+**Goal:** 別の利用者のMacで、作者の個人情報や実績を使わずに本人入力からApply/Paidを準備する。
+**Architecture:** 既存candidate profile v1のvalidatorを再利用し、Lancers専用private provider recordのaccount_idを同じ最小helperから読む。候補者とaccountをplanner/safety/paid argvへ渡し、未設定なら外部操作前にsetup_requiredを返す。
+**Tech Stack:** Python標準library、既存job-search validator、既存shell/marketplace core。
+**Spec:** 本ファイルのMAC03-LANCERS-IDENTITY。
+
+**Global constraints:** ChatGPT Plus/Codex経路・UI modelを維持する。privateファイルや実browserは開発時に参照しない。新依存・新profile framework・portfolio必須gate・effect fence変更を追加しない。sourceの作者情報は本人証拠にしない。
+**Review focus:** 欠損/壊れた入力、別account、任意属性なし、portfolioなし、他provider profile混入を下記fixtureで検証する。import時の本人ファイル読みも除く。
+
+**Files:** `skills/earn/lancers/scripts/local_identity.py`（本人入力の読取/既存validate_profile呼出/CLI account-id）、`application_loop.py`（動的な本人事実と3hash・setup停止）、`paid-owner`（明示本人account）、`paid_adapter.py`（Lancers provider path）、関連Lancers tests。4sourceへの変更は同じ入力不具合のApply/Paid両callerを閉じるため必要。rootは本仕様、統合、実機確認を所有する。
+**Interfaces:** local_identity.load_identity(candidate_path: Path | None = None, provider_path: Path | None = None) -> dict はcandidate/provider/account_idを返す。既定は本人 `~/.config/anicca/job-search/profile.json` と `~/.config/anicca/lancers/public-profile.json`。後者の最小形は account_idだけのobject。SetupRequired.missing: list[str] は値を含まない不足項目。CLI account-idは同じ検証後のIDだけをstdoutへ出し、未設定はsetup_required JSONとexit78を返す。
+
+- [x] RED: 空HOME/壊れたprofileでrun_loop/mainのplanner/discovery/browser/notifyが0、error=setup_requiredとmissing項目を返すtestを追加し、既存fallback/外部到達で失敗を確認する。
+- [x] INPUT: local_identityで既存validate_profileを呼ぶ。候補者最小fixtureはversion1、candidate.name=別の利用者、facts=[id/claim/evidence]。provider最小fixtureはaccount_id=other-seller。自動作成やCrowdWorks参照はしない。
+- [x] APPLY: _persona_factsは入力がある属性だけを返し、PERSONA_FACTSのimport-time読取と日本語nativeの固定文を除く。_seller_proofは本人candidate/facts/accountだけを表し、profile_version/proof_version/price_versionの3hashを維持する。未設定portfolio/pricingは空の入力としてhash化し能力を制限しない。catalog_product_id/versionはattribution callerでも存在時だけ渡す。main/run_loopは不足を外部操作・通知前に返す。
+- [x] PAID: paid-ownerは同じhelperのaccount-idを引用した単一argvとして渡し、paid_adapterのprovider既定をLancers pathへ修正する。Noneの新interfaceは追加せず、account-only provider objectを共通reply groundingで扱う。quality/readback/既存no-effect reconcileを保持する。
+- [ ] GREEN: 本人fixtureでprompt/safetyとpaid argvがother-sellerの値だけを使い、属性/portfolioなしでも作者値を含まない。CrowdWorks fixtureだけではsetup成功しない。既存persona/attribution/paid fixtureを本人入力契約へ更新し、関連suite・source-boundary・diffをPASSする。
+- [ ] SHIP: source commit/push→独立review→必要CI/main/public byte readback。実Lancers activationはSETUP/RUNTIMEのTODOで本人観測後に行い、sourceだけで業務完了にしない。
+
+実装の中間証拠: 欠損/壊れた本人入力と別accountの12ケースをRED→GREENで確認する（Python 3.14）。AST、shell構文、source-boundary、diff checkはPASS。関連suiteは574件/29 subtestsがPASS、既存3testだけFAIL。対象testと呼出元7fileがexact base44cdb4cfからbyte不変で、新fixtureを通さない同base testのメモリ内実行でも同じ3FAILを再現する。現行のwait/例外境界marker/provider_rejected fieldへ期待値3箇所を追従し、primaryの当該3file再検証は50件/8 subtestsがPASS。全batchの再実行は空き再低下と滞留により46dot時点で中断（exit130）、全batch GREENとは数えない。private profile、browser、provider送信、実activationは0。
+
+CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼出元のfocused testsを追加する。新workflowや依存packageは増やさず、既存Python3.14/pytest/jsonschemaで公開runner上の検証を保存する。rootがworkflowと本仕様を所有し、独立review対象へ含める。 runtime/loop/tests/test_clean_user_install.pyの既存Paid wrapper fixtureも本人ID読取へ追従する。CIの全1015件でこの1件だけが旧/bin/echoと作者account期待値によりFAILとなり、本人ID helperだけをother-sellerへstubし既存state argvのassertを維持する。新sourceのGateやfenceを弱めず修復する。 当該CI RED1→primaryのfocused GREEN1（0.448秒）を確認する。
+
+容量診断: Git fetchもpack一時file作成でENOSPCとなる。process argv/cwd/text参照がなく、memory/state JSONLを含まない再取得可能なCodex runtime cacheだけを削除し、1,628,393,472 bytesを回復する。直後の空き1,901,395,968 bytesはsource保存/関連検証のための余地であり、稼働jobのdisk admissionを満たす証拠ではない。protected storesと使用中runtime/stateは変更しない。
+
+独立read-only reviewはBlocking0/SHIP0。本人入力4source、変更tests、既存CI追加stepを直接読み、不正入力6類型/account-only proof/3hash/任意属性欠損/通常main・reconcile・run_loopの外部callback前停止をメモリ内で確認する。host負荷によりgit diff/showと全suiteはreviewで完走していない。既存kernelが両ownerのspawn前に作るpre_effect_failure/effect0 hintを本人入力の早期終了が保持するため、fenceやallowlistは変更しない。PR #8712のCIとmain/public readbackは継続中。
+
+- [ ] HOST-RESTORE-RUNTIME: 上の容量回復で削除したcodex-primary-runtimeは、後から確認した既存disk-cleanup skillでは未使用でも保護する依存installationに該当する。rootの削除判断を誤りとしてDaisへ開示し、公式bootstrap/残存bundleによる同pathへの復元を所有する。plugins/skills側は保持され、Mac/app-serverのrestartや手作業の依存再構築は行わない。公式再取得経路を独立read-only調査中。復元を確認するまでは完了としない。
 
 ## 別Macへ配布するLocal製品の実行契約
 
@@ -106,7 +152,7 @@ branch=fix/coconala-selected-python-20261023、base=6b1d48027a309530014d688324b1
 
 source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを含む36件、catalog/plan50件、公開bootstrap7件、OSS/source境界をPASSする。既存Gig関連を含む78件もPASSする。独立reviewがJob Hunterへの選択Python欠落と、設定画面用旧venvが更新されない境界を実証するため、その2ケースもREDで再現し共通入口で修復する。PRは#8602、source先行headは`0d5cd4bbe43c37e8f98dd4ca59dffb854f942a5f`。Coconalaのlegacy導入はApply/Reply/Storefrontだけであり、Paid/Report/GCを含む全jobの導入はMAC02の残件として保持する。
 
-現在cursor=MAC04。所有worktree=`.worktrees/local-fleet-portability-20261023`、branch=`feat/local-fleet-portability-20261023`、primary=`codex-local-fleet-portability`。前worktreeは統合・process/lease/dirty/ancestry確認後に削除済み。source/隔離検証の成功だけで全agentや友人Macの稼働完了とは報告しない。設計は既存runtimeを再利用し、user/host設定と導入adapterだけを分離する方式をprimaryが採る。別Mac用の第二業務実装やMac Miniへの中継は作らない。
+現在のcursor/所有worktree → MAC03-LANCERS節を参照。前worktreeは統合・process/lease/dirty/ancestry確認後に削除済み。source/隔離検証の成功だけで全agentや友人Macの稼働完了とは報告しない。設計は既存runtimeを再利用し、user/host設定と導入adapterだけを分離する方式をprimaryが採る。別Mac用の第二業務実装やMac Miniへの中継は作らない。
 
 ### MAC04のhost設定と導入インターフェース
 

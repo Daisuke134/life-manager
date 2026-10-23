@@ -15,7 +15,6 @@ Run: python3 -m pytest apps/lancers-revenue/tests/test_persona_facts_in_planner.
 """
 
 import importlib.util
-import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -51,28 +50,22 @@ def test_fabrication_is_scoped_to_requirements_that_contradict_the_facts():
 
 def test_the_age_is_computed_not_hardcoded():
     """A hardcoded age silently becomes a lie on a birthday."""
-    profile = Path("~/.config/anicca/job-search/profile.json").expanduser()
-    if not profile.exists():
-        assert loop.PERSONA_FACTS["age"].isdigit()
-        return
-    born = date.fromisoformat(json.loads(profile.read_text(encoding="utf-8"))["candidate"]["date_of_birth"])
+    born = date(1987, 5, 12)
     today = date.today()
     expected = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-    assert loop.PERSONA_FACTS["age"] == str(expected)
+    assert loop._persona_facts({"date_of_birth": born.isoformat()})["age"] == str(expected)
 
 
 def test_only_what_a_posting_may_ask_is_exposed():
-    """Age, residence and citizenship answer application questions. The name and history do not,
-    and belong nowhere near a prompt that produces buyer-facing text."""
-    assert set(loop.PERSONA_FACTS) == {"age", "base", "citizenship"}
+    """The private birth date and unrelated history are not derived prompt attributes."""
+    facts = loop._persona_facts({"date_of_birth": "1987-05-12", "base": "札幌", "citizenships": ["別国"], "history": "private"})
+    assert set(facts) == {"age", "base", "citizenship"}
     assert "Daisuke" not in loop.PLANNER_RULES
     assert "date_of_birth" not in loop.PLANNER_RULES
 
 
-def test_a_missing_profile_does_not_break_the_lane():
-    """The lane must still judge if the private SSOT is unreadable."""
-    facts = loop._persona_facts()
-    assert facts["age"] and facts["base"] and facts["citizenship"]
+def test_omitted_attributes_are_not_replaced_with_author_defaults():
+    assert loop._persona_facts({"name": "別の利用者"}) == {}
 
 
 def test_live_calls_are_refused_only_when_they_are_the_deliverable():
