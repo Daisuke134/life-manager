@@ -94,7 +94,7 @@ MAC02の最新read-only観測: current selectorはa8954faaだが、対象hf-gig-
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-create-recovery-20261024、base=ead527c7e0af3f0fe734fa318e78c88147341a09（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのB3-GREEN。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-create-recovery-20261024、base=ead527c7e0af3f0fe734fa318e78c88147341a09（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのB3-SHIP。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -257,7 +257,7 @@ B3の実行経路診断: 登録済みstorefront effect_reconcileはpending中に
 
 B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
 
-- [ ] B3-READBACK: READY-A受入後、pendingだけ残りreceipt/実IDが未保存の場合を既存公式一覧候補と_publicの内容照合へ接続する。0件/曖昧/本人不一致で再createやeffect0へ戻さない。kernelのheld fenceへ同owner/occurrenceの実targetを結合する。現在cursor=B3-GREEN。
+- [ ] B3-READBACK: READY-A受入後、pendingだけ残りreceipt/実IDが未保存の場合を既存公式一覧候補と_publicの内容照合へ接続する。0件/曖昧/本人不一致で再createやeffect0へ戻さない。kernelのheld fenceへ同owner/occurrenceの実targetを結合する。現在cursor=B3-SHIP。
 
 #### B3のbounded実装計画
 
@@ -274,7 +274,9 @@ readback契約: providerを変更しないcreation-readback入口を既存offer�
 resolve契約: --resolve無しはprivate ID/ledger/fenceを変更しない。--resolveは既存resolve_unknown_occurrenceのofficial_readback callback内で同じaccount lockを取り、fresh proofと現在のintent/context/raw入力を再検証し、既存の保存helperでIDを復元してからproofを返す。proof_type=official_creation_matches_owner_intent、owner/occurrenceと公式target/readbackのfingerprintをprovider_receipt_idへ結合する。local保存後のresolver失敗はlast_creationから同じtargetを再確認できる。pending無しかつ該当last_creation無しの場合の既存full-roster proofは保持する。ローカル保存だけでverifiedやeffect0にしない。
 
 - [x] B3-RED: 既存public run/create/reconcile入口でpending未知ID→公式1件→ID復元、same owner/occurrence proof、dry-run無変更、local保存後resolver失敗→同target再確認、context不足/別occurrence/別seller/0件/重複/内容不一致/入力差替え/ENOSPC/cleanupを最少fakeで先に失敗再現する。将来portfolio ID不足でtarget proofを妨げず、readbackのcreate/apply/profile/実HTTPは0とする。担当3filesへ33ケースを加え、primaryは27 failed/230 passed（4.07s）を確認する。既存224件と既存関数/class/assertのASTを保持し、fixture/import失敗は0、production source差分は0。cleanupの過剰な保存巻戻し要求は修正し、確認済みIDと同intent/contextのpendingまたはlast_creationを保持する契約へ合わせる。次cursorはB3-GREENとする。
-- [ ] B3-GREEN: 同じ失敗testsを最少実装で通し、B1/B2/owner/reconcile registryの既存関連testsを確認する。
+- [x] B3-GREEN: 同じ失敗testsを最少実装で通し、B1/B2/owner/reconcile registryの既存関連testsを確認する。最終の担当3filesと関連6filesは304 PASS（10.10s）、primaryはoffer/reconcileを参照する関連13files全343 PASS（9.99s）を実通信禁止・isolated HOMEで独立確認する。5files AST/compile、source-boundary、diffをPASSし、core _creation_intent/_matching_creation_receipt/_public/_portfolioのASTは保持する。freeze前の追加観測で、有効receiptが持つ実IDをraw未保存時にpinできず別IDを受け入れる中断状態を確認し、1 failed/1 passed→2 passedの回帰と既存helper再利用で修復する。raw/lastのknown IDと有効receipt IDの競合もHELD/private・fence不変/browser0とする。primaryは--catalog無しの登録済みcallerがDEFAULT_CATALOGを拒否してcreation_pendingになる実経路をown fixtureで再現し、実main入口の回帰を先にREDにして同じ既定値へ接続する。初回340 PASSから追加指摘を修復した最終343 PASSでSHIPへ進む。
+
+B3の限定修復: context/last_creationを既存ledgerへ追加し、作成時のcore intent/hashを変えない。未知targetは既存の公式一覧と公開内容から一意に確認し、本人一致・同family・同owner/occurrenceを要求する。creation resolveは事前browser readを省き、既存kernel callbackからchildの--creation-readback --restore-localを1回呼ぶ。childは同じaccount lock内で公式観測、current input/context再検証、既存helperによるID保存を完結し、cleanup失敗はfenceを解放しない。primaryの途中確認でlock解放と保存の隙間を修復し、追加2件をREDで再現してから、private OfferError本文を固定codeへ正規化し、公式観測中のcatalog差替えを保存前に拒否する。dry-runはprivate入力/ledger/fenceを変更しない。通常createのreceipt更新とreadback復旧時の観測時刻保持を区別し、過剰なtest期待値だけを調整する。実provider/private binding/fenceは操作していない。
 - [ ] B3-SHIP: commit/push→独立read-only review→既存CI→main/公式sourceを受け入れる。本人の実target復旧はINSTALL/READYの自然実行で確認し、source成功を本番成果としない。公開INSTALL/READY-B/別Mac/10,000 starsは残す。
 
 #### Lancers本人入力の実装計画

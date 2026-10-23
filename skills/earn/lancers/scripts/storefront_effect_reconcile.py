@@ -18,6 +18,7 @@ Any mismatch or unreadable readback leaves the occurrence fenced.
 from __future__ import annotations
 
 from contextlib import closing
+from copy import deepcopy
 import argparse
 import hashlib
 import json
@@ -67,6 +68,8 @@ def occurrence_state(database: Path, occurrence_id: str) -> str:
 
 def browser_readback(state_root: Path, product: Path, *,
                      catalog_path: Path | None = None,
+                     occurrence_id: str | None = None,
+                     restore: bool = False,
                      runner: Callable[..., subprocess.CompletedProcess] | None = None) -> dict:
     environment = os.environ.copy()
     environment.update({
@@ -75,9 +78,14 @@ def browser_readback(state_root: Path, product: Path, *,
         "LIFE_MANAGER_BROWSER_IDENTITY": BROWSER_IDENTITY,
         "LIFE_MANAGER_BROWSER_TARGET_OWNER": BROWSER_TARGET_OWNER,
     })
+    action = "creation_readback" if occurrence_id is not None else "roster_readback"
     command = ["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--", sys.executable, str(OFFER),
-               "--roster-readback", "--product", str(product),
+               "--creation-readback" if occurrence_id is not None else "--roster-readback", "--product", str(product),
                "--state-path", str(state_root / "application.json")]
+    if occurrence_id is not None:
+        command.extend(["--occurrence", occurrence_id])
+        if restore:
+            command.append("--restore-local")
     if catalog_path is not None:
         command.extend(["--catalog", str(catalog_path)])
     try:
@@ -96,18 +104,64 @@ def browser_readback(state_root: Path, product: Path, *,
         if isinstance(value, dict):
             records.append(value)
     if (completed.returncode != 0 or len(records) != 1 or records[0].get("ok") is not True
-            or records[0].get("action") != "roster_readback"):
+            or records[0].get("action") != action):
         raise Held("official_roster_unavailable")
     return records[0]
 
 
-def official_proof(occurrence_id: str, state_root: Path, product_path: Path, *,
-                   catalog_path: Path | None = None, runner=None) -> dict:
+def _creation_proof(occurrence_id: str, state_root: Path, product_path: Path,
+                    record: dict, catalog_path: Path | None, runner, restore: bool) -> dict:
+    state_path = state_root / "application.json"
     try:
-        if "pending_create" in offer._listing_state(state_root / "application.json"):
-            raise Held("creation_pending")
+        _product, raw, known_id = offer._creation_product(product_path, state_path, record, catalog_path)
+    except (offer.OfferError, OSError, ValueError):
+        raise Held("owner_input_changed") from None
+    live = browser_readback(state_root, product_path, catalog_path=catalog_path,
+                             occurrence_id=occurrence_id, restore=restore, runner=runner)
+    external_id = live.get("external_id")
+    if (set(live) != {"ok", "action", "kind", "external_id", "intent_sha256", "readback_sha256", "context"}
+            or live.get("kind") != record["intent"]["kind"] or live.get("context") != record["context"]
+            or live.get("intent_sha256") != offer._product_digest(record["intent"])
+            or not isinstance(external_id, str) or not external_id.isascii() or not external_id.isdecimal()
+            or known_id is not None and known_id != external_id
+            or not isinstance(live.get("readback_sha256"), str)
+            or len(live["readback_sha256"]) != 64
+            or any(char not in "0123456789abcdef" for char in live["readback_sha256"])):
+        raise Held("creation_target_proof_invalid")
+    try:
+        if restore:
+            expected_raw = deepcopy(raw)
+            kind = record["intent"]["kind"]
+            if kind == "listing": expected_raw["listing_external_id"] = external_id
+            elif kind != "catalog_listing": expected_raw[kind]["external_id"] = external_id
+            expected_record = {"intent": record["intent"], "context": record["context"], "external_id": external_id}
+            if (offer._load_product_file(product_path) != expected_raw
+                    or offer._creation_record(state_path, occurrence_id) != expected_record):
+                raise Held("creation_restore_incomplete")
+            _, _, saved_id = offer._creation_product(product_path, state_path, expected_record, catalog_path)
+            if saved_id != external_id: raise Held("creation_restore_incomplete")
+        elif (offer._load_product_file(product_path) != raw
+              or offer._creation_record(state_path, occurrence_id) != record):
+            raise Held("owner_input_changed")
+    except (offer.OfferError, OSError, ValueError):
+        raise Held("creation_restore_unavailable") from None
+    fingerprint = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id, "target": live}
+    return {"owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+            "proof_type": "official_creation_matches_owner_intent",
+            "provider_receipt_id": "lancers-storefront-creation:" + offer._product_digest(fingerprint)}
+
+
+def official_proof(occurrence_id: str, state_root: Path, product_path: Path, *,
+                   catalog_path: Path | None = None, runner=None, restore: bool = False) -> dict:
+    try:
+        record = offer._creation_record(state_root / "application.json", occurrence_id)
     except offer.OfferError as error:
+        if str(error) == "creation_pending": raise Held("creation_pending") from None
         raise Held("owner_ledger_invalid") from error
+    if record is not None:
+        if catalog_path is None and offer.DEFAULT_CATALOG.is_file():
+            catalog_path = offer.DEFAULT_CATALOG
+        return _creation_proof(occurrence_id, state_root, product_path, record, catalog_path, runner, restore)
     try:
         product, _image, _avatar = offer._product(product_path, catalog_path)
     except offer.OfferError as error:
@@ -154,15 +208,22 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     parser.add_argument("--admission-db", type=Path, default=None)
     args = parser.parse_args(argv)
     base = {"owner_id": OWNER_ID, "occurrence_id": args.occurrence}
+    creation = False
+    proof = None
     try:
         if not args.occurrence.startswith(f"{OWNER_ID}:"):
             raise Held("occurrence_owner_mismatch")
         database = args.admission_db or admission_state_root() / "admission-v2.sqlite3"
         expected_state = occurrence_state(database.expanduser(), args.occurrence)
-        proof = official_proof(args.occurrence, args.state_root.expanduser().resolve(),
-                               args.product.expanduser().resolve(),
-                               catalog_path=args.catalog.expanduser().resolve() if args.catalog is not None else None,
-                               runner=runner)
+        try:
+            creation = offer._creation_record(args.state_root.expanduser() / "application.json", args.occurrence) is not None
+        except offer.OfferError as error:
+            raise Held("creation_pending" if str(error) == "creation_pending" else "owner_ledger_invalid") from None
+        if not (args.resolve and creation):
+            proof = official_proof(args.occurrence, args.state_root.expanduser().resolve(),
+                                   args.product.expanduser().resolve(),
+                                   catalog_path=args.catalog.expanduser().resolve() if args.catalog is not None else None,
+                                   runner=runner)
     except Held as error:
         result = {**base, "state": "HELD", "verified": False, "reason": str(error),
                   "next_action": "keep_fenced_until_official_roster_matches"}
@@ -170,8 +231,24 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
             result.update(error="setup_required", missing=["storefront_product"])
         print(json.dumps(result, sort_keys=True))
         return 1
-    resolved = args.resolve and resolve_unknown_occurrence(
-        OWNER_ID, args.occurrence, official_readback=lambda: proof, expected_state=expected_state)
+    def readback():
+        nonlocal proof
+        if creation:
+            proof = official_proof(
+                args.occurrence, args.state_root.expanduser().resolve(), args.product.expanduser().resolve(),
+                catalog_path=args.catalog.expanduser().resolve() if args.catalog is not None else None,
+                runner=runner, restore=True)
+        return proof
+
+    try:
+        resolved = args.resolve and resolve_unknown_occurrence(
+            OWNER_ID, args.occurrence, official_readback=readback, expected_state=expected_state)
+        if proof is None: raise Held("creation_proof_missing")
+    except (Held, OSError, RuntimeError, sqlite3.Error) as error:
+        print(json.dumps({**base, "state": "HELD", "verified": False,
+                          "reason": str(error) if isinstance(error, Held) else "creation_resolution_unavailable",
+                          "next_action": "keep_fenced_until_official_target_matches"}, sort_keys=True))
+        return 1
     state = "RECONCILED" if resolved else ("HELD" if args.resolve else "PROOF_READY")
     print(json.dumps({**proof, "verified": state != "HELD", "state": state,
                       "resolved": bool(resolved)}, sort_keys=True))

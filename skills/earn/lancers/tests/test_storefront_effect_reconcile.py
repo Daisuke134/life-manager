@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+from contextlib import redirect_stdout
+from io import StringIO
 import json
 import sqlite3
 import subprocess
@@ -9,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from skills.earn.lancers.tests.test_create_package import _b3_digest, _b3_pending_case
+from skills.earn.lancers.tests.test_create_package import _b3_digest, _b3_pending_case, _b3_readback_browser
 from skills.earn.lancers.tests.test_storefront_offer_reads_catalog import _private_catalog, _private_product
 
 
@@ -302,7 +304,7 @@ def _creation_readback(case, **updates):
             "context": case.context, **updates}
 
 
-def _creation_runner(case, *, value=None, on_read=lambda: None):
+def _creation_runner(case, *, value=None, on_read=lambda: None, monkeypatch=None):
     def run(command, **_kwargs):
         assert "--creation-readback" in command and "--roster-readback" not in command
         assert command[command.index("--occurrence") + 1] == OCCURRENCE
@@ -310,6 +312,14 @@ def _creation_runner(case, *, value=None, on_read=lambda: None):
         if case.catalog is not None:
             assert command[command.index("--catalog") + 1] == str(case.catalog)
         on_read()
+        if "--restore-local" in command and value is None:
+            assert monkeypatch is not None
+            if not hasattr(case, "readback_fixture"):
+                case.readback_fixture = _b3_readback_browser(case, monkeypatch)
+            output = StringIO()
+            with redirect_stdout(output):
+                code = case.module.main(command[command.index("--creation-readback"):])
+            return subprocess.CompletedProcess(command, code, output.getvalue(), "")
         result = value if value is not None else _creation_readback(case)
         return subprocess.CompletedProcess(command, 0, json.dumps(result) + "\n", "")
     return Mock(side_effect=run)
@@ -393,15 +403,18 @@ def test_b3_target_protocol_must_match_the_owner_intent_and_occurrence(
     else:
         value["intent_sha256" if corruption == "intent" else "readback_sha256"] = "PRIVATE-INVALID-DIGEST"
     before = case.path.read_bytes(), case.ledger.read_bytes()
-    resolver = Mock(side_effect=AssertionError("invalid target proof reached resolver"))
+    resolver = Mock(side_effect=lambda *_args, **kwargs: kwargs["official_readback"]()["verified"])
     monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
 
-    assert _creation_call(module, case, _creation_runner(case, value=value), "--resolve") == 1
+    database = admission(tmp_path)
+    before_database = database.read_bytes()
+    assert _creation_call(module, case, _creation_runner(case, value=value), "--resolve", database=database) == 1
     result = json.loads(capsys.readouterr().out)
     assert result["state"] == "HELD" and result["verified"] is False
     assert "PRIVATE" not in json.dumps(result)
     assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
-    resolver.assert_not_called()
+    assert resolver.call_count == 1
+    assert database.read_bytes() == before_database
 
 
 def test_b3_resolver_failure_after_local_restore_rechecks_the_same_last_target(tmp_path, monkeypatch, capsys):
@@ -413,6 +426,7 @@ def test_b3_resolver_failure_after_local_restore_rechecks_the_same_last_target(t
 
     def save(path, value):
         assert inside, "local restore escaped the official_readback callback"
+        assert case.readback_fixture[1].locks == 1, "local restore escaped the account lock"
         events.append("write")
         write(path, value)
 
@@ -428,7 +442,8 @@ def test_b3_resolver_failure_after_local_restore_rechecks_the_same_last_target(t
 
     monkeypatch.setattr(module.offer, "_write_private", save)
     monkeypatch.setattr(module, "resolve_unknown_occurrence", resolve)
-    runner = _creation_runner(case, on_read=lambda: events.append("fresh" if inside else "dry-read"))
+    runner = _creation_runner(case, on_read=lambda: events.append("fresh" if inside else "dry-read"),
+                              monkeypatch=monkeypatch)
 
     assert _creation_call(module, case, runner, "--resolve") == 1
     first = json.loads(capsys.readouterr().out)
@@ -476,7 +491,7 @@ def test_b3_resolve_revalidates_current_input_and_keeps_failed_save_pending(
 
     monkeypatch.setattr(module.offer, "_write_private", save)
     monkeypatch.setattr(module, "resolve_unknown_occurrence", resolve)
-    assert _creation_call(module, case, _creation_runner(case), "--resolve") == 1
+    assert _creation_call(module, case, _creation_runner(case, monkeypatch=monkeypatch), "--resolve") == 1
     result = json.loads(capsys.readouterr().out)
     assert callbacks == [True]
     assert result["state"] == "HELD" and result["verified"] is False
@@ -486,7 +501,7 @@ def test_b3_resolve_revalidates_current_input_and_keeps_failed_save_pending(
     assert "PRIVATE" not in json.dumps(result)
     if failure == "enospc":
         monkeypatch.setattr(module.offer, "_write_private", write)
-        assert _creation_call(module, case, _creation_runner(case), "--resolve") == 0
+        assert _creation_call(module, case, _creation_runner(case, monkeypatch=monkeypatch), "--resolve") == 0
         assert json.loads(capsys.readouterr().out)["state"] == "RECONCILED"
         assert json.loads(case.path.read_text())["listing_external_id"] == "92001"
         assert json.loads(case.ledger.read_text())["last_creation"]["external_id"] == "92001"
@@ -501,7 +516,7 @@ def test_b3_catalog_resolve_restores_only_its_family_cursor(tmp_path, monkeypatc
         return official_readback()["verified"] is True
 
     monkeypatch.setattr(module, "resolve_unknown_occurrence", resolve)
-    assert _creation_call(module, case, _creation_runner(case), "--resolve") == 0
+    assert _creation_call(module, case, _creation_runner(case, monkeypatch=monkeypatch), "--resolve") == 0
     assert json.loads(capsys.readouterr().out)["state"] == "RECONCILED"
     after = json.loads(case.ledger.read_text())
     assert case.path.read_bytes() == before
@@ -509,3 +524,59 @@ def test_b3_catalog_resolve_restores_only_its_family_cursor(tmp_path, monkeypatc
     assert after["catalog_listings"]["keep-family"] == ledger["catalog_listings"]["keep-family"]
     assert after["catalog_listings"]["other"]["listing_external_id"] == "92001"
     assert "pending_create" not in after and "pending_create_context" not in after
+
+
+@pytest.mark.parametrize("official_id", ["91001", "92001"])
+def test_b3_receipt_id_pins_fresh_creation_recovery(tmp_path, monkeypatch, capsys, official_id):
+    module = load_module()
+    case = _creation_case(module, tmp_path)
+    module.offer._write_receipt(case.state, dict(case.product) | {"listing_external_id": "91001"}, {})
+    before = case.path.read_bytes(), case.ledger.read_bytes()
+    database = admission(tmp_path)
+    before_database = database.read_bytes()
+    case.readback_fixture = _b3_readback_browser(case, monkeypatch, ids=(official_id,))
+    tick, calls = case.readback_fixture
+    resolver = Mock(side_effect=lambda *_args, **kwargs: kwargs["official_readback"]()["verified"])
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+
+    code = _creation_call(module, case, _creation_runner(case, monkeypatch=monkeypatch),
+                          "--resolve", database=database)
+    result = json.loads(capsys.readouterr().out)
+
+    if official_id == "91001":
+        assert code == 0 and result["state"] == "RECONCILED" and result["verified"] is True
+        assert json.loads(case.path.read_text())["listing_external_id"] == "91001"
+        ledger = json.loads(case.ledger.read_text())
+        assert ledger["last_creation"] == {"intent": case.intent, "context": case.context,
+                                             "external_id": "91001"}
+        assert ledger["listing_external_id"] == "91001" and "pending_create" not in ledger
+    else:
+        assert code == 1 and result["state"] == "HELD" and result["verified"] is False
+        assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
+    assert database.read_bytes() == before_database
+    assert resolver.call_count == 1 and calls.forbidden == []
+    assert tick.opened_pages == tick.closed_pages == 1
+
+
+def test_b3_registered_caller_restores_catalog_without_explicit_catalog(tmp_path, monkeypatch, capsys):
+    module = load_module()
+    case = _creation_case(module, tmp_path, kind="catalog_listing")
+    monkeypatch.setattr(module.offer, "DEFAULT_CATALOG", case.catalog)
+    before, ledger = case.path.read_bytes(), json.loads(case.ledger.read_text())
+    resolver = Mock(side_effect=lambda *_args, **kwargs: kwargs["official_readback"]()["verified"])
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+    runner = _creation_runner(case, monkeypatch=monkeypatch)
+
+    code = call(module, case.state.parent, case.path, runner, "--resolve", database=admission(tmp_path))
+    result = json.loads(capsys.readouterr().out)
+
+    assert code == 0 and result["state"] == "RECONCILED" and result["verified"] is True
+    assert runner.call_count == resolver.call_count == 1
+    after = json.loads(case.ledger.read_text())
+    assert case.path.read_bytes() == before
+    assert after["listing_external_id"] == ledger["listing_external_id"] == "91001"
+    assert after["catalog_listings"]["keep-family"] == ledger["catalog_listings"]["keep-family"]
+    assert after["catalog_listings"]["other"]["listing_external_id"] == "92001"
+    assert after["last_creation"] == {"intent": case.intent, "context": case.context, "external_id": "92001"}
+    tick, calls = case.readback_fixture
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1

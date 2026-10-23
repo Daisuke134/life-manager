@@ -319,7 +319,8 @@ def test_first_portfolio_clear_enospc_recovers_with_pin_and_preserves_receipt(tm
     assert len(case.calls.readback) == 1
     assert case.calls.readback[0]["external_id"] == "88001"
     assert case.calls.created == [case.key] and case.calls.forbidden == []
-    assert _json(case.ledger) == {k: v for k, v in receipt.items() if k != "pending_create"}
+    assert _json(case.ledger) == {k: v for k, v in receipt.items() if k != "pending_create"} | {
+        "last_creation": {"intent": receipt["pending_create"], "context": None, "external_id": "88001"}}
     assert case.tick.opened_pages == case.tick.closed_pages == 2
 
 
@@ -480,6 +481,7 @@ def test_created_id_save_rejects_input_changed_between_reads(tmp_path, monkeypat
 def test_b3_portfolio_create_records_context_and_one_last_creation(tmp_path, monkeypatch):
     _b3_runtime(monkeypatch)
     case = _first_portfolio(tmp_path, monkeypatch)
+    receipt = _json(case.ledger)
     pending = []
     ensure = case.module._ensure_portfolio
 
@@ -497,7 +499,10 @@ def test_b3_portfolio_create_records_context_and_one_last_creation(tmp_path, mon
     assert ledger["last_creation"].get("context") == B3_CONTEXT
     assert ledger["last_creation"].get("external_id") == "88001"
     assert "pending_create" not in ledger and "pending_create_context" not in ledger
-    assert ledger["observed_at"] == "2026-01-02T03:04:05Z"
+    for key in ("record_type", "platform", "product_id", "product_version", "listing_external_id",
+                "public_url", "status", "idempotency_key", "demand"):
+        assert ledger[key] == receipt[key]
+    assert isinstance(ledger["observed_at"], str) and ledger["observed_at"]
     assert case.calls.created == [case.key]
 
 

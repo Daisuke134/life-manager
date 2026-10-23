@@ -2389,6 +2389,7 @@ class _FakeTick:
         self.account_ready = account_ready
         self.opened_pages = 0
         self.closed_pages = 0
+        self._onboarding = SimpleNamespace(connected_account=lambda _home: "other-seller")
 
     def account_lock(self, _path):
         import contextlib
@@ -3008,7 +3009,7 @@ def test_first_listing_storage_failure_keeps_pending_and_does_not_recreate(tmp_p
         state.with_name("listing.json").write_text(json.dumps(ledger))
     monkeypatch.setattr(module, "_write_private", _write_private)
     second = module.run_create(path, state)
-    assert len(calls) == 1 and tick.opened_pages == tick.closed_pages == 1
+    assert len(calls) == 1 and tick.opened_pages == tick.closed_pages == (2 if receipt_fails else 1)
     if receipt_fails:
         assert second["ok"] is False and second["logged_in"] is not False
         assert second["next_action"] == "official_readback_required"
@@ -3345,6 +3346,8 @@ def _b3_pending_case(tmp_path, *, module=None, kind="listing", scoped=True):
         assert selection["action"] == "candidate_selected"
         family, target = selection["family"], product | selection["product"]
     intent = module._creation_intent(target, family, kind=kind)
+    if kind == "catalog_listing":
+        target = target | {"public_title": target["title_stem"] + "ます"}
     ledger["pending_create"] = intent
     if scoped:
         ledger["pending_create_context"] = dict(B3_CONTEXT)
@@ -3496,7 +3499,7 @@ def test_b3_success_keeps_one_last_creation_and_receipt_refresh_preserves_it(tmp
     assert "pending_create" not in ledger and "pending_create_context" not in ledger
     assert any(value.get("last_creation") == last and "pending_create" not in value
                and "pending_create_context" not in value for value in writes)
-    saved, _, _ = module._product(path)
+    saved, _, _ = module._product(path, applying=True)
     module._write_receipt(state, saved, {"detail_views": 9})
     assert json.loads(state.with_name("listing.json").read_text())["last_creation"] == last
     module.run_create(path, state)
@@ -3590,4 +3593,42 @@ def test_b3_catalog_recovery_saves_only_the_target_family(tmp_path, monkeypatch)
     assert after["catalog_listings"]["keep-family"] == ledger["catalog_listings"]["keep-family"]
     assert after["catalog_listings"]["other"]["listing_external_id"] == "92001"
     assert calls.public[0][0]["public_title"] == case.product["public_title"]
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+def test_b3_creation_readback_does_not_expose_private_offer_error(tmp_path, monkeypatch):
+    case = _b3_pending_case(tmp_path)
+    tick, calls = _b3_readback_browser(case, monkeypatch)
+    before = case.path.read_bytes(), case.ledger.read_bytes()
+
+    def private_error(*_args, **_kwargs):
+        raise case.module.OfferError("PRIVATE-INPUT-OR-DOM-DETAIL")
+
+    monkeypatch.setattr(case.module, "_public", private_error)
+    result = case.module.run_create(case.path, case.state)
+
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert "PRIVATE" not in json.dumps(result)
+    assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+def test_b3_creation_rechecks_catalog_after_target_readback(tmp_path, monkeypatch):
+    case = _b3_pending_case(tmp_path, kind="catalog_listing")
+    tick, calls = _b3_readback_browser(case, monkeypatch)
+    before = case.path.read_bytes(), case.ledger.read_bytes()
+    public = case.module._public
+
+    def replace_catalog(*args, **kwargs):
+        found = public(*args, **kwargs)
+        catalog = json.loads(case.catalog.read_text())
+        catalog["listings"][0]["tiers"][0]["price_jpy"] += 1000
+        case.catalog.write_text(json.dumps(catalog, ensure_ascii=False))
+        return found
+
+    monkeypatch.setattr(case.module, "_public", replace_catalog)
+    result = case.module.run_catalog_create(case.state, case.catalog, product_path=case.path)
+
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
     assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
