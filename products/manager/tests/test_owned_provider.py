@@ -178,7 +178,8 @@ class OwnedProviderRegressions(unittest.TestCase):
                 yield self.events[1]
             def get_final_result(self):
                 return SimpleNamespace(session_id="sess_12345678", output_text=
-                    '{"decision":"PROPOSE","reason":"Review the cited claim.","source_ids":["public:case"]}')
+                    '{"decision":"PROPOSE","reason":"Review the cited claim.","source_ids":["public:case"]}',
+                    turn_id="turn_12345678")
         class Sessions:
             def __init__(self): self.create_count = 0
             def create(inner, **kwargs):
@@ -280,7 +281,16 @@ class OwnedProviderRegressions(unittest.TestCase):
                 turns=SimpleNamespace(list=lambda *a, **k: SimpleNamespace(data=[SimpleNamespace(
                     id="turn_12345678", status="completed", usage=SimpleNamespace(
                         input_tokens=10, output_tokens=20, input_tokens_details=None,
-                        output_tokens_details=None))]))))
+                        output_tokens_details=None))]),
+                    retrieve=lambda tid, *, session_id: SimpleNamespace(
+                        id=tid, status="completed", usage=SimpleNamespace(
+                            input_tokens=10, output_tokens=20))),
+                items=SimpleNamespace(list=lambda *a, **k: SimpleNamespace(data=[SimpleNamespace(
+                    id="item_12345678", type="message", turn_id="turn_12345678",
+                    role="assistant", phase="final_answer", status="completed",
+                    content=[{"type":"output_text","text":
+                        '{"decision":"ASK","reason":"Which claim?","source_ids":["public:case"]}'}])],
+                    has_more=False))))
             client = SimpleNamespace(beta=SimpleNamespace(agents=agents))
             result = owner.followup(client, "sess_12345678", self._context(), key="fup1",
                 upper_usd=Decimal("0.03"), deadline_monotonic=monotonic()+10)

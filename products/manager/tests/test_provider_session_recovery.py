@@ -122,7 +122,8 @@ class DurableSessionIntent(unittest.TestCase):
             def __iter__(self):
                 yield SimpleNamespace(type="agent.session.idle")
             def get_final_result(self):
-                return SimpleNamespace(session_id="sess_12345678", output_text="ok")
+                return SimpleNamespace(session_id="sess_12345678", output_text="ok",
+                                       turn_id="turn_12345678")
         calls=[]
         def create(**kw):
             calls.append(kw)
@@ -291,7 +292,8 @@ class DurableSessionIntent(unittest.TestCase):
                     has_more=True)
             return SimpleNamespace(data=[SimpleNamespace(
                 id="item_22222222",type="message",turn_id="turn_abcdefgh",
-                role="assistant",content=[{"type":"output_text","text":"correct"}])],
+                role="assistant",phase="final_answer",status="completed",
+                content=[{"type":"output_text","text":"correct"}])],
                 has_more=False)
         turn=SimpleNamespace(id="turn_abcdefgh",status="completed",
                              usage=SimpleNamespace(input_tokens=2,output_tokens=3))
