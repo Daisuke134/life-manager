@@ -99,9 +99,42 @@ python3 bin/lm factory plan --config my-monk.config.json --script my-script.txt
 出力の`status`は`planned`、`provider_calls`は`0`、`external_effects`は空配列になる。
 
 この段階ではstate directoryの作成、認証、voiceや連携のprovider照合、動画生成、投稿を行わない。
-有効な計画の出力は公開や収益の証明ではない。生成・投稿の実行入口、費用上限と照合、
-他ユーザー向け導入、Factory MCPとhosted subscriptionは残る作業である。
+有効な計画の出力は公開や収益の証明ではない。実生成は次のcommandから行う。
+投稿の実行入口、費用上限と照合、他ユーザー向け導入、Factory MCPと
+hosted subscriptionは残る作業である。
 Databaseを検索するAI Monk Index CLI/MCPとは別の機能として扱う。
+
+### 利用者設定から1回生成する
+
+同じ設定と台本を使い、新しい動画に自分で決めたrun IDを付ける。
+同じ要求を再実行するときは同じrun IDを使う。
+このcommandは認証済みHeyGen CLIで有料の生成要求を送る。
+
+```sh
+python3 bin/lm factory render --config my-monk.config.json --script my-script.txt --run-id first-video
+```
+
+HeyGen CLIを事前に認証しておく。configのavatar/voiceだけを選択に使い、
+configから別の認証profileへ切り替えない。API key/passwordをJSONへ保存しない。
+
+生成物は`state_root/renders/<project_id>.<run_id>.mp4`へ保存する。
+HeyGenのlockと費用sidecarは、host共通の`LM_DATA_DIR/marketing/ebook`に保存する。
+`LM_DATA_DIR`未設定時は`~/.local/state/life-manager/marketing/ebook`を使う。
+このhost設定をprojectごとに変更しない。同じUnix userの既存ebook/全Factory projectが
+同じ`locks/heygen-avatar-iv-account.lock`と`runs/*.heygen-effect.json`を共有する。
+他の未確定要求があれば新しい生成へ進まない。同じproject/run IDの再実行は
+保存済み要求と出力を照合し、既存rendererの再送防止を使う。
+
+既存host disk gateが止まる場合はproviderを呼ばない。
+結果の`schema_version`は`ai-monk-factory.render.v1`。
+`setup_required`や`reconciliation_required`は未完で、`rendered`でも
+`wallet_cost`がnullまたは`cost_reconciliation_required`がある場合は費用未確定である。
+この入口には生成前のUSD費用上限保証がない。既存wallet/auto-reload閾値の確認と
+費用差分/unknownガードの範囲を超えて、上限内に収まるとは説明しない。
+
+このcommandは投稿しない。利用者の投稿先・disclosure・caption・商品URL・asset承認を
+既存publisherへ渡す接続、実課金/実投稿/日次自動運転/実売上、Factory MCPと
+hosted subscriptionは残る作業である。
 
 ## Files
 

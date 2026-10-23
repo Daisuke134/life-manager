@@ -1246,7 +1246,7 @@
     "private_evidence_sha256": "8d41bf02e050851f2b8ba25b942f3409865dbd5e22b93959fbedfebabd9e2507"
   },
   "new_ai_monk_books_paid_checkout_readback": {
-    "recorded_at": "2026-10-23T07:41:11.694007+00:00",
+    "recorded_at": "2026-10-23T08:30:14.240912+00:00",
     "provider": "Stripe",
     "account_identity_match": true,
     "livemode": true,
@@ -1271,7 +1271,10 @@
     "fees_refunds_profit_verified": false,
     "provider_writes": 0,
     "self_purchase": false,
-    "private_evidence_sha256": "9fb58785fd9d6592a1ed703f7c7710cba89526a61b2ae33285d240096ae1935a"
+    "private_evidence_sha256": "a69301a6e2e86b1dbb1d77274c852e838839159a9c61f8e36fc25836029e87ee",
+    "private_evidence_file": "ai-monk-book-paid-orders-after-ja-x-20261023.json",
+    "after_ja_x_post_id": "cmvkoqikc2huxlh0yjbzwnayu",
+    "campaign_attribution_verified": false
   },
   "factory_user_config_offline_acceptance": {
     "source_pr": "https://github.com/Daisuke134/life-manager/pull/8654",
