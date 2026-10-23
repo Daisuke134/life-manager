@@ -1691,7 +1691,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     if not 1 <= minimum_free <= 100:
         return 64
     try:
-        max_swap_percent = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75"))
+        max_swap_percent = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "85"))
     except ValueError:
         return 64
     if not 1 <= max_swap_percent <= 1000:
@@ -1703,6 +1703,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         # memory_pressure -Q read 29-31% free on 2026-10-23 while swap sat at 15.7-18.1 GB of a
         # 16 GB Mac, ate the boot volume and let 84 wakes queue behind each other; absolute swap
         # against RAM is the signal macOS free% misses. Patched to 0 in tests (conftest).
+        # 85%: after the 10-23 cleanup this host idles at 12.4-12.7 GB of swap with 13 GiB free,
+        # so 75% (12.3 GB) flapped and deferred revenue lanes every other wake; 85% (13.9 GB)
+        # still catches the storm (15.7-18.1 GB).
         used = swap_used_mb()
         ram = physical_memory_mb()
         if used is None or not ram:
