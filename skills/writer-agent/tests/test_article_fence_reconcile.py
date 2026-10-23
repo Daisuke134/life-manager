@@ -1662,3 +1662,27 @@ def test_a_disk_deferred_claim_pairs_from_its_execute_event(tmp_path):
                          fetch_status=lambda u: 200, writer_root=writer, resolve=True,
                          pre_effect_resolver=lambda owner, occ, **k: closed.append(occ) or True)
     assert result["status"] == "pre_effect" and result["closed"] is True and closed == [GATE_OCC]
+
+
+def test_an_earlier_execute_whose_run_published_keeps_the_fence(tmp_path):
+    # Review of the execute anchor: a requeued occurrence can execute twice; the run paired with
+    # the first execute published, so the later unpublished run must not close the fence.
+    m = _load()
+    runs = tmp_path / "runs"
+    first = datetime.fromtimestamp(GATE_QUEUED, timezone.utc) + timedelta(minutes=2)
+    second = first + timedelta(hours=2)
+    published = _run_dir(runs, first.strftime("%Y%m%d-%H%M%S"), ["git-hash.txt"])
+    (published / "gates" / "publication-state.json").write_text("{}")
+    _run_dir(runs, (second + timedelta(seconds=19)).strftime("%Y%m%d-%H%M%S"), ["git-hash.txt"])
+    writer = tmp_path / "writer"
+    writer.mkdir()
+    (writer / "events.jsonl").write_text("".join(json.dumps({
+        "phase": "execute", "occurrence_id": GATE_OCC, "timestamp": when.isoformat(),
+    }) + "\n" for when in (first, second)))
+    closed = []
+    result = m.reconcile(GATE_OCC, queued_at=GATE_QUEUED, state="claimed",
+                         articles_path=_articles(tmp_path, []), runs_root=runs,
+                         fetch_status=lambda u: 200, writer_root=writer, resolve=True,
+                         pre_effect_resolver=lambda owner, occ, **k: closed.append(occ) or True)
+    assert result["status"] == "inconclusive" and result["reason"] == "run_reached_publication"
+    assert closed == []
