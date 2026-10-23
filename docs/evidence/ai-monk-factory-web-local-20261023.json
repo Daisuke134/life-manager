@@ -1,0 +1,48 @@
+{
+  "schema_version": "anicca.ai-monk-factory-web-local.v1",
+  "run_id": "run-706c877b-ce31-45ea-bc19-631b7035c1f3",
+  "owner_id": "root",
+  "occurrence_id": "monk-factory-web-local-20261023",
+  "release_sha": "eb78a805c4f79cd807852c27f52f9e4207a1ba61",
+  "loaded_argv": "immutable server.mjs --port 18796; finite codex exec with model/provider defaults",
+  "loaded_env": {
+    "private_LM_DATA_DIR": true,
+    "model_override": false,
+    "current_activation": false
+  },
+  "phase": "main_immutable_local_ui_to_real_codex_and_offline_factory_cli",
+  "command": "Web Write & plan",
+  "exit_code": 0,
+  "effect": {
+    "factory_provider_calls": 0,
+    "factory_external_effects": [],
+    "generated_script_sha256": "19a0bce1bfc0563a1e35fc8b89f4e3eef035851e13535989d0c54710dd2d86b9",
+    "generated_script_chars": 165
+  },
+  "readback": {
+    "state": "planned",
+    "tool_calls": [
+      "factory_plan"
+    ],
+    "ui": {
+      "reopened_history": true,
+      "state": "planned",
+      "exit_code": 0,
+      "actual_run_id": "run-706c877b-ce31-45ea-bc19-631b7035c1f3",
+      "mobile_width": 390,
+      "desktop_width": 1360,
+      "horizontal_overflow": false,
+      "page_errors": []
+    }
+  },
+  "provider_receipt_id": null,
+  "evidence_refs": [
+    "docs/evidence/ai-monk-factory-web-source-20261023.json"
+  ],
+  "error_class": null,
+  "retryable": false,
+  "next_action": "plugin distribution and foreground authentication diagnosis; generation, social publication and revenue remain unaccepted",
+  "limits": [
+    "No actual video generation, social publication, native proof or sales acceptance"
+  ]
+}

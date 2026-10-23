@@ -92,16 +92,59 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/browser-lease-tab-preservation-20261023、base=2f2b467699feb027deaea6a0503b8a6d80b9953c（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-BROWSER-RELEASE。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=feat/lancers-guided-setup-20261023、base=742479ee2e57b1ef6153ef780cc1d4628c22a4d6（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのACCOUNT。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
-- [ ] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。現在はholder照合より前にsweep_tabs.pyを呼び、4page以上で所有者を区別せずcloseし得る。authorized/wrong-holder両方のreleaseを隔離fixtureでRED再現し、既存lease ownership/beat/acquire/collision条件を保持して不要なsweep呼出を除く。callerの既存actor限定close_targetとcontext GCは保持する。source/test、独立review、既存CI、main/public readback後に公式account観測を続ける。
+- [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
 - [ ] MAC03-LANCERS-SETUP: 公開Lancers入口を既存bootstrap/install dispatch/catalogへ結び、同じprivate本人入力と現在の公式ログイン/本人account観測をreadyで照合する。既存Coconalaのreceipt bindingとlocal applyを手本にし、Coconala固有SMS/eKYC/bank条件を複製しない。新規accountでも観測できる本人IDを確認するまではreadyにしない。未設定やHuman Verificationを成功へ置換しない。
 - [ ] MAC03-LANCERS-RUNTIME: review/CI/main/public readback→immutable→owner限定反映→自然terminalと公式成果を確認する。別Macの本人接続が無い部分を明示し、全Lancers/全20機能/10,000 starsの完了とはしない。
 
 実装判断: 既存Python/Playwright/共通profile validatorとlocal applyを再利用する。候補者の事実には既存job-search profile v1のnameとevidence付きfactsを使う。Lancers固有accountとprovider証拠は本人private入力を明示接続し、必要最小の契約を同じcaller群へ通す。source/templateの作者値は本人証拠の代替にしない。新scheduler/独自業務core/global host profile移行/任意の新依存は追加しない。brainstormingの質問はユーザーが明示的にopt outしているため進行条件にしない。building-agentsの古いmodel/provider指定は今回のChatGPT Plus/Codex要件を上書きしない。
 
-SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。専用Lancers browserは登録済みendpointで到達可能だが、with-browser guardの有限read-only probeはBUSY/exit75で実行されず、page作成・ログイン・送信は0。leaseはdead holderでも既存fresh-graceを保持するため、解除/再試行で迂回せず原ownerのreleaseまたはguardの正規判定後に公式観測を続ける。
+SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。登録済みbrowserの公式mypage観測は新しいmain版guardから成功するが、Lancers専用provider profileは未作成。公開installerがこの本人接続を行う経路が次の修正対象。
+
+SETUPの実行順と受入:
+- [ ] ACCOUNT: 既存Coconala onboardingの公式観測・private receiptの形を再利用し、Lancersの公式mypage内で確認できる本人accountを接続する。現在のpositive precedentは `.mypage.result-summary a[href*="/profile/"]` が一つのaccountを指すこと。公式origin/path、ready、login/challenge、リンクの一意性を検証し、未設定・曖昧・他人の公開profileをreadyにしない。候補者の事実やaccountを作者値で補わず、既存load_identity/account-idの契約を保つ。source fixtureのRED→GREEN後に受入・main反映し、同じ公式観測から本人private入力へ接続する。
+- [ ] INPUTS: ReplyのCrowdWorks provider既定と、Storefrontのcreator product/avatar/catalogへの戻りを本人入力へ修復する。既存--product、validator、catalog_path、同じreconcile pathを再利用する。未設定の本人product/proofを作者画像・仮listing ID・repo実績で埋めず、setup_requiredとして扱う。profile更新は検証済みavatarを使う。初回listingとcatalogの外部effectは本人設定・公式証拠が成立する経路だけで行う。
+- [ ] INSTALL: 既存bootstrap/install dispatch/catalog/common local applyへ公開Lancers入口を接続する。ChatGPT認証と導入済み適合Python/browserを再利用し、別Macのhost/browser bindingを先に確認する。新scheduler/第二業務core/独自profile frameworkを作らない。
+- [ ] READY: 本人入力・公式account照合・必要なproduct/proofとlaneごとの要件が満たされるownerだけを既存local applyから導入する。sourceの受入とimmutable反映を済ませてから自然terminal/公式成果へ進み、全7jobsや別Macの成功を設定fileだけで報告しない。
+
+Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、公開workflow39965643774は成功。guard/testのGitHub公式main bytesは全一致し、追加CI stepも一致する。workflow全体の別差分はmainに統合済みのMonk Factory Web jobで、今回のbrowser stepは変わらない。既存cutterの限定候補は `~/.local/share/life-manager/browser-probes/lancers-local-setup/releases/20261023T230521-742479ee`（provenance=ancestor-of-origin-main、skills/browser、current不変）。同cwdから既存with-browserを使い、公式https://www.lancers.jp/mypageのready=complete/login_form=false/human_verification=falseと、本人summary内のprofile linksが同一accountを指すことを読む。raw account値は出力せず、lease解放とowned target残0を確認する。browser起動・login・provider送信・業務owner applyは0。公開Lancers導入、別Mac実機、全機能、10,000 starsは未完（GitHub公式現在値8 stars/2 forks）。
+
+#### ACCOUNTのbounded実装計画
+
+**Goal:** 公式mypageで観測した本人accountだけを既存Lancers private入力へ接続する。**Architecture:** 既存with-browserが解決するCDPと所有tab、Coconalaの最新観測digest結合、既存atomic private writerを使う。新Macのregistry/profileは既存prepare_host/host_environmentへ任せる。**Tech Stack:** Python標準lib、導入済みwebsocket-client、既存cdp/target_ownership。**Spec:** 本節のACCOUNT。
+
+**Files/所有:** workerは新規 `skills/earn/lancers/scripts/lancers_onboarding.py` と `skills/earn/lancers/tests/test_lancers_onboarding.py` のみ。primaryは本仕様・既存CI・統合・実機受入。既存local_identity.py reader/CLI、業務kernel、browser lifecycle/registryは変更しない。作者値のfallback、固定CDP port、実provider操作、開発sourceの実profile接続を禁止する。
+
+**Interfaces:** `observed_account(snapshot: dict) -> str | None` は公式mypage、ready=complete、明示的login/challenge false、本人summaryのprofile linksが一意の場合だけaccountを返す。`connect(home: Path, snapshot: dict) -> dict` は最新観測とdigestをprivate `~/.config/anicca/lancers/onboarding-observation.json`、同一accountとbinding digestを既存 `public-profile.json` に保存する。既存recordの他keysを保持し、壊れた入力や既存account不一致は上書きせずsetup_requiredを返す。`ready(home: Path) -> dict` は最新観測・同一account・binding digestの一致だけをaccount_connectedとする（業務全体のreadyではない）。`observe(home: Path) -> dict` は開始時に旧成功を無効化し、既存guardで確認できるinherited Lancers lease/CDPが無ければ外部接続前に停止、actor所有の1tabを閉じてからconnectする。CLIはobserve/statusだけを公開し、raw account/DOM/credential/例外本文を出力しない。
+
+**Review focus:** 未ログイン/challenge/未完DOM、公式URLの偽装や他人の公開profile、0件・複数account、既存recordの不一致・壊れたJSON、観測/cleanup失敗後の旧成功をfocused fixtureで検証する。default source/作者profileを本人証拠へ代用しない。
+
+- [x] ACCOUNT-RED: 空HOME/fake CDPだけでpositive別account、login/challenge/不正origin/公開profile/空・曖昧linkを検証し、未実装で失敗を確認する。unleased observeはbrowser callback0、観測/cleanup失敗後は旧ready無効、壊れたrecordと既存account不一致は保存値不変をassertする。
+- [x] ACCOUNT-INPUT: 上記2filesを最小実装する。既存 `_write_private` の0600/atomic replaceを使い、観測digestとbindingを結ぶ。secretやページ本文は保存せず、private evidenceには必要なaccountと構造化markerだけを保持する。import時のprivate読取・browser接続は0。
+- [x] ACCOUNT-GREEN: focused testsと既存local_identity testsを実行し、保存後の本人recordを既存readerで読めること、別HOME/既存keys保持/digest改変拒否/所有tab cleanupを確認する。
+- [ ] ACCOUNT-SHIP: diff/source boundary→commit/push→必要review/既存CI→main/public readback→main由来immutableの同commandで公式観測とprivate bindingを確認する。ここで他laneや別Macの稼働を完了にしない。
+
+ACCOUNTのsource検証: 新規52件を未実装でRED再現し、既存identity12件を含む64件がPASS。primaryが実測と同じprofile/feedback/proposal混在で追加REDを再現するため、同一accountのroot/統計suffixを同じ本人として扱い、別account混在を拒否する4ケースを追加する。workerとprimaryの新規56件＋既存12件=68件がPython3.14.7でPASS。追加のaccepted browser観測もsummary10links/root4/query0/fragment0/official origin・account一意を確認する。AST/source境界/diffはPASS、Loop contractは18products/192jobs/113mapped/errors0。無関係な別provider同士のUUID衝突がLancersまで停止する追加gateもRED1で再現し、Lancers UUIDの重複だけを拒否する既存guardの範囲へ揃える。最終は新規59件＋既存identity12件=71件PASS。実EXPRESSIONから4root＋6統計linksを通すfixtureもPASS。既存CIへ新test1fileを追加する。独立reviewとCI/main受入、公開入口・実private bindingは継続中。開発sourceの実browser/private操作は0。
+
+ACCOUNTのCI診断: PR #8733/head f13270f5e644cdfa235d6d3c0f0de553c57839f4、workflow39971014970のMac用jobは143件/8 subtestsがPASS、6件が同じ `ModuleNotFoundError: websocket` でFAILする。共通runtimeとrequirements-ciには既に `websocket-client==1.9.0` があるが、このjobだけがjsonschema/pytestのみを導入していた。隔離したPythonのsite-packagesなしimportでも同じ境界をRED再現する。新しいruntime依存を増やさず、既存Mac CI jobに同じ固定versionを追加し、exact-head CIで再検証する。
+
+ACCOUNTの並行main受入: 同workflowのPII gateは、今回branch上ではcleanだが、PR #8735からmainへ入った `docs/team/specs/monk-db-plugin.md` のcontact email1件でFAILする。公式job logは値を出さずpath/line/categoryだけを確認する。最新mainを通常mergeして他ownerの内容を保持し、同仕様書の連絡先1行だけをprivate設定参照へ置換する。scanner/allowlist/履歴gateは緩めず、同scannerとexact-head CIを再実行する。
+
+ACCOUNTの独立review診断: 旧成功がある状態で、無効観測のatomic保存がENOSPCになると、observeはprivate_storageを返すが後続statusが旧account_connectedを返す経路を隔離再現する。観測開始時は既存latest observationを先に除き、その後の新規保存・観測・cleanup・binding失敗が古い成功を復活させないよう修復する。provider profileの本人値や他keysは保持する。既存private writer自体や他providerは変更せず、空HOME fixtureで保存失敗→後続status不成立と外部callback0を先にRED/GREENで検証する。storage自体が削除も拒否する場合はprivate_storageで停止し、書込成功や実接続済みとは報告しない。
+
+ACCOUNTのreview修復: observe/connectのENOSPCとunlink拒否を計4件RED再現し、latest observationを先にunlinkする最小修正後、新規63件＋既存identity12件=75件がworker/primary双方でPASSする。profile本人値・extra keysは不変で、外部callback0、ENOSPC後のstatusはsetup_required。unlink自体が拒否される場合は書込/guard/browser前にprivate_storageで停止する。source修正は同helperの3行だけ。AST/source-boundary/diffはPASS、独立再reviewと更新head CIへ進む。
+
+ACCOUNTのsource受入: PR #8733/head839ebd31e0b8bd4bb45cdee2336d22cc34039b4cはworkflow39973545605の全13checksがPASS、独立再reviewはblocking0（メモリ内8ケース）。maina8954faa832f7c3676026926ac0012354f4f0665へ統合し、helper/test/CIのGitHub公式merged bytesを全一致で確認する。readonly filesystemがunlinkも拒否する場合は操作がprivate_storageで止まり、保存済み判定自体を消せないという外部storageの限界は保持する。公開installerは失敗したobserveを旧statusで成功へ置換しない。
+
+ACCOUNTの実機診断: 同mainから既存cutterで `~/.local/share/life-manager/account-probes/lancers-local-setup/releases/20261024T000151-a8954faa` を作る（browser＋helper/writer依存56files、memory entry0、current不変）。資格情報SSOT全体とLancers完全一致1件、registryのlancers:dais/owner=lancers-revenue-browserを確認し、既存with-browserからobserveを実行する。exit78/account_observation、provider profile未作成、latest observationは無効、所有tab残0。追加read-only phase probeではsample0がofficial_mypage=false/ready=complete/links0、その後19samplesがofficial_mypage=true/ready=complete/human_verification=true/links0、最後に所有tabを閉じる。raw account/DOM/secretは出力せず、provider送信0。source受入を実接続成功へ置換しない。
+
+ACCOUNTの次修復: 新しいtabの空DOMをready=completeだけで打ち切らず、既存observed_accountが正の本人証拠を返すまで現20回の範囲で待つ。明示login/challengeや不正origin/曖昧accountは引き続き接続しない。timeout/回数を増やさず、sample列=空complete→公式summary未完complete→正の本人DOMをfixtureでRED/GREENにする。workerは同helper/test2filesだけ、primaryは本仕様/CI/統合/別原因のchallenge診断。現在cursorはACCOUNTのままでINPUTSへ進めない。
+
+ACCOUNTのDOM修復: 段階的DOMと5種類の拒否条件を計6件RED再現し、打切り条件1行を既存observed_accountの正の結果へ変更する。回数20/間隔0.5秒は不変。新規69件＋identity12件=81件がworker/primaryでPASS、AST/source-boundary/diff/Loop contract18/192/113/errors0もPASS。現在worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/lancers-onboarding-dom-ready-20261024`、base=`a8954faa832f7c3676026926ac0012354f4f0665`、owner=`codex-lancers-local-setup`。独立review/CI/main/immutableの更新を続ける。
+
+ACCOUNTのchallenge画面: 公式mypageで「ユーザーが人間であることを確認する」と開始ボタンが描画される。reCAPTCHA/hCaptcha/Turnstile iframe、reCAPTCHA response/sitekey widget、password formはいずれも0で、summary profile linksも0。対応しないreCAPTCHA helperやsolver keyは使用せず、既存registered sessionの正規画面を調べる。各probeは本人binding保存0で所有tabを閉じる。with-browserが指定するidentity別ownership ledgerを実際に読み、lancers-onboarding残0を確認する（共通既定ledgerの0だけを根拠にしない）。
 
 #### Lancers本人入力の実装計画
 
@@ -23688,4 +23731,10 @@ Manager（仏教的AIエンティティ／デジタル仏陀）の実行先は�
 
 
 ## S11 Monk Factory Webの現在cursor
-日次投稿はDais指定のGrok Botが所有し、Codexは自社Postiz/HeyGen/稼働loop/未完投稿/容量復旧を操作しない。旧順の運用復旧→Database→Webを、Database73件復元→Monk Factory Web app→Muse/ChatGPT配布へ変更する。根拠はDaisの明示担当変更と公開一覧73→4の実害。Databaseはproducts PR595/main6ac3f6c/Netlify39953593583/CLI v0.4.2で公開73件・候補注記69件・画像付きcard71件・remote MCP/配布物の一致を確認済み。Web実装の設計/残TODOは docs/superpowers/plans/2026-10-23-ai-monk-factory-web.md。無料公開を先行し、販売/他者収益/USD10K MRRは未達を保持する。
+日次投稿はDais指定のGrok Botが所有し、Codexは自社Postiz/HeyGen/稼働loop/未完投稿/容量復旧を操作しない。旧順の運用復旧→Database→Webを、Database復元→Monk Factory Web→Muse/ChatGPT配布へ変更する。根拠はDaisの担当変更と公開一覧73→4の実害。
+
+Databaseはproducts PR595/main6ac3f6c/CLI v0.4.2で73件へ復元する。制作/動画根拠を確認した4件・pending69件・excluded2件を区別し、71画像、75archive/57sources、Web/CLI/remote MCPの一致を確認する。
+
+FactoryはLM PR8721/main eb78a805c4f79cd807852c27f52f9e4207a1ba61、products PR602/main fcbe8ec027bcc78825f5e50e0d83d0926a036525、Netlify39967298318で https://aniccaai.com/ai-monk-factory/ へ公開する。関連37件、独立最終blocking0、共通CI全成功。専用immutable版から実Codexが空script→165文字→実MCP/Python offline planをplanned/exit0で完了し、provider_calls0/external_effects[]を保持する。公開4file hash、35473byteの実download/import、公開/localの1360/390幅・JSerror0/overflow0・履歴復帰を確認する。公開Webはdraft編集で、制作実行は同じUIのlocalhostを使う。
+
+現在cursorは配布と通常認証の診断。無料plugin ZIP v0.1.1は公開digestと実SDK5scenarioを受入するが、ChatGPT/Codex公式掲載とMuse URLは未完。vault由来の隔離contextではGoogle passkeyに留まるが、既存persistent contextの通常Google SSOは通過する。最新の停止点はOpenAI MFA passkeyで、別方法1回後も同画面。指定cua-driver skillを既知skill rootsで発見できず、native UIは未操作。実生成・投稿/native確認・売上・他者無人収益/USD10K MRRを完了扱いしない。正本の残TODO → docs/superpowers/plans/2026-10-23-ai-monk-factory-web.md。

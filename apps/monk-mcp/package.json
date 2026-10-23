@@ -1,0 +1,2 @@
+{ "name": "anicca-monk-db-mcp", "private": true, "type": "module", "license": "MIT",
+  "scripts": { "test": "node --test test/", "dev": "node src/node.mjs", "deploy": "npx wrangler deploy", "build-data": "python3 scripts/build-data.py" } }

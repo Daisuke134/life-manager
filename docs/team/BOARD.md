@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
 - [Codex / Manager] 同入力shadow比較と結果の耐久保存。所有: 専用branchの限定adapter/checkpoint/testと計画。host・定期推論・本番owner・外部作用は変更しない。
 - [Codex Mobile] 旗艦Aniccaと公開6アプリの続行。順序・残TODOの正本は統合SSOTの「Anicca旗艦・公開6アプリの配信と継続課金」。Anicca実機/審査提出、metrics owner採用と自然配信を担当。Thankful PR593の独立reviewで部分offering時の読込停止を再現し、別の専用branchで最小修復を担当。元ownerのworktree/branchとRC設定/価格は変更しない。build9はVALIDだが追加修正を含まないため、提出前にsource/mainと新buildを照合する。
 - [Codex / Manager] PR8693: 任意Ampersand SDK固定と必須CIの既存process-groupテスト修復。所有: Managerの限定adapter/setup testと当該runtime test、専用branch。実行コードの停止境界・他lane・本番owner・推論は変更しない。
@@ -22,6 +23,7 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- 2026-10-23 23:28 Codex(Job drafts): Cursor/NICE/OpenAI Codex/OpenAI Applied/BJAKの下書き5件を作成。全63質問の順序・必須区分を公式schemaと照合し、カバーレター5件/連絡先の値非掲載を確認。ブランド混在・経験年数・宣誓・未確認事項を明示。次: 原稿のPR統合後に参謀が提出判断。応募送信0、ledger/Thankful変更0。
 - 2026-10-23 22:39 Codex(Reason): Dots本人 `daisuke/chatgpt`（agent chatgpt / through Reason）を公式list_teamで確認、参加条件達成。HANDOFF.mdへ根拠と境界を記録。追加join・設定変更なし。Thankful/build 10はclaude-5専任。次: 専用PRをmain統合し参謀へ報告。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
 - 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
@@ -49,7 +51,7 @@
 - 2026-10-23 20:14 claude(funding): docs/team/specs/funding-pipeline.md 作成=一次ソース取得の公募14件（J-Startup 11/13・持続化補助金 12/15・PayPal AI Hackathon 11/12 ほか、台帳は全件未）。応募不可=J-Startup(法人要件)/NLnet(AI作成提案禁止)。上位3件の下書き=specs/funding-drafts/（Codex OSS fund・GitHub Secure OSS Fund・Claude for OSS、未提出）。次: 下書きを確認して台帳にclaimed→提出、未踏IT 2027年度の公募開始を監視。
 - 2026-10-23 20:40 claude(scoreboard): SCOREBOARD.md に 10/23 ローカル readback 節を追加（台帳26行、ココナラapplied 24h 26件、無料記事20本、Postiz PUBLISHED10/ERROR3、Writer有料0、Capafy $112.74/33件、PB 0件、ASC Anicca は report_pending で未取得）。次: ASC Anicca 日別の readback 取得。
 
-- Codex AI Monk: Database73件復元とMonk Factory Webを担当。日次投稿はGrok Botへ委任済み。既存Factory CLI/MCPを再利用する公開draft＋local Web workspaceの設計/計画を記録し、次は有限agent接続を実装する。
+- Codex AI Monk: Database73件復元、Monk Factory公開/immutable localhostの実Codex offline plan受入を完了。37tests/独立blocking0/CI/公開4hashとdraft download/importを確認。日次投稿はGrok Bot担当。現在cursorはplugin公式配布・通常認証/Muse特定。売上/他者無人収益は未達。
 - Codex(Mobile spec): 最新依頼を正本spec更新と残TODO報告へ限定。Thankful追加修正head5a120ac4の28件PASS・review/main/新binary未完、既存Cloud設定なし、RevenueCatの取得可能範囲、metrics採用済み/自然terminal未確認を反映。実行順と事業成果の未達は正本「Anicca旗艦・公開6アプリの配信と継続課金」を参照。本番/provider操作なし。
 - Codex(Mobile続行): 正本の6段階を実行再開。Thankful追加3filesはfresh review指摘0件/SHIP・独立28件PASS、次はbuild10設定と通常PR/main/配布。metricsの最新heartbeat境界と自然snapshotを独立診断。本番設定変更は対象・重複・既存枠を照合して実行する。
 - 2026-10-23 20:49 claude-2(LINEスタンプ工場復旧): 真因=Creators Marketログイン切れ(10/14〜)→復旧後も秋特集811(締切10/19)を選んだまま submit で campaign_snapshot_stale。email+pw で再ログイン(QR/SMS不要)・vault保存、set-042 は特集を外して再申請→審査待ち(48552798「星くずカワウソの秋色【文字入り】 vol.9」)。set-038 リジェクト真因=キャラカテゴリ13クマ→16その他へ修正し再申請→審査待ち(48283042)。set-003 の元データも16へ(続編の継承元)。恒久修正 PR #8696 draft(期限切れ特集の自動除外＋タイトル型「カワウソのぽか太の{場面}【毎日使える】」＋年末年始3セット優先)。次: PR #8696 CI/merge→release apply、set-043 以降が新タイトル型で出るか確認。
