@@ -1,7 +1,9 @@
 """Exercise daily.sh with fake commands so no browser or provider is touched."""
 from __future__ import annotations
 
+import json
 import os
+from datetime import datetime, timezone
 import shutil
 import subprocess
 import sys
@@ -11,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 DAILY = REPO_ROOT / "skills" / "earn" / "promptbase" / "daily.sh"
 
 
-def _run_daily(tmp_path, *, occurrence=None, snapshot_rc=0):
+def _run_daily(tmp_path, *, occurrence=None, snapshot_rc=0, gen_rc=0, ledger_rows=()):
     home = tmp_path / "home"
     home.mkdir()
     call_log = tmp_path / "calls.log"
@@ -27,7 +29,7 @@ case "$*" in
   *"packager.py publish-list"*) printf '%s\\n' '{"agents":[]}' ;;
   *"select_next.py"*) printf '%s\\n' '{"slug":"reels-hook-lab","title":"Reels Hook Lab"}' ;;
   *"promptbase_fence_reconcile.py"*"--record-snapshot"*) exit "$FAKE_SNAPSHOT_RC" ;;
-  *"gen_examples.py"*) exit 0 ;;
+  *"gen_examples.py"*) exit "$FAKE_GEN_RC" ;;
   *"publish.py"*"--confirm"*) exit 0 ;;
   *) exit 97 ;;
 esac
@@ -73,6 +75,8 @@ printf '%s\\n' 'http://127.0.0.1:9222'
     env["FAKE_CALL_LOG"] = str(call_log)
     env["FAKE_PY_REAL"] = sys.executable
     env["FAKE_SNAPSHOT_RC"] = str(snapshot_rc)
+    env["FAKE_GEN_RC"] = str(gen_rc)
+    (tmp_path / "ledger.jsonl").write_text("".join(json.dumps(row) + "\n" for row in ledger_rows))
     env.pop("LIFE_MANAGER_OCCURRENCE_ID", None)
     if occurrence is not None:
         env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence
@@ -110,3 +114,22 @@ def test_daily_dispatches_one_confirm_after_snapshot_succeeds(tmp_path):
     assert "browser_provisioner promptbase:dais" in calls
     assert "browser_guard release promptbase:dais" in calls
     assert not any("interactive:dais" in call for call in calls)
+
+
+def test_codex_unavailable_for_examples_skips_before_publish(tmp_path):
+    # 2026-10-19..22: Codex was busy at the single daily slot, gen_examples failed and the run
+    # exited 1 every day without a listing. Skip cleanly; a later slot the same day retries.
+    result, calls = _run_daily(tmp_path, occurrence="promptbase-loop-daily:run-1", gen_rc=1)
+    assert result.returncode == 0
+    assert not any("publish.py" in call for call in calls)
+    assert "next slot retries" in result.stdout
+
+
+def test_a_listing_already_shipped_today_skips_before_the_browser(tmp_path):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%dT01:00:00Z")
+    result, calls = _run_daily(tmp_path, occurrence="promptbase-loop-daily:run-1", ledger_rows=[
+        {"slug": "x", "status": "submitted_pending_review", "submitted_at": today},
+    ])
+    assert result.returncode == 0
+    assert not any("browser_provisioner" in call for call in calls)
+    assert not any("publish.py" in call for call in calls)

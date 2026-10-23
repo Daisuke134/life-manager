@@ -1,2 +1,2 @@
-- Du kannst die Paywall jetzt schließen und Anicca kostenlos ausprobieren
-- Stabilitätsverbesserungen
+- Benachrichtigungen öffnen jetzt die darin angezeigte Nachricht.
+- Das Laden der Abo-Ansicht und die Auswahl von Abonnementplänen wurden verbessert.

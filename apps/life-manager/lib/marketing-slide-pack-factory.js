@@ -24,6 +24,9 @@ const { runAutomatedGate, SLIDE_COUNT } = require("./marketing-slide-pack-gate.j
 const { getCachedBackground } = require("./marketing-slide-background-image.js");
 const { generateSlideCopy } = require("./marketing-slide-pack-text.js");
 
+const COPY_SOURCE_HASH = crypto.createHash("sha256")
+  .update(fs.readFileSync(require.resolve("./marketing-slide-pack-text.js")))
+  .digest("hex");
 const RENDERER_SCRIPT = path.join(__dirname, "..", "scripts", "render-slide-image.py");
 const APPROVED_BY = "automated-slide-pack-gate";
 const MAX_PACK_COST_USD = 0.30;
@@ -307,6 +310,7 @@ async function generateSlidePackCandidates({
         mediaRefs,
         captionRef,
         approvalRef,
+        copySourceHash: COPY_SOURCE_HASH,
         familyId,
         createdAt: now(),
         gateScore: gate.score,
@@ -317,4 +321,4 @@ async function generateSlidePackCandidates({
   return approved;
 }
 
-module.exports = { FAMILIES, MAX_PACK_COST_USD, generateSlidePackCandidates, renderSlideImage };
+module.exports = { COPY_SOURCE_HASH, FAMILIES, MAX_PACK_COST_USD, generateSlidePackCandidates, renderSlideImage };

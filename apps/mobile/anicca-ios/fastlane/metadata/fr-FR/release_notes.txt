@@ -1,2 +1,2 @@
-- Vous pouvez désormais fermer le paywall et essayer Anicca gratuitement
-- Améliorations de la stabilité
+- Les notifications ouvrent désormais le message qu’elles affichent.
+- Amélioration du chargement de l’écran d’abonnement et de la sélection des formules.

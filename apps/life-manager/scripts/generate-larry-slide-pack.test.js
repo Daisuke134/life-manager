@@ -10,11 +10,11 @@ const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
 const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
+const { COPY_SOURCE_HASH } = require("../lib/marketing-slide-pack-factory.js");
 const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_AFFIRMATION_TIKTOK_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN_SLIDESHOW_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
-  MIN_POOL_SIZE,
   poolPath,
   readPostedHistory,
   readCreativeMetricsForFamilies,
@@ -63,7 +63,7 @@ function writeDistributionLedger(dataDir, rows) {
   fs.writeFileSync(file, rows.map((r) => `${JSON.stringify(r)}\n`).join(""));
 }
 
-function seedPersistedSlidePool(dataDir, lane) {
+function seedPersistedSlidePool(dataDir, lane, { prefix = "stored", copySourceHash = COPY_SOURCE_HASH, persist = true } = {}) {
   const objectDir = path.join(dataDir, "objects");
   const importText = (name, value) => {
     const source = path.join(dataDir, name);
@@ -73,25 +73,28 @@ function seedPersistedSlidePool(dataDir, lane) {
   const mediaRefs = Array.from({ length: 6 }, (_, index) => importText(
     `catchup-media-${index}.jpg`, Buffer.from([0xff, 0xd8, 0xff, index + 1, 0xff, 0xd9]),
   ));
-  const candidates = Array.from({ length: MIN_POOL_SIZE }, (_, index) => {
+  const candidates = Array.from({ length: 4 }, (_, index) => {
     const slides = mediaRefs.map((media_ref, position) => ({
       position: position + 1,
       role: position === 0 ? "hook" : (position === 5 ? "cta" : "body"),
-      text: `stored catch-up text ${index}-${position}`,
+      text: `${prefix} catch-up text ${index}-${position}`,
       media_ref,
     }));
     return {
       packRef: importText(`catchup-pack-${index}.json`, JSON.stringify({ slides })),
       mediaRefs,
-      captionRef: importText(`catchup-caption-${index}.txt`, `stored caption ${index}`),
+      captionRef: importText(`catchup-caption-${index}.txt`, `${prefix} caption ${index}`),
       approvalRef: importText(`catchup-approval-${index}.json`, JSON.stringify({ status: "approved" })),
       familyId: `stored-family-${index}`,
       createdAt: "2026-10-01T00:00:00.000Z",
+      ...(copySourceHash ? { copySourceHash } : {}),
     };
   });
   const pool = poolPath(dataDir, TENANT, lane.productId, lane.lane);
-  fs.mkdirSync(path.dirname(pool), { recursive: true });
-  fs.writeFileSync(pool, candidates.map((row) => `${JSON.stringify(row)}\n`).join(""));
+  if (persist) {
+    fs.mkdirSync(path.dirname(pool), { recursive: true });
+    fs.writeFileSync(pool, candidates.map((row) => `${JSON.stringify(row)}\n`).join(""));
+  }
   return candidates;
 }
 
@@ -156,6 +159,7 @@ test("resolveLarryJaSlot generates a pool from empty and returns a candidate", {
   assert.equal(slot, "2026-09-28T01:30:00.000Z");
   assert.match(selected.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
   assert.equal(selected.mediaRefs.length, 6);
+  assert.match(selected.copySourceHash, /^[0-9a-f]{64}$/);
 
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
   assert.ok(fs.existsSync(pool));
@@ -428,7 +432,7 @@ test("resolveLarryJaSlot stops after the lane's verified daily receipt limit", a
   assert.equal(generateCalls, 0);
 });
 
-test("resolveLarryJaSlot does not regenerate once the pool already has enough candidates", { timeout: 60_000 }, async (t) => {
+test("resolveLarryJaSlot does not regenerate while its real factory pool has eligible current copy", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
@@ -437,7 +441,104 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   const before = fs.readFileSync(pool, "utf8");
   await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const after = fs.readFileSync(pool, "utf8");
-  assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
+  assert.equal(before, after, "eligible current copy should avoid further generation");
+});
+
+test("current copy replenishes a full legacy pool once and takes priority over older eligible packs", async (t) => {
+  const dataDir = tempDataDir(t);
+  const legacy = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: null });
+  const [current] = seedPersistedSlidePool(dataDir, JA_LANE, { prefix: "current", copySourceHash: COPY_SOURCE_HASH, persist: false });
+  current.createdAt = "2026-10-02T00:00:00.000Z";
+  let generated = 0;
+  const options = {
+    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT },
+    now: () => NOW,
+    generateCandidates: async () => { generated += 1; return [current]; },
+  };
+
+  const first = await resolveLarryJaSlot(options);
+  assert.equal(generated, 1, "enough legacy inventory must not suppress current copy generation");
+  assert.equal(first.selected.packRef, current.packRef);
+  const persisted = fs.readFileSync(poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane), "utf8")
+    .trim().split("\n").map(JSON.parse);
+  assert.deepEqual(persisted.map((candidate) => candidate.packRef), [...legacy, current].map((candidate) => candidate.packRef));
+
+  const retry = await resolveLarryJaSlot(options);
+  assert.equal(retry.selected.packRef, current.packRef);
+  assert.equal(generated, 1, "eligible current copy must prevent another refill");
+});
+
+test("current copy already in a mixed pool takes priority without generating", async (t) => {
+  const dataDir = tempDataDir(t);
+  const legacy = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: null });
+  const [current] = seedPersistedSlidePool(dataDir, JA_LANE, { prefix: "current", copySourceHash: COPY_SOURCE_HASH, persist: false });
+  current.createdAt = "2026-10-02T00:00:00.000Z";
+  const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+  fs.writeFileSync(pool, [null, ...legacy, current].map((candidate) => JSON.stringify(candidate)).join("\n") + "\n");
+  let generated = 0;
+  const result = await resolveLarryJaSlot({
+    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
+    generateCandidates: async () => { generated += 1; return []; },
+  });
+  assert.equal(result.selected.packRef, current.packRef);
+  assert.equal(generated, 0);
+});
+
+test("one eligible current copy pack avoids refill below the former inventory floor", async (t) => {
+  const dataDir = tempDataDir(t);
+  const [current] = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: COPY_SOURCE_HASH });
+  const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+  fs.writeFileSync(pool, JSON.stringify(current) + "\n");
+  let generated = 0;
+  const result = await resolveLarryJaSlot({
+    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
+    generateCandidates: async () => { generated += 1; return []; },
+  });
+  assert.equal(result.selected.packRef, current.packRef);
+  assert.equal(generated, 0);
+});
+
+for (const outcome of ["empty", "failure"]) {
+  test(`current copy refill ${outcome} preserves legacy fallback with a null pool row`, async (t) => {
+    const dataDir = tempDataDir(t);
+    const legacy = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: null });
+    const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+    fs.writeFileSync(pool, "null\n" + fs.readFileSync(pool, "utf8"));
+    const before = fs.readFileSync(pool, "utf8");
+    let generated = 0;
+    const result = await resolveLarryJaSlot({
+      env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
+      generateCandidates: async () => {
+        generated += 1;
+        if (outcome === "failure") throw new Error("cached background missing");
+        return [];
+      },
+    });
+    assert.equal(generated, 1);
+    assert.ok(legacy.some((candidate) => candidate.packRef === result.selected.packRef));
+    assert.equal(fs.readFileSync(pool, "utf8"), before);
+  });
+}
+
+test("ineligible current copy refills once then falls back without repeating recent copy", async (t) => {
+  const dataDir = tempDataDir(t);
+  const legacy = seedPersistedSlidePool(dataDir, JA_LANE, { copySourceHash: null });
+  const [recent, generatedRecent] = seedPersistedSlidePool(dataDir, JA_LANE, { prefix: "current", copySourceHash: COPY_SOURCE_HASH, persist: false });
+  const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+  fs.appendFileSync(pool, JSON.stringify(recent) + "\n");
+  writeDistributionLedger(dataDir, [recent, generatedRecent].map((candidate) => ({ receipt: {
+    integration_ref: JA_LANE.integrationRef,
+    pack_sha256: candidate.packRef.slice(-64),
+    published_at: NOW,
+  } })));
+  let generated = 0;
+  const result = await resolveLarryJaSlot({
+    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT }, now: () => NOW,
+    generateCandidates: async () => { generated += 1; return [generatedRecent]; },
+  });
+  assert.equal(generated, 1);
+  assert.ok(legacy.some((candidate) => candidate.packRef === result.selected.packRef));
+  assert.equal(fs.readFileSync(pool, "utf8").trim().split("\n").length, legacy.length + 2);
 });
 
 test("TikTok rotation preserves but never selects approved packs with an unavailable link-in-bio CTA", async (t) => {
@@ -804,7 +905,7 @@ test("an exhausted pool replenishes once and never selects a recently published 
     pack_sha256: c.packRef.split("/").at(-1), published_at: NOW,
   } })));
   let generated = 0;
-  const fresh = { ...candidates[0], packRef: `object://sha256/${"f".repeat(64)}` };
+  const fresh = { ...candidates[0], packRef: `object://sha256/${"f".repeat(64)}`, copySourceHash: COPY_SOURCE_HASH };
   const options = { env, now: () => NOW,
     generateCandidates: async () => { generated += 1; return [candidates[0], fresh]; } };
   const first = await resolveLarryJaSlot(options);
@@ -902,7 +1003,7 @@ test("resolveLarryJaSlot skips existing packs whose caption or slide text repeat
   ];
   const pool = poolPath(dataDir, TENANT, JA_BUDDHA_TIKTOK_LANE.productId, JA_BUDDHA_TIKTOK_LANE.lane);
   fs.mkdirSync(path.dirname(pool), { recursive: true });
-  fs.writeFileSync(pool, candidates.map((candidate) => JSON.stringify(candidate)).join("\n") + "\n");
+  fs.writeFileSync(pool, candidates.map((candidate) => JSON.stringify({ ...candidate, copySourceHash: COPY_SOURCE_HASH })).join("\n") + "\n");
   const repeatedTextHash = crypto.createHash("sha256").update(JSON.stringify(repeatedText)).digest("hex");
   const uniqueTextHash = crypto.createHash("sha256").update(JSON.stringify(uniqueTexts)).digest("hex");
   writeDistributionLedger(dataDir, [
