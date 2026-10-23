@@ -359,7 +359,7 @@ class Lifecycle:
             changed_adapter_tensors=None,parameter_change='UNKNOWN',
             actual_consumed_row_order='NOT_OBSERVED',base_numeric_in_memory_unchanged='NOT_MEASURED',
             human_benefit='NOT_MEASURED',proof_level='P0_FINITE_ORIGINAL_CANDIDATE_ONLY',
-            evaluation='NOT_RUN',can_execute=False)
+            evaluation='NOT_RUN',can_execute=False,completion_requires_successful_process_exit=True)
         self._train_started = False
         self._step_open = False
         self._pre_step = False
@@ -457,6 +457,9 @@ class PrivateCheckpoint:
     def __init__(self, path):
         self.path = _path(path,private=True,fresh=True)
         self.inode = None
+        self.durability_confirmed = False
+        self.write_failure_observed = False
+        self._published_completed = False
 
     def __call__(self, report):
         if self.inode is None:
@@ -473,17 +476,42 @@ class PrivateCheckpoint:
                 json.dump(report,stream,sort_keys=True,ensure_ascii=True,allow_nan=False)
                 stream.flush()
                 os.fsync(stream.fileno())
-            # Initial publication uses link for exclusive no-overwrite semantics.
-            if self.inode is None:
+                info = os.fstat(stream.fileno())
+            # Publication transfers ownership before durability is confirmed.
+            initial = self.inode is None
+            if initial:
                 os.link(temporary,self.path)
-                temporary.unlink()
             else:
                 os.replace(temporary,self.path)
-            _fsync_directory(self.path.parent)
-            info = self.path.stat()
             self.inode = (info.st_dev,info.st_ino)
+            self.durability_confirmed = False
+            self._published_completed = report.get('status') == 'COMPLETED'
+            if initial:
+                temporary.unlink()
+            _fsync_directory(self.path.parent)
+            self.durability_confirmed = True
+        except Exception:
+            self.write_failure_observed = True
+            raise
         finally:
             if temporary is not None: temporary.unlink(missing_ok=True)
+
+
+    def discard_unconfirmed_completion(self):
+        """If failure recovery cannot write, withdraw only our unconfirmed success.
+
+        An I/O failure may also prevent durable withdrawal. The caller must still
+        fail; the external process result is required to accept any completion.
+        Never remove a replaced foreign inode or an already confirmed receipt.
+        """
+        if self.durability_confirmed or not self._published_completed:
+            return
+        current = _path(self.path,private=True,file=True,mode=0o600).stat()
+        _require((current.st_dev,current.st_ino) == self.inode)
+        self.path.unlink()
+        self.inode = None
+        self._published_completed = False
+        _fsync_directory(self.path.parent)
 
 
 def create_adapter_dir(path):
@@ -633,11 +661,18 @@ def run_local(*, progress=None, **configuration):
         from scripts.evaluate_xstest_refusal import _silence
         with _silence():
             _native_train(protocol,cases,configuration['model_dir'],adapter_dir,observer)
+        _require(observer.receipt['status'] == 'COMPLETED' and checkpoint.durability_confirmed)
         return observer.snapshot()
     except (Exception,KeyboardInterrupt):
         if observer is not None:
-            try: observer.fail()
-            except Exception: pass  # Keep the last durable lower bound if the writer failed.
+            observer.receipt['metadata_write_failure_observed'] = checkpoint.write_failure_observed
+            try:
+                observer.fail()
+            except Exception:
+                try:
+                    checkpoint.discard_unconfirmed_completion()
+                except Exception:
+                    pass  # Storage may prevent recovery; process failure remains authoritative.
         raise ValueError(UNAVAILABLE) from None
     finally:
         os.umask(old_umask)

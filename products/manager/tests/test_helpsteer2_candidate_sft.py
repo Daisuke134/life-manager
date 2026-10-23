@@ -523,4 +523,108 @@ class SFTExecutionBindingTests(unittest.TestCase):
             self.assertNotIn('fictional private source text',json.dumps(observed))
 
 
+class SFTCheckpointPostReplaceFaultTests(unittest.TestCase):
+    def test_post_replace_failure_updates_owner_and_allows_failed_recovery(self):
+        m=module()
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'receipt.json'
+            writer=m.PrivateCheckpoint(path)
+            writer({'status':'IN_PROGRESS','event':'SAVE_RETURNED'})
+            with patch.object(m,'_fsync_directory',side_effect=OSError('synthetic directory fsync fault')):
+                with self.assertRaises(OSError):
+                    writer({'status':'COMPLETED','event':'ARTIFACT_FROZEN'})
+            current=path.stat()
+            self.assertEqual(writer.inode,(current.st_dev,current.st_ino))
+            self.assertFalse(writer.durability_confirmed)
+            writer({'status':'FAILED','event':'FAILED'})
+            self.assertTrue(writer.durability_confirmed)
+            self.assertEqual(json.loads(path.read_text())['status'],'FAILED')
+
+    def test_initial_publication_directory_failure_also_retains_owned_inode(self):
+        m=module()
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'receipt.json'
+            writer=m.PrivateCheckpoint(path)
+            with patch.object(m,'_fsync_directory',side_effect=OSError('synthetic directory fsync fault')):
+                with self.assertRaises(OSError): writer({'status':'NOT_RUN','event':'PREIMPORT'})
+            writer({'status':'FAILED','event':'FAILED'})
+            self.assertEqual(json.loads(path.read_text())['status'],'FAILED')
+
+    def test_unconfirmed_completion_invalidation_preserves_a_foreign_inode(self):
+        m=module()
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);path=root/'receipt.json'
+            writer=m.PrivateCheckpoint(path)
+            writer({'status':'IN_PROGRESS','event':'SAVE_RETURNED'})
+            with patch.object(m,'_fsync_directory',side_effect=OSError('synthetic post-replace fault')):
+                with self.assertRaises(OSError): writer({'status':'COMPLETED','event':'ARTIFACT_FROZEN'})
+            foreign=root/'foreign.json';foreign.write_text('{"owner":"foreign"}');foreign.chmod(0o600)
+            os.replace(foreign,path)
+            with self.assertRaises(ValueError): writer.discard_unconfirmed_completion()
+            self.assertEqual(json.loads(path.read_text()),{'owner':'foreign'})
+
+    def run_cli_fault(self, kind):
+        m=module()
+        spec=importlib.util.spec_from_file_location('sft_post_replace_fault_cli',ROOT/'scripts/train_helpsteer2_candidate_sft.py')
+        cli=importlib.util.module_from_spec(spec);spec.loader.exec_module(cli)
+        protocol=json.loads(PROTOCOL.read_bytes())
+        cases=m.reconstruct_cases(*fixture())
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            output=root/'receipt.json';adapter=root/'adapter';external=root/'execution.json'
+            external.write_text('synthetic boundary assertion, no native execution authority')
+            config=dict(adapter_dir=str(adapter),output=str(output))
+            state=dict(armed=False,directory_failures=0)
+            real_dir_fsync=m._fsync_directory
+            real_fsync=m.os.fsync
+            def dir_fsync(path):
+                if output.exists() and json.loads(output.read_text())['status']=='COMPLETED': state['armed']=True
+                if state['armed']:
+                    state['directory_failures']+=1
+                    if kind!='transient' or state['directory_failures']==1:
+                        raise OSError('synthetic post-replace directory fsync failure')
+                return real_dir_fsync(path)
+            def file_fsync(fd):
+                if kind=='persistent_all_fsync' and state['armed']:
+                    raise OSError('synthetic failure-record file fsync failure')
+                return real_fsync(fd)
+            def native(protocol,cases,model_dir,adapter_dir,observer):
+                SFTLifecycleTests().complete_training(observer)
+                observer.observe('SAVE_STARTED')
+                observer.observe('SAVE_RETURNED')
+                observer.freeze(inventory={name:{'bytes':1,'sha256':'0'*64} for name in m.REQUIRED_NATIVE_FILES},
+                    changed_adapter_tensors=0)
+            argv=[]
+            for name,value in dict(protocol_path=PROTOCOL,expected_sha256=m.PROTOCOL_SHA256,
+                manifest_path=MANIFEST,data_dir=root,model_dir=root,rights_path=ROOT/'docs/research/source-rights.json',
+                code_version=VERSION,execution_config_path=external,adapter_dir=adapter,output=output).items():
+                argv.extend(['--'+name.replace('_','-'),str(value)])
+            stdout=io.StringIO()
+            with patch.object(m,'load_verified_inputs',return_value=(protocol,{'attribution':{}},{},cases,config)), \
+                 patch.object(m,'_native_train',side_effect=native), \
+                 patch.object(m,'_fsync_directory',side_effect=dir_fsync), \
+                 patch.object(m.os,'fsync',side_effect=file_fsync),redirect_stdout(stdout):
+                status=cli.main(argv)
+            self.assertTrue(state['armed'],'fault must occur after COMPLETED replacement, not temporary fsync')
+            self.assertEqual(status,2)
+            self.assertEqual(stdout.getvalue(),'HELPSTEER2_SFT_UNAVAILABLE\n')
+            if output.exists():
+                report=json.loads(output.read_text())
+                self.assertEqual(report['status'],'FAILED')
+                self.assertTrue(report['metadata_write_failure_observed'])
+                self.assertTrue(report['completion_requires_successful_process_exit'])
+                self.assertEqual(stat.S_IMODE(output.stat().st_mode),0o600)
+            else:
+                self.assertEqual(kind,'persistent_all_fsync')
+
+    def test_cli_transient_directory_failure_recovers_failed_receipt(self):
+        self.run_cli_fault('transient')
+
+    def test_cli_persistent_directory_failure_never_leaves_completed(self):
+        self.run_cli_fault('persistent_directory')
+
+    def test_cli_persistent_fsync_failure_invalidates_unconfirmed_completion(self):
+        self.run_cli_fault('persistent_all_fsync')
+
+
 if __name__ == '__main__': unittest.main()
