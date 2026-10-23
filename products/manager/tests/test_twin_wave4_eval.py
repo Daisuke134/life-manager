@@ -238,6 +238,25 @@ def _run_agreement_fixture(root: Path, pins):
     return gate._audit_snapshot_bytes(files, pins, _OfficialMetricStub())
 
 
+def _rewrite_agreement_column(root: Path, pins, filename: str, column: str, values):
+    rows = list(csv.reader(io.StringIO((root / filename).read_text(encoding="utf-8"), newline="")))
+    start = 2 if filename == "output.csv" else 1
+    position = rows[0].index(column)
+    values = list(values)
+    if len(values) != len(rows) - start:
+        raise ValueError("fixture row count mismatch")
+    for row, value in zip(rows[start:], values):
+        row[position] = value
+    encoded = csv_bytes(rows)
+    (root / filename).write_bytes(encoded)
+    pin = next(row for row in pins["files"] if row["name"] == filename)
+    pin["bytes"] = len(encoded)
+    pin["sha256"] = hashlib.sha256(encoded).hexdigest()
+    if filename == "output.csv":
+        pin["description_row"]["sha256"] = gate.description_row_hash(rows[1])
+    return pins
+
+
 class TwinWave4GateTests(unittest.TestCase):
     def test_gate_reports_aggregate_structure_and_unknown_provenance(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -408,6 +427,66 @@ class TwinWave4GateTests(unittest.TestCase):
             shuffled_result = _run_agreement_fixture(shuffled, agreement_fixture(shuffled, reverse=True))
         self.assertEqual(base_result["agreement"], shuffled_result["agreement"])
         self.assertEqual(base_result["normalized_mad"], shuffled_result["normalized_mad"])
+
+    def test_numeric_native_agreement_ignores_lexical_spelling(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            pins = agreement_fixture(root, n=22, specials=False)
+            pins = _rewrite_agreement_column(root, pins, "history.csv", "NUM", ["7"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "target.csv", "NUM", ["7.0"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "output.csv", "Numeric Entry", ["7.000"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "history.csv", "MC", ["1"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "target.csv", "MC", ["1"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "output.csv", "Nominal Choice", ["2"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "history.csv", "MX", ["1"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "target.csv", "MX", ["1"] * 22)
+            pins = _rewrite_agreement_column(root, pins, "output.csv", "Ordinal Matrix", ["2"] * 22)
+            result = _run_agreement_fixture(root, pins)
+        numeric = next(item for item in result["agreement"]["items"] if item["item_code"] == "NUM")
+        nominal = next(item for item in result["agreement"]["items"] if item["item_code"] == "MC")
+        ordinal = next(item for item in result["agreement"]["items"] if item["item_code"] == "MX")
+        self.assertEqual(numeric["native_valid_cells"], 22)
+        for comparison in numeric["comparisons"].values():
+            self.assertEqual(comparison["matches"], 22)
+            self.assertEqual(comparison["rate"], 1.0)
+        self.assertEqual(nominal["comparisons"]["released_output_vs_wave4"]["matches"], 0)
+        self.assertEqual(nominal["comparisons"]["wave1_3_history_vs_wave4"]["matches"], 22)
+        self.assertEqual(ordinal["comparisons"]["released_output_vs_wave4"]["matches"], 0)
+        self.assertEqual(ordinal["comparisons"]["wave1_3_history_vs_wave4"]["matches"], 22)
+
+    def test_zero_numeric_comparability_is_unscorable_not_privacy_suppressed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            pins = agreement_fixture(root, n=30, specials=False)
+            pins = _rewrite_agreement_column(root, pins, "output.csv", "Numeric Entry", ["101"] * 30)
+            result = _run_agreement_fixture(root, pins)
+        numeric = next(item for item in result["normalized_mad"]["items"] if item["item_code"] == "NUM")
+        self.assertEqual(numeric["status"], "UNSCORABLE")
+        self.assertEqual(numeric["reason"], "NO_COMMON_IN_OFFICIAL_RANGE_CELLS")
+        self.assertFalse(numeric["suppressed"])
+        self.assertEqual(numeric["common_native_valid_cells"], 30)
+        self.assertEqual(numeric["common_numeric_cells"], 0)
+        self.assertEqual(numeric["official_range_excluded_cells_by_role"]["released_output_unverified"], 30)
+        self.assertEqual(numeric["value_unit"], "UNSPECIFIED_NATIVE_RESPONSE_UNIT")
+        self.assertEqual(result["normalized_mad"]["numeric_scale_candidate_columns"], 2)
+        self.assertEqual(result["normalized_mad"]["numeric_scale_scored_columns"], 1)
+
+    def test_positive_small_numeric_comparability_is_privacy_suppressed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            pins = agreement_fixture(root, n=30, specials=False)
+            pins = _rewrite_agreement_column(
+                root, pins, "output.csv", "Numeric Entry", ["5"] * 19 + ["101"] * 11
+            )
+            result = _run_agreement_fixture(root, pins)
+        numeric = next(item for item in result["normalized_mad"]["items"] if item["item_code"] == "NUM")
+        self.assertEqual(numeric["status"], "SUPPRESSED")
+        self.assertEqual(numeric["reason"], "SMALL_AGGREGATE_SUPPRESSED")
+        self.assertTrue(numeric["suppressed"])
+        self.assertEqual(numeric["common_native_valid_cells"], 30)
+        self.assertIsNone(numeric["common_numeric_cells"])
+        self.assertEqual(result["normalized_mad"]["numeric_scale_candidate_columns"], 2)
+        self.assertEqual(result["normalized_mad"]["numeric_scale_scored_columns"], 1)
 
     def test_official_mad_excludes_nominal_and_ordinal_codes_and_unranged_items(self):
         with tempfile.TemporaryDirectory() as temp:

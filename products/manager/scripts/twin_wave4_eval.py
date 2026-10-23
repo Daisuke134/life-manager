@@ -11,6 +11,7 @@ import math
 import re
 import sys
 import types
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -395,6 +396,23 @@ def _native_validity(value: str, catalog_item: dict[str, Any]) -> tuple[bool, st
     return False, "domain"
 
 
+def _native_agreement_value(value: str, catalog_item: dict[str, Any]):
+    """Return a comparison key that respects the catalog-native response scale."""
+    kind = catalog_item.get("QuestionType")
+    settings = catalog_item.get("Settings")
+    settings = settings if isinstance(settings, dict) else {}
+    if kind == "Slider" or (kind == "TE" and settings.get("ContentType") == "ValidNumber"):
+        # Decimal equality canonicalizes lexical spellings without rounding.
+        return Decimal(value.strip())
+    if kind == "MC":
+        if settings.get("Selector") in ("MAVR", "MAHR"):
+            return value == "1"
+        return _integer_code(value)
+    if kind == "Matrix":
+        return _integer_code(value)
+    return value
+
+
 def _suppressible_count(value: int) -> int | None:
     if 0 < value < MIN_PUBLISHABLE_CELLS:
         return None
@@ -634,8 +652,8 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
         item_matches = {name: 0 for name in comparison_names}
         numeric_values = {role: [] for role in role_rows}
         numeric_indices = []
-        native_role_values = {role: [] for role in role_rows}
         native_role_status = {role: [] for role in role_rows}
+        item_official_range_excluded = {role: 0 for role in role_rows}
         for row_index, person_id in enumerate(shared_ids):
             values = {
                 "wave1_3_history": role_rows["wave1_3_history"][person_id][catalog_column],
@@ -644,7 +662,6 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
             }
             for role in role_rows:
                 valid, reason = _native_validity(values[role], catalog_item) if values[role] != "" else (False, "missing")
-                native_role_values[role].append(values[role])
                 native_role_status[role].append((valid, reason))
                 if values[role] != "" and not valid:
                     invalid_counts[role] += 1
@@ -659,7 +676,8 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
                 continue
             item_native += 1
             for name, (left_role, right_role) in pair_roles.items():
-                if values[left_role] == values[right_role]:
+                if (_native_agreement_value(values[left_role], catalog_item)
+                        == _native_agreement_value(values[right_role], catalog_item)):
                     item_matches[name] += 1
             if numeric_reason not in ("CATALOG_SLIDER_RANGE", "OFFICIAL_NUMERIC_ENTRY_RANGE"):
                 continue
@@ -674,6 +692,7 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
                 for role in role_rows:
                     if not low <= parsed_values[role] <= high:
                         official_range_counts[role] += 1
+                        item_official_range_excluded[role] += 1
                 continue
             numeric_indices.append(row_index)
             for role in role_rows:
@@ -704,6 +723,8 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
                 "range": range_entry,
                 "indices": numeric_indices,
                 "values": numeric_values,
+                "native_valid_cells": item_native,
+                "official_range_excluded_cells_by_role": item_official_range_excluded,
             })
 
     comparison_summaries = {
@@ -757,27 +778,53 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
     mad_items = []
     for candidate in mad_candidates:
         values = mad_values_by_item.get(candidate["item_code"])
+        numeric_count = len(candidate["indices"])
+        privacy_suppressed = 0 < numeric_count < MIN_PUBLISHABLE_CELLS
         row = {
             "item_code": candidate["item_code"],
             "question_type": candidate["question_type"],
             "numeric_basis": candidate["numeric_basis"],
-            "common_numeric_cells": _suppressible_count(len(candidate["indices"])),
-            "suppressed": len(candidate["indices"]) < MIN_PUBLISHABLE_CELLS,
+            "value_unit": "UNSPECIFIED_NATIVE_RESPONSE_UNIT",
+            "official_range": list(candidate["range"]),
+            "common_native_valid_cells": _suppressible_count(candidate["native_valid_cells"]),
+            "official_range_excluded_cells_by_role": {
+                role: _suppressible_count(count)
+                for role, count in candidate["official_range_excluded_cells_by_role"].items()
+            },
+            "common_numeric_cells": _suppressible_count(numeric_count),
+            "suppressed": privacy_suppressed,
         }
         if normalized_mad_status == "UNAVAILABLE":
             row.update({
+                "status": "UNAVAILABLE",
                 "output_vs_wave4_normalized_mad": None,
                 "wave1_3_history_vs_wave4_normalized_mad": None,
                 "reason": normalized_mad_reason,
             })
-        elif values is None:
+        elif numeric_count == 0:
             row.update({
+                "status": "UNSCORABLE",
+                "output_vs_wave4_normalized_mad": None,
+                "wave1_3_history_vs_wave4_normalized_mad": None,
+                "reason": "NO_COMMON_IN_OFFICIAL_RANGE_CELLS",
+            })
+        elif privacy_suppressed:
+            row.update({
+                "status": "SUPPRESSED",
                 "output_vs_wave4_normalized_mad": None,
                 "wave1_3_history_vs_wave4_normalized_mad": None,
                 "reason": "SMALL_AGGREGATE_SUPPRESSED",
             })
+        elif values is None:
+            row.update({
+                "status": "UNAVAILABLE",
+                "output_vs_wave4_normalized_mad": None,
+                "wave1_3_history_vs_wave4_normalized_mad": None,
+                "reason": "OFFICIAL_METRIC_RESULT_UNAVAILABLE",
+            })
         else:
             row.update({
+                "status": "SCORED",
                 "output_vs_wave4_normalized_mad": values["output_vs_wave4"],
                 "wave1_3_history_vs_wave4_normalized_mad": values["wave1_3_history_vs_wave4"],
                 "reason": None,
@@ -841,7 +888,11 @@ def _audit_snapshot_bytes(files: dict[str, bytes], pins: dict[str, Any], officia
             "official_task_covered_columns": task_covered if official_definitions_available else None,
             "official_range_and_task_covered_columns": range_and_task_covered if official_definitions_available else None,
             "no_official_range_columns": no_official_range if official_definitions_available else None,
+            "numeric_scale_candidate_columns": len(mad_candidates) if official_definitions_available else None,
             "numeric_scale_eligible_columns": len(mad_candidates) if official_definitions_available else None,
+            "numeric_scale_scored_columns": sum(
+                1 for item in mad_items if item["status"] == "SCORED"
+            ) if normalized_mad_status == "AVAILABLE" else None,
             "common_numeric_cells": _suppressible_count(total_numeric_cells) if official_definitions_available else None,
             "excluded_by_reason": dict(sorted(excluded_by_reason.items())) if official_definitions_available else None,
             "items": mad_items if official_definitions_available else [],
