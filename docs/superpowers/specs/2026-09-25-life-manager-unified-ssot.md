@@ -23068,3 +23068,11 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 4. EARN02（PromptBase）: 審査結果と販売をSales tabで読み戻す。
 5. FND04/FND05/FND06、CLD03d2b/CLD04: primaryの現在cursorどおり継続する。
 6. 未解決の権限境界: `killall corespotlightd`はClaudeのauto-mode classifierで拒否される。容量の主因が再び同processになった時だけ、primaryが記録したActivity Monitor「終了」経路を使う。
+
+### FND01/FND06 容量の実測：旧release固定とworktree返却 — 2026-10-23 Claude
+
+- 空きは5GiB→13GiB（anicca-productsの統合済み・clean・24h未更新・使用process0のworktree 7本をforce無しで返却し2,994MB、同時間帯の他ownerの回収を含む）→swap 6.8→8.2GBの増加で7GiBへ戻る。空きの振れはswap（`corespotlightd` 2.7GB・`mds_stores` 1.3GB）が主因。
+- `~/loops` 10GB = `dependency-bundles` 5.6GB（npm bundle 15個×約375MB）+ releases 3.2GB（35本）。`prune_dependency_bundles`は参照0のbundleだけ消し、`loaded_release_roots`は読込状態に関係なく`~/Library/LaunchAgents/*.plist`全件を保護する。
+- 9/17–10/10のreleaseを指すlabel 18件が旧bundle 6個（約2.2GB）を固定する。`lm-loop apply --loaded-idle-only`の実測理由（全44旧label）: `pending-admission` 16（ubi-watcher/earn-watch/pm-live-trade/reinvest/x-repost系/agentmail系/life-manager-daily/marketing-mine-daily/disk-cleanup-15d/treg等、registryにadmission_class・resource_class・priorityの型付きpolicyが無い旧owner）、`loaded-running` 25（keep_alive browser/franklin/x402/mcp）、`disabled` 2（alpaca-investment-live、capafy-ig-marketing-daily）、`effect_unknown` 1（lancers-revenue-storefront）。registry外2（job-search-mercor-browser、x-tweeter-pass）。
+- 次の手（FND06）: 旧16ownerへ#8564と同じ型付きadmission policyを宣言して通常applyで現releaseへ移す（money/trade系は効果の挙動差をreviewしてから）、disabled 2件と未登録2件はretired_labelsへ移して既存`_retire_labels`でplistを外す。これで旧release/bundleが通常GCで回収される。
+- 未実施: 残骸 `~/Projects/anicca-products/.worktrees/ebook-publishing-media-20261021`（Git登録解除済み・追跡ファイルの複製3.4GB）と`~/Projects/anicca-products-worktrees/af-click-receipts`（.DS_Storeのみ）の削除はClaudeのclassifierで拒否。
