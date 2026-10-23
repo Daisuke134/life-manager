@@ -236,6 +236,9 @@ def collect_owned_rollback(key, journal, observed_at=None, *, get=None, max_page
                     continue
                 changed=sorted(path for path in restored_bodies
                                if restored_bodies[path]!=candidate.committed_bodies[path])
+                # immutable_snapshot returns canonical repository-relative
+                # keys; GitHub's commit receipt names repository paths.
+                changed=[f'manager-support/{path}' for path in changed]
                 files=receipt.get('files')
                 if (not changed or type(files) is not list or
                         sorted(entry.get('filename') for entry in files if type(entry) is dict)!=changed or
@@ -246,9 +249,9 @@ def collect_owned_rollback(key, journal, observed_at=None, *, get=None, max_page
                 # parent manifest; no partial bundle or hash-only receipt closes.
                 try:
                     verify_readback(packet['baseline'],
-                        {name.removeprefix('manager-support/'):raw
+                        {name:raw
                          for name,raw in restored_bodies.items()
-                         if name!='manager-support/manifest.json'})
+                         if name!='manifest.json'})
                 except ValueError:
                     continue
                 return OwnedRollbackEvidence(receipt,restored_manifest,restored_bodies,
