@@ -14,4 +14,4 @@
 
 source import/mergeから実行権限は発生しない。新main commit/cwd/codeへ古い外部0400 configを再利用せず、historical research実行receiptを新commitへrehashしない。科学protocol自体のstatusを書き換えて架空のPASSを作らない。過去の一attempt結果もsource-versionに結びつく私有aggregateとして保持する。
 
-固定adapter評価の新core/CLI/testは本導入に含めない。G7実行には固定artifact/評価科学定義/別用途rights/code/CI/resourceと別のactual受入が必要で、未実行を0や正答へ変換しない。旧dev8-only rightsをtraining/final評価へ広げない。full V002/V003、V004/D016、真正な未見評価/安全性/人便益の受入はmodel採用・運用の別条件で、offline sourceのmain導入条件へ戻さない。source統合をdeploy/製品採用/Manager完成とは呼ばない。
+固定adapter評価の新core/CLI/testはSFT導入単位と分け、[評価sourceの導入計画](2026-10-23-helpsteer2-fixed-adapter-eval.md)で扱う。G7実行には固定artifact/評価科学定義/別用途rights/code/CI/resourceと別のactual受入が必要で、未実行を0や正答へ変換しない。旧dev8-only rightsをtraining/final評価へ広げない。full V002/V003、V004/D016、真正な未見評価/安全性/人便益の受入はmodel採用・運用の別条件で、offline sourceのmain導入条件へ戻さない。source統合をdeploy/製品採用/Manager完成とは呼ばない。
