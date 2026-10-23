@@ -964,3 +964,21 @@ def test_live_claim_on_the_owner_keeps_released_fences(tmp_path, monkeypatch) ->
 
     monkeypatch.setattr(wrapper, "_resolve_settled", never)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+
+
+def test_scoped_proof_closes_before_any_roster_browser_readback(tmp_path, monkeypatch, capsys) -> None:
+    # 2026-10-23: the store held post-marker intents that ask for the official roster, so every
+    # call opened the Coconala browser first and the cheap per-occurrence proof never ran.
+    wrapper = _scoped_setup(tmp_path, monkeypatch)
+    _bound_intent(tmp_path, "2", "confirmed", "18dfdf208b138ac0-86935", STARTED + 3600)
+    monkeypatch.setattr(wrapper, "_needs_roster_readback", lambda intent_root: True)
+
+    def no_browser(*_args, **_kwargs):
+        raise AssertionError("a provable occurrence must not wait on the roster browser")
+
+    monkeypatch.setattr(wrapper, "run_browser_reconcile", no_browser)
+    monkeypatch.setattr(wrapper, "_resolve_settled",
+                        lambda owner_id, occurrence_id, *, settled_proof, expected_state="claimed":
+                        settled_proof()["unresolved_irreversible"] == 0)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    assert json.loads(capsys.readouterr().out.strip().splitlines()[-1])["occurrence_id"] == OCCURRENCE
