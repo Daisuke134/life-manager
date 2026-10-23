@@ -76,3 +76,40 @@ the documented one-application-writer model: no provider-side expected-turn
 compare-and-swap parameter has been verified, so it does not prevent races from
 independent external session writers. A timeout or ambiguous cancellation keeps
 the writer fence and reserved exposure.
+
+## Opt-in catalog provider shadow
+
+`manager_core.owned_provider_shadow.run_catalog_shadow` compares the two frozen
+advisory baselines with one provider response for a verified `CORRECT_LINK` or
+`IMPROVE_ACCESSIBILITY` catalog candidate. Call it only inside the lifecycle
+that already acquired the exact `PrivateCheckpoint`; this helper does not
+acquire or release that lease and does not create a provider client:
+
+```python
+result = run_catalog_shadow(
+    checkpoint, existing_client, pages_checkout, fresh_private_workspace,
+    main_source_sha,
+    run_id=workflow_run_id,
+    enabled=True,   # call only after an explicit owner opt-in
+    cap_usd=Decimal("0.05"),
+    upper_usd=Decimal("0.03"),
+    deadline_monotonic=absolute_monotonic_deadline,
+)
+```
+
+The call reuses the public catalog planner, source and browser validation,
+`prepare_owned_change` for inert revalidation, public prompt renderer, existing
+checkpointed session/budget adapter, and the unchanged collaboration baseline
+functions. A current-page cue, missing candidate, stale or synthetic context,
+unsupported action, expired deadline, budget refusal, or prior provider intent
+does not create a new model session. Uncertain planning or provider transport
+is reported as `UNKNOWN`; checkpoint fencing and interruption propagate to the
+existing owner.
+
+Records use `manager.catalog-shadow.v1` and remain P0 advisory comparisons.
+They include no publisher packet or execution authority, write no catalog or
+publisher state, and cannot establish causal support or human benefit. Source
+and candidate hashes identify the proposal; model advice cannot change its
+baseline or candidate bytes. Provider usage is not settled cost. This source
+change adds no workflow enablement, schedule, secret, SDK install, live model
+call, or deployment action.
