@@ -100,3 +100,5 @@
 - Codex（mobile旗艦）: 日次計測ownerのloaded247474a9はrelease自体が欠落し、公式state spawn scheduled/EX_CONFIG78。既存complete b53を対象daily ownerだけへloaded-idle採用する範囲をclaimする。spec先行push後、既存b53へ対象限定loaded-idle apply成功、別公式3argv/SHA一致とprogram実在を確認する。新しい自然収集は未確認。新collector・手動wake・他owner/共有current変更は0で、6TODO順と主cursor1を保つ。native 7packの内容分類は改善文面一致3/不一致4で、効果/MRRとは分ける。
 
 - Codex（mobile旗艦）: 配信6枠（Anicca4/Honne2）の欠落23cce起動先を既存9daへ対象限定復旧し、別公式readbackで6件のargv/SHA/program実在一致。main-tiktokの一時reservationは追加観測し、空き窓で通常apply成功。新自然jp1/main-tiktokはswap保護/exit75で公開成果未確認。Apple公式10/22 SUBSCRIPTION reportの標準価格有効購読数Anicca5/Honne2は別担当の独立GETでbyte一致、残4商品行無しをMRR0へ換算しない。Anicca新promoはUS/JPの公式公開HTMLでmain文面一致を確認し、残5localeとdescription公開は未確認。6TODO順/主cursor1を維持。
+- 2026-10-24 08:10 claude-5: claim STUDIO CHERIE 1.1（参謀決定 (a)）。rork-studio-cherie-closet PR #5: StoreKit 2 に年額 closet.annual を追加、AI買い足し提案と購入前シミュレーションをプラン必須に。1.0.1（¥210 月額）は審査中のまま未変更。ASC の年額商品作成・価格決定（spec の $27.99/年は $3.99/月と対。現行 $0.99/月だと年額が12か月分より高くなる）・審査は 1.0.1 の結果後。StoreKitTest はこの環境では main でも動かない（実サンドボックスの価格 0.99 を返す）ので、ストア系テストは Xcode での実行が必要。
+- 2026-10-24 08:10 claude-5: claim デイリー・ダンマ 1.1.1 課金画面（docs/team/specs/daily-dhamma-paywall.md）→ TestFlight まで。
