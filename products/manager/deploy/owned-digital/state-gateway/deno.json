@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "jose": "npm:jose@6.2.13"
+  },
+  "nodeModulesDir": "none",
+  "compilerOptions": {
+    "strict": true
+  }
+}

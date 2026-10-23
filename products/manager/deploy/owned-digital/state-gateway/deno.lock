@@ -1,0 +1,22 @@
+{
+  "version": "4",
+  "specifiers": {
+    "npm:jose@6.2.13": "6.2.13"
+  },
+  "npm": {
+    "jose@6.2.13": {
+      "integrity": "sha512-7TIg10ZE1x82YediN+lcrPNvGMKge9yFHQD+Qho/b8y2adfugU3AsvvHfxV0fzyFllT6l9xCjf4RWY9g/Z9PJQ=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:jose@6.2.13"
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@electric-sql/pglite@0.5.11",
+        "npm:jose@6.2.13"
+      ]
+    }
+  }
+}

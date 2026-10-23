@@ -1,0 +1,14 @@
+{
+  "name": "manager-owned-state-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test auth.test.mjs checkpoint.test.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.13"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.11"
+  }
+}

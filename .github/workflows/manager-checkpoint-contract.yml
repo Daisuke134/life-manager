@@ -1,0 +1,37 @@
+name: Manager checkpoint gateway contract
+
+on:
+  pull_request:
+    paths:
+      - 'products/manager/deploy/owned-digital/**'
+      - '.github/workflows/manager-checkpoint-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'products/manager/deploy/owned-digital/**'
+      - '.github/workflows/manager-checkpoint-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  checkpoint-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Install locked Node test dependencies
+        working-directory: products/manager/deploy/owned-digital/state-gateway
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run gateway and PostgreSQL contract tests
+        working-directory: products/manager/deploy/owned-digital/state-gateway
+        run: npm test
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: '2.1.14'
+      - name: Type-check gateway with frozen Deno lock
+        working-directory: products/manager/deploy/owned-digital/state-gateway
+        run: deno check --lock=deno.lock --frozen index.ts
