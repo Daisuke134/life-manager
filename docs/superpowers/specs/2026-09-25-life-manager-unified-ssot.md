@@ -441,6 +441,8 @@ PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象ins
 
 BUNDLE-GCの実装候補: 指定3filesだけで既存central入口へ統合し、旧cutter pruner/2callsを除く。worker最新focused24 PASS/6subtests（0.35s）、最後のstore微修正前のcut/source関連62 PASS/13subtests（27.81s）、既存GC/FD subset7 PASS、selected Python/sparse2 PASSとする。通常source名の誤保持、alias参照、長いps一覧、state symlink、hardlink先mode、parent cutlock、未知probeでrelease側も削除0を隔離fixtureで確認する。source境界/diff/bash構文はPASS。primaryのexacttree関連4filesとfresh review/CI/main/実容量回復は未完。実機の新negotiate run18e1494e6232c050-7866はinstalled/eventとも8df/report75/swap_pressure_high/retrytrue/receipt無しであり、source修復や登録だけを全業務の復旧にしない。
 
+BUNDLE-GCのprimary受入とreview修復: 最新main9da021244fを取り込んだ648fa662dbで、隔離HOMEの関連4filesは151 PASS/30subtests（79.98s）、AST/bash/diff/source境界/OSS self-containedはPASSとする。初回のHOME隔離subprocessはuser-siteのpytestを見失い起動失敗したため、既存pytestをimportしてから同processのHOMEを隔離し、依存追加無しで再実行する。fresh read-only reviewは新24条件PASSだがP1を再現しFIX-FIRST: process.stdout.splitが引用付き空白aliasを分断し、alias→bundleをresolveできず削除1となる。process行ごとの解析と未知時保持を既存collectorへ最小修復し、引用付き/引用無しの空白aliasと解析不明を隔離fixtureでRED→GREEN確認する。source受入/SHIPはこの修復と再review後とし、main/実cleanupはまだ実行しない。
+
 順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAPの全13job成功を受け入れ、現在cursorはBUNDLE-GC-GREEN。全業務/別Mac/10,000starsは未完。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
