@@ -94,3 +94,7 @@
 - 2026-10-24 06:18 Codex（mobile旗艦）: Era指定と正本6TODOを維持し、通知/日次対象日/認証修正3PRのmain統合・対象metrics ownerへのb53c628b採用を反映。新SHA自然run2件はdisk_floor_low/exit75、通知4jobのreceipt無し。公式GETでAniccaは提出準備、Thankful/Honne/Sleep Resetは審査待ち。次は容量条件後の自然収集/通知と実機Lifetime動画→再提出。
 
 - 2026-10-24 06:34 Codex（mobile旗艦）: Anicca Store copyの事実整合はPR8786/mainffff0cbd、CI14件・fresh review軽微1件修正/重大0で受入済み。ASCの既存7locale/14resource/21fieldを同mainの文面へ反映し、別公式GETで完全一致/対象外fieldとbuild808維持を確認する。公開HTMLの新promo表示は未確認で、description公開は1.9.6公開後。通知4jobは同ID/attempt2でreceiptと送信先本文一致4/4、次自然runの再送ゼロと全6商品の同期間baselineが残る。Era指定/6TODO順と実機Lifetime動画→再提出の主cursorを維持する。
+
+- Codex（mobile旗艦）: 日次計測ownerのloaded247474a9はrelease自体が欠落し、公式state spawn scheduled/EX_CONFIG78。既存complete b53を対象daily ownerだけへloaded-idle採用する範囲をclaimする。spec先行push後、既存b53へ対象限定loaded-idle apply成功、別公式3argv/SHA一致とprogram実在を確認する。新しい自然収集は未確認。新collector・手動wake・他owner/共有current変更は0で、6TODO順と主cursor1を保つ。native 7packの内容分類は改善文面一致3/不一致4で、効果/MRRとは分ける。
+
+- Codex（mobile旗艦）: 配信6枠（Anicca4/Honne2）の欠落23cce起動先を既存9daへ対象限定復旧し、別公式readbackで6件のargv/SHA/program実在一致。main-tiktokの一時reservationは追加観測し、空き窓で通常apply成功。新自然jp1/main-tiktokはswap保護/exit75で公開成果未確認。Apple公式10/22 SUBSCRIPTION reportの標準価格有効購読数Anicca5/Honne2は別担当の独立GETでbyte一致、残4商品行無しをMRR0へ換算しない。Anicca新promoはUS/JPの公式公開HTMLでmain文面一致を確認し、残5localeとdescription公開は未確認。6TODO順/主cursor1を維持。
