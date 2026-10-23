@@ -4235,18 +4235,22 @@ def test_manual_slot_cli_passes_slot_with_fresh_manual_identity(manual_slot_cli)
 
 
 @pytest.mark.parametrize("owner,slot,run_id", [
-    ("ebook-ja-tiktok-daily", "2026-10-08T23:00:00.000Z", "manual-invalid-owner"),
+    ("ebook-ja-tiktok-daily", "2026-10-08T23:00:00.000Z", None),
     ("ebook-en-tiktok-daily", "2026-10-08T23:00:00.000Z", "scheduled-invalid"),
-    ("ebook-en-tiktok-daily", "2999-10-08T23:00:00.000Z", "manual-future"),
-    ("ebook-en-tiktok-daily", "2026-10-08T23:30:00.000Z", "manual-off-slot"),
-    ("ebook-en-tiktok-daily", "2026-10-08T23:00:01.000Z", "manual-off-second"),
-    ("ebook-en-tiktok-daily", "2026-10-08T23:00:00Z", "manual-noncanonical"),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:00.000Z", "manual-explicit"),
+    ("ebook-en-tiktok-daily", "2999-10-08T23:00:00.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:30:00.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:01.000Z", None),
+    ("ebook-en-tiktok-daily", "2026-10-08T23:00:00Z", None),
 ])
 def test_manual_slot_cli_rejects_invalid_request_before_admission(
         manual_slot_cli, monkeypatch, owner, slot, run_id):
     _, release = manual_slot_cli
-    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", run_id)
-    with patch.object(loop_runner, "_run_admitted") as run:
+    if run_id is None:
+        monkeypatch.delenv("LIFE_MANAGER_RUN_ID", raising=False)
+    else:
+        monkeypatch.setenv("LIFE_MANAGER_RUN_ID", run_id)
+    with patch.object(loop_runner, "_run_admitted", return_value=0) as run:
         assert lm_loop_run_main([owner, str(release), "--slot-at", slot]) in {64, 78}
     run.assert_not_called()
 

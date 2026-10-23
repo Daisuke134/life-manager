@@ -2079,6 +2079,8 @@ def _main(argv: list[str] | None = None) -> int:
         entry = registry.get("loops", {}).get(loop_id)
         if not isinstance(entry, dict):
             raise ValueError(f"unknown loop id: {loop_id}")
+        if len(args) == 4 and os.environ.get("LIFE_MANAGER_RUN_ID"):
+            raise ValueError("manual slot requires a fresh runtime-generated run ID")
         loop_state_root = Path(os.path.expanduser(
             os.environ.get("LIFE_MANAGER_STATE_ROOT", entry["state_root"])))
         run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{'manual-' if len(args) == 4 else ''}{time.time_ns():x}-{os.getpid()}"
