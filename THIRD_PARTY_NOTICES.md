@@ -27,6 +27,17 @@ Original `eva.py` SHA256: `46dce139f1807be2170fde1b16aac129b5184603ca9d1d751c03f
 The dataset-card MIT declaration is separate from this repository-code MIT
 notice; third-party all-row data provenance remains NOT_VERIFIED.
 
+`products/manager/manager_core/safetybench_local_model.py::build_prompt` and
+`choose_index` also adapt the English zero-shot question/options rendering and
+first-maximum actual-option label-logit decision from the same revision's
+`code/evaluate_base.py` (SHA256
+`7ee13092d09ac8917a9b08cfb6ccef4c18624423b2fc226d709d573ae92eb5b1`):
+https://github.com/thu-coai/SafetyBench/blob/960833692a1ec82b191ff3e902daca7993c35cc1/code/evaluate_base.py
+The adaptation uses CPU BF16, a single last-position projection and strict
+failure handling; it does not copy upstream generation, retry/resume or random
+fallback behavior and makes no bitwise output or published-score parity claim.
+The following existing full MIT notice applies to both adaptations.
+
 ```text
 MIT License
 
