@@ -167,14 +167,14 @@ if [ -n "${ARCHIVE_PATHS[*]:-}" ]; then
 fi
 if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
   git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
-  ARCHIVE_RC=$?
+  ARCHIVE_RC=$? ARCHIVE_PIPESTATUS=("${PIPESTATUS[@]}")
 else
   git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | tar -x -C "$DEST"
-  ARCHIVE_RC=$?
+  ARCHIVE_RC=$? ARCHIVE_PIPESTATUS=("${PIPESTATUS[@]}")
 fi
 if [ "$ARCHIVE_RC" -ne 0 ]; then
   rm -rf "$DEST"
-  die "export of $SHORT failed"
+  die "export of $SHORT failed (archive=${ARCHIVE_PIPESTATUS[0]}, tar=${ARCHIVE_PIPESTATUS[1]})"
 fi
 
 # Git defines the new tree; native clones only reuse identical exported bytes.
