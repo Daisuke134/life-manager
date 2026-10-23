@@ -19,7 +19,10 @@ from .collaboration import (
     AdvisoryResult, PlannerContext, safe_advisory, render_prompt,
 )
 from .owned_checkpoint import PrivateCheckpoint, CheckpointUnavailable
-from .provider_budget import BudgetLedger, cancel_and_reconcile, Usage, estimate_cost_usd
+from .provider_budget import (
+    BudgetLedger, CancellationReceipt, cancel_and_reconcile, Usage,
+    estimate_cost_usd,
+)
 from .provider_deadline import provider_deadline
 from .provider_sessions import Intent, SessionJournal, reconcile_provider_sessions
 
@@ -52,6 +55,41 @@ def validate_provider_tables(db: sqlite3.Connection, tables: set[str]) -> None:
         columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
         if not required <= columns:
             raise ValueError("invalid provider checkpoint schema")
+
+    def primary_key(table: str, names: tuple[str, ...]) -> bool:
+        rows = db.execute(f"PRAGMA table_info({table})").fetchall()
+        return tuple(row[1] for row in sorted((r for r in rows if r[5]), key=lambda r: r[5])) == names
+
+    def unique_key(table: str, names: tuple[str, ...]) -> bool:
+        for row in db.execute(f"PRAGMA index_list({table})"):
+            if row[2] != 1 or (len(row) > 4 and row[4] != 0):
+                continue
+            index_name = row[1].replace('"', '""')
+            columns = tuple(item[2] for item in db.execute(f'PRAGMA index_info("{index_name}")'))
+            if columns == names:
+                return True
+        return False
+
+    if (not primary_key("amp_sessions", ("request_id",)) or
+            not unique_key("amp_sessions", ("session_id",)) or
+            not primary_key("amp_events", ("session_id", "event_key")) or
+            not primary_key("budget_policy", ("id",)) or
+            not primary_key("budget_reservations", ("run_id",))):
+        raise ValueError("provider checkpoint key/uniqueness schema is invalid")
+    event_fks = db.execute("PRAGMA foreign_key_list(amp_events)").fetchall()
+    if not any((row[2], row[3], row[4]) == ("amp_sessions", "session_id", "session_id")
+               for row in event_fks):
+        raise ValueError("provider event reference schema is invalid")
+
+    duplicate_queries = (
+        "SELECT request_id FROM amp_sessions GROUP BY request_id HAVING COUNT(*)>1",
+        "SELECT session_id FROM amp_sessions WHERE session_id IS NOT NULL GROUP BY session_id HAVING COUNT(*)>1",
+        "SELECT session_id,event_key FROM amp_events GROUP BY session_id,event_key HAVING COUNT(*)>1",
+        "SELECT id FROM budget_policy GROUP BY id HAVING COUNT(*)>1",
+        "SELECT run_id FROM budget_reservations GROUP BY run_id HAVING COUNT(*)>1",
+    )
+    if any(db.execute(query).fetchone() is not None for query in duplicate_queries):
+        raise ValueError("duplicate logical provider identity in checkpoint")
 
     sessions = {}
     for request_id, body_hash, status, session_id, writer_id, created_at in db.execute(
@@ -204,17 +242,19 @@ class CheckpointedProvider:
         self._require_active()
         return result
 
-    def cancel(self, client, session_id: str, turn_id: str, *, key: str):
-        """Send one cancellation event only after its event and writer are saved."""
-        self._require_active()
-        if type(key) is not str:
-            raise ValueError("stable cancellation key required")
-        writer_id = "cancel_" + sha256(
-            (session_id + "\0" + turn_id + "\0" + key).encode("utf-8")
-        ).hexdigest()
-        receipt = cancel_and_reconcile(
-            client, self.journal, session_id, turn_id,
-            event_key=key, writer_id=writer_id,
-        )
-        self._require_active()
-        return receipt
+    def cancel(self, client, session_id: str, turn_id: str, *, key: str,
+               deadline_monotonic: float) -> CancellationReceipt:
+        """Bound and checkpoint one session-wide cancellation attempt."""
+        with provider_deadline(deadline_monotonic):
+            self._require_active()
+            if type(key) is not str:
+                raise ValueError("stable cancellation key required")
+            writer_id = "cancel_" + sha256(
+                (session_id + "\0" + turn_id + "\0" + key).encode("utf-8")
+            ).hexdigest()
+            receipt = cancel_and_reconcile(
+                client, self.journal, session_id, turn_id,
+                event_key=key, writer_id=writer_id,
+            )
+            self._require_active()
+            return receipt

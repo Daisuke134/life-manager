@@ -208,9 +208,11 @@ class PrivateCheckpoint:
                 file.write(raw); file.flush(); os.fsync(file.fileno())
             self.revision=value['revision']
             return self.db
-        except Exception:
+        except BaseException as exc:
             self.broken=True
-            raise CheckpointUnavailable('checkpoint restore refused; reconcile only') from None
+            if isinstance(exc, Exception):
+                raise CheckpointUnavailable('checkpoint restore refused; reconcile only') from None
+            raise
 
     def save(self):
         if self.db is None or self.broken: raise CheckpointUnavailable('active private session required')

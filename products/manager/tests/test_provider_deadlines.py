@@ -27,10 +27,12 @@ class Stream:
 def client_for(events, posted, saved_status='cancelled'):
     def post(sid, **kwargs): posted.append(kwargs)
     saved=NS(id='turn_abcdefgh',status=saved_status,usage=None)
+    latest_states=iter(('in_progress',saved_status))
     sessions=NS(create=lambda **kwargs:Stream(events),
                 events=NS(create=post),
                 turns=NS(retrieve=lambda tid,**kwargs:saved,
-                         list=lambda *args,**kw:NS(data=[saved])))
+                         list=lambda *args,**kw:NS(data=[NS(
+                             id='turn_abcdefgh',status=next(latest_states))])))
     return NS(beta=NS(agents=NS(sessions=sessions)))
 
 
@@ -175,7 +177,9 @@ class ProviderDeadlineTests(unittest.TestCase):
             journal.begin('req_cancel',sha256(b'fictional').hexdigest())
             journal.bind('req_cancel','sess_abcdefgh')
             sessions=NS(events=NS(create=lambda *args,**kwargs:None),
-                        turns=NS(retrieve=lambda *args,**kwargs:
+                        turns=NS(list=lambda *args,**kwargs:
+                                 NS(data=[NS(id='turn_abcdefgh',status='in_progress')]),
+                                 retrieve=lambda *args,**kwargs:
                                  NS(id='turn_wrongone',status='cancelled')))
             receipt=cancel_and_reconcile(NS(beta=NS(agents=NS(sessions=sessions))),
                 journal,'sess_abcdefgh','turn_abcdefgh',event_key='cancel_wrong',writer_id='owner')

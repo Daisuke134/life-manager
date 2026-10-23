@@ -108,6 +108,40 @@ class OwnedProviderRegressions(unittest.TestCase):
             self.assertEqual(calls, before)
             self.assertEqual(gateway.value["revision"], 1)
 
+    def test_restore_interruption_before_validation_and_during_install_fences_object(self):
+        from unittest.mock import patch
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from test_owned_checkpoint import MemoryGateway, snapshot
+        class StopNow(BaseException): pass
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw, _ = snapshot(root / "seed")
+            for stage in ("validation", "install"):
+                with self.subTest(stage=stage):
+                    gateway = MemoryGateway(raw)
+                    calls = []
+                    def transport(payload):
+                        calls.append(payload["operation"])
+                        return gateway(payload)
+                    checkpoint = PrivateCheckpoint(transport, run_id="123", run_attempt="1")
+                    destination = root / stage
+                    if stage == "validation":
+                        patcher = patch("manager_core.owned_checkpoint._validate_database", side_effect=StopNow("original interrupt"))
+                    else:
+                        patcher = patch("manager_core.owned_checkpoint.os.fsync", side_effect=StopNow("original interrupt"))
+                    with patcher, self.assertRaisesRegex(StopNow, "original interrupt"):
+                        checkpoint.acquire(destination)
+                    self.assertTrue(checkpoint.broken)
+                    before = list(calls)
+                    from manager_core.owned_checkpoint import CheckpointUnavailable
+                    with self.assertRaises(CheckpointUnavailable):
+                        checkpoint.acquire(root / (stage + "-again"))
+                    with self.assertRaises(CheckpointUnavailable):
+                        checkpoint.save()
+                    with self.assertRaises(CheckpointUnavailable):
+                        checkpoint.release()
+                    self.assertEqual(calls, before)
+
     def _owner(self, root, cap=Decimal("0.05")):
         from manager_core.owned_checkpoint import PrivateCheckpoint
         from test_owned_checkpoint import MemoryGateway, snapshot
@@ -278,11 +312,16 @@ class OwnedProviderRegressions(unittest.TestCase):
                     with sqlite3.connect(snap) as db:
                         observed.append((db.execute("SELECT writer_id FROM amp_sessions WHERE session_id=?", (session_id,)).fetchone()[0],
                                          db.execute("SELECT event_key FROM amp_events WHERE session_id=?", (session_id,)).fetchone()[0]))
-            turns = SimpleNamespace(retrieve=lambda turn_id, *, session_id:
-                SimpleNamespace(id=turn_id, status="cancelled"))
+            latest_status = iter(("in_progress", "cancelled"))
+            turns = SimpleNamespace(
+                list=lambda *args, **kwargs: SimpleNamespace(data=[SimpleNamespace(
+                    id="turn_12345678", status=next(latest_status))]),
+                retrieve=lambda turn_id, *, session_id:
+                    SimpleNamespace(id=turn_id, status="cancelled"))
             client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
                 sessions=SimpleNamespace(events=Events, turns=turns))))
-            receipt = owner.cancel(client, "sess_12345678", "turn_12345678", key="cancel1")
+            receipt = owner.cancel(client, "sess_12345678", "turn_12345678", key="cancel1",
+                deadline_monotonic=monotonic()+10)
             self.assertEqual(receipt.status, "CANCELLED_VERIFIED")
             self.assertEqual(observed, [("cancel_" + hashlib.sha256(b"sess_12345678\0turn_12345678\0cancel1").hexdigest(),
                                          "cancel1")])
@@ -489,6 +528,171 @@ class OwnedProviderRegressions(unittest.TestCase):
                 """)
             with self.assertRaises(ValueError):
                 _validate_database(invalid)
+
+    def test_acquire_rejects_duplicate_provider_identities_before_any_send(self):
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from manager_core.provider_budget import BudgetLedger
+        from manager_core.provider_sessions import SessionJournal
+        from test_owned_checkpoint import MemoryGateway, snapshot
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw, _ = snapshot(root / "seed")
+            for kind in ("requests", "events", "reservations"):
+                with self.subTest(kind=kind):
+                    seed = root / (kind + ".sqlite")
+                    seed.write_bytes(raw)
+                    SessionJournal(seed)
+                    BudgetLedger(seed, cap_usd=Decimal("0.05"))
+                    with sqlite3.connect(seed) as db:
+                        if kind == "requests":
+                            db.execute("DROP TABLE amp_events")
+                            db.execute("DROP TABLE amp_sessions")
+                            db.execute("CREATE TABLE amp_sessions(request_id TEXT, body_hash TEXT, status TEXT, session_id TEXT, writer_id TEXT, created_at TEXT)")
+                            db.execute("CREATE TABLE amp_events(session_id TEXT, event_key TEXT, body_hash TEXT)")
+                            db.executemany("INSERT INTO amp_sessions VALUES (?,?,?,?,?,?)", [
+                                ("req1", "a"*64, "RESERVED", None, None, "now"),
+                                ("req1", "a"*64, "UNKNOWN", None, None, "now")])
+                        elif kind == "events":
+                            db.execute("INSERT INTO amp_sessions VALUES (?,?,?,?,?,?)",
+                                ("req1", "a"*64, "BOUND", "sess_12345678", None, "now"))
+                            db.execute("DROP TABLE amp_events")
+                            db.execute("CREATE TABLE amp_events(session_id TEXT, event_key TEXT, body_hash TEXT)")
+                            db.executemany("INSERT INTO amp_events VALUES (?,?,?)", [
+                                ("sess_12345678", "fup1", "b"*64),
+                                ("sess_12345678", "fup1", "b"*64)])
+                        else:
+                            db.execute("DROP TABLE budget_reservations")
+                            db.execute("CREATE TABLE budget_reservations(run_id TEXT, reserved_units INTEGER, status TEXT, usage_json TEXT, measured_cost_units INTEGER, settled_units INTEGER)")
+                            db.executemany("INSERT INTO budget_reservations VALUES (?,?,?,?,?,?)", [
+                                ("initial_req", 10000, "RESERVED", None, None, None),
+                                ("initial_req", 10000, "RESERVED", None, None, None)])
+                        db.commit()
+                    db.close()
+                    with sqlite3.connect(seed) as verify_db:
+                        if kind == "requests":
+                            self.assertEqual(verify_db.execute("PRAGMA table_info(amp_sessions)").fetchall()[0][5], 0)
+                        elif kind == "events":
+                            self.assertEqual(verify_db.execute("PRAGMA table_info(amp_events)").fetchall()[0][5], 0)
+                        else:
+                            self.assertEqual(verify_db.execute("PRAGMA table_info(budget_reservations)").fetchall()[0][5], 0)
+                    gateway = MemoryGateway(seed.read_bytes())
+                    checkpoint = PrivateCheckpoint(gateway, run_id="123", run_attempt="1")
+                    destination = root / (kind + "-restore")
+                    provider_create_count = 0
+                    with self.assertRaises(Exception):
+                        checkpoint.acquire(destination)
+                    self.assertEqual(provider_create_count, 0)
+                    self.assertFalse((destination / "cycle.sqlite").exists())
+
+    def test_stale_cancel_target_is_rejected_without_post_and_keeps_writer(self):
+        import hashlib
+        with TemporaryDirectory() as tmp:
+            gateway, checkpoint, owner = self._owner(Path(tmp))
+            owner.journal.begin("first", hashlib.sha256(b"body").hexdigest())
+            owner.journal.bind("first", "sess_12345678")
+            class Events:
+                create_count = 0
+                @classmethod
+                def create(cls, *args, **kwargs): cls.create_count += 1
+            turns = SimpleNamespace(
+                list=lambda *args, **kwargs: SimpleNamespace(data=[SimpleNamespace(
+                    id="turn_current1", status="in_progress")]),
+                retrieve=lambda turn_id, *, session_id: SimpleNamespace(
+                    id=turn_id, status="completed"))
+            client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(events=Events, turns=turns))))
+            receipt = owner.cancel(client, "sess_12345678", "turn_old00001",
+                key="cancel1", deadline_monotonic=monotonic()+10)
+            self.assertFalse(receipt.cancellation_sent)
+            self.assertEqual(Events.create_count, 0)
+            with sqlite3.connect(checkpoint.db) as db:
+                self.assertEqual(db.execute("SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'").fetchone()[0],
+                    "cancel_" + hashlib.sha256(b"sess_12345678\0turn_old00001\0cancel1").hexdigest())
+
+    def test_newer_current_turn_after_cancel_prevents_historical_release(self):
+        import hashlib
+        with TemporaryDirectory() as tmp:
+            _, checkpoint, owner = self._owner(Path(tmp))
+            owner.journal.begin("first", hashlib.sha256(b"body").hexdigest())
+            owner.journal.bind("first", "sess_12345678")
+            ids = iter(("turn_current1", "turn_newer01"))
+            class Events:
+                create_count = 0
+                @classmethod
+                def create(cls, *args, **kwargs): cls.create_count += 1
+            turns = SimpleNamespace(
+                list=lambda *args, **kwargs: SimpleNamespace(data=[SimpleNamespace(
+                    id=next(ids), status="in_progress")]),
+                retrieve=lambda turn_id, *, session_id: SimpleNamespace(
+                    id=turn_id, status="cancelled"))
+            client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(events=Events, turns=turns))))
+            receipt = owner.cancel(client, "sess_12345678", "turn_current1",
+                key="cancel2", deadline_monotonic=monotonic()+10)
+            self.assertTrue(receipt.cancellation_sent)
+            self.assertEqual(Events.create_count, 1)
+            with sqlite3.connect(checkpoint.db) as db:
+                self.assertIsNotNone(db.execute("SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'").fetchone()[0])
+
+    def test_cancel_deadline_and_interruption_preserve_fence_without_blind_send(self):
+        import hashlib
+        class StopNow(BaseException): pass
+        with TemporaryDirectory() as tmp:
+            _, checkpoint, owner = self._owner(Path(tmp))
+            owner.journal.begin("first", hashlib.sha256(b"body").hexdigest())
+            owner.journal.bind("first", "sess_12345678")
+            class Events:
+                create_count = 0
+                @classmethod
+                def create(cls, *args, **kwargs): cls.create_count += 1
+            turns = SimpleNamespace(list=lambda *args, **kwargs: (_ for _ in ()).throw(StopNow("interrupt")))
+            client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(events=Events, turns=turns))))
+            from manager_core.ampersand_api import SessionFailure
+            with self.assertRaises(SessionFailure):
+                owner.cancel(client, "sess_12345678", "turn_current1", key="elapsed1",
+                    deadline_monotonic=monotonic()-1)
+            self.assertEqual(Events.create_count, 0)
+            with self.assertRaisesRegex(StopNow, "interrupt"):
+                owner.cancel(client, "sess_12345678", "turn_current1", key="cancel3",
+                    deadline_monotonic=monotonic()+10)
+            self.assertFalse(checkpoint.broken)
+            self.assertEqual(Events.create_count, 0)
+            with sqlite3.connect(checkpoint.db) as db:
+                self.assertIsNotNone(db.execute("SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'").fetchone()[0])
+
+    def test_lost_cancel_post_response_remains_unknown_without_resend(self):
+        import hashlib
+        with TemporaryDirectory() as tmp:
+            _, checkpoint, owner = self._owner(Path(tmp))
+            owner.journal.begin("first", hashlib.sha256(b"body").hexdigest())
+            owner.journal.bind("first", "sess_12345678")
+            class Events:
+                create_count = 0
+                @classmethod
+                def create(cls, *args, **kwargs):
+                    cls.create_count += 1
+                    raise OSError("response lost after possible provider write")
+            turns = SimpleNamespace(
+                list=lambda *args, **kwargs: SimpleNamespace(data=[SimpleNamespace(
+                    id="turn_current1", status="in_progress")]),
+                retrieve=lambda turn_id, *, session_id:
+                    SimpleNamespace(id=turn_id, status="in_progress"))
+            client = SimpleNamespace(beta=SimpleNamespace(agents=SimpleNamespace(
+                sessions=SimpleNamespace(events=Events, turns=turns))))
+            receipt = owner.cancel(client, "sess_12345678", "turn_current1",
+                key="cancel_lost", deadline_monotonic=monotonic()+10)
+            self.assertEqual(receipt.status, "CANCEL_REQUEST_UNKNOWN")
+            self.assertIsNone(receipt.cancellation_sent)
+            reread = owner.cancel(client, "sess_12345678", "turn_current1",
+                key="cancel_lost", deadline_monotonic=monotonic()+10)
+            self.assertEqual(reread.status, "CANCEL_REQUESTED_UNCONFIRMED")
+            self.assertFalse(reread.cancellation_sent)
+            self.assertEqual(Events.create_count, 1)
+            with sqlite3.connect(checkpoint.db) as db:
+                self.assertIsNotNone(db.execute(
+                    "SELECT writer_id FROM amp_sessions WHERE session_id='sess_12345678'"
+                ).fetchone()[0])
 
     def test_invalid_usage_and_session_references_are_rejected_but_measured_overage_is_preserved(self):
         from manager_core.owned_checkpoint import _validate_database

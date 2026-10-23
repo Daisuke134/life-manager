@@ -69,4 +69,10 @@ add to its ledger. It is not a provider-enforced token or spend ceiling and is
 not a settled bill. Token-derived costs remain estimates; settled cost is
 unknown until separate provider billing evidence is reconciled. Exact-turn
 recovery is not automatic because the session journal does not persist turn
-identifiers.
+identifiers. Cancellation is bounded by an absolute deadline, binds its local
+reservation to the session and requested turn, and checks the provider's latest
+turn before sending and before releasing the local writer. This check follows
+the documented one-application-writer model: no provider-side expected-turn
+compare-and-swap parameter has been verified, so it does not prevent races from
+independent external session writers. A timeout or ambiguous cancellation keeps
+the writer fence and reserved exposure.
