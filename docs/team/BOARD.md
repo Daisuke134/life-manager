@@ -19,7 +19,7 @@
 - [Codex / Manager] D003: 公開支出と受益報告のsource接続。所有: products/managerの限定adapter・test・資料、専用branch。既存owner・他lane・記事には触れない。
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 ## ログ
-- 2026-10-23 21:04 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
+- 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
 - 2026-10-23 18:39 Codex AI Monk: PR8668のFactory利用者publisher接続を独立review後に修復し、未解決0件。旧head独立210件とtimezone修復後38件がPASS。mainのlisticle-outreach.mdの使用禁止個人Gmail注記1件だけをprivate SSOT参照へ置換し、PII scan clean。送信元/宛先/配信状態・scanner/allowlistは保持、outreach送信0。次: exact CI/main/固定版、運用順はS11。
