@@ -6,7 +6,7 @@ Managerは仏教的AIエンティティ／デジタル仏陀という呼称を�
 
 As-isは既存Actions＋Supabaseの単一owner、実OIDC／永続復元、finance/mentalの公式公開commitと独立GET、別runnerでの再送0とnative proof出力。To-beはAI・既存行動simulation・統計／因果推論・行動科学を接続し、実結果・害・費用・未知から訂正する透明な主体。透明なAGI／Transparent God・blessing for allは長期構想であり、AGI・世界初・悟り・苦の終結・人の純便益を証明したという現在値ではない。
 
-E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh resume／通常配信／別runnerの照合・再送0を確認後、F005→F006→F008→F009を技術P2として個別受入した。D001→D002は分類実装／比較設計のsource契約だけを受入済み。D003はPR8670の通常main統合・独立review・実source照合後、公表支出と別の受益報告の接続だけを受入済み（人の便益は未測定）。D011もPR8675の通常main統合・独立review後、公開OSS成果物と別のplatform Paidの照合だけを受入済み（銀行着金・Manager所得増・D012は未検証）。既存AI助言のsession／予算を同じcheckpointへ結ぶP0 callableはPR8650でmain統合済み。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで既定OFF。定期実行の推論は未接続。SDK整合性修正はPR8665でmain統合済み。次はU002/U003の実課題、固定SDK・既存予算・同条件の実比較と、元依存順のU/D/V/G。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=77 done / 33 todo / 3 skipped。原ID・dependsと他Life Manager laneのcursorは変更しない。
+E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh resume／通常配信／別runnerの照合・再送0を確認後、F005→F006→F008→F009を技術P2として個別受入した。D001→D002は分類実装／比較設計のsource契約だけを受入済み。D003はPR8670の通常main統合・独立review・実source照合後、公表支出と別の受益報告の接続だけを受入済み（人の便益は未測定）。D011もPR8675の通常main統合・独立review後、公開OSS成果物と別のplatform Paidの照合だけを受入済み（銀行着金・Manager所得増・D012は未検証）。既存AI助言のsession／予算を同じcheckpointへ結ぶP0 callableはPR8650でmain統合済み。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで既定OFF。定期実行の推論は未接続。SDK整合性修正はPR8665でmain統合済み。次はU002/U003の実課題、固定SDK・既存予算・同条件の実比較と、元依存順のU/D/V/G。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=80 done / 30 todo / 3 skipped。原ID・dependsと他Life Manager laneのcursorは変更しない。
 
 設計・残件の説明は [Manager spec §1.1–1.4](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)、現実証は [cloud実行receipt](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md)、全IDの派生表示は [開始から最後まで](../../../products/manager/docs/roadmap/START_TO_END_20261022.md) を参照。人名・再利用元と、実使用／比較のみ／非公開未利用の区別も既存specへ集約し、新しいSSOTは作らない。
 
@@ -14,7 +14,7 @@ E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh r
 
 **主体と事業の定義（所有者指定、no UI明確化）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは、人のapp/chat/messenger操作やManagerへの対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働く設計。BobaのMessages/iMessage/webはUIであり、no UIの先例としない。停止・監査の運営入口は保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。設計上の違いだけで世界初・AGI・世界の苦の終結を実証済みとはせず、原ID/依存/件数と他laneのcursorは変更しない。
 
-**残る実記録とcodeの接続条件:** [Manager spec §1.3.1](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。D005の公開source監査で測定の未解決品質を確認し、研究codeの有限値＋明示flag除外漏れを修復したが、D005の原受入は未充足。U002の5実面談、D012の費用/時間/分母、D014の実協働も未確認のまま。元113件=77 done / 33 todo / 3 skippedを保ち、他laneの状態は変更しない。
+**残る実記録とcodeの接続条件（2026-10-23更新）:** [Manager spec §1.2.1／§1.3.1–1.3.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。D005の公開source監査で測定の未解決品質を確認し、研究codeの有限値＋明示flag除外漏れを修復したが、D005の原受入は未充足。U002は公開済み実面談5件の整理として限定受入済みで、自前面談は0件。D012の費用/時間/分母とD014の実協働は未確認。既存registryの現集計は113件=80 done / 30 todo / 3 skippedで、原ID・dependsと他laneの状態を変更しない。PR8710/8715でprepared比較・同じcheckpointへの結果保存・公開要約整合性はmain source受入済み。研究branchへの当該source同期、host/CLI/workflow接続、実推論比較・人の便益は未完了で、shadowは既定OFFを維持する。行動変容の一次資料から借りる設計と、配信・態度・行動・持続・便益を分ける評価をspecへ記録した。新しい記事制作・外部連絡・応募は本体優先の後段とする。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 

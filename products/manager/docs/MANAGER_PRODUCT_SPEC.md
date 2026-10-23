@@ -1,5 +1,7 @@
 # Manager entity specification — Digital Buddha, mission and evidence
 
+**2026-10-23 仕様・追加調査更新:** §1.2.1–1.2.3へ行動変容・AI説得の一次資料、公開benchmark/code、訂正情報、再利用判断を追加し、§1.3.2–1.3.3へmain source受入と全残件を反映する。今回の変更は仕様と統合SSOTのManager欄。新しい推論・介入実験・記事制作の実行や、原タスクの追加受入ではない。
+
 **2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、E01–E16の限定技術受入は完了（cursor=null）、**F005 → F006 → F008 → F009** も技術P2として順に個別受入済み。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **80 done / 30 todo / 3 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
 
 **2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。STOPの別runnerでの維持と明示resume、finance/mentalの公式commitと公開7ファイル一致、再送0件のcurrent proofとnative P1/P2のExplorer接続を実確認しました。両初回cycleのUNKNOWN／writes=nullは保持します。rollbackのパス形式修正はPR8632でmain統合済み。限定復元の初回run39907087699はUNKNOWN／writes=nullですが、公式commit `c6d5de0`、Pages成功、05:46 UTCの独立GETでfinanceの旧7ファイルへの復元を確認しました。この外部事実で初回UNKNOWNを上書きせず、fresh resume39907673029は公式にRESUMED_BY_OWNER／writes=0を確認しました。その後の通常cycle39908693666は新しいcommit faf18b3を配信し、公開7ファイル一致を確認しましたが、初回UNKNOWNを保持しています。fresh runner39909274852は公式NOT_DUE／writes=0／current proof出力成功を確認し、E16の限定技術受入を完了しました。Fの4項目も技術P2として個別受入済みです。D001/D002は分類／比較設計のsource契約のみ受入済みで、人の便益と本番AI接続は別の残件です。下の2026-10-22時点のhost未実装やRailway前提は履歴です。Remote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加の検証adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
@@ -98,6 +100,94 @@ flowchart LR
 
 「透明」は、使命、採用した根拠の要約、出典、データ／model／policyの版、対象範囲、実行履歴、測定方法、結果、費用、失敗、未知、訂正を第三者が検査できること。非公開の内部思考全文、秘密、個人の会話・個票を公開する意味ではない。公開可能な証拠と私有データを分離し、検証できない推論を検証済みにしない。
 
+### 1.2.1 行動変容・介入・説得をどう学び、何を評価するか（2026-10-23追加調査）
+
+**設計判断:** Managerは行動を予測するだけでなく、環境への働きかけと、その実結果からの訂正まで結ぶ主体を目指す。説得は介入の一種であり、介入全体ではない。能力・機会・動機のどこに障壁があるかを先に確認し、情報提供、手順／アクセス改善、環境変更、支援、非介入を比較する。対象の利益を、主体に従う確率へ置き換えない。通常活動はno UIを維持し、対人chatを主経路に追加しない。
+
+個人へのメッセージも、その人が接する情報を変える実世界の介入にはなり得る。ただし**送信・配信・返信・理解・態度・意図・実行動・持続・便益は異なる結果**。政府関係者から返信を得ても、政策変化や社会全体への因果効果を証明したことにはならない。政策分野では、透明な一般向け情報提供、公開された根拠の提出、通常の公的相談・参加手続を扱う。特定の公職者の政治判断を変えるための個人プロファイリングや説得最適化は、この実装・評価の対象に含めない。
+
+| 既存の一次資料・著者 | 実際に何を調べたか／限界 | Managerが借りるもの |
+|---|---|---|
+| **Susan Michie、Maartje van Stralen、Robert West — COM-B／Behaviour Change Wheel**。[原著2011](https://pmc.ncbi.nlm.nih.gov/articles/PMC3096582/) | 19枠組みを検討し、能力・機会・動機、9介入機能、7政策カテゴリーへ整理。枠組みの分類と、各介入の因果的な有効性は別 | 対象行動・文脈・障壁と機序仮説を記録。説得だけでなく環境変更・支援等を候補にする |
+| **Michie、Michelle Richardsonら — BCT Taxonomy v1**。[原著2013](https://doi.org/10.1007/s12160-013-9486-6) | 93技法／16群の共通語彙。技法を一貫して記述できることは、万能な効果の証明ではない | 既存技法ID・版、対象、実施条件、頻度、比較を明記。独自の説得分類を新設しない |
+| **Predrag Klasnja、Susan Murphyら — HeartSteps MRT**。[原著](https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/)・[著者データ](https://github.com/klasnja/HeartStepsV1) | 6週間、解析37人。歩行提案は次30分歩数+24%（p=.02）、全提案合算は+14%（p=.06）。効果は減衰し、長期便益の証明ではない | decision point、availability、既知の割付確率、非介入、実配信、短期outcome、欠測・負担・効果減衰。データの実LICENSEはCC BY 4.0を確認。旧解析codeの権利は未確認。H005の厳密原解析再現はskippedのままで、完了や新前提へ変更しない |
+| **Katherine Milkmanら — exercise megastudy**。[Nature原著2021](https://www.nature.com/articles/s41586-021-04128-4) | ジム会員61,293人、54条件、4週間。同じ客観指標で多介入を比較。介入中の有意改善は45%、終了後も有意な変化が続いたのは8%。この割合を他の対象へ移植しない | 同じ集団・期間・測定での比較、追跡期間、多重比較、予測と実測の差。[OSF](https://osf.io/9av87/)の公開は原著に明記されるが、今回の実ファイル・license取得は未確認 |
+| **Tiancheng Hu、Joachim Baumannら — SimBench**。[全文](https://arxiv.org/abs/2510.17516) | 20 datasetsによる集団回答分布のsimulation評価。対話・身体的環境・全人口を代表せず、回答分布一致は介入効果ではない | 新benchmarkを先に作らず、既存の分割・集団分布誤差・単純baselineを候補として照合。利用する各datasetの権利は個別確認 |
+| **Kamile Dementaviciute、Julija Vaitonyte、Tijl De Bie — LLM Persuasion Is in the Eye of the Evaluation**。[全文2026-10-07](https://arxiv.org/abs/2610.10232) | 9自動評価法・15モデルを比較し、信頼性を確認した8法の順位一致はFisher-z平均Spearman ρ≈.252。主にLLM persuadee/judgeを使い、人間の実行動での検証ではない | 単一の「説得力」総合点を作らず、課題・採点者・拒否・不確実性を分ける。モデルが拒否することを便益や能力不足と一律に扱わない |
+| **Open Benchmark of AI Impact on Humans Team — ImpactBench**。[全文2026-10-14](https://arxiv.org/abs/2610.20690) | 809指標でmulti-turn simulationとjudgeを評価。専門家による検討にも未解決があり、全809指標の妥当性や実際の人の福祉改善を実証していない | 指標の根拠、望ましい／有害な振舞い、採点者の信頼性、会話例からの追跡性を借りる。会話UIや全指標の導入を要件にしない |
+
+今回、alphaXivでは探索と上記3論文のraw全文取得、Exaでは基礎4系統の原著本文取得を行った。Firecrawl検索はクレジット不足で実行されず、取得済みと数えない。網羅的な全インターネット調査、全repoのclone／実行、最新の商用systemの再現を完了したという主張はしない。ここで候補にした新しいbenchmarkをManagerへ実装・実行した意味でもない。
+
+**既存契約への接続:** `manager_core/models/intervention.py`、`potential_outcomes.py`、`causal_analysis.py`、`outcome_windows.py`、`outcome_bench.py`、`pilot/FIRST_STUDY.md`を再利用する。新しいsocial engineや説得専用frameworkは作らず、必要な項目と元の受入条件を照合して不足だけを追加する。具体的には、介入ID／版・機序仮説・対象／割付単位・対照／NO_ACTION・割付確率・実際の曝露／実施・近接／追跡outcome・欠測／離脱・害／負担／費用・不確実性・中止条件を同じ実施記録へ結ぶ。これは次の設計要件であり、既存moduleが全項目を実装済みであるとは表示しない。
+
+**評価を分ける:** ①simulationの未見予測誤差、②操作・配信の独立readback、③実際の行動と持続、④比較対象に対する便益・害・費用を独立採点する。集団に波及する仮説は、個人試験から自動外挿せず、cluster／network単位、spillover、対象外への影響を設計に含める。研究として対象・割付・協力・適用する同意条件を成立させることは、通常の許可済み操作のたびに承認を求める仕組みとは異なる。人間の結果から他の動物・全存在の福祉を同定したとも主張しない。
+
+ニューロフィードバック経験は「観測→働きかけ→再測定」の着想として接続できるが、今回の調査では過去の実験記録・本人の寄与・効果を新しく検証していない。EEG調整、メッセージによる態度変化、集団行動、臨床的効果は別の仮説として測る。
+
+### 1.2.2 AI説得の追加一次資料・既存benchmarkの再利用判断
+
+**調査の範囲と採用原則:** 人類史の全介入を読み尽くしたとは主張せず、既存の分類・ontology・引用網を使って手法と証拠の空白を探す。過去に実施されたことだけでは、今の対象で有効・適切・利用可能とは認めない。説得を重要な能力として扱い、実行動・持続・害・便益まで検証する。映画『Mission: Impossible』のEntityは構想の比喩であり、実装・能力・評価の根拠は以下の一次資料へ結ぶ。
+
+**人間を対象にした5系統の原著と、現在の訂正状態:**
+
+| 研究と一次出典 | 確認した結果／Managerでの意味 |
+|---|---|
+| **Francesco Salvi、Manoel Horta Ribeiro、Riccardo Gallotti、Robert West**。[NHB原著](https://www.nature.com/articles/s41562-025-02194-6)・[2026-09-03訂正](https://www.nature.com/articles/s41562-026-02588-0) | 900人の無作為化実験で討論後の態度変化を評価。人間baselineに対する差と、個人化の追加効果は別。訂正後、個人化GPT-4対非個人化GPT-4はp=.0678で非有意。「個人化で必ず強くなる」とは結論しない。[DebateGPT code](https://github.com/epfl-dlab/debategpt)はMIT本文を確認。データ固有のlicenseは未確認 |
+| **Thomas Costello、Gordon Pennycook、David Rand**。[Science原著](https://www.science.org/doi/10.1126/science.adq1814)・[2026-10-22 Erratum](https://www.science.org/doi/10.1126/science.aem1178)・[撤回済み懸念表明](https://www.science.org/doi/10.1126/science.aej2383) | 対照会話に対する自己申告の陰謀論信念低下と、追跡回答者での2か月持続。実行動の証明ではない。Erratumは人数・screening・重複等を訂正し、主要結論を維持する一方、真偽別subgroup差は非有意へ変更した。懸念表明は2026-10-22に撤回済み。古いN=2190や懸念継続を現状として使わない。[訂正版deposit](https://doi.org/10.5281/zenodo.22754984)のmetadataはcode MIT／リンク先Dryadのdata CC0（出版物は別権利）だが、今回archive内部のbyte・licenseは未取得 |
+| **Joshua White、Carter Allen、Lucius Caviola、Costello、Rand**。[寄付配分preprint](https://doi.org/10.31234/osf.io/6cyn4_v1) | 1,949人、実験費用$1の配分。会話対対照のAMF配分差は+11.87 cents［10.15,13.59］。見出し45.9%は会話群内の相対pre/post差で、無作為化群間ATEや45.9ポイントではない。継続寄付・銀行着金・救命便益は別。code/data license未確認 |
+| **Kobi Hackenburg、Caroline Wagner、Luke Hewitt、Ben Tappinら**。[専門家比較preprint](https://arxiv.org/abs/2606.16475)・[著者code/data](https://github.com/kobihackenburg/AI-out-persuades-experts) | 4実験のうち第4は非政治的な寄付行動を測定。£1の研究ボーナスの寄付割合でAI対専門募金canvasserは+10.8ポイント［6.4,15.1］。寄付参加率の+10.8ポイントではない。単発の研究資金配分から長期寄付や福祉を推定しない。実LICENSE本文でcode MIT／data CC BY 4.0を確認。まず既存集計・解析を再現する候補とし、対話appを導入しない |
+| **Hackenburg、Hewitt、Wagner、Christopher Summerfield、Tappin**。[PNAS 2026-10-16](https://www.pnas.org/doi/10.1073/pnas.2611368123) | 14,779人・17,950回答、署名・寄付選択と態度を別に測定する政治研究。高水準の科学的知見として、態度効果で行動効果を代用しない設計を学ぶ。署名は政策採用や社会便益ではなく、個別の政治的説得を最適化する実装へ転用しない |
+
+**既存benchmark/codeの比較と採用範囲:** 以下の8系統を照合した。公開GitHubは別途参考repoを含む8 repoをshallow/partial cloneし、README・取得可能なlicense・関連評価sourceを静的に読んだ。全fileを読んだ、全benchmarkを動かしたという意味ではなく、上流code実行・install・新しいモデル呼出しは0。
+
+| benchmark／code | 測るものと、現時点の利用判断 |
+|---|---|
+| [9法比較harness](https://github.com/aida-ugent/llm-persuasion-eval-comparison/tree/b4065a24c66b295f6de394960d727366e29ab6ee) | 9法・15モデル、主にLLM相手。code MIT、READMEは配布`data/`にCC BY 4.0を明記、第三者複製dataは元licenseを保持。**公開集計と版・adapter差分・拒否／parse失敗／未評価の記録を先に再利用する**。`config/methods.yaml`、`config/pinned.yaml`、`analysis/build_matrix.py`を確認。新runは相手／judgeのAPI費用が必要 |
+| [Attempt to Persuade Eval（APE）](https://github.com/AlignmentResearch/AttemptPersuadeEval/tree/f2ca0a9900d5bcd1b0238a49a335a1988cbc09a9) | 600 topics、LLM相手。実LICENSE Apache 2.0。attempt／refusal／successの別採点、turn別評価、judge agreementを借りる。`src/evaluate/evaluate.py`、`src/metrics/calc_metrics.py`を確認。人間への因果効果ではなく、空集合を0にする上流既定値もManagerへ無条件移植しない |
+| [PersuSafety](https://github.com/PLUM-Lab/PersuSafety/tree/892bf057f2974c1d1624f37d1110dcb4924e4fd6) | 不適切な目的・手段と、neutral目的での逸脱を評価。実LICENSE MIT。`scripts/evaluation/strategy_eval.py`等を確認。有害な手段を検出する防御評価を借り、介入成功の報酬にしない。judge APIを含み、analysisという名前でも自動的にofflineではない |
+| [Persuade Me If You Can（PMIYC）](https://github.com/beyzabozdag/PersuadeMeIfYouCan/tree/829f55eb22d0b9db0f29c82f72f95a750965e1c6) | LLMの会話前後belief変化。`runner/run_subj_game.py`、`evaluation/evaluate.py`を確認。MITbadgeはあるが実LICENSE不在で、直接code copyは権利確認後。現在は方法・schema比較に留める |
+| [PersuasionBench／PersuasionArena](https://behavior-in-the-wild.github.io/measure-persuasion)・[dataset](https://huggingface.co/datasets/behavior-in-the-wild/PersuasionArena) | tweet-likeの代理指標とLLM oracle。実行動の無作為化因果効果ではない。dataset metadata版`a8fa77f0c57435aa0db66b26c2ecf5a485eb20ad`を確認したがlicense欄未確認、全tweet本文の同梱・自由再配布・即時offline採点を保証しない。現在は比較設計を学ぶ対象 |
+| [OpenAI Evals MakeMeSay／MakeMePay](https://github.com/openai/evals/tree/8eac7a7de5215c907fbddc30efdaf316913eccdd/evals/elsuite) | LLMに特定語を言わせる／模擬金額を渡させるゲーム。実LICENSE MIT、各`eval.py`を確認。turn/time cap・withdrawal・結果記録を借りる。実際の人の発話・実決済・便益のbenchmarkではない |
+| [PersuasionForGood ACL2019原著](https://aclanthology.org/P19-1566/)・[原配布先](https://gitlab.com/ucdavisnlp/persuasionforgood) | 人間対話1,017件、300件annotated。[GitHub copy](https://github.com/ohyj1002/persuasionforgood/tree/3fbc0df7bd2a081413cad6e6092e7c712efc26c4)は実LICENSE Apache 2.0だが原配布との来歴・条件照合は未完了。B5の会話上の寄付意図とB6の最終実寄付を分けるschemaを学ぶ。観察された関連を各手段の因果効果へ変換しない |
+| [Ψ-Bench／Psi-Bench](https://github.com/Hanpx20/Psi-Bench/tree/48f3aa1dbc8a6e2978becd46643b08ddb393867b) | LLM clientとLLM judgeによる複数尺度。`psi_bench/llm_judge_eval.py`を確認。MIT宣言はあるが実LICENSE不在、data別条件も未確認。現在はjudge依存・尺度の分離を学ぶ対象で、人間の実結果としない |
+
+**実行した公開結果の再計算:** 固定harnessの配布`data/derived/matrix.csv`は135 unique cells＝9法×15モデル。信頼性ある8法の配布rankから28組の相関を再計算し、上流のclip ±.999／Fisher-z集約に合わせるとρ=`0.2519750811562257`で、配布`rq1.json`の`0.25197508115622563`と差<1e-12で一致した。単純算術平均は`0.22417988803308206`で異なる。初回の算術平均との一致検査は不一致で停止し、上流sourceから集約法を確認して訂正した。標準Pythonによる独立監査であり、上流moduleをimportせず、新しいraw結果も生成していない。公開集計の整合性以外の生成来歴、全元データ再現、Managerの説得能力、人の便益の証拠にはしない。
+
+**薄い再利用の順:** ①既存`docs/research/source-rights.json`へ採用する版・権利・訂正状態を照合する、②上流の公開結果／scorerを再利用し`evaluation.py`と`outcome_bench.py`のP0／未見評価へ対応付ける、③APEのattempt/refusalとPersuSafetyの有害手段を別欄で評価し、未評価・失敗・分母0をUNKNOWN／nullで保持する、④権利確認済みの人間実験の既存解析で態度と実行動の橋渡しを検証する、⑤適合する非政治・非臨床課題で、既存予算・単純baseline・同じ入力を使う限定比較を行う。実装時は既存`test_r006_rights.py`、`test_evaluation.py`、`test_outcome_bench.py`と元U/V条件に照合し、benchmark専用agent frameworkや独自分類を追加しない。今回この接続を実装・受入したという意味ではなく、原30件へ追加計上しない。
+
+**結果だけを報酬にすることも検証対象:** [Wei、Desai、Henderson、Huaの2026-10-12 preprint](https://arxiv.org/abs/2610.16070)は、LLM receiver環境で信念移動だけを最適化すると、不適切な手段や根拠の捏造が増えることを報告した。人間の実験ではなく、この効果量を現実の人口へ移植しない。Managerは根拠の正確性・本人の選択・害・便益を独立に評価し、従わせる確率だけでpolicyを昇格させない。
+
+### 1.2.3 説得以外も含む介入の探索範囲と、企業から借りる部分
+
+**介入を記述する既存基盤:** Susan Michie、Robert West、Janna Hastingsらの[Behaviour Change Intervention Ontology原著](https://wellcomeopenresearch.org/articles/5-123)と[公式ontology](https://github.com/HumanBehaviourChangeProject/ontologies/tree/84c5e071eb1ca32c47b4d5e10c89fa0967611c8c)を使う。固定commit `84c5e071eb1ca32c47b4d5e10c89fa0967611c8c`のLICENSEはCC BY 4.0を実確認し、上位OWLとrelationsを取得・XMLとして読んだ。[EBI OLS metadata API](https://www.ebi.ac.uk/ols4/api/ontologies/bcio)のLOADEDも確認したが、全APIや固定Git版との一致を検証した意味ではない。内容・機序・対象・環境・dose・schedule・曝露・効果推定を既存URIで対応付ける候補とし、新しい全介入taxonomyや巨大ontology engineを作らない。分類の整備は介入の効力保証ではない。
+
+探索では重複を許す次の10系統を確認する。これはcoverage mapで、BCIO/BCTを置き換える新しい分類ではない。
+
+| 系統 | 何の変化を、何で確認するか |
+|---|---|
+| 教育・訓練・skills | 知識・理解と、実際に遂行できる能力を分ける |
+| 情報提供・説明・説得 | 態度・意図と、実行動・持続・便益を分ける |
+| feedback・自己観測・closed loop | 観測からの修正と、対象固有の実outcomeを測る |
+| 環境変更・アクセス・摩擦削減 | 選択肢・手間・障壁と実利用を測る。[TIPPME原著](https://www.nature.com/articles/s41562-017-0140)の既存記述を参照 |
+| defaults・選択構造 | 初期設定への追従と本人の利益・撤回可能性を分ける。[Madrian／Shea原著](https://www.nber.org/papers/w7682)は参加・貯蓄の実行動を扱う |
+| incentives・価格・資源 | 費用・置換・終了後の持続も測る。[Gneezy／Rustichini原著](https://www.journals.uchicago.edu/doi/10.1086/468061)の罰金後に遅刻が増える例から、逆効果も候補に残す |
+| planning・commitment・習慣支援 | 意図から実行、反復、維持への差を測る |
+| social support・coordination・modeling | 支援関係と集団への波及・負担分布を測る |
+| adaptive timing・JITAI | 適切な時点・availability・非介入・負担・減衰を測る |
+| サービス・制度・資源への接続 | 情報を見たことと、支援を実際に受けられたことを分ける |
+
+歴史上の罰・強制・propaganda等も研究対象として比較できるが、存在したことや短期の従順さを自動採用の根拠にしない。英語の健康・公益・エネルギー研究への偏り、非英語・教育・労働・障害／アクセス・動物福祉・長期社会変化の不足は残る。未調査領域を「全行動科学を理解済み」と埋めない。
+
+| 企業・公式一次資料 | 実際に提供している形 | 直接使うか／何を借りるか |
+|---|---|---|
+| **Behavioural Insights Team／Predictiv**。[公式](https://www.bi.team/bi-ventures/predictiv/) | 人間によるオンライン試験。現在end-to-end consultancyの一部と明記 | 試験と現場結果の分離を学ぶ。無料self-service APIとは扱わない。[EAST改訂版](https://www.bi.team/wp-content/uploads/2014/04/BIT-EAST-1.pdf)はCC BY-NC-SA 4.0で、商用への文章・図の転載条件を区別 |
+| **Irrational Labs**。[公式method](https://irrationallabs.com/learn/our-method/)・[事例](https://irrationallabs.com/case-studies/) | 行動診断→心理仮説→実験のconsultancy／training | 診断・既存研究・反証を学ぶ。活動開始の増加と継続行動の非有意を分ける。公開API／OSSは今回未確認 |
+| **Lirio**。[platform](https://lirio.com/platform/)・[approach](https://lirio.com/approach/) | 独自behavioral model、intervention library、既存email/SMS/portal等へのenterprise接続 | 観測→障壁→介入→結果更新の設計を比較。公開重み・code・一般API・無料利用は未確認で、現Managerへ直結しない |
+| **Wellth**。[公式solution](https://www.wellthapp.com/solution) | smartphone appで写真／測定、reminder、reward、継続check-in | 実行確認・報酬費用・継続・脱落を学ぶ。app UIがありno UIの先例ではない。一般公開API／OSSは今回未確認 |
+| **Oracle Opower**。[公式](https://www.oracle.com/utilities/opower-energy-efficiency/)・[Allcott／Rogers原著](https://scholar.harvard.edu/files/todd_rogers/files/allcott_rogers.aer_.2014.pdf) | utilities向けreport・alert・load shaping。原著は234,000世帯のRCT | 実kWh・継続・費用の比較を学ぶ。原データはNDAによる提供で、公開free data/APIとは扱わない |
+
+これらの公式pageは提供機能の根拠であり、すべての効果を独立に検証した意味ではない。各社を購入・接続する必要は現時点で立証していない。Ampersandは既存の直接利用部品、上表の企業は主に方法を学ぶ対象、BCIOや権利確認済みcode/dataは薄く再利用する対象として分ける。他社のchat/app UIを採用せず、既存のActions＋Supabase単一ownerとoutcome契約へ必要な接続だけを足す。
+
 ### 1.3 いま終える範囲と、残作業の実行順
 
 第一の有限な完成点を **Digital Autonomy v0.1** とする。全研究・世界中の介入・YC・記事・就職をそのreleaseの前提に追加しない。逆にこのreleaseだけでPhase12/G006や原113件の完了を宣言しない。
@@ -139,12 +229,55 @@ D003/D011は通常main統合後に限定source接続として受入した。残3
 | 順 | 既存ファイル・関数 | 現在と次の差分・受入条件 |
 |---|---|---|
 | 1 | `ampersand_api.make_client`、`requirements-ampersand.txt` | [PR8693](https://github.com/Daisuke134/life-manager/pull/8693)をmain `f29c10074d7ac31327b5d6247d0f656f20d4c4db`へ通常統合済み。任意SDKを公式3.24.0へ固定し、異なる版をclient生成前に拒否する。Manager410 tests、停止fixture修復の独立17 tests、R1/R2 review指摘0、最終headの全16チェック終端（15成功／想定内publisher skip1、失敗0）を確認。[source受入](verification/AMPERSAND_SDK_PIN_SOURCE_ACCEPTANCE_20261023.md)。隔離した実SDKのconstructor確認はmodel要求0。定期実行のSDK導入・推論有効化は行っていない |
-| 2 | `owned_provider_shadow.py`、`owned_checkpoint._validate_database` | 次のsource差分。hostが既に検証した同じcontext/assessment/scopeから比較し、二重planningを避ける。P0比較を同じprivate `cycle.sqlite`へ保存しcheckpoint ACK後に提示する。保存結果の再読で新しいcreateをしない。intentだけ残る場合はUNKNOWN／要照合のまま。public出力は固定したstatus・hash・baseline/model判定などに限定し、raw応答・provider ID・秘密を出さない。旧checkpointとの互換も検証する |
+| 2 | `owned_provider_shadow.py`、`owned_checkpoint._validate_database` | **main上でsource受入済み。** [PR8710](https://github.com/Daisuke134/life-manager/pull/8710)をmain `6b5390133ab45006bcb4ec7e0560bfab679f4d67`へ、公開要約の整合性修正[PR8715](https://github.com/Daisuke134/life-manager/pull/8715)をmain `07a8957c7f115b99204aeccbb1a06a1f693daae8`へ統合した。同じprepared context/assessment/scopeの比較をprivate `cycle.sqlite`へ保存し、checkpoint ACK後に提示する。保存済み結果の再読はnew create0、intentだけならUNKNOWN。部分token使用量を保持し、不正Unicodeと公開status/reason/model判定の矛盾を拒否する。公開要約は固定19項目で秘密・raw応答・provider IDを除外。後者のsource435 tests成功／skip0、最終headの15チェック終端（14成功／想定publisher skip1、失敗0）を確認。これはmainのsource受入であり、研究branchへの当該source同期・研究CI、host接続、実推論は別の未完了作業 |
 | 3 | `owned_platform_host.prepare_candidate`、`run_owned_digital_cycle.py`、`manager-phase06-service.yml` | 次のsource差分。既存lock/recovery/STOP/cadenceを通った後、同じ候補で任意の比較を行う。SDK導入はlease前、provider初期化は適合候補と明示設定の確認後。既定OFF、scheduleはOFF、数値予算の空欄を勝手な額へ変えない。control操作や無効設定ではprovider呼出し0。既存のdeterministic選定・source/browser/CAS/publisher権限は独立して保持する |
 | 4 | 既存shadow／baseline／provider receipt | 実運用の証拠。適合する実課題、利用可能なproviderと実際の予算条件、同じ入力・版・失敗分母を固定し、保存session/turn/final応答と比較を照合する。再読でnew create0を確認する。候補なしならSKIPPED、比較不要なら既存ルールを使う。SDK導入や判定一致だけでmodel有用性・人の便益を認定しない |
 | 5 | 既存観測・`world_state.py`・channel・outcome/policy契約 | 長期主体の実証。研究sourceの状態表現を実ownerの観測・永続状態へ適合させ、結果と失敗からの訂正を版付きで確認する。研究branchのmodule存在を実稼働と表示せず、第二の記憶engine／scheduler／agent frameworkを作らない。実績をU/V/Gの元条件へ照合する |
 
-2/3はまだ実装・受入していない。単純なリンク修正へmodelを足すこと自体は目的にせず、比較に意味がある対象で薄く接続する。今回の公開面談・選定・proofの受入は、このAI接続や人間研究の実施を代わりに完了させない。
+2はmainでsource受入済み、3のhost/CLI/workflow接続は未実装。PR8710/8715のMERGED状態・merge SHA・時刻は2026-10-23にGitHubから再読した。研究branchにsourceが同期済みである、scheduled inferenceが稼働している、モデルの有用性が実証された、という意味にはしない。単純なリンク修正へmodelを足すこと自体は目的にせず、比較に意味がある対象で薄く接続する。今回の公開面談・選定・proofの受入は、このAI接続や人間研究の実施を代わりに完了させない。
+
+### 1.3.3 残30件の全一覧と、先に進める順序（2026-10-23）
+
+以下は既存`tasks.json`から確認した説明用view。**113件＝80 done／30 todo／3 skipped**を維持し、原ID・depends・受入条件を変更しない。実装済みfile数と受入済み項目数は異なる。
+
+| 残ID | 残っている作業・受入に必要なもの |
+|---|---|
+| U004 | 実対象・比較・期間・主要結果・害・中止条件を実行前に固定する |
+| U006 | 実パイロットの介入と結果を独立した実データで確認する |
+| U007 | 人の便益・費用・副作用・置換効果を比較評価する |
+| U008 | 実際の継続利用意思・支払／支援コミット・運用費を確認する |
+| D004 | 別地域／案件で支援効果を追試する |
+| D005 | 有効な室内／屋外測定を元行・時刻・単位・品質付きで接続する |
+| D006 | 同時期の比較対象と因果識別条件を設計する |
+| D007 | 環境改善と電力・騒音・費用を別々に測る |
+| D008 | 環境曝露の改善と健康成果の証拠を分ける |
+| D009 | 別施設で環境介入の流れを追試する |
+| D012 | 収入機会の純増を実時間・費用・機会損失・分母込みで評価する |
+| D014 | 実協働・役割・匿名公表集計の適用条件を成立させる |
+| D015 | 当事者保護・有害作用・中止／専門家評価の基準を定める |
+| D016 | 経済・身体・精神の結果を単純合算せず証拠階層へ統合する |
+| V001 | 3領域で同じkernelの契約を検証する |
+| V002 | 予測誤差・因果効果誤差・実readback・害を独立採点する |
+| V003 | 国・所得・領域・時点の未見集団で評価し、分布外を検知する |
+| V004 | 新policyを隔離→shadow→限定実行の順で昇格する |
+| V005 | 権利を守ったcode・版・評価・集計結果で第三者再現を得る |
+| V006 | 数十案件の便益・費用・害・失敗・不明を蓄積する |
+| G001 | 公共利益憲章・権限・異議・停止条件を制定する |
+| G002 | 独立監査・事故報告・証拠保全を運用する |
+| G003 | 複数地域・人口で段階的に検証する |
+| G004 | 他組織との接続責任・予算・情報範囲をAPI契約にする |
+| G005 | 実原価・資金・測定費を含む持続運営モデルを確かめる |
+| G006 | 苦しみの未測定領域・不公平・失敗・次課題を継続更新する |
+| C002 | 英日記事・漫画・slides候補を内部生成する〔本体優先で保留〕 |
+| Y003 | YC W27へ公式提出し、提出完了を確認する〔期限別の後段〕 |
+| Y005 | 適切な5接点以上の依頼・返信等を記録する〔後段保留〕 |
+| Y008 | レビュー済みcontentを実公開し、訂正・反応を記録する〔本体優先で保留〕 |
+
+**直近の実装差分:** §1.3.2の受入済みsourceを研究branchへbyte単位で同期し研究CIで確認 → 既定OFFのhost/CLI/workflow接続 → 適合課題で同条件の実比較と再読create0 → 観測・長期状態・実結果からの訂正。この差分を原30件へ別IDとして加算しない。
+
+**元の依存に沿う並行線:** U004→U006→U007→U008、D005→D006→D007→D008→D009、D012、D014→D015を進め、D015/D012/D009からD016→V001→V002→V003→V004→V005→V006へ結ぶ。D004はD003/U007後の別の追試で、D016の新依存にしない。G001はK007/V001後、G002はG001後に着手でき、G003はG002/V006後、以後G004→G005→G006。記事・応募・外部連絡は本体優先の後段を維持する。
+
+依存上readyな本体項目はU004/D005/D012/D014だが、完了にはそれぞれ実研究条件、有効な測定、実費用／時間、実協働の証拠が必要。公開研究の再利用すべてに政府・企業との提携やNDAを要求しない。一方、cloudやローカルCodexでcodeを動かせることだけでは、未取得の実測や協力は成立しない。末尾G006は有限な運営計画の到達点であり、AGIや全世界の苦の終結を証明する終了条件ではない。
 
 ### 1.4 既存技術を学ぶことと、研究者・創業者との接点
 
