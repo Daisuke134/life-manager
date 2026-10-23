@@ -246,3 +246,24 @@ Only these two exact commit/path/rule/line fingerprints are added to
 `.gitleaksignore`; current-tree scanning and detection at new locations remain
 enabled. The introducing commit is on another fetched branch, so changing
 only this PR's current tree cannot remove the historical findings.
+
+## モバイル日次集計CI: 権限条件の説明文
+
+PR #8775の現行tree検査は成功するが、full-history検査は別の取得済みbranch
+`research/manager-e06-cloud-execution-20261022`にあるcommit
+`a6f8deaf743033dae21132be54d27223293b09f7`の
+`products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:22`
+を`generic-api-key`として1件検出する。同commitは今回のmobile source変更ではない。
+
+独立したread-only検証は、当該行と同objectのcharter §§1–3を読み、権限の範囲・予算・
+有効期限・取消しという4条件を区別する英語の説明文と判定する。代入構文や引用された
+認証値は無く、名詞列はcharter §2の権限付与条件に対応する。provider認証試験や
+credentialへのアクセスは行わず、実credentialの有効性や別用途の不存在までは主張しない。
+primaryのgitleaks 8.30.1による同commit限定scanも、同じcommit/path/rule/lineの
+fingerprint1件だけを再現する。検出値の原文はこの記録へ複製しない。
+
+既存手順に従い、この1件のexact fingerprintだけを`.gitleaksignore`へ追加する。
+rule/path全体の除外、検査無効化、history rewriteは行わず、他のcommit/path/rule/line
+と現行tree・full-history検査を維持する。根拠はprivateの
+`goal-resume/gitleaks-history-fresh-classification.md`と
+`goal-resume/gitleaks-exact-history-red.json`に保存する。
