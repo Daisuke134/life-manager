@@ -584,7 +584,7 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
         try:
             info = root.lstat()
         except FileNotFoundError:
-            if root != releases:
+            if root == bundles:
                 continue
             raise
         if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
@@ -604,9 +604,10 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
         if not isinstance(pins, list) or any(not isinstance(value, str) for value in pins):
             raise ValueError("protected release inventory is invalid")
         values.extend(str(Path(value).expanduser().resolve()) for value in pins)
-    for path in (list(agents.iterdir()) if agents.exists() else []):
-        if path.suffix != ".plist":
-            continue
+    plist_paths = [path for path in agents.iterdir() if path.suffix == ".plist"]
+    if not plist_paths:
+        raise OSError("launchd inventory has no plists")
+    for path in plist_paths:
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired("plist references", 0)
         info = path.lstat()
