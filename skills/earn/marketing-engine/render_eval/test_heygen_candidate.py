@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import shutil
 import heygen_candidate
+import pytest
 
 from heygen_candidate import build_request, configuration, render
 
@@ -51,6 +52,22 @@ def test_request_is_vertical_avatar_iv_and_contains_no_credential():
     assert "key" not in json.dumps(request).lower()
 
 
+def test_japanese_request_uses_native_voice_without_english_locale_hint():
+    config = configuration({**READY, "LM_EBOOK_EN_HEYGEN_VOICE_ID": "662e1397965c484e8f65fa58c77effde"})
+    request = build_request("一度だけ肩をゆるめてください。", config, language="ja")
+    assert request["voice_id"] == "662e1397965c484e8f65fa58c77effde"
+    assert request["voice_settings"] == {"speed": 0.9}
+    assert request["script"] == "一度だけ肩をゆるめてください。"
+
+
+def test_unsupported_language_is_rejected_before_any_provider_call(tmp_path):
+    calls = []
+    with pytest.raises(ValueError, match="language"):
+        render(script="Pause.", language="fr", output=tmp_path / "video.mp4",
+               environment=READY, executor=lambda *args, **kwargs: calls.append(args))
+    assert calls == []
+
+
 def test_missing_login_is_setup_required_before_create(tmp_path):
     calls = []
 
@@ -69,7 +86,11 @@ def test_missing_login_is_setup_required_before_create(tmp_path):
     assert calls == [[READY["LIFE_MANAGER_HEYGEN"], "auth", "status"]]
 
 
-def test_render_uses_stdin_then_downloads_and_hashes_receipt(tmp_path):
+@pytest.mark.parametrize(("language", "script", "expected_locale"), [
+    ("en", "Breathe.", "en-US"),
+    ("ja", "一度だけ肩をゆるめてください。", None),
+])
+def test_render_uses_stdin_then_downloads_and_hashes_receipt(tmp_path, language, script, expected_locale):
     calls = []
     balances = iter((12.3, 12.0))
 
@@ -87,14 +108,17 @@ def test_render_uses_stdin_then_downloads_and_hashes_receipt(tmp_path):
         return subprocess.CompletedProcess(args, 0, "{}", "")
 
     output = tmp_path / "render.mp4"
-    receipt = render(script="Breathe.", output=output, environment=READY, executor=execute)
+    receipt = render(script=script, language=language, output=output, environment=READY, executor=execute)
     assert receipt["state"] == "rendered"
     assert receipt["video_id"] == "video_12345678"
     assert receipt["sha256"] == "0cab1c9617404faf2b24e221e189ca5945813e14d3f766345b09ca13bbe28ffc"
     assert calls[0][0] == [READY["LIFE_MANAGER_HEYGEN"], "auth", "status"]
     assert calls[2][0] == [READY["LIFE_MANAGER_HEYGEN"], "video", "create", "-d", "-", "--wait"]
-    assert json.loads(calls[2][1]["input"])["script"] == "Breathe."
-    assert "Breathe." not in " ".join(calls[2][0])
+    request = json.loads(calls[2][1]["input"])
+    assert request["script"] == script
+    assert request["voice_settings"] == ({"speed": 0.9, "locale": expected_locale}
+                                          if expected_locale else {"speed": 0.9})
+    assert script not in " ".join(calls[2][0])
     assert calls[4][0] == [
         READY["LIFE_MANAGER_HEYGEN"], "video", "download", "video_12345678",
         "--output-path", str(output.with_name(f".{output.name}.part")),

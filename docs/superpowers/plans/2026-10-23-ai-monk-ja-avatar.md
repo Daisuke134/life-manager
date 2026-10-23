@@ -47,8 +47,8 @@ rendererだけの置換は本番の旧JA21件とsemantic signatureが衝突す�
 
 **Interfaces:** `build_request(script, config, *, language="en")`、`render(..., language="en")`。runnerは`script["language"]`を渡す。対応言語はen/ja、JA voiceはpackから渡す。account lockの選択はproduct名ではなく`pack["renderer_id"] == "heygen-avatar-iv"`とする。
 
-- [ ] JA要求のvoice設定が`{"speed": 0.9}`、EN要求は従来と完全一致、不正言語は外部call前拒否の最小REDを確認する。
-- [ ] 上記interfaceだけを追加し、EN既定要求のbytes/fingerprintと費用/readback処理を変えずGREENにする。
+- [x] JA要求のvoice設定が`{"speed": 0.9}`、EN要求は従来と完全一致、不正言語は外部call前拒否の最小REDを確認する。
+- [x] 上記interfaceだけを追加し、EN既定要求のbytes/fingerprintと費用/readback処理を変えずGREENにする。
 - [ ] JAでも未確定EN sidecarから`prior_heygen_effect_unresolved`/create0、EN+JA同時実行の最大renderer数1をRED→GREENで確認する。
 - [ ] 現JAの２account同slot共有render testをHeyGenへ更新し、同run/hash/token・render１回のassertを維持する。
 - [ ] 関連３test filesを実行する。Task 2との統合前のpack依存REDは区別し、guard失敗を隠さない。
@@ -83,3 +83,10 @@ rendererだけの置換は本番の旧JA21件とsemantic signatureが衝突す�
 - [ ] S11と本planの状態を更新し、最新mainを保持してcommit/push、exact-head CI全成功後PRをmainへ統合する。
 - [ ] main由来ALL/sealed releaseを配置する。JA disabled/unloaded、既存receipt/sidecar、EN既存動画hashを確認し、未確定費用・disk/FIFOを維持する。
 - [ ] 実JA生成/配信の未完条件をS11へ残す。費用の公式照合・通常admissionが揃う前に生成/owner再開/投稿をしない。source成功を日次配信・実売上の成功と報告しない。
+
+## 実装記録
+
+- Task 1の言語要求は4 RED→16 PASS。EN既定要求の完全一致を維持し、JAはlocaleを省略、不正言語はexecutor前に拒否する。
+- 既存runnerのproduct==ebook-ja固定分岐をrenderer判定へ変える。旧archive asset/sourceは保持する。
+- 実file lockの英日並列fixtureで最大同時数2をRED再現し、rendererに基づく共通account lockで1へ修復する。pack非依存coreは22 PASS/結合待ち3件。Task 1全体とTask 2の完了はまだ宣言しない。
+- native単独実行のskill既定より独立作業の並行指示を優先し、rootのcoreとworkerのwiringを分担する。全差分のfresh reviewは維持し、UIモデル固定や承認待ちを追加しない。

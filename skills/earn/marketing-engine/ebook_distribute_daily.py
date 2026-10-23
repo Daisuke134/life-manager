@@ -73,7 +73,7 @@ def render_slot(*, product: str, slot_at: str, state_root: Path) -> dict:
     run_id = f"ebook-run.{key}"
     receipt_root = state_root / "runs"
     output = state_root / "renders" / f"{run_id}.mp4"
-    lock_name = "heygen-avatar-iv-account.lock" if product == "ebook-en" else f"{run_id}.lock"
+    lock_name = "heygen-avatar-iv-account.lock" if pack["renderer_id"] == "heygen-avatar-iv" else f"{run_id}.lock"
     with exclusive_lock(state_root / "locks" / lock_name):
         receipt = run_ebook(
             engine=HERE,
