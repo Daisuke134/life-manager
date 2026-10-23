@@ -521,3 +521,41 @@ def test_resume_draft_finish_writes_a_bound_resume_receipt(tmp_path: Path) -> No
     assert receipt["event"] == "capafy_resume_draft_finish"
     assert receipt["action_key"] == "resume:7393298474"
     assert receipt["platform_status"] == 1
+
+
+def _submitted_block() -> str:
+    source = CHILD.read_text(encoding="utf-8")
+    return _between(source, "# SUBMITTED-SELECTED-BEGIN", "# SUBMITTED-SELECTED-END")
+
+
+def _run_submitted(tmp_path: Path, *, rc: int, lifecycle: str) -> tuple[int, Path]:
+    marker = tmp_path / ".healthy"
+    state = tmp_path / "state"
+    state.mkdir()
+    post_json = json.dumps({"agents": [{"agent_id": "111", "lifecycle": lifecycle}]})
+    script = "\n".join((
+        "set -uo pipefail",
+        f"RC={rc}",
+        'SELECTED_ID="111"',
+        f"POST_JSON={shlex.quote(post_json)}",
+        f"MARK={shlex.quote(str(marker))}",
+        f"CAPAFY_STATE_DIR={shlex.quote(str(state))}",
+        f"LOG={shlex.quote(str(tmp_path / 'loop.log'))}",
+        "TS=test",
+        "POST=PUBLISHABLE",
+        _submitted_block(),
+        "exit 9",
+    ))
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=False)
+    return result.returncode, marker
+
+
+def test_selected_agent_now_under_review_is_a_healthy_pass_even_if_queue_stays_publishable(tmp_path: Path) -> None:
+    code, marker = _run_submitted(tmp_path, rc=0, lifecycle="occupied")
+    assert code == 0 and marker.exists()
+
+
+@pytest.mark.parametrize("rc,lifecycle", [(0, "retry"), (1, "occupied")])
+def test_selected_agent_not_submitted_or_runner_failed_falls_through(tmp_path: Path, rc: int, lifecycle: str) -> None:
+    code, marker = _run_submitted(tmp_path, rc=rc, lifecycle=lifecycle)
+    assert code == 9 and not marker.exists()
