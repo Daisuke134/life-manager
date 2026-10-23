@@ -1,5 +1,37 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## README整理とMac導入の継続修復
+
+**目的・範囲:** READMEを初めて使う人が用途とMac導入をすぐ理解できる長さへ整理し、公開bootstrapから本人のMacで起動する経路の再現済み不具合を修復する。人気公開repoの実READMEとinstallerを一次資料として比較する。WebMCP/ハッカソン、個別運用履歴、内部owner名は入口から外し、必要な詳細は既存docsへ案内する。既存MAC02–05の全agent・本人設定・自然実行の受入範囲は維持し、別Mac実機やprovider成果を隔離テストで代用しない。他sessionのworktree、production browser、進行中effectは変更しない。
+
+**Daisの追加要件:** READMEは内部報告ではなく、背景知識のない外部利用者へ書く。Localの導入条件はChatGPT subscription（Plusで十分）とスリープしないMac/Mac miniを先に示す。内部owner名、same-core/host-adapter説明、運用受入履歴、会社名のform入力規則は本文に置かない。個別serviceの本人loginと追加provider条件は必要時の詳細guideへ案内する。獲得目標は実利用に基づくGitHub 10,000 stars。公式repo APIの開始snapshotは8 starsで、README変更だけを10,000達成と扱わない。今回の入口と導入の反映後、実利用・導入成功・starsを測りながら成長を継続する。
+
+**完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
+
+**順序・現在cursor:** 既存MAC01とMAC04 source受入を保持し、README-MAC-01（比較・入口整理）とREADME-MAC-02（公開導入の呼出し境界診断・修復）を並行、統合後に既存MAC02–05へ戻る。理由は、前回の共通installerがPR #8617でmainへ入っており、再実装せず公開入口と残る停止点を直すため。所有worktree=`.worktrees/readme-mac-product-20261023`、branch=`fix/readme-mac-product-20261023`、owner=`codex-readme-mac-product`。旧portability worktreeは別ownerのleaseを維持する。
+
+- [x] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。英日各52行、導入コマンドは26行目。内部情報を本文へ強制する旧assertを削除し、metadata/旧URL禁止は保持する。North StarはTHESISへ移設する。
+- [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
+- [ ] README-MAC-03: focused/context/contract、review、CI、main、公開readbackを確認し残る実機条件を記録する。
+
+現在cursor=README-MAC-03、PR #8666。primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASS、migration/shell/diff/loop contractもPASS。独立read-only reviewとCIを確認してからmainへ統合する。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
+
+独立reviewはcode/doc head `7485228e62`で0 findings/SHIP、installer28/context20/リンク42件とURL・shell・diffを再確認する。Intel macOS14/Python3.14の全requirements wheel解決もexit0で、実機検証とは分ける。CIはcatalog全18名称を英日READMEへ要求する旧assertだけが失敗するため、名前一覧の移設先`docs/agents.md`へ参照を揃える。catalog構造・runtime・financial契約のassertは保持する。
+
+CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件を検出する。公開文書のsender欄をprivate設定参照へ置き換える最小修復だけを追加し、個人アドレスをchat/logへ再出力せず、PII scanner/allowlistは緩めない。mainの並行変更は通常mergeで取り込み、他ownerの内容を維持する。追加差分reviewは一覧参照の移設とSSOTについて0 findings/SHIP、該当Web CTA一式122件もPASS。
+
+同じCIのclean-user archive testには、旧READMEのCloud見出しをexact一致させるassertが残る。見出し2行の読み取り/assertだけを削除し、公開archiveのmanifest・secret reference・license・third-party契約は維持する。新しい`docs/team/README.md`の「唯一の正本」はこの統合SSOTと競合するため、上位の既存作業順・本依頼のTODO正本を維持し、team boardには連携記録だけを残す。
+
+**導入の再現対象:** `scripts/install-local.sh`はCodex CLIの存在だけで全job登録へ進み、本人の認証を確認しない。同じrepoのCoconala `prepare`は`codex login status`→必要時のみ公式`codex login`→再確認を実装している。この既存方式を全体`install`にも適用し、未認証・login失敗・成功応答だけで認証状態が変わらない場合はjob登録前に止める。既存認証は再loginしない。`prepare`とread-only `plan`はloginを開始しない。隔離fixtureで登録開始の有無を検証し、実account/sessionは操作しない。
+
+**確認した証拠:** 追加5ケースは旧実装で4 fail/1 pass（認証確認がなく、失敗・未確認でも登録開始）、修正後は全PASS。既存を含むinstaller27件、public bootstrap10件、host/fleet/install36件の計73件がPASS。loop contractは18 products/192 registry jobs/113 mapped/errors0で、旧specの191/112は当時のsnapshotである。最初の検証はruntime venvの既存`site-packages/scripts`がrepoのnamespaceを隠して2 import errorsとなるため、開発用Python3.14とunittest discoverで同bootstrapを実行し10件PASSを確認した。runtime依存やCIをこのために変更していない。
+
+**空環境の追加不具合:** 新規venvへ現`requirements-runtime.txt`全体を実際にinstallするとpipはexit0だが、既存Coconala installerと同じimport smokeが`ModuleNotFoundError: bs4`でexit1になる。Mercor/Coconalaが使う`websockets`は現解決結果ではweb3由来で入るが、`beautifulsoup4`は入らない。既存使用ライブラリ`beautifulsoup4==4.14.3`を共通runtimeへ追加し、pip後・認証/登録前に既存5 importの最小smokeを行う。不完全な依存で登録へ進まない隔離回帰を追加する。新しい業務機能や依存frameworkは作らない。
+
+追加回帰は旧実装で1 fail、修正後はinstaller関連28件PASS。空venvで更新した全requirementsのinstall exit0と5 imports exit0も確認する。READMEの比較はn8n 208,370/OpenHands 91,618/Open Interpreter 68,640/AutoGPT 187,713 starsの公式repo/README/installerに基づく。starsはREADMEによる成長因果の証拠とはしない。英日READMEは各52行、Quick startは冒頭、比較根拠と移設先は`docs/readme-references.md`。公式repo trafficの観測窓合計はclones=84,297/unique=4,515、views=66/unique=31で、自分たちのCI/automationと外部利用者を分離できないため実利用人数やconversion rateとは扱わない。
+
+**現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
