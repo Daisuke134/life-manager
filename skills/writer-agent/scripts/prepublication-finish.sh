@@ -36,6 +36,36 @@ if [ -f "$ARTICLE_LEDGER" ] && jq -e --arg run "$RUN_ID" 'select(.run_id == $run
   "$ARTICLE_LEDGER" 2>/dev/null | grep -q .; then
   skip "ledger-row-present"
 fi
+# 7cd0d0e486 keeps the proxy key out of the model sandbox, so the agent writes the headline
+# prompt/alt but cannot call the image API (run 20261023-004552). Create the headline here,
+# exactly once: a committed API intent only replays commit+verify, and any other intent may
+# hide an unknown outcome, so it blocks with that status instead of resending.
+if [ ! -f "$RUN_DIR/headline-image.png" ] && [ -s "$GATES/headline-image-prompt.txt" ] \
+  && [ -s "$GATES/headline-image-alt.txt" ]; then
+  HEADLINE_GENERATOR="${ARTICLE_HEADLINE_IMAGE_GENERATOR:-$SCRIPT_DIR/gpt_image_headline.py}"
+  MEDIA_CREATE_ONCE="${ARTICLE_MEDIA_CREATE_ONCE:-$SCRIPT_DIR/media_create_once.py}"
+  CANDIDATE="$GATES/media-candidates/headline-gpt-image-2.png"
+  INTENT="$GATES/headline-image-api-intent.json"
+  if [ ! -e "$INTENT" ]; then
+    # Same parse as agent_runner._load_clipproxy_api_key: first non-empty entry under api-keys:.
+    PROXY_KEY="$(awk '$0=="api-keys:"{k=1;next} k&&/^[[:space:]]*- "/{v=$0;sub(/^[[:space:]]*- "/,"",v);sub(/"[[:space:]]*$/,"",v);if(v!=""){print v;exit}}' \
+      "${ARTICLE_CLIPROXY_CONFIG:-/opt/homebrew/etc/cliproxyapi.conf}" 2>/dev/null)"
+    mkdir -p "$GATES/media-candidates"
+    CLIPROXY_API_KEY="$PROXY_KEY" python3 "$HEADLINE_GENERATOR" generate \
+        --prompt-file "$GATES/headline-image-prompt.txt" --alt-file "$GATES/headline-image-alt.txt" \
+        --candidate "$CANDIDATE" --intent "$INTENT" --receipt "$GATES/headline-image-api-receipt.json" \
+      || block "headline-image-generate-failed"
+  else
+    INTENT_STATUS="$(jq -r '.status // "unreadable"' "$INTENT" 2>/dev/null || echo unreadable)"
+    { [ "$INTENT_STATUS" = committed ] && [ -f "$CANDIDATE" ]; } \
+      || block "headline-image-intent-${INTENT_STATUS:-unreadable}"
+  fi
+  python3 "$MEDIA_CREATE_ONCE" commit --candidate "$CANDIDATE" \
+      --destination "$RUN_DIR/headline-image.png" --receipt "$GATES/headline-image-create.json" --kind headline \
+    && python3 "$HEADLINE_GENERATOR" verify --candidate "$CANDIDATE" \
+      --receipt "$GATES/headline-image-api-receipt.json" \
+    || block "headline-image-commit-failed"
+fi
 for f in article-ja.md article-en.md x-post-ja.txt headline-image.png body-diagram.png; do
   [ -f "$RUN_DIR/$f" ] || skip "missing-$f"
 done

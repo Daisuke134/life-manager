@@ -57,6 +57,8 @@ _CONTROL_PLANE_LOOPS = frozenset({
     "life-manager-health-observer", "life-manager-release-reconciler", "boot-panic-evidence",
     # Recycling idle browsers frees the swap that pushes free disk under the floor (2026-10-18).
     "browser-recycle-idle",
+    # Flips Hook Lab TikTok to live: a few KB of local state plus one notice (2026-10-23).
+    "warmup-flip-daily",
 })
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
 

@@ -194,4 +194,62 @@ awk '/^run_model_pass$/{m=1} m&&/prepublication-finish\.sh/{f=1} m&&/^drain_gene
   "$ROOT/article-daily.sh" | grep -qx ok
 grep -Fq -- '--keep-pid "$JUDGE_BROKER_PID"' "$ROOT/article-daily.sh"
 
+# 9. 7cd0d0e486 keeps the proxy key out of the model sandbox: the agent writes the headline
+#    prompt/alt but cannot call the image API (run 20261023-004552: missing-headline-image.png).
+#    The finisher creates the headline once with the proxy key, then finishes as usual.
+RUN="$(make_run 20261023-004552)"
+rm -f "$RUN/headline-image.png"
+printf 'a calm desk\n' >"$RUN/gates/headline-image-prompt.txt"
+printf 'a desk\n' >"$RUN/gates/headline-image-alt.txt"
+printf 'api-keys:\n  - "proxy-fixture-key"\n' >"$TMP/cliproxy.conf"
+cat >"$TMP/bin/headline.py" <<'PY'
+import os, sys
+args = sys.argv[1:]
+with open(os.environ["FAKE_HEADLINE_CALLS"], "a", encoding="utf-8") as handle:
+    handle.write(args[0] + " key=" + os.environ.get("CLIPROXY_API_KEY", "") + "\n")
+if args[0] == "generate":
+    open(args[args.index("--candidate") + 1], "wb").write(b"png")
+    open(args[args.index("--intent") + 1], "w").write("{}")
+    open(args[args.index("--receipt") + 1], "w").write("{}")
+PY
+cat >"$TMP/bin/media.py" <<'PY'
+import os, shutil, sys
+args = sys.argv[1:]
+with open(os.environ["FAKE_HEADLINE_CALLS"], "a", encoding="utf-8") as handle:
+    handle.write("commit " + args[args.index("--kind") + 1] + "\n")
+shutil.copyfile(args[args.index("--candidate") + 1], args[args.index("--destination") + 1])
+PY
+export FAKE_HEADLINE_CALLS="$TMP/headline-calls"; : >"$FAKE_HEADLINE_CALLS"
+ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.conf" \
+  ARTICLE_HEADLINE_IMAGE_GENERATOR="$TMP/bin/headline.py" ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out9" 2>&1 || { cat "$TMP/out9"; exit 1; }
+[ "$(cat "$FAKE_HEADLINE_CALLS")" = "$(printf 'generate key=proxy-fixture-key\ncommit headline\nverify key=')" ] \
+  || { cat "$FAKE_HEADLINE_CALLS"; fail "$LINENO"; }
+[ -f "$RUN/headline-image.png" ] && [ -f "$FAKE_INIT_ARGS" ] || fail "$LINENO"
+
+# 9b. An unknown-outcome intent is never resent: the finisher blocks with its status.
+RUN="$(make_run 20261023-010000)"
+rm -f "$RUN/headline-image.png"
+printf 'p\n' >"$RUN/gates/headline-image-prompt.txt"; printf 'a\n' >"$RUN/gates/headline-image-alt.txt"
+printf '{"status":"delivery_unknown"}' >"$RUN/gates/headline-image-api-intent.json"
+: >"$FAKE_HEADLINE_CALLS"
+if ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.conf" \
+  ARTICLE_HEADLINE_IMAGE_GENERATOR="$TMP/bin/headline.py" ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out9b" 2>&1; then cat "$TMP/out9b"; fail "$LINENO"; fi
+[ ! -s "$FAKE_HEADLINE_CALLS" ] && grep -q "reason=headline-image-intent-delivery_unknown" "$TMP/out9b" \
+  || fail "$LINENO"
+
+# 9c. Generated and committed at the API but died before the local commit: replay commit+verify only.
+RUN="$(make_run 20261023-020000)"
+rm -f "$RUN/headline-image.png"
+printf 'p\n' >"$RUN/gates/headline-image-prompt.txt"; printf 'a\n' >"$RUN/gates/headline-image-alt.txt"
+printf '{"status":"committed"}' >"$RUN/gates/headline-image-api-intent.json"
+mkdir -p "$RUN/gates/media-candidates"; printf 'png' >"$RUN/gates/media-candidates/headline-gpt-image-2.png"
+: >"$FAKE_HEADLINE_CALLS"
+ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.conf" \
+  ARTICLE_HEADLINE_IMAGE_GENERATOR="$TMP/bin/headline.py" ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out9c" 2>&1 || { cat "$TMP/out9c"; exit 1; }
+[ "$(cat "$FAKE_HEADLINE_CALLS")" = "$(printf 'commit headline\nverify key=')" ] \
+  && [ -f "$RUN/headline-image.png" ] || { cat "$FAKE_HEADLINE_CALLS"; fail "$LINENO"; }
+
 echo "prepublication-finish: PASS"

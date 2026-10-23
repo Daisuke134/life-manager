@@ -119,6 +119,8 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 **実行順・現在cursor:** baseline/呼出し経路確認済み → releaseテストのローカルGit fixtureとshallow checkoutの安全性検証 → 最小修正/関連検証 → fresh read-only review → PR/CI → main/通常CIで比較 → 自所有worktree返却。fixtureをPRのHEADへ固定し、外部fetchをlocal bare originへ置換する。shallow checkout→shared bare fixture→local fetchはPASS。変更前に既存bytecodeテストへSHA一致を加えるとmainとPRの不一致でRED、変更後18 tests/7 subtestsとsecurity契約5 testsはGREEN。既存984 unittestは230.229秒でPASS（ローカル値のためCIとの速度比較に使わない）。fresh read-only reviewはblocking 0 / shipで、GitHub型のshallow・detached merge checkoutからfetch/祖先判定/archive/SHA固定も独立PASS。現在cursorと統合・CI実測の公式状態は [PR #8601](https://github.com/Daisuke134/life-manager/pull/8601) のexact head checks/main mergeへ結ぶ。テスト削除・検査skip・全履歴scannerの弱化、新依存・cache基盤の追加は行わない。
 
+**追加の実測とnative runner受入:** #8601は全12ジョブPASS/main `1dbf5087b49a`。baseline run 39889933473は総734秒/loop731秒/loop待機3秒、変更後39892194935は総710秒/loop628秒/待機82秒。unittest本体は441→445秒で、短縮の中心はcheckout。Intel指定は`0c559693f03`のARM割当15分待ち回避であり、CPU契約ではない。実MacはmacOS15.6/Apple Siliconで、既存984テストはPASS。標準`macos-15`（arm64）を同じPython3.14/同じ全検証でcanaryし、割当待ちを含む所要時間と全ジョブ成功を見て採用する。`macos-15-xlarge`等の追加有料runner、テストskip、別OSへの変更は行わない。現在cursor/公式状態は`perf/ci-native-macos-20261023`のPR/実行に結ぶ。過去の割当不足が再現した場合は、待ち時間を短縮と報告せずIntelの統合済み修正を保持する。
+
 ### FND patchの実装指示
 
 各項目は同じ順で閉じる。実入力/記録を匿名化して最小REDを先に作る → 原因箇所の最小修正 → 関連GREEN → source/diff/契約review → exact-head CI → PR/main → 対象immutable採用 → 自然成果の公式readback。未再現の仮説を先に実装しない。以下の新テスト名は追加予定の受入名であり、既存テストと偽らない。
