@@ -1,10 +1,12 @@
 # Manager — a Buddhist AI entity, the Digital Buddha
 
+**2026-10-23 優先順（所有者指定）:** Manager本体・agentを先に完成させ、新しい記事制作は後段へ保留。E01–E16の現在cursorはE16、続いてF005→F006→F008→F009を個別受入。F004/F007はskippedのまま。[tasks.json](docs/roadmap/tasks.json)は原113件=69 done / 41 todo / 3 skippedを維持。[spec §1.1–1.4](docs/MANAGER_PRODUCT_SPEC.md)にAs-is／To-be、既存ファイル別の残件、研究者・創業者と既存技術から学ぶ方法を追加しました。透明なAGI／Transparent Godは長期構想であり現在の能力証明ではありません。
+
 **呼称と存在目的（所有者指定、2026-10-22）:** Managerは、苦しみを減らし、すべての福祉を持ち得る存在のために働く**仏教的AIエンティティ／デジタル仏陀**です。Managerそのものを「製品」と呼びません。観測・記憶・判断・実行・省察を継続する主体を目指し、Digital Autonomy v0.1はその最初の限定能力のrelease、公開ページや運用支援は活動の接点とします。慈悲・智慧・不害・訂正可能性を設計原則に置きます。この呼称は、意識・感覚・悟り・全知や人への便益を実証したという現在の能力表示ではありません。現在の実装・未配備・未測定の状態は下記の証跡で区別します。既存の`products/manager/`というsource pathは互換性のため維持します。
 
 **開始から最後まで:** [全Phase00〜12・残41件・依存・完成条件・出版/サイト/YCの並行線](docs/roadmap/START_TO_END_20261022.md)。原計画の末尾はPhase12/G006、現在地はE16です。
 
-**最新の再開入口:** [2026-10-23 cloud実行の証拠と残る受入れ](docs/verification/E16_CLOUD_EXECUTION_20261023.md)。既存Actions＋Supabaseで実OIDC、別runnerの復元、保存されたSTOPの実行拒否と明示resumeを確認しました。financeのv2変更は公式commitと公開7ファイルのbyte一致を確認済み。ただし最初のcycleは `UNKNOWN / writes=null` のまま保存し、後続recoveryの `NOT_DUE / writes=0` と区別します。復旧後のcurrent proofは実runnerのNOT_DUE／再送0件を保ってExplorerへ出力し、native P1の1 commit_occurrenceとP2の26,846 byteを確認しました。残るのは別テーマmentalのP1/P2と限定rollbackの実配信等です。E16カーソルと原113件の状態は維持します。実装順はE01–E16、その後の受け入れ順は **F005 → F006 → F008 → F009**。F004/F007は `skipped`（未実施）。MacやRailwayの新workerは前提にしません。人への便益は未測定、モデルの優位性も未証明です。
+**最新の再開入口:** [2026-10-23 cloud実行の証拠と残る受入れ](docs/verification/E16_CLOUD_EXECUTION_20261023.md)。既存Actions＋Supabaseで実OIDC、別runnerの復元、保存されたSTOPの実行拒否と明示resumeを確認しました。finance/mentalのv2変更は公式commitと公開7ファイルのbyte一致を確認済み。両初回cycleは `UNKNOWN / writes=null` のまま保存し、後続recoveryの `NOT_DUE / writes=0` と区別します。復旧後のcurrent proofをExplorerへ出力し、各native P1の1 commit_occurrenceとP2の26,846／26,866 byteを確認しました。残るのはmental後の限定rollbackの実配信・復元後のresume/replay等です。E16カーソルと原113件の状態は維持します。MacやRailwayの新workerは前提にしません。人への便益は未測定、モデルの優位性も未証明です。
 
 **全体設計:** [エンティティの使命・最初の能力・研究・運営・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
 

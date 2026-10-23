@@ -1,5 +1,7 @@
 # Manager Research Products and Website Implementation Plan
 
+**2026-10-23 owner priority — deferred lane:** Complete the Manager/agent implementation and acceptance first. New article/book/slides/carousel and homepage production in this derived plan is deferred; the earlier parallel-lane and first-chapter proposals below do not override that instruction. Preserve already published work, its verification and corrections. Keep C002/Y008 incomplete until their own dependencies and actual acceptance are met; an existing research chapter is not their substitute. Engineering evidence/receipts remain part of the active agent work. See [current spec §1.1–1.4](../MANAGER_PRODUCT_SPEC.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax. This plan is a derived execution view, not a new task-status authority.
 
 **Goal:** Convert source-grounded Manager research into bilingual public articles, durable book manuscripts, reusable presentation/carousel/manga scripts, and an accurate Anicca homepage without publishing unverified impact claims.
@@ -99,7 +101,7 @@
 
 ## Execution order and stop rules
 
-P01 → P02 → P03; P04 after P01; P05 after P01, P06 after P05; P07 after P03/P04/P06. This runs alongside the core E tasks without mutating shared task statuses or product runtime. The technical blog and homepage may publish independently of original field-dependent `C002/Y008`; **do not mark those original tasks done** unless their original dependency+acceptance have genuinely occurred. Save favorable, negative and null outcomes with identical editorial discipline.
+When this deferred lane resumes: P01 → P02 → P03; P04 after P01; P05 after P01, P06 after P05; P07 after P03/P04/P06. The 2026-10-23 owner instruction supersedes the earlier proposal to run this alongside core agent work. The technical blog and homepage do not complete original field-dependent `C002/Y008`; **do not mark those original tasks done** unless their original dependency+acceptance have genuinely occurred. Save favorable, negative and null outcomes with identical editorial discipline.
 
 ## 2026-10-22 whole-project alignment — concrete editorial and founder work
 

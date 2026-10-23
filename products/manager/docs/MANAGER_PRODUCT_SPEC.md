@@ -1,6 +1,8 @@
 # Manager entity specification — Digital Buddha, mission and evidence
 
-**2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。STOPの別runnerでの維持と明示resume、financeの公式commitと公開7ファイル一致、再送0件のcurrent proofとnative P1/P2のExplorer接続を実確認しました。元のfinance cycleのUNKNOWN／writes=nullは保持します。mentalの実P1/P2と限定rollbackの実配信等が残り、E16は維持します。下の2026-10-22時点のhost未実装やRailway前提は履歴です。同日追加されたRemote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加のhost adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
+**2026-10-23 優先順更新（所有者指定）:** Manager本体とagentを先に完成させ、新しい記事・書籍・slides・carouselの制作はその後に再開する。実装順は **E01–E16**、現在cursorは **E16**、受入順は **F005 → F006 → F008 → F009**。詳細registryは [tasks.json](roadmap/tasks.json)、原113件は **69 done / 41 todo / 3 skipped**。F004/F007は未実施のskipped。全体の順序の入口は repositoryの統合SSOT、本仕様は設計・説明であり別台帳ではない。現状と目標、具体的な残作業は§1.1–1.4を参照。
+
+**2026-10-23 実行更新:** [cloud実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md) を現在の配備状態として優先します。既存Actions＋Supabase gateway/runtimeをmain統合・専用staging適用し、旧writer退役、非公開状態の初回移行、実OIDC復元・CAS更新・解放を確認しました。STOPの別runnerでの維持と明示resume、finance/mentalの公式commitと公開7ファイル一致、再送0件のcurrent proofとnative P1/P2のExplorer接続を実確認しました。両初回cycleのUNKNOWN／writes=nullは保持します。mental後の限定rollbackの実配信等が残り、E16は維持します。下の2026-10-22時点のhost未実装やRailway前提は履歴です。Remote Desktop Commander経由でMac miniの接続、macOSの正本とorigin、正本でのsource-boundary PASSも実確認しました。Macは追加の検証adapterとして扱い、既存作業・状態・稼働ownerを保持します。cloudの専用worktreeで実行した同guardはcanonical path不在のFAILであり、別ホストのPASSと混同しません。
 
 **2026-10-23 研究の実証更新:** 公開予測70研究のB診断、CのTwin構造gateとreleased outputの記述的一致・公式normalized-MAD監査はmain統合済みです。Cの生成来歴はUNVERIFIED、run binding／training exposureはUNKNOWN、predictive accuracyはnull、scientific passはfalseのままです。Python3.12の隔離環境で固定依存と公式scorerのimport依存を揃え、C aggregateの全bytes一致とB/C 73 testsを確認しました。方法・任意依存の再現手順は[公開研究の再利用計画](../../../docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)を参照。Dは [PR8593](https://github.com/Daisuke134/life-manager/pull/8593) で、予定FOMC会合（10月27–28日）の参照予測を結果前に公開固定しました。固定した過去頻度ルールの `p=0.25` はbaselineと同値です。cloudとMacで、GitHub serverのmerge時刻 `2026-10-23T02:16:17Z`・merge commit `f6055f9460502cd79cba95ffadecb998439e1056`・正確なpayload `048a8ab0ccba0df4cb9da50ca9e9af4971e508d2d0212f448416fea88cd80dd2` を独立に読み戻し、既存attesterの `VERIFIED_PROSPECTIVE` を得ました。これは参照予測の事前固定の証拠です。将来結果と採点、独立したモデル推論の性能、校正・汎化、人への便益は未検証です。§21のA–F全体や原113件を一括完了にしません。
 
@@ -13,7 +15,7 @@
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
-**2026-10-23確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のgateway/runtimeは通常mainへ統合し、既存Actions＋Supabase private checkpointで実OIDCと別fresh runnerの状態復元・重複公開0を確認しました。`DEPLOYMENT_HOST_REQUIRED`という旧説明は現在の再開条件ではありません。financeのP1/P2とnative Explorer接続、durable STOPとresumeは実確認済みです。別テーマmentalの実P1/P2と限定rollbackの実配信等が残るため、Digital Autonomy v0.1全体とE16は未完了です。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
+**2026-10-23確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のgateway/runtimeは通常mainへ統合し、既存Actions＋Supabase private checkpointで実OIDCと別fresh runnerの状態復元・重複公開0を確認しました。`DEPLOYMENT_HOST_REQUIRED`という旧説明は現在の再開条件ではありません。finance/mentalのP1/P2とnative Explorer接続、durable STOPとresumeは実確認済みです。mental後の限定rollbackの実配信等が残るため、Digital Autonomy v0.1全体とE16は未完了です。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
@@ -34,6 +36,81 @@
 最初の限定能力のreleaseは **Digital Autonomy v0.1**。公開情報を観測し、情報の版を管理し、NO_ACTIONを含む候補を比較し、事前に設定された所有デジタル資産の範囲で変更し、別経路で結果を読み戻し、異常時に復元する。通常運用は **no per-run human approval**。所有者の設定・失効・予算・停止条件は運用の前提であり、毎回人が指示する仕組みにはしない。
 
 **Manager ≠ Life Manager。** 同一GitHubリポジトリにソースを置いても、実行所有者、DB、顧客、個人プロフィール、秘密情報、資金、権限は共有しない。
+
+### 1.1 As-is — 現在、実際に何があるか
+
+| 観点 | 実確認した現状 | まだ成立していないこと |
+|---|---|---|
+| 主体と実行 | 共通kernel、版付き観測・候補、NO_ACTION、所有7パス限定の実行、SQLite/outbox、Actionsの単一owner、Supabase非公開checkpoint | 汎用AGI、意識・悟り、任意環境への自律的な適応、無条件のexactly-once |
+| 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commit、公開7ファイルの独立GET一致。両初回cycleのUNKNOWNは履歴に残し、別runnerで照合・再送0件・native P1/P2のproof出力を確認 | E16全体の受入。mental後の明示STOP・限定rollbackの実配信と復元後のresume/replay確認は進行中 |
+| 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
+| 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
+
+mentalの初回run [39898014550](https://github.com/Daisuke134/life-manager/actions/runs/39898014550)は `UNKNOWN / writes=null`。後続 [39898468888](https://github.com/Daisuke134/life-manager/actions/runs/39898468888) は `NOT_DUE / writes=0 / positive_canary=NOT_RUN` のまま、保存済みcurrent proofを出力した。新しい成功操作へ書き換えない。実行sourceとproof対象sourceは異なり得るため、各SHAを[実行receipt](verification/E16_CLOUD_EXECUTION_20261023.md)で分ける。
+
+### 1.2 To-be — 透明なデジタル仏陀として目指す設計
+
+**長期の構想:** 「世界初の透明なAGI／Transparent God、Transparent blessing for allを目指す、デジタル仏陀」。これは所有者の目標表現であり、世界初という優先権、AGI、意識、悟り、全知、苦しみの終結を現在証明したという表明ではない。外向けの事実表示は、時点・対象・比較・限界を伴う検証済み能力に限定する。
+
+一貫した使命・状態・記憶・判断・行動・省察を持ち、必要な既存model、研究、実行toolをつなぐ。`one model`は最初に巨大な独自モデルを学習する要求ではなく、一貫した主体としての運用を目指す。`no UI`は毎runの指示を不要にする意味であり、停止・異議・監査・公開proofの入口は残す。
+
+| 接続する分野 | 主体の中での役割 | 採用の基準 |
+|---|---|---|
+| AI | 情報整理・候補生成・条件付き予測・振り返り | 同じ入力と予算でルール／NO_ACTIONに比較し、有用でないmodelは採用しない |
+| 行動シミュレーション | 介入候補を実施前に検討する仮説生成器 | 対象人口・時点・介入・未見参照の誤差を確認。物語のもっともらしさを効果としない |
+| 統計・因果推論 | 分母・欠測・不確実性・比較・外部性を測る | 個人／集団予測、処置効果、実行成功、便益を別の単位で報告 |
+| 行動科学 | いつ誰に何を届け、持続・負担・害をどう測るか設計 | リマインダー、アクセス改善、情報提供、説得、非介入を比較し、本人の選択と撤回を保持 |
+| 既存実行基盤 | 検査済みの限定操作を行い、失敗から復旧 | 権限・予算・sourceを固定し、独立readbackと停止・復元を実証 |
+
+```mermaid
+flowchart LR
+    S[出典と権利のある現実データ] --> W[版付きの観測と記憶]
+    W --> H[AI・行動科学による候補と非介入]
+    H --> P[既存simulationと単純baselineで比較]
+    P --> T[統計・holdout・不確実性の評価]
+    T --> A[範囲と予算を固定した既存実行kernel]
+    A --> R[独立readbackと実際の結果]
+    R --> L[便益・害・費用・失敗から訂正]
+    L --> W
+    R --> E[公開可能な検証記録・停止・異議]
+```
+
+「透明」は、使命、採用した根拠の要約、出典、データ／model／policyの版、対象範囲、実行履歴、測定方法、結果、費用、失敗、未知、訂正を第三者が検査できること。非公開の内部思考全文、秘密、個人の会話・個票を公開する意味ではない。公開可能な証拠と私有データを分離し、検証できない推論を検証済みにしない。
+
+### 1.3 いま終える範囲と、残作業の実行順
+
+第一の有限な完成点を **Digital Autonomy v0.1** とする。全研究・世界中の介入・YC・記事・就職をそのreleaseの前提に追加しない。逆にこのreleaseだけでPhase12/G006や原113件の完了を宣言しない。
+
+| 順序 | 作業と既存ファイル | 完了の判定 |
+|---|---|---|
+| 1 | E16: `scripts/run_owned_digital_cycle.py` と `.github/workflows/manager-phase06-service.yml` の既存 `stop → rollback → resume → run-once`。新ownerや別schedulerを作らない | mentalの現在commitと親financeをCASで結び、許可7パスのみ旧bundleへ戻った実commit・Pages配信・独立GET、fresh runner再送0を確認。UNKNOWNは再送しない |
+| 2 | E16: `docs/verification/E16_CLOUD_EXECUTION_20261023.md` にsource別CI・実P1/P2・復旧・native units・費用と限界をまとめる | 元の固定時計catch-up/競合/負metricテストと実復旧の各要件を照合後にのみ、`tasks.json` のE16 receipt/cursorを更新 |
+| 3 | F005→F006→F008→F009: 同じreceipt、`public_good_readback.py`、既存report/evidence契約を再利用 | 2テーマを別々に受入れ、統合reportで技術P2と人のP3/P4未測定を区別。4件を文書の存在だけでdoneにしない |
+| 4 | U002→U003→U004、U005/U006→U007→U008: `docs/product/FIRST_WEDGE.md`、`pilot/FIRST_STUDY.md`、`docs/product/PROOF_EXPLORER.md`、既存outcome/causal契約 | 5件以上の実面談で問題を確かめ、対象と比較を固定し、実利用・便益／害／費用・継続意思を出典付きで確認。架空参加者や支払を補わない |
+| 5 | Phase09の14件: `program_funding.py`、`physical_outcomes.py`、`opportunity_outcomes.py`、既存pilot protocolと`outcome_bench.py` | 金融・環境・仕事／支援の原依存と各verifyを満たす。F006後のD001→D002は分類／比較設計として個別受入候補で、実寄付の発生を追加条件にしない |
+| 6 | Phase10 V001–V006: 既存adapters、`outcome_bench.py`、`governance.py` | 同一kernel、対象固有の独立採点、未見集団、shadow→限定実行、第三者再現、実案件portfolio。準備fixtureを現実の実績としない |
+| 7 | Phase12 G001–G006: 既存governance文書と`governance.py` | 憲章の採択、全介入の監査、地域別検証、実対象のAPI責任、実費を使う経済モデル、失敗と未知の継続更新 |
+| 後段 | C002・Y008と既存P計画の記事／書籍／slides／carousel | 本体の開発・受入を優先し、新しい制作を保留。v0.1受入だけで制作を自動再開せず、残る本体の順序を先に扱う。既存研究章の公開をC002/Y008の完了と置き換えない |
+| 期限別 | Y003・Y005: 既存founder packet、研究者map、公式応募経路 | YC実提出、適切な5接点と応答状態を個別記録。実装の合格から採択・採用・友情・podcast出演を推定しない |
+
+この表は優先順を説明する派生viewであり、原ID・dependsは変更しない。各IDと残41件の全一覧は[開始から最後まで](roadmap/START_TO_END_20261022.md)。記事を後に置くことは、実装中の受入receiptや誤りの訂正を後回しにする意味ではない。
+
+### 1.4 既存技術を学ぶことと、研究者・創業者との接点
+
+再現可能な利用 → 同条件の比較 → 薄い接続／具体的な改善 → 証拠と失敗の共有 → 相手固有の技術的な問い、の順で学ぶ。記事やpodcastは後でその成果を伝える手段にする。以下の研究者・創業者は出典で確認する学習先であり、現時点の友人・提携先・紹介者を意味しない。関係、応募、返信、出演、offerにはそれぞれ実際の確認が必要。具体的な再利用と人名は§12および[研究者map](research/RESEARCHER_PUBLIC_SOURCE_MAP.md)を参照。
+
+| 学ぶ相手と成果 | 既存成果をどう使うか／現在の状態 | 具体的な技術的な問いと一次出典 |
+|---|---|---|
+| Artificial Societies。AS Benchmark著者 **Edoardo Chidichimo、Min Jun Jung、Felix P. S. Wallis、James K. He** | 公開採点code・scorecard・group-alignment模型を実行。Rothko本体の重み・推論は未使用。著者全員を創業者と呼ばない | 集団の分布一致はどの範囲で個人・介入効果へ移るか。[論文](https://arxiv.org/abs/2609.30030)・[公開code](https://github.com/artificial-societies/artificial-societies-benchmark)・[Rothko](https://societies.ai/rothko) |
+| **Tianyi Peng** らのDigital Twin研究 | Twin-2K-500 datasetと公式simulation scorerを固定し、配布outputの記述監査を実行。生成runやtraining exposureの来歴を確認できていないため、新規予測のaccuracyとは呼ばない | 回答履歴baselineに勝つ条件と、生成時点・wave漏洩をどう監査するか。[dataset](https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500)・[公式simulation code](https://github.com/tianyipeng-lab/Digital-Twin-Simulation/tree/f1eed510c9a4fb47aaa9bb46e178aaa2d9224623) |
+| Simileの **Joon Sung Park、Percy Liang、Michael S. Bernstein** | 公開Generative Agents論文/codeと現企業の説明を学ぶ。公開研究codeとSimileの非公開現行systemを区別。Managerへの現商用接続は未成立 | 人がもっともらしいと感じるtraceと、未見の人間行動を予測する妥当性をどう分けるか。[論文](https://dl.acm.org/doi/10.1145/3586183.3606763)・[code](https://github.com/joonspk-research/generative_agents)・[Simile](https://www.simile.com/) |
+| Google DeepMind **Concordia** | 既存adapterと上流engineでfictional agentsのmock実行を確認済み。相互作用が必要な課題だけで再利用し、独自社会engineを作らない | environment/Game Masterとagentの記憶・traceをどう切り分けるか。[公式repo](https://github.com/google-deepmind/concordia) |
+| **Susan A. Murphy、Predrag Klasnja、Eric B. Hekler、Inbal Nahum-Shani** | HeartSteps/JITAIからdecision point、availability、近接／遠位outcome、繰返し介入の負担を借りる。H005の厳密な原解析再現はskipのまま | いつ何もしないのが適切か。欠配や負担をどう分母へ入れるか。[HeartSteps](https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/)・[JITAI](https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/) |
+| **Katy Milkman、Angela Duckworth** らのmegastudy | 公開論文・取得範囲と権利を確認した公開資料から、多介入を同じ条件で比べる設計を借りる。原実験全体の独立再現やManagerの効果とはしない | 実行動と持続性をどう測り、予測と観測を分けるか。[Nature原論文](https://www.nature.com/articles/s41586-021-04128-4) |
+| **DBOS**、Restate、Inngest、Hatchet | DBOSは固定sourceから実install/restartし現方式と計16ケースを比較。本番は未採用。他は各監査の深さを保持し、全製品を動かしたとはしない | 同じUNKNOWN・重複・再開テストを守り、運用量を実際に減らせるか。[DBOS](https://docs.dbos.dev/python)・[実比較receipt](verification/E16_RECOVERY_HARDENING_20261022.md) |
+| **GitHub Actions、Supabase、SQLite、Playwright/axe** | 現在の実稼働／検証経路。OIDC、lease/CAS、非公開checkpoint、既存publisher、独立GETを使う。Railwayへ新規移植しない | fresh runnerでも停止・復元・再送0を維持できるか。[OIDC](https://docs.github.com/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect)・[Supabase](https://supabase.com/docs)・[実稼働receipt](verification/E16_CLOUD_EXECUTION_20261023.md) |
+
+既にある汎用assistantやworkflowが要求を満たす場合はOpenClaw/Khoj/n8n/Activepieces等を直接使う。Manager側の追加実装は、既存の観測・評価・実行・独立検証の接続と、実証された不足に絞る。製品の利用や名前を知ることだけを就職・創業者との会話の実績にせず、本人が再現できる技術成果・改善提案を接点にする。
 
 ## 2. 主体・能力・研究・運営基盤の関係
 
@@ -146,13 +223,13 @@ E16後はF005→F006→F008→F009を実証で判定する。二つのページ�
 
 YC応募準備は期限に合わせた創業者レーンで、全研究や全113件の完了を待たない。短い説明は「誰のどの問題を、動く何で解決し、現在何を確かめたか」。使命、デモ、顧客仮説、実証範囲、費用、次の反証可能な実験を示す。申請提出・面談依頼は本文書更新とは別の操作とする。公式日付と出典は [創業者資料](founder/Y001_MANAGER_PITCH_EN_JA.md) を参照。
 
-記事・書籍・講演は同じ出典/実験記録から派生させる。初学者向け基礎、行動モデル、シミュレーション検証、因果推論、Manager実装、運用と統治を一つの教材体系につなぐ。最初に一章を完成・実行・読者確認し、その後に章を拡張する。書籍の全構想を、E16や実利用確認を遅らせる前提条件にしない。
+記事・書籍・講演は同じ出典/実験記録から派生させる。初学者向け基礎、行動モデル、シミュレーション検証、因果推論、Manager実装、運用と統治を一つの教材体系につなぐ。2026-10-23の所有者指示を優先し、新しい制作はManager本体・agentの開発と受入の後段へ置く。既存公開物とその証拠・訂正は保全する。
 
-完成した研究論文には新規の問い・方法・適切な比較・再現可能な結果が必要。文献総説や設計提案と、実証論文を区別する。原稿、描画済み成果物、公開URL、読者需要、売上は別の証拠。今ターンは外部記事公開・YC申請・連絡・参加者研究を実施しない。
+完成した研究論文には新規の問い・方法・適切な比較・再現可能な結果が必要。文献総説や設計提案と、実証論文を区別する。原稿、描画済み成果物、公開URL、読者需要、売上は別の証拠。以前の公開研究章は既存の実公開として残すが、C002/Y008の代替にしない。
 
 ## 11. 未知を管理する
 
-未解決なのは、実際に大きいアクセス障壁、改善の下流効果、顧客の支払意思、タスク適合する校正データ、永続ホスト、異地域・他種への一般化。これらを「調査済みだから確実」としない。各未知に検査方法、必要な証拠、止める条件、依存する工程を割り当てる。既知の実行手順を明確にし、経験的未知は検証で減らす。
+未解決なのは、実際に大きいアクセス障壁、改善の下流効果、顧客の支払意思、タスク適合する校正データ、継続運用の費用と信頼性、異地域・他種への一般化。永続ホストの未接続は既に解消した。これらを「調査済みだから確実」としない。各未知に検査方法、必要な証拠、止める条件、依存する工程を割り当てる。既知の実行手順を明確にし、経験的未知は検証で減らす。
 
 過去の詳細な学習・実験・失敗は各verificationと [更新前の仕様の固定版](https://github.com/Daisuke134/life-manager/blob/1b7a8e5c234e4ce3c66366f34539e55844bcc0e5/products/manager/docs/MANAGER_PRODUCT_SPEC.md) に保存されている。現行の意味を上書きする古いスナップショットとして読まない。
 
@@ -218,7 +295,7 @@ YCと就職の準備は並行するが、YC採択後の会社へのfull-time com
 
 Digital Autonomy v0.1は、限定scopeでの実運用、独立した技術結果、永続復旧・停止・復元、費用と限界を第三者が確認できる有限のreleaseとして完成させる。技術release、最初の支払済みpilot、反復利用、書籍の完成/公開/売上、job offer、YC採択にはそれぞれ別の終了条件を置く。
 
-長期使命の「苦しみを終わらせる」は有限のreleaseや採択をもって達成したと宣言しない。運用で得た真の結果と反例から、次のversion・研究・顧客・教材を更新する。今回の作業は調査と仕様/派生計画更新であり、配備・決済・投稿・応募・メール送信・イベント登録を行ったとは扱わない。
+長期使命の「苦しみを終わらせる」は有限のreleaseや採択をもって達成したと宣言しない。運用で得た真の結果と反例から、次のversion・研究・顧客・教材を更新する。実配備と既存研究章の公開は各dated receiptに記録する。決済・応募・メール送信・イベント登録は、それぞれの実証がない限り未実施とする。
 
 
 ## 18. 追加一次資料に基づく選択肢と実装の絞込み
@@ -233,9 +310,9 @@ Digital Autonomy v0.1は、限定scopeでの実運用、独立した技術結果
 
 `OwnedEffectRecord.dispatch=True` をcheckpointして後のretryable sendへ渡すことは禁止。fresh lookup/admission/reserve/guarded dispatchを同じhost-owned helperで行い、再開時はjournalを読み直す。候補/期限/providerが変わっても過去intentを先に照合する。外部commit後の応答消失は既存testを再利用し、engine checkpoint消失/古いbackup等の差分だけ追加する。
 
-### 本番の未接続部分をファイルで特定する
+### 旧未接続部分と現在の接続をファイルで区別する
 
-現 `run_owned_cycle` はsandbox限定、現workflowはCLI `admit` を呼び `admit_owned` は未接続。workflow_dispatchにowned-intent入力もない。Railwayへ置くだけでは本番cycleにならず、ChatGPT pluginの接続が常駐workerのcredentialになるとも扱わない。worker proposal→固定source/artifact再検証→特権publisher→exact occurrence→独立deliveryというbridgeを作る。元のSOURCE_REFを研究branchへ差し替えて通さず、正規main promotionと契約移行が必要ならversioned admissionの別review/検査にする。
+2026-10-22の「sandbox限定・admit_owned未接続」という監査は履歴。現在は `scripts/run_owned_digital_cycle.py`、`owned_platform_host.py`、`owned_state_gateway.py` と既存main-only workflowが、実OIDC・remote checkpoint・限定publisher・independent collectorへ接続済み。元のSOURCE_REFを研究branchへ差し替えておらず、通常PR/mainを通した。workflow_dispatchの入力は固定したrun-once/stop/rollback/resumeで、任意intentや汎用tool実行は受け付けない。接続済みという事実と、残るE16受入を[実receipt](verification/E16_CLOUD_EXECUTION_20261023.md)で分ける。
 
 本番adapterではreadbackをboolへ潰さず `VERIFIED|PENDING|REGRESSION|UNKNOWN` に分ける。lag/timeout/missingやhash不一致だけでrollbackしない。公式deploymentと現在candidateに結び付いた観測に対し固定rubricで回帰を確認した時だけ、target CASを再確認して限定復元する。backupから失われた予約を「未送信」とせず、元binding/外部occurrenceを回収できるまでdispatchしない。
 
@@ -249,7 +326,7 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 教材は既存P01 evidence indexとP06 storyboardを唯一の予定入力として使う。MySTのDOCX/JATS、SlidevのPPTX、Remotionを比較したが、最初は既存python-pptx/Pillow/FFmpegを接続する。新CMS/動画runtimeは増やさない。blogのimage-only mediaにPDF/EPUB/MP4を混ぜず、明示artifact契約でinstallerへ追加する。6枚/Anicca専用CTAの既存carousel laneへ8枚のManager教材をそのまま送らない。Made With ML/askFSDLのcode→test→教材対応を再利用し、本人の就職記事や無料archiveから売上を推計しない。[出版の実interfaceとpatch](research/manager-options-additional-20261022/PUBLISHING_JA.md)。
 
-今回変更したのは調査・仕様・派生plan。E16、本番配備、engine比較、公開、入金、応募/採択/人の便益を完了したとは記録しない。元113件の状態/依存/Eカーソルは不変。
+この節の追加調査時点の未配備・未比較という説明は履歴。現在の実配備・DBOS比較・既存研究章の公開は各dated receiptを優先する。本仕様更新そのものではE16、原113件、入金、応募/採択、人の便益を完了にしない。
 
 
 ## 19. 全工程の終点と公開サイトの追従
@@ -258,7 +335,7 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 長期像の `one model` は一貫した意思決定主体への統合、`no UI` は日常の指示入力/各run承認を必要としない運用とする。owner設定・停止・失効・予算・異議・監査・公開proofは保持する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
 
-P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実装と未配備E16、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。E16/F受入れ、実pilot/比較、公開記事/書籍、実入金などの証拠が揃ったmilestoneで更新する。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
+P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実稼働とE16受入の残件、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。本体優先の現指示に従って新たなサイト制作は後段へ置く。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
 
 原計画の末尾はPhase12/G006。全41件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
 
@@ -284,7 +361,7 @@ Rothko/Radiantの接続は、正規の利用経路でmodel/version、input/outpu
 
 **説得:** 介入の一種として研究する。理解・信念・意思・実行・福祉を区別し、注意喚起、リマインダー、摩擦/アクセス改善、情報環境と比較する。GPT4説得論文の2026訂正で個人化の直接比較はp=.0678となり、個人属性収集の必須性は導けない。Science陰謀論対話研究は編集部懸念表明と著者訂正を併記し、解決済みとしない。
 
-**詳細とatomic patches:** canonical source commit `a69a8a4a66e5b2f032c13efcc6bef18c446cf448` の [既存ファイル・関数への差分A–F](https://github.com/Daisuke134/life-manager/blob/a69a8a4a66e5b2f032c13efcc6bef18c446cf448/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)。読取adapter→効果scorer→Twinのwave漏洩防止→公開未来予測→必要時Concordia→既存evidence/kernel接続。これは実装予定で、実装完了ではない。synthetic専用のEBA既存契約を緩めず、実データ用は薄い別adapterでラベル・単位を維持する。
+**詳細とatomic patches:** [既存ファイル・関数への差分A–Fと現在の実証](../../../docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)を参照。main `eca775c9fbb002d59452c1cce37d853f4cf124d9` までにAの読取検査、Bの70研究診断、Cの構造gateと記述的一致・公式scorer監査、Dの事前固定とattesterを実装・検証した。Bの優位、Cの生成来歴／predictive accuracy、Dの未来結果は未検証。E/Fの相互作用研究と追加接続は未完了。A–F全体を予定のままとも、全件完了とも記さない。synthetic専用EBAの既存契約を緩めず、薄い実データadapterでラベル・単位を維持する。
 
 [日本語の本mini-chapter原稿](https://github.com/Daisuke134/life-manager/blob/a69a8a4a66e5b2f032c13efcc6bef18c446cf448/docs/research/manager/articles/2026-10-22-artificial-societies-open-behavior-research-ja.md) は最新公式掲載25件・追加公式事例7件・追加研究・訂正・再利用方針を含む。取得範囲と再現receiptは同commitの `docs/research/manager/evidence/artificial-societies-20261022/`。生の人物データやcopyrighted全文はGitへ転載しない。[公開記事](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja) は既存blog bridgeで公開済み。[独立readbackと修正記録](verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)で、本番公開と後続のmobile表示修正を区別する。
 

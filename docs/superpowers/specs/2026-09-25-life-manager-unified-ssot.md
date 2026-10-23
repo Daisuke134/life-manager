@@ -1,5 +1,15 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## Manager lane優先順 — 2026-10-23（所有者指定）
+
+Managerは仏教的AIエンティティ／デジタル仏陀という呼称を使う。このlaneでは**本体・agentの実装と受入を先にし、新しい記事・書籍・slides・carouselの制作は後段へ保留**する。他のLife Manager業務のowner・cursorをこの指定で置換しない。
+
+As-isは既存Actions＋Supabaseの単一owner、実OIDC／永続復元、finance/mentalの公式公開commitと独立GET、別runnerでの再送0とnative proof出力。To-beはAI・既存行動simulation・統計／因果推論・行動科学を接続し、実結果・害・費用・未知から訂正する透明な主体。透明なAGI／Transparent God・blessing for allは長期構想であり、AGI・世界初・悟り・苦の終結・人の純便益を証明したという現在値ではない。
+
+現在の技術cursorはE16。限定rollbackの実配信／復元後のresume・replay検証 → E16判定 → F005→F006→F008→F009個別受入 → 元依存順のU/D/V/G本体作業を進める。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=69 done / 41 todo / 3 skipped。この更新では状態・ID・dependsを変えない。
+
+設計・残件の説明は [Manager spec §1.1–1.4](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)、現実証は [cloud実行receipt](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md)、全IDの派生表示は [開始から最後まで](../../../products/manager/docs/roadmap/START_TO_END_20261022.md) を参照。人名・再利用元と、実使用／比較のみ／非公開未利用の区別も既存specへ集約し、新しいSSOTは作らない。
+
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 
 **順序変更の記録:** 旧=「統括cursor（2026-10-15）D1→D4→Gig」と10/17「SH2→SH4→SH3→SH5、cursor = SH2」。新=下記「次の順序」1→7、現在cursor=1。理由: 10/19実測で収益laneを止めている根本はcorespotlightd→swap→disk floorで、merge済みsourceの採用だけでは収益laneが走らない。SH2–SH5・P2–P5は未完のまま残し、この順序の後に再評価する。

@@ -1,5 +1,7 @@
 # Manager — 開始からPhase12までの全工程と残41件
 
+**2026-10-23 現在の優先順:** 本体・agentの開発と受入を先に進め、新しい記事・書籍・slides・carouselの制作は後段へ保留。E16はActions＋Supabaseで稼働しfinance/mentalの実P1/P2・fresh runner再送0まで確認済み、限定rollbackの実配信と復元後のcontrols等は未受入。下の「本番配備前」は2026-10-22 baselineの履歴。原113件=69 done / 41 todo / 3 skipped、E16 cursorは不変。[現specのAs-is／To-be](../MANAGER_PRODUCT_SPEC.md)と[実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md)を優先する。C002/Y008を保留中に、全113件完了と呼ばない。
+
 **呼称更新:** 主体は仏教的AIエンティティ／デジタル仏陀（Digital Buddha）。Digital Autonomy v0.1はその限定能力のreleaseであり、主体自体を製品と定義しない。原taskの名称・ID・依存・件数は履歴と受入契約のため保持する。[現行の主体定義](../MANAGER_PRODUCT_SPEC.md)に従う。
 
 2026-10-22 UTC。これは [tasks.json](tasks.json) の状態・依存を説明する派生view。状態の正本を増やさない。確認baselineは `2b9a7b78b4845f6ac7022f969244dc0d1596bddf`。原113件は **69 done / 41 todo / 3 skipped / 0 blocked**、技術の現在地は **E16、本番配備前**。完了は各taskの限定した受入れであり、全科学・顧客需要・人の便益の検証済みという意味ではない。
@@ -17,7 +19,7 @@ flowchart LR
     V --> G[Phase12: 監査・持続運用・拡張]
     F --> C[Phase07: 説明責任]
     Y[Phase11: YC・採用・研究交流] -. 準備は期限に合わせ並行 .-> X
-    P[記事・書籍・slide・動画・公式サイト] -. 検証済み事実から継続更新 .-> G
+    G -. 本体優先工程の後段 .-> P[記事・書籍・slide・動画・公式サイト]
 ```
 
 図は主要な流れ。正確な分岐/joinは下のdepends表に従う。U002の面談やY003/Y005はE16/全41件の完了を待たず準備・実施でき、原依存と必要な本人情報/相手の参加意思を守る。Phase09金融/物理研究は初回digital releaseの必須条件ではない。

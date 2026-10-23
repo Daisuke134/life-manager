@@ -1,5 +1,7 @@
 # Manager Digital Autonomy v0.1 Implementation Plan
 
+**2026-10-23 owner priority:** Finish the Manager/agent implementation and acceptance first; defer new article/book/slides/carousel production. The first bounded engineering milestone is Digital Autonomy v0.1, followed by the original F/U/D/V/G dependencies; it does not complete the entire mission or automatically restart editorial production. Actions + Supabase is already the deployed single-owner/state adapter, with finance/mental public commits and fresh-runner reconciliation. The remaining E16 live acceptance includes scoped rollback delivery and post-recovery controls; see the [dated receipt](../verification/E16_CLOUD_EXECUTION_20261023.md). Earlier host-unavailable and editorial-parallel instructions are historical where they conflict with this update.
+
 
 > **CURRENT IMPLEMENTATION ORDER — 2026-10-22 / Manager technical track**
 >
