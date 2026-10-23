@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-bundle-gc-20261024、base=b0753761c8ec1661b5d85153688a08dca0656b83（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのBUNDLE-GC-GREENと容量診断。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-bundle-gc-20261024、base=b0753761c8ec1661b5d85153688a08dca0656b83（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのBUNDLE-GC-SHIPと容量診断。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -435,7 +435,7 @@ PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象ins
 所有: workerはruntime/loop/central_cleanup.py、bin/cut-loop-release.sh、runtime/loop/tests/test_cut_loop_release.pyの3filesのみ。他者編集を戻さずstage/commit/push/実cleanup/private読取/制御/通信をしない。primaryは本仕様、必要な既存CI接続、review/統合/受入後の候補限定実行と公式readbackを所有する。追加ファイルや変更が必要なら実原因を報告し、独自実装を増やさない。
 
 - [x] BUNDLE-GC-RED: primaryがsource未変更の隔離fixtureで2failed/15passed/4subtests（0.35s）を確認する。失敗はcurrent無し/keep0で残存する完全readonly bundleと、native plist fallbackが有効でも残存するbundleの2件。既存参照・UID・保護store・probe不明・lock/inode不一致の保持15件は成功する。native subprocessはfixture probeへ限定し、実data/cleanupへ到達しない。
-- [ ] BUNDLE-GC-GREEN: 既存回収入口へ最小統合し、current/readonly release/protected保持の既存testsを再利用する。GC再実行は削除0、同rootの新release/bundleやopen対象を削除しない。必要なrelated tests/source boundary/diff/shell構文を確認する。
+- [x] BUNDLE-GC-GREEN: P1修復後の1bd01d23f2でprimaryの隔離HOME関連4filesは157 PASS/30subtests（51.15s）、最新AST/diffと既存shell/source境界/OSS self-containedもPASSとする。fresh再reviewはblocking0/SHIP、引用あり・なし・閉じ忘れalias保持、新旧30条件と最終FD後の期限超過時の削除0/readonly復元を独立確認する。既存回収入口へ統合し旧prunerを除去、selected Python4calls/不可侵store/参照保持は維持する。実cleanup・main/CI反映はまだ行わず、下のSHIP/ACTUALで受け入れる。
 - [ ] BUNDLE-GC-SHIP: fresh read-only review/既存CI13jobs成功/main/public byte readbackを確認する。check登録前の部分的成功や別headをPASSにしない。
 - [ ] BUNDLE-GC-ACTUAL: accepted mainから既存--release-gc-onlyを候補root/keep0へ対象限定実行し、fresh参照・所有・保護条件とreceipt/free-before-afterを確認する。logical/allocatedとAPFS物理増加を混同せず、floor未到達・swap/旧effect未確定はそのまま残す。
 
@@ -445,7 +445,7 @@ BUNDLE-GCのprimary受入とreview修復: 最新main9da021244fを取り込んだ
 
 BUNDLE-GCのP1修復候補: source未変更でquoted/unquoted/unclosed-quote aliasの3 FAIL、無関係process1 PASS（0.65s）を再現する。stdlib shlexの行単位解析と、引用が落ちた場合のbounded絶対path/whitespace境界候補を既存resolverへ渡す19行の修復で、新旧30 PASS/6subtests（0.42s）、既存GC/FD/cutter subset8 PASS（1.37s）、source境界/diff PASSとする。literal apostropheだけで全体を停止せず、path解決不明と既存15s期限は保持へ戻す。追加依存/新native argv framework/cutter変更/実cleanupは0。primaryのexacttree再検証と再reviewを残す。
 
-順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAPの全13job成功を受け入れ、現在cursorはBUNDLE-GC-GREEN。全業務/別Mac/10,000starsは未完。
+順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAPの全13job成功とGCのsource受入を確認し、現在cursorはBUNDLE-GC-SHIP。全業務/別Mac/10,000starsは未完。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
 
