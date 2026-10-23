@@ -32,6 +32,10 @@ if [ "$#" -gt 0 ]; then
       shift
       exec bash "$REPO_ROOT/skills/earn/gig/install.sh" "$@"
       ;;
+    lancers)
+      shift
+      exec bash "$REPO_ROOT/skills/earn/lancers/install.sh" "$@"
+      ;;
     job-hunter)
       shift
       exec zsh "$REPO_ROOT/apps/job-search-loop/scripts/install-oss.sh" "$@"
@@ -53,7 +57,7 @@ if [ "$#" -gt 0 ]; then
       exec node "$REPO_ROOT/apps/life-manager/scripts/product-onboarding-plan.js" --host local "$@"
       ;;
     *)
-      echo "[install] unknown product '$1'; supported: local, list, plan, coconala, connector, fundraiser, job-hunter" >&2
+      echo "[install] unknown product '$1'; supported: local, list, plan, coconala, lancers, connector, fundraiser, job-hunter" >&2
       exit 2
       ;;
   esac

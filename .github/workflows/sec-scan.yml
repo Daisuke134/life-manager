@@ -48,6 +48,7 @@ jobs:
           skills/earn/lancers/tests/test_storefront_owner_pre_effect.py
           skills/earn/lancers/tests/test_storefront_effect_reconcile.py
           skills/earn/lancers/tests/test_create_package.py
+          skills/earn/lancers/tests/test_install_local.py
           skills/earn/lancers/tests/test_profile_readback.py
           skills/earn/lancers/tests/test_storefront_offer_reads_catalog.py
           apps/lancers-revenue/tests/test_application_attribution.py

@@ -65,6 +65,26 @@ def _installer():
     return module
 
 
+def test_codex_login_keeps_the_manual_sign_in_prompt_visible(tmp_path, isolated_home, capfd):
+    executable = tmp_path / "fixture-codex"
+    executable.write_text(
+        f"#!{sys.executable}\nimport os,pathlib,sys\n"
+        "marker=pathlib.Path(os.environ['CODEX_HOME'])/'signed-in'\n"
+        "if sys.argv[1:] == ['login','status']: raise SystemExit(0 if marker.is_file() else 1)\n"
+        "assert sys.argv[1:] == ['login']\n"
+        "print('Sign in at https://example.invalid/fixture-login',file=sys.stderr,flush=True)\n"
+        "marker.parent.mkdir(parents=True,exist_ok=True)\nmarker.write_text('fixture')\n")
+    executable.chmod(0o700)
+    auth_file = isolated_home / ".selected-codex/auth.json"
+    configuration = tmp_path / "runner.json"
+    configuration.write_text(json.dumps({"providers": {"codex": {
+        "executable": str(executable), "account_profile_order": ["owner"],
+        "profiles": {"owner": {"auth_file": str(auth_file)}}}}}))
+
+    assert _installer()._codex_login({"agent_runner_config": str(configuration)}, {}) is True
+    assert "https://example.invalid/fixture-login" in capfd.readouterr().err
+
+
 def test_public_lancers_dispatch_forwards_plan_without_touching_home(tmp_path, isolated_home):
     repository = tmp_path / "dispatch-repository"
     target = repository / "skills/earn/lancers/install.sh"
@@ -294,6 +314,16 @@ def test_broken_input_is_not_replaced_by_an_author_template(installation, capsys
     target = PREFIX + ("application" if kind == "candidate" else "storefront")
     assert target not in case.applied and rows[target]["missing"]
     assert not getattr(case, "private_" + kind).exists()
+
+
+def test_non_object_product_is_held_without_stopping_independent_jobs(installation, capsys):
+    case = installation
+    case.product.write_text("[]")
+    _code, result = _call(case, capsys, "install", *_inputs(case))
+    rows = _jobs(result)
+    assert PREFIX + "storefront" not in case.applied and rows[PREFIX + "storefront"]["missing"]
+    assert PREFIX + "work-sync" in case.applied and PREFIX + "telegram-report" in case.applied
+    assert not case.private_product.exists()
 
 
 def test_other_home_input_imports_relative_assets_and_optional_catalog(installation, capsys):
