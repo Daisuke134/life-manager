@@ -156,13 +156,17 @@ ACCOUNTのDOM source受入: PR #8738/head1a30d9177cb12dce0807182f95c364543ade376
 
 **Goal:** 返信と出品が作者/CrowdWorksの設定へ戻らず、利用者本人のLancers private入力を同じcallerへ渡す。**Architecture:** 既存--product、同じvalidator/catalog_path、検証済みavatar/image、同じreconcileを使う。既定productは `~/.config/anicca/lancers/storefront-product.json`、catalogは同階層の `listing-catalog.json`。public-profileへ新manifestを混ぜず、明示--productは保持する。catalogを使わないproductはcatalog無しで通す。
 
-**Files/所有:** workerは `skills/earn/lancers/scripts/reply_adapter.py`、`storefront-owner`、`storefront_offer.py`、`storefront_effect_reconcile.py` と、それらに対応する既存Lancers testsの必要な箇所のみ。primaryはSSOT/CI/統合/実機受入。既存kernel・registry・browser lifecycle・effect fence・onboarding helperは変更しない。
+**Files/所有:** workerは `skills/earn/lancers/scripts/reply_adapter.py`、`storefront-owner`、`storefront_offer.py`、`storefront_effect_reconcile.py` と、それらに対応する既存Lancers testsの必要な箇所のみ。primaryはSSOT/CI/統合/実機受入と、下記で実測したonboarding helper/testの誤判定修復を所有する。既存kernel・registry・browser lifecycle・effect fenceは変更しない。
 
 **Changes:** Reply build既定をLancers public-profileへそろえる。ownerのrepo product固定を外し、offer/reconcileの既定を同じprivate productにする。runのprofile更新へ検証済みavatarを渡す。catalog overlayとcatalog自動作成には本人catalog/検証済み画像を明示伝播し、作者avatar/catalogへ戻らない。private product/proofの欠損・破損はbrowser/create/notify前でsetup_requiredにする。catalog未設定は未使用laneを止める新必須gateにしない。初回IDの作成mode/保存は次のINPUTS-Bとし、今回はplaceholderや作者IDを補わない。
 
-- [ ] INPUTS-A-RED: 空HOME/別利用者の合成product/catalog/avatarと既存fake tick/runnerで、既定pathと各callerの伝播、検証済みavatar/imageの一致、欠損/破損時の外部callback0を先に失敗再現する。
-- [ ] INPUTS-A-GREEN: 最小修復後に関連tests/AST/shell/source-boundary/diff/Loop contractを確認する。既存の明示--productとcatalog無しの経路を保持し、reconcileの未照合state/fenceを変更・解放しない。
+- [x] INPUTS-A-RED: 空HOME/別利用者の合成product/catalog/avatarと既存fake tick/runnerで、既定pathと各callerの伝播、検証済みavatar/imageの一致、欠損/破損時の外部callback0を先に失敗再現する。
+- [x] INPUTS-A-GREEN: 最小修復後に関連tests/AST/shell/source-boundary/diff/Loop contractを確認する。既存の明示--productとcatalog無しの経路を保持し、reconcileの未照合state/fenceを変更・解放しない。
 - [ ] INPUTS-A-SHIP: commit/push→独立read-only review/既存CI→PR/main/public readbackを行う。既存Lancers CI stepへstorefront owner/reconcile/create/profile/catalogの5既存test filesを追加し、既存Reply testと合わせて今回のcallerを検証する。新workflow/新packageは追加しない。本人入力の生成と実activation、別Mac/公式成果はINSTALL/ACCOUNT/READYへ保持する。
+
+ACCOUNTの追加診断と受入: accepted056792fcのimmutableから新規own tabで公式mypageを読み、target/runtime双方のtitle=mypage、ready=complete、本人summary10links/一意account1、loginなしを確認する。描画も通常dashboardであるが、本文先頭2048文字の裸の`captcha`だけがhuman_verification=trueを発火する。raw account/DOMは出さず、所有tabを閉じる。実Human Verification通過の因果や実private binding成功とは断定しない。primaryは同helperのEXPRESSIONと既存testだけを修正し、本文の単語単独をchallenge証拠にしない。titleのCAPTCHA、明示的な英語/日本語の人間確認案内は拒否する。実EXPRESSIONをNode VMで通す通常mypage/注意書きと本物challenge文言を先にRED再現し、既存origin/login/summary/account一意条件とpoll上限は保持する。INPUTS-Aと同じ本人setupの修復としてreview/CI/mainへ統合し、受入済みimmutableから公式観測を再実行する。
+
+INPUTS-Aのsource検証: workerは最初の20件と型/version追加6件のREDを確認し、担当4source/既存5testsを修復する。primaryも6関連filesとonboarding/local identityを隔離HOMEで実行し254件PASS。AST/shell/source-boundary/diff/Loop contract18products/192jobs/113mapped/errors0を確認する。onboardingの実EXPRESSIONでは通常のreCAPTCHA注意書き/裸captcha誤拒否と日本語challenge見逃しを計3件RED再現し、titleのCAPTCHAと明示challenge案内に限る最小修正で通す。初回IDの契約・保存はINPUTS-Bへ保持し、開発sourceから実private/browser/providerを操作しない。独立review/公開CI/main/immutableの受入を続ける。
 
 #### Lancers本人入力の実装計画
 

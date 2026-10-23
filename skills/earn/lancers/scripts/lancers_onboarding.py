@@ -32,7 +32,7 @@ EXPRESSION = r"""(()=>({
   url: location.origin + location.pathname,
   ready: document.readyState,
   login_form: !!document.querySelector('#login_form, form[action*="/user/login"], input[type="password"]'),
-  human_verification: /human verification|verify (that )?you('re| are) human|captcha|robot check|security verification/i.test(
+  human_verification: /captcha/i.test(document.title||'') || /human verification|verify (that )?you('re| are) human|robot check|security verification|ユーザーが人間であることを確認/i.test(
     (document.title||'')+'\n'+(document.body?.innerText||'').slice(0,2048)),
   profile_links: [...document.querySelectorAll('.mypage.result-summary a[href*="/profile/"]')].map(a=>a.href)
 }))()"""

@@ -10,6 +10,17 @@ assert SPEC and SPEC.loader
 SPEC.loader.exec_module(adapter_module)
 
 
+def test_build_uses_lancers_private_provider_profile(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    received = []
+    monkeypatch.setattr(adapter_module.reply_grounding, "build_reply_grounding",
+                        lambda **kwargs: received.append(kwargs) or {"owner_marker": "other-seller"})
+    adapter, _ = adapter_module.build(["--state-path", str(tmp_path / "reply.json")])
+    assert received == [{"candidate_profile_path": tmp_path / ".config/anicca/job-search/profile.json",
+                         "provider_profile_path": tmp_path / ".config/anicca/lancers/public-profile.json"}]
+    assert adapter._grounding["owner_marker"] == "other-seller"
+
+
 def test_no_buyer_event_is_a_noop():
     row = {
         "context": {

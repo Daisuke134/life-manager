@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import Mock
 
+from skills.earn.lancers.tests.test_storefront_offer_reads_catalog import _private_catalog, _private_product
+
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "storefront_effect_reconcile.py"
 OWNER = "lancers-revenue-storefront"
@@ -28,12 +30,12 @@ def setup(tmp_path: Path) -> tuple[Path, Path]:
         "catalog_listings": {"a": {"listing_external_id": "1344056"},
                              "b": {"listing_external_id": "1344057"}},
     }), encoding="utf-8")
-    product = tmp_path / "product.json"
-    product.write_text(json.dumps({
-        "superseded_listing_ids": ["1338229"],
-        "portfolio": {"external_id": "743964"},
-        "software_portfolio": {"external_id": "743987"},
-    }), encoding="utf-8")
+    product = _private_product(tmp_path / "private", listing_external_id="1338228",
+                               superseded_listing_ids=["1338229"])
+    value = json.loads(product.read_text())
+    value["portfolio"]["external_id"] = "743964"
+    value["software_portfolio"]["external_id"] = "743987"
+    product.write_text(json.dumps(value), encoding="utf-8")
     return state, product
 
 
@@ -51,6 +53,61 @@ def roster(**overrides) -> dict:
 def runner_for(value: dict, returncode: int = 0) -> Mock:
     stdout = "log line\n" + json.dumps(value) + "\n"
     return Mock(return_value=subprocess.CompletedProcess([], returncode, stdout, ""))
+
+
+def private_setup(tmp_path):
+    product = _private_product(tmp_path / ".config/anicca/lancers")
+    state = tmp_path / "owner-state"
+    state.mkdir()
+    (state / "listing.json").write_text(json.dumps({"listing_external_id": "91001"}))
+    value = roster(listing_external_id="91001", listing_ids=["91001"], superseded_status={},
+                   portfolio_external_ids={"portfolio": "81001", "software_portfolio": "81002"})
+    return state, product, value
+
+
+def test_private_default_product_is_passed_to_same_roster_caller(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state, product, value = private_setup(tmp_path)
+    module = load_module()
+    runner = runner_for(value)
+    code = module.main(["--occurrence", OCCURRENCE, "--state-root", str(state),
+                        "--admission-db", str(admission(tmp_path))], runner=runner)
+    command = runner.call_args.args[0]
+    assert command[command.index("--product") + 1] == str(product)
+    assert code == 0
+    assert json.loads(capsys.readouterr().out)["state"] == "PROOF_READY"
+
+
+def test_private_catalog_is_forwarded_to_roster_readback(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state, product, value = private_setup(tmp_path)
+    catalog = _private_catalog(tmp_path / "catalog")
+    module = load_module()
+    runner = runner_for(value)
+    code = module.main(["--occurrence", OCCURRENCE, "--state-root", str(state),
+                        "--product", str(product), "--catalog", str(catalog),
+                        "--admission-db", str(admission(tmp_path))], runner=runner)
+    command = runner.call_args.args[0]
+    assert command[command.index("--catalog") + 1] == str(catalog)
+    assert code == 0
+
+
+def test_private_missing_proof_holds_before_browser_and_fence_resolution(tmp_path, monkeypatch, capsys):
+    state, product, value = private_setup(tmp_path)
+    (product.parent / "other-avatar.png").unlink()
+    module = load_module()
+    runner = runner_for(value)
+    resolver = Mock(return_value=True)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+    database = admission(tmp_path)
+    before = database.read_bytes()
+    assert call(module, state, product, runner, "--resolve", database=database) != 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["state"] == "HELD"
+    assert result.get("error") == "setup_required"
+    runner.assert_not_called()
+    resolver.assert_not_called()
+    assert database.read_bytes() == before
 
 
 def admission(root: Path, state: str = "claimed", unknown: int = 1) -> Path:
