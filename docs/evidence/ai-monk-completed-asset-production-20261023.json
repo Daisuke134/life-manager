@@ -483,5 +483,271 @@
     "provider_mutations": 0,
     "private_evidence_sha256": "15f043307f6a56aadaf97a9de842edabc6bbcdf1c089f4fe22ce66e9ae126142",
     "remaining": "video_idに結び付く公式費用・通貨・transaction ID"
+  },
+  "english_coalescing_production_adoption": {
+    "checked_at": "2026-10-23T05:10:54.757806+00:00",
+    "run_id": "manual-en-coalescing-adoption-20261023",
+    "owner_id": "ebook-en-tiktok-daily",
+    "occurrence_id": null,
+    "release_sha": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+    "phase": "loaded_release_readback",
+    "command": "target-only native apply --loaded-idle-only using main-derived full immutable; current unchanged",
+    "exit_code": 0,
+    "effect": "owner_release_updated",
+    "provider_receipt_id": null,
+    "readback": {
+      "installed_matches_loaded": true,
+      "loaded_release_environment_matches": true,
+      "idle": true,
+      "install_event_id": "ce3b736c5a17f6d732bdc5f1",
+      "launchctl_response_sha256": "9921616113f75f4a18131a5923599fcee646b2ea2218c4be93dea7c8a2c90846",
+      "queued_occurrences": 159,
+      "effect_unknown_occurrences": 0,
+      "coalescing_execution_verified_in_production": false,
+      "free_bytes": 8900206592,
+      "required_revenue_free_bytes": 10737418240
+    },
+    "counts": [
+      {
+        "state": "cancelled",
+        "effect_unknown": 0,
+        "count": 100
+      },
+      {
+        "state": "queued",
+        "effect_unknown": 0,
+        "count": 159
+      },
+      {
+        "state": "released",
+        "effect_unknown": 0,
+        "count": 3777
+      }
+    ],
+    "error_class": "disk_floor_low",
+    "retryable": true,
+    "next_action": "native_existing_slot_run_when_native_disk_floor_met",
+    "effects": {
+      "new_generations": 0,
+      "posts": 0
+    },
+    "source_acceptance": {
+      "pr": "https://github.com/Daisuke134/life-manager/pull/8628",
+      "head": "2c065b285c168285baa36ad6b355a641a249eb5d",
+      "merge": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+      "ci_checks_success": 13,
+      "mandatory_scan_run_id": 39903308636,
+      "source_tests": 643,
+      "source_subtests": 210,
+      "fresh_review_findings": 0,
+      "fresh_review_tests": 122,
+      "independent_fixtures": [
+        "159_orphaned_wakes_history_retained",
+        "single_concurrent_claim",
+        "other_owner_fifo_preserved"
+      ]
+    },
+    "release_verification": {
+      "provenance": "ancestor-of-origin-main",
+      "release_paths": "ALL",
+      "writable_entries": 0,
+      "regular_files": 9323,
+      "source_byte_match": true,
+      "current_selector_changed": false
+    }
+  },
+  "owned_dependency_recovery": {
+    "run_id": "manual-ai-monk-owned-dependencies-recovery-20261023",
+    "owner_id": "codex-ai-monk-dependency-recovery",
+    "release_sha": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+    "phase": "owned_unused_dependency_recovery",
+    "exit_code": 0,
+    "effect": "owned_regenerable_dependencies_removed",
+    "readback": {
+      "source_unchanged": true,
+      "protected_memory_preserved": true,
+      "selected_packages_absent": true,
+      "open_handles_before": 0,
+      "worktree_processes_before": 0,
+      "metadata_only_rmdir_count": 0
+    },
+    "free_before_bytes": 8817799168,
+    "free_after_bytes": 11048394752,
+    "observed_recovered_bytes": 2230595584,
+    "worktrees": 2,
+    "removed_package_count": 56,
+    "source_unchanged": true,
+    "protected_memory_preserved": true,
+    "temporary_leases_released": true,
+    "floor_lowered": false,
+    "private_evidence_sha256": "edfb938b1c6af6118048f85527dae8ad11f9ec06b87473f93a0cf3194f23e3cb"
+  },
+  "native_existing_slot_attempts": [
+    {
+      "run_id": "manual-18e110dc6e41d610-5069",
+      "owner_id": "ebook-en-tiktok-daily",
+      "occurrence_id": "ebook-en-tiktok-daily:manual-18e110dc6e41d610-5069",
+      "release_sha": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+      "slot_at": "2026-10-08T23:00:00.000Z",
+      "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+      "asset_sha256": "7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566",
+      "publication_id": "baseline.ebook-en.d3.s3-20261008T230000000Z-ebook-en-tiktok-daily",
+      "started_at": "2026-10-23T05:17:45.261297+00:00",
+      "finished_at": "2026-10-23T05:17:55.911981+00:00",
+      "exit_code": 75,
+      "terminal": {
+        "timestamp": "2026-10-23T05:17:55.726093+00:00",
+        "run_id": "manual-18e110dc6e41d610-5069",
+        "occurrence_id": "ebook-en-tiktok-daily:manual-18e110dc6e41d610-5069",
+        "phase": "report",
+        "status": "blocked",
+        "exit_code": 75,
+        "blocker": "host_admission_deferred:resource_capacity_busy",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "effect_status": "not_applicable",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "evidence_refs": [
+          "lm-loop://ebook-en-tiktok-daily/manual-18e110dc6e41d610-5069/summary.json"
+        ]
+      },
+      "provider_receipt_id": null,
+      "provider_publication_confirmed": false,
+      "native_pre_effect": true,
+      "official_published_url": null,
+      "private_evidence_sha256": "ea8bceaf7e5a3e922376512cc17cdf3c92fdafa29f2af257a308b899dbc6b2eb",
+      "pre_effect_terminal_readback": {
+        "recorded_at": "2026-10-23T05:35:07.458669+00:00",
+        "typed_native_terminal_before_child": true,
+        "publication_ledger_matches": 0,
+        "effect_identity_matches": 0,
+        "identity_match_scope": "raw serialized full identity row including nested runtime identity",
+        "new_generations": 0,
+        "provider_posts": 0,
+        "official_target_posts_in_attempt_window": 0,
+        "official_readback_sha256": "c9d8980e8c2af650ed85ff8a85415cc01202fb8d7c2d95f6d105e2ad094edc12"
+      }
+    },
+    {
+      "run_id": "manual-18e1115490422c88-37074",
+      "owner_id": "ebook-en-tiktok-daily",
+      "occurrence_id": "ebook-en-tiktok-daily:manual-18e1115490422c88-37074",
+      "release_sha": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+      "slot_at": "2026-10-08T23:00:00.000Z",
+      "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+      "asset_sha256": "7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566",
+      "publication_id": "baseline.ebook-en.d3.s3-20261008T230000000Z-ebook-en-tiktok-daily",
+      "started_at": "2026-10-23T05:26:21.395443+00:00",
+      "finished_at": "2026-10-23T05:26:23.488543+00:00",
+      "exit_code": 75,
+      "terminal": {
+        "timestamp": "2026-10-23T05:26:23.338053+00:00",
+        "run_id": "manual-18e1115490422c88-37074",
+        "occurrence_id": "ebook-en-tiktok-daily:manual-18e1115490422c88-37074",
+        "phase": "report",
+        "status": "blocked",
+        "exit_code": 75,
+        "blocker": "host_admission_deferred:resource_capacity_busy",
+        "error_class": "host_admission_deferred:resource_capacity_busy",
+        "effect_status": "not_applicable",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "evidence_refs": [
+          "lm-loop://ebook-en-tiktok-daily/manual-18e1115490422c88-37074/summary.json"
+        ]
+      },
+      "provider_receipt_id": null,
+      "provider_publication_confirmed": false,
+      "native_pre_effect": true,
+      "official_published_url": null,
+      "private_evidence_sha256": "a37d67366b6ad58f8917f22bc9d09becd699e134c5deba23188a0e86948406d5",
+      "pre_effect_terminal_readback": {
+        "recorded_at": "2026-10-23T05:35:07.515679+00:00",
+        "typed_native_terminal_before_child": true,
+        "publication_ledger_matches": 0,
+        "effect_identity_matches": 0,
+        "identity_match_scope": "raw serialized full identity row including nested runtime identity",
+        "new_generations": 0,
+        "provider_posts": 0,
+        "official_target_posts_in_attempt_window": 0,
+        "official_readback_sha256": "c9d8980e8c2af650ed85ff8a85415cc01202fb8d7c2d95f6d105e2ad094edc12"
+      }
+    }
+  ],
+  "heygen_official_video_rated_usage": {
+    "recorded_at": "2026-10-23T05:23:22.662135+00:00",
+    "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+    "authentication": {
+      "http_status": 200,
+      "expected_identity_match": true
+    },
+    "amount": "0.516667",
+    "currency": "USD",
+    "amount_micro_usd": 516667,
+    "amount_source": "list_rate",
+    "provider_bill_row_id": "fcb1c6ae93d947dcb503718f0b8bc7a6",
+    "from_api": true,
+    "request_source": "cli:api_key",
+    "is_cash_charge_proof": false,
+    "daily_breakdown": {
+      "credits_used": 31,
+      "requests_count": 1,
+      "video_generate_credits": 31,
+      "is_complete": false,
+      "unpriced_credits_by_feature": {
+        "api": 31
+      }
+    },
+    "wallet_cash_cost": null,
+    "payment_transaction_id": null,
+    "generation_guard_changed": false,
+    "effects": {
+      "video_generation": 0,
+      "purchase": 0,
+      "additional_charge": 0,
+      "billing_setting_mutation": 0,
+      "auto_reload_mutation": 0,
+      "api_key_reissue": 0,
+      "posting": 0,
+      "queue_mutation": 0,
+      "production_loop_mutation": 0,
+      "generation_guard_changed": false
+    },
+    "private_evidence_sha256": "acc2af2a8235cde5fd7803934ada89dce12be1da3738c7add4517542d136a718"
+  },
+  "native_capacity_readonly": {
+    "recorded_at": "2026-10-23T05:34:38.442380+00:00",
+    "owner_id": "ebook-en-tiktok-daily",
+    "release_sha": "031d8ea57a9a841eefdada56a76108ef3cc077e2",
+    "database_open_mode": "ro",
+    "production_state_mutations": 0,
+    "occupied_total": 0,
+    "finite_cap": 10,
+    "occupied_agent": 0,
+    "agent_cap": 4,
+    "revenue_agent_cap": 10,
+    "legacy_present": false,
+    "live_v1_agent_waiters": [],
+    "uncertain_owner_markers": [],
+    "pure_capacity_available": true,
+    "free_bytes": 10047553536,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": false,
+    "target_occurrences": [
+      {
+        "state": "cancelled",
+        "effect_unknown": 0,
+        "count": 260
+      },
+      {
+        "state": "released",
+        "effect_unknown": 0,
+        "count": 3778
+      }
+    ],
+    "target_queue_count": 0,
+    "target_claimed_or_unknown": 0,
+    "eligible_for_one_native_attempt": false,
+    "private_evidence_sha256": "b81a39ff8769fbfc759fc912b02a1a102278acf96223ba74d2ff226f83cdcc98"
   }
 }
