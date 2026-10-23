@@ -1,0 +1,51 @@
+{
+  "schema_version": "anicca.ai-monk-factory-web-source.v1",
+  "status": "source_tests_passed_review_pending",
+  "related_tests": {
+    "passed": 29,
+    "failed": 0,
+    "skipped": 0,
+    "new_web_tests": 18,
+    "existing_factory_mcp_tests": 11,
+    "CI": true
+  },
+  "real_stdio_offline_plan": {
+    "provider_calls": 0,
+    "external_effects": []
+  },
+  "model_override": false,
+  "plugin_features_disabled": [
+    "plugins",
+    "remote_plugin",
+    "apps",
+    "enable_mcp_apps",
+    "codex_apps_mcp_2026_07_28"
+  ],
+  "sandbox_network_access": false,
+  "extra_writable_roots": [],
+  "browser_ui": {
+    "draft_save": true,
+    "export": true,
+    "import": true,
+    "desktop_width": 1360,
+    "mobile_width": 390,
+    "js_errors": 0,
+    "horizontal_overflow": false
+  },
+  "scope_limits": [
+    "No real HeyGen/Postiz generation or publication",
+    "No native publication, sales or revenue acceptance",
+    "Public deployment and immutable release are pending"
+  ],
+  "source_files": {
+    "skills/earn/marketing-engine/factory-web/agent-mcp.mjs": "de0ed589714deda9870672248b66752f61bbcc8e2703f383f5756fa3fbfc7dca",
+    "skills/earn/marketing-engine/factory-web/app.css": "2aa9e429aa9ce360a57b851c74684f78e598d7d860ce3bc65d980f7db69cc71e",
+    "skills/earn/marketing-engine/factory-web/app.mjs": "c628037794356b39780a412601d04568bee0767c893c4ee062ffac646d510f11",
+    "skills/earn/marketing-engine/factory-web/app.test.mjs": "d11225a32c69460acbba6a8f523f928178a65ce9d9a55e0b34bb3894b7bc07af",
+    "skills/earn/marketing-engine/factory-web/index.html": "406f0dcd764a538ec23f7301bf9b5b93f61ca8c9b2db90996deaaacc8719ba66",
+    "skills/earn/marketing-engine/factory-web/project.mjs": "71baea8f3021841c0914d96f9229bef16aba3250391cc49bee8cde5207538e84",
+    "skills/earn/marketing-engine/factory-web/project.test.mjs": "50a87f71dc0e273fefdb60514e602701a84f79470cccf73230b1790a6caf3f88",
+    "skills/earn/marketing-engine/factory-web/server.mjs": "bb0f8d83906bf82b49a41201c5e8e0431812fb355d95612ab3579006749f2da2",
+    "skills/earn/marketing-engine/factory-web/server.test.mjs": "8b447a96b5dc152f504252a824a335dfb0ac620d3cfa2366057889c8b277e3f3"
+  }
+}

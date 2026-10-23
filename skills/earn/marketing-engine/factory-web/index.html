@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="factory-token" content="__FACTORY_TOKEN__">
+  <meta name="description" content="A private production workspace for AI monk videos. Shape a brief, connect your avatar and channel, and run your own local Factory.">
+  <title>Monk Factory — Anicca</title>
+  <link rel="stylesheet" href="./app.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="https://aniccaai.com"><span class="brand-mark" aria-hidden="true">a</span> Anicca</a>
+      <div class="nav-label">THE STUDIO</div>
+      <nav aria-label="Studio"><a class="nav-active" href="#workspace">◉ <span>Monk Factory</span><span class="small-tag">BETA</span></a><a href="https://aniccaai.com/ai-monk-database">⌕ <span>Monk Database</span><span class="nav-count" aria-hidden="true">↗</span></a><a href="https://aniccaai.com/the-art-of-ai-monks">▤ <span>The field guide</span><span aria-hidden="true">↗</span></a></nav>
+      <section class="sidebar-note"><span class="tiny-dot"></span><p>Your ideas.<br>Your avatar. Your channel.</p><span>A workspace for building a practice, one video at a time.</span></section>
+      <a class="source-link" href="https://github.com/Daisuke134/life-manager/tree/main/skills/earn/marketing-engine/factory-web">Open source <span aria-hidden="true">↗</span></a>
+    </aside>
+    <main id="workspace">
+      <header class="topbar"><span>WORKSPACE <span class="slash">/</span> <strong>Monk Factory</strong></span><span class="mode-pill" id="mode-label"><span class="tiny-dot"></span> Browser draft</span></header>
+      <section class="heading"><div><p class="eyebrow">FROM A THOUGHT TO A PRACTICE</p><h1>Give your monk<br>a voice<span class="accent">.</span></h1><p class="intro">Shape the idea. Choose your avatar.<br>Let your own agent carry the work forward.</p></div><div class="heading-art" aria-hidden="true"><div class="sun"></div><div class="arch arch-one"></div><div class="arch arch-two"></div><span>MAKE SOMETHING<br>WORTH HEARING</span></div></section>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <div class="project-bar"><label for="project-picker">PROJECT</label><select id="project-picker" aria-label="Choose a project"><option value="">New project</option></select><button type="button" id="new-project" class="text-button">+ New project</button><span id="save-status" class="muted">Unsaved draft</span></div>
+      <div class="workspace-grid">
+        <form id="project-form" novalidate>
+          <section class="panel"><div class="panel-heading"><span class="step">01</span><div><h2>The idea</h2><p>Start with one person and one useful thought.</p></div></div>
+            <div class="fields two"><label>Project ID<input name="project_id" required pattern="[a-z0-9][a-z0-9_-]{0,63}" maxlength="64" placeholder="my-first-monk" autocomplete="off"><span>Lowercase letters, numbers, hyphens.</span></label><label>Spoken language<select name="language"><option value="en">English</option><option value="ja">日本語</option></select></label></div>
+            <label>The brief<textarea name="brief" rows="4" maxlength="4000" required placeholder="Who is this for? What are they struggling with? What one idea should they leave with?"></textarea></label>
+            <details class="script-editor"><summary>Already have a script? <span>Optional</span></summary><label class="sr-only" for="script">Spoken script</label><textarea id="script" name="script" rows="6" maxlength="5000" placeholder="Leave this blank for your agent to write from the brief."></textarea></details>
+          </section>
+          <section class="panel"><div class="panel-heading"><span class="step">02</span><div><h2>The offer</h2><p>Give interested viewers a next step.</p></div></div>
+            <div class="fields two"><label>Product name<input name="product_name" maxlength="200" placeholder="Your ebook or product"></label><label>Product URL<input name="product_url" type="url" maxlength="2048" placeholder="https://your-site.com/your-book"></label></div><label>Call to action<input name="cta" maxlength="500" placeholder="Read the full guide through the link in my profile."></label>
+          </section>
+          <section class="panel"><div class="panel-heading"><span class="step">03</span><div><h2>The avatar & channel</h2><p>Use the accounts and avatar you own.</p></div></div>
+            <div class="fields two"><label>HeyGen avatar ID<input name="avatar_id" maxlength="128" placeholder="Your avatar ID" autocomplete="off"></label><label>HeyGen voice ID<input name="voice_id" maxlength="128" placeholder="Your voice ID" autocomplete="off"></label><label>Platform<select name="platform"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option></select></label><label>Channel handle<input name="native_handle" maxlength="64" placeholder="your_handle (without @)" autocomplete="off"></label></div>
+            <label>Postiz integration ID<input name="integration_id" maxlength="128" placeholder="The integration connected to this channel" autocomplete="off"><span>Connect HeyGen and Postiz on your computer. Keep API keys out of this form.</span></label>
+          </section>
+          <div class="save-bar"><button class="button button-dark" type="submit" id="save-project">Save project <span aria-hidden="true">↗</span></button><button class="button button-light" type="button" id="export-project">Export draft</button><button class="text-button" type="button" id="import-project">Import draft</button><input type="file" id="import-file" accept="application/json,.json" hidden></div>
+        </form>
+        <aside class="desk">
+          <section class="desk-card"><p class="eyebrow">YOUR PRODUCTION DESK</p><h2>One idea.<br>A whole workflow.</h2><ol class="workflow"><li><span>1</span><div><strong>Write & plan</strong><p>Turn the brief into a spoken script and a production plan.</p></div></li><li><span>2</span><div><strong>Make & review</strong><p>Render your avatar. The agent checks the actual material.</p></div></li><li><span>3</span><div><strong>Publish & verify</strong><p>Use your connected channel and read the provider’s result.</p></div></li></ol><div class="desk-foot">Actual run states and receipts appear below. Revenue needs its own sales evidence.</div></section>
+          <section class="connection-card" id="setup-card"><span class="connection-label"><span class="tiny-dot"></span> YOUR COMPUTER, YOUR ACCOUNTS</span><h3>Open your local Factory</h3><p>Keep this draft, then import it into the local workspace to run your agent.</p><button class="button button-light full-width" type="button" id="setup-toggle" aria-expanded="false" aria-controls="setup-instructions">Set up the workspace <span aria-hidden="true">↗</span></button><div id="setup-instructions" hidden><p>You need Node.js 20.19+, Python 3, and a signed-in Codex CLI. Prepare the existing Factory’s Python environment, HeyGen CLI and Postiz account.</p><pre id="setup-command">git clone https://github.com/Daisuke134/life-manager.git
+cd life-manager
+npm ci
+node skills/earn/marketing-engine/factory-web/server.mjs --open</pre><button type="button" class="text-button" id="copy-setup">Copy commands</button><a href="https://github.com/Daisuke134/life-manager/tree/main/skills/earn/marketing-engine#ローカルaiからstdio-mcpで呼ぶ">Setup & provider requirements ↗</a></div></section>
+          <section class="connection-card" id="local-card" hidden><span class="connection-label"><span class="tiny-dot"></span> LOCAL RUNTIME</span><h3>Ready for your next idea</h3><p>Saved projects and run history stay on this computer. Your existing Codex and provider accounts power production.</p><div class="run-actions"><button type="button" class="button button-light" data-run-mode="plan">Write & plan</button><button type="button" class="button button-light" data-run-mode="render">Make a video</button><button type="button" class="button button-green" data-run-mode="publish">Run through publishing <span aria-hidden="true">↗</span></button></div><p class="cost-note">Video production can charge your HeyGen account. Existing cost guards and account checks remain active.</p></section>
+        </aside>
+      </div>
+      <section class="runs-section" id="runs-section"><div class="section-title"><div><p class="eyebrow">THE WORK, AS IT HAPPENS</p><h2>Production history</h2></div><button type="button" class="text-button" id="refresh-runs" hidden>Refresh ↻</button></div><div id="run-list" class="run-list"><div class="empty-state"><span class="empty-orbit" aria-hidden="true">◌</span><h3>A quiet place for your first run.</h3><p>Open the local workspace to make videos and see real production results here.</p></div></div><section id="run-detail" class="run-detail" hidden><div class="run-detail-heading"><div><p class="eyebrow" id="run-id"></p><h3 id="run-state"></h3></div><span id="run-exit" class="mode-pill"></span></div><p id="run-summary"></p><video id="run-video" controls playsinline preload="metadata" hidden></video><details><summary>Production receipts</summary><pre id="run-receipts"></pre></details></section></section>
+      <footer>Built on the <a href="https://aniccaai.com/ai-monk-database">AI Monk Database</a> and the open-source Factory. <span>Make the work yours.</span></footer>
+    </main>
+  </div>
+</body>
+</html>

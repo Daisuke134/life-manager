@@ -12,12 +12,12 @@ primaryの判断として、公開static Web workspaceと同じUIをlocalhostで
 Factory sourceとUIの正本はLife Manager内 skills/earn/marketing-engine/factory-web/。既存factory-mcp.mjsのcallFactoryTool/runCliを使い、renderer/publisherを複製しない。公開anicca-productsは同UIをLife Managerのimmutable main SHAとSHA256でbuild時stageする。公開URLは /ai-monk-factory/。既存 /factory は別商品なので上書きしない。公開UIはブラウザ内draft/exportを実行し、localモードはsame-origin APIへ接続する。
 
 ## project/run契約
-project v1は project_id, language(en/ja), avatar_id, voice_id, platform(tiktok/instagram), integration_id, native_handle, product_name, product_url(HTTPS), brief, script, cta を持つ。secret fieldと未知fieldを拒否する。API keyは既存の利用者HeyGen認証/Postiz環境だけを使い、Web/JSONへ保存しない。project_id/run_idをserverで検証し、path/argv/env/state_rootをAPIから受け取らない。
+project v1は12 fieldsの project_id, language(en/ja), avatar_id, voice_id, platform(tiktok/instagram), integration_id, native_handle, product_name, product_url(HTTPS), brief, script, cta を持つ。secret fieldと未知fieldを拒否する。draft保存時はproject_id/briefを必須とし、provider/商品設定の空文字を許可する。値があればformatを検証し、run開始時は全設定を必須にする。scriptはagent生成前の空文字を許可する。共有validateProject(value, {ready=false})をUI/serverで使う。API keyは既存の利用者HeyGen認証/Postiz環境だけを使い、Web/JSONへ保存しない。project_id/run_idをserverで検証し、path/argv/env/state_rootをAPIから受け取らない。
 
 run modeは plan/render/publish。planはprovider操作を許可せず、renderは生成まで、publishは利用者が最初に選んだ一連の生成/確認/配信を許可する。毎回確認を要求する別manual gateは追加しない。run_idはserverで発行し、project編集で過去runを変更しない。run固有input/agent workspace/control evidenceを分け、最初のFactory planで台本/投稿文をsnapshotに固定し、後続CLIは同じsnapshotだけを使う。config state_rootはserver専用run出力に固定、既存host lock/cost/fenceのrootは変えない。
 
 ## 有限agent
-既存共通agent_runnerはmodel必須なので今回のモデル継承に合わない。薄いcodex exec --sandbox workspace-writeの有限呼出を使い、-m/--model/model_providerを指定しない。既存認証・利用者のCodex設定を継承する。1run同時1agent、長時間処理はHTTP応答から分離し、reload/再起動後もrun ID・実exit・結果を保持する。中断は完了と表示せず、自動で新runに再送しない。
+既存共通agent_runnerはmodel必須なので今回のモデル継承に合わない。薄いcodex exec --sandbox workspace-writeの有限呼出を使い、-m/--model/model_providerを指定しない。既存認証・利用者のCodex model/provider設定を継承する。他のMCP名を有限のread-only inventoryでRAMへ読み、実行時だけ無効化し、正式feature switchでplugins/remote_plugin/apps/enable_mcp_apps/codex_apps_mcp_2026_07_28を無効化する。network=false、追加writable_roots=[]、tmp除外を実行時に固定し、Factory用bridge以外からmode権限を拡張しない。1run同時1agent、長時間処理はHTTP応答から分離し、reload/再起動後もrun ID・実exit・結果を保持する。中断は完了と表示せず、自動で新runに再送しない。
 
 agentは製品事実/briefから台本とcaptionを作り、実動画のframe/audio metadata等を観測して確認者をAI agentとして記録する。人間の確認を捏造しない。server-bound MCPは任意pathを受けず既存callFactoryToolへ固定path/run/production値を渡す。publishのprepare/shadow/route-check/upload/draft/promote/status/postiz-readbackを再利用し、公式receiptが無いnative確認や売上は未確認とする。agent最終文章を公開成功の根拠にしない。
 

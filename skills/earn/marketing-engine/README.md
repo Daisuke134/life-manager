@@ -220,6 +220,50 @@ timeout、取消、接続終了ではこのserverが起動したprocess groupだ
 途中のprovider effectは既存sidecar/fenceを照合し、失敗応答を再送許可として使わない。
 このローカル入口は公開HTTPS service、顧客のhosted subscription、他者導入や売上の証明を提供しない。
 
+## Factory Web workspace
+
+The same workspace runs as a public browser draft editor and as a local execution UI.
+The public page saves drafts in that browser and exports/imports JSON; it does not connect
+from HTTPS to a localhost API. Start the local workspace from an installed Life Manager
+checkout with the existing root Node/Python runtime dependencies:
+
+```sh
+node skills/earn/marketing-engine/factory-web/server.mjs --open
+# Optional: --port 18792
+```
+
+Open the printed `http://127.0.0.1:18792/` URL. The server serves the canonical HTML,
+JavaScript, CSS and shared project validator on one origin. All APIs require the
+per-start action token injected into that HTML; Host and Origin must match this local
+address. No token, API key, password, arbitrary path, executable or environment setting
+belongs in a project. Brief-only drafts can be saved before provider setup. Starting a
+plan, render or publish run requires the actual avatar/voice, channel and product fields.
+
+Projects and immutable run snapshots live under
+`<LM_DATA_DIR or ~/.local/state/life-manager>/marketing/ebook/factory/web/`.
+Each run has a writable agent workspace and separate control evidence. The first
+Factory plan freezes the real `script.txt` and optional `caption.txt`; a missing caption
+falls back to the supplied CTA and server-tracked product URL. A missing script is not
+invented. The publication time is fixed two hours ahead when inputs freeze.
+
+One finite `codex exec` runs at a time using the user's existing model/provider/auth
+settings, without a model/provider override. A bounded `codex mcp list --json`
+preflight uses only server names in memory to disable listed unrelated MCP servers for
+that invocation. The run-bound bridge fixes Factory paths, run ID and mode. Shell
+network access and inherited additional writable roots are disabled. The invocation
+also disables the Codex plugin/app transport features, so plugin access does not depend
+on whether those transports appear in the MCP inventory. Plan permits only offline Factory planning;
+render permits generation; publish permits the existing fenced publisher. An agent's
+actual frame evidence and notes can be recorded as an AI review through the existing
+approval ledger; no human review is claimed.
+
+Run status uses CLI/tool evidence, not the agent's final prose. Null costs, setup and
+deferred states, nonzero exits, effect fences and missing native proof remain visible.
+Video delivery requires that run's receipt path and SHA-256 to match the actual file.
+Reload retains project/run history; a server restart marks unfinished runs interrupted
+and never automatically resends them. The Web workspace does not establish native
+publication, revenue, hosted subscriptions or a guaranteed USD spending cap.
+
 ## Files
 
 | File | Role |

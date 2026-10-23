@@ -27,19 +27,22 @@
 ### Task 1: server-bound runtime
 Files: factory-web/server.mjs, factory-web/agent-mcp.mjs, factory-web/server.test.mjs、既存README。
 Interfaces: GET /api/projects -> {projects}; POST /api/projects {project} -> {project}; POST /api/runs {project_id, mode} -> {run}; GET /api/runs -> {runs}; GET /api/runs/<run_id> -> {run}; GET /api/runs/<run_id>/video -> 検証済みasset。全APIは x-factory-token を要求する。HTMLの __FACTORY_TOKEN__ を起動tokenへ置換する。run shapeは run_id/project_id/mode/state/exit_code/created_at/updated_at/tool_results/summary/artifact_url、未確定値はnull。
-- [ ] 実HTTPのtoken/Host/Origin/body/ID拒否、project永続化とsnapshot不変、mode制限、nonzero/unknown、reload後run復帰、agent argvにmodel指定無しの最小REDを観測する。
-- [ ] 既存callFactoryTool/runCliを使うserverと固定project MCP、有限agent起動を実装する。
-- [ ] focused testsをPASSし、外部provider0の実CLI planとHTTP readbackを記録する。
+- [x] 実HTTPのtoken/Host/Origin/body/ID拒否、project永続化とsnapshot不変、mode制限、nonzero/unknown、reload後run復帰、agent argvにmodel指定無しの最小REDを観測する。
+- [x] 既存callFactoryTool/runCliを使うserverと固定project MCP、有限agent起動を実装する。
+- [x] focused testsをPASSし、外部provider0の実CLI planとHTTP readbackを記録する。
 
 ### Task 2: 同一UI
 Files: factory-web/index.html, app.css, app.js, app.test.mjs。
 Interfaces: project v1とTask1 APIを使う。UIはrootが __FACTORY_TOKEN__ を置換した時だけlocal。publicではbrowser draftのみ。実行actionはplan/render/publishの単一run、stateはserver結果を表示する。
-- [ ] draft validation/export/import/local判定の最小REDを確認する。
-- [ ] accessible form、保存/実行、run履歴/状態、動画/receiptを実装する。CSPに合わせた外部JS/CSSのみ、innerHTMLによるユーザー文字列挿入を使わない。
-- [ ] related testsと実localhostの保存/plan、public draft操作を検証する。
+- [x] draft validation/export/import/local判定の最小REDを確認する。
+- [x] accessible form、保存/実行、run履歴/状態、動画/receiptを実装する。CSPに合わせた外部JS/CSSのみ、innerHTMLによるユーザー文字列挿入を使わない。
+- [ ] related testsと実localhostの保存/plan、public draft操作を検証する。publicの実ブラウザ保存/export/importと1360/390幅はPASS、local API接続の最終受入を残す。
 
 ### Task 3: 統合と公開
 - [ ] fresh read-onlyレビューでTask1/2の実害を反証、必要fix後focused検証、source acceptance/CI/main。
 - [ ] main由来固定版のlocalhost起動とprovider0 planをreadbackする。
 - [ ] productsの既存buildにUI3filesのimmutable SHA/hash stageを最小追加し、Databaseからリンクする。source/test/CI/main/Netlifyと公開draft/local起動導線を確認する。
 - [ ] S11/field-guide現在cursorと本計画へ実結果/残件を記録する。公開を実収益や他者provider成功と取り違えない。
+
+## source検証
+新Factory focused18件と既存Factory MCP11件をCI=trueで実行し29 PASS/0 FAIL/0 SKIP。実SDK stdioから既存Python CLI planのprovider_calls0/external_effects[]を確認。PC1360/スマホ390の実browserでdraft保存/export/import、JSerror0/overflow0。最初の29件runでは既存output_limit fixtureがNode cold startより短い200ms timerと競合しtimeoutとなるため、output caseだけ3sの別deadlineへ修正し64byte上限判定を維持する。EOF fixture内assertがouter agent catchで隠れる問題は失敗理由と所有PID状態を残す診断を追加し、isolateと全29件でPASSを確認する。renderer/publisherのproduction sourceやguardは変更しない。fresh read-onlyレビューとCI/main/固定版を次cursorとする。
