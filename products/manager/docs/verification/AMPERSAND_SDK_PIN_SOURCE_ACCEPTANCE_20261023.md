@@ -13,6 +13,8 @@ Managerの既存advisory adapterが監査済みSDKと異なる版を受け入れ
 
 研究branchへ同じ5ファイルを同期した後、全974テストを実行し969成功／既存skip5、失敗0（21.544秒）。`tests/test_ampersand_integration.py`のbytes不変、Manager境界、原113件の台帳不変も確認した。これはローカル同期後の証拠で、後続の研究branch公式CIや定期推論の結果へ付け替えない。
 
+同期head `b6b5f6a8e34912e4da4dd2d3a0981499207c2d99`の[公式研究CI39949005185](https://github.com/Daisuke134/life-manager/actions/runs/39949005185)も11:51:51 UTCに成功した。Python3.11でE01 contract6件、P0 advisory21件、全suite948件（942成功／6 skip、失敗0）を確認。ローカルPython3.12の974件とは別の母数として記録する。公式logは30,562 bytes、SHA-256 `7f7f0f3b0f6d6c0a910d7b9ceddd653e9542e62a5c70e4348356505285cd5ef3`。この追記は後続の文書更新で、tested headを付け替えない。
+
 ## 再利用した実装と修復範囲
 
 `manager_core/ampersand_api.py`の既存lazy client factoryへdistribution metadataの完全一致検査を追加した。任意の `requirements-ampersand.txt` は `openai==3.24.0` の直接依存だけを固定する。推移依存lockではない。SDK欠落・版不一致・import失敗は固定したローカルエラーとし、raw exceptionを表示しない。既存base URL、retry0、timeout、key検査を維持する。
