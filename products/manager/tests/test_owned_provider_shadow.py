@@ -94,7 +94,8 @@ class OwnedProviderShadowTests(unittest.TestCase):
 
     def run_shadow(self, root, **kwargs):
         from manager_core.owned_provider_shadow import run_catalog_shadow
-        checkout, workspace, fixture_patches = make_catalog_fixture(root)
+        checkout, default_workspace, fixture_patches = make_catalog_fixture(root)
+        workspace = kwargs.pop("workspace", default_workspace)
         gateway, checkpoint = self.owner(root)
         output = kwargs.pop("output", None)
         if output is None:
@@ -289,19 +290,83 @@ class OwnedProviderShadowTests(unittest.TestCase):
             self.assertTrue(any(call == "checkpoint" for call in gateway.calls))
 
     def test_model_response_does_not_change_candidate_or_baseline_bytes(self):
-        with TemporaryDirectory() as first_tmp:
-            first, _, _, _, first_workspace = self.run_shadow(Path(first_tmp), output='{"decision":"PASS","reason":"No further change.","source_ids":[]}')
-        with TemporaryDirectory() as second_tmp:
-            second, _, _, _, second_workspace = self.run_shadow(Path(second_tmp), output='{"decision":"PROPOSE","reason":"Repair the cited link.","source_ids":["official:livelihood"]}')
-        for key in ("operation_id", "baseline_digest", "candidate_digest", "candidate", "sources", "baseline"):
-            self.assertEqual(first[key], second[key])
-        def tree(path):
-            return {str(item.relative_to(path)): item.read_bytes()
-                    for item in path.rglob("*") if item.is_file()}
-        for name in ("baseline", "candidate"):
-            self.assertEqual(tree(first_workspace / name), tree(second_workspace / name))
-        self.assertEqual(first["model_advice"]["decision"], "PASS")
-        self.assertEqual(second["model_advice"]["decision"], "PROPOSE")
+        from manager_core import owned_provider_shadow as shadow
+
+        def snapshot_bundle(path):
+            self.assertTrue(path.is_dir(), f"missing live bundle: {path}")
+            actual = {item.name: item.read_bytes() for item in path.iterdir() if item.is_file()}
+            expected = set(PAGES) | {"manifest.json"}
+            self.assertEqual(set(actual), expected)
+            return actual
+
+        def stable_publisher_intent(packet):
+            keys = ("schema", "repository", "ref", "workflow", "target", "candidate",
+                    "allowed_paths", "baseline", "baseline_sha256", "candidate_sha256",
+                    "decision", "changed_pages", "money_budget", "max_changed_files",
+                    "external_authority", "revocation_control", "human_outcome",
+                    "causal_effect_verified")
+            return {key: packet[key] for key in keys}
+
+        with TemporaryDirectory() as first_tmp, TemporaryDirectory() as second_tmp:
+            first_root, second_root = Path(first_tmp), Path(second_tmp)
+            first_workspace, second_workspace = first_root / "private", second_root / "private"
+            observations = []
+            first_packet = []
+            second_packet = []
+
+            def run_observed(root, workspace, output, packet_capture):
+                before_model = []
+                packet_at_model = []
+                def capture_prepare(*args, **kwargs):
+                    prepared = original_prepare(*args, **kwargs)
+                    packet_capture.append(stable_publisher_intent(prepared.packet))
+                    return prepared
+                def on_create():
+                    prepared_packet = packet_capture[-1]
+                    baseline = snapshot_bundle(workspace / "baseline")
+                    candidate = snapshot_bundle(workspace / "candidate")
+                    baseline_manifest = json.loads(baseline["manifest.json"])
+                    candidate_manifest = json.loads(candidate["manifest.json"])
+                    packet_at_model.append((baseline_manifest, candidate_manifest, prepared_packet))
+                    before_model.append((baseline, candidate))
+                with patch.object(shadow, "prepare_owned_change", side_effect=capture_prepare):
+                    result, _, _, sessions, _ = self.run_shadow(
+                        root, workspace=workspace, output=output, on_create=on_create)
+                after_model = (snapshot_bundle(workspace / "baseline"),
+                               snapshot_bundle(workspace / "candidate"))
+                observations.append((before_model[0], after_model, packet_at_model[0], sessions))
+                return result
+
+            original_prepare = shadow.prepare_owned_change
+            pass_result = run_observed(first_root, first_workspace,
+                '{"decision":"PASS","reason":"No further change.","source_ids":[]}', first_packet)
+            propose_result = run_observed(second_root, second_workspace,
+                '{"decision":"PROPOSE","reason":"Repair the cited link.","source_ids":["official:livelihood"]}', second_packet)
+
+            self.assertEqual(len(observations), 2)
+            for index, (before, after, (packet_baseline, packet_candidate, publisher_at_model), sessions) in enumerate(observations):
+                self.assertEqual(before, after)
+                self.assertEqual(packet_baseline, json.loads(after[0]["manifest.json"]))
+                self.assertEqual(packet_candidate, json.loads(after[1]["manifest.json"]))
+                self.assertEqual(publisher_at_model,
+                                 (first_packet if index == 0 else second_packet)[0])
+                self.assertEqual(sessions.create_count, 1)
+
+            self.assertEqual(pass_result["operation_id"], propose_result["operation_id"])
+            self.assertEqual(pass_result["baseline_digest"], propose_result["baseline_digest"])
+            self.assertEqual(pass_result["candidate_digest"], propose_result["candidate_digest"])
+            self.assertEqual(first_packet, second_packet)
+            self.assertEqual(pass_result["model_advice"]["decision"], "PASS")
+            self.assertEqual(propose_result["model_advice"]["decision"], "PROPOSE")
+
+            # Negative control: changing one byte in a test-local copy is detected
+            # while both source fixture trees are still alive.
+            mutated = dict(observations[0][0][1])
+            first_page = sorted(PAGES)[0]
+            mutated[first_page] = mutated[first_page] + b"x"
+            self.assertNotEqual(observations[0][0][1], mutated)
+            self.assertTrue(first_workspace.exists())
+            self.assertTrue(second_workspace.exists())
 
     def test_deadline_is_rechecked_after_planning(self):
         with TemporaryDirectory() as tmp:
