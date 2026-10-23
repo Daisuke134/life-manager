@@ -206,7 +206,9 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 
 **Single active cursor:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16. The original evaluation/observation streams can be developed by independent workers when their shared interfaces are stable, but the project-wide completion cursor is strictly the ordered E list in `../roadmap/tasks.json`; never present parallel work as a second authoritative sequence. **After E verification, assess F005 → F006 → F008 → F009 as acceptance gates**, not new engineering tasks. Content P01–P07 is a separate editorial lane and does not move the E cursor. Do not parallel-write shared schema, ledger, publishing branch or authority state.
 
-The detailed simulator, actual beneficiary, cross-domain, outreach and governance gates remain in [Phase06–12 acceptance evidence](../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md) and the v2 Phase06 scope amendment. There is no separate F-first execution plan. Finishing E16 is a finite technical product release, not a declaration that Manager eliminated suffering or all 113 original tasks are complete.
+The detailed simulator, actual beneficiary, cross-domain, outreach and governance gates remain in [Phase06–12 acceptance evidence](../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md) and the v2 Phase06 scope amendment. There is no separate F-first execution plan. Finishing E16 releases one finite technical capability; it does not establish that Manager eliminated suffering or all 113 original tasks are complete.
+
+The technical cursor names the next unfinished E stage. Only after all E01–E16 form a contiguous completed prefix with valid PASSED receipts may it be JSON `null`; F005/F006/F008/F009 acceptance remains a separate evidence check. A terminal-state test fixture does not change the actual registry or accept E16.
 
 ## 2026-10-22 strategy-review addendum — same E order, concrete remaining patches
 
