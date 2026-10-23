@@ -20,7 +20,7 @@ source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを�
 
 ## Local / Cloud 全体復旧の現行spec・実行計画
 
-> **実行者へ:** 実装時は `superpowers:executing-plans` を用いて本節の原子的TODOを順に進める。primaryが逐次実行を所有し、独立したLocal/Cloudのファイル所有だけを並行できる。新しい判断・追加承認を待たず、ユーザーの既存scope/owner/spend-capを守る。
+> **修復の再開時:** `superpowers:executing-plans` を用いて本節の原子的TODOを順に進める。primaryが逐次実行を所有し、独立したLocal/Cloudのファイル所有だけを並行できる。ユーザーの既存scope/owner/spend-capを守る。現在の文書更新を実装・運用の再開指示として扱わない。
 
 **Goal:** Local全業務とCloudの顧客価値を復旧し、実成果・公式収益・評価付き改善まで既存システムを閉じる。
 **Architecture:** 既存のbounded worker、admission、durable state、exact receipt、owner限定の復旧とmain由来immutableを使う。Local/Cloudの業務coreは共通とし、再現済みの境界不具合を小さいpatchで直す。
@@ -32,7 +32,7 @@ source受入: Coconalaの13ケースをRED→GREENにし、既存clean-userを�
 
 Life Managerを、各業務がobserve → decide → act → official verify → persist → cleanup → 次の仕事を継続し、顧客に正しく成果を届け、実収益と費用を使って改善するシステムにする。Localの全業務と共有基盤、Cloudの移動予定作成・通知・継続稼働、meta loopの評価・自己修復・自己改善を対象にする。発話の「metal loop」はmeta loopとして扱い、mental careはCloudの既存機能として別に維持する。
 
-**現行scopeは、監査済み計画の逐次実装・必要な検証・main統合・immutable反映・自然実行と公式成果の確認まで。** ユーザーの「one by one until end」を実行指示として、下表の先頭未完atomから完了まで進める。進行中の他owner、既存effect fence、spend-capを維持し、計画の保存やテスト成功を「全体修復済み」「稼いだ」と報告しない。
+**今回のscopeは、正本specの更新と残TODOの報告だけ。** 長時間修復goalは`paused`であり、今回は実装・修復テスト・本番設定/state・ownerの停止/再起動・provider送信を再開しない。文書のcommit/push・必要CI・main統合までを今回の完了条件とする。全体目標は維持し、修復再開時は下表の未完atomから進める。既存の未commitコード差分・他owner・effect fence・spend-capを保持し、文書保存や過去のテスト成功を「全体修復済み」「稼いだ」と報告しない。
 
 「永久に故障しない」「全agentの利益が単調増加する」は、外部provider・審査・需要・有限資源を含む系では保証できない。実装する契約は、既知の失敗を再現する回帰検証、欠測を隠さない成果監視、同一effectの重複防止、期限とownerが明確な復旧、悪化した変更の復帰である。市場結果は独立して実測する。会社の既存US$10,000,000 MRR目標や各laneの目標を縮小しない。
 
@@ -86,7 +86,7 @@ Life Managerを、各業務がobserve → decide → act → official verify →
 
 **新順:** FND01–FND06で共有基盤を小さく修復し、CLD01–CLD04を独立並行する。直接blockerが閉じたlaneは全fleet完了を待たずEARN01へ進む。既存のcritical_paid案件を最優先し、商品販売pilotはCapafyの既存seller/R04–R08を継続する。次にEARN02/03とEVO01–03で全業務へ展開し改善閉路を実証する。財務reportの精密化・公開benchmark・全社監視の完全性を配信/納品開始の前提へ戻さない。
 
-**現在cursor:** CLD03d2bはPR #8567/main/限定DB適用/通常Cloud採用、採用記録#8568のmainまで確認済みで、自然create/update/cancelの判断証拠を待つ。FND01の容量は未達のまま自然清掃を継続する。独立するWriterの再発原因を確定し、FND05bでskip-pending-workerのtyped no-effect欠落と旧exact fenceの照合不足を修復する。既存2GOのtransport PASSと意味HOLD、新paid/cost-complete net未確認を保持し、旧NULL/未知effect/旧X ERRORは一括解除/再送しない。
+**現在cursor:** 実行は一時停止、今回は文書だけを確定する。FND05bは#8569/main/対象immutable採用/旧1件解除/replay-zeroまで確認済みだが、解除後の自然wakeは未確認。FND05cのquota-before-work証明と関連testには未commitの実装案があり、追加後のGREEN・review・CI・main・採用・旧1件解除は未確認。容量のread-only最終snapshotは13,022,130,176Bで10/12GiB floorを満たすが、増加原因の閉鎖・次の自然業務成果は未確認。再開時はFND01のproducer責務/自然wake確認とFND05cの差分受入を進め、独立するCLD03d2bの自然create/update/cancel判断証拠を確認する。新paid/cost-complete netは未確認。旧NULL/未知effect/旧X ERRORは一括解除・再送しない。別Mac製品化の独立ownerの順序は冒頭MAC01–MAC03を参照する。
 
 - 順序判断: DaisのRyu案件優先指示に対し、既存案件18211957/直接DM10107358の履歴と最新3件の要望を確認する。対象が有料性的サービスの運営を促進する改修・納品であるため、その実装と送信は対応対象外として未実行を記録する。完了や納品済みへ置換せず、旧順=Ryu修正/1回送信→基盤復旧、新順=Ryu未実行を明記→独立するCLD04→残FND/EARN/EVOを継続とする。既存案件state/送信fenceは変更しない。
 
@@ -94,16 +94,16 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 | TODO・状態 | 一つの検証可能な成果 | 依存 / 既存TODOへの接続 |
 |---|---|---|
-| [ ] FND01 | 実producerの容量増加と後始末を直し、blockedな次の業務wakeを通す | F1–F5/C2/R15。全18完了待ちにしない |
+| [ ] FND01 | 実producerの容量増加と後始末を直し、10/12GiB floorと次の自然業務wakeを確認する | F1–F5/C2/R15。全18完了待ちにしない |
 | [x] FND02 | 現在状態を残したまま、履歴clockを既存期限内に返す | C2/SH。FND01と独立なsource調査可 |
 | [x] FND03 | 失敗ledger更新を成果復旧と誤判定しない監視を通す | DD12/EDD-FLEET。最初に既存6lane、次に全18の役割別coverage |
 | [ ] FND04 | model/profile競合・quotaとhost不足を区別し、安全な次回実行へ戻す | R04/brain_transport。既存profile leaseを維持 |
-| [ ] FND05 | 優先業務のexact未知effectを公式証拠で照合し、同じ原因の再生成を止める | C1の既完了は保持、現runは別occurrence |
-| [ ] FND06 | 修正が必要なownerへ同main由来SHAを安全に届ける | A15/通常promotion。全owner一斉更新はしない |
-| [ ] CLD01 | raw Composio / Google proxyのCalendar作成契約を揃える | Cloud Travelのsource型不一致。FNDに非依存 |
-| [ ] CLD02 | uncertain create / claim409を安全な公式再照合へ接続する | CLD01、既存travel claimとCalendar readerを再利用 |
-| [ ] CLD03 | source eventの変更・取消・時刻/route・通知を一貫させる | CLD02、既存DAILY/Web Travel契約 |
-| [ ] CLD04 | 配備SHA/設定・tenant・Cloud自然実行を確認する | Cloud機能patchごとに実施。Mac停止を破壊的試験に使わない |
+| [ ] FND05 | Bの解除後自然wake、Cのsource受入→main/immutable→旧1件の照合/解除/replay-zeroを閉じる | C1/Bの既確認を保持し、Cの未commit案は未受入 |
+| [ ] FND06 | 修正が必要なownerのrelease/loaded SHAを照合し、対象限定採用と自然terminalを確認する | A15/通常promotion。採用済みownerをやり直さず、一斉更新しない |
+| [ ] CLD01 | 採用済み作成契約を同tenant/account/source revisionの自然Calendar作成と公式readbackで確認する | source採用と顧客予定の実作成を区別する。FNDに非依存 |
+| [ ] CLD02 | 採用済みuncertain create / claim409照合を自然入力で確認し、重複作成0を記録する | CLD01、既存travel claim/Calendar reader。過去NULLは埋めない |
+| [ ] CLD03 | 変更・取消・移動時間/buffer/通知が正しいことを自然create/update/cancelの判断証拠で確認する | CLD03d2bはsource/DB/Cloud採用済み、自然の意味的証明は未取得 |
+| [ ] CLD04 | 採用済みCloudの同SHA/tenant/accountと自然成果を結び、transport PASS/意味HOLDの残件を閉じる | health成功・Telegram成功をCalendar成功に置換しない |
 | [ ] EARN01 | 有償契約の正しい納品と、Capafy既存sellerの新paidを実現する | 該当FND blockerのみ。C5/R01–R08、Paid契約 |
 | [ ] EARN02 | 全18業務を下表の役割別成果まで一つずつ閉じる | DD12/C8/G01。既存ownerは並行継続 |
 | [ ] EARN03 | 注文/fee/refund/実費/入金/active subscriptionを同期間・同通貨で結ぶ | C3/T0/T3、CFO。販売前の完全台帳gateにはしない |
@@ -129,6 +129,7 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 **FND01 — 容量の再発をproducer責務で閉じる**
 
+- 文書更新時のread-only観測: 03:59:58ZのData availableは13,022,130,176Bで10GiB revenue/12GiB一般floorを満たす。直前の観測9,982,439,424Bから変化するが、この文書作業はcleanup/producer設定を変えておらず、回復原因を推定しない。過去のfloor未達snapshotは履歴として保持する。容量の一時回復だけではFND01を完了せず、増加owner/後始末の修復と次の自然業務wakeの成果が残る。私有証拠=`spec-only-status-20261023.json`。
 - FND01e開始前wakeのscratch: 共通診断rootは74,252 JSON、部分計測で約304MBを占有し、flat診断JSONに既存run retentionが接続されない。全件を再生成可能とは扱わず、旧unknownの一括削除はしない。exact Capafy runではterminal保存済み・held_effect_unknownだが、同じscratchのhost receiptはeffect0/pre_claim/disk_floor_lowで、FND02bが今後の保持を防ぐ。既存fenceで新wakeのenqueueを拒否する枝もprovider dispatch前であり、そのwakeまでscratchを永久保持すると同じ増加が続く。既存producerへ明示pre-dispatch phaseを保存し、保存済terminalと同runのfresh receiptで開始前と証明できる新wakeだけ既存のowned cleanupへ渡す。jobのunknown・古いeffect fence・過去scratch/診断・journalは保持する。source所有は`lm_loop_run.py`と既存bounds tests、追加daemon/janitor/retention frameworkは作らない。REDは旧fenceを持つ新wakeのscratchのみ回収・provider呼出し0/fence不変、実dispatch後/不正証拠/terminal未保存の保持。currentなsource/CI/main/immutableと自然ownerで確認する。旧floor候補1,253件のpartial probeはファイルallocated約10MBであり、過去scratchの回収だけで容量全体が回復するとは扱わない。
 - FND01d host原因の限定復旧: `top`のMEM/CMPRSはuser501の `corespotlightd` PID48584で各27GBを2回示し、RSS上位だけの観測では圧縮分を見落とす。start identityはFri Oct16 09:24:59、PPID1、safe GUI readbackは `com.apple.corespotlightd` と公式program/同PIDを示す。lsofはCoreSpotlight metadata主体、vmmap summaryは20秒timeoutのため根拠に使わない。空き約8.7GB/9GB swapとmanaged producerのdisk延期を分けて記録する。fresh read-only反証、同PID/start/UID、GUI preflightを確認後、同serviceへ一度だけsafe SIGTERMを送り通常再起動を待つ候補を採る。metadata削除・索引の恒久停止・SIGKILL・Mac/loginwindow/app-server restartは行わない。事後footprint・swap/free・実業務wakeで受け入れ、即時のswap縮小や永久解決を先に断定しない。新しいdaemon/schedulerは追加しない。
 - FND01d実測結果: fresh Codex検証は同PID/start/UIDとMEM/CMPRS各27Gを独立確認する。公式plistはEnablePressuredExit=trueで、正常終了/再起動は保証しない。直前のGUI preflightと同一性確認後のsafe SIGTERMはexit1、旧PIDが存続する。元のstderrを保存できていないため拒否理由は断定しない。追加のsignal0はlaunchctlがinvalid signal/exit64を返し、permission診断として使えない。同じshell signalの再送や強制終了を避け、容量/実業務の未達を維持する。fresh Git garbageは約12MBで、容量解決として無関係なGit削除/GCへ広げない。
@@ -220,12 +221,25 @@ primaryは本節、共有source、統合/受入/採用順を所有する。Local
 
 **FND05b — Writerの正常なno-workをunknownへ落とさず、旧1件を正確に復旧する**
 
-- 実証: article-dailyの現skip-pending-worker枝は、別resume worker所有の既存runを残して新規記事/モデル/投稿を始めずexit0するが、typed no-effectを返さない。現版と旧bd67bc0adの同枝は同bytes。旧occurrence article-daily:18dfc09cffeae8b8-61102はreleased/effect_unknown1が唯一1件で、現enqueue前のowner fenceが最新23:11:58Z run18e0fce67fa42598-26809を止める。fresh read-only検証者がowner archiveのexact開始/terminal、残存host pre_effect_failure marker、stderr relay/cleanup bindingを照合する。exit0だけを無作用の証明にしない。既存resolverの通信0 probeはno_run_pairedで、まだ解除していない。
-- 順序/理由: 旧=FND01容量診断/CLD自然対象→残EARN/EVO、新=同自然運転を維持し独立FND05b→Writerの次wake/既存canary→残TODO。理由は、既存Writer canaryがREADY/適用receipt0で、同ownerの再発可能な実source欠落と元fenceが特定できたため。容量floorや外部effectを迂回しない。返却済みCLD作業コピーは累計17本、branch/PR refs/私有証拠を保持する。
-- 最小修復/所有: primaryはarticle-daily.sh、runtime/loop/lm_loop_run.py、既存article_fence_reconcile.pyと各既存tests、本specだけを所有する。同じWriter siblingのtyped no-effect形式を当該skip枝だけで書き、hostはarticle-daily/正規entrypoint/固定reason pending_resume_worker_owned/同occurrenceに限定して受理する。既存writer publication receiptと他owner/reasonは変更しない。旧1件は既存historical start-control gate-stop経路へexact allowlistを追加し、既存catch-upと同じ固定archive読取りと残存marker hashで検証する。新validator/新ledger/新scheduler/exit0一般緩和/遡及hint新造/元の別runの公開判定は作らない。
-- 受入: 実skip枝の隔離shell/host受理/旧archive proofを最小RED→GREENとし、wrong owner/entrypoint/reason、archive/event/log/marker改変・symlinkを拒否する。既存effect hint隔離・writer receipt・歴史proof・loop契約を関連検証し、fresh review/全CI/main→対象immutable採用を通す。その後のみ登録resolverで旧1件のproofを再読し一度resolve、同occurrence readback/replay追加effect0と次の自然wakeを確認する。新記事/売上/strategy採用は別に公式receiptで確認し、closureだけで完了扱いしない。
+- 原因/修復範囲: skip-pending-worker枝は別resume worker所有の既存runを残して新規記事/モデル/投稿を始めずexit0するが、typed no-effectを返さず後続を止める。現版と旧bd67bc0adの同枝は同bytes。primaryはarticle-daily.sh、lm_loop_run.py、既存article_fence_reconcile.pyと各既存tests、本specを所有し、Siblingのprivate/atomic形式を当該skip枝だけで書く。host受理はarticle-daily/正規entrypoint/同occurrence/固定reason pending_resume_worker_ownedに限定し、writer publication receiptと他owner/reasonを維持する。
+- 旧exact proof: article-daily:18dfc09cffeae8b8-61102は修復前released/effect_unknown1が唯一1件。既存historical start-control gate-stop経路へ固定archive全体/順序付きexact2イベント/旧main source+helper/log segment/元private markerのhashをpinする。新validator/ledger/scheduler/汎用exit0緩和/遡及hint新造は作らず、別workerのrun20261018-194904の公開成否を流用しない。
+- source受入: 最小2RED→4GREEN、archive経路1RED→関連6GREEN、関連3ファイル279PASS。初回のsparse未展開/既存終了timing1件は個別2PASS→全279PASSを確認する。bash構文/差分/source-boundary/18群191jobs errors0。fresh-context reviewerは全7files/独立11tests/偽造no-effectとgeneric exit0拒否/実archive照合を確認し0 findings/0 blocking、reviewed head1d46c630cd。PR #8569全13checks PASS、main2d20f7c9432d9da8ce8864e9ad661cc8525706c6へ統合する。
+- 本番採用: main由来complete release20261023T085721-2d20f7c9の変更3filesがmain bytes一致/書込不可。UID/DS/Aqua/GUI preflight全PASS後、shared-agent-runnerのarticle-dailyだけをloaded-idle-only/max-owners1で反映し、applied1/failed0、install event67aca9aaab322e4784c7ad6b、loaded argv/SHA一致を確認する。他owner apply0、進行中owner中断0。
+- 限定解除/replay: accepted adapterのread-onlyでno_dispatch_provenを再確認後、00:00:50Zに登録resolverをexact旧1件だけresolveする。rowはreleased/effect_unknown1→released/0、article-daily unknown数1→0、private proof保存を確認する。00:01:41Zの登録main --resolve再検証はprovider/resolver/persistの全呼出を拒否したprobeで各0、closed/verified true、proof hash/mtime/modeとDB row不変。新規投稿/売上/strategy採用の証明にはしない。
+- 自然実行の限界: 採用直後23:59:52Z run18e0ff83a40ec740-52406と09時wake00:00:05Z run18e0ff86aa4f32b8-53683は解除前で、旧resource_effect_unknown/exit75を返す。解除後の自然wake/新no-effect枝/既存canary適用は未確認。追加の手動投稿やfloor迂回で置換しない。私有証拠はfnd05b-accepted-{resolver-dry-run,one-unit-resolve,replay-zero}等へ保存する。
+- 並行診断/順序: 旧=FND01容量/CLD自然対象→残EARN/EVO、新=同自然運転を維持しFND05b→独立FND05c→解除後のWriter wake/既存canary→残TODO。理由は、dailyが残す保留runのownerであるarticle-resumeにも現fence1件があり、その停止境界を特定するため。00:03:19Z free5,167,546,368Bでfloor未達。Data使用量差分3,799,662,592Bは未帰属で、VM増分0、新release191MB/現存pytest約4.5MBだけでは説明しない。snapshot0、unlink済open file論理約152MB、recent Git pack約300MBは個別probe値で、物理増加の合計や主因にしない。既存清掃を維持し、未確認storeを削除しない。
 
-- source受入進捗: 実skip枝/host受理は最小2RED→4GREEN、固定archive/marker経路は1RED→関連6GREEN、関連3ファイル全279PASS。初回の既存2失敗はsparse未展開と既存終了timing1件で、必要ファイル展開後の個別2PASS/全279PASSを確認する。bash構文/差分/source-boundary/loop契約18群191jobs errors0。変更コードの本番read-only proofは旧exact occurrenceのarchive/source/helper/log/元markerと一致し、provider呼出0/resolver0/DB write0。source16be1c1040をpushしfresh reviewへ渡す。CI/main/immutable採用/実解除/自然wakeは未実施。
+**FND05c — article-resumeのquota-before-work停止をexact証拠で復旧する（実装案あり・未受入）**
+
+- 目的/範囲: dailyの保留を引き受けるarticle-resumeの現occurrence18e00a32b6c907c0-21320（queued1792443847.589477、releasebaac8c681314edd1fc430199f30da410d31a4c1c、claimed/unknown1）を復旧対象とする。primaryは既存article_fence_reconcile.py/article_absence_readback.pyの呼出契約、runner証拠producer、関連最小testsと本specを調べる。source atomは下記の2ファイルに限定する。新ledger/scheduler/7日min一般緩和/汎用exit1受理は作らない。
+- 確認済み: exact own passはstart→missed-daily-schedule-catch-up、exec先own run20261019-210430。archiveにexit1/reportとsource/loaded argv-env bindingが残る。runner証拠agent-7a657b0f44fd4fcc95e3c64820ab4960は同親lifecycle/run/release/attempt1に結び付き、約2.86秒で利用枠上限エラー、timeout/launch/adapter errorなし。stdoutはthread.started→turn.started→error→turn.failed、生成状態prepublication-empty。記事/題名/draft/publication/dispatch/own ledger行なし。欠落だけから無作用と断定しない。
+- 現不足: 既存一般経路はarchiveへrotateしたreport不足/7日未満、reportを局所投影しても非zero終了で停止する。既存historical helperへexact pinのみ投影するとlocal照合を通るが4pair公式absenceが不足し、既存collectorは全pair run_title_missingでreader呼出0。旧10/12 caseのproofを流用せず、通信を増やすだけで閉じるとも扱わない。
+- 順序変更: 旧=同Writer copy/#8574でC実装受入を継続、新=ユーザーの文書限定依頼に従いCの未commit差分を保持→同copyへ最新main4171151fccをmerge→#8574を文書差分だけで確定する。理由はgoalがpausedであり、未検証コードを文書更新へ混ぜないため。修復再開時の順序はFND01のproducer責務/自然wake確認とC差分受入→Cの限定照合/採用→自然Writer成果→残EARN/EVO。別copy・別SSOTは作らず、B本番2d20f7c9と旧解除済rowを維持し、C旧1件は未解除。
+- 最小source atom: primaryは既存article_fence_reconcile.py/その既存tests/本specだけを変更する。既存catch-up proofへoccurrence固定許可表に依存しないquota-before-workの証明を1本追加し、既存_resume proof終端/resolverへ渡す。新ledger/scheduler/common runner/cleanup framework/新しいproof種別は作らない。現在+保存済ownerイベントからexact自pass/reportを復元し、main祖先sourceの確認済caller契約と親lifecycle/Writer run/releaseを照合する。
+- 肯定条件: 全attemptが終端し、各relayのbinding/EOF/written_bytes/dropped_bytes/storage_errorとhead.binの完全保持が一致する。全CLI eventが既知のwork/tool開始前quota失敗列で、不正JSON/切詰め/欠落/別attemptのworkがない。caller自身のempty run/finisher missing-article停止/投稿未到達を肯定する。既存draftや後続処理が不明な再開runは受理しない。モデル由来本文・記事欠落・codex_attempt_started_work=Falseだけで無作用とせず、追加のprocess非残存gateも発明しない。provider requestは既に発生するためprovider_started/billing/costをfalseや0へ変更せず、無作用はWriter投稿だけを指す。
+- 受入/反映: 実旧caseの構造を隔離fixtureにした最小RED→GREENと、wrong owner/run/release/source/branch、全attempt不整合、tool/work開始、不正/不完全capture、非quota、既存記事・dispatch到達を拒否する関連検証を通す。fresh read-only review/全CI/main→対象immutableを経てarticle-resumeへの1owner採用、旧1件の登録resolve/readback/replay-zeroを先に確認し、既存reconcilerの同helper採用へ進む。一般の7日minやexit1を緩和しない。不足は具体artifactとして保持し、自然再開/公開/売上は別の実receiptで判定する。本回は文書更新のみで、provider/state変更・送信・resolveは0。
+
+- 中断点/残作業: `article_fence_reconcile.py` と `test_article_fence_reconcile.py` にgeneric proof/接続と肯定2件・拒否61条件の未commit実装案がある。修正前REDは確認済みだが、追加後のGREENは未確認。今回のread-only確認ではテストを実行しない。残るsource diff受入→関連test→fresh read-only review→commit/push→全CI/main→対象immutable/1owner採用→旧exact1件の公式照合/解除/readback/replay-zero→自然再開/公開/収益確認を省略しない。PRの文書確定はCコードの受入を意味しない。文書PR統合後もC未commit差分があるため所有copyを保持する。修復再開時に最新main由来の成果branchとleaseを確認し直す。
 
 **FND05 — exact effect復旧と履歴増加を分ける**
 
