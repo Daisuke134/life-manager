@@ -35,3 +35,6 @@
 | 2026-10-23 | job | Mercor: Excel Expert ($70-100/hr) | mercor:list_aaabojf7our4yart1rzfniec | Fucker | applied | https://work.mercor.com/explore?listingId=list_AAABoJf7our4yArt1RZFnIec | 成田さんの動画面接/アセスメント待ち |
 | 2026-10-23 | job | Mercor: 3 others submitted (計5件応募) | mercor:fucker-3-others | Fucker | applied | https://work.mercor.com | 成田さんの動画面接/アセスメント待ち |
 | 2026-10-23 | listing | PromptBase: SaaS Cold Email 4-Step Sequence ($5.99) | promptbase:saas-cold-email-4-step-sequence | Fucker | claimed | https://promptbase.com | pending枠(3)満杯→空き次第提出 |
+| 2026-10-23 | listing | BOOTH: ショート動画AIプロンプト大全40本 PDF (¥1,200) | booth:9031865 | Side Hustle CEO | listed | https://sidehustleceo.booth.pm/items/9031865 | 振込先口座未登録 |
+| 2026-10-23 | listing | BOOTH: 無料サンプル (¥0) | booth:9031873 | Side Hustle CEO | listed | https://sidehustleceo.booth.pm/items/9031873 | 有料版への導線 |
+| 2026-10-23 | listing | Gumroad: Short-Form Video AI Prompt Playbook ($19) | gumroad:bxqhru | Side Hustle CEO | claimed | https://sidehustleceo.gumroad.com/l/bxqhru | 下書き、受取口座未登録で公開不可 |
