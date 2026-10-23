@@ -163,7 +163,7 @@
   },
   "limits": [
     "manualな素材回復であり、自然ownerの実行や投稿完了の証拠ではない。",
-    "HeyGen個別費用はnull。新規生成guard、EN Instagram/JA TikTokの旧fenceを保持する。JA Instagramの旧fenceは原本proofで解消済み。",
+    "HeyGen個別cash debitはnull。新規生成guardとEN Instagram旧fenceを保持する。JA Instagram/TikTok旧fenceは正式解消済みで、JA水彩2ownerはdisabled/unloadedを維持する。",
     "新規生成・投稿は各phaseで0回。既存動画のdownloadは最初のphaseだけ1回。",
     "EN ownerへの新release採用をloaded argv/envで確認。自然PUBLISHED・売上は未確認。"
   ],
@@ -830,5 +830,226 @@
       }
     ],
     "shared_selector_mutation": false
+  },
+  "ja_tiktok_receipt_reuse_bridge": {
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8640",
+    "source_head": "146d7ad24b31d1cab278a13ad0a055a654d57a11",
+    "main_commit": "12ce4d06b4518c439834f758e92dc7e9d6a86396",
+    "source_related_tests_passed": 397,
+    "source_fresh_review_findings": 0,
+    "ci_checks_success": 13,
+    "release_root": "/Users/anicca/loops/releases/20261023T152248-12ce4d06",
+    "release_sha": "12ce4d06b4518c439834f758e92dc7e9d6a86396",
+    "release_paths": "ALL",
+    "sealed": true,
+    "production_fresh_review": "GO",
+    "production_review_findings": 0,
+    "owner_id": "ebook-ja-tiktok-daily",
+    "occurrence_id": "ebook-ja-tiktok-daily:18dfbf4b313011a8-82806",
+    "official_proof": {
+      "claim_run_id": "18dff3a41b433450-51537",
+      "effect": 0,
+      "evidence_ref": "lm-event://ebook-ja-tiktok-daily/18dff3a41b433450-51537/de2f3386e88fd1362284e198",
+      "existing_job_id": "marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c",
+      "fresh_upload_hash_verified": false,
+      "occurrence_id": "ebook-ja-tiktok-daily:18dfbf4b313011a8-82806",
+      "original_origin_occurrence_id": "ebook-ja-tiktok-daily:18dfbec0c5a2d540-51433",
+      "original_provider_effect_created": true,
+      "original_publication_readback": {
+        "account_id": "@obou_anicca",
+        "content": {
+          "caption_sha256": "417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8"
+        },
+        "integration_ref": "integration://postiz/tiktok/cmo5s4edx00vgn10ygnu34a0n",
+        "local_content": {
+          "caption_sha256": "417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8",
+          "video_sha256": "6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"
+        },
+        "post_id": "cmvf5cw4503uemw0y3fmvizy7",
+        "postiz_profile": "@obou_anicca",
+        "provider": "postiz",
+        "public_url": "https://www.tiktok.com/@obou_anicca/video/7698333137004268821",
+        "state": "PUBLISHED"
+      },
+      "owner_id": "ebook-ja-tiktok-daily",
+      "proof_type": "historical_postiz_receipt_reuse_no_dispatch",
+      "provider": "postiz",
+      "provider_receipt_id": "cmvf5cw4503uemw0y3fmvizy7",
+      "status": "resolved",
+      "verified": true
+    },
+    "closure": {
+      "status": "resolved",
+      "before_state": "claimed",
+      "before_effect_unknown": 1,
+      "after_state": "released",
+      "after_effect_unknown": 0,
+      "remaining_owner_unknown": 0,
+      "queue_count": 0,
+      "reservation_count": 0,
+      "unchanged": {
+        "receipt_sha256": true,
+        "original_origin_occurrence_id": true,
+        "original_provider_effect_created": true,
+        "job_journal_rows": true,
+        "legacy_watercolor_holds": true,
+        "queue_count": true,
+        "reservation_count": true
+      }
+    },
+    "replay": {
+      "status": "clean",
+      "inspected": 0,
+      "target_occurrence_unchanged": true,
+      "unchanged": {
+        "receipt_sha256": true,
+        "original_origin_occurrence_id": true,
+        "original_provider_effect_created": true,
+        "job_journal_rows": true,
+        "legacy_watercolor_holds": true,
+        "queue_count": true,
+        "reservation_count": true
+      }
+    },
+    "original_receipt_sha256": "3562d1c75f45925d8e5a87e7c0b1e8daff67bc6c0d368f20aaf7b3fc77a83487",
+    "legacy_watercolor_holds": {
+      "ebook-ja-tiktok-daily": {
+        "unloaded": true,
+        "disabled": true
+      },
+      "ebook-ja-instagram-daily": {
+        "unloaded": true,
+        "disabled": true
+      }
+    },
+    "provider_writes": 0,
+    "new_generations": 0,
+    "private_preview_sha256": "962ca5f34d7c51e14eb2a4f8b9a85c116e9b813d8f1a47905285ebc376b684fd",
+    "private_resolve_sha256": "337e272d2ab7e8c21928826acb9bfa83b943c49d23c03e0dadc00e4764e35352",
+    "private_replay_sha256": "a4fad327fa075026b5738ca435003b84ba92eee8b984c4c76e46889e97cc4fa3"
+  },
+  "english_resource_classification": {
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8643",
+    "source_head": "b7152d1a66d23f6f2c8ac6c7f0cb73896cba6124",
+    "main_commit": "d8008b3964415b8585023ccea45c7ed7d95760c9",
+    "ci_checks_success": 13,
+    "bounds_tests_passed": 240,
+    "source_fresh_review_findings": 0,
+    "owner_id": "ebook-en-tiktok-daily",
+    "release_root": "/Users/anicca/loops/releases/20261023T152901-d8008b39",
+    "release_sha": "d8008b3964415b8585023ccea45c7ed7d95760c9",
+    "release_paths": "ALL",
+    "writable_entries": 0,
+    "exit_code": 0,
+    "checks": {
+      "loaded_matches_installed": true,
+      "loaded_idle": true,
+      "target_release_adopted": true,
+      "target_class_adopted": true,
+      "current_selector_unchanged": true,
+      "queue_identity_preserved": true,
+      "queue_class_rebound": true,
+      "pending_identity_preserved": true,
+      "pending_classes_rebound": true,
+      "priority_age_flags_preserved": true
+    },
+    "install_event_id": "0cab55892f18c56caa358853",
+    "resource_class_before": "agent",
+    "resource_class_after": "deterministic",
+    "queue_sequence_before": 811613,
+    "queue_sequence_after": 811613,
+    "priority_queued_at_before": 1792734237.126824,
+    "priority_queued_at_after": 1792734237.126824,
+    "provider_posts": 0,
+    "new_generations": 0,
+    "native_publication_confirmed": false,
+    "private_evidence_sha256": "9865bb34252385459970339770dc65e8c42e818879fb8788bc05d60d504e1683"
+  },
+  "native_capacity_after_class_adoption": {
+    "recorded_at": "2026-10-23T06:31:30.821934+00:00",
+    "owner_id": "ebook-en-tiktok-daily",
+    "release_sha": "d8008b3964415b8585023ccea45c7ed7d95760c9",
+    "operation": "read_only_capacity_snapshot",
+    "target_resource_class": "deterministic",
+    "database_open_mode": "ro",
+    "production_state_mutations": 0,
+    "occupied": [
+      {
+        "owner_id": "ceo-runner",
+        "resource_class": "agent",
+        "admission_class": "borrow",
+        "admission_policy": "revenue-floor-v1",
+        "lease_until": 1792737110.035276
+      }
+    ],
+    "occupied_total": 1,
+    "finite_cap": 10,
+    "occupied_agent": 1,
+    "agent_cap": 4,
+    "revenue_resource_cap": 5,
+    "legacy_present": false,
+    "live_v1_waiters": [],
+    "uncertain_owner_markers": [],
+    "pure_capacity_available": true,
+    "free_bytes": 2369454080,
+    "native_revenue_floor_bytes": 10737418240,
+    "disk_floor_met": false,
+    "target_occurrences": [
+      {
+        "state": "cancelled",
+        "effect_unknown": 0,
+        "count": 260
+      },
+      {
+        "state": "queued",
+        "effect_unknown": 0,
+        "count": 1
+      },
+      {
+        "state": "released",
+        "effect_unknown": 0,
+        "count": 3778
+      }
+    ],
+    "target_queue_count": 1,
+    "target_claimed_or_unknown": 0,
+    "target_queue_rank": 39,
+    "target_queued_resource_class": "deterministic",
+    "target_has_valid_reservation": false,
+    "ordered_resource_waiters": 49,
+    "queue_head_owner": "life-manager-selfbuild",
+    "eligible_for_one_native_attempt": false,
+    "private_evidence_sha256": "0135785ab08811ee6057479074a0e039c512f9c42e7c14dc49ce95df5f142958"
+  },
+  "capacity_owner_diagnosis": {
+    "recorded_at": "2026-10-23T06:18:06.336433+00:00",
+    "active_other_owner_model": "qwen2.5:7b",
+    "model_allocated_bytes": 4683075584,
+    "model_manifest_and_open_runner_match": true,
+    "new_swap_allocated_bytes": [
+      1073741824,
+      1073741824
+    ],
+    "initial_decrease_unattributed_approx_bytes": 630000000,
+    "pytest_temp_allocated_bytes": 663552,
+    "worktree_allocated_bytes": 195653632,
+    "production_mutations": 0,
+    "other_owner_model_or_swap_removed": false,
+    "private_evidence_sha256": "b46192af0e311a4b3a5207de8064104d03e8a4e808d872241a38d950b8a0cb3d"
+  },
+  "japanese_avatar_migration_readonly": {
+    "source_changed": false,
+    "generation_started": false,
+    "old_ja_watercolor_scripts_retained": 21,
+    "blockers": [
+      "HeyGen request locale fixed to en-US",
+      "renderer and product/account gates currently allow EN only",
+      "renderer-only substitution collides with 21 existing semantic signatures"
+    ],
+    "official_japanese_male_voice_rows_in_sample": 8,
+    "complete_voice_inventory": false,
+    "requested_language_filter_effective": false,
+    "selected_existing_english_voice_japanese_support_verified": false,
+    "private_voice_metadata_sha256": "240a17fbd5faa0b923c92f91941d85c38b60e7b6d745ae72274e834bc66d60d0"
   }
 }
