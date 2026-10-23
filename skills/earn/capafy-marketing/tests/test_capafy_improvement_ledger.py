@@ -45,3 +45,31 @@ def test_previous_change_is_kept_only_when_its_metric_improved() -> None:
     assert M.evaluate_previous(prev, {"view_rate": 0.09})["verdict"] == "revert_candidate"
     assert M.evaluate_previous(prev, {"view_rate": None})["verdict"] == "inconclusive"
     assert M.evaluate_previous(None, {"view_rate": 0.1}) is None
+
+
+def _agent(rows):
+    return {"last_7d": {"by_source": [
+        {"source_type": t, "source_name": n, "views": v, "trial_orders": tr, "paid_orders": p}
+        for t, n, v, tr, p in rows]}}
+
+
+def test_channels_split_internal_marketplace_from_outside_distribution() -> None:
+    r = reconcile(10000, 1000, 10, 2, by_agent={
+        "a": _agent([("internal", "search", 600, 1, 0), ("ct", "hooklab_x", 30, 0, 0)]),
+        "b": _agent([("internal", "category", 100, 0, 0), ("direct", "direct", 200, 0, 2),
+                     ("referrer", "google", 20, 0, 0)]),
+    })
+    r["traffic_sources"]["by_agent"] = r["traffic_sources"]["by_agent"]
+    c = M.channels(r)
+    assert c["internal"] == {"views": 700, "trials": 1, "paid": 0}
+    assert c["outside"] == {"views": 250, "trials": 0, "paid": 2}
+    assert c["outside_view_share"] == 250 / 950
+
+
+def test_lever_targets_the_channel_that_converts_least_per_view() -> None:
+    low_outside = {"internal": {"views": 900, "trials": 2, "paid": 1}, "outside": {"views": 50, "trials": 0, "paid": 0},
+                   "outside_view_share": 50 / 950}
+    assert M.lever(low_outside) == "outside_reach"
+    healthy_outside = {"internal": {"views": 500, "trials": 0, "paid": 0}, "outside": {"views": 500, "trials": 2, "paid": 1},
+                       "outside_view_share": 0.5}
+    assert M.lever(healthy_outside) == "internal_conversion"
