@@ -1,7 +1,7 @@
 "use strict";
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test"); const { importContentObject } = require("../lib/content-object-store.js"); const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview } = require("./marketing-product-summary.js");
 
-test("attribution coverage joins product totals while keeping activation and retention unavailable", () => {
+test("attribution coverage joins dated downloads while keeping activation and retention unavailable", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-attribution-summary-")); const day = "2026-08-23"; const objectDir = path.join(dataDir, "objects");
   const source = path.join(dataDir, "source.json"); fs.writeFileSync(source, "{}\n"); const ref = importContentObject(source, { objectDir }).ref;
   const ascDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", day); fs.mkdirSync(ascDir, { recursive: true });
@@ -9,7 +9,7 @@ test("attribution coverage joins product totals while keeping activation and ret
     { campaign_id: "anicca-ios_ig_anicca-en_en", platform: "instagram", account_id: "@anicca.en", locale: "en", metrics: { first_time_downloads: { status: "measured", value: 2, source: "app_store_connect_app_downloads_detailed" }, impressions: { status: "measured", value: 5, source: "app_store_connect_discovery_engagement_detailed" } } },
     { campaign_id: "anicca-ios_tt_aniccaaff_en", platform: "tiktok", account_id: "@aniccaaffirmation", locale: "en", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold" }, impressions: { status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold" } } },
     { campaign_id: "anicca-ios_youtube_en", platform: "youtube", account_id: "@anicca-ai", locale: "en", metrics: { first_time_downloads: { status: "measured", value: 1, source: "app_store_connect_app_downloads_detailed" }, impressions: { status: "measured", value: 12, source: "app_store_connect_discovery_engagement_detailed" } } },
-  ], metrics: { first_time_downloads: { status: "measured", value: 1 }, campaign_first_time_downloads: { status: "measured", value: 1 }, campaign_impressions: { status: "measured", value: 12 } } }, { product_id: "honne-ai", source_status: "unavailable", attribution_status: "unattributed", attribution_reason: "campaign_link_configured_no_product_readback", campaign_id: "honne_en_base_20260823", campaign_status: "unavailable", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_impressions: { status: "unavailable", value: null, reason: "report_pending" } } }] }));
+  ], daily_metrics: [{ date: "2026-08-22", metrics: { first_time_downloads: { status: "measured", value: 1 } } }], metrics: { first_time_downloads: { status: "measured", value: 1 }, campaign_first_time_downloads: { status: "measured", value: 1 }, campaign_impressions: { status: "measured", value: 12 } } }, { product_id: "honne-ai", source_status: "unavailable", attribution_status: "unattributed", attribution_reason: "campaign_link_configured_no_product_readback", campaign_id: "honne_en_base_20260823", campaign_status: "unavailable", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_impressions: { status: "unavailable", value: null, reason: "report_pending" } } }] }));
   const rcDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/revenuecat", day); fs.mkdirSync(rcDir, { recursive: true });
   fs.writeFileSync(path.join(rcDir, "subscriptions.json"), JSON.stringify({ snapshot_ref: ref, products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: { trial_starts: { status: "unavailable", value: null, reason: "missing" }, active_subscriptions: { status: "unavailable", value: null, reason: "missing" }, renewals: { status: "unavailable", value: null, reason: "missing" }, cancellations: { status: "unavailable", value: null, reason: "missing" }, proceeds_usd: { status: "unavailable", value: null, reason: "missing" } } })) }));
   const first = persistAttributionCoverage(dataDir, day, "2026-08-23T13:00:00.000Z"); const replay = persistAttributionCoverage(dataDir, day, "2026-08-23T14:00:00.000Z");
@@ -23,6 +23,61 @@ test("attribution coverage joins product totals while keeping activation and ret
   assert.match(first.snapshot.message, /アカウント・期間単位の集計/);
   assert.doesNotMatch(first.snapshot.message, /anicca-ios_(?:ig|tt|youtube)|honne_en_base_20260823|campaign_metrics_observed_for_subset|campaign_not_observed_or_privacy_threshold|campaign attribution|Source status|\b(?:measured|unavailable|partial|unattributed)\b/);
   assert.equal(first.snapshot.products[0].metrics.activation.value, null); assert.equal(first.snapshot.products[0].metrics.d7_retention.value, null);
+});
+
+test("ASC daily downloads select the preceding date without aggregate fallback", async (t) => {
+  const reportDay = "2026-10-23";
+  const measured = (value) => ({ status: "measured", value, source: "app_store_connect_app_downloads_standard" });
+  for (const [name, dailyMetrics, expected] of [
+    ["mixed periods without the target date", [
+      { date: "2026-01-21", metrics: { first_time_downloads: measured(2) } },
+      { date: "2026-10-21", metrics: { impressions: { status: "measured", value: 3 } } },
+    ], { status: "unavailable", value: null, reason: "report_pending" }],
+    ["exact target date", [
+      { date: "2026-10-21", metrics: { first_time_downloads: measured(8) } },
+      { date: "2026-10-22", metrics: { first_time_downloads: measured(3) } },
+      { date: reportDay, metrics: { first_time_downloads: measured(9) } },
+    ], measured(3)],
+    ["measured zero", [{ date: "2026-10-22", metrics: { first_time_downloads: measured(0) } }], measured(0)],
+    ["missing metric", [{ date: "2026-10-22", metrics: {} }], { status: "unavailable", value: null, reason: "report_pending" }],
+    ["explicit privacy suppression", [{ date: "2026-10-22", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "metric_not_observed_or_privacy_threshold" } } }], { status: "unavailable", value: null, reason: "metric_not_observed_or_privacy_threshold" }],
+    ["legacy aggregate-only input", undefined, { status: "unavailable", value: null, reason: "report_pending" }],
+  ]) {
+    await t.test(name, () => {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-daily-period-"));
+      t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+      const writeInput = (relative, snapshot) => {
+        const file = path.join(dataDir, path.basename(relative)); fs.writeFileSync(file, JSON.stringify(snapshot));
+        const ref = importContentObject(file, { objectDir: path.join(dataDir, "objects") }).ref;
+        const pointer = path.join(dataDir, "tenants/dais-local/marketing/attribution", relative);
+        fs.mkdirSync(path.dirname(pointer), { recursive: true }); fs.writeFileSync(pointer, JSON.stringify({ ...snapshot, snapshot_ref: ref }));
+      };
+      // Synthetic aggregate deliberately differs from every daily value.
+      writeInput(`asc/${reportDay}/acquisition.json`, { schema_version: 1, kind: "marketing_asc_acquisition", report_day: reportDay, products: [
+        { product_id: "anicca-ios", source_status: "measured", metrics: { first_time_downloads: measured(306) }, daily_metrics: dailyMetrics },
+        { product_id: "honne-ai", source_status: "unavailable", metrics: {} },
+      ] });
+      writeInput(`revenuecat/${reportDay}/subscriptions.json`, { products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: {} })) });
+      const result = persistAttributionCoverage(dataDir, reportDay, "2026-10-23T13:00:00.000Z");
+      const installs = result.snapshot.products.find((product) => product.product_id === "anicca-ios").metrics.installs;
+      assert.deepEqual(installs, { ...expected, source_date: "2026-10-22" });
+      assert.ok(result.snapshot.message.includes(`Anicca iOS: 初回ダウンロード ${expected.status === "measured" ? expected.value : "取得不可"}（対象日: 2026-10-22）`));
+      assert.doesNotMatch(result.snapshot.message, /初回ダウンロード 306/);
+    });
+  }
+});
+
+test("new daily summaries do not present undated legacy coverage as daily downloads", (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-legacy-period-")); const day = "2026-10-23";
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const file = path.join(dataDir, "tenants/dais-local/marketing/attribution/coverage", day, "summary.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const original = JSON.stringify({ products: [{ product_id: "anicca-ios", metrics: { installs: { status: "measured", value: 306 } } }] });
+  fs.writeFileSync(file, original);
+  const result = persistAniccaDaily(dataDir, day, "2026-10-23T13:00:00.000Z");
+  assert.match(result.snapshot.message, /初回ダウンロード 取得不可（対象日不明）/);
+  assert.doesNotMatch(result.snapshot.message, /初回ダウンロード 306/);
+  assert.equal(fs.readFileSync(file, "utf8"), original);
 });
 
 test("Honne daily summary binds EN and JA immutable daily sources and replays", () => {
