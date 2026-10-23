@@ -130,6 +130,10 @@ CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼�
 
 容量診断: Git fetchもpack一時file作成でENOSPCとなる。process argv/cwd/text参照がなく、memory/state JSONLを含まない再取得可能なCodex runtime cacheだけを削除し、1,628,393,472 bytesを回復する。直後の空き1,901,395,968 bytesはsource保存/関連検証のための余地であり、稼働jobのdisk admissionを満たす証拠ではない。protected storesと使用中runtime/stateは変更しない。
 
+独立read-only reviewはBlocking0/SHIP0。本人入力4source、変更tests、既存CI追加stepを直接読み、不正入力6類型/account-only proof/3hash/任意属性欠損/通常main・reconcile・run_loopの外部callback前停止をメモリ内で確認する。host負荷によりgit diff/showと全suiteはreviewで完走していない。既存kernelが両ownerのspawn前に作るpre_effect_failure/effect0 hintを本人入力の早期終了が保持するため、fenceやallowlistは変更しない。PR #8712のCIとmain/public readbackは継続中。
+
+- [ ] HOST-RESTORE-RUNTIME: 上の容量回復で削除したcodex-primary-runtimeは、後から確認した既存disk-cleanup skillでは未使用でも保護する依存installationに該当する。rootの削除判断を誤りとしてDaisへ開示し、公式bootstrap/残存bundleによる同pathへの復元を所有する。plugins/skills側は保持され、Mac/app-serverのrestartや手作業の依存再構築は行わない。公式再取得経路を独立read-only調査中。復元を確認するまでは完了としない。
+
 ## 別Macへ配布するLocal製品の実行契約
 
 目的は、READMEに挙がる全agentと、そのbrowser・report・reconciliation・self-build・Host Stewardを含むLife Manager全体を、誰のMacでも本人のaccount・private stateで導入し継続実行すること。Mac Miniへの依存やDaisのcredential/session/profileの複製を残さない。既存の業務core、registry、個別installer、immutable releaseを再利用する。本人確認・provider審査・実売上をコマンド成功で代用しない。
