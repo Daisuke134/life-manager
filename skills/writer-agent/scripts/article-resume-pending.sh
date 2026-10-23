@@ -914,6 +914,24 @@ LEDGER_PATH="$(printf '%s' "$PLAN" | jq -r '.ledger_path')"
 case "$RUN_ID" in daily-????-??-??|????????-??????) ;; *) echo "article-resume: invalid run id" >>"$LOG"; exit 1 ;; esac
 [ -d "$RUN_DIR" ] && [ -f "$STATE_PATH" ] || exit 1
 
+# The publisher CTA must match the product this run froze; platform-dispatch.sh refuses
+# every row without ARTICLE_PRODUCT_ID/LANDING_URL, and only article-daily.sh exported them.
+# No receipt means article-daily used its own defaults (or caller env), so mirror those.
+PRODUCT_SELECTION_RECEIPT="$RUN_DIR/gates/product-selection.json"
+if [ -f "$PRODUCT_SELECTION_RECEIPT" ]; then
+  ARTICLE_PRODUCT_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["product_id"])' "$PRODUCT_SELECTION_RECEIPT" 2>/dev/null)" \
+    && ARTICLE_PRODUCT_LANDING_URL="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["landing_url"])' "$PRODUCT_SELECTION_RECEIPT" 2>/dev/null)" \
+    && ARTICLE_PRODUCT_CT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("ct") or "")' "$PRODUCT_SELECTION_RECEIPT" 2>/dev/null)" \
+    && [ -n "$ARTICLE_PRODUCT_ID" ] && [ -n "$ARTICLE_PRODUCT_LANDING_URL" ] || {
+      echo "article-resume: run=$RUN_ID product selection receipt invalid" >>"$LOG"
+      exit 1
+    }
+fi
+ARTICLE_PRODUCT_ID="${ARTICLE_PRODUCT_ID:-anicca}"
+ARTICLE_PRODUCT_LANDING_URL="${ARTICLE_PRODUCT_LANDING_URL:-https://aniccaai.com/lm}"
+ARTICLE_PRODUCT_CT="${ARTICLE_PRODUCT_CT:-}"
+export ARTICLE_PRODUCT_ID ARTICLE_PRODUCT_LANDING_URL ARTICLE_PRODUCT_CT
+
 # X Article staging uses the shared authenticated job-search browser on CDP :9222.
 # The Coconala browser on :9223 is a different profile and must never satisfy this
 # preflight by accident.
