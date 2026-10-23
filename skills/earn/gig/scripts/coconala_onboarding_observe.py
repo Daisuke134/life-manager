@@ -109,6 +109,10 @@ def _identity_approved(body: str) -> bool:
 
 
 def observe(home: Path) -> dict[str, object]:
+    output = home / ".config" / "anicca" / "gig" / "onboarding-observation.json"
+    # A failed current attempt must not leave a previous authentication success current.
+    _write_private(output, {"version": 1, "platform": "coconala", "pages": {},
+                            "classifications": {"authenticated": None}})
     os.environ["CLOAK_CDP_BASE_URL"] = "http://127.0.0.1:9223"
     os.environ["CLOAK_TARGET_OWNERS_FILE"] = str(
         home / ".cloak" / "vault" / "gig-target-owners.json"
@@ -129,13 +133,21 @@ def observe(home: Path) -> dict[str, object]:
         finally:
             cdp_default_tab.close_tab(str(tab["target_id"]), owner="gig-onboarding")
     evidence = {"version": 1, "platform": "coconala", "pages": snapshots}
-    output = home / ".config" / "anicca" / "gig" / "onboarding-observation.json"
 
     classifications = {state: False for state in PAGES}
     classifications["email_verified"] = False
+    classifications["authenticated"] = None
     auth_url = str(snapshots["authenticated"].get("url") or "")
     parsed = urlparse(auth_url)
-    if parsed.hostname == "coconala.com" and parsed.path.startswith("/mypage"):
+    login_redirect = any(
+        row.get("ready") == "complete" and urlparse(str(row.get("url") or "")).hostname == "coconala.com"
+        and urlparse(str(row.get("url") or "")).path.rstrip("/") in {"/login", "/users/login", "/users/signup"}
+        for row in snapshots.values()
+    )
+    if login_redirect:
+        classifications["authenticated"] = False
+    elif (snapshots["authenticated"].get("ready") == "complete" and parsed.hostname == "coconala.com"
+          and (parsed.path == "/mypage" or parsed.path.startswith("/mypage/"))):
         digest = hashlib.sha256(
             json.dumps(snapshots["authenticated"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
@@ -144,19 +156,19 @@ def observe(home: Path) -> dict[str, object]:
         classifications["authenticated"] = True
         classifications["email_verified"] = True
     for state in ("seller_information", "bank_registered"):
-        if _required_form_complete(snapshots[state]):
+        if classifications["authenticated"] is True and _required_form_complete(snapshots[state]):
             digest = hashlib.sha256(
                 json.dumps(snapshots[state], sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
             record(home, state, digest)
             classifications[state] = True
-    if _sms_approved(raw_bodies.get("sms_verified", "")):
+    if classifications["authenticated"] is True and _sms_approved(raw_bodies.get("sms_verified", "")):
         digest = hashlib.sha256(
             json.dumps(snapshots["sms_verified"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
         record(home, "sms_verified", digest)
         classifications["sms_verified"] = True
-    if _identity_approved(raw_bodies.get("identity_approved", "")):
+    if classifications["authenticated"] is True and _identity_approved(raw_bodies.get("identity_approved", "")):
         digest = hashlib.sha256(
             json.dumps(snapshots["identity_approved"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()

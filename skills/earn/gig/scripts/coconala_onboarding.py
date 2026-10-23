@@ -71,6 +71,17 @@ def record(home: Path, state: str, evidence_sha256: str) -> dict[str, Any]:
 def ready(home: Path) -> tuple[dict[str, Any], int]:
     value = receipt(home)
     missing = [state for state in ACCOUNT_GATES if value["states"][state]["status"] != "complete"]
+    observation = home / ".config" / "anicca" / "gig" / "onboarding-observation.json"
+    authenticated = None
+    if observation.exists():
+        latest = json.loads(observation.read_text(encoding="utf-8"))
+        if (not isinstance(latest, dict) or latest.get("version") != 1
+                or latest.get("platform") != "coconala"
+                or not isinstance(latest.get("classifications"), dict)):
+            raise ValueError("invalid_coconala_onboarding_observation")
+        authenticated = latest["classifications"].get("authenticated")
+    if authenticated is not True and "authenticated" not in missing:
+        missing.insert(0, "authenticated")
     return {"status": "ready" if not missing else "blocked", "missing": missing}, 0 if not missing else 2
 
 
