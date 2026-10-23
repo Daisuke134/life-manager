@@ -426,6 +426,55 @@ def _configured_proxy_form_expression():
     )
 
 
+def _workspace_llm_form_expression():
+    """Current review UI: the LLM card is behind the Agent Workspace tab.
+
+    This is deliberately a form-contract check, not a coordinate/visual guess.
+    """
+    return (
+        "(() => {"
+        "const v=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const xs=[...document.querySelectorAll('input')].filter(v);"
+        "const base=xs.filter(x=>x.type==='text'&&(/^https?:\\/\\//.test(x.value||'')||(x.placeholder||'').includes('api.')));"
+        "const model=xs.filter(x=>x.type==='text'&&(x.placeholder||'').trim()==='モデル');"
+        "const key=xs.filter(x=>x.type==='password');"
+        "return {ok:base.length===1&&model.length===1&&key.length===1,counts:[base.length,model.length,key.length]};"
+        "})()"
+    )
+
+
+def _workspace_focus_expression(role):
+    rules = {
+        "base": "x.type==='text'&&(/^https?:\\/\\//.test(x.value||'')||(x.placeholder||'').includes('api.'))",
+        "model": "x.type==='text'&&(x.placeholder||'').trim()==='モデル'",
+        "key": "x.type==='password'",
+    }
+    return (
+        "(() => {const v=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        f"const xs=[...document.querySelectorAll('input')].filter(x=>v(x)&&({rules[role]}));"
+        "if(xs.length!==1)return {ok:false,count:xs.length};xs[0].scrollIntoView({block:'center'});xs[0].focus();xs[0].select();return {ok:true};})()"
+    )
+
+
+def _workspace_save_expression():
+    return (
+        "(() => {const v=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const bs=[...document.querySelectorAll('button')].filter(b=>v(b)&&(b.textContent||'').trim()==='保存');"
+        "if(bs.length!==1)return {ok:false,count:bs.length};const r=bs[0].getBoundingClientRect();"
+        "return {ok:true,disabled:!!bs[0].disabled,x:r.x+r.width/2,y:r.y+r.height/2};})()"
+    )
+
+
+def _raw_configure_workspace_llm(page, key):
+    if not page.evaluate(_workspace_llm_form_expression()).get("ok"):
+        raise RuntimeError("ambiguous Agent Workspace LLM form")
+    for role, value in (("base", BASE_URL), ("model", MODEL), ("key", key)):
+        state = page.evaluate(_workspace_focus_expression(role))
+        if not isinstance(state, dict) or not state.get("ok"):
+            raise RuntimeError(f"Agent Workspace {role} field is ambiguous ({state})")
+        page.call("Input.insertText", {"text": value})
+
+
 def _configured_proxy_focus_expression(role):
     selectors = {
         "url_name": "(x.placeholder||'').trim()==='urlName'",
