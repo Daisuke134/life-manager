@@ -185,3 +185,22 @@ def test_paid_owner_refreshes_readback_before_paid_work_without_changing_its_res
     assert "coconala_cfo_financial_readback.py" in owner
     assert owner.index("coconala_cfo_financial_readback.py") < owner.index('exec "$ROOT/skills/browser/with-browser.sh"')
     assert "--check-due" in owner and "|| " in owner
+
+
+def test_live_read_appends_settled_sales_to_the_earnings_ledger_once(tmp_path: Path, monkeypatch) -> None:
+    module = load()
+    collector = sys.modules["revenue_collector"]
+    earnings = tmp_path / "earnings.jsonl"
+    monkeypatch.setattr(collector, "EARNINGS", earnings)
+    monkeypatch.setattr(module, "read_pages", lambda cdp: [PAGE_1, PAGE_2])
+    output = tmp_path / "cfo-financial-readback.json"
+    monkeypatch.setattr(sys, "argv", ["x", "--output", str(output), "--cdp", "http://127.0.0.1:1"])
+
+    assert module.main() == 0
+    rows = [json.loads(line) for line in earnings.read_text(encoding="utf-8").splitlines()]
+    assert {row["talkroom_id"] for row in rows} == {"18250352", "18180857", "18211957", "18069473"}
+    assert len(rows) == 6 and all(row["status"] == "検収完了" and row["jpy"] > 0 for row in rows)
+    assert len({row["idem_key"] for row in rows}) == 6
+
+    assert module.main() == 0
+    assert len(earnings.read_text(encoding="utf-8").splitlines()) == len(rows)
