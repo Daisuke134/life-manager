@@ -13,9 +13,9 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW
+from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW, PUBLIC_BASE
 from manager_core.owned_checkpoint import CheckpointUnavailable, PrivateCheckpoint, SOURCE_ROOT
-from manager_core.owned_cycle import CycleConfig, CycleStore, run_owned_cycle
+from manager_core.owned_cycle import CycleConfig, CycleStore, run_owned_cycle, _recover_owned_deliveries
 from manager_core.owned_platform_host import (
     CatalogSelectionUnavailable, GitHubActionsCycleHost, is_canonical_remote,
 )
@@ -86,10 +86,41 @@ def _private_fresh_root(path, runner_temp):
     return target
 
 
-def public_summary(report, *, source_sha=None, receipt_sha=None):
+def _trusted_p2_observation(store, report):
+    """Require the cycle journal binding and private native P2 row to agree."""
+    if (type(store) is not CycleStore or not isinstance(report, dict) or
+            report.get('status')!='VERIFIED_PUBLIC_ARTIFACT_ONLY' or
+            report.get('proof_level')!='P2' or report.get('deployed') is not True):
+        return False
+    effect=report.get('effect_key');receipt=report.get('receipt_ref')
+    if (type(effect) is not str or not re.fullmatch(r'[0-9a-f]{64}',effect) or
+            type(receipt) is not str or not _SHA.fullmatch(receipt)):
+        return False
+    try:
+        saved=store.journal.record(effect)
+        if saved is None or saved.status!='PRESENT' or saved.receipt_ref!=receipt:
+            return False
+        packet=json.loads(saved.packet_json)
+        return any(
+            row.effect_key==effect and row.candidate_sha256==packet.get('candidate_sha256') and
+            row.receipt_ref==receipt and row.measure_id=='owned.pages.served_bundle_bytes' and
+            row.unit=='byte' and row.status=='VERIFIED' and row.proof_level=='P2' and
+            type(row.native_value) is int and row.native_value>0 and
+            row.missing_reason is None and row.human_outcome=='NOT_MEASURED' and
+            f'https://github.com/{REPOSITORY}/commit/{receipt}' in row.provenance_refs and
+            PUBLIC_BASE in row.provenance_refs
+            for row in store.learning.native_technical_observations(effect_key=effect))
+    except (AttributeError, KeyError, TypeError, ValueError, OSError):
+        return False
+
+
+def public_summary(report, *, source_sha=None, receipt_sha=None, store=None):
     """Return only fields approved for public stdout/artifacts."""
     status = report.get('status') if isinstance(report, dict) else 'UNKNOWN'
     if status not in {'UNKNOWN', 'NO_ACTION', 'OWNER_BUSY', 'NOT_DUE', 'STOPPED_REGRESSION',
+                      'STOPPED_BY_OWNER', 'CONTROL_STOP_REQUIRED', 'ROLLBACK_SUBMITTED',
+                      'ROLLBACK_RECONCILED', 'ROLLBACK_BLOCKED', 'ROLLBACK_UNKNOWN',
+                      'RESUMED_BY_OWNER',
                       'ROLLED_BACK_SANDBOX_REGRESSION', 'VERIFIED_PUBLIC_ARTIFACT_ONLY',
                       'VERIFIED_PLATFORM_CONTRACT_P0'}:
         status = 'UNKNOWN'
@@ -99,7 +130,9 @@ def public_summary(report, *, source_sha=None, receipt_sha=None):
     writes = report.get('writes') if isinstance(report, dict) else None
     if status == 'UNKNOWN' or status not in ('NO_ACTION', 'VERIFIED_PUBLIC_ARTIFACT_ONLY',
                                              'VERIFIED_PLATFORM_CONTRACT_P0', 'STOPPED_REGRESSION',
-                                             'OWNER_BUSY', 'NOT_DUE'):
+                                             'OWNER_BUSY', 'NOT_DUE','STOPPED_BY_OWNER',
+                                             'CONTROL_STOP_REQUIRED','ROLLBACK_SUBMITTED',
+                                             'ROLLBACK_RECONCILED','RESUMED_BY_OWNER'):
         writes = None if status == 'UNKNOWN' else writes
     receipt = receipt_sha or (report.get('receipt_ref') if isinstance(report, dict) else None)
     summary = {
@@ -113,9 +146,15 @@ def public_summary(report, *, source_sha=None, receipt_sha=None):
         'positive_canary': 'NOT_RUN',
         'E16_ACCEPTANCE': 'INCOMPLETE',
         'human_outcome': 'NOT_MEASURED',
+        'rollback_delivery': (report.get('rollback_delivery_status')
+                              if isinstance(report,dict) and
+                              report.get('rollback_delivery_status') in ('VERIFIED','PENDING','UNKNOWN')
+                              else None),
     }
     if summary['status'] in ('NO_ACTION', 'NOT_DUE', 'OWNER_BUSY'):
         summary['positive_canary'] = 'NOT_RUN'
+    elif _trusted_p2_observation(store, report):
+        summary['positive_canary'] = 'P2_ARTIFACT_VERIFIED'
     return summary
 
 
@@ -200,14 +239,14 @@ def run_once(state_store, pages_checkout):
             # journal evidence before ending this otherwise healthy session.
             checkpoint.save()
             checkpoint.release()
-            summary = public_summary(report, source_sha=context['source_sha'])
+            summary = public_summary(report, source_sha=context['source_sha'],store=store)
             summary['writes'] = None
             summary['authentication'] = authentication
             return 2, summary
         # Persist the journal/cadence before relinquishing the remote session.
         checkpoint.save()
         checkpoint.release()
-        summary = public_summary(report, source_sha=context['source_sha'])
+        summary = public_summary(report, source_sha=context['source_sha'],store=store)
         summary['authentication'] = authentication
         return (0 if _successful_cycle_exit(report) else 2), summary
     except Exception as exc:
@@ -225,12 +264,115 @@ def run_once(state_store, pages_checkout):
         return code, summary
 
 
+def run_control(control, state_store, pages_checkout):
+    """Apply an explicit STOP or bounded rollback in the trusted main job.
+
+    The action word is a request only. The workflow identity, OIDC-backed
+    checkpoint lease and saved journal provide authority; callers supply no
+    receipt SHA or release packet.
+    """
+    if control not in ('stop','rollback','resume'):
+        return 2, public_summary({'status':'UNKNOWN','reason':'CONTROL_INVALID','writes':None})
+    checkpoint=None; context=None; authentication='NOT_PROVEN'
+    try:
+        context=_check_main_context(pages_checkout)
+        if os.environ.get('GITHUB_EVENT_NAME')!='workflow_dispatch':
+            raise PermissionError('owner control requires an official workflow dispatch')
+        root=_private_fresh_root(state_store,context['runner_temp'])
+        checkpoint=PrivateCheckpoint(run_id=context['run_id'],run_attempt=context['attempt'])
+        checkpoint.acquire(root)
+        authentication='GATEWAY_ACKNOWLEDGED'
+        store=CycleStore(Path(checkpoint.db).parent)
+        host=GitHubActionsCycleHost(checkpoint,context['pages_root'],None,
+                                    context=None,assessment=None,scope=None)
+        with store.owner_lock() as acquired:
+            if not acquired:
+                report={'status':'OWNER_BUSY','writes':0}
+            else:
+                host.assert_session(store)
+                if control=='stop':
+                    store.stop()
+                    report={'status':'STOPPED_BY_OWNER','writes':0}
+                elif control=='resume':
+                    from manager_core.owned_cycle import _occurrence_reader
+                    from manager_core.reconcile import reconcile_pending_owned
+                    from datetime import datetime,timezone
+                    if not store.stopped():
+                        report={'status':'CONTROL_STOP_REQUIRED','writes':0}
+                    else:
+                        rollback=host.reconcile_pending_rollbacks(store)
+                    if (store.stopped() and rollback is not None and
+                            rollback.get('status')=='UNKNOWN'):
+                        report={'status':'UNKNOWN','writes':None,
+                                'reason':'ROLLBACK_RECONCILIATION_PENDING'}
+                    elif store.stopped() and not (rollback is not None and
+                            rollback.get('status')=='UNKNOWN'):
+                        reader=_occurrence_reader(store,host)
+                        reconcile_pending_owned(store.journal,reader,datetime.now(timezone.utc))
+                        if store.journal.pending_records(limit=1):
+                            report={'status':'UNKNOWN','writes':None,
+                                    'reason':'OCCURRENCE_RECONCILIATION_PENDING'}
+                        else:
+                            delivery=_recover_owned_deliveries(store,host,host._now(),
+                                                               allow_rollback=False)
+                            if (delivery is not None or store.journal.pending_deliveries(limit=1) or
+                                    store.journal.pending_rollbacks(limit=1)):
+                                report={'status':'UNKNOWN','writes':None,
+                                        'reason':'DELIVERY_RECONCILIATION_PENDING'}
+                            else:
+                                current=host.observe_current_delivery(store.journal)
+                                valid=(type(current) is dict and
+                                       current.get('kind') in ('candidate','rollback') and
+                                       type(current.get('evidence')) is dict and
+                                       current['evidence'].get('status')=='VERIFIED' and
+                                       current['evidence'].get('proof_level')=='P2')
+                                evidence=current.get('evidence') if type(current) is dict else None
+                                if valid and current['kind']=='candidate':
+                                    saved=store.journal.record(current.get('effect_key'))
+                                    valid=(saved is not None and saved.status=='PRESENT' and
+                                        saved.receipt_ref==current.get('receipt_ref') and
+                                        evidence.get('effect_key')==saved.key and
+                                        evidence.get('receipt_ref')==saved.receipt_ref and
+                                        evidence.get('candidate_sha256')==
+                                            json.loads(saved.packet_json).get('candidate_sha256'))
+                                elif valid:
+                                    saved=store.journal.rollback_record(current.get('effect_key'))
+                                    valid=(saved is not None and saved.status=='PRESENT' and
+                                        saved.receipt_ref==current.get('receipt_ref') and
+                                        evidence.get('effect_key')==saved.key and
+                                        evidence.get('receipt_ref')==saved.receipt_ref and
+                                        evidence.get('baseline_sha256')==
+                                            json.loads(saved.packet_json).get('baseline_sha256'))
+                                if valid:
+                                    store.resume()
+                                    report={'status':'RESUMED_BY_OWNER','writes':0}
+                                else:
+                                    report={'status':'UNKNOWN','writes':None,
+                                            'reason':'CURRENT_DELIVERY_NOT_VERIFIED_P2'}
+                elif not store.stopped():
+                    report={'status':'CONTROL_STOP_REQUIRED','writes':0}
+                else:
+                    report=host.rollback_latest_owned(store)
+                checkpoint.save()
+                checkpoint.release()
+        summary=public_summary(report,source_sha=context['source_sha'],
+                               receipt_sha=report.get('receipt_ref'))
+        summary['authentication']=authentication
+        return (0 if report.get('status') in ('STOPPED_BY_OWNER','CONTROL_STOP_REQUIRED',
+                    'ROLLBACK_SUBMITTED','ROLLBACK_RECONCILED','RESUMED_BY_OWNER') else 2),summary
+    except Exception:
+        summary=public_summary({'status':'UNKNOWN','reason':'RUNTIME_UNAVAILABLE','writes':None},
+                               source_sha=context.get('source_sha') if context else None)
+        summary['writes']=None;summary['authentication']=authentication
+        return 2,summary
+
+
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', choices=('preflight', 'run-once'),
+    parser.add_argument('command', nargs='?', choices=('preflight', 'run-once', 'stop', 'rollback','resume'),
                         help='default is the read-only preflight')
     parser.add_argument('--state-store', type=Path,
-                        help='preflight: inspected only; run-once: fresh private RUNNER_TEMP child')
+                        help='preflight: inspected only; trusted commands: fresh private RUNNER_TEMP child')
     parser.add_argument('--pages-checkout', type=Path,
                         help='existing clean canonical gh-pages checkout (run-once only)')
     return parser
@@ -241,12 +383,15 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command in (None, 'preflight'):
         if args.pages_checkout is not None:
-            parser.error('--pages-checkout is valid only for run-once')
+            parser.error('--pages-checkout is valid only for run-once or owner control')
         code, summary = run_preflight(state_store=args.state_store)
     else:
         if args.state_store is None or args.pages_checkout is None:
-            parser.error('run-once requires --state-store and --pages-checkout')
-        code, summary = run_once(args.state_store, args.pages_checkout)
+            parser.error('trusted command requires --state-store and --pages-checkout')
+        if args.command=='run-once':
+            code, summary = run_once(args.state_store, args.pages_checkout)
+        else:
+            code, summary = run_control(args.command, args.state_store, args.pages_checkout)
     print(json.dumps(summary, ensure_ascii=False, separators=(',', ':'), sort_keys=True))
     return code
 

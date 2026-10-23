@@ -7,6 +7,17 @@ on:
     branches: [main]
     paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Requested owner operation
+        required: true
+        default: run-once
+        type: choice
+        options:
+          - run-once
+          - stop
+          - rollback
+          - resume
   schedule:
     - cron: '17 * * * *'
 permissions:
@@ -38,7 +49,9 @@ jobs:
           test_owned_cycle_cli test_owned_workflow_contract
           test_owned_catalog_planner test_candidate_verification
           test_owned_digital_cycle test_owned_checkpoint_order
-          test_owned_platform_host -v
+          test_owned_platform_host test_owned_platform_rollback
+          test_owned_public_collector test_owned_native_observations
+          test_owned_native_observation_bridge -v
       - name: Install locked browser suite and build the reference bundle
         run: |
           cd tests/e2e
@@ -97,9 +110,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MANAGER_RELEASE_ENABLED: 'true'
+          MANAGER_OPERATION: ${{ github.event_name == 'schedule' && 'run-once' || github.event.inputs.operation || 'run-once' }}
         shell: bash
         run: |
-          python scripts/run_owned_digital_cycle.py run-once \
+          set -o pipefail
+          MANAGER_OPERATION="${MANAGER_OPERATION-run-once}"
+          case "$MANAGER_OPERATION" in
+            run-once|stop|rollback|resume) ;;
+            *) echo "invalid manager operation" >&2; exit 2 ;;
+          esac
+          python scripts/run_owned_digital_cycle.py "$MANAGER_OPERATION" \
             --state-store "$RUNNER_TEMP/manager-owned-state" \
             --pages-checkout "$GITHUB_WORKSPACE/pages" | tee "$RUNNER_TEMP/manager-public-summary.json"
           python - <<'PY'

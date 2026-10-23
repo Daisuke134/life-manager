@@ -176,10 +176,46 @@ def admit_owned(context,assessment,standing_scope,prepared,checkout,audit_path,o
         return admit(Path(context.candidate_bundle),Path(checkout),Path(audit_path),intent,output,now)
 
 
-def render_explorer(report):
+def _native_explorer_rows(report, learner):
+    """Select only store-backed facts matching this independently proved release."""
+    if learner is None:
+        return []
+    from manager_core.learning import NativeTechnicalObservation
+    effect_key=report.get('effect_key');candidate_sha=report.get('candidate_sha256')
+    receipt_ref=report.get('pages_commit')
+    if (type(effect_key) is not str or not re.fullmatch('[0-9a-f]{64}',effect_key) or
+            type(candidate_sha) is not str or not re.fullmatch('[0-9a-f]{64}',candidate_sha) or
+            type(receipt_ref) is not str or not re.fullmatch('[0-9a-f]{40}',receipt_ref) or
+            report.get('status')!='VERIFIED_PUBLIC_ARTIFACT_ONLY'):
+        return []
+    approved={
+        'owned.pages.commit_occurrence':('commit_occurrence','P1'),
+        'owned.pages.served_bundle_bytes':('byte','P2'),
+    }
+    rows=[]
+    for observation in learner.native_technical_observations(effect_key=effect_key):
+        if type(observation) is not NativeTechnicalObservation:
+            continue
+        expected=approved.get(observation.measure_id)
+        expected_value=(1 if observation.measure_id=='owned.pages.commit_occurrence'
+                        else report.get('served_bundle_bytes'))
+        if (expected is None or observation.candidate_sha256!=candidate_sha or
+                observation.receipt_ref!=receipt_ref or observation.status!='VERIFIED' or
+                observation.proof_level!=expected[1] or observation.unit!=expected[0] or
+                observation.native_value!=expected_value or
+                observation.native_value is None or observation.missing_reason is not None or
+                observation.human_outcome!='NOT_MEASURED'):
+            continue
+        rows.append((observation.measure_id,observation.native_value,observation.unit,
+                     observation.status,observation.proof_level,
+                     observation.observed_at.astimezone(timezone.utc).isoformat()))
+    return rows
+
+
+def render_explorer(report, *, learner=None):
     """Static view of an independently collected report; no trackers/forms."""
     details=[('Technical evidence',report['technical_proof']),
-             ('Human outcomes',report['human_outcome']),('Effect key',report['effect_key']),
+             ('Human outcomes',report['human_outcome']),
              ('Source commit',report['source_commit']),('Pages commit',report['pages_commit']),
              ('Parent Pages commit',report['parent_pages_commit']),
              ('Original release at',report['committed_at']),('Observed at',report['observed_at']),
@@ -187,13 +223,19 @@ def render_explorer(report):
              ('Reconciled existing occurrence',report['reconciled_existing_occurrence']),
              ('Original release changed pages',', '.join(report['changed_pages']))]
     rows=''.join('<tr><th scope="row">'+escape(k)+'</th><td>'+escape(str(v))+'</td></tr>' for k,v in details)
+    native_rows=_native_explorer_rows(report,learner)
+    if native_rows:
+        measured=''.join('<tr><th scope="row">'+escape(measure)+'</th><td>'+escape(
+            f'{value} {unit}; {status}; {proof}; observed {observed_at}')+'</td></tr>'
+            for measure,value,unit,status,proof,observed_at in native_rows)
+        rows += '<tr><th scope="row">Approved native technical observations</th><td><table><tbody>'+measured+'</tbody></table></td></tr>'
     links=''.join('<li><a href="'+escape(url,quote=True)+'">'+escape(label)+'</a></li>'
                   for label,url in [('Public service',PUBLIC_BASE),('Exact provider receipt',report['receipt_url']),
                                     ('Immutable source','https://github.com/'+REPOSITORY+'/tree/'+report['source_commit']+'/products/manager')])
     return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manager — digital release proof</title><style>body{font:18px/1.6 system-ui;max-width:75ch;margin:3rem auto;padding:1rem;color:#18352a}td,th{border-bottom:1px solid #ccc;text-align:left;padding:.7rem;overflow-wrap:anywhere}a{color:#175d49}</style><main><h1>Manager digital release proof</h1><p>Public Git commit and independently served bytes. This report does not establish beneficiary improvement or a causal welfare effect.</p><table><caption>Observed evidence</caption>'+rows+'</table><h2>Check the sources</h2><ul>'+links+'</ul><h2>What remains unknown</h2><p>Mental, physical and financial outcomes: NOT_MEASURED. No experiment participants, claimed medical effects or confirmed benefit payments.</p></main></html>\n'
 
 
-def prove(intent_path,pages_commit,output,now):
+def prove(intent_path,pages_commit,output,now,*,learner=None):
     if not re.fullmatch('[0-9a-f]{40}',pages_commit or ''):
         raise ValueError('exact provider commit required')
     packet=json.loads(intent_path.read_text());validate_intent(packet)
@@ -218,10 +260,11 @@ def prove(intent_path,pages_commit,output,now):
             'source_commit':packet['candidate']['source_commit'],
             'candidate_sha256':packet['candidate_sha256'],'public_url':PUBLIC_BASE,
             'measurement_unit':'exact_public_artifact_bytes',
+            'served_bundle_bytes':sum(len(body) for body in bodies.values()),
             'human_outcome':'NOT_MEASURED','causal_effect_verified':False,
             'candidate':packet['candidate']}
     write_json(output/'kernel-public-proof.json',report)
-    (output/'proof-explorer.html').write_text(render_explorer(report))
+    (output/'proof-explorer.html').write_text(render_explorer(report,learner=learner))
     return report
 
 

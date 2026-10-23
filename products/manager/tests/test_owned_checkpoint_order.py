@@ -246,6 +246,7 @@ class OwnedCheckpointOrderTests(unittest.TestCase):
                  patch.object(release, 'source_checkout_commit', return_value='b' * 40), \
                  patch.object(collector, 'collect_owned_occurrence', side_effect=saved_occurrence), \
                  patch.object(collector, 'collect_owned_delivery', side_effect=lagging_delivery), \
+                 patch.object(resumed, 'observe_current_delivery', return_value=None), \
                  patch.object(resumed, 'prepare_candidate', wraps=resumed.prepare_candidate) as prepare, \
                  patch.object(release, 'admit_owned') as next_admit, \
                  self.local_cli_boundary(resumed, resumed_events, sent_commit), \

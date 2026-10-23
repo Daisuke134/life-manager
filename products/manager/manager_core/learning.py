@@ -3,11 +3,108 @@
 No policy ever changes its own authority or enables external effects. Small,
 fail-closed offline candidate registry; policy scores are not field outcomes.
 """
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from hashlib import sha256
 import json
 from math import isfinite
 from pathlib import Path
+import re
 import sqlite3
+from urllib.parse import urlsplit
 from .calibration import assert_disjoint_groups
+from .models.source import _aware
+
+
+@dataclass(frozen=True)
+class NativeTechnicalObservation:
+    """One private, source-bound technical fact from an authorized collector.
+
+    Construction validates shape and binding syntax. It does not authenticate a
+    caller, validate a provider receipt, or grant authority to publish evidence.
+    The host must call this API only after its existing journal/provider checks.
+    """
+    effect_key: str
+    candidate_sha256: str
+    receipt_ref: str
+    observed_at: datetime
+    measure_id: str
+    unit: str
+    status: str
+    proof_level: str
+    native_value: int | float | None
+    missing_reason: str | None
+    human_outcome: str
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self):
+        if type(self.effect_key) is not str or not re.fullmatch(r'[0-9a-f]{64}', self.effect_key):
+            raise ValueError('exact effect key required')
+        if type(self.candidate_sha256) is not str or not re.fullmatch(r'[0-9a-f]{64}', self.candidate_sha256):
+            raise ValueError('exact candidate SHA-256 required')
+        if type(self.receipt_ref) is not str or not re.fullmatch(r'[0-9a-f]{40}', self.receipt_ref):
+            raise ValueError('exact provider receipt commit required')
+        if type(self.observed_at) is not datetime:
+            raise ValueError('aware observation time required')
+        _aware(self.observed_at)
+        if (type(self.measure_id) is not str or
+                not re.fullmatch(r'[a-z][a-z0-9_.-]{1,127}', self.measure_id)):
+            raise ValueError('canonical measure id required')
+        if type(self.unit) is not str or not re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}', self.unit):
+            raise ValueError('canonical measurement unit required')
+        if type(self.status) is not str or self.status not in ('VERIFIED', 'PENDING', 'REGRESSION', 'UNKNOWN'):
+            raise ValueError('typed native observation status required')
+        if type(self.proof_level) is not str or self.proof_level not in ('P1', 'P2'):
+            raise ValueError('native observations require exact P1 or P2 proof')
+        if type(self.human_outcome) is not str or self.human_outcome != 'NOT_MEASURED':
+            raise ValueError('human outcome must remain NOT_MEASURED')
+        if self.status in ('PENDING', 'UNKNOWN'):
+            if self.native_value is not None or type(self.missing_reason) is not str or not self.missing_reason.strip():
+                raise ValueError('missing technical values require null and a reason')
+        else:
+            numeric_type = type(self.native_value)
+            finite_numeric = (numeric_type is float and isfinite(self.native_value))
+            exact_safe_integer = numeric_type is int and abs(self.native_value) <= 2**53
+            if (not (finite_numeric or exact_safe_integer) or self.missing_reason is not None):
+                raise ValueError('verified technical values must be finite and complete')
+        if (type(self.missing_reason) is str and
+                (not self.missing_reason.strip() or len(self.missing_reason) > 256)):
+            raise ValueError('bounded missing reason required')
+        if type(self.provenance_refs) is not tuple or not self.provenance_refs:
+            raise ValueError('immutable provenance reference tuple required')
+        for ref in self.provenance_refs:
+            if (type(ref) is not str or len(ref) > 2048 or ref != ref.strip() or
+                    any(char.isspace() or ord(char) < 32 for char in ref)):
+                raise ValueError('bounded provenance URL required')
+            try:
+                parsed = urlsplit(ref)
+                port = parsed.port
+            except ValueError as exc:
+                raise ValueError('valid HTTPS provenance URL required') from exc
+            if (parsed.scheme != 'https' or not parsed.hostname or
+                    parsed.username is not None or parsed.password is not None or
+                    (parsed.netloc.endswith(':')) or (port is not None and not 1 <= port <= 65535) or
+                    parsed.query or parsed.fragment):
+                raise ValueError('canonical HTTPS provenance reference required')
+        if len(set(self.provenance_refs)) != len(self.provenance_refs):
+            raise ValueError('duplicate provenance reference')
+
+    def canonical_payload(self):
+        """Return the fixed schema stored in the private native table."""
+        return {
+            'effect_key': self.effect_key,
+            'candidate_sha256': self.candidate_sha256,
+            'receipt_ref': self.receipt_ref,
+            'observed_at': self.observed_at.astimezone(timezone.utc).isoformat(),
+            'measure_id': self.measure_id,
+            'unit': self.unit,
+            'status': self.status,
+            'proof_level': self.proof_level,
+            'native_value': self.native_value,
+            'missing_reason': self.missing_reason,
+            'human_outcome': self.human_outcome,
+            'provenance_refs': sorted(self.provenance_refs),
+        }
 
 
 def _loss(value):
@@ -27,6 +124,23 @@ class PolicyLearner:
             db.execute("""CREATE TABLE IF NOT EXISTS active_policy (
                 id INTEGER PRIMARY KEY CHECK(id=1), version TEXT NOT NULL,
                 previous TEXT)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS native_technical_observations (
+                observation_id TEXT PRIMARY KEY,
+                effect_key TEXT NOT NULL,
+                candidate_sha256 TEXT NOT NULL,
+                receipt_ref TEXT NOT NULL,
+                observed_at TEXT NOT NULL,
+                measure_id TEXT NOT NULL,
+                unit TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('VERIFIED','PENDING','REGRESSION','UNKNOWN')),
+                proof_level TEXT NOT NULL CHECK(proof_level IN ('P1','P2')),
+                native_value BLOB, -- BLOB affinity preserves exact SQLite int/float storage classes.
+                missing_reason TEXT,
+                human_outcome TEXT NOT NULL CHECK(human_outcome='NOT_MEASURED'),
+                provenance_refs_json TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                UNIQUE(effect_key,candidate_sha256,receipt_ref,observed_at,measure_id)
+            )""")
 
     def initialize(self,version):
         if not isinstance(version,str) or not version.strip():
@@ -91,3 +205,56 @@ class PolicyLearner:
         with sqlite3.connect(self.path) as db:
             db.execute('CREATE TABLE IF NOT EXISTS sandbox_technical_observations(id INTEGER PRIMARY KEY,event_json TEXT NOT NULL)')
             return [json.loads(row[0]) for row in db.execute('SELECT event_json FROM sandbox_technical_observations ORDER BY id')]
+
+    def record_native_technical_observation(self, observation):
+        """Append one validated P1/P2 fact; P0 and caller JSON are not accepted.
+
+        Identity binds one exact effect/candidate/receipt/time/measure snapshot.
+        An identical replay returns the same ID; a conflicting replay fails and
+        historical rows are never updated to reflect current delivery state.
+        """
+        if type(observation) is not NativeTechnicalObservation:
+            raise TypeError('NativeTechnicalObservation required')
+        payload = observation.canonical_payload()
+        encoded = json.dumps(payload, sort_keys=True, separators=(',', ':'), allow_nan=False)
+        identity = {name: payload[name] for name in (
+            'effect_key', 'candidate_sha256', 'receipt_ref', 'observed_at', 'measure_id')}
+        observation_id = sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        with sqlite3.connect(self.path, timeout=15, isolation_level=None) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT payload_json FROM native_technical_observations WHERE observation_id=?',
+                             (observation_id,)).fetchone()
+            if row is not None:
+                if row[0] != encoded:
+                    db.execute('ROLLBACK')
+                    raise ValueError('conflicting immutable native observation')
+                db.execute('COMMIT')
+                return observation_id
+            db.execute('''INSERT INTO native_technical_observations
+                (observation_id,effect_key,candidate_sha256,receipt_ref,observed_at,measure_id,unit,
+                 status,proof_level,native_value,missing_reason,human_outcome,provenance_refs_json,payload_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                (observation_id, payload['effect_key'], payload['candidate_sha256'], payload['receipt_ref'],
+                 payload['observed_at'], payload['measure_id'], payload['unit'], payload['status'],
+                 payload['proof_level'], payload['native_value'], payload['missing_reason'],
+                 payload['human_outcome'], json.dumps(payload['provenance_refs'], separators=(',', ':')), encoded))
+            db.execute('COMMIT')
+        return observation_id
+
+    def native_technical_observations(self, *, effect_key=None):
+        """Read typed private observations in immutable insertion identity order."""
+        with sqlite3.connect(self.path, timeout=15) as db:
+            if effect_key is None:
+                rows = db.execute('SELECT payload_json FROM native_technical_observations ORDER BY rowid').fetchall()
+            else:
+                if type(effect_key) is not str or not re.fullmatch(r'[0-9a-f]{64}', effect_key):
+                    raise ValueError('exact effect key required')
+                rows = db.execute('''SELECT payload_json FROM native_technical_observations
+                                     WHERE effect_key=? ORDER BY rowid''', (effect_key,)).fetchall()
+        result = []
+        for (encoded,) in rows:
+            payload = json.loads(encoded)
+            result.append(NativeTechnicalObservation(
+                **{**payload, 'observed_at': datetime.fromisoformat(payload['observed_at']),
+                   'provenance_refs': tuple(payload['provenance_refs'])}))
+        return result

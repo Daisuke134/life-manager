@@ -1,5 +1,5 @@
 """Fixed catalog selection must preserve NO_ACTION and bind any change to live bytes."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -54,7 +54,8 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
         baseline = {name: b"" for name in PAGES}
         baseline["finance.html"] = (f'<a data-official href="{c["resources"][0]["url"]}"></a>'.encode())
         # Empty labels are eligible only when the anchor has no accessible name or child content.
-        opportunity = planner.find_catalog_opportunity(baseline, c, rows)
+        with patch.object(planner, "_utcnow", return_value=NOW):
+            opportunity = planner.find_catalog_opportunity(baseline, c, rows)
         self.assertEqual(opportunity.action, "IMPROVE_ACCESSIBILITY")
         self.assertEqual(opportunity.required_label, c["resources"][0]["title"])
 
@@ -101,11 +102,23 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
                        "observed_at": NOW.isoformat()}
         baseline = {name: b"" for name in PAGES}
         baseline["finance.html"] = (f'<a data-official href="https://www.mhlw.go.jp/old-route">{row["title"]}</a>'.encode())
-        selected = planner.find_catalog_opportunity(baseline, c, [observation])
+        with patch.object(planner, "_utcnow", return_value=NOW):
+            selected = planner.find_catalog_opportunity(baseline, c, [observation])
         self.assertEqual(selected.action, "CORRECT_LINK")
         self.assertEqual(selected.old_url, "https://www.mhlw.go.jp/old-route")
         baseline["finance.html"] = b'<a data-official href="https://www.mhlw.go.jp/old-route">unrelated</a>'
-        self.assertIsNone(planner.find_catalog_opportunity(baseline, c, [observation]))
+        with patch.object(planner, "_utcnow", return_value=NOW):
+            self.assertIsNone(planner.find_catalog_opportunity(baseline, c, [observation]))
+
+    def test_catalog_observation_older_than_two_hours_remains_expired(self):
+        resource = catalog()["resources"][0]
+        observation = {"id": resource["id"], "url": resource["url"],
+                       "final_url": resource["url"], "status": "REACHABLE_NOT_OUTCOME",
+                       "http_status": 200, "sha256": "f" * 64,
+                       "observed_at": (NOW - timedelta(hours=2, seconds=1)).isoformat()}
+        with patch.object(planner, "_utcnow", return_value=NOW):
+            self.assertIsNone(planner._observed_row(
+                [observation], resource["id"], resource["url"]))
 
     def test_ambiguous_identity_and_unknown_physical_rights_are_not_guessed(self):
         c = catalog()
