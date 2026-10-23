@@ -93,4 +93,4 @@
 
 - 2026-10-24 06:18 Codex（mobile旗艦）: Era指定と正本6TODOを維持し、通知/日次対象日/認証修正3PRのmain統合・対象metrics ownerへのb53c628b採用を反映。新SHA自然run2件はdisk_floor_low/exit75、通知4jobのreceipt無し。公式GETでAniccaは提出準備、Thankful/Honne/Sleep Resetは審査待ち。次は容量条件後の自然収集/通知と実機Lifetime動画→再提出。
 
-- 2026-10-24 06:34 Codex（mobile旗艦）: Anicca Store copyの事実整合をclaim。所有は7locale description/promoと正本spec。カード/保存/共有/8背景を軸にし、未確認の瞬間検知/voice/学習の約束を除く。受入/main後、公開版promoと提出準備版copyを公式反映する。価格/build/投稿枠は変更しない。
+- 2026-10-24 06:34 Codex（mobile旗艦）: Anicca Store copyの事実整合はPR8786/mainffff0cbd、CI14件・fresh review軽微1件修正/重大0で受入済み。ASCの既存7locale/14resource/21fieldを同mainの文面へ反映し、別公式GETで完全一致/対象外fieldとbuild808維持を確認する。公開HTMLの新promo表示は未確認で、description公開は1.9.6公開後。通知4jobは同ID/attempt2でreceiptと送信先本文一致4/4、次自然runの再送ゼロと全6商品の同期間baselineが残る。Era指定/6TODO順と実機Lifetime動画→再提出の主cursorを維持する。
