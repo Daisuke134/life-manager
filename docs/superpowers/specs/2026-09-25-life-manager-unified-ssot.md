@@ -205,6 +205,8 @@ INPUTS-B1の独立review診断: PR #8747/head21446c76180edce073c1601662926062857
 
 INPUTS-B1のreview修復: catalog欠損/破損とpending存在/ledger破損の4組合せをRED再現し、既存helperの不足field指定とmainの早期returnを計3行で修復する。workerは通常入力不備とowner境界を含む16件PASS、primaryは関連setup/ownerケースを再確認する。最初のhead21446c7618のworkflow39986559859は全13checksが成功するが、blocking修復前なので統合せず、更新headの独立再review/CIを通す。
 
+INPUTS-B1の起動境界診断: pending_createを持つ隔離fixtureでtick importをImportErrorにすると、apply/createがlogged_in=Falseを返すことをprimaryのfake probeで再現する。現head67933727の独立再reviewはblocking0だが、この追加境界があるためmerge watcherを停止する（PR #8747はOPEN）。同じpending/ledger読取不能はmodule import・account lock取得失敗・catalog入口でもauth未観測を保持し、ownerのpre_effect_failure/effect0へ戻さない。通常pending無しの起動失敗は従来のFalseを維持する。既存state helperを再利用した最小修正を、実private/browser/provider無しの失敗テストから進め、更新headの独立review/CIで受け入れる。B2/INSTALL/READYは残す。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
