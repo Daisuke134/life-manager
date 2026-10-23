@@ -20,11 +20,13 @@ HEAL=""; add_heal(){ HEAL="$HEAL$1; "; }
 N_ACCT=0
 [ -f "$ACCTS" ] && N_ACCT="$(python3 -c "import json;d=json.load(open('$ACCTS'));print(len(d if isinstance(d,list) else d.get('accounts',[])))" 2>/dev/null||echo 0)"
 [ "$N_ACCT" -ge 1 ] 2>/dev/null || add_heal "NO-REDDIT-ACCOUNT → operate an existing disclosed builder account, or create one honestly (normal signup; if a CAPTCHA blocks it, that ONE step is a human=compute relay — do NOT auto-bypass anti-bot controls); meanwhile use self-promo-welcome subs' scheduled threads"
-# HEAL: camofox reachable? (Reddit is hard-blocked on the shared CDP :9222 daily-driver — this
-# account lives ONLY on camofox :9377, see ~/.cloak/reddit-accounts.json; checking :9222 here would
-# heal the wrong browser and misdirect the next pass.)
+# HEAL: is the Camofox browser connected? (Reddit is hard-blocked on the shared CDP :9222
+# daily-driver — this account lives ONLY on camofox :9377, see ~/.cloak/reddit-accounts.json;
+# a healthy HTTP wrapper alone is not enough to open a browser tab.)
 if [ "${RD_TEST:-}" != "1" ]; then
-  curl -s --max-time 5 -o /dev/null http://127.0.0.1:9377/health 2>/dev/null || add_heal "CAMOFOX-DOWN(:9377) → bash $REPO_ROOT/skills/camofox-browser/scripts/start.sh"
+  CAMOFOX_HEALTH="$(curl -sSf --max-time 5 http://127.0.0.1:9377/health 2>/dev/null || true)"
+  CAMOFOX_BROWSER_OK="$(printf '%s' "$CAMOFOX_HEALTH" | python3 -c 'import json,sys; print("1" if json.load(sys.stdin).get("browserConnected") else "0")' 2>/dev/null || echo 0)"
+  [ "$CAMOFOX_BROWSER_OK" = "1" ] || add_heal "CAMOFOX-DOWN(:9377) → bash $REPO_ROOT/skills/camofox-browser/scripts/start.sh"
 fi
 # READ: karma + posts + signups (all from real markers)
 KARMA="$(python3 -c "import json;d=json.load(open('$ACCTS'));a=(d if isinstance(d,list) else d.get('accounts',[]));print(sum(int(x.get('comment_karma',0)) for x in a))" 2>/dev/null||echo 0)"

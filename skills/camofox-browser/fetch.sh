@@ -25,10 +25,37 @@ verified() {
     [ -d "$FINAL_ROOT/source/node_modules" ]
 }
 
+native_sqlite_ready() {
+  (cd "$1" && node -e "require('better-sqlite3')" >/dev/null 2>&1)
+}
+
+ensure_native_sqlite() {
+  local source_dir="$1"
+  if native_sqlite_ready "$source_dir"; then
+    return 0
+  fi
+  echo "Building better-sqlite3 for the active Node ABI..." >&2
+  (cd "$source_dir" && npm_config_build_from_source=true npm rebuild better-sqlite3 --foreground-scripts >&2)
+  native_sqlite_ready "$source_dir" || {
+    echo "better-sqlite3 is still unavailable for the active Node ABI" >&2
+    return 1
+  }
+}
+
+if verified; then
+  # npm ci below skips package lifecycle scripts. Build only the native module
+  # required by camoufox-js, including after the active Node ABI changes.
+  command -v node >/dev/null
+  ensure_native_sqlite "$FINAL_ROOT/source"
+  printf '%s\n' "$FINAL_ROOT/source"
+  exit 0
+fi
+
 if ! verified; then
   command -v curl >/dev/null
   command -v python3 >/dev/null
   command -v npm >/dev/null
+  command -v node >/dev/null
   mkdir -p "$CACHE_ROOT"
   TEMP_ROOT="$(mktemp -d "$CACHE_ROOT/.${COMMIT}.tmp.XXXXXX")"
   trap 'rm -rf "$TEMP_ROOT"' EXIT
@@ -62,6 +89,7 @@ PY
   # stdout machine-readable: npm's progress/audit output must not become part
   # of CAMOFOX_DIR.
   (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts >&2)
+  ensure_native_sqlite "$TEMP_ROOT/source"
   if [ -e "$FINAL_ROOT" ]; then
     rm -rf "$FINAL_ROOT"
   fi
