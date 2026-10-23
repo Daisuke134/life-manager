@@ -227,15 +227,29 @@ ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.con
   || { cat "$FAKE_HEADLINE_CALLS"; fail "$LINENO"; }
 [ -f "$RUN/headline-image.png" ] && [ -f "$FAKE_INIT_ARGS" ] || fail "$LINENO"
 
-# 9b. An earlier API intent means the outcome may be unknown: never send a second request.
+# 9b. An unknown-outcome intent is never resent: the finisher blocks with its status.
 RUN="$(make_run 20261023-010000)"
 rm -f "$RUN/headline-image.png"
 printf 'p\n' >"$RUN/gates/headline-image-prompt.txt"; printf 'a\n' >"$RUN/gates/headline-image-alt.txt"
-printf '{}' >"$RUN/gates/headline-image-api-intent.json"
+printf '{"status":"delivery_unknown"}' >"$RUN/gates/headline-image-api-intent.json"
+: >"$FAKE_HEADLINE_CALLS"
+if ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.conf" \
+  ARTICLE_HEADLINE_IMAGE_GENERATOR="$TMP/bin/headline.py" ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out9b" 2>&1; then cat "$TMP/out9b"; fail "$LINENO"; fi
+[ ! -s "$FAKE_HEADLINE_CALLS" ] && grep -q "reason=headline-image-intent-delivery_unknown" "$TMP/out9b" \
+  || fail "$LINENO"
+
+# 9c. Generated and committed at the API but died before the local commit: replay commit+verify only.
+RUN="$(make_run 20261023-020000)"
+rm -f "$RUN/headline-image.png"
+printf 'p\n' >"$RUN/gates/headline-image-prompt.txt"; printf 'a\n' >"$RUN/gates/headline-image-alt.txt"
+printf '{"status":"committed"}' >"$RUN/gates/headline-image-api-intent.json"
+mkdir -p "$RUN/gates/media-candidates"; printf 'png' >"$RUN/gates/media-candidates/headline-gpt-image-2.png"
 : >"$FAKE_HEADLINE_CALLS"
 ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.conf" \
   ARTICLE_HEADLINE_IMAGE_GENERATOR="$TMP/bin/headline.py" ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
-  bash "$FINISH" --run-dir "$RUN" >"$TMP/out9b" 2>&1 || { cat "$TMP/out9b"; exit 1; }
-[ ! -s "$FAKE_HEADLINE_CALLS" ] && grep -q "reason=missing-headline-image.png" "$TMP/out9b" || fail "$LINENO"
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out9c" 2>&1 || { cat "$TMP/out9c"; exit 1; }
+[ "$(cat "$FAKE_HEADLINE_CALLS")" = "$(printf 'commit headline\nverify key=')" ] \
+  && [ -f "$RUN/headline-image.png" ] || { cat "$FAKE_HEADLINE_CALLS"; fail "$LINENO"; }
 
 echo "prepublication-finish: PASS"
