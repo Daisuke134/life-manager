@@ -469,7 +469,7 @@ BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with space
 
 - [x] BUNDLE-GC-PERF-RED: 重複aliasのresolveへ仮想時間を課し、修復前は期限超過で保持、修復後は同じ15秒内にFD再確認と回収へ到達する最小fixtureを先に失敗させる。別snapshotで同じaliasの参照先変更・新FD参照を認識し保持する反例を含める。 source未変更の4nodeは1 FAIL/3 PASS（0.79s）。反復aliasの未参照bundleが残る実体assertで失敗し、alias変更/新FD/期限超過全保持の3反例はPASS。test差分89行、diffcheck PASS。
 - [x] BUNDLE-GC-PERF-GREEN: 上記2filesの最小修復、既存空白/=alias/長いps/unknown/FD/保護store/lock条件と関連suiteをPASSする。実機15秒完走はsourceテストと別に評価する。 最小source19行（+11/-8）で元のProgramArguments fixture4 PASS（0.30s）、GC class35 PASS/9subtests（0.55s）、primaryの隔離HOMEによる関連4filesは162 PASS/33subtests（70.80s）。AST/diff/source-boundary/OSS self-containedはPASS。source SHA256=c92708e10d9b62bcbdbf4782dbde28bd6aa4e3229137e0d528d6ef9241bd5130、test SHA256=72bb5e3b1cadfec8a979b938907fd2525338a66969ee4745356f5e1570970af3。fresh reviewと最終head CIは未完。
-- [ ] BUNDLE-GC-PERF-SHIP: fresh read-only review、最終headに対する既存workflow全13jobs success、main/public source照合を受け入れる。
+- [ ] BUNDLE-GC-PERF-SHIP: fresh read-only review、最終headに対する既存workflow全13jobs success、main/public source照合を受け入れる。 fresh reviewerはsource/testの上記SHA256一致、追加4 PASS、PYTHONHASHSEED=1のtimeout保持1 PASS、空/非空legacy分岐probe2 PASS、diffcheck PASSでblocking0/SHIPとする。公開CI/main/実回収はまだ未完。
 - [ ] BUNDLE-GC-PERF-ACTUAL: accepted main由来の同じGig依存closureを含むimmutableを作り、同じ対象rootの残7bundlesへ既存入口を実行する。receipt・残件・free・replay結果を記録し、時間不足なら境界を追加計測して最小修復を続ける。全業務/別Mac/10,000starsは未完。
 
 #### Lancers本人入力の実装計画
