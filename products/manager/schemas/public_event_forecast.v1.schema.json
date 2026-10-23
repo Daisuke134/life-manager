@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manager.public-event-forecast.v1",
+  "title": "Fixed FOMC public event forecast record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "case_id", "target_id", "protocol_id", "protocol_sha256", "event_kind", "event_schedule", "cutoff", "resolution_deadline", "question", "outcome_rule", "context_manifest", "predictor", "prediction", "baselines", "scoring", "integrity"],
+  "properties": {
+    "schema": {"const": "manager.public-event-forecast.v1"},
+    "case_id": {"const": "fomc-2026-10-27-28"},
+    "target_id": {"const": "fomc-2026-10-27-28.upper-below-4pct.v1"},
+    "protocol_id": {"const": "manager-public-event-forecast.fomc-upper-below-4pct.v1"},
+    "protocol_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "event_kind": {"const": "public-institution-statement"},
+    "event_schedule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["date_start", "date_end", "timezone", "precision"],
+      "properties": {"date_start": {"const": "2026-10-27"}, "date_end": {"const": "2026-10-28"}, "timezone": {"const": "America/New_York"}, "precision": {"const": "date"}}
+    },
+    "cutoff": {"const": "2026-10-26T23:59:59Z"},
+    "resolution_deadline": {"const": "2026-11-06T23:59:59Z"},
+    "question": {"type": "string", "minLength": 1},
+    "outcome_rule": {"type": "object", "required": ["source_role", "operator", "threshold", "unit", "missing_policy", "reschedule_policy"], "properties": {"source_role": {"const": "same-meeting-official-policy-statement"}, "operator": {"const": "<"}, "threshold": {"const": "4.00"}, "unit": {"const": "percent"}, "missing_policy": {"const": "unavailable-is-not-zero"}, "reschedule_policy": {"const": "retain-original-case-status"}}},
+    "context_manifest": {"type": "object", "required": ["source_hashes", "context_digest", "sources"], "properties": {"source_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "context_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "sources": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "object"}}}},
+    "predictor": {"type": "object", "required": ["kind", "id", "procedure_sha256"], "properties": {"kind": {"enum": ["manual", "reference"]}, "id": {"type": "string", "minLength": 1}, "procedure_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "prediction": {"type": "object", "required": ["p", "unit", "target_id"], "properties": {"p": {"type": "number", "minimum": 0, "maximum": 1}, "unit": {"const": "probability-0-to-1"}, "target_id": {"const": "fomc-2026-10-27-28.upper-below-4pct.v1"}}},
+    "baselines": {"type": "object", "required": ["persistence", "historical_frequency", "history_source_hashes", "baseline_digest"], "properties": {"persistence": {"type": "object", "required": ["p", "rule"], "properties": {"p": {"const": 0}, "rule": {"const": "latest upper unchanged at 4.00 percent"}}}, "historical_frequency": {"type": "object", "required": ["p", "rule"], "properties": {"p": {"const": 0.25}, "rule": {"const": "(cuts+1)/(transitions+2); 1 cut / 3 values"}}}, "history_source_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "baseline_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "integrity": {"type": "object", "required": ["canonicalization"], "properties": {"canonicalization": {"const": "manager.json-c14n.v1"}}, "additionalProperties": false},
+    "scoring": {"type": "object", "required": ["primary", "lower_is_better", "scheduled_targets", "calibration_claim"], "properties": {"primary": {"const": "binary-brier"}, "lower_is_better": {"const": true}, "scheduled_targets": {"const": 1}, "calibration_claim": {"const": false}}}
+  }
+}
