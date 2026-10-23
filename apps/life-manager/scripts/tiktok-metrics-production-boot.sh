@@ -13,4 +13,6 @@ lm_prepare_portable_runtime "$REPO_ROOT"
 # The guarded browser launcher needs the cloakbrowser venv; under launchd LIFE_MANAGER_PYTHON is the
 # release runtime, which lacks it (live 2026-09-30: exit 10, "No module named 'cloakbrowser'").
 export CLOAK_PYTHON="${CLOAK_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
-exec "$LM_PYTHON" "$LM_TIMEOUT_RUNNER" 300 "$LM_NODE" "$SCRIPT_DIR/tiktok-metrics-due.js"
+"$LM_PYTHON" "$LM_TIMEOUT_RUNNER" 300 "$LM_NODE" "$SCRIPT_DIR/tiktok-metrics-due.js" --api-only
+"$LM_NODE" "$SCRIPT_DIR/tiktok-metrics-due.js" --native-only
+exec "$LM_PYTHON" "$LM_TIMEOUT_RUNNER" 300 "$LM_NODE" "$SCRIPT_DIR/tiktok-metrics-due.js" --finalize

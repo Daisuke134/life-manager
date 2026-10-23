@@ -64,7 +64,7 @@ test("TikTok production boot starts API metrics without acquiring an unavailable
   const guard = path.join(home, "browser-unavailable");
   const marker = path.join(home, "browser-called");
   const envFile = path.join(home, "metrics.env");
-  fs.writeFileSync(node, '#!/bin/bash\nprintf "runner:%s\\n" "$1"\n', { mode: 0o700 });
+  fs.writeFileSync(node, '#!/bin/bash\ncase "$2" in --api-only|--native-only|--finalize) printf "runner:%s\\n" "$2";; *) exit 64;; esac\n', { mode: 0o700 });
   fs.writeFileSync(guard, '#!/bin/bash\ntouch "$TEST_BROWSER_MARKER"\nexit 10\n', { mode: 0o700 });
   fs.writeFileSync(envFile, `LM_POSTIZ_API_KEY=test-only\nLM_DATA_DIR=${home}/.local/state/life-manager\n`);
   const result = childProcess.spawnSync("/bin/bash", [path.join(scripts, "tiktok-metrics-production-boot.sh")], {
@@ -74,6 +74,6 @@ test("TikTok production boot starts API metrics without acquiring an unavailable
     encoding: "utf8", timeout: 10_000,
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /runner:.*tiktok-metrics-due\.js/);
+  assert.equal(result.stdout, "runner:--api-only\nrunner:--native-only\nrunner:--finalize\n");
   assert.equal(fs.existsSync(marker), false);
 });
