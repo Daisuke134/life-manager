@@ -6,7 +6,7 @@
 
 **Architecture:** A local-only dataset-specific evaluator reconstructs the exact cases from pinned original files, verifies source/rights/protocol/model/tokenizer bindings, and reuses Source and an empty OutcomeBench EvidenceBundle. The normal kernel/owner/CLI/workflow are unchanged. Optional model dependencies load only during an explicit research invocation.
 
-**Spec/protocol:** Parent `2026-10-23-behavior-transformation-model-plan.md` Task2. Frozen metadata: `experiments/behavior-model/helpsteer2-dev-protocol-v1.json`, SHA256 `586d8701a26305ea56ffab0d095db72d4fb64974977528d7581511ff7c8ef529`. Model outputs and scores have not been observed. No final-test score is permitted.
+**Spec/protocol:** Parent `2026-10-23-behavior-transformation-model-plan.md` Task2. Frozen metadata: `experiments/behavior-model/helpsteer2-dev-protocol-v1.json`, SHA256 `586d8701a26305ea56ffab0d095db72d4fb64974977528d7581511ff7c8ef529`. This protocol was frozen before model outputs or scores were observed. The development-only run is now recorded in [the acceptance receipt](../verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md). No final-test score is permitted.
 
 ## Fixed boundaries
 
@@ -25,16 +25,20 @@
 
 **Interfaces:** Thin helpers for strict protocol/source/rights validation, original-case reconstruction, exact tokenizer mask building and metadata-only result aggregation; a local CLI takes explicit protocol path/expected SHA256, local data/model directories and immutable code version. The model runner is lazy. Original human annotations are read only from pinned dataset files, never trusted from caller-supplied case text. Existing Source.verify_content and empty OutcomeBench reproduction metadata retain P0/NOT_MEASURED/can_execute=False. Rejected configuration returns static `HELPSTEER2_DEV_UNAVAILABLE` without source fragments. The script has no network or training mode.
 
-- [ ] Add meaningful synthetic-source tests first: tampered/missing permission/source/protocol/model pin, raw/semantic split drift, wrong preference sign, duplicate/extra/nondev rows and modified text, missing/nonunique quality join, mismatched token prefix/EOS/length, mask endpoints/causal count, hash tie-break, partial failure denominators, no-action0/0→null, no raw repr/export/error, no execution/human-benefit promotion. No upstream raw prompt in tests. Invalid/default configuration must initialize no optional model.
-- [ ] Record actual intended RED, implement the narrow interfaces and verify GREEN with existing rights/Source/OutcomeBench contracts. Use existing test-loader shape and native Transformers loss; no custom trainer, agent harness or new dependency in the core suite.
-- [ ] Run focused and full Manager suite once on final code, boundary/diff checks; commit only the four owned paths. Report exact results, self-review and untested live scope. Root sends fresh spec/quality review before actual model execution.
+- [x] Add meaningful synthetic-source tests first: tampered/missing permission/source/protocol/model pin, raw/semantic split drift, wrong preference sign, duplicate/extra/nondev rows and modified text, missing/nonunique quality join, mismatched token prefix/EOS/length, mask endpoints/causal count, hash tie-break, partial failure denominators, no-action0/0→null, no raw repr/export/error, no execution/human-benefit promotion. No upstream raw prompt in tests. Invalid/default configuration must initialize no optional model.
+- [x] Record actual intended RED, implement the narrow interfaces and verify GREEN with existing rights/Source/OutcomeBench contracts. Use existing test-loader shape and native Transformers loss; no custom trainer, agent harness or new dependency in the core suite.
+- [x] Run focused and full Manager suite once on final code, boundary/diff checks; commit only the four owned paths. Report exact results, self-review and untested live scope. Root sends fresh spec/quality review before actual model execution.
 
 ## Root execution and acceptance
 
-- [ ] Verify current code/model/data/protocol hashes, tests/review and private output paths; freeze private execution manifest with the actual code commit before scores. Run one bounded CPU child under an own-process watchdog. Do not score or inspect final-test model results.
-- [ ] Record actual resource/result/cleanup evidence, denominators, published-human preference agreement and limitations. No posthoc hyperparameter/filter/threshold change or training. If finite failures occur, retain partial/NOT_RUN rows.
-- [ ] Publish metadata-only receipt after independent verification. Keep V001/V002/V003 todo until their complete original acceptance is independently reviewed; this development slice is partial evidence.
+- [x] Verify current code/model/data/protocol hashes, tests/review and private output paths; freeze private execution manifest with the actual code commit before scores. Run one bounded CPU child under an own-process watchdog. Do not score or inspect final-test model results.
+- [x] Record actual resource/result/cleanup evidence, denominators, published-human preference agreement and limitations. No posthoc hyperparameter/filter/threshold change or training. If finite failures occur, retain partial/NOT_RUN rows.
+- [x] Publish metadata-only receipt after independent verification. Keep V001/V002/V003 todo until their complete original acceptance is independently reviewed; this development slice is partial evidence.
 
 ## Self-review
 
 This plan uses existing public data, native model loss and existing evidence/source contracts. It avoids treating public candidate labels as ratings of newly generated text, generic quality as behavioral benefit, an AI content review as human approval, or dependency installation as trainability. A measured dev gap can inform the later model hypothesis; it does not waive the parent V002→V003 gate.
+
+## Accepted limited execution — 2026-10-23
+
+Source9d05252e2c06; 22new tests / local1047 skip5 / official1021 skip6, zero failures. Fresh source and actual-result reviews each0 findings. Actual16/16 candidate forwards completed in27.856s with sampled process-group peak1,909,272,576bytes; model4/8, shorter-candidate rule4/8, NO_ACTION8abstentions/conditional accuracy=null. No demonstrated model advantage on this selected dev8. Native CPU inference works; backward/optimizer/training/final-test and human benefit remain unmeasured/not run. This checklist accepts only this subplan, not the parent V001/V002/V003 acceptance. Root review of independent evidence and the metadata-only receipt is complete; final whole-branch review is tracked separately.

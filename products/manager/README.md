@@ -6,9 +6,9 @@
 
 **2026-10-23 最新scope:** [tasks.json](docs/roadmap/tasks.json)は113 IDs、**80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件は今回の必須経路から退役し、未達成のskippedとして元の行を保存した。E01–E16の限定技術受入は完了（cursor=null）。F005→F006→F008→F009も所有7パスの技術P2として受入済み。H005/F004/F007の既存waiverは保持する。人の便益はNOT_MEASURED。
 
-**次の順序:** sourceの研究branch同期/CIは受入済み。次は既定OFFのagent接続、V001/V002の既存評価・権利・同条件baseline、V003の最小独自adapter研究を進める。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
+**次の順序:** sourceの研究branch同期/CIは受入済み。既定OFFのagent接続sourceは受入済み。次はV001/V002の既存評価・権利・採点者の人参照との照合・未見baselineを整え、その後V003の最小独自adapter研究へ進む。offline研究は実パイロット全体を待たない。D014/D015/U004で実研究条件・保護・主要結果を成立させ、U006/U007の実結果をD016へ統合してV004の実昇格へ進む。V005/V006/Gで再現・継続・異集団・監査を確認する。独自モデル開発は計画済みで、学習済みではない。
 
-**現状:** Actions＋既存private checkpointの単一owner、STOP/復元/独立readbackは限定受入済み。Ampersand prepared比較/保存/公開要約のsourceはPR8710/8715でmain受入済み。研究branch同期はdc56ba984ee9／公式CI39972208021で受入済み。host接続・同条件の実比較は未完了で、shadow既定OFF。モデル有用性や人の成果は未証明。
+**現状:** Actions＋既存private checkpointの単一owner、STOP/復元/独立readbackは限定受入済み。Ampersand prepared比較とhost/CLI/Actions接続sourceはPR8710/8715/8741でmain受入、同じsourceの研究同期5018a30938acと公式CI39980993977を確認。shadowは既定OFFで、固定SDKの実推論運用は未実施。別のlocal CPU研究では[HelpSteer2 dev8を実採点](docs/verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)し、model4/8・単純ルール4/8。今回のモデル優位は示されず、独自学習・人の便益は未実証。
 
 [最新仕様](docs/MANAGER_PRODUCT_SPEC.md) · [scope改訂と一次資料](docs/specs/2026-10-23-behavior-transformation-scope-amendment.md) · [実ファイル別のmodel計画](docs/plans/2026-10-23-behavior-transformation-model-plan.md) · [全Phaseと残23件](docs/roadmap/START_TO_END_20261022.md) · [自動生成backlog](docs/roadmap/ATOMIC_BACKLOG.md) · [新研究protocol草案](pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)
 

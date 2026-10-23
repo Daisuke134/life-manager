@@ -2,7 +2,7 @@
 
 **2026-10-23 行動変容への方針改訂（最新）:** 使命は **「行動変容を通じて、苦しみを終わらせることを目指す」**。仏教は学ぶ知恵の一つで、宗教・教義の受容は必須にしない。D004・D005–D009・D012の7件を必須経路から退役し、**113件＝80 done / 23 todo / 10 skipped**。退役は成功ではない。独自モデルへ進む道筋をV001–V004へ具体化し、offline評価/追加学習は実パイロット全体の完了を待たずに開始できる。[scope改訂・一次資料](specs/2026-10-23-behavior-transformation-scope-amendment.md)、[実ファイル別計画](plans/2026-10-23-behavior-transformation-model-plan.md)、[新研究草案](../pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)を参照。過去の受入はその範囲で保存し、新使命の人の成果へ読み替えない。
 
-**2026-10-23 agent接続・CPU検証更新:** 既定OFFのhost/CLI/Actions比較を[PR8741](https://github.com/Daisuke134/life-manager/pull/8741)でmain受入し、同じsourceを研究branchへ同期、local1025/skip5・公式999/skip6を確認。[接続receipt](verification/HOST_SHADOW_CONNECTION_ACCEPTANCE_20261023.md)。既存cloud CPUではQwen3-1.7Bの実推論とINTIMA32入力×3条件の生成を実施したが、全96行は未採点。[診断receipt](verification/INTIMA_CPU_DIAGNOSTIC_20261023.md)。小型nativeモデル・CPU学習依存も準備済みで、学習は未実施。原113件の受入状態は変えず、V001/V002/V003はtodo。
+**2026-10-23 agent接続・CPU検証更新:** 既定OFFのhost/CLI/Actions比較を[PR8741](https://github.com/Daisuke134/life-manager/pull/8741)でmain受入し、同じsourceを研究branchへ同期、local1025/skip5・公式999/skip6を確認。[接続receipt](verification/HOST_SHADOW_CONNECTION_ACCEPTANCE_20261023.md)。既存cloud CPUではQwen3-1.7Bの実推論とINTIMA32入力×3条件の生成を実施したが、全96行は未採点。[診断receipt](verification/INTIMA_CPU_DIAGNOSTIC_20261023.md)。小型native Qwen3-0.6Bでは[HelpSteer2 dev8の16候補を実CPU採点](verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)し、model4/8・単純ルール4/8、約28秒・sampled RSS約1.78GiB。今回の優位は示されず、学習・final-test採点・人の便益は未実施/未測定。[人参照artifactの追加一次監査](research/2026-10-23-human-reference-artifact-audit.md)も用途別に区別する。原113件の受入状態は変えず、V001/V002/V003はtodo。
 
 **2026-10-23 仕様・追加調査更新（当時の変更範囲）:** §1.2.1–1.2.3へ行動変容・AI説得の一次資料、公開benchmark/code、訂正情報、再利用判断を追加し、§1.3.2–1.3.3へmain source受入と全残件を反映する。今回の変更は仕様と統合SSOTのManager欄。新しい推論・介入実験・記事制作の実行や、原タスクの追加受入ではない。
 
@@ -53,7 +53,8 @@
 | no UI | owned loopはbackground workflowから起動し、公開ページは変更・検証の対象。人のapp/chat/messenger操作や対話で毎回始動させない限定経路 | 広い環境で課題を発見し、同じ使命・記憶で働き、人の環境・生活条件を改善する全経路の実証。初期設定・停止・監査の運営入口は存在する |
 | 現実への作用 | finance `61909d2`、mental `374cb9a` の公式commitと独立GET、別runnerでの照合・再送0件・native P1/P2を確認。STOP後の実rollback `c6d5de0` の旧7ファイル復元とfresh resume39907673029のwrites=0を確認。その後の新commit `faf18b3` は06:03 UTCに公開7ファイル一致、finance／mental両cueを確認 | E16は所有7パスの限定技術能力として受入済み。旧rollback39901996368は書込み0、新rollback39907087699と通常cycle39908693666の初回UNKNOWN／writes=nullを保持。fresh39909274852は照合・書込み0・current proof出力を確認。F4件は技術P2として個別受入済み。人の便益は未測定 |
 | 行動研究 | AS公開benchmark/group-alignment code実行、公開70研究の分割比較、Twin配布outputの記述的一致監査、未来予測の事前固定 | Rothko本体の再現、独自生成したTwinの予測精度、未見人間行動の因果忠実度。70研究の比較から優位は立証されていない |
-| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。PR8650のcheckpoint-bound P0 callableに続き、PR8660で検証済み公開catalog context・安定operation ID・既存baselineを使う、既定OFFのshadow callerをmain統合 | 現在のowned mainは決定論的plannerで、scheduled inferenceは未接続。shadow source受入と実推論の稼働を区別する。固定SDKの静的監査で判明した最終応答／turn整合性はPR8665で修正・main統合済み。固定SDKを使う実推論の運用は未接続。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
+| humans&の利用 | Ampersand実APIで10初期session＋同じsessionへの追加入力1件を行った過去の架空課題実験。PR8650のcheckpoint-bound P0 callableに続き、PR8660で検証済み公開catalog context・安定operation ID・既存baselineを使う、既定OFFのshadow callerをmain統合 | 既定OFFのhost/CLI/Actions shadow接続sourceもPR8741でmain受入済みだが、通常scheduled cycleは決定論的plannerのままで、実推論運用は未実施。固定SDKの最終応答／turn整合性修正、prepared比較、host接続のsource受入を実推論の稼働と区別する。Persimmon・Bobaの直接利用も未確認。三層の再利用判断は§22 |
+| localモデル評価 | Qwen3-1.7BのINTIMA32入力×3条件を生成し全96行は未採点。Qwen3-0.6Bは固定HelpSteer2 dev8の16候補をnative lossで採点、model/短い候補ルールとも4/8。元の人の選好とexact候補を照合 | 未見test、行動/便益評価、独自重みの学習、採点者の十分な人参照との校正。generic preferenceで今回のモデル優位は示されていない |
 | 公開source接続 | [D003](verification/D003_PUBLIC_SOURCE_CONNECTION_20261023.md)はGiveDirectlyの公表支出と別の自己申告報告、[D011](verification/D011_PUBLIC_SOURCE_CONNECTION_20261023.md)はJHipster成果物とOpen Collectiveの公表Paidを接続。PR8670/8675の通常main統合・独立review・SAFE packet実readback後に限定source受入 | P0/NO_ACTION。銀行実着金・Manager所得増・純便益・因果効果・D004/D012の達成ではない |
 | 便益と経済 | 技術結果・費用・欠測・害の記録契約、公開研究と自分の観測の区別 | Managerによる人の苦痛低減・純便益はNOT_MEASURED。実顧客・売上・MRRの確定値は未確認 |
 
@@ -206,7 +207,7 @@ flowchart LR
 
 | 並行線 | 次の作業と受入 |
 |---|---|
-| agent接続 | §1.3.2のmain受入済みsource同期、研究CI、既定OFFのhost/CLI/workflow接続。モデルの実有用性は別比較 |
+| agent接続 | §1.3.2のmain source同期、研究CI、既定OFFのhost/CLI/workflow接続は限定受入済み。固定SDKを使う実推論運用、新channelと昇格は未実施。local dev比較は上記receiptの限定範囲 |
 | V001→V002→V003 | 公開研究の権利・固定評価・同条件baseline→合法な最小独自adapter研究→人物/時間/文脈の未見評価。実パイロット全体の完了を待たない |
 | D014→D015とU004→U006→U007→U008 | 新対象の実課題・研究条件・保護・測定を成立させ、行動と苦しみへの価値・持続・害・継続意思を実確認。旧支援アクセス研究を新対象の検証にしない |
 | D016→V004→V005→V006 | D016はD015/U007の真正な結果を統合。V004はV003/D016を満たして限定昇格、以後第三者再現・実案件へ |

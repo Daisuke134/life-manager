@@ -6,7 +6,7 @@
 
 詳細registryは既存[`products/manager/docs/roadmap/tasks.json`](../../../products/manager/docs/roadmap/tasks.json)、**113件＝80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件をtodo→skippedへ変更し、原行・依存・受入をarchiveに保存。完了を増やした変更ではない。既存done80件、E01–E16/F4の所有7パスの限定P2受入、H005/F004/F007のwaiverと他laneのcursorは不変。人の便益はNOT_MEASURED。
 
-受入済みAI sourceの研究branch同期/CIはdc56ba984ee9／公式CI39972208021で確認済み。次は既定OFFのhost接続、V001/V002の権利・固定評価・同条件baseline。V003の最小独自adapter研究は実パイロット全体の完了を待たず進められる。並行してD014/D015/U004の実研究条件/保護を成立させ、U006/U007の実結果をD016へ結ぶ。現依存D016=[D015,U007]、V001=[K014,R006,S003]、V004=[V003,D016]。V004の実昇格、第三者再現・継続・Gの統治はそれぞれ実証して進める。独自modelは計画済み、学習/推論運用/有用性を証明したわけではない。
+既定OFFのhost/CLI/Actions比較sourceはPR8741／main c0d86ff82ec8で受入済み。研究branchへ同じ10 sourceを5018a30938acで同期し、公式CI39980993977 full999/skip6成功。小型native Qwen3-0.6Bの固定HelpSteer2 dev8比較はsource9d05252e2c06／公式CI39984363992で検証し、16/16候補のCPU採点を実施。model4/8・短い候補ルール4/8で今回の優位は示されず、NO_ACTIONは8棄権/accuracy=null。[実結果](../../../products/manager/docs/verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)。V001/V002は権利・採点者の人参照との照合・未見評価などの全受入が残る。V003の最小独自adapter研究は実パイロット全体の完了を待たず進められる。並行してD014/D015/U004の実研究条件/保護を成立させ、U006/U007の実結果をD016へ結ぶ。現依存D016=[D015,U007]、V001=[K014,R006,S003]、V004=[V003,D016]。V004の実昇格、第三者再現・継続・Gの統治はそれぞれ実証して進める。独自modelは計画済み、学習/推論運用/有用性を証明したわけではない。
 
 [主仕様](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)・[scope改訂と一次資料](../../../products/manager/docs/specs/2026-10-23-behavior-transformation-scope-amendment.md)・[実ファイル別計画](../../../products/manager/docs/plans/2026-10-23-behavior-transformation-model-plan.md)・[全Phase/残23件](../../../products/manager/docs/roadmap/START_TO_END_20261022.md)に集約し、別SSOTを作らない。旧U002/U003/U005の支援アクセス研究/技術proofを新対象の需要/便益へ読み替えず、新protocol v2はDRAFT/参加者0/NOT_REGISTERED、旧研究hashは保存。
 

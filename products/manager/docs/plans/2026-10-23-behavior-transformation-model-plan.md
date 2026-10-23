@@ -48,6 +48,8 @@
 - [ ] 上流scorer/既存関数を薄く接続し、同じ境界のGREENを確認する。
 - [ ] NO_ACTION/ルール/既存modelを同じ入力・予算・failure denominatorで比較し、judgeの人手照合と限界を報告する。
 
+**限定sliceの実績（全受入ではない）:** INTIMAの固定input受入と未採点32組診断に続き、[HelpSteer2 dev subplan](2026-10-23-helpsteer2-dev-likelihood.md)を実装・実行した。[実結果](../verification/HELPSTEER2_DEV_CPU_EVALUATION_20261023.md)は16/16完了、model4/8・短い候補ルール4/8、NO_ACTION8棄権。generic preferenceへの一致だけでモデル優位や人の便益は示されない。[追加の人参照artifact監査](../research/2026-10-23-human-reference-artifact-audit.md)から用途・利用条件を照合し、元回答に対する採点者の校正、圧力/依存等の評価、未見比較を埋める。V001/V002全体とV003はtodo。
+
 ## Task 3: 独自重みの最小研究 — V003
 
 **Proposed files:** `experiments/behavior-model/dataset-card.json`、`split-manifest.json`、`sft-config.yaml`、`training-receipt.json`。未作成の実験成果物で、本番moduleではない。
