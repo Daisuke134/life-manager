@@ -36,6 +36,7 @@ _LANCERS_CATALOG_OWNED_FIELDS = ("title_stem", "subtitle", "category", "plans", 
 # overlay must supply, not only the ones the catalog projection itself flags.
 _LANCERS_IDENTITY_FIELDS = ("product_id", "product_version", "listing_external_id", "superseded_listing_ids")
 ORIGIN = "https://www.lancers.jp"
+OWNER_ID = "lancers-revenue-storefront"
 # Where _step() records a refusal, via dom_contract.py (see _reach_dom_contract). Mirrors
 # application_tick.py's FORM_EVIDENCE (~/.local/state/anicca/lancers/proposal-form-changes.jsonl)
 # -- same directory, dom_contract's own filename (dom-contract-failures.jsonl) -- so both of this
@@ -451,8 +452,9 @@ def _write_receipt(state_path: Path, product: Mapping[str, Any], demand: Mapping
     if not isinstance(existing, dict): raise OfferError("listing_receipt_invalid")
     if "catalog_listings" in existing:
         value["catalog_listings"] = existing["catalog_listings"]
-    if "pending_create" in existing:
-        value["pending_create"] = existing["pending_create"]
+    for key in ("pending_create", "pending_create_context", "last_creation"):
+        if key in existing:
+            value[key] = existing[key]
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         os.fchmod(fd, 0o600)
@@ -1485,9 +1487,41 @@ def _creation_intent(product: Mapping[str, Any], family: str | None, *, kind: st
             "seller_path": product["seller_profile"]["public_path"], "catalog_family": family}
 
 
-def _clear_creation(state_path: Path, intent: dict[str, Any]) -> None:
+def _valid_creation_context(context: Any) -> bool:
+    return (isinstance(context, dict) and set(context) == {"owner_id", "occurrence_id", "release_sha"}
+            and context["owner_id"] == OWNER_ID
+            and isinstance(context["occurrence_id"], str)
+            and context["occurrence_id"].startswith(OWNER_ID + ":")
+            and len(context["occurrence_id"]) > len(OWNER_ID) + 1
+            and isinstance(context["release_sha"], str)
+            and re.fullmatch(r"[a-f0-9]{40}", context["release_sha"]) is not None)
+
+
+def _runtime_creation_context() -> dict[str, str] | None:
+    context = {key: os.environ.get(name) for key, name in (
+        ("owner_id", "LIFE_MANAGER_LOOP_ID"), ("occurrence_id", "LIFE_MANAGER_OCCURRENCE_ID"),
+        ("release_sha", "LIFE_MANAGER_RELEASE_SHA"))}
+    if all(value is None for value in context.values()):
+        return None
+    if not _valid_creation_context(context):
+        raise OfferError("runtime_context_invalid")
+    return context
+
+
+def _begin_creation(state_path: Path, ledger: dict[str, Any], intent: dict[str, Any],
+                    context: dict[str, str] | None) -> None:
+    value = ledger | {"pending_create": intent}
+    value.pop("pending_create_context", None)
+    if context is not None:
+        value["pending_create_context"] = context
+    _write_private(state_path.with_name("listing.json"), value)
+
+
+def _clear_creation(state_path: Path, intent: dict[str, Any], external_id: str) -> None:
     ledger = _listing_state(state_path)
     if ledger.get("pending_create") != intent: raise OfferError("creation_pending")
+    ledger["last_creation"] = {"intent": intent, "context": ledger.pop("pending_create_context", None),
+                               "external_id": external_id}
     del ledger["pending_create"]
     _write_private(state_path.with_name("listing.json"), ledger)
 
@@ -1508,7 +1542,7 @@ def _save_created_listing(product_path: Path, state_path: Path, product: Mapping
     if intent["catalog_family"] is not None:
         _write_catalog_listing(state_path, intent["catalog_family"], {
             "listing_external_id": listing_id, "public_url": f"{ORIGIN}/menu/detail/{listing_id}"})
-    _clear_creation(state_path, intent)
+    _clear_creation(state_path, intent, listing_id)
 
 
 def _save_created_portfolio(product_path: Path, state_path: Path, portfolio_id: str,
@@ -1523,7 +1557,7 @@ def _save_created_portfolio(product_path: Path, state_path: Path, portfolio_id: 
         raise OfferError("product_changed")
     raw[key]["external_id"] = portfolio_id
     _write_private(product_path, raw)
-    _clear_creation(state_path, intent)
+    _clear_creation(state_path, intent, portfolio_id)
 
 
 def _matching_creation_receipt(ledger: dict[str, Any], product: Mapping[str, Any]) -> str | None:
@@ -1540,12 +1574,165 @@ def _matching_creation_receipt(ledger: dict[str, Any], product: Mapping[str, Any
     return listing_id if all(ledger.get(key) == value for key, value in expected.items()) else None
 
 
+def _creation_record(state_path: Path, occurrence_id: str | None = None) -> dict[str, Any] | None:
+    ledger = _listing_state(state_path)
+    if "pending_create" in ledger:
+        record = {"intent": ledger["pending_create"], "context": ledger.get("pending_create_context"),
+                  "external_id": None}
+    else:
+        record = ledger.get("last_creation")
+        if not isinstance(record, dict):
+            return None
+        if occurrence_id is not None and (not _valid_creation_context(record.get("context"))
+                                          or record["context"]["occurrence_id"] != occurrence_id):
+            return None
+    intent, context = record.get("intent"), record.get("context")
+    if (not isinstance(intent, dict) or intent.get("kind") not in
+            {"listing", "catalog_listing", "portfolio", "software_portfolio"}
+            or context is not None and not _valid_creation_context(context)
+            or occurrence_id is not None and (context is None or context["occurrence_id"] != occurrence_id)
+            or record.get("external_id") is not None and
+            re.fullmatch(r"[0-9]+", str(record["external_id"])) is None):
+        raise OfferError("creation_pending")
+    return record
+
+
+def _creation_product(product_path: Path, state_path: Path, record: Mapping[str, Any],
+                      catalog_path: Path | None) -> tuple[dict[str, Any], dict[str, Any], str | None]:
+    intent = record["intent"]; kind = intent["kind"]
+    raw = _load_product_file(product_path)
+    product, _, _ = _product(product_path, catalog_path, creating=kind == "listing",
+                              applying=kind != "listing", raw_value=raw)
+    family = intent.get("catalog_family")
+    if kind == "catalog_listing":
+        if catalog_path is None or not isinstance(family, str): raise OfferError("creation_pending")
+        catalog_module = _reach_marketplace_core()
+        try:
+            product |= _family_create_product(catalog_module, catalog_module.load(catalog_path), family)
+        except (catalog_module.CatalogError, KeyError, TypeError, ValueError, UnicodeError):
+            raise OfferError("creation_pending") from None
+        pinned = _read_catalog_listings(state_path).get(family, {}).get("listing_external_id", "")
+    else:
+        if family != raw.get("catalog_family"): raise OfferError("creation_pending")
+        pinned = product["listing_external_id"] if kind == "listing" else product[kind]["external_id"]
+        if kind == "listing":
+            receipt = _matching_creation_receipt(_listing_state(state_path), product | {"listing_external_id": ""})
+            if receipt is not None:
+                if pinned not in {"", receipt}: raise OfferError("creation_pending")
+                pinned = receipt
+    if _creation_intent(product, family, kind=kind) != intent:
+        raise OfferError("creation_pending")
+    known = record.get("external_id")
+    if known and pinned not in {"", known}: raise OfferError("creation_pending")
+    return product, raw, known or pinned or None
+
+
+def _save_creation(product_path: Path, state_path: Path, record: Mapping[str, Any],
+                   product: Mapping[str, Any], external_id: str, catalog_path: Path | None) -> None:
+    intent = record["intent"]; kind = intent["kind"]
+    if "pending_create" not in _listing_state(state_path):
+        _, _, pinned = _creation_product(product_path, state_path, record, catalog_path)
+        if pinned != external_id: raise OfferError("creation_pending")
+        return
+    if kind == "listing":
+        _save_created_listing(product_path, state_path, product, external_id, intent, catalog_path)
+    elif kind == "catalog_listing":
+        _write_catalog_listing(state_path, intent["catalog_family"], {
+            "listing_external_id": external_id, "public_url": f"{ORIGIN}/menu/detail/{external_id}"})
+        _clear_creation(state_path, intent, external_id)
+    else:
+        _save_created_portfolio(product_path, state_path, external_id, intent, catalog_path)
+
+
+def _creation_target(page: Any, product: Mapping[str, Any], record: Mapping[str, Any],
+                     known_id: str | None) -> dict[str, Any]:
+    kind = record["intent"]["kind"]
+    if kind in {"listing", "catalog_listing"}:
+        reporter = _load("lancers_creation_inventory", HERE / "telegram_report.py")
+        _, rows = reporter._inventory_management(page)
+        title = product["title_stem"] + "ます"
+        matches = [row for row in rows if row["state"] == "published" and row["management_title"] == title]
+        if len(matches) != 1: raise OfferError("creation_target_ambiguous")
+        external_id = matches[0]["listing_external_id"]
+        if known_id and known_id != external_id: raise OfferError("creation_target_mismatch")
+        observed = _public(page, dict(product) | {"listing_external_id": external_id, "public_title": title},
+                           require_image=False)
+        if observed.get("aligned") is not True or observed.get("mismatched_fields"):
+            raise OfferError("creation_target_mismatch")
+    else:
+        observed = _portfolio(page, dict(product[kind]) | {"external_id": known_id or ""})
+        if observed is None: raise OfferError("creation_target_ambiguous")
+        external_id = observed["portfolio_external_id"]
+        if observed["portfolio_url"] != f"{ORIGIN}{product['seller_profile']['public_path']}/portfolio_popup/{external_id}":
+            raise OfferError("creation_seller_mismatch")
+    return {"ok": True, "action": "creation_readback", "kind": kind, "external_id": external_id,
+            "intent_sha256": _product_digest(record["intent"]),
+            "readback_sha256": _product_digest({"kind": kind, "external_id": external_id, "observed": observed}),
+            "context": record["context"]}
+
+
+def _creation_readback_locked(tick: Any, product_path: Path, state_path: Path,
+                              catalog_path: Path | None, *, occurrence_id: str | None = None,
+                              restore: bool = False, protocol: bool = False) -> dict[str, Any]:
+    browser = page = None
+    result = _pending_creation()
+    try:
+        record = _creation_record(state_path, occurrence_id)
+        if record is None: return result
+        product, raw, known_id = _creation_product(product_path, state_path, record, catalog_path)
+        browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
+        if not tick._production_account_ready(page): raise OfferError("account_unavailable")
+        account = tick._onboarding.connected_account(Path.home())
+        if account is None or product["seller_profile"]["public_path"] != f"/profile/{account}":
+            raise OfferError("creation_seller_mismatch")
+        proof = _creation_target(page, product, record, known_id)
+        current, current_raw, current_id = _creation_product(product_path, state_path, record, catalog_path)
+        if ((current, current_raw, current_id) != (product, raw, known_id)
+                or _creation_record(state_path, occurrence_id) != record):
+            raise OfferError("product_changed")
+        if restore:
+            key = "listing" if proof["kind"] in {"listing", "catalog_listing"} else proof["kind"]
+            result = proof if protocol else {"ok": True, "logged_in": True, "action": "creation_restored",
+                                             key + "_external_id": proof["external_id"]}
+            _save_creation(product_path, state_path, record, product, proof["external_id"], catalog_path)
+        else:
+            result = proof
+    except OSError:
+        result.update(ok=False, error="private_storage", next_action="official_readback_required")
+    except Exception:
+        result = _pending_creation() | {"error": "creation_readback_unavailable"}
+    finally:
+        try:
+            closed = page is None or bool(tick._close_owned_page(page))
+            if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
+        except Exception:
+            closed = False
+        if not closed:
+            result.update(ok=False, error="cleanup_failed", next_action="official_readback_required")
+    return result
+
+
+def run_creation_readback(product_path: Path, state_path: Path, *, catalog_path: Path | None = None,
+                          occurrence_id: str | None = None, restore: bool = False) -> dict[str, Any]:
+    try:
+        tick = _load("lancers_creation_readback_tick", HERE / "application_tick.py")
+        with tick.account_lock(state_path.with_name("work-sync.json")):
+            return _creation_readback_locked(tick, product_path, state_path, catalog_path,
+                                             occurrence_id=occurrence_id, restore=restore, protocol=True)
+    except Exception:
+        return _pending_creation() | {"error": "creation_readback_unavailable"}
+
+
 def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | None = None) -> dict[str, Any]:
     """Create once, retaining an intent until the receipt and owner's input both contain the real ID."""
     try:
         product, image, _avatar = _product(product_path, catalog_path, creating=True)
     except OfferError:
         return _product_setup_required(state_path)
+    try:
+        context = _runtime_creation_context()
+    except OfferError:
+        return _product_setup_required(state_path, "runtime_context")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
         tick = _load("lancers_storefront_create_tick", HERE / "application_tick.py")
@@ -1557,8 +1744,10 @@ def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | Non
             if "pending_create" in ledger:
                 logged_in = None
                 listing_id = _matching_creation_receipt(ledger, product)
-                if ledger["pending_create"] != intent or listing_id is None:
+                if ledger["pending_create"] != intent:
                     return _pending_creation()
+                if listing_id is None:
+                    return _creation_readback_locked(tick, product_path, state_path, catalog_path, restore=True)
                 result = {"ok": True, "action": "creation_restored", "listing_external_id": listing_id}
                 try:
                     _save_created_listing(product_path, state_path, product, listing_id, intent, catalog_path,
@@ -1574,7 +1763,7 @@ def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | Non
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True
             try:
-                _write_private(state_path.with_name("listing.json"), ledger | {"pending_create": intent})
+                _begin_creation(state_path, ledger, intent, context)
             except OSError:
                 return {"ok": False, "logged_in": True, "error": "private_storage"}
             result = create_package(page, product, image)
@@ -1598,7 +1787,8 @@ def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | Non
             closed = page is None or bool(tick._close_owned_page(page))
             if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
         except Exception: closed = False
-        if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
+        if not closed: result.update(ok=False, logged_in=logged_in, error="cleanup_failed",
+                                     next_action="official_readback_required")
     return _preserve_pending_effect(state_path, result)
 
 
@@ -1771,6 +1961,10 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
     """
     selection: dict[str, Any] = {"skipped": []}
     family: str | None = None
+    try:
+        context = _runtime_creation_context()
+    except OfferError:
+        return _product_setup_required(Path(state_path), "runtime_context")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
         tick = _load("lancers_storefront_create_from_catalog_tick", HERE / "application_tick.py")
@@ -1780,7 +1974,7 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
             except OfferError:
                 raise OfferError("catalog_receipt_invalid") from None
             if "pending_create" in ledger:
-                return _pending_creation()
+                return _creation_readback_locked(tick, product_path, Path(state_path), catalog_path, restore=True)
             selection = select_catalog_family_to_create(catalog_path, Path(state_path))
             if selection["action"] == "catalog_unavailable":
                 return _product_setup_required(Path(state_path), "listing_catalog")
@@ -1796,7 +1990,7 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
             logged_in = True
             intent = _creation_intent(dict(_owner_product) | dict(product), family, kind="catalog_listing")
             try:
-                _write_private(Path(state_path).with_name("listing.json"), ledger | {"pending_create": intent})
+                _begin_creation(Path(state_path), ledger, intent, context)
             except OSError:
                 return {"ok": False, "logged_in": True, "error": "private_storage"}
             result = create_package(page, product, image)
@@ -1808,7 +2002,7 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
                         "public_url": result.get("canonical_url"),
                         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                     })
-                    _clear_creation(Path(state_path), intent)
+                    _clear_creation(Path(state_path), intent, listing_external_id)
                 except (OSError, OfferError):
                     result.update(ok=False, logged_in=True, error="private_storage",
                                   next_action="official_readback_required")
@@ -1825,7 +2019,8 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
             closed = page is None or bool(tick._close_owned_page(page))
             if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
         except Exception: closed = False
-        if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
+        if not closed: result.update(ok=False, logged_in=logged_in, error="cleanup_failed",
+                                     next_action="official_readback_required")
     result = dict(result); result["family"] = family; result["skipped"] = selection["skipped"]
     return _preserve_pending_effect(Path(state_path), result)
 
@@ -1949,6 +2144,12 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
         product, image, avatar = _product(product_path, catalog_path, applying=apply)
     except OfferError:
         return _product_setup_required(state_path) if apply else _setup_required("storefront_product")
+    context = None
+    if apply:
+        try:
+            context = _runtime_creation_context()
+        except OfferError:
+            return _product_setup_required(state_path, "runtime_context")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
         tick = _load("lancers_storefront_offer_tick", HERE / "application_tick.py")
@@ -1965,57 +2166,45 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
                             or pending.get("kind") not in {"portfolio", "software_portfolio"}
                             or pending != _creation_intent(product, family, kind=pending["kind"])):
                         return _pending_creation()
+                    return _creation_readback_locked(tick, product_path, state_path, catalog_path, restore=True)
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True
-            if pending is not None:
-                key = pending["kind"]
-                portfolio = _portfolio(page, product[key])
-                result = _pending_creation() | {"logged_in": True}
-                if portfolio is not None:
-                    result = {"ok": True, "logged_in": True, "action": "creation_restored",
-                              key + "_external_id": portfolio["portfolio_external_id"],
-                              key + "_url": portfolio["portfolio_url"]}
-                    try:
-                        _save_created_portfolio(product_path, state_path, portfolio["portfolio_external_id"], pending, catalog_path)
-                    except (OSError, OfferError):
-                        result.update(ok=False, error="private_storage")
-            else:
-                result = _apply(page, product, image) if apply else _public(page, product) | {"action": "inspect"}
-                if roster and not apply: result |= _roster(page, product)
-                if apply and result.get("action") == "unchanged":
-                    for key in ("portfolio", "software_portfolio"):
-                        intent = None
-                        if not product[key]["external_id"]:
-                            intent = _creation_intent(product, family, kind=key)
-                            try:
-                                _write_private(state_path.with_name("listing.json"), _listing_state(state_path) | {"pending_create": intent})
-                            except OSError:
-                                result.update(ok=False, logged_in=True, error="private_storage")
-                                break
-                        portfolio = _ensure_portfolio(page, product, image, key)
-                        result["portfolio_effect_count"] = portfolio["portfolio_effect_count"]
-                        result[key + "_external_id"] = portfolio["portfolio_external_id"]
-                        result[key + "_url"] = portfolio["portfolio_url"]
-                        if portfolio.get("portfolio_duplicate_external_ids"):
-                            result[key + "_duplicate_external_ids"] = portfolio["portfolio_duplicate_external_ids"]
-                        if intent is not None:
-                            try:
-                                _save_created_portfolio(product_path, state_path, portfolio["portfolio_external_id"], intent, catalog_path)
-                            except (OSError, OfferError):
-                                result.update(ok=False, logged_in=True, error="private_storage")
-                                break
-                            product[key]["external_id"] = portfolio["portfolio_external_id"]
-                        if portfolio["portfolio_effect_count"]:
-                            result["action"] = "portfolio_created"; break
-                    else:
-                        profile = _profile(page, product, avatar, True); result |= profile
-                        if profile["profile_effect_count"]: result["action"] = "profile_updated"
-                if result.get("ok") is True and result.get("aligned") is True:
-                    result["demand"] = _demand(page, product["listing_external_id"])
-                    if apply:
-                        try: _write_receipt(Path(state_path), product, result["demand"])
-                        except OSError: result.update(ok=False, logged_in=True, error="private_storage")
+            result = _apply(page, product, image) if apply else _public(page, product) | {"action": "inspect"}
+            if roster and not apply: result |= _roster(page, product)
+            if apply and result.get("action") == "unchanged":
+                for key in ("portfolio", "software_portfolio"):
+                    intent = None
+                    if not product[key]["external_id"]:
+                        intent = _creation_intent(product, family, kind=key)
+                        try:
+                            _begin_creation(state_path, _listing_state(state_path), intent, context)
+                        except OSError:
+                            result.update(ok=False, logged_in=True, error="private_storage")
+                            break
+                    portfolio = _ensure_portfolio(page, product, image, key)
+                    result["portfolio_effect_count"] = portfolio["portfolio_effect_count"]
+                    result[key + "_external_id"] = portfolio["portfolio_external_id"]
+                    result[key + "_url"] = portfolio["portfolio_url"]
+                    if portfolio.get("portfolio_duplicate_external_ids"):
+                        result[key + "_duplicate_external_ids"] = portfolio["portfolio_duplicate_external_ids"]
+                    if intent is not None:
+                        try:
+                            _save_created_portfolio(product_path, state_path, portfolio["portfolio_external_id"], intent, catalog_path)
+                        except (OSError, OfferError):
+                            result.update(ok=False, logged_in=True, error="private_storage")
+                            break
+                        product[key]["external_id"] = portfolio["portfolio_external_id"]
+                    if portfolio["portfolio_effect_count"]:
+                        result["action"] = "portfolio_created"; break
+                else:
+                    profile = _profile(page, product, avatar, True); result |= profile
+                    if profile["profile_effect_count"]: result["action"] = "profile_updated"
+            if result.get("ok") is True and result.get("aligned") is True:
+                result["demand"] = _demand(page, product["listing_external_id"])
+                if apply:
+                    try: _write_receipt(Path(state_path), product, result["demand"])
+                    except OSError: result.update(ok=False, logged_in=True, error="private_storage")
     except OfferError as error: result = {"ok": False, "logged_in": logged_in, "error": str(error)}
     except Exception as error:
         # The type alone is not diagnosable. This lane spent six days reporting
@@ -2031,7 +2220,8 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
             closed = page is None or bool(tick._close_owned_page(page))
             if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
         except Exception: closed = False
-        if not closed: result.update(ok=False, logged_in=logged_in, error="cleanup_failed")
+        if not closed: result.update(ok=False, logged_in=logged_in, error="cleanup_failed",
+                                     next_action="official_readback_required")
     return _preserve_pending_effect(state_path, result) if apply else result
 
 
@@ -2039,14 +2229,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(); mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--inspect", action="store_true"); mode.add_argument("--apply", action="store_true")
     mode.add_argument("--roster-readback", action="store_true", dest="roster_readback")
+    mode.add_argument("--creation-readback", action="store_true")
     # Separate top-level mode, not a modifier of --apply: create_package() must never fire as a
     # side effect of the existing edit-in-place flow (see create_package()'s own docstring).
     mode.add_argument("--create-package", action="store_true", dest="create_package")
     parser.add_argument("--product", type=Path, default=DEFAULT_PRODUCT); parser.add_argument("--state-path", type=Path, default=Path.home() / ".local/state/anicca/lancers/application.json")
     parser.add_argument("--catalog", type=Path, default=None)
+    parser.add_argument("--occurrence", default=None)
+    parser.add_argument("--restore-local", action="store_true")
     args = parser.parse_args(argv)
+    if args.restore_local and (not args.creation_readback or not args.occurrence):
+        parser.error("--restore-local requires --creation-readback and --occurrence")
     args.product = args.product.expanduser().resolve()
-    catalog_path = args.catalog or (DEFAULT_CATALOG if args.apply and DEFAULT_CATALOG.is_file() else None)
+    catalog_path = args.catalog or (DEFAULT_CATALOG if (args.apply or args.creation_readback) and DEFAULT_CATALOG.is_file() else None)
     if catalog_path is not None:
         catalog_path = catalog_path.expanduser().resolve()
     if args.apply and catalog_path is not None:
@@ -2060,6 +2255,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = run_create(args.product, args.state_path, catalog_path=catalog_path)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")), flush=True)
         return 0 if result.get("ok") is True else (78 if result.get("error") == "setup_required" else 1)
+    if args.creation_readback:
+        result = run_creation_readback(args.product, args.state_path, catalog_path=catalog_path,
+                                       occurrence_id=args.occurrence, restore=args.restore_local)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
+        return 0 if result.get("ok") is True else 1
     result = (run(args.apply, args.product, args.state_path, roster=True, catalog_path=catalog_path) if args.roster_readback
               else run(args.apply, args.product, args.state_path, catalog_path=catalog_path))
     if result.get("error") == "setup_required":
