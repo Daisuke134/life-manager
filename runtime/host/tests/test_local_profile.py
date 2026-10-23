@@ -107,6 +107,7 @@ class LocalProfileTest(unittest.TestCase):
         env = host_environment(home=self.home)
         self.assertEqual(env["LIFE_MANAGER_RUNTIME_PYTHON"], str(self.python))
         self.assertEqual(env["LIFE_MANAGER_PYTHON"], str(self.python))
+        self.assertEqual(env["LIFE_MANAGER_LEASE_PYTHON"], str(self.python))
         self.assertEqual(env["LIFE_MANAGER_RUNTIME_NODE"], str(self.node))
         self.assertEqual(env["LM_SELFBUILD_SOURCE_REPO"], str(ROOT))
         self.assertEqual(env["LIFE_MANAGER_SOURCE_REPO"], str(ROOT))
@@ -123,6 +124,7 @@ class LocalProfileTest(unittest.TestCase):
                 with self.subTest(owner=owner):
                     env = plistlib.loads(_plist(owner, row, ROOT, "a" * 40))["EnvironmentVariables"]
                     self.assertEqual(env["LIFE_MANAGER_RUNTIME_PYTHON"], str(self.python))
+                    self.assertEqual(env["LIFE_MANAGER_LEASE_PYTHON"], str(self.python))
                     self.assertEqual(env["AGENT_RUNNER_CONFIG"], profile["agent_runner_config"])
                     self.assertEqual(env["AI_BROWSER_REGISTRY"], profile["browser_registry"])
                     self.assertEqual(env["LIFE_MANAGER_HOME"], str(self.home / ".local/state/life-manager"))

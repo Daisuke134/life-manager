@@ -11,6 +11,7 @@ from pathlib import Path
 
 HOST_ENVIRONMENT_KEYS = frozenset({
     "LIFE_MANAGER_HOST_PROFILE", "LIFE_MANAGER_RUNTIME_PYTHON", "LIFE_MANAGER_PYTHON",
+    "LIFE_MANAGER_LEASE_PYTHON",
     "LIFE_MANAGER_RUNTIME_NODE", "LIFE_MANAGER_NODE", "AGENT_RUNNER_CONFIG",
     "AI_BROWSER_REGISTRY", "LIFE_MANAGER_ENV_FILE", "LIFE_MANAGER_HOME",
     "LM_SELFBUILD_SOURCE_REPO", "LIFE_MANAGER_SOURCE_REPO", "PATH",
@@ -168,6 +169,7 @@ def host_environment(*, home: Path | None = None) -> dict[str, str]:
     selected = selected.parent.resolve() / selected.name
     return {"LIFE_MANAGER_HOST_PROFILE": str(selected),
             "LIFE_MANAGER_RUNTIME_PYTHON": runtime["python"], "LIFE_MANAGER_PYTHON": runtime["python"],
+            "LIFE_MANAGER_LEASE_PYTHON": runtime["python"],
             "LIFE_MANAGER_RUNTIME_NODE": runtime["node"], "LIFE_MANAGER_NODE": runtime["node"],
             "AGENT_RUNNER_CONFIG": value["agent_runner_config"],
             "AI_BROWSER_REGISTRY": value["browser_registry"],

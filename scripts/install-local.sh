@@ -22,9 +22,10 @@ case "$(uname -m)" in arm64|x86_64) ;; *) echo "[local] 対応CPUはApple Silico
 source "$ROOT/scripts/macos-runtime.sh"
 lm_ensure_python
 lm_ensure_node
-for dependency in jq ffmpeg fontconfig; do
+for dependency in jq ffmpeg fontconfig gogcli; do
   executable="$dependency"
   [ "$dependency" != fontconfig ] || executable=fc-list
+  [ "$dependency" != gogcli ] || executable=gog
   if ! command -v "$executable" >/dev/null 2>&1; then
     lm_ensure_homebrew
     "$LM_BREW" install "$dependency" >&2
