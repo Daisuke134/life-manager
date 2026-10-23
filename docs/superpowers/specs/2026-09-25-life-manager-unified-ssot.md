@@ -18,6 +18,10 @@
 
 独立reviewはcode/doc head `7485228e62`で0 findings/SHIP、installer28/context20/リンク42件とURL・shell・diffを再確認する。Intel macOS14/Python3.14の全requirements wheel解決もexit0で、実機検証とは分ける。CIはcatalog全18名称を英日READMEへ要求する旧assertだけが失敗するため、名前一覧の移設先`docs/agents.md`へ参照を揃える。catalog構造・runtime・financial契約のassertは保持する。
 
+CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件を検出する。公開文書のsender欄をprivate設定参照へ置き換える最小修復だけを追加し、個人アドレスをchat/logへ再出力せず、PII scanner/allowlistは緩めない。mainの並行変更は通常mergeで取り込み、他ownerの内容を維持する。追加差分reviewは一覧参照の移設とSSOTについて0 findings/SHIP、該当Web CTA一式122件もPASS。
+
+同じCIのclean-user archive testには、旧READMEのCloud見出しをexact一致させるassertが残る。見出し2行の読み取り/assertだけを削除し、公開archiveのmanifest・secret reference・license・third-party契約は維持する。新しい`docs/team/README.md`の「唯一の正本」はこの統合SSOTと競合するため、上位の既存作業順・本依頼のTODO正本を維持し、team boardには連携記録だけを残す。
+
 **導入の再現対象:** `scripts/install-local.sh`はCodex CLIの存在だけで全job登録へ進み、本人の認証を確認しない。同じrepoのCoconala `prepare`は`codex login status`→必要時のみ公式`codex login`→再確認を実装している。この既存方式を全体`install`にも適用し、未認証・login失敗・成功応答だけで認証状態が変わらない場合はjob登録前に止める。既存認証は再loginしない。`prepare`とread-only `plan`はloginを開始しない。隔離fixtureで登録開始の有無を検証し、実account/sessionは操作しない。
 
 **確認した証拠:** 追加5ケースは旧実装で4 fail/1 pass（認証確認がなく、失敗・未確認でも登録開始）、修正後は全PASS。既存を含むinstaller27件、public bootstrap10件、host/fleet/install36件の計73件がPASS。loop contractは18 products/192 registry jobs/113 mapped/errors0で、旧specの191/112は当時のsnapshotである。最初の検証はruntime venvの既存`site-packages/scripts`がrepoのnamespaceを隠して2 import errorsとなるため、開発用Python3.14とunittest discoverで同bootstrapを実行し10件PASSを確認した。runtime依存やCIをこのために変更していない。

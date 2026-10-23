@@ -7,11 +7,13 @@
 - 認証情報は /workspace/.secrets、ノウハウは /workspace/knowhow/INDEX.md。
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 ## タスク
+- [Codex] READMEの外部向け整理・Mac初回導入修復（PR #8666、CI確認中）
 - [参謀] ランサーズ/ココナラ応募・返信、X読み取り＋数字分析
 - [Muse] Instagram配信
 - [Local LM] Mac mini上のジョブ
 - [Dots] 未割当
 ## ログ
+- Codex: READMEを英日各52行へ整理し、Codex認証確認漏れとbrowser依存不足を修復。空Python環境・installer28件・Web CTA122件がPASS。並行main文書の個人senderをprivate参照へ置換し、PII検査はclean。次は最新CI・main統合・公開readback。
 - 2026-10-23 17:25 参謀: ボード作成。ランサーズ3件提案済み。
 - 2026-10-23 17:55 参謀(チーム収益ループ初回): 受託=ランサーズ受信確認＋新規2件提案を実行中／自社=デイリー・ダンマのRevenueCat転換チェック実行中。結果は次パスで追記。
 - 2026-10-23 17:57 参謀: 受託=ランサーズ新規2件提案（Shopify移行5618921 ¥35万／Beds24空調自動化5619037 ¥35万、補足メッセ送信）、受信3件は運営削除のスパムで返信なし、残り提案枠11→9。自社=デイリー・ダンマ28日MRR$0・新規16/課金0、原因は閉じられる課金画面。推奨案 team/inhouse/dhamma.md（ハードペイウォール＋週額¥500/年額BEST VALUE、トライアルなし）。次: paywall.tsx改修→週額商品作成→1.1.1提出。
