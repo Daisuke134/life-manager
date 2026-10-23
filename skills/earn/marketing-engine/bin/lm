@@ -210,6 +210,16 @@ def main(argv=None):
     factory_render_parser.add_argument("--config", type=pathlib.Path, required=True)
     factory_render_parser.add_argument("--script", type=pathlib.Path, required=True)
     factory_render_parser.add_argument("--run-id", required=True)
+    factory_publish_parser = factory_commands.add_parser("publish")
+    factory_publish_parser.add_argument("--config", type=pathlib.Path, required=True)
+    factory_publish_parser.add_argument("--script", type=pathlib.Path, required=True)
+    factory_publish_parser.add_argument("--publication", type=pathlib.Path, required=True)
+    factory_publish_parser.add_argument("--run-id", required=True)
+    factory_publish_parser.add_argument("--operation", required=True, choices=[
+        "prepare", "shadow", "upload", "draft", "promote", "route-check", "status", "postiz-readback", "reconcile"])
+    factory_publish_parser.add_argument("--production", action="store_true")
+    factory_publish_parser.add_argument("--post", type=pathlib.Path)
+    factory_publish_parser.add_argument("--native", type=pathlib.Path)
     args = parser.parse_args(argv)
 
     try:
@@ -220,14 +230,27 @@ def main(argv=None):
             if args.factory_command == "plan":
                 from factory_plan import build_plan
                 result = build_plan(config, script)
-            else:
+            elif args.factory_command == "render":
                 from factory_render import render_from_config
                 result = render_from_config(config, script, args.run_id)
+            else:
+                from factory_publish import publish_from_config
+                result = publish_from_config(
+                    config, script, json.loads(args.publication.read_text(encoding="utf-8")),
+                    args.run_id, args.operation, production=args.production,
+                    post_path=args.post, native_path=args.native)
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             if args.factory_command == "render":
                 return 0 if (result.get("state") == "rendered"
                              and isinstance(result.get("wallet_cost"), dict)
                              and not result.get("cost_reconciliation_required")) else 1
+            if args.factory_command == "publish":
+                if args.operation in {"upload", "draft", "promote"}:
+                    return 0 if result.get("state") == "accepted" else 1
+                if args.operation == "shadow":
+                    return 0 if result.get("dispatchable") else 1
+                if args.operation == "route-check":
+                    return 0 if result.get("route_ready") else 1
             return 0
         if args.group == "measure":
             if args.measure_command == "attribution":

@@ -16,10 +16,16 @@
 
 ## 実行順
 
-- [ ] Worker: contextなしの現registry/Hook Lab経路を保持する。contextありのCTA/宛先/create/preflight/route/reconcileで最小REDを観測し、既存関数への伝播だけでGREENにする。
-- [ ] Primary: 厳密入力・共有host DB/route identity/承認不足/既存registry衝突/sidecar hash/run replayの最小REDを先に観測し、CLIを既存publisherへ接続する。upload/draft/promoteはstub clientで各1回/unknown再送0を確認する。
+- [x] Worker: contextなしの現registry/Hook Lab経路を保持する。contextありのCTA/宛先/create/preflight/route/reconcileで最小REDを観測し、既存関数への伝播だけでGREENにする。
+- [x] Primary: 厳密入力・共有host DB/route identity/承認不足/既存registry衝突/sidecar hash/run replayの最小REDを先に観測し、CLIを既存publisherへ接続する。upload/draft/promoteはstub clientで各1回/unknown再送0を確認する。
 - [ ] Primary: 変更に関係する既存Factory/publish回帰とLoop Contract/source-boundary/OSS/diffを一度実行し、source commit/push/remoteを照合する。
 - [ ] Fresh read-only reviewerが全差分を確認し、指摘修復後のexact head CIを経てmainへ統合する。main由来固定版のsource/CLI helpを照合し、live provider操作は行わない。
 - [ ] S11/本planへsource受入と実事業の残件を記録する。次の実配信は正規admission/承認/費用ガードと公式receiptを使う。
 
 **設計判断:** 新しい投稿adapter、project別DB、既存停止accountの再登録、render成功からの承認生成は採らない。local入力は実際の所有/接続をlive integrationで検査し、hosted tenant隔離・signup・subscription・Factory MCP・事前USD cap・実売上を今回のsource受入へ混ぜない。No-human-loopの委任に従いprimaryが方式を選び、承認待ちは追加しない。
+
+## 実装・検証記録
+
+- Workerのcontext引数未実装15 RED→15 PASS。既存default Hook Lab/intent/preflight/production/reconcile/native/routeを含め45 PASS。preflight旧testは未追跡MP4と古いown-business設定への依存だけをfixtureへ置換し、承認/codec/ratio拒否を保持する。
+- Primaryの新Factory CLI/module欠落REDを確認する。run別intent fileのpublish_keyを別の保存済みintentへ付け替える反例はDID NOT RAISEでREDとなり、共有store原本との完全一致で拒否する最小修正を加える。
+- Factory render/plan/既存HeyGenとpublisherの関連14files209 PASSに加え、環境credentialを渡さない実CLI prepareの1件もPASS（計210件）。実provider/credential/browser読取0。Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。fresh review・CI/main・固定版・実投稿は未完。
