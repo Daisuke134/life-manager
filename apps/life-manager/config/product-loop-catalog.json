@@ -30,9 +30,9 @@
       "description": "Run the shared earning lifecycle for Lancers and reconcile applications, paid work, delivery, and reporting.",
       "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"lancers-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
-      "requirements": ["lancers_account", "work_profile", "public_guided_installer"],
+      "requirements": ["lancers_account", "work_profile"],
       "hosts": {
-        "local": {"availability": "setup_required", "command": null},
+        "local": {"availability": "guided", "command": ["./install.sh", "lancers"]},
         "cloud": {"availability": "setup_required", "command": null}
       }
     },

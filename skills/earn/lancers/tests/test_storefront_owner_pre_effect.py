@@ -121,3 +121,12 @@ def test_storefront_owner_keeps_host_hint_for_any_pre_login_failure(tmp_path: Pa
     assert failed.returncode == 1
     assert json.loads(hint.read_text(encoding="utf-8")) == {"status": "pre_effect_failure", "effect": 0}
     assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+
+
+def test_storefront_owner_uses_explicit_owner_mode_and_keeps_uncertain_hint_absent(tmp_path):
+    failed, hint = _run_owner(
+        tmp_path, {"ok": False, "logged_in": None, "error": "creation_pending"}, host_hint=True)
+    argv = json.loads((tmp_path / "argv.json").read_text())
+    assert "--owner-run" in argv and "--apply" not in argv and "--create-package" not in argv
+    assert argv[argv.index("--state-path") + 1] == str(tmp_path / "state/application.json")
+    assert failed.returncode == 1 and not hint.exists()

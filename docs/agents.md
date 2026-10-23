@@ -19,7 +19,7 @@ are proven. The table describes the intended work and the current onboarding bou
 | # | Agent | Work | Prerequisites and current setup |
 |---:|---|---|---|
 | 1 | Gig — Coconala | Find suitable jobs, apply, negotiate, support delivery, and reconcile provider results | Own Coconala account and official seller/SMS/eKYC/payout setup. `./install.sh coconala`; [public beta guide](../skills/earn/gig/README.md). Clean-Mac full acceptance remains open. |
-| 2 | Gig — Lancers | Run the shared application, negotiation, paid-work, and reporting lifecycle | Own Lancers login and work profile. Managed host jobs exist; complete public guided provider setup is pending. |
+| 2 | Gig — Lancers | Run the shared application, negotiation, paid-work, and reporting lifecycle | Own Lancers login and work profile. `./install.sh lancers`; [setup guide](lancers.md). Storefront and reporting need their own settings. Clean-Mac full acceptance remains open. |
 | 3 | Gig — CrowdWorks | Find suitable projects, apply, and report verified outcomes | Own CrowdWorks login and work profile. Managed host jobs exist; complete public guided provider setup is pending. |
 | 4 | Gig — Mercor | Apply for suitable contracts, handle replies, and reconcile outcomes | Own Mercor account and truthful work profile. Complete public guided provider setup is pending. |
 | 5 | PromptBase | Create and publish prompt listings with examples; read sales back | Own seller account and publication profile. Complete public guided provider setup is pending. |

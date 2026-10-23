@@ -229,7 +229,7 @@ test("default product observations make unsupported hosts explicit and never inv
   assert.equal(new Set(observations.map((observation) => observation.id)).size, 18);
   assert.equal(observations.every((observation) => observation.official_receipt !== true), true);
   assert.equal(observations.every((observation) => observation.replay_zero !== true), true);
-  assert.equal(observations.find((observation) => observation.id === "gig-lancers").state,
+  assert.equal(observations.find((observation) => observation.id === "gig-crowdworks").state,
     "setup_required");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").state,
     "blocked");
@@ -1275,7 +1275,7 @@ test("completion manifest CLI builds a safe baseline when only runtime status is
   const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   assert.equal(manifest.loops.length, 18);
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "blocked");
-  assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "setup_required");
+  assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "blocked");
   assert.equal(manifest.completion, false);
   fs.rmSync(root, { recursive: true, force: true });
 });

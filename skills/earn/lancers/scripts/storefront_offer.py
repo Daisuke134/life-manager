@@ -2228,6 +2228,7 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(); mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--inspect", action="store_true"); mode.add_argument("--apply", action="store_true")
+    mode.add_argument("--owner-run", action="store_true")
     mode.add_argument("--roster-readback", action="store_true", dest="roster_readback")
     mode.add_argument("--creation-readback", action="store_true")
     # Separate top-level mode, not a modifier of --apply: create_package() must never fire as a
@@ -2241,9 +2242,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.restore_local and (not args.creation_readback or not args.occurrence):
         parser.error("--restore-local requires --creation-readback and --occurrence")
     args.product = args.product.expanduser().resolve()
-    catalog_path = args.catalog or (DEFAULT_CATALOG if (args.apply or args.creation_readback) and DEFAULT_CATALOG.is_file() else None)
+    catalog_path = args.catalog or (DEFAULT_CATALOG if (args.apply or args.owner_run or args.creation_readback) and DEFAULT_CATALOG.is_file() else None)
     if catalog_path is not None:
         catalog_path = catalog_path.expanduser().resolve()
+    if args.owner_run:
+        try:
+            owner_product, _image, _avatar = _product(args.product, catalog_path, creating=True)
+        except OfferError:
+            print(json.dumps(_product_setup_required(args.state_path), sort_keys=True), flush=True)
+            return 78
+        args.create_package = not owner_product["listing_external_id"]
+        args.apply = not args.create_package
     if args.apply and catalog_path is not None:
         listing_catalog = _reach_marketplace_core()
         try:
