@@ -101,7 +101,9 @@ function utcDayOffset(day, offset) { const epoch = Date.parse(`${day}T00:00:00.0
 function ascDailyDownloads(acquisition, reportDay) {
   const sourceDate = utcDayOffset(reportDay, -1);
   const daily = (Array.isArray(acquisition.daily_metrics) ? acquisition.daily_metrics : []).find((row) => row.date === sourceDate);
-  return { ...(daily?.metrics?.first_time_downloads || unavailable("report_pending")), source_date: sourceDate };
+  const existing = acquisition.metrics?.first_time_downloads;
+  const missing = existing?.status === "unavailable" && existing.value === null ? existing : unavailable("report_pending");
+  return { ...(daily?.metrics?.first_time_downloads || missing), source_date: sourceDate };
 }
 const ASC_SEVEN_DAY_METRICS = Object.freeze(["first_time_downloads", "impressions", "product_page_views"]);
 function ascSevenDayMetrics(dataDir, reportDay, productId, objectStore) {

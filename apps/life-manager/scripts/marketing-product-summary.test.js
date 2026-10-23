@@ -95,7 +95,7 @@ test("attribution coverage joins dated downloads while keeping activation and re
 test("ASC daily downloads select the preceding date without aggregate fallback", async (t) => {
   const reportDay = "2026-10-23";
   const measured = (value) => ({ status: "measured", value, source: "app_store_connect_app_downloads_standard" });
-  for (const [name, dailyMetrics, expected] of [
+  for (const [name, dailyMetrics, expected, aggregate = measured(306)] of [
     ["mixed periods without the target date", [
       { date: "2026-01-21", metrics: { first_time_downloads: measured(2) } },
       { date: "2026-10-21", metrics: { impressions: { status: "measured", value: 3 } } },
@@ -109,6 +109,10 @@ test("ASC daily downloads select the preceding date without aggregate fallback",
     ["missing metric", [{ date: "2026-10-22", metrics: {} }], { status: "unavailable", value: null, reason: "report_pending" }],
     ["explicit privacy suppression", [{ date: "2026-10-22", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "metric_not_observed_or_privacy_threshold" } } }], { status: "unavailable", value: null, reason: "metric_not_observed_or_privacy_threshold" }],
     ["legacy aggregate-only input", undefined, { status: "unavailable", value: null, reason: "report_pending" }],
+    ...["source_timeout", "source_unavailable", "empty_report"].map((reason) => {
+      const metric = { status: "unavailable", value: null, reason };
+      return [reason, [], metric, metric];
+    }),
   ]) {
     await t.test(name, () => {
       const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-daily-period-"));
@@ -121,7 +125,7 @@ test("ASC daily downloads select the preceding date without aggregate fallback",
       };
       // Synthetic aggregate deliberately differs from every daily value.
       writeInput(`asc/${reportDay}/acquisition.json`, { schema_version: 1, kind: "marketing_asc_acquisition", report_day: reportDay, products: [
-        { product_id: "anicca-ios", source_status: "measured", metrics: { first_time_downloads: measured(306) }, daily_metrics: dailyMetrics },
+        { product_id: "anicca-ios", source_status: "measured", metrics: { first_time_downloads: aggregate }, daily_metrics: dailyMetrics },
         { product_id: "honne-ai", source_status: "unavailable", metrics: {} },
       ] });
       writeInput(`revenuecat/${reportDay}/subscriptions.json`, { products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: {} })) });
