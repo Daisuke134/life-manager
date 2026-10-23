@@ -57,8 +57,10 @@ export function configuredMcpNames({ execFileCommand = execFile } = {}) {
 }
 
 export async function runFiniteAgent(context, { spawnChild = spawn, mcpInventory = configuredMcpNames, timeoutMs = 3_600_000, maxOutputBytes = 1_048_576 } = {}) {
+  if (context.signal?.aborted) return { exit_code: null, transport_error: 'interrupted' };
   let names;
   try { names = await mcpInventory(); } catch { return { exit_code: null, transport_error: 'mcp_inventory_unavailable' }; }
+  if (context.signal?.aborted) return { exit_code: null, transport_error: 'interrupted' };
   const spec = agentCommand(context, names);
   const files = [path.join(context.runRoot, 'control', 'agent.stdout.jsonl'), path.join(context.runRoot, 'control', 'agent.stderr.log')];
   const handles = await Promise.all(files.map(file => open(file, 'wx', 0o600)));
@@ -69,7 +71,7 @@ export async function runFiniteAgent(context, { spawnChild = spawn, mcpInventory
     + 'Call factory_plan first: this freezes those files. Never change the script after planning. Use only the run-bound Factory MCP for provider actions. '
     + 'Never use provider CLIs, credentials, browser posting, another MCP, or a shell to send a post. Do not edit input or control files. '
     + 'Keep setup_required, unknown/null costs, nonzero exits and effect fences unchanged. Do not automatically retry an uncertain provider effect. '
-    + 'In publish mode, use prepare, inspect the actual rendered media, extract real frames into this workspace, observe frames/audio metadata and record your own AI review with frame_evidence and notes. '
+    + 'In publish mode, inspect all server-extracted review_frames returned by factory_render in this workspace and the returned media metadata, then use prepare and record your own AI review with those exact frame_evidence files and notes. '
     + 'Do not claim a human reviewed anything. Then use shadow/route-check and permitted upload/draft/promote/status/postiz-readback. '
     + 'A scheduled post or provider status alone is not native confirmation or revenue. Your final text cannot establish completion.\n'
     + `Run mode: ${input.mode}\nTracked product URL: ${url.href}\nProject facts: ${JSON.stringify(input.project)}\n`;
@@ -108,23 +110,40 @@ export async function runFiniteAgent(context, { spawnChild = spawn, mcpInventory
   });
 }
 
+function failedCliCalls(run) {
+  const rejected = new Set(['mode_forbidden', 'factory_input_or_transport_error', 'run_tool_limit']);
+  return run.tool_results.filter(row => {
+    const envelope = row.result.structuredContent;
+    return envelope && !rejected.has(envelope.transport_error)
+      && (row.result.isError || envelope.transport_error || envelope.exit_code !== 0);
+  }).length;
+}
+
+function requiresCostReconciliation(run) {
+  return run.tool_results.some(row => {
+    const value = row.result.structuredContent?.result;
+    return value && (value.cost_reconciliation_required || value.state === 'cost_reconciliation_required'
+      || (Object.hasOwn(value, 'wallet_cost') && value.wallet_cost === null));
+  });
+}
+
 function resultState(run, execution) {
   const target = run.mode === 'plan' ? 'factory_plan' : run.mode === 'render' ? 'factory_render' : 'factory_publish';
   const entry = [...run.tool_results].reverse().find(row => row.name === target && row.result.structuredContent?.result);
   const envelope = entry?.result.structuredContent, result = envelope?.result;
   if (execution.transport_error === 'interrupted') return 'interrupted';
-  if (result?.cost_reconciliation_required || (result?.state === 'rendered' && result.wallet_cost === null)) return 'cost_reconciliation_required';
+  if (requiresCostReconciliation(run)) return 'cost_reconciliation_required';
   if (!result) return 'failed';
   const state = String(result.state ?? result.status ?? (result.dispatchable === false ? 'not_dispatchable' : 'incomplete'));
-  if (/published|earned/i.test(state)) return 'native_verification_required';
-  if (execution.exit_code !== 0 || execution.transport_error || envelope.exit_code !== 0 || entry.result.isError) {
-    return ['rendered', 'planned', 'accepted', 'success', 'completed'].includes(state) ? 'failed' : state;
+  if (execution.exit_code !== 0 || execution.transport_error || failedCliCalls(run)) {
+    return /setup_required|deferred|unknown|reconciliation_required|fenc|blocked|failed/i.test(state) ? state : 'failed';
   }
+  if (/published|earned/i.test(state)) return 'native_verification_required';
   return state;
 }
 
 export async function createFactoryWebServer({ root, token = randomBytes(32).toString('base64url'), uiRoot = here,
-  agentExecutor = runFiniteAgent, factoryExecutor } = {}) {
+  agentExecutor = runFiniteAgent, factoryExecutor, onRunReserved = async () => {} } = {}) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || typeof token !== 'string' || !/^[A-Za-z0-9_-]{8,200}$/.test(token)) throw new Error('Invalid local server configuration.');
   root = path.resolve(root); await safePath(root, root); await mkdir(root, { recursive: true, mode: 0o700 });
   for (const folder of ['projects', 'runs']) { const target = path.join(root, folder); await safePath(root, target); await mkdir(target, { recursive: true, mode: 0o700 }); }
@@ -167,17 +186,23 @@ export async function createFactoryWebServer({ root, token = randomBytes(32).toS
     return JSON.parse(Buffer.concat(parts).toString('utf8'));
   };
   const execute = async (run, location, controller) => {
-    run.state = 'running'; run.updated_at = iso(); await writeJson(root, path.join(location, 'run.json'), run);
-    let execution;
-    try { execution = await agentExecutor({ run: { ...run }, runRoot: location, workspace: path.join(location, 'workspace'), signal: controller.signal,
-      invokeTool: createRunToolCaller({ runRoot: location, factoryExecutor, signal: controller.signal }) }); }
+    let execution = { exit_code: null, transport_error: 'interrupted' };
+    try {
+      if (!closing && !controller.signal.aborted) {
+        run.state = 'running'; run.updated_at = iso(); await writeJson(root, path.join(location, 'run.json'), run);
+        if (!closing && !controller.signal.aborted) execution = await agentExecutor({ run: { ...run }, runRoot: location, workspace: path.join(location, 'workspace'), signal: controller.signal,
+          invokeTool: createRunToolCaller({ runRoot: location, factoryExecutor, signal: controller.signal }) });
+      }
+    }
     catch { execution = { exit_code: null, transport_error: 'agent_executor_error' }; }
     execution ||= { exit_code: null, transport_error: 'missing_agent_result' };
     run.tool_results = await readTools(location);
     run.exit_code = Number.isInteger(execution.exit_code) ? execution.exit_code : null;
     run.state = controller.signal.aborted ? 'interrupted' : resultState(run, execution);
-    run.summary = execution.transport_error ? `Agent transport: ${execution.transport_error}. Provider evidence remains authoritative.`
-      : `${run.state}; agent exit ${run.exit_code ?? 'unknown'}. Native publication and revenue are not inferred.`;
+    run.summary = `${run.state}; failed CLI calls ${failedCliCalls(run)}; agent exit ${run.exit_code ?? 'unknown'}. `
+      + (requiresCostReconciliation(run) && run.state !== 'cost_reconciliation_required' ? 'cost_reconciliation_required. ' : '')
+      + (execution.transport_error ? `Agent transport: ${execution.transport_error}. Provider evidence remains authoritative.`
+        : 'Native publication and revenue are not inferred.');
     run.updated_at = iso();
     try { await verifiedArtifact(location); run.artifact_url = `/api/runs/${run.run_id}/video`; } catch { run.artifact_url = null; }
     await writeJson(root, path.join(location, 'run.json'), run);
@@ -219,8 +244,11 @@ export async function createFactoryWebServer({ root, token = randomBytes(32).toS
         const project = validateProject(JSON.parse(await readSafe(root, path.join(root, 'projects', value.project_id + '.json'), 65536)), { ready: true });
         if (closing || active) return send(response, 409, { error: 'A finite run is already active.' });
         // Reserve before any awaited writes so concurrent POSTs cannot start two agents.
-        const reservation = {}; active = reservation;
+        let complete;
+        const reservation = { controller: new AbortController(), promise: new Promise(resolve => { complete = resolve; }) };
+        active = reservation;
         try {
+          await onRunReserved();
           const run_id = 'run-' + randomUUID(), location = runRoot(run_id), created_at = iso();
           await safePath(root, location); await mkdir(location, { mode: 0o700 });
           for (const folder of ['input', 'workspace', 'control']) await mkdir(path.join(location, folder), { mode: 0o700 });
@@ -229,14 +257,12 @@ export async function createFactoryWebServer({ root, token = randomBytes(32).toS
           const run = { run_id, project_id: project.project_id, mode: value.mode, state: 'queued', exit_code: null,
             created_at, updated_at: created_at, tool_results: [], summary: null, artifact_url: null };
           await writeJson(root, path.join(location, 'run.json'), run);
-          const controller = new AbortController();
-          const promise = execute(run, location, controller).catch(async () => {
+          void execute(run, location, reservation.controller).catch(async () => {
             run.state = 'interrupted'; run.updated_at = iso(); run.summary = 'Run evidence could not be finalized. Do not retry uncertain provider effects.';
             await writeJson(root, path.join(location, 'run.json'), run);
-          }).finally(() => { if (active === reservation) active = null; });
-          Object.assign(reservation, { controller, promise });
+          }).catch(() => {}).finally(() => { if (active === reservation) active = null; complete(); });
           return send(response, 202, { run: { ...run } });
-        } catch (error) { if (active === reservation) active = null; throw error; }
+        } catch (error) { if (active === reservation) active = null; complete(); throw error; }
       }
       const match = /^\/api\/runs\/([a-z0-9][a-z0-9_-]{0,63})(\/video)?$/.exec(route ?? '');
       if (match && request.method === 'GET') {

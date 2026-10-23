@@ -17,14 +17,14 @@ project v1は12 fieldsの project_id, language(en/ja), avatar_id, voice_id, plat
 run modeは plan/render/publish。planはprovider操作を許可せず、renderは生成まで、publishは利用者が最初に選んだ一連の生成/確認/配信を許可する。毎回確認を要求する別manual gateは追加しない。run_idはserverで発行し、project編集で過去runを変更しない。run固有input/agent workspace/control evidenceを分け、最初のFactory planで台本/投稿文をsnapshotに固定し、後続CLIは同じsnapshotだけを使う。config state_rootはserver専用run出力に固定、既存host lock/cost/fenceのrootは変えない。
 
 ## 有限agent
-既存共通agent_runnerはmodel必須なので今回のモデル継承に合わない。薄いcodex exec --sandbox workspace-writeの有限呼出を使い、-m/--model/model_providerを指定しない。既存認証・利用者のCodex model/provider設定を継承する。他のMCP名を有限のread-only inventoryでRAMへ読み、実行時だけ無効化し、正式feature switchでplugins/remote_plugin/apps/enable_mcp_apps/codex_apps_mcp_2026_07_28を無効化する。network=false、追加writable_roots=[]、tmp除外を実行時に固定し、Factory用bridge以外からmode権限を拡張しない。1run同時1agent、長時間処理はHTTP応答から分離し、reload/再起動後もrun ID・実exit・結果を保持する。中断は完了と表示せず、自動で新runに再送しない。
+既存共通agent_runnerはmodel必須なので今回のモデル継承に合わない。薄いcodex exec --sandbox workspace-writeの有限呼出を使い、-m/--model/model_providerを指定しない。既存認証・利用者のCodex model/provider設定を継承する。他のMCP名を有限のread-only inventoryでRAMへ読み、実行時だけ無効化し、正式feature switchでplugins/remote_plugin/apps/enable_mcp_apps/codex_apps_mcp_2026_07_28を無効化する。network=false、追加writable_roots=[]、tmp除外を実行時に固定し、Factory用bridge以外からmode権限を拡張しない。1run同時1agent、長時間処理はHTTP応答から分離し、reload/再起動後もrun ID・実exit・結果を保持する。中断は完了と表示せず、自動で新runに再送しない。run予約の時点から中断signalと完了待機を保持し、shutdown完了後にはagentを開始しない。費用未照合と失敗はrun全体の履歴から集約し、後続statusの成功表示で隠さない。
 
-agentは製品事実/briefから台本とcaptionを作り、実動画のframe/audio metadata等を観測して確認者をAI agentとして記録する。人間の確認を捏造しない。server-bound MCPは任意pathを受けず既存callFactoryToolへ固定path/run/production値を渡す。publishのprepare/shadow/route-check/upload/draft/promote/status/postiz-readbackを再利用し、公式receiptが無いnative確認や売上は未確認とする。agent最終文章を公開成功の根拠にしない。
+agentは製品事実/briefから台本とcaptionを作り、実動画のframe/audio metadata等を観測して確認者をAI agentとして記録する。人間の確認を捏造しない。レビュー用frameはreceiptで検証した動画からserver側で抽出し、frame hashをcontrol evidenceへ固定する。任意画像やPNG署名だけを動画確認の根拠として受け付けない。server-bound MCPは任意pathを受けず既存callFactoryToolへ固定path/run/production値を渡す。publishのprepare/shadow/route-check/upload/draft/promote/status/postiz-readbackを再利用し、公式receiptが無いnative確認や売上は未確認とする。agent最終文章を公開成功の根拠にしない。
 
 ## localhost境界と表示
 127.0.0.1のみbind。Host/Originを正確に照合し全APIに起動ごとのaction tokenを要求する。CORSは開けない。body/output上限、任意path拒否、symlink/path traversal拒否、秘密を含まないerror、process group timeout/終了処理を持つ。runのcontrol evidenceはagent workspace外へ保存する。video endpointはそのrunのCLI receiptでpath/SHA一致を確認したassetだけを返す。
 
-UIはcream/ink/greenの落ち着いた制作workspace。project一覧、brief/商品/チャンネル設定、台本、実run状態と成果物を同じ画面で扱う。placeholderの再生数/収益/成功進捗を表示しない。公開側ではdraftをlocalStorageへ保存しJSON export/importできるがtoken/secretは保存しない。local側ではserverに保存し、plan/produce/publishと実exit/provider状態を表示する。
+UIはcream/ink/greenの落ち着いた制作workspace。project一覧、brief/商品/チャンネル設定、台本、実run状態と成果物を同じ画面で扱う。placeholderの再生数/収益/成功進捗を表示しない。公開側ではdraftをlocalStorageへ保存しJSON export/importできるがtoken/secretは保存しない。export/importはUTF-8 byteの同一上限65536を使い、各fieldの上限内の日本語draftを往復できる。local側ではserverに保存し、plan/produce/publishと実exit/provider状態を表示する。
 
 ## 規律と不足
 Superpowers brainstorming/writing-plans/TDD、ponytail fullを使う。DaisのNo-human-loopと明示委任に従い設計承認待ちを置かず、primaryの実装判断を本設計へ記録する。model overrideを要求する下位の役割慣習は使わない。projectの無料trial禁止は、無料公開でもよいという最新の明示指示へ置き換える。審査・公開状態は公式providerで別途確認する。Muse URLは確認待ち、ChatGPT plugin portalの本人確認も別cursorとして独立作業を止めない。

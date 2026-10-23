@@ -155,6 +155,58 @@ test('nonzero unknown costs remain failures and restart interrupts without rerun
   assert.equal(saved.state, 'cost_reconciliation_required');
 });
 
+test('a later scheduled status cannot hide unresolved run costs or an earlier CLI failure', async t => {
+  for (const unknownCost of [true, false]) {
+    const { request } = await fixture(t, {
+      factoryExecutor: async name => {
+        if (name === 'factory_plan') return receipt({ status: 'planned', provider_calls: 0 });
+        if (name === 'factory_publish') return receipt({ state: 'scheduled' });
+        const failure = receipt({ state: 'rendered', wallet_cost: unknownCost ? null : { currency: 'USD', amount: 1 },
+          cost_reconciliation_required: unknownCost });
+        failure.isError = true; failure.structuredContent.exit_code = 1;
+        return failure;
+      },
+      agentExecutor: async context => {
+        await context.invokeTool('factory_plan', {}); await context.invokeTool('factory_render', {});
+        await context.invokeTool('factory_publish', { operation: 'status' });
+        return { exit_code: 0 };
+      },
+    });
+    await save(request);
+    const run = (await (await request('/api/runs', { body: { project_id: project.project_id, mode: 'publish' } })).json()).run;
+    const done = await terminal(request, run.run_id);
+    assert.equal(done.state, unknownCost ? 'cost_reconciliation_required' : 'failed');
+    assert.match(done.summary, /failed CLI calls 1/);
+    if (unknownCost) assert.match(done.summary, /cost_reconciliation_required/);
+    assert.equal(done.tool_results.at(-1).result.structuredContent.result.state, 'scheduled');
+  }
+});
+
+test('shutdown during a run reservation waits for finalization and never starts the agent', async t => {
+  let reserved, release, starts = 0;
+  const reached = new Promise(resolve => { reserved = resolve; });
+  const hold = new Promise(resolve => { release = resolve; });
+  const { request, server, root } = await fixture(t, {
+    onRunReserved: async () => { reserved(); await hold; },
+    agentExecutor: async () => { starts++; return { exit_code: 0 }; },
+  });
+  await save(request);
+  const pending = request('/api/runs', { body: { project_id: project.project_id, mode: 'publish' } });
+  await reached;
+  let stopped = false;
+  const shutdown = server.shutdown().then(() => { stopped = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  const waited = !stopped;
+  release();
+  const response = await pending, run = (await response.json()).run;
+  await shutdown;
+  assert.equal(waited, true, 'shutdown must wait for the reserved request');
+  assert.equal(starts, 0, 'a reserved agent must not start after shutdown begins');
+  const saved = JSON.parse(await readFile(join(root, 'state', 'runs', run.run_id, 'run.json'), 'utf8'));
+  assert.equal(saved.state, 'interrupted');
+  assert.equal(saved.exit_code, null);
+});
+
 test('symlinked project paths are refused and only hash-matched run assets are served', async t => {
   const bytes = Buffer.from('finite video fixture');
   const { request, root } = await fixture(t, {
@@ -242,9 +294,13 @@ test('finite agent output is bounded and timeout reclaims only its process group
 });
 
 test('publish binds approval to the actual asset and prepare metadata, with real frame references and an AI reviewer', async t => {
-  let reviewArguments, reviewEvidence, promoted;
-  const video = Buffer.from('run-owned video');
-  const frame = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1QAAAAASUVORK5CYII=', 'base64');
+  let reviewArguments, reviewEvidence, promoted, renderText, forgedRejected = false, tamperedRejected = false, observedFrames = [];
+  const media = await mkdtemp(join(tmpdir(), 'factory-review-video-'));
+  t.after(() => rm(media, { recursive: true, force: true }));
+  const source = join(media, 'fixture.mp4');
+  await execFileAsync(process.env.FFMPEG_BIN || 'ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
+    'color=c=black:s=32x32:d=1:r=3', '-c:v', 'libx264', '-threads', '1', '-pix_fmt', 'yuv420p', '-an', source]);
+  const video = await readFile(source);
   const { request } = await fixture(t, {
     factoryExecutor: async (name, args) => {
       if (name === 'factory_plan') return receipt({ status: 'planned', provider_calls: 0 });
@@ -262,12 +318,23 @@ test('publish binds approval to the actual asset and prepare metadata, with real
       return receipt({ created: true, approval: { status: 'accepted', owner_confirmation: args.owner_confirmation } });
     },
     agentExecutor: async context => {
-      await context.invokeTool('factory_plan', {}); await context.invokeTool('factory_render', {});
+      await context.invokeTool('factory_plan', {});
+      const rendered = await context.invokeTool('factory_render', {});
+      renderText = JSON.parse(rendered.content[0].text).result;
       await context.invokeTool('factory_publish', { operation: 'prepare' });
-      assert.equal((await context.invokeTool('factory_record_review', { notes: 'A claim with no actual image', frame_evidence: ['missing.png'] })).isError, true);
-      await writeFile(join(context.workspace, 'frame.png'), frame);
-      const approval = await context.invokeTool('factory_record_review', { notes: 'I inspected the produced frame and checked its visible layout.', frame_evidence: ['frame.png'] });
-      assert.equal(approval.isError, false);
+      await writeFile(join(context.workspace, 'frame.png'), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      forgedRejected = (await context.invokeTool('factory_record_review', { notes: 'A signature is not a video frame.', frame_evidence: ['frame.png'] })).isError;
+      if (!forgedRejected) return { exit_code: 1 };
+      const frames = rendered.structuredContent.result.review_frames;
+      for (const frame of frames) {
+        const bytes = await readFile(join(context.workspace, frame.file));
+        observedFrames.push({ ...frame, actual_sha256: createHash('sha256').update(bytes).digest('hex') });
+      }
+      const first = join(context.workspace, frames[0].file), bytes = await readFile(first);
+      await writeFile(first, 'tampered');
+      tamperedRejected = (await context.invokeTool('factory_record_review', { notes: 'Changed workspace evidence.', frame_evidence: frames.map(row => row.file) })).isError;
+      await writeFile(first, bytes);
+      await context.invokeTool('factory_record_review', { notes: 'I inspected the server-extracted video frames and their visible layout.', frame_evidence: frames.map(row => row.file) });
       await context.invokeTool('factory_publish', { operation: 'promote' });
       return { exit_code: 0 };
     },
@@ -275,12 +342,53 @@ test('publish binds approval to the actual asset and prepare metadata, with real
   await save(request);
   const run = (await (await request('/api/runs', { body: { project_id: project.project_id, mode: 'publish' } })).json()).run;
   const done = await terminal(request, run.run_id);
+  assert.equal(forgedRejected, true, 'a PNG signature must not approve an unrelated asset');
+  assert.equal(tamperedRejected, true, 'workspace edits must not change the server-fixed frames');
+  assert.equal(observedFrames.length, 3);
+  assert.ok(observedFrames.every(frame => frame.actual_sha256 === frame.sha256));
+  assert.deepEqual(renderText.review_frames, observedFrames.map(({ actual_sha256, ...frame }) => frame));
+  assert.equal(renderText.review_media.duration_seconds, 1);
   assert.equal(reviewArguments.account, 'factory-account'); assert.equal(reviewArguments.product, 'factory-product');
   assert.equal(reviewArguments.ledger, '/fixed/host/factory/visual-approvals.jsonl');
   assert.equal(reviewArguments.owner_confirmation, 'AI agent (Codex)');
-  assert.equal(reviewEvidence.frames[0].sha256, createHash('sha256').update(frame).digest('hex'));
+  assert.deepEqual(reviewEvidence.frames, observedFrames.map(({ actual_sha256, ...frame }) => frame));
+  assert.equal(reviewEvidence.asset_sha256, createHash('sha256').update(video).digest('hex'));
   assert.equal(promoted.production, true); assert.equal(promoted.run_id, run.run_id);
   assert.equal(done.state, 'native_verification_required');
+});
+
+test('undecodable video cannot create review evidence and preserves its original cost and failure receipt', async t => {
+  let reviewCalls = 0, refused = false;
+  const { request } = await fixture(t, {
+    factoryExecutor: async (name, args) => {
+      if (name === 'factory_plan') return receipt({ status: 'planned', provider_calls: 0 });
+      if (name === 'factory_publish') return receipt({ state: 'prepared', account_id: 'account', product_id: 'product', approvals_path: '/host/approvals.jsonl' });
+      if (name === 'factory_record_review') { reviewCalls++; return receipt({ created: true }); }
+      const config = JSON.parse(await readFile(args.config, 'utf8'));
+      const output = join(config.state_root, 'renders', config.project_id + '.' + args.run_id + '.mp4'), bytes = Buffer.from('not a decodable MP4');
+      await mkdir(join(config.state_root, 'renders')); await writeFile(output, bytes);
+      const result = receipt({ state: 'rendered', output, sha256: createHash('sha256').update(bytes).digest('hex'), wallet_cost: null });
+      result.isError = true; result.structuredContent.exit_code = 1;
+      return result;
+    },
+    agentExecutor: async context => {
+      await context.invokeTool('factory_plan', {}); await context.invokeTool('factory_render', {});
+      await context.invokeTool('factory_publish', { operation: 'prepare' });
+      await writeFile(join(context.workspace, 'frame.png'), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      refused = (await context.invokeTool('factory_record_review', { notes: 'No verified frames were extracted.', frame_evidence: ['frame.png'] })).isError;
+      return { exit_code: 0 };
+    },
+  });
+  await save(request);
+  const run = (await (await request('/api/runs', { body: { project_id: project.project_id, mode: 'publish' } })).json()).run;
+  const done = await terminal(request, run.run_id), render = done.tool_results.find(row => row.name === 'factory_render').result;
+  assert.equal(refused, true); assert.equal(reviewCalls, 0);
+  assert.equal(render.structuredContent.exit_code, 1); assert.equal(render.isError, true);
+  assert.equal(render.structuredContent.result.wallet_cost, null);
+  assert.equal(render.structuredContent.result.review_state, 'unavailable');
+  assert.deepEqual(render.structuredContent.result.review_frames, []);
+  assert.equal(done.state, 'cost_reconciliation_required');
+  assert.match(done.summary, /failed CLI calls 1/);
 });
 
 test('restart preserves an interrupted run and never starts an agent from saved running state', async t => {

@@ -1,5 +1,6 @@
 import { validateProject } from './project.mjs';
 
+export const projectFileMaxBytes = 65536;
 const draftKey = 'anicca.monk-factory.drafts.v1';
 const fileVersion = 'ai-monk-factory.web-project.v1';
 export function isLocalMode(token, hostname) {
@@ -9,7 +10,7 @@ export function encodeProjectFile(project) {
   return JSON.stringify({ schema_version: fileVersion, project: validateProject(project) }, null, 2) + '\n';
 }
 export function decodeProjectFile(text) {
-  if (text.length > 32768) throw new Error('This project file is too large.');
+  if (typeof text !== "string" || new TextEncoder().encode(text).byteLength > projectFileMaxBytes) throw new Error('This project file is too large.');
   const value = JSON.parse(text);
   if (!value || Object.keys(value).sort().join(',') !== 'project,schema_version' || value.schema_version !== fileVersion) throw new Error('Unsupported project file format or version.');
   return validateProject(value.project);
@@ -138,7 +139,7 @@ async function startWorkspace() {
   $('import-project').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', event => action(async () => {
     const file = event.target.files?.[0];if (!file) return;
-    if (file.size > 32768) throw new Error('This project file is too large.');
+    if (file.size > projectFileMaxBytes) throw new Error('This project file is too large.');
     const project = decodeProjectFile(await file.text());fillProject(project);await saveProject();notice('Project imported and saved.');event.target.value = '';
   }));
   $('setup-toggle').addEventListener('click', () => { const open = $('setup-instructions').hidden;$('setup-instructions').hidden = !open;$('setup-toggle').setAttribute('aria-expanded', String(open)); });

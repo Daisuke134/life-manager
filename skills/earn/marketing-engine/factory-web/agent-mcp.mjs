@@ -5,6 +5,7 @@ import { lstat, mkdir, open, rename, writeFile, appendFile } from 'node:fs/promi
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { validateProject } from './project.mjs';
 
 export const idPattern = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -106,9 +107,13 @@ export async function freezeInputs(runRoot) {
 }
 
 export async function verifiedArtifact(runRoot) {
-  const frozen = JSON.parse(await readSafe(runRoot, path.join(runRoot, 'control', 'frozen.json')));
   const tools = await readTools(runRoot);
   const receipt = [...tools].reverse().find(row => row.name === 'factory_render' && row.result.structuredContent?.result?.output)?.result.structuredContent.result;
+  return verifyReceiptArtifact(runRoot, receipt);
+}
+
+async function verifyReceiptArtifact(runRoot, receipt) {
+  const frozen = JSON.parse(await readSafe(runRoot, path.join(runRoot, 'control', 'frozen.json')));
   if (!receipt || receipt.output !== frozen.output || !/^[a-f0-9]{64}$/.test(receipt.sha256 ?? '')) throw new Error('No verified run asset.');
   await safePath(runRoot, frozen.output);
   const file = await open(frozen.output, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -120,6 +125,68 @@ export async function verifiedArtifact(runRoot) {
     if (hash.digest('hex') !== receipt.sha256) throw new Error('Run asset hash mismatch.');
     return { path: frozen.output, sha256: receipt.sha256, size: stat.size };
   } finally { await file.close(); }
+}
+
+async function mediaCommand(command, args, signal) {
+  // Reuse the existing finite child registry, output limit, abort and process-group cleanup.
+  const { runCli } = await import('../factory-mcp.mjs');
+  const result = await runCli([], { signal, timeoutMs: 30000, maxOutputBytes: 65536,
+    spawnChild: (_command, _args, options) => spawn(command, args, { ...options,
+      cwd: path.dirname(fileURLToPath(new URL('../factory-mcp.mjs', import.meta.url))),
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } }) });
+  if (result.exit_code !== 0 || result.transport_error) throw new Error('review_frame_extraction_unavailable');
+  return result.stdout;
+}
+
+async function reviewFrames(runRoot, receipt, signal) {
+  const asset = await verifyReceiptArtifact(runRoot, receipt);
+  const manifestPath = path.join(runRoot, 'control', 'review-frames.json');
+  let manifest;
+  try { manifest = JSON.parse(await readSafe(runRoot, manifestPath)); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (!manifest) {
+    // Keep the existing native binary resolution, including its absolute executable checks.
+    const binaries = JSON.parse(await mediaCommand('python3', ['-c',
+      'import json; from ebook_asset_pack import resolve_ffmpeg, resolve_ffprobe; print(json.dumps([resolve_ffmpeg(), resolve_ffprobe()]))'], signal));
+    if (!binaries[0] || !binaries[1]) throw new Error('review_frame_extraction_unavailable');
+    const probe = JSON.parse(await mediaCommand(binaries[1], ['-v', 'error', '-protocol_whitelist', 'file,pipe',
+      '-show_entries', 'format=duration:stream=codec_type,codec_name,width,height', '-of', 'json', asset.path], signal));
+    const video = probe.streams?.find(row => row.codec_type === 'video'), audio = probe.streams?.find(row => row.codec_type === 'audio');
+    const duration = Number(probe.format?.duration);
+    if (!Number.isFinite(duration) || duration < 1 || duration > 180 || !Number.isInteger(video?.width) || !Number.isInteger(video?.height)
+      || video.width < 1 || video.height < 1 || video.width > 8192 || video.height > 8192) throw new Error('invalid_review_media');
+    const directory = path.join(runRoot, 'control', 'review-frames');
+    await safePath(runRoot, directory); await mkdir(directory, { recursive: true, mode: 0o700 });
+    const files = [1, 2, 3].map(index => `frame-${String(index).padStart(2, '0')}.png`);
+    for (const file of files) await safePath(runRoot, path.join(directory, file));
+    const sampling = `fps=3/${duration}`;
+    await mediaCommand(binaries[0], ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
+      '-protocol_whitelist', 'file,pipe', '-i', asset.path, '-map', '0:v:0', '-an',
+      '-vf', `${sampling},scale=720:1280:force_original_aspect_ratio=decrease`, '-frames:v', '3', '-threads', '1', path.join(directory, 'frame-%02d.png')], signal);
+    const frames = [];
+    for (const file of files) {
+      const bytes = await readSafe(runRoot, path.join(directory, file), 8 * 1024 * 1024);
+      if (bytes.length <= 8) throw new Error('invalid_review_frame');
+      frames.push({ file: `review-frames/${file}`, sha256: createHash('sha256').update(bytes).digest('hex') });
+    }
+    manifest = { asset_sha256: asset.sha256, extracted_at: now(), frames,
+      media: { duration_seconds: duration, width: video.width, height: video.height,
+        video_codec: video.codec_name, audio_codec: audio?.codec_name ?? null, sampling } };
+    await writeJson(runRoot, manifestPath, manifest);
+  }
+  if (manifest.asset_sha256 !== asset.sha256) throw new Error('conflicting_review_asset');
+  const workspace = path.join(runRoot, 'workspace'), directory = path.join(workspace, 'review-frames');
+  await safePath(workspace, directory); await mkdir(directory, { recursive: true, mode: 0o700 });
+  for (const frame of manifest.frames) {
+    const bytes = await readSafe(runRoot, path.join(runRoot, 'control', frame.file), 8 * 1024 * 1024);
+    if (createHash('sha256').update(bytes).digest('hex') !== frame.sha256) throw new Error('conflicting_review_frame');
+    const target = path.join(workspace, frame.file); await safePath(workspace, target);
+    try { await writeFile(target, bytes, { flag: 'wx', mode: 0o600 }); }
+    catch (error) {
+      if (error.code !== 'EEXIST' || createHash('sha256').update(await readSafe(workspace, target, 8 * 1024 * 1024)).digest('hex') !== frame.sha256) throw error;
+    }
+  }
+  return manifest;
 }
 
 function failed(reason) {
@@ -135,6 +202,7 @@ export function createRunToolCaller({ runRoot, factoryExecutor, signal }) {
     if (!boundToolNames(input.mode).includes(name)) return appendTool(runRoot, name, failed('mode_forbidden'));
     const rows = await readTools(runRoot);
     if (rows.length >= 32 || Buffer.byteLength(JSON.stringify(rows)) > 8 * 1024 * 1024) return failed('run_tool_limit');
+    let invoked = false;
     try {
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('invalid_arguments');
       const fields = name === 'factory_publish' ? ['operation'] : name === 'factory_record_review' ? ['notes', 'frame_evidence'] : [];
@@ -156,15 +224,17 @@ export function createRunToolCaller({ runRoot, factoryExecutor, signal }) {
         if (typeof args.notes !== 'string' || !args.notes.trim() || args.notes.length > 4000 || args.notes.includes('\0')
           || !Array.isArray(args.frame_evidence) || args.frame_evidence.length < 1 || args.frame_evidence.length > 12) throw new Error('invalid_review');
         const asset = await verifiedArtifact(runRoot);
-        const prepare = [...rows].reverse().find(row => row.name === 'factory_publish' && row.result.structuredContent?.result?.approvals_path)?.result.structuredContent.result;
+        const prepare = [...rows].reverse().find(row => row.name === 'factory_publish' && !row.result.isError
+          && row.result.structuredContent?.exit_code === 0 && row.result.structuredContent.result?.approvals_path)?.result.structuredContent.result;
         if (!prepare?.account_id || !prepare?.product_id || !prepare?.approvals_path) throw new Error('prepare_required');
-        const frames = [];
-        for (const relative of args.frame_evidence) {
-          if (typeof relative !== 'string' || path.isAbsolute(relative) || !relative || relative.includes('\0')) throw new Error('invalid_frame');
-          const workspace = path.join(runRoot, 'workspace'), target = path.resolve(workspace, relative);
-          const bytes = await readSafe(workspace, target, 8 * 1024 * 1024);
-          if (!(bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255))) throw new Error('invalid_frame');
-          frames.push({ file: relative, sha256: createHash('sha256').update(bytes).digest('hex') });
+        const manifest = JSON.parse(await readSafe(runRoot, path.join(runRoot, 'control', 'review-frames.json')));
+        if (manifest.asset_sha256 !== asset.sha256 || JSON.stringify(args.frame_evidence) !== JSON.stringify(manifest.frames.map(frame => frame.file))) throw new Error('invalid_frame');
+        const frames = manifest.frames;
+        for (const frame of frames) {
+          for (const directory of ['workspace', 'control']) {
+            const bytes = await readSafe(path.join(runRoot, directory), path.join(runRoot, directory, frame.file), 8 * 1024 * 1024);
+            if (createHash('sha256').update(bytes).digest('hex') !== frame.sha256) throw new Error('invalid_frame');
+          }
         }
         const evidence = path.join(runRoot, 'control', 'review.json');
         let review;
@@ -181,9 +251,21 @@ export function createRunToolCaller({ runRoot, factoryExecutor, signal }) {
           confirmation_ref: evidence, approved_at: review.observed_at });
       }
       const invoke = factoryExecutor ?? (await import('../factory-mcp.mjs')).callFactoryTool;
-      return await appendTool(runRoot, name, await invoke(name, fixed, { signal }));
+      invoked = true;
+      const result = await invoke(name, fixed, { signal });
+      if (name === 'factory_render' && input.mode === 'publish' && result.structuredContent?.result?.output) {
+        const render = result.structuredContent.result;
+        try {
+          const manifest = await reviewFrames(runRoot, render, signal);
+          result.structuredContent.result = { ...render, review_frames: manifest.frames, review_media: manifest.media, review_state: 'frames_ready' };
+        } catch {
+          result.structuredContent.result = { ...render, review_frames: [], review_state: 'unavailable', review_reason: 'verified_video_frame_extraction_required' };
+        }
+        result.content = [{ type: 'text', text: JSON.stringify(result.structuredContent) }];
+      }
+      return await appendTool(runRoot, name, result);
     } catch {
-      return appendTool(runRoot, name, failed('factory_input_or_transport_error'));
+      return appendTool(runRoot, name, failed(invoked ? 'factory_transport_error' : 'factory_input_or_transport_error'));
     }
   };
   return (name, args = {}) => {
@@ -206,7 +288,7 @@ async function main() {
     const schema = name === 'factory_publish' ? z.object({ operation: z.enum(operations) }).strict()
       : name === 'factory_record_review' ? z.object({ notes: z.string().min(1).max(4000), frame_evidence: z.array(z.string().min(1).max(200)).min(1).max(12) }).strict() : z.object({}).strict();
     server.registerTool(name, { description: name === 'factory_record_review'
-      ? 'Record your actual AI observation of this run asset using workspace frame files and notes. Never claim a human reviewed it.'
+      ? 'Record your actual AI observation of every server-extracted review_frame returned by factory_render. Supply those exact workspace file references and notes. Never claim a human reviewed it.'
       : `${name} for this run only. Inputs are fixed by the server; preserve the returned CLI exit code, cost unknowns and provider fences.`, inputSchema: schema,
     annotations: { readOnlyHint: name === 'factory_plan' } }, args => invoke(name, args));
   }

@@ -151,6 +151,12 @@ jobs:
           python-version: '3.11'
       - run: npm ci --ignore-scripts
       - run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0
+      - name: Ensure native video frame tools are available
+        run: |
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
       - name: Verify local workspace and bounded Factory tools without provider effects
         run: node --test --test-concurrency=1 skills/earn/marketing-engine/factory-web/*.test.mjs skills/earn/marketing-engine/factory-mcp.test.mjs
 

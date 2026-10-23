@@ -225,7 +225,7 @@ timeout、取消、接続終了ではこのserverが起動したprocess groupだ
 The same workspace runs as a public browser draft editor and as a local execution UI.
 The public page saves drafts in that browser and exports/imports JSON; it does not connect
 from HTTPS to a localhost API. Start the local workspace from an installed Life Manager
-checkout with the existing root Node/Python runtime dependencies:
+checkout with the existing root Node/Python runtime dependencies and native `ffmpeg`/`ffprobe` for video review:
 
 ```sh
 node skills/earn/marketing-engine/factory-web/server.mjs --open
@@ -254,7 +254,8 @@ network access and inherited additional writable roots are disabled. The invocat
 also disables the Codex plugin/app transport features, so plugin access does not depend
 on whether those transports appear in the MCP inventory. Plan permits only offline Factory planning;
 render permits generation; publish permits the existing fenced publisher. An agent's
-actual frame evidence and notes can be recorded as an AI review through the existing
+review uses three server-extracted frames from the receipt-verified video, with fixed
+asset/frame hashes and the agent’s actual observation notes, through the existing
 approval ledger; no human review is claimed.
 
 Run status uses CLI/tool evidence, not the agent's final prose. Null costs, setup and

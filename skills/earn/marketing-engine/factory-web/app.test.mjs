@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {isLocalMode,encodeProjectFile,decodeProjectFile,readDrafts,saveDraft} from './app.mjs';
+import {projectFileMaxBytes,isLocalMode,encodeProjectFile,decodeProjectFile,readDrafts,saveDraft} from './app.mjs';
 const project={project_id:'first-monk',language:'en',avatar_id:'',voice_id:'',platform:'tiktok',integration_id:'',native_handle:'',product_name:'',product_url:'',brief:'A gentle lesson about starting again.',script:'',cta:''};
 const storage=()=>{const values=new Map();return {getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};};
 test('public workspace cannot mistake a host or unexpanded token for local runtime',()=>{
@@ -21,4 +21,11 @@ test('export/import preserves real project content and rejects extra fields and 
 });
 test('corrupt stored data reports the problem instead of silently replacing drafts',()=>{
  const s=storage();s.setItem('anicca.monk-factory.drafts.v1','{');assert.throws(()=>readDrafts(s));
+});
+
+test("valid Japanese drafts round-trip using the same UTF-8 file limit",()=>{
+ const large={...project,language:"ja",product_name:"僧".repeat(200),product_url:"https://example.com/"+"道".repeat(2000),brief:"あ".repeat(4000),script:"学".repeat(5000),cta:"心".repeat(500)};
+ const text=encodeProjectFile(large);const bytes=new TextEncoder().encode(text).byteLength;
+ assert.ok(bytes>32768);assert.ok(bytes<=projectFileMaxBytes);assert.deepEqual(decodeProjectFile(text),large);
+ assert.throws(()=>decodeProjectFile("あ".repeat(Math.floor(projectFileMaxBytes/3)+1)),/too large/);
 });

@@ -49,3 +49,8 @@ Interfaces: project v1とTask1 APIを使う。UIはrootが __FACTORY_TOKEN__ を
 
 ## Codex設定loadの修正と受入
 モデル起動前のread-only reviewer起動はinvalid transport in mcp_servers.code-reviewでexit1となる。通常inventoryがplugin仮想MCP名も返す一方、実行でpluginを無効化すると元transportが消え、enabled=falseだけのoverrideが無効になる。モデル開始/外部provider操作は0。inventoryにも同じfeature無効化を適用し、既存HTTP名factoryとの衝突を避けるrun固有MCP名へ接続する。実user設定のCLI loadで既存6件無効・新run1件だけ有効を確認し、credential無しfixtureのHTTP名factory/生成名衝突もPASSする。approval_policy=neverで承認待ちを防ぎ、model/provider指定は0。fresh read-onlyレビューは修正後の設定で再開する。公開assetは末尾slash有無に依存しない/ai-monk-factory/絶対pathとlocal固定aliasへ揃える。
+
+## fresh review修正cursor
+独立read-onlyレビューは変更0で3 blocking/1 nitを再現する。検証済み動画からserver抽出したframe/hashへの固定、予約中shutdownの中断/完了待機、run全体の費用未照合/失敗集約、日本語draftのUTF-8上限統一を最小REDから修正し、関連testsと差分レビュー後にCI/mainへ進む。実provider/日次投稿は操作しない。
+
+3 blocking/1 nitは旧REDを観測して最小修正する。関連4file suiteは36 PASS/0 FAIL/0 SKIP（実SDK stdio、実Python offline plan、実ffmpeg/ffprobe抽出と画像hash、EOF所有子孫回収を含む）。停止予約/費用未照合/偽frame/日本語file往復の回帰を含む。差分fresh reviewを実行中。実Codex plan/local browser受入・CI/main・immutable releaseは次cursorのまま保持する。

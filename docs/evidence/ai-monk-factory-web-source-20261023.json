@@ -1,11 +1,11 @@
 {
   "schema_version": "anicca.ai-monk-factory-web-source.v1",
-  "status": "source_tests_passed_review_pending",
+  "status": "source_tests_passed_delta_review_pending",
   "related_tests": {
-    "passed": 32,
+    "passed": 36,
     "failed": 0,
     "skipped": 0,
-    "new_web_tests": 21,
+    "new_web_tests": 25,
     "existing_factory_mcp_tests": 11,
     "CI": true
   },
@@ -38,15 +38,15 @@
     "Public deployment and immutable release are pending"
   ],
   "source_files": {
-    "skills/earn/marketing-engine/factory-web/agent-mcp.mjs": "de0ed589714deda9870672248b66752f61bbcc8e2703f383f5756fa3fbfc7dca",
+    "skills/earn/marketing-engine/factory-web/agent-mcp.mjs": "042f4b4fb0420854ca6b8738c8f99667a709d6d0a700c9c7f222b1656e7a7338",
     "skills/earn/marketing-engine/factory-web/app.css": "2aa9e429aa9ce360a57b851c74684f78e598d7d860ce3bc65d980f7db69cc71e",
-    "skills/earn/marketing-engine/factory-web/app.mjs": "c628037794356b39780a412601d04568bee0767c893c4ee062ffac646d510f11",
-    "skills/earn/marketing-engine/factory-web/app.test.mjs": "d11225a32c69460acbba6a8f523f928178a65ce9d9a55e0b34bb3894b7bc07af",
-    "skills/earn/marketing-engine/factory-web/index.html": "a7d621cc4f7c8465fff6ac7dee46f746d79ca5f74b9523a5d0d7390c8e83937c",
+    "skills/earn/marketing-engine/factory-web/app.mjs": "a70dbafdb704a926fb0056e4a6fd7470338ddf3b161ae09fc456aca8ab48e33a",
+    "skills/earn/marketing-engine/factory-web/app.test.mjs": "b03800e4d08892cdfdac047136d3d6fbcb71cb8b66b19565e0521578d9dcd27f",
+    "skills/earn/marketing-engine/factory-web/index.html": "ca6f8b57b384da7e038786f0edf39a839fff11319da95bcf10793b5070cc8a1b",
     "skills/earn/marketing-engine/factory-web/project.mjs": "71baea8f3021841c0914d96f9229bef16aba3250391cc49bee8cde5207538e84",
     "skills/earn/marketing-engine/factory-web/project.test.mjs": "50a87f71dc0e273fefdb60514e602701a84f79470cccf73230b1790a6caf3f88",
-    "skills/earn/marketing-engine/factory-web/server.mjs": "c9d6336a1cb2ad84503095daf43f30ba554c907f5929f51bb114e591720f55d8",
-    "skills/earn/marketing-engine/factory-web/server.test.mjs": "4d4239d0fbe6f26b3958f02ea29029cef19d1e83590dfce73d90c4c3fe0a6dd6"
+    "skills/earn/marketing-engine/factory-web/server.mjs": "93501588e50794888ef56fd4a801e53222b7edcfea1c3b4dfeabd1062fa05b9b",
+    "skills/earn/marketing-engine/factory-web/server.test.mjs": "b86169c335027a006c5e7c670391f80a042fc3cc1fb5592feebf3919f39cd361"
   },
   "codex_configuration_load": {
     "plugin_off_inventory": true,
@@ -57,5 +57,22 @@
     "run_name_collision_fixture": "passed",
     "approval_policy": "never",
     "model_provider_overrides": false
+  },
+  "fresh_review": {
+    "initial_blocking": 3,
+    "initial_nit": 1,
+    "regressions": "old RED to corrected GREEN",
+    "fixes": [
+      "server-extracted video frames bound to receipt and frame hashes",
+      "reservation-time abort controller and completion wait",
+      "run-wide unresolved cost and CLI error aggregation",
+      "shared UTF-8 import/export limit"
+    ],
+    "delta_review": "running"
+  },
+  "native_media_fixture": {
+    "ffprobe_decode": true,
+    "ffmpeg_frames": 3,
+    "provider_calls": 0
   }
 }
