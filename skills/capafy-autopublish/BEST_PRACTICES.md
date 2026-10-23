@@ -164,6 +164,10 @@ categories:**
    recurring-input shape as `football-match-analyst`).
 Use **Claude Sonnet 5.5** as Primary Model (Dais 2026-10-07: our four sellers stopped the day after a Sonnet -> DeepSeek switch; most top sellers run Sonnet; 5.5 runs at the same OpenRouter price as 5 and shows as the "Claude Sonnet 5" display preset per §8) with low request caps and No Free Trial on every plan per §3.
 
+## 14. MARKET REFRESH (2026-10-19, WebSearch)
+
+Live Capafy search results still surface Anicca's TikTok Script Pro and an independent TikTok/Douyin Scripts listing. Both describe a pasted brief becoming film-ready short-form scripts with hooks, timed voiceover, on-screen text, captions, and shot cues. The independent listing explicitly avoids viral guarantees. This confirms demand for the short-form creator workflow, but general script generation is crowded; new supply must use a distinct input and outcome. Source: public Capafy agent pages returned by WebSearch on 2026-10-19. No sales count was inferred from search snippets.
+
 ### Description template (derived from Hook Lab's live listing style)
 Use this shape for every new listing in this family — outcome headline, buyer identity, 3 concrete
 outcomes, one real example, then the plan table:

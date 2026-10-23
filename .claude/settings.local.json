@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr merge:*)",
+      "Read(~/.local/state/life-manager/**)",
+      "Bash(cat ~/.local/state/life-manager/*)",
+      "Bash(jq * ~/.local/state/life-manager/*)"
+    ]
+  }
+}

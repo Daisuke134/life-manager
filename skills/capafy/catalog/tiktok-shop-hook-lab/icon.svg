@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">TikTok Shop Hook Lab icon</title>
+  <desc id="desc">A product box, a three-second timer, and a speech bubble.</desc>
+  <rect width="128" height="128" rx="24" fill="#101827"/>
+  <path d="M28 43h72v55H28z" fill="#f8fafc"/>
+  <path d="M28 43l36 21 36-21M64 64v34" fill="none" stroke="#101827" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="96" cy="32" r="22" fill="#20d9c2"/>
+  <path d="M96 18v15l10 6" fill="none" stroke="#101827" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 76h22l-6 8H38z" fill="#ff7a59"/>
+</svg>

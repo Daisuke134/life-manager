@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Script brief checker icon">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#151b3b"/><stop offset="1" stop-color="#342447"/></linearGradient></defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <path d="M151 105h178l64 64v225a35 35 0 0 1-35 35H151a35 35 0 0 1-35-35V140a35 35 0 0 1 35-35Z" fill="#fff8ee"/>
+  <path d="M329 105v64h64" fill="#ffd0a8"/>
+  <path d="M170 213h150M170 265h114M170 317h88" stroke="#4b5477" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="351" cy="344" r="77" fill="#ff8c42"/>
+  <path d="m315 344 23 24 50-55" fill="none" stroke="#fff" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
