@@ -114,24 +114,31 @@ def connect(home: Path, snapshot: dict) -> dict:
     return ready(home)
 
 
-def ready(home: Path) -> dict:
-    """Account connection is independent of candidate/product/business readiness."""
+def connected_account(home: Path) -> str | None:
+    """Return the private account only from a matching saved observation binding."""
     try:
         latest = json.loads((_directory(home) / "onboarding-observation.json").read_text(encoding="utf-8"))
         profile = json.loads((_directory(home) / "public-profile.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return _required("account_observation")
+        return None
     if (not isinstance(latest, dict) or latest.get("version") != 1
             or latest.get("platform") != "lancers" or not isinstance(profile, dict)):
-        return _required("account_observation")
+        return None
     snapshot = latest.get("snapshot")
     account = observed_account(snapshot)
     if account is None or profile.get("account_id") != account:
-        return _required("account_observation")
+        return None
     digest = hashlib.sha256(_canonical(snapshot)).hexdigest()
     binding = profile.get("account_binding")
     if (latest.get("observation_sha256") != digest or not isinstance(binding, dict)
             or binding.get("observation_sha256") != digest):
+        return None
+    return account
+
+
+def ready(home: Path) -> dict:
+    """Account connection is independent of candidate/product/business readiness."""
+    if connected_account(home) is None:
         return _required("account_observation")
     return {"ok": True, "status": "account_connected"}
 

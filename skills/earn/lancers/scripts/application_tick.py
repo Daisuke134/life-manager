@@ -42,6 +42,14 @@ if _CAPSOLVER_SPEC is None or _CAPSOLVER_SPEC.loader is None:
 _capsolver = importlib.util.module_from_spec(_CAPSOLVER_SPEC)
 sys.modules[_CAPSOLVER_SPEC.name] = _capsolver
 _CAPSOLVER_SPEC.loader.exec_module(_capsolver)
+_ONBOARDING_SPEC = importlib.util.spec_from_file_location(
+    "anicca_lancers_onboarding", Path(__file__).with_name("lancers_onboarding.py"),
+)
+if _ONBOARDING_SPEC is None or _ONBOARDING_SPEC.loader is None:
+    raise RuntimeError("lancers_onboarding_unavailable")
+_onboarding = importlib.util.module_from_spec(_ONBOARDING_SPEC)
+sys.modules[_ONBOARDING_SPEC.name] = _onboarding
+_ONBOARDING_SPEC.loader.exec_module(_onboarding)
 CDP_URL = _cdp_endpoint.configured_cdp_endpoint(
     "http://127.0.0.1:9227", require_identity_join=True,
 )
@@ -1040,6 +1048,22 @@ def _solve_aws_waf_challenge(
     return diagnostic
 
 
+def _confirm_account_summary(
+    page: Any, diagnostic: dict[str, object], account: str,
+) -> dict[str, object]:
+    diagnostic["ready"] = False
+    diagnostic["reason"] = "account_observation_unavailable"
+    for attempt in range(20):
+        current = _onboarding.observed_account(page.evaluate(_onboarding.EXPRESSION))
+        if current is not None:
+            diagnostic["ready"] = current == account
+            diagnostic["reason"] = "ready" if current == account else "account_mismatch"
+            break
+        if attempt < 19:
+            time.sleep(0.5)
+    return diagnostic
+
+
 def _production_account_diagnostic(
     page: Any, *, solve_aws_waf: bool = False,
     solver_state_path: Optional[Path] = None,
@@ -1053,6 +1077,10 @@ def _production_account_diagnostic(
         "exception_type": None,
     }
     try:
+        account = _onboarding.connected_account(Path.home())
+        if account is None:
+            diagnostic["reason"] = "account_binding_unavailable"
+            return diagnostic
         response = page.goto(DASHBOARD_URL)
         if response is None:
             diagnostic["reason"] = "response_none"
@@ -1061,7 +1089,10 @@ def _production_account_diagnostic(
         diagnostic["http_status"] = status if type(status) is int else None
         if status != 200:
             if status == 405 and solve_aws_waf and getattr(page, "url", None) == DASHBOARD_URL:
-                return _solve_aws_waf_challenge(page, diagnostic, solver_state_path)
+                diagnostic = _solve_aws_waf_challenge(page, diagnostic, solver_state_path)
+                if diagnostic["ready"] is True:
+                    return _confirm_account_summary(page, diagnostic, account)
+                return diagnostic
             diagnostic["reason"] = "http_non_200"
             return diagnostic
         final_url = getattr(page, "url", None)
@@ -1079,8 +1110,7 @@ def _production_account_diagnostic(
         if login_form_count != 0:
             diagnostic["reason"] = "login_form_present"
             return diagnostic
-        diagnostic["ready"] = True
-        diagnostic["reason"] = "ready"
+        return _confirm_account_summary(page, diagnostic, account)
     except Exception as error:
         diagnostic["reason"] = "exception"
         diagnostic["exception_type"] = type(error).__name__

@@ -223,7 +223,8 @@ def test_same_account_preserves_existing_private_profile_keys(isolated_home):
     assert "private-existing-proof" not in json.dumps(module.ready(isolated_home))
 
 
-@pytest.mark.parametrize("corruption", ["account", "binding", "snapshot", "digest", "missing", "broken"])
+@pytest.mark.parametrize("corruption", ["account", "binding", "binding_missing", "binding_malformed",
+                                     "snapshot", "digest", "missing", "broken"])
 def test_ready_requires_current_same_account_and_matching_digest(isolated_home, corruption):
     module = _load()
     assert module.ready(isolated_home)["error"] == "setup_required"
@@ -235,6 +236,10 @@ def test_ready_requires_current_same_account_and_matching_digest(isolated_home, 
         profile["account_id"] = "someone-else"
     elif corruption == "binding":
         profile["account_binding"]["observation_sha256"] = "b" * 64
+    elif corruption == "binding_missing":
+        profile.pop("account_binding")
+    elif corruption == "binding_malformed":
+        profile["account_binding"] = []
     elif corruption == "snapshot":
         latest["snapshot"]["ready"] = "loading"
     elif corruption == "digest":
@@ -247,6 +252,33 @@ def test_ready_requires_current_same_account_and_matching_digest(isolated_home, 
     if corruption not in {"missing", "broken"}:
         _observation(isolated_home).write_text(json.dumps(latest))
     assert module.ready(isolated_home)["error"] == "setup_required"
+
+
+def test_ready_reads_each_binding_input_once_without_writing_or_exposing_account(isolated_home, monkeypatch):
+    module = _load()
+    module.connect(isolated_home, _snapshot())
+    paths = {_profile(isolated_home), _observation(isolated_home)}
+    previous = {path: path.read_bytes() for path in paths}
+    reads = []
+    original_read = Path.read_text
+
+    def read(path, *args, **kwargs):
+        assert path in paths, "ready read an unrelated private input"
+        reads.append(path)
+        return original_read(path, *args, **kwargs)
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("ready must not write binding or invoke browser")
+
+    monkeypatch.setattr(Path, "read_text", read)
+    monkeypatch.setattr(module, "_write_private", forbidden)
+    monkeypatch.setattr(module, "_load_cdp", forbidden)
+    monkeypatch.setattr(module.subprocess, "run", forbidden)
+
+    assert module.ready(isolated_home) == {"ok": True, "status": "account_connected"}
+    assert len(reads) == 2
+    assert set(reads) == paths
+    assert {path: path.read_bytes() for path in paths} == previous
 
 
 def test_unleased_observe_invalidates_old_success_before_any_guard_or_cdp(isolated_home, monkeypatch):
