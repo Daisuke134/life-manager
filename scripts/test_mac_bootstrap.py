@@ -161,6 +161,22 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "onboarding-ready\n")
 
+    def test_repeated_job_hunter_setup_keeps_its_installed_dependencies(self):
+        helper = self.checkout / "scripts/macos-runtime.sh"
+        with helper.open("a") as handle:
+            handle.write('_lm_select_python() { [ -x "$1" ] || return 1; LM_PYTHON="$1"; }\n')
+        (self.checkout / "install.sh").write_text('#!/bin/bash\nprintf "%s" "$JOB_SEARCH_PYTHON"\n')
+        self.run_git("add", ".")
+        self.run_git("commit", "-m", "resume fixture")
+        self.run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        venv = self.root / "home/.local/share/anicca/job-search/venv/bin/python"
+        venv.parent.mkdir(parents=True)
+        venv.write_text('#!/bin/sh\nexit 0\n')
+        venv.chmod(0o755)
+        result = self.bootstrap("job-hunter", "finished", extra_env={"JOB_SEARCH_PYTHON": ""})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, str(venv))
+
 
 if __name__ == "__main__":
     unittest.main()

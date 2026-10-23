@@ -62,7 +62,7 @@ def command_for(loop_id: str, root: Path, home: Path) -> list[str]:
     python = sys.executable
     fixed = {
         "money-printer-symphony-bridge": [
-            "/opt/homebrew/bin/node",
+            os.environ.get("LIFE_MANAGER_RUNTIME_NODE") or "/opt/homebrew/bin/node",
             str(root / "apps/life-manager/scripts/money-printer-symphony-bridge.js"),
         ],
         "hf-gig-apply-direct": [

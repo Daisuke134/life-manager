@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the outcome watch and tell Dais only when something is wrong.
+# Run the outcome watch and notify the owner when something is wrong.
 #
 # Intentionally outside skills/gig-work: the loop must not be able to edit the thing that
 # judges it. Also intentionally dumb — no model call, no browser, so it cannot fail for the
@@ -7,21 +7,32 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-PY="${PY:-/opt/homebrew/bin/python3}"
+PY="${LIFE_MANAGER_RUNTIME_PYTHON:-${LIFE_MANAGER_PYTHON:-${PY:-python3}}}"
 STATE="${LIFE_MANAGER_STATE_ROOT:-$HOME/.local/state/life-manager/gig-outcome-watch}"
 SENDER="$HERE/../../skills/_shared/send-telegram.sh"
 mkdir -p "$STATE"
 
-set -a; . "$HOME/.local/state/life-manager/.env" 2>/dev/null; set +a
+ENV_FILE="${LIFE_MANAGER_ENV_FILE:-$HOME/.local/state/life-manager/.env}"
+if [ -f "$ENV_FILE" ]; then
+  set -a; . "$ENV_FILE"; set +a
+fi
 CHAT_ID="${GIG_WATCH_CHAT_ID:-${TELEGRAM_ALERT_CHAT_ID:-}}"
 
-json="$("$PY" "$HERE/outcome_watch.py" --window-hours "${WINDOW_HOURS:-24}" --json 2>/dev/null)"
-text="$("$PY" "$HERE/outcome_watch.py" --window-hours "${WINDOW_HOURS:-24}" 2>/dev/null)"
+for helper in outcome_watch.py verify_domain_skills.sh; do
+  [ -f "$HERE/$helper" ] || { echo "observation_failed: helper_missing=$helper" >&2; exit 75; }
+done
+json="$("$PY" "$HERE/outcome_watch.py" --window-hours "${WINDOW_HOURS:-24}" --json)"
 rc=$?
+[ "$rc" -le 1 ] || { echo "observation_failed: outcome_json exit=$rc" >&2; exit 75; }
+text="$("$PY" "$HERE/outcome_watch.py" --window-hours "${WINDOW_HOURS:-24}")"
+rc=$?
+[ "$rc" -le 1 ] || { echo "observation_failed: outcome_text exit=$rc" >&2; exit 75; }
 
 printf '%s\n' "$json" >> "$STATE/history.jsonl"
 
-alerts="$(printf '%s' "$json" | "$PY" -c 'import json,sys; print(",".join(json.load(sys.stdin)["alerts"]))' 2>/dev/null)"
+alerts="$(printf '%s' "$json" | "$PY" -c 'import json,sys; print(",".join(json.load(sys.stdin)["alerts"]))')" || {
+  echo "observation_failed: invalid_outcome_json" >&2; exit 75;
+}
 
 # Did the live pass actually put the domain skills in front of the model?
 #
@@ -33,15 +44,16 @@ alerts="$(printf '%s' "$json" | "$PY" -c 'import json,sys; print(",".join(json.l
 #
 # exit 1 = some prompts lack the skills (a real regression, alert).
 # exit 2 = no evidence or no prompts yet (the pass has not run, not a regression, stay quiet).
-ds_json="$(bash "$HERE/verify_domain_skills.sh" 2>/dev/null)"
+ds_json="$(bash "$HERE/verify_domain_skills.sh")"
 ds_rc=$?
+[ "$ds_rc" -le 2 ] || { echo "observation_failed: domain_skills exit=$ds_rc" >&2; exit 75; }
 printf '%s\n' "$ds_json" >> "$STATE/domain-skills.jsonl"
 if [ "$ds_rc" -eq 1 ]; then
   alerts="${alerts:+$alerts,}domain_skills_missing"
   text="${text}
 
 ⚠️ ドメイン知識がモデルに渡っていません
-$(printf '%s' "$ds_json" | "$PY" -c 'import json,sys; d=json.load(sys.stdin); print(f"  pass {d[\"pass\"]}: プロンプト {d[\"prompts\"]}件中 {d[\"with_skills\"]}件にしか載っていない")' 2>/dev/null)
+$(printf '%s' "$ds_json" | "$PY" -c 'import json,sys; print("  pass {pass}: プロンプト {prompts}件中 {with_skills}件にしか載っていない".format(**json.load(sys.stdin)))')
   この状態のループは、8/5 に人手で洗い出した16項目を知らないまま走っています。"
 fi
 

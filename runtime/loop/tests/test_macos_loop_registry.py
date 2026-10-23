@@ -724,6 +724,8 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(ebook.get("resource_class"), "agent")
         self.assertEqual(ebook.get("admission_class"), "revenue")
         self.assertEqual(ebook.get("priority"), "distribution")
+        self.assertTrue(ebook.get("coalesce_reserved_wakes"))
+        self.assertTrue(ebook.get("coalesce_queued_wakes"))
         self.assertEqual(ebook.get("cadence"), {
             "calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 21, "Minute": 0}],
         })

@@ -1879,6 +1879,72 @@ def test_coalesced_claim_cancels_every_prior_queued_wake_signal(tmp_path, monkey
     admission.release_and_reserve(claim, reserve=False, now=104)
 
 
+@pytest.mark.parametrize("orphaned", (False, True))
+def test_coalesced_claim_accepts_its_existing_queued_identity(tmp_path, monkeypatch, orphaned):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    owner = "publisher"
+    for index in range(2):
+        admission.enqueue_durable("agent", owner, admission_class="revenue",
+                                  priority="distribution", occurrence_id=f"publisher:old-{index}",
+                                  now=100 + index)
+    if orphaned:
+        assert admission.cancel_durable(owner) is True
+    admission.enqueue_durable("agent", owner, admission_class="revenue",
+                              priority="distribution", occurrence_id="publisher:current",
+                              coalesce_reserved=orphaned, now=102)
+    sequence = durable_rows(tmp_path, "queue")[0]["sequence"]
+    before = durable_rows(tmp_path, "occurrences")[-1]
+
+    claim, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue",
+        coalesced_occurrence_id="publisher:current", now=103)
+    assert claim is not None and reason == "acquired", reason
+    try:
+        assert json.loads(claim.read_text())["sequence"] == sequence
+        rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+        assert [rows[f"publisher:old-{index}"]["state"] for index in range(2)] == ["cancelled", "cancelled"]
+        assert rows["publisher:current"] == {**before, "state": "claimed"}
+    finally:
+        admission.release_and_reserve(claim, reserve=False, now=104)
+
+
+@pytest.mark.parametrize("column,value", [
+    ("owner_id", "other-owner"),
+    ("resource_class", "browser"),
+    ("admission_class", "borrow"),
+    ("base_priority", "support"),
+    ("state", "claimed"),
+    ("state", "released"),
+    ("state", "cancelled"),
+    ("effect_unknown", 1),
+])
+def test_coalesced_claim_rejects_existing_nonqueued_or_foreign_identity(
+        tmp_path, monkeypatch, column, value):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    for occurrence, at in (("publisher:old", 100), ("publisher:current", 101)):
+        admission.enqueue_durable("agent", "publisher", admission_class="revenue",
+                                  priority="distribution", occurrence_id=occurrence,
+                                  effect_scope="occurrence", now=at)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as db:
+        db.execute(f"UPDATE occurrences SET {column}=? WHERE occurrence_id=?",
+                   (value, "publisher:current"))
+        if column == "effect_unknown":
+            db.execute("UPDATE occurrences SET queued_at=99 WHERE occurrence_id='publisher:current'")
+
+    claim, reason = admission.claim_durable(
+        "agent", "publisher", admission_class="revenue", effect_scope="occurrence",
+        coalesced_occurrence_id="publisher:current", now=103)
+    if claim is not None:
+        admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=104)
+    assert claim is None and reason == "occurrence_inflight", reason
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert rows["publisher:old"]["state"] == "queued"
+    assert rows["publisher:current"][column] == value
+    assert durable_rows(tmp_path, "queue")[0]["owner_id"] == "publisher"
+
+
 def test_opted_in_connector_reuses_queued_scan_after_reservation_expires(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

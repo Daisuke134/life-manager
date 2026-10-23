@@ -371,5 +371,117 @@
       "target_absent": true,
       "free_gib": 12.536
     }
+  },
+  "manual_source_acceptance": {
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8619",
+    "main_commit": "46ab2f8b41a88b88bc8323fa489ddd1912324b36",
+    "source_head": "f87e9c145fdd4390e50fdef84a5001538d2d77c6",
+    "ci_checks_success": 13,
+    "security_scan_run_id": 39900862276,
+    "runtime_tests": 239,
+    "node_tests": 27,
+    "fresh_final_review_findings": 0,
+    "independent_review_tests": 15,
+    "new_generations": 0,
+    "production_posts": 0,
+    "remaining": "EN孤立queuedのcoalescing、容量下限復帰、native1投稿と公式readback"
+  },
+  "manual_ready_runtime_adoption": {
+    "checked_at": "2026-10-23T04:52:58.887566+00:00",
+    "run_id": "manual-en-tiktok-manual-ready-adoption-20261023",
+    "owner_id": "ebook-en-tiktok-daily",
+    "occurrence_id": null,
+    "release_sha": "059eae1a7bfcc689019b06e4c3ea43bb495672a5",
+    "phase": "loaded_release_readback",
+    "command": "target-only lm-loop reconcile deterministic --loaded-idle-only --max-owners 1 --loop-id ebook-en-tiktok-daily",
+    "exit_code": 0,
+    "effect": "owner_release_updated",
+    "provider_receipt_id": null,
+    "readback": {
+      "installed_matches_loaded": true,
+      "loaded_release_environment_matches": true,
+      "idle": true,
+      "install_event_id": "898b13cdac22595ea46263b5",
+      "launchctl_response_sha256": "a0f0c5169820195c47d086ba2e2e6d509d615ac9585e4bab1cde8a096914555f"
+    },
+    "error_class": null,
+    "retryable": false,
+    "next_action": "coalesce_old_queued_wakes_then_native_existing_slot_run",
+    "effects": {
+      "new_generations": 0,
+      "posts": 0
+    }
+  },
+  "english_latest_pre_effect_closure": {
+    "after": {
+      "effect_unknown": 0,
+      "occurrence_id": "ebook-en-tiktok-daily:18e0ead527a4cd98-17391",
+      "owner_id": "ebook-en-tiktok-daily",
+      "state": "released"
+    },
+    "before": {
+      "effect_unknown": 1,
+      "occurrence_id": "ebook-en-tiktok-daily:18e0ead527a4cd98-17391",
+      "owner_id": "ebook-en-tiktok-daily",
+      "state": "claimed"
+    },
+    "checked_at": "2026-10-23T04:45:53.905529+00:00",
+    "effect": "exact_pre_effect_fence_closed",
+    "effects": {
+      "new_generations": 0,
+      "posts": 0
+    },
+    "error_class": null,
+    "exit_code": 0,
+    "next_action": "targeted_reconcile_then_existing_slot_native_run",
+    "occurrence_id": "ebook-en-tiktok-daily:18e0ead527a4cd98-17391",
+    "owner_id": "ebook-en-tiktok-daily",
+    "phase": "pre_effect_reconciliation",
+    "provider_receipt_id": null,
+    "readback": {
+      "receipt_sha256": "b4b92f03d5ac1e5fc789e095714128c3b3a7c5f2f133b8c8a6bc8c61ee7f5c60",
+      "resolution": "RESOLVED"
+    },
+    "release_sha": "2b2cd31848387b2a8699d5db6c4b1c9a446d7835",
+    "resolved": [
+      "ebook-en-tiktok-daily:18e0ead527a4cd98-17391"
+    ],
+    "retryable": false,
+    "run_id": "manual-en-pre-effect-closure-20261023",
+    "unprovable": [],
+    "verified_original_proof": {
+      "blocker": null,
+      "evidence_ref": "lm-event://ebook-en-tiktok-daily/18e10eb78d565f20-55263/9c53985c50e947e023bcf0d6",
+      "evidence_refs": [
+        "lm-event://ebook-en-tiktok-daily/18e0ead527a4cd98-17391/5288543f5ec0cc060ef19498",
+        "lm-event://ebook-en-tiktok-daily/18e10eb78d565f20-55263/9c53985c50e947e023bcf0d6"
+      ],
+      "occurrence_id": "ebook-en-tiktok-daily:18e0ead527a4cd98-17391",
+      "owner_id": "ebook-en-tiktok-daily",
+      "proof_type": "pre_effect",
+      "verified": true
+    }
+  },
+  "temporary_ui_dependency_recovery": {
+    "checked_at": "2026-10-23T04:49:22.828157+00:00",
+    "regenerable_packages_removed": 4,
+    "observed_recovered_bytes": 68792320,
+    "free_after_bytes": 9797951488,
+    "protected_deletions": 0,
+    "open_handles": 0,
+    "floor_unchanged": true,
+    "new_generations": 0,
+    "posts": 0
+  },
+  "heygen_cost_readonly_limit": {
+    "official_webhook_events_get_status": 200,
+    "pages": 1,
+    "events": 0,
+    "cost_candidates": 0,
+    "video_cost_usd": null,
+    "new_generations": 0,
+    "provider_mutations": 0,
+    "private_evidence_sha256": "15f043307f6a56aadaf97a9de842edabc6bbcdf1c089f4fe22ce66e9ae126142",
+    "remaining": "video_idに結び付く公式費用・通貨・transaction ID"
   }
 }
