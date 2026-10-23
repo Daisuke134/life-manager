@@ -86,7 +86,7 @@ def test_nothing_can_become_proposal_form_changed_without_saying_what_it_was():
     a browser timeout was indistinguishable from a changed form."""
     source = TICK.read_text(encoding="utf-8")
     relabel = source[source.index('if error not in {"financial_terms_required"'):]
-    relabel = relabel[:relabel.index("submitter = submitter_override")]
+    relabel = relabel[:relabel.index("send = submitter_override")]
     assert "_record_form_change(" in relabel
     assert "relabelled_as_form_changed" in relabel
     assert "unhandled_exception" in relabel

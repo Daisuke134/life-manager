@@ -384,7 +384,7 @@ class TelegramReportTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(output.getvalue()), {
             "ok": True, "enqueued": 1, "attempted": 1, "delivered": 1,
-            "delivery_uncertain": 0, "pre_send_failed": 0,
+            "delivery_uncertain": 0, "pre_send_failed": 0, "provider_rejected": 0,
         })
         self.assertEqual(collect.call_count, enqueue.call_count)
         self.assertEqual(deliver.call_count, 1)

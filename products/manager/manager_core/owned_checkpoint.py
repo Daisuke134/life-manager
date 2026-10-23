@@ -151,6 +151,8 @@ def _validate_database(path):
                 _aware(datetime.fromisoformat(evidence['observed_at']))
         from .owned_provider import validate_provider_tables
         validate_provider_tables(db, tables)
+        from .owned_provider_shadow import validate_catalog_shadow_results
+        validate_catalog_shadow_results(db, tables)
 
 
 class PrivateCheckpoint:

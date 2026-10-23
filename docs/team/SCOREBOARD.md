@@ -3,6 +3,16 @@
 数字はこのファイルが正本。出典のある数字だけ書く。推測・未確認は書かない（不明は「未計測」）。
 更新したら該当行の「更新(JST)」と「出典」を書き換え、BOARD.md のログに1行追記する。
 
+## 最新（毎時更新） 2026-10-23 22:12 JST
+
+| 項目 | 値 | 出典 |
+|---|---|---|
+| 共有応募台帳 行数 | 29（applied 21 / claimed 4 / listed 2 / needs-owner 2） | `ledger/APPLICATIONS.md` @ origin/main 8114f92c39 |
+| Coconala 応募（今日JST） | 29件 | `~/gig/applied.jsonl` status==applied, ts>=今日0時JST |
+| Writer 有料記事 公開（今日） | 0本（台帳行 3） | `~/.local/state/life-manager/writer/articles.jsonl` live_url あり |
+| Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-23T11:07:54Z |
+| PromptBase 売上 | 0件 / $0.0 | `promptbase-sales.json` observed_at 2026-10-23T08:52:15Z |
+
 ## 売上 / MRR
 
 | 項目 | 値 | 更新(JST) | 出典 |
@@ -55,4 +65,5 @@ Mac mini 上の実ファイルを read-only で集計（20:35 JST 時点）。�
 | Postiz 投稿（Anicca 連携） | PUBLISHED 10 / ERROR 3（09:00〜16:48 JST の範囲） | 2026-10-23 16:48 | `~/.local/state/life-manager/evidence/mobile-flagship/20261023/postiz-final-official-readback-20261023T074813Z.json`（`GET /public/v1/posts`、`anicca_post_readbacks[].state`）。16:48 以降は未取得 |
 | Writer 有料記事 公開 | 0本（今日の行3件はすべて `pending: required fail-closed proofs unavailable`、`published=false`） | 2026-10-23 14:49 | `~/.local/state/life-manager/writer/articles.jsonl` の ts 今日JST行。`live_url` 列は存在しない |
 | Capafy 累計 gross / 非トライアル件数 | $112.74 / 33件 | 2026-10-23 20:07 | `~/.local/state/life-manager/state/capafy-hourly-reconcile.json` `money.gross_usd`・`money.non_trial_units`、observed_at 2026-10-23T11:07:54Z |
+| Capafy 増加分の出所（+$9.99） | agent 9425449917「TikTok Series Continuity Planner」有料1件（$9.99/週・trialなし）、流入元 direct、7日views 4 | 2026-10-23 21:45 | `~/.local/state/life-manager/state/capafy-hourly-reconcile.json` `traffic_sources.by_agent.9425449917.last_7d`（paid_orders 1, sales_usd 9.99）、初観測 reconcile 2026-10-23T04:14Z（PR #8622 で FROZEN 化） |
 | PromptBase 売上件数 / net | 0件 / $0.00 | 2026-10-23 17:52 | `~/.local/state/life-manager/state/promptbase-sales.json` `sales_count`・`net_usd`、observed_at 2026-10-23T08:52:15Z（source: PromptBase Sales tab） |

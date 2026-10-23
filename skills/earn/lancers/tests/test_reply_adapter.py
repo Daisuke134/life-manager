@@ -51,7 +51,7 @@ def test_buyer_event_uses_existing_natural_language_composer(monkeypatch):
     assert calls[0][3]["verified_proposal"]["proposal_id"] == "7"
 
 
-def test_semantic_uncertainty_becomes_durable_human_wait(monkeypatch):
+def test_semantic_uncertainty_becomes_durable_wait(monkeypatch):
     def uncertain(*_args, **_kwargs):
         raise adapter_module.work_sync.ReplySemanticUncertain([
             "9月8日から13日までの日別稼働時間",
@@ -71,7 +71,7 @@ def test_semantic_uncertainty_becomes_durable_human_wait(monkeypatch):
         },
     })
     assert result == {
-        "action": "human",
+        "action": "wait",
         "reason": "reply_facts_required",
         "remaining_work": [
             "9月8日から13日までの日別稼働時間",
