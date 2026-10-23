@@ -10,16 +10,16 @@ ENV_FILE="${LIFE_MANAGER_MARKETING_ENV_FILE:-${HOME}/.local/state/life-manager/p
 # absence exact across loading that file so runtime status attribution cannot
 # be relabelled as a stale release.
 if [ "${LIFE_MANAGER_RELEASE_SHA+x}" = x ]; then
-  RELEASE_SHA_BOUND=1
-  RELEASE_SHA="${LIFE_MANAGER_RELEASE_SHA}"
+  LM_BOUND_RELEASE_SHA_PRESENT=1
+  LM_BOUND_RELEASE_SHA="${LIFE_MANAGER_RELEASE_SHA}"
 else
-  RELEASE_SHA_BOUND=0
+  LM_BOUND_RELEASE_SHA_PRESENT=0
 fi
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/load-env-file.sh"
 lm_load_env_file "$ENV_FILE"
-if [ "$RELEASE_SHA_BOUND" -eq 1 ]; then
-  export LIFE_MANAGER_RELEASE_SHA="$RELEASE_SHA"
+if [ "$LM_BOUND_RELEASE_SHA_PRESENT" -eq 1 ]; then
+  export LIFE_MANAGER_RELEASE_SHA="$LM_BOUND_RELEASE_SHA"
 else
   unset LIFE_MANAGER_RELEASE_SHA
 fi

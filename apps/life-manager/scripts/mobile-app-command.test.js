@@ -10,6 +10,7 @@ const { resolveMobileAppLoop } = require("./mobile-app-command.js");
 const { effectStatus } = require("./mobile-effect-result.js");
 
 const root = path.resolve(__dirname, "../../..");
+const releaseBindingRegression = require("../test/fixtures/self-heal/life-manager-honne-en-release-binding.json");
 const manifest = require("../config/mobile-app-loops.json");
 const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
@@ -103,6 +104,15 @@ for (const binding of [
   {name: "bound", value: "a".repeat(40), expected: "a".repeat(40)},
   {name: "absent", value: undefined, expected: "unset"},
   {name: "empty", value: "", expected: ""},
+  {
+    name: "Honne EN retained release-mismatch recovery fixture",
+    value: releaseBindingRegression.release_sha,
+    expected: releaseBindingRegression.release_sha,
+    owner: releaseBindingRegression.owner_id,
+    occurrence: releaseBindingRegression.occurrence_id,
+    envReleaseSha: releaseBindingRegression.mutable_env_release_sha,
+    mutableReleaseAlias: releaseBindingRegression.mutable_env_alias,
+  },
 ]) {
 test(`the mobile wrapper preserves ${binding.name} release binding but does not attest an unbound replay`, (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-wrapper-"));
@@ -112,7 +122,7 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   const envFile = path.join(directory, "marketing.env");
   const resultHint = path.join(directory, "effect-result.json");
   const releaseSha = binding.expected;
-  const staleReleaseSha = "b".repeat(40);
+  const staleReleaseSha = binding.envReleaseSha || "b".repeat(40);
   fs.writeFileSync(
     python,
     `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
@@ -120,21 +130,21 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   );
   fs.writeFileSync(
     envFile,
-    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\nLIFE_MANAGER_RELEASE_SHA=${staleReleaseSha}\n`,
+    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\nLIFE_MANAGER_RELEASE_SHA=${staleReleaseSha}\n${binding.mutableReleaseAlias ? `RELEASE_SHA=${binding.mutableReleaseAlias}\n` : ""}`,
     { mode: 0o600 },
   );
 
   const result = spawnSync(
     path.join(root, "apps/life-manager/scripts/mobile-app"),
-    ["life-manager-honne-ja"],
+    [binding.owner || "life-manager-honne-ja"],
     {
       cwd: root,
       env: {
         ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== "LIFE_MANAGER_RELEASE_SHA")),
         LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
         LIFE_MANAGER_PYTHON: python,
-        LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
-        LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-1",
+        LIFE_MANAGER_LOOP_ID: binding.owner || "life-manager-honne-ja",
+        LIFE_MANAGER_OCCURRENCE_ID: binding.occurrence || "life-manager-honne-ja:run-1",
         LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
         ...(binding.value === undefined ? {} : {LIFE_MANAGER_RELEASE_SHA: binding.value}),
       },
@@ -145,7 +155,7 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   assert.equal(result.status, 0, result.stderr);
   const invoked = fs.readFileSync(calls, "utf8").trim().split("\n");
   assert.equal(invoked.length, 2);
-  assert.match(invoked[0], /mobile-postiz-provider-reconcile\.py --auto-owner life-manager-honne-ja/);
+  assert.match(invoked[0], new RegExp(`mobile-postiz-provider-reconcile\\.py --auto-owner ${binding.owner || "life-manager-honne-ja"}`));
   assert.match(invoked[0], /--resolve/);
   assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
   assert.ok(invoked.every((call) => call.endsWith(`|release=${releaseSha}`)), "the release binding must survive loading mutable marketing env");
