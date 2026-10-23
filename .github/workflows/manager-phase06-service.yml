@@ -7,6 +7,17 @@ on:
     branches: [main]
     paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Requested owner operation
+        required: true
+        default: run-once
+        type: choice
+        options:
+          - run-once
+          - stop
+          - rollback
+          - resume
   schedule:
     - cron: '17 * * * *'
 permissions:
@@ -97,9 +108,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MANAGER_RELEASE_ENABLED: 'true'
+          MANAGER_OPERATION: ${{ github.event_name == 'schedule' && 'run-once' || github.event.inputs.operation || 'run-once' }}
         shell: bash
         run: |
-          python scripts/run_owned_digital_cycle.py run-once \
+          set -o pipefail
+          MANAGER_OPERATION="${MANAGER_OPERATION-run-once}"
+          case "$MANAGER_OPERATION" in
+            run-once|stop|rollback|resume) ;;
+            *) echo "invalid manager operation" >&2; exit 2 ;;
+          esac
+          python scripts/run_owned_digital_cycle.py "$MANAGER_OPERATION" \
             --state-store "$RUNNER_TEMP/manager-owned-state" \
             --pages-checkout "$GITHUB_WORKSPACE/pages" | tee "$RUNNER_TEMP/manager-public-summary.json"
           python - <<'PY'
