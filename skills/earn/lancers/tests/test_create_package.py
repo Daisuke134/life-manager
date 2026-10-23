@@ -3240,3 +3240,61 @@ def test_startup_failure_preserves_unknown_effect(tmp_path, monkeypatch, mode, l
         assert result["next_action"] == "official_readback_required"
     assert callbacks == []
     assert (ledger_path.read_bytes() if ledger_path.exists() else None) == before
+
+
+@pytest.mark.parametrize("mode", ["apply", "create", "catalog"])
+def test_startup_failure_reads_pending_written_during_import(tmp_path, monkeypatch, mode):
+    module = _module()
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    pending = {"pending_create": {"product_id": "other-owner-pending"}}
+    def failed_import(*_args):
+        state.with_name("listing.json").write_text(json.dumps(pending))
+        raise ImportError("fixture tick unavailable")
+    monkeypatch.setattr(module, "_load", failed_import)
+
+    if mode == "apply":
+        result = module.run(True, product, state)
+    elif mode == "create":
+        result = module.run_create(product, state)
+    else:
+        result = module.run_catalog_create(state, catalog, product_path=product)
+
+    assert result["ok"] is False and result["logged_in"] is None
+    assert result["next_action"] == "official_readback_required"
+    assert json.loads(state.with_name("listing.json").read_text()) == pending
+
+
+@pytest.mark.parametrize("mode", ["apply", "create", "catalog"])
+@pytest.mark.parametrize("account_ready", [False, True])
+def test_cleanup_failure_reads_late_pending_without_losing_observed_login(tmp_path, monkeypatch, mode, account_ready):
+    module = _module()
+    product = _first_listing_product(tmp_path) if mode == "create" else _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    tick = _FakeTick(account_ready=account_ready)
+    _patch_browser_layer(module, monkeypatch, tick=tick, create_results=_created_listing())
+    monkeypatch.setattr(module, "_apply", lambda *_args: {"ok": True, "action": "updated"})
+    pending = {"pending_create": {"product_id": "other-owner-pending"}}
+    def close_failed(_page):
+        state.with_name("listing.json").write_text(json.dumps(pending))
+        return False
+    monkeypatch.setattr(tick, "_close_owned_page", close_failed)
+
+    if mode == "apply":
+        result = module.run(True, product, state)
+    elif mode == "create":
+        result = module.run_create(product, state)
+    else:
+        result = module.run_catalog_create(state, catalog, product_path=product)
+
+    assert result["ok"] is False and result["error"] == "cleanup_failed"
+    if account_ready:
+        assert result["logged_in"] is True
+    else:
+        assert result["logged_in"] is None
+        assert result["next_action"] == "official_readback_required"
+    assert json.loads(state.with_name("listing.json").read_text()) == pending

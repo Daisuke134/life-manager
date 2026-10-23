@@ -1456,8 +1456,9 @@ def _pending_creation() -> dict[str, Any]:
             "next_action": "official_readback_required"}
 
 
-def _product_setup_required(state_path: Path, field: str = "storefront_product") -> dict[str, Any]:
-    result = _setup_required(field)
+def _preserve_pending_effect(state_path: Path, result: dict[str, Any]) -> dict[str, Any]:
+    if result.get("ok") is not False or result.get("logged_in") is not False:
+        return result
     try:
         uncertain = "pending_create" in _listing_state(state_path)
     except OfferError:
@@ -1465,6 +1466,10 @@ def _product_setup_required(state_path: Path, field: str = "storefront_product")
     if uncertain:
         result.update(logged_in=None, next_action="official_readback_required")
     return result
+
+
+def _product_setup_required(state_path: Path, field: str = "storefront_product") -> dict[str, Any]:
+    return _preserve_pending_effect(state_path, _setup_required(field))
 
 
 def _creation_intent(product: Mapping[str, Any], family: str | None, *, kind: str = "listing") -> dict[str, Any]:
@@ -1540,8 +1545,9 @@ def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | Non
                     result.update(ok=False, logged_in=None, error="private_storage")
                 return result
             if product["listing_external_id"] or ledger.get("listing_external_id") or family in ledger.get("catalog_listings", {}):
-                return {"ok": False, "logged_in": False, "error": "listing_already_bound",
-                        "next_action": "inspect_existing_listing"}
+                return _preserve_pending_effect(state_path, {
+                    "ok": False, "logged_in": False, "error": "listing_already_bound",
+                    "next_action": "inspect_existing_listing"})
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True
@@ -1571,7 +1577,7 @@ def run_create(product_path: Path, state_path: Path, *, catalog_path: Path | Non
             if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
         except Exception: closed = False
         if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
-    return result
+    return _preserve_pending_effect(state_path, result)
 
 
 # --- Catalogue-driven creation (the storefront wake's fallback effect) ---------------------
@@ -1755,14 +1761,14 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
                 return _pending_creation()
             selection = select_catalog_family_to_create(catalog_path, Path(state_path))
             if selection["action"] == "catalog_unavailable":
-                return _setup_required("listing_catalog")
+                return _product_setup_required(Path(state_path), "listing_catalog")
             if selection["action"] != "candidate_selected":
                 return selection
             family, product = selection["family"], selection["product"]
             try:
                 _owner_product, image, _avatar = _product(product_path, catalog_path)
             except OfferError:
-                return _setup_required("storefront_product")
+                return _product_setup_required(Path(state_path))
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True
@@ -1799,7 +1805,7 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
         except Exception: closed = False
         if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
     result = dict(result); result["family"] = family; result["skipped"] = selection["skipped"]
-    return result
+    return _preserve_pending_effect(Path(state_path), result)
 
 
 def _portfolio(page: Any, item: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -1963,7 +1969,7 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
             if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
         except Exception: closed = False
         if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
-    return result
+    return _preserve_pending_effect(state_path, result) if apply else result
 
 
 def main(argv: Sequence[str] | None = None) -> int:

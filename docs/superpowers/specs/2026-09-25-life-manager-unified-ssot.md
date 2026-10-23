@@ -209,6 +209,8 @@ INPUTS-B1の起動境界診断: pending_createを持つ隔離fixtureでtick impo
 
 INPUTS-B1の起動境界RED: 既存test_create_package.pyへapply/create/catalog×tick import/account lock失敗×pending/ledger破損/記録無しの18ケースを追加する。primaryの同じ隔離入口で12 failed/6 passed/148 deselected（0.59s）を確認する。12件はFalse is Noneで失敗し、記録無し6件のFalseは維持する。production sourceはまだ変更していない。
 
+INPUTS-B1の起動境界GREEN: 既存のsetup helperにあるpending/読取不能判定を共通化し、apply/create/catalogの失敗返却直前へ適用する。起動途中で他ownerが保存したpendingとcleanup失敗の追加9件は6 failed/3 passedを先に確認し、workerの関連71件がPASS。primaryは返信/出品/本人入力の関連10files328件PASS（13.20s）、AST2/source-boundary/diff PASSを確認する。auth未観測None・通常False・観測済みTrueを維持し、ensure_profileや本番state/ownerは変更しない。更新headの独立read-only reviewと公開CI/mainを次に確認する。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
