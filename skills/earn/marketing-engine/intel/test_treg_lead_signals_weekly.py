@@ -9,8 +9,53 @@ from unittest.mock import patch
 
 INTEL_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(INTEL_DIR))
+sys.path.insert(0, str(INTEL_DIR.parent / "gates"))
 
 import treg_lead_signals_weekly as monitor  # noqa: E402
+from product_router import load_registry  # noqa: E402
+
+
+class ProductProfileRegistryTests(unittest.TestCase):
+    def test_four_apps_are_formal_unique_research_products_without_social_accounts(self):
+        expected = {
+            "dhamma-quotes": (
+                "https://apps.apple.com/us/app/daily-dhamma/id6757726663?uo=4",
+                "People seeking authentic Dhammapada teachings and mindfulness reminders throughout the day.",
+            ),
+            "sleep-reset": (
+                "https://apps.apple.com/us/app/for-better-sleep-sleep-reset/id6762143790?uo=4",
+                "People recovering from a disrupted sleep schedule who want a personalized bedtime plan and guided breathwork.",
+            ),
+            "studio-cherie": (
+                "https://apps.apple.com/us/app/studio-cherie/id6766485903?uo=4",
+                "Adults who want personal styling and outfit suggestions based on the clothes in their own wardrobe.",
+            ),
+            "thankful": (
+                "https://apps.apple.com/us/app/thankful-gratitude-journal/id6759514159?uo=4",
+                "People building a daily gratitude journaling practice.",
+            ),
+        }
+        engine = INTEL_DIR.parent
+        registry = load_registry(engine)
+        profiles = monitor.load_product_profiles(
+            engine / "registry" / "products",
+            INTEL_DIR / "lead-signals-products-extra.json",
+        )
+
+        self.assertLessEqual(set(expected), set(registry.products))
+        for product_id, (url, audience) in expected.items():
+            with self.subTest(product_id=product_id):
+                product = registry.products[product_id]
+                self.assertEqual(product["type"], "ios_app")
+                self.assertEqual(product["live_status"], "app_store_live")
+                self.assertEqual(product["destination_url"], url)
+                self.assertIn(audience, product["audiences"])
+                matches = [row for row in profiles if row["product_id"] == product_id]
+                self.assertEqual(len(matches), 1)
+                self.assertEqual(matches[0]["listing_url"], url)
+                self.assertIn(audience, matches[0]["buyer_profile"])
+                self.assertFalse(any(row["product_id"] == product_id
+                                     for row in registry.accounts.values()))
 
 
 class SignalBaselineTests(unittest.TestCase):

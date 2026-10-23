@@ -23309,6 +23309,10 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 ## Anicca旗艦・公開6アプリの配信と継続課金
 
+**4アプリ正式登録のsource範囲:** Dhamma Quotes (`dhamma-quotes` / `6757726663`)、Sleep Reset (`sleep-reset` / `6762143790`)、STUDIO CHERIE (`studio-cherie` / `6766485903`)、Thankful (`thankful` / `6759514159`) を既存marketing product registryの正式manifestへ移し、同じ差分でTreg extrasの4行を除く。既存の商品事実・対象者・App Store URLを保ち、投稿経路・account・timer・hook・copy生成・Apple campaign validatorは変更しない。未登録のSNS accountは空のままとし、Anicca/Honneのaccountやslotを転用しない。
+
+**4アプリ正式登録の受入とcursor:** 専用 `.worktrees/mobile-four-app-products-20261023` / `feat/mobile-four-app-products-20261023`、owner lease `codex-four-app-products-20261023` がsourceだけを所有する。既存schemaと実loaderで4商品を正式に読み出せること、formal＋extrasのunionで各IDが1回であること、Treg研究入力が同じ4アプリの対象者・URLを含むこと、4商品のSNS accountが0件であることをfocused testで確認する。現在cursorは最小の失敗test→manifest/extras同時移行→focused checks→commit/push/PR。main統合・immutable release・本番反映・公式readbackはprimaryが所有し、このsource受入を投稿成功やMRR改善と扱わない。
+
 **目的・範囲・完了条件:** Aniccaを旗艦とし、公開6アプリのプロダクトと無料の既存SNS/Web配信を改善する。最初の事業成果は6アプリ合計MRR USD 10,000、その次に各アプリUSD 10,000を追う。MRRは公式の有料継続契約readbackで判定し、Apple Proceeds、ダウンロード、RevenueCat New Customers、投稿数をMRRへ置換しない。通知タップから表示本文と同一メッセージを開き、ペイウォール読込失敗で進行不能にならない版をApp Storeへ提出する。新しい配信基盤・有料広告・有料調査API・装飾アニメーションは先行条件にしない。毎週10倍は意欲的な目標であり、予測や保証として報告しない。
 
 **今回の一次証拠:** AppleのApp Analytics Weekly Summary（Gmail message 1a1652451bbb5752、受信2026-10-23 04:44 JST、対象2026-10-12〜18）は以下。App Unitsはメール記載の指標として保持し、ユニーク訪問者を分母にしない。
