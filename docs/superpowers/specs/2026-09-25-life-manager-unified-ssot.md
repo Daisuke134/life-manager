@@ -38,7 +38,7 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 
 **完了条件:** 下記2つの再現を最小RED/GREENで修復し、既存関連検証、独立read-only review、CI、PR/main、公開source readbackを閉じる。現在の本人認証と過去の本人確認履歴を区別し、過去の有効な履歴を根拠なく削除しない。本人の別Mac・実provider成果はMAC05の未完として残す。
 
-- [ ] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。
+- [ ] MAC02-A: `configure_email()`が保存する通知/送信先設定を、legacy経路だけでなく`activate_managed_jobs()`のcanonical全7jobsへ渡す。private値をGit/logへ出さず、既存の設定解決を共用する。 実際の`runtime/loop/lm_loop_apply.py:_plist()`まで通す全7job生成fixtureで確認し、Coconalaの7ownersだけへ`GIG_GOG_ACCOUNT`/`GIG_NOTIFY_EMAIL`を渡す。任意env passthroughや他ownerへの注入は追加しない。同一release SHAの既存ownerでも、通知設定の初回追加・変更をexact-releaseの採用判定で見落とさない。`runtime/loop/local_install.py`と対応する既存testsまでを必要なshared境界として修復し、稼働中ownerをskipする保護は維持する。
 - [ ] MAC02-B: 再観測でlogin redirect等の未認証が明らかな場合、過去のgate完了だけで`ready`になりactivationへ進まない。最新観測と再開の回帰を追加する。
 - [ ] MAC02-C: focused/source/review/CI/main/readbackと残る外部条件を記録する。
 
