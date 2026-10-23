@@ -158,20 +158,23 @@ jobs:
         run: gitleaks git . --config .gitleaks.toml --no-banner --redact -v --log-opts=--all
 
   trufflehog:
-    name: TruffleHog (filesystem + git history)
+    name: TruffleHog (verified git history)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: TruffleHog filesystem
+      # The action scans Git in both cases; select the covering range once.
+      - name: TruffleHog all refs
+        if: github.event_name == 'workflow_dispatch'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           extra_args: --only-verified
 
-      - name: TruffleHog git history
+      - name: TruffleHog merge result range
+        if: github.event_name != 'workflow_dispatch'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
