@@ -111,6 +111,21 @@ SETUPの実行順と受入:
 
 Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、公開workflow39965643774は成功。guard/testのGitHub公式main bytesは全一致し、追加CI stepも一致する。workflow全体の別差分はmainに統合済みのMonk Factory Web jobで、今回のbrowser stepは変わらない。既存cutterの限定候補は `~/.local/share/life-manager/browser-probes/lancers-local-setup/releases/20261023T230521-742479ee`（provenance=ancestor-of-origin-main、skills/browser、current不変）。同cwdから既存with-browserを使い、公式https://www.lancers.jp/mypageのready=complete/login_form=false/human_verification=falseと、本人summary内のprofile linksが同一accountを指すことを読む。raw account値は出力せず、lease解放とowned target残0を確認する。browser起動・login・provider送信・業務owner applyは0。公開Lancers導入、別Mac実機、全機能、10,000 starsは未完（GitHub公式現在値8 stars/2 forks）。
 
+#### ACCOUNTのbounded実装計画
+
+**Goal:** 公式mypageで観測した本人accountだけを既存Lancers private入力へ接続する。**Architecture:** 既存with-browserが解決するCDPと所有tab、Coconalaの最新観測digest結合、既存atomic private writerを使う。新Macのregistry/profileは既存prepare_host/host_environmentへ任せる。**Tech Stack:** Python標準lib、導入済みwebsocket-client、既存cdp/target_ownership。**Spec:** 本節のACCOUNT。
+
+**Files/所有:** workerは新規 `skills/earn/lancers/scripts/lancers_onboarding.py` と `skills/earn/lancers/tests/test_lancers_onboarding.py` のみ。primaryは本仕様・既存CI・統合・実機受入。既存local_identity.py reader/CLI、業務kernel、browser lifecycle/registryは変更しない。作者値のfallback、固定CDP port、実provider操作、開発sourceの実profile接続を禁止する。
+
+**Interfaces:** `observed_account(snapshot: dict) -> str | None` は公式mypage、ready=complete、明示的login/challenge false、本人summaryのprofile linksが一意の場合だけaccountを返す。`connect(home: Path, snapshot: dict) -> dict` は最新観測とdigestをprivate `~/.config/anicca/lancers/onboarding-observation.json`、同一accountとbinding digestを既存 `public-profile.json` に保存する。既存recordの他keysを保持し、壊れた入力や既存account不一致は上書きせずsetup_requiredを返す。`ready(home: Path) -> dict` は最新観測・同一account・binding digestの一致だけをaccount_connectedとする（業務全体のreadyではない）。`observe(home: Path) -> dict` は開始時に旧成功を無効化し、既存guardで確認できるinherited Lancers lease/CDPが無ければ外部接続前に停止、actor所有の1tabを閉じてからconnectする。CLIはobserve/statusだけを公開し、raw account/DOM/credential/例外本文を出力しない。
+
+**Review focus:** 未ログイン/challenge/未完DOM、公式URLの偽装や他人の公開profile、0件・複数account、既存recordの不一致・壊れたJSON、観測/cleanup失敗後の旧成功をfocused fixtureで検証する。default source/作者profileを本人証拠へ代用しない。
+
+- [ ] ACCOUNT-RED: 空HOME/fake CDPだけでpositive別account、login/challenge/不正origin/公開profile/空・曖昧linkを検証し、未実装で失敗を確認する。unleased observeはbrowser callback0、観測/cleanup失敗後は旧ready無効、壊れたrecordと既存account不一致は保存値不変をassertする。
+- [ ] ACCOUNT-INPUT: 上記2filesを最小実装する。既存 `_write_private` の0600/atomic replaceを使い、観測digestとbindingを結ぶ。secretやページ本文は保存せず、private evidenceには必要なaccountと構造化markerだけを保持する。import時のprivate読取・browser接続は0。
+- [ ] ACCOUNT-GREEN: focused testsと既存local_identity testsを実行し、保存後の本人recordを既存readerで読めること、別HOME/既存keys保持/digest改変拒否/所有tab cleanupを確認する。
+- [ ] ACCOUNT-SHIP: diff/source boundary→commit/push→必要review/既存CI→main/public readback→main由来immutableの同commandで公式観測とprivate bindingを確認する。ここで他laneや別Macの稼働を完了にしない。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
