@@ -456,6 +456,29 @@ def test_managed_activation_never_treats_a_failed_probe_as_a_new_job(tmp_path, m
     assert all(command[0].endswith("launchctl-safe") for command in calls)
 
 
+def test_coconala_resume_from_another_checkout_preserves_owner_source_binding(tmp_path, monkeypatch):
+    release = _managed_release_fixture(tmp_path)
+    label, owner = "ai.anicca.hf-gig-paid-direct", "hf-gig-paid-direct"
+    binding = {"LIFE_MANAGER_HOST_PROFILE": "/owner/host.json",
+               "LIFE_MANAGER_SOURCE_REPO": "/owner/source-A",
+               "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable}
+    monkeypatch.setattr(gig_release, "REPO_ROOT", Path("/owner/source-B"))
+    monkeypatch.setattr(gig_release, "_runtime_environment", lambda: binding)
+    monkeypatch.setattr(gig_release, "coconala_jobs", lambda *_: {label: owner})
+    printed = "arguments = {\n" + "\n".join([str(release / "bin/lm-loop-run"), owner, str(release)]) + "\n}\nenvironment = {\n"
+    printed += "\n".join(f"{key} => {value}" for key, value in binding.items()) + "\n}\n"
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        if "apply" in command:
+            return SimpleNamespace(returncode=0, stdout=json.dumps([{
+                "ok": True, "label": label, "skipped": "loaded-running"}]), stderr="")
+        return SimpleNamespace(returncode=0, stdout=printed, stderr="")
+    monkeypatch.setattr(gig_release.subprocess, "run", run)
+    assert gig_release.activate_managed_jobs(release, {label}, False) == 0
+    assert not any("apply" in command for command in calls)
+
+
 def test_migrated_paid_job_is_not_owned_by_legacy_manifest():
     manifest = json.loads(gig_release.MANIFEST.read_text(encoding="utf-8"))
     assert all(row["label"] != "ai.anicca.hf-gig-paid-direct" for row in manifest["jobs"])

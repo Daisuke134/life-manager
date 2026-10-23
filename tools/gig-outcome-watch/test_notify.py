@@ -83,6 +83,32 @@ class OutcomeWatchTest(unittest.TestCase):
         self.assertEqual(row['earnings_jpy'], 100)
         self.assertEqual(row['spend_tokens'], 100)
 
+    def test_current_agent_runner_settlements_trigger_silent_success_once(self):
+        gig = self.home / 'gig'
+        gig.mkdir()
+        now = time.time()
+        (gig / 'earnings.jsonl').write_text(json.dumps({
+            'ts': now - 30 * 3600, 'jpy': 100, 'status': 'paid', 'evidence': 'official-receipt'}) + '\n')
+        (gig / 'applied.jsonl').touch()
+        ledger = self.home / '.local/state/life-manager/telemetry/token-budget.jsonl'
+        ledger.parent.mkdir(parents=True)
+        events = [
+            {'type': 'reservation', 'event_id': 'apply', 'loop': 'hf-gig-apply-direct', 'status': 'allowed', 'timestamp': now, 'reservation_tokens': 900000},
+            {'type': 'settlement', 'event_id': 'apply', 'timestamp': now, 'charged_tokens': 600000},
+            {'type': 'settlement', 'event_id': 'apply', 'timestamp': now, 'charged_tokens': 600000},
+            {'type': 'reservation', 'event_id': 'unsettled', 'loop': 'hf-gig-paid-direct', 'status': 'allowed', 'timestamp': now, 'reservation_tokens': 900000},
+            {'type': 'reservation', 'event_id': 'other', 'loop': 'writer', 'status': 'allowed', 'timestamp': now},
+            {'type': 'settlement', 'event_id': 'other', 'timestamp': now, 'charged_tokens': 700000},
+        ]
+        ledger.write_text(''.join(json.dumps(row) + '\n' for row in events))
+        result = subprocess.run([sys.executable, str(self.watch / 'outcome_watch.py'), '--json'],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        row = json.loads(result.stdout)
+        self.assertEqual(row['spend_tokens'], 600000)
+        self.assertEqual(row['model_calls'], 1)
+        self.assertEqual(row['alerts'], ['SILENT_SUCCESS'])
+
 
 if __name__ == '__main__':
     unittest.main()

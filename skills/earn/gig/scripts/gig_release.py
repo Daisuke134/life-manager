@@ -159,9 +159,10 @@ def activate_managed_jobs(release: Path, wanted: set[str], dry_run: bool) -> int
 
     try:
         results = apply_targets(release, owners, {
-            "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable, **_runtime_environment(),
+            "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable,
             "LIFE_MANAGER_SOURCE_REPO": str(REPO_ROOT),
             "LIFE_MANAGER_APPLY_REQUIRE_CURRENT": "0",
+            **_runtime_environment(),
         }, runner=subprocess.run)
     except RuntimeError as error:
         print(json.dumps({"status": "blocked", "error": str(error)}))

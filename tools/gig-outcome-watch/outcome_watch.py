@@ -58,12 +58,25 @@ def collect(window_hours: int, now: float) -> Findings:
     latest_outcome: float | None = None
 
     if TOKENS.exists():
+        events = _rows(TOKENS)
+        reservations = {str(row.get("event_id")): row for row in events
+                        if row.get("type") == "reservation" and row.get("status") == "allowed"}
+        settlements = {str(row.get("event_id")): row for row in events
+                       if row.get("type") == "settlement"}
+        for event_id, settlement in settlements.items():
+            reservation = reservations.get(event_id, {})
+            owner = str(reservation.get("loop") or "")
+            ts = _epoch(settlement.get("timestamp"))
+            if (owner != "gig" and not owner.startswith("hf-gig-")) or ts is None or not cutoff <= ts <= now:
+                continue
+            f.model_calls += 1
+            f.spend_tokens += int(settlement["charged_tokens"])
         # Reservation rows carry no per-call charge; spend only shows up as the running
-        # daily_consumed_tokens counter, and it resets each day. Measure it as the sum of
+        # daily_consumed_tokens counter in legacy untyped rows. It resets each day. Sum
         # per-day (max - min), which survives both the reset and out-of-order rows.
         by_day: dict[str, list[int]] = {}
-        for row in _rows(TOKENS):
-            if row.get("loop") != "gig":
+        for row in events:
+            if row.get("type") or row.get("loop") != "gig":
                 continue
             ts = _epoch(row.get("timestamp"))
             if ts is None or ts < cutoff:
