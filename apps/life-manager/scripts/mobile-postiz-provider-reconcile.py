@@ -606,6 +606,7 @@ def _native_carousel_slot_is_unique(
     occurrence_id = str(identity.get("occurrence_id", ""))
     owner_id = str(identity.get("loop_id", ""))
     published_utc = published_at.astimezone(timezone.utc)
+    allowed_accounts = _expected_postiz_profiles(identity)
     for sidecar in sidecars:
         rows = _safe_jsonl(sidecar)
         if rows is None:
@@ -617,7 +618,7 @@ def _native_carousel_slot_is_unique(
                     or not _valid_identity(other, other_owner, other_occurrence)
                     or other.get("platform") != identity.get("platform")
                     or other.get("video_sha256") is not None
-                    or other.get("account_id") != identity.get("account_id")
+                    or _account(other.get("account_id")) not in allowed_accounts
                     or other.get("integration_ref") != identity.get("integration_ref")
                     or not isinstance(other.get("media_sha256"), list)
                     or len(other["media_sha256"]) != 6
@@ -633,7 +634,7 @@ def _native_carousel_slot_is_unique(
             if other_title != provider_title:
                 continue
             if (other_slot.tzinfo is None
-                    or abs((other_slot.astimezone(timezone.utc) - published_utc).total_seconds()) <= 15 * 60):
+                    or _native_carousel_publish_time_matches_slot(other_slot, published_utc)):
                 return False
     return True
 

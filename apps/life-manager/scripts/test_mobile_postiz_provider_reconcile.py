@@ -1602,6 +1602,50 @@ def test_exact_instagram_carousel_recovers_standard_receipt_without_resending(tm
     assert reconcile._local_receipt(identity, fixture["ledger"])[1] == "post-photo-1"
 
 
+@pytest.mark.parametrize(("neighbor_account", "neighbor_slot", "publish_date"), [
+    ("@anicca.ios", "2026-10-07T09:02:00.000Z", "2026-10-07T09:01:00.000Z"),
+    ("@anicca.affirmation", "2026-10-07T09:02:00.000Z", "2026-10-07T09:01:00.000Z"),
+    ("@anicca.affirmation", "2026-10-07T09:30:00.000Z", "2026-10-07T11:52:00.000Z"),
+], ids=["registered-alias", "same-account-control", "late-publication-overlap"])
+def test_exact_instagram_recovery_rejects_post_shared_by_eligible_slots(
+    tmp_path, monkeypatch, neighbor_account, neighbor_slot, publish_date,
+):
+    fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch, platform="instagram", publish_date=publish_date)
+    neighbor = _identity_for_neighbor_slot(fixture["identity"], run_id="run-2", slot=neighbor_slot)
+    neighbor["account_id"] = neighbor_account
+    _store_pending_identity(fixture, neighbor)
+
+    for identity in (fixture["identity"], neighbor):
+        result = reconcile.reconcile_current_occurrence(
+            owner_id=fixture["owner"], occurrence_id=identity["occurrence_id"],
+            identity_dir=fixture["identity_dir"], data_dir=fixture["data_dir"], tenant_id="dais-local",
+            admission_db=fixture["admission_db"], api_key="test-only", apply=False,
+        )
+        assert result["status"] == "inconclusive", result
+        assert result.get("verified") is not True
+    assert not fixture["ledger"].exists()
+    with sqlite3.connect(fixture["admission_db"]) as connection:
+        assert connection.execute("SELECT state,effect_unknown FROM occurrences").fetchall() == [("claimed", 1), ("claimed", 1)]
+
+
+def test_exact_instagram_recovery_keeps_other_integration_isolated(tmp_path, monkeypatch):
+    fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch, platform="instagram", publish_date="2026-10-07T11:52:00.000Z")
+    neighbor = _identity_for_neighbor_slot(fixture["identity"], run_id="run-2", slot="2026-10-07T09:30:00.000Z")
+    neighbor["integration_ref"] = "integration://postiz/instagram/cmq3sq7mc000eqp0y7azfm8yk"
+    neighbor["account_id"] = "@ani.cca1234"
+    _store_pending_identity(fixture, neighbor)
+
+    result = reconcile.reconcile_current_occurrence(
+        owner_id=fixture["owner"], occurrence_id=fixture["identity"]["occurrence_id"],
+        identity_dir=fixture["identity_dir"], data_dir=fixture["data_dir"], tenant_id="dais-local",
+        admission_db=fixture["admission_db"], api_key="test-only", apply=False,
+    )
+
+    assert result["status"] == "ready", result
+    assert result["provider_receipt_id"] == "post-photo-1"
+    assert not fixture["ledger"].exists()
+
+
 @pytest.mark.parametrize("change", ["caption", "integration", "media_order", "profile", "platform", "reel_url"])
 def test_instagram_carousel_recovery_refuses_changed_provider_identity(tmp_path, monkeypatch, change):
     fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch, platform="instagram")
