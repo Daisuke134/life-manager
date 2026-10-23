@@ -196,12 +196,16 @@ def append_new(parsed: dict, source_url: str, dry_run: bool = False) -> list[dic
         reconcile_existing(parsed, source_url)
     seen = existing_keys()
     fresh = []
+    repeats: dict[str, int] = {}
     for row in parsed["rows"]:
-        idem = f"coconala:revenue:{row['talkroom_id']}:{row['closed_at']}"
+        base = f"coconala:revenue:{row['talkroom_id']}:{row['closed_at']}"
+        # A tip and its order can close in the same minute; later rows get ":n" so none is lost.
+        count = repeats[base] = repeats.get(base, -1) + 1
+        idem = base if count == 0 else f"{base}:{count}"
         if idem in seen:
             continue
         candidate = to_earning(row, source_url)
-        seen.add(idem)  # guard against duplicates inside one page
+        candidate["idem_key"] = idem
         fresh.append(candidate)
     if fresh and not dry_run:
         EARNINGS.parent.mkdir(parents=True, exist_ok=True)

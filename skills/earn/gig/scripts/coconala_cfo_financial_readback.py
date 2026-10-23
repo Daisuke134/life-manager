@@ -31,6 +31,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import revenue_collector
 from revenue_collector import REVENUE_URL, parse_revenue_text, scrape
 
 JST = timezone(timedelta(hours=9))
@@ -150,6 +151,7 @@ def main() -> int:
     if args.check_due:
         return 0
 
+    appended: list[dict] = []
     if args.from_text:
         pages = [path.read_text(encoding="utf-8") for path in args.from_text]
         observed_at = args.observed_at or _utc(datetime.now(timezone.utc))
@@ -167,6 +169,9 @@ def main() -> int:
         "titles": {row["talkroom_id"]: row["title"]
                    for row in parse_revenue_text("\n".join(pages))["rows"]},
     })
+    if not args.from_text:
+        # Same official pages feed the settled-sales ledger (~/gig/earnings.jsonl); idempotent.
+        appended = revenue_collector.append_new(parse_revenue_text("\n".join(pages)), REVENUE_URL)
     print(json.dumps({
         "status": "written", "output": str(args.output),
         "complete": payload["receipt_map"]["complete"],
@@ -174,6 +179,7 @@ def main() -> int:
         "records": payload["pagination"]["records_fetched"],
         "net_jpy": payload["aggregate"]["net_amount_minor"],
         "observed_at": payload["observed_at"],
+        "earnings_appended": len(appended),
     }))
     return 0
 
