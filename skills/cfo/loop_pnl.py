@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from skills.cfo import economic_attribution as contract  # noqa: E402
 from skills.cfo.adapters import actual_cost, affiliate, agent_economy_investment
-from skills.cfo.adapters import capafy_mobile, marketplace, stripe, writer  # noqa: E402
+from skills.cfo.adapters import capafy_mobile, fundraiser, marketplace, stripe, writer  # noqa: E402
 
 CATALOG = ROOT / "apps/life-manager/config/product-loop-catalog.json"
 CREDENTIALS = Path("~/.local/share/anicca/credentials.json").expanduser()
@@ -61,7 +61,7 @@ class SourceResult:
 
 B7_ADAPTER_ORDER = (
     "b1-capafy-mobile", "b2-stripe", "b3-affiliate", "b4-marketplace",
-    "b5-agent-economy-investment", "b6-actual-cost", "b7-writer",
+    "b5-agent-economy-investment", "b6-actual-cost", "b7-writer", "b8-fundraiser",
 )
 B7_SOURCE_LOOPS = {
     "b1-capafy": ("capafy",), "b1-mobile": ("mobile-apps",),
@@ -69,6 +69,7 @@ B7_SOURCE_LOOPS = {
     "b4-marketplace": ("gig-coconala", "gig-lancers", "gig-crowdworks"),
     "b5-agent": ("agent-economy",), "b5-investment": ("investment",),
     "b7-writer": ("writer",),
+    "b8-fundraiser": ("fundraiser",),
 }
 
 
@@ -255,6 +256,16 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
             writer_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
         ),
         source_id="writer-money-ledger", loop_ids=B7_SOURCE_LOOPS["b7-writer"],
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+    fundraiser_path = env.get("LM_CFO_FUNDRAISER_RECEIPTS") or str(
+        Path.home() / ".local/state/life-manager/fundraiser/application-receipts.jsonl"
+    )
+    sources["b8-fundraiser"] = _safe_b7_adapter(
+        lambda: fundraiser.adapt_path(
+            fundraiser_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ),
+        source_id="fundraiser-application-receipt", loop_ids=B7_SOURCE_LOOPS["b8-fundraiser"],
         snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
     return join_adapter_records(sources)
