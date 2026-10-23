@@ -14,7 +14,11 @@
 - [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
 - [x] README-MAC-03: focused/context/contract、review、CI14項目すべて成功。PR #8666をmain `6b93057b41dcf8fdf8d983e85ecdb676d90bf041`へ統合する。英日README、公開installer、requirements、導入guide、agent catalogの6ファイルをGitHub公式main readbackとbyte一致で確認する。別Mac実機・全provider成果と既存Coconala待機の未完条件は保持する。
 
-README-MACは完了、現在cursor=MAC02-A。primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASSに加え、Web CTA122件とclean-user23件がPASS、migration/shell/diff/loop contractもPASS。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
+README-MAC-01–03は完了、現在cursor=MAC02-CとREADME-MAC-04。
+
+- [ ] README-MAC-04: 並行PR #8672のhosted agent手順表・promptを既存`docs/getting-started.md`へ移し、英日READMEは詳細への短い案内にする。追加内容を失わず、未検証のany-agent対応を導入保証として見せない。Local Mac/ChatGPT Plus/awake Macの入口は維持する。Git登録worktree/leaseに該当README ownerは見つからず、agmsg teamのlive照会は30秒でtimeoutするため、他席へ作業開始や連絡済みと断定しない。
+
+primary再検証はinstaller28/public bootstrap10/Job Hunter12/host-fleet36/context28の計114件PASSに加え、Web CTA122件とclean-user23件がPASS、migration/shell/diff/loop contractもPASS。GitHub公式readbackで紹介文を`Open-source AI life manager for your Mac. Runs with your ChatGPT subscription.`、homepageを`https://aniccaai.com/lm`、topicsをAI agents/automation/macOS/self-hosted/ChatGPT/Codex/personal assistant/productivityへ揃え、誤字`autonomus-agents`を除去した。starsは8で、10,000目標は継続中。
 
 独立reviewはcode/doc head `7485228e62`で0 findings/SHIP、installer28/context20/リンク42件とURL・shell・diffを再確認する。Intel macOS14/Python3.14の全requirements wheel解決もexit0で、実機検証とは分ける。CIはcatalog全18名称を英日READMEへ要求する旧assertだけが失敗するため、名前一覧の移設先`docs/agents.md`へ参照を揃える。catalog構造・runtime・financial契約のassertは保持する。
 
@@ -33,6 +37,8 @@ CIで最新mainの`docs/team/specs/listicle-outreach.md`に`personal_gmail`1件�
 **現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
 
 **現在Macの追加観測:** immutable current `20261023T182457-409c568f`から同じownerをread-onlyで再確認する。installed/event SHA=`409c568f9116a3b61bb03e37ee36461e2198875b`、run=`18e1200ea94addd8-82363`、occurrence=`hf-gig-reply-detector:18e1200ea94addd8-82363`、phase=`report`、exit=75、effect=`not_applicable`、receipt/readback=null、blocker=`host_admission_deferred:disk_floor_low`、retryable=true、next=`retry_after_eligibility`へ変化する。前のcapacity busy snapshotを現在原因として使わない。`df`の空きは736,256 KiB、`vm.swapusage`は19,456 MiB使用である。既存disk governorの最新unbound receiptはerrors=0/protected_deletions=0/reclaimed=0/capacity recovery unmet、候補10件はopen6/protected_path4で保護される。Git重複もprune-packable10件のみで、repo全体や使用中cacheを削除して容量復旧を偽装しない。古い4 effect fenceは引き続きofficial receipt未取得。新規Mac向けsource修復は独立継続し、現Macの空容量・未照合effectと別Mac実機の受入はMAC02/05の未完として保持する。
+
+既存の容量回復経路として、main由来immutable releaseの`central_cleanup.codex_history_cleanup(home)`を独立read-only検証する。既存の本人ownership・native version・protected path・staging capacityの条件を一切緩めず、条件を満たす時だけCodex自身へ古い履歴のlossless maintenanceを依頼する。session JSONLの直接削除/書換え、app-server再起動、他ownerのlock解除、Telegram配信は行わない。requestを完了や空き容量回復と同一視せず、native返答と実空き容量を区別して記録する。
 
 ### MAC02の本人設定・再開の修復
 
