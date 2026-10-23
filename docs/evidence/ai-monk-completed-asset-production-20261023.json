@@ -1128,8 +1128,22 @@
       "remote_branch_created_without_result_changes": true,
       "observed_recovered_free_bytes": 1273577472,
       "recovery_mutations": 0,
-      "uncommitted_result_files_retained": true
-    }
+      "uncommitted_result_files_retained": true,
+      "subsequent_checkpoint_remote_verified": true
+    },
+    "production_proof_fresh_review_findings": 0,
+    "production_proof_review_verified": [
+      "official_github_exact_head_and_merge",
+      "release_manifest_and_14_main_source_bytes",
+      "sealed_11356_entries",
+      "independent_launchctl_safe_preflight_and_JA_holds",
+      "english_asset_and_pending_cost_sidecar_hashes"
+    ],
+    "production_proof_review_limits": [
+      "database_not_requeried",
+      "provider_not_requeried",
+      "apply_enable_zero_from_saved_evidence_and_current_holds"
+    ]
   },
   "native_capacity_during_ja_source_acceptance": {
     "recorded_at": "2026-10-23T07:04:17.550445+00:00",
