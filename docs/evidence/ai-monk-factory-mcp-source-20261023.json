@@ -1,0 +1,43 @@
+{
+  "source_head": "935cacbabc8b7dab1d43f94ec020937183e4c25a",
+  "owner_id": "codex-monk-factory-mcp",
+  "phase": "source_acceptance_before_pr",
+  "node_tests_passed": 11,
+  "python_tests_passed": 148,
+  "gates": {
+    "loop_contract": true,
+    "source_boundary": true,
+    "oss_self_contained": true,
+    "diff_check": true
+  },
+  "fresh_review": {
+    "initial_high": 1,
+    "normal_exit_descendant_regression": "red_then_green",
+    "scoped_unresolved_blocking": 0,
+    "old_descendant_survived": true,
+    "fixed_descendant_survived": false,
+    "unrelated_child_survived": true,
+    "self_owned_parent_cleanup_count": 8,
+    "self_owned_descendant_cleanup_count": 3
+  },
+  "new_generations": 0,
+  "publication_requests": 0,
+  "provider_calls": 0,
+  "private_state_reads_by_tests": 0,
+  "immutable_stdio_acceptance": "pending",
+  "external_business_outcomes": "unverified",
+  "evidence_refs": [
+    {
+      "name": "task-1-report.md",
+      "sha256": "ed09ff242459e9fbad2a906481170edb12b08db4dc13547ac84c782a6b513c7d"
+    },
+    {
+      "name": "fresh-review.md",
+      "sha256": "171dd793837d33c2c4d17dfdf865c81cd094be94cb7b441b058e988159630351"
+    },
+    {
+      "name": "scoped-review.md",
+      "sha256": "22434c08678f31583be5cca406bd1f54eb232afe479769e1a1eb1b42b32eaed4"
+    }
+  ]
+}

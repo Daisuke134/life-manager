@@ -25,14 +25,14 @@
 ### Task 1: 既存CLIへのstdio接続と利用例
 **Files:** Create skills/earn/marketing-engine/factory-mcp.mjs、factory-mcp.test.mjs。Modify 同README.mdのみ。primaryがS11/本計画を所有する。
 **Interfaces:** factory tool schemasから固定argvを作り、CLI JSONとexit_codeをMCP content/structuredContentへ返す。testのexecutor差替えはmodule関数引数だけにし、runtime環境から任意実行先を選ばせない。
-- [ ] tools/listと無通信plan/失敗JSON保持、固定argv/未知fields/production省略、記録toolの既存必須flags、timeout/stdioの最小REDを確認する。
-- [ ] SDKの既存registerTool/StdioServerTransportを使い最小実装する。CLI全体やapproval検証を作り直さない。
-- [ ] `node --test skills/earn/marketing-engine/factory-mcp.test.mjs` と既存Factory Python testsを実行する。
-- [ ] READMEにroot npm ci、stdio設定例、4toolの既存CLIとの対応、認証/費用/素材確認/公開状態の実際の制約を記す。
-- [ ] Loop Contract/source-boundary/OSS/diffを確認し、fetch/commit/pushする。
+- [x] tools/listと無通信plan/失敗JSON保持、固定argv/未知fields/production省略、記録toolの既存必須flags、timeout/stdioの最小REDを確認する。
+- [x] SDKの既存registerTool/StdioServerTransportを使い最小実装する。CLI全体やapproval検証を作り直さない。
+- [x] `node --test skills/earn/marketing-engine/factory-mcp.test.mjs` と既存Factory Python testsを実行する。
+- [x] READMEにroot npm ci、stdio設定例、4toolの既存CLIとの対応、認証/費用/素材確認/公開状態の実際の制約を記す。
+- [x] Loop Contract/source-boundary/OSS/diffを確認し、fetch/commit/pushする。
 
 ### Task 2: 統合と固定版受入（primary）
-- [ ] 最終headのfresh read-only review、必要反証を修復する。
+- [x] 最終headのfresh read-only review、必要反証を修復する。初回HIGH1→head935cacbabcの独立再反証で残blocking0。
 - [ ] PR/必要CIをPASSし--admin --merge、main由来immutableのMCP実stdio list/planを無通信で確認する。
 - [ ] S11へsource受入と未完の実生成/導入/収益を区別して記録する。
 
