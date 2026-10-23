@@ -61,6 +61,21 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                 self.assertTrue((release / "node_modules").is_symlink())
                 self.assertTrue((release / "node_modules/.package-lock.json").is_file())
 
+    def test_export_failure_reports_native_archive_and_tar_exit_statuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            failure = home / "export-failure.sh"
+            failure.write_text("tar() { command cat >/dev/null; return 72; }\n")
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(failure),
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("archive=0, tar=72", result.stderr)
+            self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / ".release-cut.lock").exists())
+
     def test_full_release_capacity_defers_before_export(self):
         source = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as directory:
