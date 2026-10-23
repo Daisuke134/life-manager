@@ -1,8 +1,8 @@
-"""E16 reference cycle; production ownership is intentionally not fabricated.
+"""One owned digital cycle with exact sandbox and GitHub Actions hosts.
 
-Only an exact offline local-Git sandbox adapter is implemented here. The real
-publisher/collector retain their existing platform boundary. No scheduler is
-installed, no remote is pushed, and sandbox evidence never becomes P1/P2.
+The shared lifecycle recovers saved effects before cadence or candidate work.
+Local sandbox observations remain P0; the platform adapter uses the existing
+private checkpoint, publisher, collector and protected Pages workflow.
 """
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -84,6 +84,7 @@ class LocalGitCycleSandbox:
         self.regress_served=False
         if self.checkout==self.served or self.checkout in self.served.parents or self.served in self.checkout.parents:
             raise ValueError('independent served directory required')
+    def prepare_candidate(self,now):return self.context,self.assessment,self.scope
     def git(self,*args):
         return subprocess.check_output(['git','-C',str(self.checkout),*args],stderr=subprocess.DEVNULL).decode().strip()
     def assert_offline(self):
@@ -183,12 +184,57 @@ class LocalGitCycleSandbox:
 
 
 def _cycle_result(status,writes=0,**extra):
-    return dict(status=status,writes=writes,deployed=False,proof_level='P0',
-                human_outcome='NOT_MEASURED',causal_support=False,**extra)
+    deployed=extra.pop('deployed',False);proof_level=extra.pop('proof_level','P0')
+    human_outcome=extra.pop('human_outcome','NOT_MEASURED')
+    causal_support=extra.pop('causal_support',False)
+    return dict(status=status,writes=writes,deployed=deployed,proof_level=proof_level,
+                human_outcome=human_outcome,causal_support=causal_support,**extra)
+
+
+def _is_platform_host(host):
+    from .owned_platform_host import GitHubActionsCycleHost
+    return type(host) is GitHubActionsCycleHost
+
+
+def _occurrence_reader(state_store,host):
+    if _is_platform_host(host):
+        return lambda key:host.occurrence(key,state_store.journal)
+    return host.occurrence
+
+
+def _append_sandbox(state_store,host,event):
+    if type(host) is LocalGitCycleSandbox:
+        state_store.append(event)
 
 
 def _observe_owned_delivery(state_store,host,record,now,*,writes=0,allow_rollback=True):
     packet=json.loads(record.packet_json)
+    if _is_platform_host(host):
+        try:evidence=host.observe_delivery(packet,record.receipt_ref,record.key,state_store.journal)
+        except Exception:evidence=None
+        valid=(type(evidence) is dict and evidence.get('effect_key')==record.key and
+               evidence.get('receipt_ref')==record.receipt_ref and
+               evidence.get('candidate_sha256')==packet['candidate_sha256'] and
+               evidence.get('status') in ('VERIFIED','PENDING','REGRESSION','UNKNOWN') and
+               evidence.get('proof_level') in ('P0','P2'))
+        if not valid:
+            evidence=dict(status='UNKNOWN',effect_key=record.key,receipt_ref=record.receipt_ref,
+                candidate_sha256=packet['candidate_sha256'],observed_at=datetime.now(timezone.utc).isoformat(),
+                proof_ref='https://daisuke134.github.io/life-manager/manager-support/',
+                proof_level='P0',reason='UNTYPED_OR_UNBOUND_DELIVERY',human_outcome='NOT_MEASURED')
+        try:state_store.journal.save_delivery(record.key,evidence)
+        except Exception:return _cycle_result('UNKNOWN',writes,reason='DELIVERY_EVIDENCE_UNSAVED',
+            effect_key=record.key,receipt_ref=record.receipt_ref)
+        status=evidence['status'];reason=evidence.get('reason','DELIVERY_UNCONFIRMED')
+        proof_level=evidence['proof_level']
+        base=dict(effect_key=record.key,receipt_ref=record.receipt_ref)
+        if status=='VERIFIED' and proof_level=='P2':
+            return _cycle_result('VERIFIED_PUBLIC_ARTIFACT_ONLY',writes,deployed=True,
+                proof_level='P2',human_outcome='NOT_MEASURED',causal_support=False,**base)
+        if status=='VERIFIED':
+            return _cycle_result('VERIFIED_PLATFORM_CONTRACT_P0',writes,proof_level='P0',**base)
+        return _cycle_result('UNKNOWN',writes,proof_level=proof_level,reason=reason,**base)
+
     observation=host.observe_delivery(packet,record.receipt_ref)
     if type(observation) is not DeliveryObservation:
         observation=DeliveryObservation('UNKNOWN','UNTYPED_DELIVERY',str(host.served))
@@ -199,7 +245,8 @@ def _observe_owned_delivery(state_store,host,record,now,*,writes=0,allow_rollbac
     base=dict(effect_key=record.key,receipt_ref=record.receipt_ref)
     if observation.status=='VERIFIED':
         return _cycle_result('VERIFIED_SANDBOX_TECHNICAL',writes,**base)
-    if observation.status=='REGRESSION' and allow_rollback and not state_store.stopped():
+    if (type(host) is LocalGitCycleSandbox and observation.status=='REGRESSION' and
+            allow_rollback and not state_store.stopped()):
         state_store.stop()
         try:recovered=host.rollback(packet,now,expected_commit=record.receipt_ref)
         except Exception:recovered=False
@@ -212,7 +259,8 @@ def _recover_owned_deliveries(state_store,host,now,*,allow_rollback=True):
     batch=state_store.journal.recovery_batch('delivery');blocking=None
     for record in batch:
         observed=_observe_owned_delivery(state_store,host,record,now,allow_rollback=allow_rollback)
-        if observed['status']!='VERIFIED_SANDBOX_TECHNICAL':
+        if observed['status'] not in ('VERIFIED_SANDBOX_TECHNICAL','VERIFIED_PUBLIC_ARTIFACT_ONLY',
+                                      'VERIFIED_PLATFORM_CONTRACT_P0'):
             if observed['status'] in ('ROLLED_BACK_SANDBOX_REGRESSION','ROLLBACK_UNKNOWN'):
                 blocking=observed;continue
             if state_store.stopped() and observed['status']=='UNKNOWN':continue
@@ -224,8 +272,13 @@ def _recover_owned_deliveries(state_store,host,now,*,allow_rollback=True):
     return None
 
 
-def _dispatch_owned_locked(state_store,host,packet,now):
-    """Called only within the owner lock; checkpointable output is data only."""
+def _dispatch_owned_locked(state_store,host,packet,now,*,prepared_intent=None,candidate=None):
+    """Reserve durably; use a fresh ephemeral dispatch bit only for this send.
+
+    The SQLite row contains intent/status/parent only. ``record.dispatch`` is
+    returned for one newly admitted reservation and is never serialized or
+    reused after a checkpoint restore. Platform sends first checkpoint the row.
+    """
     validate_intent(packet)
     key=packet['effect_key']
     def result(status,writes=0,**extra):
@@ -233,30 +286,58 @@ def _dispatch_owned_locked(state_store,host,packet,now):
     record=state_store.journal.record(key)
     if record is not None:
         return result(record.status,receipt_ref=record.receipt_ref)
-    # Direct runtime callers must not bypass the current scope/assessment.
-    prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
-    if prepared.packet is None:return result('NO_ACTION',reason=prepared.reason)
+    # Reverify current typed inputs without asking the host to select a second
+    # candidate. The selector runs once, after recovery and cycle gates.
+    context,assessment,scope=candidate or (host.context,host.assessment,host.scope)
+    platform=_is_platform_host(host)
+    schema='manager.digital-handoff.v2' if platform else 'manager.digital-handoff.v1'
+    checked=prepare_owned_change(context,assessment,scope,now,schema=schema)
+    prepared=prepared_intent or checked
+    if prepared.packet is None or checked.packet is None:return result('NO_ACTION',reason=checked.reason)
     # Recompute immutable bindings at the ORIGINAL creation time. Fresh scope
     # checks must not renew its lease or require an identical dispatch clock.
     original=plan_release(prepared.packet['baseline'],prepared.packet['candidate'],
-                          datetime.fromisoformat(packet['created_at']))
+                          datetime.fromisoformat(packet['created_at']),schema=schema)
     if original!=packet:return result('NO_ACTION',reason='PREPARED_PACKET_CHANGED')
-    context=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit'],'1')
-    current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
+    if prepared.context_hash!=checked.context_hash:return result('NO_ACTION',reason='PREPARED_CONTEXT_CHANGED')
     try:
-        admit_release(packet,context,current,packet['candidate'],now)
-        record=state_store.journal.reserve(packet,context,current,packet['candidate'],host.git('rev-parse','HEAD'),now)
+        if platform:
+            publisher=host.publisher_context()
+            current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
+            parent=host.current_parent()
+        else:
+            publisher=PublisherContext(REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit'],'1')
+            current=host.manifest();verify_bundle(host.checkout/'manager-support',current)
+            parent=host.git('rev-parse','HEAD')
+    except Exception:
+        return result('NO_ACTION',reason='TARGET_NOT_READY')
+    try:
+        admit_release(packet,publisher,current,packet['candidate'],now)
+        record=state_store.journal.reserve(packet,publisher,current,packet['candidate'],parent,now)
     except PermissionError:return result('NO_ACTION',reason='TARGET_MOVED_OR_NOT_ADMITTED')
     if not record.dispatch:return result(record.status,receipt_ref=record.receipt_ref)
-    try:host.send(packet,record.expected_parent,now)
-    except Exception:return result('UNKNOWN',None)
+    if platform:
+        # The reservation commit must be acknowledged by the private gateway
+        # before original publisher admission or any external send operation.
+        try:
+            host.checkpoint.save()
+        except Exception:
+            return result('UNKNOWN',0,reason='PRE_SEND_CHECKPOINT_UNKNOWN')
+        try:
+            host.send_owned(state_store,context,assessment,scope,prepared,packet,record.expected_parent)
+        except Exception:
+            return result('UNKNOWN',None,reason='PLATFORM_SEND_UNKNOWN')
+    else:
+        try:host.send(packet,record.expected_parent,now)
+        except Exception:return result('UNKNOWN',None)
     return result('SUBMITTED',1)
 
 
 def dispatch_owned_once(state_store,host,packet,now):
     """Fresh journal lookup, admission, reserve and send in one locked step.
 
-    Never checkpoint a reserve's temporary dispatch flag separately from send.
+    A durable reservation stores no dispatch flag; its temporary return bit is
+    consumed in this step and is never checkpointed or reused after restore.
     This public entry also preserves pending recovery, stop and scope gates.
     """
     _aware(now)
@@ -265,7 +346,7 @@ def dispatch_owned_once(state_store,host,packet,now):
     with state_store.owner_lock() as acquired:
         if not acquired:return dict(status='OWNER_BUSY',writes=0)
         host.assert_offline()
-        reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
+        reconcile_pending_owned(state_store.journal,_occurrence_reader(state_store,host),datetime.now(timezone.utc))
         pending=bool(state_store.journal.pending_records(limit=1))
         delivery=_recover_owned_deliveries(state_store,host,now,allow_rollback=not pending)
         if pending:return dict(status='UNKNOWN',writes=0)
@@ -277,34 +358,51 @@ def dispatch_owned_once(state_store,host,packet,now):
 def run_owned_cycle(config,state_store,*,host=None,now=None):
     now=now or datetime.now(timezone.utc);_aware(now)
     result=_cycle_result
-    # There is no production host adapter until the real owner, persistent
-    # volume and promotion path have been observed. A caller flag cannot mint it.
-    if type(host) is not LocalGitCycleSandbox:return result('DEPLOYMENT_HOST_REQUIRED')
+    if type(host) is not LocalGitCycleSandbox and not _is_platform_host(host):
+        return result('DEPLOYMENT_HOST_REQUIRED')
+    platform=_is_platform_host(host)
     with state_store.owner_lock() as acquired:
         if not acquired:return result('OWNER_BUSY')
-        host.assert_offline()
-        reconcile_pending_owned(state_store.journal,host.occurrence,datetime.now(timezone.utc))
+        if platform:host.assert_session(state_store)
+        else:host.assert_offline()
+        occurrence_reader=_occurrence_reader(state_store,host)
+        reconcile_pending_owned(state_store.journal,occurrence_reader,datetime.now(timezone.utc))
         pending=bool(state_store.journal.pending_records(limit=1))
-        delivery=_recover_owned_deliveries(state_store,host,now,allow_rollback=not pending)
+        delivery=_recover_owned_deliveries(state_store,host,now,
+            allow_rollback=(not platform and not pending))
         if pending:
             r=result('UNKNOWN',0,reason='PRIOR_OCCURRENCE_UNRESOLVED')
-            state_store.append(r);return r
-        if delivery is not None:state_store.append(delivery);return delivery
+            _append_sandbox(state_store,host,r);return r
+        if delivery is not None:_append_sandbox(state_store,host,delivery);return delivery
         if state_store.stopped():return result('STOPPED_REGRESSION')
         if not state_store.due(config,now):return result('NOT_DUE')
-        prepared=prepare_owned_change(host.context,host.assessment,host.scope,now)
+        if platform and not host.release_enabled():
+            return result('NO_ACTION',reason='RELEASE_DISABLED')
+        candidate=host.prepare_candidate(now)
+        if type(candidate) is not tuple or len(candidate)!=3:
+            r=result('NO_ACTION',reason='CANDIDATE_UNAVAILABLE')
+            _append_sandbox(state_store,host,r);return r
+        context,assessment,scope=candidate
+        if context is None or assessment is None or scope is None:
+            r=result('NO_ACTION',reason='MISSING_TYPED_CANDIDATE')
+            _append_sandbox(state_store,host,r);return r
+        candidate_now=host._now() if platform else now
+        prepared=prepare_owned_change(context,assessment,scope,candidate_now,
+            schema='manager.digital-handoff.v2' if platform else 'manager.digital-handoff.v1')
         if prepared.packet is None:
-            r=result('NO_ACTION',reason=prepared.reason);state_store.append(r);return r
+            r=result('NO_ACTION',reason=prepared.reason);_append_sandbox(state_store,host,r);return r
         packet=prepared.packet;key=packet['effect_key']
-        dispatched=_dispatch_owned_locked(state_store,host,packet,now);writes=dispatched['writes']
+        dispatched=_dispatch_owned_locked(state_store,host,packet,candidate_now,
+            prepared_intent=prepared,candidate=candidate);writes=dispatched['writes']
         if dispatched['status'] in ('UNKNOWN','NO_ACTION'):
             r=result(dispatched['status'],writes,reason=dispatched.get('reason'))
-            state_store.append(r);return r
+            _append_sandbox(state_store,host,r);return r
         record=state_store.journal.record(key);packet=json.loads(record.packet_json)
         # Git fixture commit timestamps come from the actual Git clock, distinct
         # from the scheduling fixture clock. This is not a production timestamp.
-        reconciled=reconcile_owned(state_store.journal,key,host.occurrence,datetime.now(timezone.utc))
+        reconciled=reconcile_owned(state_store.journal,key,occurrence_reader,datetime.now(timezone.utc))
         if reconciled.status!='PRESENT':r=result('UNKNOWN',writes)
-        else:r=_observe_owned_delivery(state_store,host,state_store.journal.record(key),now,writes=writes)
+        else:r=_observe_owned_delivery(state_store,host,state_store.journal.record(key),
+            host._now() if platform else now,writes=writes,allow_rollback=not platform)
         # Native endpoint only; no invented welfare score or scalar promotion.
-        state_store.append(r);return r
+        _append_sandbox(state_store,host,r);return r
