@@ -167,6 +167,28 @@ def test_without_resolve_reports_proof_and_never_closes(tmp_path, monkeypatch, c
     resolver.assert_not_called()
 
 
+def test_pending_create_stays_held_even_when_existing_roster_matches(tmp_path, monkeypatch, capsys):
+    module = load_module()
+    state, product = setup(tmp_path)
+    path = state / "listing.json"
+    ledger = json.loads(path.read_text())
+    ledger["pending_create"] = {"product_id": "unconfirmed-new-listing"}
+    path.write_text(json.dumps(ledger))
+    before = path.read_bytes()
+    resolver = Mock(return_value=True)
+    runner = runner_for(roster())
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+
+    code = call(module, state, product, runner, "--resolve")
+    result = json.loads(capsys.readouterr().out)
+
+    assert code == 1 and result["state"] == "HELD"
+    assert result["reason"] == "creation_pending"
+    assert path.read_bytes() == before
+    runner.assert_not_called()
+    resolver.assert_not_called()
+
+
 def held(module, state, product, value, capsys, returncode=0):
     code = call(module, state, product, runner_for(value, returncode), "--resolve")
     result = json.loads(capsys.readouterr().out)
