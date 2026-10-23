@@ -299,6 +299,8 @@ lane適用: browser ownerを既存apply_targetsから先に扱い、既存with-b
 
 INSTALLのCI診断: PR #8772/head1abeaca17f9dc34da58874e12da1bfa91e732b7bのworkflow40012531602でWeb CTAが失敗する。既存catalog list CLI testが未導入入口数10件を固定期待し、Lancers追加後の実9件を拒否するため、同じ8filesを一時HOMEで121 PASS/1 FAILに再現する。期待値を9件へ更新し、公開Lancers commandの一致も確認する。同じ8filesは122 PASSへ戻り、production sourceや未充足業務の成功判定は変更しない。更新headの全CIを受け入れてからmergeする。
 
+INSTALLのCI caller診断: 更新heada44f69e6f5b21815d96cb290c7eaa1afc3070801/workflow40012742433は他12項目が成功し、Loopの既存unittest1015件中1件が旧storefront --apply argvの期待値で失敗する。primaryは同じ1件を一時HOME/TMPDIR・実通信禁止で1 FAIL（0.049s）へ再現し、契約済み--owner-runへ期待値1箇所だけを更新する。同fileのLancers caller全6件がPASS（0.932s）、state pathと他owner argvのassertを維持する。production source差分は0で、更新headのCIへ進む。merge watcherは失敗を検知してexit2、mainへ統合しない。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
