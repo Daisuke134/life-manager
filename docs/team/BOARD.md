@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [参謀への依頼 / AI Monk配布・未受領] Daisの明示依頼。Codexの新告知 https://x.com/selawmqt/status/2113673062554247580 はnative本人/本文/目的URL・UTM＋公開本文を照合済み（送信1/再送0）。参謀管理の@diceai0等へ、Databaseと無料Codex/MCP pluginの適切な紹介または引用を1本お願いします。公開入口 https://aniccaai.com/ai-monk-database 、導入 https://aniccaai.com/ai-monk-database/support 、Registry名 io.github.Daisuke134/ai-monk-index。告知時点73profile/139出典、69候補・収益申告は未検証label付き。Factory生成/自動投稿や売上達成を宣伝せず、既存日次IG/TikTok/Postiz/HeyGen/loopを変更・再送しない。受領後は担当claim、実配布後はX permalink/目的URL保持/取得可能な数字をBOARDへ返してください。click/導入/注文は未測定。契約 → docs/superpowers/plans/2026-10-24-ai-monk-grok-distribution.md。
 - [Codex / Maritime source] DRAFT PR [#8745](https://github.com/Daisuke134/life-manager/pull/8745) head764be4c2: T17 trusted provider-chain＋T18.9 report slice。専用branch feat/maritime-provider-chain-20261023 / .worktrees/maritime-provider-chain-20261023のprovider-runtime/tests・runtime-up/tests・report/tests、およびT17 capability限定のruntime-job-store・runtime/contracts/common-record.cjs参照検証/testsを所有。本番作用なし。trusted tenant binding/host executor/auto-enqueue callerは未接続、既定disabled/fail-closed、未merge・本番反映なし・T17未完。BOARD/SSOTはreadback担当が所有し、旧 .worktrees/maritime-provider-runtime-20261021 のdirty docsは保持する。
 - [Codex / Maritime readback] readback完了: PR #8744/main5904b05bにlive evidence/checkpointを統合済み。既存X2件の公開receiptはfollowup docsへ記録。現在の実利用/費用・正式提出receiptはunknownで、製品/提出の完了は主張しない。
 - [Codex / Job drafts] 原稿作成完了: 求人5件・公式フォーム63項目の回答案とカバーレター。docs/team/jobs/drafts/とspecを参照。未確認回答を含むため応募済み/全欄提出可能とは扱わない。応募送信・ledger・Thankful/build 10は参謀/他担当が所有する。
@@ -25,6 +26,7 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- 2026-10-24 01:50 Codex AI Monk: Database139出典/CLI v0.4.4/公式MCP Registry activeを受入し、無料Codex pluginの新X告知2113673062554247580を1回公開、expanded目的URL・UTM/公開本文一致・再送0。参謀へ上記配布協力を依頼（受領/参謀投稿は未確認）。次: 追加33商品を根拠付きで統合し、正式plugin掲載と原価ベースのIG先行Factoryへ進む。日次loop操作0。
 - 2026-10-24 01:19 JST Codex(Maritime receipt): root公式readbackの既存X各1件（英語selawmqt/日本語diceai0）の公開2件と同pilotへの導線を記録。EN t.coを担当GETでHTTP200、JA独立attributionはなし。readback claimを閉じ、T17 sourceはDRAFT準備/実行bindingなしを保持。実利用/費用/正式receiptはunknown、追加投稿・本番反映0。次: source DRAFT PR #8745の通常review/CIと実binding確認、docs review/CI/main。
 - 2026-10-24 01:00 JST Codex(Maritime readback): 英日pilot・記事・healthのHTTP200、Railway両serviceの3c07308/SUCCESS・Onlineを確認。source307e86dのT17未実装、現行flags/counts・正式receipt・X公開receiptはunknownを維持。live-readback-20261023.jsonと統合SSOTへcheckpoint追加。本番/投稿/提出/model/auth変更0。次: docs review/CI/main、T17/T18別owner、rootの正式提出/配布readback。
 - 2026-10-23 23:28 Codex(Job drafts): Cursor/NICE/OpenAI Codex/OpenAI Applied/BJAKの下書き5件を作成。全63質問の順序・必須区分を公式schemaと照合し、カバーレター5件/連絡先の値非掲載を確認。ブランド混在・経験年数・宣誓・未確認事項を明示。次: 原稿のPR統合後に参謀が提出判断。応募送信0、ledger/Thankful変更0。
