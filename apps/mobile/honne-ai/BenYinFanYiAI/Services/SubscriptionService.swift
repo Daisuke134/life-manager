@@ -29,6 +29,7 @@ class SubscriptionService {
 
     func fetchOfferings() async {
         isLoading = true
+        errorMessage = nil
         defer { isLoading = false }
         do {
             offerings = try await Purchases.shared.offerings()

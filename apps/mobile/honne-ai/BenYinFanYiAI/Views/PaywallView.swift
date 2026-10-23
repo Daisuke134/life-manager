@@ -72,18 +72,18 @@ struct PaywallView: View {
         })
     }
 
-    // Free-trial length in days, only when the product has one and this user is eligible.
-    private func trialDays(_ package: Package?) -> Int? {
+    // Free-trial length in the store's own unit ("3日間", "1か月間"), only when the product has one and this user is eligible.
+    private func trialPeriod(_ package: Package?) -> String? {
         guard let product = package?.storeProduct,
               trialEligibleProducts.contains(product.productIdentifier),
               let intro = product.introductoryDiscount,
               intro.paymentMode == .freeTrial else { return nil }
         let period = intro.subscriptionPeriod
         switch period.unit {
-        case .day: return period.value
-        case .week: return period.value * 7
-        case .month: return period.value * 30
-        case .year: return period.value * 365
+        case .day: return "\(period.value)日間"
+        case .week: return "\(period.value)週間"
+        case .month: return "\(period.value)か月間"
+        case .year: return "\(period.value)年間"
         @unknown default: return nil
         }
     }
@@ -160,7 +160,7 @@ struct PaywallView: View {
                         package: package,
                         isSelected: selectedPackage?.identifier == package.identifier,
                         savingsPercent: package.packageType == .annual ? annualSavingsPercent(package) : nil,
-                        trialDays: trialDays(package)
+                        trialPeriod: trialPeriod(package)
                     ) {
                         selectedPackage = package
                     }
@@ -173,7 +173,7 @@ struct PaywallView: View {
                         if success { unlock() }
                     }
                 } label: {
-                    Text(trialDays(selectedPackage).map { "\($0)日間無料で始める" } ?? "続ける")
+                    Text(trialPeriod(selectedPackage).map { "\($0)無料で始める" } ?? "続ける")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -183,7 +183,8 @@ struct PaywallView: View {
                 }
                 .disabled(selectedPackage == nil || subscriptionService.isLoading)
                 .accessibilityIdentifier("paywall_cta")
-            } else if subscriptionService.errorMessage != nil {
+            } else {
+                // No plans (load error or empty offering): always offer a retry so the hard paywall never dead-ends.
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.title2)
@@ -272,7 +273,7 @@ struct PackageCard: View {
     let package: Package
     let isSelected: Bool
     let savingsPercent: Int?
-    let trialDays: Int?
+    let trialPeriod: String?
     let onSelect: () -> Void
 
     var body: some View {
@@ -343,7 +344,7 @@ struct PackageCard: View {
     }
 
     private var packageDescription: String {
-        let trial = trialDays.map { "\($0)日間無料、その後" } ?? ""
+        let trial = trialPeriod.map { "\($0)無料、その後" } ?? ""
         switch package.packageType {
         case .weekly: return trial + "1週間ごとの自動更新・いつでもキャンセル可能"
         case .monthly: return trial + "1ヶ月ごとの自動更新・いつでもキャンセル可能"
