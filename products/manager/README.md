@@ -4,7 +4,7 @@
 
 **開始から最後まで:** [全Phase00〜12・残41件・依存・完成条件・出版/サイト/YCの並行線](docs/roadmap/START_TO_END_20261022.md)。原計画の末尾はPhase12/G006、現在地はE16です。
 
-**最新の再開入口:** [2026-10-23 cloud実行の証拠と残る受入れ](docs/verification/E16_CLOUD_EXECUTION_20261023.md)。既存Actions＋Supabaseへgateway/runtimeを正規main統合し、旧writer退役、初回状態移行、実OIDCによる復元・checkpoint更新・解放を確認しました。初回実行は `NO_ACTION / writes=0`、正のcanaryは未実施です。fresh runnerのNOT_DUE・重複公開0も確認済みです。残るのは実改善2テーマのP1/P2、durable STOP・限定rollback、native観測接続。E16カーソルと原113件の状態は維持します。実装順はE01–E16、その後の受け入れ順は **F005 → F006 → F008 → F009**。F004/F007は `skipped`（未実施）。MacやRailwayの新workerは前提にしません。人への便益は未測定、モデルの優位性も未証明です。
+**最新の再開入口:** [2026-10-23 cloud実行の証拠と残る受入れ](docs/verification/E16_CLOUD_EXECUTION_20261023.md)。既存Actions＋Supabaseで実OIDC、別runnerの復元、保存されたSTOPの実行拒否と明示resumeを確認しました。financeのv2変更は公式commitと公開7ファイルのbyte一致を確認済み。ただし最初のcycleは `UNKNOWN / writes=null` のまま保存し、後続recoveryの `NOT_DUE / writes=0` と区別します。残るのは復旧後のcurrent proofのExplorer出力、別テーマmentalのP1/P2、限定rollbackの実配信等です。E16カーソルと原113件の状態は維持します。実装順はE01–E16、その後の受け入れ順は **F005 → F006 → F008 → F009**。F004/F007は `skipped`（未実施）。MacやRailwayの新workerは前提にしません。人への便益は未測定、モデルの優位性も未証明です。
 
 **全体設計:** [エンティティの使命・最初の能力・研究・運営・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
 

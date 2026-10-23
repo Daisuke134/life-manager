@@ -30,7 +30,7 @@
 4. 既存 `digital_environment.py`、`digital_handoff.py`、Playwright/axe（E13）は正しい出典、リンク、対象外route保全、script注入、baseline/candidate差分を固定基準で検証する。
 5. `kernel.py`/`authority.py`から既存publisherへの接続（E14）は、host-issued standing scope・対象7パス・予算・失効・既存release参照を確認する。モデル文章やcandidateを権限発行元にしない。
 6. `outbox.py`/`reconcile.py`（E15）はeffect identity、parent/target hash、送信前intent、単一owner、UNKNOWNを永続化する。応答消失時は外部の当該occurrenceを照合し、無条件で再送しない。
-7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。mainの実OIDC/checkpoint復元と別runnerの書き込み0件を実証済み。停止・限定復元・native P1/P2の実装は[PR8594](https://github.com/Daisuke134/life-manager/pull/8594)でmainへ統合済み。実STOPは書き込み0件で完了。正のcanary、復元の実配信、Explorerへの実接続が残り、E16全体は未完了。
+7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。mainで実OIDC/checkpoint復元、別runnerの書き込み0件、STOPの保存と明示resumeを実証済み。financeのv2公開は公式commitと独立GETの全7ファイル一致を確認したが、最初のcycleの `UNKNOWN / writes=null` と後続recoveryの `NOT_DUE / writes=0` は別の観測として保持する。復旧後の保存済みcurrent proofのExplorer出力、mentalの実P1/P2、限定rollbackの実配信が残り、E16全体は未完了。詳細なrun/commit/時刻は[cloud実証記録](../verification/E16_CLOUD_EXECUTION_20261023.md)を参照。
 
 現在の実装とsource-specific証跡はSSOTを参照する。既存コードの同等機能が確認できた場合は改名・複製より接続を選ぶ。実装時のインターフェース・テスト名はE計画を参照し、この文書に第二のsignature定義を置かない。
 
@@ -85,7 +85,7 @@ E16は既存GitHub Actionsのmain-only ownerと既存Supabaseの非公開checkpo
 
 ## 7. レビューと今回の変更範囲
 
-最初の仕様整理後、main統合、cloud adapterの実稼働、別runnerの復元、STOP、既存サイトの記事改訂公開まで進んだ。日付付きの実証と残る条件は [cloud実証記録](../verification/E16_CLOUD_EXECUTION_20261023.md) と [章の公開記録](../verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)を参照。live推論による精度、人間への便益、参加者研究、YC送信、第三者への連絡は実証していない。E16の正のcanary・復旧・native接続が揃うまで完了扱いにしない。
+最初の仕様整理後、main統合、cloud adapterの実稼働、別runnerの復元、STOP維持とresume、financeの公開bytes照合、既存サイトの記事改訂公開まで進んだ。日付付きの実証と残る条件は [cloud実証記録](../verification/E16_CLOUD_EXECUTION_20261023.md) と [章の公開記録](../verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md)を参照。live推論による精度、人間への便益、参加者研究、YC送信、第三者への連絡は実証していない。E16の二テーマのcanary・限定復旧・native接続が揃うまで完了扱いにしない。
 
 検査は既存全suite、product boundary、roadmap生成一致、全新規相対リンク/JSON、差分が文書だけか、出典と数値の意味、古いspecへの参照。Mac専用source guardとクラウドsource snapshotの検証は同じチェックとして扱わない。
 
