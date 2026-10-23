@@ -19,7 +19,7 @@
 - shared ebook root=`<host-data>/marketing/ebook`、lock=`locks/heygen-avatar-iv-account.lock`、intent=`runs/factory.<project_id>.<run_id>.heygen-effect.json`。出力=`<config.state_root>/renders/<project_id>.<run_id>.mp4`。
 - 既存`exclusive_lock(Path)`の内側で`unresolved_heygen_effect(shared_root/'runs', current_intent)`を使う。他pending/壊れたsidecarがあれば既存費用fenceを保持してrendererへ進まない。同intentは既存rendererの厳密request/output/replay検証に任せる。
 - 既存host producer disk gateを課金に先立って呼び、floor/stop flagが未達ならprovider呼出0。登録owner/cadence/FIFO/current/他ownerを変えず、新しいdaemonやpriority経路を作らない。
-- 成功/保留結果は`schema_version=ai-monk-factory.render.v1`、project_id/run_idと既存renderer結果をJSONで返す。`state=rendered`でもwallet_cost=null/cost_reconciliation_requiredを消さない。生成物のreceiptを投稿・売上のreceiptとして扱わない。
+- 成功/保留結果は`schema_version=ai-monk-factory.render.v1`、project_id/run_idと既存renderer結果をJSONで返す。CLIのexit0はstate=rendered、wallet_costがdict、cost_reconciliation_requiredがtruthyでない場合だけとする。`state=rendered`でもwallet_cost=null/cost_reconciliation_requiredを消さない。生成物のreceiptを投稿・売上のreceiptとして扱わない。
 - 既存rendererには事前USD上限envが無い。wallet/auto-reload threshold/差分/unknownの範囲を超えて費用上限を保証しない。日次全自動の費用上限制御、publisher context、Factory MCP/hosted subscriptionは未完。
 
 ## 設計判断と根拠
@@ -48,13 +48,13 @@
 
 **Interfaces:** `render_from_config(config: dict, script: str, run_id: str, *, environment: dict[str,str] | None = None, executor=subprocess.run) -> dict`。build_planの検証結果からID/language/outputを使い、existing renderへ渡す。host gateは既存`runtime/host/disk_admission.py`へ委譲し、隔離testsでは最小のprivate helperを差し替える。providerはexecutor fixtureで置換し、live呼出しない。
 
-- [ ] EN/JAの実CLIでconfig/request IDs・出力・request SHAが一致する失敗testを先に追加し、missing commandまたは期待動作のassertでREDを確認する。
-- [ ] 不正config/run ID/host rootを入力し、directory/provider0で拒否するREDを確認する。
-- [ ] 異なるproject state rootでも同じ既存lock・pending rootを使い、既存costunknown/破損sidecarでcreate0となるtestを先に書く。
-- [ ] 同一intent反復はcreate最大1、別script/outputへの変更は既存conflictでcreate0、2projectの同時executor最大1をtestする。
-- [ ] host gate=false、auth setup不足、renderer reconciliation、renderedだがcostunknownを成功/0ドルへ変換しないtestを追加する。
-- [ ] 上記境界を最小実装でGREENにし、CLI/READMEへpaid command・既存認証/共有state・費用上限未保証・未完の投稿/売上を明記する。
-- [ ] 新規testと既存`test_factory_plan.py`、`render_eval/test_heygen_candidate.py`、`publish/test_intent_cli.py`を一度実行する。Expected: 全件PASS。Loop Contract/source-boundary/OSS/diffも確認する。
+- [x] EN/JAの実CLIでconfig/request IDs・出力・request SHAが一致する失敗testを先に追加し、missing commandまたは期待動作のassertでREDを確認する。
+- [x] 不正config/run ID/host rootを入力し、directory/provider0で拒否するREDを確認する。
+- [x] 異なるproject state rootでも同じ既存lock・pending rootを使い、既存costunknown/破損sidecarでcreate0となるtestを先に書く。
+- [x] 同一intent反復はcreate最大1、別script/outputへの変更は既存conflictでcreate0、2projectの同時executor最大1をtestする。
+- [x] host gate=false、auth setup不足、renderer reconciliation、renderedだがcostunknownを成功/0ドルへ変換しないtestを追加する。
+- [x] 上記境界を最小実装でGREENにし、CLI/READMEへpaid command・既存認証/共有state・費用上限未保証・未完の投稿/売上を明記する。
+- [x] 新規testと既存`test_factory_plan.py`、`render_eval/test_heygen_candidate.py`、`publish/test_intent_cli.py`を一度実行する。Expected: 全件PASS。Loop Contract/source-boundary/OSS/diffも確認する。
 - [ ] primaryが差分を確認しcommit/push・remote object一致を確認する。
 
 ## Task 2: source受入と実事業成果の区別
@@ -67,3 +67,8 @@
 ## Self-review
 
 v1 planの互換・共有費用fence・private path非固定・live provider0のsource検証・host gate・未完範囲をTask1/2に対応させる。published/revenueをmockやrenderedから導出しない。質問を省略する既存委任に従いprimaryがこの最小local方式を採り、承認待ちを追加しない。
+
+## 実装記録
+
+- CLI2件のargparse exit2とhelperのDID NOT RAISEをprimaryも直接観測する。workerの境界37 RED後、新規43/関連110 PASS。lock待機前の古いdisk許可を使う反例を追加してRED後、gateをlock取得後・pending確認後・renderer直前へ移す。最終新規44/既存67の計111 PASS。live provider/credential読取は0。
+- Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。新規moduleは既存lock/pending/renderの接続のみで、新provider・ledger・schedulerを追加しない。whole-branch reviewとCI/main/fixed-releaseは未完。
