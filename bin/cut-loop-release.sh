@@ -89,29 +89,6 @@ prune_releases_after() {
     die "safe release pruning failed"
 }
 
-prune_dependency_bundles() {
-  local bundle release relative link referenced
-  [ -d "$DEPENDENCY_BUNDLES" ] || return 0
-  for bundle in "$DEPENDENCY_BUNDLES"/npm-*; do
-    [ -d "$bundle" ] || continue
-    referenced=0
-    for release in "$RELEASES"/*; do
-      [ -d "$release" ] || continue
-      for relative in "${DEPENDENCY_RELATIVES[@]}"; do
-        link="$release/${relative:+$relative/}node_modules"
-        if [ -L "$link" ] && [ "$(readlink "$link")" = "$bundle/node_modules" ]; then
-          referenced=1
-          break 2
-        fi
-      done
-    done
-    if [ "$referenced" -eq 0 ]; then
-      find "$bundle" -type d -exec chmod u+w {} + || return 1
-      find "$bundle" -depth -delete || return 1
-    fi
-  done
-}
-
 # A release nobody else can fetch is not reproducible, and the acceptance bar this house already
 # applies to the gig lanes is that the installed SHA is an ancestor of origin/main.
 if ! git -C "$REPO_ROOT" cat-file -e "$SHA^{commit}" 2>/dev/null; then
@@ -140,7 +117,6 @@ DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 # Keep current plus rollback capacity; the new export becomes the next retained generation.
 PRE_KEEP=$((KEEP > 1 ? KEEP - 1 : 1))
 prune_releases_after "$PRE_KEEP"
-prune_dependency_bundles || die "safe dependency bundle pruning failed"
 # Recovery must run before export admission, including while capacity is low.
 if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
   if [ -n "$NPM_NODE_BIN" ]; then
@@ -411,7 +387,6 @@ PY
 
   # Keep a few older releases so rollback is a symlink move rather than a rebuild.
   prune_releases_after "$KEEP"
-  prune_dependency_bundles || die "safe dependency bundle pruning failed"
   echo "current -> $(readlink "$CURRENT")  ($PROVENANCE)"
 else
   echo "release -> $DEST  ($PROVENANCE; current unchanged)"
