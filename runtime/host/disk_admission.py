@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import marshal
 import platform
@@ -14,6 +16,10 @@ import shutil
 import stat
 import sys
 import tempfile
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from itertools import islice
 from pathlib import Path
 from typing import Sequence
 
@@ -371,6 +377,87 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
     return release_capacity(repo, sha, loops, node, npm)[0]
 
 
+def _fresh_dependency_bytes(package_manifests: list, block: int) -> int:
+    """Measure locked production packages without installing or caching artifacts."""
+    packages = {}
+    for _relative, manifests in package_manifests:
+        manifest, lock = (json.loads(payload) for payload in manifests)
+        if (not isinstance(manifest, dict) or not isinstance(lock, dict)
+                or lock.get("lockfileVersion") not in (2, 3)
+                or not isinstance(lock.get("packages"), dict)):
+            raise ValueError("locked dependency sizes unavailable")
+        for path, entry in lock["packages"].items():
+            if not isinstance(path, str) or not isinstance(entry, dict):
+                raise ValueError("invalid locked dependency")
+            if not path or entry.get("dev") is True:
+                continue
+            name = entry.get("name") or path.rsplit("node_modules/", 1)[-1]
+            version, url, integrity = (entry.get(key) for key in ("version", "resolved", "integrity"))
+            if ("node_modules/" not in path or not isinstance(name, str) or not name
+                    or not isinstance(version, str) or not version
+                    or not isinstance(url, str) or not isinstance(integrity, str)
+                    or any(entry.get(key) for key in ("link", "inBundle", "bundled"))):
+                raise ValueError("unsupported locked dependency")
+            parsed = urllib.parse.urlsplit(url)
+            if (parsed.scheme != "https" or parsed.netloc != "registry.npmjs.org"
+                    or parsed.query or parsed.fragment or not parsed.path.endswith(".tgz")
+                    or not integrity.startswith("sha512-")
+                    or len(base64.b64decode(integrity[7:], validate=True)) != 64):
+                raise ValueError("unverified locked dependency")
+            identity = (name, version, integrity)
+            if url in packages and packages[url][0] != identity:
+                raise ValueError("conflicting locked dependency")
+            packages[url] = (identity, packages.get(url, (identity, 0))[1] + 1)
+
+    def measure(url):
+        (name, version, integrity), count = packages[url]
+        metadata_url = ("https://registry.npmjs.org/" + urllib.parse.quote(name, safe="")
+                        + "/" + urllib.parse.quote(version, safe=""))
+        with urllib.request.urlopen(metadata_url, timeout=15) as response:
+            metadata = json.load(response)
+        if not isinstance(metadata, dict) or not isinstance(metadata.get("dist"), dict):
+            raise ValueError("invalid package metadata")
+        dist = metadata["dist"]
+        if (metadata.get("name") != name or metadata.get("version") != version
+                or dist.get("tarball") != url or dist.get("integrity") != integrity):
+            raise ValueError("metadata differs from locked dependency")
+        size, files = dist.get("unpackedSize"), dist.get("fileCount")
+        if ((size is not None and (type(size) is not int or size < 0))
+                or (files is not None and (type(files) is not int or files <= 0))):
+            raise ValueError("invalid package size metadata")
+        rounded = lambda value: ((value + block - 1) // block) * block
+        if size is not None and files is not None:
+            # Per-file rounding and directory overhead are absent from unpackedSize.
+            allocation = rounded(size) + 2 * files * block
+        else:
+            # Older publications omit sizes. Inspect verified bytes without extracting them.
+            digest = hashlib.sha512()
+            with urllib.request.urlopen(url, timeout=15) as response:
+                class HashingReader:
+                    def read(self, size):
+                        chunk = response.read(size)
+                        digest.update(chunk)
+                        return chunk
+                reader = HashingReader()
+                with tarfile.open(fileobj=reader, mode="r|gz") as entries:
+                    allocation = sum(block + rounded(entry.size) for entry in entries)
+                while reader.read(1024 * 1024):
+                    pass
+            if digest.digest() != base64.b64decode(integrity[7:], validate=True):
+                raise ValueError("locked tarball integrity mismatch")
+            if allocation <= 0:
+                raise ValueError("dependency install size unknown")
+        return count * allocation
+
+    # Cache by locked tarball across all seven roots; requests overlap without writing a cache.
+    tree = 0
+    urls = iter(packages)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        while batch := list(islice(urls, 8)):
+            tree += sum(pool.map(measure, batch))
+    return tree + tree // 2  # Existing npm cache/temporary budget.
+
+
 def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> tuple[int, bool]:
     """Return (bytes, fresh_install_budgeted); the flag lets cut-loop-release run npm ci."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
@@ -387,7 +474,11 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
 
         package_manifests.append((relative, manifests))
 
-    if package_manifests:
+    block = os.statvfs(loops).f_frsize
+    if block <= 0:
+        raise ValueError("filesystem allocation unknown")
+    bootstrap = bool(package_manifests) and not os.path.lexists(loops / "current")
+    if package_manifests and not bootstrap:
         donor = (loops / "current").resolve()
         descriptor = json.loads((donor / "RELEASE.json").read_text())
         if (descriptor.get("release_paths") != "ALL"
@@ -398,8 +489,8 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
                 or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
             raise ValueError("donor is not a complete immutable runtime")
         subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
-    fresh_install = 0
-    for relative, manifests in package_manifests:
+    fresh_install = _fresh_dependency_bytes(package_manifests, block) if bootstrap else 0
+    for relative, manifests in (() if bootstrap else package_manifests):
         directory = donor / relative
         donor_manifests = [(directory / name).read_bytes()
                            for name in ("package.json", "package-lock.json")]
@@ -425,9 +516,6 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
         # new toolchain-keyed bundle. Validate that shared bundle contract in one place.
         if not dependency_bundle_is_reusable(directory / "node_modules", loops / "dependency-bundles"):
             raise ValueError("dependency bundle unavailable")
-    block = os.statvfs(loops).f_frsize
-    if block <= 0:
-        raise ValueError("filesystem allocation unknown")
     rounded = lambda size: ((size + block - 1) // block) * block
     # No clone savings assumed: one full export and one serial file temporary.
     # Bytecode retains its conservative allocation plus atomic-write budget.
@@ -444,7 +532,7 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget + largest_temporary + fresh_install, fresh_install > 0
+    return budget + largest_temporary + fresh_install, bootstrap or fresh_install > 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -454,7 +542,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         try:
             required, install = release_capacity(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
-        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError) as exc:
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError, EOFError) as exc:
             print(json.dumps({
                 "status": "failed",
                 "effect": 0,

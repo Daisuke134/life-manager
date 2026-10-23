@@ -11,6 +11,56 @@ from runtime.loop.loop_cleanup import _release_immutable_store_probe
 
 
 class CutLoopReleasePressureTest(unittest.TestCase):
+    def test_first_complete_release_installs_dependencies_after_capacity_admission(self):
+        for free in (0, 128 * 1024**2):
+            with self.subTest(free=free), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                repo = self.make_sparse_release_repo(home)
+                (repo / "package.json").write_text('{"name":"first-install","version":"1.0.0"}\n')
+                (repo / "package-lock.json").write_text(
+                    '{"name":"first-install","lockfileVersion":3,"packages":{}}\n')
+                subprocess.run(["git", "add", "."], cwd=repo, check=True)
+                subprocess.run(["git", "commit", "-qm", "first install"], cwd=repo, check=True)
+                subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
+                probe = home / "capacity-probe"
+                probe.mkdir()
+                (probe / "sitecustomize.py").write_text(
+                    "import shutil,types,urllib.request\n"
+                    f"shutil.disk_usage=lambda p: types.SimpleNamespace(free={free})\n"
+                    "def forbidden(*a,**kw): raise AssertionError('network forbidden')\n"
+                    "urllib.request.urlopen=forbidden\n")
+                npm = home / "npm"
+                npm.write_text(
+                    f"#!{sys.executable}\n"
+                    "import pathlib,sys\n"
+                    "assert sys.argv[1:]==['ci','--omit=dev','--ignore-scripts']\n"
+                    "root=pathlib.Path.cwd(); (root/'node_modules').mkdir()\n"
+                    "(root/'node_modules/.package-lock.json').write_bytes((root/'package-lock.json').read_bytes())\n"
+                    f"pathlib.Path({str(home / 'npm-ran')!r}).write_text('ci')\n")
+                npm.chmod(0o755)
+                result, loops = self.run_cut(
+                    repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe),
+                    LOOPS_RUNTIME_PYTHON=sys.executable, NPM_BIN=str(npm), NPM_NODE_BIN="",
+                    NPM_NODE_VERSION="v-test", NPM_VERSION="test",
+                )
+                self.assertFalse((loops / "current").exists())
+                if not free:
+                    self.assertEqual(result.returncode, 75, result.stderr)
+                    self.assertEqual(json.loads(result.stdout)["reason"], "disk_headroom_low")
+                    self.assertFalse((home / "npm-ran").exists())
+                    self.assertEqual(list((loops / "releases").iterdir()), [])
+                    continue
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((home / "npm-ran").read_text(), "ci")
+                release, = (loops / "releases").iterdir()
+                manifest = json.loads((release / "RELEASE.json").read_text())
+                self.assertEqual(manifest["release_paths"], "ALL")
+                self.assertEqual(manifest["provenance"], "ancestor-of-origin-main")
+                self.assertGreater(manifest["capacity_required_bytes"], 64 * 1024**2)
+                self.assertEqual(release.stat().st_mode & 0o222, 0)
+                self.assertTrue((release / "node_modules").is_symlink())
+                self.assertTrue((release / "node_modules/.package-lock.json").is_file())
+
     def test_full_release_capacity_defers_before_export(self):
         source = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as directory:
