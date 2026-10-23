@@ -28,6 +28,7 @@
   "implementation_revision": "92ebc7bfdef124d2594643088d0c79fb5db6413c",
   "protocol": {
     "effect_scale": "full_scale_signed_difference_in[-1,1]",
+    "mae_difference_display_unit": "native full-scale MAE difference multiplied by 100; conversion points, not probability points or relative improvement",
     "study_counts": {
       "train": 35,
       "test": 35
