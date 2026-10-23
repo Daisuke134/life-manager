@@ -672,6 +672,63 @@
         "official_target_posts_in_attempt_window": 0,
         "official_readback_sha256": "c9d8980e8c2af650ed85ff8a85415cc01202fb8d7c2d95f6d105e2ad094edc12"
       }
+    },
+    {
+      "run_id": "manual-18e1124a502a2820-4592",
+      "owner_id": "ebook-en-tiktok-daily",
+      "occurrence_id": "ebook-en-tiktok-daily:manual-18e1124a502a2820-4592",
+      "release_sha": "93fb0d085e02531b86dfce416a5ac8829d2ae895",
+      "slot_at": "2026-10-08T23:00:00.000Z",
+      "video_id": "492ee7b0f41372ab6856594c9096ea6f",
+      "asset_sha256": "7303c132272de557cc1f9a61c0b94c3f28c870d08d116fb0ee20a7c583781566",
+      "publication_id": "baseline.ebook-en.d3.s3-20261008T230000000Z-ebook-en-tiktok-daily",
+      "started_at": "2026-10-23T05:43:56.933285+00:00",
+      "finished_at": "2026-10-23T05:44:07.504228+00:00",
+      "exit_code": 75,
+      "provider_receipt_id": null,
+      "pre_effect_terminal_readback": {
+        "recorded_at": "2026-10-23T05:46:44.669198+00:00",
+        "typed_native_terminal_before_child": true,
+        "publication_ledger_matches": 0,
+        "effect_identity_matches": 0,
+        "identity_match_scope": "raw serialized full identity row including nested runtime identity",
+        "new_generations": 0,
+        "provider_posts": 0,
+        "official_target_posts_in_attempt_window": 0,
+        "official_readback_sha256": "4841d42de456e863c484bb2ee07cc1539d2e5ae304e37c353af722efa84e3ba2"
+      },
+      "terminal": {
+        "timestamp": "2026-10-23T05:44:07.315595+00:00",
+        "run_id": "manual-18e1124a502a2820-4592",
+        "occurrence_id": "ebook-en-tiktok-daily:manual-18e1124a502a2820-4592",
+        "phase": "report",
+        "status": "blocked",
+        "exit_code": 75,
+        "blocker": "host_admission_deferred:resource_fifo_wait",
+        "error_class": "host_admission_deferred:resource_fifo_wait",
+        "effect_status": "not_applicable",
+        "provider_receipt_id": null,
+        "official_readback_ref": null,
+        "evidence_refs": [
+          "lm-loop://ebook-en-tiktok-daily/manual-18e1124a502a2820-4592/summary.json"
+        ]
+      },
+      "provider_publication_confirmed": false,
+      "native_pre_effect": true,
+      "official_published_url": null,
+      "private_evidence_sha256": "7facfe2576686ca3c124ae532cc245307d388d092709ee631b2ebbf73aa50d8f",
+      "admission_preflight": {
+        "recorded_at": "2026-10-23T05:43:56.932781+00:00",
+        "release_sha": "93fb0d085e02531b86dfce416a5ac8829d2ae895",
+        "occupied_total": 9,
+        "occupied_agent": 3,
+        "finite_cap": 10,
+        "agent_cap": 4,
+        "free_bytes": 11101016064,
+        "disk_floor_met": true,
+        "pure_capacity_available": true
+      },
+      "admission_preflight_sha256": "b4fdd03dc3697532ede49b4ef13b4366b47e205e2d7f5859832f0c73542f9502"
     }
   ],
   "heygen_official_video_rated_usage": {
@@ -749,5 +806,29 @@
     "target_claimed_or_unknown": 0,
     "eligible_for_one_native_attempt": false,
     "private_evidence_sha256": "b81a39ff8769fbfc759fc912b02a1a102278acf96223ba74d2ff226f83cdcc98"
+  },
+  "automatic_loaded_release_at_third_attempt": {
+    "release_sha": "93fb0d085e02531b86dfce416a5ac8829d2ae895",
+    "release_root": "/Users/anicca/loops/releases/20261023T141738-93fb0d08",
+    "release_paths": "ALL",
+    "loaded_matches_installed_checked_by_native_operator": true,
+    "source_fingerprints": [
+      {
+        "path": "runtime/host/resource_admission.py",
+        "sha256": "c60f0e427be1427db4790e57e6e961f0f9f47e64fd169b412444d1a542c8deb3",
+        "main_object_matches": true
+      },
+      {
+        "path": "runtime/loop/lm_loop_run.py",
+        "sha256": "ff38ddc644a292f5ae40a28d8d3b99c0aab34752ee079edc4bcba25514be3539",
+        "main_object_matches": true
+      },
+      {
+        "path": "apps/life-manager/scripts/ebook-distribute-daily.js",
+        "sha256": "d6b94983b31e5e6abfe937c6ffc4c87b280f5b250969b6f27a5fef91cd503e7c",
+        "main_object_matches": true
+      }
+    ],
+    "shared_selector_mutation": false
   }
 }

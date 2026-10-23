@@ -2351,3 +2351,272 @@ def test_identityless_ebook_en_tiktok_fence_uses_its_pack_integration_and_own_ru
     else:
         assert result["status"] == "inconclusive"
         assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+
+
+# Retained, secret-free rows; fixture media and release bytes are isolated below.
+_JATT_ORIGINAL_ROWS = json.loads('{"events":[{"blocker":null,"domain":"growth","effect_class":"publish","effect_status":"started","error_class":null,"event_id":"1794a0572e6285ff87038ae5","evidence_refs":["lm-loop://ebook-ja-tiktok-daily/18dfbf4b313011a8-82806/summary.json"],"exit_code":null,"failure_layer":"clean","job_id":"ebook-ja-tiktok-daily","loaded_argv_sha256":"3fbbb5030a25ee072b2780c91bdbfc57a62ce5e1321e47d1d56314bc8e61b0b2","loaded_env_sha256":"004a1c776ea2af56c7caaa5c4b62da81f4e2d6aeb31f476dbf005262b6cac586","loop_id":"ebook-ja-tiktok-daily","next_action":"monitor_running","occurrence_id":"ebook-ja-tiktok-daily:18dfbf4b313011a8-82806","official_readback_ref":null,"owner_id":"ebook-ja-tiktok-daily","phase":"execute","product_loop_id":"ebook","profile_alias":null,"provider":"deterministic","provider_receipt_id":null,"release_sha":"a7fb6c2822906102d7f453f03bacd8f7cfdaf169","retryable":false,"run_id":"18dfbf4b313011a8-82806","status":"running","timestamp":"2026-10-18T22:11:46.408424+00:00","version":1,"wake_id":"18dfbf4b313011a8-82806"},{"blocker":"host_admission_deferred:disk_floor_low","domain":"growth","effect_class":"publish","effect_identity_status":"not_written","effect_status":"unknown","error_class":"host_admission_deferred:disk_floor_low","event_id":"1bfe0270a14f2cc9528538a2","evidence_refs":["lm-loop://ebook-ja-tiktok-daily/18dfbf4b313011a8-82806/summary.json"],"exit_code":75,"failure_layer":"admission","job_id":"ebook-ja-tiktok-daily","loaded_argv_sha256":"3fbbb5030a25ee072b2780c91bdbfc57a62ce5e1321e47d1d56314bc8e61b0b2","loaded_env_sha256":"004a1c776ea2af56c7caaa5c4b62da81f4e2d6aeb31f476dbf005262b6cac586","loop_id":"ebook-ja-tiktok-daily","next_action":"retry_after_eligibility","occurrence_id":"ebook-ja-tiktok-daily:18dfbf4b313011a8-82806","official_readback_ref":null,"owner_id":"ebook-ja-tiktok-daily","phase":"report","product_loop_id":"ebook","profile_alias":null,"provider":"deterministic","provider_receipt_id":null,"release_sha":"a7fb6c2822906102d7f453f03bacd8f7cfdaf169","retryable":true,"run_id":"18dfbf4b313011a8-82806","status":"blocked","timestamp":"2026-10-18T22:11:46.606824+00:00","version":1,"wake_id":"18dfbf4b313011a8-82806"},{"blocker":null,"domain":"growth","effect_class":"publish","effect_status":"started","error_class":null,"event_id":"1a8c06ff46364663b0b02626","evidence_refs":["lm-loop://ebook-ja-tiktok-daily/18dff3a41b433450-51537/summary.json"],"exit_code":null,"failure_layer":"clean","job_id":"ebook-ja-tiktok-daily","loaded_argv_sha256":"7d0e652483120fa9eb582add850c17c30285e76b44815c444a5a305f61bcdc9d","loaded_env_sha256":"d5490e52d7302ccf5fce9ff207c8ad560fffbe094debf00926505e0107b482fc","loop_id":"ebook-ja-tiktok-daily","next_action":"monitor_running","occurrence_id":"ebook-ja-tiktok-daily:18dff3a41b433450-51537","official_readback_ref":null,"owner_id":"ebook-ja-tiktok-daily","phase":"execute","product_loop_id":"ebook","profile_alias":null,"provider":"deterministic","provider_receipt_id":null,"release_sha":"baac8c681314edd1fc430199f30da410d31a4c1c","retryable":false,"run_id":"18dff3a41b433450-51537","status":"running","timestamp":"2026-10-19T14:11:02.898615+00:00","version":1,"wake_id":"18dff3a41b433450-51537"},{"blocker":null,"domain":"growth","effect_class":"publish","effect_status":"reconciled","error_class":null,"event_id":"de2f3386e88fd1362284e198","evidence_refs":["lm-loop://ebook-ja-tiktok-daily/18dff3a41b433450-51537/summary.json","lm-occurrence://ebook-ja-tiktok-daily/18dfbf4b313011a8-82806/claim","postiz://posts/cmvf5cw4503uemw0y3fmvizy7"],"exit_code":0,"failure_layer":"clean","job_id":"ebook-ja-tiktok-daily","loaded_argv_sha256":"7d0e652483120fa9eb582add850c17c30285e76b44815c444a5a305f61bcdc9d","loaded_env_sha256":"862988ba771eec4d1e5675375f461acb682ba1129096ed54f0a5d0c213c5ace8","loop_id":"ebook-ja-tiktok-daily","next_action":"none","occurrence_id":"ebook-ja-tiktok-daily:18dfbf4b313011a8-82806","official_readback_ref":"postiz://posts/cmvf5cw4503uemw0y3fmvizy7","owner_id":"ebook-ja-tiktok-daily","phase":"report","product_loop_id":"ebook","profile_alias":null,"provider":"postiz","provider_receipt_id":"cmvf5cw4503uemw0y3fmvizy7","release_sha":"baac8c681314edd1fc430199f30da410d31a4c1c","retryable":false,"run_id":"18dff3a41b433450-51537","status":"pass","timestamp":"2026-10-19T14:11:10.268296+00:00","version":1,"wake_id":"18dff3a41b433450-51537"}],"jobs":[{"event":"enqueue","job":{"attempt":0,"available_at":"2026-10-19T11:04:02.681Z","capability":"marketing.video.publish","effect_class":"publish","effect_key":"marketing:video:ebook-ja:tiktok:baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily:6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4:417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8:b2a91d8ccda2ed4e7ffa0f4c55f72d19b269723b73f5b78e2597691e1cbb0c81","enqueued_at":"2026-10-19T11:04:09.875Z","input_refs":{"approval_ref":"object://sha256/e9929fa63ca4bea148f212ea178deff261755fca5ef35e64984bb1d72c3d10e5","caption_ref":"object://sha256/417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_ref":"creative://ebook-ja/baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form_ref":"form://ebook-reflection-reel","format_ref":"format://ebook-watercolor","instagram_profile_ref":"profile://instagram/unassigned","locale_ref":"locale://ja","platform_ref":"platform://tiktok","postiz_token_ref":"secret://postiz/api-key","product_ref":"product://ebook-ja","slot_ref":"schedule-slot://2026-10-19T11:00:00.000Z","tiktok_integration_ref":"integration://postiz/tiktok/cmo5s4edx00vgn10ygnu34a0n","video_ref":"object://sha256/6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"},"job_id":"marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c","lease_expires_at":null,"lease_owner":null,"loop_id":"marketing.video.publish","max_attempts":3,"status":"queued","tenant_id":"dais-local","unknown_effect":false,"updated_at":"2026-10-19T11:04:09.875Z"},"kind":"job","schema_version":1},{"event":"claim","job":{"attempt":1,"available_at":"2026-10-19T11:04:02.681Z","capability":"marketing.video.publish","effect_class":"publish","effect_key":"marketing:video:ebook-ja:tiktok:baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily:6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4:417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8:b2a91d8ccda2ed4e7ffa0f4c55f72d19b269723b73f5b78e2597691e1cbb0c81","enqueued_at":"2026-10-19T11:04:09.875Z","input_refs":{"approval_ref":"object://sha256/e9929fa63ca4bea148f212ea178deff261755fca5ef35e64984bb1d72c3d10e5","caption_ref":"object://sha256/417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_ref":"creative://ebook-ja/baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form_ref":"form://ebook-reflection-reel","format_ref":"format://ebook-watercolor","instagram_profile_ref":"profile://instagram/unassigned","locale_ref":"locale://ja","platform_ref":"platform://tiktok","postiz_token_ref":"secret://postiz/api-key","product_ref":"product://ebook-ja","slot_ref":"schedule-slot://2026-10-19T11:00:00.000Z","tiktok_integration_ref":"integration://postiz/tiktok/cmo5s4edx00vgn10ygnu34a0n","video_ref":"object://sha256/6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"},"job_id":"marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c","lease_expires_at":"2026-10-19T11:09:12.251Z","lease_owner":"ebook-ja-tiktok-daily","loop_id":"marketing.video.publish","max_attempts":3,"status":"running","tenant_id":"dais-local","unknown_effect":false,"updated_at":"2026-10-19T11:04:12.251Z"},"kind":"job","schema_version":1},{"event":"complete","job":{"attempt":1,"available_at":"2026-10-19T11:04:02.681Z","capability":"marketing.video.publish","completed_at":"2026-10-19T11:04:51.374Z","effect_class":"publish","effect_key":"marketing:video:ebook-ja:tiktok:baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily:6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4:417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8:b2a91d8ccda2ed4e7ffa0f4c55f72d19b269723b73f5b78e2597691e1cbb0c81","enqueued_at":"2026-10-19T11:04:09.875Z","input_refs":{"approval_ref":"object://sha256/e9929fa63ca4bea148f212ea178deff261755fca5ef35e64984bb1d72c3d10e5","caption_ref":"object://sha256/417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_ref":"creative://ebook-ja/baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form_ref":"form://ebook-reflection-reel","format_ref":"format://ebook-watercolor","instagram_profile_ref":"profile://instagram/unassigned","locale_ref":"locale://ja","platform_ref":"platform://tiktok","postiz_token_ref":"secret://postiz/api-key","product_ref":"product://ebook-ja","slot_ref":"schedule-slot://2026-10-19T11:00:00.000Z","tiktok_integration_ref":"integration://postiz/tiktok/cmo5s4edx00vgn10ygnu34a0n","video_ref":"object://sha256/6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"},"job_id":"marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c","lease_expires_at":null,"lease_owner":null,"loop_id":"marketing.video.publish","max_attempts":3,"status":"completed","tenant_id":"dais-local","unknown_effect":false,"updated_at":"2026-10-19T11:04:51.374Z"},"kind":"job","schema_version":1},{"event":"receipt_correct","job":{"attempt":1,"available_at":"2026-10-19T11:04:02.681Z","capability":"marketing.video.publish","completed_at":"2026-10-19T11:04:51.374Z","effect_class":"publish","effect_key":"marketing:video:ebook-ja:tiktok:baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily:6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4:417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8:b2a91d8ccda2ed4e7ffa0f4c55f72d19b269723b73f5b78e2597691e1cbb0c81","enqueued_at":"2026-10-19T11:04:09.875Z","input_refs":{"approval_ref":"object://sha256/e9929fa63ca4bea148f212ea178deff261755fca5ef35e64984bb1d72c3d10e5","caption_ref":"object://sha256/417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_ref":"creative://ebook-ja/baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form_ref":"form://ebook-reflection-reel","format_ref":"format://ebook-watercolor","instagram_profile_ref":"profile://instagram/unassigned","locale_ref":"locale://ja","platform_ref":"platform://tiktok","postiz_token_ref":"secret://postiz/api-key","product_ref":"product://ebook-ja","slot_ref":"schedule-slot://2026-10-19T11:00:00.000Z","tiktok_integration_ref":"integration://postiz/tiktok/cmo5s4edx00vgn10ygnu34a0n","video_ref":"object://sha256/6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"},"job_id":"marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c","lease_expires_at":null,"lease_owner":null,"loop_id":"marketing.video.publish","max_attempts":3,"receipt_corrected_at":"2026-10-22T16:16:34.669Z","status":"completed","tenant_id":"dais-local","unknown_effect":false,"updated_at":"2026-10-22T16:16:34.669Z"},"kind":"job","schema_version":1}],"receipts":[{"attempt":1,"job_id":"marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c","kind":"receipt","receipt":{"caption_sha256":"417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_id":"baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form":"ebook-reflection-reel","format_id":"ebook-watercolor","kind":"marketing_video_distribution","locale":"ja","origin_occurrence_id":"ebook-ja-tiktok-daily:18dfbec0c5a2d540-51433","platform":"tiktok","product_id":"ebook-ja","provider_effect_created":true,"provider_post_id":"cmvf5cw4503uemw0y3fmvizy7","provider_reconciled":true,"provider_route":"postiz","public_url":"https://www.tiktok.com/@obou_anicca/video/7698332982763046932","published_at":"2026-10-19T11:04:45.542Z","schema_version":1,"slot":"2026-10-19T11:00:00.000Z","status":"published","video_sha256":"6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"},"schema_version":1,"tenant_id":"dais-local"},{"attempt":1,"corrected_at":"2026-10-22T16:16:34.669Z","correction":"caption_matched_direct_url","job_id":"marketing-video-publication:50ffdcff4049aca47f626aa10883b104d5dc5a15d039e3a43e12fc90d4fb3b7c","kind":"receipt","receipt":{"caption_sha256":"417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_id":"baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form":"ebook-reflection-reel","format_id":"ebook-watercolor","kind":"marketing_video_distribution","locale":"ja","origin_occurrence_id":"ebook-ja-tiktok-daily:18dfbec0c5a2d540-51433","platform":"tiktok","product_id":"ebook-ja","provider_effect_created":true,"provider_post_id":"cmvf5cw4503uemw0y3fmvizy7","provider_reconciled":true,"provider_route":"postiz","public_url":"https://www.tiktok.com/@obou_anicca/video/7698333137004268821","published_at":"2026-10-19T11:04:45.542Z","schema_version":1,"slot":"2026-10-19T11:00:00.000Z","status":"published","video_sha256":"6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"},"schema_version":1,"tenant_id":"dais-local"}],"distribution":[{"caption_path":"fixture/caption_path","caption_sha256":"417d2b2c27fcd7c12ee119639cebd066a95406dd2679d708b382817ba8f3e1d8","creative_id":"baseline.ebook-ja.d1.s3-20261019T110000000Z-ebook-ja-tiktok-daily","form":"ebook-reflection-reel","format_id":"ebook-watercolor","locale":"ja","logged_out_readback":null,"migration_date":null,"platform":"tiktok","provider_cost_usd":null,"provider_id":"cmvf5cw4503uemw0y3fmvizy7","provider_reconciled":true,"public_url":"https://www.tiktok.com/@obou_anicca/video/7698332982763046932","route":"postiz","slot":"2026-10-19T11:00:00.000Z","status":"published","ts":"2026-10-19T11:04:45.374136Z","video_path":"fixture/video_path","video_sha256":"6160de64571f6d3e73ad8b88f78c14302e9fc085b185af8dc38f4ebdf9ad57e4"}]}')
+
+
+@pytest.fixture
+def jatt_reuse(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from runtime.host import resource_admission as admission
+    rows = json.loads(json.dumps(_JATT_ORIGINAL_ROWS))
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dfbf4b313011a8-82806"
+    caption = "Existing Japanese publication fixture"
+    video = b"existing rendered Japanese video fixture"
+    video_sha = hashlib.sha256(video).hexdigest()
+    caption_sha = hashlib.sha256(caption.encode()).hexdigest()
+    digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    old_video = rows["receipts"][0]["receipt"]["video_sha256"]
+    old_caption = rows["receipts"][0]["receipt"]["caption_sha256"]
+    rows = json.loads(json.dumps(rows).replace(old_video, video_sha).replace(old_caption, caption_sha))
+    original = rows["receipts"][0]["receipt"]
+    corrected = rows["receipts"][1]["receipt"]
+    spec = {
+        "owner_id": owner, "occurrence_id": occurrence,
+        "claim_run_id": "18dff3a41b433450-51537",
+        "origin_occurrence_id": f"{owner}:18dfbec0c5a2d540-51433",
+        "job_id": rows["jobs"][0]["job"]["job_id"],
+        "post_id": original["provider_post_id"],
+        "integration_id": "cmo5s4edx00vgn10ygnu34a0n",
+        "public_url": corrected["public_url"],
+        "video_sha256": video_sha, "caption_sha256": caption_sha,
+        "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+        "event_sha256": {row["event_id"]: digest(row) for row in rows["events"]},
+        "job_row_sha256": [digest(row) for row in rows["jobs"]],
+        "receipt_row_sha256": [digest(row) for row in rows["receipts"]],
+        "distribution_sha256": digest({key: value for key, value in rows["distribution"][0].items()
+                                       if key not in {"video_path", "caption_path"}}),
+    }
+    retained = tmp_path / "retained-release"
+    retained.mkdir()
+    (retained / "RELEASE.json").write_text(json.dumps({"sha": spec["release_sha"]}))
+    spec["source_sha256"] = {}
+    for rel in ("apps/life-manager/scripts/ebook-distribute-daily.js",
+                "apps/life-manager/lib/marketing-local-ledger.js"):
+        path = retained / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("retained source fixture: " + rel)
+        spec["source_sha256"][rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+    paths = {}
+    spec["journal_prefix"] = {}
+
+    def write_rows(rel, values):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(json.dumps(row) + "\n" for row in values))
+        path.chmod(0o600)
+        paths[rel] = path
+        return path
+
+    for rel, key in (("ebook/events.jsonl", "events"), ("marketing/jobs.jsonl", "jobs"),
+                     ("marketing/receipts.jsonl", "receipts")):
+        prefix = {"retained_prefix": rel}
+        historical = {"events": {"run_id": "unrelated-history", "phase": "report"},
+                      "jobs": {"job": {"job_id": "unrelated-history"}},
+                      "receipts": {"job_id": "unrelated-history", "receipt": {}}}[key]
+        path = write_rows(rel, [prefix, historical, *rows[key]])
+        raw = path.read_bytes()
+        spec["journal_prefix"][rel] = (len(raw), hashlib.sha256(raw).hexdigest())
+    objects = tmp_path / "objects/sha256"
+    objects.mkdir(parents=True)
+    for digest_value, data in ((video_sha, video), (caption_sha, caption.encode())):
+        path = objects / digest_value
+        path.write_bytes(data)
+        path.chmod(0o600)
+    distribution = rows["distribution"][0]
+    distribution.update(video_path=str(objects / video_sha), caption_path=str(objects / caption_sha))
+    ledger = write_rows("tenants/dais-local/marketing/video-publication/ebook-ja/distribution.jsonl",
+                        rows["distribution"])
+    key = hashlib.sha256(("dais-local\n" + spec["job_id"]).encode()).hexdigest()
+    receipt = write_rows(f"marketing/receipts/{key}.json", [{
+        "schema_version": 1, "tenant_id": "dais-local", "job_id": spec["job_id"], "receipt": corrected,
+    }])
+    spec["current_receipt_sha256"] = hashlib.sha256(receipt.read_bytes()).hexdigest()
+    idir = tmp_path / "ebook/effect-identities"
+    idir.mkdir()
+    admission_root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", owner, admission_class="revenue", occurrence_id=occurrence)
+    claim, reason = admission.claim_durable("agent", owner, admission_class="revenue")
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False)
+    db = admission_root / "admission-v2.sqlite3"
+    monkeypatch.setattr(reconcile, "JA_TIKTOK_REUSE", spec, raising=False)
+    monkeypatch.setattr(reconcile, "JA_TIKTOK_REUSE_RELEASE", retained, raising=False)
+    official = {
+        "id": spec["post_id"], "state": "PUBLISHED", "integrationId": spec["integration_id"],
+        "content": caption, "releaseURL": spec["public_url"], "releaseId": "7698333137004268821",
+        "lifeManagerVideoSha256": video_sha,
+    }
+    calls = []
+    fallback = []
+
+    def request(url, _key):
+        calls.append(url)
+        if url.endswith("/" + spec["post_id"]):
+            return official
+        assert url.endswith("/integrations")
+        return [{"id": spec["integration_id"], "identifier": "tiktok", "profile": "@obou_anicca"}]
+
+    monkeypatch.setattr(reconcile, "_request_json", request)
+    monkeypatch.setattr(reconcile, "_postiz_posts_between",
+                        lambda *_args: fallback.append(True) or [official])
+    kw = dict(owner_id=owner, occurrence_id=occurrence, identity_dir=idir, data_dir=tmp_path,
+              tenant_id="dais-local", admission_db=db, api_key="fixture-key")
+    return SimpleNamespace(spec=spec, rows=rows, paths=paths, retained=retained, receipt=receipt,
+                           objects=objects, official=official, calls=calls, fallback=fallback,
+                           write_rows=write_rows, kw=kw, db=db)
+
+
+def test_jatt_historical_receipt_reuse_is_read_only_and_replays_without_reattribution(jatt_reuse):
+    fixture = jatt_reuse
+    before = {path: path.read_bytes() for path in fixture.paths.values()}
+    dry = reconcile.reconcile_current_occurrence(apply=False, **fixture.kw)
+    assert dry["status"] == "ready"
+    assert dry["proof_type"] == "historical_postiz_receipt_reuse_no_dispatch"
+    assert dry["effect"] == 0
+    assert dry["original_origin_occurrence_id"] == fixture.spec["origin_occurrence_id"]
+    with sqlite3.connect(fixture.db) as db:
+        assert db.execute("SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (fixture.kw["occurrence_id"],)).fetchone() == (1,)
+    result = reconcile.reconcile_current_occurrence(apply=True, **fixture.kw)
+    assert result["status"] == "resolved"
+    calls = len(fixture.calls)
+    assert reconcile.reconcile_current_occurrence(apply=True, **fixture.kw)["status"] == "clean"
+    assert len(fixture.calls) == calls and fixture.fallback == []
+    assert all(path.read_bytes() == raw for path, raw in before.items())
+    with sqlite3.connect(fixture.db) as db:
+        assert db.execute("SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (fixture.kw["occurrence_id"],)).fetchone() == ("released", 0)
+
+
+@pytest.mark.parametrize("relative,key", [
+    ("ebook/events.jsonl", "events"), ("marketing/jobs.jsonl", "jobs"),
+    ("marketing/receipts.jsonl", "receipts"),
+])
+@pytest.mark.parametrize("change", ["removed", "same_length_replacement"])
+def test_jatt_historical_receipt_reuse_rejects_changed_interior_history(jatt_reuse, relative, key, change):
+    fixture = jatt_reuse
+    path = fixture.paths[relative]
+    if change == "removed":
+        prefix = json.loads(path.read_text().splitlines()[0])
+        fixture.write_rows(relative, [prefix, *fixture.rows[key]])
+    else:
+        before = path.read_bytes()
+        changed = before.replace(b"unrelated-history", b"unrelated-historx", 1)
+        assert changed != before and len(changed) == len(before)
+        path.write_bytes(changed)
+    result = reconcile.reconcile_current_occurrence(apply=True, **fixture.kw)
+    assert result["status"] == "inconclusive"
+    assert fixture.calls == [] and fixture.fallback == []
+    with sqlite3.connect(fixture.db) as db:
+        assert db.execute("SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (fixture.kw["occurrence_id"],)).fetchone() == (1,)
+
+
+@pytest.mark.parametrize("container", ["identity", "runtime"])
+def test_jatt_historical_receipt_reuse_rejects_nested_additional_claim(jatt_reuse, container):
+    fixture = jatt_reuse
+    extra = {**fixture.rows["events"][-1], "run_id": "another-claimant", "event_id": "extra",
+             "occurrence_id": "another-owner:another-occurrence", "evidence_refs": [],
+             container: {"occurrence_id": fixture.kw["occurrence_id"]}}
+    path = fixture.paths["ebook/events.jsonl"]
+    with path.open("a") as file:
+        file.write(json.dumps(extra) + "\n")
+    result = reconcile.reconcile_current_occurrence(apply=True, **fixture.kw)
+    assert result["status"] == "inconclusive"
+    assert fixture.calls == [] and fixture.fallback == []
+    with sqlite3.connect(fixture.db) as db:
+        assert db.execute("SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (fixture.kw["occurrence_id"],)).fetchone() == (1,)
+
+
+def test_jatt_historical_receipt_reuse_allows_unrelated_append(jatt_reuse):
+    fixture = jatt_reuse
+    for relative, extra in (
+            ("ebook/events.jsonl", {"run_id": "unrelated-append", "phase": "report"}),
+            ("marketing/jobs.jsonl", {"job": {"job_id": "unrelated-append"}}),
+            ("marketing/receipts.jsonl", {"job_id": "unrelated-append", "receipt": {}})):
+        with fixture.paths[relative].open("a") as file:
+            file.write(json.dumps(extra) + "\n")
+    assert reconcile.reconcile_current_occurrence(apply=False, **fixture.kw)["status"] == "ready"
+    assert fixture.fallback == []
+
+
+@pytest.mark.parametrize("case", [
+    "additional_claim", "event_changed", "missing_history_prefix", "source_changed", "manifest_changed",
+    "job_attempt", "job_completed_late", "new_job_in_claim", "second_provider_job",
+    "origin_changed", "receipt_other_change", "current_receipt_changed", "video_changed",
+    "caption_changed", "distribution_changed", "official_state", "official_integration",
+    "official_caption", "official_url", "official_video_hash",
+])
+def test_jatt_historical_receipt_reuse_rejects_changed_original_boundary(jatt_reuse, case):
+    fixture = jatt_reuse
+    rows = fixture.rows
+    if case in {"additional_claim", "event_changed", "missing_history_prefix"}:
+        values = [json.loads(line) for line in fixture.paths["ebook/events.jsonl"].read_text().splitlines()]
+        if case == "additional_claim":
+            values.append({**rows["events"][-1], "run_id": "another-claimant", "event_id": "extra"})
+        elif case == "event_changed":
+            values[-1] = {**values[-1], "exit_code": 1}
+        else:
+            values = values[1:]
+        fixture.write_rows("ebook/events.jsonl", values)
+    elif case == "source_changed":
+        with (fixture.retained / "apps/life-manager/scripts/ebook-distribute-daily.js").open("a") as file:
+            file.write("changed")
+    elif case == "manifest_changed":
+        (fixture.retained / "RELEASE.json").write_text('{"sha":"wrong"}')
+    elif case in {"job_attempt", "job_completed_late", "new_job_in_claim"}:
+        if case == "job_attempt":
+            rows["jobs"][2]["job"]["attempt"] = 2
+        elif case == "job_completed_late":
+            rows["jobs"][2]["job"]["completed_at"] = "2026-10-19T14:11:05.000Z"
+        else:
+            rows["jobs"].append(json.loads(json.dumps(rows["jobs"][1])))
+            rows["jobs"][-1]["job"].update(job_id="another-job", updated_at="2026-10-19T14:11:05.000Z")
+        prefix = [json.loads(line) for line in fixture.paths["marketing/jobs.jsonl"].read_text().splitlines()[:2]]
+        fixture.write_rows("marketing/jobs.jsonl", [*prefix, *rows["jobs"]])
+    elif case in {"second_provider_job", "origin_changed", "receipt_other_change"}:
+        if case == "second_provider_job":
+            rows["receipts"].append({**rows["receipts"][0], "job_id": "another-job"})
+        elif case == "origin_changed":
+            rows["receipts"][0]["receipt"]["origin_occurrence_id"] = fixture.kw["occurrence_id"]
+        else:
+            rows["receipts"][1]["receipt"]["provider_effect_created"] = False
+        prefix = [json.loads(line) for line in fixture.paths["marketing/receipts.jsonl"].read_text().splitlines()[:2]]
+        fixture.write_rows("marketing/receipts.jsonl", [*prefix, *rows["receipts"]])
+    elif case == "current_receipt_changed":
+        fixture.receipt.write_text(fixture.receipt.read_text() + " ")
+    elif case in {"video_changed", "caption_changed"}:
+        field = "video_sha256" if case == "video_changed" else "caption_sha256"
+        (fixture.objects / fixture.spec[field]).write_bytes(b"changed")
+    elif case == "distribution_changed":
+        fixture.rows["distribution"][0]["route"] = "tiktok_direct"
+        fixture.write_rows("tenants/dais-local/marketing/video-publication/ebook-ja/distribution.jsonl",
+                           fixture.rows["distribution"])
+    else:
+        fields = {"official_state": ("state", "ERROR"), "official_integration": ("integrationId", "other"),
+                  "official_caption": ("content", "changed"), "official_url": ("releaseURL", "https://www.tiktok.com/@obou_anicca/video/1"),
+                  "official_video_hash": ("lifeManagerVideoSha256", "0" * 64)}
+        field, value = fields[case]
+        fixture.official[field] = value
+    before = fixture.receipt.read_bytes()
+    result = reconcile.reconcile_current_occurrence(apply=True, **fixture.kw)
+    assert result["status"] == "inconclusive"
+    assert fixture.receipt.read_bytes() == before and fixture.fallback == []
+    with sqlite3.connect(fixture.db) as db:
+        assert db.execute("SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
+                          (fixture.kw["occurrence_id"],)).fetchone() == (1,)
+
+
+def test_jatt_history_reader_keeps_default_limit_and_accepts_explicit_bound(tmp_path):
+    path = tmp_path / "large-journal.jsonl"
+    path.write_text(json.dumps({"fixture": "x" * (8 * 1024 * 1024)}) + "\n")
+    path.chmod(0o600)
+    assert reconcile._safe_jsonl(path) is None
+    assert reconcile._safe_jsonl(path, max_bytes=64 * 1024 * 1024)[0]["fixture"].startswith("x")
