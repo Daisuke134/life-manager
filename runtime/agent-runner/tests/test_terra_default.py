@@ -6,7 +6,12 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent_runner import command_for, configured_task_classes, resolve_provider_profiles
+from agent_runner import (
+    TOOLLESS_TASK_CLASSES,
+    command_for,
+    configured_task_classes,
+    resolve_provider_profiles,
+)
 
 
 class TerraDefaultTest(unittest.TestCase):
@@ -55,6 +60,9 @@ class TerraDefaultTest(unittest.TestCase):
                 if name == "marketing-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-luna",
                                  "effort": "medium", "profile_alias": "acct1"}]
+                if name == "promptbase-example-agent":
+                    expected = [{"provider": "codex", "model": "gpt-5.6-luna",
+                                 "effort": "medium", "profile_alias": "acct1"}]
                 if name == "storefront-proposal-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "timeout_seconds": 90,
@@ -95,9 +103,46 @@ class TerraDefaultTest(unittest.TestCase):
                     "paid-owner-agent", "escalation-agent", "codex-brain-agent",
                     "affiliate-marketing-agent", "affiliate-escalation-agent",
                     "self-heal-code-agent", "self-fix-code-agent",
+                    "promptbase-example-agent",
                 } and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
+
+    def test_promptbase_example_route_is_toolless_luna_with_small_token_reservation(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        task = config["task_classes"]["promptbase-example-agent"]
+
+        self.assertEqual(task["route"], "promptbase-example-bounded-luna")
+        self.assertEqual(task["token_reservation"], 8192)
+        self.assertEqual(task["timeout_seconds"], 300)
+        self.assertEqual(task["candidates"], [{
+            "provider": "codex", "model": "gpt-5.6-luna",
+            "effort": "medium", "profile_alias": "acct1",
+        }])
+        self.assertIn("promptbase-example-agent", TOOLLESS_TASK_CLASSES)
+
+        resolved = resolve_provider_profiles(task["candidates"], config["providers"])[0]
+        provider_config = {
+            **config["providers"]["codex"],
+            "automation_home": resolved["automation_home"],
+            "auth_file": resolved["auth_file"],
+        }
+        args = argparse.Namespace(
+            task_class="promptbase-example-agent",
+            codex_resume_session_id=None,
+            workdir=Path("/tmp"),
+            read_only=False,
+            image=[],
+        )
+        command = command_for(
+            "codex", "/usr/bin/codex", provider_config, resolved, args,
+            "execute the prompt skill", {}, Path("/tmp/result.json"),
+            rollout_budget_tokens=task["token_reservation"],
+        )
+        self.assertIn("--sandbox", command)
+        self.assertEqual(command[command.index("--sandbox") + 1], "read-only")
+        self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
 
     def test_self_heal_code_route_is_codex_only(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"

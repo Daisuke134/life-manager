@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 DAILY = REPO_ROOT / "skills" / "earn" / "promptbase" / "daily.sh"
 
 
-def _run_daily(tmp_path, *, occurrence=None, snapshot_rc=0):
+def _run_daily(tmp_path, *, occurrence=None, snapshot_rc=0, gen_rc=0):
     home = tmp_path / "home"
     home.mkdir()
     call_log = tmp_path / "calls.log"
@@ -27,7 +27,7 @@ case "$*" in
   *"packager.py publish-list"*) printf '%s\\n' '{"agents":[]}' ;;
   *"select_next.py"*) printf '%s\\n' '{"slug":"reels-hook-lab","title":"Reels Hook Lab"}' ;;
   *"promptbase_fence_reconcile.py"*"--record-snapshot"*) exit "$FAKE_SNAPSHOT_RC" ;;
-  *"gen_examples.py"*) exit 0 ;;
+  *"gen_examples.py"*) exit "$FAKE_GEN_RC" ;;
   *"publish.py"*"--confirm"*) exit 0 ;;
   *) exit 97 ;;
 esac
@@ -62,6 +62,7 @@ esac
     env["FAKE_CALL_LOG"] = str(call_log)
     env["FAKE_PY_REAL"] = sys.executable
     env["FAKE_SNAPSHOT_RC"] = str(snapshot_rc)
+    env["FAKE_GEN_RC"] = str(gen_rc)
     env.pop("LIFE_MANAGER_OCCURRENCE_ID", None)
     if occurrence is not None:
         env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence
@@ -85,6 +86,15 @@ def test_daily_aborts_before_publish_when_snapshot_write_fails(tmp_path):
     )
     assert result.returncode != 0
     assert any("promptbase_fence_reconcile.py" in call for call in calls)
+    assert not any("publish.py" in call for call in calls)
+
+
+def test_daily_aborts_before_publish_when_real_examples_cannot_be_generated(tmp_path):
+    result, calls = _run_daily(
+        tmp_path, occurrence="promptbase-loop-daily:run-1", gen_rc=1,
+    )
+    assert result.returncode != 0
+    assert any("gen_examples.py" in call for call in calls)
     assert not any("publish.py" in call for call in calls)
 
 

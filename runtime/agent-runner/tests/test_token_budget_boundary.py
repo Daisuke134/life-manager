@@ -5,10 +5,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from agent_runner import rollout_budget_tokens_for  # noqa: E402
 from token_budget import TokenBudgetLedger  # noqa: E402
 
 
 class TokenBudgetBoundaryTest(unittest.TestCase):
+    def test_promptbase_example_route_always_enforces_its_small_rollout_cap(self):
+        self.assertEqual(
+            rollout_budget_tokens_for("promptbase-example-agent", 8192, False, None),
+            8192,
+        )
+        self.assertIsNone(
+            rollout_budget_tokens_for("high-value-agent", 65536, False, None)
+        )
+
+    def test_pass_budget_overrides_task_default_when_budget_is_enabled(self):
+        self.assertEqual(
+            rollout_budget_tokens_for("promptbase-example-agent", 8192, True, 4096),
+            4096,
+        )
+
     def test_pass_budget_can_operate_without_daily_cap(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger=TokenBudgetLedger(Path(directory)/"budget.jsonl")

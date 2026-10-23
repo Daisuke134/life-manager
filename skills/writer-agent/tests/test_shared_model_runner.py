@@ -210,6 +210,60 @@ r=e/'result.json'; r.write_text('{"complete":true}')
             self.assertIn('thread.started',events.read_text())
             self.assertEqual(json.loads(last.read_text()),{'complete':True})
 
+    def test_promptbase_example_profile_selects_only_its_bounded_task_class(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "agent-runner.py"
+            capture = root / "argv.json"
+            fake.write_text("""#!/usr/bin/env python3
+import json,os,pathlib,sys
+a=sys.argv[1:]; pathlib.Path(os.environ['CAPTURE_ARGS']).write_text(json.dumps(a))
+e=pathlib.Path(a[a.index('--evidence-dir')+1]); e.mkdir(parents=True)
+r=e/'result.json'; r.write_text('{\"text\":\"example output\"}')
+(e/'summary.json').write_text(json.dumps({'result_path':str(r)}))
+""")
+            fake.chmod(0o755)
+            prompt = root / "prompt.txt"
+            prompt.write_text("execute the catalog skill")
+            env = {
+                **os.environ,
+                "AGENT_RUNNER_BIN": str(fake),
+                "CAPTURE_ARGS": str(capture),
+                "WRITER_SHARED_RUNNER_STATE": str(root / "state"),
+                "ARTICLE_AGENT_TASK_CLASS": "promptbase-example-agent",
+            }
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "agent", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = json.loads(capture.read_text(encoding="utf-8"))
+            self.assertEqual(args[args.index("--task-class") + 1], "promptbase-example-agent")
+
+    def test_unknown_agent_task_class_fails_before_provider_start(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "agent-runner.py"
+            called = root / "called"
+            fake.write_text("#!/usr/bin/env python3\nimport os,pathlib\npathlib.Path(os.environ['CALLED']).touch()\n")
+            fake.chmod(0o755)
+            prompt = root / "prompt.txt"
+            prompt.write_text("must not start an unapproved task class")
+            env = {
+                **os.environ,
+                "AGENT_RUNNER_BIN": str(fake),
+                "CALLED": str(called),
+                "WRITER_SHARED_RUNNER_STATE": str(root / "state"),
+                "ARTICLE_AGENT_TASK_CLASS": "paid-owner-agent",
+            }
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "agent", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(called.exists())
+            self.assertIn("task class", result.stderr.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -65,12 +65,15 @@ class GenExamplesRunnerTest(unittest.TestCase):
                 "#!/bin/sh\n"
                 "printf '%s\\n' \"$PWD\" >> \"$RUNNER_RECORD\"\n"
                 "printf '%s\\n' \"$1 $2 $3 $4\" >> \"$RUNNER_RECORD\"\n"
+                "printf 'task_class=%s\\n' \"${ARTICLE_AGENT_TASK_CLASS:-unset}\" >> \"$RUNNER_RECORD\"\n"
                 "cat \"$3\" >> \"$RUNNER_RECORD\"\n"
                 "if grep -q 'Write 3 NEW' \"$3\"; then printf '[\"input two\",\"input three\",\"input four\"]'; else printf 'output-%s' \"$(basename \"$3\")\"; fi\n",
                 encoding="utf-8",
             )
             runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
-            old = {k: os.environ.get(k) for k in ("ARTICLE_MODEL_RUNNER", "RUNNER_RECORD")}
+            old = {k: os.environ.get(k) for k in (
+                "ARTICLE_MODEL_RUNNER", "ARTICLE_AGENT_TASK_CLASS", "RUNNER_RECORD",
+            )}
             try:
                 os.environ["ARTICLE_MODEL_RUNNER"] = str(runner)
                 os.environ["RUNNER_RECORD"] = str(record)
@@ -86,6 +89,7 @@ class GenExamplesRunnerTest(unittest.TestCase):
             self.assertEqual(Path(record.read_text(encoding="utf-8").splitlines()[0]).resolve(), Path("/tmp").resolve())
             recorded = record.read_text(encoding="utf-8")
             self.assertIn("agent --prompt-file", recorded)
+            self.assertEqual(recorded.count("task_class=promptbase-example-agent"), 4)
             self.assertIn("## SYSTEM INSTRUCTIONS\nWrite natural English output.", recorded)
             self.assertIn("## BUYER PROMPT\nHere is a skill a buyer uses:", recorded)
             self.assertEqual(result[1]["output"].startswith("output-"), True)
