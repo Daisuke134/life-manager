@@ -201,6 +201,21 @@ def test_compatible_node_and_npm_do_not_install_dependencies(tmp_path):
     assert "brew " not in box.log()
 
 
+def test_full_host_prepare_refuses_incomplete_browser_dependencies(tmp_path):
+    box = RuntimeSandbox(tmp_path)
+    script = box.copy_script("scripts/install-local.sh")
+    box.copy_script("scripts/macos-runtime.sh")
+    python = box.python(box.home / ".local/share/life-manager/venv/bin/python")
+    box.env.update(LIFE_MANAGER_PYTHON=str(python), SANDBOX_IMPORTS_MISSING="1")
+    for name in ("node", "npm", "jq", "ffmpeg", "fc-list", "gog"):
+        box.executable(box.bin / name, "#!/bin/bash\nexit 0\n")
+    result = subprocess.run(["/bin/bash", str(script), "prepare"], env=box.env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0
+    assert "-m runtime.loop.local_install" not in box.log()
+    assert "codex " not in box.log()
+
+
 def test_old_node_is_replaced_by_selected_homebrew_node(tmp_path):
     box = RuntimeSandbox(tmp_path)
     box.executable(box.bin / "node", "#!/bin/bash\nexit 1\n")

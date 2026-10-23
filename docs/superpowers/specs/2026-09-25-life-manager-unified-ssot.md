@@ -18,6 +18,10 @@
 
 **確認した証拠:** 追加5ケースは旧実装で4 fail/1 pass（認証確認がなく、失敗・未確認でも登録開始）、修正後は全PASS。既存を含むinstaller27件、public bootstrap10件、host/fleet/install36件の計73件がPASS。loop contractは18 products/192 registry jobs/113 mapped/errors0で、旧specの191/112は当時のsnapshotである。最初の検証はruntime venvの既存`site-packages/scripts`がrepoのnamespaceを隠して2 import errorsとなるため、開発用Python3.14とunittest discoverで同bootstrapを実行し10件PASSを確認した。runtime依存やCIをこのために変更していない。
 
+**空環境の追加不具合:** 新規venvへ現`requirements-runtime.txt`全体を実際にinstallするとpipはexit0だが、既存Coconala installerと同じimport smokeが`ModuleNotFoundError: bs4`でexit1になる。Mercor/Coconalaが使う`websockets`は現解決結果ではweb3由来で入るが、`beautifulsoup4`は入らない。既存使用ライブラリ`beautifulsoup4==4.14.3`を共通runtimeへ追加し、pip後・認証/登録前に既存5 importの最小smokeを行う。不完全な依存で登録へ進まない隔離回帰を追加する。新しい業務機能や依存frameworkは作らない。
+
+追加回帰は旧実装で1 fail、修正後はinstaller関連28件PASS。空venvで更新した全requirementsのinstall exit0と5 imports exit0も確認する。READMEの比較はn8n 208,370/OpenHands 91,618/Open Interpreter 68,640/AutoGPT 187,713 starsの公式repo/README/installerに基づく。starsはREADMEによる成長因果の証拠とはしない。英日READMEは各52行、Quick startは冒頭、比較根拠と移設先は`docs/readme-references.md`。公式repo trafficの観測窓合計はclones=84,297/unique=4,515、views=66/unique=31で、自分たちのCI/automationと外部利用者を分離できないため実利用人数やconversion rateとは扱わない。
+
 **現Macの別の待機原因:** current release経由のread-only `lm-loop status hf-gig-reply-detector --json`で、owner=`hf-gig-reply-detector`、installed SHA=`247474a9df537bc863a2b970a91df8d9111af576`、run=`18e11d4b2ba57340-14570`、occurrence=`hf-gig-reply-detector:18e11d4b2ba57340-14570`、phase=`report`、exit=75、effect=`not_applicable`、blocker=`host_admission_deferred:resource_capacity_busy`、retryable=true、next=`retry_after_eligibility`を確認する。過去4 occurrencesはofficial receipt未取得で、診断は`adapter_held:exact_reply_state_not_found`。これは新規MacのCLI未認証とは別原因であり、fenceの解除・再送・owner再起動は行わない。公式readback/receiptと現在のcapacity ownerの照合を既存MAC02/復旧TODOへ残す。全fleetや友人Macの実動作はこの1ownerのsnapshotで証明しない。
 
 ## 別Macへ配布するLocal製品の実行契約

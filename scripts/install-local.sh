@@ -36,6 +36,7 @@ if ! _lm_select_python "$venv/bin/python"; then
   "$LM_PYTHON" -m venv --clear "$venv"
 fi
 "$venv/bin/python" -m pip install --disable-pip-version-check -r "$ROOT/requirements-runtime.txt" >&2
+"$venv/bin/python" -c 'import websockets, bs4, jsonschema, cloakbrowser, PIL' >&2
 "$venv/bin/python" -c 'from cloakbrowser import ensure_binary; ensure_binary()' >&2
 export PATH="$HOME/.local/bin:$PATH"
 if ! command -v codex >/dev/null 2>&1; then
