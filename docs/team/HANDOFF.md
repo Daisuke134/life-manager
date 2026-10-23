@@ -35,3 +35,9 @@
 - 別件の未完: 正本に残る応募履歴の共有・応募台帳への反映は、この参加確認の完了と分ける。未着の分割や応募情報を補完せず、既送信分も再送しない。
 - 所有境界: Thankful と build 10 は `life-manager-main-claude-5` の単独担当。Codexは変更・ビルドを行わない。保護されたmainへ直接pushせず、専用branch/PRで反映する。
 - 次の一手: 参謀は既存の `daisuke/chatgpt` を連絡先として使う。追加のDots参加作業は不要。
+
+## 2026-10-23 Mac mini disk/loop audit (参謀)
+- lm_loop_run: ~89 processes, but each loop label appears exactly once (no self-respawn). Each launchd plist runs one label; long-running daemons stay pinned to the release they started from (some still on 20261018 releases). Not a duplication bug. Optional fix: release cut should kickstart -k long-running labels so old releases can be GCd.
+- Stale cozempic.cli guard orphans (ppid 1, started 10/17-10/22) killed. premiere-pro-mcp/node_repl are children of the live codex app-server daemon (one per thread); left alone.
+- Disk: 0.4G -> ~13G free (tmp clones, loop-tmp, simulators erased, caches, 6 clean stale worktrees, old cloak state-backups, gz old codex sessions). Remaining hogs: .worktrees ~11G (mostly dirty), .codex-acct2 sessions 7G, git packs, ollama 4.4G.
+- Rule: log out of Mac apps before quitting; never force-quit LINE/ChatGPT.
