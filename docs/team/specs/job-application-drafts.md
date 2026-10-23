@@ -41,3 +41,27 @@
 公式フォームはAshbyの公開 `ApiJobPosting` queryとNICE/Greenhouseの埋め込み定義から読み取る。mutationや応募APIは使わない。求人URLと現行フォームの状態は各原稿に記録する。入力方式・必須/任意は取得したschemaに基づき、同意や個人情報の未確認を任意・falseへ置換しない。
 
 検証: 質問一覧との対応、事実の出典、未確認事項の明示、連絡先/secret非掲載、変更path、diffチェック、公式CI、main上の5ファイルを確認する。アプリのビルド・追加テスト・応募提出は行わない。
+
+## 追加5件のclaimと応募素材
+
+目的: 前回5件と既存応募を除外し、未claim求人から適合度の高い新規5件を確保して参謀へ渡す。
+
+範囲: `origin/main:ledger/APPLICATIONS.md` を唯一の共通台帳として読む。未claim行の既成リストは存在しないため、公式求人から新しい候補を調べ、勤務地、AI導入・実装との関連、既存経歴との一致、経験年数の不足を比較する。過去の応募・不明な送信結果・同一職種の再掲は新規候補にしない。候補ごとに `scripts/ledger-check.sh <key>` を実行し、`owner=codex`、`status=claimed` の5行をPRでmainへ統合してから原稿を作る。台帳の旧main直push手順より、最新のPR指示を優先する。
+
+成果物: 求人別の実際のフォーム項目への回答案とカバーレターを既存 `docs/team/jobs/drafts/` に追加する。経歴の出典は上記PROFILE/RESUME等を再利用し、回答不能・本人意思・経験要件の不足は明示する。提出用メールは参謀指定の値と私的正本の一致を確認し、公開原稿には連絡先の値を複製しない。
+
+完了条件: claim PRと追加5件のドラフトPRがmainへ統合され、main上の5キーと5ファイルを公式readbackで確認する。Reasonで `daisuke/cursor` へ両PR URLと5キーを返信する。応募送信、応募済みへのstatus更新、Thankful/build 10、他のCodex作業、runtimeやcronは範囲外。
+
+選定基準: 調査した公式求人の中で、東京勤務、既存のAI導入・実装・指導との接点、固定年数の制約、報酬帯を比較する。下表はその候補内の優先順であり、全市場の網羅順位や採用可能性の予測ではない。5年以上を要求するNotion FDE/Architect、4年以上のCognition Support、3〜5年のGenspark CSMを下げる。Algomatic AI Builder（組織変革本部）は既存履歴でchecker exit 1となるため除外する。雇用先除外リストも確認する。
+
+| 順位 | 求人・公式情報 | key | 根拠と不足 |
+|---|---|---|---|
+| 1 | [LayerX — 【バクラク】AI Builder](https://open.talentio.com/r/1/c/layerx/pages/122552) | `job:open.talentio.com/r/1/c/layerx/pages/122552` | Agent活用・実装・業務変革が直接関連。固定経験年数なし。生産性改善の数値、特定言語の職務使用は未確認。 |
+| 2 | [Algomatic — AIエンジニア](https://herp.careers/v1/algomatic/3b_GpdNQjy8N) | `job:herp.careers/v1/algomatic/3b_gpdnqjy8n` | 実務・研究・個人開発を評価。LLM実装/研究と接点。個別言語・RAG等の経験は補完しない。 |
+| 3 | [Cognition — Forward Deployed Engineer - Japan](https://jobs.ashbyhq.com/cognition/9ebb0dff-2cbf-42ba-bb4a-0256812a06e0) | `job:cognition:9ebb0dff-2cbf-42ba-bb4a-0256812a06e0` | 企業AI導入支援・ツール指導と接点。STEM学位授与は未確認。過去のPartner Deployed Engineerとは別職種。 |
+| 4 | [Databricks — Scale Solution Engineer (Japanese-speaking; English required)](https://databricks.com/company/careers/open-positions/job?gh_jid=8779016002) | `job:databricks:8779016002` | Databricks応答品質分析とML研究が直接関連。technical role 2年以上を要求、MUIT職務は2025年4月開始。cloud/言語/ETLの要件充足は未確認。過去FDEとは別職種。 |
+| 5 | [エクスプラザ — 【正社員】フルスタックエンジニア](https://herp.careers/v1/explaza/4GzgM8DDKYId) | `job:herp.careers/v1/explaza/4gzgm8ddkyid` | AI活用・agent運用設計と接点、固定年数なし。cloud設計構築と職務上のfull-stack経験は未確認。年収500〜800万円は希望下限800万円と上限のみ重なる。 |
+
+5キーはすべて `scripts/ledger-check.sh` がexit 0（FREE）であることを最終確認してから台帳へ追加する。既存のCognition Partner Deployed Engineer、Databricks FDEのstatusは変更しない。
+
+現在cursor: 5件のclaimを専用PRでmainへ統合する。その後、フォームの取得範囲・回答案・カバーレターを5原稿へ保存し、別のドラフトPRを統合する。前回の5原稿はPR #8730で完了済みとして保持する。
