@@ -2,7 +2,7 @@
 
 Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 75 · Todo: 35 · Blocked: 0 · Skipped: 3
+Total: 113 · Done: 76 · Todo: 34 · Blocked: 0 · Skipped: 3
 
 ✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -158,7 +158,7 @@ E01–E16実装完了。F受入は別に証拠確認
 |---|---|---|---|---|
 | ✅ `D001` | F006 | 寄付者由来の純増と拠出原資を分ける | 金融介入評価に資金元・外部寄付・総費用の分類を実装 | 自分で出したマッチング予算を外部から生まれた利益として加算しない |
 | ✅ `D002` | D001, L010 | 寄付の横取り（クラウディングアウト）を理解する | 他プロジェクトへの寄付減少を検出可能な比較設計を追加 | 金融プロジェクト単体の売上増だけを社会全体の純便益としない |
-| ⬜ `D003` | D002 | 家計・食料・負債の代理指標を理解する | 公表された支援先の受益報告と資金移動を別の証拠として接続 | 第三者報告がない経済的生活改善は未測定と明示する |
+| ✅ `D003` | D002 | 家計・食料・負債の代理指標を理解する | 公表された支援先の受益報告と資金移動を別の証拠として接続 | 第三者報告がない経済的生活改善は未測定と明示する |
 | ⬜ `D004` | D003, U007 | 金融における因果の再現性 | 別地域か別案件で限定的な支援効果を再確認する | 最初の成功を複数案件に外挿せず、比較可能な追試レポートを出す |
 | ⬜ `D005` | F008 | センサーの誤差と時間交絡 | 屋内測定と外気・気温・湿度を時刻・単位付きで接続する | 無効・欠測・校正外の測定値を自動排除し、元データへ遡れる |
 | ⬜ `D006` | D005 | 物理介入の対照条件 | 介入前後だけでなく同時期の比較領域を設計する | 時間変化と介入効果の識別条件を事前文書化 |

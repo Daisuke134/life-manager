@@ -1685,12 +1685,35 @@
     "learn": "家計・食料・負債の代理指標を理解する",
     "change": "公表された支援先の受益報告と資金移動を別の証拠として接続",
     "verify": "第三者報告がない経済的生活改善は未測定と明示する",
-    "status": "todo",
+    "status": "done",
     "external": "none",
     "implementation_evidence": [
-      "manager_core/program_funding.py"
+      "manager_core/program_funding.py",
+      "manager_core/public_program_disbursement.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "ACCEPTED_PUBLIC_SOURCE_CONNECTION_ONLY",
+    "completion_evidence": [
+      "manager_core/public_program_disbursement.py",
+      "tests/test_public_program_disbursement.py",
+      "docs/research/GIVEDIRECTLY_D003_SOURCE_20261023.json",
+      "docs/verification/D003_PUBLIC_SOURCE_CONNECTION_20261023.md"
+    ],
+    "completion_receipt": {
+      "accepted_at_utc": "2026-10-23T10:19:34.279859+00:00",
+      "result": "PUBLIC_DISBURSEMENT_AND_SEPARATE_BENEFICIARY_REPORT_CONNECTED",
+      "scope": "PUBLIC_SOURCE_CONNECTION_P0_ONLY",
+      "source_commit": "d57f56f099f44cf90fcf22a834221144560b757b",
+      "source_pr": 8670,
+      "source_merged_at_utc": "2026-10-23T10:15:08Z",
+      "module_sha256": "ff558bd5d6ae956176ecdf3d41ede14b5e210a6d069127e46fc5e6100a1a0635",
+      "main_source_merged": true,
+      "scheduled_runtime_connected": false,
+      "new_manager_transfer": false,
+      "bank_settlement_authenticated": false,
+      "causal_support": false,
+      "human_outcome": "NOT_MEASURED",
+      "independent_review": "SOURCE_SPEC_QUALITY_PASS_ALL_FINDINGS_CLOSED"
+    }
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",

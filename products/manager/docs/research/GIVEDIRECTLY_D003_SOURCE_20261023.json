@@ -1,0 +1,181 @@
+{
+  "schema": "manager.d003.public-program-evidence.v1",
+  "activity_id": "US-EIN-27-1661997-Ug-refugees-pilot",
+  "raw_sources": {
+    "iati_publisher": {
+      "url": "https://aidstream.s3.us-west-2.amazonaws.com/xml/givedirectly-ug.xml",
+      "final_url": "https://aidstream.s3.us-west-2.amazonaws.com/xml/givedirectly-ug.xml",
+      "sha256": "593556f369b622a49c46459fa324a730a338d8155a05c6bf1d6d143922049345",
+      "bytes": 27134,
+      "retrieved_at_utc": "2026-10-23T05:33:16.080856+00:00",
+      "http_status": 200,
+      "content_type": "text/xml"
+    },
+    "implementer_report": {
+      "url": "https://aidstream.s3.us-west-2.amazonaws.com/documents/CashTransfersToRefugeeCommunitiesWhitePaper-20180917030903.pdf",
+      "final_url": "https://aidstream.s3.us-west-2.amazonaws.com/documents/CashTransfersToRefugeeCommunitiesWhitePaper-20180917030903.pdf",
+      "sha256": "6941713ebc2b7f95e171e1150409f389e3c8f2209501b8022dc96ae425bfead8",
+      "bytes": 1210032,
+      "retrieved_at_utc": "2026-10-23T05:31:44.555859+00:00",
+      "http_status": 200,
+      "content_type": "application/pdf"
+    },
+    "iati_registry": {
+      "url": "https://iatiregistry.org/api/3/action/package_show?id=givedirectly-ug",
+      "final_url": "https://iatiregistry.org/api/3/action/package_show?id=givedirectly-ug",
+      "sha256": "f2683b30691580510091dbf8b4032ed5b920722e36ff83308b4f2e6e95291e57",
+      "bytes": 1624,
+      "retrieved_at_utc": "2026-10-23T05:33:16.349452+00:00",
+      "http_status": 200,
+      "content_type": "application/json"
+    }
+  },
+  "disbursements": {
+    "classification": "publisher_reported_outgoing_beneficiary_expenditure",
+    "coverage": "partial",
+    "rows": [
+      {
+        "transaction_ref": "Transfers to beneficiaries Oct-Dec 2017",
+        "iati_transaction_type": 4,
+        "transaction_date": "2017-12-31",
+        "date_precision": "day",
+        "currency": "USD",
+        "amount_minor": 62087500,
+        "quarter": {
+          "label": "2017-Q4",
+          "start_date": "2017-10-01",
+          "end_date_inclusive": "2017-12-31",
+          "date_precision": "day",
+          "basis": "publisher_transaction_description"
+        },
+        "classification": "outgoing_beneficiary_expenditure",
+        "source_id": "iati_publisher",
+        "selector": "/iati-activities/iati-activity[iati-identifier='US-EIN-27-1661997-Ug-refugees-pilot']/transaction[@ref='Transfers to beneficiaries Oct-Dec 2017']"
+      },
+      {
+        "transaction_ref": "Transfers to beneficiaries Jan - March 2018",
+        "iati_transaction_type": 4,
+        "transaction_date": "2018-03-31",
+        "date_precision": "day",
+        "currency": "USD",
+        "amount_minor": 196244900,
+        "quarter": {
+          "label": "2018-Q1",
+          "start_date": "2018-01-01",
+          "end_date_inclusive": "2018-03-31",
+          "date_precision": "day",
+          "basis": "publisher_transaction_description"
+        },
+        "classification": "outgoing_beneficiary_expenditure",
+        "source_id": "iati_publisher",
+        "selector": "/iati-activities/iati-activity[iati-identifier='US-EIN-27-1661997-Ug-refugees-pilot']/transaction[@ref='Transfers to beneficiaries Jan - March 2018']"
+      },
+      {
+        "transaction_ref": "Transfers to beneficiaries April - June 2018",
+        "iati_transaction_type": 4,
+        "transaction_date": "2018-06-30",
+        "date_precision": "day",
+        "currency": "USD",
+        "amount_minor": 32057600,
+        "quarter": {
+          "label": "2018-Q2",
+          "start_date": "2018-04-01",
+          "end_date_inclusive": "2018-06-30",
+          "date_precision": "day",
+          "basis": "publisher_transaction_description"
+        },
+        "classification": "outgoing_beneficiary_expenditure",
+        "source_id": "iati_publisher",
+        "selector": "/iati-activities/iati-activity[iati-identifier='US-EIN-27-1661997-Ug-refugees-pilot']/transaction[@ref='Transfers to beneficiaries April - June 2018']"
+      }
+    ],
+    "selected_sum_minor": 290390000,
+    "currency": "USD",
+    "sum_scope": "selected_three_published_beneficiary_expenditure_rows_only",
+    "not_included": [
+      "incoming_funds_type_1",
+      "commitments_type_11",
+      "non_transfer_expenses",
+      "unclassified_july_september_2018_expenses"
+    ]
+  },
+  "activity_report_document_link": {
+    "source_id": "iati_publisher",
+    "selector": "/iati-activities/iati-activity[iati-identifier='US-EIN-27-1661997-Ug-refugees-pilot']/document-link[@url='https://aidstream.s3.us-west-2.amazonaws.com/documents/CashTransfersToRefugeeCommunitiesWhitePaper-20180917030903.pdf']",
+    "url": "https://aidstream.s3.us-west-2.amazonaws.com/documents/CashTransfersToRefugeeCommunitiesWhitePaper-20180917030903.pdf",
+    "target_source_id": "implementer_report"
+  },
+  "beneficiary_aggregate": {
+    "source_id": "implementer_report",
+    "report_month": "2018-09",
+    "report_date_precision": "month",
+    "metric": "recipient_households_self_reporting_income_increased_after_transfers",
+    "value": 87,
+    "unit": "percent_of_sampled_recipient_households",
+    "rounding": "published_rounded_percentage",
+    "denominator": 484,
+    "denominator_unit": "surveyed_recipient_households",
+    "denominator_basis": "reported_followup_sample",
+    "item_specific_valid_response_count": null,
+    "exact_positive_count": null,
+    "followup_window": null,
+    "reporter": "implementer",
+    "third_party_evaluation": false,
+    "baseline_collected": false,
+    "nonrecipient_control_tracked": false,
+    "interpretation": "descriptive_self_report_only",
+    "physical_pdf_pages": {
+      "report_month": 1,
+      "followup_sample": 6,
+      "implementer_and_design_limitations": 7,
+      "income_percentage": 12
+    }
+  },
+  "connection": {
+    "scope": "same_program_only",
+    "basis": "same_iati_activity_explicitly_links_the_report_document",
+    "exact_window_match": "unknown",
+    "household_level_linkage": "not_available",
+    "exact_followup_window": null
+  },
+  "unresolved_accounting": {
+    "costs_minor": null,
+    "refunds_minor": null,
+    "displacement_minor": null,
+    "currency": "USD",
+    "status": "UNKNOWN",
+    "whole_pilot_transfer_coverage": "not_established",
+    "individual_bank_or_processor_settlement": "not_verified"
+  },
+  "claim_limits": {
+    "economic_living_improvement": "NOT_MEASURED",
+    "manager_human_benefit": "NOT_MEASURED",
+    "manager_income_increase": "NOT_VERIFIED",
+    "causal_effect": "NOT_ESTABLISHED"
+  },
+  "limited_rights": {
+    "iati_publisher": {
+      "license_evidence_source_id": "iati_registry",
+      "license_evidence_selector": "$.result.license_id",
+      "license_id": "cc-by-sa",
+      "license_version": null,
+      "license_version_status": "UNKNOWN",
+      "scope": "attributed_minimal_aggregate_facts_and_links",
+      "raw_redistribution_in_this_packet": false
+    },
+    "implementer_report": {
+      "raw_redistribution_permission": "NOT_VERIFIED",
+      "scope": "minimal_aggregate_facts_and_source_links_only",
+      "raw_redistribution_in_this_packet": false,
+      "personal_narrative_reuse": false
+    },
+    "not_a_blanket_legal_or_ethics_authorization": true
+  },
+  "attribution": "GiveDirectly: IATI publisher and Uganda refugee pilot report; IATI Registry: publication metadata.",
+  "extraction": {
+    "version": "d003-aggregate-projection-v1",
+    "checked_on": "2026-10-23",
+    "method": "aggregate_facts_checked_against_retained_raw_bytes",
+    "raw_redistribution": false
+  }
+}
