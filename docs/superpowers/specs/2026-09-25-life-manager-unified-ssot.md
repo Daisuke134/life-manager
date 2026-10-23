@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-guided-install-20261024、base=a640a759e85b6cd53edc791e4da92e7a1d468534（最新mainを通常mergeし、他ownerのteam docs更新を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINSTALL-SHIP。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/local-release-first-install-20261024、base=a93a3a78055601cdce72733326eb27f45284e104（最新main由来の所有worktreeを継続する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINSTALL-FIRST-RELEASE。ACCOUNT接続とREADY-Aの共通runtime本人照合を実機で受け入れ、業務ready/公開INSTALLは未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -297,7 +297,7 @@ lane適用: browser ownerを既存apply_targetsから先に扱い、既存with-b
 
 - [x] INSTALL-RED: 無い公開入口、未設定/壊れた本人入力、別HOMEの正の本人設定、相対assets/再import時の実ID保持、plan無変更、Codex未認証、observe失敗、laneごとの独立適用、ownerの初回create/既存apply/不正入力停止を最少fixtureで先に失敗再現する。追加20件に対しworkerは19 failed/201 passed（8.00s）、primaryは19 failed/201 passed（8.49s）を独立確認する。既存200件＋明示apply非create契約1件はPASSし、collection/fixture errorとproduction source差分は0。installer12件の個別assertは未実装入口で止まるためGREEN時に初めて到達する。primaryは同じfixtureへselected runtime auth home、同immutable with-browser、stderrも含むprivate本文非表示のassertを追加する。実通信・private・launchctlは0とする。
 - [x] INSTALL-GREEN: 薄い入口の初回実装で担当3files220 PASSを確認する。JSON配列productのAttributeErrorを追加1件でREDにして既存readerの再利用で修復し、workerは関連12files421 PASS/31 subtests（16.64s）とlocal identity12 PASS（0.69s）を確認する。primaryのfresh read-only reviewは対話loginの案内非表示1件をblockingとし、公式Codex CLIのURL表示とbrowser起動失敗時の待機契約で根拠を確認する。隔離fake executableの実subprocessでURL非表示を1 failed（0.36s）にしてから、対話loginだけstdout/stderrを本人端末へ継承し、statusの捕捉とselected CODEX_HOMEを保持する。最終primaryの入口/owner/create/local_installの4filesは241 PASS/31 subtests（9.93s）、既存product onboardingは47 PASS。shell/AST/compile/JSON/source-boundary/diffをPASSし、実通信・実private・browser・host操作は0とする。reviewの修正再確認後にSHIPへ進む。
-- [ ] INSTALL-SHIP: 外部向けの短い手順とcatalog commandを更新し、commit/push→必要review/既存CI→main/公式readbackへ反映する。fresh read-only reviewは対話loginの修正後にblocking0とし、追加回帰を一時HOME/実通信禁止で独立1 PASS（0.32s）にする。main追加分は既存SSOTとteam docsのみで通常mergeし、保護対象memory/state差分0を確認する。本人実機でのaccepted immutableによる導入、READY-B、自然terminal/公式成果、別Mac/10,000 starsは残し、mock成功を全7jobsの本番成功にしない。
+- [x] INSTALL-SHIP: 外部向けの短い手順とcatalog commandを更新し、PR #8772/head285edc2100fba801e395f73477055dbc8b00cc81をworkflow40015497330の全13成功でmain07e9ac46171142757ccc222fccbcc15394f200beへ統合する。GitHub公式treeのsource/test/doc18filesは検証headと全blob一致する。fresh read-only reviewは対話loginの修正後にblocking0とし、追加回帰を一時HOME/実通信禁止で独立1 PASS（0.32s）にする。main追加分は既存SSOTとteam docsのみで通常mergeし、保護対象memory/state差分0を確認する。本人実機でのaccepted immutableによる導入、READY-B、自然terminal/公式成果、別Mac/10,000 starsは残し、mock成功を全7jobsの本番成功にしない。
 
 INSTALLのCI診断: PR #8772/head1abeaca17f9dc34da58874e12da1bfa91e732b7bのworkflow40012531602でWeb CTAが失敗する。既存catalog list CLI testが未導入入口数10件を固定期待し、Lancers追加後の実9件を拒否するため、同じ8filesを一時HOMEで121 PASS/1 FAILに再現する。期待値を9件へ更新し、公開Lancers commandの一致も確認する。同じ8filesは122 PASSへ戻り、production sourceや未充足業務の成功判定は変更しない。更新headの全CIを受け入れてからmergeする。
 
@@ -310,6 +310,19 @@ INSTALLの既存browser検証: 追加2casesはsource修正前に2 FAIL（0.13s�
 INSTALLのpoll test診断: fresh read-only reviewは90f503c3bcのbrowser条件をblocking0とし、追加2cases PASS（0.11s）と別skip/空結果/失敗/例外/旧readyを含む一時8probes PASSを確認する。workflow40014225303はLancers callerの既存poll testだけが436 PASS/8 subtests/1 FAILとなる。期待20回×0.5秒へsubprocess.waitのbackoffが1341項目混入するため、テストの共有stdlib time.sleep差替えを原因として調べる。primaryのCIと同じ17filesは437 PASS/8 subtests（19.77s）であり、再実行だけで解消としない。fake guard childを遅延させる一時probeで決定的に再現し、test helperのtime差替えを対象moduleだけへ限定する。production source・poll回数/間隔・本人確認条件・既存assertは変更しない。
 
 INSTALLのpoll test修復: fake guardの起動遅延だけでは再現せず、statusをflushして出力pipeを閉じた後にchildを50ms保持する終了境界probeで6 FAILを確認する。snapshot3は20回のpoll以外にsubprocess.wait由来316259項目を記録する。同じprobeはhelperのmodule.time参照だけをSimpleNamespaceへ隔離して6 PASS（3.20s）となり、同file全77 PASS（5.53s）。恒久変更はimport/helperの2追加1削除、既存test function/assertのASTは全不変、production source差分0。primaryはCIと同じ17filesを最終437 PASS/8 subtests（17.93s）に独立確認し、compile/diffもPASSする。main追加分はteam docs2filesだけであり、source変更なしとして保持する。
+
+#### INSTALL-FIRST-RELEASEのbounded修復
+
+目的・範囲: 受入済み公開Lancers installerを初回の専用LOOPS_ROOTで実行すると、共通prepareとselected Codex statusを通過した後、immutable_release不足で全7jobsがexit78/waitingになる。host.json生成済み、releases空/current無し、selector変更0。read-only容量CLIだけでもexit1/release_capacity_measurement_failed/FileNotFoundErrorとなり、既存releaseがない初回にcurrent/RELEASE.jsonを無条件で読む不具合を再現する。空容量比較前であり、provider/apply到達の成功ではない。
+
+修復方針: 共通release容量測定の初回分岐を追加し、source export/bytecodeとfresh npm ciの容量を扱う。存在する不正donor、測定失敗、空容量不足を成功へ置換しない。既存immutable/bundle再利用・main provenance・selected Python・current不変更を保持する。新しいfloor/frameworkや全lock変更、保護store cleanupの拡大は行わない。.gitattributesのroot memory export-ignoreはaccepted archive一覧が空で確認済み、今回の失敗によるmemory削除とは報告しない。
+
+所有: workerはruntime/host/disk_admission.pyとruntime/host/tests/test_disk_admission.pyの初回容量分岐・回帰のみ、primaryは必要な既存cutter integration test、本仕様、review/CI/main/実導入を所有する。他者の変更を戻さず、実GC/cutter/private/provider/launchdは開発中に実行しない。
+
+- [ ] INSTALL-FIRST-RED: current無しでpackage lockを持つ初回が失敗する回帰を追加し、既存donorの不正拒否・容量不足前export0も保持する。
+- [ ] INSTALL-FIRST-GREEN: 既存方式と標準libraryの最小修復で初回fresh installを予算へ含め、関連capacity/cutter testsを通す。
+- [ ] INSTALL-FIRST-SHIP: 独立read-only review、必要CI、main統合、公式source一致を確認する。
+- [ ] INSTALL-FIRST-ACTUAL: accepted main immutable経路から同じ公開installerを実行し、job別結果と不足本人入力を確認する。自然業務成果・別Mac・10,000 starsの未完は維持する。
 
 #### Lancers本人入力の実装計画
 
