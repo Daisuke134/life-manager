@@ -31,7 +31,7 @@ def bodies_from(site):
 
 
 class OwnedCatalogPlannerTests(unittest.TestCase):
-    def test_current_live_shaped_site_returns_none_without_audit_or_browser_or_sha_only_rewrite(self):
+    def test_current_live_shaped_site_plans_only_the_versioned_navigation_cue(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             checkout = root / "checkout"
@@ -39,12 +39,35 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
             build_site(catalog(), bundle, SHA)
             before = {p.name: p.read_bytes() for p in bundle.iterdir()}
             workspace = root / "private"
-            with patch.object(planner, "_read_served_bundle", return_value=(json.loads((bundle / "manifest.json").read_text()), bodies_from(bundle), (bundle / "manifest.json").read_bytes())), \
-                 patch.object(planner, "audit_sources", side_effect=AssertionError("normal site must not audit sources")), \
-                 patch.object(planner, "verify_candidate_in_browser", side_effect=AssertionError("NO_ACTION must not start browser")):
-                self.assertIsNone(planner.plan_catalog_change(checkout, workspace, SHA, NOW, run_id="123"))
-            self.assertFalse(workspace.exists())
+            now = datetime.now(timezone.utc)
+            rows = [{"id": row["id"], "url": row["url"], "final_url": row["url"],
+                     "status": "REACHABLE_NOT_OUTCOME", "http_status": 200,
+                     "sha256": sha256(row["id"].encode()).hexdigest(), "observed_at": now.isoformat()}
+                    for row in catalog()["resources"]]
+            reference_bytes = b"W3C aria-current page token: the current page in a set of pages."
+            reference = Source("w3c:aria-current-1.2", planner.CURRENT_PAGE_W3C_URL,
+                               "W3C Document License", "allowed_with_conditions",
+                               sha256(reference_bytes).hexdigest(), now, "public_nonpersonal")
+            served = (json.loads((bundle / "manifest.json").read_text()), bodies_from(bundle),
+                      (bundle / "manifest.json").read_bytes())
+            with patch.object(planner, "_read_served_bundle", return_value=served), \
+                 patch.object(planner, "audit_sources", return_value={"sources": rows}), \
+                 patch.object(planner, "_read_owned_baseline_page",
+                              return_value=(bodies_from(bundle)["finance.html"], now)), \
+                 patch.object(planner, "_read_current_page_reference", return_value=(reference, reference_bytes)), \
+                 patch.object(planner, "verify_candidate_in_browser", return_value={"status": "P0_BROWSER_FIXTURE"}), \
+                 patch.dict("os.environ", {"MANAGER_RELEASE_ENABLED": "true"}):
+                result = planner.plan_catalog_change(checkout, workspace, "c" * 40, now, run_id="123")
+                self.assertEqual(result[0].criteria.version, "owned-digital-technical-v2")
+                self.assertEqual(result[0].criteria.candidate.action, "ADD_CURRENT_PAGE_CUE")
+                self.assertEqual(result[0].criteria.candidate.target, "manager-support/finance.html")
+                prepared = prepare_owned_change(*result, datetime.now(timezone.utc), schema="manager.digital-handoff.v2")
+            self.assertEqual(prepared.status, "PREPARED_PLATFORM_AUTHORITY_REQUIRED")
+            self.assertEqual(prepared.packet["changed_pages"], sorted(PAGES))
             self.assertEqual(before, {p.name: p.read_bytes() for p in bundle.iterdir()})
+            candidate = workspace / "candidate"
+            self.assertIn(b'aria-current="page"', (candidate / "finance.html").read_bytes())
+            self.assertNotIn(b"aria-current", (candidate / "mental.html").read_bytes())
 
     def test_selector_uses_exact_catalog_title_and_reviewed_url_observation(self):
         c = catalog()
@@ -57,6 +80,59 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
         opportunity = planner.find_catalog_opportunity(baseline, c, rows)
         self.assertEqual(opportunity.action, "IMPROVE_ACCESSIBILITY")
         self.assertEqual(opportunity.required_label, c["resources"][0]["title"])
+
+    def test_current_page_cue_selects_finance_then_mental_then_no_action(self):
+        with TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / "manager-support"
+            build_site(catalog(), bundle, SHA)
+            bodies = bodies_from(bundle)
+
+            opportunity = planner.find_current_page_opportunity(bodies)
+            self.assertEqual(opportunity.action, "ADD_CURRENT_PAGE_CUE")
+            self.assertEqual(opportunity.target_path, "finance.html")
+
+            finance = bodies["finance.html"].decode("utf-8")
+            finance = finance.replace('<a href="finance.html">', '<a href="finance.html" aria-current="page">', 1)
+            bodies["finance.html"] = finance.encode("utf-8")
+            opportunity = planner.find_current_page_opportunity(bodies)
+            self.assertEqual(opportunity.action, "ADD_CURRENT_PAGE_CUE")
+            self.assertEqual(opportunity.target_path, "mental.html")
+
+            mental = bodies["mental.html"].decode("utf-8")
+            mental = mental.replace('<a href="mental.html">', '<a href="mental.html" aria-current="page">', 1)
+            bodies["mental.html"] = mental.encode("utf-8")
+            self.assertIsNone(planner.find_current_page_opportunity(bodies))
+
+    def test_current_page_selector_fails_closed_on_ambiguous_or_wrong_navigation(self):
+        with TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / "manager-support"
+            build_site(catalog(), bundle, SHA)
+            original = bodies_from(bundle)
+            mutations = {
+                "duplicate_self_link": lambda text: text.replace(
+                    '<a href="finance.html">', '<a href="finance.html">', 1
+                ).replace('</nav>', '<a href="finance.html">duplicate</a></nav>', 1),
+                "wrong_nav": lambda text: text.replace('aria-label="主な案内"', 'aria-label="別の案内"', 1),
+                "nav_outside_header": lambda text: text.replace('<header>', '<header></header>', 1),
+                "wrong_current_value": lambda text: text.replace(
+                    '<a href="finance.html">', '<a href="finance.html" aria-current="step">', 1
+                ),
+                "foreign_current": lambda text: text.replace(
+                    '<a href="index.html">', '<a href="index.html" aria-current="page">', 1
+                ),
+                "duplicate_current_attribute": lambda text: text.replace(
+                    '<a href="finance.html">',
+                    '<a href="finance.html" aria-current="page" aria-current="page">', 1
+                ),
+                "missing_self_link": lambda text: text.replace(
+                    '<a href="finance.html">生活費・仕事・借入</a>', '', 1
+                ),
+            }
+            for name, mutate in mutations.items():
+                with self.subTest(name=name):
+                    bodies = dict(original)
+                    bodies["finance.html"] = mutate(bodies["finance.html"].decode("utf-8")).encode("utf-8")
+                    self.assertIsNone(planner.find_current_page_opportunity(bodies))
 
     def test_positive_plan_returns_bound_context_accepted_by_existing_prepare_api(self):
         with TemporaryDirectory() as tmp:
@@ -85,6 +161,8 @@ class OwnedCatalogPlannerTests(unittest.TestCase):
                  patch.dict("os.environ", {"MANAGER_RELEASE_ENABLED": "true"}):
                 result = planner.plan_catalog_change(checkout, root / "private", "c" * 40, now, run_id="12345")
                 self.assertIs(type(result[0]), OwnedChangeContext)
+                self.assertEqual(result[0].criteria.version, "owned-digital-technical-v1")
+                self.assertEqual(result[0].criteria.candidate.action, "IMPROVE_ACCESSIBILITY")
                 self.assertEqual(result[0].run_id, "12345")
                 self.assertEqual(result[0].baseline_bundle.name, "baseline")
                 self.assertEqual(result[0].candidate_bundle.name, "candidate")

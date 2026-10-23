@@ -116,14 +116,14 @@ class Candidate:
 
     def __post_init__(self):
         for text in (self.candidate_id,self.action,self.target,self.technical_criterion):_text(text)
-        if self.action not in {'NO_ACTION','ASK','PASS','CORRECT_LINK','IMPROVE_ACCESSIBILITY'}:
+        if self.action not in {'NO_ACTION','ASK','PASS','CORRECT_LINK','IMPROVE_ACCESSIBILITY','ADD_CURRENT_PAGE_CUE'}:
             raise ValueError('outside bounded candidate catalog')
         if (type(self.source_refs) is not tuple or any(type(r) is not str or not r.strip() for r in self.source_refs)
                 or len(set(self.source_refs))!=len(self.source_refs) or type(self.outcomes) is not OutcomeVector):
             raise ValueError('explicit source references and outcome vector required')
         if (type(self.command_cost_usd) is not Decimal or not self.command_cost_usd.is_finite()
                 or self.command_cost_usd!=0):raise ValueError('initial owned release has no financial transfer')
-        if self.action in {'CORRECT_LINK','IMPROVE_ACCESSIBILITY'} and not self.source_refs:
+        if self.action in {'CORRECT_LINK','IMPROVE_ACCESSIBILITY','ADD_CURRENT_PAGE_CUE'} and not self.source_refs:
             raise ValueError('technical action needs source evidence')
 
     @property
