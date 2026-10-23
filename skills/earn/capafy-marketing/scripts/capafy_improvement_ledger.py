@@ -39,6 +39,31 @@ def funnel(reconcile: dict) -> dict:
     }
 
 
+OUTSIDE_SHARE_FLOOR = 0.20  # below this our own distribution is too small to learn from; grow reach first
+
+
+def channels(reconcile: dict) -> dict:
+    """7d views/trials/paid split into the marketplace's own surfaces (internal) and everything we drive."""
+    split = {"internal": {"views": 0, "trials": 0, "paid": 0}, "outside": {"views": 0, "trials": 0, "paid": 0}}
+    for agent in reconcile["traffic_sources"].get("by_agent", {}).values():
+        for row in (agent.get("last_7d") or {}).get("by_source", []):
+            bucket = split["internal" if row["source_type"] == "internal" else "outside"]
+            bucket["views"] += row["views"]
+            bucket["trials"] += row["trial_orders"]
+            bucket["paid"] += row["paid_orders"]
+    total = split["internal"]["views"] + split["outside"]["views"]
+    split["outside_view_share"] = _rate(split["outside"]["views"], total)
+    return split
+
+
+def lever(split: dict) -> str | None:
+    """Which channel the next change should target."""
+    share = split["outside_view_share"]
+    if share is None:
+        return None
+    return "outside_reach" if share < OUTSIDE_SHARE_FLOOR else "internal_conversion"
+
+
 def weakest_stage(f: dict) -> str | None:
     """The stage with the lowest conversion, judged against a 'healthy' marketplace benchmark."""
     if not f["impressions"] or f["view_rate"] is None:
@@ -88,6 +113,8 @@ def main(argv=None) -> int:
                                    "action": previous["action"]}, f)
     row = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "funnel": f,
            "weakest_stage": stage, "previous_verdict": prior}
+    split = channels(json.loads(RECONCILE.read_text()))
+    row.update(channels=split, lever=lever(split))
     if args.action:
         row.update(action=args.action, metric=args.metric, baseline=f.get(args.metric))
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
