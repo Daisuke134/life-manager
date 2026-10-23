@@ -30,6 +30,10 @@ Missing, malformed, or empty input fails the hook and preserves an existing
 configuration. Staging builds still require their separate private input.
 This follows Apple's [custom build script placement](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts).
 
+The RevenueCat package lock uses `5.78.0`, which includes the official
+[Xcode 27 initializer compilation fix](https://github.com/RevenueCat/purchases-ios/pull/6949).
+Other package pins remain unchanged.
+
 Run the isolated hook checks with:
 
 ```sh
