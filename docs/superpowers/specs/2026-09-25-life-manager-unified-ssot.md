@@ -382,6 +382,22 @@ PROVENANCEのCI修復: PR #8784/head3cb947e5cd2589326af9fc6dc74be0f2ba5ed591/wor
 
 PROVENANCEの反映計画: global ~/loops/currentのaccepted ALL23cce9dcをdonorとして、accepted d8e cutterからmain8df3cf68の新ALL immutableを作る。LOOPS_ROOT=~/loops、ACTIVATE_CURRENT=0、KEEP99999、runtimeは既存host/対象plistと同じmanaged venvを使う。Homebrew donorとvenvは同じPython3.14.7本体へresolveしcache tagもcpython314のため、既存donor検証に従いprefix表記のためのhost全体変更を加えない。cutterのcanonical容量測定で再利用/容量条件を満たす時だけexportする。main祖先/readonly/全source一致を確認後、新releaseの既存lm-loop apply --loaded-idle-onlyへAPPLY_TARGET=lm-fence-reconciler/RELEASE_ROOT=<new>を指定し、safe preflight後に対象1ownerだけ採用する。busyなら結果を読み再評価し、無条件stopしない。既存control-plane safety guardはeffect-free queued occurrenceをcancelし得るため、queued全行不変とは約束しない。他owner effect fenceの直接解除、current変更、provider再送、Mac/app-server restartは行わない。独立fresh read-only反映reviewはblocking0/ship、metadata上のhost/plist/realpath/cache tag/target絞込み/rollbackを確認済み。source protected paths0を確かめ、旧marker候補と新proof、native loaded argv/installed/event SHA・自然実行を照合する。
 
+PROVENANCEの実反映: accepted d8e cutterからALL immutable `/Users/anicca/loops/releases/20261024T064025-8df3cf68` を作り、25.29s/exit0/stderr0、required323,166,208bytes、既存7bundles再利用を確認する。manifestはmain8df3cf68/ancestor-of-origin-main/readonly、runtimeはhostと同じmanaged venv、global current23cce9dcは不変。最初の対象applyは旧run稼働中のためskipされ、CLI exit0だけを採用としない。旧run18e1463289ca8888-92176が自然終了しreport0/native not runningとなった後、同じ既存applyを再実行する。safe preflight PASS、exit0/1.85s/stderr0/changed=true、installed SHA8df3cf68、native argvとinstalled plist一致、他owner操作0。直後のevent SHAは旧23cce9dcのままであり、新sourceの自然実行は未完とする。
+
+PROVENANCEの保持readback: read-only SQLite snapshotと私有marker readerで旧18件を前後照合する。application9件はclaimed6/released3、negotiate9件はclaimed7/released2のまま、occurrence/state digestも両ownerで一致する。新accepted helperのproofは18件すべて0。unknown総数はapplication186/negotiate226のまま、DB変更/resolve/再送0。unsafeな旧application7件を含め保持を確認するが、未送信やprovider成果を証明したとはしない。
+
+#### RUNTIME-SHAREDの限定反映計画
+
+目的・範囲・完了条件: 既に設定済みのLancers application/negotiate/paid/work-sync/telegram-reportの5ownerを同じaccepted ALL8df3cf68へ既存local installer APIで接続し、対象ごとのinstalled/loaded readbackと自然実行を確認する。storefrontの本人product不足、browser keepalive、旧release/bundleの削除、global current、認証/model/provider、他ownerは変更しない。自然実行や容量条件が不足する場合はそのまま未完と記録する。
+
+独立read-only reviewはblocking0/ship。実5plistは標準3argvで追加flagなし、LANCERS独自path override/CODEX_HOMEなし、host runtime/state/log/browser identity/calendar bindingは新registryと一致し、旧envとUmaskは既存helperで保持される。旧acceptance053439を参照するのはapplication/negotiateの2件だけで、他3件を同じ旧rootと仮定しない。
+
+手順: credential SSOT全体とbrowser registry/leaseを値非出力で確認する。accepted新ALLからvalidate_release(newALL, profile)→installer._observe(newALL, env, home)の非None→installer plan本文の対象5件すべてmissing=[]を必須としてから、既存local_install.apply_targets(newALL, exact5, env)を実行する。_observe失敗時の旧observation fallbackやplan exit0だけを成功根拠にしない。loaded-idle-onlyとsafe preflightを保持し、skippedは採用完了にしない。未確認effect fenceは保持し、provider送信やDB直接操作をしない。新script/scheduler/第二installerは作らない。
+
+- [ ] SHARED-INPUT: fresh公式account観測と対象5件の本人入力条件を確認する。
+- [ ] SHARED-APPLY: exact5だけを既存APIで適用し、skip/installed/loadedを対象別に確認する。
+- [ ] SHARED-NATURAL: 新sourceの自然terminalと容量条件を対象別に確認する。provider成果は別の公式receiptで判定する。
+
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
 
 #### Lancers本人入力の実装計画
