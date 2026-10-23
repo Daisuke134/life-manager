@@ -1,3 +1,11 @@
+# Current candidate: behavior transformation — unvalidated
+
+**2026-10-23 scope revision:** 使命は「行動変容を通じて、苦しみを終わらせることを目指す」。非臨床の成人が自ら選ぶ一つの行動に対する説明・任意の実践・振り返りを候補とする。需要・対象・媒体・効果は未検証。新protocolは[`BEHAVIOR_TRANSFORMATION_STUDY_V2.md`](../../pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md)でDRAFT/参加者0/NOT_REGISTERED。
+
+旧U002/U003/U005は歴史的な支援アクセス研究・技術選定・公開proofの限定受入で、新対象の需要/実行動改善を認定しない。現在の7パスは実行・復旧の技術試験面として保持する。新しい対人channelには別の実範囲と研究条件が必要。施設/センサー/金融純増の7件は未達成のskippedへ退役。[現仕様](../MANAGER_PRODUCT_SPEC.md)と既存registryを優先する。
+
+## Historical U003 selection and evidence — preserved
+
 # First wedge: access to official financial support
 
 > **Current interpretation, 2026-10-23:** U003 has been accepted as the bounded technical first-use selection below; commercial demand and human outcomes remain unvalidated. F004/F007 have been retired as `skipped` under Phase06 v2; older text below about preserving unresolved original finance/facility prerequisites is historical. No such partner is required for the owned digital loop. The long-term customer hypothesis is an operator paying to maintain a critical public-service journey; validate its actual recurring problem, existing alternatives, authority and willingness to pay before expanding the service offered around the entity. [U002's five published real-interview notes](U002_PUBLISHED_INTERVIEW_FINDINGS_20261023.md) have been accepted only as historical UK support-access problem evidence; own interviews conducted: 0. They do not validate the current Japanese navigation page or Manager demand. See [current entity specification](../MANAGER_PRODUCT_SPEC.md) and [primary-source findings, including a null enrollment result](../research/manager-strategy-20261022/REPORT_JA.md).

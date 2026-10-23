@@ -1,0 +1,528 @@
+{
+  "revision": "BEHAVIOR_TRANSFORMATION_20261023",
+  "source_commit": "fb37dd25bc26dc03eac9facc9ad442a447127132",
+  "source_path": "products/manager/docs/roadmap/tasks.json",
+  "source_sha256": "a019e74684a647b8ef09cc79a9bb38896c7c95a0716b6b7b055174c3c549300a",
+  "previous_counts": {
+    "done": 80,
+    "todo": 30,
+    "skipped": 3
+  },
+  "previous_id_order": [
+    "P001",
+    "P002",
+    "P003",
+    "P004",
+    "P005",
+    "P006",
+    "R001",
+    "R002",
+    "R003",
+    "R004",
+    "R005",
+    "R006",
+    "R007",
+    "R008",
+    "L001",
+    "L002",
+    "L003",
+    "L004",
+    "L005",
+    "L006",
+    "L007",
+    "L008",
+    "L009",
+    "L010",
+    "L011",
+    "L012",
+    "H001",
+    "H002",
+    "H003",
+    "H004",
+    "H005",
+    "H006",
+    "H007",
+    "H008",
+    "H009",
+    "H010",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008",
+    "K001",
+    "K002",
+    "K003",
+    "K004",
+    "K005",
+    "K006",
+    "K007",
+    "K008",
+    "K009",
+    "K010",
+    "K011",
+    "K012",
+    "K013",
+    "K014",
+    "F001",
+    "F002",
+    "F003",
+    "F004",
+    "F005",
+    "F006",
+    "F007",
+    "F008",
+    "F009",
+    "C001",
+    "C002",
+    "U001",
+    "U002",
+    "U003",
+    "U004",
+    "U005",
+    "U006",
+    "U007",
+    "U008",
+    "D001",
+    "D002",
+    "D003",
+    "D004",
+    "D005",
+    "D006",
+    "D007",
+    "D008",
+    "D009",
+    "D010",
+    "D011",
+    "D012",
+    "D013",
+    "D014",
+    "D015",
+    "D016",
+    "V001",
+    "V002",
+    "V003",
+    "V004",
+    "V005",
+    "V006",
+    "Y001",
+    "Y002",
+    "Y003",
+    "Y004",
+    "Y005",
+    "Y006",
+    "Y007",
+    "Y008",
+    "G001",
+    "G002",
+    "G003",
+    "G004",
+    "G005",
+    "G006"
+  ],
+  "original_rows": {
+    "D004": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D004",
+      "depends": [
+        "D003",
+        "U007"
+      ],
+      "learn": "金融における因果の再現性",
+      "change": "別地域か別案件で限定的な支援効果を再確認する",
+      "verify": "最初の成功を複数案件に外挿せず、比較可能な追試レポートを出す",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D005": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D005",
+      "depends": [
+        "F008"
+      ],
+      "learn": "センサーの誤差と時間交絡",
+      "change": "屋内測定と外気・気温・湿度を時刻・単位付きで接続する",
+      "verify": "無効・欠測・校正外の測定値を自動排除し、元データへ遡れる",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/physical_outcomes.py",
+        "tests/test_physical_outcomes.py",
+        "docs/verification/D005_PUBLIC_SOURCE_READINESS_20261023.md"
+      ],
+      "implementation_status": "PUBLIC_SOURCE_AUDIT_AND_QUALITY_FLAG_FIX_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D006": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D006",
+      "depends": [
+        "D005"
+      ],
+      "learn": "物理介入の対照条件",
+      "change": "介入前後だけでなく同時期の比較領域を設計する",
+      "verify": "時間変化と介入効果の識別条件を事前文書化",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/physical_outcomes.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D007": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D007",
+      "depends": [
+        "D006"
+      ],
+      "learn": "便益と副作用のトレードオフ",
+      "change": "改善量と電力・騒音・費用の独立計測を合わせる",
+      "verify": "環境改善の純効果と副作用を別指標で開示する",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/physical_outcomes.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D008": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D008",
+      "depends": [
+        "D007"
+      ],
+      "learn": "環境指標と健康改善の距離を理解する",
+      "change": "PM2.5などの減少と直接的な健康効果を別の証拠ランクに格納",
+      "verify": "曝露データを病気が減ったという臨床成果と誤表示しない",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D009": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D009",
+      "depends": [
+        "D008",
+        "U007"
+      ],
+      "learn": "領域をまたいだ効果の再現性",
+      "change": "別施設で同一の環境介入証拠フローを再現する",
+      "verify": "許可された複数施設で再現可能なP2以上の成果を報告",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D012": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D012",
+      "depends": [
+        "D011"
+      ],
+      "learn": "生活安定への遠位アウトカム",
+      "change": "収入機会の純増と労働時間・費用・その他機会損失を評価",
+      "verify": "名目報奨額ではなく純額と分母を示す",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/opportunity_outcomes.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D014": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D014",
+      "depends": [
+        "D013"
+      ],
+      "learn": "苦痛を公共データだけで測る限界",
+      "change": "支援団体/公的機関の公表集計との協働プロトコルを作る",
+      "verify": "同意・倫理・匿名集計を守り、公開しない個票をManagerに取得しない",
+      "status": "todo",
+      "external": "適切な倫理審査・団体の協力・公開集計の可用性",
+      "implementation_evidence": [
+        "pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D015": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D015",
+      "depends": [
+        "D014"
+      ],
+      "learn": "精神面への介入の有害な副作用",
+      "change": "当事者保護、過剰介入、誤評価、否定的影響の停止基準を定義",
+      "verify": "被害や不確実性がある場合はno_action・専門家による評価へ",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "D016": {
+      "section": "09. 領域横断の祝福・成果証拠",
+      "id": "D016",
+      "depends": [
+        "D015",
+        "D012",
+        "D009"
+      ],
+      "learn": "複数分野の便益を比較する限界",
+      "change": "経済・身体・精神の各アウトカムを比較可能な証拠階層にまとめる",
+      "verify": "各分野の指標を単純合算しない。合成スコアは根拠と重みを明示",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "U004": {
+      "section": "08. 最初の受益者と製品市場適合の検証",
+      "id": "U004",
+      "depends": [
+        "U003",
+        "F002"
+      ],
+      "learn": "アウトカム事前定義と検出力",
+      "change": "pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定",
+      "verify": "実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない",
+      "status": "todo",
+      "external": "独立した実験実施協力・同意",
+      "implementation_evidence": [
+        "pilot/FIRST_STUDY.md",
+        "pilot/RESEARCH_PROTOCOLS_20261022.sha256"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "U006": {
+      "section": "08. 最初の受益者と製品市場適合の検証",
+      "id": "U006",
+      "depends": [
+        "U004",
+        "F005"
+      ],
+      "learn": "独立読み戻しの達成を測る",
+      "change": "許可されたパイロットの外部receiptと観測をケースに保存",
+      "verify": "1件以上の実介入を第三者の公開データで確認し、未知状態を成功にしない",
+      "status": "todo",
+      "external": "パイロット対象の明示的な権限と資源",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "U007": {
+      "section": "08. 最初の受益者と製品市場適合の検証",
+      "id": "U007",
+      "depends": [
+        "U006",
+        "F006"
+      ],
+      "learn": "純便益と副作用を別集計する",
+      "change": "人の便益・費用・置換効果の事前登録済み比較レポートを作る",
+      "verify": "一次指標の効果量と不確実性を示し、未測定は未測定と報告",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/causal_analysis.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "V001": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V001",
+      "depends": [
+        "K014",
+        "D016"
+      ],
+      "learn": "構造上の一般性と性能上の一般性を分ける",
+      "change": "金融・環境・仕事/社会支援の3アダプタで同じカーネルの契約テスト",
+      "verify": "分野固有の分岐をカーネルへ追加せず、共通の契約を満たす",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/adapters/fixtures.py",
+        "tests/test_outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "V002": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V002",
+      "depends": [
+        "V001"
+      ],
+      "learn": "予測校正と因果推定の別評価",
+      "change": "OutcomeBenchでMAE/TVD・ATE error・実世界readback・harmsを独立採点",
+      "verify": "高い模倣精度だけで実世界P4認定しない回帰テスト",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py",
+        "manager_core/causal_analysis.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "V003": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V003",
+      "depends": [
+        "V002"
+      ],
+      "learn": "外挿先のシフトと頑健性",
+      "change": "国・所得層・領域・時間でholdoutと分布外検知を設計",
+      "verify": "未見集団の誤差と対象の公開範囲を明示、不確実なら実行停止",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "V004": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V004",
+      "depends": [
+        "V003"
+      ],
+      "learn": "自己改善と人間の許可は両立する",
+      "change": "新しいポリシーを隔離環境→シャドー評価→限定実行へ段階昇格",
+      "verify": "停止/ロールバック可能。予算・権限を自己拡張できない",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/governance.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "V005": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V005",
+      "depends": [
+        "V004"
+      ],
+      "learn": "第三者再現とプライバシーの両立",
+      "change": "再現できるソース・評価コード・版・集計結果を権利を守って公開",
+      "verify": "第三者がP1-P4レベルの判定を同じ結果に再現できる",
+      "status": "todo",
+      "external": "公開の承認と外部資料の利用許諾",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    },
+    "V006": {
+      "section": "10. ベンチマーク・一般化・自己改善",
+      "id": "V006",
+      "depends": [
+        "V005"
+      ],
+      "learn": "実装数ではなく人間への成果で学習",
+      "change": "数十案件をまたぐ費用/純便益/害/失敗のポートフォリオを構築",
+      "verify": "正・負・不明の効果をすべて残し、虚偽の累計改善値を防ぐ",
+      "status": "todo",
+      "external": "none",
+      "implementation_evidence": [
+        "manager_core/outcome_bench.py"
+      ],
+      "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    }
+  },
+  "unchanged_done_row_sha256": {
+    "P001": "9fb3c4798ed56c728878546b945a451c918d7108ae995fa7af40afd30a87e05e",
+    "P002": "4b6505260bd2f00b333fe9a44f6c11c186a89eaf24c6e647d24182917a267d31",
+    "P003": "5771ca9f123826318c36db5bb55f9002d68bb4da295aabcb4b3a3ac996fb0a5f",
+    "P004": "435766bba8b60a41b1b7a838c25a4f8dfac0990b718607cc187070726d2c9b85",
+    "P005": "131a409abf30640f968539cabfd53269078ac23aa5d5a4c90def2466793512f7",
+    "P006": "f76a8e961ec6fff9ea51299e22528406e2d5b66f3c5bb91a30b00712d9d62c37",
+    "R001": "fc7cbcd797ebfe8296250b82dd1ed5292269086760f9bbcfd5dfc426596a4676",
+    "R002": "7a78a678c62b52bc082cbc189cfe6907844e863b07c96ad41acb6bd4bbf9e8d8",
+    "R003": "4f1cfbd3be5c3735f606a2131869748a9a186160f53a4cddc84828522083ba6a",
+    "R004": "2756e55baf81f57c908b5ce6fe83f98a2bffda73d49d471f88eb6fc0dfe19eaf",
+    "R005": "4da374123129e8c965292d4f0174af525a343fbfb884c5991047521023de35e9",
+    "R006": "f6e56d9918abda011e2638c584a3d52fc2a87417dc89a92f4fc15ff1c70d5bcc",
+    "R007": "8eac7bf467f1e0937f6ad164e3a013e86193901f0984427f140badd6d03b7f2a",
+    "R008": "e6602d3173a29e226b8ee24b27779c866f8b09de18e98e1b8d92c2d4ce64ad07",
+    "L001": "d2a18282a34709980193c514007b7634121fc063ffa0a1e77ffbb2637c8414ec",
+    "L002": "b62d76a51cbf275f621505ff829655da4f8ca8841de9b78670c4ac507d988156",
+    "L003": "2229b3f5f33c842e290e331ea28d57df8fe82130dd3ea0540b1449666969f02f",
+    "L004": "5e178d2af2709c22b48845e87b1dceb225b3f3e74afc9c04b99e04382a5fd7e5",
+    "L005": "c6b8524e9ed1b1a82bba24e2355a45a78f5055fe79655efe31e3e98a9b2d7fa5",
+    "L006": "c1f08e4de2b16c59681584a8e9cb8dbe01737910740a6159b7e3175a52ed7ca9",
+    "L007": "bc75d701096df86c4264a3b2d4ee15b29bc9c8ac39498999acc8dabcebcffad8",
+    "L008": "87bf3fb3b89ea2cf19568a3a5ef44184b9b5bfe53a3d7df45c3c7d80310da256",
+    "L009": "815c7d51fe60ef32e6779165b761dd47b28de4ee01d51c8ce918f81ea2a45e16",
+    "L010": "7c4c3c848280457550a477eb549784c80eef9a1b0b5f221afd29618fd37802e9",
+    "L011": "b63eeccd9e598a958310d75fa1274b46fc79c1c18409a778cf7b89e67de01889",
+    "L012": "5102aa589970116a1aad42ea365046d6c5c5ff8b04114c2073eaf96827eca734",
+    "H001": "8e228ce4263c33a30728a65b120838cf6fd8c92786612da903dee0a25c4107b9",
+    "H002": "20b45bdd113d7a73139ad9c2e8b36146659d6dfdfdb5dd70ccbb33ab97cf64d5",
+    "H003": "79ac3a1842965775376a03eafcb17ef632ea8c4a35d853555927f33ae148e89b",
+    "H004": "652c84a8b0d30c4490bf07eb2b80942bf9889f0126d9c590b501c7872eb7bc01",
+    "H006": "8541fad376a5dcb1e44b69eac677c09293dc1cfef4505fdbae2dcf910b97a8c9",
+    "H007": "b571021b2bf0cd99329561696b19fe65dc9024cc0ee0273320488b7890235eb4",
+    "H008": "51dcebba542a6fecebba55d0bff45efa3b59a8173f2b92c11544e59bea3f532c",
+    "H009": "1991fbade1dad6082e64857cfdcab353793609612aaf19cfcb850270f23d5d19",
+    "H010": "59fd8be85d1b0970e6cc26227fcc0b1bf629d00d013ccf37a1d6663fcdd7ccbd",
+    "S001": "a5a594a7be66028b45952c0c12dec958abaecd853915a17d5372923fc09c7888",
+    "S002": "e81c059c83536714593c058f378c0eb8b6f3f3548c66b441b4998540cdd475e6",
+    "S003": "e7a305117cb398b1064fdc5264a53c15a8f32eadf272b31c06462d32999f429d",
+    "S004": "806781a92ae0f86879aa5dfe6fd72d054ad0bbf6d79bfd67e501dfee06f61a16",
+    "S005": "ecc03ca0742947b90aaa606a7d7f5c3ac42a4454b6950d5711790314071935f7",
+    "S006": "7e724e20e33f8c668c55397e7e3e3148963977957d260c08215f0b74efe8a3bb",
+    "S007": "bbea194268d607a083f7ddaed09070667145cb13a57bea4d6b1638ad90d06db5",
+    "S008": "873c38ad121d2d75f60bc65617b0aa212f4f979e676099ba1916692ef11f0afb",
+    "K001": "068e1d278945d7032a926a1d00603beb6b6545d251cf33624983f5cc473df459",
+    "K002": "4000a377dddff0dd5ff6dffd05e10a5260441c6e5b4e65e9a8e77882d45fed7c",
+    "K003": "ab7957ae5d41d9eb2da1176a65e5752b7488f553f3a712a52845cdea80fd29e0",
+    "K004": "4b8a00d6d7067c1fcfc6f49c937645e31631a0fe08df5474748a51ee28def609",
+    "K005": "d0c853bcc996040a12f57f35c388a14f1c741719a8ee905f62407bad1ad1673f",
+    "K006": "e97ad73adc1ccbdd429d6b12e1c3a65ab2d5c68bfd1f87ff66163628a40048bf",
+    "K007": "cfe2b5d9505520aa32c3d0055a5253fe69fcb5224c3758b0325c557ed6e242a3",
+    "K008": "fad5c2f22fd69ab3afed4cce454f6321922c44e0c4fece244af5773af3fdda85",
+    "K009": "ed404d16b35688104e53f4c035d4d088aec4a6cca14e795fbba6148aeb73fef6",
+    "K010": "b6a80d6d2354a0bbd81759452ec18d4fae4ed4cbab9eeb3e67183b259c85e1a2",
+    "K011": "63ffcd3248787b6ac6045fd3aa7ccbd7a4c5c4643107f10a56a33fff36067760",
+    "K012": "30addd1b37ecf8b634d378bb0e6250abf9827ac84cda520c40bcb8a3eaeb1a32",
+    "K013": "34f3a5b552d864e02ef06127e77e498fdd5d2b0a0fa7326b2524db0cd03ad59c",
+    "K014": "53dcf7567ec549c15590c5acb53ced9f8741cae1876a90c7a3dcb929a0483307",
+    "F001": "332eb70e987ccc1bd0aa517730399d4d4ad93d9de8c76e7fdf77ae076bb1bc43",
+    "F002": "dd235f4b491ee0ec91c0f2e779d53f933e61dcf026ba3c94daf85ee103dd5de3",
+    "F003": "959d1770f71b0c7cfa92967479fa1ddb191df0ca94134f70afce0b8f74820c91",
+    "F005": "a1e7ab5a9d6809cee494d1001f7e9c83014cd5a3f7e2233457df473b3a3c84d0",
+    "F006": "943e21483979d44691d50736574c1b5157b784e5fbc790831d0f356e9a37f35b",
+    "F008": "575c275be5a3cd56451c89de96960db00cbd25c16d5496e6332ac4fa81b700cc",
+    "F009": "58eb47ded344de50b3d99b0684d77cd5710d10f05ba2fa8cb5c81f0f1ae0381c",
+    "C001": "b0f0b89ddfab9e64e65abefdc9031cd60a2d90bfc5d728a5a3b79dea35c21c5d",
+    "U001": "535732cba9f4d47901d3ff67733ee124e189c99e338c2342102991c0d6a9c82d",
+    "U002": "6f8bd4cd81f76f7c51002c312a03923244e99bb92aa83483665be44f08fc46d3",
+    "U003": "13a2e534f390c7a7ba1bcc5925c7a49b1ec7fd33918fa35f5bd50c6f01d75550",
+    "U005": "bb27ee086992217a6bb7bc578b4b4742b1ff882ff3234d69dae3dc56112c9fa3",
+    "D001": "9d347b84a6b5178bf91bdc57a1dd8387d840335a006bcfbae7d66fedf07ae85a",
+    "D002": "57c7cd9454ec53c88a5a9cbfe66f1a2cf9721d62f0f8de4fbeae3d6e95d5112e",
+    "D003": "8a285cc2452b7203da5318906867214765f332f5ac759b4bc7c52a629a35f2c9",
+    "D010": "764f4bd3725a615dc7408a4e71cfa70554414cba632a310dff791c7c21fc48fd",
+    "D011": "164ee42c7cfeb228385561a227b10027f8badadb5434535b259e905748844e55",
+    "D013": "6e1c15f38067cd9c2dfc772663c24ed84969dc0b4780d64214912eb1e8abba07",
+    "Y001": "f6c1c28fe17b531f24c3b9631a2d73210b484a680127fb3850e0630d2a8980a7",
+    "Y002": "33effa9e8b3ee29f75f76ba14e52a4fb292fe9f5d77ac8adb2828aaca7a221a6",
+    "Y004": "b560317c4111e136a1db54e01e278dabf54dd4e8b89a6dffb311857707e3ce18",
+    "Y006": "7a22a6befa940f5111cca9a2068f089c90eb6dfb5aa1f335e8b845994bb5ee64",
+    "Y007": "df526bffb03899ab1921fdad5f040b967519ce98705790601fe6afe51c5c71a4"
+  },
+  "meaning": "Immutable historical evidence, not an active task registry. Scope retirement is not completion."
+}

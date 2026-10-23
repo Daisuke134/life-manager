@@ -1,20 +1,16 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
-## Manager lane優先順 — 2026-10-23（所有者指定）
+## Manager lane優先順 — 2026-10-23 行動変容への改訂（所有者指定）
 
-Managerは仏教的AIエンティティ／デジタル仏陀という呼称を使う。このlaneでは**本体・agentの実装と受入を先にし、新しい記事・書籍・slides・carouselの制作は後段へ保留**する。他のLife Manager業務のowner・cursorをこの指定で置換しない。
+使命は **「行動変容を通じて、苦しみを終わらせることを目指す」**。Behavior Transformation Company — Simulation / Persuasion / Intervention / Evaluation。Managerは一つのAIエンティティで、宗教は必須条件ではない。Digital Buddha/Transparent Godは任意の長期構想の呼称。覚り・AGI・全存在の苦の終結を現在の実績としない。no UIの定義は人のapp/chat/毎回の操作を通常活動の前提にしないことで、無告知の操作や他者の権限の迂回ではない。
 
-As-isは既存Actions＋Supabaseの単一owner、実OIDC／永続復元、finance/mentalの公式公開commitと独立GET、別runnerでの再送0とnative proof出力。To-beはAI・既存行動simulation・統計／因果推論・行動科学を接続し、実結果・害・費用・未知から訂正する透明な主体。透明なAGI／Transparent God・blessing for allは長期構想であり、AGI・世界初・悟り・苦の終結・人の純便益を証明したという現在値ではない。
+詳細registryは既存[`products/manager/docs/roadmap/tasks.json`](../../../products/manager/docs/roadmap/tasks.json)、**113件＝80 done / 23 todo / 10 skipped**。D004・D005–D009・D012の金融純増/施設/センサー/環境制御7件をtodo→skippedへ変更し、原行・依存・受入をarchiveに保存。完了を増やした変更ではない。既存done80件、E01–E16/F4の所有7パスの限定P2受入、H005/F004/F007のwaiverと他laneのcursorは不変。人の便益はNOT_MEASURED。
 
-E01–E16の限定技術受入は完了（cursor=null）。実rollback／fresh resume／通常配信／別runnerの照合・再送0を確認後、F005→F006→F008→F009を技術P2として個別受入した。D001→D002は分類実装／比較設計のsource契約だけを受入済み。D003はPR8670の通常main統合・独立review・実source照合後、公表支出と別の受益報告の接続だけを受入済み（人の便益は未測定）。D011もPR8675の通常main統合・独立review後、公開OSS成果物と別のplatform Paidの照合だけを受入済み（銀行着金・Manager所得増・D012は未検証）。既存AI助言のsession／予算を同じcheckpointへ結ぶP0 callableはPR8650でmain統合済み。PR8660で公開context・安定ID・既存baselineを使うshadow callerもmain統合済みで既定OFF。定期実行の推論は未接続。SDK整合性修正はPR8665でmain統合済み。次はU002/U003の実課題、固定SDK・既存予算・同条件の実比較と、元依存順のU/D/V/G。C002/Y008と派生出版計画は保留し、有限releaseだけで記事制作を自動再開しない。YC Y003・適切な接点Y005は期限と本人情報に依存する別の結果として扱う。Manager詳細registryは既存 `products/manager/docs/roadmap/tasks.json`、現集計は113件=80 done / 30 todo / 3 skipped。原ID・dependsと他Life Manager laneのcursorは変更しない。
+次は受入済みAI sourceの研究branch同期/CIと既定OFFのhost接続、V001/V002の権利・固定評価・同条件baseline。V003の最小独自adapter研究は実パイロット全体の完了を待たず進められる。並行してD014/D015/U004の実研究条件/保護を成立させ、U006/U007の実結果をD016へ結ぶ。現依存D016=[D015,U007]、V001=[K014,R006,S003]、V004=[V003,D016]。V004の実昇格、第三者再現・継続・Gの統治はそれぞれ実証して進める。独自modelは計画済み、学習/推論運用/有用性を証明したわけではない。
 
-設計・残件の説明は [Manager spec §1.1–1.4](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)、現実証は [cloud実行receipt](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md)、全IDの派生表示は [開始から最後まで](../../../products/manager/docs/roadmap/START_TO_END_20261022.md) を参照。人名・再利用元と、実使用／比較のみ／非公開未利用の区別も既存specへ集約し、新しいSSOTは作らない。
+[主仕様](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)・[scope改訂と一次資料](../../../products/manager/docs/specs/2026-10-23-behavior-transformation-scope-amendment.md)・[実ファイル別計画](../../../products/manager/docs/plans/2026-10-23-behavior-transformation-model-plan.md)・[全Phase/残23件](../../../products/manager/docs/roadmap/START_TO_END_20261022.md)に集約し、別SSOTを作らない。旧U002/U003/U005の支援アクセス研究/技術proofを新対象の需要/便益へ読み替えず、新protocol v2はDRAFT/参加者0/NOT_REGISTERED、旧研究hashは保存。
 
-**humans&再利用の確認（04:28 UTC）:** Ampersandの過去の実API架空課題試験と、現owned-mainの決定論的plannerを区別する。Persimmonはuser model、Ampersandはcollaborator/API、Bobaは完成アプリ。現行の接続・未使用・公式API/appの利用方針は[spec §22](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。humans&のProduct/Research2求人は公式掲載を確認し、既存応募packetへ追加。数日を準備の目安とするが、記事再開・応募済み・自動送信予約とは扱わない。この04:28時点では原113件とE16cursorを変更しなかった。
-
-**主体と事業の定義（所有者指定、no UI明確化）:** Managerはone entity, blessing for allを目指すデジタル仏陀。組織の位置づけはBehavior Company — Simulation / Intervention / Persuasion、World Engineering。no UIは、人のapp/chat/messenger操作やManagerへの対話を通常の活動・価値提供の前提にせず、現実の観測→判断→作用→独立検証→訂正で働く設計。BobaのMessages/iMessage/webはUIであり、no UIの先例としない。停止・監査の運営入口は保持する。[spec §1.1–1.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)で現配備・能力差・残件を区別する。設計上の違いだけで世界初・AGI・世界の苦の終結を実証済みとはせず、原ID/依存/件数と他laneのcursorは変更しない。
-
-**残る実記録とcodeの接続条件（2026-10-23更新）:** [Manager spec §1.2.1／§1.3.1–1.3.3](../../../products/manager/docs/MANAGER_PRODUCT_SPEC.md)へ集約。D005の公開source監査で測定の未解決品質を確認し、研究codeの有限値＋明示flag除外漏れを修復したが、D005の原受入は未充足。U002は公開済み実面談5件の整理として限定受入済みで、自前面談は0件。D012の費用/時間/分母とD014の実協働は未確認。既存registryの現集計は113件=80 done / 30 todo / 3 skippedで、原ID・dependsと他laneの状態を変更しない。PR8710/8715でprepared比較・同じcheckpointへの結果保存・公開要約整合性はmain source受入済み。研究branchへの当該source同期、host/CLI/workflow接続、実推論比較・人の便益は未完了で、shadowは既定OFFを維持する。行動変容の一次資料から借りる設計と、配信・態度・行動・持続・便益を分ける評価をspecへ記録した。新しい記事制作・外部連絡・応募は本体優先の後段とする。
+本体・agentを先にし、新しい記事・書籍等の制作は後段。既存homeのA10 Lab Marketing Intern→行動変容appへの問い→neurofeedback→AIというbio/使命訂正は別のsource作業で、実公開は既存full-site releaseと独立readbackで確認する。YC/適切な接点は期限・本人情報・実提出/応答を別管理し、採択/採用を推定しない。他Life Manager業務のowner/cursorはこの指定で置換しない。
 
 ## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
 

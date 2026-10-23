@@ -1,18 +1,22 @@
-# Manager — completion gates, blessings, and scale (source of truth is tasks.json)
+# Manager — completion gates for behavior transformation
 
-> **Current gates, 2026-10-22:** The authoritative state is [tasks.json](tasks.json). E01→E16 is the technical sequence; F005→F006→F008→F009 are subsequent Phase06 evidence acceptance. F004/F007 are skipped, not required partner/finance/facility gates. E16 requires real persistent-host deployment and independent readback; no P3/P4 claim follows. Scientific Gate 1 remains UNMET; a historical exact HeartSteps replication is not reintroduced as a mandatory first owned-digital deployment condition. U/D/V/G original acceptance remains distinct. Earlier dated text below is historical; use [current spec](../MANAGER_PRODUCT_SPEC.md) for active meaning.
+**2026-10-23 latest:** [tasks.json](tasks.json)は113 IDs、80 done / 23 todo / 10 skipped。E01–E16とF005/F006/F008/F009は所有7パスの限定技術P2として受入済み、H005/F004/F007と追加7件は未達成のskip。全体の入口は統合SSOT、詳細は[scope改訂](../specs/2026-10-23-behavior-transformation-scope-amendment.md)。
 
-| Completion being claimed | Necessary evidence | Current review snapshot |
+| 主張する完成点 | 必要な根拠 | 現在 |
 |---|---|---|
-| Engineering E stage | Named tests, regression, source-specific CI and valid SSOT receipt | E01–E15 scoped implementation receipts; E16 active, production deployment incomplete |
-| Digital Autonomy v0.1 | E acceptance, scoped real occurrence, persistent single owner/state, readback/replay-zero/rollback | Not deployed as a complete autonomous loop |
-| Phase06 v2 | F005/F006/F008/F009 actual owned-public-digital evidence | Pending acceptance; technical scope only |
-| Product demand | Qualifying real problem/user evidence, useful trial and willingness to continue/pay | Unvalidated |
-| Human/nonhuman benefit | Appropriate authentic outcome, units, rights, comparison, costs/harms | NOT_MEASURED for Manager human benefit; no nonhuman benefit evidence |
-| Causal generality | Suitable causal estimate and external replication under changed conditions | NOT_ESTABLISHED |
-| YC / publication | Actual submission receipt / live artifact readback respectively | Preparation is not completion |
+| 限定実行基盤 | E/F、実公開、STOP/復元/readback/再送0 | 限定P2受入済み |
+| 評価・既存モデル比較 | V001/V002、権利・版・holdout・judge校正・失敗分母 | 未受入 |
+| 独自重み | V003、合法なbase/data、最小SFT/LoRA、実artifact、未見比較・費用 | 計画済み、未学習 |
+| 行動変容の実価値 | U004/U006/U007、D014/D015/D016、真正な行動・苦しみ/機能・持続・害の比較 | NOT_MEASURED |
+| 適切な限定運用 | V004、V003/D016、範囲・停止・復元・独立確認 | 未受入 |
+| 再現・信頼・継続 | V005/V006/G、第三者・異集団・監査・原価・失敗の更新 | 未受入 |
+| 記事/YC/接点 | C/Y、実公開/提出/応答 | 本体優先の後段、準備と実結果を区別 |
 
-**Full remaining scope:** [Phase00–12 and all41 remaining task IDs](START_TO_END_20261022.md). Canonical task state is69 done/41 todo/3 skipped; E16 is active. Original welfare/science gates below are distinct from the finite v0.1 digital release.
+旧Gate1の厳密HeartSteps原解析再現はUNMETを保持し、新v0.1やoffline model研究の開始条件に再導入しない。覚り・宗教的同意・AGIをこの表のscoreで認定しない。
+
+## Historical checkpoints and earlier gate design
+
+以下は以前の金融/施設を含む計画と当時の状態。現在の依存・受入を上書きしない。
 
 ## Current checkpoint — 2026-10-22 JST
 

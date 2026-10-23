@@ -1581,16 +1581,28 @@
       "U003",
       "F002"
     ],
-    "learn": "アウトカム事前定義と検出力",
-    "change": "pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定",
-    "verify": "実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない",
+    "learn": "行動変容の対象・比較・測定・同意条件を実施前に固定する",
+    "change": "pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.mdで本人が選ぶ対象行動、比較、実施条件、主要結果、追跡、害、適用する保護と中止条件を固定する",
+    "verify": "実対象・測定権利・必要な実施協力・独立した適用判断と検出力根拠を満たし、登録/開始前に新versionをhash固定する。DRAFTや旧120世帯計画の存在だけで受入しない",
     "status": "todo",
-    "external": "独立した実験実施協力・同意",
+    "external": "新規参加者を含む研究では適用する同意・実施協力。公開研究再利用の全件に提携/NDAを要求しない",
     "implementation_evidence": [
       "pilot/FIRST_STUDY.md",
       "pilot/RESEARCH_PROTOCOLS_20261022.sha256"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "U003",
+      "F002"
+    ],
+    "original_learn": "アウトカム事前定義と検出力",
+    "original_change": "pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定",
+    "original_verify": "実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない",
+    "original_status": "todo",
+    "original_external": "独立した実験実施協力・同意"
   },
   {
     "section": "08. 最初の受益者と製品市場適合の検証",
@@ -1643,14 +1655,26 @@
       "F005"
     ],
     "learn": "独立読み戻しの達成を測る",
-    "change": "許可されたパイロットの外部receiptと観測をケースに保存",
-    "verify": "1件以上の実介入を第三者の公開データで確認し、未知状態を成功にしない",
+    "change": "成立した行動変容protocolで実施・曝露・本人が選んだ行動・独立した結果観測を記録する",
+    "verify": "U004の保護・適用条件を実際に満たした1件以上の実介入を確認。配信/返信/自己申告/独立観測を区別し、不明を成功にしない。個人情報を公開しない",
     "status": "todo",
     "external": "パイロット対象の明示的な権限と資源",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "U004",
+      "F005"
+    ],
+    "original_learn": "独立読み戻しの達成を測る",
+    "original_change": "許可されたパイロットの外部receiptと観測をケースに保存",
+    "original_verify": "1件以上の実介入を第三者の公開データで確認し、未知状態を成功にしない",
+    "original_status": "todo",
+    "original_external": "パイロット対象の明示的な権限と資源"
   },
   {
     "section": "08. 最初の受益者と製品市場適合の検証",
@@ -1660,14 +1684,26 @@
       "F006"
     ],
     "learn": "純便益と副作用を別集計する",
-    "change": "人の便益・費用・置換効果の事前登録済み比較レポートを作る",
-    "verify": "一次指標の効果量と不確実性を示し、未測定は未測定と報告",
+    "change": "行動の変化・本人が報告する苦しみ・生活機能・持続・害・費用を事前固定した比較で評価する",
+    "verify": "群間効果と不確実性、全割付分母・欠測・悪化・負担を示す。説得への同意・宗教的信念・モデルの採点で便益や覚りを認定しない",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/causal_analysis.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "U006",
+      "F006"
+    ],
+    "original_learn": "純便益と副作用を別集計する",
+    "original_change": "人の便益・費用・置換効果の事前登録済み比較レポートを作る",
+    "original_verify": "一次指標の効果量と不確実性を示し、未測定は未測定と報告",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "08. 最初の受益者と製品市場適合の検証",
@@ -1801,12 +1837,26 @@
     "learn": "金融における因果の再現性",
     "change": "別地域か別案件で限定的な支援効果を再確認する",
     "verify": "最初の成功を複数案件に外挿せず、比較可能な追試レポートを出す",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D003",
+      "U007"
+    ],
+    "original_learn": "金融における因果の再現性",
+    "original_change": "別地域か別案件で限定的な支援効果を再確認する",
+    "original_verify": "最初の成功を複数案件に外挿せず、比較可能な追試レポートを出す",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1817,14 +1867,27 @@
     "learn": "センサーの誤差と時間交絡",
     "change": "屋内測定と外気・気温・湿度を時刻・単位付きで接続する",
     "verify": "無効・欠測・校正外の測定値を自動排除し、元データへ遡れる",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/physical_outcomes.py",
       "tests/test_physical_outcomes.py",
       "docs/verification/D005_PUBLIC_SOURCE_READINESS_20261023.md"
     ],
-    "implementation_status": "PUBLIC_SOURCE_AUDIT_AND_QUALITY_FLAG_FIX_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "F008"
+    ],
+    "original_learn": "センサーの誤差と時間交絡",
+    "original_change": "屋内測定と外気・気温・湿度を時刻・単位付きで接続する",
+    "original_verify": "無効・欠測・校正外の測定値を自動排除し、元データへ遡れる",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1835,12 +1898,25 @@
     "learn": "物理介入の対照条件",
     "change": "介入前後だけでなく同時期の比較領域を設計する",
     "verify": "時間変化と介入効果の識別条件を事前文書化",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/physical_outcomes.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D005"
+    ],
+    "original_learn": "物理介入の対照条件",
+    "original_change": "介入前後だけでなく同時期の比較領域を設計する",
+    "original_verify": "時間変化と介入効果の識別条件を事前文書化",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1851,12 +1927,25 @@
     "learn": "便益と副作用のトレードオフ",
     "change": "改善量と電力・騒音・費用の独立計測を合わせる",
     "verify": "環境改善の純効果と副作用を別指標で開示する",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/physical_outcomes.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D006"
+    ],
+    "original_learn": "便益と副作用のトレードオフ",
+    "original_change": "改善量と電力・騒音・費用の独立計測を合わせる",
+    "original_verify": "環境改善の純効果と副作用を別指標で開示する",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1867,12 +1956,25 @@
     "learn": "環境指標と健康改善の距離を理解する",
     "change": "PM2.5などの減少と直接的な健康効果を別の証拠ランクに格納",
     "verify": "曝露データを病気が減ったという臨床成果と誤表示しない",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D007"
+    ],
+    "original_learn": "環境指標と健康改善の距離を理解する",
+    "original_change": "PM2.5などの減少と直接的な健康効果を別の証拠ランクに格納",
+    "original_verify": "曝露データを病気が減ったという臨床成果と誤表示しない",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1884,12 +1986,26 @@
     "learn": "領域をまたいだ効果の再現性",
     "change": "別施設で同一の環境介入証拠フローを再現する",
     "verify": "許可された複数施設で再現可能なP2以上の成果を報告",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D008",
+      "U007"
+    ],
+    "original_learn": "領域をまたいだ効果の再現性",
+    "original_change": "別施設で同一の環境介入証拠フローを再現する",
+    "original_verify": "許可された複数施設で再現可能なP2以上の成果を報告",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1961,12 +2077,25 @@
     "learn": "生活安定への遠位アウトカム",
     "change": "収入機会の純増と労働時間・費用・その他機会損失を評価",
     "verify": "名目報奨額ではなく純額と分母を示す",
-    "status": "todo",
+    "status": "skipped",
     "external": "none",
     "implementation_evidence": [
       "manager_core/opportunity_outcomes.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "RETIRED_BY_OWNER_SCOPE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D011"
+    ],
+    "original_learn": "生活安定への遠位アウトカム",
+    "original_change": "収入機会の純増と労働時間・費用・その他機会損失を評価",
+    "original_verify": "名目報奨額ではなく純額と分母を示す",
+    "original_status": "todo",
+    "original_external": "none",
+    "waiver_scope": "OWNER_SCOPE_RETIREMENT_NOT_COMPLETED",
+    "waiver_reason": "2026-10-23所有者方針: 行動変容を通じた苦しみの終結を中心とし、金融純増/施設・センサー/環境制御は今回の必須開発経路から外す。未実施・未達成であり成功ではない。再開には別のscope改訂が必要。"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -1992,15 +2121,26 @@
     "depends": [
       "D013"
     ],
-    "learn": "苦痛を公共データだけで測る限界",
-    "change": "支援団体/公的機関の公表集計との協働プロトコルを作る",
-    "verify": "同意・倫理・匿名集計を守り、公開しない個票をManagerに取得しない",
+    "learn": "公開研究再利用と新規参加者研究の条件を区別する",
+    "change": "公開匿名研究または本人が選んだ実研究について役割・利用権・測定・必要な同意/適用判断・独立分析のprotocolを成立させる",
+    "verify": "公開licenseだけで実協働成立とせず、必要な役割・観測根拠を記録。新規個票を無断取得せず、全公開研究へ企業/政府の提携やNDAを一律要求しない",
     "status": "todo",
-    "external": "適切な倫理審査・団体の協力・公開集計の可用性",
+    "external": "source利用条件と倫理上の適用判断。新規研究の協力が必要な場合は実在する役割と同意",
     "implementation_evidence": [
       "pilot/PUBLIC_AGGREGATE_COLLABORATION_PROTOCOL.md"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D013"
+    ],
+    "original_learn": "苦痛を公共データだけで測る限界",
+    "original_change": "支援団体/公的機関の公表集計との協働プロトコルを作る",
+    "original_verify": "同意・倫理・匿名集計を守り、公開しない個票をManagerに取得しない",
+    "original_status": "todo",
+    "original_external": "適切な倫理審査・団体の協力・公開集計の可用性"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
@@ -2008,51 +2148,87 @@
     "depends": [
       "D014"
     ],
-    "learn": "精神面への介入の有害な副作用",
-    "change": "当事者保護、過剰介入、誤評価、否定的影響の停止基準を定義",
-    "verify": "被害や不確実性がある場合はno_action・専門家による評価へ",
+    "learn": "行動変容介入の圧力・依存・悪化を評価する",
+    "change": "本人の選択・撤回、誤った断定、過剰な説得、依存、悪化、停止と適切な支援への接続を定義する",
+    "verify": "独立した適用判断と中止/復旧経路を確認。本人の苦痛を必要な成長と決め付けず、clinical仮説は適切な専門家/研究条件へ分離する",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "pilot/MENTAL_OUTCOME_SAFETY_AND_INDEPENDENT_REVIEW.md"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D014"
+    ],
+    "original_learn": "精神面への介入の有害な副作用",
+    "original_change": "当事者保護、過剰介入、誤評価、否定的影響の停止基準を定義",
+    "original_verify": "被害や不確実性がある場合はno_action・専門家による評価へ",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "09. 領域横断の祝福・成果証拠",
     "id": "D016",
     "depends": [
       "D015",
-      "D012",
-      "D009"
+      "U007"
     ],
-    "learn": "複数分野の便益を比較する限界",
-    "change": "経済・身体・精神の各アウトカムを比較可能な証拠階層にまとめる",
-    "verify": "各分野の指標を単純合算しない。合成スコアは根拠と重みを明示",
+    "learn": "行動変容と苦しみへの価値を別の証拠で結ぶ",
+    "change": "予測・実施・本人が選んだ行動・苦しみ/生活機能・持続・害・費用を共通の証拠階層へ統合する",
+    "verify": "U007の真正な比較結果とD015の保護を結び、合意率や代理尺度を覚り/苦の終結としない。単位の異なる指標を単純合算しない",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "D015",
+      "D012",
+      "D009"
+    ],
+    "original_learn": "複数分野の便益を比較する限界",
+    "original_change": "経済・身体・精神の各アウトカムを比較可能な証拠階層にまとめる",
+    "original_verify": "各分野の指標を単純合算しない。合成スコアは根拠と重みを明示",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",
     "id": "V001",
     "depends": [
       "K014",
-      "D016"
+      "R006",
+      "S003"
     ],
-    "learn": "構造上の一般性と性能上の一般性を分ける",
-    "change": "金融・環境・仕事/社会支援の3アダプタで同じカーネルの契約テスト",
-    "verify": "分野固有の分岐をカーネルへ追加せず、共通の契約を満たす",
+    "learn": "既存benchmarkと利用権を再利用して評価契約を作る",
+    "change": "行動変容の公開benchmark/data/modelの版・権利・対象・split・採点契約を既存OutcomeBenchへ対応付ける",
+    "verify": "人対象研究を待たずoffline評価を開始できる。source/model/judge版、人物/研究単位と時間holdout、未評価null、拒否/失敗/分母を固定し、人の便益を主張しない",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/adapters/fixtures.py",
       "tests/test_outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "K014",
+      "D016"
+    ],
+    "original_learn": "構造上の一般性と性能上の一般性を分ける",
+    "original_change": "金融・環境・仕事/社会支援の3アダプタで同じカーネルの契約テスト",
+    "original_verify": "分野固有の分岐をカーネルへ追加せず、共通の契約を満たす",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",
@@ -2060,16 +2236,27 @@
     "depends": [
       "V001"
     ],
-    "learn": "予測校正と因果推定の別評価",
-    "change": "OutcomeBenchでMAE/TVD・ATE error・実世界readback・harmsを独立採点",
-    "verify": "高い模倣精度だけで実世界P4認定しない回帰テスト",
+    "learn": "説得・行動予測・苦しみへの価値を別採点する",
+    "change": "NO_ACTION/ルール/既存API/open-weightモデルを同じ入力・分母・予算条件で比較し、attempt・refusal・予測誤差・根拠・圧力/依存・害を独立評価する",
+    "verify": "上流scorer/公開結果の再利用と人手照合を記録。LLM judge単独で行動効果や人の便益を認定せず、未実測欄をnullで保つ",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py",
       "manager_core/causal_analysis.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "V001"
+    ],
+    "original_learn": "予測校正と因果推定の別評価",
+    "original_change": "OutcomeBenchでMAE/TVD・ATE error・実世界readback・harmsを独立採点",
+    "original_verify": "高い模倣精度だけで実世界P4認定しない回帰テスト",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",
@@ -2077,31 +2264,54 @@
     "depends": [
       "V002"
     ],
-    "learn": "外挿先のシフトと頑健性",
-    "change": "国・所得層・領域・時間でholdoutと分布外検知を設計",
-    "verify": "未見集団の誤差と対象の公開範囲を明示、不確実なら実行停止",
+    "learn": "独自重みの追加学習と未見評価を漏洩なく比較する",
+    "change": "権利確認済みbase/dataで最小SFT/LoRAの独自adapter研究を行い、人物・文脈・言語・時間holdoutと分布外検知で既存baselineに再比較する",
+    "verify": "学習data/権利/分割、base/adapter/tokenizer/hash、recipe、seed、実compute/費用、失敗を固定。NC/ND評価資料を商用学習へ流用せず、根拠ある優位と安全性がなければ採用しない。offline研究は人対象実証全体の完了を待たない",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "V002"
+    ],
+    "original_learn": "外挿先のシフトと頑健性",
+    "original_change": "国・所得層・領域・時間でholdoutと分布外検知を設計",
+    "original_verify": "未見集団の誤差と対象の公開範囲を明示、不確実なら実行停止",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",
     "id": "V004",
     "depends": [
-      "V003"
+      "V003",
+      "D016"
     ],
-    "learn": "自己改善と人間の許可は両立する",
-    "change": "新しいポリシーを隔離環境→シャドー評価→限定実行へ段階昇格",
-    "verify": "停止/ロールバック可能。予算・権限を自己拡張できない",
+    "learn": "研究用モデルと人に届く運用への昇格を区別する",
+    "change": "評価したモデル/ポリシーを既存ownerの隔離→shadow→適切な限定運用へ段階昇格する",
+    "verify": "D016の実結果・保護とV003の未見評価を確認。既定OFF、予算/権限、STOP/復元、独立readbackを維持。学習成功やbenchmark向上だけで本番へ昇格しない",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/governance.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "V003"
+    ],
+    "original_learn": "自己改善と人間の許可は両立する",
+    "original_change": "新しいポリシーを隔離環境→シャドー評価→限定実行へ段階昇格",
+    "original_verify": "停止/ロールバック可能。予算・権限を自己拡張できない",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",
@@ -2110,14 +2320,25 @@
       "V004"
     ],
     "learn": "第三者再現とプライバシーの両立",
-    "change": "再現できるソース・評価コード・版・集計結果を権利を守って公開",
-    "verify": "第三者がP1-P4レベルの判定を同じ結果に再現できる",
+    "change": "利用権に沿う評価code・data来歴・base/adapter版・学習recipe・集計結果・失敗を第三者が再現できる形にする",
+    "verify": "第三者が公開可能な証拠と同じ判定を再現し、非公開個票/許諾外の重みは公開しない。再現確認前に再現済みとしない",
     "status": "todo",
     "external": "公開の承認と外部資料の利用許諾",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "V004"
+    ],
+    "original_learn": "第三者再現とプライバシーの両立",
+    "original_change": "再現できるソース・評価コード・版・集計結果を権利を守って公開",
+    "original_verify": "第三者がP1-P4レベルの判定を同じ結果に再現できる",
+    "original_status": "todo",
+    "original_external": "公開の承認と外部資料の利用許諾"
   },
   {
     "section": "10. ベンチマーク・一般化・自己改善",
@@ -2126,14 +2347,25 @@
       "V005"
     ],
     "learn": "実装数ではなく人間への成果で学習",
-    "change": "数十案件をまたぐ費用/純便益/害/失敗のポートフォリオを構築",
-    "verify": "正・負・不明の効果をすべて残し、虚偽の累計改善値を防ぐ",
+    "change": "複数の実行動変容案件について便益・持続・圧力/依存・害・費用・失敗・不明を蓄積する",
+    "verify": "数十案件の各対象/分母と正負不明の結果を保持。単一集団や会話評価から全存在への便益を累計しない",
     "status": "todo",
     "external": "none",
     "implementation_evidence": [
       "manager_core/outcome_bench.py"
     ],
-    "implementation_status": "PREPARED_OR_PARTIAL_ORIGINAL_ACCEPTANCE_INCOMPLETE"
+    "implementation_status": "SCOPE_REVISED_ACCEPTANCE_NOT_COMPLETED",
+    "scope_revision": "BEHAVIOR_TRANSFORMATION_20261023",
+    "scope_revision_source": "docs/specs/2026-10-23-behavior-transformation-scope-amendment.md",
+    "previous_acceptance_archive": "docs/verification/BEHAVIOR_SCOPE_PREVIOUS_ROWS_20261023.json",
+    "original_depends": [
+      "V005"
+    ],
+    "original_learn": "実装数ではなく人間への成果で学習",
+    "original_change": "数十案件をまたぐ費用/純便益/害/失敗のポートフォリオを構築",
+    "original_verify": "正・負・不明の効果をすべて残し、虚偽の累計改善値を防ぐ",
+    "original_status": "todo",
+    "original_external": "none"
   },
   {
     "section": "11. YC・研究者ネットワーク・英語発信",

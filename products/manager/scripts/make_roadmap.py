@@ -109,12 +109,12 @@ def render(tasks):
     sums = Counter(t['status'] for t in tasks)
     lines = [
       '# Manager — atomic learning & engineering backlog', '',
-      'Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
+      'Status: 2026-10-23 UTC. Manager task state lives in `tasks.json`; other Life Manager lane states remain unchanged.', '',
       f"Total: {len(tasks)} · Done: {sums['done']} · Todo: {sums['todo']} · Blocked: {sums['blocked']} · Skipped: {sums['skipped']}", '',
-      '✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.', '',
-      'Manager is a Buddhist AI entity / Digital Buddha with its own mission, source scope and runtime, even when its source is in the same GitHub repository. This identity does not establish consciousness, enlightenment or measured human benefit.', '',
+      '✅ = recorded acceptance version and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver or owner-scope retirement (not success). A research task is not evidence of real-world impact.', '',
+      'Manager aims to help end suffering through behavior change. Digital Buddha is an optional mission metaphor; no religion or doctrine is required. The entity has its own source scope and runtime. This identity does not establish consciousness, enlightenment or measured human benefit.', '',
       '## 唯一の実装順（E01〜E16を先に、一件ずつ）', '',
-      '**ManagerのSSOT（状態・依存・現在位置）:** [tasks.json](tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor`。Life Manager の別SSOTは変更しない。', '',
+      '**ManagerのSSOT（状態・依存・現在位置）:** [tasks.json](tasks.json) の `F009.technical_execution_sequence` と `technical_execution_cursor`。repository統合SSOTを入口とし、他laneの状態は変更しない。', '',
       execution_progress, '',
       '実装は **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** の順。各Eの合格条件は [Superpowers core plan](../plans/2026-10-22-manager-core-execution-plan.md)。先にF005等を実装する順序は廃止。', '',
       '**実装後に検証する受け入れ条件:** **F005 → F006 → F008 → F009**。Fはタスク台帳上の限定能力releaseの受け入れゲートであって、Eより先に着手する工程ではない。実際のP1/P2証拠がある条件から判定し、架空試験やGitHub Actions成功だけでは完了にしない。', '',
