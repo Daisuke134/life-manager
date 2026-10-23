@@ -43,6 +43,21 @@ FENCE_RECONCILE_TOOL="$SCRIPTS/promptbase_fence_reconcile.py"
 
 log() { echo "[promptbase-daily] $*"; }
 
+# One listing per UTC day: the loop wakes several times a day so a busy Codex at one slot is
+# retried later, but a day that already shipped stops here, before taking the browser.
+if "$PY" -c 'import json,sys,datetime
+today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+try:
+    rows = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8") if l.strip()]
+except OSError:
+    rows = []
+sys.exit(0 if any(str(r.get("submitted_at", "")).startswith(today)
+                  and r.get("status") in {"submitted_pending_review", "live"} for r in rows) else 1)' \
+    "$LEDGER_PATH" 2>/dev/null; then
+  log "a listing already shipped today -- nothing to do"
+  exit 0
+fi
+
 ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ AI_BROWSER_GUARD="$BROWSER_GUARD" \
   bash "$BROWSER_PROVISIONER" "$BROWSER_IDENTITY")"
 ACQUIRE_RC=$?
@@ -104,7 +119,12 @@ if ! "$PY" "$FENCE_RECONCILE_TOOL" --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
 fi
 
 # PromptBase rejects 4 identical example outputs; make 4 real distinct ones once.
-"$PY" "$SCRIPTS/gen_examples.py" "$CATALOG_DIR/$SLUG" || log "gen_examples failed for $SLUG (publish will fail closed)"
+# The examples come from Codex (the ChatGPT subscription). When it is busy or unavailable,
+# publish.py would only fail closed; skip before dispatch and let the next slot retry.
+if ! "$PY" "$SCRIPTS/gen_examples.py" "$CATALOG_DIR/$SLUG"; then
+  log "gen_examples failed for $SLUG (Codex busy or unavailable) -- no publish; next slot retries"
+  exit 0
+fi
 EVIDENCE_DIR="$HOME/.local/state/life-manager/state/promptbase-evidence/$(date -u +%Y%m%dT%H%M%SZ)-$SLUG"
 PUBLISH_OUTPUT="$("$PY" "$SCRIPTS/publish.py" \
   --catalog-dir "$CATALOG_DIR/$SLUG" \

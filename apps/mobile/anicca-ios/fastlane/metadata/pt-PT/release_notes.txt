@@ -1,0 +1,2 @@
+- As notificações passam a abrir a mesma mensagem apresentada.
+- Melhorias no carregamento do ecrã de subscrição e na seleção dos planos.

@@ -4,6 +4,7 @@ These are P0 SQLite and injected-gateway fixtures. They do not authenticate
 GitHub, perform a provider write, or prove a live Pages rollback.
 """
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -77,7 +78,13 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
                  'commit':{'committer':{'date':timestamp},'message':host._git('show','-s','--format=%B',commit)},
                  'files':[{'filename':name,'status':'modified'} for name in
                           host._git('diff-tree','--no-commit-id','--name-only','-r',commit).splitlines()]}
-        evidence=OwnedOccurrenceEvidence(receipt,current,current_bytes,parent,old,old_bytes)
+        # Match immutable_snapshot/collect_owned_occurrence's canonical body
+        # shape: repository-relative paths. The host converts at its Git edge.
+        evidence=OwnedOccurrenceEvidence(
+            receipt,current,{name.removeprefix('manager-support/'):raw
+                            for name,raw in current_bytes.items()},
+            parent,old,{name.removeprefix('manager-support/'):raw
+                        for name,raw in old_bytes.items()})
         return packet,parent,commit,evidence
 
     def _platform_push_boundary(self, host, events, remote_sha):
@@ -532,14 +539,103 @@ class OwnedPlatformRollbackTests(unittest.TestCase):
             self.assertLess(events.index(('checkpoint',1)),events.index(next(row for row in events if row[0]=='push')))
             rollback_commit=next(value for name,value in events if name=='push')
             restored={name:host._git_blob(rollback_commit,name) for name in ALLOWED_PATHS}
-            self.assertEqual(restored,evidence.parent_bodies)
+            self.assertEqual(restored,{
+                'manager-support/'+name:raw
+                for name,raw in evidence.parent_bodies.items()})
             self.assertEqual(host._git_blob(rollback_commit,'manager-support/manifest.json'),
-                             evidence.parent_bodies['manager-support/manifest.json'])
+                             evidence.parent_bodies['manifest.json'])
             self.assertEqual((host.checkout/'unrelated.html').read_bytes(),b'preserve me')
             saved=store.journal.latest_rollback_record()
             self.assertEqual(saved.status,'PRESENT')
             self.assertEqual(saved.receipt_ref,rollback_commit)
             self.assertEqual(saved.delivery_status,'VERIFIED')
+
+    def test_rollback_uses_real_relative_immutable_collector_output(self):
+        import manager_core.owned_public_collector as collector
+        from scripts import phase06_kernel_release as release
+
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            _,store,host,_,*_=platform_fixture(root)
+            _,parent,candidate,_=self._install_candidate_commit(host,store)
+            events=[]
+            raw_reads=[]
+
+            def receipt(sha):
+                parent_sha=host._git('rev-parse',sha+'^')
+                return {'sha':sha,
+                    'html_url':f'https://github.com/{REPOSITORY}/commit/{sha}',
+                    'parents':[{'sha':parent_sha}],
+                    'commit':{'committer':{'date':host._git('show','-s','--format=%cI',sha)},
+                              'message':host._git('show','-s','--format=%B',sha)},
+                    'files':[{'filename':name,'status':'modified'} for name in
+                        host._git('diff-tree','--no-commit-id','--name-only','-r',sha).splitlines()]}
+
+            def get(url):
+                prefix=f'https://api.github.com/repos/{REPOSITORY}/commits/'
+                list_prefix=f'https://api.github.com/repos/{REPOSITORY}/commits?'
+                if url.startswith(list_prefix):
+                    rows=[]
+                    current=host._git('rev-parse','HEAD')
+                    for sha in dict.fromkeys((current,candidate)):
+                        value=receipt(sha)
+                        rows.append({'sha':sha,'commit':{'message':value['commit']['message']}})
+                    return json.dumps(rows).encode()
+                if url.startswith(prefix) and '?sha=' not in url:
+                    return json.dumps(receipt(url.removeprefix(prefix))).encode()
+                raw_prefix=f'https://raw.githubusercontent.com/{REPOSITORY}/'
+                if url.startswith(raw_prefix):
+                    raw_reads.append(url)
+                    sha,path=url.removeprefix(raw_prefix).split('/',1)
+                    return host._git_blob(sha,path)
+                raise AssertionError(f'unexpected immutable collector URL: {url}')
+
+            def pending_delivery(key,journal,observed_at=None,**kwargs):
+                row=journal.rollback_record(key);packet=json.loads(row.packet_json)
+                return {'status':'VERIFIED','effect_key':key,'receipt_ref':row.receipt_ref,
+                    'baseline_sha256':packet['baseline_sha256'],
+                    'observed_at':datetime.now(timezone.utc).isoformat(),
+                    'proof_ref':'https://daisuke134.github.io/life-manager/manager-support/',
+                    'proof_level':'P2','reason':'EXACT_DEPLOYED_PARENT_BASELINE',
+                    'human_outcome':'NOT_MEASURED'}
+
+            actual_rollback_read=collector.collect_owned_rollback
+            rollback_results=[]
+            clock_index=[0]
+            clock_base=datetime.now(timezone.utc)
+            def advancing_now():
+                value=clock_base+timedelta(seconds=clock_index[0])
+                clock_index[0]+=1
+                return value
+            def observe_rollback(*args,**kwargs):
+                value=actual_rollback_read(*args,**kwargs)
+                rollback_results.append(value)
+                return value
+
+            with patch.dict('os.environ',github_environment(
+                    GIT_AUTHOR_DATE=(clock_base+timedelta(seconds=3)).isoformat(),
+                    GIT_COMMITTER_DATE=(clock_base+timedelta(seconds=3)).isoformat()),clear=True), \
+                 patch.object(release,'source_checkout_commit',return_value='b'*40), \
+                 patch.object(release,'public_get',side_effect=get), \
+                 patch.object(host,'_now',side_effect=advancing_now), \
+                 patch.object(collector,'collect_owned_rollback',side_effect=observe_rollback), \
+                 patch.object(collector,'collect_owned_rollback_delivery',
+                              side_effect=pending_delivery), \
+                 self._platform_push_boundary(host,events,candidate):
+                result=host.rollback_latest_owned(store)
+
+            self.assertEqual(len(rollback_results),1)
+            self.assertIsNotNone(rollback_results[0])
+            self.assertEqual(result['status'],'ROLLBACK_SUBMITTED',result)
+            self.assertEqual([name for name,_ in events],['push','dispatch'])
+            rollback_sha=result['receipt_ref']
+            self.assertEqual(host._git('rev-parse',rollback_sha+'^'),candidate)
+            self.assertEqual({name:host._git_blob(rollback_sha,name) for name in ALLOWED_PATHS},
+                {name:host._git_blob(parent,name) for name in ALLOWED_PATHS})
+            self.assertTrue({f'{candidate}/{name}' for name in ALLOWED_PATHS} <=
+                            {url.removeprefix(
+                                f'https://raw.githubusercontent.com/{REPOSITORY}/')
+                             for url in raw_reads})
 
     def test_lost_pre_send_checkpoint_ack_has_zero_push_and_restore_reconcile_only(self):
         from manager_core.owned_checkpoint import CheckpointUnavailable

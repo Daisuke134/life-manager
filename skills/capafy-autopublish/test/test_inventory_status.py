@@ -1152,3 +1152,29 @@ def test_frozen_seller_with_a_draft_version_is_flagged() -> None:
               {"agent_id": "8123079349", "remote_status": "online"},
               {"agent_id": "2781635836", "remote_status": "draft"}]
     assert load_module().frozen_seller_drafts(agents, {"7686597754", "8123079349"}) == ["7686597754"]
+
+
+def test_rejected_agent_matching_a_ready_listing_is_retried_but_a_frozen_one_is_not(monkeypatch, tmp_path, capsys) -> None:
+    # 2026-10-23: two review_rejected agents (description fix, retry allowed by Capafy) held two of the
+    # five slots for 9 days while 12 finished candidates waited. The 10/8 rule keeps sellers and
+    # offline agents untouched; it never meant rejected $0 agents had to hold slots forever.
+    module = load_module()
+    catalog = tmp_path / "catalog" / "sec"
+    catalog.mkdir(parents=True)
+    (catalog / "LISTING.md").write_text("## Title\nSecurity Skill\n", encoding="utf-8")
+    (catalog / "SKILL.md").write_text("x", encoding="utf-8")
+    (catalog / "icon.svg").write_text("<svg/>", encoding="utf-8")
+    frozen = tmp_path / "FROZEN.json"
+    frozen.write_text(json.dumps({"agent_ids": ["frozen-1"]}), encoding="utf-8")
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(tmp_path / "catalog"))
+    monkeypatch.setattr(module, "FROZEN_PATH", str(frozen))
+    agents = [agent(f"u-{i}", "under_review", name=f"Other {i}") for i in range(4)]
+    agents.append(agent("rej-1", "review_rejected", name="Security Skill"))
+    monkeypatch.setattr(module, "server_agents", lambda: agents)
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+
+    assert decision["action"] == "retry_existing"
+    assert decision["item"]["agent_id"] == "rej-1"

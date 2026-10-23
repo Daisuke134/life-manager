@@ -1,2 +1,2 @@
-- Agora você pode fechar o paywall e experimentar o Anicca de graça
-- Melhorias de estabilidade
+- As notificações agora abrem a mesma mensagem exibida.
+- Melhorias no carregamento da tela de assinatura e na seleção dos planos.

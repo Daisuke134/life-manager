@@ -13,6 +13,7 @@ struct SettingsSheet: View {
     @State private var showThemePicker = false
     @State private var showSavedQuotes = false
     @State private var showLikedQuotes = false
+    @State private var showSignOutConfirmation = false
 
     var body: some View {
         List {
@@ -61,7 +62,7 @@ struct SettingsSheet: View {
 
             Section {
                 Button(role: .destructive) {
-                    // Sign out hook — kept minimal here; app-level wiring stays in AppState.
+                    showSignOutConfirmation = true
                 } label: {
                     Label(String(localized: "settings_sign_out"), systemImage: "rectangle.portrait.and.arrow.right")
                 }
@@ -74,6 +75,13 @@ struct SettingsSheet: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(String(localized: "common_done")) { dismiss() }
             }
+        }
+        .confirmationDialog(String(localized: "settings_sign_out"), isPresented: $showSignOutConfirmation, titleVisibility: .visible) {
+            Button(String(localized: "common_sign_out"), role: .destructive) {
+                AppState.shared.signOutPreservingSensorAccess()
+                dismiss()
+            }
+            Button(String(localized: "common_cancel"), role: .cancel) {}
         }
     }
 }
