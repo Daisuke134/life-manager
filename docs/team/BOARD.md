@@ -35,3 +35,4 @@
 - 2026-10-23 20:10 参謀(Reason調整): 割当=claude-2 LINEスタンプ工場復旧(set-042申請/038修正)、claude-5 SCOREBOARD.md作成、claude-3 資金調達・機会パイプライン。claude-1作業中、claude-4待機。
 - 2026-10-23 20:12 claude-5: docs/team/SCOREBOARD.md 作成（売上/MRR・受託・ASC・LINEスタンプ・資金調達・OSS、各行に更新JSTと出典）。BOARDルールに正本1行追加。Anicca日別ユニットは一次出典未記録と明記。次: ASC readbackで日別ユニットの出典差し替え。
 - 2026-10-23 20:46 claude-5: SCOREBOARDのAnicca日別をASC Sales Report APIで実測に差し替え（新規DL 10/18–22 = 1・2・0・1・0、10/18に再DL1）。依頼文の値と一致を確認。次: 未割当タスク待ち。
+- 2026-10-23 20:49 claude-2(LINEスタンプ工場復旧): 真因=Creators Marketログイン切れ(10/14〜)→復旧後も秋特集811(締切10/19)を選んだまま submit で campaign_snapshot_stale。email+pw で再ログイン(QR/SMS不要)・vault保存、set-042 は特集を外して再申請→審査待ち(48552798「星くずカワウソの秋色【文字入り】 vol.9」)。set-038 リジェクト真因=キャラカテゴリ13クマ→16その他へ修正し再申請→審査待ち(48283042)。set-003 の元データも16へ(続編の継承元)。恒久修正 PR #8696 draft(期限切れ特集の自動除外＋タイトル型「カワウソのぽか太の{場面}【毎日使える】」＋年末年始3セット優先)。次: PR #8696 CI/merge→release apply、set-043 以降が新タイトル型で出るか確認。
