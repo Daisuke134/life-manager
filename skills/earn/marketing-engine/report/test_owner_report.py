@@ -1720,6 +1720,82 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertIn("有料課金者数は5人", rendered)
         self.assertIn("トライアル中は2人", rendered)
 
+    def test_daily_apple_subscription_count_keeps_its_source_date_and_is_separate_from_revenuecat(self):
+        for count, mrr in ((3, 20.73), (0, None), (3, None)):
+            with self.subTest(count=count, mrr=mrr):
+                row = {
+                    "schema_version": 1,
+                    "product_id": "anicca-ios",
+                    "business_date": "2026-08-05",
+                    "observed_at": "2026-08-05T08:00:00Z",
+                    "snapshot_id": "anicca-ios:2026-08-05",
+                    "sources": {
+                        "revenuecat": {
+                            "status": "available",
+                            "reason": None,
+                            "data": {"mrr": mrr, "active_subscriptions": 5},
+                        },
+                        "app_store_subscriptions": {
+                            "status": "available",
+                            "reason": None,
+                            "data": {
+                                "app_id": "6755129214",
+                                "business_date": "2026-08-04",
+                                "active_standard_price_subscriptions": count,
+                                "rows": [{
+                                    "subscription_id": "subscription-annual",
+                                    "standard_subscription_duration": "1 Year",
+                                    "customer_price": "39.99",
+                                    "customer_currency": "USD",
+                                    "active_standard_price_subscriptions": count,
+                                }],
+                                "evidence_path": "evidence/subscriptions-2026-08-04.json",
+                            },
+                        },
+                    },
+                }
+                (self.root / "business-outcomes.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+                event = self.event("product_daily", "anicca-ios")
+                self.assertEqual(event["facts"].get("apple_active_standard_price_subscriptions"), count)
+                self.assertEqual(event["facts"].get("apple_subscriptions_business_date"), "2026-08-04")
+                self.assertEqual(event["facts"]["active_subscriptions"], 5)
+                self.assertEqual(event["facts"]["mrr"], mrr)
+                rendered = owner_report.render_japanese(event)
+                self.assertIn(f"Appleの通常価格での有効購読数は{count}件（2026-08-04時点）", rendered)
+                self.assertNotIn("有効購読数は8件", rendered)
+                self.assertNotIn("有効購読数は3件（2026-08-05時点）", rendered)
+                if mrr is not None:
+                    self.assertIn("MRRは20.73 USD（RevenueCat）", rendered)
+                    self.assertIn("有料課金者数は5人", rendered)
+                else:
+                    self.assertNotIn("MRRは", rendered)
+
+    def test_unavailable_apple_subscriptions_never_render_stale_count_as_measured(self):
+        row = {
+            "schema_version": 1,
+            "product_id": "anicca-ios",
+            "business_date": "2026-08-05",
+            "observed_at": "2026-08-05T08:00:00Z",
+            "snapshot_id": "anicca-ios:2026-08-05",
+            "sources": {
+                "app_store_subscriptions": {
+                    "status": "unavailable",
+                    "reason": "provider_query_failed",
+                    "data": {
+                        "business_date": "2026-08-04",
+                        "active_standard_price_subscriptions": 7,
+                    },
+                },
+            },
+        }
+        (self.root / "business-outcomes.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+        event = self.event("product_daily", "anicca-ios")
+        self.assertIsNone(event["facts"].get("apple_active_standard_price_subscriptions"))
+        self.assertIsNone(event["facts"].get("apple_subscriptions_business_date"))
+        self.assertNotIn("Appleの通常価格での有効購読数は", owner_report.render_japanese(event))
+        incident = self.event("incident", "anicca-ios")
+        self.assertIn("Appleの購読データ", owner_report.render_japanese(incident))
+
     def test_missing_business_snapshot_emits_null_daily_event(self):
         with tempfile.TemporaryDirectory() as path:
             root = Path(path)

@@ -562,6 +562,117 @@ NOT_YET = ("Report is not available yet. Daily reports for the Americas are avai
 NO_SALES = "There were no sales for the date specified."
 
 
+class AscSubscriptionSourceTest(unittest.TestCase):
+    def subscription_rows(self, count="2"):
+        return [{"App Apple ID": "6755129214", "Subscription Apple ID": "sub-annual",
+                 "Standard Subscription Duration": "1 Year", "Customer Price": "39.99",
+                 "Customer Currency": "USD", "Active Standard Price Subscriptions": count,
+                 "State": "private-dimension"}]
+
+    def test_fetch_keeps_sales_default_and_uses_subscription_version_and_exact_date(self):
+        raw = ("App Apple ID\tActive Standard Price Subscriptions\n6755129214\t2\n").encode()
+        with mock.patch.object(outcomes, "_asc_headers", return_value={}), \
+             mock.patch.object(outcomes, "_http_bytes", return_value=gzip.compress(raw)) as get:
+            for kind, version in (("SALES", "1_1"), ("SUBSCRIPTION", "1_3")):
+                kwargs = {} if kind == "SALES" else {"report_type": kind}
+                rows = outcomes.fetch_asc_sales_rows(
+                    {"ASC_VENDOR_NUMBER": "vendor"}, "2026-10-22", **kwargs
+                )
+                query = outcomes.urllib.parse.parse_qs(outcomes.urllib.parse.urlparse(get.call_args.args[0]).query)
+                self.assertEqual(query, {"filter[frequency]": ["DAILY"],
+                    "filter[reportDate]": ["2026-10-22"], "filter[reportSubType]": ["SUMMARY"],
+                    "filter[reportType]": [kind], "filter[vendorNumber]": ["vendor"],
+                    "filter[version]": [version]})
+                self.assertEqual(rows[0]["Active Standard Price Subscriptions"], "2")
+
+    def test_scopes_counts_and_raw_price_duration_to_app_with_evidence(self):
+        rows = self.subscription_rows() + [dict(self.subscription_rows()[0], **{
+            "Subscription Apple ID": "sub-jpy", "Customer Price": "4500",
+            "Customer Currency": "JPY", "Active Standard Price Subscriptions": "3"}),
+            dict(self.subscription_rows()[0], **{"App Apple ID": "other", "Active Standard Price Subscriptions": "99"})]
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", return_value=rows) as fetch:
+            data, evidence = outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-22", Path(directory))
+            saved = json.loads(Path(data["evidence_path"]).read_text())
+        fetch.assert_called_once_with({}, "2026-10-22", report_type="SUBSCRIPTION")
+        self.assertEqual(data["active_standard_price_subscriptions"], 5)
+        self.assertEqual(data["business_date"], "2026-10-22")
+        self.assertEqual(data["app_id"], "6755129214")
+        self.assertEqual(len(data["rows"]), 2)
+        self.assertEqual(data["rows"][0], {"subscription_id": "sub-annual",
+            "standard_subscription_duration": "1 Year", "customer_price": "39.99",
+            "customer_currency": "USD", "active_standard_price_subscriptions": 2})
+        self.assertEqual(data["rows"][1]["customer_currency"], "JPY")
+        self.assertEqual(saved, evidence)
+        self.assertNotIn("private-dimension", json.dumps(saved))
+        self.assertNotIn("other", json.dumps(saved))
+        self.assertNotIn("mrr", json.dumps(data).lower())
+
+    def test_explicit_zero_is_available_but_absent_app_is_not_zero(self):
+        for rows, expected in ((self.subscription_rows("0"), 0), ([], None),
+                               ([{"App Apple ID": "other"}], None)):
+            with self.subTest(rows=rows), tempfile.TemporaryDirectory() as directory, \
+                 mock.patch.object(outcomes, "fetch_asc_sales_rows", return_value=rows):
+                data, evidence = outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-22", Path(directory))
+                self.assertEqual(data["active_standard_price_subscriptions"] if data else None, expected)
+                self.assertEqual(evidence["business_date"], "2026-10-22")
+
+    def test_missing_blank_negative_or_fractional_count_is_invalid(self):
+        for count in (None, "", " ", "-1", "1.5", "NaN", "True"):
+            with self.subTest(count=count), tempfile.TemporaryDirectory() as directory, \
+                 mock.patch.object(outcomes, "fetch_asc_sales_rows", return_value=self.subscription_rows(count)):
+                with self.assertRaises(ValueError):
+                    outcomes.collect_asc_subscriptions({}, "6755129214", "2026-10-22", Path(directory))
+
+    def snapshot(self, directory, subscription_rows, *, analytics_fails=False):
+        def fetch(env, date, **kwargs):
+            if kwargs.get("report_type") == "SUBSCRIPTION":
+                return subscription_rows
+            return []
+        with mock.patch.object(outcomes, "DEFAULT_EVIDENCE", Path(directory)), \
+             mock.patch.object(outcomes, "collect_revenuecat", return_value={"mrr": 20.34}), \
+             mock.patch.object(outcomes, "collect_asc", **({"side_effect": RuntimeError("analytics unavailable")} if analytics_fails else {"return_value": {"reports": {}}})), \
+             mock.patch.object(outcomes, "collect_mixpanel", side_effect=RuntimeError("unavailable")), \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=fetch):
+            return outcomes.collect_snapshot({}, "anicca-ios", "2026-10-22")
+
+    def test_subscription_success_survives_analytics_failure_and_hashes_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row = self.snapshot(directory, self.subscription_rows(), analytics_fails=True)
+            source = row["sources"]["app_store_subscriptions"]
+            evidence = json.loads(Path(source["data"]["evidence_path"]).read_text())
+        self.assertEqual(source["status"], "available")
+        self.assertEqual(source["data"]["active_standard_price_subscriptions"], 2)
+        self.assertEqual(source["evidence_sha256"], outcomes._json_hash(evidence))
+        self.assertEqual(row["sources"]["app_store_connect"]["status"], "unavailable")
+        self.assertEqual(row["sources"]["app_store_sales"]["status"], "available")
+        self.assertEqual(row["sources"]["revenuecat"]["data"]["mrr"], 20.34)
+
+    def test_subscription_absence_or_invalid_count_keeps_other_sources(self):
+        for rows in ([], self.subscription_rows("")):
+            with self.subTest(rows=rows), tempfile.TemporaryDirectory() as directory:
+                row = self.snapshot(directory, rows)
+                source = row["sources"]["app_store_subscriptions"]
+                self.assertEqual(source["status"], "unavailable")
+                self.assertIsNone(source["data"])
+                self.assertEqual(row["sources"]["app_store_connect"]["status"], "available")
+                self.assertEqual(row["sources"]["app_store_sales"]["status"], "available")
+
+    def test_subscription_no_sales_404_is_not_a_measured_zero(self):
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(outcomes, "DEFAULT_EVIDENCE", Path(directory)), \
+             mock.patch.object(outcomes, "collect_revenuecat", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "collect_asc", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "collect_mixpanel", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=outcomes.AscSalesReportMissing("apple_no_sales_for_date", NO_SALES)):
+            row = outcomes.collect_snapshot({}, "anicca-ios", "2026-10-22")
+        self.assertEqual(row["sources"]["app_store_sales"]["status"], "available")
+        source = row["sources"]["app_store_subscriptions"]
+        self.assertEqual(source["status"], "unavailable")
+        self.assertEqual(source["reason"], "apple_no_sales_for_date")
+        self.assertIsNone(source["data"])
+
+
 class AscSalesAvailabilityTest(unittest.TestCase):
     """Apple answers 404 both for 'not generated yet' and 'no sales that day'."""
 
