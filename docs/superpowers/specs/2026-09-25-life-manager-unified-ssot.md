@@ -388,15 +388,19 @@ PROVENANCEの保持readback: read-only SQLite snapshotと私有marker readerで�
 
 #### RUNTIME-SHAREDの限定反映計画
 
-目的・範囲・完了条件: 既に設定済みのLancers application/negotiate/paid/work-sync/telegram-reportの5ownerを同じaccepted ALL8df3cf68へ既存local installer APIで接続し、対象ごとのinstalled/loaded readbackと自然実行を確認する。storefrontの本人product不足、browser keepalive、旧release/bundleの削除、global current、認証/model/provider、他ownerは変更しない。自然実行や容量条件が不足する場合はそのまま未完と記録する。
+目的・範囲・完了条件: 既に設定済みのLancers application/negotiate/paid/work-sync/telegram-reportの5ownerを同じaccepted ALL8df3cf68へ既存local installer APIで接続し、対象ごとのinstalled/loaded readbackと自然実行を確認する。storefrontの本人product不足、browser keepalive、旧release/bundleの削除、認証/model/provider、他の業務ownerは変更しない。自然実行や容量条件が不足する場合はそのまま未完と記録する。
 
 独立read-only reviewはblocking0/ship。実5plistは標準3argvで追加flagなし、LANCERS独自path override/CODEX_HOMEなし、host runtime/state/log/browser identity/calendar bindingは新registryと一致し、旧envとUmaskは既存helperで保持される。旧acceptance053439を参照するのはapplication/negotiateの2件だけで、他3件を同じ旧rootと仮定しない。
 
 手順: credential SSOT全体とbrowser registry/leaseを値非出力で確認する。accepted新ALLからvalidate_release(newALL, profile)→installer._observe(newALL, env, home)の非None→installer plan本文の対象5件すべてmissing=[]を必須としてから、既存local_install.apply_targets(newALL, exact5, env)を実行する。_observe失敗時の旧observation fallbackやplan exit0だけを成功根拠にしない。loaded-idle-onlyとsafe preflightを保持し、skippedは採用完了にしない。未確認effect fenceは保持し、provider送信やDB直接操作をしない。新script/scheduler/第二installerは作らない。
 
-- [ ] SHARED-INPUT: fresh公式account観測と対象5件の本人入力条件を確認する。
+- [x] SHARED-INPUT: credential SSOT全体171entriesを値非出力で読み、service完全一致Lancers1件/0600/親0700、registry identityと既存lease空きを確認する。accepted8dfの既存_observeは5.53sで非Noneのfresh公式accountを返し、plan本文の対象5件はすべてmissing=[]。guardは既存9227のreachableな本人browserを使い、起動fallbackを無効化し、provider送信0。業務成果は未確認とする。
 - [ ] SHARED-APPLY: exact5だけを既存APIで適用し、skip/installed/loadedを対象別に確認する。
 - [ ] SHARED-NATURAL: 新sourceの自然terminalと容量条件を対象別に確認する。provider成果は別の公式receiptで判定する。
+
+PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象installedが旧main885d0469のALLへ切り替わり、proof helperが8dfと異なることを検出する。release-reconcilerの遅い旧23cc runは18e145fe92426e88-85895/execute→report pass、fleet stateは885/partial/changed11/errors0/skipped14であり、同runが上書きした筋と整合するが因果は推測として区別する。unsafe sourceで自然再開させないためaccepted8dfの既存lm-loop stop lm-fence-reconcilerを対象限定で実行し、exit0/0.25s/stderr0、safe preflight PASS/native service absentを確認する。停止後も旧18markerの両digestは既存値と完全一致、新proof0、DB変更0。
+
+次の限定手順: accepted8dfの既存activate_currentをdurable_protocol_versionとprotocol/apply lock付きで使い、検証済みALL8dfをglobal currentへatomic採用する。新releaseの既存reconcile-agent-runner-release.shをHANDOFF_ONLY=1で呼び、release-reconcilerだけを既存self-handoffへ渡す。safe preflightとidle/runlock制約、旧env保持/退役source binding除去を使い、fetch/cut/全fleet applyはこの呼出で行わない。新source loaded/readbackを確認してから5対象と停止中fenceを正規経路で採用・再開する。新mainの将来採用を恒久固定せず、proof修正を含むmain由来releaseへ通常追随する。直接symlink/plist/DB書換え、新supervisor、既存runのlock迂回はしない。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
 
