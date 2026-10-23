@@ -100,8 +100,7 @@ python3 bin/lm factory plan --config my-monk.config.json --script my-script.txt
 
 この段階ではstate directoryの作成、認証、voiceや連携のprovider照合、動画生成、投稿を行わない。
 有効な計画の出力は公開や収益の証明ではない。実生成は次のcommandから行う。
-費用上限と照合、他ユーザー向け導入、Factory MCPと
-hosted subscriptionは残る作業である。
+費用上限と照合、他ユーザー向け導入、hosted subscriptionは残る作業である。
 Databaseを検索するAI Monk Index CLI/MCPとは別の機能として扱う。
 
 ### 利用者設定から1回生成する
@@ -133,7 +132,7 @@ HeyGenのlockと費用sidecarは、host共通の`LM_DATA_DIR/marketing/ebook`に
 費用差分/unknownガードの範囲を超えて、上限内に収まるとは説明しない。
 
 このcommandは投稿しない。投稿先と素材確認記録は次の入口から既存publisherへ渡す。
-実課金/実投稿/日次自動運転/実売上、Factory MCPとhosted subscriptionは残る作業である。
+実課金/実投稿/日次自動運転/実売上とhosted subscriptionは残る作業である。
 
 
 ### 生成済み動画の投稿を進める
@@ -176,6 +175,50 @@ promoteの成功はscheduledで、PUBLISHEDや売上ではない。`status`で�
 `postiz-readback`で公式postを取得し、公開済みのnative証拠JSONを用意し、`--operation reconcile --post post.json --native native.json`で照合する。Instagram native証拠の自動収集はこの入口にない。
 status/readbackのexit0も公開成功を意味しない。個別の費用未確定状態を保持し、実注文・納品・
 手数料/返金後の利益は別の公式証拠で確認する。
+
+### ローカルAIからstdio MCPで呼ぶ
+
+repo rootで既存Node依存を準備する。Python3は`python3`としてPATH上に必要で、
+既存Life Manager setup等で`requirements-runtime.txt`を準備したPython環境を使う。
+仮想環境を使う場合は、MCP clientを起動するときもその`bin`をPATHへ含める。
+
+```sh
+npm ci
+node skills/earn/marketing-engine/factory-mcp.mjs
+```
+
+最後のcommandはstdio接続を待つ。MCP clientの設定例は次のとおり。
+`/absolute/path/life-manager`を自分のrepo pathへ置き換える。
+
+```json
+{
+  "mcpServers": {
+    "ai-monk-factory": {
+      "command": "node",
+      "args": ["/absolute/path/life-manager/skills/earn/marketing-engine/factory-mcp.mjs"]
+    }
+  }
+}
+```
+
+| tool | 既存CLIへの対応 | 入出力と作用 |
+|---|---|---|
+| `factory_plan` | `factory plan` | `config`, `script`のpathを渡す。providerを呼ばない。 |
+| `factory_render` | `factory render` | 同じpathと`run_id`を渡す。有料HeyGen生成を送る場合がある。 |
+| `factory_publish` | `factory publish` | `publication`, `run_id`, `operation`も渡す。upload/draft/promoteは外部操作で、`production: true`が必要。reconcileの`post`/`native`も既存CLIと同じ証拠path。 |
+| `factory_record_review` | `publish approve` | `approval_id`, `asset`, `product`, `account`, `owner_confirmation`, `confirmation_ref`, `approved_at`を渡し、実施済み素材確認を記録する。`ledger`にはprepareが返す`approvals_path`を使う。確認自体は行わない。 |
+
+pathは絶対pathを推奨する。相対pathはrepo root基準になる。
+toolはshell、executable、環境変数や追加flagを受け付けない。
+認証は起動したローカルprocessの既存HeyGen/Postiz設定を使い、toolから別user/tenantへ切り替えない。
+費用guard、account lock、素材確認、投稿fence、再送防止は既存CLIのまま使う。
+
+返り値は`result`にCLIのJSON、`exit_code`に実際の終了値、`stdout`/`stderr`に子processの出力を保持する。
+非0終了やtransport不正は`isError: true`になる。scheduledをPUBLISHEDへ、費用nullを確定費用へ変えない。
+子processの上限は1時間、stdout/stderrは各1MiB。長い生成にはclient側も十分な待ち時間を設定する。
+timeout、取消、接続終了ではこのserverが起動したprocess groupだけを回収し、自動再試行しない。
+途中のprovider effectは既存sidecar/fenceを照合し、失敗応答を再送許可として使わない。
+このローカル入口は公開HTTPS service、顧客のhosted subscription、他者導入や売上の証明を提供しない。
 
 ## Files
 
