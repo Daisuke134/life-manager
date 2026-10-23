@@ -792,7 +792,7 @@ raise SystemExit(0)
         paths = (APP_ROOT / "scripts" / "runtime-paths.sh").read_text(
             encoding="utf-8"
         )
-        self.assertIn("brew install gogcli", installer)
+        self.assertIn('"$LM_BREW" install gogcli', installer)
         self.assertIn('gog auth add "$email" --services gmail', installer)
         self.assertIn("Telegram is optional", installer)
         self.assertIn('read -s "bot_token?Telegram bot token: "', installer)

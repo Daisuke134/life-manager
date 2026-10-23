@@ -5,6 +5,13 @@ GIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="/opt/homebrew/bin:$HOME/.local/bin:$PATH"
 source "$GIG_DIR/../../../scripts/macos-runtime.sh"
 
+_coconala_browser_platform_ready() {
+  "$1" -c 'import platform
+from cloakbrowser.config import SUPPORTED_PLATFORMS, AVAILABLE_PLATFORMS, PLATFORM_CHROMIUM_VERSIONS
+target = SUPPORTED_PLATFORMS.get((platform.system(), platform.machine()))
+raise SystemExit(0 if target in AVAILABLE_PLATFORMS and PLATFORM_CHROMIUM_VERSIONS.get(target) else 2)' >/dev/null 2>&1
+}
+
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "help" ]; then
   cat <<'HELP'
 Usage: ./install.sh coconala [command]
@@ -19,25 +26,29 @@ Commands:
   finished   Verify the completed setup in the same browser and start eligible loops
   status     Print the secret-free private onboarding state
   outcomes   Print customer-safe official outcome receipt states
-  stop       Stop the six Coconala jobs and preserve definitions/private state
-  uninstall  Stop jobs, remove their six plist files, and preserve private state
+  stop       Stop the seven Coconala jobs and preserve definitions/private state
+  uninstall  Stop jobs, remove their seven plist files, and preserve private state
 HELP
   exit 0
 fi
 
 if [ "${1:-}" = "preflight" ]; then
   darwin=false; arm64=false; python=false; codex_cli=false
-  codex_authenticated=false; cloakbrowser=false
+  codex_authenticated=false; cloakbrowser=false; node_runtime=false
+  architecture_supported=false; browser_platform=false
 
   [ "$(uname -s 2>/dev/null)" = "Darwin" ] && darwin=true
   [ "$(uname -m 2>/dev/null)" = "arm64" ] && arm64=true
+  case "$(uname -m 2>/dev/null)" in arm64|x86_64) architecture_supported=true ;; esac
   python_bin="${PYTHON:-$HOME/.local/share/anicca/gig/venv/bin/python}"
   if [ -z "${PYTHON:-}" ] && [ ! -x "$python_bin" ]; then
     python_bin="${LIFE_MANAGER_PYTHON:-python3}"
   fi
   if _lm_select_python "$python_bin"; then
     python=true
+    _coconala_browser_platform_ready "$LM_PYTHON" && browser_platform=true
   fi
+  lm_node_ready && node_runtime=true
   if command -v codex >/dev/null 2>&1; then
     codex_cli=true
     codex login status >/dev/null 2>&1 && codex_authenticated=true
@@ -46,20 +57,20 @@ if [ "${1:-}" = "preflight" ]; then
     [ -x "$candidate" ] && cloakbrowser=true && break
   done
   status=blocked; exit_code=2
-  if $darwin && $arm64 && $python && $codex_cli && $codex_authenticated \
-    && $cloakbrowser; then
+  if $darwin && $architecture_supported && $python && $node_runtime && $codex_cli && $codex_authenticated \
+    && $cloakbrowser && $browser_platform; then
     status=ready; exit_code=0
   fi
-  printf '{"status":"%s","darwin":%s,"arm64":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s}\n' \
-    "$status" "$darwin" "$arm64" "$python" "$codex_cli" "$codex_authenticated" "$cloakbrowser"
+  printf '{"status":"%s","darwin":%s,"arm64":%s,"architecture_supported":%s,"browser_platform":%s,"python":%s,"node_runtime":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s}\n' \
+    "$status" "$darwin" "$arm64" "$architecture_supported" "$browser_platform" "$python" "$node_runtime" "$codex_cli" "$codex_authenticated" "$cloakbrowser"
   exit "$exit_code"
 fi
 
 if [ "${1:-}" = "prepare" ]; then
-  [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] || {
-    echo "[coconala] requires Apple Silicon macOS" >&2; exit 2;
-  }
+  [ "$(uname -s)" = "Darwin" ] || { echo "[coconala] requires macOS" >&2; exit 2; }
+  case "$(uname -m)" in arm64|x86_64) ;; *) echo "[coconala] unsupported macOS architecture" >&2; exit 2 ;; esac
   lm_ensure_python
+  lm_ensure_node
 
   venv="$HOME/.local/share/anicca/gig/venv"
   if ! _lm_select_python "$venv/bin/python"; then
@@ -68,6 +79,9 @@ if [ "${1:-}" = "prepare" ]; then
   if ! "$venv/bin/python" -c 'import websockets, bs4, jsonschema, cloakbrowser, PIL' >/dev/null 2>&1; then
     "$venv/bin/pip" install websockets beautifulsoup4 jsonschema cloakbrowser pillow >&2
   fi
+  _coconala_browser_platform_ready "$venv/bin/python" || {
+    echo "[coconala] installed browser package has no build for this Mac" >&2; exit 2;
+  }
   "$venv/bin/python" "$GIG_DIR/scripts/coconala_onboarding.py" configure-python \
     --python "$venv/bin/python" >/dev/null
 
@@ -116,19 +130,12 @@ if [ "${1:-}" = "outcomes" ]; then
 fi
 
 if [ "${1:-}" = "stop" ] || [ "${1:-}" = "uninstall" ]; then
-  labels=(
-    ai.anicca.hf-gig-browser ai.anicca.hf-gig-apply-direct
-    ai.anicca.hf-gig-reply-detector ai.anicca.hf-gig-storefront-direct
-  )
-  domain="gui/$(id -u)"
-  for label in "${labels[@]}"; do
-    /bin/launchctl bootout "$domain/$label" >/dev/null 2>&1 || true
-    if [ "$1" = "uninstall" ]; then
-      rm -f "$HOME/Library/LaunchAgents/$label.plist"
-    fi
-  done
-  printf '{"status":"%s","jobs":4,"private_state":"preserved"}\n' "$1"
-  exit 0
+  python_bin="${PYTHON:-$HOME/.local/share/anicca/gig/venv/bin/python}"
+  if [ ! -x "$python_bin" ]; then
+    python_bin="${LIFE_MANAGER_PYTHON:-python3}"
+  fi
+  _lm_select_python "$python_bin" || { echo "[coconala] compatible Python is unavailable" >&2; exit 2; }
+  exec "$LM_PYTHON" "$GIG_DIR/scripts/gig_release.py" "$1"
 fi
 
 if [ "${1:-}" = "start" ]; then
@@ -246,11 +253,11 @@ raise SystemExit(0 if any(needle in str(row.get("subject", ""))+str(row.get("bod
     fi
     exit 2
   fi
-  four_lanes="$("$venv/bin/python" "$GIG_DIR/scripts/gig_release.py" activate)"
-  launchd_sha="$(printf '%s\n' "$four_lanes" | shasum -a 256 | awk '{print $1}')"
+  lanes="$("$venv/bin/python" "$GIG_DIR/scripts/gig_release.py" activate)"
+  launchd_sha="$(printf '%s\n' "$lanes" | shasum -a 256 | awk '{print $1}')"
   "$venv/bin/python" "$GIG_DIR/scripts/coconala_onboarding.py" record \
     --state launchd_readback --evidence-sha256 "$launchd_sha" >/dev/null
-  printf '%s\n%s\n' "$ready" "$four_lanes"
+  printf '%s\n%s\n' "$ready" "$lanes"
   exit 0
 fi
 

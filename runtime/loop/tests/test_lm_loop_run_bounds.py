@@ -714,7 +714,11 @@ def test_persistent_sqlite_lock_during_claim_records_typed_deferred_admission(tm
         "effect_class": "none",
     }
     receipt = tmp_path / "host-admission.json"
-    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+    # Keep subprocess polling in host memory/reservation probes out of the
+    # shared time.sleep mock; this test measures only admission retry delays.
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource",
                 side_effect=sqlite3.OperationalError("database is locked")) as claim,

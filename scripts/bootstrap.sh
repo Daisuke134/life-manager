@@ -54,6 +54,14 @@ export LIFE_MANAGER_PYTHON="$LM_PYTHON"
 if [ "$#" -gt 0 ]; then
   case "$1" in
     job-hunter)
+      if [ -z "${JOB_SEARCH_PYTHON:-}" ]; then
+        for candidate in "$HOME/.local/share/anicca/job-search/venv/bin/python" \
+          "$HOME/.local/share/life-manager/venv/bin/python"; do
+          if [ -x "$candidate" ] && _lm_select_python "$candidate"; then
+            break
+          fi
+        done
+      fi
       export JOB_SEARCH_PYTHON="${JOB_SEARCH_PYTHON:-$LM_PYTHON}"
       ;;
     list|plan)
