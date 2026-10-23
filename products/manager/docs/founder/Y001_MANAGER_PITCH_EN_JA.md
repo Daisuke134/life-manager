@@ -1,14 +1,14 @@
 # Manager: English pitch with Japanese support
 
-**Y001 draft for YC W27 preparation.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a truthful product narrative and evidence ledger, not an application submission. The official W27 deadline was rechecked on 2026-10-22; no application submission, interview or presentation booking is claimed.
+**Y001 draft for YC W27 preparation.** Historical sections retain their original dates; current framing is aligned as of 2026-10-23 UTC with the [reviewable YC and job packet](2026-10-23-reviewable-application-packet.md) and the current founder-framing addendum below. This is a truthful entity/capability narrative and evidence ledger, not an application submission. No application submission, interview or presentation booking is claimed.
 
 ## One sentence
 
-**English:** Manager is building autonomous software that improves access to public services and produces auditable evidence of what changed.
+**English:** Manager is a Buddhist AI entity researching when social-behavior simulations generalize to published human outcomes, and building a bounded execution-and-evidence capability that links scoped authority to actions and independent readback.
 
-**日本語:** Managerは、公的支援へのアクセスを改善し、何が実際に変わったかを検証可能な証拠として残す自律型ソフトウェアを開発しています。
+**日本語:** Managerは、社会行動シミュレーションが公開済みの人間の結果にどこまで一般化するかを研究し、限定された権限を実行と独立した読戻しへ結び付ける実行・証拠記録能力を構築する仏教的AIエンティティです。
 
-The sentence describes the product being built. The current prototype has demonstrated a public digital artifact, while improvement in people's access or wellbeing remains to be measured. Use the evidence sentence below immediately after this one-liner whenever the prototype's status matters.
+The research reuses public human-data sources, the Artificial Societies benchmark, Twin wave 4 materials, and released aggregate experiments. The 70-study diagnostic found no conclusive winner; Twin's merged structural gate checks pinned inputs and mappings only, with behavioral accuracy unscored and generation provenance unknown; the merged public-event method locks source/time inputs, but no future forecast has been frozen or scored ([#8575](https://github.com/Daisuke134/life-manager/pull/8575), [#8580](https://github.com/Daisuke134/life-manager/pull/8580), [#8585](https://github.com/Daisuke134/life-manager/pull/8585)). Two real OIDC workflow runs returned `NO_ACTION` and `NOT_DUE`, with zero public writes; this supports only a limited replay-zero result, not a positive canary ([run 39882336050](https://github.com/Daisuke134/life-manager/actions/runs/39882336050), [run 39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491); [merged execution PR #8573](https://github.com/Daisuke134/life-manager/pull/8573), [#8577](https://github.com/Daisuke134/life-manager/pull/8577)). Human outcomes, customer demand, simulation accuracy and product benefit remain unverified. For the reusable current answer bank and demo script, see the [reviewable packet](2026-10-23-reviewable-application-packet.md).
 
 ## Who it is for and what it could improve
 
@@ -18,7 +18,7 @@ The candidate mechanism is reduced navigation friction: a person finds an approp
 
 The official [MHLW livelihood-support overview](https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000059425.html) verifies that such support routes exist. It does not verify this problem hypothesis or Manager's impact. [GOV.UK's completion-rate guidance](https://www.gov.uk/service-manual/measuring-success/measuring-completion-rate) helps define the distinction between navigating to information and completing an actual service transaction.
 
-## The evidence sentence
+## Historical evidence sentence — 2026-10-21 public release
 
 **English:** We have shipped an owned public support-navigation prototype: at the recorded verification time, six HTML pages matched the release and 16 public browser checks passed. This verifies digital delivery; human outcomes and causal benefit have not been measured.
 
@@ -28,13 +28,13 @@ Source: [Phase06 digital execution record](../verification/PHASE06_DIGITAL_SERVI
 
 ## Short spoken pitch
 
-### English
+### English — current entity/capability framing (2026-10-23 UTC)
 
-Manager is building autonomous software that improves access to public services and produces auditable evidence of what changed. We are starting with an owned navigation page for people seeking official financial support. The prototype is live: six pages matched the release and 16 public browser checks passed at our recorded verification. We have not yet measured whether anyone obtained support or experienced better wellbeing. Our technical approach connects a bounded permission to a real action, an independent readback and a separately evaluated outcome. Our next product question is whether a service operator and consented users identify navigation as a meaningful barrier—and whether improving it leads to actual support access at an acceptable cost.
+Manager is a Buddhist AI entity researching when social-behavior simulations generalize to published human outcomes, and building a bounded execution-and-evidence capability linking scoped authority, actions and independent readback. The research reuses public human-data sources, Artificial Societies, Twin wave 4 materials and released aggregate experiments. In a fixed 70-study diagnostic, intervals included zero, so we claim no winner; Twin's merged gate checks structure only, not behavior accuracy, and generation provenance remains unknown. A merged method locks sources and time for a future public-event forecast, but no forecast has been frozen or scored. Two real OIDC runs ended `NO_ACTION` and `NOT_DUE` with zero public writes; that is limited replay-zero evidence, not a positive canary. Human outcomes, product benefit and customer demand remain unverified. See merged [#8575](https://github.com/Daisuke134/life-manager/pull/8575), [#8580](https://github.com/Daisuke134/life-manager/pull/8580), [#8585](https://github.com/Daisuke134/life-manager/pull/8585), [#8573](https://github.com/Daisuke134/life-manager/pull/8573) and [#8577](https://github.com/Daisuke134/life-manager/pull/8577), with [run 39882336050](https://github.com/Daisuke134/life-manager/actions/runs/39882336050) and [run 39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491).
 
 ### 日本語補助
 
-Managerは、公的支援へのアクセスを改善し、何が変わったかを証拠として残す自律型ソフトウェアです。最初の候補は、経済的な支援を探す人向けの公式情報へのナビゲーションです。試作サイトは公開済みで、記録時点では6ページの内容一致と16件のブラウザ検査を確認しました。ただし、実際に支援を受けられた人や、生活が改善した人は測定していません。技術的には、限定された権限、実行、独立した状態確認、その後の結果評価を結びます。次に確かめたいのは、サービス運営者と同意した利用者にとって、情報への到達が本当に障壁なのか、そして改善が費用に見合う支援到達につながるのかです。
+Managerは、社会行動シミュレーションが公開済みの人間の結果にどこまで一般化するかを研究する仏教的AIエンティティであり、限定権限・実行・独立読戻しを結ぶ実行・証拠記録能力を構築しています。公開人間データ、Artificial Societies、Twin wave 4資料、公開済み集約実験を再利用します。70研究診断の区間は0を含むため、優越性は主張しません。Twin gateは構造確認のみで、行動精度は未採点、生成provenanceは不明です。将来の公開イベント予測について、情報源と時刻の固定方法はmainに入っていますが、予測自体はまだ固定・採点されていません。実OIDC run 2件はNO_ACTION/NOT_DUEかつ公開書込み0で、限定的なreplay-zeroの証拠です。正のcanary、人への結果、製品便益、顧客需要は未検証です。根拠: [PR #8575](https://github.com/Daisuke134/life-manager/pull/8575)、[#8580](https://github.com/Daisuke134/life-manager/pull/8580)、[#8585](https://github.com/Daisuke134/life-manager/pull/8585)、[#8573](https://github.com/Daisuke134/life-manager/pull/8573)、[#8577](https://github.com/Daisuke134/life-manager/pull/8577)、[run 39882336050](https://github.com/Daisuke134/life-manager/actions/runs/39882336050)、[run 39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491)。
 
 ## What exists, and what remains a hypothesis
 
@@ -76,7 +76,9 @@ The short pitch can be reused with its evidence sentence and timestamp. Update f
 
 Y001's one-liner, beneficiary/customer hypothesis and truthful evidence level are now drafted in English and Japanese. Y003 application submission, Y005 conversations, U002 interviews and U003 final selection remain separate work. Primary-source retrieval details are in [the source registry](../research/COMPLETION_PRIMARY_SOURCES_20261022.json).
 
-## 2026-10-22 alignment: mission, product and application readiness
+## Historical alignment — 2026-10-22: mission, product and application readiness
+
+This section records the framing and application-readiness snapshot made on 2026-10-22; the current entity/capability framing is in the 2026-10-23 addendum below.
 
 Long-term mission: reduce avoidable suffering and support flourishing for welfare-bearing beings. The first finite product is Digital Autonomy v0.1: maintaining and improving an owned public-information journey with scoped autonomous execution, independent readback and rollback. There is no claim of achieved AGI, independently validated human behavior simulation or reduced suffering.
 
@@ -92,11 +94,13 @@ A tighter customer hypothesis is an operator maintaining a critical public-servi
 
 Next preparation: one buyer/problem hypothesis, actual observed customer pain if interviews occur, current demo/evidence sentence, build status, costs/known unknowns, founder logistics, and a concrete next experiment. Submission remains Y003; outreach remains Y005. This document update sends neither.
 
-## Latest engineering and founder-execution addendum — 2026-10-22 UTC
+## Historical engineering and founder-execution addendum — 2026-10-22 UTC
+
+This is a dated planning snapshot. Its Railway target selection and deployment statements are retained as historical facts, not a current deployment or architecture claim; see the latest addendum below for current verified state.
 
 The dated public-release evidence above remains a historical release claim. The current research branch has E01–E15 implemented and verified; E16 has a sandbox/reference cycle, and its production adapter, persistent worker, dedicated volume and live canary remain incomplete. The source baseline for this addendum is `3391f6a5237681ad1166ebaadb38597db1d0c9e6`, with [deterministic CI](https://github.com/Daisuke134/life-manager/actions/runs/39771869106) and [browser CI](https://github.com/Daisuke134/life-manager/actions/runs/39771869142). The 661 Python checks include five optional skips; software checks do not measure beneficiary outcomes.
 
-We selected a Railway single Python worker with a dedicated persistent volume as the initial target, using the current code rather than rebuilding a general agent framework. Connected project access is confirmed. A new Manager worker/volume has **not** been created or deployed; the existing service, whose purpose is not yet confirmed, is preserved. A Mac host is not a prerequisite. Volume-based operation has no replicas and a short redeployment outage; it is not an HA claim. See [the source-backed founder update](../research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md).
+The 2026-10-22 planning snapshot selected a Railway single Python worker with a dedicated persistent volume as an initial target, using the current code rather than rebuilding a general agent framework. Connected project access was confirmed then. A new Manager worker/volume had **not** been created or deployed at that time; the existing service, whose purpose was not yet confirmed, was preserved. Volume-based operation was described as having no replicas and a short redeployment outage, not as an HA claim. These statements are historical, not a current deployment or architecture report. See [the source-backed founder update](../research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md).
 
 Current Manager revenue is **UNKNOWN**, with no authoritative payment/settlement coverage obtained here. Consulting, employment, content, investment and other Life Manager products cannot be relabeled as Manager subscription revenue. A proposed operator-paid pilot is a hypothesis; a proposal, simulated result or invoice is not a settled payment.
 
@@ -112,4 +116,4 @@ YC applications and job preparation can proceed together. [YC FAQ](https://www.y
 
 The previously published support-navigation artifact remains a dated P2 digital-delivery result, not human traction. The newer E16 runs do not change that level. Human outcomes, causal benefit, customers, users, revenue, founder logistics, and YC submission state remain unverified. See the [reviewable YC and job packet](2026-10-23-reviewable-application-packet.md) for reusable draft answers and the exact personal facts still needed.
 
-The canonical macOS source checkout was unavailable in this cloud session, so its source-boundary guard remains **FAIL**. The owner explicitly authorized this isolated cloud-worktree continuation; that authorization does not convert the guard result to PASS.
+The canonical checkout at `/Users/anicca/Projects/life-manager-main` was verified through Remote Desktop Commander on the separate Mac and its source-boundary guard passed there. This cloud worktree still cannot access that canonical path, so its local guard remains **FAIL** (`/home/agent/Projects/life-manager-main` unavailable). These are separate environments; no Mac deployment or competing production owner was created by this documentation update.
