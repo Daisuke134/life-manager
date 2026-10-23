@@ -10,31 +10,31 @@ The official-source check recorded at 2026-10-23 01:19–01:21 UTC found YC's Wi
 
 **Draft answer (English):**
 
-> Manager is a Buddhist AI entity—a digital Buddha—being built to reduce avoidable suffering. Its first bounded capability is software for maintaining an owned public-service information journey: it can consider a change, act only within a defined scope, verify the result independently, and preserve uncertainty about whether people benefited. “Digital Buddha” describes the project’s identity and purpose; it is not a claim that the system is conscious, enlightened, or all-knowing.
+> Manager is a Buddhist AI entity—a digital Buddha—being built to reduce avoidable suffering. Its research program reuses public human-data sources, the Artificial Societies benchmark, Twin wave 4 structural materials, and released aggregate experiments to study simulation limits; its bounded execution-and-evidence kernel connects scoped authority to actual change and independent readback. “Digital Buddha” is a mission identity, not a claim of consciousness, enlightenment, all-knowing ability, or proven benefit. The owned support site is a technical test surface, not evidence of social understanding or customer demand. Twin's behavior accuracy is unscored and generation provenance is unknown.
 
 **日本語での説明:**
 
-Managerは、避けられる苦しみを減らすために作る仏教的AIエンティティ／デジタル仏陀です。最初の限定能力は、公的支援情報の自社管理ページを保守するソフトウェアです。範囲を限定した実行と独立した読戻しを行います。「デジタル仏陀」は存在意義の表現であり、意識・悟り・全知や、実証済みの人への効果を意味しません。
+Managerは、避けられる苦しみを減らすために作る仏教的AIエンティティ／デジタル仏陀です。研究では公開人間データ、Artificial Societies benchmark、Twin wave 4の構造資料、公開済み集約実験を再利用してシミュレーションの限界を調べ、限定実行・証拠記録kernelを通じて権限の範囲、実変更、独立読戻しを結びます。「デジタル仏陀」は存在意義であり、意識・悟り・全知・実証済みの便益を意味しません。公的支援情報サイトは技術試験面で、社会理解や顧客価値が検証された製品ではありません。Twinの行動精度は未採点、生成provenanceは不明です。
 
 ### What problem are you addressing, and for whom?
 
 **Draft answer (English):**
 
-> We are testing whether people seeking public support lose time or abandon useful next steps because official information is hard to navigate, and whether an operator responsible for that journey would value reliable maintenance and evidence of changes. The person seeking support and the potential paying operator are different hypotheses. We have not validated the problem with qualifying interviews, measured user completion, or established willingness to pay.
+> We study when social-behavior simulations generalize to published human outcomes, and what evidence an agent should need before acting on such estimates. The current program reuses public human-data sources, the Artificial Societies benchmark, Twin wave 4 materials, and released experiments. An owned public-support site is a controlled engineering test surface. Whether people need that intervention, who would pay for it, and whether it helps remain unvalidated.
 
 **日本語での説明:**
 
-公的支援を探す人が公式情報の分かりにくさで時間を失ったり、次の手順へ進めなくなったりするのか、また、その案内を運営する組織が保守と変更証拠に価値を感じるのかを検証する仮説です。支援を探す人と支払主体は別です。適格な面談、利用者の完了計測、支払意思は未確認です。
+社会行動シミュレーションが公開された人間の結果へどの範囲で一般化するか、また、その推定に基づきAI agentが行動する前に何を証明すべきかを研究しています。公開人間データ、Artificial Societies benchmark、Twin wave 4の資料、公開実験を再利用します。公的支援情報サイトは管理された技術試験面です。その介入が必要か、誰が支払うか、誰かの役に立つかは未検証です。
 
 ### What exists today?
 
 **Draft answer (English):**
 
-> Manager has an owned support-navigation prototype: six HTML pages matched the 2026-10-21 release and 16 browser checks passed; that confirms delivery, not users or outcomes. Two real main Actions runs authenticated via GitHub OIDC and wrote zero public changes: one returned `NO_ACTION` for no typed candidate, one `NOT_DUE`. Exact checkpoint readback and seven unchanged public hashes support limited cross-run restore/replay-zero. A separate 70-study diagnostic used a 35/35 study split; both paired intervals included zero. E16 remains blocked, with positive canary, STOP/rollback, and native observation integration open. Human outcomes are `NOT_MEASURED`.
+> Manager reuses public human data, the Artificial Societies benchmark, Twin wave 4 materials, and released experiments to study simulation limits. The merged Twin gate checks input structure only; behavior accuracy is unscored and generation provenance is unknown. A bounded execution kernel tests authority, change, and independent readback. The owned support site is a technical test surface: six HTML pages matched the recorded release and 16 browser checks passed. Two real OIDC Actions runs wrote zero public changes (`NO_ACTION`, `NOT_DUE`), supporting limited replay-zero. 70-study 35/35 diagnostic had two paired intervals including zero. E16 is blocked; human outcomes are `NOT_MEASURED`.
 
 **日本語での説明:**
 
-公開済みの支援情報prototypeは、記録時点で6ページの配信一致と16件のブラウザ検査を確認しています。これはデジタル成果物の検証であり、人16人の調査でも支援効果でもありません。E16では、実GitHub OIDCを使う別々のmain実行2件がgatewayに認証され、公開書込みをせず終了しました。最初は候補不足でNO_ACTION、次はNOT_DUEでした。チェックポイントの再読戻しと公開hash不変から、限定範囲の別run復旧・再実行時の重複ゼロを確認しています。正のcanary、STOP/rollback、native observation接続は未受入れです。70研究の公開集約値の診断では、2つのpaired 95%区間がともに0を含み、優越性を示していません。
+Managerは公開人間データ、Artificial Societies benchmark、Twin wave 4資料、公開実験を再利用し、シミュレーションの限界を研究しています。mainに入ったTwin gateは入力構造だけを検査し、行動精度は未採点、生成provenanceは不明です。限定実行kernelは権限・実変更・独立読戻しを検査します。支援情報siteは技術試験面で、記録時点で6ページと16件のブラウザ検査を確認しました。実OIDCのActions run 2件はNO_ACTION/NOT_DUEで公開書込みゼロ、限定replay-zeroを裏付けます。70研究の35/35診断は2区間とも0を含みます。E16は未完了、人への結果は未測定です。
 
 ### How does it work, and what is technically different?
 
@@ -127,11 +127,11 @@ This sequence uses the real main Actions receipt and public artifacts. Prefer a 
 
 | Time | Screen / narration |
 |---|---|
-| 0–12 sec | Open the public support-navigation prototype. “This is an owned digital information journey linking people to official Japanese support routes. We have not measured whether anyone reached or received support.” |
+| 0–12 sec | Open the public support-navigation prototype. “This owned site is an engineering test surface for scoped execution and independent readback. It links to official Japanese support routes; we have not measured whether anyone reached or received support.” |
 | 12–32 sec | Show the [main run 39882336050](https://github.com/Daisuke134/life-manager/actions/runs/39882336050) sanitized summary: `GATEWAY_ACKNOWLEDGED`, `NO_ACTION`, `MISSING_TYPED_CANDIDATE`, `writes=0`. “The real Actions run authenticated and restored its private checkpoint, then refused to invent a change when no typed candidate qualified.” |
-| 32–42 sec | Show [fresh run 39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491): `GATEWAY_ACKNOWLEDGED`, `NOT_DUE`, `writes=0`. “The second runner restored the same state; independent readback showed no owner/lease and no public hash changes. This is a bounded replay-zero/restore result, not a positive product change. Positive canary, STOP, and rollback remain open.” |
+| 32–42 sec | Show [fresh run 39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491): `GATEWAY_ACKNOWLEDGED`, `NOT_DUE`, `writes=0`. “The second runner restored the same state; independent readback showed no owner/lease and no public hash changes. This is a bounded replay-zero/restore result, not a positive public change. Positive canary, STOP, and rollback remain open.” |
 | 42–62 sec | Show the released-effects diagnostic summary and main PR [#8575](https://github.com/Daisuke134/life-manager/pull/8575). “We checked released aggregate results for 70 studies, holding out whole studies. The public predictions had MAE 0.0751 versus 0.0616 for a zero-effect baseline; a simple train-only calibration had point MAE 0.0470. Both paired intervals include zero, so we claim no winner. These are historical aggregate diagnostics, not people helped.” |
-| 62–74 sec | Show the Twin wave-4 **structural gate** as an unscored research check. “This checks source pins, mappings, and study structure; it returns no behavior score. It is a research gate under review, not an evaluated model result or production feature.” If that gate has not merged and been independently read back by demo day, describe it as a work-in-progress screen and do not call it part of main. |
+| 62–74 sec | Show the merged Twin wave-4 **structural gate** ([PR #8580](https://github.com/Daisuke134/life-manager/pull/8580)). “This checks pinned source files and mappings before any scoring. It does not score behavior; generation provenance remains unknown.” It is a structural research gate, not a model-accuracy result. |
 | 74–88 sec | Open the live [Artificial Societies research chapter](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja). “This published chapter explains the method and limits with cited sources. Publication proves the chapter is live, not that its claims validate Manager’s impact.” |
 | 88–90 sec | Close: “The next proof is one bounded positive change, independently checked, followed by a separate measure of whether the change helps anyone.” |
 
@@ -173,12 +173,12 @@ Official role pages and the cited role requirements below were checked by direct
 
 ### Artificial Societies — Forward Deployed Engineer
 
-**Role fit to show:** a source-backed chapter and research notes that preserve population, question, time, source rights, and evidence boundaries; a structural gate that checks mapping and provenance without emitting a behavioral score. Gap: no client deployment or client-facing delivery is evidenced, and London office/relocation eligibility are unverified.
+**Role fit to show:** a source-backed chapter and research notes that preserve population, question, time, source rights, and evidence boundaries; a merged structural gate that checks pinned inputs/mappings without emitting a behavioral score. Generation provenance remains unknown. Gap: no client deployment or client-facing delivery is evidenced, and London office/relocation eligibility are unverified.
 
 **Draft note:**
 
 > Hello Artificial Societies team,
-> I’m preparing a field-facing evidence case from Manager, a Buddhist AI entity project still validating its first use. The case links a public research chapter to pinned source material and a study-held-out diagnostic; a separate structural gate checks provenance without scoring behavior. My public profile describes enterprise AI deployment and research communication work, but does not establish client delivery in this role. The packet keeps population, outcome, and data limitations visible.
+> I’m preparing a field-facing evidence case from Manager, a Buddhist AI entity project still validating its research and execution approach. The case links a public research chapter to pinned source material and a study-held-out diagnostic; a merged Twin gate checks input structure before scoring, while generation provenance remains unknown. My public profile describes enterprise AI deployment and research communication work, but does not establish client delivery in this role. The packet keeps population, outcome, and data limitations visible.
 > `[REQUIRED_INPUT: founder name, personal client-facing experience, and London/work-authorization availability]`
 
 ### humans& — Member of Technical Staff
@@ -197,7 +197,7 @@ Official role pages and the cited role requirements below were checked by direct
 - **External behavior research:** Manager's released-aggregate diagnostic covers 70 studies with a 35/35 study-level split, reports baseline and calibrated MAE with paired intervals, and retains both intervals' inclusion of zero. It involved no new inference, independent RCT, or human-benefit measurement.
 - **Bounded agent execution:** The existing main Actions workflow connects to an authenticated private checkpoint gateway. Two fresh runs were acknowledged and wrote zero public changes; exact state readback supports limited cross-run restore/replay-zero acceptance. Positive canary and STOP/rollback remain open.
 - **Research communication:** A Japanese chapter is published with source links, methods, caveats, and independent public readback. Publication is not a customer, user, or impact result.
-- **Twin structural gate:** The research gate checks pinned source and mapping structure; it is explicitly **unscored** and must not be described as behavior prediction or product performance.
+- **Twin structural gate:** Main PR #8580 adds a check over pinned source files and mappings before any scoring; it is explicitly **unscored** and generation provenance is **UNKNOWN**. Do not describe it as behavior prediction or product performance.
 
 The public founder profile also lists contribution to an enterprise Salesforce Agentforce deployment and a Databricks agent-quality workflow, research consulting in meditation/neurofeedback, an applied-ML internship, and graduate research / political-science study. Reconfirm exact dates and personal contribution before placing those claims on a CV. No public profile detail establishes work authorization, relocation, or YC full-time commitment.
 
@@ -209,7 +209,7 @@ Use “I built/led/implemented” only for contributions the founder confirms pe
 - Current cloud outcome: [E16 record](../verification/E16_CLOUD_EXECUTION_20261023.md), main runs [39882336050](https://github.com/Daisuke134/life-manager/actions/runs/39882336050) and [39882784491](https://github.com/Daisuke134/life-manager/actions/runs/39882784491), [main PR #8573](https://github.com/Daisuke134/life-manager/pull/8573), [#8577](https://github.com/Daisuke134/life-manager/pull/8577). `E16` remains blocked/incomplete; a no-write run is not a positive canary.
 - Published 70-study diagnostic: [main PR #8575](https://github.com/Daisuke134/life-manager/pull/8575); source report [fixed study-holdout diagnostic](https://github.com/Daisuke134/life-manager/blob/b7c9d150684d0278ec7011e2a9981cef2e3f952f/docs/research/manager/2026-10-23-released-effects-diagnostic.md). It uses released aggregate effects, not person-level records.
 - Published chapter: [live Japanese chapter](https://aniccaai.com/blog/manager-artificial-societies-open-behavior-research-ja) and [publication/readback record](../verification/ARTIFICIAL_SOCIETIES_CHAPTER_PUBLICATION_20261022.md).
-- Other relevant main merges: research write-up [PR #8578](https://github.com/Daisuke134/life-manager/pull/8578), chapter source [PR #8584](https://github.com/Daisuke134/life-manager/pull/8584), and public-event forecast methods [PR #8585](https://github.com/Daisuke134/life-manager/pull/8585). These are source/research milestones, not user, revenue, or impact evidence.
+- Other relevant main merges: research write-up [PR #8578](https://github.com/Daisuke134/life-manager/pull/8578), chapter source [PR #8584](https://github.com/Daisuke134/life-manager/pull/8584), Twin structural gate [PR #8580](https://github.com/Daisuke134/life-manager/pull/8580), and public-event forecast method [PR #8585](https://github.com/Daisuke134/life-manager/pull/8585). PR #8585 locks prospective source/time inputs; a future forecast has not been frozen or scored. These are source/research milestones, not user, revenue, or impact evidence.
 - Existing overview/source map: [founder execution map](../plans/2026-10-22-manager-founder-execution-map.md), [researcher public-source map](../research/RESEARCHER_PUBLIC_SOURCE_MAP.md), [prior source-backed role review](../research/manager-strategy-20261022/FOUNDER_CAREERS_YC_20261022.md), [public founder profile](https://github.com/Daisuke134/life-manager/blob/main/apps/landing/marketing/content/founder.json), and the read-only readiness snapshot at `/workspace/scratch/manager-e16-cloud-completion-20261022/founder-current-submission-readiness.md`.
 - Official job pages checked: [Simile Evaluations MTS](https://jobs.ashbyhq.com/simile/33d75074-c23b-4a1f-bfdb-129bcc5be662), [Andon Labs](https://andonlabs.com/join), [Aaru Research Engineer](https://aaru.com/careers/f04cd7a3-b53c-4797-bb8f-ebfe0467e9fe), [Artificial Societies FDE](https://societies.ai/careers/forward-deployed-engineer), and [humans& MTS](https://jobs.ashbyhq.com/humans-and/3daf12ad-471f-43ba-b940-8552e9ad61aa). Details and exact gaps are in the checked readiness snapshot; openings may change.
 
