@@ -14,7 +14,7 @@
 
 **公開未来イベントの初回固定（2026-10-23）:** Dの固定手順 [PR8585](https://github.com/Daisuke134/life-manager/pull/8585) に続き、[PR8593](https://github.com/Daisuke134/life-manager/pull/8593) で10月27–28日FOMCの参照予測1件をmainへ公開しました。予測器は固定した過去頻度の参照ルール（`p=0.25`、比較baselineと同値）です。GitHubの受理時刻 `2026-10-23T02:16:17Z` と正確な公開blobを、cloudとMacで別々に読み戻し、既存attesterの `VERIFIED_PROSPECTIVE` を確認しました。[固定された予測と手順](https://github.com/Daisuke134/life-manager/tree/f6055f9460502cd79cba95ffadecb998439e1056/docs/research/manager/predictions/fomc-2026-10-27-28)。将来結果と採点は未取得で、独立モデルの精度・較正・汎化・人への便益は未実証です。
 
-**2026-10-23 接続先の追加:** Remote Desktop Commander経由でMac miniのオンライン接続と、macOS上の正本 `/Users/anicca/Projects/life-manager-main`・canonical originを読み取り確認しました。既存作業のブランチと未コミット変更は保持します。Macは追加のhost adapterであり、既に実証済みのActions＋Supabaseを置き換えたり、新たな常駐ownerを立てる前提ではありません。接続確認だけでローカル配備済み・E16完了とは判定しません。
+**2026-10-23 接続先の追加:** Remote Desktop Commander経由でMac miniの正本とcanonical originを確認し、その配下の専用worktreeで同じmain sourceを実行しました。source guardはPASS、既存Homebrew/物理temp pathと時刻比較のテスト修正 [PR8598](https://github.com/Daisuke134/life-manager/pull/8598)で113 contractsがPASS。公開未来イベント記録の公式readbackもcloudとは別に検証しました。通常checkoutの別ブランチと未コミット変更は保持します。Macは追加のhost adapterであり、稼働済みActions＋Supabaseを置き換えたり、第二の常駐ownerを立てる前提ではありません。これらの検査はローカル本番配備やE16完了の証明ではありません。
 
 **Founder提出用の具体案:** [英語回答・動画・実証demo・5社別応募文](docs/founder/2026-10-23-reviewable-application-packet.md)。公開プロフィール由来の情報と、Manager固有の実績・本人確認事項を分けています。回答案の完成は、YC・求人への提出や採択の実績ではありません。
 

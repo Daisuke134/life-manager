@@ -1,6 +1,6 @@
 # Manager — 実装・実証・収益・出版・仕事・YCの実行マップ
 
-2026-10-22 UTC。[製品仕様](../MANAGER_PRODUCT_SPEC.md)の派生作業表。状態・依存・技術カーソルの唯一の正本は [tasks.json](../roadmap/tasks.json)。下の12行は既存E/P/U/Y/G作業を束ねた表示であり、新規のtask IDや完了状態ではない。原113件に加算しない。今回の調査と改稿で投稿・メール・応募・登録・決済・配備は行っていない。
+2026-10-23 UTC更新。[全体仕様](../MANAGER_PRODUCT_SPEC.md)の派生作業表。Managerは仏教的AIエンティティ／デジタル仏陀という呼称を使う。状態・依存・技術カーソルの唯一の正本は [tasks.json](../roadmap/tasks.json)。下の12行は既存E/P/U/Y/G作業を束ねた表示であり、新規のtask IDや完了状態ではない。原113件に加算しない。現在のcloud実行と章の実公開は各証跡を参照。メール・応募・登録・入金の実績を文書から推定しない。
 
 ## 1. 一つの証拠を、複数の機会へつなぐ
 
@@ -20,7 +20,7 @@ flowchart LR
     F --> B
 ```
 
-製品・教材・採用・YCは同じ成果の使い道であり、同じ数字を別の実証として増やさない。他人の公開成果を組み合わせることと、自分の効果・売上・採択を証明することは別。出典を読み、自分で小さな比較/失敗を再現し、結果と限界を教える。
+Managerの活動・教材・採用・YCは同じ成果の使い道であり、同じ数字を別の実証として増やさない。他人の公開成果を組み合わせることと、自分の効果・売上・採択を証明することは別。出典を読み、自分で小さな比較/失敗を再現し、結果と限界を教える。
 
 ## 2. 12の実行パッケージ
 
@@ -28,7 +28,7 @@ flowchart LR
 
 | 優先 | 既存作業 | 次に作るもの | 完了を認める証拠 |
 |---|---|---|---|
-| 1 | E16 | Railway専用worker/volume、本番adapter、具体的ownerと費用/停止設定 | 既存serviceを保全したstaging、固定source、volume、owner/run identity。接続だけでは完了しない |
+| 1 | E16 | 稼働済みActions＋Supabaseで正のcanary、停止維持・再開・限定復元、native proofを実証 | 固定main source、実OIDC/owner/run identity、独立P1/P2と復元receipt。初回restoreと書き込み0のSTOPだけで完了にしない |
 | 2 | E16 → F005/F006/F008/F009 | 限定canary・独立readback・restart/replay-zero/rollback | official commit/parent/7-file bodies、外部GET、旧bundle復元、対象外不変。真の改善がなければNO_ACTION |
 | 3 | P01 / U005 | 既存source/run/権利を束ねるcase-study evidence indexと公開可能なproof | claim ID→source SHA/実artifact/限界が一対一で辿れる。旧公開面と新E16を混同しない |
 | 4 | Y001/Y002/Y003 | YC回答、demo、1分founder video、提出前check | 正確な本人情報と当時の成果、実際の申請confirmation。採択は別 |
@@ -55,9 +55,9 @@ flowchart LR
 
 ## 4. クラウド選定を、他者の実装と照合した結論
 
-採用はRailwayの単一Python worker＋専用永続volume。理由は新しさではなく、既存Python/std-library/SQLite/outbox/lockを最小変更で接続できるため。既存Railway project `life-manager` は読取接続済み。既存serviceは別の運用である可能性があるので、source/owner/用途を確認して保全し、isolated stagingの専用serviceから始める。新service/volumeはまだ作成していない。
+現在の採用は既存GitHub Actionsのmain-only ownerと既存Supabaseの非公開checkpoint。既存Python/stdlib/SQLite/outboxを保ち、実OIDC・lease/CAS・別runnerでの復元とreplay-zeroを確認したため、この実証済み経路を使う。Railwayは以前の代替候補として保全し、新service/volumeを前提にしない。[現行の実証と残件](../verification/E16_CLOUD_EXECUTION_20261023.md)を参照。
 
-既存の成功した仕組みは再利用する: Railwayのdeployment/restart/volume/backup、GitHubのsource/CIと既存publisher、SQLiteのtransaction、既存browser/accessibility checks。独自クラウド基盤や一般的workflow engineを作らない。volume付きRailway serviceはreplica不可・再deploy時に小停止があるため、HAや無停止とは説明しない。[Railway公式](https://docs.railway.com/volumes/reference)
+既存の成功した仕組みを再利用する: GitHubのsource/CI/有限schedulerと既存publisher、Supabaseのprivate checkpoint、SQLiteのtransaction、既存browser/accessibility checks。独自クラウド基盤や一般的workflow engineを作らない。Macは同じsourceの検証adapterであり、追加の常駐writerは作らない。Actionsの起動時刻・既存hostの無料枠・無停止HAは保証しない。
 
 LangGraph/Temporal等は比較したうえで採用を保留する。現実のmulti-worker/長期workflow/recovery運用負担が現方式を上回る時に、既成engineを評価して移行する。frameworkを導入しても外部作用のidempotencyやofficial readbackは必要。旧Letta V1の説明を現行依存として採用しない。詳細は[先例調査](../research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md)。
 
@@ -65,7 +65,7 @@ E16本番前に次の追加crash-point検査を行う。これらは読取監査
 
 1. 起動時に未解決intentを全件列挙し、新planner/candidate作成より先にexact occurrenceを照合する。候補/contextが変わった、古いscopeが期限切れ、providerを停止した場合も旧UNKNOWNを失わない。解決できなければ対象を隔離し、新しいkeyでfenceを逃れない。
 2. schedule slot保存直後・dispatch直前・外部commit直後・readback前のcrashを固定時計で検査。割込状態と再開方針を記録し、欠落slotを無条件に再送しない。
-3. volume付きdeploymentの停止/再起動、旧in-flight writerのGit parent CAS、backupからの復元、実行中owner競合を実環境で検証。
+3. 別のfresh runnerでのcheckpoint復元、旧in-flight writerのGit parent CAS、STOP維持・明示再開・限定復元、実行中owner競合を実環境で検証。
 4. 元のrepository/ref/workflow/artifact admissionを維持。研究branchの実行を許すための単純なSOURCE_REF書換えはしない。費用はactual usageと既存予算で管理し、今回のspec変更で新しい支出を実行しない。
 
 ## 5. 共有する成果packet
