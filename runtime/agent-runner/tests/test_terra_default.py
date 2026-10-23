@@ -70,7 +70,8 @@ class TerraDefaultTest(unittest.TestCase):
                                  "effort": "medium", "profile_alias": "acct1"}]
                 if name == "writer-judge-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
-                                 "effort": "medium", "profile_alias": "acct2"}]
+                                 "effort": "medium", "timeout_seconds": 240,
+                                 "profile_alias": "acct2"}]
                 if name == "self-fix-code-agent":
                     expected = [{"provider": "codex", "model": "gpt-6-luna",
                                  "effort": "max", "profile_alias": "acct2"}]

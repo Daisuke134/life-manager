@@ -107,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     schema_path = Path(schema_override) if schema_override else (
         AGENT_SCHEMA if text_envelope else SCHEMA)
     task_class = "high-value-agent" if args.mode == "agent" else "composition-agent"
-    if args.mode == "judge":
+    if args.mode in {"judge", "vision"}:
         # The Writer agent holds acct1 for its whole turn; its judges wait for acct2 instead of
         # failing fast on the account their own parent holds (2026-10-23, run 20261023-053932).
         task_class = "writer-judge-agent"
