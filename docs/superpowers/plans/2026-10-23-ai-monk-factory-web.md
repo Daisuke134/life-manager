@@ -46,4 +46,4 @@
 - docs/evidence/ai-monk-factory-web-production-20261023.json
 
 ## 現在cursor・未達
-この公開workspace/local plan受入は完了する。無料plugin ZIP v0.1.1も公開するが、ChatGPT/Codex公式directory掲載、Museサービス特定、実生成/投稿/native確認、売上/他者無人収益/USD10K MRRは未達として扱う。次は配布・通常認証の追加観測。API成功や生成fixtureを実収益の証拠に置換しない。
+この公開workspace/local plan受入は完了する。無料plugin ZIP v0.1.1も公開するが、ChatGPT/Codex公式directory掲載、Museサービス特定、実生成/投稿/native確認、売上/他者無人収益/USD10K MRRは未達として扱う。次は直接install可能な配布導線。公式掲載の通常Google SSOは既存persistent contextで通過し、OpenAI MFA passkeyに留まる。指定cua-driver skill不在でnative UIは未操作とし、掲載済みと呼ばない。API成功や生成fixtureを実収益の証拠に置換しない。
