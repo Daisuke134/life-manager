@@ -18,7 +18,7 @@
 
 **全体設計:** [エンティティの使命・最初の能力・研究・運営・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
 
-**全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。無料経路の第一候補は既存GitHub Actions＋稼働中Supabaseのprivate checkpointへ更新。Railwayは代替hostとして保全します。[旧ローカルCodex WIP引継ぎ](docs/handoffs/2026-10-22-manager-local-codex-handoff.md)は当時の履歴資料として保存し、現在の作業状態には適用しません。Managerの本番配備は未完了です。
+**全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。無料経路の第一候補は既存GitHub Actions＋稼働中Supabaseのprivate checkpointへ更新。Railwayは代替hostとして保全します。[旧ローカルCodex WIP引継ぎ](docs/handoffs/2026-10-22-manager-local-codex-handoff.md)は当時の履歴資料として保存し、現在の作業状態には適用しません。所有デジタル7パスのE16実配備は受入済み。AI定期接続と人への便益は未実証です。
 
 **最新の研究方針修正:** [spec §21](docs/MANAGER_PRODUCT_SPEC.md) は小さな所有サイトを実行試験へ限定し、公開人間データ・AS Benchmark・Twin・公開RCTの再利用を研究の中心に置く。企業提携/NDA/Rothko私有weightsは初期依存にしない。[既存A–F計画](https://github.com/Daisuke134/life-manager/blob/2fd21dbfb35d5ae4e8b99cb8c5cae8fbcef65db2/docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)に沿い、Aの検査、Bの公開予測70研究の分割評価、CのTwin wave4構造gateをmain統合しました。Bの比較区間は0を含み優位未証明、Cの生成来歴・accuracyは未検証です。研究の進展で原タスクの状態を進めません。
 
