@@ -136,7 +136,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not 1 <= minimum <= 100:
         return 64
     try:
-        max_swap = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75"))
+        max_swap = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "85"))
     except ValueError:
         return 64
     if not 1 <= max_swap <= 1000:
