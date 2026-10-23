@@ -92,7 +92,7 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=feat/lancers-guided-setup-20261023、base=742479ee2e57b1ef6153ef780cc1d4628c22a4d6（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのACCOUNT。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-private-inputs-20261024、base=056792fcbcee1518f6f433ee15b99fc7aac70a0f（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINPUTS-A。実ACCOUNT接続はHuman Verification未通過で未完。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -101,12 +101,14 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 実装判断: 既存Python/Playwright/共通profile validatorとlocal applyを再利用する。候補者の事実には既存job-search profile v1のnameとevidence付きfactsを使う。Lancers固有accountとprovider証拠は本人private入力を明示接続し、必要最小の契約を同じcaller群へ通す。source/templateの作者値は本人証拠の代替にしない。新scheduler/独自業務core/global host profile移行/任意の新依存は追加しない。brainstormingの質問はユーザーが明示的にopt outしているため進行条件にしない。building-agentsの古いmodel/provider指定は今回のChatGPT Plus/Codex要件を上書きしない。
 
-SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。登録済みbrowserの公式mypage観測は新しいmain版guardから成功するが、Lancers専用provider profileは未作成。公開installerがこの本人接続を行う経路が次の修正対象。
+SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1.jsonを--productへ固定し、storefront_offerのprofile/avatar/portfolio/listing IDsを本人値へ置換する導入経路が無い。IDENTITYのApply/Paid修正だけで全7jobsをactivateしない。本人所有のprivate product/proofと公式account照合をSETUP/RUNTIMEで接続する。過去の公式mypageの正の観測は保持するが、現在はHuman Verification画面でありLancers専用provider profileは未作成。次は独立した本人入力のsource境界を直し、公開INSTALLで同じ公式観測を再実行する入口をつなぐ。
 
-SETUPの実行順と受入:
-- [ ] ACCOUNT: 既存Coconala onboardingの公式観測・private receiptの形を再利用し、Lancersの公式mypage内で確認できる本人accountを接続する。現在のpositive precedentは `.mypage.result-summary a[href*="/profile/"]` が一つのaccountを指すこと。公式origin/path、ready、login/challenge、リンクの一意性を検証し、未設定・曖昧・他人の公開profileをreadyにしない。候補者の事実やaccountを作者値で補わず、既存load_identity/account-idの契約を保つ。source fixtureのRED→GREEN後に受入・main反映し、同じ公式観測から本人private入力へ接続する。
-- [ ] INPUTS: ReplyのCrowdWorks provider既定と、Storefrontのcreator product/avatar/catalogへの戻りを本人入力へ修復する。既存--product、validator、catalog_path、同じreconcile pathを再利用する。未設定の本人product/proofを作者画像・仮listing ID・repo実績で埋めず、setup_requiredとして扱う。profile更新は検証済みavatarを使う。初回listingとcatalogの外部effectは本人設定・公式証拠が成立する経路だけで行う。
-- [ ] INSTALL: 既存bootstrap/install dispatch/catalog/common local applyへ公開Lancers入口を接続する。ChatGPT認証と導入済み適合Python/browserを再利用し、別Macのhost/browser bindingを先に確認する。新scheduler/第二業務core/独自profile frameworkを作らない。
+SETUPの実行順と受入（旧=ACCOUNTのsource/実接続→INPUTS→INSTALL→READY、新=完了ACCOUNT source→INPUTS-A→INPUTS-B→INSTALL→ACCOUNT実接続→READY）: 公式Human Verificationは未通過だが、作者設定へのsource参照を直す作業には依存しないため、待ち状態を全修復の停止条件にしない。進行中の外部effectは無く、provider送信やowner再起動は行わない。
+- [x] ACCOUNT-SOURCE: 正の公式account観測・private binding・保存失敗時の無効化・navigation中の空DOM拒否を既存helperで実装し、PR #8733/#8738、独立review、関連81tests、公開CI/main/readbackを受け入れる。実接続は下のACCOUNTで別に確認する。
+- [ ] INPUTS-A: ReplyのCrowdWorks provider既定と、Storefrontのcreator product/avatar/catalogへの戻りを本人入力へ修復する。既存--product、validator、catalog_path、同じreconcile pathを再利用する。本人product/proofの欠損・破損では外部callback前にsetup_requiredとし、作者画像・repo実績へ戻らない。profile更新は検証済みavatarを使う。catalog未使用の利用者へ新たな必須条件を課さない。
+- [ ] INPUTS-B: 初回listing/portfolioに仮IDを要求しない。既存validatorの作成modeと既存create/readback/receiptを再利用し、公式に確認した実IDだけを同じ本人private productへ保存する。編集/inspect/reconcileは実IDを照合し、missingや保存失敗を外部effect無しへ置換しない。
+- [ ] INSTALL: 既存bootstrap/install dispatch/catalog/common local applyへ公開Lancers入口を接続する。ChatGPT認証と導入済み適合Python/browserを再利用し、別Macのhost/browser bindingを先に確認する。Coconalaのmissing→公式手続き案内→同じobserve再実行の先例を使い、本人の「完了」操作や旧statusだけでは成功にしない。generic account_observationから原因を断定しない。新scheduler/第二業務core/独自profile frameworkを作らない。
+- [ ] ACCOUNT: 既存Coconala onboardingの公式観測・private receiptの形を再利用し、Lancersの公式mypage内で確認できる本人accountを接続する。positive precedentは `.mypage.result-summary a[href*="/profile/"]` が一つのaccountを指すこと。公式origin/path、ready、login/challenge、リンクの一意性を検証し、未設定・曖昧・他人の公開profileをreadyにしない。候補者の事実やaccountを作者値で補わず、既存load_identity/account-idの契約を保つ。main由来immutableの同じ公式観測から本人private入力へ接続し、未通過の本人手続きは成功へ置換しない。
 - [ ] READY: 本人入力・公式account照合・必要なproduct/proofとlaneごとの要件が満たされるownerだけを既存local applyから導入する。sourceの受入とimmutable反映を済ませてから自然terminal/公式成果へ進み、全7jobsや別Macの成功を設定fileだけで報告しない。
 
 Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、公開workflow39965643774は成功。guard/testのGitHub公式main bytesは全一致し、追加CI stepも一致する。workflow全体の別差分はmainに統合済みのMonk Factory Web jobで、今回のbrowser stepは変わらない。既存cutterの限定候補は `~/.local/share/life-manager/browser-probes/lancers-local-setup/releases/20261023T230521-742479ee`（provenance=ancestor-of-origin-main、skills/browser、current不変）。同cwdから既存with-browserを使い、公式https://www.lancers.jp/mypageのready=complete/login_form=false/human_verification=falseと、本人summary内のprofile linksが同一accountを指すことを読む。raw account値は出力せず、lease解放とowned target残0を確認する。browser起動・login・provider送信・業務owner applyは0。公開Lancers導入、別Mac実機、全機能、10,000 starsは未完（GitHub公式現在値8 stars/2 forks）。
@@ -140,11 +142,25 @@ ACCOUNTのsource受入: PR #8733/head839ebd31e0b8bd4bb45cdee2336d22cc34039b4cは
 
 ACCOUNTの実機診断: 同mainから既存cutterで `~/.local/share/life-manager/account-probes/lancers-local-setup/releases/20261024T000151-a8954faa` を作る（browser＋helper/writer依存56files、memory entry0、current不変）。資格情報SSOT全体とLancers完全一致1件、registryのlancers:dais/owner=lancers-revenue-browserを確認し、既存with-browserからobserveを実行する。exit78/account_observation、provider profile未作成、latest observationは無効、所有tab残0。追加read-only phase probeではsample0がofficial_mypage=false/ready=complete/links0、その後19samplesがofficial_mypage=true/ready=complete/human_verification=true/links0、最後に所有tabを閉じる。raw account/DOM/secretは出力せず、provider送信0。source受入を実接続成功へ置換しない。
 
-ACCOUNTの次修復: 新しいtabの空DOMをready=completeだけで打ち切らず、既存observed_accountが正の本人証拠を返すまで現20回の範囲で待つ。明示login/challengeや不正origin/曖昧accountは引き続き接続しない。timeout/回数を増やさず、sample列=空complete→公式summary未完complete→正の本人DOMをfixtureでRED/GREENにする。workerは同helper/test2filesだけ、primaryは本仕様/CI/統合/別原因のchallenge診断。現在cursorはACCOUNTのままでINPUTSへ進めない。
+ACCOUNTの次修復: 新しいtabの空DOMをready=completeだけで打ち切らず、既存observed_accountが正の本人証拠を返すまで現20回の範囲で待つ。明示login/challengeや不正origin/曖昧accountは引き続き接続しない。timeout/回数を増やさず、sample列=空complete→公式summary未完complete→正の本人DOMをfixtureでRED/GREENにする。workerは同helper/test2filesだけ、primaryは本仕様/CI/統合/別原因のchallenge診断。このsource修復の完了まではACCOUNTをcursorとする。
 
 ACCOUNTのDOM修復: 段階的DOMと5種類の拒否条件を計6件RED再現し、打切り条件1行を既存observed_accountの正の結果へ変更する。回数20/間隔0.5秒は不変。新規69件＋identity12件=81件がworker/primaryでPASS、AST/source-boundary/diff/Loop contract18/192/113/errors0もPASS。現在worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/lancers-onboarding-dom-ready-20261024`、base=`a8954faa832f7c3676026926ac0012354f4f0665`、owner=`codex-lancers-local-setup`。独立review/CI/main/immutableの更新を続ける。
 
 ACCOUNTのchallenge画面: 公式mypageで「ユーザーが人間であることを確認する」と開始ボタンが描画される。reCAPTCHA/hCaptcha/Turnstile iframe、reCAPTCHA response/sitekey widget、password formはいずれも0で、summary profile linksも0。対応しないreCAPTCHA helperやsolver keyは使用せず、既存registered sessionの正規画面を調べる。各probeは本人binding保存0で所有tabを閉じる。with-browserが指定するidentity別ownership ledgerを実際に読み、lancers-onboarding残0を確認する（共通既定ledgerの0だけを根拠にしない）。
+
+ACCOUNTのDOM source受入: PR #8738/head1a30d9177cb12dce0807182f95c364543ade376c、workflow39975963450は成功、独立review blocking0/メモリ内25ケースがPASS。main056792fcbcee1518f6f433ee15b99fc7aac70a0fへ統合し、helper/testのGitHub公式merged bytesを全一致で確認する。実Human Verificationは画像選択への不正解表示があり通過未確認。有限probeのown tabを閉じ、identity別ledgerのlancers-onboarding残0、provider profile未作成、control pipe回収を確認する。既存tabやloop/browser ownerは再起動しない。source受入を実接続・別Mac・全機能・10,000 starsの完了に置換しない。
+
+#### INPUTS-Aのbounded実装計画
+
+**Goal:** 返信と出品が作者/CrowdWorksの設定へ戻らず、利用者本人のLancers private入力を同じcallerへ渡す。**Architecture:** 既存--product、同じvalidator/catalog_path、検証済みavatar/image、同じreconcileを使う。既定productは `~/.config/anicca/lancers/storefront-product.json`、catalogは同階層の `listing-catalog.json`。public-profileへ新manifestを混ぜず、明示--productは保持する。catalogを使わないproductはcatalog無しで通す。
+
+**Files/所有:** workerは `skills/earn/lancers/scripts/reply_adapter.py`、`storefront-owner`、`storefront_offer.py`、`storefront_effect_reconcile.py` と、それらに対応する既存Lancers testsの必要な箇所のみ。primaryはSSOT/CI/統合/実機受入。既存kernel・registry・browser lifecycle・effect fence・onboarding helperは変更しない。
+
+**Changes:** Reply build既定をLancers public-profileへそろえる。ownerのrepo product固定を外し、offer/reconcileの既定を同じprivate productにする。runのprofile更新へ検証済みavatarを渡す。catalog overlayとcatalog自動作成には本人catalog/検証済み画像を明示伝播し、作者avatar/catalogへ戻らない。private product/proofの欠損・破損はbrowser/create/notify前でsetup_requiredにする。catalog未設定は未使用laneを止める新必須gateにしない。初回IDの作成mode/保存は次のINPUTS-Bとし、今回はplaceholderや作者IDを補わない。
+
+- [ ] INPUTS-A-RED: 空HOME/別利用者の合成product/catalog/avatarと既存fake tick/runnerで、既定pathと各callerの伝播、検証済みavatar/imageの一致、欠損/破損時の外部callback0を先に失敗再現する。
+- [ ] INPUTS-A-GREEN: 最小修復後に関連tests/AST/shell/source-boundary/diff/Loop contractを確認する。既存の明示--productとcatalog無しの経路を保持し、reconcileの未照合state/fenceを変更・解放しない。
+- [ ] INPUTS-A-SHIP: commit/push→独立read-only review/既存CI→PR/main/public readbackを行う。本人入力の生成と実activation、別Mac/公式成果はINSTALL/ACCOUNT/READYへ保持する。
 
 #### Lancers本人入力の実装計画
 
