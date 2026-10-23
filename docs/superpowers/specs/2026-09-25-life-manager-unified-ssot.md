@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=chore/bundle-gc-runtime-acceptance-20261024、base=4bcadf022aaa542e5012dca51b665dba943a54a5（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのBUNDLE-GC-ACTUALと容量診断。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-bundle-gc-reference-budget-20261024、base=08114bfbe3（最新origin/main）（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのBUNDLE-GC-PERF-RED。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -454,6 +454,21 @@ BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with space
 順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAP/GCの全13job成功とGCのsource受入を確認し、現在cursorはBUNDLE-GC-ACTUAL。全業務/別Mac/10,000starsは未完。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
+
+#### BUNDLE-GC-PERF: 実機の参照確認を15秒内へ収める
+
+目的・範囲・完了条件: accepted main4bcの同じrelease-gc-onlyを候補rootだけへ実行した結果、旧release1件は回収できたが7bundlesは参照確認の時間切れで保持された。既存15秒上限と全fresh参照proofを維持し、同一snapshot内のraw候補と正規化absolute pathの重複だけを除く。branch=fix/release-bundle-gc-reference-budget-20261024、base=08114bfbe3、既存owned worktreeを継続する。sourceはcentral_cleanup.pyとtest_cut_loop_release.pyの2filesに限定し、primaryが本仕様・review・CI・main/public照合・main由来immutable実受入を所有する。新scheduler/依存/共有cache/参照確認省略/容量floor低下/直接削除は作らない。
+
+実回収receipt: run_id=bundle-gc-18e14b0c4b0518a0、owner_id=life-manager-release-gc-manual、occurrence_id=manual:bundle-gc-18e14b0c4b0518a0、release_sha=4bcadf022aaa542e5012dca51b665dba943a54a5。loaded commandはmanaged venv Python -Bとgc-acceptance/bundle-lifecycle/releases/20261024T080324-4bcadf02/runtime/loop/central_cleanup.py --release-gc-only、LOOPS_ROOTはlocal-acceptance/lancers、keep=0、実LaunchAgentsと既存protected inventoryを使う。環境whitelist digest=7f665262c7026a2635b8f3afbebf7a0183168aaacc07aa14534ff9a4cac6931d、phase=release_gc、exit_code=1、elapsed=15.892s、stderr=0、JSON読取成功。effect=local_artifact_gc、readbackはremaining releases0/bundles7、provider_receipt_id=null。removed_releases1/evaluated1/protected_deletions0、reclaimed_bytes174,892,542（論理値）。bundle evaluated7/preserved7/removed0/errors7、error_class=TimeoutExpired、retryable=true、next_action=参照確認の重複を隔離fixtureで修復後にaccepted mainから再実行。物理free4,423,925,760→4,625,747,968bytesの差201,822,208は論理値とも単独因果とも同一視しない。
+
+追加read-only観測: 同じaccepted immutableの_bundle_referencesだけを呼び、8.435s/成功/release0/held0/referenced bundle0/complete-owned-readonly bundle7を確認した。別の計測probeは15.056sでlsof到達前にTimeoutExpiredとなり、native plutil1回0.246s、ps1回0.175s、Path.resolve計1,345回/unique176/duplicate1,169/計2.280sを記録した。値・private argv・plist本文は出力しない。計測ごとの所要時間に変動があり、重複除去だけで15秒完走するとは断定しない。実cleanupは追加観測後まだ再実行していない。
+
+実装契約: path_valuesをsnapshot-local setで集め、引用・空白・絶対path内の=・環境代入・PATH listの既存解析を維持する。正規化したabsolute pathも同じcall内のseen-setで一度だけresolveする。次のsnapshotは空setから始め、同じaliasが新referenceへ変わっても再解決する。解決不明・期限超過・FD/plist/ps観測不明は保存する。A/B/Cの全fresh参照収集、直前FD固定、readonly/UID/marker/tree検証、復元・既存削除方式は変更しない。
+
+- [ ] BUNDLE-GC-PERF-RED: 重複aliasのresolveへ仮想時間を課し、修復前は期限超過で保持、修復後は同じ15秒内にFD再確認と回収へ到達する最小fixtureを先に失敗させる。別snapshotで同じaliasの参照先変更・新FD参照を認識し保持する反例を含める。
+- [ ] BUNDLE-GC-PERF-GREEN: 上記2filesの最小修復、既存空白/=alias/長いps/unknown/FD/保護store/lock条件と関連suiteをPASSする。実機15秒完走はsourceテストと別に評価する。
+- [ ] BUNDLE-GC-PERF-SHIP: fresh read-only review、最終headに対する既存workflow全13jobs success、main/public source照合を受け入れる。
+- [ ] BUNDLE-GC-PERF-ACTUAL: accepted main由来の同じGig依存closureを含むimmutableを作り、同じ対象rootの残7bundlesへ既存入口を実行する。receipt・残件・free・replay結果を記録し、時間不足なら境界を追加計測して最小修復を続ける。全業務/別Mac/10,000starsは未完。
 
 #### Lancers本人入力の実装計画
 
