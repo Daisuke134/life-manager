@@ -259,7 +259,7 @@ B3の実行経路診断: 登録済みstorefront effect_reconcileはpending中に
 
 B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
 
-- [ ] B3-READBACK: source/SHIPを完了する。pendingだけ残る実targetの公式照合とkernelのheld fence復旧はINSTALL/READY後の自然実行で確認し、sourceテストを実provider成果へ置換しない。現在cursor=INSTALL-GREEN。
+- [ ] B3-READBACK: source/SHIPを完了する。pendingだけ残る実targetの公式照合とkernelのheld fence復旧はINSTALL/READY後の自然実行で確認し、sourceテストを実provider成果へ置換しない。現在cursor=INSTALL-FIRST-RELEASE。
 
 #### B3のbounded実装計画
 
@@ -315,7 +315,7 @@ INSTALLのpoll test修復: fake guardの起動遅延だけでは再現せず、s
 
 目的・範囲: 受入済み公開Lancers installerを初回の専用LOOPS_ROOTで実行すると、共通prepareとselected Codex statusを通過した後、immutable_release不足で全7jobsがexit78/waitingになる。host.json生成済み、releases空/current無し、selector変更0。read-only容量CLIだけでもexit1/release_capacity_measurement_failed/FileNotFoundErrorとなり、既存releaseがない初回にcurrent/RELEASE.jsonを無条件で読む不具合を再現する。空容量比較前であり、provider/apply到達の成功ではない。
 
-修復方針: 共通release容量測定の初回分岐を追加し、source export/bytecodeとfresh npm ciの容量を扱う。存在する不正donor、測定失敗、空容量不足を成功へ置換しない。既存immutable/bundle再利用・main provenance・selected Python・current不変更を保持する。新しいfloor/frameworkや全lock変更、保護store cleanupの拡大は行わない。.gitattributesのroot memory export-ignoreはaccepted archive一覧が空で確認済み、今回の失敗によるmemory削除とは報告しない。
+修復方針: 共通release容量測定の初回分岐を追加し、source export/bytecodeとfresh npm ciの容量を扱う。lockの固定version/tarball/integrityに一致する公開npm metadataのdist.unpackedSize/fileCountを使い、欠損時だけ固定tarballを展開せずstream測定する。標準libraryとURL別memory cacheを使い、dev依存を除き、既存cache/tempの50%予備を維持する。公式metadata8例では7例に両値、wrappy@1.0.2では両値欠損を確認する（https://registry.npmjs.org/wrappy/1.0.2）。現7locksのprod3253 entries/URL unique1440は全てregistry.npmjs.org/sha512で、URL同一のSRI競合・link/bundledは0。既存donor経路はnetwork0、壊れたsymlinkを初回不在へ置換しない。存在する不正donor、測定失敗、空容量不足を成功へ置換しない。既存immutable/bundle再利用・main provenance・selected Python・current不変更を保持する。新しいfloor/frameworkや全lock変更、保護store cleanupの拡大は行わない。.gitattributesのroot memory export-ignoreはaccepted archive一覧が空で確認済み、今回の失敗によるmemory削除とは報告しない。
 
 所有: workerはruntime/host/disk_admission.pyとruntime/host/tests/test_disk_admission.pyの初回容量分岐・回帰のみ、primaryは必要な既存cutter integration test、本仕様、review/CI/main/実導入を所有する。他者の変更を戻さず、実GC/cutter/private/provider/launchdは開発中に実行しない。
 
