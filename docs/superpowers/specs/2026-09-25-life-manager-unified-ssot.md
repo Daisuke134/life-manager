@@ -221,7 +221,7 @@ INPUTS-B1の起動境界GREEN: 既存のsetup helperにあるpending/読取不�
 
 runtime契約: _production_account_diagnosticのpublic signatureと診断schemaを保つ。binding不足/破損はbrowser/solverの前で明示的に不足とする。有効bindingだけが既存HTTP/login/WAF処理へ進み、ready候補では既存EXPRESSION/observed_accountを使って、最大20回×500msの正のsummary観測を同じpageで確認する。ロード中の空DOMをreadyにしない。別accountは即ready=False、0件/複数/公開profile/不正origin/login/challenge/例外/timeoutもFalse。HTTP/WAFの既存診断情報は保持し、raw account/DOM/例外本文を診断へ出さない。現statusや接続recordをlive観測だけで自動上書きしない。
 
-- [ ] READY-A-RED: 別account/欠損・破損bindingで通常HTTP200とWAF成功のreadyを拒否することを先に再現する。binding不足はgoto/solver0。本人一致だけが通り、ロード中→正のsummaryは進む。login/challenge/曖昧/timeoutと診断非漏洩、既存WAF errorの保持を既存fakeだけで確認する。実private/browser/providerは0。
+- [x] READY-A-RED: 別account/欠損・破損bindingで通常HTTP200とWAF成功のreadyを拒否することを先に再現する。binding不足はgoto/solver0。本人一致だけが通り、ロード中→正のsummaryは進む。login/challenge/曖昧/timeoutと診断非漏洩、既存WAF errorの保持を既存fakeだけで確認する。実private/browser/providerは0。指定2testへ29ケースを追加し、primaryは26 failed/106 passed（8.62s）を再現する。失敗は本人summaryの未観測または不一致/不足bindingでもreadyになる経路に限り、既存103ケースを維持する。production source差分は0、次cursorはREADY-A-GREENとする。
 - [ ] READY-A-GREEN: 上記の最少実装後、同じtestsと関係するdiscovery/reply/paid等のcallerを確認する。未所有testのfixture調整が必要ならprimaryへ具体的な契約差分を報告し、assertを弱めない。
 - [ ] READY-A-SHIP: commit/push→独立read-only review/既存CI→main/公式source一致を確認する。accepted main由来の同じcodeで本人private bindingと公式mypageのread-only probeを行う。owner activationや全業務/別Macの成功とはしない。
 
