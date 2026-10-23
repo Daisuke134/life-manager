@@ -1174,6 +1174,95 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertEqual(code, 0, result)
         self.assertFalse(bundle.exists())
 
+    def test_release_gc_only_deduplicates_alias_resolution_within_snapshot_budget(self):
+        bundle = self._bundle()
+        unrelated = self.root / "unrelated"
+        unrelated.mkdir()
+        alias = self.root / "repeated alias"
+        alias.symlink_to(unrelated)
+        for index in range(12):
+            (self.agents / f"ai.anicca.repeated-{index}.plist").write_bytes(plistlib.dumps({
+                "ProgramArguments": [str(alias), str(alias)],
+            }))
+        self.ps_stdout = f"node --require='{alias}' worker.js\n" * 12
+        clock = [0.0]
+        resolve = Path.resolve
+        def costly_alias(path, *args, **kwargs):
+            if os.fspath(path) == str(alias):
+                clock[0] += 4
+            return resolve(path, *args, **kwargs)
+        with mock.patch.object(Path, "resolve", costly_alias), \
+             mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
+            code, result = self._gc()
+        self.assertFalse(bundle.exists(), "duplicate resolution exhausted the unchanged reference budget")
+        self.assertEqual(code, 0, result)
+        self.assertLess(clock[0], 15)
+        self.assertEqual(sum(command[0] == "lsof" for command in self.commands), 3)
+
+    def test_release_gc_only_rechecks_same_alias_in_final_reference_snapshot(self):
+        bundle = self._bundle()
+        unrelated = self.root / "unrelated"
+        unrelated.mkdir()
+        (unrelated / "fixture.js").write_text("unrelated fixture\n")
+        alias = self.root / "changing alias"
+        alias.symlink_to(unrelated)
+        self.ps_stdout = f"node --require '{alias}/fixture.js' worker.js\n"
+        collect = self.cleanup._bundle_references
+        snapshots = [0]
+        def references(*args, **kwargs):
+            snapshots[0] += 1
+            if snapshots[0] == 3:
+                alias.unlink()
+                alias.symlink_to(bundle / "node_modules")
+            return collect(*args, **kwargs)
+        with mock.patch.object(self.cleanup, "_bundle_references", side_effect=references):
+            _code, result = self._gc()
+        self.assertEqual(snapshots[0], 3)
+        self.assertTrue(bundle.exists())
+        self.assertEqual(result["dependency_bundles"]["removed"], 0)
+        self.assertEqual(stat.S_IMODE(bundle.stat().st_mode), 0o555)
+
+    def test_release_gc_only_preserves_fd_opened_before_final_reference_snapshot(self):
+        bundle = self._bundle()
+        collect = self.cleanup._bundle_references
+        snapshots = [0]
+        def references(*args, **kwargs):
+            snapshots[0] += 1
+            if snapshots[0] == 3:
+                self.lsof_stdout = f"p{os.getpid()}\nf999999\nn{bundle}/node_modules/fixture.js\n"
+            return collect(*args, **kwargs)
+        with mock.patch.object(self.cleanup, "_bundle_references", side_effect=references):
+            _code, result = self._gc()
+        self.assertEqual(sum(command[0] == "lsof" for command in self.commands), 3)
+        self.assertTrue(bundle.exists())
+        self.assertEqual(result["dependency_bundles"]["removed"], 0)
+        self.assertEqual(stat.S_IMODE(bundle.stat().st_mode), 0o555)
+
+    def test_release_gc_only_preserves_all_artifacts_when_reference_snapshot_expires(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        referenced = self._bundle("b" * 64)
+        alias = self.root / "held alias"
+        alias.symlink_to(referenced / "node_modules")
+        unrelated = self.root / "unrelated"
+        unrelated.write_text("unrelated fixture\n")
+        alias_path = str(alias / "fixture.js")
+        self.ps_stdout = f"node --require '{alias_path}' {unrelated}\n"
+        clock = [0.0]
+        resolve = Path.resolve
+        def costly_path(path, *args, **kwargs):
+            if os.fspath(path) in {alias_path, str(unrelated)}:
+                clock[0] += 16
+            return resolve(path, *args, **kwargs)
+        with mock.patch.object(Path, "resolve", costly_path), \
+             mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
+            _code, result = self._gc()
+        self.assertTrue(release.exists())
+        self.assertTrue(bundle.exists())
+        self.assertTrue(referenced.exists())
+        self.assertEqual(result["removed_releases"], 0)
+        self.assertGreater(result["errors"], 0)
+
     def test_release_gc_only_preserves_unowned_fd_even_in_its_own_process(self):
         bundle = self._bundle()
         self.lsof_stdout = f"p{os.getpid()}\nf999999\nn{bundle}/node_modules/fixture.js\n"
