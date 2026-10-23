@@ -1,4 +1,9 @@
+from contextlib import contextmanager
+from decimal import Decimal
 import json
+import sqlite3
+from time import monotonic
+from types import SimpleNamespace
 import os
 from pathlib import Path
 import shutil
@@ -11,6 +16,251 @@ from scripts import run_owned_digital_cycle as cli
 
 
 class OwnedCycleCLITests(unittest.TestCase):
+    def test_shadow_settings_are_inert_and_preserve_unconfigured_money(self):
+        from manager_core import ampersand_api
+        env = {'MANAGER_CATALOG_SHADOW_ENABLED': 'true',
+               'GITHUB_EVENT_NAME': 'workflow_dispatch', 'AMPERSAND_API_KEY': 'hak_abcdefgh',
+               'MANAGER_AMPERSAND_MAX_TOTAL_USD': '0.050000',
+               'MANAGER_AMPERSAND_MAX_CALL_USD': '0.030000'}
+        with patch.object(ampersand_api, 'make_client', return_value=object()) as factory:
+            settings = cli._catalog_shadow_settings(env, started_monotonic=12.5)
+            self.assertEqual(settings.deadline_monotonic, 132.5)
+            self.assertEqual((settings.cap_usd, settings.upper_usd), (Decimal('.05'), Decimal('.03')))
+            self.assertEqual(factory.call_count, 0)
+            settings.client_factory()
+            factory.assert_called_once_with('hak_abcdefgh', timeout=30)
+        for name in ('MANAGER_AMPERSAND_MAX_TOTAL_USD', 'MANAGER_AMPERSAND_MAX_CALL_USD'):
+            for value in (None, '', ' ', 'bad', 'NaN', 'Infinity', '-Infinity', '0', '-1',
+                          '100.000001', '0.0000001', '1e9999999999999999999'):
+                with self.subTest(name=name, value=value):
+                    changed = dict(env)
+                    if value is None:
+                        changed.pop(name)
+                    else:
+                        changed[name] = value
+                    settings = cli._catalog_shadow_settings(changed, started_monotonic=1)
+                    self.assertIsNotNone(settings)
+                    self.assertEqual(settings.deadline_monotonic, 121)
+                    self.assertEqual((settings.client_factory, settings.cap_usd, settings.upper_usd),
+                                     (None, None, None))
+        for changes in ({'MANAGER_AMPERSAND_MAX_CALL_USD': '.06'},
+                        {'AMPERSAND_API_KEY': 'hak_abcdefgh '}, {'AMPERSAND_API_KEY': ''},
+                        {'AMPERSAND_API_KEY': 'bad'}):
+            with self.subTest(changes=changes):
+                settings = cli._catalog_shadow_settings(env | changes, started_monotonic=1)
+                self.assertEqual((settings.client_factory, settings.cap_usd, settings.upper_usd),
+                                 (None, None, None))
+
+    def test_shadow_disabled_schedule_control_and_preflight_are_inert(self):
+        from manager_core import ampersand_api, owned_provider_shadow as shadow
+        enabled = {'MANAGER_CATALOG_SHADOW_ENABLED': 'true',
+                   'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                   'MANAGER_AMPERSAND_MAX_TOTAL_USD': 'NaN',
+                   'MANAGER_AMPERSAND_MAX_CALL_USD': 'malformed'}
+        for flag in (None, 'false', 'TRUE', 'unknown', ''):
+            env = dict(enabled)
+            if flag is None:
+                env.pop('MANAGER_CATALOG_SHADOW_ENABLED')
+            else:
+                env['MANAGER_CATALOG_SHADOW_ENABLED'] = flag
+            with self.subTest(flag=flag):
+                self.assertIsNone(cli._catalog_shadow_settings(env, started_monotonic=1))
+        self.assertIsNone(cli._catalog_shadow_settings(enabled | {'GITHUB_EVENT_NAME': 'schedule'},
+                                                      started_monotonic=1))
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict('os.environ', enabled, clear=True), \
+             patch.object(cli, '_catalog_shadow_settings', side_effect=AssertionError('parsed')), \
+             patch.object(ampersand_api, 'make_client', side_effect=AssertionError('client')), \
+             patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=AssertionError('compare')), \
+             patch.object(cli, '_check_main_context', side_effect=PermissionError('fixture context')):
+            for control in ('stop', 'rollback', 'resume'):
+                code, summary = cli.run_control(control, Path(tmp)/control, Path(tmp)/'pages')
+                self.assertEqual(code, 2)
+                self.assertIsNone(summary['catalog_shadow'])
+            for command in ([], ['preflight']):
+                with patch('builtins.print') as output:
+                    cli.main(command)
+                self.assertIsNone(json.loads(output.call_args.args[0])['catalog_shadow'])
+
+        for event, flag in (('schedule', 'true'), ('workflow_dispatch', 'false')):
+            with self.subTest(event=event, flag=flag), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                with self._shadow_cli_context(root, env_changes={
+                        'GITHUB_EVENT_NAME': event, 'MANAGER_CATALOG_SHADOW_ENABLED': flag}) as fixture, \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=AssertionError('compare')):
+                    code, summary = cli.run_once(root/'run', root/'pages')
+                    self.assertEqual(code, 0)
+                    self.assertIsNone(summary['catalog_shadow'])
+                    self.assertEqual(fixture[3].call_count, 0)
+                    self.assertEqual(fixture[4].create_count, 0)
+                    self.assertEqual(fixture[5], [])
+        for control in ('stop', 'rollback', 'resume'):
+            with self.subTest(control=control), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                with self._shadow_cli_context(root, env_changes={
+                        'MANAGER_AMPERSAND_MAX_TOTAL_USD': 'NaN'}) as fixture, \
+                     patch.object(cli, '_catalog_shadow_settings', side_effect=AssertionError('parsed')), \
+                     patch.object(shadow, 'compare_prepared_catalog_shadow', side_effect=AssertionError('compare')):
+                    code, summary = cli.run_control(control, root/'run', root/'pages')
+                    self.assertEqual(code, 0)
+                    self.assertIsNone(summary['catalog_shadow'])
+                    self.assertEqual(fixture[3].call_count, 0)
+                    self.assertEqual(fixture[4].create_count, 0)
+                    self.assertIsNone(fixture[2].value['owner'])
+
+    @contextmanager
+    def _shadow_cli_context(self, root, *, status='NO_ACTION', env_changes=None):
+        from manager_core import ampersand_api, owned_catalog_planner as planner, owned_cycle
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        from manager_core.owned_cycle import CycleStore
+        from test_owned_checkpoint import MemoryGateway
+        from test_owned_platform_host import github_environment
+        from test_owned_provider_shadow import OwnedProviderShadowTests, client_for
+        prepared, _, now = OwnedProviderShadowTests().prepared_fixture(root/'catalog')
+        gateway = MemoryGateway(CycleStore(root/'seed').db.read_bytes())
+        client, sessions = client_for()
+        closed = []
+        client.close = lambda: closed.append(True)
+        env = github_environment(GITHUB_SHA='c'*40, GITHUB_WORKFLOW_SHA='c'*40,
+            MANAGER_CATALOG_SHADOW_ENABLED='true', AMPERSAND_API_KEY='hak_abcdefgh',
+            MANAGER_AMPERSAND_MAX_TOTAL_USD='.05', MANAGER_AMPERSAND_MAX_CALL_USD='.03')
+        env.update(env_changes or {})
+        context = {'run_id': '123', 'attempt': '1', 'source_sha': 'c'*40,
+                   'runner_temp': root, 'pages_root': root/'pages'}
+        report = {'status': status, 'writes': 0, 'reason': 'FIXTURE_PUBLISHER_RESULT'}
+        # Keep the checkpoint, host, helper, cycle and recovery gates real;
+        # substitute publisher dispatch to avoid any external write.
+        with patch.object(cli, '_check_main_context', return_value=context), \
+             patch.object(PrivateCheckpoint.__init__, '__defaults__', (gateway,)), \
+             patch('scripts.phase06_kernel_release.source_checkout_commit', return_value='c'*40), \
+             patch.object(planner, 'plan_catalog_change', return_value=prepared) as selector, \
+             patch.object(owned_cycle, '_dispatch_owned_locked', return_value=report), \
+             patch.object(ampersand_api, 'make_client', return_value=client) as factory, \
+             patch.dict('os.environ', env, clear=True):
+            yield prepared, now, gateway, factory, sessions, closed, selector
+
+    def test_saved_shadow_replays_without_send_configuration(self):
+        from manager_core import owned_provider_shadow as shadow
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        for saved_kind in ('ack', 'intent', 'absent'):
+            with self.subTest(saved_kind=saved_kind), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                with self._shadow_cli_context(root, env_changes={
+                        'AMPERSAND_API_KEY': '', 'MANAGER_AMPERSAND_MAX_TOTAL_USD': 'NaN',
+                        'MANAGER_AMPERSAND_MAX_CALL_USD': ''}) as fixture:
+                    prepared, now, gateway, factory, sessions, closed, selector = fixture
+                    if saved_kind != 'absent':
+                        from test_owned_provider_shadow import client_for
+                        initial_client, initial_sessions = client_for()
+                        cp = PrivateCheckpoint(gateway, run_id='123', run_attempt='1')
+                        cp.acquire(root/'initial')
+                        original = shadow.compare_prepared_catalog_shadow(cp, prepared,
+                            now=now, run_id='99', enabled=True, client_factory=lambda: initial_client,
+                            cap_usd=Decimal('.05'), upper_usd=Decimal('.03'),
+                            deadline_monotonic=monotonic()+120)
+                        self.assertEqual(initial_sessions.create_count, 1)
+                        if saved_kind == 'intent':
+                            with sqlite3.connect(cp.db) as db:
+                                db.execute('DELETE FROM catalog_shadow_results')
+                        cp.save()
+                        cp.release()
+                    with patch.object(shadow.CheckpointedProvider, '__init__', side_effect=AssertionError('provider')):
+                        code, summary = cli.run_once(root/'run', root/'pages')
+                    self.assertEqual(code, 0)
+                    public = summary['catalog_shadow']
+                    expected = {'ack': ('COMPARED_P0', 'MODEL_RESPONSE_PARSED'),
+                                'intent': ('UNKNOWN', 'PRIOR_INTENT_RECONCILIATION_REQUIRED'),
+                                'absent': ('SKIPPED', 'PROVIDER_NOT_CONFIGURED')}[saved_kind]
+                    self.assertEqual((public['status'], public['reason']), expected)
+                    if saved_kind == 'ack':
+                        self.assertEqual(public['run_id'], '99')
+                        self.assertEqual(public['compared_at'], original['compared_at'])
+                    self.assertEqual(factory.call_count, 0)
+                    self.assertEqual(sessions.create_count, 0)
+                    self.assertEqual(closed, [])
+                    self.assertEqual(selector.call_count, 1)
+                    self.assertIsNone(gateway.value['owner'])
+
+    def test_public_shadow_projection_is_nested_exact_and_single_pass(self):
+        from manager_core import owned_provider_shadow as shadow
+        raw = shadow._record('COMPARED_P0', 'MODEL_RESPONSE_PARSED', '99',
+            compared_at='2026-10-23T00:00:00+00:00', operation_id='catalog_shadow_'+'a'*64,
+            context_sha256='b'*64, baseline_digest='c'*64, candidate_digest='d'*64,
+            baseline={'no_action': {'decision': 'PASS'}, 'rules': {'decision': 'PROPOSE'}},
+            model_status='MODEL_ADVICE_P0', model_advice={'decision': 'PROPOSE', 'reason': 'PRIVATE_ADVICE'},
+            model_comparison={'no_action_same_decision': False, 'rules_same_decision': True},
+            provider={'session_id': 'PRIVATE_PROVIDER'}, raw_response='PRIVATE_RAW',
+            api_key='PRIVATE_KEY', path='/PRIVATE_PATH')
+        report = {'status': 'NO_ACTION', 'writes': 0, 'reason': 'FIXTURE_RESULT'}
+        ordinary = cli.public_summary(report, source_sha='e'*40)
+        with patch.object(shadow, 'public_catalog_shadow_summary', wraps=shadow.public_catalog_shadow_summary) as project:
+            summary = cli.public_summary(report, source_sha='e'*40, catalog_shadow=raw)
+        self.assertEqual(project.call_count, 1)
+        self.assertIs(project.call_args.args[0], raw)
+        self.assertIsNone(ordinary['catalog_shadow'])
+        self.assertEqual({k: v for k, v in summary.items() if k != 'catalog_shadow'},
+                         {k: v for k, v in ordinary.items() if k != 'catalog_shadow'})
+        public = summary['catalog_shadow']
+        self.assertEqual(set(public), {'schema', 'status', 'reason', 'run_id', 'compared_at',
+            'operation_id', 'context_sha256', 'baseline_digest', 'candidate_digest',
+            'baseline_decisions', 'model_status', 'model_decision', 'model_comparison',
+            'proof_level', 'authorized_execution', 'causal_support', 'human_outcome',
+            'action_writes', 'settled_cost_usd'})
+        self.assertEqual(public['run_id'], '99')
+        self.assertEqual(public['proof_level'], 'P0')
+        self.assertIs(public['authorized_execution'], False)
+        self.assertIs(public['causal_support'], False)
+        self.assertEqual(public['human_outcome'], 'NOT_MEASURED')
+        self.assertEqual(public['action_writes'], 0)
+        self.assertIsNone(public['settled_cost_usd'])
+        self.assertNotIn('PRIVATE_', json.dumps(summary))
+
+    def test_shadow_result_survives_cycle_unknown_but_not_checkpoint_failure(self):
+        from contextlib import ExitStack
+        from manager_core import owned_provider_shadow as shadow
+        from manager_core.owned_checkpoint import PrivateCheckpoint
+        for failure in (None, 'save', 'release', 'helper', 'selector'):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                with self._shadow_cli_context(root, status='UNKNOWN') as fixture, ExitStack() as stack:
+                    _, _, gateway, factory, sessions, closed, selector = fixture
+                    if failure == 'save':
+                        original_cycle = cli.run_owned_cycle
+                        def finish_then_fail(*args, **kwargs):
+                            report = original_cycle(*args, **kwargs)
+                            stack.enter_context(patch.object(PrivateCheckpoint, 'save',
+                                side_effect=cli.CheckpointUnavailable('save fence')))
+                            return report
+                        stack.enter_context(patch.object(cli, 'run_owned_cycle', side_effect=finish_then_fail))
+                    elif failure == 'release':
+                        stack.enter_context(patch.object(PrivateCheckpoint, 'release',
+                            side_effect=cli.CheckpointUnavailable('release fence')))
+                    elif failure == 'helper':
+                        stack.enter_context(patch.object(shadow, 'compare_prepared_catalog_shadow',
+                            side_effect=cli.CheckpointUnavailable('helper fence')))
+                    elif failure == 'selector':
+                        selector.side_effect = RuntimeError('selector failed')
+                    code, summary = cli.run_once(root/'run', root/'pages')
+                    self.assertEqual(code, 2)
+                    self.assertEqual(summary['status'], 'UNKNOWN')
+                    self.assertIsNone(summary['writes'])
+                    self.assertEqual(summary['authentication'], 'GATEWAY_ACKNOWLEDGED')
+                    if failure is None:
+                        self.assertEqual(summary['catalog_shadow']['status'], 'COMPARED_P0')
+                        self.assertIsNone(gateway.value['owner'])
+                        self.assertEqual(gateway.calls[-2:], ['checkpoint', 'release'])
+                    else:
+                        self.assertIsNone(summary['catalog_shadow'])
+                        if failure == 'selector':
+                            self.assertEqual(summary['reason'], 'SELECTOR_UNAVAILABLE')
+                            self.assertEqual(gateway.calls[-2:], ['checkpoint', 'release'])
+                        else:
+                            self.assertNotIn('release', gateway.calls)
+                            self.assertIsNotNone(gateway.value['owner'])
+                    self.assertEqual(factory.call_count, 0 if failure in ('helper', 'selector') else 1)
+                    self.assertEqual(sessions.create_count, 0 if failure in ('helper', 'selector') else 1)
+                    self.assertEqual(closed, [] if failure in ('helper', 'selector') else [True])
+
     def test_preflight_is_read_only_and_reports_auth_not_proven(self):
         with tempfile.TemporaryDirectory() as tmp:
             state = Path(tmp) / 'state'
@@ -99,6 +349,10 @@ class OwnedCycleCLITests(unittest.TestCase):
 
     def test_run_once_restores_before_store_and_calls_one_cycle(self):
         events = []
+        parse_settings = cli._catalog_shadow_settings
+        def settings(env, *, started_monotonic):
+            events.append(('settings', started_monotonic))
+            return parse_settings(env, started_monotonic=started_monotonic)
         class Checkpoint:
             db = None
             broken = False
@@ -115,11 +369,15 @@ class OwnedCycleCLITests(unittest.TestCase):
                 events.append(('store', Path(root)))
                 self.root = Path(root)
         class Host:
+            _catalog_shadow_result = None
             def __init__(self, *args, **kwargs): events.append(('host', args, kwargs))
         cycle_report = {'status': 'NO_ACTION', 'reason': 'NO_ELIGIBLE_BOUNDED_IMPROVEMENT', 'writes': 0}
         with tempfile.TemporaryDirectory() as tmp:
             state = Path(tmp) / 'fresh'
-            with patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1', 'source_sha': 'a' * 40, 'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'}), \
+            with patch.object(cli, 'monotonic', side_effect=lambda: (events.append(('clock',)), 12.5)[1]), \
+                 patch.dict('os.environ', {'MANAGER_CATALOG_SHADOW_ENABLED': 'true', 'GITHUB_EVENT_NAME': 'workflow_dispatch'}, clear=True), \
+                 patch.object(cli, '_catalog_shadow_settings', side_effect=settings), \
+                 patch.object(cli, '_check_main_context', side_effect=lambda *_: (events.append(('context',)), {'run_id': '7', 'attempt': '1', 'source_sha': 'a' * 40, 'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'})[1]), \
                  patch.object(cli, 'PrivateCheckpoint', Checkpoint), patch.object(cli, 'CycleStore', Store), \
                  patch.object(cli, 'GitHubActionsCycleHost', Host), \
                  patch.object(cli, 'run_owned_cycle', side_effect=lambda *a, **k: (events.append(('cycle',)), cycle_report)[1]):
@@ -128,6 +386,11 @@ class OwnedCycleCLITests(unittest.TestCase):
             self.assertEqual(summary['positive_canary'], 'NOT_RUN')
             self.assertEqual(summary['authentication'], 'GATEWAY_ACKNOWLEDGED')
             names = [event[0] for event in events]
+            self.assertLess(names.index('clock'), names.index('context'))
+            self.assertLess(names.index('settings'), names.index('acquire'))
+            self.assertIn(('settings', 12.5), events)
+            host_event = next(event for event in events if event[0] == 'host')
+            self.assertEqual(host_event[2]['catalog_shadow'].deadline_monotonic, 132.5)
             self.assertLess(names.index('acquire'), names.index('store'))
             self.assertLess(names.index('store'), names.index('host'))
             self.assertLess(names.index('host'), names.index('cycle'))
@@ -242,7 +505,7 @@ class OwnedCycleCLITests(unittest.TestCase):
                          'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'}), \
                      patch.object(cli, 'PrivateCheckpoint', Checkpoint), \
                      patch.object(cli, 'CycleStore', Store), \
-                     patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+                     patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: SimpleNamespace(_catalog_shadow_result=None)), \
                      patch.object(cli, 'run_owned_cycle', return_value=report):
                     code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
                 self.assertEqual(code, expected_code)
@@ -314,7 +577,7 @@ class OwnedCycleCLITests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1', 'source_sha': 'a' * 40, 'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'}), \
              patch.object(cli, 'PrivateCheckpoint', Checkpoint), patch.object(cli, 'CycleStore', Store), \
-             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: SimpleNamespace(_catalog_shadow_result=None)), \
              patch.object(cli, 'run_owned_cycle', return_value={'status': 'NO_ACTION', 'writes': 0}):
             code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
         self.assertEqual(code, 2)
@@ -455,6 +718,7 @@ class OwnedCycleCLITests(unittest.TestCase):
         class Store:
             def __init__(self, root): pass
         class Host:
+            _catalog_shadow_result = None
             def __init__(self, *args, **kwargs): pass
         from manager_core.owned_cycle import _cycle_result
         report = _cycle_result('NOT_DUE')
@@ -715,7 +979,7 @@ class OwnedCycleCLITests(unittest.TestCase):
                  'pages_root': Path(tmp) / 'pages'}), \
              patch.object(cli, 'PrivateCheckpoint', Checkpoint), \
              patch.object(cli, 'CycleStore', Store), \
-             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: SimpleNamespace(_catalog_shadow_result=None)), \
              patch.object(cli, 'run_owned_cycle', return_value=report), \
              patch.object(cli, '_export_current_kernel_proof', return_value=False), \
              patch.object(cli, '_trusted_p2_observation', return_value=True):
@@ -748,7 +1012,7 @@ class OwnedCycleCLITests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1', 'source_sha': 'a' * 40, 'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'}), \
              patch.object(cli, 'PrivateCheckpoint', Checkpoint), patch.object(cli, 'CycleStore', Store), \
-             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: SimpleNamespace(_catalog_shadow_result=None)), \
              patch.object(cli, 'run_owned_cycle', side_effect=cli.CatalogSelectionUnavailable('selector unavailable')):
             code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
         self.assertEqual(code, 2)
@@ -785,7 +1049,7 @@ class OwnedCycleCLITests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(cli, '_check_main_context', return_value={'run_id': '7', 'attempt': '1', 'source_sha': 'a' * 40, 'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'}), \
              patch.object(cli, 'PrivateCheckpoint', Checkpoint), patch.object(cli, 'CycleStore', Store), \
-             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+             patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: SimpleNamespace(_catalog_shadow_result=None)), \
              patch.object(cli, 'run_owned_cycle', return_value={'status': 'UNKNOWN', 'reason': 'DELIVERY_UNCONFIRMED', 'writes': 0}):
             code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
         self.assertEqual(code, 2)

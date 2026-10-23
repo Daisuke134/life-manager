@@ -14,13 +14,17 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
+from decimal import Decimal
+from time import monotonic
+from typing import Mapping
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from manager_core.digital_handoff import MAIN_REF, REPOSITORY, WORKFLOW, PUBLIC_BASE
 from manager_core.owned_checkpoint import CheckpointUnavailable, PrivateCheckpoint, SOURCE_ROOT
 from manager_core.owned_cycle import CycleConfig, CycleStore, run_owned_cycle, _recover_owned_deliveries
 from manager_core.owned_platform_host import (
-    CatalogSelectionUnavailable, GitHubActionsCycleHost, is_canonical_remote,
+    CATALOG_SHADOW_MAX_SECONDS, CATALOG_SHADOW_REQUEST_TIMEOUT_SECONDS,
+    CatalogSelectionUnavailable, CatalogShadowSettings, GitHubActionsCycleHost, is_canonical_remote,
 )
 
 WORKFLOW_NAME = 'Manager Phase06 Digital Environment'
@@ -274,7 +278,36 @@ def _export_current_kernel_proof(checkpoint, store, report, runner_temp, *, now=
         return False
 
 
-def public_summary(report, *, source_sha=None, receipt_sha=None, store=None):
+def _catalog_shadow_settings(env: Mapping[str, str], *,
+                             started_monotonic: float) -> CatalogShadowSettings | None:
+    """Parse an exact dispatch opt-in without initializing a provider client."""
+    if (env.get('MANAGER_CATALOG_SHADOW_ENABLED') != 'true' or
+            env.get('GITHUB_EVENT_NAME') != 'workflow_dispatch'):
+        return None
+    deadline = started_monotonic + CATALOG_SHADOW_MAX_SECONDS
+    from manager_core.ampersand_api import valid_api_key
+    from manager_core.provider_budget import _money
+    key = env.get('AMPERSAND_API_KEY')
+    try:
+        cap = Decimal(env.get('MANAGER_AMPERSAND_MAX_TOTAL_USD', ''))
+        upper = Decimal(env.get('MANAGER_AMPERSAND_MAX_CALL_USD', ''))
+        _money(cap)
+        _money(upper)
+        if upper > cap or not valid_api_key(key):
+            raise ValueError('unconfigured shadow provider')
+    except (ValueError, ArithmeticError):
+        # Keep replay available without inventing money or a usable send path.
+        return CatalogShadowSettings(deadline)
+
+    def client_factory():
+        from manager_core.ampersand_api import make_client
+        return make_client(key, timeout=CATALOG_SHADOW_REQUEST_TIMEOUT_SECONDS)
+
+    return CatalogShadowSettings(deadline, client_factory, cap, upper)
+
+
+def public_summary(report, *, source_sha=None, receipt_sha=None, store=None,
+                   catalog_shadow: dict | None = None):
     """Return only fields approved for public stdout/artifacts."""
     status = report.get('status') if isinstance(report, dict) else 'UNKNOWN'
     if status not in {'UNKNOWN', 'NO_ACTION', 'OWNER_BUSY', 'NOT_DUE', 'STOPPED_REGRESSION',
@@ -296,6 +329,7 @@ def public_summary(report, *, source_sha=None, receipt_sha=None, store=None):
         writes = None if status == 'UNKNOWN' else writes
     receipt = receipt_sha or (report.get('receipt_ref') if isinstance(report, dict) else None)
     summary = {
+        'catalog_shadow': None,
         'authentication': 'NOT_PROVEN',
         'status': status if isinstance(status, str) else 'UNKNOWN',
         'reason': reason if isinstance(reason, str) else None,
@@ -311,6 +345,9 @@ def public_summary(report, *, source_sha=None, receipt_sha=None, store=None):
                               report.get('rollback_delivery_status') in ('VERIFIED','PENDING','UNKNOWN')
                               else None),
     }
+    if catalog_shadow is not None:
+        from manager_core.owned_provider_shadow import public_catalog_shadow_summary
+        summary['catalog_shadow'] = public_catalog_shadow_summary(catalog_shadow)
     if summary['status'] in ('NO_ACTION', 'NOT_DUE', 'OWNER_BUSY'):
         summary['positive_canary'] = 'NOT_RUN'
     elif _trusted_p2_observation(store, report):
@@ -357,14 +394,15 @@ def run_preflight(source_root=None, state_store=None):
             'status': 'PREFLIGHT_READY' if valid else 'PREFLIGHT_BLOCKED',
             'authentication': 'NOT_PROVEN', 'writes': 0,
             'source_sha': sha if valid else None,
-            'state_store_created': False,
+            'state_store_created': False, 'catalog_shadow': None,
         })
     except Exception:
         return 2, {'status': 'PREFLIGHT_BLOCKED', 'authentication': 'NOT_PROVEN',
-                    'writes': 0, 'source_sha': None, 'state_store_created': False}
+                    'writes': 0, 'source_sha': None, 'state_store_created': False, 'catalog_shadow': None}
 
 
 def run_once(state_store, pages_checkout):
+    started_monotonic = monotonic()
     checkpoint = None
     context = None
     proof_exported=False
@@ -372,6 +410,7 @@ def run_once(state_store, pages_checkout):
     try:
         context = _check_main_context(pages_checkout)
         root = _private_fresh_root(state_store, context['runner_temp'])
+        catalog_shadow = _catalog_shadow_settings(os.environ, started_monotonic=started_monotonic)
         checkpoint = PrivateCheckpoint(run_id=context['run_id'], run_attempt=context['attempt'])
         checkpoint.acquire(root)
         authentication = 'GATEWAY_ACKNOWLEDGED'
@@ -382,7 +421,8 @@ def run_once(state_store, pages_checkout):
             raise ValueError('fresh planning workspace required')
         audit_path = planning / 'source-audit.json'
         host = GitHubActionsCycleHost(checkpoint, context['pages_root'], audit_path,
-                                      context=None, assessment=None, scope=None)
+                                      context=None, assessment=None, scope=None,
+                                      catalog_shadow=catalog_shadow)
         try:
             report = run_owned_cycle(CycleConfig(STATE_OWNER, 3600), store, host=host)
         except CatalogSelectionUnavailable:
@@ -400,7 +440,8 @@ def run_once(state_store, pages_checkout):
             # journal evidence before ending this otherwise healthy session.
             checkpoint.save()
             checkpoint.release()
-            summary = public_summary(report, source_sha=context['source_sha'],store=store)
+            summary = public_summary(report, source_sha=context['source_sha'],store=store,
+                                     catalog_shadow=host._catalog_shadow_result)
             summary['writes'] = None
             summary['authentication'] = authentication
             return 2, summary
@@ -413,7 +454,8 @@ def run_once(state_store, pages_checkout):
         proof_exported = bool(export_report is not None and _export_current_kernel_proof(
             checkpoint, store, export_report, context['runner_temp']))
         checkpoint.release()
-        summary = public_summary(report, source_sha=context['source_sha'],store=store)
+        summary = public_summary(report, source_sha=context['source_sha'],store=store,
+                                 catalog_shadow=host._catalog_shadow_result)
         if not proof_exported:
             summary['positive_canary']='NOT_RUN'
         summary['current_proof_exported'] = bool(current_proof_report is not None and proof_exported)
