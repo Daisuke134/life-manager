@@ -6,6 +6,7 @@ Missing state requires explicit operator reconciliation and bootstrap.
 """
 import base64
 from hashlib import sha256
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -84,7 +85,8 @@ def _validate_database(path):
         if db.execute('PRAGMA quick_check').fetchall() != [('ok',)]:
             raise ValueError('invalid SQLite checkpoint')
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if not {'schedule','control','owned_effects','owned_deliveries','owned_recovery_cursor'} <= tables:
+        required_tables={'schedule','control','owned_effects','owned_deliveries','owned_recovery_cursor'}
+        if not required_tables <= tables:
             raise ValueError('not an owned cycle checkpoint')
         if db.execute('SELECT id,stopped FROM control').fetchall() not in ([(1,0)], [(1,1)]):
             raise ValueError('invalid owner control state')
@@ -98,6 +100,55 @@ def _validate_database(path):
                 raise ValueError('invalid saved occurrence status')
             if (status == 'PRESENT') != (isinstance(receipt,str) and bool(re.fullmatch('[0-9a-f]{40}',receipt))):
                 raise ValueError('invalid saved provider receipt')
+        if 'owned_rollbacks' in tables:
+            from .outbox import validate_owned_rollback
+            rollback_columns={row[1] for row in db.execute('PRAGMA table_info(owned_rollbacks)')}
+            if {'delivery_status','delivery_json'}<=rollback_columns:
+                rollback_rows=db.execute('''SELECT key,packet_json,status,receipt_ref,
+                    delivery_status,delivery_json FROM owned_rollbacks''').fetchall()
+            else:
+                rollback_rows=[(key,packet,status,receipt,'UNKNOWN',None) for
+                    key,packet,status,receipt in db.execute(
+                        'SELECT key,packet_json,status,receipt_ref FROM owned_rollbacks')]
+            for key, packet_json, status, receipt, delivery_status, delivery_json in rollback_rows:
+                packet=json.loads(packet_json); validate_owned_rollback(packet)
+                if key != packet['effect_key'] or status not in ('DISPATCHING','PRESENT'):
+                    raise ValueError('invalid saved rollback binding')
+                if (status == 'PRESENT') != (isinstance(receipt,str) and
+                                              bool(re.fullmatch('[0-9a-f]{40}',receipt))):
+                    raise ValueError('invalid saved rollback receipt')
+                original=db.execute('''SELECT packet_json,expected_parent,status,receipt_ref
+                    FROM owned_effects WHERE key=?''',
+                    (packet['candidate_effect_key'],)).fetchone()
+                if original is None:
+                    raise ValueError('rollback is detached from its candidate receipt')
+                original_packet=json.loads(original[0])
+                if (original[2]!='PRESENT' or
+                        original[3]!=packet['candidate_commit'] or
+                        original[1]!=packet['parent_commit'] or
+                        original_packet.get('schema')!='manager.digital-handoff.v2' or
+                        original_packet.get('baseline')!=packet['baseline'] or
+                        original_packet.get('candidate')!=packet['candidate'] or
+                        original_packet.get('baseline_sha256')!=packet['baseline_sha256'] or
+                        original_packet.get('candidate_sha256')!=packet['candidate_sha256']):
+                    raise ValueError('rollback candidate receipt binding changed')
+                if delivery_status not in ('UNKNOWN','PENDING','VERIFIED'):
+                    raise ValueError('invalid saved rollback delivery state')
+                if delivery_json is None:
+                    if delivery_status!='UNKNOWN':
+                        raise ValueError('missing saved rollback delivery')
+                    continue
+                evidence=json.loads(delivery_json);intent=packet
+                if (status!='PRESENT' or evidence.get('effect_key')!=key or
+                        evidence.get('receipt_ref')!=receipt or
+                        evidence.get('baseline_sha256')!=intent['baseline_sha256'] or
+                        evidence.get('status')!=delivery_status or
+                        evidence.get('human_outcome')!='NOT_MEASURED' or
+                        evidence.get('proof_level') not in ('P0','P2') or
+                        (delivery_status=='VERIFIED' and evidence.get('proof_level')!='P2')):
+                    raise ValueError('invalid saved rollback delivery binding')
+                from .models.source import _aware
+                _aware(datetime.fromisoformat(evidence['observed_at']))
 
 
 class PrivateCheckpoint:

@@ -66,6 +66,9 @@ class CycleStore:
         with sqlite3.connect(self.db) as db:return bool(db.execute('SELECT stopped FROM control WHERE id=1').fetchone()[0])
     def stop(self):
         with sqlite3.connect(self.db) as db:db.execute('UPDATE control SET stopped=1 WHERE id=1')
+    def resume(self):
+        """Clear STOP only after the caller's explicit trusted recovery gate."""
+        with sqlite3.connect(self.db) as db:db.execute('UPDATE control SET stopped=0 WHERE id=1')
     def append(self,event):
         self.learning.record_sandbox_technical(event)
     def cycle_count(self):
@@ -217,6 +220,10 @@ def _observe_owned_delivery(state_store,host,record,now,*,writes=0,allow_rollbac
                evidence.get('candidate_sha256')==packet['candidate_sha256'] and
                evidence.get('status') in ('VERIFIED','PENDING','REGRESSION','UNKNOWN') and
                evidence.get('proof_level') in ('P0','P2'))
+        if (valid and evidence.get('status')=='REGRESSION' and
+                (evidence.get('proof_level')!='P2' or evidence.get('reason') not in
+                 ('BOUND_FIXED_HTML_CSP_FAILURE','BOUND_CURRENT_PAGE_CUE_FAILURE'))):
+            valid=False
         if not valid:
             evidence=dict(status='UNKNOWN',effect_key=record.key,receipt_ref=record.receipt_ref,
                 candidate_sha256=packet['candidate_sha256'],observed_at=datetime.now(timezone.utc).isoformat(),
@@ -233,6 +240,10 @@ def _observe_owned_delivery(state_store,host,record,now,*,writes=0,allow_rollbac
                 proof_level='P2',human_outcome='NOT_MEASURED',causal_support=False,**base)
         if status=='VERIFIED':
             return _cycle_result('VERIFIED_PLATFORM_CONTRACT_P0',writes,proof_level='P0',**base)
+        if status=='REGRESSION':
+            state_store.stop()
+            return _cycle_result('STOPPED_REGRESSION',writes,proof_level='P2',
+                                 reason=reason,**base)
         return _cycle_result('UNKNOWN',writes,proof_level=proof_level,reason=reason,**base)
 
     observation=host.observe_delivery(packet,record.receipt_ref)
@@ -365,6 +376,12 @@ def run_owned_cycle(config,state_store,*,host=None,now=None):
         if not acquired:return result('OWNER_BUSY')
         if platform:host.assert_session(state_store)
         else:host.assert_offline()
+        if platform:
+            rollback=host.reconcile_pending_rollbacks(state_store)
+            if rollback is not None and rollback.get('status')=='UNKNOWN':
+                return result('UNKNOWN',None,
+                              reason=rollback.get('reason','ROLLBACK_RECONCILIATION_PENDING'),
+                              receipt_ref=rollback.get('receipt_ref'))
         occurrence_reader=_occurrence_reader(state_store,host)
         reconcile_pending_owned(state_store.journal,occurrence_reader,datetime.now(timezone.utc))
         pending=bool(state_store.journal.pending_records(limit=1))

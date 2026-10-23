@@ -2,7 +2,9 @@
 from datetime import datetime, timedelta, timezone
 import importlib
 import json
+from hashlib import sha256
 from tempfile import TemporaryDirectory
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -10,6 +12,9 @@ import test_digital_cycle_acceptance as fixtures
 import test_owned_effect_recovery as recovery
 from test_candidate_verification import NOW
 from manager_core.digital_handoff import REPOSITORY, PUBLIC_BASE
+from manager_core.digital_handoff import MAIN_REF, WORKFLOW, PublisherContext, plan_release
+from manager_core.digital_environment import PAGES
+from manager_core.reconcile import OwnedOccurrenceEvidence
 from manager_core.owned_cycle import run_owned_cycle
 from manager_core.reconcile import reconcile_owned
 
@@ -144,3 +149,84 @@ class PublicCollectorTests(unittest.TestCase):
                 self.assertEqual(result.get('rollback_writes'), 0)
                 rollback.assert_not_called()
                 self.assertEqual(git.git('rev-list', '--count', 'HEAD'), '3')
+
+    def test_v2_regression_requires_exact_commit_parent_deployment_target_and_rubric(self):
+        collector = importlib.import_module('manager_core.owned_public_collector')
+        from manager_core.outbox import OwnedEffectJournal
+        from manager_core.digital_handoff import digest
+
+        csp = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+        def page(current=False, csp_ok=True, suffix=''):
+            policy = csp if csp_ok else "default-src *"
+            current_attr = ' aria-current="page"' if current else ''
+            return (f'<!doctype html><html><head><meta http-equiv="Content-Security-Policy" '
+                    f'content="{policy}"></head><body><nav aria-label="主な案内">'
+                    f'<a href="finance.html"{current_attr}>Finance</a>'
+                    '<a href="mental.html">Mental</a></nav>'+suffix+'</body></html>').encode()
+
+        baseline_pages = {name: page(False) for name in PAGES}
+        candidate_pages = dict(baseline_pages)
+        candidate_pages['finance.html'] = page(True)
+        def manifest(pages, source):
+            return {'schema':'manager.public-service.v1','source_commit':source,
+                    'files':{name:sha256(raw).hexdigest() for name,raw in pages.items()},
+                    'beneficiary_outcome':'NOT_MEASURED','real_participants':0,
+                    'clinical_claim':False,'experiment_enabled':False}
+
+        baseline = manifest(baseline_pages, 'a'*40)
+        candidate = manifest(candidate_pages, 'b'*40)
+        packet = plan_release(baseline, candidate, NOW, schema='manager.digital-handoff.v2')
+        committed_at = NOW - timedelta(minutes=2)
+        receipt = {'sha':'d'*40,
+                   'commit':{'committer':{'date':committed_at.isoformat()},
+                             'message':'exact saved candidate'},
+                   'parents':[{'sha':'c'*40}]}
+        evidence = OwnedOccurrenceEvidence(receipt,candidate,
+            {'manager-support/'+name:raw for name,raw in candidate_pages.items()},
+            'c'*40,baseline,{'manager-support/'+name:raw for name,raw in baseline_pages.items()})
+
+        for state, expected in (('exact','VERIFIED'),('no_deployment','UNKNOWN'),
+                                ('wrong_deployment_sha','UNKNOWN'),('old_deployment','UNKNOWN'),
+                                ('wrong_target','UNKNOWN'),('cue_failure','REGRESSION'),
+                                ('csp_failure','REGRESSION'),('hash_only','UNKNOWN'),
+                                ('wrong_receipt','UNKNOWN')):
+            with self.subTest(state=state), TemporaryDirectory() as tmp:
+                journal = OwnedEffectJournal(Path(tmp)/'cycle.sqlite')
+                publisher = PublisherContext(REPOSITORY, MAIN_REF, WORKFLOW, 'b'*40,
+                                             '123', workflow_commit='b'*40)
+                journal.reserve(packet,publisher,baseline,candidate,'c'*40,NOW)
+                journal._present(packet['effect_key'],'d'*40)
+                served = dict(candidate_pages)
+                if state == 'cue_failure': served['finance.html'] = page(False)
+                elif state == 'csp_failure': served['finance.html'] = page(True,csp_ok=False)
+                elif state == 'hash_only': served['finance.html'] = page(True,suffix='changed')
+                current_sha = 'c'*40 if state == 'wrong_target' else 'd'*40
+                run_sha = 'c'*40 if state == 'wrong_deployment_sha' else 'd'*40
+                run_time = committed_at - timedelta(minutes=1) if state == 'old_deployment' else NOW
+                urls = {
+                    f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/gh-pages':
+                    json.dumps({'ref':'refs/heads/gh-pages','object':{'type':'commit','sha':current_sha}}).encode(),
+                    f'https://api.github.com/repos/{REPOSITORY}/actions/workflows/307239134/runs?branch=gh-pages&per_page=100':
+                    json.dumps({'workflow_runs':([] if state == 'no_deployment' else [{
+                        'workflow_id':307239134,'path':'.github/workflows/pages.yml',
+                        'event':'workflow_dispatch','head_branch':'gh-pages',
+                        'head_repository':{'full_name':REPOSITORY},'head_sha':run_sha,
+                        'status':'completed','conclusion':'success','created_at':run_time.isoformat()}])}).encode(),
+                    PUBLIC_BASE+'manifest.json':json.dumps(candidate).encode(),
+                }
+                urls.update({PUBLIC_BASE+name:raw for name,raw in served.items()})
+                def get(url):
+                    self.assertIn(url,urls,'collector used an unexpected public endpoint')
+                    return urls[url]
+                exact_evidence = evidence
+                if state == 'wrong_receipt':
+                    exact_evidence = OwnedOccurrenceEvidence(
+                        dict(receipt,sha='e'*40),candidate,evidence.committed_bodies,
+                        'c'*40,baseline,evidence.parent_bodies)
+                with patch.object(collector,'collect_owned_occurrence',return_value=exact_evidence):
+                    result = collector.collect_owned_delivery(packet['effect_key'],journal,NOW,get=get)
+                self.assertEqual(result['status'],expected)
+                if expected == 'REGRESSION':
+                    self.assertEqual(result['proof_level'],'P2')
+                if expected != 'REGRESSION':
+                    self.assertNotIn(result['status'],('REGRESSION',))

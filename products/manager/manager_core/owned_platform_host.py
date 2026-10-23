@@ -284,6 +284,206 @@ class GitHubActionsCycleHost:
             raise ValueError('saved platform occurrence required')
         return collect_owned_delivery(key, journal)
 
+    def _rollback_window(self, packet):
+        from .outbox import validate_owned_rollback
+        env=self._environment(require_release=True)
+        created=validate_owned_rollback(packet)
+        now=self._now()
+        expires=datetime.fromisoformat(packet['expires_at'])
+        if (env.get('GITHUB_EVENT_NAME')!='workflow_dispatch' or
+                packet['controller_sha']!=env['GITHUB_SHA'] or
+                not created<=now<expires or
+                monotonic()-self._started_at>MAX_HOST_SECONDS):
+            raise PermissionError('trusted bounded rollback control required')
+        return env
+
+    def _validate_rollback_commit(self, commit, expected_parent, expected_tree,
+                                  expected_paths, packet, expected_bodies):
+        from .outbox import owned_rollback_commit_message
+        from .digital_environment import verify_readback
+        try:
+            if (not SHA_RE.fullmatch(commit) or not SHA_RE.fullmatch(expected_tree) or
+                    self._git('rev-parse',f'{commit}^')!=expected_parent or
+                    self._git('rev-parse',f'{commit}^{{tree}}')!=expected_tree):
+                raise ValueError('rollback parent or tree changed')
+            names=set(self._git('diff-tree','--no-commit-id','--name-only','-r','-z',commit).split('\x00'))-{''}
+            if names!=expected_paths or not names<=set(ALLOWED_PATHS):
+                raise ValueError('rollback path set widened')
+            if self._git('show','-s','--format=%B',commit)!=owned_rollback_commit_message(packet):
+                raise ValueError('rollback message changed')
+            manifest_raw=self._git_blob(commit,'manager-support/manifest.json')
+            manifest=json.loads(manifest_raw)
+            bodies={'manager-support/'+name:self._git_blob(commit,'manager-support/'+name)
+                    for name in manifest['files']}
+            if (manifest!=packet['baseline'] or set(expected_bodies)!=set(ALLOWED_PATHS) or
+                    manifest_raw!=expected_bodies['manager-support/manifest.json'] or
+                    bodies!={name:raw for name,raw in expected_bodies.items()
+                             if name!='manager-support/manifest.json'}):
+                raise ValueError('rollback bytes differ from immutable parent')
+            verify_readback(manifest,{name.removeprefix('manager-support/'):raw
+                                      for name,raw in bodies.items()})
+        except Exception:
+            raise PermissionError('rollback commit differs from exact saved parent bytes') from None
+
+    def send_owned_rollback(self, state_store, journal, packet):
+        """Restore only exact parent bytes with a non-force gh-pages CAS push."""
+        from .outbox import owned_rollback_commit_message
+        from .reconcile import OwnedOccurrenceEvidence
+        from .digital_environment import verify_readback
+        from .owned_public_collector import collect_owned_occurrence
+        self.assert_session(state_store)
+        env=self._rollback_window(packet)
+        self._assert_checkout_identity(clean=True)
+        if self.current_parent()!=packet['candidate_commit']:
+            raise PermissionError('rollback target moved; reconcile only')
+        if self.manifest()!=packet['candidate']:
+            raise PermissionError('latest candidate bundle changed; reconcile only')
+        evidence=collect_owned_occurrence(packet['candidate_effect_key'],journal,self._now())
+        if (type(evidence) is not OwnedOccurrenceEvidence or
+                evidence.receipt.get('sha')!=packet['candidate_commit'] or
+                evidence.parent_commit!=packet['parent_commit'] or
+                evidence.committed_manifest!=packet['candidate'] or
+                evidence.parent_manifest!=packet['baseline'] or
+                set(evidence.parent_bodies)!=set(ALLOWED_PATHS) or
+                set(evidence.committed_bodies)!=set(ALLOWED_PATHS)):
+            raise PermissionError('exact saved candidate and immutable parent unavailable')
+        verify_readback(packet['baseline'],{
+            name.removeprefix('manager-support/'):raw
+            for name,raw in evidence.parent_bodies.items()
+            if name!='manager-support/manifest.json'})
+        if json.loads(evidence.parent_bodies['manager-support/manifest.json'])!=packet['baseline']:
+            raise PermissionError('immutable rollback baseline manifest changed')
+        if (packet['candidate_effect_key']!=journal.latest_present_record().key or
+                journal.latest_present_record().receipt_ref!=packet['candidate_commit']):
+            raise PermissionError('rollback is not the latest saved candidate receipt')
+
+        for name,raw in evidence.parent_bodies.items():
+            destination=self.checkout/name
+            if (destination.is_symlink() or not destination.is_file() or
+                    destination.parent.is_symlink()):
+                raise PermissionError('tracked rollback path is not a regular file')
+            destination.write_bytes(raw)
+        self._git('add','--',*ALLOWED_PATHS)
+        expected_paths={name for name in ALLOWED_PATHS
+                        if evidence.committed_bodies[name]!=evidence.parent_bodies[name]}
+        staged=set(self._git('diff','--cached','--name-only','-z').split('\x00'))-{''}
+        if not expected_paths or staged!=expected_paths:
+            raise PermissionError('staged rollback paths differ from saved baseline')
+        tree=self._git('write-tree')
+        for name,raw in evidence.parent_bodies.items():
+            indexed=self._run_cli_bytes(['git','-C',str(self.checkout),'show',':'+name])
+            if indexed!=raw:
+                raise PermissionError('staged rollback bytes differ from immutable baseline')
+        message=owned_rollback_commit_message(packet)
+        with TemporaryDirectory(prefix='manager-owned-rollback-') as tmp:
+            message_path=Path(tmp)/'message.txt';message_path.write_text(message+'\n')
+            commit=self._git('-c','core.hooksPath=/dev/null','-c','user.name=github-actions[bot]',
+                '-c','user.email=41898282+github-actions[bot]@users.noreply.github.com',
+                'commit-tree',tree,'-p',packet['candidate_commit'],'-F',str(message_path))
+        self._validate_rollback_commit(commit,packet['candidate_commit'],tree,
+                                       expected_paths,packet,evidence.parent_bodies)
+        self._rollback_window(packet)
+        if self._git('rev-parse','HEAD')!=packet['candidate_commit']:
+            raise PermissionError('rollback local parent moved')
+        self._git('-c','core.hooksPath=/dev/null','update-ref','refs/heads/gh-pages',
+                  commit,packet['candidate_commit'])
+        if self._git('rev-parse','HEAD')!=commit:
+            raise PermissionError('rollback local ref did not advance')
+        self._assert_checkout_identity(clean=True)
+        self._rollback_window(packet)
+        if self._fetch_remote_parent()!=packet['candidate_commit']:
+            raise PermissionError('rollback remote CAS parent moved; reconcile only')
+        self._rollback_window(packet)
+        self._run_cli(['git','-c','core.hooksPath=/dev/null','-C',str(self.checkout),
+                       'push','origin',f'HEAD:{PAGES_BRANCH}'])
+        self._rollback_window(packet)
+        self._run_cli(['gh','api','--method','POST',
+            f'repos/{REPOSITORY}/actions/workflows/{PAGES_WORKFLOW_ID}/dispatches',
+            '--input','-'],input_data=json.dumps({'ref':'gh-pages'},separators=(',',':')))
+        return commit
+
+    def reconcile_pending_rollbacks(self, state_store):
+        """Read-only recovery; an old rollback reservation never reacquires send permission."""
+        from .owned_public_collector import collect_owned_rollback,collect_owned_rollback_delivery
+        records=state_store.journal.pending_rollbacks(limit=100)
+        if not records:return None
+        result=None
+        for row in records:
+            current=state_store.journal.rollback_record(row.key)
+            if current.status!='PRESENT':
+                evidence=collect_owned_rollback(row.key,state_store.journal,self._now())
+                if evidence is not None:
+                    state_store.journal._rollback_present(row.key,evidence.receipt['sha'])
+                    current=state_store.journal.rollback_record(row.key)
+            if current.status=='PRESENT' and current.delivery_status!='VERIFIED':
+                delivery=collect_owned_rollback_delivery(row.key,state_store.journal,self._now())
+                state_store.journal.save_rollback_delivery(row.key,delivery)
+                current=state_store.journal.rollback_record(row.key)
+            if current.status=='PRESENT':
+                result={'status':'ROLLBACK_RECONCILED','writes':0,
+                        'receipt_ref':current.receipt_ref,
+                        'rollback_delivery_status':current.delivery_status}
+            else:
+                result={'status':'UNKNOWN','writes':None,
+                        'reason':'ROLLBACK_RECONCILIATION_PENDING'}
+        return result
+
+    def rollback_latest_owned(self, state_store):
+        """Explicit owner-only rollback of the exact current saved candidate."""
+        from .outbox import plan_owned_rollback
+        from .reconcile import OwnedOccurrenceEvidence
+        from .owned_public_collector import (collect_owned_occurrence,
+            collect_owned_rollback,collect_owned_rollback_delivery)
+        from .digital_environment import verify_readback
+        if not state_store.stopped():
+            return {'status':'CONTROL_STOP_REQUIRED','writes':0}
+        env=self._environment(require_release=True)
+        if env.get('GITHUB_EVENT_NAME')!='workflow_dispatch':
+            raise PermissionError('explicit workflow dispatch required')
+        prior=self.reconcile_pending_rollbacks(state_store)
+        if prior is not None:
+            return prior
+        self.assert_session(state_store)
+        self._assert_checkout_identity(clean=True)
+        current=self.current_parent()
+        record=state_store.journal.latest_present_record()
+        if record is None or record.receipt_ref!=current:
+            return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'LATEST_RECEIPT_NOT_CURRENT'}
+        original=json.loads(record.packet_json)
+        if (original.get('schema')!='manager.digital-handoff.v2' or
+                self.manifest()!=original['candidate']):
+            return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'CANDIDATE_BINDING_CHANGED'}
+        evidence=collect_owned_occurrence(record.key,state_store.journal,self._now())
+        if (type(evidence) is not OwnedOccurrenceEvidence or
+                evidence.receipt.get('sha')!=record.receipt_ref or
+                evidence.parent_commit!=record.expected_parent or
+                evidence.committed_manifest!=original['candidate'] or
+                evidence.parent_manifest!=original['baseline'] or
+                set(evidence.parent_bodies)!=set(ALLOWED_PATHS)):
+            return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'IMMUTABLE_PARENT_UNAVAILABLE'}
+        verify_readback(original['baseline'],{
+            name.removeprefix('manager-support/'):raw
+            for name,raw in evidence.parent_bodies.items()
+            if name!='manager-support/manifest.json'})
+        if json.loads(evidence.parent_bodies['manager-support/manifest.json'])!=original['baseline']:
+            return {'status':'ROLLBACK_BLOCKED','writes':0,'reason':'IMMUTABLE_PARENT_CHANGED'}
+        packet=plan_owned_rollback(original,record.receipt_ref,record.expected_parent,
+                                   self._now(),controller_sha=env['GITHUB_SHA'])
+        reserved=state_store.journal.reserve_rollback(packet,self._now())
+        if not reserved.dispatch:
+            return {'status':'UNKNOWN','writes':None,'reason':'ROLLBACK_ALREADY_RESERVED'}
+        # The gateway ACK is mandatory before any external push or deployment dispatch.
+        self.checkpoint.save()
+        commit=self.send_owned_rollback(state_store,state_store.journal,packet)
+        proof=collect_owned_rollback(packet['effect_key'],state_store.journal,self._now())
+        if proof is None or proof.receipt.get('sha')!=commit:
+            return {'status':'UNKNOWN','writes':None,'reason':'ROLLBACK_RECEIPT_PENDING'}
+        state_store.journal._rollback_present(packet['effect_key'],commit)
+        delivery=collect_owned_rollback_delivery(packet['effect_key'],state_store.journal,self._now())
+        state_store.journal.save_rollback_delivery(packet['effect_key'],delivery)
+        return {'status':'ROLLBACK_SUBMITTED','writes':1,'receipt_ref':commit,
+                'rollback_delivery_status':delivery['status']}
+
     def _send_window(self, packet, expected_parent):
         env = self._environment(require_release=True)
         if monotonic() - self._started_at > MAX_HOST_SECONDS:
