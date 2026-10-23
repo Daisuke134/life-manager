@@ -94,7 +94,7 @@ MAC02の最新read-only観測: current selectorはa8954faaだが、対象hf-gig-
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-first-listing-20261024、base=68863815b1e48c171e58e6a108e06ec1ed2c1ee7（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINPUTS-B。実ACCOUNT接続は現在の公式観測とprivate bindingが未完。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-first-listing-20261024、base=68863815b1e48c171e58e6a108e06ec1ed2c1ee7（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINPUTS-B1。実ACCOUNT接続はaccepted68863815の公式観測とprivate binding/status照合で完了し、業務ready/公開INSTALLは未完。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -110,7 +110,7 @@ SETUPの実行順と受入（旧=ACCOUNTのsource/実接続→INPUTS→INSTALL�
 - [x] INPUTS-A: ReplyのCrowdWorks provider既定と、Storefrontのcreator product/avatar/catalogへの戻りを本人入力へ修復する。既存--product、validator、catalog_path、同じreconcile pathを再利用する。本人product/proofの欠損・破損では外部callback前にsetup_requiredとし、作者画像・repo実績へ戻らない。profile更新は検証済みavatarを使う。catalog未使用の利用者へ新たな必須条件を課さない。
 - [ ] INPUTS-B: 初回listing/portfolioに仮IDを要求しない。既存validatorの作成modeと既存create/readback/receiptを再利用し、公式に確認した実IDだけを同じ本人private productへ保存する。編集/inspect/reconcileは実IDを照合し、missingや保存失敗を外部effect無しへ置換しない。
 - [ ] INSTALL: 既存bootstrap/install dispatch/catalog/common local applyへ公開Lancers入口を接続する。ChatGPT認証と導入済み適合Python/browserを再利用し、別Macのhost/browser bindingを先に確認する。Coconalaのmissing→公式手続き案内→同じobserve再実行の先例を使い、本人の「完了」操作や旧statusだけでは成功にしない。generic account_observationから原因を断定しない。新scheduler/第二業務core/独自profile frameworkを作らない。
-- [ ] ACCOUNT: 既存Coconala onboardingの公式観測・private receiptの形を再利用し、Lancersの公式mypage内で確認できる本人accountを接続する。positive precedentは `.mypage.result-summary a[href*="/profile/"]` が一つのaccountを指すこと。公式origin/path、ready、login/challenge、リンクの一意性を検証し、未設定・曖昧・他人の公開profileをreadyにしない。候補者の事実やaccountを作者値で補わず、既存load_identity/account-idの契約を保つ。main由来immutableの同じ公式観測から本人private入力へ接続し、未通過の本人手続きは成功へ置換しない。
+- [x] ACCOUNT: 既存Coconala onboardingの公式観測・private receiptの形を再利用し、Lancersの公式mypage内で確認できる本人accountを接続する。positive precedentは `.mypage.result-summary a[href*="/profile/"]` が一つのaccountを指すこと。公式origin/path、ready、login/challenge、リンクの一意性を検証し、未設定・曖昧・他人の公開profileをreadyにしない。候補者の事実やaccountを作者値で補わず、既存load_identity/account-idの契約を保つ。main由来immutableの同じ公式観測から本人private入力へ接続し、未通過の本人手続きは成功へ置換しない。
 - [ ] READY: 本人入力・公式account照合・必要なproduct/proofとlaneごとの要件が満たされるownerだけを既存local applyから導入する。sourceの受入とimmutable反映を済ませてから自然terminal/公式成果へ進み、全7jobsや別Macの成功を設定fileだけで報告しない。
 
 Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、公開workflow39965643774は成功。guard/testのGitHub公式main bytesは全一致し、追加CI stepも一致する。workflow全体の別差分はmainに統合済みのMonk Factory Web jobで、今回のbrowser stepは変わらない。既存cutterの限定候補は `~/.local/share/life-manager/browser-probes/lancers-local-setup/releases/20261023T230521-742479ee`（provenance=ancestor-of-origin-main、skills/browser、current不変）。同cwdから既存with-browserを使い、公式https://www.lancers.jp/mypageのready=complete/login_form=false/human_verification=falseと、本人summary内のprofile linksが同一accountを指すことを読む。raw account値は出力せず、lease解放とowned target残0を確認する。browser起動・login・provider送信・業務owner applyは0。公開Lancers導入、別Mac実機、全機能、10,000 starsは未完（GitHub公式現在値8 stars/2 forks）。
@@ -128,7 +128,7 @@ Browser releaseの反映証拠: head2ebfe8bc94866643d7eda8131cff4c3d25aac123、�
 - [x] ACCOUNT-RED: 空HOME/fake CDPだけでpositive別account、login/challenge/不正origin/公開profile/空・曖昧linkを検証し、未実装で失敗を確認する。unleased observeはbrowser callback0、観測/cleanup失敗後は旧ready無効、壊れたrecordと既存account不一致は保存値不変をassertする。
 - [x] ACCOUNT-INPUT: 上記2filesを最小実装する。既存 `_write_private` の0600/atomic replaceを使い、観測digestとbindingを結ぶ。secretやページ本文は保存せず、private evidenceには必要なaccountと構造化markerだけを保持する。import時のprivate読取・browser接続は0。
 - [x] ACCOUNT-GREEN: focused testsと既存local_identity testsを実行し、保存後の本人recordを既存readerで読めること、別HOME/既存keys保持/digest改変拒否/所有tab cleanupを確認する。
-- [ ] ACCOUNT-SHIP: diff/source boundary→commit/push→必要review/既存CI→main/public readback→main由来immutableの同commandで公式観測とprivate bindingを確認する。ここで他laneや別Macの稼働を完了にしない。
+- [x] ACCOUNT-SHIP: diff/source boundary→commit/push→必要review/既存CI→main/public readback→main由来immutableの同commandで公式観測とprivate bindingを確認する。ここで他laneや別Macの稼働を完了にしない。
 
 ACCOUNTのsource検証: 新規52件を未実装でRED再現し、既存identity12件を含む64件がPASS。primaryが実測と同じprofile/feedback/proposal混在で追加REDを再現するため、同一accountのroot/統計suffixを同じ本人として扱い、別account混在を拒否する4ケースを追加する。workerとprimaryの新規56件＋既存12件=68件がPython3.14.7でPASS。追加のaccepted browser観測もsummary10links/root4/query0/fragment0/official origin・account一意を確認する。AST/source境界/diffはPASS、Loop contractは18products/192jobs/113mapped/errors0。無関係な別provider同士のUUID衝突がLancersまで停止する追加gateもRED1で再現し、Lancers UUIDの重複だけを拒否する既存guardの範囲へ揃える。最終は新規59件＋既存identity12件=71件PASS。実EXPRESSIONから4root＋6統計linksを通すfixtureもPASS。既存CIへ新test1fileを追加する。独立reviewとCI/main受入、公開入口・実private bindingは継続中。開発sourceの実browser/private操作は0。
 
@@ -176,6 +176,8 @@ INPUTS-Aの再review修復: 独立reviewの最終判定はblocking1（自動cata
 
 INPUTS-Aの受入: PR #8743/head5317dcaf0ddd062c22a0f47706efcadd1d05da48、workflow39982179587の全13checksが成功し、最終の独立reviewは既知blocking修復範囲でblocking0。関連274tests＋wrapper1件がPASS。main68863815b1e48c171e58e6a108e06ec1ed2c1ee7へ統合し、source/test/CIのGitHub公式merged bytes14filesは全一致。既存cutterで同mainのbrowser/helper/writer closure56files・memory0のimmutable `~/.local/share/life-manager/account-probes/lancers-local-setup/releases/20261024T010151-68863815`を作る（ancestor-of-origin-main、current不変、旧probe削除0）。本人接続・installer・初回ID保存・全機能/別Mac/10,000 starsは未完。
 
+ACCOUNTの実接続受入: 資格情報SSOT全体のservice=Lancers完全一致1件とregistryの本人identity/owner/profileを確認し、accepted68863815のimmutableから既存with-browser経由でobserveを実行する。公式mypageの正の本人summaryを観測してexit0/account_connected、同じimmutableの別statusでもaccount_connectedを確認する。private profile/observationは0600、親directoryは0700、identity別ledgerの所有target残0、browser lease解放を確認する。raw account/DOM/credentialは出力・repo保存せず、provider送信・owner activation・browser再起動は0。これは本人account接続だけの受入で、初回出品/全7jobs/別Mac/10,000 starsの成功ではない。
+
 #### INPUTS-Bのbounded実装計画
 
 **Goal:** 初回出品/portfolioに仮IDを要求せず、公式readbackで確認した実IDを本人private productへ戻し、再実行による重複作成を防ぐ。**Architecture:** 同じvalidatorのcreate/apply用途別の最小緩和、同じaccount lock、既存listing.json receipt/catalog cursor、既存atomic private writerを使う。新store/第二scheduler/新しいfence frameworkは追加しない。raw productのID欄だけを更新し、catalog_familyと本人入力を保持する。通常inspect/reconcileの既存実ID照合は緩めない。
@@ -185,6 +187,8 @@ INPUTS-Aの受入: PR #8743/head5317dcaf0ddd062c22a0f47706efcadd1d05da48、workf
 **契約:** createは未設定/空listing・portfolio IDを許可し、非空の不正IDや他の必須product/proofは拒否する。applyは実listing IDを要求し、初回portfolioだけ既存_ensure_portfolioで作成できる。作成済みIDがある直接createは再作成せず既存の公式readbackへ回すか明示的に案内し、保存値だけを公式成功と扱わない。lock内でprivate product/receiptを再読込し、公式に確認したlisting/portfolio IDを同じprivate productへ保存する。canonical productにcatalog_familyがある場合は既存catalog_listingsの同familyも記録し、他familyを上書きしない。未観測demandは既存契約の空mappingで保存し、0を捏造しない。
 
 **不確定effect:** 公式作成後のproductとreceiptが両方ENOSPCになると、lockだけでは次回createを防げない実装上の穴がある。create前に同じlisting.jsonのトップレベルpending_createへ対象product/version・内容hash・期待seller path・任意familyをatomic保存し、保存失敗は外部create0で止める。pendingはcatalog_listingsへ混ぜない。pending中は再createせず、確認済みreceiptと入力の一致がある場合だけ実IDのローカル保存を再開し、不一致/未確認は公式readback復旧を次操作として返す。通常receipt更新とcatalog writerはpendingを保持し、公式成功した同じ対象の必要保存が全て完了した時だけ同じatomic更新で除く。他のpendingを消さない。reconcileはpendingがあればHELD/resolver0で保持する。post-effect保存失敗はok=false/logged_in=trueと確認済みIDを返し、pre-effectや成功へ置換しない。portfolioの作成/保存にも同じ原則を適用し、既存の一意な公式readbackを再利用する。
+
+**分割と現在cursor:** pending/receipt/private productの再開だけで100行超の変更となるため、同じINPUTS-B内をB1=初回listing＋pending＋catalog cursor＋reconcile保持、B2=applyでのportfolio作成/実ID保存に分ける。B1ではID無しのportfolioをcreate入力として検証するが、applyのportfolio ID保存を完了扱いしない。旧順/新順は同じINPUTS-B→INSTALLで、外部effectは進行していない。現在cursor=INPUTS-B1。
 
 - [ ] INPUTS-B-RED: ID無しの別利用者fixture→公式fake成功→private実ID保存→再実行create0を先に失敗再現する。pending保存失敗/create0、公式作成後のreceipt/product保存ENOSPCと再実行、通常writerのpending保持、同family cursorと既存行保持、pending中resolver0を既存fakeで検証する。
 - [ ] INPUTS-B-GREEN: 上記の最小実装後、関連create/portfolio/reconcileと既存本人入力caller tests、AST/source-boundary/diff/Loop contractを確認する。実private/browser/provider操作は行わない。
