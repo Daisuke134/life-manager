@@ -25,7 +25,13 @@ class ReviewRegressions(unittest.TestCase):
         self.assertIn('group: manager-pages-prefix-writer',workflow)
         self.assertIn('actions: write',workflow)
         self.assertIn('GH_TOKEN: ${{ github.token }}',workflow)
-        self.assertEqual(workflow.count('run_owned_digital_cycle.py run-once'),1)
+        self.assertEqual(workflow.count('python scripts/run_owned_digital_cycle.py "$MANAGER_OPERATION"'),1)
+        self.assertIn(
+            'case "$MANAGER_OPERATION" in\n'
+            '            run-once|stop|rollback|resume) ;;\n'
+            '            *) echo "invalid manager operation" >&2; exit 2 ;;\n'
+            '          esac',
+            workflow)
         self.assertNotRegex(workflow,r'(?m)^\s+git push\b')
 
         from manager_core.owned_platform_host import (
