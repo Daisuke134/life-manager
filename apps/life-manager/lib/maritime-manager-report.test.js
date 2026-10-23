@@ -137,3 +137,91 @@ test('daily observations reuse tenant-scoped queue and financial stores without 
  const foreign={...job,tenant_id:'lm_22222222-2222-4222-8222-222222222222'};
  await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{query:async()=>({rows:[{job:foreign}]}),financialStore}),/invalid/);
 });
+
+function capafyReportFixture(status='under_review'){
+ const provider=require('./maritime-manager-provider-runtime.js');
+ const cycleJob={...buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'provider-cycle',dateKey:'2026-10-20'}),status:'completed',attempt:1};
+ const sourceRef='maritime-execution://manager-agent/source-exec';
+ const cycleReceipt={schema_version:1,kind:'maritime_manager_cycle',tenant_id:UID,job_id:cycleJob.job_id,
+  occurrence_id:'provider-cycle',date_key:'2026-10-20',release_sha:enrollment.release_sha,agent_id:'manager-agent',execution_id:'source-exec',
+  status:'completed',artifact_refs:['artifact://original/agent-package.json'],error_class:null,provider:'maritime',external_ref:sourceRef,evidence_refs:[sourceRef]};
+ const common={tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'provider-cycle',artifactRef:cycleReceipt.artifact_refs[0],accountRef:`account://capafy/${UID}/tenant-account`};
+ const prepareJob={...provider.buildMaritimeCapafyPrepareJob({...common,cycleJobId:cycleJob.job_id}),status:'completed',attempt:1};
+ const prepareReceipt={schema_version:1,kind:'maritime_capafy_prepare',tenant_id:UID,job_id:prepareJob.job_id,attempt:1,
+  effect_key:prepareJob.effect_key,provider:'capafy',...prepareJob.input_refs,agent_id:'agent-123',agent_version_id:'version-456',
+  status:'prepared',url:'https://capafy.ai/agent/agent-123',external_ref:`capafy-action://${prepareJob.job_id}/1`,evidence_refs:[`capafy-action://${prepareJob.job_id}/1`],observed_at:'2026-10-21T01:00:00.000Z'};
+ const publishJob={...provider.buildMaritimeCapafyPublishJob({...common,sourceCycleJobId:cycleJob.job_id,prepareJobId:prepareJob.job_id,
+  agentId:'agent-123',agentVersionId:'version-456'}),status:'completed',attempt:1};
+ const publishReceipt={schema_version:1,kind:'provider_action_receipt',tenant_id:UID,job_id:publishJob.job_id,attempt:1,
+  effect_key:publishJob.effect_key,provider:'capafy',...publishJob.input_refs,status,
+  url:'https://capafy.ai/agent/agent-123',external_ref:`capafy-action://${publishJob.job_id}/1`,evidence_refs:[`capafy-action://${publishJob.job_id}/1`],observed_at:'2026-10-21T01:00:00.000Z'};
+ const context={sourceCycleJob:cycleJob,sourceCycleReceipt:cycleReceipt,prepareJob,prepareReceipt};
+ const prepare={receipt:prepareReceipt,job:prepareJob,completedAt:'2026-10-20T15:00:00Z',sourceCycleJob:cycleJob,sourceCycleReceipt:cycleReceipt};
+ const publish={receipt:publishReceipt,job:publishJob,completedAt:'2026-10-21T01:00:00Z',...context};
+ const pending={job:{...publishJob,status:'reconciling',updated_at:'2026-10-21T02:00:00Z'},status:'reconciling',observedAt:'2026-10-21T02:00:00Z',...context};
+ const dbRow=item=>({job:item.job,receipt:item.receipt,completed_at:item.completedAt,
+  source_cycle_job:item.sourceCycleJob,source_cycle_receipt:item.sourceCycleReceipt,prepare_job:item.prepareJob,prepare_receipt:item.prepareReceipt});
+ return {prepare,publish,pending,dbRow};
+}
+test('daily_result_separates_artifact_publish_sales_payout_and_unknown_cost',()=>{
+ const f=capafyReportFixture();
+ const result=buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[f.prepare,f.publish,f.publish]});
+ assert.equal(result.providerActions.length,2);
+ assert.deepEqual(result.providerActions.map(action=>action.status),['prepared','under_review']);
+ assert.equal(result.publicationStatus,'under_review');
+ assert.equal(result.actions.completedCycles,0);assert.equal(result.actions.artifactCount,0);
+ assert.equal(result.financial.gross.status,'unknown');assert.equal(result.financial.payouts.status,'unknown');assert.equal(result.financial.profit,null);
+ const email=renderMaritimeDailyEmail(result);
+ assert.match(email,/審査待ち/);assert.match(email,/売上：未確認/);assert.doesNotMatch(email,/販売可能|売上：.*0/);
+ assert.ok(email.includes('https://capafy.ai/agent/agent-123'));
+ const published=buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[capafyReportFixture('published').publish]});
+ assert.equal(published.publicationStatus,'published');assert.match(renderMaritimeDailyEmail(published),/公開済み/);
+});
+test('daily provider results use queue local day and keep unresolved publication separate from revenue',()=>{
+ const f=capafyReportFixture();
+ const result=buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[f.pending,f.pending,{...f.publish,completedAt:'2026-10-20T14:59:59Z'}]});
+ assert.equal(result.providerActions.length,1);assert.equal(result.providerActions[0].status,'reconciling');
+ assert.equal(result.publicationStatus,'unconfirmed');assert.equal(result.financial.gross.status,'unknown');
+ assert.equal(result.actions.unconfirmedCycles,0);assert.match(renderMaritimeDailyEmail(result),/公開結果確認中/);
+});
+test('provider report rejects foreign tenants and broken source, prepare, agent and version chains',()=>{
+ const f=capafyReportFixture();
+ const mutations=[
+  item=>{item.job.tenant_id='lm_22222222-2222-4222-8222-222222222222';},
+  item=>{item.sourceCycleJob.job_id='maritime-cycle:foreign';},
+  item=>{item.sourceCycleReceipt.artifact_refs=['artifact://other/package.json'];},
+  item=>{item.prepareJob.job_id='maritime-prepare:foreign';},
+  item=>{item.prepareReceipt.agent_version_id='other-version';},
+  item=>{item.receipt.agent_id='other-agent';},
+  item=>{item.receipt.account_ref='account://capafy/foreign';},
+ ];
+ for(const mutate of mutations){const item=structuredClone(f.publish);mutate(item);
+  assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[item]}),/invalid/);}
+ const pending=structuredClone(f.pending);pending.job.input_refs.agent_version_id='other-version';
+ assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[pending]}),/invalid/);
+});
+test('daily observations join immutable provider source and prepare rows and reject mismatched chains',async()=>{
+ const f=capafyReportFixture();const sqlCalls=[];
+ const financialStore={read:async()=>[]};
+ const query=async(sql,params)=>{sqlCalls.push({sql,params});return {rows:[f.dbRow(f.prepare),f.dbRow(f.publish),f.dbRow(f.pending)]};};
+ const observations=await readMaritimeDailyObservations({uid:UID,periodKey},{query,financialStore});
+ assert.equal(observations.actionReceipts.length,3);
+ assert.equal(observations.actionReceipts[1].sourceCycleJob.job_id,f.publish.sourceCycleJob.job_id);
+ assert.equal(observations.actionReceipts[1].prepareJob.job_id,f.publish.prepareJob.job_id);
+ assert.equal(observations.actionReceipts[2].status,'reconciling');assert.equal(observations.actionReceipts[2].receipt,undefined);
+ const result=buildMaritimeDailyResult({enrollment,periodKey,...observations});assert.equal(result.financial.gross.status,'unknown');
+ assert.match(sqlCalls[0].sql,/source_cycle_job_id/);assert.match(sqlCalls[0].sql,/prepare_job_id/);
+ assert.match(sqlCalls[0].sql,/maritime\.manager\.capafy\.prepare/);assert.match(sqlCalls[0].sql,/maritime\.manager\.capafy\.publish/);
+ const foreign=f.dbRow(f.publish);foreign.prepare_receipt={...foreign.prepare_receipt,agent_version_id:'foreign'};
+ await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{query:async()=>({rows:[foreign]}),financialStore}),/invalid/);
+});
+
+test('daily observations reject completed receipts outside their immutable central job',async()=>{
+ const job={...buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'exact-cycle',dateKey:'2026-10-21'}),status:'completed',attempt:1};
+ const foreign={schema_version:1,kind:'maritime_manager_cycle',tenant_id:UID,job_id:'maritime-cycle:foreign',
+  occurrence_id:'exact-cycle',date_key:'2026-10-21',release_sha:enrollment.release_sha,agent_id:'agent-1',execution_id:'exec-1',
+  status:'completed',artifact_refs:['artifact://original/product.json'],error_class:null,provider:'maritime',
+  external_ref:'maritime-execution://agent-1/exec-1',evidence_refs:['maritime-execution://agent-1/exec-1']};
+ await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{
+  query:async()=>({rows:[{job,receipt:foreign,completed_at:'2026-10-21T01:00:00Z'}]}),financialStore:{read:async()=>[]}}),/invalid/);
+});

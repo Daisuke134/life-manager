@@ -47,3 +47,17 @@ test('usage observer bounds stalled telemetry and records false without private 
  assert.equal(logs[1].error_class,'usage_store_unconfirmed');
  assert.match(logs[0].participant_id,/^[a-f0-9]{64}$/);assert.doesNotMatch(JSON.stringify(logs),new RegExp(UID));
 });
+
+test('provider prepare and publish completions never emit work or distinct-user events',async()=>{
+ const {recordMaritimeManagerCompletion}=require('./maritime-manager-usage.js');
+ let reads=0,events=0;
+ const uid='lm_11111111-1111-4111-8111-111111111111';
+ for(const phase of ['prepare','publish']){
+  assert.equal(await recordMaritimeManagerCompletion({tenant_id:uid,job_id:'provider-job',status:'completed',
+   capability:'maritime.manager.capafy.'+phase,completed_at:'2026-10-23T12:00:00.000Z'}, {}, {
+    managerStore:{read:async()=>{reads++;throw new Error('provider subjob must not count participant');}},
+    distributionStore:{recordManagerEvent:async()=>{events++;}},
+  }),true);
+ }
+ assert.equal(reads,0);assert.equal(events,0);
+});

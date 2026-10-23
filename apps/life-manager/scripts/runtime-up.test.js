@@ -1375,3 +1375,66 @@ test('Maritime completed work returns when telemetry stalls',async()=>{
  onJobCompleted:async(row,receipt,opts)=>{signal=opts.signal;await new Promise(()=>{});}});
  assert.equal(signal.aborted,true);assert.equal(logs[0].error_class,'usage_timeout');
 });
+
+test("Maritime provider capabilities are registered with tenant-scoped central predecessor readers and fail closed without binding",async()=>{
+  const uid="lm_11111111-1111-4111-8111-111111111111";
+  const runtime=require("../lib/maritime-manager-provider-runtime.js");
+  const caps=["maritime.manager.capafy.prepare","maritime.manager.capafy.publish"];
+  let services;
+  const handlers=createWorkerHandlers({},caps,{
+    maritimeManagerStore:{},maritimeTransport:{},
+    query:async(sql,values)=>{assert.deepEqual(values,[uid,"cycle-id"]);assert.match(sql,/jobs.tenant_id = \$1/);return {rows:[]};},
+    onRegistry:registry=>{for(const cap of caps)assert.equal(registry.hasCapability(cap),true);},
+    createRegistry:({servicesByAdapter})=>{
+      services=servicesByAdapter["maritime-manager-capafy-prepare"];
+      return require("../lib/loop-adapter-registry.js").createConfiguredLoopAdapterRegistry({servicesByAdapter});
+    },
+  });
+  assert.deepEqual(await services.readCompletedCycle({tenantId:uid,jobId:"cycle-id"}),null);
+  const job={...runtime.buildMaritimeCapafyPrepareJob({tenantId:uid,releaseSha:"a".repeat(40),occurrenceId:"one",
+    cycleJobId:"maritime-cycle:"+"b".repeat(64),artifactRef:"artifact://original/listing.md",accountRef:`account://capafy/${uid}/seller-1`}),
+    attempt:1,status:"running"};
+  await assert.rejects(handlers[caps[0]](job),/unconfigured/);
+});
+test("Maritime provider reconcile allowlist commits present successor atomically, resolves absent, and retains unknown",async()=>{
+  for(const phase of ["prepare","publish"])for(const state of ["present","absent","unknown"]){
+    const capability=`maritime.manager.capafy.${phase}`,calls=[];
+    const job={job_id:"provider-job",tenant_id:"tenant-a",capability,attempt:1,status:"reconciling",effect_class:"publish",effect_key:"provider-effect"};
+    const adapter={reconcile:async()=>({state,receipt:{provider:"capafy",status:state}}),verify:async()=>true,
+      continuation:async()=>phase==="prepare"?{job:{job_id:"publish-next"},availableAt:"2026-10-23T12:00:00.000Z"}:null};
+    await reconcileMaritimeCapabilityJobs([capability,"unrelated.publish"],{
+      registry:{getByCapability:()=>adapter},store:{
+        claimReconcilingJobs:async input=>{assert.deepEqual(input.capabilities,[capability]);return [job];},
+        recordUnknownReconciliation:async()=>{calls.push("held");return {status:"reconciling"};},
+        resolveReconciliation:async input=>{calls.push(input.decision);},
+        resolveReconciliationAndEnqueue:async input=>{calls.push("atomic");assert.equal(input.nextJob.job_id,"publish-next");},
+      },
+    });
+    assert.deepEqual(calls,state==="unknown"?[]:[state==="present"&&phase==="prepare"?"atomic":state]);
+  }
+});
+
+test("provider unknown and invalid readback remain reconciling beyond aging threshold and later converge",async()=>{
+ for(const phase of ["prepare","publish"])for(const invalidProof of [false,true]){
+  const capability="maritime.manager.capafy."+phase;
+  const job={job_id:"provider-job",tenant_id:"tenant-a",capability,attempt:1,status:"reconciling",effect_class:"publish",effect_key:"provider-effect"};
+  let reads=0,aged=0,resolved=0;
+  const adapter={reconcile:async()=>({state:++reads<=6?(invalidProof?"present":"unknown"):"present",receipt:{read:reads}}),
+   verify:async receipt=>receipt.read>6,continuation:async()=>null};
+  const deps={registry:{getByCapability:()=>adapter},store:{
+   claimReconcilingJobs:async()=>[job],
+   recordUnknownReconciliation:async()=>{aged++;return {status:aged>=5?"dead_letter":"reconciling"};},
+   resolveReconciliation:async input=>{assert.equal(input.decision,"present");resolved++;},
+  }};
+  for(let n=0;n<7;n++)await reconcileMaritimeCapabilityJobs([capability],deps);
+  assert.equal(aged,0);assert.equal(resolved,1);
+ }
+ let aged=0;
+ await reconcileMaritimeCapabilityJobs(["maritime.manager.report"],{
+  registry:{getByCapability:()=>({reconcile:async()=>({state:"unknown"})})},store:{
+   claimReconcilingJobs:async()=>[{job_id:"report",tenant_id:"tenant-a",capability:"maritime.manager.report",attempt:1,status:"reconciling",effect_class:"message",effect_key:"report-effect"}],
+   recordUnknownReconciliation:async()=>{aged++;return {status:"reconciling"};},
+  },
+ });
+ assert.equal(aged,1);
+});

@@ -195,7 +195,8 @@ async function executeCapabilityJob(job, services) {
 }
 
 async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) {
-  const scoped = capabilities.filter(value => ["maritime.manager.provision", "maritime.manager.cycle", "maritime.manager.report"].includes(value));
+  const scoped = capabilities.filter(value => ["maritime.manager.provision", "maritime.manager.cycle", "maritime.manager.report",
+    "maritime.manager.capafy.prepare", "maritime.manager.capafy.publish"].includes(value));
   if (!scoped.length) return;
   const { registry, store, storeOptions = {}, observe } = dependencies;
   const { reconcileUnknownEffect } = require("../lib/effect-reconciler.js");
@@ -216,7 +217,10 @@ async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) 
         return proof;
       } },
       store: {
-        recordUnknownReconciliation: input => store.recordUnknownReconciliation(input, storeOptions),
+        recordUnknownReconciliation: input => /^maritime\.manager\.capafy\.(prepare|publish)$/.test(job.capability)
+          // Keep provider action fences eligible for a later official readback.
+          // claimReconcilingJobs still enforces the existing 30-second readback seat.
+          ? Promise.resolve({ status: "reconciling" }) : store.recordUnknownReconciliation(input, storeOptions),
         resolveReconciliation: async input => {
           const next = input.decision === "present" && typeof adapter.continuation === "function"
             ? await adapter.continuation(job, input.receipt) : null;
@@ -300,6 +304,27 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
     }
     servicesByAdapter["maritime-manager-cycle"] = { managerStore, prepareCycle: input => transport.readWakeConfiguration({ ...input, activeOnly: true }), dispatchCycle: transport.dispatchCycle,
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
+    if (capabilities.some(value => /^maritime\.manager\.capafy\.(prepare|publish)$/.test(value))) {
+      if (typeof dependencies.query !== "function") throw new Error("maritime provider database unavailable");
+      const readPredecessor = async ({ tenantId, jobId }) => {
+        const rows = (await dependencies.query(`
+          SELECT row_to_json(jobs) AS job, receipts.receipt
+          FROM public.lm_runtime_jobs AS jobs
+          JOIN public.lm_runtime_job_receipts AS receipts ON receipts.job_id=jobs.job_id
+           AND receipts.tenant_id=jobs.tenant_id AND receipts.attempt=jobs.attempt
+           AND receipts.outcome IN ('completed','reconciled_present')
+          WHERE jobs.tenant_id = $1 AND jobs.job_id = $2 AND jobs.status='completed'
+          LIMIT 2`, [tenantId, jobId])).rows;
+        if (!Array.isArray(rows) || rows.length > 1) throw new Error("maritime provider predecessor invalid");
+        return rows[0] || null;
+      };
+      // Host provider binding is explicit. Never fall back to founder credentials
+      // or model-controlled VM state when T08/T16 setup is still unavailable.
+      const services = { managerStore, provider: dependencies.maritimeCapafyProvider,
+        readCompletedCycle: readPredecessor, readPrepareReceipt: readPredecessor, now: dependencies.now };
+      servicesByAdapter["maritime-manager-capafy-prepare"] = services;
+      servicesByAdapter["maritime-manager-capafy-publish"] = services;
+    }
     if (capabilities.includes("maritime.manager.report")) {
       if (typeof dependencies.query !== "function") throw new Error("maritime report database unavailable");
       const report = require("../lib/maritime-manager-report.js");
