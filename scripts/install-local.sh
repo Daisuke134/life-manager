@@ -36,6 +36,7 @@ if ! _lm_select_python "$venv/bin/python"; then
   "$LM_PYTHON" -m venv --clear "$venv"
 fi
 "$venv/bin/python" -m pip install --disable-pip-version-check -r "$ROOT/requirements-runtime.txt" >&2
+"$venv/bin/python" -c 'import websockets, bs4, jsonschema, cloakbrowser, PIL' >&2
 "$venv/bin/python" -c 'from cloakbrowser import ensure_binary; ensure_binary()' >&2
 export PATH="$HOME/.local/bin:$PATH"
 if ! command -v codex >/dev/null 2>&1; then
@@ -45,6 +46,14 @@ if ! command -v codex >/dev/null 2>&1; then
   /bin/bash "$installer" >&2
   rm -f "$installer"
   trap - EXIT
+fi
+if [ "$command_name" = install ] && ! codex login status >/dev/null 2>&1; then
+  echo "[local] 本人のCodexへログインします。認証を確認してからjobを登録します。" >&2
+  codex login >&2
+  codex login status >/dev/null 2>&1 || {
+    echo "[local] Codex loginを確認できません。jobは登録していません。" >&2
+    exit 2
+  }
 fi
 export LIFE_MANAGER_PYTHON="$venv/bin/python"
 exec "$venv/bin/python" -m runtime.loop.local_install "$command_name" "$@"

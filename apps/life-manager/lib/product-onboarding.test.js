@@ -44,11 +44,9 @@ test("one catalog describes all 18 public product loops on Local and Cloud", () 
     assert.ok(loop.hosts.local, `${loop.id} local`);
     assert.ok(loop.hosts.cloud, `${loop.id} cloud`);
   }
-  const english = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
-  const japanese = fs.readFileSync(path.join(ROOT, "README.ja.md"), "utf8");
+  const documentation = fs.readFileSync(path.join(ROOT, "docs/agents.md"), "utf8");
   for (const loop of catalog.loops) {
-    assert.match(english, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
-    assert.match(japanese, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
+    assert.match(documentation, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
 });
 

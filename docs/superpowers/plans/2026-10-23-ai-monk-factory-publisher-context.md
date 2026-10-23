@@ -37,3 +37,5 @@
 公式job logはmain PR8667のdocs/team/specs/listicle-outreach.md:2にあるpersonal_gmail1件を検出する。担当表は参謀/Grok Botで、当worktreeとは別の作業である。既存のworktree leaseとAGMSG rosterを読み、他の作業tree・session・配信へ触れず、最新mainの同fileにある使用禁止個人メールの生値だけをprivate SSOT参照へ置換する。送信元の業務address・他の宛先・outreach本文/状態・scanner/allowlistは保持する。これがないとsource受入CIが失敗するための1行修復であり、新しいoutreach送信や履歴rewriteは行わない。
 
 - 修正head77632fce80への独立再reviewは未解決0/Blocking0、Factory38 PASS、同run等価表記replayと小数秒保持も確認する。latest mainをmergeし、main側だけの変更を保持する。CIの公開個人メール注記は1件をprivate SSOT参照へ変更し、scanner/allowlist変更なしで全repo PII scan clean。担当/範囲/次の証拠をteam BOARDへ記録する。
+
+- Exact head5e6adbb1の13checksはすべてSUCCESS。gh pr merge --adminはthe merge commit cannot be cleanly createdで拒否される。最新mainを取り込み、共有BOARD/連絡先specの競合は相手の最新全本文を保持し、当方claim/log/個人メール生値の除去だけを再適用する。後続appendとの競合を減らすため当方logはログ見出し直下に置く。Factory実行sourceはreview済み77632fceと同bytesを保持し、検査をskipせず新head CIを待つ。

@@ -2,6 +2,13 @@
 
 Life Manager = the AGI that ends suffering. Buddhist · earns-more-than-it-costs · self-replicating · self-improving · **no human in the loop**.
 
+## North Star
+
+```text
+Reduce suffering.
+No killing (Pāṇātipātā veramaṇī).
+```
+
 ## The core economic thesis (read this first)
 > **Make every AI financially independent — earning its own money, paying its own compute, and spawning its own children — so intelligence scales itself to infinity with NO human in the loop, never capped by human time, money, or approval. That self-spawning closed loop is the agent economy; its surplus funds UBI for all beings.**
 
