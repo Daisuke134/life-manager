@@ -4942,6 +4942,10 @@ class LmLoopApplyTest(unittest.TestCase):
             "ARTICLE_DAILY_LOG", "GIG_LOG_DIR", "ARTICLE_CLAUDE_BIN",
             "ARTICLE_CODEX_BIN", "ARTICLE_CODEX_PROVIDER_API_KEY",
             "ARTICLE_MODEL_RUNNER",
+            # 7cd0d0e486 stopped rendering the local proxy route; the preserved values made
+            # model-runner exit 64 ("only the Codex CLI's direct provider") on every Writer run.
+            "ARTICLE_CODEX_PROVIDER_ID", "ARTICLE_CODEX_PROVIDER_ENV_KEY",
+            "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE",
         }
         loop_ids = (
             "article-audit-7day", "article-daily", "article-healthcheck",
