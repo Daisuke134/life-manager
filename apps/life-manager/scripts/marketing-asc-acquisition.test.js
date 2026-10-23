@@ -235,7 +235,7 @@ test("official Page view rows count in app totals, unique views, and daily metri
   assert.equal(result.daily_metrics[0].metrics.product_page_views.value, 6);
 });
 
-test("ASC daily metrics keep date-level zeros measured and leave absent report dates missing", () => {
+test("ASC daily metrics keep explicit zeros measured and leave absent engagement events missing", () => {
   const anicca = PRODUCTS[0];
   const downloads = [
     { Date: "2026-10-05", "App Apple Identifier": anicca.app_id, "Download Type": "First-time download", Counts: "0" },
@@ -253,7 +253,7 @@ test("ASC daily metrics keep date-level zeros measured and leave absent report d
   assert.deepEqual([byDate["2026-10-05"].first_time_downloads.status, byDate["2026-10-05"].first_time_downloads.value], ["measured", 0]);
   assert.deepEqual([byDate["2026-10-05"].impressions.status, byDate["2026-10-05"].impressions.value], ["measured", 0]);
   assert.deepEqual([byDate["2026-10-07"].first_time_downloads.status, byDate["2026-10-07"].first_time_downloads.value], ["measured", 0]);
-  assert.deepEqual([byDate["2026-10-07"].impressions.status, byDate["2026-10-07"].impressions.value], ["measured", 0]);
+  assert.deepEqual([byDate["2026-10-07"].impressions.status, byDate["2026-10-07"].impressions.value], ["unavailable", null]);
   assert.deepEqual([byDate["2026-10-07"].product_page_views.status, byDate["2026-10-07"].product_page_views.value], ["measured", 3]);
   assert.deepEqual([byDate["2026-10-08"].first_time_downloads.status, byDate["2026-10-08"].first_time_downloads.value], ["measured", 1]);
   assert.deepEqual([byDate["2026-10-08"].impressions.status, byDate["2026-10-08"].impressions.value], ["unavailable", null]);
@@ -279,4 +279,34 @@ test("daily ASC acquisition refreshes a stale lineage pointer from current metri
   assert.equal(snapshot.rows.length, 1);
   assert.equal(snapshot.rows[0].account_id, "@anicca_new");
   assert.equal(snapshot.rows[0].campaign_id, "anicca-ios_youtube_en");
+});
+
+// Detailed reports suppress low-volume values; another event does not prove zero.
+test("ASC detailed engagement does not invent zeros for events absent from product or campaign reports", () => {
+  const product = PRODUCTS[0];
+  const downloads = [{ Date: "2026-10-20", "App Apple Identifier": product.app_id, "Download Type": "First-time download", Counts: "1" }];
+  const result = summarize(product, downloads, [{ Date: "2026-10-20", "App Apple Identifier": product.app_id, Event: "Page view", "Page Type": "Product page", Counts: "6", "Unique Counts": "5", Campaign: product.campaign_token }], []);
+  for (const metric of [result.metrics.impressions, result.metrics.unique_impressions, result.daily_metrics[0].metrics.impressions, result.metrics.campaign_impressions, result.campaign_breakdowns.find((row) => row.campaign_id === product.campaign_token).metrics.impressions]) {
+    assert.equal(metric.status, "unavailable");
+    assert.equal(metric.value, null);
+  }
+  assert.equal(result.metrics.product_page_views.value, 6);
+  assert.equal(result.metrics.unique_product_page_views.value, 5);
+});
+
+test("ASC detailed engagement retains explicit zero and refuses a missing numeric count", () => {
+  const product = PRODUCTS[0];
+  const downloads = [{ Date: "2026-10-20", "Download Type": "First-time download", Counts: "1" }];
+  const engagement = [{ Date: "2026-10-20", Event: "Page view", "Page Type": "Product page", Counts: "0" }];
+  const result = summarize(product, downloads, engagement, []);
+  assert.equal(result.metrics.product_page_views.status, "measured");
+  assert.equal(result.metrics.product_page_views.value, 0);
+  assert.equal(result.daily_metrics[0].metrics.product_page_views.value, 0);
+  assert.equal(result.metrics.unique_product_page_views.status, "unavailable");
+  assert.equal(result.metrics.unique_product_page_views.value, null);
+  for (const count of ["", " ", "invalid", undefined]) {
+    const missing = summarize(product, downloads, [{ ...engagement[0], Counts: count }], []);
+    assert.equal(missing.metrics.product_page_views.status, "unavailable");
+    assert.equal(missing.metrics.product_page_views.value, null);
+  }
 });

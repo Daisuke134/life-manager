@@ -50,6 +50,16 @@ function sum(input, predicate, field = "Counts") {
 function measured(value, source) { return { status: "measured", value, source }; }
 function unavailable(reason) { return { status: "unavailable", value: null, reason }; }
 
+function engagementMetric(input, predicate, field = "Counts") {
+  const selected = input.filter(predicate);
+  if (!selected.length) return unavailable("metric_not_observed_or_privacy_threshold");
+  const counts = selected.map((row) => row[field]);
+  if (counts.some((value) => !["string", "number"].includes(typeof value) || String(value).trim() === "" || !Number.isFinite(Number(value)))) {
+    return unavailable("metric_count_unavailable");
+  }
+  return measured(counts.reduce((total, value) => total + Number(value), 0), "app_store_connect_discovery_engagement_detailed");
+}
+
 function buildCampaignBreakdowns(product, detailedDownloads = [], engagement = [], missingReason = "campaign_not_observed_or_privacy_threshold") {
   return loadMarketingDestinationContract().targets
     .filter((target) => target.job_product_id === product.product_id && target.app_store_campaign_token)
@@ -67,7 +77,7 @@ function buildCampaignBreakdowns(product, detailedDownloads = [], engagement = [
             ? measured(sum(targetDownloads, () => true), "app_store_connect_app_downloads_detailed")
             : unavailable(missingReason),
           impressions: targetEngagement.length
-            ? measured(sum(targetEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed")
+            ? engagementMetric(targetEngagement, (row) => row.Event === "Impression")
             : unavailable(missingReason),
         },
       };
@@ -83,8 +93,8 @@ function dailyMetrics(downloads, engagement) {
       date,
       metrics: {
         first_time_downloads: dayDownloads.length ? measured(sum(dayDownloads, (row) => row["Download Type"] === "First-time download"), "app_store_connect_app_downloads_standard") : unavailable("report_pending"),
-        impressions: dayEngagement.length ? measured(sum(dayEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
-        product_page_views: dayEngagement.length ? measured(sum(dayEngagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
+        impressions: dayEngagement.length ? engagementMetric(dayEngagement, (row) => row.Event === "Impression") : unavailable("report_pending"),
+        product_page_views: dayEngagement.length ? engagementMetric(dayEngagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page") : unavailable("report_pending"),
       },
     };
   });
@@ -99,7 +109,6 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
     throw new Error(`${product.product_id} ASC app identity mismatch: ${observed.join(",")}`);
   }
   const downloadSource = "app_store_connect_app_downloads_standard";
-  const engagementSource = "app_store_connect_discovery_engagement_detailed";
   const campaignDownloads = product.campaign_token ? detailedDownloads.filter((row) => row.Campaign === product.campaign_token && row["Download Type"] === "First-time download") : [];
   const campaignEngagement = product.campaign_token ? engagement.filter((row) => row.Campaign === product.campaign_token) : [];
   const campaignMeasured = campaignDownloads.length > 0 || campaignEngagement.length > 0;
@@ -129,12 +138,12 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
       redownloads: measured(sum(downloads, (row) => row["Download Type"] === "Redownload"), downloadSource),
       updates: measured(sum(downloads, (row) => ["Auto-update", "Manual update"].includes(row["Download Type"])), downloadSource),
       total_downloads: measured(sum(downloads, (row) => ["First-time download", "Redownload"].includes(row["Download Type"])), downloadSource),
-      impressions: measured(sum(engagement, (row) => row.Event === "Impression"), engagementSource),
-      unique_impressions: measured(sum(engagement, (row) => row.Event === "Impression", "Unique Counts"), engagementSource),
-      product_page_views: measured(sum(engagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page"), engagementSource),
-      unique_product_page_views: measured(sum(engagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page", "Unique Counts"), engagementSource),
+      impressions: engagementMetric(engagement, (row) => row.Event === "Impression"),
+      unique_impressions: engagementMetric(engagement, (row) => row.Event === "Impression", "Unique Counts"),
+      product_page_views: engagementMetric(engagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page"),
+      unique_product_page_views: engagementMetric(engagement, (row) => /^page view$/i.test(row.Event) && row["Page Type"] === "Product page", "Unique Counts"),
       campaign_first_time_downloads: campaignDownloads.length ? measured(sum(campaignDownloads, () => true), "app_store_connect_app_downloads_detailed") : campaignUnavailable(),
-      campaign_impressions: campaignEngagement.length ? measured(sum(campaignEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : campaignUnavailable(),
+      campaign_impressions: campaignEngagement.length ? engagementMetric(campaignEngagement, (row) => row.Event === "Impression") : campaignUnavailable(),
     },
   };
 }
