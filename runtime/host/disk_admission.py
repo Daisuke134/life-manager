@@ -392,7 +392,7 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
         descriptor = json.loads((donor / "RELEASE.json").read_text())
         if (descriptor.get("release_paths") != "ALL"
                 or descriptor.get("provenance") != "ancestor-of-origin-main"
-                or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
+                or Path(str(descriptor.get("runtime_python"))).resolve() != Path(sys.executable).resolve()
                 or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
                 or donor.stat().st_mode & 0o222
                 or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
