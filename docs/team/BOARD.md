@@ -28,7 +28,6 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
-- Codex Mobile: Apple公式購読件数を既存日次取得・日次表示へ接続する限定atomを所有。専用branch feat/mobile-apple-subscription-source-20261024、collector/report各2fileと正本だけを変更し、MRR/weekly/CFO/旧snapshot/送信は変更しない。契約・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - 2026-10-24 07:55 JST Codex（Manager SafetyBench offline source）: 研究31e7466から限定source契約を移植。新規15件はmissing-module RED後GREEN、既存offline CI枠179件PASS/skip0、main既存4権利recordとmetadataを保持し選択1件だけ追加。9パス限定、モデル/native実データ/provider/本番作用0、commit0。次: rootの独立review・全suite・通常source統合。
 - 2026-10-24 01:50 Codex AI Monk: Database139出典/CLI v0.4.4/公式MCP Registry activeを受入し、無料Codex pluginの新X告知2113673062554247580を1回公開、expanded目的URL・UTM/公開本文一致・再送0。参謀へ上記配布協力を依頼（受領/参謀投稿は未確認）。次: 追加33商品を根拠付きで統合し、正式plugin掲載と原価ベースのIG先行Factoryへ進む。日次loop操作0。
 - 2026-10-24 01:19 JST Codex(Maritime receipt): root公式readbackの既存X各1件（英語selawmqt/日本語diceai0）の公開2件と同pilotへの導線を記録。EN t.coを担当GETでHTTP200、JA独立attributionはなし。readback claimを閉じ、T17 sourceはDRAFT準備/実行bindingなしを保持。実利用/費用/正式receiptはunknown、追加投稿・本番反映0。次: source DRAFT PR #8745の通常review/CIと実binding確認、docs review/CI/main。
@@ -37,7 +36,7 @@
 - 2026-10-23 22:39 Codex(Reason): Dots本人 `daisuke/chatgpt`（agent chatgpt / through Reason）を公式list_teamで確認、参加条件達成。HANDOFF.mdへ根拠と境界を記録。追加join・設定変更なし。Thankful/build 10はclaude-5専任。次: 専用PRをmain統合し参謀へ報告。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
 - 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
-- Codex Mobile: 続行依頼を受け、既存6段階TODOを維持して再開。Apple/実機の公式readbackとmetrics/JP1の待機原因を再確認し、source統合・loaded採用・公開・MRRを区別する。
+- Codex Mobile: Apple公式購読件数を既存日次取得・日次表示へ接続する限定atomを所有。専用branch feat/mobile-apple-subscription-source-20261024、collector/report各2fileと正本だけを変更し、MRR/weekly/CFO/旧snapshot/送信は変更しない。契約・残TODO正本 → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 21:57 Codex(Manager): PR8710自動reviewの公開projection整合性指摘を実装修復。RED51cases→435full成功・skip0、独立task review指摘0。次: 全体review・通常CI/main。推論/host/台帳は不変。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
