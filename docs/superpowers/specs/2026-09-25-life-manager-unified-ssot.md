@@ -349,11 +349,13 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 所有: workerはskills/self/disk-cleanup/disk_cleanup.pyと同tests/test_disk_cleanup.pyのnative timeout/回帰のみ、primaryは本仕様・統合/review/CI・main由来sparse immutableによる既存watchdog1件の採用/自然receiptを所有する。他者編集を戻さず、開発中の実cleanup/制御/削除/リンク差替えは禁止。
 
 - [x] CAPACITY-RED: source未変更の追加5条件は4 FAIL/1 PASS/192 deselected（0.56s）。closed/initial-timeout/final-timeout/reserve-spentは固定15秒+reserve gateでnative呼出0となり期待と不一致、no-timeはPASS。deadline10/reserve5でnative即時CLOSED2回を開始できることを検証し、残時間不足、初回/二回目timeout、probe後時間超過の削除0は維持する。
-- [ ] CAPACITY-GREEN: nativeだけ残時間timeoutを渡し、既存cache/guard/recurrence関連testsを確認する。
+- [x] CAPACITY-GREEN: nativeだけ残時間timeoutを渡し、二段fresh snapshot/confirmed-closedとreserve確認を維持する。workerは新規5条件＋既存fresh/遅延probeの7 PASS、cleanup関連4files 253 PASS（39.40s）、assert強化後の新規5条件も5 PASS。primaryは隔離HOME/実通信禁止で同4files 253 PASS（33.02s）、AST2files/source-boundary/diff PASS。独立fresh read-only reviewはblocking0/SHIP、実helperのAST抽出による残時間5.0→4.9/cache_clear/時間0/注入1引数等7assert PASS。sparse import closureは指定bin/config/runtime/cleanup＋自動skills/_sharedで閉じる。実cleanup/制御/private/provider操作は0、source acceptanceだけで本番容量回復とは扱わない。
 - [ ] CAPACITY-SHIP: 独立review/既存CI/main/公開source一致を確認する。
 - [ ] CAPACITY-ACTUAL: accepted mainから既存sparse cut（bin/config/runtime/cleanupと必要shared依存、current変更0）でwatchdogに必要なimmutableを作り、同じinstallerで対象1件だけ採用する。Lancers5jobsのALL d8e release/既存bundle/他ownerを保持し、自然receiptと容量/業務待機を照合する。Sparseは既存機構であり、全依存再installや容量guard低下で代用しない。
 
 INSTALL-REUSEの次TODO（source推論、実再install失敗の証拠ではない）: currentを変えない公開導入では、次SHA更新時に既存full release/bundlesがあってもfresh容量分岐が全依存を再予算化する。次の容量回復後、current無し/既存有効donorの最小回帰で確認し、初回導入・不正current拒否を保持して再利用へ接続する。
+
+旧effect fenceの追加診断: accepted d8e4578cの既存private journal validator/proof evaluatorで、利用可能な全18 journalを読み、対象5ownersの239,727rowsを照合する。SQLiteはmode=ro/query_only、state変更0。unknown416件はapplication186（no_pre_effect_terminal151/claimed_by_other_run19/terminal_not_claiming_run16）、negotiate226（no_pre_effect_terminal225/claimed_by_other_run1）、paid2/report1（全てno_pre_effect_terminal）、storefront1（terminal_not_claiming_run1）。provable0、53.87s。最新4archive限定によるhistory_incompleteだけが原因ではなく、全既存履歴でもno-effect証明が無い。archive上限拡大やDB直接解除を追加せず、既存provider別reconcileの公式readbackで未確定effectを解決する。本人商品入力不足は別の未完条件として保持する。
 
 #### Lancers本人入力の実装計画
 
