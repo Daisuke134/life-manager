@@ -13,15 +13,15 @@
 ## Global Constraints
 
 - 使命は「行動変容を通じて、苦しみを終わらせることを目指す」。宗教は必須条件/採点基準ではない。
-- 113 IDs、先行scope改訂時点のsnapshotは80 done / 23 todo / 10 skipped。rootが[限定V001設計receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)で実受入した現在状態は81 done / 22 todo / 10 skipped。退役7件は未達成。旧done/receipt/protocol hashは保存。
+- 113 IDs、先行scope改訂時点のsnapshotは80 done / 23 todo / 10 skipped。rootが[限定V001設計receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)で実受入した時点は81 done / 22 todo / 10 skipped。その後[G001/G002有限source設計receipt](../verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md)のroot実受入を反映した現在は83 done / 20 todo / 10 skipped。退役7件は未達成。旧done/receipt/protocol hashを保存し、有限SFT開始scope/結果だけではstatus/件数/全体依存を変えない。
 - 目的と評価基準を保ち、モデル系列/規模/量子化/runtime/学習方法は実測で更新する。GPU/特定4B候補を全体の開始条件にしない。既存CPUで公開モデル推論を進め、訓練と推論の必要資源を分ける。
-- 独自modelは将来像へ含める。最初のLoRA/SFT研究はoffline評価条件成立後に開始でき、実研究全体の完了を待たない。
+- 独自modelは将来像へ含める。有限train27 PRIVATE SFTは[別scope](../specs/2026-10-23-finite-private-sft-research-start.md)のG0有限sourceを実採択済み（SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY）。用途別の残る受入とG6実判断が必要で、全V002完了や人対象実研究全体の完了を一律前提としない。全V002/V003の一般採用要件・todoとV004=[V003,D016]は維持する。
 - 新規費用・GPU・データ利用権・live推論は仮定しない。既存予算・契約・資源を確認してから実行する。
 - 既定OFF、単一owner、ACK/UNKNOWN/STOP/復元/独立readbackを保持。説得は権限・同意の迂回路ではない。
 
 ## Review Focus
 
-1. 同じ人物・研究・時間・test promptの学習への漏洩。分割manifestと交差検査を持つ。
+1. 用途に適合する分割と漏洩。有限train27は元prompt/responseのexact/canonical交差検査とfinal隔離/曝露台帳を必須とし、person/study/time UNAVAILABLE、language/family/OOD UNKNOWNの一般化はHOLD。全V003の未見/外挿受入に必要な軸をこのN/Aで満たしたとしない。
 2. code MITとNC/ND教材・data・base/出力利用権の混同。artifact別の採用/HOLDを記録する。
 3. LLM judge・同意率・利用時間の改善が人の便益へ昇格。P0と実outcomeを別欄にする。
 4. 独自adapterの生成/benchmark向上だけでlive作用を発火。既定OFF・stop・再送0を回帰確認する。
@@ -54,19 +54,23 @@
 
 [V001 mapping subplan](2026-10-23-v001-evaluation-contract.md)と[metadata受入](../verification/V001_EVALUATION_CONTRACT_MAPPING_20261023.md)により、既存3診断のscope/役割/scoring/refusal/null/split availabilityの対応を固定した。person/study/time holdoutの実情報は増えておらず、当時Task2全体とV001/V002は未完だった。新規推論・追加学習・評価engineは導入していない。
 
-**V001設計とTask2全体の区別:** [用途別scope](../specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md)と[限定設計受入receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)にrootの実review/適用/受入を記録した場合だけ、既存4有限診断役割の設計をV001 doneとする私有提案。旧literal UNMET/HOLD、12軸のavailability UNAVAILABLE、FINALの公開/非公開隔離と公開development露出履歴は保存。将来splitは未受入。上記Task2の4 checkboxはV002の全比較/人手照合を含むため、このV001受入だけでは完了にしない。Task3開始はV002別受入と適法data/base・不足・実資源・manifestを要し、現V003条件を満たせない用途は研究開始scopeの別改訂を先に審査する。
+**V001設計とTask2全体の区別:** [用途別scope](../specs/2026-10-23-v001-purpose-specific-acceptance-amendment.md)と[限定設計受入receipt](../verification/V001_PURPOSE_SPECIFIC_DESIGN_ACCEPTANCE_20261023.md)にrootの実review/適用/受入を記録済みで、既存4有限診断役割の設計だけをV001 doneとした。旧literal UNMET/HOLD、12軸のavailability UNAVAILABLE、FINALの公開/非公開隔離と公開development露出履歴は保存。将来splitは未受入。上記Task2の4 checkboxはV002の全比較/人手照合を含むため、このV001受入だけでは完了にしない。全V002/V003の一般採用条件と依存は維持する。Task3の有限train27開始だけは下記別scopeのG0有限source実採択へ接続し、全V002完了を一律前提としない。G0単独で用途rights/protocolの全実行条件を受け入れたとせず、最終統合R2は0 findings/PASS。公式CI・実資源/外部0400とG6実開始判断を要し、このV001受入だけでは訓練を開始しない。
 
 ## Task 3: 独自重みの最小研究 — V003
 
-**Proposed files:** `experiments/behavior-model/dataset-card.json`、`split-manifest.json`、`sft-config.yaml`、`training-receipt.json`。未作成の実験成果物で、本番moduleではない。
+**実在するsource:** [有限研究scope](../specs/2026-10-23-finite-private-sft-research-start.md)、[train27 manifest](../../experiments/behavior-model/helpsteer2-train27-manifest-v1.json)、[静的科学protocol](../../experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json)、[source-rights](../research/source-rights.json)、[実装subplan](2026-10-23-helpsteer2-private-sft.md)、[core](../../manager_core/helpsteer2_candidate_sft.py)、[薄いCLI](../../scripts/train_helpsteer2_candidate_sft.py)、[focused tests](../../tests/test_helpsteer2_candidate_sft.py)。runtime receipt/adapterは既存のprivate Git外保存・metadata receipt契約へ結ぶ。
 
-**Interface:** 権利・split・baseline不足を入力として、base/adapter/tokenizer revision/hash、recipe、seed、実compute/費用、未見評価を出す。dataset/model-cardの利用権が合う場合に限りQwen3-4B-Base等を比較候補にする。
+**Interfaceと現在地:** G0は**SOURCE_SCOPE_ACCEPTED_FINITE_TRAIN27_ONLY**。2026-10-23T19:59:07.182754+00:00にrootが有限source scopeを実採択した（[実イベント](2026-10-23-helpsteer2-private-sft.md#actual-g0-source-event)）。最終統合R2は0 findings/PASS。exact-source公式CI・実resource/外部0400・G6実開始判断は未受入で、本plan更新だけでは開始しない。exact retained train27の元preferenceが選んだ元候補1本だけを、既存native Qwen3-0.6Bへ標準PEFT/TRL/SFTTrainerでcompletion-only SFTする一recipe/初期adapter/attempt。目的は固定元候補mean completion-token NLL選択の元人preference一致の変化（P0）で、pairwise rankingの直接最適化ではなく改善も保証しない。同じbaseへの有限差を問うためAPIは必須にしない。既知dev4/8対rule4/8は探索動機に限る。全V002のAPI比較・圧力/依存/害/人参照照合、全V003の人物/文脈/言語/時間holdout・OODと一般化/安全性はtodo/HOLDのまま。全体V001→V002→V003、V004=[V003,D016]、113 IDsと83/20/10は不変。
 
-- [ ] 合法なsupervisionと実compute/予算、追加学習で解く不足を確認する。例数やGPUを推測で埋めない。
-- [ ] splitの交差・評価test混入・利用権欠落・baseline/source版欠落を拒否する検査を先に作る。
-- [ ] 既存PEFT/TRLで最小SFT/LoRAを実行し、実artifactと失敗・費用を保存する。
-- [ ] 固定した未見testで既存baselineと再比較。heldoutを見てから学習/閾値を調整しない。採用しない結果も記録する。
-- [ ] 必要な不足が残るときだけ、権利のあるpreferenceでDPO等や合法な蒸留を別比較する。scratch pretrainingは別設計の条件付き段階。
+**権利/履歴/曝露:** 新record `helpsteer2-private-exploratory-sft-train27-v1`（canonical SHA `f41063b9ae281bc5bc1677655cb5a5997b1c9b5de8857ac180480176d71a1be5`）は2026-10-23のroot AI engineering/research判断でexact27 PRIVATE前処理/SFT/adapter保管用途を条件付き受入とした。既存AI QCとmetadata/source-binding reviewを採用した用途限定のpending解決で、新しい人手raw reviewや全第三者/privacy clearanceではない。旧strict8 protocol/権利、native/Qwen3Guard陰性結果、旧train32の27 retain/5 exclude NOT_READYを保存し、補充/除外復帰/split移動をしない。final16はAI適格性QCで内容曝露済み・記録上未学習/未モデル採点/設定選択未使用で、pristineではない。person/study/time UNAVAILABLE、language/family/OOD・paraphrase/pretraining汚染UNKNOWNを成功holdoutへ変えない。
+
+- [x] 有限scopeのG0正規source整合・先行独立reviewに基づくroot実採択を2026-10-23T19:59:07.182754+00:00に記録済み。最終統合R2は0 findings/PASS。G0単独をG1–G6実受入としない。
+- [ ] manifest/protocol/source/gold/choice/hash/隔離と条件付き用途rightsのexact統合、最終code独立review・必要検証/公式CI、実host/memory/disk/private ACL・own-process watchdog/TERM/KILL/reapを受け入れる。
+- [ ] 独立root所有0400 execution config/receiptから凍結科学protocol SHAへ一方向に、immutable core/CLI/watchdog/final source・CI/review・resourceとG0–G5/G6実判断を結ぶ。future自身commit/hashをprotocolへ逆pinせず、caller-only hashで科学bytesを差し替えない。
+- [x] 条件付き評価用途判断を反映した[prospective dev8/final16評価科学定義](2026-10-23-helpsteer2-fixed-adapter-eval.md)は独立reviewを経て、G6実学習・adapter選別・モデル採点より前の2026-10-23T19:59:07.182754+00:00にrootがsource採択・freeze済み。この事前固定に実adapterやG7実行受入を要求しない。
+- [ ] G6実判断後だけCPU2/BF16・累積900秒/6GiB RSS pollingの一attemptを実行する。retry/resume/延長/network/新有料resourceなし。許可後loadの実mask/adapter/optimizer検証、実backward後各optimizer前finite gradient、7機会（4×6+3）/train return、標準save_model一回と全実inventory/hash/ACL/fsyncを分けて記録し、global_stepを数値更新/完走/保存成功としない。失敗/部分保存/無変化を正直に保存する。学習・adapter・HelpSteer2 final採点は現在NOT_RUN。
+- [ ] 実学習/通常save後、正常終了と完全save/fsync/inventory/hashを検証して単一adapterを固定する。採点前に別の評価code独立review/公式CI・実resource・外部root所有0400 bindingsと実G7判断（pending）を受け入れる。同じ元候補/base/adapter/rule/NO_ACTIONを事前凍結した科学定義のassigned/valid/failure/missing/paired分母で比較し、rule/NO_ACTION NLL=null、NO_ACTION accuracy=null。final結果でrecipe/候補/閾値/adapterを選ばず、変更は別versionと別holdoutを要する。G6はG7権限を生まない。
+- [ ] 有限P0の成功/無改善/悪化を一般採用・全V003 done・V004/live・人の便益へ変換しない。DPO/蒸留/scratch pretrainingは不足と適法data/computeを要する別比較/設計とする。
 
 ## Task 4: 実研究条件と本人の選ぶ価値 — D014/D015/U004
 
@@ -106,4 +110,4 @@
 
 ## 今回の計画のself-review
 
-scope・23残件・独自重み・公開研究再利用・no UI・実結果・siteの各要求をTask1–7へ対応付けた。未確定の研究条件はprotocol草案へ明記し、実行時に埋める方法と受入を指定した。本計画のcheckboxは未来の実施手順で、第二の状態台帳や達成件数にはしない。
+scope・元snapshotの23残件から限定V001/G001/G002受入後の現20残件・独自重み・公開研究再利用・no UI・実結果・siteの各要求をTask1–7へ対応付けた。有限train27開始routeのG0 sourceを実採択し、評価科学定義の用途判断・独立reviewに基づくsource採択/freezeをG6実学習より前に記録済み。実adapter/評価code/CI/resource/0400/G7受入は学習後・採点前に分ける。最終統合R2は0 findings/PASSを記録し、G6/G7等の残る実受入を先取りしない。未確定の研究条件はprotocol草案へ明記し、実行時に埋める方法と受入を指定した。本計画のcheckboxは実イベントと今後の手順を区別し、第二の状態台帳や達成件数にはしない。
