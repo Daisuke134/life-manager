@@ -1,0 +1,80 @@
+name: Thankful unsigned archive
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: thankful-unsigned-build10
+  cancel-in-progress: false
+
+env:
+  NATIVE_SOURCE_SHA: 25d92b495ea900eb7aa6005887c80e09f9db2894
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
+jobs:
+  archive:
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Daisuke134/anicca-products
+          ref: ${{ env.NATIVE_SOURCE_SHA }}
+          sparse-checkout: mobile-apps/rork-thankful-gratitude-app
+          persist-credentials: false
+      - name: Archive the accepted native source without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$NATIVE_SOURCE_SHA"
+          xcodebuild -version
+          xcodebuild archive -quiet \
+            -project mobile-apps/rork-thankful-gratitude-app/ThankfulGratitudeApp.xcodeproj \
+            -scheme ThankfulGratitudeApp \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/ThankfulGratitudeApp.xcarchive" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Verify the native artifact and record its source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, plistlib, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          app = root / 'ThankfulGratitudeApp.xcarchive/Products/Applications/ThankfulGratitudeApp.app'
+          with (app / 'Info.plist').open('rb') as stream:
+              info = plistlib.load(stream)
+          assert info['CFBundleIdentifier'] == 'app.rork.thankful-gratitude-app'
+          assert info['CFBundleShortVersionString'] == '1.0.2'
+          assert str(info['CFBundleVersion']) == '10'
+          assert info['CFBundleSupportedPlatforms'] == ['iPhoneOS']
+          subprocess.run(['xcrun', 'lipo', '-verify_arch', 'arm64', str(app / info['CFBundleExecutable'])], check=True)
+          manifest = {
+              'native_source_sha': os.environ['NATIVE_SOURCE_SHA'],
+              'workflow_sha': os.environ['GITHUB_SHA'],
+              'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'bundle_id': info['CFBundleIdentifier'],
+              'version': info['CFBundleShortVersionString'],
+              'build': str(info['CFBundleVersion']),
+              'signed': False,
+          }
+          (root / 'Thankful-archive-provenance.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          print(json.dumps(manifest))
+          PY
+          tar -czf "$RUNNER_TEMP/Thankful-unsigned-build10.tgz" -C "$RUNNER_TEMP" \
+            ThankfulGratitudeApp.xcarchive Thankful-archive-provenance.json
+          shasum -a 256 "$RUNNER_TEMP/Thankful-unsigned-build10.tgz"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Thankful-unsigned-build10
+          path: ${{ runner.temp }}/Thankful-unsigned-build10.tgz
+          if-no-files-found: error
+          retention-days: 1
