@@ -8,7 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 ## タスク
 - [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
-- [Codex] README・Mac初回導入はPR #8666/main反映済み。Coconalaの本人通知設定・現在認証のsource修復と再reviewを完了、PR #8677のCI/main確認中（TODO正本は統合SSOTのMAC02-C）
+- [Codex] README・Mac初回導入はPR #8666/main反映済み。Coconalaの本人通知設定・現在認証はPR #8677/main反映・公開10ファイル照合済み。残る実稼働・別Mac受入は統合SSOTのMAC02/05
 - [参謀] ランサーズ/ココナラ応募・返信、X読み取り＋数字分析
 - [Muse] Instagram配信
 - [Local LM] Mac mini上のジョブ
@@ -28,3 +28,4 @@
 - 2026-10-23 18:53 Codex(Manager): D003公開支出・別報告の固定source接続を実装。9focused/400full成功、便益未測定・作用0。独立reviewのboard配置1nitを訂正、次: 通常CI/main統合と原タスク受入。
 - 2026-10-23 18:57 Codex: PR #8666はCI14件成功でmain 6b93057b41へ統合、公開6ファイルのbyte一致を確認。英日READMEは各52行。starsは8、目標10,000は未達。現在はMAC02の通知設定がcanonical7jobsへ渡らない問題と再認証観測の回帰を修復中。production/provider送信は操作しない。
 - 2026-10-23 19:27 Codex: Coconala通知7 jobs/最新認証の修復をPR #8677へ提出。独立reviewの2反例を修復し再判定SHIP、primary64件/独立25件PASS。READMEの他agent手順はguideへ移し英日54行。次: exact CI/main/公開readback。本番・provider送信0。
+- 2026-10-23 19:39 Codex: PR #8677はCI13チェック成功でmain 09e2971413へ統合、公開10ファイルbyte一致。英日README各54行、primary64件/独立25件PASS。source受入を完了し、全業務・別Mac実機の未確認を保持。stars8/目標10,000、本番・provider送信0。
