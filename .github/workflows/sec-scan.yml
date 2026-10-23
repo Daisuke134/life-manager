@@ -192,7 +192,7 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ steps.trufflehog-range.outputs.base || github.event.before }}
+          base: ${{ github.event_name == 'push' && github.event.before || steps.trufflehog-range.outputs.base }}
           head: HEAD
           extra_args: --only-verified
 
