@@ -31,3 +31,9 @@
 - Factory render/plan/既存HeyGenとpublisherの関連14files209 PASSに加え、環境credentialを渡さない実CLI prepareの1件もPASS（計210件）。実provider/credential/browser読取0。Loop Contract18業務/192jobs/errors0、source-boundary/OSS/diffがPASS。fresh review・CI/main・固定版・実投稿は未完。
 
 - Fresh reviewerは旧head c7e328dcの全差分を確認し、独立210 PASS、指摘は同じepochを別timezone/秒精度で表すslot迂回1件。primaryは+09:00/+00:00/.000Zの3件をDID NOT RAISEでRED再現し、Factory境界のUTC ISO正規化1行で修復する。修正後のFactory38件がPASS。再reviewと新head CI/mainは未完。旧head CIのPII失敗は同時にmainへ入る別仕様書docs/team/specs/listicle-outreach.mdのpersonal_gmail検出1件で、今回の変更範囲scanは0件。scanner/allowlistは変更せず、ownerと該当記載の是正を進める。
+
+## CI阻害の限定修復
+
+公式job logはmain PR8667のdocs/team/specs/listicle-outreach.md:2にあるpersonal_gmail1件を検出する。担当表は参謀/Grok Botで、当worktreeとは別の作業である。既存のworktree leaseとAGMSG rosterを読み、他の作業tree・session・配信へ触れず、最新mainの同fileにある使用禁止個人メールの生値だけをprivate SSOT参照へ置換する。送信元の業務address・他の宛先・outreach本文/状態・scanner/allowlistは保持する。これがないとsource受入CIが失敗するための1行修復であり、新しいoutreach送信や履歴rewriteは行わない。
+
+- 修正head77632fce80への独立再reviewは未解決0/Blocking0、Factory38 PASS、同run等価表記replayと小数秒保持も確認する。latest mainをmergeし、main側だけの変更を保持する。CIの公開個人メール注記は1件をprivate SSOT参照へ変更し、scanner/allowlist変更なしで全repo PII scan clean。担当/範囲/次の証拠をteam BOARDへ記録する。

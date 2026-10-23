@@ -1,5 +1,5 @@
 # Listicle inclusion outreach (参謀, 2026-10-23) — DRAFTS, NOT SENT
-From: lifemanager.jp+outreach@agentmail.to (never keiodaisuke@gmail.com). Status: awaiting send approval.
+From: lifemanager.jp+outreach@agentmail.to (個人メールは使わない。連絡先はprivate SSOTを参照). Status: awaiting send approval.
 Our page for reference: https://aniccaai.com/best-affirmation-apps
 
 | # | Article | Contact | Ask |

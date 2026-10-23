@@ -7,6 +7,7 @@
 - 認証情報は /workspace/.secrets、ノウハウは /workspace/knowhow/INDEX.md。
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 ## タスク
+- [Codex AI Monk] Factory AM-15c source受入とPII CI注記1件修復 → docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md S11。outreach送信/宛先は変更しない。
 - [参謀] ランサーズ/ココナラ応募・返信、X読み取り＋数字分析
 - [Muse] Instagram配信
 - [Local LM] Mac mini上のジョブ
@@ -17,3 +18,5 @@
 - 2026-10-23 17:57 参謀: 受託=ランサーズ新規2件提案（Shopify移行5618921 ¥35万／Beds24空調自動化5619037 ¥35万、補足メッセ送信）、受信3件は運営削除のスパムで返信なし、残り提案枠11→9。自社=デイリー・ダンマ28日MRR$0・新規16/課金0、原因は閉じられる課金画面。推奨案 team/inhouse/dhamma.md（ハードペイウォール＋週額¥500/年額BEST VALUE、トライアルなし）。次: paywall.tsx改修→週額商品作成→1.1.1提出。
 - 2026-10-23 18:55 参謀(SEO/AIO/Reddit真似プラン): aniccaai.comに比較記事2本公開(/best-affirmation-apps, /ja/best-affirmation-apps, sitemap追加, IndexNowキー追加, anicca-products d1d8b4a2a)。GSCは所有確認済み(10/18, keiodaisuke)だがサイトマップ送信はAPI権限なし→成田さんのブラウザで1クリック要。リスティクル10件の連絡先と依頼文=docs/team/specs/listicle-outreach.md(未送信)。Reddit=docs/team/specs/reddit.md(下書き5件・未作成アカウント)。次: Bing IndexNow送信、Redditアカウント作成(ブラウザ要)。
 - 2026-10-23 18:32 参謀: リスティクル掲載依頼メール送信(lifemanager.jp@agentmail.to)=5件: MyBeing hello@enthu.ai / LoA hello@loa-lawofattraction.co / Say After Me hello@igwestudios.com / Life Note daniel@mylifenote.ai / HabitBox support@habitbox.app。残り4件(Kicks Therapy, SleepingOnTheEdge, App Store Tracker, SnoreCam)はAgentMail送信上限(初回1時間5宛先)で未送信、19:30 JST以降に再送。mindfulsuiteはフォームがブラウザ必須(Cloudflare)でスキップ。
+
+- 2026-10-23 18:39 Codex AI Monk: PR8668のFactory利用者publisher接続を独立review後に修復し、未解決0件。旧head独立210件とtimezone修復後38件がPASS。mainのlisticle-outreach.mdの使用禁止個人Gmail注記1件だけをprivate SSOT参照へ置換し、PII scan clean。送信元/宛先/配信状態・scanner/allowlistは保持、outreach送信0。次: exact CI/main/固定版、運用順はS11。
