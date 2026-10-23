@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-pre-effect-provenance-20261024、base=6b3b45d534b7ca0695799ee05d3d73d99938886e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのPROVENANCE-SHIPと容量診断。CAPACITYのsource/自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=ops/lancers-runtime-adoption-20261024、base=8df3cf68b42c4bcc34cd65587a5ba375742c44a8（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのPROVENANCE-ACTUALと容量診断。CAPACITYのsource/自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -342,7 +342,7 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 自然実行受入: lancers-revenue-work-syncはd8e4578c/run18e143af6474c8a8-49586/20:50:11Z/report/exit0/pass/effectnot_applicable、retryable=false/nextnone、admission未知false。provider receipt/公式成果は無し。Coconala snapshotのa93a3a78/reportpassは24桁install型runのため自然provider成果とは扱わない。後のhost snapshotはswap14,714.12MiB/free8,139,366,400bytesまで悪化し、別時点receiptではfree6,119,342,080bytes。未知記録や他ownerを削除/中断せず、物理回復は未完とする。
 
-順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはPROVENANCE-SHIPとRUNTIMEの容量診断。
+順序: 旧READY-B全7job完了待ち→RUNTIME全体から、新READY-Bの本人accountを満たす5jobs→独立したRUNTIME受入、storefront本人商品不足は保持へ進める。理由は1laneの商品入力不足で他5jobsを止めない既存INSTALL設計と実適用結果に従い、全体完走を早めるため。現在cursorはPROVENANCE-ACTUALとRUNTIMEの容量診断。
 
 原因と最小変更: 既存cleanupのbefore_initial_open_probe/二回目probe前の固定15秒＋後処理reserve判定はnative lsofの最大timeoutを最低予約時間と扱う。15秒はCLOSED証明条件ではなく、完了したrc/stderr/open-path集合が証拠である。native _open_paths/_default_lsofのtimeoutをmin(既存15秒, deadline-now-reserve)へ渡し、正の残時間だけ開始する。timeout/OSError/不明は保持し、両回fresh snapshot・二段confirmed-closed・probe後/削除前deadlineとreserve確認・owner/path保護を維持する。注入lsof(path)契約と他cleanup種類は変えず、新framework/floor/直接cache削除を追加しない。clangの既存probe-errorはclass/codeがNoneへ畳まれ復元不能であり、全エラーをbudgetと断定しない。
 
@@ -375,10 +375,38 @@ CAPACITYの継続受入: 次の21:19:50Z/mtime1792790390.1365283もok=true/error
 
 - [x] PROVENANCE-RED: source未変更でunsafe historical writerの2field markerを誤受理しresolverを1回呼ぶ2件を失敗させる。worker2 FAIL/既存3 PASS（1.21s）、primary同結果2 FAIL/3 PASS（1.13s）。tmp内git fixtureだけでunsafe ancestor→safe source main、対象eventはunsafe SHA/reconciler自身SHAはsafeとして境界を再現する。isolated HOME/git config/no network、実private/DB/resolve変更0。binding/event/祖先性/digest欠損等の保持回帰はGREEN段階に加える。
 - [x] PROVENANCE-GREEN: 検証済み契約のwriterだけproofを返し、既存marker fail-closedとresolver CASを保つ。workerは追加negativeのRED24 FAIL/11 PASS、malformed host bindingのRED1を経て37 focused PASS、関連4files136 PASS/8 subtests（9.21s）。primaryも隔離HOME/実通信禁止で同136 PASS/8 subtests（9.09s）、source-boundary/diff PASS。target event SHA→host source binding→main ancestry→owner別current安全source4/3filesのSHA256一致だけを許容し、reconciler自身SHAは使わない。private markerとproof形/CAS claimedを維持する。既存CIのLancers stepへ本回帰/既存application marker/reply kernelの3filesを追加し、新workflow/依存を増やさない。独立fresh read-only reviewはblocking0/SHIP、対象37 PASS（9.64s）と両writerの送信前解除/caller closure、CI3files追加を直接確認する。primary AST2filesもPASS。実private/DB/resolve/通信は0。CI/main反映は未完。
-- [ ] PROVENANCE-SHIP: 独立fresh review/既存CI/main/公開source一致を確認する。
+- [x] PROVENANCE-SHIP: PR #8784/headf8fd584dec00a758afae334b6ac240f3e7d9d4e6、workflow40027231964全13項目成功、main8df3cf68b42c4bcc34cd65587a5ba375742c44a8へ統合する。GitHub公式12filesを比較し、source/test/CI/manifest/安全writer7filesの11blobsは全一致。SSOT全体だけは並行他ownerの追加で異なるが、本MAC03全節/PROVENANCE全節はhead/main一致を確認する。root/read-only reviewと136/37 testsの証拠を保持する。
 
 PROVENANCEのCI修復: PR #8784/head3cb947e5cd2589326af9fc6dc74be0f2ba5ed591/workflow40026536245はOSS self-contained boundaryがmanifest_inventory_mismatch(skills/_shared)でFAILする。source変更後の既存classified inventory更新漏れであり、既存validatorと同じ190 files/locale sort/各SHA256連結式でdocs/manifests/oss-merge-1-sources.jsonの対象inventory_sha256一箇所だけを再生成する。source/保護規則/allowlist/scannerは変えず、既存公開boundary検証を再実行する。別のaccepted d8e helperによるread-only容量probeはcandidate source3cb947をglobal current23cce9dc donorと照合し、2.35s/exit0/required323,166,208bytes/fresh_install_budgeted=false/free8,171,704,320bytes/state変更0。これはsource未受入の事前測定であり本番反映ではない。
 - [ ] PROVENANCE-ACTUAL: accepted main由来releaseへ既存reconciler1ownerだけ採用し、unsafe historical候補が未解除で保持されることを公式readbackで確認する。証明成立対象もcanonical resolver/生存owner条件に従い、DB直接更新/解除・provider再送をしない。
+
+PROVENANCEの反映計画: global ~/loops/currentのaccepted ALL23cce9dcをdonorとして、accepted d8e cutterからmain8df3cf68の新ALL immutableを作る。LOOPS_ROOT=~/loops、ACTIVATE_CURRENT=0、KEEP99999、runtimeは既存host/対象plistと同じmanaged venvを使う。Homebrew donorとvenvは同じPython3.14.7本体へresolveしcache tagもcpython314のため、既存donor検証に従いprefix表記のためのhost全体変更を加えない。cutterのcanonical容量測定で再利用/容量条件を満たす時だけexportする。main祖先/readonly/全source一致を確認後、新releaseの既存lm-loop apply --loaded-idle-onlyへAPPLY_TARGET=lm-fence-reconciler/RELEASE_ROOT=<new>を指定し、safe preflight後に対象1ownerだけ採用する。busyなら結果を読み再評価し、無条件stopしない。既存control-plane safety guardはeffect-free queued occurrenceをcancelし得るため、queued全行不変とは約束しない。他owner effect fenceの直接解除、current変更、provider再送、Mac/app-server restartは行わない。独立fresh read-only反映reviewはblocking0/ship、metadata上のhost/plist/realpath/cache tag/target絞込み/rollbackを確認済み。source protected paths0を確かめ、旧marker候補と新proof、native loaded argv/installed/event SHA・自然実行を照合する。
+
+PROVENANCEの実反映: accepted d8e cutterからALL immutable `/Users/anicca/loops/releases/20261024T064025-8df3cf68` を作り、25.29s/exit0/stderr0、required323,166,208bytes、既存7bundles再利用を確認する。manifestはmain8df3cf68/ancestor-of-origin-main/readonly、runtimeはhostと同じmanaged venv、global current23cce9dcは不変。最初の対象applyは旧run稼働中のためskipされ、CLI exit0だけを採用としない。旧run18e1463289ca8888-92176が自然終了しreport0/native not runningとなった後、同じ既存applyを再実行する。safe preflight PASS、exit0/1.85s/stderr0/changed=true、installed SHA8df3cf68、native argvとinstalled plist一致、他owner操作0。直後のevent SHAは旧23cce9dcのままであり、新sourceの自然実行は未完とする。
+
+PROVENANCEの保持readback: read-only SQLite snapshotと私有marker readerで旧18件を前後照合する。application9件はclaimed6/released3、negotiate9件はclaimed7/released2のまま、occurrence/state digestも両ownerで一致する。新accepted helperのproofは18件すべて0。unknown総数はapplication186/negotiate226のまま、DB変更/resolve/再送0。unsafeな旧application7件を含め保持を確認するが、未送信やprovider成果を証明したとはしない。
+
+#### RUNTIME-SHAREDの限定反映計画
+
+目的・範囲・完了条件: 既に設定済みのLancers application/negotiate/paid/work-sync/telegram-reportの5ownerを同じaccepted ALL8df3cf68へ既存local installer APIで接続し、対象ごとのinstalled/loaded readbackと自然実行を確認する。storefrontの本人product不足、browser keepalive、旧release/bundleの削除、認証/model/provider、他の業務ownerは変更しない。自然実行や容量条件が不足する場合はそのまま未完と記録する。
+
+独立read-only reviewはblocking0/ship。実5plistは標準3argvで追加flagなし、LANCERS独自path override/CODEX_HOMEなし、host runtime/state/log/browser identity/calendar bindingは新registryと一致し、旧envとUmaskは既存helperで保持される。旧acceptance053439を参照するのはapplication/negotiateの2件だけで、他3件を同じ旧rootと仮定しない。
+
+手順: credential SSOT全体とbrowser registry/leaseを値非出力で確認する。accepted新ALLからvalidate_release(newALL, profile)→installer._observe(newALL, env, home)の非None→installer plan本文の対象5件すべてmissing=[]を必須としてから、既存local_install.apply_targets(newALL, exact5, env)を実行する。_observe失敗時の旧observation fallbackやplan exit0だけを成功根拠にしない。loaded-idle-onlyとsafe preflightを保持し、skippedは採用完了にしない。未確認effect fenceは保持し、provider送信やDB直接操作をしない。新script/scheduler/第二installerは作らない。
+
+- [x] SHARED-INPUT: credential SSOT全体171entriesを値非出力で読み、service完全一致Lancers1件/0600/親0700、registry identityと既存lease空きを確認する。accepted8dfの既存_observeは5.53sで非Noneのfresh公式accountを返し、plan本文の対象5件はすべてmissing=[]。guardは既存9227のreachableな本人browserを使い、起動fallbackを無効化し、provider送信0。業務成果は未確認とする。
+- [x] SHARED-APPLY: accepted8dfの既存apply_targetsでexact5を適用し、21.39s/全5ok=true・changed=true・skip無しを確認する。safe preflight後の公式native printは全5exit0、installed SHA8df・loaded argvとplistは全一致。source採用だけを業務成果にしない。
+- [ ] SHARED-NATURAL: 新sourceの自然terminalと容量条件を対象別に確認する。provider成果は別の公式receiptで判定する。
+
+PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象installedが旧main885d0469のALLへ切り替わり、proof helperが8dfと異なることを検出する。release-reconcilerの遅い旧23cc runは18e145fe92426e88-85895/execute→report pass、fleet stateは885/partial/changed11/errors0/skipped14であり、同runが上書きした筋と整合するが因果は推測として区別する。unsafe sourceで自然再開させないためaccepted8dfの既存lm-loop stop lm-fence-reconcilerを対象限定で実行し、exit0/0.25s/stderr0、safe preflight PASS/native service absentを確認する。停止後も旧18markerの両digestは既存値と完全一致、新proof0、DB変更0。
+
+次の限定手順: accepted8dfの既存activate_currentをdurable_protocol_versionとprotocol/apply lock付きで使い、検証済みALL8dfをglobal currentへatomic採用する。新releaseの既存reconcile-agent-runner-release.shをHANDOFF_ONLY=1で呼び、release-reconcilerだけを既存self-handoffへ渡す。safe preflightとidle/runlock制約、旧env保持/退役source binding除去を使い、fetch/cut/全fleet applyはこの呼出で行わない。新source loaded/readbackを確認してから5対象と停止中fenceを正規経路で採用・再開する。新mainの将来採用を恒久固定せず、proof修正を含むmain由来releaseへ通常追随する。直接symlink/plist/DB書換え、新supervisor、既存runのlock迂回はしない。
+
+限定修復の実結果: safe preflight0、main祖先/ALL/readonly/host runtime一致を再確認し、既存activate_currentで8dfへatomic採用する。protocol lockの待機は自然解消し、迂回/kill/再activateは0。待機中の過去PIDが既に消えたため当時の競合元は未確定とする。HANDOFF_ONLYはexit0/0.41sで既存helperを予約し、receipt mtime1792792302.7225633/status=ok/target_release_sha=8df/readback.verified=trueを確認する。native release-reconcilerのinstalled8df/loaded argv一致も確認し、既存HANDOFF機構による採用を受け入れる。最新origin/mainのproof helper SHA256はaccepted8dfと完全一致（e078839de07dda029de9da7b78dc4962a8916414d7b316dfe80979e44765b46f）で、将来mainの通常追随を止めない。
+
+同じaccepted APIで停止中lm-fence-reconcilerを適用してchanged=true、installed8dfを照合後、既存lm-loop startを実行しexit0/0.34s/stderr0/print→kickstart→print全0。safe公式native readbackはloaded8df/argvとplist一致。新sourceの自然terminalは別に待ち、旧885 run18e146be4a896950-10665/report75を新source成功として使わない。
+
+共有採用直後のruntime readback: applicationは旧d8 run18e146f563c99070-19485/report75/swap_pressure_high、negotiateは新8df run18e1471e64c0f3f0-25236/report75/swap_pressure_high、work-syncは旧23cc run18e146f563d7d8b0-19478/report75/swap_pressure_high、paidは旧23cc run18e1464883f208f8-94811/report124/entrypoint_exit_124、telegram-reportは旧23cc run18e14702f7d83340-21298/report75/resource_effect_unknown。全件provider receipt/readback無し。free9,263,099,904bytesでもrevenue floorは満たさず、新sourceの登録やadmission待機を全業務復旧にしない。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。
 
