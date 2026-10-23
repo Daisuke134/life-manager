@@ -55,7 +55,7 @@ Digital Buddha／Transparent Godは所有者の長期構想・呼称として保
 | 一次資料 | 再利用と制約 |
 |---|---|
 | [CounselBench](https://github.com/llm-eval-mental-health/counselbench)・[Eval](https://huggingface.co/datasets/izi-ano/CounselBench-Eval)・[Adv](https://huggingface.co/datasets/izi-ano/CounselBench-Adv) | 専門家評価2,000件、adversarial prompts120件。相談技能・誤った前提等を評価。dataはCC BY-NC-ND 4.0で商用利用/改変/学習へ無条件投入しない |
-| [INTIMA](https://huggingface.co/datasets/AI-companionship/INTIMA) | 368 prompts、CC BY 4.0。迎合・孤立・関係代替・境界を調べる。英語single-turn応答診断で、実際の依存率や便益の試験ではない |
+| [INTIMA](https://huggingface.co/datasets/AI-companionship/INTIMA) | cardは368 promptsと記載するが、固定revision `48537e5d3905152751964b48d0a2ef681ace74dc` の実JSONLは380行/376 unique prompts/32 codes（4完全重複）。cardのCC BY 4.0宣言を確認。迎合・孤立・関係代替・境界を調べる英語single-turn診断で、実際の依存率や便益の試験ではない。上流judgeの完全prompt/parser/正確な版は未確認。[固定input受入計画](../plans/2026-10-23-intima-intake.md) |
 | [AHaBench/AHaPairs](https://aclanthology.org/2026.findings-eacl.4/)・[data](https://huggingface.co/datasets/anonymous9268/AHaBench) | 500 prompts/5K preference pairs。過度な依存や関係上の誤認。data/codeはCC BY-NC 4.0。商用学習の無条件な選択肢としない |
 | [MentalHealthBench公式発表](https://openai.com/index/introducing-mentalhealthbench/) | 最新の比較候補。今回artifact版・正確なlicenseは未確認で、導入済みとはしない。全benchmarkを初期必須化しない |
 

@@ -38,7 +38,7 @@
 
 ## Task 2: 既存評価の最小接続 — V001/V002
 
-**Files:** `docs/research/source-rights.json`、`manager_core/evaluation.py`、`manager_core/outcome_bench.py`、`tests/test_r006_rights.py`、`tests/test_evaluation.py`、`tests/test_outcome_bench.py`。
+**Files:** `docs/research/source-rights.json`、`manager_core/evaluation.py`、`manager_core/outcome_bench.py`、`tests/test_r006_rights.py`、`tests/test_evaluation.py`、`tests/test_outcome_bench.py`。 最初の固定input受入は[INTIMA subplan](2026-10-23-intima-intake.md)のdataset専用adapter/inspector/testで実装し、既存数学scorerを変更しない。
 
 **Interface:** 既存のprediction/evidence契約へ、source/dataset/adapter/model/judge版、人物/研究/時間split、分母・失敗・拒否・未評価nullを対応付ける。新しい実行権限を返さない。
 
