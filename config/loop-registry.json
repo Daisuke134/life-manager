@@ -3962,10 +3962,12 @@
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
-        "calendar_interval": {
-          "Hour": 4,
-          "Minute": 20
-        }
+        "calendar_interval": [
+          {"Hour": 4, "Minute": 20},
+          {"Hour": 10, "Minute": 20},
+          {"Hour": 16, "Minute": 20},
+          {"Hour": 22, "Minute": 20}
+        ]
       },
       "cleanup": {
         "max_age_days": 14,
