@@ -176,9 +176,10 @@ def _load_product_file(path: Path) -> dict[str, Any]:
     return value
 
 
-def _product(path: Path, catalog_path: Path | None = None, *, creating: bool = False) -> tuple[dict[str, Any], Path, Path]:
+def _product(path: Path, catalog_path: Path | None = None, *, creating: bool = False,
+             applying: bool = False, raw_value: dict[str, Any] | None = None) -> tuple[dict[str, Any], Path, Path]:
     path = path.expanduser()
-    value = _load_product_file(path)
+    value = _load_product_file(path) if raw_value is None else deepcopy(raw_value)
     family = value.get("catalog_family")
     if family is not None:
         if not isinstance(family, str) or not family.strip():
@@ -186,7 +187,7 @@ def _product(path: Path, catalog_path: Path | None = None, *, creating: bool = F
     try:
         if family is not None:
             value = _catalog_overlay_product(value, family, catalog_path or DEFAULT_CATALOG)
-        return _validate_product(value, path, creating=creating)
+        return _validate_product(value, path, creating=creating, applying=applying)
     except OfferError as error:
         if family is None:
             raise
@@ -195,7 +196,8 @@ def _product(path: Path, catalog_path: Path | None = None, *, creating: bool = F
         raise OfferError("product_invalid") from None
 
 
-def _validate_product(value: dict[str, Any], path: Path, *, creating: bool = False) -> tuple[dict[str, Any], Path, Path]:
+def _validate_product(value: dict[str, Any], path: Path, *, creating: bool = False,
+                      applying: bool = False) -> tuple[dict[str, Any], Path, Path]:
     strings = ("product_id", "title_stem", "subtitle", "category", "subcategory", "service_type", "industry", "description", "notice", "image_path")
     if any(not isinstance(value.get(key), str) or not value[key].strip() for key in strings): raise OfferError("product_invalid")
     if value.get("product_version") is None: raise OfferError("product_invalid")
@@ -220,9 +222,9 @@ def _validate_product(value: dict[str, Any], path: Path, *, creating: bool = Fal
     portfolio_fields = {"external_id", "title_stem", "subtitle", "category", "subcategory", "description", "duration_value", "duration_unit", "order_index", "generated_ai"}
     for key in ("portfolio", "software_portfolio"):
         portfolio = value.get(key); extra = {"industry", "reference_price_jpy", "listing_external_id"} if key == "software_portfolio" else set()
-        if creating and isinstance(portfolio, dict): portfolio.setdefault("external_id", "")
+        if (creating or applying) and isinstance(portfolio, dict): portfolio.setdefault("external_id", "")
         if not isinstance(portfolio, dict) or set(portfolio) != portfolio_fields | extra: raise OfferError("product_invalid")
-        if not isinstance(portfolio["external_id"], str) or (portfolio["external_id"] and re.fullmatch(r"[0-9]+", portfolio["external_id"]) is None) or not creating and key == "portfolio" and not portfolio["external_id"]: raise OfferError("product_invalid")
+        if not isinstance(portfolio["external_id"], str) or (portfolio["external_id"] and re.fullmatch(r"[0-9]+", portfolio["external_id"]) is None) or not (creating or applying) and key == "portfolio" and not portfolio["external_id"]: raise OfferError("product_invalid")
         if not isinstance(portfolio["title_stem"], str) or not 1 <= len(portfolio["title_stem"] + "ました") <= 50 or not isinstance(portfolio["subtitle"], str) or len(portfolio["subtitle"]) > 60 or any(not isinstance(portfolio[name], str) or not portfolio[name].strip() for name in ("category", "subcategory")) or not isinstance(portfolio["description"], str) or not 1 <= len(portfolio["description"]) <= 1000: raise OfferError("product_invalid")
         if type(portfolio["duration_value"]) is not int or not 1 <= portfolio["duration_value"] <= 999 or portfolio["duration_unit"] not in {"時間", "日", "週", "ヶ月", "年"} or type(portfolio["order_index"]) is not int or not 0 <= portfolio["order_index"] <= 9999 or type(portfolio["generated_ai"]) is not bool: raise OfferError("product_invalid")
         if extra and (not isinstance(portfolio["industry"], str) or not portfolio["industry"].strip() or type(portfolio["reference_price_jpy"]) is not int or portfolio["reference_price_jpy"] < 1000 or not isinstance(portfolio["listing_external_id"], str) or portfolio["listing_external_id"] and re.fullmatch(r"[0-9]+", portfolio["listing_external_id"]) is None): raise OfferError("product_invalid")
@@ -1473,7 +1475,11 @@ def _product_setup_required(state_path: Path, field: str = "storefront_product")
 
 
 def _creation_intent(product: Mapping[str, Any], family: str | None, *, kind: str = "listing") -> dict[str, Any]:
-    content = dict(product); content.pop("listing_external_id", None)
+    content = dict(product)
+    if kind in {"portfolio", "software_portfolio"}:
+        content[kind] = dict(product[kind]) | {"external_id": ""}
+    else:
+        content.pop("listing_external_id", None)
     return {"kind": kind, "product_id": product["product_id"], "product_version": product["product_version"],
             "content_sha256": _product_digest(content),
             "seller_path": product["seller_profile"]["public_path"], "catalog_family": family}
@@ -1489,10 +1495,11 @@ def _clear_creation(state_path: Path, intent: dict[str, Any]) -> None:
 def _save_created_listing(product_path: Path, state_path: Path, product: Mapping[str, Any],
                           listing_id: str, intent: dict[str, Any], catalog_path: Path | None = None,
                           *, record_receipt: bool = True) -> None:
-    current, _image, _avatar = _product(product_path, catalog_path, creating=True)
     raw = _load_product_file(product_path)
+    current, _image, _avatar = _product(product_path, catalog_path, creating=True, raw_value=raw)
     if (_creation_intent(current, raw.get("catalog_family")) != intent
-            or current["listing_external_id"] not in {"", listing_id}):
+            or current["listing_external_id"] not in {"", listing_id}
+            or _load_product_file(product_path) != raw):
         raise OfferError("product_changed")
     if record_receipt:
         _write_receipt(state_path, dict(product) | {"listing_external_id": listing_id}, {})
@@ -1501,6 +1508,21 @@ def _save_created_listing(product_path: Path, state_path: Path, product: Mapping
     if intent["catalog_family"] is not None:
         _write_catalog_listing(state_path, intent["catalog_family"], {
             "listing_external_id": listing_id, "public_url": f"{ORIGIN}/menu/detail/{listing_id}"})
+    _clear_creation(state_path, intent)
+
+
+def _save_created_portfolio(product_path: Path, state_path: Path, portfolio_id: str,
+                            intent: dict[str, Any], catalog_path: Path | None = None) -> None:
+    raw = _load_product_file(product_path)
+    current, _image, _avatar = _product(product_path, catalog_path, applying=True, raw_value=raw)
+    key = intent["kind"]
+    if (_creation_intent(current, raw.get("catalog_family"), kind=key) != intent
+            or current[key]["external_id"] not in {"", portfolio_id}
+            or _listing_state(state_path).get("pending_create") != intent
+            or _load_product_file(product_path) != raw):
+        raise OfferError("product_changed")
+    raw[key]["external_id"] = portfolio_id
+    _write_private(product_path, raw)
     _clear_creation(state_path, intent)
 
 
@@ -1924,35 +1946,76 @@ def _roster(page: Any, product: Mapping[str, Any]) -> dict[str, Any]:
 def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = False,
         catalog_path: Path | None = None) -> dict[str, Any]:
     try:
-        product, image, avatar = _product(product_path, catalog_path)
+        product, image, avatar = _product(product_path, catalog_path, applying=apply)
     except OfferError:
         return _product_setup_required(state_path) if apply else _setup_required("storefront_product")
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
         tick = _load("lancers_storefront_offer_tick", HERE / "application_tick.py")
         with tick.account_lock(state_path.with_name("work-sync.json")):
-            if apply and "pending_create" in _listing_state(state_path):
-                return _pending_creation()
+            pending = None
+            if apply:
+                product, image, avatar = _product(product_path, catalog_path, applying=True)
+                family = _load_product_file(product_path).get("catalog_family")
+                ledger = _listing_state(state_path)
+                if "pending_create" in ledger:
+                    logged_in = None
+                    pending = ledger["pending_create"]
+                    if (not isinstance(pending, dict)
+                            or pending.get("kind") not in {"portfolio", "software_portfolio"}
+                            or pending != _creation_intent(product, family, kind=pending["kind"])):
+                        return _pending_creation()
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
-            logged_in = True; result = _apply(page, product, image) if apply else _public(page, product) | {"action": "inspect"}
-            if roster and not apply: result |= _roster(page, product)
-            if apply and result.get("action") == "unchanged":
-                for key in ("portfolio", "software_portfolio"):
-                    portfolio = _ensure_portfolio(page, product, image, key)
-                    result["portfolio_effect_count"] = portfolio["portfolio_effect_count"]
-                    result[key + "_external_id"] = portfolio["portfolio_external_id"]
-                    result[key + "_url"] = portfolio["portfolio_url"]
-                    if portfolio.get("portfolio_duplicate_external_ids"):
-                        result[key + "_duplicate_external_ids"] = portfolio["portfolio_duplicate_external_ids"]
-                    if portfolio["portfolio_effect_count"]:
-                        result["action"] = "portfolio_created"; break
-                else:
-                    profile = _profile(page, product, avatar, True); result |= profile
-                    if profile["profile_effect_count"]: result["action"] = "profile_updated"
-            if result.get("ok") is True and result.get("aligned") is True:
-                result["demand"] = _demand(page, product["listing_external_id"])
-                if apply: _write_receipt(Path(state_path), product, result["demand"])
+            logged_in = True
+            if pending is not None:
+                key = pending["kind"]
+                portfolio = _portfolio(page, product[key])
+                result = _pending_creation() | {"logged_in": True}
+                if portfolio is not None:
+                    result = {"ok": True, "logged_in": True, "action": "creation_restored",
+                              key + "_external_id": portfolio["portfolio_external_id"],
+                              key + "_url": portfolio["portfolio_url"]}
+                    try:
+                        _save_created_portfolio(product_path, state_path, portfolio["portfolio_external_id"], pending, catalog_path)
+                    except (OSError, OfferError):
+                        result.update(ok=False, error="private_storage")
+            else:
+                result = _apply(page, product, image) if apply else _public(page, product) | {"action": "inspect"}
+                if roster and not apply: result |= _roster(page, product)
+                if apply and result.get("action") == "unchanged":
+                    for key in ("portfolio", "software_portfolio"):
+                        intent = None
+                        if not product[key]["external_id"]:
+                            intent = _creation_intent(product, family, kind=key)
+                            try:
+                                _write_private(state_path.with_name("listing.json"), _listing_state(state_path) | {"pending_create": intent})
+                            except OSError:
+                                result.update(ok=False, logged_in=True, error="private_storage")
+                                break
+                        portfolio = _ensure_portfolio(page, product, image, key)
+                        result["portfolio_effect_count"] = portfolio["portfolio_effect_count"]
+                        result[key + "_external_id"] = portfolio["portfolio_external_id"]
+                        result[key + "_url"] = portfolio["portfolio_url"]
+                        if portfolio.get("portfolio_duplicate_external_ids"):
+                            result[key + "_duplicate_external_ids"] = portfolio["portfolio_duplicate_external_ids"]
+                        if intent is not None:
+                            try:
+                                _save_created_portfolio(product_path, state_path, portfolio["portfolio_external_id"], intent, catalog_path)
+                            except (OSError, OfferError):
+                                result.update(ok=False, logged_in=True, error="private_storage")
+                                break
+                            product[key]["external_id"] = portfolio["portfolio_external_id"]
+                        if portfolio["portfolio_effect_count"]:
+                            result["action"] = "portfolio_created"; break
+                    else:
+                        profile = _profile(page, product, avatar, True); result |= profile
+                        if profile["profile_effect_count"]: result["action"] = "profile_updated"
+                if result.get("ok") is True and result.get("aligned") is True:
+                    result["demand"] = _demand(page, product["listing_external_id"])
+                    if apply:
+                        try: _write_receipt(Path(state_path), product, result["demand"])
+                        except OSError: result.update(ok=False, logged_in=True, error="private_storage")
     except OfferError as error: result = {"ok": False, "logged_in": logged_in, "error": str(error)}
     except Exception as error:
         # The type alone is not diagnosable. This lane spent six days reporting
@@ -1968,7 +2031,7 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
             closed = page is None or bool(tick._close_owned_page(page))
             if browser is not None: tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
         except Exception: closed = False
-        if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
+        if not closed: result.update(ok=False, logged_in=logged_in, error="cleanup_failed")
     return _preserve_pending_effect(state_path, result) if apply else result
 
 

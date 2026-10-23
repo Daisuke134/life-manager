@@ -94,7 +94,7 @@ MAC02の最新read-only観測: current selectorはa8954faaだが、対象hf-gig-
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-first-listing-20261024、base=68863815b1e48c171e58e6a108e06ec1ed2c1ee7（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINPUTS-B1。実ACCOUNT接続はaccepted68863815の公式観測とprivate binding/status照合で完了し、業務ready/公開INSTALLは未完。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/lancers-first-portfolio-20261024、base=6abdcdcc2ae7af284f2eb914b03c3d8e40dddea4（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-SETUPのINPUTS-B2-SHIP。実ACCOUNT接続はaccepted68863815の公式観測とprivate binding/status照合で完了し、業務ready/公開INSTALLは未完。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -188,7 +188,7 @@ ACCOUNTの実接続受入: 資格情報SSOT全体のservice=Lancers完全一致1
 
 **不確定effect:** 公式作成後のproductとreceiptが両方ENOSPCになると、lockだけでは次回createを防げない実装上の穴がある。create前に同じlisting.jsonのトップレベルpending_createへ対象product/version・内容hash・期待seller path・任意familyをatomic保存し、保存失敗は外部create0で止める。pendingはcatalog_listingsへ混ぜない。pending中は再createせず、確認済みreceiptと入力の一致がある場合だけ実IDのローカル保存を再開し、不一致/未確認は公式readback復旧を次操作として返す。通常receipt更新とcatalog writerはpendingを保持し、公式成功した同じ対象の必要保存が全て完了した時だけ同じatomic更新で除く。他のpendingを消さない。reconcileはpendingがあればHELD/resolver0で保持する。post-effect保存失敗はok=false/logged_in=trueと確認済みIDを返し、pre-effectや成功へ置換しない。portfolioの作成/保存にも同じ原則を適用し、既存の一意な公式readbackを再利用する。
 
-**分割と現在cursor:** pending/receipt/private productの再開だけで100行超の変更となるため、同じINPUTS-B内をB1=初回listing＋pending＋catalog cursor＋reconcile保持、B2=applyでのportfolio作成/実ID保存に分ける。B1ではID無しのportfolioをcreate入力として検証するが、applyのportfolio ID保存を完了扱いしない。旧順/新順は同じINPUTS-B→INSTALLで、外部effectは進行していない。現在cursor=INPUTS-B1。
+**分割と現在cursor:** pending/receipt/private productの再開だけで100行超の変更となるため、同じINPUTS-B内をB1=初回listing＋pending＋catalog cursor＋reconcile保持、B2=applyでのportfolio作成/実ID保存に分ける。B1ではID無しのportfolioをcreate入力として検証するが、applyのportfolio ID保存を完了扱いしない。旧順/新順は同じINPUTS-B→INSTALLで、外部effectは進行していない。現在cursor=INPUTS-B2-SHIP。
 
 - [x] INPUTS-B1-RED: 補正後の既存create/reconcile計12ケースがprimaryの単一プロセスで12 failed/143 deselected（0.39s）。初回listing ID欠損、保存失敗後の重複、入力変更後の旧成功採用、既存IDからの再作成、通常writerのpending消去、catalog/apply/reconcileでのpending無視を実際に再現する。fixtureだけのimport/末尾assert不備は修正済み。実lock/browser/providerはfake、書込は一時HOME/fixture SQLiteだけ。
 - [x] INPUTS-B1-GREEN: 初回listing/pending/catalog cursor/reconcileの最小実装と関連testsを通し、sourceをfreezeする。B2のapply portfolio保存は残す。
@@ -210,6 +210,38 @@ INPUTS-B1の起動境界診断: pending_createを持つ隔離fixtureでtick impo
 INPUTS-B1の起動境界RED: 既存test_create_package.pyへapply/create/catalog×tick import/account lock失敗×pending/ledger破損/記録無しの18ケースを追加する。primaryの同じ隔離入口で12 failed/6 passed/148 deselected（0.59s）を確認する。12件はFalse is Noneで失敗し、記録無し6件のFalseは維持する。production sourceはまだ変更していない。
 
 INPUTS-B1の起動境界GREEN: 既存のsetup helperにあるpending/読取不能判定を共通化し、apply/create/catalogの失敗返却直前へ適用する。起動途中で他ownerが保存したpendingとcleanup失敗の追加9件は6 failed/3 passedを先に確認し、workerの関連71件がPASS。primaryは返信/出品/本人入力の関連10files328件PASS（13.20s）、AST2/source-boundary/diff PASSを確認する。auth未観測None・通常False・観測済みTrueを維持し、ensure_profileや本番state/ownerは変更しない。更新headの独立read-only reviewと公開CI/mainを次に確認する。
+
+#### INPUTS-B2のbounded実装計画
+
+目的・範囲: applyで未取得のportfolio IDを要求せず、一意な公式readbackで確認した実IDを本人private productへ保存する。B1のmain6abdcdcc2ae7af284f2eb914b03c3d8e40dddea4をbaseとし、同じpending/helperを使う。順序はINPUTS-B→INSTALL→READYのままで、B1の統合/実private/provider effectと並列に未受入codeを実運用しない。
+
+所有: workerは既存storefront_offer.pyとtest_portfolio_readback.pyだけ。primaryは本仕様/CI/統合/本番受入。既存account lock、_portfolio/_ensure_portfolio、_write_private、B1 pendingを再利用する。新store/receipt framework/依存/host policyを追加しない。inspect/reconcileは厳格な実ID要求を維持する。applyは実listing IDを要求し、create modeを流用せずportfolio IDだけ欠損/空を許可する。
+
+契約: lock内でproductを再読込し、未取得target portfolioの作成前に同じlisting.jsonへtarget kind/product/version/内容hash/期待sellerを保存する。hashはtarget portfolio external_idだけを正規化し、canonical listing IDと他入力を含む。公式readback後、入力が同じ場合だけraw productのtarget external_idを保存し、同じpendingを解除する。作成済みIDは再作成しない。保存失敗時は確認済み実IDと観測済みTrueを保持する。pendingの再開では_portfolio相当の既存公式一覧readbackだけを使い、_apply/_ensure_portfolio/_profileへ到達せず、一意IDを保存して復旧する。0件/重複/入力変更はpendingを保持する。ローカル保存の復旧でlisting receipt.observed_atを新たな公式観測時刻へ書き換えない。browserを開いた後のearly returnでcleanup失敗を隠さない。
+
+- [x] B2-RED: missing/empty portfolio ID→fake公式成功→本人product実ID保存、pending保存ENOSPC/create0、作成後product保存ENOSPC→次回readbackのみ、product保存済み/pending解除失敗→pin readback復旧、0件/重複/入力変更、通常inspect/実listing要求を最少の既存fakeで失敗再現する。
+- [x] B2-GREEN: 上記の最小実装後、関連create/portfolio/本人入力callerを確認する。
+- [ ] B2-SHIP: commit/push→独立read-only review/既存CI→main/公式bytesを受け入れる。全INPUTS-Bの完了はB1/B2/B3を確認して判定する。
+
+追加の実呼出元診断: storefront-ownerは常に--applyで、空listing IDはsetup_requiredとなり、common installerにも初回--create-packageへ進むcallerが無い。INSTALLで本人入力とlive account照合の後に初回作成へ接続する。pendingだけ残りreceipt/実IDが未保存の場合、一意な公式一覧候補→_public全内容一致→本人product保存の自動復旧callerも未接続であり、B1のsource受入だけで全INPUTS-Bを完了にしない。READYは既存apply_targetsのloop_idsを使い、本人binding/各lane入力がそろったownerだけを対象にする。browser基盤/reportへ不要なcandidate/product要件を加えない。実機は本人Mac mini1台、GitHub公式現在値8 stars/2 forksで、全Mac/全業務/10,000 starsは未完。
+
+INPUTS-B1のSHIP受入: PR #8747/head9abe32fb2cbe433bc18deeb211b270c702ac32cd、workflow39990171611は全13checks成功、独立追加reviewはblocking0（実関数AST probe27+読取不能3件PASS）。main6abdcdcc2ae7af284f2eb914b03c3d8e40dddea4への統合と、GitHub公式の2source/2testのblob全4一致を確認する。B1だけで全INPUTS-B/公開INSTALL/業務ready/別Mac/10,000 starsを完了扱いしない。
+
+B2のRED受入: 既存portfolio testへ9関数21ケースを追加し、primaryも15 failed/13 passed（0.61s、既存7件を含む）を確認する。失敗はID保存/intent/ENOSPC/lock内reloadの期待で、fixture/import失敗は0、production source変更0。pending保存ENOSPCは対象のensure/createへ到達しないことを確認し、他のpin済みportfolioの既存read-only確認まで禁じる余分な制約は加えない。復旧後段は初回保存の失敗を直した後に同じテストで検証する。
+
+B2のGREEN受入: apply専用のportfolio ID欠損許容、lock内reload、target IDだけを正規化するintent、同じraw productへの実ID保存、readbackだけのpending再開、cleanup失敗を隠さない返却を既存offerへ実装する。receipt保存ENOSPC時も確認済みIDを返す最少回帰を1件追加し、workerの関連6suite240件PASS、primaryの関連10files350件PASS（14.27s）、AST2/source-boundary/diff PASSを確認する。担当2filesをfreezeし、独立read-only review/公開CI/mainへ進む。B3/INSTALL/READYと実private/browser/provider操作は未実施。
+
+B2の独立review診断: head0d17beda78はblocking1。_productで検証したcurrentと別readのrawが食い違い、変更後のlisting ID/description/target IDへ旧作成IDを保存してpendingを解除することを独立AST probe3種類とprimaryの隔離実ファイルで再現する。同じ問題はB1 _save_created_listingにもあり、同じraw snapshotを既存validatorへ渡し、保存直前の変更を拒否する最少修復を両保存helperへ適用する。先にlisting/portfolioの入力差替え5ケースをREDで確認し、通常の保存・catalog projection・既存本人keys保持を同じsuiteで確認してから再reviewする。GitHub PR作成のGraphQLエラー後、同headのPR一覧は0件と公式に確認し、修復後に公開CIを開始する。
+
+B2 snapshot修復のRED: primaryはdescription/実listing ID/target IDの差替えをlisting/portfolioの計5ケースで検証し、5 failed/29 deselected（0.25s）を確認する。全失敗はproduct_changedが出ず、変更後rawへ旧IDが保存される振る舞いそのものである。source修復前に回帰を固定する。
+
+B2 snapshot修復のGREEN: 既存_productが保存対象rawのcopyを検証できる最少引数を追加し、listing/portfolioの両保存helperは同じrawからcurrentを導出する。保存前のraw差替えも拒否し、5回帰を含むprimary関連10files355件PASS（14.58s）、AST2/source-boundary/diff PASSを確認する。catalog projectionとraw本人keysの保持、B1のhash/receipt契約を維持する。更新headをfreezeし、既知blocking1の独立再reviewと公開CI/mainへ進む。
+
+B3の実行経路診断: 登録済みstorefront effect_reconcileはpending中にbrowser前でHELDとなるため、runを直接再呼出しするだけではkernelのheld fenceを越えない。B3は同じreconcile入口からreadback復旧へ接続し、未作成の将来portfolio全体を完了条件にせず、同owner/occurrenceの実targetに公式証拠を結合して既存resolverへ渡す。pending無しの既存full-roster proofは保持し、新しいfence frameworkを作らない。
+
+B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
+
+- [ ] B3-READBACK: pendingだけ残りreceipt/実IDが未保存の場合、既存公式一覧候補と_publicの全内容照合を実ID保存へ接続する。0件/曖昧/本人不一致で再createやeffect0へ戻さない。旧順=B1→B2→INSTALL、新順=B1→B2→B3→INSTALL。理由は現callerが公式readbackへ進まず永続pendingになることを実呼出元で確認したためで、現在cursor=B2-SHIP。進行中の外部effectは0。
 
 #### Lancers本人入力の実装計画
 
