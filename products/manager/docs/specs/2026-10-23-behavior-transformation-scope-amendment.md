@@ -82,3 +82,10 @@ Exaのroot2検索=12結果枠、介入研究11検索=55枠、モデル研究17�
 
 
 行動変容研究の選択/撤回・圧力/依存/悪化・停止/支援/復旧の限定定義案は[BEHAVIOR_TRANSFORMATION_SAFETY_V1.md](../../pilot/BEHAVIOR_TRANSFORMATION_SAFETY_V1.md)を参照。別context AIの実有限適用review YES（21:12:45.444261Z）後、rootは21:16:58.283242Zにsource採用し、21:16:58.283436ZにD015有限定義taskを別受入した（[外部実receipt](../verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。新docのPENDINGは作成snapshotとして保持し、新規U004のDRAFT/0参加者/未登録と実発動・個人安全/clinical判断・保護条件の未成立は変えない。
+
+
+## 8. 追加の非臨床行動評価資産から借りる測定設計
+
+[用途別evidence note](../research/2026-10-23-additional-behavior-evaluation-reuse.md)にone secとINA/IntentionBenchの新規差2件を記録する。本人が設定するintent、appの実行動ログ、LLM推定、自己申告、脱落、使用中/撤去後、false-positive負担と害/依存を分けて学ぶ。実行動効果・持続・害を包括的に置換できると確認したbenchmarkは今回0件だが、単一benchmarkへ全endpointを要求する新しいgateではない。部分reuseは既存V001の用途別条件と必要なartifactのrights/splitごとに判断する。候補一致proxyを実行動/便益に昇格させず、この2候補から新model/scorer実行の許可を自動生成しない。
+
+両先例にはapp/UIがあり、ManagerのNo UIの先例ではない。Boba/iMessageもUIであるという区別、本人が選ぶ既存媒体、専用app/chatを通常提供の必須にしない方針を保つ。専用UIやスクリーンショット常時監視の導入は結論しない。未確認rights、非商用の論文条件、scorer/split/持続/害の欠測は未解決のまま用途別に扱う。H2の固定科学protocol・結果・SCORED finalと選別履歴、V001用途別受入、D014/D015有限done、新規v2のDRAFT/0参加者/未登録・未確定条件を変更しない。この追補はdata/scorer採用・rights受入・新しい人研究/運用・便益の受入ではなく、公開非個人研究へ提携/NDAを一律要求するものでもない。

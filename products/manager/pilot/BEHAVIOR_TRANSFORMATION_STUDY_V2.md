@@ -41,3 +41,10 @@
 ## 将来の行動変容研究の保護定義案への参照
 
 [BEHAVIOR_TRANSFORMATION_SAFETY_V1.md](BEHAVIOR_TRANSFORMATION_SAFETY_V1.md)は、本人の選択/撤回、非応答への追送、圧力/誤断定、排他的依存/判断委譲、支援遮断、本人報告の悪化、privacy/不明についてsignal→停止/支援→実scopeの独立判断と非自動復帰を定義する。別context AIの21:12:45.444261Z実reviewは有限design applicability YES、rootは21:16:58.283242Zにsource採用し、21:16:58.283436ZにD015定義taskを別受入した（[外部実receipt](../docs/verification/D014_D015_PROTOCOL_ACCEPTANCE_20261023.md#d015-actual-task-acceptance)）。新doc内PENDINGは作成時snapshotとして保持し、旧研究の数値triggerを移植しない。本v2のDRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、上記未確定欄と実役割/同意/測定/登録の条件はそのまま。研究・モデル運用・通知/UI・clinical承認をこの参照で発動しない。
+
+
+## 追加の測定設計参照 — 行動ログとproxyの分離
+
+[one sec / INA・IntentionBenchの用途別evidence note](../docs/research/2026-10-23-additional-behavior-evaluation-reuse.md)を、上の未確定欄を具体化する際の参考にする。本人の任意goalと変更/NO_ACTION/撤回、実行/中止のevent、観測系と独立性、モデル推定/自己申告、人物内反復・研究・時点、分母/欠測/脱落を区別する。使用中と撤去後の持続、false-positive負担、生活機能・害/依存/置換も別の量として扱い、欠測を0や効果なしへ変換しない。部分reuseは用途別に判断し、全endpointを一つのbenchmarkで満たすことを新たな受入条件にしない。
+
+両先例はapp/UIを持つため、No UIや専用app/chat・スクリーンショット常時監視を導入する根拠にしない。通常提供の媒体は既存方針どおり本人が選び、観測の成立と権利は用途別に確認する。本参照は対象/需要/roles・同意・媒体・尺度権利・人数/期間・登録・独立観測/停止の空欄を埋めず、既存Step-by-Step/SafetyおよびD014/D015有限受入の文面を変更しない。**DRAFT / NOT_REGISTERED / participants=0 / intervention_runs=0、U004 todoを維持**し、data/scorer採用・rights受入・モデル実行・人への介入/運用・便益の受入を発動しない。
