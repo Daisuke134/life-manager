@@ -452,20 +452,362 @@ def open_release_roots(releases_root: Path, timeout: float = 15) -> set[Path]:
     }
 
 
-def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
-    """Collect releases while pinning every generation referenced by launchd."""
-    protected = loaded_release_roots(agents, releases) | open_release_roots(releases)
+def _open_reference_paths(roots, timeout: float, owned_fds=(), *, uid=None) -> set[Path]:
+    command = ["lsof", "-nP"]
+    if uid is not None:
+        command += ["-a", "-u", str(uid)]
+    opened = subprocess.run(command + ["-Fpnf"], check=True, capture_output=True,
+                            text=True, timeout=timeout)
+    if opened.stderr:
+        raise OSError("FD inventory has coverage gaps")
+    prefixes = tuple(str(path) + os.sep for root in roots
+                     for path in (root.expanduser(), root.resolve()))
+    paths = set()
+    pid = descriptor = None
+    for line in opened.stdout.splitlines():
+        if line.startswith("p"):
+            pid, descriptor = line[1:], None
+        elif line.startswith("f"):
+            descriptor = line[1:]
+        elif line.startswith("n/") and line[1:].startswith(prefixes):
+            if (pid == str(os.getpid()) and descriptor is not None
+                    and descriptor.isdecimal() and int(descriptor) in owned_fds):
+                continue
+            paths.add(Path(line[1:]))
+    return paths
+
+
+def _current_release(current: Path, releases: Path) -> Path | None:
+    try:
+        info = current.lstat()
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISLNK(info.st_mode) or info.st_uid != os.getuid():
+        raise ValueError("invalid current selector")
+    target = current.resolve(strict=True)
+    if (len(target.relative_to(releases.resolve()).parts) != 1
+            or not target.is_dir() or target.stat().st_uid != os.getuid()):
+        raise ValueError("invalid current release")
+    return target
+
+
+@contextmanager
+def _release_cut_lock(current: Path):
+    """Borrow only our cutter parent's directory lock; never reap another owner."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    parent = os.open(current.parent, flags)
+    descriptor = -1
+    owned = False
+    try:
+        if os.fstat(parent).st_uid != os.getuid():
+            raise RuntimeError("release root owner mismatch")
+        try:
+            os.mkdir(".release-cut.lock", 0o700, dir_fd=parent)
+            owned = True
+        except FileExistsError:
+            pass
+        before = os.stat(".release-cut.lock", dir_fd=parent, follow_symlinks=False)
+        descriptor = os.open(".release-cut.lock", flags, dir_fd=parent)
+        info = os.fstat(descriptor)
+        if (info.st_uid != os.getuid() or (info.st_dev, info.st_ino) !=
+                (before.st_dev, before.st_ino)):
+            raise RuntimeError("release cut lock identity mismatch")
+        pid_fd = os.open("pid", (os.O_WRONLY | os.O_CREAT | os.O_EXCL if owned else os.O_RDONLY)
+                         | os.O_NOFOLLOW, 0o600, dir_fd=descriptor)
+        try:
+            pid_info = os.fstat(pid_fd)
+            if (not stat.S_ISREG(pid_info.st_mode) or pid_info.st_uid != os.getuid()
+                    or pid_info.st_nlink != 1):
+                raise RuntimeError("release cut lock owner is unknown")
+            if owned:
+                os.write(pid_fd, f"{os.getpid()}\n".encode())
+            elif (pid_info.st_size > 32
+                  or os.read(pid_fd, 33).strip() != str(os.getppid()).encode()):
+                raise RuntimeError("another process owns the release cut lock")
+            now = os.stat("pid", dir_fd=descriptor, follow_symlinks=False)
+            if (now.st_dev, now.st_ino) != (pid_info.st_dev, pid_info.st_ino):
+                raise RuntimeError("release cut lock pid identity changed")
+        finally:
+            os.close(pid_fd)
+        now = os.stat(".release-cut.lock", dir_fd=parent, follow_symlinks=False)
+        if (now.st_dev, now.st_ino) != (info.st_dev, info.st_ino):
+            raise RuntimeError("release cut lock identity changed")
+        yield
+    finally:
+        try:
+            if owned and descriptor >= 0:
+                now = os.stat(".release-cut.lock", dir_fd=parent, follow_symlinks=False)
+                info = os.fstat(descriptor)
+                if (now.st_dev, now.st_ino) == (info.st_dev, info.st_ino):
+                    try:
+                        os.unlink("pid", dir_fd=descriptor)
+                    except FileNotFoundError:
+                        pass
+                    os.rmdir(".release-cut.lock", dir_fd=parent)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            os.close(parent)
+
+
+def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Path,
+                       deadline: float, owned_fds=()) -> tuple[set[Path], list[str]]:
+    if time.monotonic() >= deadline:
+        raise subprocess.TimeoutExpired("bundle references", 0)
+    for root in (releases, bundles, agents):
+        try:
+            info = root.lstat()
+        except FileNotFoundError:
+            if root != releases:
+                continue
+            raise
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+            raise ValueError("reference root is untrusted")
+    _current_release(current, releases)
+    values = []
     protected_file = Path(os.environ.get(
         "LIFE_MANAGER_PROTECTED_RELEASES", "~/.local/state/life-manager/protected-releases.json")).expanduser()
     try:
-        values = json.loads(protected_file.read_text())
-        if isinstance(values, list):
-            protected.update(Path(value).expanduser().resolve() for value in values if isinstance(value, str))
-    except (OSError, json.JSONDecodeError):
-        pass
-    result = gc_releases(releases, current, keep=keep, protected=protected)
-    result["protected_release_count"] = len(protected)
-    source_result = reclaim_unreferenced_source(releases, current, agents, keep)
+        info = protected_file.lstat()
+    except FileNotFoundError:
+        info = None
+    if info is not None:
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+            raise ValueError("protected release inventory is untrusted")
+        pins = json.loads(protected_file.read_text())
+        if not isinstance(pins, list) or any(not isinstance(value, str) for value in pins):
+            raise ValueError("protected release inventory is invalid")
+        values.extend(str(Path(value).expanduser().resolve()) for value in pins)
+    for path in (list(agents.iterdir()) if agents.exists() else []):
+        if path.suffix != ".plist":
+            continue
+        if time.monotonic() >= deadline:
+            raise subprocess.TimeoutExpired("plist references", 0)
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+            raise ValueError("plist inventory is untrusted")
+        try:
+            with path.open("rb") as handle:
+                plist = plistlib.load(handle)
+        except (ValueError, plistlib.InvalidFileException, ExpatError):
+            native = subprocess.run(["/usr/bin/plutil", "-convert", "json", "-o", "-", str(path)],
+                check=True, capture_output=True, text=True, timeout=min(3, max(.01, deadline-time.monotonic())))
+            if native.stderr:
+                raise OSError("native plist inventory has coverage gaps")
+            plist = json.loads(native.stdout)
+        if not isinstance(plist, dict):
+            raise ValueError("plist inventory is invalid")
+        pending = [plist]
+        while pending:
+            value = pending.pop()
+            if isinstance(value, dict):
+                pending.extend(value.values())
+            elif isinstance(value, list):
+                pending.extend(value)
+            elif isinstance(value, str):
+                values.append(os.path.expanduser(value))
+    process = subprocess.run(["ps", "-axo", "command="], check=True, capture_output=True,
+        text=True, timeout=min(5, max(.01, deadline-time.monotonic())))
+    if process.stderr:
+        raise OSError("process inventory has coverage gaps")
+    path_values = []
+    for value in values:
+        if "\n" not in value:
+            path_values.append(value)
+        path_values.extend(value.split())
+    path_values.extend(process.stdout.split())
+    for word in path_values:
+        for path in word.strip("'\"").split(os.pathsep):
+            path = path.split("=", 1)[-1]
+            if path.startswith("/") and len(os.fsencode(path)) <= 4096:
+                values.append(str(Path(path).resolve()))
+    values.append(process.stdout)
+    values.extend(map(str, _open_reference_paths((releases, bundles),
+        min(4, max(.01, deadline-time.monotonic())), owned_fds, uid=os.getuid())))
+    protected = {path.resolve() for path in releases.iterdir()
+                 if path.is_dir() and any(str(path) in value or str(path.resolve()) in value for value in values)}
+    errors = []
+    for folder, directories, files in os.walk(releases, followlinks=False, onerror=errors.append):
+        if time.monotonic() >= deadline:
+            raise subprocess.TimeoutExpired("release dependency links", 0)
+        for name in directories + files:
+            path = Path(folder) / name
+            if path.is_symlink():
+                values.append(str(path.resolve()))
+    if errors:
+        raise errors[0]
+    return protected, values
+
+
+def _scan_bundle(descriptor: int, root: Path, deadline: float, *, changed=None, parts=()) -> int:
+    info = os.fstat(descriptor)
+    if info.st_uid != os.getuid() or info.st_mode & 0o222:
+        raise ValueError("bundle is not owned and readonly")
+    size = 0
+    for name in os.listdir(descriptor):
+        if time.monotonic() >= deadline:
+            raise subprocess.TimeoutExpired("bundle tree", 0)
+        item = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+        if (item.st_uid != os.getuid() or name in {".lm-protected", ".terminal-unrecorded"}
+                or (name == "memory" and stat.S_ISDIR(item.st_mode))
+                or (name in {"memory", "state"} and stat.S_ISLNK(item.st_mode))
+                or (parts and parts[-1] == "state" and name.endswith(".jsonl"))):
+            raise ValueError("protected or foreign bundle entry")
+        if stat.S_ISDIR(item.st_mode):
+            child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor)
+            try:
+                actual = os.fstat(child)
+                if (actual.st_dev, actual.st_ino) != (item.st_dev, item.st_ino):
+                    raise ValueError("bundle directory identity changed")
+                size += _scan_bundle(child, root, deadline, changed=changed, parts=(*parts, name))
+            finally:
+                os.close(child)
+        elif stat.S_ISLNK(item.st_mode):
+            if not (root.joinpath(*parts, name).resolve(strict=True)).is_relative_to(root):
+                raise ValueError("bundle link leaves its root")
+        elif not stat.S_ISREG(item.st_mode) or item.st_mode & 0o222:
+            raise ValueError("bundle entry is not an immutable file")
+        else:
+            size += item.st_size
+    if changed is not None:
+        changed.append((parts, info.st_dev, info.st_ino, stat.S_IMODE(info.st_mode)))
+        os.fchmod(descriptor, stat.S_IMODE(info.st_mode) | 0o200)
+    return size
+
+
+def _restore_bundle_directories(descriptor: int, changed):
+    for parts, device, inode, mode in reversed(changed):
+        opened = os.dup(descriptor)
+        try:
+            for name in parts:
+                child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=opened)
+                os.close(opened)
+                opened = child
+            info = os.fstat(opened)
+            if info.st_uid == os.getuid() and (info.st_dev, info.st_ino) == (device, inode):
+                os.fchmod(opened, mode)
+        except FileNotFoundError:
+            pass
+        finally:
+            os.close(opened)
+
+
+def _gc_dependency_bundles(releases, current, agents, bundles, deadline) -> dict:
+    result = {"evaluated": 0, "removed": 0, "preserved": 0, "reclaimed_bytes": 0, "errors": 0}
+    if not bundles.exists() and not bundles.is_symlink():
+        return result
+    parent = os.open(bundles, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        if os.fstat(parent).st_uid != os.getuid():
+            raise ValueError("bundle root owner mismatch")
+        _held, references = _bundle_references(releases, current, agents, bundles, deadline, (parent,))
+        for name in sorted(os.listdir(parent)):
+            if not re.fullmatch(r"npm-[a-f0-9]{64}", name):
+                continue
+            result["evaluated"] += 1
+            root = bundles.resolve() / name
+            if any(str(root) in value or str(bundles / name) in value for value in references):
+                result["preserved"] += 1
+                continue
+            opened = -1
+            changed = []
+            try:
+                before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                opened = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                info = os.fstat(opened)
+                if (info.st_uid != os.getuid() or info.st_mode & 0o222
+                        or (info.st_dev, info.st_ino) != (before.st_dev, before.st_ino)):
+                    raise ValueError("bundle identity changed")
+                for required in ("package.json", "package-lock.json", ".complete"):
+                    if not stat.S_ISREG(os.stat(required, dir_fd=opened, follow_symlinks=False).st_mode):
+                        raise ValueError("incomplete bundle")
+                modules = os.open("node_modules", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=opened)
+                try:
+                    if not stat.S_ISREG(os.stat(".package-lock.json", dir_fd=modules, follow_symlinks=False).st_mode):
+                        raise ValueError("incomplete bundle lock")
+                finally:
+                    os.close(modules)
+                marker_before = os.stat(".complete", dir_fd=opened, follow_symlinks=False)
+                marker = os.open(".complete", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=opened)
+                try:
+                    marker_info = os.fstat(marker)
+                    if (not stat.S_ISREG(marker_info.st_mode) or marker_info.st_uid != os.getuid()
+                            or (marker_info.st_dev, marker_info.st_ino) != (marker_before.st_dev, marker_before.st_ino)
+                            or marker_info.st_size > 65 or marker_info.st_mode & 0o222
+                            or os.read(marker, 66) not in {name[4:].encode(), (name[4:] + "\n").encode()}):
+                        raise ValueError("bundle completion key mismatch")
+                finally:
+                    os.close(marker)
+                size = _scan_bundle(opened, root, deadline)
+                _scan_bundle(opened, root, deadline, changed=changed)
+                _held, references = _bundle_references(releases, current, agents, bundles,
+                    deadline, (parent, opened))
+                if any(str(root) in value or str(bundles / name) in value for value in references):
+                    raise ValueError("bundle remains referenced")
+                now = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                if (now.st_dev, now.st_ino) != (info.st_dev, info.st_ino):
+                    raise ValueError("bundle identity changed")
+                removed = remove_owned_tree(parent, opened, name)
+                if removed:
+                    result["removed" if removed is True else "contents_reclaimed"] = (
+                        result.get("removed" if removed is True else "contents_reclaimed", 0) + 1)
+                    result["reclaimed_bytes"] += size
+                else:
+                    result["errors"] += 1
+                    result["preserved"] += 1
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                result["preserved"] += 1
+                result["errors"] += not isinstance(error, ValueError)
+                result["diagnostic"] = {"error_class": type(error).__name__}
+            finally:
+                if opened >= 0:
+                    _restore_bundle_directories(opened, changed)
+                    os.close(opened)
+    finally:
+        os.close(parent)
+    return result
+
+
+def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
+    """Collect releases and their unreferenced immutable dependency bundles."""
+    result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
+              "preserved_releases": 0, "protected_deletions": 0, "errors": 0}
+    bundles = releases.parent / "dependency-bundles"
+    deadline = time.monotonic() + 15
+    try:
+        empty = True
+        for root in (releases, bundles):
+            try:
+                info = root.lstat()
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+                raise ValueError("release inventory root is untrusted")
+            empty &= not any(root.iterdir())
+        if empty:
+            return {**result, "protected_release_count": 0, "source_reclaim": {"status": "not_needed"},
+                    "dependency_bundles": {"evaluated": 0, "removed": 0, "preserved": 0,
+                                           "reclaimed_bytes": 0, "errors": 0}}
+        with _source_reclaim_lock(current, deadline), _release_cut_lock(current):
+            protected, _references = _bundle_references(releases, current, agents, bundles, deadline)
+            protected |= loaded_release_roots(agents, releases) | open_release_roots(releases)
+            result = gc_releases(releases, current, keep=keep, protected=protected)
+            result["protected_release_count"] = len(protected)
+            bundle_result = _gc_dependency_bundles(releases, current, agents, bundles, deadline)
+            result["dependency_bundles"] = bundle_result
+            result["reclaimed_bytes"] += bundle_result["reclaimed_bytes"]
+            result["errors"] += bundle_result["errors"]
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
+        result["errors"] += 1
+        result["dependency_bundles"] = {"status": "reference_or_lock_unavailable",
+                                        "error_class": type(error).__name__}
+    source_result = {"status": "not_needed"}
+    if keep > 0:
+        try:
+            if _current_release(current, releases) is not None and result["errors"] == 0:
+                source_result = reclaim_unreferenced_source(releases, current, agents, keep)
+        except (OSError, ValueError):
+            source_result = {"status": "invalid_current"}
     result["source_reclaim"] = source_result
     result["reclaimed_bytes"] += source_result.get("reclaimed_bytes", 0)
     result["errors"] += source_result.get("errors", 0)
@@ -527,29 +869,10 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         phase = "open_file_references"
         if remaining <= 0:
             raise subprocess.TimeoutExpired("lsof", 0)
-        opened = subprocess.run(["lsof", "-nP", "-Fpnf"], check=True,
-                                capture_output=True, text=True, timeout=min(4, remaining))
-        if opened.stderr:
-            raise OSError("release FD inventory has coverage gaps")
         base = releases.resolve()
-        release_prefix = str(base) + os.sep
-        pid = descriptor = None
-        for line in opened.stdout.splitlines():
-            if line.startswith("p"):
-                pid, descriptor = line[1:], None
-                continue
-            if line.startswith("f"):
-                descriptor = line[1:]
-                continue
-            if not line.startswith("n/"):
-                continue
-            if (pid == str(os.getpid()) and descriptor is not None
-                    and descriptor.isdecimal() and int(descriptor) in owned_fds):
-                continue
-            if not line[1:].startswith(release_prefix):
-                continue
+        for path in _open_reference_paths((releases,), min(4, remaining), owned_fds):
             try:
-                parts = Path(line[1:]).relative_to(base).parts
+                parts = Path(path).relative_to(base).parts
                 if parts:
                     held.add(base / parts[0])
             except ValueError:

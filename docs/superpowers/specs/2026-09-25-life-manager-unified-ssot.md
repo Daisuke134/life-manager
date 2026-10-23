@@ -439,6 +439,8 @@ PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象ins
 - [ ] BUNDLE-GC-SHIP: fresh read-only review/既存CI13jobs成功/main/public byte readbackを確認する。check登録前の部分的成功や別headをPASSにしない。
 - [ ] BUNDLE-GC-ACTUAL: accepted mainから既存--release-gc-onlyを候補root/keep0へ対象限定実行し、fresh参照・所有・保護条件とreceipt/free-before-afterを確認する。logical/allocatedとAPFS物理増加を混同せず、floor未到達・swap/旧effect未確定はそのまま残す。
 
+BUNDLE-GCの実装候補: 指定3filesだけで既存central入口へ統合し、旧cutter pruner/2callsを除く。worker最新focused24 PASS/6subtests（0.35s）、最後のstore微修正前のcut/source関連62 PASS/13subtests（27.81s）、既存GC/FD subset7 PASS、selected Python/sparse2 PASSとする。通常source名の誤保持、alias参照、長いps一覧、state symlink、hardlink先mode、parent cutlock、未知probeでrelease側も削除0を隔離fixtureで確認する。source境界/diff/bash構文はPASS。primaryのexacttree関連4filesとfresh review/CI/main/実容量回復は未完。実機の新negotiate run18e1494e6232c050-7866はinstalled/eventとも8df/report75/swap_pressure_high/retrytrue/receipt無しであり、source修復や登録だけを全業務の復旧にしない。
+
 順序変更: 旧BOOTSTRAP-RUNTIME→INSTALL-REUSE→残runtimeから、新BOOTSTRAPの公開CI完了→BUNDLE-GC→INSTALL-REUSE/残runtimeへ進める。共有採用で旧自所有artifactの参照が無くなり、約3.208GBの具体的回収候補と安全入口の不足を特定したため、現在のhost容量復旧を先に進める。REDはc454cc34a7でremoteへ保存し、GREENを同じ3filesに限定して実装する。BOOTSTRAPの全13job成功を受け入れ、現在cursorはBUNDLE-GC-GREEN。全業務/別Mac/10,000starsは未完。
 
 順序変更: 旧CAPACITY-ACTUAL→INSTALL-REUSE→全runtimeから、新CAPACITY-ACTUALと独立PROVENANCE sourceを並行→PROVENANCE反映→INSTALL-REUSE/残runtimeへ進める。理由は自然reconcilerに誤解除可能な自己所有の証明不具合を具体的に確認し、容量復旧を止めずに再送リスクを最短で除くため。現在cursorは本節冒頭を参照する。

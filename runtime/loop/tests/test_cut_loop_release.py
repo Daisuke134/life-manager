@@ -1,5 +1,6 @@
 import json
 import hashlib
+import errno
 import io
 import os
 import plistlib
@@ -39,9 +40,35 @@ class CutLoopReleaseTest(unittest.TestCase):
             ["git", "-C", str(cls.source_repo), "update-ref", "refs/remotes/origin/main", "HEAD"],
             check=True, capture_output=True,
         )
+        cls.probe_root = Path(fixture.name) / "probes"
+        cls.probe_root.mkdir()
+        (cls.probe_root / "sitecustomize.py").write_text("import release_gc_probe\n")
+        (cls.probe_root / "release_gc_probe.py").write_text(
+            "import os,subprocess\n"
+            "original_run=subprocess.run\n"
+            "def run(command,*args,**kwargs):\n"
+            "    if isinstance(command,(list,tuple)) and os.path.basename(str(command[0])) in ('ps','lsof'):\n"
+            "        return subprocess.CompletedProcess(command,0,'','')\n"
+            "    if isinstance(command,(list,tuple)) and os.path.basename(str(command[0])) == 'plutil':\n"
+            "        raise AssertionError('unexpected native plist fixture probe')\n"
+            "    return original_run(command,*args,**kwargs)\n"
+            "subprocess.run=run\n"
+        )
 
     def setUp(self):
-        self.enterContext(mock.patch.dict(os.environ, {"LIFE_MANAGER_SOURCE_REPO": str(self.source_repo)}))
+        fixture = tempfile.TemporaryDirectory()
+        self.addCleanup(fixture.cleanup)
+        home = Path(fixture.name)
+        agents = home / "agents"
+        agents.mkdir()
+        protected = home / "protected-releases.json"
+        protected.write_text("[]")
+        self.enterContext(mock.patch.dict(os.environ, {
+            "HOME": str(home), "LIFE_MANAGER_SOURCE_REPO": str(self.source_repo),
+            "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+            "LIFE_MANAGER_PROTECTED_RELEASES": str(protected),
+            "PYTHONPATH": str(self.probe_root),
+        }))
 
     def test_matching_locked_dependencies_rejects_reclaimed_donor(self):
         source = (ROOT / "bin/cut-loop-release.sh").read_text()
@@ -206,13 +233,13 @@ class CutLoopReleaseTest(unittest.TestCase):
         capacity_probe = root / "capacity-probe"
         capacity_probe.mkdir(exist_ok=True)
         (capacity_probe / "sitecustomize.py").write_text(
-            "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n"
+            "import release_gc_probe\nimport shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n"
         )
         return subprocess.run(
             ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), sha],
             cwd=repo,
             env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(repo),
-                 "PYTHONPATH": str(capacity_probe),
+                 "PYTHONPATH": str(capacity_probe) + os.pathsep + str(self.probe_root),
                  "LOOPS_ROOT": str(root / "loops"), "LOOPS_RELEASE_PATHS": paths,
                  "LOOPS_ACTIVATE_CURRENT": "1" if activate else "0",
                  "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
@@ -546,11 +573,17 @@ class CutLoopReleaseTest(unittest.TestCase):
             retained = releases / "retained"
             retained.mkdir(parents=True)
             bundles = loops / "dependency-bundles"
-            referenced = bundles / "npm-referenced"
-            orphan = bundles / "npm-orphan"
+            referenced = bundles / ("npm-" + "a" * 64)
+            orphan = bundles / ("npm-" + "b" * 64)
             for bundle in (referenced, orphan):
                 (bundle / "node_modules").mkdir(parents=True)
-                (bundle / ".complete").write_text("key\n")
+                (bundle / ".complete").write_text(bundle.name[4:] + "\n")
+                (bundle / "package.json").write_text("{}\n")
+                (bundle / "package-lock.json").write_text("{}\n")
+                (bundle / "node_modules/.package-lock.json").write_text("{}\n")
+                for path in bundle.rglob("*"):
+                    path.chmod(0o555 if path.is_dir() else 0o444)
+                bundle.chmod(0o555)
             (retained / "node_modules").symlink_to(referenced / "node_modules")
             (retained / "RELEASE.json").write_text(
                 '{"sha":"%s","release_paths":"runtime/loop"}\n' % ("a" * 40)
@@ -1003,6 +1036,13 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertEqual(replay["removed_releases"], 0)
         self.assertEqual(replay["reclaimed_bytes"], 0)
 
+    def test_release_gc_only_empty_roots_need_no_reference_probe(self):
+        self.ps_code = self.lsof_code = 1
+        code, result = self._gc()
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["reclaimed_bytes"], 0)
+        self.assertEqual(self.commands, [])
+
     def test_release_gc_only_preserves_current_bundle(self):
         bundle = self._bundle()
         release = self._release(bundle)
@@ -1034,11 +1074,38 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self._gc()
         self.assertTrue(bundle.exists())
 
+    def test_release_gc_only_preserves_bundle_named_by_plist_directory_or_environment(self):
+        for index, key in enumerate(("WorkingDirectory", "EnvironmentVariables"), 1):
+            bundle = self._bundle(f"{index:064x}")
+            alias = self.root / f"dependency alias {index}"
+            alias.symlink_to(bundle)
+            fields = {key: str(alias / "node_modules") if key == "WorkingDirectory"
+                      else {"NODE_PATH": str(alias / "node_modules")}}
+            with self.subTest(fields=tuple(fields)):
+                (self.agents / "ai.anicca.fixture.plist").write_bytes(plistlib.dumps(fields))
+                self._gc()
+                self.assertTrue(bundle.exists())
+
     def test_release_gc_only_preserves_bundle_named_by_process(self):
         bundle = self._bundle()
         self.ps_stdout = f"999999 node {bundle}/node_modules/fixture.js\n"
         self._gc()
         self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_reclaims_bundle_with_long_multiline_process_inventory(self):
+        bundle = self._bundle()
+        executable = self.root / "unrelated-process"
+        executable.write_text("unrelated fixture\n")
+        self.ps_stdout = "\n".join(f"{executable} --payload {'x' * 300}" for _ in range(40))
+        resolve = Path.resolve
+        def bounded_resolve(path, *args, **kwargs):
+            if "\n" in os.fspath(path):
+                raise OSError(errno.ENAMETOOLONG, "fixture path exceeds native path bound")
+            return resolve(path, *args, **kwargs)
+        with mock.patch.object(Path, "resolve", bounded_resolve):
+            code, result = self._gc()
+        self.assertEqual(code, 0, result)
+        self.assertFalse(bundle.exists())
 
     def test_release_gc_only_preserves_unowned_fd_even_in_its_own_process(self):
         bundle = self._bundle()
@@ -1054,13 +1121,40 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         for bundle, path in zip(bundles, paths):
             self.assertEqual((bundle / path).read_text(), "protected fixture\n")
 
+    def test_release_gc_only_reclaims_regular_dependency_source_names(self):
+        bundle = self._bundle(protected_path="node_modules/sessions/credentials/wallet.js")
+        memory_file = self._bundle("b" * 64, protected_path="node_modules/memory")
+        self._gc()
+        self.assertFalse(bundle.exists())
+        self.assertFalse(memory_file.exists())
+
+    def test_release_gc_only_preserves_state_directory_symlink(self):
+        bundle = self._bundle(protected_path="node_modules/journal/events.jsonl")
+        modules = bundle / "node_modules"
+        modules.chmod(0o755)
+        (modules / "state").symlink_to("journal", target_is_directory=True)
+        modules.chmod(0o555)
+        self._gc()
+        self.assertTrue(bundle.exists())
+
+    def test_release_gc_only_never_chmods_hardlinked_files(self):
+        bundle = self._bundle()
+        outside = self.root / "external-hardlink"
+        os.link(bundle / "node_modules/fixture.js", outside)
+        self._gc()
+        self.assertFalse(bundle.exists())
+        self.assertEqual(outside.read_text(), "sealed dependency\n")
+        self.assertEqual(stat.S_IMODE(outside.stat().st_mode), 0o444)
+
     def test_release_gc_only_preserves_bundle_when_fd_inventory_is_unknown(self):
         bundle = self._bundle()
+        release = self._release(bundle)
         for code, stderr in ((1, ""), (0, "coverage gap")):
             with self.subTest(code=code, stderr=stderr):
                 self.lsof_code, self.lsof_stderr = code, stderr
                 self._gc()
                 self.assertTrue(bundle.exists())
+                self.assertTrue(release.exists())
 
     def test_release_gc_only_preserves_bundle_when_process_inventory_is_unknown(self):
         bundle = self._bundle()
@@ -1097,14 +1191,27 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
 
     def test_release_gc_only_preserves_bundle_with_other_cut_lock_owner(self):
         bundle = self._bundle()
+        release = self._release(bundle)
         lock = self.loops / ".release-cut.lock"
         lock.mkdir()
         (lock / "pid").write_text(str(os.getpid()) + "\n")
         inode = lock.stat().st_ino
         self._gc()
         self.assertTrue(bundle.exists())
+        self.assertTrue(release.exists())
         self.assertEqual(lock.stat().st_ino, inode)
         self.assertEqual((lock / "pid").read_text(), str(os.getpid()) + "\n")
+
+    def test_release_gc_only_borrows_exact_parent_cut_lock_without_removing_it(self):
+        bundle = self._bundle()
+        lock = self.loops / ".release-cut.lock"
+        lock.mkdir()
+        (lock / "pid").write_text(str(os.getppid()) + "\n")
+        inode = lock.stat().st_ino
+        self._gc()
+        self.assertFalse(bundle.exists())
+        self.assertEqual(lock.stat().st_ino, inode)
+        self.assertEqual((lock / "pid").read_text(), str(os.getppid()) + "\n")
 
     def test_release_gc_only_preserves_foreign_uid_and_changed_bundle_inode(self):
         bundle = self._bundle()
