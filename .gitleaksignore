@@ -1083,3 +1083,9 @@ ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-pub
 8dacc657fc04b35a000d08c48471af541bab5a1d:docs/evidence/lm-foundation-audit-20261022.json:generic-api-key:6059
 # Public fixture SHA-256 effect identity independently reproduced from its exact source commit.
 9ea03355acbcb8e251e3f4c79df6ca16da8a09f9:products/manager/docs/verification/E16_RECOVERY_REVIEW_20261022.md:generic-api-key:51
+
+# Public deterministic effect IDs independently bound to native public readbacks:
+# 629fd21a6c63f93cc2d45bb2b017ef5e31dd1c2a993ad675331872427c54179e -> Pages commit 61909d20220fcf14132a6f5f459ce19796f1fc2d.
+# 818e60caa8b4f64183f162483f54d0cbc4112fdddf531bdcc2668e268a2d0d07 -> Pages commit 374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f.
+17d400f225ab4ee320daae337b2e866e0c32884a:products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json:generic-api-key:64
+17d400f225ab4ee320daae337b2e866e0c32884a:products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json:generic-api-key:191
