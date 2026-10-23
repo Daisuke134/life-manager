@@ -60,14 +60,17 @@ primaryは既存CLI拡張を選ぶ。独立した新CLI/packageは起動入口�
 ## Task 2: 公開source受入と未完条件の保持
 
 - [x] fresh read-only reviewerがReview Focusと実CLI境界を検証する。成立した不具合は最小RED→GREENで修正する。
-- [ ] 最新mainの既存変更を保持し、関連tests・Loop Contract/source-boundary/OSS/diffを確認する。無関係な全suiteや新frameworkを足さない。
-- [ ] exact-head CI全成功後PR/mainへ統合する。READMEの実行例をmain由来の完全sealed releaseで呼び、外部呼出し0のJSONを確認する。
-- [ ] S11/本planへsource結果と残る実生成・投稿・費用・収益/OSS導入・MCP・subscription条件を記録する。実配信や収益の完了とは報告しない。
+- [x] 最新mainの既存変更を保持し、関連tests・Loop Contract/source-boundary/OSS/diffを確認する。無関係な全suiteや新frameworkを足さない。
+- [x] exact-head CI全成功後PR/mainへ統合する。READMEの実行例をmain由来の完全sealed releaseで呼び、外部呼出し0のJSONを確認する。
+- [x] S11/本planへsource結果と残る実生成・投稿・費用・収益/OSS導入・MCP・subscription条件を記録する。実配信や収益の完了とは報告しない。
 
 ## 実装記録
 
 - 既存linked worktreeを再利用する。新しいcheckoutやdependency installを増やさず、既存CLI helpとpublish intent関連7 testsのPASSを基準にする。
 - userのNo-human-loopとUIモデル選択を優先し、skillの承認待ち・モデル固定・無関係な全suiteは追加しない。独立作業の並行指示に従いbounded workerとprimaryで所有を分け、全差分reviewを保持する。
 
-- CLIのEN/JA成功assertは2 RED（argparse exit2）、pure plannerは39 RED（空plan/未検証）を先に観測する。統合した関連３filesはprimary/workerとも67 PASS。Loop Contract18業務/191jobs/errors0、OSSとdiffもPASS。whole-branch fresh reviewは進行中で、CI/main/releaseは未完。
-- whole-branch fresh reviewerはhead8d7ac26a3aで指摘0件。関連67件/新規単独44件PASS。cold importのprovider/subprocess/DB/private state操作0、既存jsonschema同梱schema20件の静的読取を観測する。PR8654のCI/main/完全releaseは未完。
+- CLIのEN/JA成功assertは2 RED（argparse exit2）、pure plannerは39 RED（空plan/未検証）を先に観測する。統合した関連３filesはprimary/workerとも67 PASS。Loop Contract18業務/191jobs/errors0、OSSとdiffもPASS。whole-branch fresh review/CI/main/releaseの結果は後段に記録する。
+- whole-branch fresh reviewerはhead8d7ac26a3aで指摘0件。関連67件/新規単独44件PASS。cold importのprovider/subprocess/DB/private state操作0、既存jsonschema同梱schema20件の静的読取を観測する。PR8654のCI/main/完全releaseの結果は後段に記録する。
+
+- PR8654はexact head d55ff417d54d89d84894b6887cda4a92bbf90fe8の全13check成功後main247474a9へ統合する。ALL/sealed release20261023T165806-247474a9は11,368entryの書込bit0/重要5file Git一致。固定runtimeの実CLIはEN/JAともexit0/planned/provider_calls0/external_effects[]/state_root未作成/request SHA一致、EN en-US/JA locale省略を確認する。private proof SHA2656199a85501ee98c8e1bee313e16456e1ffefce3736a07ade09913e27fbf12。
+- 結果文書だけの追記は新しいsource挙動変更を含まないため関連67testsを再実行しない。JSON/diff/source-boundaryで受入し、本結果記録PRのexact CI/mainを追う。Factoryの実生成・日次配信・費用/実売上・他者導入・MCP・hosted subscriptionは未完である。共有current/JA停止/EN容量待ち/既存費用fenceを変更しない。

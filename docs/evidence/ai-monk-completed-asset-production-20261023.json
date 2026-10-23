@@ -1272,5 +1272,63 @@
     "provider_writes": 0,
     "self_purchase": false,
     "private_evidence_sha256": "9fb58785fd9d6592a1ed703f7c7710cba89526a61b2ae33285d240096ae1935a"
+  },
+  "factory_user_config_offline_acceptance": {
+    "source_pr": "https://github.com/Daisuke134/life-manager/pull/8654",
+    "source_head": "d55ff417d54d89d84894b6887cda4a92bbf90fe8",
+    "main_commit": "247474a9df537bc863a2b970a91df8d9111af576",
+    "checks": {
+      "exact_head_success": 13,
+      "sec_scan_run": "39920370039",
+      "focused_tests_passed": 67,
+      "fresh_read_only_findings": 0
+    },
+    "candidate_release": "/Users/anicca/loops/releases/20261023T165806-247474a9",
+    "release_paths": "ALL",
+    "sealed_entry_count": 11368,
+    "writable_entries": 0,
+    "critical_source_hashes": {
+      "skills/earn/marketing-engine/bin/lm": "3c2f2e898a31a0414f22adda748a2571dc78fb99ae1df5d9b369a2baf83b104b",
+      "skills/earn/marketing-engine/factory_plan.py": "4c56be4231a0b1a0f24f54ceebda4be8cbb0002afc481bbd8a9cda5a91dbf183",
+      "skills/earn/marketing-engine/examples/ai-monk-factory.config.example.json": "59d6a0e3c73c8f74e92525cece2798a525bb9cd92a56052fe2de33ad89f3c6bf",
+      "skills/earn/marketing-engine/render_eval/heygen_candidate.py": "a03166ff0523ac3bd58be85d0f338dc3caa5362f091b2e3c57544870e62a9a8d",
+      "skills/earn/marketing-engine/README.md": "7011d1a8b4223d976eaf3ca4ff88b96b7dfdce25eb4e4305868861e32e7b75a4"
+    },
+    "actual_cli_runs": [
+      {
+        "language": "en",
+        "exit_code": 0,
+        "status": "planned",
+        "reported_provider_calls": 0,
+        "external_effects": [],
+        "state_root_created": false,
+        "request_sha256": "166f16ef1d4af4cf75003370c4946899a89311b2937b2010563426ac0c901d6d",
+        "plan_sha256": "cd5282d73ce9d94dcb7e8050403a3fb06df496dc7a9608b97baab9e4e6409ae5",
+        "locale": "en-US"
+      },
+      {
+        "language": "ja",
+        "exit_code": 0,
+        "status": "planned",
+        "reported_provider_calls": 0,
+        "external_effects": [],
+        "state_root_created": false,
+        "request_sha256": "636626bce92277a47af746845ba97610cdc5c0986785333d30dacaf4f8e151eb",
+        "plan_sha256": "f4208cb88a7311b8c40a5b0d828cff55ad9bc3f95805a80f55d6af2cda95d958",
+        "locale": null
+      }
+    ],
+    "private_evidence_file": "ai-monk-factory-config-release-proof-20261023.json",
+    "private_evidence_sha256": "2656199a85501ee98c8e1bee313e16456e1ffefce3736a07ade09913e27fbf12",
+    "shared_current_readonly": "/Users/anicca/loops/releases/20261023T162454-e6260790",
+    "production_activation": false,
+    "completed_scope": "User-configured offline plan only; no auth or provider existence validation",
+    "remaining": [
+      "Generation and publication execution entry",
+      "Cost reconciliation and actual paid orders",
+      "Other-user installation",
+      "Factory MCP",
+      "Hosted subscription"
+    ]
   }
 }
