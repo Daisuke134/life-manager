@@ -38,3 +38,5 @@
 | 2026-10-23 | listing | BOOTH: ショート動画AIプロンプト大全40本 PDF (¥1,200) | booth:9031865 | Side Hustle CEO | listed | https://sidehustleceo.booth.pm/items/9031865 | 振込先口座未登録 |
 | 2026-10-23 | listing | BOOTH: 無料サンプル (¥0) | booth:9031873 | Side Hustle CEO | listed | https://sidehustleceo.booth.pm/items/9031873 | 有料版への導線 |
 | 2026-10-23 | listing | Gumroad: Short-Form Video AI Prompt Playbook ($19) | gumroad:bxqhru | Side Hustle CEO | claimed | https://sidehustleceo.gumroad.com/l/bxqhru | 下書き、受取口座未登録で公開不可 |
+| 2026-10-23 | grant | Claude for Open Source (Claude Max 20x 6か月) | claude.com/contact-sales/claude-for-oss | Local Life Manager (Mac mini Claude Code) | needs-owner | https://claude.com/contact-sales/claude-for-oss | 未送信。成田さんのGitHub OAuthでrepo選択＋実名・メールが必要。基準未達見込みで "apply anyway" 枠。下書き PR #8691 |
+| 2026-10-23 | grant | GitHub Secure Open Source Fund ($10,000) | resources.github.com/github-secure-open-source-fund | Local Life Manager (Mac mini Claude Code) | needs-owner | https://forms.office.com/r/YN3MWEKQ5m | 未送信。本人確約（18歳以上・コアメンテナ・居住地・3週間20時間PST参加）と traction/governance 要件の判断が成田さんに必要。下書き PR #8691 |
