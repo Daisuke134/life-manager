@@ -18,6 +18,7 @@
 - Both provider stores use exactly `checkpoint.db`; every effect reservation is remotely acknowledged before provider send.
 - A checkpoint uncertainty permanently fences that checkpoint object, including interruption by `BaseException`; preserve the original non-Exception interrupt.
 - UNKNOWN remains UNKNOWN. No automatic recreation/resend, no refund of UNKNOWN/cancelled reservations, no provider effect promoted from model text.
+- Cancellation receipt `cancellation_sent` is `False` only for no POST in this invocation, `True` for an acknowledged POST, and `None` when a POST may have occurred but its response was lost; writer/event uncertainty remains held.
 - Reservation cap is not a provider-enforced token/spend ceiling or settled cost. Existing usage estimates and null settlement retain that meaning.
 - The callable entrypoint returns strict parsed P0 advice with `authorized_execution=False`, `causal_support=False`, and `human_outcome=NOT_MEASURED`.
 - Do not claim automatic exact-turn recovery: existing journal retains session/event identities, not persisted turn IDs. Read-only session reconciliation and exact IDs supplied by an operator are distinct.
@@ -62,10 +63,11 @@ Provider snapshot tables are optional for old snapshots, but if any are present 
 - `initial(client, context: PlannerContext, *, request_id: str, upper_usd: Decimal, deadline_monotonic: float) -> ProviderAdvice`.
 - `followup(client, session_id: str, context: PlannerContext, *, key: str, upper_usd: Decimal, deadline_monotonic: float) -> ProviderAdvice`; derive stable writer and budget IDs from session+key.
 - `reconcile(client, request_id: str, *, deadline_monotonic: float) -> Intent`; bounded read-only scan with existing pagination and durable bind, never creates a session/turn.
+- `cancel(client, session_id: str, turn_id: str, *, key: str, deadline_monotonic: float) -> CancellationReceipt`; bound the complete operation by the existing absolute deadline. Verify latest/current turn identity before a session-wide cancel; release the writer only after exact terminal readback and a consistent latest turn. Bind the local cancellation reservation to session and target turn without inventing provider-side CAS parameters.
 - Initial budget ID is `initial_` + SHA256(request_id UTF-8); followup ID is `followup_` + SHA256(session_id + NUL + key UTF-8). These bind namespace and operation, not a workflow run.
 - Optional readonly provider-state validator may live in `owned_provider.py` and be called lazily by `_validate_database`; no table creation in validation.
 
-- [ ] **Step 1: Write focused regressions before implementation.** Promote the existing source/tests unchanged as the reuse baseline, then demonstrate failing new assertions for missing hooks/wrapper and BaseException fencing. Store actual RED command/output outside Git.
+- [x] **Step 1: Write focused regressions before implementation.** Promote the existing source/tests unchanged as the reuse baseline, then demonstrate failing new assertions for missing hooks/wrapper and BaseException fencing. Store actual RED command/output outside Git.
 
 New tests must assert these observable behaviors:
 
@@ -82,9 +84,9 @@ assert provider_create_count == 0
 
 Also cover followup and cancel event/writer ACK before HTTP; early BIND, usage and writer release survive save/restore; crash-before/after-send quarantines same creation/event; cap survives fresh runner; malformed output cannot mint execution; old snapshot compatibility, partial-table and invalid cap/usage/reference rejection. For UNKNOWN reconciliation, absent/ambiguous/incomplete provider pages remain fenced with no send. Include explicit rejection of synthetic facts in public mode and acceptance of a real typed public context.
 
-- [ ] **Step 2: Run RED.** `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_owned_provider -v`. Name missing behavior rather than accept unrelated import/fixture errors as evidence.
-- [ ] **Step 3: Implement the interfaces above minimally.** Use existing API/deadline/session/budget functions; no new retry loop. Add exception fencing without swallowing original process interrupts. New initial/followup always use public-mode prompt and existing strict `safe_advisory` parsing.
-- [ ] **Step 4: Run focused GREEN.** `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_owned_provider test_owned_checkpoint test_owned_checkpoint_order test_provider_session_recovery test_provider_budget test_provider_deadlines -v`.
-- [ ] **Step 5: Verify the main-derived Manager suite.** `PYTHONPATH=products/manager python3 -m unittest discover -s products/manager/tests -q`; `git diff --check`. Record totals and any warnings/failures; no claim of networked inference or human benefit.
-- [ ] **Step 6: Update the deploy README.** Explain opt-in callable use, shared snapshot, UNKNOWN policy, reservation-vs-cost limits, and that scheduled planner stays deterministic.
-- [ ] **Step 7: Commit only owned files, self-review and report.** No push/PR/merge/provider effects by worker. Controller handles fresh read-only review, normal checks/PR/merge, then any separately justified canary. Completion of this bounded component does not complete U002 or the Manager entity.
+- [x] **Step 2: Run RED.** `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_owned_provider -v`. Name missing behavior rather than accept unrelated import/fixture errors as evidence.
+- [x] **Step 3: Implement the interfaces above minimally.** Use existing API/deadline/session/budget functions; no new retry loop. Add exception fencing without swallowing original process interrupts. New initial/followup always use public-mode prompt and existing strict `safe_advisory` parsing.
+- [x] **Step 4: Run focused GREEN.** `PYTHONPATH=products/manager:products/manager/tests python3 -m unittest test_owned_provider test_owned_checkpoint test_owned_checkpoint_order test_provider_session_recovery test_provider_budget test_provider_deadlines -v`.
+- [x] **Step 5: Verify the main-derived Manager suite.** `PYTHONPATH=products/manager python3 -m unittest discover -s products/manager/tests -q`; `git diff --check`. Record totals and any warnings/failures; no claim of networked inference or human benefit.
+- [x] **Step 6: Update the deploy README.** Explain opt-in callable use, shared snapshot, UNKNOWN policy, reservation-vs-cost limits, and that scheduled planner stays deterministic.
+- [x] **Step 7: Commit only owned files, self-review and report.** No push/PR/merge/provider effects by worker. Controller handles fresh read-only review, normal checks/PR/merge, then any separately justified canary. Completion of this bounded component does not complete U002 or the Manager entity.
