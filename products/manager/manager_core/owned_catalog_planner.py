@@ -22,10 +22,11 @@ from urllib.parse import unquote, urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
 from .authority import OwnedDigitalScope
-from .candidate_verification import TechnicalCriteria, verify_candidate
+from .candidate_verification import (CURRENT_PAGE_W3C_URL, CurrentPageCriteria, TechnicalCriteria,
+                                     _current_navigation, add_current_page_cue, verify_candidate)
 from .collaboration import PlannerContext, PublicFact
 from .digital_environment import PAGES, PUBLISH_PREFIX, SOURCE_REPO, audit_sources, validate_catalog, verify_readback
-from .digital_handoff import ALLOWED_PATHS, OwnedChangeContext
+from .digital_handoff import ALLOWED_PATHS, PUBLIC_BASE, OwnedChangeContext
 from .models.intervention import Candidate
 from .models.source import Source
 
@@ -52,6 +53,12 @@ class CatalogOpportunity:
     old_url: str
     expected_url: str
     required_label: str | None
+
+
+@dataclass(frozen=True)
+class CurrentPageOpportunity:
+    action: str
+    target_path: str
 
 
 class _Anchors(HTMLParser):
@@ -206,6 +213,63 @@ def _source_from_row(resource, observed):
                   observed["sha256"], datetime.fromisoformat(observed["observed_at"]), "public_nonpersonal")
 
 
+def _read_current_page_reference():
+    """Read the exact W3C primary definition; redirects and oversized bodies fail closed."""
+    from urllib.error import HTTPError, URLError
+    from urllib.request import HTTPRedirectHandler
+
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self,*_args,**_kwargs):
+            return None
+
+    request=Request(CURRENT_PAGE_W3C_URL,headers={
+        "User-Agent":"Manager-Current-Page-Source-Review/1.0","Accept":"text/html"},method="GET")
+    try:
+        opener=build_opener(NoRedirect())
+        with opener.open(request,timeout=15) as response:
+            if response.status!=200 or response.geturl()!=CURRENT_PAGE_W3C_URL:
+                raise ValueError("W3C primary source response changed")
+            body=response.read(2*1024*1024+1)
+            if (len(body)>2*1024*1024 or "html" not in response.headers.get("Content-Type","").lower()
+                    or b"aria-current" not in body.lower() or b"page" not in body.lower()):
+                raise ValueError("W3C current-page definition unavailable")
+    except (HTTPError,URLError,OSError,TimeoutError) as exc:
+        raise ValueError("W3C primary source unavailable") from exc
+    source=Source("w3c:aria-current-1.2",CURRENT_PAGE_W3C_URL,"W3C Document License",
+                  "allowed_with_conditions",sha256(body).hexdigest(),_utcnow(),"public_nonpersonal")
+    source.verify_content(body)
+    return source,body
+
+
+def _read_owned_baseline_page(target):
+    """Bind baseline provenance to a fresh exact GET of the owned current page."""
+    from urllib.error import HTTPError, URLError
+    from urllib.request import HTTPRedirectHandler
+
+    if target not in {"finance.html","mental.html"}:
+        raise ValueError("owned baseline target outside fixed allowlist")
+
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self,*_args,**_kwargs):
+            return None
+
+    url=PUBLIC_BASE+target
+    request=Request(url,headers={"User-Agent":"Manager-Current-Page-Source-Review/1.0",
+                                 "Accept":"text/html"},method="GET")
+    try:
+        opener=build_opener(NoRedirect())
+        with opener.open(request,timeout=15) as response:
+            if (response.status!=200 or response.geturl()!=url
+                    or "html" not in response.headers.get("Content-Type","").lower()):
+                raise ValueError("owned baseline response changed")
+            body=response.read(2*1024*1024+1)
+            if len(body)>2*1024*1024:
+                raise ValueError("owned baseline exceeded the fixed body bound")
+    except (HTTPError,URLError,OSError,TimeoutError) as exc:
+        raise ValueError("owned baseline source unavailable") from exc
+    return body,_utcnow()
+
+
 def _private_workspace(path, checkout):
     path = Path(path)
     if path.is_symlink():
@@ -252,13 +316,16 @@ def _materialize(baseline_dir, opportunity, source_commit, output_dir, manifest)
 
     target = output_dir / opportunity.target_path
     body = target.read_bytes().decode("utf-8")
-    old = 'href="' + _escape_html(opportunity.old_url) + '"'
-    new = 'href="' + _escape_html(opportunity.expected_url) + '"'
-    if opportunity.action == "CORRECT_LINK":
+    if opportunity.action == "ADD_CURRENT_PAGE_CUE":
+        body=add_current_page_cue(body.encode("utf-8"),opportunity.target_path).decode("utf-8")
+    elif opportunity.action == "CORRECT_LINK":
+        old = 'href="' + _escape_html(opportunity.old_url) + '"'
+        new = 'href="' + _escape_html(opportunity.expected_url) + '"'
         if body.count(old) != 1:
             raise ValueError("catalog target became ambiguous")
         body = body.replace(old, new, 1)
     else:
+        new = 'href="' + _escape_html(opportunity.expected_url) + '"'
         pattern = r'(<a\b[^>]*\bhref="' + re.escape(new[6:-1]) + r'"[^>]*>)\s*</a>'
         body, count = re.subn(pattern, lambda match: match.group(1) + _escape_html(opportunity.required_label) + "</a>", body, count=1)
         if count != 1:
@@ -318,9 +385,10 @@ def plan_catalog_change(checkout, workspace, source_commit, now, *, run_id):
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     validate_catalog(catalog)
 
-    # Establish whether a fixed target could change before making any source requests.
-    potential = _potential_opportunity(local_bodies, catalog)
-    if potential is None:
+    # Existing v1 repairs retain priority; the current-page cue is a separate v2 path.
+    legacy_potential = _potential_opportunity(local_bodies, catalog)
+    current_potential = None if legacy_potential is not None else find_current_page_opportunity(local_bodies)
+    if legacy_potential is None and current_potential is None:
         return None
 
     try:
@@ -331,14 +399,33 @@ def plan_catalog_change(checkout, workspace, source_commit, now, *, run_id):
     _source_audit_file(audit, work)
     if not _all_source_rows_ready(audit, catalog):
         raise CatalogPlanningUnavailable()
-    opportunity = find_catalog_opportunity(local_bodies, catalog, audit["sources"])
-    if opportunity is None:
-        raise CatalogPlanningUnavailable()
-    resource = next(row for row in catalog["resources"] if row["id"] == opportunity.catalog_id)
-    observed = _observed_row(audit["sources"], resource["id"], resource["url"])
-    source = _source_from_row(resource, observed) if observed else None
-    if source is None:
-        raise CatalogPlanningUnavailable()
+    if legacy_potential is not None:
+        opportunity = find_catalog_opportunity(local_bodies, catalog, audit["sources"])
+        if opportunity is None:
+            raise CatalogPlanningUnavailable()
+        resource = next(row for row in catalog["resources"] if row["id"] == opportunity.catalog_id)
+        observed = _observed_row(audit["sources"], resource["id"], resource["url"])
+        source = _source_from_row(resource, observed) if observed else None
+        if source is None:
+            raise CatalogPlanningUnavailable()
+        official_sources = (source,)
+    else:
+        opportunity = find_current_page_opportunity(local_bodies)
+        if opportunity is None:
+            return None
+        try:
+            baseline_bytes, baseline_observed_at = _read_owned_baseline_page(opportunity.target_path)
+            if baseline_bytes != local_bodies[opportunity.target_path]:
+                raise ValueError("current served baseline changed during source binding")
+            w3c_source, w3c_reference_bytes = _read_current_page_reference()
+        except ValueError:
+            raise CatalogPlanningUnavailable() from None
+        target_url = PUBLIC_BASE + opportunity.target_path
+        baseline_source = Source("owned-baseline:" + opportunity.target_path, target_url,
+                                 "Owned public baseline bytes", "allowed_with_conditions",
+                                 sha256(baseline_bytes).hexdigest(),
+                                 baseline_observed_at, "public_nonpersonal")
+        official_sources = (baseline_source, w3c_source)
 
     baseline_dir = work / "baseline"
     candidate_dir = work / "candidate"
@@ -348,20 +435,34 @@ def plan_catalog_change(checkout, workspace, source_commit, now, *, run_id):
     (baseline_dir / "manifest.json").write_bytes(local_manifest_bytes)
     _materialize(baseline_dir, opportunity, source_commit, candidate_dir, local_manifest)
 
-    candidate = Candidate("catalog-" + run_id + "-" + opportunity.catalog_id, opportunity.action,
-                          PUBLISH_PREFIX + opportunity.target_path, (source.source_id,),
-                          "verified_official_link_target" if opportunity.action == "CORRECT_LINK" else "accessible_link_label")
     criteria_at = _utcnow()
-    source.require_fresh(criteria_at, 48)
-    criteria = TechnicalCriteria(candidate, opportunity.old_url, opportunity.expected_url,
-                                 opportunity.required_label, (source,), criteria_at)
+    for source in official_sources:
+        source.require_fresh(criteria_at,48)
+    if legacy_potential is not None:
+        candidate = Candidate("catalog-" + run_id + "-" + opportunity.catalog_id, opportunity.action,
+                              PUBLISH_PREFIX + opportunity.target_path, (official_sources[0].source_id,),
+                              "verified_official_link_target" if opportunity.action == "CORRECT_LINK" else "accessible_link_label")
+        criteria = TechnicalCriteria(candidate, opportunity.old_url, opportunity.expected_url,
+                                     opportunity.required_label, official_sources, criteria_at)
+        context = PlannerContext("Make one reviewed official-support link correction or accessible label repair.",
+                                 (PublicFact(official_sources[0],
+                                             f"Official source {resource['id']} returned HTTP 200 at its catalog URL; this establishes reachability, not outcome."),),
+                                 criteria_at)
+    else:
+        candidate = Candidate("current-page-" + run_id + "-" + opportunity.target_path.removesuffix(".html"),
+                              opportunity.action,PUBLISH_PREFIX + opportunity.target_path,
+                              tuple(source.source_id for source in official_sources),"current_page_navigation_cue")
+        criteria = CurrentPageCriteria(candidate,official_sources,w3c_reference_bytes,criteria_at)
+        context = PlannerContext("Add one machine-readable current-page cue to the owned header navigation.",
+                                 (PublicFact(official_sources[0],
+                                             "The exact owned public page GET has one header-navigation self-link and no current-page cue."),
+                                  PublicFact(official_sources[1],
+                                             "W3C WAI-ARIA 1.2 defines the page token for the current page; this technical definition does not establish human benefit.")),
+                                 criteria_at)
     assessment = verify_candidate(baseline_dir, candidate_dir, criteria)
     if assessment.status != "VERIFIED_TECHNICAL":
         shutil.rmtree(candidate_dir)
         return None
-    context = PlannerContext("Make one reviewed official-support link correction or accessible label repair.",
-                             (PublicFact(source, f"Official source {resource['id']} returned HTTP 200 at its catalog URL; this establishes reachability, not outcome."),),
-                             criteria_at)
     scope = _freshness_scope(started)
     candidate_digest = _candidate_tree_digest(candidate_dir)
     verify_candidate_in_browser(candidate_dir, source_commit, candidate_digest)
@@ -372,6 +473,19 @@ def plan_catalog_change(checkout, workspace, source_commit, now, *, run_id):
         raise ValueError("candidate changed after browser verification")
     owned_context = OwnedChangeContext(run_id, context, baseline_dir, candidate_dir, criteria)
     return owned_context, final_assessment, scope
+
+
+def find_current_page_opportunity(baseline_bodies):
+    """Choose one exact current-page cue in fixed finance then mental order."""
+    if not isinstance(baseline_bodies,dict) or set(baseline_bodies)!=PAGES:
+        return None
+    for page in ("finance.html","mental.html"):
+        status,_=_current_navigation(baseline_bodies[page],page)
+        if status=="MISSING":
+            return CurrentPageOpportunity("ADD_CURRENT_PAGE_CUE",page)
+        if status!="CURRENT":
+            return None
+    return None
 
 
 def _potential_opportunity(bodies, catalog):
