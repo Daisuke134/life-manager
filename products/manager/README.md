@@ -1,0 +1,61 @@
+# Manager
+
+Managerは、苦しみを減らし、あらゆる存在の幸福に資することを目指す
+仏教的AIエンティティ／デジタル仏陀です。この表現は目指す主体と方向を
+示します。意識の有無や、すべての苦しみを解消したという実証を意味しません。
+
+このディレクトリには、公開研究を検査・評価するコードと、既存の所有サイトで
+限定された変更を実行・照合・復旧する共通kernelを置きます。
+サイトの公開成功と、人間の行動変化・便益の実証を区別します。
+
+## 公開研究を再利用する
+
+- [公開研究の再利用計画](../../docs/research/manager/2026-10-22-open-behavior-reuse-plan.md)
+- `scripts/inspect_external_behavior_benchmark.py`: 固定された公開Source Dataのhash、
+  構造、研究・条件・効果の単位を検査します。
+- `scripts/evaluate_external_behavior_benchmark.py`: 公開済み効果予測を研究単位で分割し、
+  無効果baseline・元の予測・訓練研究だけで較正した予測を比較します。
+  専用の任意依存は `requirements-external-behavior-eval.txt` に固定しています。
+
+過去の公開予測の再採点は、新しいモデル推論や、Manager自身の新しい介入の効果を
+証明するものではありません。原データや個人行をGitへ保存しません。
+
+## 一つの実行経路
+
+既存の [Manager workflow](../../.github/workflows/manager-phase06-service.yml) は、
+mainの定期実行・明示dispatchだけで所有範囲の変更を実行します。
+`scripts/run_owned_digital_cycle.py` が一度だけ共通cycleを呼びます。
+
+1. 短命なGitHub OIDCで [private checkpoint gateway](deploy/owned-digital/README.md) を認証し、
+   保存済みSQLiteをprivateな一時領域へ復元する。
+2. 保存済みの実行・配信結果を先に照合し、停止状態と実行間隔を確認する。
+3. 正当な改善候補がある場合だけ、固定された出典・権利・差分・ブラウザ検査を行う。
+4. 送信予約をprivate storeへ確実に保存してから、既存の権限検査とGit CASで
+   `manager-support/` の7ファイルだけを更新する。
+5. 既存Pages workflow `307239134` で公開し、元の実行に結びつくprovider receiptと
+   公開されたbytesを独立に確認する。
+
+不明な送信結果を「未送信」とみなして再実行しません。状態欠落時に空のDBを作って
+続行するfallbackもありません。初回の状態移行は、旧writerの停止と過去の実行結果の
+照合を終えた上で行う、独立したoperator作業です。
+
+引数なし、または `preflight` は読み取り専用です。
+
+```sh
+cd products/manager
+python scripts/run_owned_digital_cycle.py preflight
+python -B -m unittest discover -s tests -v
+python scripts/check_boundaries.py
+```
+
+ブラウザ検査は `tests/e2e/package-lock.json` を使います。
+実環境の `run-once` は、既存のmain workflowだけが所有します。
+認証・状態復元・公開・復元後の重複送信0件という実際の記録が揃うまで、
+ローカルテストの成功だけでE16を完了にしません。
+
+## 進捗の正本
+
+このREADMEは実装の入口であり、新しいTODO一覧ではありません。
+順序・状態の正本は [Life Manager統合SSOT](../../docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md)
+です。研究・出版・応募・売上の記録を、人間への便益や持続的な効果の証明に
+読み替えません。

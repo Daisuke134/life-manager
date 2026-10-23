@@ -51,7 +51,95 @@
     "private": false,
     "gated": false,
     "api_inspected": true,
-    "new_person_data_processed": false
+    "new_person_data_processed": true,
+    "wave4_inspection": {
+      "revision": "f883165a3026fde855dfd448e0cd16443ab257b6",
+      "license": "CC-BY-4.0",
+      "private": false,
+      "gated": false,
+      "snapshot_status": "FULL_FILE_HASHED_AND_AGGREGATE_INSPECTED",
+      "feature_or_scoring_authorized": false,
+      "code_pin": {
+        "repo": "tianyipeng-lab/Digital-Twin-Simulation",
+        "revision": "f1eed510c9a4fb47aaa9bb46e178aaa2d9224623",
+        "path": "evaluation/json2csv.py",
+        "description_row_contract": "formatted export writes header, description row, then data rows when add_description_row=True; this pin records the exact parsed row hash and position for the selected output."
+      },
+      "files": [
+        {
+          "name": "catalog.json",
+          "source_path": "question_catalog_and_human_response_csv/question_catalog.json",
+          "role": "question_catalog",
+          "bytes": 214137,
+          "sha256": "e72e305f0c7c83bb990e97de4c0cf2c718ead18cc197239b7feeb354c9ac1bef",
+          "url": "https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500/resolve/f883165a3026fde855dfd448e0cd16443ab257b6/question_catalog_and_human_response_csv/question_catalog.json"
+        },
+        {
+          "name": "mapping.json",
+          "source_path": "LLM_simulation_results/wave4_formatted_to_catalog_mapping.json",
+          "role": "official_mapping",
+          "bytes": 13962,
+          "sha256": "345f7f6645f80dc23bcb423a9bb7c5ae77dbbd17fe572472fdfeb252bdcfc2c7",
+          "url": "https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500/resolve/f883165a3026fde855dfd448e0cd16443ab257b6/LLM_simulation_results/wave4_formatted_to_catalog_mapping.json"
+        },
+        {
+          "name": "history.csv",
+          "source_path": "question_catalog_and_human_response_csv/wave1_3_response.csv",
+          "role": "wave1_3_history",
+          "bytes": 5462260,
+          "sha256": "fc227b1682e2654fd4b2a8152294b68118c0e3be4d83f4a9af5f3e96df56d3f0",
+          "url": "https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500/resolve/f883165a3026fde855dfd448e0cd16443ab257b6/question_catalog_and_human_response_csv/wave1_3_response.csv",
+          "header": {
+            "columns": 761,
+            "sha256": "6b62203d29bfa8ef74140a7ecfd5adaa3edd462f369108e3ce4f91d9cc8f9851"
+          }
+        },
+        {
+          "name": "target.csv",
+          "source_path": "question_catalog_and_human_response_csv/wave4_response.csv",
+          "role": "wave4_target",
+          "bytes": 633807,
+          "sha256": "09ec1a88bdd48fec95963da3102df0ca467378bf729cbc1c0b869b0f1e4fb942",
+          "url": "https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500/resolve/f883165a3026fde855dfd448e0cd16443ab257b6/question_catalog_and_human_response_csv/wave4_response.csv",
+          "header": {
+            "columns": 127,
+            "sha256": "902ecaaaeb824654cac304352fd66f192167f301c153ae69fd08cc64d3f0df59"
+          }
+        },
+        {
+          "name": "output.csv",
+          "source_path": "LLM_simulation_results/GPT4.1-mini-simulation-llm-vs-human/responses_llm_imputed_formatted.csv",
+          "role": "released_output_unverified",
+          "bytes": 783459,
+          "sha256": "22937217115db30c064489125e39ceb0539c461b678400d8b3e0827962e5436c",
+          "url": "https://huggingface.co/datasets/LLM-Digital-Twin/Twin-2K-500/resolve/f883165a3026fde855dfd448e0cd16443ab257b6/LLM_simulation_results/GPT4.1-mini-simulation-llm-vs-human/responses_llm_imputed_formatted.csv",
+          "header": {
+            "columns": 168,
+            "sha256": "f6971ee0853acb7292cf713a66943c0041fa1bc1003086068539b9a854c51c3d"
+          },
+          "description_row": {
+            "position": 2,
+            "sha256": "c4dcd1f9d463739fe881807d6b2253ada0e8232e1aec071c5f66261396ecee3b",
+            "hash_method": "SHA256 of UTF-8 canonical JSON array (ensure_ascii=false, compact separators) of parsed CSV row"
+          }
+        }
+      ],
+      "known_aggregate_metadata": {
+        "catalog_entries": 256,
+        "catalog_distinct_question_ids": 246,
+        "catalog_duplicate_question_id_count": 10,
+        "mapped_columns": 126,
+        "expected_question_types": {
+          "MC": 68,
+          "Matrix": 40,
+          "Slider": 12,
+          "TE": 6
+        },
+        "released_nonresearch_columns_excluded": 42,
+        "accuracy": null,
+        "generated_cell_provenance": "UNVERIFIED"
+      }
+    }
   },
   "nature": {
     "doi": "10.1038/s41586-026-10742-x",
