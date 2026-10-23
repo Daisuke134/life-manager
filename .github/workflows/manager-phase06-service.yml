@@ -91,9 +91,6 @@ jobs:
         run: |
           test ! -e "$RUNNER_TEMP/manager-owned-state"
           install -d -m 700 "$RUNNER_TEMP/manager-owned-state"
-      # The adapter dispatches only existing Pages workflow 307239134.
-      # The retired `git push origin HEAD:gh-pages` shell sender is gone.
-      # Receipt-gated in-cycle collection provides verify-live semantics; NO_ACTION has no Pages SHA to prove.
       - name: Restore, reconcile, and run one trusted main cycle
         id: cycle
         working-directory: source/products/manager

@@ -19,12 +19,13 @@ class OwnedWorkflowContractTests(unittest.TestCase):
         self.assertIn('id-token: write', workflow)
         self.assertIn('contents: write', workflow)
         self.assertIn('actions: write', workflow)
-        self.assertIn('307239134', workflow)
+        from manager_core.owned_platform_host import PAGES_WORKFLOW_ID
+        self.assertEqual(PAGES_WORKFLOW_ID, '307239134')
         self.assertIn('manager-public-summary.json', workflow)
         self.assertNotIn('cycle.sqlite', workflow)
         self.assertNotIn('nonce', workflow)
         self.assertNotIn('source-audit.json', workflow)
-        self.assertIn('Receipt-gated in-cycle collection provides verify-live semantics', workflow)
+        self.assertNotIn('verify-live', workflow)
 
     def test_legacy_research_writer_gate_is_removed(self):
         workflow = (ROOT / '.github/workflows/manager-phase06-service.yml').read_text()
