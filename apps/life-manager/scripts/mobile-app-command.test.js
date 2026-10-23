@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, "../../..");
 const manifest = require("../config/mobile-app-loops.json");
 const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
+const RELEASE_BINDING_MISMATCH_FIXTURE = require("../test/fixtures/mobile-app/release-binding-mismatch.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
   assert.equal(Object.keys(manifest.loops).length, 18); // obou-instagram retired (ebook account, out of mobile scope)
@@ -130,7 +131,7 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
     {
       cwd: root,
       env: {
-        ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== "LIFE_MANAGER_RELEASE_SHA")),
+        ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !["LIFE_MANAGER_RELEASE_SHA", "LIFE_MANAGER_REPO"].includes(key))),
         LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
         LIFE_MANAGER_PYTHON: python,
         LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
@@ -154,6 +155,43 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   assert.match(result.stderr, /mobile app exact result hint unavailable/);
 });
 }
+
+test("the Anicca AI YouTube entrypoint refuses a stale release binding before reconciliation", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-release-binding-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const releaseRoot = path.join(directory, "release");
+  fs.mkdirSync(releaseRoot);
+  fs.writeFileSync(path.join(releaseRoot, "RELEASE.json"), JSON.stringify({
+    sha: RELEASE_BINDING_MISMATCH_FIXTURE.installed_release_sha,
+  }));
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nexit 0\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, "LM_POSTIZ_API_KEY=test-token\n", { mode: 0o600 });
+
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), [
+    RELEASE_BINDING_MISMATCH_FIXTURE.owner_id,
+  ], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_REPO: releaseRoot,
+      LIFE_MANAGER_RELEASE_SHA: RELEASE_BINDING_MISMATCH_FIXTURE.bound_release_sha,
+    },
+    encoding: "utf8",
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /release binding does not match installed release/i);
+  assert.equal(fs.existsSync(calls), false);
+});
 
 test("mobile reconciled receipts require their origin occurrence to match", () => {
   const occurrenceId = "life-manager-honne-en:run-1";
