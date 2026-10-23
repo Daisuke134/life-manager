@@ -45,6 +45,7 @@ Provider snapshot tables are optional for old snapshots, but if any are present 
 
 **Files:**
 - Promote from pinned research source: `products/manager/manager_core/ampersand_api.py`, `provider_sessions.py`, `provider_budget.py`, `provider_deadline.py`.
+- Promote the existing `products/manager/scripts/phase_ampersand_lab.py` unchanged from the same pinned source, because two preserved provider tests exercise its pre-network guards. This remains an explicit opt-in synthetic research lab with its standalone persistent-store contract, never a scheduled fresh-runner entrypoint.
 - Modify: `products/manager/manager_core/owned_checkpoint.py`, `collaboration.py`.
 - Create: `products/manager/manager_core/owned_provider.py`.
 - Promote tests: `products/manager/tests/test_provider_session_recovery.py`, `test_provider_budget.py`, `test_provider_deadlines.py`. Reuse their original tests without weakening them.
