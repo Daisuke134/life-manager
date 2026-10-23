@@ -117,6 +117,29 @@ def public_summary(report, *, source_sha=None, receipt_sha=None):
     return summary
 
 
+def _successful_cycle_exit(report):
+    """Accept no-op/cadence outcomes and receipt-bound verified outcomes only.
+
+    UNKNOWN, owner contention, and stopped regressions intentionally remain
+    nonzero; this process result does not promote E16 or canary acceptance.
+    """
+    if not isinstance(report, dict):
+        return False
+    status = report.get('status')
+    if status in ('NO_ACTION', 'NOT_DUE'):
+        return True
+    receipt_ref = report.get('receipt_ref')
+    confirmed_receipt = isinstance(receipt_ref, str) and _SHA.fullmatch(receipt_ref)
+    if (status == 'VERIFIED_PUBLIC_ARTIFACT_ONLY' and
+            report.get('proof_level') == 'P2' and report.get('deployed') is True and
+            confirmed_receipt):
+        return True
+    if (status == 'VERIFIED_PLATFORM_CONTRACT_P0' and
+            report.get('proof_level') == 'P0' and confirmed_receipt):
+        return True
+    return False
+
+
 def run_preflight(source_root=None, state_store=None):
     """Read-only diagnostics: no DB, lease, or state directory creation."""
     source = Path(source_root or SOURCE_ROOT).resolve()
@@ -184,11 +207,7 @@ def run_once(state_store, pages_checkout):
         checkpoint.release()
         summary = public_summary(report, source_sha=context['source_sha'])
         summary['authentication'] = authentication
-        if report.get('status') not in ('NO_ACTION', 'VERIFIED_PUBLIC_ARTIFACT_ONLY',
-                                        'VERIFIED_PLATFORM_CONTRACT_P0', 'STOPPED_REGRESSION',
-                                        'OWNER_BUSY', 'NOT_DUE'):
-            return 2, summary
-        return (0 if report.get('status') == 'NO_ACTION' else 2), summary
+        return (0 if _successful_cycle_exit(report) else 2), summary
     except Exception as exc:
         # A broken checkpoint is fenced permanently. Never release it in finally.
         status = 'UNKNOWN'

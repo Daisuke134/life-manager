@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -112,10 +113,14 @@ class OwnedCycleCLITests(unittest.TestCase):
             self.assertEqual(first_code, 0)
             self.assertEqual(first['status'], 'NO_ACTION')
             self.assertEqual(first['writes'], 0)
+            self.assertEqual(first['positive_canary'], 'NOT_RUN')
+            self.assertEqual(first['E16_ACCEPTANCE'], 'INCOMPLETE')
             self.assertEqual(first['authentication'], 'GATEWAY_ACKNOWLEDGED')
-            self.assertEqual(second_code, 2)
+            self.assertEqual(second_code, 0)
             self.assertEqual(second['status'], 'NOT_DUE')
             self.assertEqual(second['writes'], 0)
+            self.assertEqual(second['positive_canary'], 'NOT_RUN')
+            self.assertEqual(second['E16_ACCEPTANCE'], 'INCOMPLETE')
             self.assertEqual(selector.call_count, 1)
             self.assertEqual(gateway.calls, ['acquire', 'checkpoint', 'release', 'acquire', 'checkpoint', 'release'])
             self.assertEqual(missing_code, 2)
@@ -126,6 +131,96 @@ class OwnedCycleCLITests(unittest.TestCase):
             self.assertIsNone(gateway.value['owner'])
             self.assertTrue((root / 'first/cycle.sqlite').is_file())
             self.assertTrue((root / 'second/cycle.sqlite').is_file())
+
+    def test_run_once_exit_codes_distinguish_success_from_uncertain_or_stopped(self):
+        cases = (
+            ({'status': 'NO_ACTION', 'writes': 0}, 0),
+            ({'status': 'NOT_DUE', 'writes': 0}, 0),
+            ({'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY', 'writes': 1,
+              'proof_level': 'P2', 'deployed': True, 'receipt_ref': 'a' * 40}, 0),
+            ({'status': 'VERIFIED_PLATFORM_CONTRACT_P0', 'writes': 1,
+              'proof_level': 'P0', 'receipt_ref': 'b' * 40}, 0),
+            ({'status': 'UNKNOWN', 'writes': 0}, 2),
+            ({'status': 'STOPPED_REGRESSION', 'writes': 0}, 2),
+            ({'status': 'OWNER_BUSY', 'writes': 0}, 2),
+            ({'status': 'VERIFIED_PUBLIC_ARTIFACT_ONLY', 'writes': 1,
+              'proof_level': 'P0', 'deployed': False}, 2),
+        )
+        for report, expected_code in cases:
+            with self.subTest(status=report['status'], proof=report.get('proof_level')):
+                events = []
+                class Checkpoint:
+                    db = None
+                    broken = False
+                    def __init__(self, **kwargs): pass
+                    def acquire(self, root):
+                        Path(root).mkdir(mode=0o700)
+                        self.db = Path(root) / 'cycle.sqlite'
+                        self.db.write_bytes(b'restored')
+                    def save(self): events.append('save')
+                    def release(self): events.append('release')
+                class Store:
+                    def __init__(self, root): pass
+                with tempfile.TemporaryDirectory() as tmp, \
+                     patch.object(cli, '_check_main_context', return_value={
+                         'run_id': '7', 'attempt': '1', 'source_sha': 'a' * 40,
+                         'runner_temp': Path(tmp).resolve(), 'pages_root': Path(tmp) / 'pages'}), \
+                     patch.object(cli, 'PrivateCheckpoint', Checkpoint), \
+                     patch.object(cli, 'CycleStore', Store), \
+                     patch.object(cli, 'GitHubActionsCycleHost', lambda *a, **k: object()), \
+                     patch.object(cli, 'run_owned_cycle', return_value=report):
+                    code, summary = cli.run_once(Path(tmp) / 'fresh', Path(tmp) / 'pages')
+                self.assertEqual(code, expected_code)
+                self.assertEqual(events, ['save', 'release'])
+                self.assertEqual(summary['status'], report['status'])
+                self.assertEqual(summary['E16_ACCEPTANCE'], 'INCOMPLETE')
+                self.assertEqual(summary['positive_canary'], 'NOT_RUN')
+                if report['status'] == 'UNKNOWN':
+                    self.assertIsNone(summary['writes'])
+                if report['status'] == 'VERIFIED_PUBLIC_ARTIFACT_ONLY' and expected_code == 0:
+                    self.assertEqual(summary['proof_level'], 'P2')
+                    self.assertEqual(summary['receipt_sha'], 'a' * 40)
+
+    def test_actual_workflow_shell_stops_after_real_cli_unknown(self):
+        workflow_path = Path(__file__).resolve().parents[3] / '.github/workflows/manager-phase06-service.yml'
+        lines = workflow_path.read_text().splitlines()
+        start = lines.index('      - name: Restore, reconcile, and run one trusted main cycle')
+        end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith('      - name: '))
+        step = lines[start:end]
+        self.assertIn('        shell: bash', step)
+        run_at = step.index('        run: |')
+        script_lines = []
+        for line in step[run_at + 1:]:
+            if line and not line.startswith('          '):
+                break
+            script_lines.append(line[10:] if line.startswith('          ') else '')
+        script = '\n'.join(script_lines)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runner_temp = root / 'runner-temp'
+            runner_temp.mkdir()
+            output = root / 'github-output'
+            output.write_text('')
+            env = {
+                'PATH': os.environ['PATH'],
+                'RUNNER_TEMP': str(runner_temp),
+                'GITHUB_WORKSPACE': str(root),
+                'GITHUB_OUTPUT': str(output),
+            }
+            done = subprocess.run(
+                ['bash', '--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script],
+                cwd=Path(__file__).resolve().parents[1], env=env,
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20,
+            )
+            self.assertEqual(done.returncode, 2, done.stderr)
+            summary_path = runner_temp / 'manager-public-summary.json'
+            self.assertTrue(summary_path.is_file())
+            summary = json.loads(summary_path.read_text())
+            self.assertEqual(summary['status'], 'UNKNOWN')
+            self.assertIsNone(summary['writes'])
+            self.assertEqual(output.read_text(), '')
+            self.assertFalse((runner_temp / 'manager-owned-state').exists())
 
 
     def test_checkpoint_failure_never_releases_or_claims_zero_writes(self):

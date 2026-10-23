@@ -97,6 +97,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MANAGER_RELEASE_ENABLED: 'true'
+        shell: bash
         run: |
           python scripts/run_owned_digital_cycle.py run-once \
             --state-store "$RUNNER_TEMP/manager-owned-state" \
