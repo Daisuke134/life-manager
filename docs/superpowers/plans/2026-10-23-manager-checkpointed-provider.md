@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Manager is a Buddhist AI entity / Digital Buddha; no dedicated daily UI is introduced.
-- Existing Actions owner, schedule, source/scope/browser/CAS checks, current-page cue, publisher, checkpoint endpoint/schema and runtime state remain unchanged.
+- Existing Actions owner, schedule, source/scope/browser/CAS checks, current-page cue, publisher, checkpoint endpoint/schema and runtime state remain unchanged. Only the existing verify-step unittest list gains the new contracts.
 - No networked inference, credential access, workflow dispatch, release, publication or external message is performed by implementation/tests.
 - Both provider stores use exactly `checkpoint.db`; every effect reservation is remotely acknowledged before provider send.
 - A checkpoint uncertainty permanently fences that checkpoint object, including interruption by `BaseException`; preserve the original non-Exception interrupt.
@@ -50,7 +50,8 @@ Provider snapshot tables are optional for old snapshots, but if any are present 
 - Promote tests: `products/manager/tests/test_provider_session_recovery.py`, `test_provider_budget.py`, `test_provider_deadlines.py`. Reuse their original tests without weakening them.
 - Create: `products/manager/tests/test_owned_provider.py` (real SQLite/Backup API, injected MemoryGateway and minimal provider boundary).
 - Modify: `products/manager/deploy/owned-digital/README.md` for the callable connection and limits only.
-- This plan is controller-owned; no other file or workflow may be edited.
+- Modify: `.github/workflows/manager-phase06-service.yml` only to append `test_owned_provider`, `test_owned_checkpoint`, `test_provider_session_recovery`, `test_provider_budget`, `test_provider_deadlines` to its existing verify-step unittest invocation.
+- This plan is controller-owned; no other file or workflow behavior may be edited.
 
 **Interfaces:**
 - `SessionJournal(path, *, after_commit=None)` and `BudgetLedger(path, *, cap_usd, after_commit=None)`; callable validation, same standalone behavior when omitted.
