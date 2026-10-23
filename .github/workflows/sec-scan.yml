@@ -170,6 +170,10 @@ jobs:
       - name: Ensure native video frame tools are available
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            if [ -f /etc/apt/apt-mirrors.txt ] &&
+               grep -Eq '^[[:space:]]*https?://archive[.]ubuntu[.]com/ubuntu/?([[:space:]]|$)' /etc/apt/apt-mirrors.txt; then
+              sudo sed -i -E '/^[[:space:]]*https?:\/\/azure[.]archive[.]ubuntu[.]com\/ubuntu\/?([[:space:]]|$)/d' /etc/apt/apt-mirrors.txt
+            fi
             sudo apt-get update -qq
             sudo apt-get install -y ffmpeg
           fi
