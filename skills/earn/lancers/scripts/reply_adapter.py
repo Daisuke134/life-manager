@@ -161,6 +161,10 @@ class LancersReplyAdapter:
         try:
             self.browser, self.page = work_sync.application_tick._open_owned_page()
             if not work_sync.application_tick._production_account_ready(self.page):
+                # Keep the error string (callers classify it); record why the dashboard read failed.
+                print("lancers_reply_account_diagnostic:" + json.dumps(
+                    work_sync.application_tick._production_account_diagnostic(self.page),
+                    sort_keys=True), file=sys.stderr)
                 raise work_sync.SourceFailure("account_unavailable")
             self._verified_proposals = work_sync._verified_proposals(self.state_path)
         except Exception:
