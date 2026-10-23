@@ -328,6 +328,14 @@ INSTALLの実readback: 受入済みimmutableのcanonical lm-loop statusで7jobs�
 
 次のREADY-B: storefrontの本人商品入力の所在と既存pending/official evidenceを確認し、作者templateを本人入力として補完しない。並行のread-only容量診断は既存cleanup/host inventoryの所有経路だけを確認する。初回acceptance rootの依存実割当は3,011,739,648 bytes/322,902files、host availableは観測順に10,437,808,128→10,203,975,680bytesであり、既存floorを緩めない。実GC/削除/移動/リンク差替え・loop再起動はこの診断では行わない。本人設定→既存所有cleanup→自然実行/公式成果の順で進め、別Mac/全機能/10,000 starsを未完として保持する。
 
+#### READY-Bの既存watchdog復旧
+
+原因: read-onlyのsafe preflightはPASS、com.anicca.disk-watchdogは登録済み/cadence60sだがspawn scheduled/pid無し。plist唯一のentrypointは不存在のimmutable releaseを指し、script/RELEASE/reclaimed markerも存在しない。最新last-unbound-receiptは導入前19:02:08Zでfresh回収の証拠ではない。本人storefront-product/catalogはcanonical private pathにも既存ownerの明示bindingにも無い。
+
+限定手順: accepted ALL/readonly d8e4578cのskills/self/disk-cleanup/install-launchd.shを1回実行し、既存launchctl-safe preflight→対象com.anicca.disk-watchdogだけの再登録→program/argv一致readbackを使う。workerの独立read-only比較で実行先以外のplist fieldsは全一致（env/cadence/log/WorkingDirectory変更不要）、新script/helper/safeは全て実行可能と確認する。他owner、Mac/loginwindow/app-server、閾値、fenceを変更せず、新しいcleanup機構や直接cache削除を作らない。
+
+受入: 登録先/実行状態と新しい自然receiptのmtime、errors/protected_deletions/reclaimed/free_before/afterを読み、先のstale記録や登録だけを回収成功にしない。既存cache保護と未確認effect fenceは保持する。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
