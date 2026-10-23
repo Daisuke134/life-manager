@@ -219,13 +219,17 @@ INPUTS-B1の起動境界GREEN: 既存のsetup helperにあるpending/読取不�
 
 契約: lock内でproductを再読込し、未取得target portfolioの作成前に同じlisting.jsonへtarget kind/product/version/内容hash/期待sellerを保存する。hashはtarget portfolio external_idだけを正規化し、canonical listing IDと他入力を含む。公式readback後、入力が同じ場合だけraw productのtarget external_idを保存し、同じpendingを解除する。作成済みIDは再作成しない。保存失敗時は確認済み実IDと観測済みTrueを保持する。pendingの再開では_portfolio相当の既存公式一覧readbackだけを使い、_apply/_ensure_portfolio/_profileへ到達せず、一意IDを保存して復旧する。0件/重複/入力変更はpendingを保持する。ローカル保存の復旧でlisting receipt.observed_atを新たな公式観測時刻へ書き換えない。browserを開いた後のearly returnでcleanup失敗を隠さない。
 
-- [ ] B2-RED: missing/empty portfolio ID→fake公式成功→本人product実ID保存、pending保存ENOSPC/create0、作成後product保存ENOSPC→次回readbackのみ、product保存済み/pending解除失敗→pin readback復旧、0件/重複/入力変更、通常inspect/実listing要求を最少の既存fakeで失敗再現する。
+- [x] B2-RED: missing/empty portfolio ID→fake公式成功→本人product実ID保存、pending保存ENOSPC/create0、作成後product保存ENOSPC→次回readbackのみ、product保存済み/pending解除失敗→pin readback復旧、0件/重複/入力変更、通常inspect/実listing要求を最少の既存fakeで失敗再現する。
 - [ ] B2-GREEN: 上記の最小実装後、関連create/portfolio/本人入力callerを確認する。
 - [ ] B2-SHIP: commit/push→独立read-only review/既存CI→main/公式bytesを受け入れる。全INPUTS-Bの完了はB1/B2/B3を確認して判定する。
 
 追加の実呼出元診断: storefront-ownerは常に--applyで、空listing IDはsetup_requiredとなり、common installerにも初回--create-packageへ進むcallerが無い。INSTALLで本人入力とlive account照合の後に初回作成へ接続する。pendingだけ残りreceipt/実IDが未保存の場合、一意な公式一覧候補→_public全内容一致→本人product保存の自動復旧callerも未接続であり、B1のsource受入だけで全INPUTS-Bを完了にしない。READYは既存apply_targetsのloop_idsを使い、本人binding/各lane入力がそろったownerだけを対象にする。browser基盤/reportへ不要なcandidate/product要件を加えない。実機は本人Mac mini1台、GitHub公式現在値8 stars/2 forksで、全Mac/全業務/10,000 starsは未完。
 
 INPUTS-B1のSHIP受入: PR #8747/head9abe32fb2cbe433bc18deeb211b270c702ac32cd、workflow39990171611は全13checks成功、独立追加reviewはblocking0（実関数AST probe27+読取不能3件PASS）。main6abdcdcc2ae7af284f2eb914b03c3d8e40dddea4への統合と、GitHub公式の2source/2testのblob全4一致を確認する。B1だけで全INPUTS-B/公開INSTALL/業務ready/別Mac/10,000 starsを完了扱いしない。
+
+B2のRED受入: 既存portfolio testへ9関数21ケースを追加し、primaryも15 failed/13 passed（0.61s、既存7件を含む）を確認する。失敗はID保存/intent/ENOSPC/lock内reloadの期待で、fixture/import失敗は0、production source変更0。pending保存ENOSPCは対象のensure/createへ到達しないことを確認し、他のpin済みportfolioの既存read-only確認まで禁じる余分な制約は加えない。復旧後段は初回保存の失敗を直した後に同じテストで検証する。
+
+B3の実行経路診断: 登録済みstorefront effect_reconcileはpending中にbrowser前でHELDとなるため、runを直接再呼出しするだけではkernelのheld fenceを越えない。B3は同じreconcile入口からreadback復旧へ接続し、未作成の将来portfolio全体を完了条件にせず、同owner/occurrenceの実targetに公式証拠を結合して既存resolverへ渡す。pending無しの既存full-roster proofは保持し、新しいfence frameworkを作らない。
 
 B3の最少再利用点: 既存telegram_report._inventory_management(page)は全stateの件数とpaginationを照合して本人一覧を返す。同じaccount lock/owned page内でこのhelperだけを遅延呼出し、run_inventoryのlock再取得やreport/送信は呼ばない。publishedの正確なtitle候補が一意で、既存_publicの必須内容が全一致した場合だけB1の保存helperへ戻す（作成時に任意の画像有無を捏造しない）。実accountの照合はREADYで受け入れた共通gateを使い、未受入sourceで実browserへ接続しない。候補0/複数/内容不一致/入力変更はpendingを保持し、再createしない。catalog familyは同じcursorだけを保存しcanonical productへ他family IDを戻さない。
 
