@@ -23094,6 +23094,8 @@ sanitized receiptは `docs/evidence/ai-monk-factory-runtime-20261023.json`。詳
 
 **正本と所有範囲:** iOS sourceと配信runtimeはLife Managerのmainを使う。今回worktreeは `.worktrees/mobile-flagship-growth-20261023`。提出version修正の `growth/mobile-flagship-20261023` はPR #8582/main `39bf2501864acfa8cf28dbc5bbd74c7ec48b5cfb`へ統合済み。配信copyの現在branchは `growth/mobile-scene-copy-20261023`。他ownerのdirty worktree、ブラウザlease、投稿effect fence、provider receiptは保持する。既存の `Anicca competitor distribution benchmark and no-cost tool boundary` 節を成功事例の参照正本とし、一次公開素材を再確認してから独自のcopy/画像/動画へ適用する。高再生数を課金の因果証明として使わない。
 
+**投稿台帳のclaim読込限定:** 配信台帳の単一job操作が全9,645 claim JSONを読むことによるロック競合を、`.worktrees/mobile-ledger-claims-20261023` / `fix/mobile-ledger-claims-20261023` の台帳実装と既存testで直す。primary観測はreadJob 1.735秒中claim読込1.509秒、生存ownerのglobal lock保持6.093秒に対し待機上限1,000×2msでtimeoutとなる。既存`keyFor(tenantId, jobId)`の対象markerだけをsnapshotへ渡し、複数jobのslot候補選択・conflict隔離は全claim scanを保つ。journal/receipt形式、claim-before-event復旧、lease/CAS/fence、unknown保持、partial-tail安全性とlock待機条件は変えず、index/cache/DB追加・台帳削除・本番mutationは行わない。時間閾値に依存しない追加testは変更前2 fail（exact操作19回の全claim列挙、無関係marker破損による対象復旧失敗）/候補照合1 passから変更後3/3 PASS、全ledger36件＋関連50件とdiff checkもPASS。隔離fixtureの9,645件に対するreadJobはclaim読込9,645→1件、総時間151.471→0.291ms（claimファイルreadのみ121.118→0.025ms、各1回の参考値）で、これは本番性能や自然実行成功を証明しない。PR/merge/releaseと自然実行・公式readbackの判定はprimaryが所有する。
+
 **順序更新:** 旧順序はローカルレポート修正→release→計測baseline→自然投稿→ストア/翻訳→creative/SEO→通知/paywall。新順序は下表。理由は既知の修正が未配布であることと、Apple週次でAniccaのApp Unitsが減少していること。既存slotの自然配信を止めず、過去投稿の重複再送を行わない。過去の1,000ダウンロード/日目標は計測上の別目標として維持するが、MRR達成を判定する必須gateにはしない。
 
 | 順序 | 作業 | 受入条件・現在状態 |

@@ -479,7 +479,7 @@ function createMarketingLocalLedger(options = {}) {
     return events;
   }
 
-  function snapshot() {
+  function snapshot(scope = null) {
     const jobs = new Map();
     for (const event of readEvents(jobsFile)) {
       if (!event || event.schema_version !== 1 || event.kind !== "job" || !event.job) {
@@ -500,14 +500,19 @@ function createMarketingLocalLedger(options = {}) {
       receipts.set(keyFor(event.tenant_id, event.job_id), event.receipt);
     }
     const claims = new Map();
-    let files = [];
-    try { files = fs.readdirSync(claimsDirectory); } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+    let files = scope ? [`${keyFor(scope.tenantId, scope.jobId)}.json`] : [];
+    if (!scope) {
+      try { files = fs.readdirSync(claimsDirectory); } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
     }
     for (const file of files.filter((name) => name.endsWith(".json"))) {
       let claim;
       try { claim = JSON.parse(fs.readFileSync(path.join(claimsDirectory, file), "utf8")); }
-      catch { throw new Error("local marketing claim ledger is invalid"); }
+      catch (error) {
+        if (scope && error.code === "ENOENT") continue;
+        throw new Error("local marketing claim ledger is invalid");
+      }
       if (
         !claim || claim.schema_version !== 1
         || typeof claim.tenant_id !== "string"
@@ -647,7 +652,7 @@ function createMarketingLocalLedger(options = {}) {
       normalized.available_at = nowInstant(now);
     }
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot({ tenantId: normalized.tenant_id, jobId: normalized.job_id });
       const existing = state.jobs.get(normalized.job_id);
       if (existing) {
         if (!sameImmutableJob(existing, normalized)) throw new Error("local ledger job id collision");
@@ -658,7 +663,7 @@ function createMarketingLocalLedger(options = {}) {
       if (normalized.capability === "marketing.video.publish"
         && (normalized.input_refs.platform_ref === "platform://youtube"
           || (normalized.input_refs.platform_ref === "platform://tiktok" && hasTikTokSlotIdentity))) {
-        const priors = priorPublicationsForSlot(state, normalized);
+        const priors = priorPublicationsForSlot(snapshot(), normalized);
         if (priors.length > 0) {
           const prior = normalized.input_refs.platform_ref === "platform://tiktok"
             ? (priors.find((job) => job.status !== "queued" || job.unknown_effect === true) || priors[0])
@@ -701,7 +706,7 @@ function createMarketingLocalLedger(options = {}) {
       throw new Error("local ledger promotion confirmation is invalid");
     }
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot({ tenantId, jobId });
       const job = jobFor(state, tenantId, jobId);
       if (!job || job.status !== "queued" || job.available_at !== SHADOW_HOLD_AVAILABLE_AT
         || job.capability !== "marketing.video.publish" || job.effect_class !== "publish"
@@ -723,7 +728,7 @@ function createMarketingLocalLedger(options = {}) {
     const workerId = identifier(input.workerId ?? input.worker_id, "local ledger worker id");
     const seconds = leaseSeconds(input.leaseSeconds ?? input.lease_seconds);
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot({ tenantId, jobId });
       const observedAt = nowInstant(now);
       let job = jobFor(state, tenantId, jobId);
       if (!job || job.capability !== capability) return null;
@@ -784,7 +789,7 @@ function createMarketingLocalLedger(options = {}) {
     const id = identity(input);
     const seconds = leaseSeconds(input.leaseSeconds ?? input.lease_seconds);
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot(id);
       const job = jobFor(state, id.tenantId, id.jobId);
       assertLease(job, id);
       const observedAt = nowInstant(now);
@@ -814,7 +819,7 @@ function createMarketingLocalLedger(options = {}) {
     }
     if (Buffer.byteLength(JSON.stringify(receipt)) > 16_384) throw new Error("local ledger receipt too large");
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot(id);
       const job = jobFor(state, id.tenantId, id.jobId);
       assertLease(job, id);
       const observedAt = nowInstant(now);
@@ -845,7 +850,7 @@ function createMarketingLocalLedger(options = {}) {
     const id = identity(input);
     const errorCode = required(input.errorCode ?? input.error_code, "local ledger error code", 200);
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot(id);
       const job = jobFor(state, id.tenantId, id.jobId);
       assertLease(job, id);
       const failed = {
@@ -867,7 +872,7 @@ function createMarketingLocalLedger(options = {}) {
     const tenantId = identifier(input.tenantId ?? input.tenant_id, "local ledger tenant id");
     const jobId = identifier(input.jobId ?? input.job_id, "local ledger job id");
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot({ tenantId, jobId });
       const job = jobFor(state, tenantId, jobId);
       if (!job || job.status !== "failed" || job.unknown_effect === true) {
         throw new Error("local ledger job is not safely retryable");
@@ -910,7 +915,7 @@ function createMarketingLocalLedger(options = {}) {
       throw new Error("local ledger reconciliation receipt too large");
     }
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot({ tenantId, jobId });
       const job = jobFor(state, tenantId, jobId);
       if (!job || job.attempt !== attempt) {
         throw new Error("local ledger reconciliation lost job");
@@ -967,7 +972,7 @@ function createMarketingLocalLedger(options = {}) {
       throw new Error("local ledger receipt correction is invalid");
     }
     return withLock(() => {
-      const state = snapshot();
+      const state = snapshot({ tenantId, jobId });
       const job = jobFor(state, tenantId, jobId);
       const retained = receiptFor(state, tenantId, jobId);
       if (!job || job.status !== "completed" || job.effect_class === "none" || !retained) {
@@ -1078,14 +1083,14 @@ function createMarketingLocalLedger(options = {}) {
   function readJob(input = {}) {
     const tenantId = identifier(input.tenantId ?? input.tenant_id, "local ledger tenant id");
     const jobId = identifier(input.jobId ?? input.job_id, "local ledger job id");
-    const job = jobFor(snapshot(), tenantId, jobId);
+    const job = jobFor(snapshot({ tenantId, jobId }), tenantId, jobId);
     return clone(job);
   }
 
   function readReceipt(input = {}) {
     const tenantId = identifier(input.tenantId ?? input.tenant_id, "local ledger tenant id");
     const jobId = identifier(input.jobId ?? input.job_id, "local ledger job id");
-    return clone(receiptFor(snapshot(), tenantId, jobId));
+    return clone(receiptFor(snapshot({ tenantId, jobId }), tenantId, jobId));
   }
 
   // CTA/caption changes create a new byte-level effect identity. A single
