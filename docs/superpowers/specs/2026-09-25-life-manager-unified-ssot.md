@@ -14,7 +14,7 @@
 - [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
 - [x] README-MAC-03: focused/context/contract、review、CI14項目すべて成功。PR #8666をmain `6b93057b41dcf8fdf8d983e85ecdb676d90bf041`へ統合する。英日README、公開installer、requirements、導入guide、agent catalogの6ファイルをGitHub公式main readbackとbyte一致で確認する。別Mac実機・全provider成果と既存Coconala待機の未完条件は保持する。
 
-README-MAC-01–03は完了、source受入は完了、現在cursor=MAC02の本人設定後の実稼働・MAC05の別Mac実機受入。
+README-MAC-01–03は完了、source受入は完了。現在cursorはMAC03-LANCERS節を参照し、MAC05の別Mac実機受入は未完。
 
 - [x] README-MAC-04: 並行PR #8672のhosted agent手順表・promptを既存`docs/getting-started.md`へ移し、英日READMEは詳細への短い案内にする。追加内容を失わず、未検証のany-agent対応を導入保証として見せない。Local Mac/ChatGPT Plus/awake Macの入口は維持する。Git登録worktree/leaseに該当README ownerは見つからず、agmsg teamのlive照会は30秒でtimeoutするため、他席へ作業開始や連絡済みと断定しない。
 
@@ -92,9 +92,10 @@ SELECTED-PYTHONの実反映: main由来ALL/readonly release `/Users/anicca/loops
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。main由来branch=`fix/lancers-local-setup-20261023`、base=`44cdb4cf8102fe3d6aecae91f5202c2039c83869`、worktree=`.worktrees/lancers-local-setup-20261023`、lease owner=`codex-lancers-local-setup`。primaryが本節の受入を所有する。現在cursor=MAC03-LANCERS-IDENTITY。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/browser-lease-tab-preservation-20261023、base=2f2b467699feb027deaea6a0503b8a6d80b9953c（最新main由来）。primaryが受入を所有する。現在cursor=MAC03-BROWSER-RELEASE。
 
-- [ ] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
+- [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
+- [ ] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。現在はholder照合より前にsweep_tabs.pyを呼び、4page以上で所有者を区別せずcloseし得る。authorized/wrong-holder両方のreleaseを隔離fixtureでRED再現し、既存lease ownership/beat/acquire/collision条件を保持して不要なsweep呼出を除く。callerの既存actor限定close_targetとcontext GCは保持する。source/test、独立review、既存CI、main/public readback後に公式account観測を続ける。
 - [ ] MAC03-LANCERS-SETUP: 公開Lancers入口を既存bootstrap/install dispatch/catalogへ結び、同じprivate本人入力と現在の公式ログイン/本人account観測をreadyで照合する。既存Coconalaのreceipt bindingとlocal applyを手本にし、Coconala固有SMS/eKYC/bank条件を複製しない。新規accountでも観測できる本人IDを確認するまではreadyにしない。未設定やHuman Verificationを成功へ置換しない。
 - [ ] MAC03-LANCERS-RUNTIME: review/CI/main/public readback→immutable→owner限定反映→自然terminalと公式成果を確認する。別Macの本人接続が無い部分を明示し、全Lancers/全20機能/10,000 starsの完了とはしない。
 
@@ -121,8 +122,8 @@ SETUPの残るsource境界: storefront-ownerはrepoのmonthly-sns-content-ops-v1
 - [x] INPUT: local_identityで既存validate_profileを呼ぶ。候補者最小fixtureはversion1、candidate.name=別の利用者、facts=[id/claim/evidence]。provider最小fixtureはaccount_id=other-seller。自動作成やCrowdWorks参照はしない。
 - [x] APPLY: _persona_factsは入力がある属性だけを返し、PERSONA_FACTSのimport-time読取と日本語nativeの固定文を除く。_seller_proofは本人candidate/facts/accountだけを表し、profile_version/proof_version/price_versionの3hashを維持する。未設定portfolio/pricingは空の入力としてhash化し能力を制限しない。catalog_product_id/versionはattribution callerでも存在時だけ渡す。main/run_loopは不足を外部操作・通知前に返す。
 - [x] PAID: paid-ownerは同じhelperのaccount-idを引用した単一argvとして渡し、paid_adapterのprovider既定をLancers pathへ修正する。Noneの新interfaceは追加せず、account-only provider objectを共通reply groundingで扱う。quality/readback/既存no-effect reconcileを保持する。
-- [ ] GREEN: 本人fixtureでprompt/safetyとpaid argvがother-sellerの値だけを使い、属性/portfolioなしでも作者値を含まない。CrowdWorks fixtureだけではsetup成功しない。既存persona/attribution/paid fixtureを本人入力契約へ更新し、関連suite・source-boundary・diffをPASSする。
-- [ ] SHIP: source commit/push→独立review→必要CI/main/public byte readback。実Lancers activationはSETUP/RUNTIMEのTODOで本人観測後に行い、sourceだけで業務完了にしない。
+- [x] GREEN: 本人fixtureでprompt/safetyとpaid argvがother-sellerの値だけを使い、属性/portfolioなしでも作者値を含まない。CrowdWorks fixtureだけではsetup成功しない。既存persona/attribution/paid fixtureを本人入力契約へ更新し、関連suite・source-boundary・diffをPASSする。
+- [x] SHIP: source commit/push→独立review→必要CI/main/public byte readback。実Lancers activationはSETUP/RUNTIMEのTODOで本人観測後に行い、sourceだけで業務完了にしない。
 
 実装の中間証拠: 欠損/壊れた本人入力と別accountの12ケースをRED→GREENで確認する（Python 3.14）。AST、shell構文、source-boundary、diff checkはPASS。関連suiteは574件/29 subtestsがPASS、既存3testだけFAIL。対象testと呼出元7fileがexact base44cdb4cfからbyte不変で、新fixtureを通さない同base testのメモリ内実行でも同じ3FAILを再現する。現行のwait/例外境界marker/provider_rejected fieldへ期待値3箇所を追従し、primaryの当該3file再検証は50件/8 subtestsがPASS。全batchの再実行は空き再低下と滞留により46dot時点で中断（exit130）、全batch GREENとは数えない。private profile、browser、provider送信、実activationは0。
 
@@ -132,7 +133,15 @@ CIの受入: 既存Loop control contractsへ今回変更した本人入力/呼�
 
 独立read-only reviewはBlocking0/SHIP0。本人入力4source、変更tests、既存CI追加stepを直接読み、不正入力6類型/account-only proof/3hash/任意属性欠損/通常main・reconcile・run_loopの外部callback前停止をメモリ内で確認する。host負荷によりgit diff/showと全suiteはreviewで完走していない。既存kernelが両ownerのspawn前に作るpre_effect_failure/effect0 hintを本人入力の早期終了が保持するため、fenceやallowlistは変更しない。PR #8712のCIとmain/public readbackは継続中。
 
-- [ ] HOST-RESTORE-RUNTIME: 上の容量回復で削除したcodex-primary-runtimeは、後から確認した既存disk-cleanup skillでは未使用でも保護する依存installationに該当する。rootの削除判断を誤りとしてDaisへ開示し、公式bootstrap/残存bundleによる同pathへの復元を所有する。plugins/skills側は保持され、Mac/app-serverのrestartや手作業の依存再構築は行わない。公式再取得経路を独立read-only調査中。復元を確認するまでは完了としない。
+- [x] HOST-RESTORE-RUNTIME: 誤削除を開示し、公式配布bundle26.1022.11436（archive338691240bytes、SHA256=83bd46dda47e2434e0e2d9c178557d9a9c5fa8da4474a4e3144f26f73361704e）から同cachepathへ復元する。archive同梱runtime.jsonとpayloadを検証し、元のcanonical pathでNode24.22.1/crypto、Python3.12.14のssl/sqlite3/openpyxl importがPASS。公式bundleの3つのleaf documentation/pkg-config symlinkは子entryなしを照合し、外部path書込を起こさず保持する。ダウンロードarchiveだけを検証後回収し、空き17765277696bytesを確認する。CUAのCodex app操作は安全制限で拒否されたため迂回せず、アプリ設定/IPC/global-stateには触れない。既存plugin cacheは保持し、plugin同期を実行したとは報告しない。
+
+本人入力sourceの受入: PR #8712はhead0236eeb2c3f7c24c7d7c3f99117e2d1badcb06e8、workflow39958910875全成功後、main20225f53868157c027b0722b2fb88bbb31752ac6へ統合する。4source/新規identity test/CI/clean-user fixture計7critical filesはGitHub公式main byte readbackで全一致。独立source reviewと追加fixture reviewは重大finding0。外部provider成果/別Mac実機/公開Lancers導入は未完。
+
+順序変更: 旧=IDENTITY→SETUP公式account観測→RUNTIME。新=完了IDENTITY→MAC03-BROWSER-RELEASE→同じSETUP→RUNTIME。理由はread-only観測の既存guard releaseに他tabのcloseが混在する自己所有の境界不具合を確認したため。既存tabを減らすことを外部依存にせず修復する。公式browserは最新PID9953/9227/reachable200、identity collision0、leaseなし、JSON listは3page。新規tab/ログイン/provider送信は0、account本人selectorは未観測。
+
+Browser releaseのbounded計画: workerはskills/browser/browser-guard.shと既存関連guard testsだけを所有し、primaryは本仕様/CI/統合を所有する。失敗テストはreleaseからunscoped sweeperが呼ばれることをfixture spyで示し、合法holderはlease解放/他holderはlease保持を併せて検証する。新GC/新registry/lease迂回/実browser操作を追加せず、所有者を検証する既存caller cleanupを再利用する。source-boundary/diff/shell、関連guard testsとCIを検証し、未検証sourceをproduction browserへ接続しない。
+
+SETUP追跡: Reply adapterのprovider既定にもCrowdWorks pathが残る。Storefrontのcreator product固定と併せ、本人入力の次atomで修復する。
 
 ## 別Macへ配布するLocal製品の実行契約
 
