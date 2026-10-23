@@ -1,6 +1,6 @@
 # Manager — 開始からPhase12までの全工程と残41件
 
-**2026-10-23 現在の優先順:** 本体・agentの開発と受入を先に進め、新しい記事・書籍・slides・carouselの制作は後段へ保留。E16はActions＋Supabaseで稼働しfinance/mentalの実P1/P2・fresh runner再送0、修正PR8632後の限定rollbackの実commit／Pages／独立GETまで確認済み。rollback初回応答のUNKNOWNは保持し、復元後のjournal照合・resume／通常cycle／replay等は未受入。下の「本番配備前」は2026-10-22 baselineの履歴。原113件=69 done / 41 todo / 3 skipped、E16 cursorは不変。[現specのAs-is／To-be](../MANAGER_PRODUCT_SPEC.md)と[実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md)を優先する。C002/Y008を保留中に、全113件完了と呼ばない。
+**2026-10-23 現在の優先順:** 本体・agentの開発と受入を先に進め、新しい記事・書籍・slides・carouselの制作は後段へ保留。E16はActions＋Supabaseで稼働しfinance/mentalの実P1/P2・fresh runner再送0、修正PR8632後の限定rollbackの実commit／Pages／独立GETまで確認済み。rollback初回応答のUNKNOWNは保持し、fresh resumeのwrites=0と後続の正規commit faf18b3の公開一致も確認済み。後続初回UNKNOWNも保持し、fresh runner39909274852の照合／replay等は未受入。下の「本番配備前」は2026-10-22 baselineの履歴。原113件=69 done / 41 todo / 3 skipped、E16 cursorは不変。[現specのAs-is／To-be](../MANAGER_PRODUCT_SPEC.md)と[実行receipt](../verification/E16_CLOUD_EXECUTION_20261023.md)を優先する。C002/Y008を保留中に、全113件完了と呼ばない。
 
 **呼称更新:** 主体は仏教的AIエンティティ／デジタル仏陀（Digital Buddha）。Digital Autonomy v0.1はその限定能力のreleaseであり、主体自体を製品と定義しない。原taskの名称・ID・依存・件数は履歴と受入契約のため保持する。[現行の主体定義](../MANAGER_PRODUCT_SPEC.md)に従う。
 

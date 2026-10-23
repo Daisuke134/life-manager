@@ -35,3 +35,12 @@ finance/mentalの初期bundle・各7ファイルのSHA/size・provider/Pages/cur
 接続されたMac miniのcanonical repository配下に専用worktreeを設け、同じmain source `b47aa061ae9ecccf5baf04704f8f8eb7e54d1571` を検査しました。Mac source guardはPASS。既存HomebrewのPython command directoryと物理temp pathを使い、同一時刻のUTC/JST文字列比較をdatetime比較へ直したテスト修正 [PR8598](https://github.com/Daisuke134/life-manager/pull/8598)で113件すべてPASS。Macの通常checkoutの別作業とruntimeは保持し、第二の運用ownerは設けていません。
 
 新しい有料resource・upgradeは作成していません。Actionsの開始時刻は保証されず、既存catch-up-onceを用います。費用の実請求や無制限無料稼働は未認定。人の行動変化・苦痛低減はNOT_MEASUREDです。クラウド側source-boundary guardはcanonical path不在でFAILのままです。所有者の明示的なcloud作業指示に従って専用worktreeで開発しており、MacでのPASSとは別の実測として保持しています。
+
+
+## 06:05 UTC 更新 — 復元後のresumeと通常cycle
+
+12. fresh resume [39907673029](https://github.com/Daisuke134/life-manager/actions/runs/39907673029)、source `808d041052c05f766d9b9755e417ec057c122f60` は05:56:38 UTCに公式 `GATEWAY_ACKNOWLEDGED / RESUMED_BY_OWNER / writes=0`。現在P2と保存済みrollback／deliveryの照合後に停止を解除する既存codeの経路です。公式summary自身のreceipt／rollback_delivery欄はnullのまま保持します。公開tipはc6d5de0のまま。実DBはrevision17・147456 bytes・owner／leaseなし・recovery_required=falseでした。
+13. 正常運用へ戻す [39908693666](https://github.com/Daisuke134/life-manager/actions/runs/39908693666)、source `f8e11d27b9f98b511d6fdc55e2781cacbe26f8a5` は新しいUTC slotの候補を実行し、06:01:42 UTCの初回応答は `UNKNOWN / writes=null / receipt=null`。このUNKNOWNを保持します。公式commit [faf18b3](https://github.com/Daisuke134/life-manager/commit/faf18b39207be69af89d9b10389a294731288a20)、parent=c6d5de0、許可7パスのみを確認。Pages [39909038806](https://github.com/Daisuke134/life-manager/actions/runs/39909038806)は06:02:35 UTCに同commitでSUCCESS。root自身の06:03:29 UTCの7 HTTPS GETはすべて200、immutable faf18b3と全bytes一致、finance／mental両cueありでした。元rollbackの再送でも、replay-zeroでもなく、新しい配信occurrenceです。実DBはrevision19・151552 bytes・owner／leaseなし・recovery_required=false。
+14. 元UNKNOWNを再送せず、新しいrunner [39909274852](https://github.com/Daisuke134/life-manager/actions/runs/39909274852)を同じUTC slotの通常run-onceで要求。source `318f3223df9b4d581ce0edf1a4db418f2eb132b2` のruntime／scripts／workflowはf8e11とbyte同一。保存済みoccurrenceの回収と重複公開0、current proofを確認してからE16を判定します。まだF受入も原113件のstatusも変更していません。
+
+sourceの照合では、配備main f8e11のmanager_core／scripts／workflow全43ファイルのblobが、研究full CI 39905051912の9deec0fと一致しました。研究側121ファイル中78ファイルはmain未配備であり、全研究codeが本番で動くという意味ではありません。研究CIの870件とmainの291件はsource別に保持します。

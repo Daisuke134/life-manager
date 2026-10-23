@@ -1,6 +1,6 @@
 {
   "schema": "manager.phase06-digital-v2-result.v1",
-  "report_version": 3,
+  "report_version": 4,
   "created_at": "2026-10-23T05:10:04.421349+00:00",
   "report_role": "Versioned occurrence evidence report; task statuses only in ../roadmap/tasks.json. Filename follows the 2026-10-22 scope amendment; observations are dated 2026-10-23 UTC.",
   "scope_version": 2,
@@ -457,18 +457,33 @@
     },
     "resume_after_rollback": {
       "run_id": 39907673029,
-      "status": "PENDING",
+      "status": "RESUMED_BY_OWNER",
       "requested_operation": "resume",
-      "expected_source": "808d041052c05f766d9b9755e417ec057c122f60"
+      "source_commit": "808d041052c05f766d9b9755e417ec057c122f60",
+      "official_summary_at": "2026-10-23T05:56:38Z",
+      "publisher_job_id": 120265458867,
+      "writes": 0,
+      "authentication": "GATEWAY_ACKNOWLEDGED",
+      "receipt_sha": null,
+      "rollback_delivery": null,
+      "official_log_sha256": "a2a8f682759aaaa7771740b009b7ac9087ffb42af7a9234e90545e508533c081",
+      "pages_commit_unchanged": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+      "E16_ACCEPTANCE": "INCOMPLETE"
     },
-    "fresh_replay_after_rollback": null,
-    "known_current_pages_commit": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
-    "current_control_state": "STOPPED",
-    "last_control_observed_at": "2026-10-23T04:47:33.5565330Z",
-    "last_control_observation_scope": "Official pre-send rollback refusal retained STOP; the later public GET does not observe private control or journal state. Fresh resume acceptance is pending.",
+    "fresh_replay_after_rollback": {
+      "run_id": 39909274852,
+      "status": "PENDING",
+      "expected_source": "318f3223df9b4d581ce0edf1a4db418f2eb132b2",
+      "operation": "run-once",
+      "purpose": "Fresh checkpoint reconciliation of the subsequent new-slot release; no replay of the previous UNKNOWN send permission."
+    },
+    "known_current_pages_commit": "faf18b39207be69af89d9b10389a294731288a20",
+    "current_control_state": "RESUMED_BY_OWNER",
+    "last_control_observed_at": "2026-10-23T05:56:38Z",
+    "last_control_observation_scope": "Official owner-control summary. run_resume_control requires pending-rollback and delivery reconciliation plus current P2 before clearing STOP; the official rollback_delivery field itself remains null. Public GET alone does not observe private control state.",
     "rollback_parent": "374cb9ac73d1bd703e44c452e8d5c7ae60d9ad7f",
     "restored_baseline": "61909d20220fcf14132a6f5f459ce19796f1fc2d",
-    "journal_rollback_acceptance": "PENDING_FRESH_RESUME",
+    "journal_rollback_acceptance": "RECONCILED_BEFORE_FRESH_OWNER_RESUME",
     "subsequent_rollback_attempt": {
       "run_id": 39907087699,
       "source_commit": "5f1f8ed9188d611ab0d43134ac750f0f65d50a0f",
@@ -497,6 +512,110 @@
       "pages_run_head": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
       "original_unknown_preserved": true,
       "rollback_resent": false
+    },
+    "post_resume_private_checkpoint": {
+      "revision": 17,
+      "sha256": "8c47d81b3b13e199eb6b061f8ef95b574d350ae49c264b3141a83df6f603860d",
+      "snapshot_bytes": 147456,
+      "owner_present": false,
+      "lease_present": false,
+      "recovery_required": false
+    },
+    "post_resume_cycle": {
+      "run_id": 39908693666,
+      "source_commit": "f8e11d27b9f98b511d6fdc55e2781cacbe26f8a5",
+      "official_summary_at": "2026-10-23T06:01:42Z",
+      "official_summary": {
+        "status": "UNKNOWN",
+        "writes": null,
+        "receipt_sha": null,
+        "rollback_delivery": null,
+        "proof_level": "P0",
+        "positive_canary": "NOT_RUN",
+        "human_outcome": "NOT_MEASURED",
+        "E16_ACCEPTANCE": "INCOMPLETE",
+        "authentication": "GATEWAY_ACKNOWLEDGED"
+      },
+      "official_log_sha256": "e269b1c554cbe870b4256f54dba3e2693f5f3b3c3ebf3655d1b704de189935db",
+      "provider_commit": "faf18b39207be69af89d9b10389a294731288a20",
+      "provider_parent": "c6d5de029e91142ef3e0c965f4ef800d37a0f515",
+      "only_seven_allowed_paths_changed": true,
+      "pages_run_id": 39909038806,
+      "pages_conclusion": "success",
+      "readback": {
+        "commit": "faf18b39207be69af89d9b10389a294731288a20",
+        "observed_at_utc": "2026-10-23T06:03:29.912620+00:00",
+        "files": {
+          "control.html": {
+            "http_status": 200,
+            "bytes": 4384,
+            "sha256": "d0303ba370a643960273d137f30cc8a378ef78351fe6f586c40a5565c524416c",
+            "immutable_sha256": "d0303ba370a643960273d137f30cc8a378ef78351fe6f586c40a5565c524416c",
+            "matches_immutable": true,
+            "current_page_cue": false
+          },
+          "finance.html": {
+            "http_status": 200,
+            "bytes": 4667,
+            "sha256": "815d5aa266b66f7d5c3b82f34359e6356f53cd56ef9da6288a99a25ef42fbf7d",
+            "immutable_sha256": "815d5aa266b66f7d5c3b82f34359e6356f53cd56ef9da6288a99a25ef42fbf7d",
+            "matches_immutable": true,
+            "current_page_cue": true
+          },
+          "index.html": {
+            "http_status": 200,
+            "bytes": 4457,
+            "sha256": "d51eaca8a7eaf1bff89c735d8379fb6e978f321a9e30c519548b6e761934fb47",
+            "immutable_sha256": "d51eaca8a7eaf1bff89c735d8379fb6e978f321a9e30c519548b6e761934fb47",
+            "matches_immutable": true,
+            "current_page_cue": false
+          },
+          "manifest.json": {
+            "http_status": 200,
+            "bytes": 773,
+            "sha256": "bd670bee1cdb6dda2cd90f35352ba1b820eb181650521759e578fa4b8ac83dff",
+            "immutable_sha256": "bd670bee1cdb6dda2cd90f35352ba1b820eb181650521759e578fa4b8ac83dff",
+            "matches_immutable": true,
+            "current_page_cue": false
+          },
+          "mental.html": {
+            "http_status": 200,
+            "bytes": 4455,
+            "sha256": "16048b6589cc0c7c24157a0e1f98a1266cd33c9775ab50b33cc4d4f43b05ef89",
+            "immutable_sha256": "16048b6589cc0c7c24157a0e1f98a1266cd33c9775ab50b33cc4d4f43b05ef89",
+            "matches_immutable": true,
+            "current_page_cue": true
+          },
+          "physical.html": {
+            "http_status": 200,
+            "bytes": 4235,
+            "sha256": "4cb5f7c3bc2928c894532b8f3b4b8d72de3f3b9cd6b454f7d7d66153a8c14aac",
+            "immutable_sha256": "4cb5f7c3bc2928c894532b8f3b4b8d72de3f3b9cd6b454f7d7d66153a8c14aac",
+            "matches_immutable": true,
+            "current_page_cue": false
+          },
+          "proof.html": {
+            "http_status": 200,
+            "bytes": 4668,
+            "sha256": "5b5f3f356e143eead6ce3e7b9dc6a8a8948d2825ecf2dc7ac5d3527387970f68",
+            "immutable_sha256": "5b5f3f356e143eead6ce3e7b9dc6a8a8948d2825ecf2dc7ac5d3527387970f68",
+            "matches_immutable": true,
+            "current_page_cue": false
+          }
+        },
+        "all_seven_match": true
+      },
+      "current_proof_exported": "NOT_REPORTED",
+      "initial_unknown_preserved": true,
+      "unknown_send_resent": false,
+      "checkpoint_readback": {
+        "revision": 19,
+        "sha256": "a23939e6a8c0be5d3f23f9468dde406ea3c856ac1d294423672897919d960c62",
+        "snapshot_bytes": 151552,
+        "owner_present": false,
+        "lease_present": false,
+        "recovery_required": false
+      }
     }
   },
   "limits": [
@@ -513,5 +632,22 @@
       "reason": "The public deterministic operation digest is named effect_sha256 in this report to distinguish it from authentication credentials. Historical v1 uses effect_key; values and receipt bindings are unchanged.",
       "prior_source_commit": "17d400f225ab4ee320daae337b2e866e0c32884a"
     }
-  ]
+  ],
+  "updated_at": "2026-10-23T06:05:50.443799+00:00",
+  "source_verification": {
+    "research_full_ci_run_id": 39905051912,
+    "research_full_ci_source": "9deec0f375b6bbd9d20b1bc3987e56a16c1f8db7",
+    "research_full_ci_total": 870,
+    "research_full_ci_passed": 864,
+    "research_full_ci_skipped": 6,
+    "local_full_suite_total": 896,
+    "local_full_suite_passed": 891,
+    "local_full_suite_skipped": 5,
+    "deployed_main_source": "f8e11d27b9f98b511d6fdc55e2781cacbe26f8a5",
+    "deployed_core_scripts_workflow_files": 43,
+    "all_43_deployed_blobs_identical_to_research_ci": true,
+    "research_only_core_scripts_files_not_deployed": 78,
+    "deployed_main_full_suite_total": 291,
+    "note": "CI and deployment sources are distinct. All deployed core/scripts/workflow files match the research CI tree; this does not claim the 78 research-only files are deployed. Final replay source 318f3223df9b4d581ce0edf1a4db418f2eb132b2 has the same runtime/scripts/workflow bytes."
+  }
 }
