@@ -3,8 +3,12 @@
 The [design](2026-10-23-safetybench-local-model-design.md),
 [prospective scope](../specs/2026-10-23-safetybench-local-model-execution.md) and
 [scientific protocol](../../experiments/behavior-model/safetybench-local-qwen3-clp-protocol-v1.json)
-define the existing V002 lane. Implementation science is adopted; actual runtime
-acceptance is pending, inference NOT_RUN. This document grants no model call.
+define the existing V002 lane. Implementation science was adopted before the
+native attempt. The original attempt stopped at its fixed wall limit and remains
+`UNFINALIZED_MISSING_OUTER_REAP`; a separately accepted recorded replay is
+`PARTIAL_OR_FAILED_REPLAY_ONLY`. See the [actual result](../verification/SAFETYBENCH_LOCAL_QWEN3_CLP_CPU_20261023.md)
+and [recovery amendment](../specs/2026-10-24-safetybench-journal-replay-recovery.md).
+Neither changes the open V002 gates or grants model execution permission.
 The [parent plan at its preparation revision](https://github.com/Daisuke134/life-manager/blob/02ebc1553ac8edf2e73f0e507eb5c4c396f8da68/products/manager/docs/plans/2026-10-23-behavior-transformation-model-plan.md)
 remains the broader research context; no task/status registry changes are made.
 
@@ -36,6 +40,32 @@ remains the broader research context; no task/status registry changes are made.
    separate all-gold/valid denominators. Keep raw artifacts private; report
    aggregates, coverage, seven states, controls, category metrics, elapsed time,
    sampled RSS and limits without claiming full coverage or human benefit.
+
+## Actual attempt and replay state
+
+The original native attempt ran from `2026-10-23T23:56:49.008416Z` to
+`2026-10-24T02:56:50.137804Z` under the frozen 10,800-second / 6,442,450,944-byte
+sampled RSS policy. It stopped with `RESOURCE_LIMIT` after 10,801.129 seconds;
+the child returned `-15`, was reaped, and its PID and process group were absent.
+The outer wait/reap proof was unavailable, the wrapper remained unreaped, and
+ordinary finalization was not run. Thus the original finalization remains
+`UNFINALIZED_MISSING_OUTER_REAP`; it must not be called a passing Task2 step.
+
+Root later accepted one deterministic replay of the existing journal before its
+first score. The unchanged source H was `51b7d45b3c82a4962af16c19433c4e6c1927def6`;
+the distinct adopted source M is `714e0041d617e579ce0c3a3c7d90e49dfe34c0db`.
+The replay made zero model calls, retries, resumes, or extensions and invoked
+the existing recorded scorer once. It preserved all 11,435 assignments and
+returned 6,425 valid, one unknown, and 5,009 not-run rows, status
+`PARTIAL_OR_FAILED_REPLAY_ONLY`. The [aggregate report](../verification/SAFETYBENCH_LOCAL_QWEN3_CLP_CPU_20261023.md)
+records the all-gold and conditional denominators, all seven category results,
+and limits. The replay does not authenticate declared producer provenance,
+complete original v1 finalization, or establish superiority, safety, human
+benefit, full coverage, or V002 completion. The prospective replay review and
+the subsequent actual receipt/arithmetic review each recorded zero findings;
+the prospective review's nine authored tests passed. Whole-source review and
+the standard PR, CI, integration, and official-readback process are tracked
+separately by root; this subplan does not establish their completion.
 
 The CLI requires `--mode infer|finalize --execution-config-path ABS
 --code-version FULL_SHA`; finalize additionally requires
