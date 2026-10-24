@@ -4,6 +4,8 @@ import sys
 
 import pytest
 
+from skills.earn.crowdworks.tests.test_profile_private_identity import CANDIDATE, provider, write_json
+
 
 MODULE = Path(__file__).parents[1] / "scripts/reply_adapter.py"
 SPEC = importlib.util.spec_from_file_location("crowdworks_reply_adapter_test", MODULE)
@@ -12,9 +14,33 @@ sys.modules[SPEC.name] = adapter_module
 SPEC.loader.exec_module(adapter_module)
 
 
+@pytest.fixture(autouse=True)
+def synthetic_private_home(tmp_path, monkeypatch):
+    home = tmp_path / "synthetic-home"
+    home.mkdir(mode=0o700)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(tmp_path / "state"))
+    registry = tmp_path / "browsers.toml"
+    registry.write_text("", encoding="utf-8")
+    monkeypatch.setenv("AI_BROWSER_REGISTRY", str(registry))
+    write_json(home / ".config/anicca/job-search/profile.json", CANDIDATE)
+    forbidden = lambda *_args, **_kwargs: pytest.fail("browser connection must be injected")
+    monkeypatch.setattr(adapter_module.account, "_cdp_alive", forbidden)
+    monkeypatch.setattr(adapter_module.account, "_browser", forbidden)
+
+
+def _adapter(grounding, **kwargs):
+    # Legacy author labels below are synthetic provider fixtures, never a production fallback.
+    kwargs.setdefault("candidate_profile", Path.home() / ".config/anicca/job-search/profile.json")
+    kwargs["provider_profile"] = (
+        provider() | {"provider_employee_id": "7145638", "display_name": "Kaito｜AI自動化"}
+        | (kwargs.get("provider_profile") or {}))
+    return adapter_module.CrowdWorksReplyAdapter(grounding, **kwargs)
+
+
 def test_observation_uses_official_thread_and_message_ids():
     row = {"thread_id": 303996182, "id": 425906697, "proposal_status": "proposed"}
-    observed = adapter_module.CrowdWorksReplyAdapter._observation(row)
+    observed = _adapter({})._observation(row)
     assert observed["provider"] == "crowdworks"
     assert observed["thread_id"] == "303996182"
     assert observed["latest_event_id"] == "425906697"
@@ -22,7 +48,7 @@ def test_observation_uses_official_thread_and_message_ids():
 
 
 def test_only_officially_proposed_threads_reopen_old_no_effect_state():
-    ordinary = adapter_module.CrowdWorksReplyAdapter._observation(
+    ordinary = _adapter({})._observation(
         {"thread_id": 1, "id": 2, "proposal_status": "rejected"}
     )
     assert "decision_version" not in ordinary
@@ -103,7 +129,7 @@ class _Page:
 
 
 def _contract_adapter(*, status="proposed", amount="50,000円", trigger_count=1):
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": status,
     }}
@@ -354,7 +380,7 @@ def test_single_thread_observation_does_not_require_reply_composer():
 
 
 def test_buyer_google_form_becomes_human_required_hold():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
     }}
@@ -372,7 +398,7 @@ def test_buyer_google_form_becomes_human_required_hold():
 
 
 def test_acknowledgement_after_google_form_keeps_human_hold():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.conversations = {"thread-1": [
         {"event_id": "buyer-1", "role": "buyer", "sender": "buyer",
          "sent_at": "2026-09-10T00:00:00Z", "body": "フォームへ回答してください",
@@ -389,7 +415,7 @@ def test_acknowledgement_after_google_form_keeps_human_hold():
 
 
 def test_external_form_action_rejects_untrusted_or_ambiguous_links():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {"thread_id": "thread-1", "id": "message-1"}}
     base = {"event_id": "event-1", "role": "buyer", "sender": "buyer",
             "sent_at": "2026-09-10T00:00:00Z", "body": "回答してください"}
@@ -404,7 +430,7 @@ def test_external_form_action_rejects_untrusted_or_ambiguous_links():
 
 
 def test_post_contract_thread_never_offers_google_form_action():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "accepted",
     }}
@@ -419,7 +445,7 @@ def test_post_contract_thread_never_offers_google_form_action():
 
 
 def test_post_contract_external_intent_is_rejected_before_form_submit():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "accepted",
     }}
@@ -446,7 +472,7 @@ def test_post_contract_external_intent_is_rejected_before_form_submit():
 
 
 def test_stale_proposed_reply_is_rejected_after_fresh_contract_readback():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
     }}
@@ -468,7 +494,7 @@ def test_stale_proposed_reply_is_rejected_after_fresh_contract_readback():
 
 
 def test_stale_proposed_external_intent_is_rejected_after_fresh_contract_readback():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
     }}
@@ -495,7 +521,7 @@ def test_stale_proposed_external_intent_is_rejected_after_fresh_contract_readbac
 
 
 def test_contract_redirect_url_is_paid_owned_even_without_contract_link_in_message():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
     }}
@@ -514,7 +540,7 @@ def test_contract_redirect_url_is_paid_owned_even_without_contract_link_in_messa
 
 
 def test_external_intent_without_current_thread_inventory_fails_closed():
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
         "kind": "submit_google_form", "url": "https://forms.gle/AbCdEf123",
         "url_sha256": "a" * 64, "completion_body": "回答を完了しました。",
@@ -544,7 +570,7 @@ class _OfferPage:
 
 
 def _proposed_adapter(page):
-    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter = _adapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
     }}
@@ -586,9 +612,9 @@ def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path)
                   {"claim": "Mitsubishi UFJ employment"}],
     }), encoding="utf-8")
     provider.write_text(__import__("json").dumps({
-        "display_name": "Public Seller", "provider_employee_id": "7145638",
+        "display_name": "PublicUser", "provider_employee_id": "7145638",
     }), encoding="utf-8")
-    adapter = adapter_module.CrowdWorksReplyAdapter(
+    adapter = _adapter(
         {}, candidate_profile=candidate,
         provider_profile=__import__("json").loads(provider.read_text(encoding="utf-8")),
     )
@@ -602,7 +628,7 @@ def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path)
     ]
 
     assert adapter._question_answers(items) == [
-        ("entry.10", "Public Seller"), ("entry.11", "ND"),
+        ("entry.10", "PublicUser"), ("entry.11", "ND"),
         ("entry.12_year", "2025"), ("entry.12_month", "04"),
         ("entry.12_day", "01"), ("emailAddress", "private@example.com"),
     ]
@@ -610,7 +636,7 @@ def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path)
 
 def test_google_form_readback_resumes_message_without_resubmitting_form(tmp_path):
     state = tmp_path / "reply" / "state.json"
-    adapter = adapter_module.CrowdWorksReplyAdapter({}, state_path=state)
+    adapter = _adapter({}, state_path=state)
     url_hash = "a" * 64
     receipt = adapter._form_receipt_path(url_hash)
     receipt.parent.mkdir(parents=True)
@@ -633,7 +659,7 @@ def test_google_form_readback_resumes_message_without_resubmitting_form(tmp_path
 
 def test_google_form_readback_proves_absence_only_before_prepared_marker(tmp_path):
     state = tmp_path / "reply" / "state.json"
-    adapter = adapter_module.CrowdWorksReplyAdapter({}, state_path=state)
+    adapter = _adapter({}, state_path=state)
     url_hash = "a" * 64
     intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
         "kind": "submit_google_form", "url_sha256": url_hash,
@@ -652,7 +678,7 @@ def test_google_form_readback_proves_absence_only_before_prepared_marker(tmp_pat
 
 
 def test_confirmation_requested_without_visible_message_does_not_authorize_replay(tmp_path):
-    adapter = adapter_module.CrowdWorksReplyAdapter(
+    adapter = _adapter(
         {}, state_path=tmp_path / "reply" / "state.json")
     url_hash = "a" * 64
     receipt = adapter._form_receipt_path(url_hash)
@@ -670,7 +696,7 @@ def test_confirmation_requested_without_visible_message_does_not_authorize_repla
 
 
 def test_confirmation_send_exception_preserves_fence_and_never_reposts(tmp_path):
-    adapter = adapter_module.CrowdWorksReplyAdapter(
+    adapter = _adapter(
         {}, state_path=tmp_path / "reply" / "state.json")
     url_hash = "a" * 64
     receipt = adapter._form_receipt_path(url_hash)
@@ -700,7 +726,7 @@ def test_confirmation_send_exception_preserves_fence_and_never_reposts(tmp_path)
 
 def test_prepared_google_form_requests_confirmation_once_and_accepts_buyer_receipt(tmp_path):
     state = tmp_path / "reply" / "state.json"
-    adapter = adapter_module.CrowdWorksReplyAdapter({}, state_path=state)
+    adapter = _adapter({}, state_path=state)
     url_hash = "a" * 64
     receipt = adapter._form_receipt_path(url_hash)
     receipt.parent.mkdir(parents=True)
@@ -759,7 +785,7 @@ def test_prepared_google_form_requests_confirmation_once_and_accepts_buyer_recei
 
 def test_google_form_confirmation_rejects_unrelated_and_negated_buyer_messages(tmp_path):
     state = tmp_path / "reply" / "state.json"
-    adapter = adapter_module.CrowdWorksReplyAdapter({}, state_path=state)
+    adapter = _adapter({}, state_path=state)
     url_hash = "a" * 64
     receipt = adapter._form_receipt_path(url_hash)
     receipt.parent.mkdir(parents=True)
@@ -801,10 +827,10 @@ def _grounded_adapter(tmp_path, composed):
                       "name_kana": {"family": "ナリタ", "given": "ダイスケ"}},
         "facts": [{"claim": "Nara Institute graduate"}, {"claim": "Mitsubishi UFJ employment"}],
     }), encoding="utf-8")
-    adapter = adapter_module.CrowdWorksReplyAdapter(
+    adapter = _adapter(
         {"candidate": {"name": "grounded"}, "private_identity_values": ["Narita"]},
         candidate_profile=candidate,
-        provider_profile={"display_name": "Public Seller", "provider_employee_id": "7145638"},
+        provider_profile={"display_name": "PublicUser", "provider_employee_id": "7145638"},
         state_path=tmp_path / "reply" / "state.json")
     calls = []
 

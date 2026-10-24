@@ -623,6 +623,10 @@ CIのcaller closure: 同じloop-control jobのCrowdWorks stepへ、変更したa
 
 reconcile本人bindingのRED/GREEN: 作者senderを別利用者の合成ID/表示名へ置き換え、pure評価/公式proposal読取が明示providerを受け取る契約を6 FAIL/3 PASSで再現する。3CLIの不足時gateも3 RED、accept readbackのprivate build不使用も1 REDを確認する。sender照合の値だけを本人providerから渡し、exact occurrence/window/official receipt/保留条件は保持する。合成admission DBのclaimed/effect_unknown=1は不足時byte不変、必要な本人設定後だけ既存resolverへ進む。owner/reconcile4filesの45 PASS（0.95s）を確認し、実providerや本番fenceの操作は0。
 
+adapter本人bindingの受入前検証: 担当source2/test3filesは初期17 RED、再生成2 RED、navigation2 RED、sender7 REDを経て新30件＋既存194件の224 PASS（1.37s）。build/direct-openは既存validatorを使い、ID/候補者不一致を外部操作前に止める。new/reset/fallback/timeout/mobile/proposalの全page作成を同じassert_accountへ通す。本人の/public/employees/<ID>だけをsellerとし、同名buyer/本人改名/同数字employer/不正hrefを検証する。通信やroute失敗は元のProfileErrorを保持し、未検証pageを返すfallbackへ進まない。既存event digest、receipt/fenceの判定は保持する。
+
+旧fixtureの隔離不足: test_mutation_targeted_refresh_rejects_changed_contract_before_submitには既定_connect_existing_cdpまで到達し得る未注入_openがあり、最初の実行は14.09sだった。実target/page/terminal exceptionは取得しておらず、接続成功や実provider効果を断定しない。source上の送信callbackはfixture stubで、変更済contractをsubmit前に拒否するassertを保持する。既定factoryを明示failのsentinelへ変更し、そのtestだけ外部操作無しの_openを注入する。追加の実browser/private調査やcleanupは行わない。修復後の224件とprimary全2dirs451 PASS/既知4 FAIL（6.33s）は隔離fixtureで実行する。今回の全回帰をGREENとは呼ばず、既知4件は上記と同一の旧文字列/時刻cursor assertionとして残す。source/main/実provider成果の完了はまだ主張しない。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
