@@ -67,6 +67,13 @@ DIRECT_MAX_APPLICATIONS = 20
 EXPERIMENT_FIELDS = ("experiment_id", "experiment_arm")
 
 
+# Searched before the newest-first firehose. 2026-10-25: all 6 lifetime wins came from
+# IT/automation/EC/video categories while single:new spread 98 weekly applications over
+# flyers, logos and sheet music. ponytail: fixed list; category_bandit's ranking is stale
+# (last decision 2026-08-10), order by it once it decides again.
+FIT_FIRST_KEYWORDS = ("システム開発", "業務自動化", "ECサイト", "動画編集", "Python", "スクレイピング")
+
+
 def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
     """Keep pass metadata, but retire legacy category/budget filtering for Direct Apply."""
     thresholds = dict(prep.get("apply_skip_thresholds") or {})
@@ -87,7 +94,7 @@ def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
         "target_apply_per_pass": DIRECT_MAX_APPLICATIONS - 1,
         "target_retainer_apply_per_pass": 1,
         "max_apply_per_pass": DIRECT_MAX_APPLICATIONS,
-        "category_order": [],
+        "category_order": list(FIT_FIRST_KEYWORDS),
         "apply_skip_thresholds": thresholds,
         # Legacy isolated experiments mutate strategy fields Direct Apply no longer reads.
         # An A/B experiment is priced and recorded by the parent's code-owned contract.
