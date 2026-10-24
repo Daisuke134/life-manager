@@ -111,6 +111,13 @@ def test_status_does_not_invent_account_identity(account, body, redirect):
     assert "account_id" not in result
 
 
+@pytest.mark.parametrize("selector", ["a.user_avatar", "a.profile_name"])
+def test_status_rejects_missing_own_profile_link_href(account, selector):
+    page = Page(dashboard())
+    del page.soup.select_one(selector)["href"]
+    assert "account_id" not in status(account, page)
+
+
 def test_ensure_returns_identity_without_requesting_credentials(account, tmp_path):
     page = Page(dashboard(employee="87654321"))
     forbidden = lambda *_args: pytest.fail("authenticated identity must not request input")

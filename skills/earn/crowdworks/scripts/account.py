@@ -128,8 +128,8 @@ def _account_id(page:Any)->Optional[str]:
                 or not _auth(page)[0]):
             return None
         links=page.locator(
-            ".sidebar section.profiles .profile_data_area a.user_avatar[href], "
-            ".sidebar section.profiles .profile_data_area a.profile_name[href]")
+            ".sidebar section.profiles .profile_data_area a.user_avatar, "
+            ".sidebar section.profiles .profile_data_area a.profile_name")
         identifiers=set()
         for index in range(links.count()):
             link=urlsplit(urljoin(page.url,links.nth(index).get_attribute("href") or ""))
