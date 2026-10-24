@@ -169,8 +169,11 @@
 
 - [x] A01–A02 現物確認/用途/実schema: Zenodo59membersを選択取得、manifest自身以外58payloadの上流SHA一致。primary2094行/54列、post欠測50、公開key上のwave横断participant0を確認。[研究note](../research/2026-10-24-costello-correction-reuse.md)。
 - [x] A03–A04 有限の実再現: 上流build_results.Rと7部validate_analysis.Rを変更せず実行してPASS。互換R4.5.3、元lock4.5.0とは異なる。6表45行を許容差内で照合。全archive/survey reconstruction再現ではない。[実receipt](../verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md)。
-- [x] A05–A08 研究設計と私有入力準備: 二つの事前入力から事後本人報告confidenceを予測する有限候補、train128/dev584/evaluation762、NO_ACTION/事前値維持/平均/OLS/base/単一LoRAを固定。devの単純baseline実測のみ、新LLM採点/学習なし。[designと残code](2026-10-24-costello-numeric-forecast.md)。
-- [ ] A09 resource/package/asset存在を確認したが、新source-specific caller、意味あるtests、exact-source review/CI、durable outer wait/評価予算の固定は未成立。旧27例entryを緩めず次の最小code作業へ進む。A10は未実施。
+- [x] A05–A08 研究設計と私有入力準備: 二つの事前入力から事後本人報告confidenceを予測する有限候補、train128/dev584/evaluation762、NO_ACTION/事前値維持/平均/OLS/base/単一LoRAを固定。当該設計時点ではdevの単純baseline実測のみ。後続A10の実学習は次項、新LLM採点は未実施。[designと残code](2026-10-24-costello-numeric-forecast.md)。
+- [x] A09の学習用slice: source専用callerと15 focused tests、fresh review、exact-source公式CI、durable canary・native wait/reap/terminal契約、900秒/5GiBと別admissionを成立させた。A09全体の別G7評価用caller/CI/資源受入は未成立。
+- [x] A10の単一attempt: train128、32 optimizer steps、250.792秒、保存adapterを評価前固定。独立検査で112 tensorsがfinite、56 B tensorsがzero初期値と異なる。[実receipt](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)。新評価は未実施で採用HOLD。
+- [ ] A11: 別G7のgeneration caller/tests、exact-source review/CI、別予算freezeを成立させ、全assigned分母で比較して閉じる。元final16不使用、同じevaluationへretuneしない。
+- [x] 追加研究/原稿: Intrinsic AI、CAMI、MI-TAGSの[用途別一次資料調査](../research/2026-10-24-motivational-interviewing-reuse.md)と[追加実習章](../articles/2026-10-24-motivation-is-not-behavior-ja.md)。取得/静的読取/再現を分け、未取得rightsや人数不一致を残す。全研究網羅/全書籍完成ではない。
 
 上の完了はこの有限研究の範囲だけ。全V002/V003/モデル採用/人便益の受入ではなく、tasks.json85/18/10・U004 participants0/interventions0・modelHOLDは維持する。
 

@@ -1,5 +1,7 @@
 # Costello numeric forecasting — research decisions and next implementation
 
+> **最新状態 2026-10-24 12:36 UTC以降:** A09の学習用sliceを別受入し、A10のtrain128一attemptは正常完了、単一adapterを評価前に固定した。[実receipt](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)。以下の未受入/未実施は実行前snapshot。新base/adapter比較はNOT_RUN、A09の別G7評価条件は未成立、採用HOLD。
+
 **Goal:** 公開実験条件における本人報告confidenceの予測を、単純統計と一つのLoRAで有限比較する。説得文生成・個人因果効果・苦しみ低減の研究とは分ける。
 
 **Spec:** [既存仕様§23](../MANAGER_PRODUCT_SPEC.md)、[親Task8](2026-10-23-behavior-transformation-model-plan.md)、[固定design](../../experiments/behavior-model/costello-numeric-forecast-design-v1.json)。新しい状態台帳ではない。
