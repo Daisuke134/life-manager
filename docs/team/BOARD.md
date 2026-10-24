@@ -8,7 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
-- [Codex / CrowdWorks本人入力] claim: fix/crowdworks-local-identity-20261024、profile/応募・返信・受注後/照合と関連tests/CI/統合SSOT/本BOARDを所有。別本人設定が旧固定ID/senderへ流れるR1 Blockingを採用し、全callerを同じprivate入力・dashboard本人照合へ接続する。正確なfile所有とfixture隔離の観測限界、残TODO正本 → 統合SSOT MAC03-CROWDWORKS-IDENTITY。
+- [Codex / CrowdWorks本人入力] claim: docs/crowdworks-identity-runtime-20261024、PR8836のmain/public/完全実行版受入と本人設定・対象owner限定promotion、統合SSOT/本BOARDを所有。source受入は完了。公開setup9件・実業務成果・別Macの残TODO正本 → 統合SSOT IDENTITY-PROMOTION。
 - [claude-8 / 4アプリ課金記事 note・Substack クロスポスト] claim（参謀依頼 13:1x）。原稿 docs/team/launch/fbs-article.md（JA/EN、aniccaai.com=utm_campaign=fbs-102/thankful-102、App Store=ct=<source>_<campaign>）。note は claude-7 の下書き nd42c30868e7c を流用し新規作成しない。note/Substack の公開は Dais 2026-07-12 の draft-only 決定によりダッシュボードで人が判断。
 - [Codex / Local Mac release acceptance] 完了: PR8828/main525bfcb1、source173件/36subtests・fresh R2指摘0・CI全13成功。実参照調査2.491s、complete immutable作成39.806s/依存7再利用/既存release-bundle削除0/current非切替。CrowdWorksの実dashboard本人ID一致、確認page1作成1終了/接続UUIDとprivate設定不変を受入。次はprivate本人入力の各caller接続と公開setup、正本は統合SSOTのMAC03-CROWDWORKS-IDENTITY。
 - [Codex / Manager SafetyBench local CLP source] claim: feat/manager-safetybench-local-model-20261023 の限定10パスのみ所有。products/manager配下の manager_core/safetybench_local_model.py・scripts/evaluate_safetybench_local_model.py・tests/test_safetybench_local_model.py・experiments/behavior-model/safetybench-local-qwen3-clp-protocol-v1.json・docs/plans/2026-10-23-safetybench-local-model-design.md・docs/plans/2026-10-23-safetybench-local-model.md・docs/specs/2026-10-23-safetybench-local-model-execution.md、および THIRD_PARTY_NOTICES.md・.github/workflows/manager-phase06-service.yml・docs/team/BOARD.md。レビュー済み1089f99eのsourceのみ最小移植、main既存5権利record・旧契約を保持。合成fixture/offline CIのみ検証、native/model/実データ/provider/本番作用0。index/commit/統合・実推論受入はroot担当。
@@ -32,6 +32,9 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- Codex(CrowdWorks限定反映): 独立反証0件/旧unknown保持の既存1test PASS後、paidとreplyだけをloaded-idle条件でmain2fb77acdの完全immutableへ反映。install eventとloaded/installed argv/SHAが各一致、本人profile不変/直接provider操作0/手動fence解決0。次: 自然terminal/公式成果と公開setup。応募の職種設定、全業務/別Mac/10,000starsは未完。
+- Codex(CrowdWorks限定promotion): 公式dashboardの本人IDと選択済detail/公開detail一致をread-only確認。private大分類とは不一致のため補完0/応募反映0。page作成1/close1、入力hash不変。native preflight全PASS、返信/受注後の2ownerだけfresh反証→loaded-idle反映へ進む。公開setup/全業務/別Macは未完、正本 → IDENTITY-PROMOTION。
+- Codex(CrowdWorks実行版): PR8836/main2fb77acdはfresh R2指摘0件/独立349 PASS+19反証、CI13成功、公開24files一致。完全immutableのsource12files/依存7linksを確認しcurrent不変。本人設定はidentity valid/応募occupation_detail不足、network0/入力書換0。次は公式read-only職種照合→本人設定補完→対象owner限定反映。全業務/別Mac/10,000starsは未完。
 - Codex(CrowdWorks全caller): 応募/返信/受注後/照合をprivate本人IDへ接続し、公式sender hrefで同名buyer/改名を識別する。新adapter30件を含む担当224 PASS、primary全451 PASS/既知4 FAIL。旧fixtureの既定CDP接続試行をsentinelへ閉じ、接続/効果の未取得範囲は統合SSOTへ残す。次: fresh R2/公開CI/main。公開setup・実業務成果・別Macは未完。
 - Codex(CrowdWorks本人入力): private profileの作者overlay/固定公開IDを除去し、dashboard本人ID照合を再利用する。新33件のREDと関連63件PASS、未設定時のreceipt保持/provider更新0を隔離fixtureで確認。実browser/provider・loop制御0、次はfresh review/関連回帰/CI/main。全caller接続と公開setupは未完、正本 → 統合SSOT MAC03-CROWDWORKS-IDENTITY。
 - Codex(Local Mac): PR8828/main525bfcb1の完全実行版からCrowdWorks本人IDのread-only一致を確認。参照調査は15秒超過→2.491s、全173tests/CI13成功、provider送信/本人binding変更0。次: MAC03-CROWDWORKS-IDENTITY。stars8/10,000、公開installer未提供9/別Mac実機/全業務成果は未完。
