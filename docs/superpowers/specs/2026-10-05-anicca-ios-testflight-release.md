@@ -299,3 +299,14 @@ This readback supersedes the October 13 Xcode Cloud/build cursor above.
 - RevenueCat passwordはこの作業で変更も共有もしていない。新しいpasswordはない。secret valueはspec・chatへ記録しない。
 
 **更新後cursor:** PR #8911へPaywall retry/timeout修正を追加してpushし、exact-head CIとfresh read-only reviewを確認する。その後main統合、host容量/effect receipt回復、48時間境界（2026-10-25T10:58Z）後の自然`@anicca.en`動画投稿確認を進める。並行するApple未完事項（Xcode Cloud新build、StoreKit、notification tap、physical iPhone Lifetime demo、拒否済みitem再提出）は引き続き未完了。
+
+### 最新readback — 2026-10-24T18:25Z（10/25 JST）
+
+- Storefront retry/timeout recheckとmobile no-due receipt contract fixはPR #8911 head `a7f2d21851a03757eee493ce80401685d5b11a69`にある。focused tests PASS、fresh read-only review 0 blocking findings。GitHub CIは14 PASS / x86_64 loop control contract実行中、まだmergeしていない。
+- fresh `asc status --app 6755129214`はhealth `red`、latest build 810 / version 1.9.6 / VALID、review blockerはsubmission `63652029-7b10-44ef-8f81-0181429eb76b`のunresolved issue。build 810は今回のbranch SHAより前のsourceであり、この修正の出荷証拠ではない。
+- 通知tapで同じメッセージを開くsource pathは存在するが、現行installed buildでのAPNs実機検証は未実施。Paywall retry・Storefront eligibilityのsource regressionはPASSだが、merged SHAのXcode Cloud archive/buildと実機StoreKit確認は未実施。Japan-only Lifetime IAPの`DEVELOPER_REJECTED`、physical iPhone demo、既存rejected app itemの再提出が残る。
+- **現在cursor:** x86_64 CIの完了後にPR #8911をmainへ統合する。次にmerged SHAのXcode Cloud buildをreadbackし、exact buildでpaywallと通知tapを検証、Lifetime IAPの拒否を解消してdemoを添付し、既存submission itemを再提出する。配信account範囲、host admission、effect reconciliation、6アプリのdistribution/MRR TODOはcanonical [`2026-09-25-life-manager-unified-ssot.md`](2026-09-25-life-manager-unified-ssot.md)に記録する。
+
+### source CI readback — 2026-10-24T18:29Z
+
+PR #8911 source head `a7f2d21851a03757eee493ce80401685d5b11a69`のCIは15/15 PASS、PRはOPEN / `CLEAN`。このspec追記を含む次headは別途CIが必要。main integration、merged-source Xcode Cloud build、実機paywall・通知確認、IAP拒否解消と提出は未完了。
