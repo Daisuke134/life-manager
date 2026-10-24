@@ -4,7 +4,7 @@
 
 **目的・範囲:** 初見の人がLife Managerの価値と7つの事業を理解し、自分のMacへ導入できるOSSにする。README、Mac導入、7事業の実業務、約20 agentの稼働、確認済みの純収益、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現在の状態と再開順の正本にし、後続の過去run記録は履歴として扱う。
 
-**製品の中心価値:** Life Managerは、人が運営する既存事業を手伝うだけのAIではない。AI agents自身が機会を選び、事業をゼロから企画・構築・立ち上げ、商品・サービスを売り、日々の運営で収益を生むno-human-in-the-loop money printerを目指す。最初のアカウント接続後は、継続的な人のpromptやapprovalなしで事業を運営する。利用条件はChatGPT Plus以上、インターネット、スリープしないMac/Mac miniと事業ごとの必要アカウント。money printerは到達点を表すpositioningであり、現時点で自律運転と費用控除後利益は未実証なので、READMEでは目標と確認済み実績を区別する。
+**製品の中心価値:** Life Managerを「no-human-in-the-loop money printer」として打ち出す。AI agents自身が機会を選び、事業をゼロから企画・構築・立ち上げ、商品・サービスを売り、日々の運営で収益を生む。最初のアカウント接続後は、継続的な人のpromptやapprovalなしで事業を運営する。利用条件はChatGPT Plus以上、インターネット、スリープしないMac/Mac miniと事業ごとの必要アカウント。これは製品のpositioningであり、現在の完全な自律運転と費用控除後利益は未実証なので、READMEではpositioningを明確にしつつ、確認済み実績を別に示す。
 
 **利用前提:** ChatGPT Plus以上、インターネット、12 GiB以上の空き容量があるスリープしないMacまたはMac mini。利用する事業に必要なアカウントを接続する。サービスによって追加料金がかかる。
 
