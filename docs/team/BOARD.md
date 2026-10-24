@@ -30,6 +30,7 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- Codex(Local Mac release): source840a522433のリンク走査修復は新3件と関連143件/25subtests PASS。通常fileの追加statだけを減らし全symlink/15秒/fail-closedを保持する。fresh反証reviewとarchive系全検証中、次はexact CI/main→既存main build契約→CrowdWorks本人IDの実受入。
 - 2026-10-24 Codex（Local Mac導入/CrowdWorks）: 既存sessionの公式dashboard本人欄2リンクでID取得位置を確認し、account status/ensureへ任意account_idを返す31行のsource修正。新13件は3RED→13PASS、関連は隔離fixture補足後367PASS/既存4FAIL（base source/tests一致）。公開installer9件・本人private入力接続・main/immutable受入は未完。正本 → 統合SSOT MAC03-CROWDWORKS-ACCOUNT。
 - 2026-10-24 12:13 JST Codex（Local Mac導入）: PR8819/main e18dd462で生成browser台帳のlifecycle metadata修復を統合、CI13件・runtime1055件PASS。既存回復ownerのoperator run2件をterminalまで確認し、Lancersの本人session保持を公式照合。追加run後の3browserはnative PID未確認で、全回復や収益成功とは扱わない。次: exact loaded ownerの起動経路と自然eventを診断。正本 → 統合SSOT MAC03-LANCERS RECYCLE-REGISTRY-ACTUAL。
 - 2026-10-24 08:32 JST Codex（Manager SafetyBench local CLP source）: レビュー済み1089f99e8ebc5caddbcbf62d701a01c39d986ac6からB1修正ffc7b4a690a5db481006bea05bd179cb345c30b7まで限定sourceを移植。初回20件RED/GREEN後、B1回帰1件RED→新規module23件・既存offline CI枠202件PASS/skip0、既存Manager159ファイル・5権利record・旧契約を保持。10パス限定、モデル/native実データ/provider/本番作用0、worker commit0。source-boundary実FAIL2は既存cloud例外を保持。次: rootの全suite・独立R2review・通常source統合、runtime未受入。
