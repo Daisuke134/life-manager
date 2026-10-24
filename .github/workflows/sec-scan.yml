@@ -95,6 +95,10 @@ jobs:
           skills/browser/tests/test_guard_legacy_lease.py
           skills/browser/scripts/test_browser_guard_empty_lease.py
       - name: Verify registry, releases, apply fencing, and clean install
+        # unittest does not load conftest.py; a fresh runner has no swap-in history, and the
+        # admission gate defers without one (fail-closed by design), so turn it off here too.
+        env:
+          LIFE_MANAGER_SWAPIN_GATE: "off"
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py' --durations 15
       - name: Verify bounded storage, real syscall failures, and recurrence
         run: >-

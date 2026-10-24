@@ -4716,16 +4716,16 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
 
 
 def test_swap_pressure_defers_before_child_even_with_free_percent(tmp_path, monkeypatch):
-    # 2026-10-23: free% read 29-31 while swap was 15.7-18.1 GB of a 16 GB Mac; wakes must not queue.
-    monkeypatch.setenv("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75")  # conftest pins 1000 for the rest
+    # free% can read 29-31 while the host thrashes; fast swap-ins must still stop new wakes.
+    monkeypatch.delenv("LIFE_MANAGER_SWAPIN_GATE")  # conftest turns the gate off for the rest
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "capacity_busy")),
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=30),
-          patch("runtime.loop.lm_loop_run.swap_used_mb", return_value=15700.0),
-          patch("runtime.loop.lm_loop_run.physical_memory_mb", return_value=16384.0),
+          patch("runtime.host.memory_admission.swapin_pages_per_second", return_value=2500.0),
+          patch("runtime.host.memory_admission.swap_used_mb", return_value=17298.0),
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
@@ -4733,7 +4733,8 @@ def test_swap_pressure_defers_before_child_even_with_free_percent(tmp_path, monk
     claim.assert_not_called()
     row = json.loads(receipt.read_text())
     assert row["reason"] == "swap_pressure_high"
-    assert row["swap_used_mb"] == 15700.0
+    assert row["swapin_pages_per_second"] == 2500.0
+    assert row["free_percent"] == 30
 
 
 @pytest.mark.parametrize("reason", ("disk_headroom_low", "disk_headroom_unknown"))
