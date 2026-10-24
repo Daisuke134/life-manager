@@ -92,6 +92,14 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         self.assertIn("appState.cachedOfferingStorefrontCountryCode", self.source)
         self.assertNotIn("Locale.preferredLanguages", self.source)
 
+    def test_retry_and_timeout_recheck_storefront_eligibility(self):
+        retry = self.source.split('Button(String(localized: "paywall_b_retry"))', 1)[1].split(
+            'Button(String(localized: "paywall_plan_restore"))', 1
+        )[0]
+        self.assertIn("Task { await refreshStorefrontEligibility() }", retry)
+        timeout = self.source.split("private func scheduleReloadTimeout()", 1)[1].split("private func purchase()", 1)[0]
+        self.assertIn("Task { await refreshStorefrontEligibility() }", timeout)
+
     def test_subscription_refresh_discards_outdated_and_cross_storefront_results(self):
         manager = SUBSCRIPTION_MANAGER.read_text(encoding="utf-8")
         self.assertIn("offeringsRefreshGeneration", manager)

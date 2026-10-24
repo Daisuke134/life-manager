@@ -281,7 +281,7 @@ This readback supersedes the October 13 Xcode Cloud/build cursor above.
 
 成長TODO・channel scopeの正本は[`2026-09-25-life-manager-unified-ssot.md`](2026-09-25-life-manager-unified-ssot.md)の末尾「Anicca配信・出荷の現在地」。このrelease specはiOS出荷状態を保持する。
 
-- StoreKit storefront遷移raceの修正は、offerings request generationとStorefront revisionの両方を照合し、最新countryのofferingだけを購入可能にする。ユーザーの購入ボタン操作前にpackage identityも検証する。native tests 19件、paywall wiring tests 9件、Swift parseはPASS。Xcode 26.6 / Swift 6.3.3のsimulator compiler crashは変更前`origin/main`でも再現し、branch sourceのXcode buildは未確認。
+- StoreKit storefront遷移raceの修正は、offerings request generationとStorefront revisionの両方を照合し、最新countryのofferingだけを購入可能にする。購入ボタン押下後、RevenueCat purchase API呼び出し前にpackage identityも検証する。native tests 19件、paywall wiring tests 9件、Swift parseはPASS。Xcode 26.6 / Swift 6.3.3のsimulator compiler crashは変更前`origin/main`でも再現し、branch sourceのXcode buildは未確認。
 - 所有branchは`fix/anicca-distribution-submission-20261025`、PR #8911。同PRのLife Manager loop修正では、`NO_DUE_SLOT` producerのfreeform reasonをshared mobile parserのexact no-effect contractへ正規化する。修正前RED、修正後は`honne-ja-cycle.test.js`と`mobile-app-command.test.js`が合計33/33 PASS。両修正のpush、exact-head CI/review、main integrationはこれから。
 - `@anicca.en`のInstagram ownerはユーザーの再接続報告を受領済み。direct Postiz APIの`enabled` recordは認証成功の証明ではなく、直近3件のERROR、次の予約0、host `disk_floor_low`、20件のunknown detail、exact receiptなしが残る。無投稿の原因とeffect receiptをsource/公式readbackで切り分け、OAuthの48時間待機終了後にnatural owner runでのみ再開結果を確認する。手動再送はしない。
 - App Store Connectは1.9.6 `PREPARE_FOR_SUBMISSION`、build 808選択、build 810が最新`VALID`だが修正前SHA。物理iPhone demo、Lifetime IAPの`DEVELOPER_REJECTED` version解消、拒否済みapp itemの再提出、install後のpaywall/通知確認は未完了。
@@ -289,3 +289,13 @@ This readback supersedes the October 13 Xcode Cloud/build cursor above.
 **現在cursor:** PR #8911 source acceptanceとfocused testを終え、push後のCI/reviewを確認する。main統合後に同一main SHAからXcode Cloud buildを作り、その正確なbuildを用いたStoreKitと通知挙動確認へ進む。配信とApple審査の全体順序・MRR境界はcanonical growth SSOTに従う。
 
 **最新PR readback:** source commit `c9796a05e84d63e6d6880f6ab9cb0d7fcb8b997e`はremote branchとPR #8911のheadに反映済み。PRはOPENでreview decisionなし、直近readbackではCI 14件すべてpending。このspec更新で新しいheadを作るため、そのexact headのCIとreviewを確認してから統合する。
+
+### 最新source・配信readback — 2026-10-24T18:03Z（10/25 JST）
+
+- Paywall retry buttonと5秒timeoutの両方が、offerings再取得だけでなくStorefront country/revisionとLifetime適格性を再評価する`refreshStorefrontEligibility()`を呼ぶ。追加回帰テストは変更前RED、変更後wiring suite 10/10 PASS。native harness 19/19、Life Manager mobile tests 33/33、loop contract、Swift parse、diff checkもPASS。Xcode simulator buildと実機StoreKitは未確認。
+- DaisはInstagram全アカウントをPostizへ再接続したと報告。公式Postiz APIではInstagram integration 9件（8 enabled、`Anicca Cemetery`はdisabled）。MCP connectorはintegration/postsを0件返し、APIとscopeが不一致。`@anicca.en`はID `cmn8y95rg02d2qx0y09bbk5pb` / `Daily Anicca Nudges` / `disabled=false`。enabledはOAuth healthの証明ではない。
+- 公式APIの対象投稿window（10/10T18:03Z〜11/07T18:03Z）は対象IDにERROR 3件（10/23 10:58Z、10/24 05:26Z、10/24 10:13Z）、QUEUE/PUBLISHEDなし。connectorのupcoming 30日queryも0件だが、MCP scope問題があるため補助観測として扱う。ユーザー報告後の成功投稿は未確認。
+- owner `life-manager-anicca-en-widget-instagram`は`loaded-idle` / blocker `host_admission_deferred:disk_floor_low` / exit 75。free 2.2 GiB、4 GiB admission floor未満。表示20件のunknown detailは投稿数ではない。exact reconcilerはvalid identity 12件を調べたが`no_match`; 最新detail 20件のうち17件はvalid identityが欠け、完全一致receiptなし。投稿retryとfence解除はしない。
+- RevenueCat passwordはこの作業で変更も共有もしていない。新しいpasswordはない。secret valueはspec・chatへ記録しない。
+
+**更新後cursor:** PR #8911へPaywall retry/timeout修正を追加してpushし、exact-head CIとfresh read-only reviewを確認する。その後main統合、host容量/effect receipt回復、48時間境界（2026-10-25T10:58Z）後の自然`@anicca.en`動画投稿確認を進める。並行するApple未完事項（Xcode Cloud新build、StoreKit、notification tap、physical iPhone Lifetime demo、拒否済みitem再提出）は引き続き未完了。

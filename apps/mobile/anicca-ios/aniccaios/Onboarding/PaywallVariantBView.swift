@@ -70,7 +70,7 @@ struct PaywallVariantBView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                         Button(String(localized: "paywall_b_retry")) {
-                            Task { await SubscriptionManager.shared.refreshOfferings() }
+                            Task { await refreshStorefrontEligibility() }
                         }
                         .font(.system(size: 16, weight: .semibold))
                         Button(String(localized: "paywall_plan_restore")) { restorePurchases() }
@@ -379,7 +379,7 @@ struct PaywallVariantBView: View {
     private func scheduleReloadTimeout() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             if packages.isEmpty { showReloadAfterTimeout = true }
-            Task { await SubscriptionManager.shared.refreshOfferings() }
+            Task { await refreshStorefrontEligibility() }
         }
     }
 
