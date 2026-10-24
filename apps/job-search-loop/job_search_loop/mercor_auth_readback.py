@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 import websockets
 
+from .config import validate_profile
 from .mercor_page_ready import _call
 
 
@@ -224,7 +225,10 @@ def auth_snapshot_expression(*, expected_email: str | None = None) -> str:
     })()""" % json.dumps(expected_email)
 
 
-async def observe(ws_url: str) -> dict[str, object]:
+async def observe(ws_url: str, *, expected_email: str | None = None) -> dict[str, object]:
+    if (not isinstance(expected_email, str) or "@" not in expected_email
+            or any(character.isspace() for character in expected_email)):
+        return {"status": "indeterminate", "firebase_identity_matched": None}
     parsed = urlsplit(ws_url)
     if parsed.scheme not in {"ws", "wss"} or parsed.hostname not in {
         "127.0.0.1", "localhost", "::1",
@@ -235,7 +239,7 @@ async def observe(ws_url: str) -> dict[str, object]:
     ) as ws:
         async def evaluate(request_id: int) -> dict[str, object]:
             result = await _call(ws, request_id, "Runtime.evaluate", {
-                "expression": auth_snapshot_expression(),
+                "expression": auth_snapshot_expression(expected_email=expected_email),
                 "awaitPromise": True,
                 "returnByValue": True,
             })
@@ -327,7 +331,8 @@ async def observe(ws_url: str) -> dict[str, object]:
             firebase_token_refresh_failed=value.get("firebase_token_refresh_failed"),
             firebase_token_refresh_invalid=value.get("firebase_token_refresh_invalid"),
             firebase_navigation_verified=value.get("firebase_navigation_verified"),
-        ),
+        ) if value.get("firebase_identity_matched") is True else "indeterminate",
+        "firebase_identity_matched": value.get("firebase_identity_matched"),
         "url": url,
         "login_form_visible": value.get("login_form_visible") is True,
         "authenticated_navigation_visible": value.get("authenticated_navigation_visible") is True,
@@ -347,8 +352,21 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ws", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--expected-email")
     args = parser.parse_args(argv)
-    result = asyncio.run(observe(args.ws))
+    email = args.expected_email
+    if email is None:
+        try:
+            profile_path = Path(os.environ.get("MERCOR_PROFILE") or os.environ.get("JOB_SEARCH_PROFILE") or
+                                Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") /
+                                "anicca/job-search/profile.json").expanduser()
+            profile = validate_profile(json.loads(profile_path.read_text(encoding="utf-8")))
+            email = profile["candidate"].get("application_email")
+        except (OSError, ValueError, TypeError, KeyError):
+            email = None
+    result = (asyncio.run(observe(args.ws, expected_email=email)) if isinstance(email, str) and "@" in email
+              and not any(character.isspace() for character in email)
+              else {"status": "indeterminate", "firebase_identity_matched": None})
     args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     args.output.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
     os.chmod(args.output, 0o600)

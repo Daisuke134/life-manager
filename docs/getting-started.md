@@ -105,6 +105,7 @@ From the checkout, these guided setup paths remain available:
 | Coconala | `./install.sh coconala` | [Official account setup, seller identity, email, and activation](../skills/earn/gig/README.md) |
 | Lancers | `./install.sh lancers` | [Your work profile, Lancers login, and optional storefront](lancers.md) |
 | CrowdWorks | `./install.sh crowdworks` | [Your work profile, account login, and requirements for each workflow](crowdworks.md) |
+| Mercor | `./install.sh mercor` | [Your work profile, resume, account login, and workflow requirements](mercor.md) |
 | Connector | `./install.sh connector` | [Calendar, Telegram, browser, and event-provider setup](../skills/connector/README.md) |
 | Fundraiser | `./install.sh fundraiser` | Applicant profile, Telegram, and provider login when required |
 | Job Hunter | `./install.sh job-hunter` | Finalized resume, preferences, Gmail OAuth, Telegram, and official site login |
