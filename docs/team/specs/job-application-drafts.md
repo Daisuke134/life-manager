@@ -99,4 +99,6 @@ claim受入: [PR #8780](https://github.com/Daisuke134/life-manager/pull/8780)を
 | Agoda Staff SWE Front End AI (BKK) | `job:agoda:7543795` | [agoda-staff-software-engineer-front-end-ai-bangkok.md](../jobs/drafts/agoda-staff-software-engineer-front-end-ai-bangkok.md) | drafted。BKK移住・"Visa, flight & moving package"。8+年・Webフロント経験なしで最も不適合 |
 | Agoda Principal SWE Back End (BKK) | `job:agoda:7777498` | なし | skipped: needs sponsorship, skip（ビザ支援の記載なし） |
 
-資料間の食い違い（提出前に本人が揃える）: A10 Lab の在籍期間（about: 2020-11〜2022-01 / resume・profile: 2020-01〜2021-01）、Life Manager の売上記述（about: 2026-09に20万円 / profile: 2026-08にUSD 1,000）。どちらも回答には使っていない。
+参謀判断（2026-10-24）: Canonical 2件・Binance 3件・Agoda 3件は見送り（ledger skipped）。提出対象は Supabase 1件。
+
+資料間の食い違い（aniccaai.com/about を正本とし、public-resume.pdf を about に合わせる）: A10 Lab の在籍期間（about: 2020-11〜2022-01 / resume・profile: 2020-01〜2021-01）、Life Manager の売上記述（about: 2026-09に20万円 / profile: 2026-08にUSD 1,000）。どちらも回答には使っていない。
