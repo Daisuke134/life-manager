@@ -96,7 +96,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-capacity-reuse-20261024、base=7f88bc6233110afdfbd04591205f3b23ea008a1e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのINSTALL-REUSE-REDとBUNDLE-GC-PERF-ACTUAL。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-capacity-reuse-20261024、base=7f88bc6233110afdfbd04591205f3b23ea008a1e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのINSTALL-REUSE-PRIMARY-REVIEW。BUNDLE-GCの候補限定実回収とreplay-zeroを完了する。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -437,7 +437,7 @@ PROVENANCEの採用競合と限定修復: 待機中にglobal currentと対象ins
 - [x] BUNDLE-GC-RED: primaryがsource未変更の隔離fixtureで2failed/15passed/4subtests（0.35s）を確認する。失敗はcurrent無し/keep0で残存する完全readonly bundleと、native plist fallbackが有効でも残存するbundleの2件。既存参照・UID・保護store・probe不明・lock/inode不一致の保持15件は成功する。native subprocessはfixture probeへ限定し、実data/cleanupへ到達しない。
 - [x] BUNDLE-GC-GREEN: 最終P1修復後の976037a035でprimaryの隔離HOME関連4filesは158 PASS/33subtests（122.36s）、AST/diffと既存shell/source境界/OSS self-containedもPASSとする。fresh再reviewはblocking0/SHIP、引用あり・なし・閉じ忘れと=を含むalias保持、最終FD後の期限超過時の削除0/readonly復元を独立確認する。既存回収入口へ統合し旧prunerを除去、selected Python4calls/不可侵store/参照保持を維持する。実cleanupは下のACTUALで受け入れる。
 - [x] BUNDLE-GC-SHIP: PR #8792/head976037a035cb3912651e6bc622bb6a53dd363860、workflow40036051837のhead一致/total13/全13completed-successを公式APIで確認してから--adminで統合する。main4bcadf022aaa542e5012dca51b665dba943a54a5の公開3critical source/test blobsは受入headと全一致。SSOT全体は他ownerの変更を含むが、GC限定specとMAC03 cursorはhead/main一致し、公開SSOT blobもaccepted mainと一致する。fresh再review blocking0、source受入のみで実容量回復としない。
-- [ ] BUNDLE-GC-ACTUAL: accepted mainから既存--release-gc-onlyを候補root/keep0へ対象限定実行し、fresh参照・所有・保護条件とreceipt/free-before-afterを確認する。logical/allocatedとAPFS物理増加を混同せず、floor未到達・swap/旧effect未確定はそのまま残す。
+- [x] BUNDLE-GC-ACTUAL: accepted mainから既存--release-gc-onlyを候補root/keep0へ対象限定実行し、fresh参照・所有・保護条件とreceipt/free-before-afterを確認する。logical/allocatedとAPFS物理増加を混同せず、floor未到達・swap/旧effect未確定はそのまま残す。
 
 BUNDLE-GCの実反映計画: accepted ALL8dfの既存cutterからmain4bcadf022aを、LOOPS_ROOT=~/.local/share/life-manager/gc-acceptance/bundle-lifecycle、LOOPS_RELEASE_PATHS='bin config runtime/loop runtime/host'（既存auto shared closure）、ACTIVATE_CURRENT=0、KEEP99999、hostの既存managed Pythonでsparse immutableへexportする。選択範囲に保護store0を確認し、npm installを発生させず、global current/installed jobsを変えない。このaccepted sparseのcentral_cleanup --release-gc-onlyだけを旧自所有root~/.local/share/life-manager/local-acceptance/lancers/keep0へ実行する。fresh metadataは旧release1/d8e4578c、7complete readonly bundle roots/UID501/current無し/cut lock無し/global current参照無し。実行時の参照/UID/保護/lockは共通CLIで再確認し、receipt/free-before-afterと再実行0を保存する。新branch=chore/bundle-gc-runtime-acceptance-20261024、base=accepted main4bcadf022a、同じowned worktree/leaseで本受入を記録する。
 
@@ -480,7 +480,20 @@ BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with space
 
 実回収追加: run_id=bundle-gc-18e14e27e9cd73d8、owner_id=life-manager-release-gc-manual、occurrence_id=manual:bundle-gc-18e14e27e9cd73d8、release_sha=7f88bc6233110afdfbd04591205f3b23ea008a1e。loaded commandは同immutableのcentral_cleanup.py --release-gc-onlyとmanaged Python -B、対象・keep0・実LaunchAgents・protected inventoryは前receiptと同じ。環境whitelist digest=a3fc970d4929c0acc643269f505ef7ec8c0e51a520e16ea27a951225031cbdc0、phase=release_gc、exit_code=1、23.484s/stderr0、effect=local_artifact_gc、provider_receipt_id=null。bundle7のうちremoved1/reclaimed571,819,152論理bytes、残6保持/errors6/TimeoutExpired、release0/protected_deletions0。物理free5,287,600,128→6,218,555,392bytesは他ownerの同時変更も含み得るため回収論理量と同一視しない。追加のaccepted helper read-only probeは参照確認1.046s/held0/値12,552/参照bundle0、残6全てowned readonlyでscan成功（1.280/.659/3.698/.730/.144/.770s）。double scanと各fresh参照、削除を同じ15秒内へ全6件まとめられるとは仮定しない。retryable=true、next_action=既存同入口で期限内の進捗を受け入れ、時間切れ再試行前には残件のread-only境界観測を追加する。進捗0なら反復せずその境界を診断する。
 
-- [ ] BUNDLE-GC-PERF-ACTUAL: accepted main由来の同じGig依存closureを含むimmutableを作り、同じ対象rootの残7bundlesへ既存入口を実行する。receipt・残件・free・replay結果を記録し、時間不足なら境界を追加計測して最小修復を続ける。全業務/別Mac/10,000starsは未完。
+- [x] BUNDLE-GC-PERF-ACTUAL: accepted main由来の同じGig依存closureを含むimmutableを作り、同じ対象rootの残7bundlesへ既存入口を実行する。receipt・残件・free・replay結果を記録し、時間不足なら境界を追加計測して最小修復を続ける。全業務/別Mac/10,000starsは未完。
+
+実回収完了: 上記main7f88/Gig closure/managed Python/対象root/keep0/実LaunchAgents/protected inventory/環境digest a3fc970d4929c0acc643269f505ef7ec8c0e51a520e16ea27a951225031cbdc0を維持する。各runのowner_id=life-manager-release-gc-manual、occurrence_id=manual:<run_id>、phase=release_gc、effect=local_artifact_gc、provider_receipt_id=null、stderr0である。
+
+| run_id | exit/秒 | bundle前→後 | 回収論理bytes | errors/診断 | 物理free前→後bytes |
+| --- | --- | --- | --- | --- | --- |
+| bundle-gc-18e14e43049ebf80 | 1/15.182 | 6→4 | 453,814,167 | 4/TimeoutExpired | 6,414,467,072→7,078,412,288 |
+| bundle-gc-18e14e4da45d14e0 | 1/58.345 | 4→3 | 537,340,528 | 3/TimeoutExpired | 7,080,452,096→12,307,820,544 |
+| bundle-gc-18e14e67cbb342e8 | 0/25.382 | 3→0 | 497,438,601 | 0 | 12,339,478,528→13,019,750,400 |
+| bundle-gc-18e14e6f67f6dc80 | 0/.120 | 0→0 | 0 | 0 | 13,028,937,728→13,028,937,728 |
+
+全runのrelease残件0/protected_deletions0。各時間切れ後にはaccepted helperによる追加read-only境界観測を行い、残4件は参照確認.891s/参照0/全owned readonly scan成功、残3件は1.058s/参照0/全owned readonly scan成功を確認してから進む。元の7bundlesは累計removed7/reclaimed2,060,412,448論理bytes、先の旧release174,892,542を含む累計2,235,304,990論理bytesとなる。最後の実回収はoktrue/errors0、replayもexit0/removed0/errors0/残0である。物理freeには他ownerの同時処理が含まれ得るため差分全量を本GCの因果成果にしない。15秒はfresh proof/scanの既存期限であり、削除開始後の安全な完了を含むwall timeは上表どおり15秒を超える。全Mac/全業務完了へ読み替えず、swap/旧effect不確実性のgateを保持する。
+
+最新runtime観測（read-only）: 5設定済みLancersの実行target/manifestは存在する一方、旧browser補助とstorefrontには消失releaseへの参照が残り、owner確認後の修復を残す。自然eventの00:06Z観測ではapplication run18e14e53483960a0-5880/8df/report1/entrypoint_exit_1/effectunknown、work-sync run18e14e53b3c24710-6064/8df/report1/entrypoint_exit_1/not_applicable、negotiate run18e14e56f0848e08-6384/8df/execute-startedを確認する。paidは9da/report75/resource_control_busy、reportは8df/report75/resource_effect_unknownで、全て公式receipt/readback無しである。旧共有stdoutのmtimeは古く今回原因へ流用しない。追加source/実行ID付き診断を続け、fence解除・再送・全業務成功を断定しない。nativeメモリ観測はRAM16GiB/free49%/swap15,724.19MiBであり、既存85%swap gateを緩めない。
 
 #### INSTALL-REUSE: current無しの再導入で既存依存を利用する
 
@@ -488,10 +501,12 @@ BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with space
 
 契約: lexists(current)が真なら既存strict current条件を維持し、別donorへfallbackしない。真に無い時だけreleasesからALL/main ancestry/readonly/同じPython実体とcache tag/非reclaimedの既存条件を満たすdonorを探す。各package rootでscripts以外のmanifest同値、lock byte完全一致、既存dependency_bundle_is_reusableを要求し、異なるdonorから各rootを利用できる。不適格・欠損candidateは使わず次を調べる。未再利用rootだけ既存_fresh_dependency_bytesで測定し、全root再利用ならinstall=False、未再利用rootがあれば空lockの測定0でもTrueを返す。真の初回導入と有効currentの既存変更依存予算・source export測定は維持する。
 
-順序: BUNDLE-GCのsource公開を完了し、残実回収は既存accepted入口で続ける。同時に独立したINSTALL-REUSE sourceを進める。理由は実回収に進捗があり期限ごとの保持が安全に機能する一方、再導入予算の差はhost容量を待たず隔離fixtureで修復できるため。旧source順序BOOTSTRAP→BUNDLE-GC→INSTALL-REUSEを保持し、現在cursor=INSTALL-REUSE-RED/GC-ACTUAL。全業務・別Mac・10,000starsは未完。
+順序: BUNDLE-GCのsource公開を完了し、残実回収は既存accepted入口で続ける。同時に独立したINSTALL-REUSE sourceを進める。理由は実回収に進捗があり期限ごとの保持が安全に機能する一方、再導入予算の差はhost容量を待たず隔離fixtureで修復できるため。旧source順序BOOTSTRAP→BUNDLE-GC→INSTALL-REUSEを保持し、現在cursor=INSTALL-REUSE-PRIMARY-REVIEW、GC-ACTUAL/replay-zeroは上のreceiptで完了。全業務・別Mac・10,000starsは未完。
 
-- [ ] INSTALL-REUSE-RED: current真不在＋正常donorの全再利用、scripts/toolchain差、別donor各root、一部未利用空lockのflag、無効donorを飛ばす反例を最小fixtureで先に失敗させる。壊れたcurrent＋正常historical donorでも拒否を保持する。
-- [ ] INSTALL-REUSE-GREEN: 既存helperと既存donor検証を使う最小修復。manifest/lock差・不完全bundle・writable/reclaimed/Python不適格ではfresh側、真の初回とstrict currentを保持し、関連既存testsをPASSする。
+- [x] INSTALL-REUSE-RED: current真不在＋正常donorの全再利用、scripts/toolchain差、別donor各root、一部未利用空lockのflag、無効donorを飛ばす反例を最小fixtureで先に失敗させる。壊れたcurrent＋正常historical donorでも拒否を保持する。
+- [x] INSTALL-REUSE-GREEN: 既存helperと既存donor検証を使う最小修復。manifest/lock差・不完全bundle・writable/reclaimed/Python不適格ではfresh側、真の初回とstrict currentを保持し、関連既存testsをPASSする。
+source受入の進捗: RED4b27221b36は8 FAIL/9 PASS（7.89s）で、全再利用4条件と一部再利用4条件がfresh測定へ全2rootsを渡す実assertで失敗する。修復d6fd47043edb0effe62bab7d65ac618cc5dc22e5はrelease_capacity内のnet18行だけで既存検証/変更依存予算を共用し、限定17 PASS（16.67s）、workerの関連host file全体63 PASS（16.62s）、AST/diff/source境界PASS、remote一致である。source SHA256=41839bb2edc6ee81d91088b7f28e9a319c1bea76ebb5334ad25e77dfe6c05e14、test SHA256=2d2bdcb193b716caf52abdd60f4547dc1115ff564f05662ccd9b4c0b23ecf796。primaryの関連callerを含むexacttree検証とfresh read-only review/最終CI/main/実再利用は未完。
+
 - [ ] INSTALL-REUSE-SHIP: fresh read-only review、exact-head既存13jobs success、main/public byte照合を受け入れる。
 - [ ] INSTALL-REUSE-ACTUAL: accepted main由来の同じcutter経路で自所有公開導入先の既存依存を再利用し、容量測定・install flag・release作成をreadbackする。未取得の別Mac成果を断定しない。
 
