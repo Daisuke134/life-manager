@@ -8,7 +8,7 @@
 
 **完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
 
-**順序・現在cursor:** README-MAC-01–04とINSTALL-REUSE source受入を保持する。README-BUSINESSESの公開とINSTALL-REUSEの限定実受入を完了し、残runtimeのRUNTIME-BOUNDARYへ進める。収益事業を初見向けfront pageへ戻す明示要件を先に閉じ、provider結果と別Macの未完を維持する。進行中provider effectは中断・再送しない。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`chore/local-runtime-receipts-20261024`、base=`a9714226102a9ed3c64bb52bab001284f8f85774`、owner=`codex-lancers-local-setup`。
+**順序・現在cursor:** README-MAC-01–04、README-BUSINESSES公開、INSTALL-REUSE限定実受入を保持する。RUNTIME-BOUNDARYの実測で見つかるRECYCLE-REGISTRYを先に修復し、自然実行と公式readbackへ戻る。台帳の欠落で既存回復処理が対象0件になる原因を直す方が、同じswap待機を繰り返すより全業務復旧へ早く到達するため。進行中provider effectは中断・再送しない。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/local-browser-recycle-registry-20261024`、base=`1bc11d6f645bbf65dbaf6334ed5d0c38b7defaca`、owner=`codex-lancers-local-setup`。
 
 **README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。PIONの正確なURLはまだ特定できず、GitHub検索とDuckDuckGo HTML取得では一次本文を得られないため参考URLを任意確認中。README編集はこの確認を進行条件にしない。
 
@@ -104,7 +104,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=chore/local-runtime-receipts-20261024、base=a9714226102a9ed3c64bb52bab001284f8f85774（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのRUNTIME-BOUNDARY。README-BUSINESSES公開とINSTALL-REUSEの限定実受入を完了する。BUNDLE-GCの候補限定実回収とreplay-zeroを完了する。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/local-browser-recycle-registry-20261024、base=1bc11d6f645bbf65dbaf6334ed5d0c38b7defaca（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのRECYCLE-REGISTRY。README-BUSINESSES公開とINSTALL-REUSEの限定実受入を完了する。BUNDLE-GCの候補限定実回収とreplay-zeroを完了する。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -527,6 +527,22 @@ INSTALL-REUSEの限定実受入receipt: accepted mainc97cad55188c661d801a94f9363
 追加検証の最初はprimaryが省略版からlocal_install helperをimportし、同helperの既定rootにapps/life-manager/config/product-loop-catalog.jsonが無いためFileNotFoundErrorとなる。実際の完全リリースは既に作成済みであり、公開installerの不具合としない。同accepted mainの完全リリースから同じ_validated_runtime_releaseを呼び直し、全registry plan・runtime・sourcehash・7依存linkの検証をPASSする。source編集やglobal current変更で回避しない。provider_receipt_id=null、readbackは上記immutable manifest/linksである。全業務成果と別Mac実機を完了へ読み替えない。
 
 次cursor=RUNTIME-BOUNDARY: 最新自然runを実行ID・loaded release・provider readbackへ結び付ける。応募/同期の最近のbounded logにはaccount_lock_busy/tick_timeoutがあるが、実行IDを含まない行を特定runの確定原因にしない。read-only FD inventoryはexit0/stderr0であり、それだけでflock holderを証明しない。browser補助のmissing targetは後続の公式静的readbackで7f88へ解消され、storefrontは本人product未設定とmissing targetが残る。接続済みDesktop Commanderの一覧はMac mini1台のみで、別Mac end-to-endは未確認。旧effect fenceを解除・再送せず、既存observer/公式readbackとowner確認で不足境界を狭める。全業務・別Mac・10,000 starsは継続中。
+
+#### RECYCLE-REGISTRY: 共通導入のブラウザ台帳を既存回復処理へつなぐ
+
+目的・範囲: common installerが生成するAI_BROWSER_REGISTRYと既存browser-recycle-idleの契約差を修復する。既存canonical loop registryから専用browserのlifecycle帰属を正確に渡し、利用者のusername/profileや作者の私的台帳へ依存しない。recyclerのage・lease取得・同PID再確認、interactive/provisioned除外、disk floor12GiB/recovery floor10GiB、swap85%は維持する。新supervisor、手動の全browser終了、provider再送や旧effect解除は追加しない。
+
+根拠: Lancers application/negotiate/paid/work-syncの最新自然terminalは適用済み6d01b568からswap_pressure_high/exit75となる。native RAM16384MiB/swap15413.12MiB/free39%で、swapの物理RAM比85%という既存判定に該当する。browser-recycle-idleの自然run18e1547e13f8f3d8-68032は同SHA/report/exit0だが、実plistのAI_BROWSER_REGISTRYは共通導入の13 identitiesで、各rowにはdeclared_port/id/owner/profileしかなく、launched_byを要求するrecycle_targetsの対象が0件になる。default private registryでは対象11件、現在のread-only native inventoryでは7ブラウザが既存1時間ageを超える。最新bounded stdoutのbrowsers[]はrun ID無しなので自然runへの厳密な帰属証拠にしない。実台帳を同じpure selectorへ渡した0件を原因の再現証拠とする。
+
+所有・順序: primaryは本節・統合・main由来immutableの対象限定採用・自然readbackを所有する。source/testの正確な範囲は生成元と全callerの確認後にこの契約内で限定する。旧順序はRUNTIMEの自然待機再観測、新順序はRECYCLE-REGISTRYのRED→最小修復→review/CI/main→既存recycler1owner反映→自然terminal→Lancersの待機/公式成果照合。理由は既存回復ownerが台帳差により動作対象を失う再現があり、しきい値を緩めず回復経路を戻せるため。
+
+- [ ] RECYCLE-REGISTRY-RED/GREEN: common生成の台帳を実consumerへ渡す最小回帰を先に失敗させ、canonical専用browserだけが対象となるよう修復する。既存interactive/provisioned/busy/同PID/ageの回帰を維持する。source所有はruntime/host/local_profile.pyの_browser_registryだけ、test所有はruntime/host/tests/test_local_profile.pyだけ。managed labelはloop-registryのloops[owner].label、外部Mercorはexternal_labelsの一致を要求する。本人設定を保持するprepare_hostの既存動作とrecycler本体は変更しない。
+- [ ] RECYCLE-REGISTRY-SHIP: focused/関連検証、fresh read-only反証、exact-head公式CI全項目、main統合と公開source readbackを受け入れる。
+- [ ] RECYCLE-REGISTRY-ACTUAL: accepted immutableと同じ生成経路で台帳を更新し、owner限定のloaded-idle apply、自然terminal、recycled/keep/busyの理由とmemory/disk前後を照合する。swap回復・全Lancers成果・別Mac・10,000 starsは個別に判定する。
+
+前段receiptの統合: PR #8812/head ebfb29db0af503a613fe2f447d0e75011f8e26cf、Security Scan40045479601/attempt1はprimaryと独立検証で全13completed-success。match-head指定admin squashでmain1bc11d6f645bbf65dbaf6334ed5d0c38b7defacaへ統合し、GitHubからfetchしたpublic main objectでREADME公開receiptとINSTALL-REUSE限定実受入節のbyte一致を確認する。
+
+REDの受入: source未変更の新規1testは、生成TOMLを実recycle_targetsへ渡し、Lancers/Coconala/Mercorの3subtestsすべてで対象集合{}へのassertInが失敗する（3 failed/1 passed、0.32s）。fixture HOME/LaunchAgentsと開発Pythonを使用し、実browser/host設定/providerを変更しない。既存hostのAI_BROWSER_REGISTRYは本人設定なので汎用migrationを追加せず、source受入後、同じaccepted generatorとcanonical labelへ一致する既存行の不足metadataだけを対象限定で補う。profile/port/owner/他fieldは保持する。
 
 #### Lancers本人入力の実装計画
 

@@ -4,6 +4,7 @@ import stat
 import plistlib
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -64,6 +65,27 @@ class LocalProfileTest(unittest.TestCase):
         registry.write_text("# owner configuration\n")
         self.assertEqual(self.prepare(), first)
         self.assertEqual(registry.read_text(), "# owner configuration\n")
+
+    def test_generated_browser_bindings_reach_existing_idle_recycler(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "local_profile_recycler", ROOT / "skills/browser/recycle_idle_browsers.py")
+        recycler = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(recycler)
+        profile = self.prepare()
+        bindings = tomllib.loads(Path(profile["browser_registry"]).read_text())
+        targets = {row["id"]: row for row in recycler.recycle_targets(bindings)}
+        for identity, label in (
+                ("lancers:dais", "ai.anicca.lancers-revenue-browser"),
+                ("coconala:kosuke", "ai.anicca.hf-gig-browser"),
+                ("mercor:dais", "ai.anicca.job-search-mercor-browser")):
+            with self.subTest(identity=identity):
+                self.assertIn(identity, targets)
+                self.assertEqual(targets[identity]["launched_by"], label)
+                self.assertTrue(Path(targets[identity]["profile"]).is_relative_to(self.home))
+        self.assertNotIn("interactive:dais", targets)
+        self.assertNotIn("promptbase:dais", targets)
 
     def test_explicit_profile_path_survives_into_child_environment(self):
         self.prepare()
