@@ -4,7 +4,7 @@
 
 **An open-source, no-human-in-the-loop money printer: AI agents build businesses from scratch and run them on your Mac.**
 
-Connect the accounts your chosen businesses need. Life Manager's agents are designed to find opportunities, build new businesses from scratch, launch offers, and handle day-to-day operations toward revenue without ongoing human input.
+Connect the accounts your chosen businesses need. Life Manager's agents are designed to find opportunities, build businesses from scratch, sell products and services, and run them day to day to generate revenue—without ongoing human input.
 
 > **Early development:** Autonomous operation and verified profit are goals, not proven results yet. Check the [agent catalog](docs/agents.md) for current capabilities.
 
