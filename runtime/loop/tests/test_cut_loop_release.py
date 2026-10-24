@@ -1333,6 +1333,31 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
                 self.assertEqual(result["reclaimed_bytes"], 0)
                 self.assertTrue(release.exists() and bundle.exists())
 
+    def test_release_gc_only_preserves_everything_when_last_empty_directory_expires(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        empty = release / "bin"
+        empty.chmod(0o755)
+        (empty / "run.py").unlink()
+        empty.chmod(0o555)
+        clock = [0.0]
+        scandir = os.scandir
+
+        @contextmanager
+        def delayed_empty_scan(path):
+            with scandir(path) as entries:
+                yield entries
+            if not isinstance(path, int) and Path(path) == empty:
+                clock[0] = 16
+
+        with mock.patch.object(os, "scandir", side_effect=delayed_empty_scan), \
+             mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
+            code, result = self._gc(keep=0)
+        self.assertEqual(code, 1, result)
+        self.assertEqual(result["removed_releases"], 0)
+        self.assertEqual(result["reclaimed_bytes"], 0)
+        self.assertTrue(release.exists() and bundle.exists())
+
     def test_release_gc_only_preserves_fd_opened_before_final_reference_snapshot(self):
         bundle = self._bundle()
         collect = self.cleanup._bundle_references
