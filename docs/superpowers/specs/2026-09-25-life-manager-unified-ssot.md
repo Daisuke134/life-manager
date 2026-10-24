@@ -13,6 +13,7 @@
 | 項目 | 確認済み |
 |---|---|
 | READMEの短縮と事業一覧・positioning | PR #8909は2026-10-24 17:49:34Zにmerge済み（head `c19a633`, merge `37f82c7`）。英日READMEは各45行で、no-human-in-the-loop money printer、agent自身が事業を作ること、7事業と収益モデル、ChatGPT Plus、awake Mac、12 GiB、導入commandを掲載。WebMCP/hackathon企画は入口から除外。merge直後の公開raw SHA256は英 `4898b6c8b48c0ff9fe0a28e95f99957da2f126281129bbd93d67517d20d2ecd4`、日 `15e600d7860af37459d561a20319338db23d5d6667d40e9bef3271028eec998d` で作業版と一致。CI15/15 PASS、独立reviewのblocking findingsは0。 |
+| READMEの収益表現を明確化 | PR #8913は2026-10-24 18:07:04Zにmerge済み（head `3f2357c8`, merge `f043fef`）。英日READMEは45行のまま、agent自身が事業を作り、人の継続介入なしに運営して収益を生む設計だと明記し、未実証の注意を維持。CI15/15 PASS。main raw SHA256は英 `264e8d27c3aaf5040820616437f5b9c8ed73a9b2739f0c48591a91c2dd3aea81`、日 `37ddda020c4461436b58034abb0096e5d26f24d16194b0435599bc7b2bc1a2b6` で作業版と一致。 |
 | 成功READMEの構成調査 | 2026-10-24 17:20ZのGitHub API/raw README確認: [OpenClaw](https://github.com/openclaw/openclaw) 392,936 stars、[n8n](https://github.com/n8n-io/n8n) 208,491、[Dify](https://github.com/langgenius/dify) 159,425、[Open WebUI](https://github.com/open-webui/open-webui) 156,644。共通する「短い価値説明 → 要件/導入 → docs」の流れを採用。 |
 | Mac installerのsource修正 | bootstrap tests 11/11、clean-user install tests 23/23 PASS。これらはsource/fixtureの検証であり、別Macの実導入証明ではない。 |
 | Cleanup診断source | PR #8909の修正はreference census各15秒、admission lock待ち120秒でbounded。90秒のreal fcntl contention testとfocused cleanup/release tests 64/64・78/78・4/4、source boundaryがPASS。 |
@@ -22,25 +23,24 @@
 
 | 項目 | 現状と完了条件 |
 |---|---|
-| READMEの補足copyを収益目標へ明確化 | 公開mainの英語説明は「operations toward revenue」、日本語は「収益を目指します」。現在のbranchでは「day-to-day operations to generate revenue / 日々の運営で収益を生み出す設計です」へ明確化し、early-developmentと利益未実証の注記を残す。source変更のCI、merge、main raw byte readbackは未完。 |
-| 現Macの容量とagent admission | 2026-10-24 17:50Zのreadback: pmset sleep=0、dfの空き2,809,748 KiB（約2.68 GiB）、swap free 903.56 MiB。4 GiB revenue floorと12 GiB producer floorをどちらも下回る。 |
-| Cleanupのmain release反映と自然receipt | #8909はmain `37f82c7`に統合済みだが、cleanup owner `life-manager-disk-cleanup` はまだrelease `dbffebc0`をロード。最新run `18e18863348ba190-97237` はpass/exit 0だが、修正済みreleaseからの実行ではない。次はimmutable `37f82c7` releaseとcleanup ownerのnatural terminal receiptを確認する。 |
-| 全loopの稼働状況 | 2026-10-24 17:50Zの `lm-loop status all --json` は313 rows（agent数ではない）: loaded-running 48、loaded-idle 156、unloaded 52、disabled 57。blocker: none 153、disk_floor_low 101、resource_effect_unknown 36、entrypoint_exit_1 8、swap_pressure_high 2、heartbeat unavailable 1、resource control busy 1、FIFO wait 1、brain transport 1、unmanaged label 9。 |
+| 現Macの容量とagent admission | 2026-10-24 18:09Zのreadback: `pmset` sleep=0（caffeinate/powerdで防止）、`df -kP /` available 2,514,024 KiB（約2.40 GiB）、swap free 1,395.25 MiB（約1.36 GiB）。4 GiB revenue floorと12 GiB producer floorをどちらも下回る。 |
+| Cleanupのmain release反映と自然receipt | 18:10Zの `lm-loop status all --json` で `life-manager-disk-cleanup` の `installed_release_sha` はmain ancestor `37f82c7a`、stateはloaded-running。最後のterminal `18e18934d0717428-59901` は18:04:44Zにpass/exit 0だが `event_release_sha=dbffebc0`。18:08:02Zの次attemptは18:11Z時点でもterminal receiptがなく、現在loaded releaseのnatural completionは未確認。 |
+| 全loopの稼働状況 | 2026-10-24 18:09Zの `lm-loop status all --json` は313 rows（agent数ではない）: loaded-running 49、loaded-idle 155、unloaded 52、disabled 57。blocker: none 153、`disk_floor_low` 98、`resource_effect_unknown` 34、`entrypoint_exit_1` 7、`swap_pressure_high` 1、heartbeat unavailable 1、resource control busy 1、FIFO wait 1、brain transport 1、unmanaged label 16。 |
 | 別Macでの導入 | clean-user source testsはPASS。別Mac/userで公開手順、ChatGPT Plus認証、選択事業の公式provider結果まで通した証拠はない。fresh Macで初回導入からprovider結果まで確認する。 |
-| Mercor Reply修正 | 2026-10-24 17:51Z GitHub APIでPR #8865はOPEN、head `53a21430`, base `8e0e6f2`（現main `37f82c7`より古い）、mergeable UNKNOWN、reviewDecision未記録。14/14 checkは成功。ownerのworktreeを保ち、latest mainへ追従した後にreview/CI/source acceptanceとimmutable release・Mercor公式readbackを確認する。 |
+| Mercor Reply修正 | 2026-10-24 18:09Z GitHub APIでPR #8865はOPEN、head `53a21430`, base `8e0e6f2`（現main `f043fef`より古い）、mergeable CONFLICTING、reviewDecision未記録。14/14 checksは成功。ownerのworktreeを保ち、latest mainへ追従した後にreview/CI/source acceptanceとimmutable release・Mercor公式readbackを確認する。 |
 | 未接続のinstaller | catalog auditで18 groups中11にlocal commandあり。PromptBase、Writer、Affiliate、Self-Build、eBook、Capafy、LINE Stickerの7 installerを整える。 |
 | 約20 agent / 7事業の実成果 | 目標は各agentが人の継続介入なしに事業を作り、顧客・注文・納品・支払い・費用控除後利益まで作ること。各事業を横断した公式receiptと費用控除後net profitの確認は未完。agent数・loaded job数を売上の証拠にしない。 |
-| 10,000 GitHub stars | 2026-10-24 17:50Z GitHub API readbackは8 stars / 2 forks。目標まで9,992 stars。利用価値、導入成功、初回成果、継続利用を測り、収益とstarsを分けて追う。 |
+| 10,000 GitHub stars | 2026-10-24 18:09Z GitHub API readbackは8 stars / 2 forks。目標まで9,992 stars。利用価値、導入成功、初回成果、継続利用を測り、収益とstarsを分けて追う。 |
 
 ### ゴールまでの順序
 
-**現在cursor（2026-10-24 17:52Z）:** PR #8909はCI15/15と独立review後、main 37f82c7へmergeし、英日README raw bytesをreadback済み。ユーザーの最終表現に合わせた補足copy（agents build businesses themselves and generate revenue without ongoing human input）を英日READMEへ反映中。利益未実証のearly-development注記は維持し、current branchのCI/review/merge/main raw readbackを先に終える。次はmain由来immutable release 37f82c7のcleanup natural run → protected/open候補を削除せず容量4 GiB revenue/12 GiB producer floorとswap gateを回復 → 別Macの導入/provider結果 → PR #8865 → 7 installer → 約20 agentの7事業成果とnet profit → 公開導入資料とcontribution → 10,000 starsの順で進める。
+**現在cursor（2026-10-24 18:11Z）:** PR #8909のREADME/cleanup sourceとPR #8913のno-human-in-the-loop revenue表現がともにmainへmerge済み。両PRのCIは15/15成功し、英日README raw SHA256をmainと照合済み。READMEは「agentが人の継続入力なしに事業を作り、運営し、収益を生むmoney printer」を製品positioningとして掲げ、実証済み利益ではない注意を残す。cleanup修正のmain ancestor `37f82c7a`は現在ownerへloadedだが、最後の成功terminalは旧 `dbffebc0`由来で、修正releaseからのnatural receiptはまだない。次は稼働中ownerを止めず、自然terminalまたはrun境界の具体的診断を得る。その後watchdogの公式cleanup receiptと容量readbackを使って4 GiB revenue/12 GiB producer floorとswap gateを回復し、別Mac導入/provider結果 → PR #8865 → 7 installer → 約20 agentの7事業成果とnet profit → 公開導入資料/contribution → 10,000 starsの順で進める。
 
 1. [x] READMEの英日sourceを短縮し、7事業、ChatGPT Plus、awake Mac、必要容量、install command、初期開発中の注意を掲載する。WebMCP/hackathon情報は入口から除外済み。PR #8909へmerge済み。
 2. [x] PR #8909の英日positioningとcleanup修正をCI15/15・独立review後にmergeし、GitHub raw mainの英日bytes一致を確認する。
-3. [ ] 英日READMEの補足copyを「agents build businesses themselves and generate revenue without ongoing human input」とし、early-developmentの実証境界を保持してCI/review/merge/main raw readbackする。
+3. [x] 英日READMEの補足copyを「agents build businesses themselves and generate revenue without ongoing human input」とし、early-developmentの実証境界を保持。PR #8913のCI15/15、main merge、英日raw SHA256 readbackを確認する。
 4. [x] PR #8902の初期cleanup診断をmain immutable releaseへ反映し、自然receiptを読む。
-5. [ ] MAC-CAPACITY-LOCK-DIAG: main 37f82c7のimmutable releaseを作成・owner限定で反映し、bounded scan、natural terminal status、reclaim量を確認する。
+5. [ ] MAC-CAPACITY-LOCK-DIAG: `life-manager-disk-cleanup`にloaded済みのmain ancestor `37f82c7a`からnatural terminalとbounded cleanup receiptを確認する。18:08:02Z attemptがterminalにならない場合はowner/run/phaseをread-onlyで特定し、bounded scanまたはlock境界の原因を記録してから最小修正を進める。新releaseは現在のSHAの再利用不能が確認できた場合だけ作成し、loaded-running ownerを再起動しない。
 6. [ ] MAC-CAPACITY-RECOVERY: 公式cleanup receiptとdf/swapを確認し、4 GiB revenue floor以上へ戻す。producer 12 GiB floorとswap-growth gateも満たす。未分類/open/shared候補は削除しない。
 7. [ ] MAC-REVENUE-ADMISSION: main immutable releaseのloaded SHA、4 GiB floor、swap gate、blockerをowner単位でreadbackする。running jobは変更しない。
 8. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessのprovider結果まで通す。
