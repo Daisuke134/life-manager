@@ -38,9 +38,7 @@ from runtime.loop.runtime_event import (
     validate_runtime_event,
 )
 from runtime.host.disk_admission import REVENUE_FLOOR_BYTES, _producer_gate, disk_free_bytes
-from runtime.host.memory_admission import (
-    memory_free_percent, physical_memory_mb, swap_plateau, swap_used_mb,
-)
+from runtime.host.memory_admission import memory_free_percent, swap_pressure
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, bounded_launchd_output
@@ -1697,33 +1695,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return 64
     if not 1 <= minimum_free <= 100:
         return 64
-    try:
-        max_swap_percent = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "85"))
-    except ValueError:
-        return 64
-    if not 1 <= max_swap_percent <= 1000:
-        return 64
-
     available_free: int | None = None
 
     def swap_deferral() -> dict | None:
-        # memory_pressure -Q read 29-31% free on 2026-10-23 while swap sat at 15.7-18.1 GB of a
-        # 16 GB Mac, ate the boot volume and let 84 wakes queue behind each other; absolute swap
-        # against RAM is the signal macOS free% misses. Patched to 0 in tests (conftest).
-        # 85%: after the 10-23 cleanup this host idles at 12.4-12.7 GB of swap with 13 GiB free,
-        # so 75% (12.3 GB) flapped and deferred revenue lanes every other wake; 85% (13.9 GB)
-        # still catches the storm (15.7-18.1 GB).
-        used = swap_used_mb()
-        ram = physical_memory_mb()
-        if used is None or not ram:
+        # One rule with memory_admission: defer only while pages are read back from swap fast.
+        # Patched to None in tests (conftest).
+        swap = swap_pressure()
+        if swap is None:
             return None
-        limit = ram * max_swap_percent / 100
-        # Above the limit but flat for >=5 min is an idle host sitting high (2026-10-24: 14-15.6 GB
-        # for 10 hours); only growth is the storm this gate exists for.
-        if used < limit or swap_plateau(used):
-            return None
-        return {"status": "deferred", "effect": 0, "reason": "swap_pressure_high",
-                "swap_used_mb": used, "swap_limit_mb": limit, "free_percent": available_free}
+        return {"status": "deferred", "effect": 0, **swap, "free_percent": available_free}
     claim = None
     claim_started_child = False
     heartbeat_stop = threading.Event()

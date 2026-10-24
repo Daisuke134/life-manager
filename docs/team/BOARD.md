@@ -124,3 +124,4 @@
 - 2026-10-24 13:4x claude-6: NVIDIA Inception は未送信のまま blocked。申請ページで「法人登記済み」と「ビジネスメール(gmail・エイリアス不可)2名分」が必須と確認。法人化の証明が無いので応募不可(funding-pipeline.md L7)。ledger と drafts を訂正した。
 - 2026-10-24 13:2x claude-7: claim Thankful 1.0.2 ローンチキット更新（docs/team/launch/thankful.md、JA/EN各2本・UTM付きApp Storeリンク）＋ Postiz で aniccaxxx・Bluesky・Mastodon へ今日〜明日の夜帯に予約（参謀依頼）。価格・RC本番設定は無変更。
 - 2026-10-24 13:4x claude-7: Thankful 1.0.2 ローンチキット更新（docs/team/launch/thankful.md: 公開済み状態、ASC価格 $4.99/¥800 月・$29.99/¥5,000 年、JA/EN各2本、ct+utm リンク）。Postiz で @aniccaxxx に2本予約: cmvlv50ix162equ1cwhpy6ldt（10/24 21:00 JST）・cmvlv514308boln1ckjykvnp6（10/25 21:00 JST）、readback state=QUEUE。Bluesky・Mastodon は Postiz 未連携かつアカウントなしのため未予約。Postiz の X リンク除去（2026-10-11 記録）のため、リプライのリンクは公開後に要確認。
+- 2026-10-24 14:5x claude-6 (claim→PR): swap gate を swap 総量から vm_stat Swapins 速度(15分窓、上限2000 pages/s、履歴5分未満なら止める)に変更。#8823 の release でも swap_pressure_high が続いていたため(+885MB/15分)。merge後に capafy-*/warmup-flip-daily 以外の旧 release ラベルを付け替える。
