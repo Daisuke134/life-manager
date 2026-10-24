@@ -478,44 +478,62 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
     if block <= 0:
         raise ValueError("filesystem allocation unknown")
     bootstrap = bool(package_manifests) and not os.path.lexists(loops / "current")
-    if package_manifests and not bootstrap:
-        donor = (loops / "current").resolve()
-        descriptor = json.loads((donor / "RELEASE.json").read_text())
-        if (descriptor.get("release_paths") != "ALL"
-                or descriptor.get("provenance") != "ancestor-of-origin-main"
-                or Path(str(descriptor.get("runtime_python"))).resolve() != Path(sys.executable).resolve()
-                or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
-                or donor.stat().st_mode & 0o222
-                or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
-            raise ValueError("donor is not a complete immutable runtime")
-        subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
-    fresh_install = _fresh_dependency_bytes(package_manifests, block) if bootstrap else 0
-    for relative, manifests in (() if bootstrap else package_manifests):
-        directory = donor / relative
-        donor_manifests = [(directory / name).read_bytes()
-                           for name in ("package.json", "package-lock.json")]
-        if (donor_manifests[1] != manifests[1]
-                or not dependency_manifest_matches(donor_manifests[0], manifests[0])):
-            # cut-loop-release builds a fresh bundle when no donor matches; budget one the
-            # size of the donor's tree instead of refusing every release (2026-10-16, #8168).
-            # ponytail: assumes a changed lock installs about as much as the old one (+50%).
-            tree = 0
-            for root, _dirs, files in os.walk((directory / "node_modules").resolve()):
-                for name in files:
-                    try:
-                        tree += os.lstat(os.path.join(root, name)).st_size + 4096
-                    except OSError:
-                        pass
-            if tree <= 0:
-                raise ValueError("dependency install size unknown")
-            fresh_install += tree + tree // 2  # npm ci cache and temporaries
+    donors = []
+    candidates = []
+    if package_manifests:
+        candidates = (sorted((loops / "releases").glob("*")) if bootstrap else
+                      [(loops / "current").resolve()])
+    for donor in candidates:
+        try:
+            descriptor = json.loads((donor / "RELEASE.json").read_text())
+            if (not isinstance(descriptor, dict)
+                    or descriptor.get("release_paths") != "ALL"
+                    or descriptor.get("provenance") != "ancestor-of-origin-main"
+                    or Path(str(descriptor.get("runtime_python"))).resolve() != Path(sys.executable).resolve()
+                    or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
+                    or donor.stat().st_mode & 0o222
+                    or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
+                raise ValueError("donor is not a complete immutable runtime")
+            subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError):
+            if not bootstrap:
+                raise
             continue
-        # The bundle was built from the donor's bytes, including its old script aliases.
-        manifests = donor_manifests
-        # cut-loop-release can hardlink a dependency-compatible donor bundle into a
-        # new toolchain-keyed bundle. Validate that shared bundle contract in one place.
-        if not dependency_bundle_is_reusable(directory / "node_modules", loops / "dependency-bundles"):
-            raise ValueError("dependency bundle unavailable")
+        donors.append(donor)
+    fresh_install = 0
+    unmatched = []
+    for relative, manifests in package_manifests:
+        for donor in donors:
+            directory = donor / relative
+            try:
+                donor_manifests = [(directory / name).read_bytes()
+                                   for name in ("package.json", "package-lock.json")]
+                if (donor_manifests[1] != manifests[1]
+                        or not dependency_manifest_matches(donor_manifests[0], manifests[0])):
+                    if bootstrap:
+                        continue
+                    # ponytail: assumes a changed lock installs about as much as the old one (+50%).
+                    tree = 0
+                    for root, _dirs, files in os.walk((directory / "node_modules").resolve()):
+                        for name in files:
+                            try:
+                                tree += os.lstat(os.path.join(root, name)).st_size + 4096
+                            except OSError:
+                                pass
+                    if tree <= 0:
+                        raise ValueError("dependency install size unknown")
+                    fresh_install += tree + tree // 2  # npm ci cache and temporaries
+                elif not dependency_bundle_is_reusable(directory / "node_modules", loops / "dependency-bundles"):
+                    raise ValueError("dependency bundle unavailable")
+            except (OSError, ValueError):
+                if not bootstrap:
+                    raise
+                continue
+            break
+        else:
+            unmatched.append((relative, manifests))
+    if unmatched:
+        fresh_install += _fresh_dependency_bytes(unmatched, block)
     rounded = lambda size: ((size + block - 1) // block) * block
     # No clone savings assumed: one full export and one serial file temporary.
     # Bytecode retains its conservative allocation plus atomic-write budget.
@@ -532,7 +550,7 @@ def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> 
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget + largest_temporary + fresh_install, bootstrap or fresh_install > 0
+    return budget + largest_temporary + fresh_install, bool(unmatched) or fresh_install > 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -524,8 +524,8 @@ def test_release_capacity_without_current_measures_only_unreused_roots(monkeypat
 
     required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
 
-    expected = [(("runtime/agentmail"), [(repo / "runtime/agentmail" / name).read_bytes()
-                                        for name in ("package.json", "package-lock.json")])]
+    expected = [("runtime/agentmail", [(repo / "runtime/agentmail" / name).read_bytes()
+                                      for name in ("package.json", "package-lock.json")])]
     assert fresh == [expected], "fresh capacity must measure only the unmatched root"
     assert install is True, "an unmatched empty lock still needs npm ci admission"
     assert 64 * 1024**2 < required < 65 * 1024**2
