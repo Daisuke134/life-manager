@@ -82,7 +82,7 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         self.assertIn("AsyncStream<Void>", self.source)
         self.assertIn("for await storefront in Storefront.updates", self.source)
         self.assertIn("await Task.yield()", self.source)
-        self.assertIn("latestStorefront?.countryCode?.uppercased() == countryCode?.uppercased()", self.source)
+        self.assertIn("latestStorefront?.countryCode.uppercased() == countryCode?.uppercased()", self.source)
         self.assertIn("PaywallStorefrontEligibility.includesLifetime(", self.source)
         purchase = self.source.split("private func purchase()", 1)[1].split("private func restorePurchases()", 1)[0]
         self.assertIn("let currentStorefront = isLifetimePackage ? await Storefront.current : nil", purchase)
