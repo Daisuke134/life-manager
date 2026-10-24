@@ -206,8 +206,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row.get("resource_class"),
                                  "browser" if loop_id == "writer-sales-measure" else "agent")
-                self.assertEqual(row.get("admission_class"), "borrow")
-                self.assertEqual(row.get("priority"), "support")
+                # The claim loop is article-daily's only topic authority (required-demand queue):
+                # held at the 12 GiB producer floor it left the critical_paid lane with no topic
+                # all of 2026-10-24, so it shares the revenue floor.
+                expected = (("revenue", "revenue") if loop_id == "writer-claim-loop"
+                            else ("borrow", "support"))
+                self.assertEqual((row.get("admission_class"), row.get("priority")), expected)
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
