@@ -4,9 +4,9 @@
 
 **目的・範囲:** Local Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
 
-**製品の中心価値:** Local Life Managerは、自分で事業を作り、運営し、収益を生むノーヒューマン・イン・ザ・ループのmoney printerを目指す。事業機会の発見から商品/サービス構築、顧客獲得、納品、入金、改善までを自律して回す。Local版を動かす基本条件はChatGPT Plus以上とスリープしないMac/Mac mini。個別事業の実行時には、そのproviderが求めるbusiness accountや費用を接続する。通常運転に都度の人のprompt/approvalを要しないことを完成条件にする。
+**製品の中心価値:** Local Life Managerは、既存の人間運営の事業を補助するだけのAIではない。人の継続的な指示や承認なしに、自分で事業機会を選び、事業そのものを企画・構築・立ち上げ、顧客を獲得し、商品/サービスを届け、入金し、採算を改善するノーヒューマン・イン・ザ・ループのmoney printerを目指す。Local版を動かす基本条件はChatGPT Plus以上とスリープしないMac/Mac mini。個別事業の実行時には、そのproviderが求めるbusiness accountや費用を接続する。初期設定後、通常運転に人のprompt/approvalを要しないことを完成条件にする。
 
-**公開表現と証明:** READMEではこのno-human-in-the-loop money printerという目的を正面から説明し、「AIが手伝う」だけに弱めない。現在はearly developmentで全事業の自律運転・収益が揃っていないことを隣接して明記する。収益の実績はofficial provider receiptと費用を使ったnet結果で示し、未検証のbusiness outcomeを現在の事実として書かない。ChatGPT PlusはcoreのAI利用条件であり、インターネット、各business account、providerが必要とする追加費用は別に明示する。
+**公開表現と証明:** READMEでは「人間が運営する事業を手伝うAI」ではなく、事業自体を作り、運営し、収益を得るno-human-in-the-loop money printerを目指すと正面から説明する。現在はearly developmentで全事業の自律運転・収益が揃っていないことを隣接して明記し、完成済みの能力や利益と誤解させない。収益の実績はofficial provider receiptと費用を使ったnet結果で示し、未検証のbusiness outcomeを現在の事実として書かない。ChatGPT PlusはcoreのAI利用条件であり、インターネット、各business account、providerが必要とする追加費用は別に明示する。
 
 ### 完了済み
 
@@ -23,7 +23,7 @@
 |---|---|---|
 | Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN/DIRTY/CONFLICTING。head `53a21430`の14/14 CI checksは成功しているが、review decisionは未記録。GitHubのbaseRefOid `8e0e6f2e`は現mainより古く、現mainは`b71fde5c`（README/spec PR #8884、2026-10-24 12:02Z統合）。2026-10-24 12:05Zの公式readback。 | ownerの作業中worktreeを保持する。owner完了後に最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
-| 自律型money-printerの位置付け | READMEは製品と各業務を紹介しているが、「自分で事業を作って運営し、実際に収益を得る」という中心価値が明瞭でない。現時点の全業務収益もread-only planでverifiedではない。 | READMEのvalue propositionを「ノーヒューマン・イン・ザ・ループで事業を作り、動かし、収益を生む」に改める。完成前はearly-development表示を隣接させ、実証済みのnet収益だけを実績として載せる。 |
+| 自律型money-printerの位置付け | READMEは製品と各業務を紹介しているが、Life Manager自身が事業を発想・構築・立ち上げ、継続的な人の指示なしに運営して収益を得るという中心価値が明瞭でない。現時点の全業務収益もread-only planでverifiedではない。 | READMEで「人の事業を手伝う」ではなく「事業そのものを作り、運営し、収益を生むノーヒューマン・イン・ザ・ループのmoney printerを目指す」と伝える。初期設定後は通常運転に人のprompt/approvalが不要という完成像を示す。完成前はearly-development表示を隣接させ、実証済みのnet収益だけを実績として載せる。 |
 | 現Macの実行状態 | 2026-10-24のread-only snapshotではオンラインMacは1台（Apple Silicon Mac mini）。install planは`prepared`だが`business_outcomes_verified=false`。192 registry jobsのhealthは18 healthy / 64 failed / 72 safely fenced / 10 effect_unknown / 28 runningで、7件はofficial readback待ち。 | 共有資源・owner別の失敗を原因ごとに解消し、未知effectのfenceを保持したまま、各有効事業の実業務と公式provider結果を確認する。このsnapshotやCIだけで全Mac対応・収益を証明しない。 |
 | 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
 | 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
@@ -44,7 +44,7 @@
 
 ### 理想の完成状態
 
-外部の人がREADMEだけでLocal Life Managerを「自分で事業を作り、運営し、収益を得るノーヒューマン・イン・ザ・ループのmoney printer」と理解する。ChatGPT Plus以上とスリープしないMac/Mac miniを使い、対応する事業の顧客獲得、制作、販売、納品、入金、改善を自律的に回す。初回に必要なservice accountを接続した後、通常業務は人の都度prompt/approvalなしで進む。対応する約20 agentが7事業を動かし、official provider receiptで案件・注文・入金を照合、7事業すべての費用控除後の正のnet収益、失敗、再開状態を示す。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から最初の収益成果まで通る。Pion/Andon Labsのように事業全体を運営するagentを目指し、Life Managerは7 business linesのverified net revenueを外部に示す。現在のearly-development状態と未完了機能はREADMEで正直に示し、確認済み成果が揃うまで保証収益をうたわない。GitHub 10,000 starsは利用者に価値が届いた結果として目指す別の採用目標であり、収益・導入成功の証明とは分ける。
+外部の人がREADMEだけでLocal Life Managerを、人間の既存事業を手伝うだけでなく事業自体を発想・構築・立ち上げ、運営して収益を生むノーヒューマン・イン・ザ・ループのmoney printerと理解する。ChatGPT Plus以上とスリープしないMac/Mac miniを使い、対応する事業の顧客獲得、制作、販売、納品、入金、改善を自律的に回す。初回に必要なservice accountを接続した後、通常業務は人の都度prompt/approvalなしで進む。対応する約20 agentが7事業を動かし、official provider receiptで案件・注文・入金を照合、7事業すべての費用控除後の正のnet収益、失敗、再開状態を示す。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から最初の収益成果まで通る。Pion/Andon Labsのように事業全体を運営するagentを目指し、Life Managerは7 business linesのverified net revenueを外部に示す。現在のearly-development状態と未完了機能はREADMEで正直に示し、確認済み成果が揃うまで保証収益をうたわない。GitHub 10,000 starsは利用者に価値が届いた結果として目指す別の採用目標であり、収益・導入成功の証明とは分ける。
 
 ### 10,000 starsを目指すREADMEの参考例
 
