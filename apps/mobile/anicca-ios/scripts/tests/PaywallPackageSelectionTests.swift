@@ -170,6 +170,76 @@ final class PaywallPackageSelectionTests {
         precondition(resolve([lifetime], selected: TestPackage("removed", .annual)) == nil)
     }
 
+    func testLifetimeIsAvailableOnlyForCurrentJapanStorefrontOffering() {
+        precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringCountryCode: "JPN"))
+        precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "jpn", offeringCountryCode: "jpn"))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "USA", offeringCountryCode: "JPN"))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "GBR", offeringCountryCode: "GBR"))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: nil, offeringCountryCode: "JPN"))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringCountryCode: nil))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringCountryCode: "USA"))
+    }
+
+    func testLifetimePurchaseChecksTheLiveStorefrontAndKeepsOtherPlansAvailable() {
+        precondition(PaywallStorefrontEligibility.allowsPurchase(
+            packageIsLifetime: true,
+            packageIsCurrent: true,
+            countryCode: "JPN",
+            offeringCountryCode: "JPN"
+        ))
+        precondition(!PaywallStorefrontEligibility.allowsPurchase(
+            packageIsLifetime: true,
+            packageIsCurrent: true,
+            countryCode: "USA",
+            offeringCountryCode: "JPN"
+        ))
+        precondition(!PaywallStorefrontEligibility.allowsPurchase(
+            packageIsLifetime: true,
+            packageIsCurrent: true,
+            countryCode: "JPN",
+            offeringCountryCode: nil
+        ))
+        precondition(PaywallStorefrontEligibility.allowsPurchase(
+            packageIsLifetime: false,
+            packageIsCurrent: true,
+            countryCode: "USA",
+            offeringCountryCode: nil
+        ))
+        precondition(!PaywallStorefrontEligibility.allowsPurchase(
+            packageIsLifetime: false,
+            packageIsCurrent: false,
+            countryCode: "USA",
+            offeringCountryCode: "USA"
+        ))
+    }
+
+    func testOfferingRefreshRejectsOlderCompletionAndStorefrontChanges() {
+        precondition(PaywallOfferingSelection.isLatestRefresh(requestID: 3, currentRequestID: 3))
+        precondition(!PaywallOfferingSelection.isLatestRefresh(requestID: 2, currentRequestID: 3))
+        precondition(PaywallOfferingSelection.isUnchangedStorefrontRevision(startingRevision: 4, currentRevision: 4))
+        precondition(!PaywallOfferingSelection.isUnchangedStorefrontRevision(startingRevision: 4, currentRevision: 6))
+        precondition(PaywallStorefrontEligibility.sameStorefront(first: "jpn", second: "JPN"))
+        precondition(PaywallStorefrontEligibility.sameStorefront(first: nil, second: nil))
+        precondition(!PaywallStorefrontEligibility.sameStorefront(first: "USA", second: "JPN"))
+        precondition(!PaywallStorefrontEligibility.sameStorefront(first: nil, second: "JPN"))
+    }
+
+    func testStorefrontRevisionRejectsJapanUsaJapanRoundTrip() {
+        let startingRevision = 10
+        let revisionAfterJapanToUsaToJapan = 12
+        precondition(!PaywallOfferingSelection.isUnchangedStorefrontRevision(
+            startingRevision: startingRevision,
+            currentRevision: revisionAfterJapanToUsaToJapan
+        ))
+    }
+
+    func testPurchaseRequiresTheSelectedPackageInstanceFromTheCurrentOffering() {
+        let current = TestPackage("current", .lifetime)
+        let stale = TestPackage("current", .lifetime)
+        precondition(PaywallPackageSelection.containsCurrentInstance(current, in: [current]))
+        precondition(!PaywallPackageSelection.containsCurrentInstance(stale, in: [current]))
+    }
+
     func testRepeatedRefreshKeepsUserSelection() {
         let annual = TestPackage("annual", .annual)
         let monthly = TestPackage("monthly", .monthly)
@@ -194,6 +264,11 @@ final class PaywallPackageSelectionTests {
         ("testRemovedSelectionFallsBackToAnnualThenMonthly", testRemovedSelectionFallsBackToAnnualThenMonthly),
         ("testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault", testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault),
         ("testNoAnnualOrMonthlyDoesNotInventADefault", testNoAnnualOrMonthlyDoesNotInventADefault),
+        ("testLifetimeIsAvailableOnlyForCurrentJapanStorefrontOffering", testLifetimeIsAvailableOnlyForCurrentJapanStorefrontOffering),
+        ("testLifetimePurchaseChecksTheLiveStorefrontAndKeepsOtherPlansAvailable", testLifetimePurchaseChecksTheLiveStorefrontAndKeepsOtherPlansAvailable),
+        ("testOfferingRefreshRejectsOlderCompletionAndStorefrontChanges", testOfferingRefreshRejectsOlderCompletionAndStorefrontChanges),
+        ("testStorefrontRevisionRejectsJapanUsaJapanRoundTrip", testStorefrontRevisionRejectsJapanUsaJapanRoundTrip),
+        ("testPurchaseRequiresTheSelectedPackageInstanceFromTheCurrentOffering", testPurchaseRequiresTheSelectedPackageInstanceFromTheCurrentOffering),
         ("testRepeatedRefreshKeepsUserSelection", testRepeatedRefreshKeepsUserSelection),
     ] }
 }

@@ -29,6 +29,9 @@ final class AppState: ObservableObject {
     @Published private(set) var isOnboardingComplete: Bool
     @Published private(set) var onboardingStep: OnboardingStep
     @Published private(set) var cachedOffering: Offering?
+    @Published private(set) var cachedOfferingStorefrontCountryCode: String?
+    @Published private(set) var currentStorefrontCountryCode: String?
+    @Published private(set) var storefrontRevision = 0
     /// PostHog feature flags がサーバーから到着済みか（初回起動時の nil 防止）
     /// Source: https://posthog.com/docs/libraries/ios/usage — "Ensuring flags are loaded before usage"
     @Published var featureFlagsReady: Bool = false
@@ -630,8 +633,17 @@ final class AppState: ObservableObject {
         purchaseEnvironmentStatus = status
     }
     
-    func updateOffering(_ offering: Offering?) {
+    func updateOffering(_ offering: Offering?, storefrontCountryCode: String? = nil) {
         cachedOffering = offering
+        cachedOfferingStorefrontCountryCode = storefrontCountryCode?.uppercased()
+    }
+
+    func recordStorefrontCountryCode(_ countryCode: String?) {
+        let normalizedCountryCode = countryCode?.uppercased()
+        guard currentStorefrontCountryCode != normalizedCountryCode else { return }
+        currentStorefrontCountryCode = normalizedCountryCode
+        storefrontRevision += 1
+        cachedOfferingStorefrontCountryCode = nil
     }
     
     func loadSubscriptionInfo() -> SubscriptionInfo {
