@@ -208,10 +208,12 @@ def _skill_name(page:Any,name:str)->None:
     matches=[items.nth(index) for index in range(items.count()) if items.nth(index).inner_text().strip()==name]
     if len(matches)!=1: _fail("profile_field_invalid")
     matches[0].click()
+def assert_account(page:Any,account_id:str)->None:
+    account=_account_module(); _goto(page,account.DASHBOARD_URL,"/dashboard")
+    if account._account_id(page)!=account_id: raise SetupRequired(["provider_account_binding"])
 def observe_page(page:Any,config:Mapping[str,Any])->dict[str,Any]:
     identifier=config["provider_employee_id"]; public_url=f"https://crowdworks.jp/public/employees/{identifier}"
-    account=_account_module(); _goto(page,account.DASHBOARD_URL,"/dashboard")
-    if account._account_id(page)!=identifier: raise SetupRequired(["provider_account_binding"])
+    assert_account(page,identifier)
     _goto(page,PROFILE_URL,"/profile","role=employee"); _body(page); _goto(page,PROFILE_EDIT_URL,"/profile/edit"); display=_field(page,'input[name="profile[display_name]"]'); _goto(page,EMPLOYEE_URL,"/employee/new"); intro=_field(page,'textarea[name="employee[introduction]"]'); occupation=_selected_label(page,'select[name="occupation[]"]'); details=_occupation_details(page); status=_field(page,'select[name="employee[status]"]'); hours=_field(page,'select[name="employee[hours_limit]"]'); low=_field(page,'input[name="employee[min_hourly_wage]"]'); high=_field(page,'input[name="employee[max_hourly_wage]"]'); meeting=_field(page,'input[name="employee[web_meeting]"]:checked'); categories=_checked_labels(page); _goto(page,public_url,f"/public/employees/{identifier}"); public=_body(page); avatar=_public_avatar(page); _goto(page,f"{public_url}/occupations",f"/public/employees/{identifier}/occupations"); public_detail=_public_occupation_detail(page); skills=_public_skills(page)
     detail_value=f'{public_detail["id"]}:{public_detail["label"]}' if len(details)==1 and details[0]==public_detail else ""
     values={"display_name":display,"occupation":occupation,"occupation_detail":detail_value,"status":status,"hours_limit":hours,"min_hourly_wage":low,"max_hourly_wage":high,"web_meeting":meeting,"introduction":intro,"job_categories":"\n".join(categories),"skills":_skills_value(skills,public=True)}
@@ -298,11 +300,13 @@ def run_observe(*,config_path:Path|str=DEFAULT_CONFIG_PATH,browser:Any=None,page
     except Exception: return {"ok":False,"platform":PLATFORM,"error":"profile_observe_failed"}
     finally:
         if own: _close(created)
+def require_apply_config(config:Mapping[str,Any])->None:
+    if "occupation_detail" not in config: raise SetupRequired(["provider_profile.occupation_detail"])
+    if any(skill["years"] not in {3,5} for skill in config["skills"]): raise SetupRequired(["provider_profile.skills"])
 def run_apply(*,config_path:Path|str=DEFAULT_CONFIG_PATH,browser:Any=None,page:Any=None,browser_factory:Any=None,ownership_checker:Any=None,receipt_path:Path|str|None=None,now:Any=None)->dict[str,Any]:
     try:
         config=load_config(config_path)
-        if "occupation_detail" not in config: raise SetupRequired(["provider_profile.occupation_detail"])
-        if any(skill["years"] not in {3,5} for skill in config["skills"]): raise SetupRequired(["provider_profile.skills"])
+        require_apply_config(config)
     except SetupRequired as error: return _setup_result(error)
     own=page is None; created=None
     try:

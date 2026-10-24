@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 import pytest
+from skills.earn.crowdworks.tests.test_owner_private_identity import copy_profile, write_inputs
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -21,6 +22,8 @@ def _fake_tree(tmp_path: Path, result: dict, kernel_rc: int = 1):
     fake_owner = fake_root / "skills/earn/crowdworks/scripts/paid-owner"
     fake_owner.parent.mkdir(parents=True)
     shutil.copy2(OWNER, fake_owner)
+    copy_profile(fake_root)
+    write_inputs(tmp_path / "home")
 
     lock = fake_root / "skills/browser/scripts/run_with_file_lock.py"
     lock.parent.mkdir(parents=True)
@@ -56,6 +59,7 @@ def _run(fake_owner: Path, state_root: Path, args_file: Path) -> subprocess.Comp
         [str(fake_owner)],
         env={
             **os.environ,
+            "HOME": str(state_root.parent / "home"),
             "LIFE_MANAGER_PYTHON": sys.executable,
             "LIFE_MANAGER_LOCK_PYTHON": sys.executable,
             "LIFE_MANAGER_STATE_ROOT": str(state_root),
