@@ -1,0 +1,474 @@
+{
+  "version": 1,
+  "scope": "life-manager",
+  "timeout_seconds": 900,
+  "providers": {
+    "codex": {
+      "executable": "~/.local/bin/codex",
+      "executable_fallbacks": [
+        "~/.local/bin/codex"
+      ],
+      "profiles": {
+        "acct1": {
+          "automation_home": "~/.local/state/life-manager/codex-runner/acct1",
+          "auth_file": "~/.codex/auth.json"
+        },
+        "acct2": {
+          "automation_home": "~/.local/state/life-manager/codex-runner/acct2",
+          "auth_file": "~/.codex-acct2/auth.json"
+        }
+      },
+      "account_profile_order": [
+        "acct1",
+        "acct2"
+      ],
+      "ssl_cert_file": "/etc/ssl/cert.pem",
+      "project_doc_max_bytes": 0,
+      "disabled_skills": [
+        "imagegen",
+        "openai-docs",
+        "plugin-creator",
+        "skill-creator",
+        "skill-installer"
+      ],
+      "disabled_features": [
+        "apps",
+        "auth_elicitation",
+        "goals",
+        "hooks",
+        "image_generation",
+        "multi_agent",
+        "plugins",
+        "remote_plugin",
+        "tool_call_mcp_elicitation",
+        "tool_suggest",
+        "workspace_dependencies"
+      ],
+      "capabilities": {
+        "structured_json": true,
+        "tools": true,
+        "browser": true
+      },
+      "cost_tier": "subscription",
+      "quota": {
+        "source": "provider"
+      }
+    },
+    "claude": {
+      "executable": "~/.local/bin/claude"
+    }
+  },
+  "candidate_profiles": {},
+  "task_classes": {
+    "deterministic": {
+      "route": "deterministic",
+      "candidates": []
+    },
+    "codex-brain-agent": {
+      "route": "codex-brain",
+      "token_reservation": 16384,
+      "timeout_seconds": 180,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
+    "writer-judge-agent": {
+      "route": "terra-medium-bounded",
+      "token_reservation": 16384,
+      "timeout_seconds": 240,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "timeout_seconds": 240,
+          "profile_alias": "acct2"
+        }
+      ]
+    },
+    "composition-agent": {
+      "route": "terra-medium-bounded",
+      "token_reservation": 16384,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        },
+        {
+          "provider": "claude",
+          "model": "claude-sonnet-5-5",
+          "effort": "medium",
+          "only_when": "codex_usage_limit"
+        }
+      ]
+    },
+    "reply-semantic-agent": {
+      "route": "luna-medium-reply-semantic",
+      "token_reservation": 16384,
+      "timeout_seconds": 240,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-luna",
+          "effort": "medium",
+          "timeout_seconds": 120,
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "storefront-proposal-agent": {
+      "route": "terra-medium-storefront-proposal",
+      "token_reservation": 16384,
+      "timeout_seconds": 180,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "timeout_seconds": 90,
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "repeatable-agent": {
+      "route": "terra-medium-decision",
+      "token_reservation": 32768,
+      "timeout_seconds": 90,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "tool-agent": {
+      "route": "terra-medium-bounded",
+      "token_reservation": 24576,
+      "timeout_seconds": 180,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "browser-lane-agent": {
+      "route": "terra-high-bounded",
+      "requires_explicit_escalation": true,
+      "token_reservation": 24576,
+      "_timeout_note": "Split from tool-agent 2026-07-27. The two jobs want opposite bounds: the reality auditor must stay short (180s) so it cannot itself become the stall, while the browser lanes need minutes. Measured on the apply lane: attempt-01 ran 174s against Coconala and was killed as transient_timeout with 289KB of progress already on stdout. Delivery, at 900s, completed; applications, at 180s, ran five times in a week. Scanning postings, opening each and writing a proposal is minutes of browser work, so the old cap made the lane structurally unable to finish. Browser-lane-agent now uses 1800 seconds; high-value-agent remains 900 seconds.",
+      "timeout_seconds": 1800,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "high",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "application-lane-agent": {
+      "route": "terra-medium-exhaustive-application",
+      "token_reservation": 24576,
+      "_timeout_note": "B2-only route. Measured 2026-07-29: newest plus 27 category sources plus keyword/pagination had traversed only the first category after three minutes. The shared 900s browser bound contradicts the exhaustive-search completion contract. One hour remains below the launcher's 7200s runaway guard while allowing the money-entry lane to search before it returns.",
+      "timeout_seconds": 3600,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "connector-agent": {
+      "route": "luna-max-connector",
+      "requires_explicit_escalation": true,
+      "token_reservation": 32768,
+      "timeout_seconds": 90,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "job-hunter-agent": {
+      "route": "luna-max-job-hunter",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 1800,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "workday-browser-agent": {
+      "route": "luna-max-job-hunter",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 2400,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "fundraiser-agent": {
+      "route": "luna-max-fundraiser",
+      "requires_explicit_escalation": true,
+      "token_reservation": 24576,
+      "timeout_seconds": 3600,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "application-intent-planner": {
+      "route": "luna-high-isolated-application-intent",
+      "requires_explicit_escalation": true,
+      "token_reservation": 24576,
+      "timeout_seconds": 420,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-luna",
+          "effort": "high",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        },
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "diagnostic-agent": {
+      "route": "terra-medium-decision",
+      "token_reservation": 32768,
+      "timeout_seconds": 120,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "marketing-agent": {
+      "route": "luna-medium-bounded",
+      "token_reservation": 49152,
+      "timeout_seconds": 1800,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-luna",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "treg-lead-signals-agent": {
+      "route": "treg-lead-signals-sol-medium",
+      "requires_explicit_escalation": true,
+      "token_reservation": 49152,
+      "timeout_seconds": 1800,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "profile_alias": "acct2",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "high-value-agent": {
+      "route": "terra-medium-decision",
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "self-fix-code-agent": {
+      "route": "self-fix-frontier-luna-max-code",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "profile_alias": "acct2"
+        }
+      ]
+    },
+    "escalation-agent": {
+      "route": "explicit-escalation",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
+    "paid-decision-agent": {
+      "route": "paid-decision-fast-fail",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "paid-owner-agent": {
+      "route": "paid-owner-long-running",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 3600,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "timeout_seconds": 180
+        }
+      ]
+    },
+    "writer-sol-audit": {
+      "route": "writer-explicit-sol-audit",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-sol",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "writer-repair-agent": {
+      "route": "writer-isolated-repair",
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
+    "self-heal-code-agent": {
+      "route": "self-heal-isolated-code-repair",
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
+    "affiliate-marketing-agent": {
+      "route": "affiliate-sol-medium-strategy",
+      "requires_explicit_escalation": true,
+      "token_reservation": 32768,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "profile_alias": "acct2"
+        }
+      ]
+    },
+    "affiliate-escalation-agent": {
+      "route": "affiliate-sol-high-one-use-repair",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 3600,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "profile_alias": "acct2"
+        }
+      ]
+    }
+  }
+}

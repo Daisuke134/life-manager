@@ -1709,17 +1709,40 @@ def configured_task_classes(config: dict[str, Any]) -> tuple[str, ...]:
     return tuple(task_classes)
 
 
+# The one scoped exception to the Codex-only boundary: while Codex is out for a usage limit, text
+# generation for the Capafy distribution loops would otherwise stop for days. Claude may be the LAST
+# candidate of composition-agent, and only when the candidate declares the usage-limit condition.
+CLAUDE_FALLBACK_TASK_CLASS = "composition-agent"
+CLAUDE_FALLBACK_CONDITION = "codex_usage_limit"
+
+
 def validate_codex_only_config(config: dict[str, Any]) -> None:
     providers = config.get("providers")
-    if not isinstance(providers, dict) or set(providers) - {"codex"}:
+    if not isinstance(providers, dict) or set(providers) - {"codex", "claude"}:
         raise ValueError("codex_only_provider_required")
-    for task in config["task_classes"].values():
+    for name, task in config["task_classes"].items():
         candidates = task.get("candidates", [])
         if not isinstance(candidates, list) or any(
-            not isinstance(candidate, dict) or candidate.get("provider") != "codex"
-            for candidate in candidates
+            not isinstance(candidate, dict) for candidate in candidates
         ):
             raise ValueError("codex_only_provider_required")
+        for index, candidate in enumerate(candidates):
+            if candidate.get("provider") == "codex":
+                continue
+            allowed = (
+                candidate.get("provider") == "claude"
+                and name == CLAUDE_FALLBACK_TASK_CLASS
+                and candidate.get("only_when") == CLAUDE_FALLBACK_CONDITION
+                and index == len(candidates) - 1
+                and index > 0
+            )
+            if not allowed:
+                raise ValueError("codex_only_provider_required")
+    if "claude" in providers and not any(
+        candidate.get("provider") == "claude"
+        for task in config["task_classes"].values() for candidate in task.get("candidates", [])
+    ):
+        raise ValueError("codex_only_provider_required")
 
 
 def run() -> int:
