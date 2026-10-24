@@ -90,6 +90,27 @@ AutomationBenchのREADME・Calendar assertion実装も確認した。event存在
 
 repoには既存NodeのLM-EAB scorer、recovery intent/apply/supervisor、`skills/earn/self-improve/evaluator.py` と `run_evolve.sh` のOpenEvolve経路がある。ソース存在は自然自己改善の成功証明ではない。今回のpilotは新framework・optimizerを追加しない。既存recovery testがすでにhold/nonretryable/no commands/owner拒否を検査するため、新wrapperによる再包装も追加しない。最初の足場は自然失敗一件と既存testのcoverage対応表である。Inspect/GEPAは将来の接続障害・探索需要が具体化したときの候補。
 
+## RSI一次資料の比較と選択（2026-10-21更新）
+
+**暫定判断:** Life Managerの再帰的改善は、Harness²の`Propose–Probe–Compose`を一つのオフライン改善手順として採り、既存のLife Manager EDD・receipt・release経路で実装する。Harness²自体を第二schedulerや業務実装として導入しない。これはagent-harness改善の選択であり、収益戦略の証明ではない。
+
+| 一次資料 | 方法と作者報告の結果 | Life Managerへの使い方と限界 |
+|---|---|---|
+| [Harness² repo](https://github.com/google-research/harness2) / [paper](https://arxiv.org/abs/2610.14224) | 固定モデルの周囲のprompt、skills、tools、memory等を候補化し、同じtaskで提案・probe・composeする。改善過程の根拠を次のtaskへ残す。作者は3 benchmark・4 model/harness条件・各3 runを比較し、最大+11.5 WorkBuddy、+4.5 JobBench、+11.8ポイントLAB Partialを報告。repoはCodex executorとbaseline/judge/reportを持つ。 | 一番近いのは評価手順。各runを同じmodel・task・budgetで比べ、rubricを候補作成側から隠す。公開benchmarkはデータ/採点基準が漏れ得て、API費用もかかる。これらの点数は業務完了率であって売上・利益ではない。 |
+| [Dream-RSI repo/PDF](https://github.com/zhengkid/Dream-RSI) | 過去の探索木をreplay simulatorとして再利用し、候補の探索方針を再実行なしで比較する。作者はLassoの17 synthetic search instanceに加えて6 held-out downstream datasetを報告し、Gemini-3.1-Pro条件でfixed-explorationよりagent call数を550から317へ減らし、6 held-out datasetの平均runtimeも改善したと記載。 | 履歴replayは候補の安い事前選別に参考になる。ただし同じ履歴上の勝利は未来の勝利を保証しない。PDFはrepoにあるが、READMEではarXiv投稿・full code/reproduction scriptsが準備中。計算効率の結果であり投資利益ではない。 |
+| [RSI-Anything repo](https://github.com/Gen-Verse/RSI-Anything) / [paper](https://arxiv.org/abs/2610.13912) | JEPA world-model予測で候補を選び、実際のinteraction feedbackでpolicy/modelを更新・保持する。作者は200 CodeContests×3 seedsで26.3%→31.2%、MiniWoB++で51%→99%、化学reaction optimizationの40-experiment budgetで96.15% mean best yieldを報告。付録にはSPY macro-trading taskの評価計画もある。 | prediction→selection→external feedbackの順序は参考になる。付録のfinance taskは実験結果ではなく提案promptであり、化学yield・code pass rate・GUI successはfinancial returnではない。world-model予測がpolicy変更後にずれる危険も、独立readbackで補う必要がある。 |
+| [MASS repo](https://github.com/SakanaAI/mass) / [paper](https://arxiv.org/abs/2610.12176) / [project page](https://sakana.ai/mass/) | 同じQwen3.6-27Bをworkflow optimizer・agent・evaluatorとして使い、multi-agent trajectoryでfine-tuneする。作者は2 cycle後、4 open-ended research benchmarkで1.2–1.6倍のscore per output tokenを報告。別のcoding benchmarksではTerminal-Benchが37.5%→35.2%、SWE-bench Verifiedが62.6%→61.1%で、改善が一様ではない。 | workflow探索の参考に限る。27B model fine-tuningと自己評価を使うため、現行Life Managerの投資経路へ直接導入しない。token効率・research rubricは実入金やsettled netと無関係。 |
+
+### Life Managerでの採用境界
+
+Harness²の方式を既存評価へ写す一つの経路は、(1) frozen baselineと失敗/成功caseを固定、(2) candidateのprompt/skill/tool変更を一つずつ提案、(3)同一条件のoffline probeで差分を観測、(4)独立graderとheld-outで選び、根拠のあるlessonだけを次のcandidate生成へ戻す、(5)採用候補をbranch/PR/release/natural runへ通す、である。evaluator、held-out、risk cap、permission、identity、effect fenceはcandidate agentから変更できない。
+
+投資agentでは主評価を費用後のsettled owner-net、同期間benchmark excess、最大drawdown、risk-cap順守に置く。backtestとpaperは候補を落とす材料であり、実利益ではない。他のLife Manager agentも同じ反復手順を使えるが、売上・納品・生活taskなどの成果指標はdomain別にし、ひとつの汎用LLM scoreへ潰さない。既存のLife Manager runner、ledger、scheduler、provider readbackを正本とする。実装順序とcursorは[統一SSOT](../superpowers/specs/2026-09-25-life-manager-unified-ssot.md)と[EDD pilot plan](../superpowers/plans/2026-10-12-edd-recovery-pilot.md)が持つ。
+
+**暫定見立て:** bestではHarness²型のmatched probeとheld-outでharness改善が確認でき、投資risk gateを保ったまま再発や悪化を早く落とせる。baseでは修復・完走の信頼性だけが改善し、P&Lは変わらない。worstでは公開fixtureへ過適合し、実市場では効果がなく、API/compute費用だけが増える。MASSやRSI-Anythingをproductionへ入れる判断を保留する根拠は、両repoにLife Managerの実資金・settlement結果がないこと。自分が間違うとしたら、短期P&Lを最も左右する要因がcandidate alphaと共有disk/capacityで、RSI改善層の寄与が小さいケースである。
+
+**実行前提:** この比較は研究・設計資料であり、新frameworkのinstallやproduction mutationを許可しない。現在の投資cursorはINV-06F1の未帰属root診断であり、native safe-retention ownerは並行して稼働している。10:19Zの空きは約5.65 GiBで、10 GiB基準との差をまだ埋められていない。次にINV-06F2の容量回復、INV-07のnatural validation/paper readbackへ進む。RSI候補生成をproductionへ拡張する判断は、INV-10の費用込みstrategy evaluation後に行う。
+
 ## 現行LM-EABの実態
 
 読んだbaseは `dcc02a56ed1c80f824d917c02304a57376ec3de5`。`apps/life-manager/eval/economic-autonomy/cases.jsonl` は5件（tuning3、held_out2）。[現在の説明](../evals/lm-economic-autonomy.md)のとおり全部公開synthetic。
@@ -118,7 +139,7 @@ repoには既存NodeのLM-EAB scorer、recovery intent/apply/supervisor、`skill
 
 差別化仮説は「追加の人手なしの業務完走に、回復・effect integrity・cost-complete outcomeを接続する」。新規性は外部反証前には未確定。
 
-labにとって有用な理由は、新モデルの能力差を信頼できる条件で検出できること。実務的に重要なのは、妥当なtask、gradeの正確さ、比較条件の固定、費用と実行時間、未見task、異なるharnessでの再現、継続メンテナンス。
+labにとって有用な理由は、新モデルの能力差を信頼できる条件で検出できること。実務上は、妥当なtask、gradeの正確さ、比較条件、費用と実行時間、未見task、異なるharnessでの再現、継続メンテナンスが必要になる。
 
 開発用の速い再現試験と、real-worldの遅い成果確認を併用する。模擬試験でモデル比較を行い、現実との対応は別の検証で調べる。実店舗/実決済だけで毎モデルを比較する方式は、市場・時期・顧客・資本の差が混ざりやすい。
 
@@ -138,6 +159,6 @@ best: 同じ失敗の再発と改悪を早く検出でき、他者も使うtask 
 
 DuckDuckGo HTML検索は結果anchorを取得できず、公式news/modelページとGitHub検索・rawを代替に使用。指定候補OpenAI Astra URLは空本文、Zapier blog URLは404だったが、OpenAI最新発表、Zapier公式GitHub・benchmark page・論文から目的に必要な内容を取得した。未取得を成功扱いしない。
 
-提示されていたRSI-Anything（2610.13912）やMASSの具体的結論は今回確認していないため設計根拠にしない。「全事故が評価不足」「週30分で十分」「7日売上50%で自動rollback」「fixtureを自然traceで置換すれば完成」は採らない。評価の反復実行と判定再現性は区別する。確率的judgeでも較正・反復を伴えばevalとして使える。
+指定されたHarness²、Dream-RSI、RSI-Anything、MASSのGitHub/論文/公式ページは2026-10-21に確認した。取得範囲と各数値の限界は上記「RSI一次資料の比較と選択」に記録する。repo内で報告されたbenchmark結果はfinancial profitの証明ではない。「全事故が評価不足」「週30分で十分」「7日売上50%で自動rollback」「fixtureを自然traceで置換すれば完成」は採らない。評価の反復実行と判定再現性は区別する。確率的judgeでも較正・反復を伴えばevalとして使える。
 
 方法論の一次資料: [Anthropic agent evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)、[OpenAI evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices)、[Hamel product evals](https://hamel.dev/blog/posts/evals/)、[Hamel FAQ](https://hamel.dev/blog/posts/evals-faq/)。Hamelの推奨は著者自身が万能則でないと明示している。
