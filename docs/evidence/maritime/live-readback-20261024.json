@@ -34,6 +34,13 @@
         "reply_as_of": "2026-10-24T09:29:25Z",
         "organizer_reply_found": false,
         "channel_notice": "Posting in competition-submissions does not replace a required submission form."
+      },
+      "office_hours": {
+        "time": "2026-10-25T10:00:00+09:00",
+        "duration_minutes": 15,
+        "booked_for": "Nizzy with Darshan",
+        "dais_attendance_or_invitation": "unknown",
+        "evidence": "Gmail booking previously read in session"
       }
     },
     "product": {

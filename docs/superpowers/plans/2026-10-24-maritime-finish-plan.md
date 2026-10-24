@@ -71,7 +71,7 @@ Do not present internal user cohort goals as organizer thresholds. Suggested int
 
 ### P0 — Lock Round 1 requirements (next organizer office-hours slot)
 
-**Owner:** Codex prepares the questions and records evidence; Dais/attendee asks the organizer in the booked Oct 25 10:00 JST office-hours slot. Do not infer from the kickoff email or X wording.
+**Owner:** Codex prepares the questions and records evidence. Gmail shows the Oct 25 10:00–10:15 JST office-hours booking under Nizzy with Darshan; Dais attendance/invitation is not verified. If Dais is an attendee, he asks the organizer. Otherwise use the next participant-accessible official route and do not duplicate the existing unanswered #competition-help question. Do not infer from kickoff email or X wording.
 
 - [ ] P0.1 Ask in English: “What is the exact Round 1 cutoff time and timezone, and how will the Top 30 be selected?”
 - [ ] P0.2 Ask: “What is the required project submission route and packet? Does our Oct 21 #competition-submissions post count, or is there a separate form?”
