@@ -41,6 +41,7 @@ PRIORITY_AGE_SECONDS = {
     "revenue": 30 * 60,
     "support": 2 * 60 * 60,
 }
+AGENT_SUPPORT_JUMP_SECONDS = 12 * 60 * 60
 OCCURRENCE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
 HEARTBEAT_FUTURE_SKEW_SECONDS = 60
@@ -797,7 +798,12 @@ def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, flo
             and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
     # The revenue floor leaves one borrow slot; let an aged support owner use it.
     borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 10)) > 0
-    overdue_support = aged and priority == "support" and row.get("admission_class") == "borrow" and borrow_slot
+    # Only two agent slots exist: an aged support agent outranks revenue once it has waited 12h.
+    straggler = (row.get("resource_class") != "agent"
+                 or (isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
+                     and now - float(queued_at) >= AGENT_SUPPORT_JUMP_SECONDS))
+    overdue_support = (aged and priority == "support" and row.get("admission_class") == "borrow"
+                       and borrow_slot and straggler)
     wait_started = (float(queued_at) if isinstance(queued_at, (int, float))
                     and not isinstance(queued_at, bool) else float("inf"))
     return (-1 if overdue_support else _effective_priority(row, now), 0 if aged else 1,

@@ -1421,7 +1421,7 @@ def test_aged_support_uses_preserved_wait_age_across_resource_classes(tmp_path, 
     admission.enqueue_durable("agent", "older-wait", now=300)
     with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
         connection.execute(
-            "UPDATE priorities SET queued_at=0 WHERE owner_id='older-wait'")
+            "UPDATE priorities SET queued_at=-46800 WHERE owner_id='older-wait'")
 
     assert admission.release_and_reserve(running.pop(), now=8000) == ["older-wait"]
     for claim in running:
@@ -4253,3 +4253,36 @@ def test_closed_or_roster_absent_proof_closes_through_no_other_resolver(tmp_path
     owner = _fenced(tmp_path, monkeypatch, occurrence)
     assert resolve(owner, occurrence, _closed_or_absent(owner, occurrence)) is False
     assert _row_state(tmp_path, occurrence) == ("claimed", 1)
+
+
+def test_overdue_support_agent_does_not_jump_ahead_of_aged_revenue(
+        tmp_path, monkeypatch):
+    """2026-10-24: 19 live support agents (-1) kept both agent slots, so capafy-distribute-daily waited 17h."""
+    isolated(tmp_path, monkeypatch, total="10")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "3")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "bounty-core-healthcheck",
+                              admission_class="borrow", now=100)
+    admission.enqueue_durable("agent", "lancers-revenue-application",
+                              admission_class="revenue", priority="revenue",
+                              now=100 + 3 * 3600)
+
+    assert admission.reserve_available(
+        now=100 + 4 * 3600, lease_seconds=30) == ["lancers-revenue-application"]
+
+
+def test_support_agent_waiting_twelve_hours_still_jumps_the_queue(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="10")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "3")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "bounty-core-healthcheck",
+                              admission_class="borrow", now=100)
+    admission.enqueue_durable("agent", "lancers-revenue-application",
+                              admission_class="revenue", priority="revenue",
+                              now=100 + 11 * 3600)
+
+    assert admission.reserve_available(
+        now=100 + 13 * 3600, lease_seconds=30) == ["bounty-core-healthcheck"]
