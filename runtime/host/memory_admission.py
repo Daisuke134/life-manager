@@ -129,16 +129,31 @@ def swapin_rate(count: int, now: float | None = None) -> float | None:
     return (count - oldest[1]) / (now - oldest[0])
 
 
+SWAP_PROBE_SECONDS = 2  # without window history, measure the rate now instead of guessing
+
+
 def swapin_pages_per_second() -> float | None:
+    """Window rate when the shared history proves one; else a short live probe; None without vm_stat.
+
+    A fresh host or CI runner has no history, and deferring on that alone stopped one-shot runs.
+    """
     count = swapins()
-    return None if count is None else swapin_rate(count)
+    if count is None:
+        return None
+    rate = swapin_rate(count)
+    if rate is not None:
+        return rate
+    time.sleep(SWAP_PROBE_SECONDS)
+    later = swapins()
+    if later is None or later < count:
+        return None
+    return (later - count) / SWAP_PROBE_SECONDS
 
 
 def swap_pressure() -> dict | None:
     """None while pages come back from swap slower than the limit; else the deferral receipt fields.
 
-    No rate (under 5 minutes of shared history, unwritable history, vm_stat failure) defers, the
-    same fail-closed rule as before; the fleet wakes every few minutes, so history stays fresh.
+    No rate (vm_stat unavailable or its counter reset) defers, the same fail-closed rule as before.
     LIFE_MANAGER_SWAPIN_GATE=off exists only for test subprocesses.
     """
     if os.environ.get("LIFE_MANAGER_SWAPIN_GATE") == "off":
@@ -146,7 +161,7 @@ def swap_pressure() -> dict | None:
     rate = swapin_pages_per_second()
     if rate is not None and rate < MAX_SWAPIN_PAGES_PER_SECOND:
         return None
-    return {"reason": "swap_pressure_high" if rate is not None else "swap_rate_unproven",
+    return {"reason": "swap_pressure_high" if rate is not None else "swap_rate_unavailable",
             "swapin_pages_per_second": rate,
             "max_swapin_pages_per_second": MAX_SWAPIN_PAGES_PER_SECOND,
             "swap_used_mb": swap_used_mb()}

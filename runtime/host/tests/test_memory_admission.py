@@ -94,8 +94,8 @@ class MemoryAdmissionTests(unittest.TestCase):
             self.assertEqual(row["swapin_pages_per_second"], 2500.0)
             self.assertEqual(row["max_swapin_pages_per_second"], 2000)
 
-    def test_unproven_swap_in_rate_defers(self):
-        # under 5 minutes of history (or no vm_stat) proves nothing, so the gate stays closed
+    def test_unmeasurable_swap_in_rate_defers(self):
+        # no vm_stat reading proves nothing, so the gate stays closed
         with tempfile.TemporaryDirectory() as temporary:
             receipt = Path(temporary) / "memory.json"
             with (
@@ -106,7 +106,7 @@ class MemoryAdmissionTests(unittest.TestCase):
             ):
                 self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
             execute.assert_not_called()
-            self.assertEqual(json.loads(receipt.read_text())["reason"], "swap_rate_unproven")
+            self.assertEqual(json.loads(receipt.read_text())["reason"], "swap_rate_unavailable")
 
     def test_healthy_headroom_executes_child(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -205,3 +205,19 @@ def test_swapin_rate_is_none_when_history_cannot_be_written(tmp_path, monkeypatc
     blocked.write_text("x")
     monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(blocked / "swap.json"))
     assert _module().swapin_rate(1_000_000, now=4000.0) is None
+
+
+def test_missing_history_falls_back_to_a_live_probe(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(tmp_path / "swap.json"))
+    m = _module()
+    readings = iter([1_000_000, 1_006_000])
+    monkeypatch.setattr(m, "swapins", lambda: next(readings))
+    monkeypatch.setattr(m.time, "sleep", lambda seconds: None)
+    assert m.swapin_pages_per_second() == 3000.0
+
+
+def test_probe_without_vm_stat_is_unmeasured(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(tmp_path / "swap.json"))
+    m = _module()
+    monkeypatch.setattr(m, "swapins", lambda: None)
+    assert m.swapin_pages_per_second() is None
