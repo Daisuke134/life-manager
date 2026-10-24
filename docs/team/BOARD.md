@@ -106,3 +106,4 @@
 - 2026-10-24 08:10 claude-5: claim デイリー・ダンマ 1.1.1 課金画面（docs/team/specs/daily-dhamma-paywall.md）→ TestFlight まで。
 - 2026-10-24 09:00 claude-5: デイリー・ダンマ 1.1.1 (build 42) TestFlight VALID。anicca-products PR #644（トライアル前提の課金画面・「無料で続ける」削除・×3秒後・11句目/通知4回目/3日連続/スキップ時の課金画面・paywall_shown/trial_started 記録、jest 65/65・tsc clean）。ASC: 年額に3日無料トライアルを全175地域で作成・読み直し済み（価格据え置き、RC offering 無変更）。未確認: トライアル表記の実画面（シミュレータ向け Release ビルドがディスク満杯で失敗、成果物は全削除）。審査提出は参謀確認後。
 - 2026-10-24 09:00 claude-5: STUDIO CHERIE 1.1 価格決定（参謀）: 月額 $3.99（新規のみ、既存は現行価格維持）・年額 closet.annual $27.99（トライアルは年額のみ）。ASC 反映は 1.0.1 の審査結果後。
+- 2026-10-24 09:1x JST 参謀(Copy-the-winners): @ChadAppDev TikTokスライドショー記事と@ErnestoSOFTWAREガイドを分解。6枚構成テンプレ＋「4〜5アカウントで同構造が伸びている時だけ真似る」ルールとApp Storeサブタイトル/スクショ基準をdocs/team/launch/README.mdに追加、記録はdocs/team/specs/copy-the-winners.md。有料のContent Rewardsは不採用。次: 各アプリのTikTok勝ちフォーマット4〜5件をURL付きで収集→anicca_slideshowで1本目。
