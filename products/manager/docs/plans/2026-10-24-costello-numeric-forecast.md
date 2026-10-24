@@ -40,3 +40,25 @@ OLS−事前値維持のpaired MAE差は+0.846584、participant bootstrap2000/se
 4. 元MCQのouter-wait消失を踏まえ、既存durable実行ownerの再接続耐性と実wait/終了記録を確認する。code review/正確なsourceの通常CI/外部freezeがそろってからA10を開始する。
 
 A05–A08は研究設計/私有入力準備として成立し、学習code実装済みではない。A09はresource/software確認済み・上記source/CI/実行owner未成立。全V002/V003、model採用、実人便益は受入していない。
+
+## A09実装の具体的な接続（後続作業）
+
+新規sourceは`manager_core/costello_forecast.py`（strict入力/予測JSON、人物分離、固定私有splitの読取、全分母/欠測/部分結果の採点）、`manager_core/costello_forecast_train.py`（外部0400設定から標準SFTTrainerへ一度だけ接続）、`scripts/train_costello_forecast.py`（薄いCLI）。旧train27 entryと科学定義は変更しない。
+
+- `parse_case(row: dict) -> ForecastCase`は固定promptの2feature以外を拒否し、`target=None`を維持する。ID/値はreprへ出さない。
+- `read_prepared(directory) -> dict[str, tuple[ForecastCase,...]]`はdesignと私有manifest/各splitのbytesを固定hashで検証し、operator側でselection/人物非重複を確認する。
+- `read_training(directory) -> tuple[ForecastCase,...]`はnative用。manifestとtrain_selected.jsonlだけを開き、dev/evaluation fileは開かない。実audit hookで128例とこの2fileだけのopenを確認済み。
+- `parse_prediction(raw) -> int`は一つの整数fieldだけを受理し、duplicate key、bool、float、範囲外、code fence、修復を拒否する。
+- `score_predictions(cases, predictions) -> dict`はVALID/INVALID/UNKNOWN/NOT_RUN/ABSTAINとhuman label欠測を別に数える。conditional MAE/RMSE、全label分母のworst-case bound、coverageを別表示し、部分結果をcompleteへ変えない。実evaluationの採点はまだ行わない。
+- `build_training_example(case, tokenizer)`は既存completion_maskを使い、user promptをlossから外し、native assistant completionとEOSだけを学習する。
+- `training_kwargs(output_dir)`は1epoch/batch1/accum4/seed42/lr0.0002と標準NLLを固定。`run_train(config_path)`はsource/版/実monitor/基底asset/evidence/private ACL検証後にのみMLをimportし、旧save/有限tensor/optimizer-member検証を再利用する。
+
+外部設定kindは`manager.costello-numeric-train128.v1`、accepted_actionsは`train128_private_once`のみ。全sourceは実Git commit bytesと照合する。base/tokenizerは旧科学定義の固定8asset pinsだけを借り、旧データ/学習許可/評価を借りない。空asset表や別weightsのcaller再宣言は拒否する。review/official CI/data-purposeはrootが実確認したGit外の別evidenceを結び、hashを権限の暗号学的証明とは呼ばない。
+
+テストは`tests/test_costello_forecast.py`と`tests/test_costello_forecast_train.py`。未実装状態のREDを観測し、入力漏洩/型/重複人物/欠測/部分分母/マスク/保存前の未観測gradient/CLI静音/基底再宣言を検証する。実native学習、A09の全受入、A10開始は、独立review・正確なsourceの公式CI・durable実行ownerと別外部freezeが成立した後。
+
+### 終了監視の有限な事前確認
+
+既存のprivate `helpsteer2_watchdog.monitor`の固定sourceを再利用する。新しい常駐ownerや第二のmonitorは作らず、privateの薄いdurable shimがその関数を呼び、戻った後にconfig/monitor-terminalのSHAと実child wait/reap/PID不存在/group空をfsyncして記録する。外側の起動元shellの終了後にもshimが動くことを、標準Pythonのsleepだけのcanaryで確認した。native子はexit0、reaped/PID不存在/group空、elapsed2.440秒。新LLM/学習は0。
+
+新研究のterminal契約は、固定monitorが実際にnative子をwait/reapした記録と、戻り後のdurable operator terminal、正常save/inventoryを結ぶ。shim自身のreapを観測済みとはしない。旧SafetyBench v1の別outer-reap条件を事後変更せず、UNFINALIZEDを保持する。この新しい有限契約は、モデル学習開始前の独立review/外部freezeで別受入する。通常CIや事前の資源検査だけで実nativeの成功を推定しない。
