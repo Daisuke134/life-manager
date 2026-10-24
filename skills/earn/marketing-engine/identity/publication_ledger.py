@@ -8,6 +8,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 import urllib.parse
@@ -110,6 +111,18 @@ def candidate_time(item: dict[str, Any]) -> dt.datetime | None:
     return None
 
 
+def _has_direct_tiktok_photo_receipt(post: dict[str, Any]) -> bool:
+    try:
+        url = urllib.parse.urlsplit(str(post.get("releaseURL") or ""))
+    except ValueError:
+        return False
+    match = re.fullmatch(r"/@[\w.-]+/photo/([0-9]{10,30})/?", url.path, flags=re.ASCII)
+    return bool(
+        url.scheme == "https" and url.netloc == "www.tiktok.com"
+        and match and match[1] == str(post.get("releaseId") or "")
+    )
+
+
 def resolve_tiktok(post: dict[str, Any], items: list[dict[str, Any]]) -> dict[str, Any]:
     handle = tiktok_handle(post)
     published_at = parse_time(post.get("publishDate"))
@@ -185,7 +198,9 @@ def make_row(post: dict[str, Any], tiktok_items: list[dict[str, Any]], observed_
             "resolution_confidence": "unknown",
             "candidate_count": 0,
         }
-    elif state == "PUBLISHED" and platform == "tiktok" and "/video/" not in str(post.get("releaseURL") or ""):
+    elif (state == "PUBLISHED" and platform == "tiktok"
+          and "/video/" not in str(post.get("releaseURL") or "")
+          and not _has_direct_tiktok_photo_receipt(post)):
         identity = resolve_tiktok(post, tiktok_items)
     elif state == "PUBLISHED":
         identity = direct_identity(post)
@@ -454,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
                 if post.get("state") == "PUBLISHED"
                 and (post.get("integration") or {}).get("providerIdentifier") == "tiktok"
                 and "/video/" not in str(post.get("releaseURL") or "")
+                and not _has_direct_tiktok_photo_receipt(post)
                 and (handle := tiktok_handle(post))
             }
         )
