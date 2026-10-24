@@ -1501,14 +1501,20 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
             return resolve(path, *args, **kwargs)
         with mock.patch.object(Path, "resolve", costly_path), \
              mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
-            _code, result = self._gc()
+            code, result = self._gc(keep=1)
         self.assertTrue(release.exists())
         self.assertTrue(bundle.exists())
         self.assertTrue(referenced.exists())
+        self.assertEqual(code, 1, result)
+        self.assertFalse(result["ok"])
         self.assertEqual(result["removed_releases"], 0)
-        self.assertGreater(result["errors"], 0)
+        self.assertEqual(result["errors"], 0)
+        self.assertEqual(result["deferred"], 1)
+        self.assertEqual(result["dependency_bundles"]["status"], "deferred")
+        self.assertEqual(result["source_reclaim"]["status"], "deferred")
         self.assertEqual(result["dependency_bundles"]["diagnostic"], {
             "phase": "reference_path_resolution", "timeout_seconds": 0,
+            "retryable": True, "next_action": "retry_next_scheduled_run",
         })
 
     def test_release_gc_only_timeout_diagnostic_omits_untrusted_command(self):
@@ -1519,7 +1525,8 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
             _code, result = self._gc()
 
         self.assertEqual(result["dependency_bundles"]["diagnostic"], {
-            "phase": "reference_subprocess",
+            "phase": "reference_subprocess", "retryable": True,
+            "next_action": "retry_next_scheduled_run",
         })
         self.assertNotIn("/private/secret/token", json.dumps(result))
 

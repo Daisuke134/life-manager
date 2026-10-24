@@ -1,6 +1,6 @@
 <!-- startup-context-version: 2026-10-20.1 -->
 <!-- startup-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea -->
-# Life Manager
+# Local Life Manager
 
 **AIエージェントが事業をゼロから作り、人の継続介入なしで運営する。オープンソースのmoney printerです。**
 

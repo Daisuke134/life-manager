@@ -943,6 +943,130 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertFalse(stale.exists())
             self.assertEqual((result["removed"], result["preserved"]), (1, 1))
 
+    def test_scratch_gc_resumes_a_bounded_scan_without_revisiting_the_first_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            live = root / "loop-tmp/job/a-live"
+            stale_b = root / "loop-tmp/job/b-stale"
+            stale_c = root / "loop-tmp/job/c-stale"
+            for run in (live, stale_b, stale_c):
+                run.mkdir(parents=True)
+            (live / ".owner.json").write_text(json.dumps(
+                {"pid": 10, "process_start": "live-start"}))
+            for pid, run in ((11, stale_b), (12, stale_c)):
+                (run / ".owner.json").write_text(json.dumps(
+                    {"pid": pid, "process_start": "old-start"}))
+            cursor = root / "state/scratch-gc-cursor.json"
+            kwargs = {"snapshot_started_ns": time.time_ns() + 1,
+                      "starts": {10: "live-start"}, "cursor_path": cursor,
+                      "candidate_budget": 2}
+
+            first = scratch_gc({root}, **kwargs)
+            self.assertEqual(first["scanned"], 2)
+            self.assertTrue(first["deferred"])
+            self.assertTrue(live.is_dir())
+            self.assertFalse(stale_b.exists())
+            self.assertTrue(stale_c.is_dir())
+
+            second = scratch_gc({root}, **kwargs)
+            self.assertEqual(second["scanned"], 2)
+            self.assertFalse(second["deferred"])
+            self.assertEqual(second["removed"], 1)
+            self.assertTrue(live.is_dir())
+            self.assertFalse(stale_b.exists())
+            self.assertFalse(stale_c.exists())
+
+    def test_scratch_gc_cursor_continues_inside_loop_before_advancing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            starts = {}
+            for loop_index, loop_name in enumerate(("a-loop", "b-loop"), start=20):
+                for run_index in range(1, 5):
+                    run = root / "loop-tmp" / loop_name / f"run-{run_index}"
+                    run.mkdir(parents=True)
+                    pid = loop_index * 10 + run_index
+                    starts[pid] = "same-start"
+                    (run / ".owner.json").write_text(json.dumps(
+                        {"pid": pid, "process_start": "same-start"}))
+
+            cursor = root / "state/scratch-gc-cursor.json"
+            kwargs = {"starts": starts, "cursor_path": cursor, "candidate_budget": 2}
+
+            first = scratch_gc({root}, **kwargs)
+            self.assertEqual(first["scanned"], 2)
+            self.assertEqual(json.loads(cursor.read_text())["run"], "run-2")
+
+            second = scratch_gc({root}, **kwargs)
+            self.assertEqual(second["scanned"], 2)
+            self.assertEqual(json.loads(cursor.read_text()), {
+                "root": str(root.resolve()), "loop": "a-loop", "run": "run-4",
+            })
+
+    def test_scratch_gc_defers_before_deleting_when_total_inventory_exceeds_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            roots = {base / "state-a", base / "state-b"}
+            starts = {}
+            runs = []
+            for root_index, root in enumerate(sorted(roots), start=1):
+                for run_index in range(2):
+                    run = root / "loop-tmp/job" / f"run-{run_index}"
+                    run.mkdir(parents=True)
+                    pid = root_index * 10 + run_index
+                    starts[pid] = "same-start"
+                    (run / ".owner.json").write_text(json.dumps(
+                        {"pid": pid, "process_start": "same-start"}))
+                    runs.append(run)
+
+            with mock.patch.object(
+                    central_cleanup, "SCRATCH_GC_TOTAL_CANDIDATE_LIMIT", 3):
+                result = scratch_gc(
+                    roots, starts=starts, cursor_path=base / "cursor.json",
+                    candidate_budget=10,
+                )
+
+            self.assertTrue(result["deferred"])
+            self.assertTrue(result["blocking_defer"])
+            self.assertEqual(result["budget_reason"], "total_candidate_budget")
+            self.assertEqual(result["scanned"], 0)
+            self.assertTrue(all(run.is_dir() for run in runs))
+
+    def test_scratch_gc_defers_when_directory_inventory_exceeds_preflight_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runs = [root / "loop-tmp/job" / name for name in ("a", "b")]
+            for index, run in enumerate(runs, start=10):
+                run.mkdir(parents=True, exist_ok=True)
+                (run / ".owner.json").write_text(json.dumps(
+                    {"pid": index, "process_start": "old-start"}))
+            cursor = root / "state/scratch-gc-cursor.json"
+            with mock.patch.object(central_cleanup, "SCRATCH_GC_DIRECTORY_ENTRY_LIMIT", 1):
+                result = scratch_gc({root}, starts={}, cursor_path=cursor,
+                                    candidate_budget=10)
+            self.assertTrue(result["deferred"])
+            self.assertTrue(result["blocking_defer"])
+            self.assertEqual(result["budget_reason"], "directory_entry_budget")
+            self.assertEqual(result["removed"], 0)
+            self.assertTrue(all(run.is_dir() for run in runs))
+
+    def test_scratch_gc_defers_without_deleting_when_event_log_exceeds_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            (root / "events.jsonl").write_text("x" * 128)
+            cursor = root / "state/scratch-gc-cursor.json"
+            with mock.patch.object(central_cleanup, "SCRATCH_GC_EVENT_LOG_MAX_BYTES", 64):
+                result = scratch_gc({root}, starts={}, cursor_path=cursor,
+                                    candidate_budget=10)
+            self.assertTrue(result["deferred"])
+            self.assertTrue(result["blocking_defer"])
+            self.assertEqual(result["budget_reason"], "event_file_budget")
+            self.assertEqual(result["removed"], 0)
+            self.assertTrue(run.is_dir())
+
     def test_scratch_gc_fails_closed_without_identity_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1246,7 +1370,8 @@ class LoopCleanupTest(unittest.TestCase):
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={}, no_effect_loop_ids={"no-effect"})
             self.assertTrue(run.is_dir())
-            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+            self.assertEqual(result["removed"], 0)
+            self.assertEqual(result["preserved"], 1)
 
     def test_scratch_gc_removes_stale_unrecorded_no_effect_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1291,7 +1416,8 @@ class LoopCleanupTest(unittest.TestCase):
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={}, no_effect_loop_ids={"no-effect"})
             self.assertTrue(run.is_dir())
-            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+            self.assertEqual(result["removed"], 0)
+            self.assertEqual(result["preserved"], 1)
 
     def test_scratch_gc_uses_run_bound_event_for_legacy_no_effect_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1340,7 +1466,10 @@ class LoopCleanupTest(unittest.TestCase):
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={}, no_effect_loop_ids={"no-effect"})
             self.assertTrue(run.is_dir())
-            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+            self.assertEqual(result["removed"], 0)
+            self.assertTrue(result["deferred"])
+            self.assertTrue(result["blocking_defer"])
+            self.assertEqual(result["budget_reason"], "event_log_invalid")
 
     def test_scratch_gc_ancestor_swap_cannot_delete_outside_tree(self):
         with tempfile.TemporaryDirectory() as directory:
