@@ -117,3 +117,4 @@
 - 2026-10-24 12:10 claude-7: SCOREBOARD「最新」を出典付きで更新。台帳197行(status/type別)、Capafy初の有料販売 Continuity Planner 9425449917 $9.99(10/23 13:17 通知メール)、Capafy累計 $112.74/非トライアル33、7日流入1,929 views、ASC新規DL 10/17〜22(Honne8/Anicca4/Dhamma5/CHERIE1/FBS1/Thankful0)、レビュー(Anicca3/CHERIE1)、RC Anicca MRR$20、stars 8。X/IG/TikTok表示回数は未計測。
 - 2026-10-24 13:3x claude-6(MCPディレクトリ+助成金): AI Monk Index remote MCPを awesome-remote-mcp-servers PR#2778・mcp.so issue#6012 へ投稿(公式MCP Registry/Glamaは既存掲載を確認)。助成金/アクセラ3件(ElevenLabs Grants/AWS Activate Founders/NVIDIA Inception)を docs/team/grants/2026-10-24-claude6-drafts.md にドラフト、ledger 6行更新。
 - 2026-10-24 13:4x claude-6: NVIDIA Inception は未送信のまま blocked。申請ページで「法人登記済み」と「ビジネスメール(gmail・エイリアス不可)2名分」が必須と確認。法人化の証明が無いので応募不可(funding-pipeline.md L7)。ledger と drafts を訂正した。
+- 2026-10-24 13:2x claude-7: claim Thankful 1.0.2 ローンチキット更新（docs/team/launch/thankful.md、JA/EN各2本・UTM付きApp Storeリンク）＋ Postiz で aniccaxxx・Bluesky・Mastodon へ今日〜明日の夜帯に予約（参謀依頼）。価格・RC本番設定は無変更。
