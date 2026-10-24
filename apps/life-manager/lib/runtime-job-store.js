@@ -27,12 +27,17 @@ function positiveInteger(value, label, max) {
   return value;
 }
 
-function referenceObject(value) {
+function referenceObject(value, source) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("runtime input refs must be reference-only");
   }
+  const providerRefs = /^maritime\.manager\.capafy\.(prepare|publish)$/.test(source?.capability || "")
+    && commonRecordContract().validateMaritimeCapafyInputRefs({
+      job_id: source.jobId, tenant_id: source.tenantId, loop_id: source.loopId, capability: source.capability,
+      effect_class: source.effectClass, effect_key: source.effectKey, max_attempts: source.maxAttempts, input_refs: value,
+    });
   for (const [key, ref] of Object.entries(value)) {
-    if (!REFERENCE_KEY.test(key)) {
+    if (!providerRefs && !REFERENCE_KEY.test(key)) {
       throw new Error("runtime input refs must be reference-only");
     }
     const values = Array.isArray(ref) ? ref : [ref];
@@ -107,7 +112,7 @@ function buildRuntimeJob(input) {
     capability: nonEmpty(source && source.capability, "runtime capability"),
     effect_class: effectClass,
     effect_key: effectKey,
-    input_refs: referenceObject(source && source.inputRefs),
+    input_refs: referenceObject(source && source.inputRefs, source),
     max_attempts: positiveInteger(source && source.maxAttempts, "runtime max attempts", 20),
   });
 }

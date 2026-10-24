@@ -160,6 +160,26 @@
       ],
       "module_ref": "lib/maritime-manager-runtime.js",
       "factory_export": "createMaritimeManagerProvisionAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-capafy-prepare",
+      "loop_id": "maritime.manager.capafy.prepare",
+      "capability": "maritime.manager.capafy.prepare",
+      "effect_classes": [
+        "publish"
+      ],
+      "module_ref": "lib/maritime-manager-provider-runtime.js",
+      "factory_export": "createMaritimeManagerCapafyPrepareAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-capafy-publish",
+      "loop_id": "maritime.manager.capafy.publish",
+      "capability": "maritime.manager.capafy.publish",
+      "effect_classes": [
+        "publish"
+      ],
+      "module_ref": "lib/maritime-manager-provider-runtime.js",
+      "factory_export": "createMaritimeManagerCapafyPublishAdapter"
     }
   ]
 }

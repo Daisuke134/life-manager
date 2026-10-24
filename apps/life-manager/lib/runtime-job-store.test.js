@@ -455,3 +455,30 @@ test("tenant control lock uses a dedicated bounded transaction and releases on e
  calls.length=0;await assert.rejects(()=>withRuntimeTenantControlLock({tenantId:'tenant-a'},async()=>{throw new Error('fixture failure');},opts),/fixture failure/);
  assert.deepEqual(calls.slice(-2),[['ROLLBACK',undefined],['RELEASE']]);
 });
+
+test("only the two Maritime Capafy capabilities accept their exact tenant-bound identity refs", async () => {
+  const tenant = "lm_11111111-1111-4111-8111-111111111111";
+  for (const phase of ["prepare", "publish"]) {
+    const refs = {source_cycle_job_id:"maritime-cycle:"+"a".repeat(64),
+      artifact_ref:"artifact://original/listing.md",account_ref:`account://capafy/${tenant}/seller-1`,
+      occurrence_id:"slot:1",release_ref:"release://git/"+"b".repeat(40),
+      ...(phase==="publish"?{prepare_job_id:"maritime-capafy-prepare:"+"c".repeat(64),agent_id:"123",agent_version_id:"456"}:{})};
+    const input={jobId:`maritime-capafy-${phase}:`+"d".repeat(64),tenantId:tenant,
+      loopId:`maritime.manager.capafy.${phase}`,capability:`maritime.manager.capafy.${phase}`,
+      effectClass:"publish",effectKey:`maritime-capafy-${phase}://${tenant}/slot%3A1`,maxAttempts:1,inputRefs:refs};
+    const job=buildRuntimeJob(input);
+    assert.deepEqual(job.input_refs,refs);
+    const hydrated=await readCommonJob({tenantId:tenant,jobId:job.job_id},{query:async()=>({rows:[job]})});
+    assert.deepEqual(hydrated.input_refs,refs);
+    const invalids=[
+      {...input,capability:"other.publish"}, {...input,inputRefs:{...refs,api_key:"secret"}},
+      {...input,inputRefs:{...refs,occurrence_id:"secret://token/value"}},
+      {...input,inputRefs:{...refs,account_ref:"account://capafy/lm_22222222-2222-4222-8222-222222222222/seller-1"}},
+      {...input,inputRefs:{...refs,source_cycle_job_id:"arbitrary"}}, {...input,maxAttempts:2},
+      {...input,inputRefs:{...refs,agent_id:"secret://token/value"}},
+    ];
+    for(const bad of invalids) assert.throws(()=>buildRuntimeJob(bad),/invalid|reference-only/);
+    await assert.rejects(readCommonJob({tenantId:tenant,jobId:job.job_id},
+      {query:async()=>({rows:[{...job,input_refs:{...refs,api_key:"secret"}}]})}),/invalid/);
+  }
+});

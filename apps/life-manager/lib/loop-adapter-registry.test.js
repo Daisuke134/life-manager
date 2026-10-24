@@ -161,7 +161,12 @@ test("registry rejects duplicate routing, absolute paths, and credential-shaped 
 test("committed manifest is portable and registers financial report and the Maritime cycle adapter", () => {
   const manifest = loadLoopAdapterManifest(MANIFEST_PATH);
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.adapters.length, 16);
+  assert.equal(manifest.adapters.length, 18);
+  for (const phase of ["prepare", "publish"]) {
+    const provider = manifest.adapters.find(row => row.capability === `maritime.manager.capafy.${phase}`);
+    assert.equal(provider?.factory_export, `createMaritimeManagerCapafy${phase[0].toUpperCase()+phase.slice(1)}Adapter`);
+    assert.deepEqual(provider.effect_classes, ["publish"]);
+  }
   assert.equal(
     manifest.adapters[0].capability,
     FINANCIAL_REPORT_CAPABILITY,
