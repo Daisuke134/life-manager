@@ -151,9 +151,11 @@ def installation(tmp_path, isolated_home, monkeypatch):
     (release / "bin/lm-loop").write_text("#!/bin/sh\nexit 93\n")
     _write(release / "RELEASE.json", {"sha": "a" * 40, "provenance": "ancestor-of-origin-main",
         "release_paths": "ALL", "runtime_python": sys.executable})
+    registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+    _write(release / "config/loop-registry.json", {"loops": {owner: registry["loops"][owner] for owner in JOBS}})
     telegram = home / ".config/anicca/job-search/telegram.env"
     telegram.parent.mkdir(parents=True, exist_ok=True)
-    telegram.write_text("TELEGRAM_BOT_TOKEN=PRIVATE-TOKEN\nJOB_SEARCH_TELEGRAM_CHAT_ID=123456\n")
+    telegram.write_text("TELEGRAM_BOT_TOKEN=PRIVATE-TOKEN\nJOB_SEARCH_TELEGRAM_CHAT_ID=42\n")
     telegram.chmod(0o600)
     gog = home / ".local/bin/gog"
     gog.parent.mkdir(parents=True, exist_ok=True)
@@ -162,7 +164,8 @@ def installation(tmp_path, isolated_home, monkeypatch):
     monkeypatch.setenv("PATH", str(codex.parent) + os.pathsep + os.environ["PATH"])
     case = SimpleNamespace(home=home, source=source, resume=resume, codex=codex, auth=auth, gog=gog,
         spawn=subprocess.run,
-        host=profile, release=release, telegram=telegram, events=[], applied=[], browser_skip=None,
+        host=profile, release=release, registry=registry, telegram=telegram, events=[], applied=[], browser_skip=None,
+        loaded={},
         codex_ok=True, gmail_accounts=[{"email": "another-owner@fixture.invalid", "services": ["gmail"]}],
         observation={"status": "authenticated", "firebase_identity_matched": True},
         private=home / ".config/anicca/job-search/profile.json",
@@ -187,6 +190,15 @@ def installation(tmp_path, isolated_home, monkeypatch):
 
     def run(command, **options):
         command = [str(part) for part in command]
+        if command[0] == str(release / "bin/launchctl-safe"):
+            if command[1:] == ["preflight"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            assert command[1] == "print"
+            label = command[2].split("/")[-1]
+            assert label in {registry["loops"][owner]["label"] for owner in JOBS}
+            printed = case.loaded.get(label)
+            return subprocess.CompletedProcess(command, 0 if printed is not None else 1,
+                                               printed or "", "" if printed is not None else "service not found")
         if command[0] == str(codex):
             assert command[1:] in (["login", "status"], ["login"])
             case.events.append("codex:" + " ".join(command[1:]))
@@ -215,7 +227,7 @@ def _call(case, capsys, *arguments):
     code = _installer().main(list(arguments))
     output = capsys.readouterr()
     assert not any(value in output.out + output.err for value in (
-        "PRIVATE", "another-owner@fixture.invalid", str(case.source), str(case.resume), "123456"))
+        "PRIVATE", "another-owner@fixture.invalid", str(case.source), str(case.resume), "42"))
     result = json.loads(output.out)
     assert result["business_outcomes_verified"] is False
     return code, result, _rows(result)
@@ -293,7 +305,7 @@ def test_missing_telegram_holds_only_reply(installation, capsys):
     assert rows["mercor-revenue-reply"]["missing"] == ["telegram_notification"]
 
 
-@pytest.mark.parametrize("assignment", ['JOB_SEARCH_TELEGRAM_CHAT_ID="123456"', "export JOB_SEARCH_TELEGRAM_CHAT_ID='123456'"])
+@pytest.mark.parametrize("assignment", ['JOB_SEARCH_TELEGRAM_CHAT_ID="42"', "export JOB_SEARCH_TELEGRAM_CHAT_ID='42'"])
 def test_telegram_quotes_and_export_match_the_runtime_parser(installation, capsys, assignment):
     case = installation
     case.telegram.write_text("TELEGRAM_BOT_TOKEN=PRIVATE-TOKEN\n" + assignment + "\n")
@@ -348,6 +360,63 @@ def test_transient_gog_override_cannot_replace_the_persisted_runtime_account(ins
     assert not case.applied and not observed
     assert "gmail_authorization" in rows["mercor-revenue-application"]["missing"]
     assert "gmail_authorization" in rows["mercor-revenue-reply"]["missing"]
+
+
+@pytest.mark.parametrize("bad_owner", ["mercor-revenue-application", "mercor-revenue-reply"])
+@pytest.mark.parametrize("binding_source", ["plist", "loaded"])
+def test_existing_owner_gog_binding_is_checked_independently(installation, capsys, bad_owner, binding_source):
+    from runtime.loop import lm_loop_apply
+
+    case = installation
+    saved = {}
+    for owner in ("mercor-revenue-application", "mercor-revenue-reply"):
+        entry = case.registry["loops"][owner]
+        new = lm_loop_apply._plist(owner, entry, case.release, "a" * 40, runtime_python=Path(sys.executable))
+        old = plistlib.loads(new)
+        old["EnvironmentVariables"]["JOB_SEARCH_GOG"] = ("/synthetic/previous/gog"
+            if owner == bad_owner and binding_source == "plist" else str(case.gog))
+        old_bytes = plistlib.dumps(old)
+        retained = plistlib.loads(lm_loop_apply._preserve_operational_attributes(new, old_bytes))
+        assert retained["EnvironmentVariables"]["JOB_SEARCH_GOG"] == old["EnvironmentVariables"]["JOB_SEARCH_GOG"]
+        path = case.home / "Library/LaunchAgents" / (entry["label"] + ".plist")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(old_bytes)
+        path.chmod(0o600)
+        saved[path] = old_bytes
+        if binding_source == "loaded":
+            current = dict(retained["EnvironmentVariables"])
+            if owner == bad_owner:
+                current["JOB_SEARCH_GOG"] = "/synthetic/previous/gog"
+            case.loaded[entry["label"]] = "environment = {\n" + "\n".join(
+                f"{key} => {value}" for key, value in current.items()) + "\n}\n"
+    before = _tree(case.home)
+    _call(case, capsys, "plan", "--profile", str(case.source))
+    assert case.events == [] and _tree(case.home) == before
+    _code, _result, rows = _call(case, capsys, "install", "--profile", str(case.source))
+    assert set(case.applied) == {"mercor-revenue-application", "mercor-revenue-reply"} - {bad_owner}
+    assert rows[bad_owner]["state"] == "setup_required"
+    assert "gmail_runtime_binding" in rows[bad_owner]["missing"]
+    assert all(path.read_bytes() == content for path, content in saved.items())
+
+
+@pytest.mark.parametrize("invalid", ["damaged", "symlink"])
+def test_invalid_existing_owner_configuration_is_preserved_and_held(installation, tmp_path, capsys, invalid):
+    case = installation
+    owner = "mercor-revenue-application"
+    label = case.registry["loops"][owner]["label"]
+    path = case.home / "Library/LaunchAgents" / (label + ".plist")
+    path.parent.mkdir(parents=True)
+    if invalid == "damaged":
+        path.write_bytes(b"damaged existing configuration")
+    else:
+        target = tmp_path / "linked-existing.plist"
+        target.write_bytes(plistlib.dumps({"EnvironmentVariables": {"JOB_SEARCH_GOG": str(case.gog)}}))
+        path.symlink_to(target)
+    before = path.read_bytes()
+    _code, _result, rows = _call(case, capsys, "install", "--profile", str(case.source))
+    assert case.applied == ["mercor-revenue-reply"]
+    assert "gmail_runtime_binding" in rows[owner]["missing"]
+    assert path.read_bytes() == before and path.is_symlink() is (invalid == "symlink")
 
 
 @pytest.mark.parametrize("explicit_profile", [False, True])

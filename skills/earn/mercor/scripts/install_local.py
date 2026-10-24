@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import plistlib
 import re
 import shutil
 import socket
@@ -22,7 +23,7 @@ for directory in (ROOT, ROOT / "apps/job-search-loop"):
 
 from job_search_loop import local_setup, profile_setup
 from job_search_loop.config import validate_profile
-from runtime.loop import local_install
+from runtime.loop import local_install, lm_loop_apply
 from skills._shared import telegram
 from skills.earn.lancers.scripts.install_local import _codex_login
 from skills.earn.lancers.scripts import lancers_onboarding as onboarding
@@ -207,6 +208,49 @@ def _gmail_missing(account: str | None, environment: dict, *, observe: bool) -> 
     return ["gmail_authorization"]
 
 
+def _gmail_binding_missing(owner: str, release: Path, home: Path, environment: dict, *, observe: bool) -> list[str]:
+    try:
+        entry = json.loads((release / "config/loop-registry.json").read_text())["loops"][owner]
+        host = local_install.host_environment()
+        expected = shutil.which("gog", path=host.get("PATH"))
+
+        def matches(values: dict) -> bool:
+            executable = values.get("JOB_SEARCH_GOG")
+            if executable is not None and not isinstance(executable, str):
+                return False
+            if not executable and not isinstance(values.get("PATH"), str):
+                return False
+            return bool(expected and shutil.which(executable or "gog", path=values.get("PATH")) == expected)
+
+        agents = Path(environment.get("LIFE_MANAGER_LAUNCH_AGENTS_DIR") or home / "Library/LaunchAgents").expanduser()
+        path = agents / (entry["label"] + ".plist")
+        _safe(path)
+        if path.exists():
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise ValueError("installed_owner_configuration")
+            desired = plistlib.dumps({"EnvironmentVariables": {**host, "LIFE_MANAGER_LOOP_ID": owner,
+                "LIFE_MANAGER_STATE_ROOT": str(Path(entry["state_root"]).expanduser())}})
+            retained = lm_loop_apply._preserve_operational_attributes(desired, path.read_bytes())
+            if not matches(plistlib.loads(retained)["EnvironmentVariables"]):
+                return ["gmail_runtime_binding"]
+        if observe:
+            safe = str(release / "bin/launchctl-safe")
+            options = {"env": {**environment, "LIFE_MANAGER_RELEASE_ROOT": str(release)},
+                       "capture_output": True, "text": True, "check": False, "timeout": 30}
+            if subprocess.run([safe, "preflight"], **options).returncode:
+                return ["gmail_runtime_binding"]
+            result = subprocess.run([safe, "print", f"gui/{os.getuid()}/{entry['label']}"], **options)
+            if result.returncode == 0:
+                if "environment = {" not in result.stdout or not matches(local_install._loaded_environment(result.stdout)):
+                    return ["gmail_runtime_binding"]
+            elif result.returncode == 75 or not re.search(
+                    r"could not find service|service not found|\babsent\b", result.stdout + result.stderr, re.IGNORECASE):
+                return ["gmail_runtime_binding"]
+        return []
+    except ERRORS + (AttributeError,):
+        return ["gmail_runtime_binding"]
+
+
 def _telegram_missing(home: Path) -> list[str]:
     try:
         path = home / ".config/anicca/job-search/telegram.env"
@@ -382,6 +426,9 @@ def main(argv: list[str] | None = None) -> int:
             browser["missing"].append("host_profile")
             for owner in JOBS:
                 missing[owner].append("host_profile")
+        for owner in JOBS[:2]:
+            if not installing or not missing[owner]:
+                missing[owner] += _gmail_binding_missing(owner, release or ROOT, home, environment, observe=installing)
         if installing:
             for owner in JOBS:
                 if not missing[owner]:
