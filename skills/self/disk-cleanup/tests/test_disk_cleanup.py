@@ -4729,3 +4729,51 @@ def test_low_disk_alert_failure_never_raises(tmp_path: Path) -> None:
     def broken(_text: str) -> None:
         raise OSError("network down")
     assert disk_cleanup._low_disk_alert(_alert_result(5.0), tmp_path, send=broken, now=1.0)["status"] == "failed"
+
+
+def test_sweep_retires_anicca_products_sibling_root_worktree(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    repo = home / "Projects" / "anicca-products"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(cwd), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / "README.md").write_text("base\n")
+    git(repo, "add", "README.md")
+    git(repo, "commit", "-m", "base")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", head)
+    git(repo, "remote", "add", "origin", str(repo))
+    root = home / "Projects" / "anicca-products-worktrees"
+    root.mkdir()
+
+    def add(name: str) -> Path:
+        path = root / name
+        git(repo, "worktree", "add", "--detach", str(path), head)
+        return path
+
+    safe = add("safe")
+    dirty = add("dirty")
+    (dirty / "README.md").write_text("uncommitted\n")
+    untracked = add("untracked")
+    (untracked / "progress.txt").write_text("uncommitted\n")
+    locked = add("locked")
+    git(repo, "worktree", "lock", "--reason", "active owner", str(locked))
+
+    governor = HostDiskGovernor(home=home, state_dir=home / "state",
+                                lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "zombie-worktree"]
+    assert [Path(item["path"]) for item in candidates] == [safe]
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert result["worktrees_retired"] == 1, result
+    assert not safe.exists()
+    assert str(safe) not in git(repo, "worktree", "list", "--porcelain")
+    assert dirty.exists() and untracked.exists() and locked.exists()
