@@ -2,7 +2,7 @@
 
 This record reports the original native attempt and a separately accepted deterministic replay of its durable journal. The native attempt did not complete the original terminal gate. The replay does not repair that gate, rerun the model, or complete parent Task2/V002.
 
-The [prospective scope](../specs/2026-10-23-safetybench-local-model-execution.md), [frozen scientific protocol](../../experiments/behavior-model/safetybench-local-qwen3-clp-protocol-v1.json), [MCQ protocol](../../experiments/behavior-model/safetybench-mcq-protocol-v1.json), [existing MCQ control receipt](SAFETYBENCH_MCQ_CONTRACT_20261023.md), and [recovery amendment](../specs/2026-10-24-safetybench-journal-replay-recovery.md) define the separate scope and its limits. The replay acceptance is not a new status authority.
+The [prospective scope](../specs/2026-10-23-safetybench-local-model-execution.md), [frozen scientific protocol](../../experiments/behavior-model/safetybench-local-qwen3-clp-protocol-v1.json), [MCQ protocol](../../experiments/behavior-model/safetybench-mcq-protocol-v1.json), [existing MCQ control receipt at its published research revision](https://github.com/Daisuke134/life-manager/blob/5757b78f7766b05596425222ddf679ebb2fc719c/products/manager/docs/verification/SAFETYBENCH_MCQ_CONTRACT_20261023.md), and [recovery amendment](../specs/2026-10-24-safetybench-journal-replay-recovery.md) define the separate scope and its limits. The replay acceptance is not a new status authority.
 
 ## Original native attempt
 
