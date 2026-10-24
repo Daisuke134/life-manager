@@ -28,10 +28,9 @@ from runtime.host.resource_admission import (resolve_pre_effect_occurrence,
 from reconcile_reply_no_send import (ADMISSION_DB, JST, MINUTE, SAFE_ID, SLACK,
                                      ProviderBrowserBusy, _json, _events, _overlaps,
                                      _provider_lease, _window)
+from reply_adapter import profile_module
 
 OWNER = "crowdworks-revenue-application"
-SENDER = "Kaito｜AI自動化"
-SENDER_ID = "7145638"
 
 
 def _minute(value: str) -> float | None:
@@ -40,7 +39,8 @@ def _minute(value: str) -> float | None:
 
 
 def evaluate(state_root: Path, occurrences: list[str],
-             proposals: list[tuple[int, str] | dict[str, Any]] | None
+             proposals: list[tuple[int, str] | dict[str, Any]] | None,
+             *, provider_profile: dict[str, Any]
              ) -> dict[str, tuple[dict[str, Any] | None, str]]:
     rows = _events(state_root, OWNER)
     receipts = [json.loads(line) for line in
@@ -50,7 +50,7 @@ def evaluate(state_root: Path, occurrences: list[str],
     timeline, ordered = _timeline(proposals)
     result = {}
     for occurrence in occurrences:
-        result[occurrence] = _prove(occurrence, rows, receipts, pending, timeline, ordered)
+        result[occurrence] = _prove(occurrence, rows, receipts, pending, timeline, ordered, provider_profile)
     return result
 
 
@@ -79,7 +79,7 @@ def _timeline(proposals):
     return timeline, ordered
 
 
-def _proposal_evidence(readback, proposal_id):
+def _proposal_evidence(readback, proposal_id, provider_profile):
     if not isinstance(readback, dict) or readback.get("proposal_id") != proposal_id:
         return None
     proposal_url = readback.get("proposal_url")
@@ -97,23 +97,23 @@ def _proposal_evidence(readback, proposal_id):
         return None
     if (parsed_url.scheme != "https" or parsed_url.hostname != "crowdworks.jp"
             or proposal_path is None or int(proposal_path.group(1)) != proposal_id
-            or not isinstance(seller, dict) or seller.get("display_name") != SENDER
+            or not isinstance(seller, dict) or seller.get("display_name") != provider_profile["display_name"]
             or profile.scheme != "https" or profile.hostname != "crowdworks.jp"
-            or profile.path.rstrip("/") != f"/public/employees/{SENDER_ID}"
+            or profile.path.rstrip("/") != f"/public/employees/{provider_profile['provider_employee_id']}"
             or minute is None or observed.tzinfo is None
             or readback.get("first_message_minute") != datetime.fromtimestamp(
                 minute, JST).isoformat(timespec="minutes")):
         return None
     return {
         "proposal_url": proposal_url,
-        "seller_identity": {"display_name": SENDER, "profile_url": profile_url},
+        "seller_identity": {"display_name": provider_profile["display_name"], "profile_url": profile_url},
         "first_message_timestamp": timestamp,
         "first_message_minute": readback["first_message_minute"],
         "observed_at": observed.isoformat(),
     }
 
 
-def _prove(occurrence, rows, receipts, pending, timeline, ordered):
+def _prove(occurrence, rows, receipts, pending, timeline, ordered, provider_profile):
     if not SAFE_ID.fullmatch(occurrence) or not occurrence.startswith(f"{OWNER}:"):
         return None, "invalid_occurrence"
     run_id = occurrence[len(OWNER) + 1:]
@@ -142,7 +142,7 @@ def _prove(occurrence, rows, receipts, pending, timeline, ordered):
         _, minute, readback = match
         if minute < window[0] or minute + 60 > window[1]:
             return None, "application_receipt_window_mismatch"
-        evidence = _proposal_evidence(readback, proposal_id)
+        evidence = _proposal_evidence(readback, proposal_id, provider_profile)
         if evidence is None:
             return None, "application_receipt_readback_incomplete"
         return {
@@ -166,7 +166,7 @@ def _prove(occurrence, rows, receipts, pending, timeline, ordered):
         "evidence_ref": f"lm-crowdworks-application-readback://{OWNER}/{run_id}/{digest}",
         "window": list(window), "latest_proposal_before_window": before,
     }
-    if evidence := _proposal_evidence(before_row[2], before):
+    if evidence := _proposal_evidence(before_row[2], before, provider_profile):
         proof.update(evidence)
     return proof, "ok"
 
@@ -191,7 +191,7 @@ def read_proposals_with_lease(
             adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
             try:
                 adapter._open()
-                return read_proposals(adapter.page, oldest_needed, recorded), "ok"
+                return read_proposals(adapter.page, oldest_needed, recorded, provider_profile=adapter.provider_profile), "ok"
             except Exception:
                 return None, "proposal_readback_incomplete"
             finally:
@@ -201,7 +201,8 @@ def read_proposals_with_lease(
 
 
 def read_proposals(page: Any, oldest_needed: float,
-                   recorded: set[int] = frozenset()) -> list[dict[str, Any]] | None:
+                   recorded: set[int] = frozenset(),
+                   *, provider_profile: dict[str, Any]) -> list[dict[str, Any]] | None:
     """Newest-first proposals with their first-message minute, or None if unreadable.
 
     CrowdWorks' list omits some proposals (5 of 224 receipted ones were absent on
@@ -237,9 +238,9 @@ def read_proposals(page: Any, oldest_needed: float,
         profile = urlsplit(profile_url)
         timestamp = first.locator("time").first.get_attribute("datetime") or ""
         minute = _minute(timestamp)
-        if (sender != SENDER or profile.scheme != "https"
+        if (sender != provider_profile["display_name"] or profile.scheme != "https"
                 or profile.hostname != "crowdworks.jp"
-                or profile.path.rstrip("/") != f"/public/employees/{SENDER_ID}"
+                or profile.path.rstrip("/") != f"/public/employees/{provider_profile['provider_employee_id']}"
                 or minute is None):
             return None
         result.append({
@@ -260,6 +261,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--admission-db", type=Path, default=ADMISSION_DB)
     parser.add_argument("--resolve", action="store_true")
     args = parser.parse_args(argv)
+    try:
+        identity=profile_module.load_identity()
+    except profile_module.SetupRequired as error:
+        print(json.dumps({"owner_id":OWNER,"checked":0,"resolved":[],"fenced":{},"error":"setup_required","missing":error.missing}))
+        return 78
     state_root = args.state_root.expanduser().resolve()
     admission_db = args.admission_db.expanduser().resolve()
     resolver_db = (resource_admission_state_root() / "admission-v2.sqlite3").resolve()
@@ -291,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))
         return 75
     report = {"owner_id": OWNER, "checked": len(occurrences), "resolved": [], "fenced": {}}
-    for occurrence, (proof, reason) in evaluate(state_root, occurrences, proposals).items():
+    for occurrence, (proof, reason) in evaluate(state_root, occurrences, proposals, provider_profile=identity["provider"]).items():
         if proof is None:
             report["fenced"][occurrence] = reason
         elif not args.resolve:

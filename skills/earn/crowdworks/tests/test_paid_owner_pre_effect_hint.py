@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from skills.earn.crowdworks.tests.test_owner_private_identity import copy_profile, write_inputs
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -15,6 +16,8 @@ def test_paid_owner_does_not_recreate_hint_from_stale_inventory_output(tmp_path:
     fake_owner = fake_root / "skills/earn/crowdworks/scripts/paid-owner"
     fake_owner.parent.mkdir(parents=True)
     shutil.copy2(OWNER, fake_owner)
+    copy_profile(fake_root)
+    write_inputs(tmp_path / "home")
     lock = fake_root / "skills/browser/scripts/run_with_file_lock.py"
     lock.parent.mkdir(parents=True)
     lock.write_text(
@@ -37,6 +40,7 @@ def test_paid_owner_does_not_recreate_hint_from_stale_inventory_output(tmp_path:
     hint = tmp_path / "entrypoint-result.json"
     environment = {
         **os.environ,
+        "HOME": str(tmp_path / "home"),
         "LIFE_MANAGER_PYTHON": sys.executable,
         "LIFE_MANAGER_LOCK_PYTHON": sys.executable,
         "LIFE_MANAGER_STATE_ROOT": str(state_root),
@@ -55,6 +59,8 @@ def test_paid_owner_reconciles_exact_zero_effect_occurrence_after_kernel(tmp_pat
     fake_owner = fake_root / "skills/earn/crowdworks/scripts/paid-owner"
     fake_owner.parent.mkdir(parents=True)
     shutil.copy2(OWNER, fake_owner)
+    copy_profile(fake_root)
+    write_inputs(tmp_path / "home")
     lock = fake_root / "skills/browser/scripts/run_with_file_lock.py"
     lock.parent.mkdir(parents=True)
     lock.write_text(
@@ -82,6 +88,7 @@ def test_paid_owner_reconciles_exact_zero_effect_occurrence_after_kernel(tmp_pat
     args_file = tmp_path / "reconcile.args"
     environment = {
         **os.environ,
+        "HOME": str(tmp_path / "home"),
         "LIFE_MANAGER_PYTHON": sys.executable,
         "LIFE_MANAGER_LOCK_PYTHON": sys.executable,
         "LIFE_MANAGER_STATE_ROOT": str(state_root),

@@ -6,6 +6,26 @@ PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
 LOCK_PYTHON="${LIFE_MANAGER_LOCK_PYTHON:-/usr/bin/python3}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:?LIFE_MANAGER_STATE_ROOT is required}"
 
+IDENTITY_ARGS=(account-id)
+IDENTITY_VALUE=""
+for ARG in "$@"; do
+  if [[ -n "$IDENTITY_VALUE" ]]; then
+    IDENTITY_ARGS+=("$IDENTITY_VALUE" "$ARG")
+    IDENTITY_VALUE=""
+  else
+    case "$ARG" in
+      --candidate-profile|--provider-profile) IDENTITY_VALUE="$ARG" ;;
+      --candidate-profile=*|--provider-profile=*) IDENTITY_ARGS+=("$ARG") ;;
+    esac
+  fi
+done
+if [[ -n "$IDENTITY_VALUE" ]]; then IDENTITY_ARGS+=("$IDENTITY_VALUE"); fi
+ACCOUNT_ID="$("$PYTHON" "$ROOT/skills/earn/crowdworks/scripts/profile.py" "${IDENTITY_ARGS[@]}")" || {
+  IDENTITY_RC=$?
+  printf '%s\n' "$ACCOUNT_ID"
+  exit "$IDENTITY_RC"
+}
+
 exec "$LOCK_PYTHON" "$ROOT/skills/browser/scripts/run_with_file_lock.py" \
   --non-blocking \
   "$STATE_ROOT/provider-browser.lock" -- \

@@ -89,11 +89,11 @@ def test_relative_current_attachment_avatar_is_resolved_before_readback() -> Non
     }
 
 
-def test_shared_avatar_is_the_existing_provider_neutral_asset() -> None:
-    expected = Path(__file__).parents[3] / "gig-work" / "profile" / "avatar.jpg"
+def test_avatar_validation_uses_an_explicit_private_asset(tmp_path: Path) -> None:
+    expected = tmp_path / "my-avatar.jpg"
+    expected.write_bytes(b"private-avatar")
 
-    assert profile.DEFAULT_AVATAR_PATH == expected
-    assert profile._validated_avatar(profile.DEFAULT_AVATAR_PATH) == expected
+    assert profile._validated_avatar(expected) == expected
 
 
 def test_matching_official_components_need_no_profile_mutation() -> None:
@@ -122,28 +122,25 @@ def test_matching_official_components_need_no_profile_mutation() -> None:
     assert profile._profile_aligned(components, config) is False
 
 
-def test_shared_commercial_profile_owns_crowdworks_public_fields(tmp_path: Path) -> None:
+def test_private_profile_owns_crowdworks_public_fields(tmp_path: Path) -> None:
     provider_path = tmp_path / "provider.json"
-    provider_path.write_text(
-        '{"version":1,"provider_employee_id":"7145638","display_name":"old",'
-        '"occupation":"AI関連サービス","simple_introduction":"old",'
-        '"introduction":"old","skills":[{"name":"old","level":"1","years":1,"note":"old"}],'
-        '"status":"available",'
-        '"hours_limit":"31-40","min_hourly_wage":3000,"max_hourly_wage":5000,'
-        '"web_meeting":"available","job_categories":["Webプログラミング"]}',
-        encoding="utf-8",
-    )
+    value = {
+        "version": 1, "provider_employee_id": "543210", "display_name": "別の利用者",
+        "occupation": "デザイナー", "simple_introduction": "本人の短い紹介",
+        "introduction": "本人のデザイン実績", "status": "available",
+        "hours_limit": "11-20", "min_hourly_wage": 2000, "max_hourly_wage": 4000,
+        "web_meeting": "available", "job_categories": ["ロゴ作成"],
+        "skills": [{"name": "Illustrator", "level": "3", "years": 3, "note": "本人の作品"}],
+        "occupation_detail": {"id": "2", "label": "デザイナー"},
+        "avatar_path": "my-avatar.jpg",
+    }
+    (tmp_path / "my-avatar.jpg").write_bytes(b"private-avatar")
+    provider_path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
     provider_path.chmod(0o600)
 
-    config = profile.load_config(provider_path, profile.DEFAULT_COMMERCIAL_PROFILE_PATH)
+    config = profile.load_config(provider_path)
 
-    assert config["display_name"] == "Kaito｜AI自動化"
-    assert config["occupation"] == "ITエンジニア"
-    assert config["occupation_detail"] == {"id": "1", "label": "システムエンジニア（SE）"}
-    assert "ソフトウェア" in config["introduction"]
-    assert {item["name"] for item in config["skills"]} >= {"Python", "TypeScript"}
-    assert config["avatar_path"] == str(profile.DEFAULT_AVATAR_PATH)
-    assert json.loads(json.dumps(config, ensure_ascii=False))["occupation_detail"]["id"] == "1"
+    assert config == value | {"avatar_path": str(tmp_path / "my-avatar.jpg")}
 
 
 def test_buyer_visible_detail_occupation_is_required_for_alignment() -> None:
@@ -218,16 +215,11 @@ def test_skill_alignment_includes_public_level_years_and_note() -> None:
     assert profile._profile_aligned(components, config) is False
 
 
-def test_commercial_profile_rejects_year_band_the_provider_cannot_project(tmp_path: Path) -> None:
-    value = json.loads(profile.DEFAULT_COMMERCIAL_PROFILE_PATH.read_text(encoding="utf-8"))
-    value["skills"][0]["years"] = 4
-    path = tmp_path / "commercial.json"
-    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
-
+def test_profile_rejects_year_band_the_provider_cannot_project() -> None:
     try:
-        profile._load_commercial(path)
+        profile._years_label(4)
     except profile.ProfileError as error:
-        assert error.code == "commercial_profile_invalid"
+        assert error.code == "profile_skill_years_invalid"
     else:
         raise AssertionError("unsupported year band was accepted")
 
