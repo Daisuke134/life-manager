@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Rugby Contact-Area Brief</title>
+  <desc id="desc">A rugby ball over a contact-area analysis grid.</desc>
+  <rect width="512" height="512" rx="72" fill="#10263b"/>
+  <path d="M82 352h348M82 272h348M82 192h348M162 112v320M256 112v320M350 112v320" stroke="#2f566f" stroke-width="8" opacity=".7"/>
+  <ellipse cx="256" cy="256" rx="112" ry="158" fill="#e9c46a" stroke="#f4e3ad" stroke-width="10" transform="rotate(38 256 256)"/>
+  <path d="M181 172c42 42 108 102 150 168M331 172c-42 42-108 102-150 168" fill="none" stroke="#10263b" stroke-width="12" stroke-linecap="round"/>
+  <path d="M226 259h60M240 239v40M256 235v48M272 239v40" stroke="#10263b" stroke-width="9" stroke-linecap="round"/>
+  <rect x="122" y="402" width="268" height="54" rx="27" fill="#e76f51"/>
+  <text x="256" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#fff">RUGBY BRIEF</text>
+</svg>
