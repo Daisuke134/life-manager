@@ -31,6 +31,7 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- Codex(CrowdWorks本人入力): private profileの作者overlay/固定公開IDを除去し、dashboard本人ID照合を再利用する。新33件のREDと関連63件PASS、未設定時のreceipt保持/provider更新0を隔離fixtureで確認。実browser/provider・loop制御0、次はfresh review/関連回帰/CI/main。全caller接続と公開setupは未完、正本 → 統合SSOT MAC03-CROWDWORKS-IDENTITY。
 - Codex(Local Mac): PR8828/main525bfcb1の完全実行版からCrowdWorks本人IDのread-only一致を確認。参照調査は15秒超過→2.491s、全173tests/CI13成功、provider送信/本人binding変更0。次: MAC03-CROWDWORKS-IDENTITY。stars8/10,000、公開installer未提供9/別Mac実機/全業務成果は未完。
 - Codex(Local Mac release): source840a522433のリンク走査修復は新3件と関連143件/25subtests PASS。通常fileの追加statだけを減らし全symlink/15秒/fail-closedを保持する。fresh反証reviewとarchive系全検証中、次はexact CI/main→既存main build契約→CrowdWorks本人IDの実受入。
 - 2026-10-24 Codex（Local Mac導入/CrowdWorks）: 既存sessionの公式dashboard本人欄2リンクでID取得位置を確認し、account status/ensureへ任意account_idを返す31行のsource修正。新13件は3RED→13PASS、関連は隔離fixture補足後367PASS/既存4FAIL（base source/tests一致）。公開installer9件・本人private入力接続・main/immutable受入は未完。正本 → 統合SSOT MAC03-CROWDWORKS-ACCOUNT。

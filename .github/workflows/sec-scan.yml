@@ -58,6 +58,12 @@ jobs:
           apps/lancers-revenue/tests/test_persona_facts_in_planner.py
           apps/lancers-revenue/tests/test_form_failures_name_themselves.py
           apps/lancers-revenue/tests/test_telegram_report.py
+      - name: Verify CrowdWorks account and private profile contracts
+        run: >-
+          python3 -m pytest -q
+          skills/earn/crowdworks/tests/test_account_identity.py
+          skills/earn/crowdworks/tests/test_profile_avatar.py
+          skills/earn/crowdworks/tests/test_profile_private_identity.py
       - name: Verify browser lease ownership and tab preservation
         run: >-
           python3 -m pytest -q

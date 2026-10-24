@@ -605,6 +605,10 @@ CrowdWorks account実受入: 同complete immutableのrun_statusを既存crowdwor
 
 IDENTITY-PROFILEの初期RED: repo作者asset/overlayを正解とする既存testを本人private入力へ更新し、隔離HOMEのtest_profile_avatar.pyは2 FAIL/13 PASSとなる。別利用者543210のproviderが固定ID/schemaでconfig_invalidになることと、削除対象commercial overlayのエラー名依存を再現する。実provider/browser/private本人入力は使用しない。
 
+CI呼出元の追加所有: .github/workflows/sec-scan.ymlの既存loop-control jobへaccount identity/profile avatar/private identityの3fileを実行する1stepだけを追加する。現workflowはLancers callerを検証するがCrowdWorksの新しい本人境界を実行しないため、この差分の回帰を継続して検出する。同じPython/pytest/既存jobを使い、依存追加・権限変更・別workflow作成は行わない。
+
+IDENTITY-PROFILEのGREEN: 新private identity testsは初回28 FAIL、loader修正後に新28件と既存avatar15件の43 PASSをprimary確認する。追加dashboard/本人URL/画像不足/整合済みの5件をprimaryもREDで確認後、observe/applyの固定公開IDを除き、既存account._account_idによる本人照合を最初に行う。新33件＋既存profile15件＋account15件の計63 PASS（0.20s）。未設定時の既存receipt bytes不変/新receipt作成0、private入力自動作成0、誤session時profile読取・submit0をfixtureで確認する。application/reply/paidの全caller接続、実本人入力/自然業務/公開setupは未完であり、本番操作は0。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
