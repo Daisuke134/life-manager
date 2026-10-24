@@ -60,6 +60,11 @@ PRESERVED_CANDIDATE_DETAIL_LIMIT = 64
 PRESERVED_CANDIDATE_DETAIL_MAX_BYTES = 16 * 1024
 TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
 WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
+# (repository, worktree root) pairs whose redundant checkouts may be retired.
+WORKTREE_REPOSITORIES = (
+    (WORKTREE_REPOSITORY_RELATIVE, WORKTREE_REPOSITORY_RELATIVE / ".worktrees"),
+    (Path("Projects/anicca-products"), Path("Projects/anicca-products-worktrees")),
+)
 SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
     r"slide-pack-(?:(?:objects|image-cache|workspace)(?:-cta)?|tiktok-(?:workspace|cta|cache))-[A-Za-z0-9]{6}"
 )
@@ -660,6 +665,7 @@ def _default_lsof(path: Path, *, timeout: float = LSOF_TIMEOUT_SECONDS) -> str:
         or _is_code_sign_clone(path)
         or path.name in GLOBAL_OPEN_PROBE_NAMES
         or ".worktrees" in path.parts
+        or any(root.name in path.parts for _repository, root in WORKTREE_REPOSITORIES)
         or SLIDE_PACK_DIRECTORY_PATTERN.fullmatch(path.name) is not None
         or SLIDE_PACK_FIXTURE_PATTERN.fullmatch(path.name) is not None
         or PYTEST_RUN_PATTERN.fullmatch(path.name) is not None
@@ -1275,6 +1281,13 @@ class HostDiskGovernor:
                     return "descendant_probe_error"
         return "descendant_probe_error" if errors else None
 
+    def _worktree_repository(self, path: Path) -> tuple[Path, Path] | None:
+        """Return the (repository, worktree root) owning a direct child checkout."""
+        for repository, root in WORKTREE_REPOSITORIES:
+            if Path(os.path.abspath(path)).parent == Path(os.path.abspath(self.home / root)):
+                return self.home / repository, self.home / root
+        return None
+
     def _worktree_identity(
         self,
         path: Path,
@@ -1286,11 +1299,11 @@ class HostDiskGovernor:
         """Prove one clean, unleased checkout is a redundant registered worktree."""
         if deadline is not None and self.clock() >= deadline:
             return None
-        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
-        worktree_root = repository / ".worktrees"
         lexical = Path(os.path.abspath(path))
-        if lexical.parent != Path(os.path.abspath(worktree_root)):
+        pair = self._worktree_repository(lexical)
+        if pair is None:
             return None
+        repository, worktree_root = pair
         repository_fingerprint = _real_directory_fingerprint(self.home, repository)
         root_fingerprint = _real_directory_fingerprint(self.home, worktree_root)
         path_fingerprint = _real_directory_fingerprint(self.home, lexical)
@@ -2138,7 +2151,7 @@ class HostDiskGovernor:
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted", stage="after_worktree_identity_recheck")
                         continue
-                    repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+                    repository = self._worktree_repository(path)[0]
                     records = _worktree_records(repository, deadline=deadline, clock=self.clock) or []
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted", stage="after_worktree_record_probe")
@@ -2219,7 +2232,7 @@ class HostDiskGovernor:
                 preserve("path_still_present")
                 continue
             if item.get("owner") == "zombie-worktree":
-                records = _worktree_records(self.home / WORKTREE_REPOSITORY_RELATIVE, deadline=deadline, clock=self.clock)
+                records = _worktree_records(self._worktree_repository(path)[0], deadline=deadline, clock=self.clock)
                 if records is None or any(
                     record.get("worktree") == str(Path(os.path.abspath(path)))
                     for record in records
@@ -2470,12 +2483,14 @@ class HostDiskGovernor:
         # exhausted worktree proof cannot hide browser/temporary candidates.
         if expired():
             return candidates
-        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
-        records = (
-            _worktree_records(repository, deadline=deadline, clock=self.clock)
-            if _real_directory_fingerprint(self.home, repository) is not None else None
-        )
-        if records is not None:
+        for repository_relative, _root in WORKTREE_REPOSITORIES:
+            repository = self.home / repository_relative
+            records = (
+                _worktree_records(repository, deadline=deadline, clock=self.clock)
+                if _real_directory_fingerprint(self.home, repository) is not None else None
+            )
+            if records is None:
+                continue
             for record in records:
                 if deadline is not None and self.clock() >= deadline:
                     break
