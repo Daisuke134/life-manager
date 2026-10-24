@@ -24672,7 +24672,7 @@ Next experiments (one variable at a time, judged on we_won / decided): (1) attac
 
 **Postizで登録されているLife Managerの対象:** `mobile-app-loops.json`にはAnicca 16 owner、Honne 2 ownerがある。これは設定上のowner一覧であり、各アカウントの現在の認証・稼働・投稿成功を示さない。
 
-| 対象 | 設定されたアカウント | 用途 |
+| 対象 | source registry上のlane account identity | 用途 |
 |---|---|---|
 | Anicca Instagram（6） | `@anicca.affirmation`、`@anicca.encards`、`@anicca.en`、`@anicca.jp.videos`、`@ani.cca1234`、`@anicca.jp1` | affirmation、card、widget、JA/EN video |
 | Anicca TikTok（8） | `@anicca_slideshow`、`@anicca.he`、`@aniccaaffirmation`、`@aniccaen2`、`@anicca.jp1`、`@anicca.jp4`、`@anicca_buddha`、`@anicca.jp` | slideshow、affirmation、JA/EN video |
@@ -24681,11 +24681,13 @@ Next experiments (one variable at a time, judged on we_won / decided): (1) attac
 
 X、website、SEO/AEOはこの18件のmobile Postiz ownerに含まれない。PostizにX integrationがあることと、Anicca所有・計測済みのX配信ownerがあることは別である。今回の`life-manager-anicca-en-widget-instagram`はInstagramの`@anicca.en`だけを対象とし、他のInstagramやTikTokには投稿しない。
 
-**接続・投稿のfresh readback:** DaisはInstagramアカウントをPostizへ再接続したと報告している。Postiz MCP connectorはgroup/integration/postを0件返し、直接APIの前回readbackと一致しないため、connectorのworkspace scopeは未解決。直接API readbackでは25 integrations（TikTok 12、Instagram 9、YouTube 2、X 2）、Instagramの8/9 recordがenabled、1件がdisabledで、`@anicca.en` recordはenabledだった。enabled recordは有効なOAuth/sessionや投稿成功の証拠ではない。
+この表はsource上のowner identityであり、Postizの実account名とのexact integration-ID joinは別途必要。特にTikTok jp1 laneはsource account identityが`@anicca.jp1`、manifest profileが`@anicca.jpx`であり、混同しない。
+
+**接続・投稿のfresh readback:** DaisはInstagramアカウントをPostizへ再接続したと報告している。Postiz MCP connectorはgroup/integration/postを0件返し、直接APIの前回readbackと一致しないため、connectorのworkspace scopeは未解決。直接API readbackでは25 integrations（TikTok 12、Instagram 9、YouTube 2、X 2）。Instagramのenabled recordは`@anicca.encards`、`@anicca.jp.videos`、`@anicca.ios.jp`、`@obou.anicca`、`@monk.mujo`、`@ani.cca1234`、`@anicca.ios`、`@anicca.en`、disabledは`@anicca.cemetery`。`@anicca.en` recordはenabledだった。enabled recordは有効なOAuth/sessionや投稿成功の証拠ではない。
 
 `@anicca.en`向けPostiz queryには直近3件の`ERROR`がある。2026-10-23 10:58Zの1件はsession invalidation後に1–2日待つよう案内し、2026-10-24 05:26Zと10:13Zの2件は`Refresh channel needed`。2026-10-26〜11-02の予約投稿queryは0件。新しい`PUBLISHED` receiptは未確認。session invalidationから48時間となる2026-10-25 10:58Zより前に再投稿しない。
 
-対象ownerのread-only `lm-loop status`は`loaded-idle`、installed release `dbffebc0e349c0dd81fce2523833c059b24a338c`、exit 75、blocker `host_admission_deferred:disk_floor_low`。statusには20件の`effect_unknown` detailがあるが、20件の実投稿を意味しない。read-only admission DBには858 raw `effect_unknown` rows（848 claimed、10 released）があり、実投稿件数とは未照合。12件のsidecar identityを調べたexact reconcilerは`no_match`で、完全一致receiptは得られていない。未解決effectは保持し、再送・手動投稿・fence解除をしない。
+対象ownerのread-only `lm-loop status`は`loaded-idle`、installed release `dbffebc0e349c0dd81fce2523833c059b24a338c`、exit 75、blocker `host_admission_deferred:disk_floor_low`。statusには20件の`effect_unknown` detailがあるが、20件の実投稿を意味しない。2026-10-24T17:51Zのread-only `df`は2.6 GiB availableを示すが、最後のowner eventはそれ以前のdisk-floor拒否であり、次のadmission passは未確認。read-only admission DBには858 raw `effect_unknown` rows（848 claimed、10 released）があり、実投稿件数とは未照合。12件のsidecar identityを調べたexact reconcilerは`no_match`で、完全一致receiptは得られていない。未解決effectは保持し、再送・手動投稿・fence解除をしない。
 
 **原因とsource修正:** `honne-ja-cycle.js`は配信枠が無い時に`status: no_due_slot`と説明文を`reason`へ出す一方、共通`mobile-effect-result.js`は`reason`が同じ固定値`no_due_slot`の時だけ無投稿receiptを認める。この契約不一致は保存済みstderrの`mobile publication result is invalid`と整合するが、そのrunのstdoutは保存されておらず、個別occurrenceの内容までは断定しない。修正はrunner側で認識済みno-effect resultを共通契約へ正規化する。追加したfocused regressionは修正前に失敗し、修正後の`honne-ja-cycle.test.js`と`mobile-app-command.test.js`合計33 testsがPASS。production releaseへの反映と自然runは未実施。
 
@@ -24695,4 +24697,6 @@ X、website、SEO/AEOはこの18件のmobile Postiz ownerに含まれない。Po
 
 **TODO順・現在cursor:** 旧cursorはstorefront修正のfocused test後にApple提出へ進むことだった。新順は (1) StoreKit race修正とno-due receipt contract修正を同一PR #8911のsource acceptanceへ載せ、focused tests・loop contract・CI・reviewをPASSしてmainへ統合する、(2) main由来immutable releaseを用意し、OAuthの48時間待機後かつhost disk admissionが通る時だけ対象ownerを適用し、exact pending effectは公式receiptで照合する。ownerの自然scheduled runで`@anicca.en`の動画を1件だけ公式`PUBLISHED` readback・durable receipt・replay-zeroまで確認する、(3) merged SHAからXcode Cloud buildを作り、exact buildでpaywall/offering、通知tapから同一メッセージへの遷移、rating timing、Settings sign outを確かめる、(4) rejected Lifetime IAPを修正し、物理iPhoneでJapan-only storefront demoを撮影・添付し、既存の拒否submission itemを更新してAppleへ再提出する、(5) 6アプリのApp Store/RevenueCat/Postiz weekly baselineとaccount→owner→campaign対応を揃え、reach→click→install→paid→retentionを同じ期間で追う、(6) 同じ対象・媒体・目的で成果を出したslideshow/short-form事例を先に調べ、URL・hook・構成・tempo・CTA・指標を記録した上で自社素材の小実験を行い、(7) 勝ち形式を他のPostiz owner、残り5アプリ、website SEO/AEO/ASOへ広げる。順変更理由はno-due resultのsource契約不一致、Postiz cooldown、ownerのdisk-floor blocker、exact effect receipt欠落を修正せずに投稿を再開できず、現行app buildにもpaywall/通知の未検証事項が残るため。**現在cursorは (1) のPR #8911 source acceptance、focused validation、push後のCI/review確認。**
 
-**未完了:** 新sourceのpush/CI/review/main integration、immutable releaseとnatural Postiz post、Appleの新build/物理demo/再提出、6アプリの統一MRR・attribution、成功例を基にしたslideshow実験は未完了。RevenueCat passwordはこの作業で変更していない。secret valueは記録しない。
+**Push/PR readback:** sourceとfocused regressionは`c9796a05e84d63e6d6880f6ab9cb0d7fcb8b997e`としてpush済みで、`origin/fix/anicca-distribution-submission-20261025`とPR #8911 headが一致する。PRはOPEN、review decisionは未取得。直近のPR readbackでは全14 CI checksがpendingだった。specのこのreadback追記を含む次のheadでCIを再確認する。
+
+**未完了:** source acceptance/CI/review/main integration、immutable releaseとnatural Postiz post、Appleの新build/物理demo/再提出、6アプリの統一MRR・attribution、成功例を基にしたslideshow実験は未完了。RevenueCat passwordはこの作業で変更していない。secret valueは記録しない。

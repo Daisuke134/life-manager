@@ -287,3 +287,5 @@ This readback supersedes the October 13 Xcode Cloud/build cursor above.
 - App Store Connectは1.9.6 `PREPARE_FOR_SUBMISSION`、build 808選択、build 810が最新`VALID`だが修正前SHA。物理iPhone demo、Lifetime IAPの`DEVELOPER_REJECTED` version解消、拒否済みapp itemの再提出、install後のpaywall/通知確認は未完了。
 
 **現在cursor:** PR #8911 source acceptanceとfocused testを終え、push後のCI/reviewを確認する。main統合後に同一main SHAからXcode Cloud buildを作り、その正確なbuildを用いたStoreKitと通知挙動確認へ進む。配信とApple審査の全体順序・MRR境界はcanonical growth SSOTに従う。
+
+**最新PR readback:** source commit `c9796a05e84d63e6d6880f6ab9cb0d7fcb8b997e`はremote branchとPR #8911のheadに反映済み。PRはOPENでreview decisionなし、直近readbackではCI 14件すべてpending。このspec更新で新しいheadを作るため、そのexact headのCIとreviewを確認してから統合する。
