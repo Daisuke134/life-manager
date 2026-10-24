@@ -2,57 +2,55 @@
 
 ## README整理とMac導入の継続修復
 
-**目的・範囲:** Local Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
+**目的・範囲:** 背景を知らない人がLocal Life Managerの価値と7つの事業を理解し、自分のMacで導入できるOSSにする。README、導入成功、約20 agentが担う7事業の実業務、Mac portability、確認済みの純収益、GitHub 10,000 starsを別々の完了条件として追う。ここを現在の状況と再開順の正本にし、後続の古いrun記録は履歴として扱う。
 
-**製品の中心価値:** Local Life Managerは、既存の人間運営の事業を補助するだけのAIではない。人の継続的な指示や承認なしに、自分で事業機会を選び、事業そのものを企画・構築・立ち上げ、顧客を獲得し、商品/サービスを届け、入金し、採算を改善するノーヒューマン・イン・ザ・ループのmoney printerを目指す。Local版を動かす基本条件はChatGPT Plus以上、12 GiB以上の空き容量があるスリープしないMac/Mac mini。個別事業の実行時には、そのproviderが求めるbusiness accountや費用を接続する。初期設定後、通常運転に人のprompt/approvalを要しないことを完成条件にする。
+**製品の中心価値と公開表現:** READMEのheadlineは **“The open-source, no-human-in-the-loop money printer that builds and runs businesses on your Mac.”** と明言する。Life Managerは既存事業の補助AIではなく、事業機会を選び、事業自体を作り、運営して収益を得る製品を目指す。続く **Early development** の説明では、全事業の自律運転と利益がまだ実証されていないことを明記する。強い製品の分類と、現在確認できた実績を混同しない。
 
-**公開表現と証明:** READMEでは「人間が運営する事業を手伝うAI」ではなく、事業自体を作り、運営し、収益を得るno-human-in-the-loop money printerを目指すと正面から説明する。現在はearly developmentで全事業の自律運転・収益が揃っていないことを隣接して明記し、完成済みの能力や利益と誤解させない。収益の実績はofficial provider receiptと費用を使ったnet結果で示し、未検証のbusiness outcomeを現在の事実として書かない。ChatGPT PlusはcoreのAI利用条件であり、インターネット、各business account、providerが必要とする追加費用は別に明示する。
+**利用前提:** ChatGPT Plus以上、インターネット、12 GiB以上の空き容量がありスリープしないMacまたはMac mini。各事業で必要なservice accountを利用者が初回接続し、providerの追加費用を負担する。理想状態では初回接続後の日常運転に人のpromptやapprovalを要しない。
 
 ### 完了済み
 
-| 項目 | 完了していること |
+| 項目 | 確認済み |
 |---|---|
-| 事業一覧と導入条件 | 公開mainには7つの事業と収益モデル、ChatGPT Plus以上、スリープしないMac、単一のbootstrap入口がある。WebMCP/hackathonの未完成project紹介はREADMEにない。 |
-| Mac導入のsource | 認証確認と共通runtime依存の不具合を修正しmainへ反映済み。`scripts.test_mac_bootstrap` 11件、`runtime.loop.tests.test_clean_user_install` 23件がPASS。別の実Macでの初回導入や事業成果は未証明。 |
-| Mac architecture CI | Apple Silicon/Intelのloop-control CIを含むmainのSecurity Scan 14/14が成功。CIは別Macでの初回導入や実業務を証明しない。 |
-| Revenue laneの容量floor | PR #8899が13:52:11Zにmain `092857f6897cf862b88cb47e1b2562f017700f53`へ統合。実測した7.8–11 GiBの変動と16.2時間のrevenue outageに基づき、revenue floorを10 GiBから7 GiBへ変更。swap-growth gateとproducer向け12 GiB floorは維持。これは現在のMacでの事業成果や収益確認ではない。 |
-| 受託platformの入口 | Coconala/Lancers/CrowdWorksの公開導入入口、Mercor local setupをmainへ反映済み。installerの存在は実業務の成功を意味しない。 |
-| README調査 | 2026-10-24のGitHub APIでOpenClaw 392,913、n8n 208,476、Dify 159,414、Open WebUI 156,626 starsを確認。短い価値提案、上部の導入導線、必要条件、現状の正直な説明を採り、バッジや機能羅列は増やさない。Pion/Andon Labsからは「人の既存仕事を手伝う」ではなく「事業全体を自律運営する」という分類の明快さを参考にする。 |
-| money-printer README公開 | PR #8894を2026-10-24 13:28Zにmain `18774d4ddc17da1d70182639a6060c35a5de7c10`へ統合。英日README各45行。人の継続介入なしで事業を自ら構築・運営するmoney-printerの説明、7事業、ChatGPT Plus、awake Mac、12 GiB free storage、単一install command、early-development caveatを掲載。15 CI checks PASS。main raw readback SHA-256はREADME `4fd720e0c9cd97d461f94b288decda7c90e1bb59abd84d58dbec95ccb257785e`、README.ja `f9c1ced09461721ccd78d093926f46b98addc8f478235bbf45bf2942d1bb2440`、setup guide `348e713fc0877f4a203629e8777494d0853de3ceaee1f1fe95ca225ef2d893be`で受入commitと一致。 |
+| 外向けREADMEと事業一覧 | PR #8894が2026-10-24 13:28:55Zにmain 18774d4ddc17da1d70182639a6060c35a5de7c10へ統合。公開READMEのraw readbackは上記headlineとEarly development caveatを含む。7事業はContract work、Mobile apps、Affiliate & CPA、Writing、Digital products、AI services、Investing。ChatGPT Plus、awake Mac、12 GiB要件、1つのinstall commandも掲載。WebMCP/hackathon projectは入口から除外。 |
+| READMEの構成調査 | 2026-10-24のGitHub公式API/README確認でOpenClaw、n8n、Dify、Open WebUIを参照。短い価値提案、要件、導入導線、利用可否の説明を採り、機能羅列とバッジを増やさない。Pion/Andon Labsは事業全体を運営するagentというcategory framingを参考にする。 |
+| Mac導入source | bootstrap/runtime依存修正がmainにある。scripts.test_mac_bootstrap 11件、runtime.loop.tests.test_clean_user_install 23件がPASS。別Macでの初回導入と事業成果は未確認。 |
+| Apple Silicon / Intel CI | mainのloop-control CIを含むSecurity Scan 14/14が成功。CIは別Macでの初回導入や実業務を証明しない。 |
+| revenue admission floor | PR #8899でrevenue floorを10 GiBから7 GiBへ変更。swap-growth gateとproducer向け12 GiB floorは維持。 |
+| 受託platformの導入入口 | Coconala、Lancers、CrowdWorksの公開入口とMercor local setupをmainへ反映。installerの存在は実業務や売上の証明ではない。 |
+| cleanup失敗の診断と自然run | PR #8902の診断コードをmain 67fe2853由来releaseへ反映。自然run 18e17ed5cda39640-92690は14:55:15Zにexit 0 / pass / blockerなし。次の18e17f1cb8d6cda8-8764は15:00:42Zにexit 1、phase=bundle_reference_deadline。さらに18e17f6130a132d0-26602は15:04:51Zにexit 1 / phase=report。15:04:06–36Zのread-only lsofではreconcile deterministic PID 28867がadmission lockを保持していたが、report失敗との因果は未確認。phase付きreceiptを保存できた一方、連続稼働は未達。15:06Zのstatus readbackではjobはloaded-idle、現行installed releaseはmain 04b54729、最後のeventは67fe2853由来。 |
 
 ### 残っていること
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| 現Macのresource admission | 旧snapshot 13:28Zはfree 9.98 GiB / swap free約1,118 MiB。14:16:36ZはmacOS 15.6/arm64、AC時`sleep=0`、`df -kP /`の空き8,930,612 KiB (8.52 GiB)、swap free 771.94 MiB。14:06:27Zの8.21 GiB→14:07:51Zの9.18 GiB→14:09:21Zの9.12 GiB→14:16:36Zの8.52 GiBと変動。現時点で7 GiB revenue floorを上回るが、12 GiB producer floorは約3.48 GiB下回る。持続的な容量回復とは未判定。最後のstatus readback 13:54Zは314 job rows中、disk floor blocker 90、resource effect unknown 36、entrypoint exit 1が12、swap pressure 3。job rowsはagent数ではない。 |
-| Disk cleanup ownerの失敗 | 13:50:24Zの`18e17b4a58afa330-13170`、13:56:35Zの`18e17b8f0f70cab0-27237`に続き、release `092857f6897cf862b88cb47e1b2562f017700f53`でrun `18e17c1c6b83b410-66757` (14:03:08–14:08:15Z)と`18e17ca7e03f75b0-96306` (14:13:07–14:15:58Z)が連続して`entrypoint_exit_1`。両方のrun-bound stdout receiptでdependency-bundle GCは`TimeoutExpired`、release 9件全保持、削除0 / reclaimed 0 bytes、protected deletions 0。1回目はGit cleanup 12,500,992 bytesから0、2回目は9,105,408から9,097,216 bytesでpass。scratchはそれぞれ76,254件/76,260件を評価し全保持、削除0 / 回収0。旧releaseはtimeout phaseを出さず、失敗したreference-scan境界は未特定。 |
-| Cleanup診断修正のsource受入 | PR #8902、専用branch `fix/mac-cleanup-diagnostic-20261024` / base `092857f6897cf862b88cb47e1b2562f017700f53`。timeout phaseを固定ラベルに限定し、有限で非負の秒数だけをreceiptへ記録。生argv/パス/例外本文は保存しない。focused test 2件、fresh review、source-boundary、diff check PASS。前head `092b945`のchecksは15件中13件PASS。その後のspec/BOARD追記でbranch headが進み、latest headのSecurity Scanは再実行中。head/最新check statusはGitHub PR #8902を正本として確認する。main未統合・release未作成・owner未反映なのでproduction修正完了ではない。 | PR最新headの全check完了後にmainへ統合。main由来immutable releaseをidle ownerへ安全に反映し、次の自然runのphase/timeout付きreceipt、exit状態、再実行時の削除0を照合する。 |
-| 別Macの初回導入 | 公開README/setupには12 GiB free disk要件を記載済み。clean-user/bootstrap source testsは成功。別ユーザーのclean Macで公開手順を使った初回導入、ChatGPT Plus login、選択businessのprovider成果は未確認。 | fresh macOS user/deviceで12 GiB以上の空き容量を満たしてinstall、ChatGPT Plus認証、選択businessの公式provider結果まで通す。検証したmacOS/architectureだけを対応範囲として公開する。 |
-| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN。head `53a21430aacae3efbbb3ec32eb4554e403b95cfe`、base `8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf`はmain `18774d4d`より古い。14 CI checks成功、review decisionなし（13:30Z readback）。既存owner worktreeはlocked。 | owner完了後にlatest mainへ合わせ、updated headのfocused test/review/CIを通して統合。main由来releaseと公開sourceでReplyを再確認する。 |
-| 7つの未接続installer | 18 catalog group中11にlocal commandがあり、PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7つが未接続。 | 各事業の公開導入、必要条件、失敗説明を揃える。 |
-| 約20 agentと7事業のend-to-end | catalog group数とagent数は別。全agentの開始から顧客/販売/納品/支払までの公式結果、重複防止、再開動作は未確認。利益実績も未集計。 | 対象一覧を確定し、各有効事業の公式結果と費用控除後のnet収益を証拠つきで確認する。 |
-| 10,000 stars | 2026-10-24 13:52:15ZのGitHub API readbackは8 stars / 2 forks。目標まで9,992 stars。 | README改善だけで達成を約束しない。導入成功、初回の確認済み成果、継続利用を増やし、starsは独立した採用指標として測る。 |
+| 現Macの容量とagent admission | 2026-10-24 15:01Zのdf -kP /は6,135,072 KiB（約5.85 GiB）free、swap free 1,676.62 MiB。revenue floor 7 GiBを約1.15 GiB、producer floor 12 GiBを約6.15 GiB下回る。持続的な回復は未確認。 | 既存7 GiB/12 GiB floorとswap gateを下げずに容量を回復し、自然runで関門が通る状態を確認する。 |
+| cleanup source reclaim / bundle scan | 14:53 runはsource reclaim phase=lifecycle_lock / RuntimeErrorでskip。15:00 runはdependency-bundle phase=bundle_reference_deadline / TimeoutExpired / timeout 0秒、source reclaim not_needed。15:03 runは15:04:51Zにphase=report / exit 1。実行中の15:04:06–36Zにreconcile PID 28867がadmission lockを保持していたが、失敗原因との結び付きは未確認。15:00 receiptではrelease 12件を保持、削除0、reclaimed 0 bytes、protected deletion 0、scratch削除0。事実: central_cleanup.pyのrelease GCは15秒deadlineをlock取得と参照scanに共有する。推定: timeout 0秒は参照scan開始時までに残予算が尽きたことを示し、lock待ちまたは先行phaseが消費した可能性がある。3回目のrunはphase付き診断のみで具体的な失敗区間を特定できていない。 | 次の自然runでlock ownerと15秒予算の境界を読み、自己所有の競合を修正する。参照確認とbounded cleanupを再確認する。 |
+| 全jobの稼働 | 14:58Zのlm-loop status allは313 job rows: blockerなし160、disk_floor_low 91、resource_effect_unknown 36、entrypoint_exit_1 10、entrypoint_exit_75 1、その他のresource/swap blockers 6。状態はloaded-running 43、loaded-idle 160、disabled 57、unloaded 53。job rowsはagent数ではない。 | まず容量/admission blockerを解き、各jobのowner、自然run、公式結果を個別に確認する。 |
+| 別Macの初回導入 | clean-user/bootstrap source testsはPASS。別ユーザーのclean Macで公開手順、ChatGPT Plus login、選んだbusinessの公式provider成果まで通した証拠はない。 | fresh macOS user/deviceで公開手順を実行し、初回接続から選択businessのprovider結果まで通す。確認したmacOS/architectureだけを対応範囲とする。 |
+| Mercor Reply修正 | PR #8865はOPEN。head 53a21430aacae3efbbb3ec32eb4554e403b95cfe、base 8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf。14:58ZのGitHub readbackでreview decisionなし。latest main 04b547299770fd9ab98f4724951ab4a1276c5abaより古い。 | owner完了後にlatest mainへ更新し、review/CI/source acceptanceを通し、main由来releaseとMercorの公式readbackで受け入れる。 |
+| 未接続の7 installer | 前回のcatalog auditでは18 groups中11にlocal commandがあり、PromptBase、Writer、Affiliate、Self-Build、eBook、Capafy、LINE Stickerの7つが未接続。 | 7事業それぞれで公開installer、必要条件、失敗時の説明を揃える。 |
+| 約20 agent / 7事業の実成果 | catalog group数とagent数は別。7事業それぞれの開始、顧客・注文、納品、支払、重複防止、再開動作、費用控除後net収益の公式証拠は揃っていない。 | 対象agentを7事業へ対応づけ、各有効事業をprovider receiptと費用で照合する。未確認の利益を0や成功に置き換えない。 |
+| GitHub 10,000 stars | 2026-10-24 14:52:48Zの公式API readbackは8 stars / 2 forks。10,000 starsまで9,992。 | 導入成功、初回の確認済み成果、継続利用を増やす。stars、実業務成果、収益を別指標で測り、達成時期や売上を約束しない。 |
 
 ### ゴールまでの順序
 
-**順序変更（2026-10-24）:** 旧順は `#8865 → 現Mac/Mercor → README → installer → agent → 別Mac → stars`。新順は `README公開 → 12 GiB/10 GiBのMac容量関門とcleanup失敗を診断 → clean Mac導入とprovider成果 → #8865 → 7 installer → 全agent/7事業の証明 → Mac portability → 10,000 stars`。公開導入条件に実測の空き容量要件を追加し、現在jobを止める共有resource blockerの原因特定を前倒しする。#8865のowner worktreeやeffect-unknown fenceは変更しない。現在cursorは **README-MONEY-PR**。
+**順序更新（2026-10-24 15:06Z）:** 旧順序は MAC-CAPACITY-RECOVERY → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability/導入導線 → 10,000 stars。15:00:42Zの自然runはbundle reference deadlineが0秒で尽き、14:53 runはsource reclaimがlifecycle lock busy。さらに15:03 runは15:04:51Zにreport phaseで失敗し、その実行中にreconcile PID 28867のadmission lock保持を観測したが因果は未確定。容量回復より先に次runでlock待ち・15秒deadlineの消費区間と報告失敗を照合する。新順序は MAC-CAPACITY-LOCK-DIAG → MAC-CAPACITY-RECOVERY → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability/導入導線 → 10,000 stars。現在cursorは **MAC-CAPACITY-LOCK-DIAG**。15:06Z statusではcleanup jobはloaded-idleで、次の自然runを待つ。#8865のowner worktree、外部effect fence、既存稼働ownerは変更しない。
 
-**順序変更（2026-10-24 13:30Z、README公開後）:** 旧順は `README公開 → 現Mac容量/cleanup診断 → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability → stars`。新順は `現Mac容量/cleanup原因 → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability → 10,000 stars`。READMEはmain/raw readbackまで完了し、Macは10 GiB revenue floorと12 GiB producer floorをまだ下回るため、容量とcleanup原因の診断が現在の先頭になる。#8865 owner worktreeとeffect-unknown fenceは維持する。現在cursorは **MAC-CAPACITY-DIAG**。
-
-**現在cursor（2026-10-24 14:18Z）:** 13:30Zに決めた順序を維持し、先頭 `MAC-CAPACITY-DIAG` 内の次工程を示す。`092857f`の連続2 natural runは`TimeoutExpired`で失敗し、phase未記録。診断source PR #8902はdocs追記でheadが進み、latest headのSecurity Scanを再実行中。次は最新headの全check完了後にmain統合・immutable release・owner自然runでphaseを読み、容量/producer admissionを再確認する。capacity floorをさらに下げず、稼働ownerも操作しない。
-
-1. [x] 英日READMEと導入guideをno-human-in-the-loop money-printerの外向け価値提案へ短く整え、7事業・ChatGPT Plus・常時起動Mac・12 GiB free storage・単一install command・early-development caveatをmainへ反映。PR #8894のCI15件、main/raw readbackまで完了。
-2. 現Macのdisk floor / swap pressure / cleanup exitをoccurrence単位で診断する。PR #8902のsource修正はfocused test 2件/fresh review PASS。最新headのGitHub checksを待ち、main immutable releaseへ進む。cleanup ownerの次の自然runでtimeout phase/秒数を照合し、その後に12 GiB producer admissionと安全な回復余地を再確認する。共有effect fenceと稼働ownerを保持し、disk floorを根拠なく下げない。
-3. clean Macの初回installからChatGPT Plus認証、選択businessの公式provider結果まで通し、動作確認したmacOS/architectureの範囲を公開する。
-4. [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)をownerの作業完了後にlatest mainへ合わせ、review/CI/公開source/実業務を確認して統合する。
-5. PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7つに公開installerと必要条件を実装する。
-6. 約20 agentを7事業へ対応づけ、開始から公式provider結果、再開、重複防止、費用控除後の収益まで証拠で検証する。
-7. 実Macの利用範囲とREADME/setup/demo/contribution導線を固め、初見ユーザーが価値理解→導入→確認済み成果→継続利用へ進めるよう改善する。
-8. 導入成功、初回成果、継続利用、収益、starsを別々に計測し、自然な採用を通じて10,000 starsを目指す。達成時期と収益をREADMEで保証しない。
+1. [x] 外向けREADMEにno-human-in-the-loop money-printer headline、7事業、ChatGPT Plus、awake Mac、必要容量、単一install command、early-development caveatを掲載し、公開raw readbackで確認する。
+2. [x] PR #8902の診断をimmutable releaseへ反映し、自然runでlifecycle_lockとbundle_reference_deadlineのphase付きreceiptを確認する。
+3. [ ] **MAC-CAPACITY-LOCK-DIAG:** 次の自然runでsource/admission/release-cut lockのownerと、共通15秒deadlineを消費する区間を特定する。自己所有コードの競合なら最小修正する。disk floorとeffect fenceは変えない。
+4. [ ] **MAC-CAPACITY-RECOVERY:** lock修正後、source reclaimと容量回復をreceiptおよびdf/swapで確認し、既存7 GiB/12 GiB floorとswap gateを通す。
+5. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessの公式provider結果まで通す。
+6. [ ] PR #8865をlatest mainへ追従させ、review/CI/source acceptanceとMercor公式readbackで完了する。
+7. [ ] PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7 installerを整える。
+8. [ ] 約20 agentを7事業へ対応づけ、provider成果、納品、支払、重複防止、再開、費用控除後net収益を確認する。
+9. [ ] Mac対応範囲、demo、導入後の確認方法、contribution導線を実証に合わせて明記する。
+10. [ ] 導入、初回成果、継続利用、収益、starsを別々に測り、利用者へ価値を届けて10,000 starsを目指す。
 
 ### 理想の完成状態
 
-外部の人がREADMEだけでLocal Life Managerを、人間の既存事業を手伝うだけでなく事業自体を発想・構築・立ち上げ、運営して収益を生むノーヒューマン・イン・ザ・ループのmoney printerと理解する。ChatGPT Plus以上と12 GiB以上の空き容量があるスリープしないMac/Mac miniを使い、対応する事業の顧客獲得、制作、販売、納品、入金、改善を自律的に回す。初回に必要なservice accountを接続した後、通常業務は人の都度prompt/approvalなしで進む。対応する約20 agentが7事業を動かし、official provider receiptで案件・注文・入金を照合、7事業すべての費用控除後の正のnet収益、失敗、再開状態を示す。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から最初の収益成果まで通る。Pion/Andon Labsのように事業全体を運営するagentを目指し、Life Managerは7 business linesのverified net revenueを外部に示す。現在のearly-development状態と未完了機能はREADMEで正直に示し、確認済み成果が揃うまで保証収益をうたわない。GitHub 10,000 starsは利用者に価値が届いた結果として目指す別の採用目標であり、収益・導入成功の証明とは分ける。
+READMEを初めて読む人が、Life Managerは事業を作り、運営して収益を生むno-human-in-the-loop money printerだとすぐ理解し、7つの収益モデル、利用条件、導入command、現時点の制約を知る。ChatGPT Plus以上とインターネットが使えるawake Mac/Mac miniへ公開手順で導入し、初回に自分のbusiness accountsを接続した後は、通常の機会選定、制作、販売、納品、再開、採算改善に人のpromptやapprovalを要しない。対応する約20 agentが7事業を動かし、各providerの公式receiptと実費で結果とnet収益を確認できる。別のサポート対象Macでも初回導入から最初のprovider確認済み成果まで通る。未実証の収益は保証せず、10,000 starsは導入と継続利用から目指す別の採用目標として測る。
 
 ### 10,000 starsを目指すREADMEの参考例
 
