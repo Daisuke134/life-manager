@@ -560,6 +560,12 @@ Lancers operator canary: accepted generatorの生成13 identitiesは実consumer�
 
 RECYCLE-REGISTRY-ACTUALの次の診断: 旧cursorの自然待機再観測から、PID未観測3ownerのloaded argv/release/env・最新自然event・起動先・実process/CDP照合へ先に進む。対象は上の3identityと既存canonical lifecycle ownerだけ。controller終了とbrowser未確認の境界が分かれたためで、観測失敗だけで再起動・再recycleしない。修復が必要なら実callerと既存成功ownerを比較し、shared sourceの最小RED/GREEN→review/CI/main→accepted immutableの対象限定採用へ進む。alias2件の統一、TikTok/Mercorのmissing target、post-metadata自然定期、全swap回復・全業務成果・別Mac実機・10,000 starsは未完。公式repo APIは8stars/2forksである。
 
+3ownerの起動前拒否を特定: accepted CLIの実installed argvはImpact7f88bc62、X/Fundraiser9da02124のmain由来immutableを指し、KeepAlive=trueである。native exact-profile process0件、各declared portのCDP不達と、03:14–03:15Zの自然report/exit1を照合する。現在bounded stdoutは共通disk_admissionのstatus=deferred/reason=disk_floor_low/effect0/readback0、required12884901888bytesに対しavailable約10740391936–11149914112bytesである。2つの既存browser entrypointは_disk_preflightの75をboolへ変換して1終了するため、entrypoint_exit_1だけから認証・依存欠損と判断しない。古いstderrのModuleNotFound/EPIPEは現在runの原因に使わない。容量12GiB・swap85%の既存安全条件、profile/lease/fenceと他ownerを保持し、追加restart/close/provider送信は0である。
+
+並行可能な次の製品化: 旧順は現Macの自然待機→残公開installer、新順は既存容量回復の自然観測を保持しつつMAC03-CROWDWORKS-IDENTITY→公開setupへ進む。理由は現在原因が起動前の実容量不足に絞れ、同じKeepAliveを手動再試行しても本人Mac向けの欠落を解消できないため。未提供の公開installerはcatalogのavailability=setup_requiredかつcommand=nullを数えた9業務であり、docs/agents.mdのTenをNineへ合わせる。現在cursorはCrowdWorksの本人入力・作者fallback・全callerのread-only比較である。
+
+- [ ] MAC03-CROWDWORKS-IDENTITY: 既存private本人profileとLancersの入力検証を比較し、空HOME/欠損・破損で作者ID・作者の実績・画像を本人として使わない。setup_requiredをprovider/planner前に返し、設定済みの別account fixtureでは本人の値だけをapplication/reply/paidへ渡す。既存の公開catalog・browser ownership・effect fenceを保持し、新しいidentity frameworkを作らない。source所有の正確なfiles/functionsは全caller確認後、実装前にこの節へ記録する。実credential/profile/browser/providerはsource検証で使用しない。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
