@@ -11,7 +11,7 @@ import importlib.util
 import json, os, re, shlex, signal, subprocess, sys, tempfile, time, uuid
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence, TextIO
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, urljoin, urlsplit
 _CDP_ENDPOINT_PATH = Path(__file__).resolve().parents[3] / "browser" / "cdp_endpoint.py"
 _CDP_ENDPOINT_SPEC = importlib.util.spec_from_file_location("anicca_crowdworks_cdp_endpoint", _CDP_ENDPOINT_PATH)
 if _CDP_ENDPOINT_SPEC is None or _CDP_ENDPOINT_SPEC.loader is None:
@@ -26,18 +26,18 @@ LOGIN_URL="https://crowdworks.jp/login"; DASHBOARD_URL="https://crowdworks.jp/da
 SIGNUP_STEP1_URL="https://crowdworks.jp/user/register/step/1"; SIGNUP_STEP2_URL="https://crowdworks.jp/user/register/step/2"; PROFILE_SSOT=Path("~/.config/anicca/job-search/profile.json").expanduser()
 KEYCHAIN_SERVICE="ai.anicca.crowdworks.login"; BROWSER_ROOT=Path("~/.cloakbrowser").expanduser(); BROWSER_BINARY=str(BROWSER_ROOT/"Chromium.app/Contents/MacOS/Chromium")
 CREDENTIALS_PATH=Path("~/.local/share/anicca/credentials.json").expanduser()
-ACCOUNT_RESULT_FIELDS=("ok","platform","authenticated","status","role","request_id","error")
+ACCOUNT_RESULT_FIELDS=("ok","platform","authenticated","status","role","request_id","error","account_id")
 ACCOUNT_INTERFACES={"run_status":"(*, ownership_checker, browser_factory) -> AccountResult","run_ensure":"(*, state_path: Path, allow_signup: bool, ownership_checker, browser_factory, vault_restorer, vault_dumper, credential_loader, notifier, now) -> AccountResult","answer_request":"(*, request_id: str, state_path: Path, input_stream, credential_writer) -> AccountResult","run_signup":"(*, state_path: Path, ownership_checker, browser_factory, mail_reader, profile_reader, password_generator, credential_writer, now) -> AccountResult"}
 _MAX=4096; _TERMINAL_TIMEOUT=10.0; _POLL_INTERVAL=.1; _RUNTIME:Any=None; _BROWSER:Any=None
 class _Error(RuntimeError):
     def __init__(self,code:str)->None: self.code=code if type(code)is str and re.fullmatch(r"[a-z][a-z0-9_]{1,63}",code) else "account_operation_failed"
 @dataclass(frozen=True)
 class AccountResult:
-    ok:bool; platform:str=PLATFORM; authenticated:bool=False; status:str="error"; role:Optional[str]=None; request_id:Optional[str]=None; error:Optional[str]=None
+    ok:bool; platform:str=PLATFORM; authenticated:bool=False; status:str="error"; role:Optional[str]=None; request_id:Optional[str]=None; error:Optional[str]=None; account_id:Optional[str]=None
     def __post_init__(self)->None: object.__setattr__(self,"platform",PLATFORM)
     def to_dict(self)->dict[str,object]:
         out={"ok":bool(self.ok),"platform":PLATFORM,"authenticated":bool(self.authenticated),"status":self.status}
-        for key in ("role","request_id","error"):
+        for key in ("role","request_id","error","account_id"):
             if (value:=getattr(self,key)) is not None: out[key]=value
         return out
 def _result(status:str,**kw:Any)->AccountResult: return AccountResult(status in {"authenticated","input_ready","signup_step1_complete","signup_complete"},status=status,**kw)
@@ -119,6 +119,30 @@ def _auth(page:Any,*,strict:bool=False)->tuple[bool,Optional[str]]:
     except Exception:
         if strict:raise
         return False,None
+def _account_id(page:Any)->Optional[str]:
+    """Read only the logged-in dashboard's own sidebar profile links."""
+    try:
+        source=urlsplit(getattr(page,"url",""))
+        if (source.scheme!="https" or source.port not in (None,443)
+                or source.username is not None or source.password is not None
+                or not _auth(page)[0]):
+            return None
+        links=page.locator(
+            ".sidebar section.profiles .profile_data_area a.user_avatar, "
+            ".sidebar section.profiles .profile_data_area a.profile_name")
+        identifiers=set()
+        for index in range(links.count()):
+            link=urlsplit(urljoin(page.url,links.nth(index).get_attribute("href") or ""))
+            match=re.fullmatch(r"/public/employees/([1-9][0-9]*)/?",link.path)
+            if (link.scheme!="https" or link.hostname not in {"crowdworks.jp","www.crowdworks.jp"}
+                    or link.port not in (None,443) or link.username is not None
+                    or link.password is not None or match is None):
+                return None
+            identifiers.add(match.group(1))
+        return next(iter(identifiers)) if len(identifiers)==1 else None
+    except Exception:
+        return None
+
 def _missing_account(page:Any)->bool:
     try:
         error=page.locator("#login_error")
@@ -474,7 +498,7 @@ def run_status(*,ownership_checker:Callable[[],bool],browser_factory:Callable[[s
     page=None
     try:
         if not bool(ownership_checker()):return _result("browser_ownership_conflict")
-        page=_page(browser_factory(CDP_URL));page.goto(DASHBOARD_URL);_wait(page);authenticated,role=_auth(page);return _result("authenticated" if authenticated else "logged_out",authenticated=authenticated,role=role)
+        page=_page(browser_factory(CDP_URL));page.goto(DASHBOARD_URL);_wait(page);authenticated,role=_auth(page);return _result("authenticated" if authenticated else "logged_out",authenticated=authenticated,role=role,account_id=_account_id(page) if authenticated else None)
     except _Error as error:return _result("error",error=error.code if re.fullmatch(r"[a-z][a-z0-9_]{1,63}",error.code) else "account_status_failed")
     except Exception:return _result("error",error="account_status_failed")
     finally:_close(page)
@@ -484,7 +508,7 @@ def run_ensure(*,state_path:Path,allow_signup:bool,ownership_checker:Callable[[]
         guard=_account_lock(path);guard.__enter__();acquired=True
         if not bool(ownership_checker()):return _result("browser_ownership_conflict")
         old=_state(path);_resolve(vault_restorer());page=_page(browser_factory(CDP_URL));page.goto(DASHBOARD_URL);_wait(page);authenticated,role=_auth(page)
-        if authenticated:_dump_checked(vault_dumper);return _result("authenticated",authenticated=True,role=role)
+        if authenticated:_dump_checked(vault_dumper);return _result("authenticated",authenticated=True,role=role,account_id=_account_id(page))
         item=email=password=None
         try:
             item=credential_loader();email=item.get("email") if isinstance(item,Mapping) else item[0] if isinstance(item,(tuple,list)) and len(item)==2 else getattr(item,"email",None);password=item.get("password") if isinstance(item,Mapping) else item[1] if isinstance(item,(tuple,list)) and len(item)==2 else getattr(item,"password",None)
@@ -496,7 +520,7 @@ def run_ensure(*,state_path:Path,allow_signup:bool,ownership_checker:Callable[[]
         try:
             if not _submit(page,LOGIN_URL,'input[name="username"]',email,password):raise _Error("account_terminal_timeout")
             authenticated,role=_auth(page)
-            if authenticated:_dump_checked(vault_dumper);return _result("authenticated",authenticated=True,role=role)
+            if authenticated:_dump_checked(vault_dumper);return _result("authenticated",authenticated=True,role=role,account_id=_account_id(page))
             text=page.inner_text("body")
             if _missing_account(page):
                 if not allow_signup:return _result("account_missing",error="account_missing")
