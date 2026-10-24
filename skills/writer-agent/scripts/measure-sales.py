@@ -552,7 +552,7 @@ def parse_substack_metrics(payload: dict) -> list[tuple[str, object, bool, str |
     out = []
     api_paid, api_revenue = _substack_api(payload)
 
-    m = re.search(r"有料登録者\s*\n\s*(-|[\d,]+)\s*\n\s*([\d,]+)から", home_body)
+    m = re.search(r"(?:有料登録者|有料購読者)\s*\n\s*(-|[\d,]+)\s*\n\s*([\d,]+)から", home_body)
     if api_paid is not None and _card_agrees(m.group(1) if m else None, api_paid):
         out.append(("paid_subscribers", api_paid, True, None, payload["home_url"]))
     elif not m:

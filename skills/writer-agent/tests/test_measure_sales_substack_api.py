@@ -99,3 +99,10 @@ def test_driver_reads_the_dashboard_json_inside_the_leased_page(monkeypatch):
                  "/api/v1/payouts?currency="):
         assert path in captured["script"]
     assert 'credentials: "same-origin"' in captured["script"]
+
+
+def test_renamed_paid_subscriber_card_is_still_measured():
+    # 2026-10-24 Substack renamed the home card 有料登録者 -> 有料購読者; every reading went unknown.
+    result = metrics(home="収益（年率換算）\n-\n$0から\n有料購読者\n-\n0から\n購読者数 合計\n1", api=ZERO_API)
+    assert result["paid_subscribers"] == (0, True, None)
+    assert result["mrr"] == (0.0, True, None)
