@@ -13,6 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent))
 import loop_pnl as m  # noqa: E402
 from skills.cfo.adapters import capafy_mobile  # noqa: E402
+from skills.cfo.test_capafy_mobile_attribution import synthetic_mobile_portfolio
 
 try:
     from skills.cfo import revenuecat_readback as readback  # noqa: E402
@@ -25,7 +26,7 @@ NOW = datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)
 NOW_TEXT = NOW.isoformat(timespec="microseconds").replace("+00:00", "Z")
 LIVE_FLAG = "LM_CFO_MOBILE_APPS_REVENUECAT_LIVE_READBACK"
 PRODUCTS = capafy_mobile.MOBILE_PRODUCT_BINDINGS
-APP_IDS = {name: binding["revenuecat_app_id"] for name, binding in PRODUCTS.items()}
+APP_IDS = {name: binding.get("revenuecat_app_id", "fixture-studio-app") for name, binding in PRODUCTS.items()}
 MRR_DEFINITION = {
     "metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly",
 }
@@ -83,6 +84,9 @@ def fake_revenuecat_get(*, fail_apps=()):
 
 
 class RevenueCatReadbackTest(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(synthetic_mobile_portfolio())
+
     def require_reader(self):
         self.assertIsNotNone(readback, "CFO live RevenueCat MRR reader is missing")
         return readback

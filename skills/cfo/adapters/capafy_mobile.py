@@ -15,44 +15,13 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from skills.cfo import economic_attribution as contract
+from skills._shared.mobile_products import PUBLIC_MOBILE_PRODUCT_BINDINGS
 
 
 CAPAFY_LOOP = "capafy"
 MOBILE_LOOP = "mobile-apps"
-MOBILE_PRODUCTS = (
-    "anicca-ios",
-    "honne-ai",
-    "breath-reset",
-    "sleep-ritual",
-    "desk-stretch-timer",
-    "micro-mood",
-)
-MOBILE_PRODUCT_BINDINGS = {
-    "anicca-ios": {
-        "asc_app_id": "6755129214",
-        "revenuecat_app_id": "app511ef26659",
-    },
-    "honne-ai": {
-        "asc_app_id": "6759667221",
-        "revenuecat_app_id": "app3bbd298d22",
-    },
-    "breath-reset": {
-        "asc_app_id": "6760253231",
-        "revenuecat_app_id": "app498e23effc",
-    },
-    "sleep-ritual": {
-        "asc_app_id": "6759916261",
-        "revenuecat_app_id": "app92143da86e",
-    },
-    "desk-stretch-timer": {
-        "asc_app_id": "6760048397",
-        "revenuecat_app_id": "appca8d955a75",
-    },
-    "micro-mood": {
-        "asc_app_id": "6759877003",
-        "revenuecat_app_id": "appdda58236fa",
-    },
-}
+MOBILE_PRODUCT_BINDINGS = PUBLIC_MOBILE_PRODUCT_BINDINGS
+MOBILE_PRODUCTS = tuple(MOBILE_PRODUCT_BINDINGS)
 COUNTED = ("provider_fee", "refund", "settled_external_revenue")
 MOBILE_COMPLETE_PERIOD_MAX_LAG = timedelta(days=1)
 MAX_B0_AMOUNT_INTEGER_DIGITS = 26
@@ -1251,7 +1220,8 @@ def adapt_mobile(
             evidence_sha = _sha256(rc.get("evidence_sha256"))
             if evidence_sha != _revenuecat_content_sha256(rc):
                 raise ValueError("content_hash_invalid")
-            if rc_data.get("app_id") != MOBILE_PRODUCT_BINDINGS[product]["revenuecat_app_id"]:
+            app_id = MOBILE_PRODUCT_BINDINGS[product].get("revenuecat_app_id")
+            if not app_id or rc_data.get("app_id") != app_id:
                 raise ValueError("product_identity_mismatch")
             currency = _currency(rc_data.get("currency"))
             if rc_data.get("revenue_definition") != {
