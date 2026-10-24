@@ -21,10 +21,22 @@ jobs:
         run: bash scripts/verify-agent-contract.sh "$GITHUB_WORKSPACE"
 
   loop-control:
-    name: Loop control contracts
-    runs-on: macos-15
+    name: Loop control contracts (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify macOS runner architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: test "$(uname -m)" = "$EXPECTED_ARCH"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'

@@ -148,7 +148,9 @@ class LocalProfileTest(unittest.TestCase):
         from runtime.loop.lm_loop_apply import _plist
         profile = self.prepare()
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        with patch.dict(os.environ, {"HOME": str(self.home)}, clear=False):
+        with patch.dict(os.environ, {"HOME": str(self.home)}, clear=False), \
+                patch("skills.earn.gig.scripts.gig_release.OVERRIDES",
+                      self.home / "missing-coconala-overrides.json"):
             for owner, row in registry["loops"].items():
                 with self.subTest(owner=owner):
                     env = plistlib.loads(_plist(owner, row, ROOT, "a" * 40))["EnvironmentVariables"]
@@ -178,7 +180,9 @@ class LocalProfileTest(unittest.TestCase):
     def test_individual_coconala_install_passes_venv_to_shell_owners(self):
         from runtime.loop.lm_loop_apply import _plist
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        with patch.dict(os.environ, {"HOME": str(self.home)}):
+        with patch.dict(os.environ, {"HOME": str(self.home)}), \
+                patch("skills.earn.gig.scripts.gig_release.OVERRIDES",
+                      self.home / "missing-coconala-overrides.json"):
             for owner in ("hf-gig-paid-direct", "hf-gig-reply-detector"):
                 row = plistlib.loads(_plist(owner, registry["loops"][owner], ROOT, "a" * 40,
                                            runtime_python=self.python))
