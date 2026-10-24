@@ -18,6 +18,7 @@ const {
 const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
 const { buildMarketingCtaCaptionRef } = require("../lib/marketing-app-store-cta.js");
 const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
+const { recordCreativeMetrics } = require("./record-creative-metrics.js");
 const { generateVideoHookText } = require("../lib/marketing-slide-pack-text.js");
 const { buildCapafyReelCaptionRef, capafyReelTextGenerator } = require("../lib/capafy-reel-content.js");
 const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
@@ -223,7 +224,11 @@ async function runHonneJaCycle(argv, deps = {}) {
         variantSeed: `${lane.name}:${slot}`,
       })))
       : null;
-  const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir), now: () => new Date(nowMs).toISOString(), ...(textGenerator ? { textGenerator } : {}) });
+  const nativeAccount = { platform: lane.platform, accountId: lane.account };
+  if (!deps.metricsProvider) {
+    await recordCreativeMetrics({ dataDir, tenantId, productId: lane.product, formatId: lane.format, locale: lane.locale, nativeAccount });
+  }
+  const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir, nativeAccount), now: () => new Date(nowMs).toISOString(), ...(textGenerator ? { textGenerator } : {}) });
   const artifact = await executeJob(store, generationJob, "honne-ja-cycle", (job) => generationAdapter.execute(job));
   const publicationCreativeId = `${artifact.creative_id}-${slot.replace(/[^A-Za-z0-9]/g, "")}`;
   // Capafy's CTA is a dynamic per-earner capafy.ai link (?ct=capafy-reel-<slug>),
