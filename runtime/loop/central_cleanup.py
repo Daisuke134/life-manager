@@ -1164,7 +1164,7 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
                                            "reclaimed_bytes": 0, "errors": 0}}
         with _source_reclaim_lock(current, lock_deadline), _release_cut_lock(current):
             # Lock contention must not consume the bounded reference-census window.
-            census_deadline = time.monotonic() + 15
+            census_deadline = time.monotonic() + 30
             protected, _references = _bundle_references(
                 releases, current, agents, bundles, census_deadline)
             if any(releases.iterdir()):
@@ -1177,7 +1177,7 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
             result["protected_release_count"] = len(protected)
             # Bundle GC repeats the full host-reference census after release GC;
             # give that independently bounded phase its own scan window.
-            bundle_deadline = time.monotonic() + 15
+            bundle_deadline = time.monotonic() + 30
             bundle_result = _gc_dependency_bundles(
                 releases, current, agents, bundles, bundle_deadline)
             result["dependency_bundles"] = bundle_result
