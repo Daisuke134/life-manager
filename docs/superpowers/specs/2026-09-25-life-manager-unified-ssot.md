@@ -8,7 +8,30 @@
 
 **完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
 
-**順序・現在cursor:** README-MAC-01–04/README-BUSINESSES、CrowdWorks公開導入3owner、Mercor公開setupのmain/public/immutable受入を保持する。現在cursorはMAC03-MERCOR-SETUPのREPLY-PROFILE-SHIP。実機で検出した既存最小profileと応募資料の依存混入を先に直し、既存本人条件/未確定effect/別Mac/残7公開導入/実業務/10,000starsを保持する。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/mercor-reply-profile-dependency-20261024`、base=`8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf`、owner=`codex-lancers-local-setup`。
+**順序・現在cursor:** ユーザーの明示指示により、仕様書更新と完了/残TODO一覧の提示後に停止する。再開cursor=REPLY-PROFILE-SHIP（PR8865は提出済み、main未統合）。README/7事業表示、既存受託サービスの公開導入、Mercor PR8863/main8e0e6f2eの受入を保持する。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/mercor-reply-profile-dependency-20261024`、owner=`codex-lancers-local-setup`。本停止中に実装・source統合・ブラウザ復旧・provider操作・fence解放を進めない。
+
+### Local Life Managerの完了・残TODO一覧
+
+状態: 仕様書更新後にユーザー指示で停止する。コード試験、導入入口の公開、実業務成功、別Macでの完走、starsを別々に扱う。
+
+| 項目 | 完了していること | 残っていること |
+|---|---|---|
+| README | 初見向けに短文化し、7事業とChatGPT Plus/常時起動Macの条件・導入導線をmainで公開する | 今回のREADME修正に残件なし |
+| Mac導入の土台 | Python/Homebrew/PATH/依存選択の主要修正、main由来immutable作成を受入する | 別Macで初回導入からの完走を実証する |
+| 受託3サービス | Coconala/Lancers/CrowdWorksの本人向け公開導入口を用意する | 各サービスの本人条件と実業務・公式結果を確認する |
+| Mercor公開導入 | PR8863/main8e0e6f2e、公開21file一致、complete immutable、公開commandの不足条件表示を受入する | 本人入力・専用ブラウザ・Paid本人接続・旧未確定履歴の公式照合を完了する |
+| Mercor返信の追加修正 | 既存最小profileで応募資料不足がReplyへ波及する不具合を実装修正し、関連200件PASS・独立read-only review指摘0（head9bed7909af）を確認する | PR8865のCI完了・main統合・新release反映・実機の再観測。現在は未統合 |
+| 残る公開導入7系統 | catalogで導入command未接続の対象を特定する | PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker |
+| 全業務の動作確認 | 一部のsource・導入・限定実機受入を保持する | 自然実行→公式の応募/返信/納品/売上等の結果→重複実行0を業務ごとに確認する |
+| 別のMac | このMac以外の完走証拠はまだない | 新規利用者のMacで導入→本人接続→実業務まで通す |
+| 10,000 stars | GitHub公式APIの現在値は8 stars / 2 forks | 実利用・配布を増やし、導入数・業務成果・starsを個別に計測する |
+
+再開順: ①Mercor返信修正の統合/反映 → ②Mercorのブラウザ/本人条件と既存受託業務の残件 → ③残7系統の公開導入（独立する作業は並行） → ④別Macの完走 → ⑤実利用と配布の拡大。既存の依存順を可視化したもので、進行中の外部effectを中断・重複させない。
+
+Mercorの具体的な残件: 専用browserは既存labelで起動中だがguardの接続口は応答せず、loaded argvは現在存在しない旧releaseのscriptを指す。本人Gmailの認可は既存設定で一致確認済みで、応募profileのmaterials/現在の履歴書参照には不足・競合が残る。Paidは本人binding未接続に加え、現adapterはwait/human_submission_requiredで自動納品を実装していない。Replyの複数execute claimとPaidの別SHA旧snapshotに対する保持は実metadataと整合するため、公式証拠無しに解除しない。これらの復旧・追加実装は本停止時点で未実施。
+
+根拠と詳細: README/導入条件→README.md、公開導入の残7→apps/life-manager/config/product-loop-catalog.jsonのhosts.local.command、Mercorのsource/runtime/証拠→本書MAC03-MERCOR-SETUPとMERCOR-REPLY-PROFILE。PR8865のhead9bed7909afに対するSecurity Scan40079659562は観測時点で12/13実行job成功・共通Loop control実行中、CodeRabbitはmanual skipの別statusである。本更新後の新headのCI完了は待たず、ユーザー指示で停止する。source200件は実業務や別Macの成功件数ではない。
+
 
 **README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。PIONの正確なURLはまだ特定できず、GitHub検索とDuckDuckGo HTML取得では一次本文を得られないため参考URLを任意確認中。README編集はこの確認を進行条件にしない。
 
@@ -754,6 +777,8 @@ MERCOR-SHIPの実受入: 最終head598873bbのfresh R3は指摘0で、独立合�
 - [ ] REPLY-PROFILE-SHIP: commit/push、fresh read-only review、必要CI、admin merge、公開readback、main immutableから本人不足条件を再観測する。実業務/別Mac/残7/10,000starsは別に保持する。
 
 REPLY-PROFILEのsource受入: plan/installの合成2件でcandidate_profile誤保留をRED確認する。応募materials/resumes/engineeringの形が無い場合はコピー復元を試みず元のapplication_missingを返す、同prepare内の4行追加/2行移動で修正する。直接関連suiteは200件PASS/8.43s、loop-contract18catalog/192registry/113mapped/errors0、diff checkもPASSする。plan無書込/subprocess0、ready Replyだけ適用、既存profile/receipt/manifest/resume-state/fence bytes不変と、元PDF消失後のコピー再利用/未知競合拒否を維持する。primaryが2pathを実装し、source/push後の独立したread-only検証を行う。未統合sourceを実profile/browserへ接続しない。
+
+REPLY-PROFILEの停止点: source head9bed7909af2f2e07fe63e19cc68d1ebcad42de11はpush/remote一致済み、独立したephemeral/read-only Codex reviewは指摘0件である（private goal-resume/mercor-reply-profile-review-6e80ed897e7e41bd82cd280eb795f3e6/receipt.json）。PR8865を提出し、main統合と実機反映は未実施。ユーザーが仕様書/一覧の更新後停止を明示するため、本更新で作業を止める。sourceや本番の完了へ繰り上げない。
 
 #### Lancers本人入力の実装計画
 
