@@ -24602,3 +24602,22 @@ FactoryはLM PR8721/main eb78a805c4f79cd807852c27f52f9e4207a1ba61、products PR6
 Factoryの完成形は、利用者がWeb上で自分のTikTokを接続すると、avatar・台本・動画制作から投稿までサービスが自動実行するSaaS。公開draft workspace/local planの受入は初期段階であり、この完成形や利用者の無人収益化の達成を意味しない。追加のFactory実装は現在の優先範囲に含めない。
 
 現在cursorと商品契約の正本 → products docs/superpowers/specs/2026-10-21-ai-monk-avatar-field-guide.md と docs/superpowers/plans/2026-10-24-ai-monk-research-distribution.md。Database73公開profile/139出典、CLI v0.4.4の公開URL導入/実stdio6tools、無料Codex pluginの公開導入/native routingを受入する。Registryはproducts PR615/main d5ba46143e81e506caab40f66c5da774c9efffbdからworkflow39988330815を1回実行し、公式GETでio.github.Daisuke134/ai-monk-index v0.4.4/active/既存remote URLを照合する。新X告知 https://x.com/selawmqt/status/2113673062554247580 はnative応答の本人ID/本文/expanded目的URL・UTMと独立した公開permalink本文を照合し送信1/再送0。Museの正式提出口はhttps://platform.muse.aiでメールOTP待ち、ChatGPTの最後の認証観測はOpenAI MFA passkey。両者の提出/掲載は未達を保持する。Grokへの配布協力依頼の本repo契約 → docs/superpowers/plans/2026-10-24-ai-monk-grok-distribution.md。Factoryは最小設定・サービス側API・IG先行接続/自動投稿/metrics・Stripe3日trialとし、価格/上限は実原価から決める。日次運用はGrok所有のまま、実生成/自動投稿/paid納品/売上/USD10K MRR/他者無人収益は未達として追跡する。
+
+## Coconala proposal funnel EDD baseline — 2026-10-24 22:4x JST (claude-3)
+
+Measured from `~/gig/applied-outcomes.jsonl` (latest status per request) joined to `~/gig/applied.jsonl`:
+
+| outcome | requests |
+|---|---|
+| applied (with outcome) | 548 |
+| we_won | 6 (1.1% of all, 4.5% of decided 134) |
+| someone_contracted | 128 |
+| closed_unfilled | 393 |
+| expired | 21 |
+
+- Median proposed price: won ¥5,000 vs lost-to-competitor ¥10,000 (n=6 vs 128; not yet significant).
+- `portfolio_attached` is false on every application (0/548).
+- Application gaps: 0 applications on 10/17 and 10/20–10/22 (outage); 22–38/day otherwise.
+- Last settled sale 2026/10/12 (earnings ledger 31 rows = official ¥263,634).
+
+Next experiments (one variable at a time, judged on we_won / decided): (1) attach the existing portfolio to every proposal; (2) price at the won band (¥5,000 median) for categories where we lost on price. Copy the top sellers of each category before changing copy.
