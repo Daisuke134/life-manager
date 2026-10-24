@@ -45,12 +45,18 @@ OUTSIDE_SHARE_FLOOR = 0.20  # below this our own distribution is too small to le
 def channels(reconcile: dict) -> dict:
     """7d views/trials/paid split into the marketplace's own surfaces (internal) and everything we drive."""
     split = {"internal": {"views": 0, "trials": 0, "paid": 0}, "outside": {"views": 0, "trials": 0, "paid": 0}}
-    for agent in reconcile["traffic_sources"].get("by_agent", {}).values():
-        for row in (agent.get("last_7d") or {}).get("by_source", []):
-            bucket = split["internal" if row["source_type"] == "internal" else "outside"]
-            bucket["views"] += row["views"]
-            bucket["trials"] += row["trial_orders"]
-            bucket["paid"] += row["paid_orders"]
+    ts = reconcile["traffic_sources"]
+    # The account-level split is complete. by_agent covers only the ~60 of 79 agents queried this hour
+    # (utc_hour_round_robin), so summing it swings with the omitted set (internal read 294 vs ~1,239).
+    rows = (ts.get("last_7d") or {}).get("by_source")
+    if not rows:
+        rows = [row for agent in ts.get("by_agent", {}).values()
+                for row in (agent.get("last_7d") or {}).get("by_source", [])]
+    for row in rows:
+        bucket = split["internal" if row["source_type"] == "internal" else "outside"]
+        bucket["views"] += row["views"]
+        bucket["trials"] += row["trial_orders"]
+        bucket["paid"] += row["paid_orders"]
     total = split["internal"]["views"] + split["outside"]["views"]
     split["outside_view_share"] = _rate(split["outside"]["views"], total)
     return split

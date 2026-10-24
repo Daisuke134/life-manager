@@ -73,3 +73,17 @@ def test_lever_targets_the_channel_that_converts_least_per_view() -> None:
     healthy_outside = {"internal": {"views": 500, "trials": 0, "paid": 0}, "outside": {"views": 500, "trials": 2, "paid": 1},
                        "outside_view_share": 0.5}
     assert M.lever(healthy_outside) == "internal_conversion"
+
+
+def test_channels_use_the_account_level_split_not_the_rotating_agent_subset() -> None:
+    # reconcile queries only ~60 of 79 agents per hour (utc_hour_round_robin), so a by_agent sum
+    # swings with whichever agents were omitted (2026-10-24: internal read 294 vs the true ~1,239).
+    r = reconcile(10000, 1000, 10, 2, by_agent={"a": _agent([("internal", "search", 5, 0, 0)])})
+    r["traffic_sources"]["last_7d"]["by_source"] = [
+        {"source_type": "internal", "source_name": "search", "views": 700, "trial_orders": 1, "paid_orders": 0},
+        {"source_type": "internal", "source_name": "ai_overview", "views": 100, "trial_orders": 0, "paid_orders": 0},
+        {"source_type": "direct", "source_name": "direct", "views": 200, "trial_orders": 0, "paid_orders": 1},
+    ]
+    c = M.channels(r)
+    assert c["internal"] == {"views": 800, "trials": 1, "paid": 0}
+    assert c["outside"] == {"views": 200, "trials": 0, "paid": 1}
