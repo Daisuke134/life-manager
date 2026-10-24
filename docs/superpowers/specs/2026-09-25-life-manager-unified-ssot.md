@@ -609,6 +609,8 @@ CI呼出元の追加所有: .github/workflows/sec-scan.ymlの既存loop-control 
 
 IDENTITY-PROFILEのGREEN: 新private identity testsは初回28 FAIL、loader修正後に新28件と既存avatar15件の43 PASSをprimary確認する。追加dashboard/本人URL/画像不足/整合済みの5件をprimaryもREDで確認後、observe/applyの固定公開IDを除き、既存account._account_idによる本人照合を最初に行う。新33件＋既存profile15件＋account15件の計63 PASS（0.20s）。未設定時の既存receipt bytes不変/新receipt作成0、private入力自動作成0、誤session時profile読取・submit0をfixtureで確認する。application/reply/paidの全caller接続、実本人入力/自然業務/公開setupは未完であり、本番操作は0。
 
+関連回帰の実測: CrowdWorksのskills/apps両test directoryは402 PASS/4 FAIL（17.16s）。既知4件はtest_the_judge_still_runs_after_pricing、test_hourly_jobs_do_not_masquerade_as_a_broken_fixed_price_form、test_every_group_the_board_publishes_is_walked、test_consecutive_wakes_walk_different_groupsで、旧source文字列/時刻cursorの前提が残る。application_owner.pyと該当3test fileはbase f20e9ba4とbyte一致を確認し、新規失敗とは扱わない。全suiteをGREENとは報告しない。今回の3files63 PASS、AST/source-boundary/diffとloop contract（18 products/192 jobs/113 mapped/errors0）はPASSで、fresh reviewと公開CI/mainは未完。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
