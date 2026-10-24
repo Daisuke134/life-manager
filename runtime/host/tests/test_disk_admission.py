@@ -705,19 +705,19 @@ def test_producer_floor_can_be_calibrated_for_isolated_hosts(monkeypatch):
     assert guard.main(["/bin/true"]) == 0
 
 
-def test_revenue_lanes_keep_running_at_8_gib_but_stop_below_7_gib(tmp_path, monkeypatch):
-    # 2026-10-24: the host sat at 7.8-10.2 GiB for hours; a 10 GiB revenue floor stopped every revenue
-    # lane for 16+ hours. 7 GiB still leaves 5 GiB above the 2 GiB recovery floor, and the swap-growth
-    # gate stops runaway swap separately.
+def test_revenue_lanes_keep_running_at_5_gib_but_stop_below_4_gib(tmp_path, monkeypatch):
+    # 2026-10-24/25: free space swung 5.0-7.2 GiB all night, so 10 and then 7 GiB revenue floors kept
+    # stopping revenue lanes at the threshold. 4 GiB still leaves 2 GiB above the 2 GiB recovery floor,
+    # and the swap-growth gate stops runaway swap separately.
     guard = load_guard()
     registry = tmp_path / "config" / "loop-registry.json"
     registry.parent.mkdir()
     registry.write_text(json.dumps({"loops": {
         "earner": {"admission_class": "revenue"}, "batch": {"admission_class": "borrow"}}}))
     monkeypatch.setenv("LIFE_MANAGER_REPO", str(tmp_path))
-    assert guard.REVENUE_FLOOR_BYTES == 7 * 1024**3
-    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 8 * 1024**3)
+    assert guard.REVENUE_FLOOR_BYTES == 4 * 1024**3
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 5 * 1024**3)
     assert guard._producer_gate("earner") is None
     assert guard._producer_gate("batch")[0] == "disk_floor_low"  # non-revenue still needs the 12 GiB floor
-    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 7 * 1024**3 - 1)
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 4 * 1024**3 - 1)
     assert guard._producer_gate("earner")[0] == "disk_floor_low"
