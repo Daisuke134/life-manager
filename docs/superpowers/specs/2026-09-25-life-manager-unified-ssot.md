@@ -548,6 +548,8 @@ GREENの受入: sourceは既存generatorへの6行追加だけ。関連host prof
 
 全runtime検証のharness訂正: 初回unittest discoverは1055件/251.153sで5失敗となる。test_loop_cleanupのbusiness wake、release-root/terminal success/terminal fail、scratch保存の5条件は既存pytest conftestのswap隔離がunittest起動では適用されず、実hostのswap高値を読んでexit75になる。通常pytest経路で同5件を再実行し5 PASS（1.70s）を確認する。本番thresholdやsourceを変えず、同じ既存隔離条件を明示した全runtime検証を続ける。
 
+全runtimeの再受入: 既存conftestと同じin-process swap probe=0と子process用max_swap=1000をfixture環境だけに明示し、同じunittest discover全1055件が259.119s/exit0/OKとなる。temp HOMEと正当なunrelated LaunchAgents plistへ隔離し、本番env・threshold・stateは変更しない。source/test hashはfresh review済みのbd1034f8/23464407を保持し、GREENの406842cc33ba1785ed2cf019986ca3f9a20896d1はremote commitとして公式API確認済み。次はexact-head公開CIとmain統合である。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
