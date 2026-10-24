@@ -8,7 +8,7 @@
 
 **完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
 
-**順序・現在cursor:** README-MAC-01–04/README-BUSINESSES、CrowdWorks公開導入3owner、Mercor公開setupのmain/public/immutable受入を保持する。現在cursorはMAC03-MERCOR-SETUPのREPLY-PROFILE-RED。実機で検出した既存最小profileと応募資料の依存混入を先に直し、既存本人条件/未確定effect/別Mac/残7公開導入/実業務/10,000starsを保持する。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/mercor-reply-profile-dependency-20261024`、base=`8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf`、owner=`codex-lancers-local-setup`。
+**順序・現在cursor:** README-MAC-01–04/README-BUSINESSES、CrowdWorks公開導入3owner、Mercor公開setupのmain/public/immutable受入を保持する。現在cursorはMAC03-MERCOR-SETUPのREPLY-PROFILE-SHIP。実機で検出した既存最小profileと応募資料の依存混入を先に直し、既存本人条件/未確定effect/別Mac/残7公開導入/実業務/10,000starsを保持する。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`fix/mercor-reply-profile-dependency-20261024`、base=`8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf`、owner=`codex-lancers-local-setup`。
 
 **README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。PIONの正確なURLはまだ特定できず、GitHub検索とDuckDuckGo HTML取得では一次本文を得られないため参考URLを任意確認中。README編集はこの確認を進行条件にしない。
 
@@ -747,11 +747,13 @@ MERCOR-SHIPの実受入: 最終head598873bbのfresh R3は指摘0で、独立合�
 
 目的・範囲・完了条件: 本人名/email/factsが妥当な既存最小profileに応募materialsが無い場合、保存済み旧install receipt/manifestを応募資料の復元に使えないことを理由にReplyまでcandidate_profile不足にしない。Applicationの資料不足と既存resume競合を保持し、Replyの本人session/Gmail/Telegram/Codex条件は維持する。旧materialsの採用・変換・上書き、profile内容の補完、未知auth/material競合の検証緩和、fence/state/provider変更、新helper/依存は範囲外。所有sourceはskills/earn/mercor/scripts/install_local.pyと直接testのみ、primaryは本SSOT/BOARD/Git/受入を所有する。branch=fix/mercor-reply-profile-dependency-20261024、base=8e0e6f2e、同worktree/leaseを継続する。
 
-原因と順序: 実profileはregular0600で本人の最小検証を通るがmaterialsが無く、prepare内が旧receipt/異なるresume manifestの再利用へ進んでcandidate全体を不足扱いする。Replyはresume不要という既存契約の依存混入である。旧順=Mercor SHIP→残7公開導入、新順=SHIPを受入→この既存利用者のReply依存修復→残7/本人導入/実業務/別Mac。理由は実測した公開導入の誤保留を先に閉じ、応募の入力不足で独立する返信を止めないため。現在cursor=REPLY-PROFILE-RED。既存Reply/Paidのresource_effect_unknownは別境界で、Replyの複数execute claimとPaidの別SHA旧snapshotが実metadataと整合する。公式readback無しにguardを緩めたり再送したりしない。
+原因と順序: 実profileはregular0600で本人の最小検証を通るがmaterialsが無く、prepare内が旧receipt/異なるresume manifestの再利用へ進んでcandidate全体を不足扱いする。Replyはresume不要という既存契約の依存混入である。旧順=Mercor SHIP→残7公開導入、新順=SHIPを受入→この既存利用者のReply依存修復→残7/本人導入/実業務/別Mac。理由は実測した公開導入の誤保留を先に閉じ、応募の入力不足で独立する返信を止めないため。現在cursor=REPLY-PROFILE-SHIP。既存Reply/Paidのresource_effect_unknownは別境界で、Replyの複数execute claimとPaidの別SHA旧snapshotが実metadataと整合する。公式readback無しにguardを緩めたり再送したりしない。
 
-- [ ] REPLY-PROFILE-RED: 合成の既存最小profile＋旧receipt/manifest/resume-stateで再現し、plan無変更とApplication保留/Reply本人検証の分離に必要な最小fixtureを先に失敗確認する。
-- [ ] REPLY-PROFILE-GREEN: 同installerの最小変更で既存資料/fenceのbyte保持、ready Replyだけ適用、既存コピー再利用/未知競合/本人隔離の関連suiteをPASSする。
+- [x] REPLY-PROFILE-RED: 合成の既存最小profile＋旧receipt/manifest/resume-stateで再現し、plan無変更とApplication保留/Reply本人検証の分離に必要な最小fixtureを先に失敗確認する。
+- [x] REPLY-PROFILE-GREEN: 同installerの最小変更で既存資料/fenceのbyte保持、ready Replyだけ適用、既存コピー再利用/未知競合/本人隔離の関連suiteをPASSする。
 - [ ] REPLY-PROFILE-SHIP: commit/push、fresh read-only review、必要CI、admin merge、公開readback、main immutableから本人不足条件を再観測する。実業務/別Mac/残7/10,000starsは別に保持する。
+
+REPLY-PROFILEのsource受入: plan/installの合成2件でcandidate_profile誤保留をRED確認する。応募materials/resumes/engineeringの形が無い場合はコピー復元を試みず元のapplication_missingを返す、同prepare内の4行追加/2行移動で修正する。直接関連suiteは200件PASS/8.43s、loop-contract18catalog/192registry/113mapped/errors0、diff checkもPASSする。plan無書込/subprocess0、ready Replyだけ適用、既存profile/receipt/manifest/resume-state/fence bytes不変と、元PDF消失後のコピー再利用/未知競合拒否を維持する。primaryが2pathを実装し、source/push後の独立したread-only検証を行う。未統合sourceを実profile/browserへ接続しない。
 
 #### Lancers本人入力の実装計画
 
