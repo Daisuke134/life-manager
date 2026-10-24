@@ -509,6 +509,93 @@ def _parse_updated_at(value: Any) -> dt.datetime | None:
     return parsed
 
 
+TERMINAL_LEDGER = Path(
+    "~/.local/state/life-manager/state/capafy-daily-terminals.jsonl"
+).expanduser()
+RUN_WINDOW_START_SKEW_SECONDS = 15
+
+
+def read_occurrence_bound_run_window(
+    occurrence_id: str, snapshot: dict[str, Any] | None, *,
+    ledger_path: Path = TERMINAL_LEDGER,
+) -> tuple[dt.datetime, dt.datetime] | None:
+    """Return this run's own [start, terminal] window, or None unless it is unambiguous.
+
+    The pre-dispatch snapshot is keyed by occurrence and captured when the wrapper starts; the
+    wrapper writes its own execution id (UTC start + pid) and terminal record to the ledger.
+    Exactly one execution starting within a few seconds of the snapshot, with a terminal record,
+    binds the window to this occurrence.
+    """
+    if snapshot is None or not snapshot.get("ok"):
+        return None
+    start = _parse_updated_at(snapshot.get("captured_at"))
+    if start is None:
+        return None
+    try:
+        lines = ledger_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    terminals: dict[str, dt.datetime] = {}
+    starts: dict[str, dt.datetime] = {}
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        execution = row.get("execution_id")
+        if not isinstance(execution, str) or "-" not in execution:
+            continue
+        try:
+            started = dt.datetime.strptime(
+                execution.split("-", 1)[0], "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.timezone.utc)
+        except ValueError:
+            continue
+        if abs((started - start).total_seconds()) > RUN_WINDOW_START_SKEW_SECONDS:
+            continue
+        starts[execution] = started
+        if row.get("phase") == "terminal":
+            observed = _parse_updated_at(row.get("observed_at"))
+            if observed is not None:
+                terminals[execution] = observed
+    if len(starts) != 1:
+        return None
+    execution = next(iter(starts))
+    end = terminals.get(execution)
+    if end is None or end < start:
+        return None
+    return start, end
+
+
+def find_in_place_update(
+    agents: list[dict[str, Any]], snapshot: dict[str, Any], queued_at: dt.datetime,
+    window: tuple[dt.datetime, dt.datetime],
+) -> dict[str, Any] | None:
+    """The single same-version Agent updated since queued_at, if it falls inside the run window."""
+    run_start, run_end = window
+    prior_versions = snapshot.get("latest_versions") or {}
+    updated = []
+    for agent in agents:
+        agent_id = str(agent.get("agent_id") or "")
+        if not agent_id:
+            continue
+        moment = _parse_updated_at(agent.get("updated_at"))
+        if moment is None or moment < queued_at:
+            continue
+        updated.append((agent_id, agent, moment))
+    if len(updated) != 1:
+        return None
+    agent_id, agent, moment = updated[0]
+    current = str(agent.get("latest_agent_version_id") or "")
+    if (prior_versions.get(agent_id) != current or not current
+            or not run_start <= moment <= run_end):
+        return None
+    return {"agent_id": agent_id, "agent_version_id": current,
+            "updated_at": moment.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "run_start": run_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "run_end": run_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "receipt_kind": "agent_pass_in_place_update"}
+
+
 def find_hit(agents: list[dict[str, Any]], snapshot: dict[str, Any] | None,
              queued_at: dt.datetime, window_end: dt.datetime) -> dict[str, Any] | None:
     """Return a proven effect; raise when the listing cannot prove no-effect."""
@@ -1023,6 +1110,7 @@ def reconcile(
     evidence_dir: Path = EVIDENCE_DIR,
     now: dt.datetime | None = None,
     run_finished_fn: Callable[[str, dt.datetime], bool] | None = None,
+    run_window_fn: Callable[[str, dict[str, Any] | None], tuple[dt.datetime, dt.datetime] | None] | None = None,
     resolve: bool = False,
 ) -> dict[str, Any]:
     now = now or dt.datetime.now(dt.timezone.utc)
@@ -1150,6 +1238,29 @@ def reconcile(
                             "error_class": "ambiguous_provider_readback",
                             "admission_state": state,
                         }
+        if (bound_receipt is None and same_version_update is None
+                and str(exc) == "same_version_updated_after_queued_at"
+                and snapshot is not None and snapshot.get("ok")):
+            window = (run_window_fn or read_occurrence_bound_run_window)(occurrence_id, snapshot)
+            candidate = (find_in_place_update(agents, snapshot, queued_at, window)
+                         if window is not None else None)
+            if candidate is not None:
+                remote = read_remote_status_fn(candidate["agent_id"])
+                if (remote.get("ok") is True
+                        and str(remote.get("agent_version_id")) == candidate["agent_version_id"]
+                        and type(remote.get("platform_status")) is int
+                        and remote.get("platform_status") >= 0):
+                    hit = next(row for row in agents
+                               if str(row.get("agent_id")) == candidate["agent_id"])
+                    same_version_remote_status = remote
+                    same_version_update = candidate
+                else:
+                    return {
+                        "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                        "verified": False, "reason": "agent_pass_remote_status_mismatch",
+                        "error_class": "ambiguous_provider_readback",
+                        "admission_state": state,
+                    }
         if bound_receipt is None and same_version_update is None:
             return {
                 "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
@@ -1218,6 +1329,25 @@ def reconcile(
                 "verdict": "deterministic_retry_finish_confirmed",
             }
             evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
+        elif (same_version_update is not None
+              and same_version_update.get("receipt_kind") == "agent_pass_in_place_update"):
+            evidence = {
+                "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                "checked_at": now.isoformat(timespec="seconds"),
+                "source": "wrapper terminal ledger run window plus official publish-list and publish-remote-status",
+                "queued_at": queued_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "run_start": same_version_update["run_start"],
+                "run_end": same_version_update["run_end"],
+                "agent_id": agent_id, "agent_version_id": str(version_id),
+                "updated_at": same_version_update["updated_at"],
+                "platform_status": platform_status,
+                "audit_status": remote_status.get("audit_status"),
+                "is_confirmed_skills": remote_status.get("is_confirmed_skills"),
+                "is_confirmed_config_keys": remote_status.get("is_confirmed_config_keys"),
+                "publish_list_sha256": publish_list.get("sha256"),
+                "verdict": "agent_pass_in_place_update",
+            }
+            evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
         elif same_version_update is not None:
             evidence = {
                 "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
@@ -1257,6 +1387,9 @@ def reconcile(
                            "occurrence_bound_capafy_deterministic_retry_finish"
                            if (same_version_update is not None
                                and same_version_update.get("receipt_kind") == "deterministic_retry_finish") else
+                           "occurrence_bound_capafy_agent_pass_in_place_update"
+                           if (same_version_update is not None
+                               and same_version_update.get("receipt_kind") == "agent_pass_in_place_update") else
                            "occurrence_bound_capafy_partial_package_upload"
                            if same_version_update is not None else
                            "official_capafy_publish_list_and_remote_status"),
@@ -1277,6 +1410,13 @@ def reconcile(
                 "receipt_line_sha256": same_version_update["receipt_line_sha256"],
                 "agent_id": agent_id, "agent_version_id": version_id,
                 "platform_status": platform_status, "evidence_ref": evidence_ref,
+            })
+        elif (same_version_update is not None
+              and same_version_update.get("receipt_kind") == "agent_pass_in_place_update"):
+            proof.update({
+                "official_readback_ref": receipt, "agent_id": agent_id,
+                "agent_version_id": version_id, "platform_status": platform_status,
+                "updated_at": same_version_update["updated_at"], "evidence_ref": evidence_ref,
             })
         elif same_version_update is not None:
             proof.update({

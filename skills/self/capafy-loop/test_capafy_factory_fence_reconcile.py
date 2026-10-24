@@ -1274,3 +1274,146 @@ def test_remote_status_preserves_confirmation_and_upload_fields(tmp_path):
         "is_confirmed_config_keys": True, "package_uploaded": True,
         "agent_type": "run_online",
     }
+
+
+# --- in-place update by the loop's own agent pass (resume of an existing draft) ---------------
+
+RUN_START = QUEUED_AT + dt.timedelta(minutes=6)
+RUN_END = RUN_START + dt.timedelta(minutes=9)
+
+
+def _ms(moment):
+    return int(moment.timestamp() * 1000)
+
+
+def _agent_pass_case(updates, *, remote=None, window=(RUN_START, RUN_END)):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "captured_at": RUN_START.isoformat(), "agent_count": 3,
+        "latest_versions": {"111": "v1", "222": "v2", "333": "v3"},
+    }
+    agents = [
+        {"agent_id": "111", "latest_agent_version_id": "v1",
+         "updated_at": _ms(QUEUED_AT - dt.timedelta(days=2))},
+        {"agent_id": "222", "latest_agent_version_id": "v2",
+         "updated_at": _ms(QUEUED_AT - dt.timedelta(days=3))},
+        {"agent_id": "333", "latest_agent_version_id": "v3",
+         "updated_at": _ms(QUEUED_AT - dt.timedelta(days=4))},
+    ]
+    for agent_id, moment in updates.items():
+        next(row for row in agents if row["agent_id"] == agent_id)["updated_at"] = _ms(moment)
+    closed = []
+    result_kwargs = dict(
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(agents),
+        read_remote_status_fn=lambda agent_id: remote if remote is not None else {
+            "ok": True, "agent_version_id": {"111": "v1", "222": "v2", "333": "v3"}[agent_id],
+            "platform_status": 0, "agent_type": "run_online"},
+        resolve_unknown_fn=lambda owner, occurrence, **kwargs: closed.append((owner, occurrence)) or True,
+        run_window_fn=lambda occurrence, snap: window,
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+    return result_kwargs, closed
+
+
+def test_agent_pass_in_place_update_inside_run_window_closes_with_receipt(tmp_path):
+    kwargs, closed = _agent_pass_case({"222": RUN_START + dt.timedelta(minutes=8, seconds=30)})
+
+    result = reconciler.reconcile(OCCURRENCE, evidence_dir=tmp_path / "evidence", **kwargs)
+
+    assert result["verified"] is True and result["effected"] is True
+    assert result["proof_kind"] == "occurrence_bound_capafy_agent_pass_in_place_update"
+    assert result["provider_receipt_id"].startswith("capafy:agent/222/version/v2:platform_status=0")
+    assert result["closed"] is True and closed == [(OWNER, OCCURRENCE)]
+
+
+def test_agent_pass_update_after_run_end_stays_inconclusive(tmp_path):
+    kwargs, closed = _agent_pass_case({"222": RUN_END + dt.timedelta(minutes=7)})
+
+    result = reconciler.reconcile(OCCURRENCE, evidence_dir=tmp_path / "evidence", **kwargs)
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_after_queued_at"
+    assert closed == []
+
+
+def test_agent_pass_two_updated_agents_stays_inconclusive(tmp_path):
+    inside = RUN_START + dt.timedelta(minutes=3)
+    kwargs, closed = _agent_pass_case({"222": inside, "333": inside + dt.timedelta(minutes=1)})
+
+    result = reconciler.reconcile(OCCURRENCE, evidence_dir=tmp_path / "evidence", **kwargs)
+
+    assert result["verified"] is False
+    assert closed == []
+
+
+def test_agent_pass_without_run_window_stays_inconclusive(tmp_path):
+    kwargs, closed = _agent_pass_case({"222": RUN_START + dt.timedelta(minutes=3)}, window=None)
+
+    result = reconciler.reconcile(OCCURRENCE, evidence_dir=tmp_path / "evidence", **kwargs)
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_after_queued_at"
+    assert closed == []
+
+
+def test_agent_pass_remote_version_mismatch_stays_fenced(tmp_path):
+    kwargs, closed = _agent_pass_case(
+        {"222": RUN_START + dt.timedelta(minutes=3)},
+        remote={"ok": True, "agent_version_id": "other", "platform_status": 0, "agent_type": "run_online"},
+    )
+
+    result = reconciler.reconcile(OCCURRENCE, evidence_dir=tmp_path / "evidence", **kwargs)
+
+    assert result["verified"] is False
+    assert result["reason"] == "agent_pass_remote_status_mismatch"
+    assert closed == []
+
+
+def _terminal_ledger(tmp_path, rows):
+    path = tmp_path / "terminals.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    return path
+
+
+def test_run_window_comes_from_the_wrappers_own_terminal_ledger(tmp_path):
+    execution = RUN_START.strftime("%Y%m%dT%H%M%SZ") + "-53565"
+    ledger = _terminal_ledger(tmp_path, [
+        {"execution_id": execution, "phase": "started",
+         "observed_at": (RUN_START + dt.timedelta(seconds=5)).strftime("%Y-%m-%dT%H:%M:%SZ")},
+        {"execution_id": execution, "phase": "terminal",
+         "observed_at": RUN_END.strftime("%Y-%m-%dT%H:%M:%SZ"), "rc": 1},
+    ])
+    snapshot = {"ok": True, "captured_at": (RUN_START + dt.timedelta(seconds=1)).isoformat()}
+
+    window = reconciler.read_occurrence_bound_run_window(OCCURRENCE, snapshot, ledger_path=ledger)
+
+    assert window == (RUN_START + dt.timedelta(seconds=1), RUN_END)
+
+
+def test_run_window_is_none_without_a_terminal_record(tmp_path):
+    execution = RUN_START.strftime("%Y%m%dT%H%M%SZ") + "-53565"
+    ledger = _terminal_ledger(tmp_path, [
+        {"execution_id": execution, "phase": "started",
+         "observed_at": RUN_START.strftime("%Y-%m-%dT%H:%M:%SZ")},
+    ])
+    snapshot = {"ok": True, "captured_at": RUN_START.isoformat()}
+
+    assert reconciler.read_occurrence_bound_run_window(OCCURRENCE, snapshot, ledger_path=ledger) is None
+
+
+def test_run_window_is_none_when_two_executions_start_together(tmp_path):
+    rows = []
+    for pid in ("111", "222"):
+        execution = RUN_START.strftime("%Y%m%dT%H%M%SZ") + "-" + pid
+        rows += [{"execution_id": execution, "phase": "started",
+                  "observed_at": RUN_START.strftime("%Y-%m-%dT%H:%M:%SZ")},
+                 {"execution_id": execution, "phase": "terminal",
+                  "observed_at": RUN_END.strftime("%Y-%m-%dT%H:%M:%SZ"), "rc": 0}]
+    ledger = _terminal_ledger(tmp_path, rows)
+    snapshot = {"ok": True, "captured_at": RUN_START.isoformat()}
+
+    assert reconciler.read_occurrence_bound_run_window(OCCURRENCE, snapshot, ledger_path=ledger) is None
