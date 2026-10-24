@@ -56,7 +56,16 @@ def _import_input(kind: str, source: Path | None, destination: Path, *, write: b
                 if write:
                     destination.parent.chmod(0o700)
             elif write:
-                onboarding._write_private(destination, value)
+                destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                destination.parent.chmod(0o700)
+                with tempfile.TemporaryDirectory(prefix=f".{destination.name}.", dir=destination.parent) as directory:
+                    staged = Path(directory) / destination.name
+                    onboarding._write_private(staged, value)
+                    try:
+                        os.link(staged, destination)
+                    except FileExistsError:
+                        if value != _read_input(kind, destination, private=True):
+                            return None, [kind + "_conflict"]
         return value, []
     except ERRORS:
         return None, [kind]

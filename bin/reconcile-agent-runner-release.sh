@@ -436,18 +436,22 @@ for loop_id in sorted(loops.keys(), key=apply_order):
     entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
     label = entry.get("label")
     installed_sha = None
+    installed = False
     if isinstance(label, str) and label:
         plist_path = agents_dir / f"{label}.plist"
+        installed = True
         try:
             with plist_path.open("rb") as handle:
                 plist = plistlib.load(handle)
             installed_sha = (plist.get("EnvironmentVariables") or {}).get(
                 "LIFE_MANAGER_RELEASE_SHA")
+        except FileNotFoundError:
+            installed = plist_path.is_symlink()
         except Exception:
             installed_sha = None
     if installed_sha == release_sha:
         skip_current.append(loop_id)
-    elif installed_sha and not installed_is_ancestor(installed_sha):
+    elif installed and (not installed_sha or not installed_is_ancestor(installed_sha)):
         skip_ancestry.append(loop_id)
     elif loop_id in prev_failed:
         failed_last.append(loop_id)

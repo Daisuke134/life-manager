@@ -287,7 +287,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         return release_dir
 
     def test_fleet_preserves_an_installed_release_without_ancestor_proof(self):
-        for relation in ("newer", "fork", "unavailable"):
+        for relation in ("newer", "fork", "unavailable", "missing", "malformed"):
             with self.subTest(relation=relation), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 repo, first = self._make_repo(root)
@@ -306,6 +306,10 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 installed = agents / "ai.anicca.loop-a.plist"
                 previous = plistlib.dumps({"EnvironmentVariables": {
                     "LIFE_MANAGER_RELEASE_SHA": installed_sha}})
+                if relation == "missing":
+                    previous = plistlib.dumps({"Label": "ai.anicca.loop-a"})
+                elif relation == "malformed":
+                    previous = b"unreadable-plist"
                 installed.write_bytes(previous)
                 calls = root / "calls.log"
                 env = self._base_env(root, repo, calls_log=calls)

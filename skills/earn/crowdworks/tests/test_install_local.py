@@ -36,6 +36,7 @@ def isolated_home(tmp_path, monkeypatch):
     registry.write_text("")
     monkeypatch.setenv("AI_BROWSER_REGISTRY", str(registry))
     monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(tmp_path / "isolated-state"))
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path / "isolated-admission"))
     for key in tuple(os.environ):
         if (key.startswith(("TELEGRAM_", "LIFE_MANAGER_BROWSER_")) or key in {
             "CDP", "CDP_PORT", "CLOAK_CDP_BASE_URL", "AI_BROWSER_GUARD", "AI_BROWSER_HOLDER_START",
@@ -373,6 +374,51 @@ def test_existing_private_input_is_never_overwritten(installation, capsys, kind,
     assert destination.is_symlink() is (failure == "symlink")
     assert set(case.applied) == {PREFIX + "browser", PREFIX + "report"}
     assert rows[PREFIX + "reply"]["missing"]
+
+
+@pytest.mark.parametrize("kind", ["candidate", "provider"])
+@pytest.mark.parametrize("first", ["identical", "conflict", "malformed", "symlink"])
+def test_concurrent_first_import_preserves_the_first_published_private_input(installation, monkeypatch, capsys, kind, first):
+    case = installation
+    installer = _installer()
+    source = getattr(case, kind)
+    destination = getattr(case, "private_" + kind)
+    incumbent = json.loads(source.read_text())
+    if first == "conflict":
+        if kind == "candidate":
+            incumbent["facts"][0]["claim"] = "PRIVATE-FIRST-OWNER"
+        else:
+            incumbent["provider_employee_id"] = "7777777"
+    write_private = installer.onboarding._write_private
+    first_state = {}
+
+    def publish_first(path, value):
+        assert not first_state, "only the requested import may invoke this writer"
+        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if first == "symlink":
+            destination.symlink_to(source)
+        else:
+            write_private(destination, incumbent)
+            if first == "malformed":
+                destination.write_text('{"PRIVATE-BROKEN":')
+        first_state.update(content=destination.read_bytes(), inode=destination.lstat().st_ino)
+        write_private(path, value)
+
+    monkeypatch.setattr(installer.onboarding, "_write_private", publish_first)
+    value, missing = installer._import_input(kind + "_profile", source, destination, write=True)
+
+    expected = [] if first == "identical" else [kind + "_profile" + ("_conflict" if first == "conflict" else "")]
+    assert missing == expected
+    assert (value is not None) is (first == "identical")
+    assert destination.read_bytes() == first_state["content"]
+    assert destination.lstat().st_ino == first_state["inode"]
+    assert destination.is_symlink() is (first == "symlink")
+    assert not list(destination.parent.glob("." + destination.name + ".*"))
+    if first != "symlink":
+        assert stat.S_IMODE(destination.stat().st_mode) == 0o600
+        assert stat.S_IMODE(destination.parent.stat().st_mode) == 0o700
+    output = capsys.readouterr()
+    assert output.out == output.err == ""
 
 
 @pytest.mark.parametrize("kind", ["candidate", "provider"])

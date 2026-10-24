@@ -1568,9 +1568,19 @@ def _admission_rebind_guard(
         if not acquired:
             raise RuntimeError("owner deploy busy")
         if installed_path is not None and item is not None and release_sha:
-            installed_sha = _release_from_plist(installed_path)
-            if (installed_sha and installed_sha != release_sha
-                    and not _loaded_sha_is_ancestor(installed_sha, release_sha)):
+            try:
+                installed_path.lstat()
+                installed = True
+            except FileNotFoundError:
+                installed = False
+            except OSError:
+                installed = True
+            try:
+                installed_sha = _release_from_plist(installed_path)
+            except (AttributeError, OSError, TypeError, ValueError):
+                installed_sha = None
+            if (installed and (not installed_sha or installed_sha != release_sha
+                               and not _loaded_sha_is_ancestor(installed_sha, release_sha))):
                 yield {"ok": True, "label": item["label"],
                        "release_sha": release_sha, "changed": False,
                        "skipped": "ancestry-unverified"}

@@ -229,6 +229,30 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(values["calls"].read_text().splitlines(),
                          ["preflight", f"print-disabled gui/{os.getuid()}"])
 
+    def test_automatic_apply_preserves_an_existing_owner_without_readable_sha(self):
+        for index, previous in enumerate((plistlib.dumps({"Label": "ai.anicca.example"}),
+                                          b"unreadable-plist", plistlib.dumps(["invalid-root"]),
+                                          plistlib.dumps({"EnvironmentVariables": ["invalid-env"]}))):
+            with self.subTest(index=index):
+                release = self._release(f"unknown-release-{index}")
+                current = self.root / f"unknown-current-{index}"
+                current.symlink_to(release)
+                values = self._apply_kwargs(current, self.root / f"unknown-{index}.lock",
+                                            agents_dir_name=f"unknown-agents-{index}")
+                target = values["agents_dir"] / "ai.anicca.example.plist"
+                target.write_bytes(previous)
+                with patch.object(lm_loop, "_loaded_sha_is_ancestor") as ancestry, \
+                        patch.object(lm_loop, "_owner_has_pending_admission",
+                                     side_effect=AssertionError("admission inspected without ancestry")):
+                    result = apply_live(
+                        release, values["agents_dir"], values["launchctl_safe"],
+                        target="example", current=current, require_current=True,
+                        protocol_reader=lambda: 1, event_writer=lambda *_: None)
+                self.assertEqual(result[0]["skipped"], "ancestry-unverified")
+                self.assertFalse(result[0]["changed"])
+                self.assertEqual(target.read_bytes(), previous)
+                ancestry.assert_not_called()
+
     def test_automatic_ancestor_and_explicit_rollback_still_apply(self):
         for automatic in (True, False):
             with self.subTest(automatic=automatic):

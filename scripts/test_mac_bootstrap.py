@@ -119,6 +119,24 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
         self.assertTrue((self.checkout / ".git").is_dir())
         self.assertFalse((self.root / "home/Library/LaunchAgents").exists())
 
+    def test_crowdworks_bootstrap_reaches_real_dispatch_with_profile_arguments(self):
+        shutil.copyfile(ROOT / "install.sh", self.checkout / "install.sh")
+        wrapper = self.checkout / "skills/earn/crowdworks/install.sh"
+        wrapper.parent.mkdir(parents=True)
+        wrapper.write_text('#!/bin/bash\nprintf "crowdworks:%s\\n" "$@"\n')
+        self.run_git("add", ".")
+        self.run_git("commit", "-m", "CrowdWorks dispatch fixture")
+        self.run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        profile = self.root / "own profile.json"
+
+        result = self.bootstrap("crowdworks", "plan", "--provider-profile", str(profile))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"crowdworks:plan\ncrowdworks:--provider-profile\ncrowdworks:{profile}",
+                      result.stdout)
+        self.assertNotIn("unexpected-brew", self.log.read_text())
+        self.assertFalse((self.root / "home/Library/LaunchAgents").exists())
+
     def test_published_product_wrappers_preserve_command_arguments(self):
         for product in ("coconala", "job-hunter"):
             with self.subTest(product=product):
