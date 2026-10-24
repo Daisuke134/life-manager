@@ -303,6 +303,104 @@ class RevenueCatContractTest(unittest.TestCase):
         self.assertNotEqual(point["period"], "2026-09-30")
 
 
+
+class ProjectScopedRevenueCatTest(unittest.TestCase):
+    # A wrong project/key route or a Products 403 must not erase valid app MRR.
+    ROUTES = (
+        ("dhamma-quotes", "86624956", "appbe1e2ee955", "revenuecat-dhamma-existing-api-v2-ani"),
+        ("thankful", "7aaf9429", "app2672aee816", "revenuecat-thankful-existing-api-v2"),
+        ("sleep-reset", "77301666", "appd13f39e1cf", "revenuecat-sleep-reset-metrics-read-v2"),
+    )
+
+    def credentials(self):
+        return [{"product_id": product, "project_id": project, "app_id": app,
+                 "service": service, "api_key": "fixture-" + product}
+                for product, project, app, service in self.ROUTES]
+
+    def snapshot(self, product, records, get):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "credentials.json"
+            path.write_text(json.dumps({"credentials": records}))
+            with mock.patch.object(outcomes, "CREDENTIALS_FILE", path, create=True), \
+                 mock.patch.object(outcomes, "RC_CHARTS", ("mrr",)), \
+                 mock.patch.object(outcomes, "http_json", side_effect=get), \
+                 mock.patch.object(outcomes, "collect_asc", return_value={"downloads": 1}), \
+                 mock.patch.object(outcomes, "collect_asc_sales", return_value=({}, {})), \
+                 mock.patch.object(outcomes, "collect_asc_subscriptions", return_value=({}, {})):
+                return outcomes.collect_snapshot({
+                    "REVENUECAT_PROJECT_ID": "wrong-global-project",
+                    "REVENUECAT_V2_SECRET_KEY": "wrong-global-key",
+                    "ASC_KEY_ID": "asc-fixture",
+                }, product, "2026-10-23")
+
+    def chart_get(self, route, *, products_denied=False):
+        product, project, app, _ = route
+        def get(url, headers):
+            from urllib.parse import parse_qs, urlparse
+            import urllib.error
+            parsed = urlparse(url)
+            self.assertEqual(headers, {"Authorization": "Bearer fixture-" + product})
+            self.assertTrue(parsed.path.startswith("/v2/projects/" + project + "/"))
+            self.assertNotIn("fixture-", url)
+            if parsed.path.endswith("/products"):
+                if products_denied:
+                    raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+                return {"items": []}
+            if parsed.path.endswith("/options"):
+                return {"filters": [{"id": "app_id", "options": [{"id": app}]}]}
+            self.assertEqual(json.loads(parse_qs(parsed.query)["filters"][0]),
+                             [{"name": "app_id", "values": [app]}])
+            return {"resolution": "day", "yaxis_currency": "USD",
+                    "measures": [{"display_name": "MRR"}],
+                    "periods": [{"date": "2026-10-23"}],
+                    "values": [{"cohort": 0, "measure": 0, "value": 0, "incomplete": False}]}
+        return get
+
+    def test_three_projects_use_only_their_exact_private_credentials_and_app_filters(self):
+        for route in self.ROUTES:
+            with self.subTest(product=route[0]):
+                row = self.snapshot(route[0], self.credentials(), self.chart_get(route))
+                source = row["sources"]["revenuecat"]
+                self.assertEqual(source["status"], "available")
+                self.assertEqual(source["data"]["app_id"], route[2])
+                self.assertEqual(source["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["value"], 0)
+                self.assertEqual(row["sources"]["app_store_connect"]["data"], {"downloads": 1})
+                self.assertNotIn("fixture-", json.dumps(row))
+
+    def test_missing_duplicate_and_wrong_scope_never_fall_back_to_global_key(self):
+        good = self.credentials()[0]
+        invalid = [[], [good, good]]
+        for field in ("product_id", "project_id", "app_id", "api_key"):
+            invalid.append([{**good, field: ""}])
+        for records in invalid:
+            with self.subTest(records=records):
+                get = mock.Mock(side_effect=AssertionError("must not query with a fallback key"))
+                row = self.snapshot("dhamma-quotes", records, get)
+                self.assertEqual(row["sources"]["revenuecat"]["reason"], "credential_unavailable")
+                self.assertIsNone(row["sources"]["revenuecat"]["data"])
+                self.assertEqual(row["sources"]["app_store_connect"]["status"], "available")
+                get.assert_not_called()
+
+    def test_one_project_failure_does_not_stop_the_other_projects_or_expose_credentials(self):
+        for index, route in enumerate(self.ROUTES):
+            def denied(url, headers):
+                raise RuntimeError("fixture-dhamma-quotes")
+            row = self.snapshot(route[0], self.credentials(), denied if index == 0 else self.chart_get(route))
+            self.assertEqual(row["sources"]["revenuecat"]["status"], "unavailable" if index == 0 else "available")
+            self.assertEqual(row["sources"]["app_store_connect"]["status"], "available")
+            self.assertNotIn("fixture-", json.dumps(row))
+
+    def test_chart_only_key_preserves_mrr_when_optional_products_is_forbidden(self):
+        route = self.ROUTES[2]
+        row = self.snapshot(route[0], self.credentials(), self.chart_get(route, products_denied=True))
+        source = row["sources"]["revenuecat"]
+        self.assertEqual(source["status"], "available")
+        self.assertEqual(source["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["value"], 0)
+        conversion = source["data"]["charts"]["conversion_to_paying"]
+        self.assertEqual(conversion["reason"], "product_query_failed")
+        self.assertIsNone(conversion["data"])
+
+
 class AppStoreContractTest(unittest.TestCase):
     def test_download_summary_counts_only_rows_for_business_date(self):
         rows = [
@@ -471,14 +569,14 @@ class VendorAppCoverageTest(unittest.TestCase):
         self.assertEqual((summary["iap_units"], summary["proceeds"]), (1, {"CZK": 45.0}))
 
     def test_app_without_revenuecat_still_collects_app_store_sales(self):
-        report = [{"Apple Identifier": "6762143790", "Units": "1",
+        report = [{"Apple Identifier": "6766485903", "Units": "1",
                    "Developer Proceeds": "0.00", "Currency of Proceeds": " "}]
         with tempfile.TemporaryDirectory() as directory, \
              mock.patch.object(outcomes, "DEFAULT_EVIDENCE", Path(directory)), \
              mock.patch.object(outcomes, "collect_revenuecat") as revenuecat, \
              mock.patch.object(outcomes, "collect_asc", side_effect=RuntimeError("x")), \
              mock.patch.object(outcomes, "fetch_asc_sales_rows", return_value=report):
-            row = outcomes.collect_snapshot({}, "sleep-reset", "2026-10-14")
+            row = outcomes.collect_snapshot({}, "studio-cherie", "2026-10-14")
         revenuecat.assert_not_called()
         self.assertEqual(row["sources"]["revenuecat"]["reason"], "no_revenuecat_app")
         self.assertEqual(row["sources"]["app_store_sales"]["status"], "available")
