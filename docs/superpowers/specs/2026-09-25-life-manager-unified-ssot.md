@@ -2,15 +2,50 @@
 
 ## README整理とMac導入の継続修復
 
-**目的・範囲:** READMEを初めて使う人が用途とMac導入をすぐ理解できる長さへ整理し、公開bootstrapから本人のMacで起動する経路の再現済み不具合を修復する。人気公開repoの実READMEとinstallerを一次資料として比較する。WebMCP/ハッカソン、個別運用履歴、内部owner名は入口から外し、必要な詳細は既存docsへ案内する。既存MAC02–05の全agent・本人設定・自然実行の受入範囲は維持し、別Mac実機やprovider成果を隔離テストで代用しない。他sessionのworktree、production browser、進行中effectは変更しない。
+**目的・範囲:** Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。READMEの内容、公開installer、約20 agentの実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
 
-**Daisの追加要件:** READMEは内部報告ではなく、背景知識のない外部利用者へ書く。Localの導入条件はChatGPT subscription（Plusで十分）とスリープしないMac/Mac miniを先に示す。内部owner名、same-core/host-adapter説明、運用受入履歴、会社名のform入力規則は本文に置かない。個別serviceの本人loginと追加provider条件は必要時の詳細guideへ案内する。獲得目標は実利用に基づくGitHub 10,000 stars。公式repo APIの開始snapshotは8 starsで、README変更だけを10,000達成と扱わない。今回の入口と導入の反映後、実利用・導入成功・starsを測りながら成長を継続する。
+**利用者向けの約束:** Local版の基本条件はChatGPT Plus以上のsubscriptionと、スリープしないMac/Mac mini。core利用に別のOpenAI API keyは不要。利用する事業サービスごとの本人accountや追加有料サービスは別途必要になる。READMEは外部利用者向けに短く保ち、7つの収益モデル、最短の導入方法、利用条件、未完成の範囲を先に示す。
 
-**完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
+### 完了済み
 
-**順序・現在cursor:** README-MAC-01–04/README-BUSINESSES公開、CrowdWorks公開導入/3owner反映と容量整理のsource受入を保持する。現在cursorはMAC03-MERCOR-SETUPのMERCOR-SHIP。CWの容量/本人条件/自然業務/別Macは未完として、独立したMercor本人導入接続を進める。進行中provider effectは中断・再送しない。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`feat/mercor-local-setup-20261024`、base=`a3cb766065984579659d14ac90cdb23aa1dfaf1e`、owner=`codex-lancers-local-setup`。
+| 項目 | 完了していること |
+|---|---|
+| 公開README | 英日READMEに7事業、ChatGPT Plus/awake Mac、単一の導入入口、early-developmentの制限と詳細catalogを掲載済み。 |
+| Mac導入のsource | 初回bootstrap、認証確認、共通依存など再現した導入不具合を修正し、mainへ反映済み。これで別Macの実機完走までは証明しない。 |
+| 受託platformの入口 | Coconala/Lancers/CrowdWorksの公開導入入口をmainに反映済み。Mercorの公開local setupも[PR #8863](https://github.com/Daisuke134/life-manager/pull/8863)でmainへ統合済み。installerの存在は実業務の成功を意味しない。 |
+| Mercor Replyの狭いsource修正 | 最小profileでReplyまで応募資料不足扱いになる修正を作成。対象suite 200件PASS、独立read-only review指摘0、[PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)の13 CI checks PASS。sourceはまだmain未統合。 |
 
-**README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。PIONの正確なURLはまだ特定できず、GitHub検索とDuckDuckGo HTML取得では一次本文を得られないため参考URLを任意確認中。README編集はこの確認を進行条件にしない。
+### 残っていること
+
+| 項目 | 現状 | 完了条件 |
+|---|---|---|
+| Mercor Reply修正 | PR #8865はopen。head `53a21430`。 | mainへ統合し、main由来releaseで導入・Reply開始を再確認する。 |
+| 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
+| 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
+| 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
+| Mac portability | 自分のMac Mini以外での初回導入から業務完了まで未証明。 | cleanな別Macで、公開手順だけを使い、対応するmacOS/Apple Silicon/Intel構成ごとに導入から実業務まで通す。 |
+| 10,000 stars | GitHub公式APIの直近値は8 stars / 2 forks。目標まで9,992 stars。 | 実利用者と継続利用を増やして到達する。stars、導入成功、実業務成果、収益は別指標で報告する。 |
+
+### ゴールまでの順序
+
+現在cursorは **REPLY-PROFILE-SHIP**。次の作業はPR #8865のmain統合・release反映・実Mac再観測。
+
+1. PR #8865を統合し、同じmain由来releaseで公開checkoutからinstallerを再確認する。
+2. 現MacのMercor browser/profile/Paidを既存ownerの経路で整え、Reply/Paidの未確定effectは公式readbackで照合してから再開する。
+3. 7つの不足installerを実装する。独立した事業はMercor復旧と並行できる。
+4. 約20 agentと7事業の対象一覧を一致させ、各業務の実行・公式結果・再開・重複防止を確認する。
+5. 新しい利用者のMacで初回installから実業務まで通し、対応機種・macOSの範囲を明示する。
+6. 迷わず試せるREADME/demo/quickstartと保守可能なrelease・contribution導線を整え、利用開始、初回の確認済み成果、継続利用、starsを別々に計測しながら10,000 starsを目指す。
+
+### 理想の完成状態
+
+利用者がChatGPT Plus以上と常時起動できるMac、自分の業務accountを用意し、一度導入・初回接続を済ませれば、対応する約20 agentが7事業を通常時は人手なしで回す。仕事の開始、応募/制作/納品/販売、provider上の結果確認、失敗からの安全な再開までつながり、重複実行を防ぎ、収益を公式証拠に基づいて報告する。利用者は日々の手作業を繰り返さず、Macを替えても同じ公開手順で立ち上げられる。本人確認やproviderが必須とする操作はその条件を明記する。収入や10,000 starsは保証せず、実測した結果としてのみ扱う。
+
+### 10,000 starsを目指すREADMEの参考例
+
+GitHub公式README/APIの確認では、[n8n](https://github.com/n8n-io/n8n)は208,455 starsで短い価値説明・画面・機能・Quick Start・docs/communityを、[Dify](https://github.com/langgenius/dify)は159,400 starsで導入条件・そのまま試せる手順・FAQ・多言語導線を、[Open WebUI](https://github.com/open-webui/open-webui)は156,612 starsで短い説明・demo・導入方法・機能・docsを見せている。Life Managerでは構成だけを参考にし、未完成機能や収益を約束せず、READMEを短く保ったまま7事業、必要条件、ひとつの最短導入、確認済みの成果、制限、詳細docsへの導線を示す。各repoのstars数は観測値であり、READMEがstarsを生む因果の証明ではない。
+
+**README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。README構成の比較対象は上記のn8n、Dify、Open WebUIのGitHub公式README/APIとし、PIONのURL特定はREADME改訂の進行条件にしない。
 
 - [x] README-BUSINESSES: 収益事業の短い一覧を英日READMEの冒頭へ戻し、既存関連検証、CI、main統合、公開readbackまで完了する。
 
