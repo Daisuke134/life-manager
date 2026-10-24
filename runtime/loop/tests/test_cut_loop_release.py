@@ -1203,6 +1203,66 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertTrue(bundle.exists())
         self.assertGreater(result["errors"], 0)
 
+    def test_release_gc_gives_reference_scan_a_fresh_budget_after_lock_wait(self):
+        bundle = self._bundle()
+        self._release(bundle)
+        clock = [0.0]
+        probe = self._probe
+
+        def process_probe(command, **kwargs):
+            if Path(command[0]).name == "ps":
+                clock[0] += 2
+            return probe(command, **kwargs)
+
+        @contextmanager
+        def delayed_lock(_current, _deadline):
+            clock[0] = 14
+            yield
+
+        with mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]), \
+             mock.patch.object(self.cleanup, "_source_reclaim_lock", delayed_lock), \
+             mock.patch.object(self, "_probe", side_effect=process_probe):
+            code, result = self._gc()
+
+        self.assertEqual(code, 0, result)
+        self.assertFalse(bundle.exists(), "lock wait must not consume the reference census budget")
+
+    def test_release_gc_gives_bundle_scan_a_fresh_budget_after_release_scan(self):
+        bundle = self._bundle()
+        self._release(bundle)
+        clock = [0.0]
+        ps_calls = [0]
+        lsof_calls = [0]
+        probe = self._probe
+
+        def slow_release_scan(command, **kwargs):
+            tool = Path(command[0]).name
+            if tool == "ps":
+                ps_calls[0] += 1
+                result = probe(command, **kwargs)
+                if ps_calls[0] == 1:
+                    clock[0] += 14
+                return result
+            if tool == "lsof":
+                lsof_calls[0] += 1
+                if lsof_calls[0] == 2 and kwargs.get("timeout", 0) < 2:
+                    raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+            return probe(command, **kwargs)
+
+        output = io.StringIO()
+        with mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]), \
+             mock.patch.object(subprocess, "run", side_effect=slow_release_scan), \
+             mock.patch.object(subprocess, "Popen", side_effect=AssertionError("host subprocess forbidden")), \
+             mock.patch.object(subprocess, "check_output", side_effect=AssertionError("host subprocess forbidden")), \
+             mock.patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_KEEP": "0"}), \
+             mock.patch.object(sys, "argv", ["central_cleanup.py", "--release-gc-only"]), \
+             redirect_stdout(output):
+            code = self.cleanup.main()
+        result = json.loads(output.getvalue())
+
+        self.assertEqual(code, 0, result)
+        self.assertFalse(bundle.exists(), "bundle scan must receive its own bounded reference budget")
+
     def test_release_gc_only_reclaims_bundle_with_long_multiline_process_inventory(self):
         bundle = self._bundle()
         executable = self.root / "unrelated-process"

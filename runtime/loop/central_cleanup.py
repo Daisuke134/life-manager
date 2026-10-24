@@ -825,7 +825,7 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
               "preserved_releases": 0, "protected_deletions": 0, "errors": 0}
     bundles = releases.parent / "dependency-bundles"
-    deadline = time.monotonic() + 15
+    lock_deadline = time.monotonic() + 15
     try:
         empty = True
         for root in (releases, bundles):
@@ -840,8 +840,11 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
             return {**result, "protected_release_count": 0, "source_reclaim": {"status": "not_needed"},
                     "dependency_bundles": {"evaluated": 0, "removed": 0, "preserved": 0,
                                            "reclaimed_bytes": 0, "errors": 0}}
-        with _source_reclaim_lock(current, deadline), _release_cut_lock(current):
-            protected, _references = _bundle_references(releases, current, agents, bundles, deadline)
+        with _source_reclaim_lock(current, lock_deadline), _release_cut_lock(current):
+            # Lock contention must not consume the bounded reference-census window.
+            census_deadline = time.monotonic() + 15
+            protected, _references = _bundle_references(
+                releases, current, agents, bundles, census_deadline)
             if any(releases.iterdir()):
                 protected |= loaded_release_roots(agents, releases) | open_release_roots(releases)
             pins = releases / ".pins"
@@ -849,7 +852,11 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
                 protected |= {(releases / pin.name).resolve() for pin in pins.iterdir()}
             result = gc_releases(releases, current, keep=keep, protected=protected)
             result["protected_release_count"] = len(protected)
-            bundle_result = _gc_dependency_bundles(releases, current, agents, bundles, deadline)
+            # Bundle GC repeats the full host-reference census after release GC;
+            # give that independently bounded phase its own scan window.
+            bundle_deadline = time.monotonic() + 15
+            bundle_result = _gc_dependency_bundles(
+                releases, current, agents, bundles, bundle_deadline)
             result["dependency_bundles"] = bundle_result
             result["reclaimed_bytes"] += bundle_result["reclaimed_bytes"]
             result["errors"] += bundle_result["errors"]
