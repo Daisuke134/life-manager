@@ -345,6 +345,7 @@ PY
     "$runtime_python" - >"$plan_path" <<'PY' || { rm -f "$plan_path"; return 1; }
 import fcntl, json, os, plistlib
 from pathlib import Path
+from runtime.loop.lm_loop import _loaded_sha_is_ancestor
 from runtime.loop.runtime_event import rotate_jsonl_locked
 
 registry_path = os.environ["FLEET_APPLY_REGISTRY_PATH"]
@@ -419,24 +420,39 @@ def apply_order(loop_id):
     admission_rank = {"revenue": 0, "borrow": 1}.get(entry.get("admission_class"), 2)
     return control_plane_rank, mobile_distribution_rank, domain_rank, priority_rank, admission_rank, loop_id
 
-skip_current, clean, failed_last = [], [], []
+skip_current, skip_ancestry, clean, failed_last = [], [], [], []
+ancestry = {}
+
+def installed_is_ancestor(installed_sha):
+    if not isinstance(installed_sha, str):
+        return False
+    if installed_sha not in ancestry:
+        ancestry[installed_sha] = _loaded_sha_is_ancestor(installed_sha, release_sha)
+    return ancestry[installed_sha]
+
 for loop_id in sorted(loops.keys(), key=apply_order):
     if loop_id == own_loop_id:
         continue
     entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
     label = entry.get("label")
     installed_sha = None
+    installed = False
     if isinstance(label, str) and label:
         plist_path = agents_dir / f"{label}.plist"
+        installed = True
         try:
             with plist_path.open("rb") as handle:
                 plist = plistlib.load(handle)
             installed_sha = (plist.get("EnvironmentVariables") or {}).get(
                 "LIFE_MANAGER_RELEASE_SHA")
+        except FileNotFoundError:
+            installed = plist_path.is_symlink()
         except Exception:
             installed_sha = None
     if installed_sha == release_sha:
         skip_current.append(loop_id)
+    elif installed and (not installed_sha or not installed_is_ancestor(installed_sha)):
+        skip_ancestry.append(loop_id)
     elif loop_id in prev_failed:
         failed_last.append(loop_id)
     else:
@@ -449,6 +465,8 @@ for label in sorted(registry.get("guarded_retired_labels", {})):
 
 for loop_id in skip_current:
     print(f"current\t{loop_id}")
+for loop_id in skip_ancestry:
+    print(f"ancestry-unverified\t{loop_id}")
 for loop_id in clean + failed_last:
     print(f"apply\t{loop_id}")
 PY
@@ -462,10 +480,10 @@ PY
       superseding_sha="$observed_release_sha"
       break
     fi
-    if [ "$plan_action" = "current" ]; then
+    if [ "$plan_action" = "current" ] || [ "$plan_action" = "ancestry-unverified" ]; then
       skipped=$((skipped + 1))
       FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" FLEET_APPLY_SHA="$release_sha" \
-        FLEET_APPLY_OWNER_LOOP_ID="$loop_id" \
+        FLEET_APPLY_OWNER_LOOP_ID="$loop_id" FLEET_APPLY_SKIP_REASON="$plan_action" \
         "$runtime_python" - <<'PY' || { rm -f "$plan_path"; return 1; }
 import json, os
 from datetime import datetime, timezone
@@ -480,7 +498,7 @@ record = {
     "seconds": 0,
     "changed": 0,
     "skipped": 1,
-    "reason": "current",
+    "reason": os.environ["FLEET_APPLY_SKIP_REASON"],
 }
 with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as handle:
     handle.write(json.dumps(record, sort_keys=True) + "\n")

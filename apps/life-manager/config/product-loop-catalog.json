@@ -43,9 +43,9 @@
       "description": "Apply to suitable CrowdWorks projects and report evidence-backed outcomes.",
       "recovery_classes": ["continuous_service", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"crowdworks-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
-      "requirements": ["crowdworks_account", "work_profile", "public_guided_installer"],
+      "requirements": ["crowdworks_account", "work_profile"],
       "hosts": {
-        "local": {"availability": "setup_required", "command": null},
+        "local": {"availability": "guided", "command": ["./install.sh", "crowdworks"]},
         "cloud": {"availability": "setup_required", "command": null}
       }
     },

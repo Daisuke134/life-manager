@@ -135,6 +135,25 @@ test("Local plans only selected loops and makes missing setup explicit", () => {
   assert.deepEqual(connector.loops[0].command, ["./install.sh", "connector"]);
 });
 
+test("CrowdWorks guided setup exposes the local command and keeps account requirements", () => {
+  const pending = planProductOnboarding({ host: "local", selected_loop_ids: ["gig-crowdworks"],
+    verified_requirements: ["telegram_credentials"] });
+  assert.equal(pending.loops[0].state, "setup_required");
+  assert.deepEqual(pending.loops[0].missing, ["crowdworks_account", "work_profile"]);
+  assert.deepEqual(pending.loops[0].command, ["./install.sh", "crowdworks"]);
+
+  const configured = planProductOnboarding({ host: "local", selected_loop_ids: ["gig-crowdworks"],
+    verified_requirements: ["telegram_credentials", "crowdworks_account", "work_profile"] });
+  assert.equal(configured.loops[0].state, "ready_to_start");
+  assert.equal(configured.starts_automatically, false);
+  assert.deepEqual(configured.external_effects, []);
+
+  const cloud = planProductOnboarding({ host: "cloud", selected_loop_ids: ["gig-crowdworks"],
+    verified_requirements: ["crowdworks_account", "work_profile"] });
+  assert.deepEqual(cloud.loops[0].missing, ["host_adapter"]);
+  assert.equal(cloud.loops[0].command, null);
+});
+
 test("Cloud /start uses the same catalog while unsupported host adapters stay setup_required", () => {
   const economy = planProductOnboarding({ host: "cloud", selected_loop_ids: ["agent-economy"] });
   assert.equal(economy.loops[0].state, "ready_to_start");
@@ -230,7 +249,9 @@ test("default product observations make unsupported hosts explicit and never inv
   assert.equal(observations.every((observation) => observation.official_receipt !== true), true);
   assert.equal(observations.every((observation) => observation.replay_zero !== true), true);
   assert.equal(observations.find((observation) => observation.id === "gig-crowdworks").state,
-    "setup_required");
+    "blocked");
+  assert.equal(observations.find((observation) => observation.id === "gig-crowdworks").reason,
+    "runtime_evidence_missing");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").state,
     "blocked");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").reason,

@@ -68,6 +68,8 @@ jobs:
           skills/earn/crowdworks/tests/test_profile_private_identity.py
           skills/earn/crowdworks/tests/test_adapter_private_identity.py
           skills/earn/crowdworks/tests/test_owner_private_identity.py
+          skills/earn/crowdworks/tests/test_install_local.py
+          skills/earn/crowdworks/tests/test_telegram_report_occurrence.py
           skills/earn/crowdworks/tests/test_reply_adapter.py
           skills/earn/crowdworks/tests/test_paid_adapter.py
           skills/earn/crowdworks/tests/test_application_owner_hourly.py

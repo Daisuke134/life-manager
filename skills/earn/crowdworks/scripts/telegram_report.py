@@ -192,7 +192,9 @@ def run(*, database: Path = DATABASE, notifier: Optional[Callable[[str], SendRes
     enqueued = enqueue_decisions(database, now=stamp)
     enqueued += enqueue_declines(database, now=stamp)
     enqueued += enqueue_wake_summary(database, now=stamp)
-    send = notifier or (lambda message: delivery.send_via_shared_client(message, chat_id=TARGET))
+    env_file = Path(os.environ.get("LIFE_MANAGER_ENV_FILE") or Path.home() / ".local/state/life-manager/.env")
+    send = notifier or (lambda message: delivery.send_via_shared_client(
+        message, chat_id=TARGET, env_file=env_file))
     sent = delivery.deliver_pending(outbox, database, send)
     return {"ok": sent.delivery_uncertain == 0 and sent.pre_send_failed == 0
             and sent.provider_rejected == 0, "platform": "crowdworks",
