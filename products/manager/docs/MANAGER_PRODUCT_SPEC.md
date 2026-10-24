@@ -721,19 +721,19 @@ Costello訂正パッケージは[研究note](research/2026-10-24-costello-correc
 
 ### 26.4 残作業：依存順のatomic checklist
 
-全IDと受入条件は既存の[全工程roadmap](roadmap/START_TO_END_20261022.md)、研究/modelのfile-by-file手順は[既存plan Task 1–8](plans/2026-10-23-behavior-transformation-model-plan.md)を使う。下表は次に触る順序の案内であり、完了状態を変更するチェックリストではない。
+全IDと受入条件は既存の[全工程roadmap](roadmap/START_TO_END_20261022.md)、研究/modelのfile-by-file手順は[既存plan Task 1–8](plans/2026-10-23-behavior-transformation-model-plan.md)を使う。実行順は二本立てにする。人への実証経路はU004→U006→U007/D016、offline model経路はV002→V003で、**U004とV002は並行して進められる**。V003を人pilotの完了待ちにせず、V004の運用昇格だけはV003とD016の両方が成立するまで行わない。下表は次に触る順序の案内であり、完了状態を変更するチェックリストではない。
 
 | 順 | 対象 | 実作業と主なファイル | 完了を判断する証拠 |
 |---:|---|---|---|
 | 1 | U004 | 上記手順で`pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md`を実条件から仕上げ、保護・比較・測定・適用判断・必要な登録を固定 | DRAFTではなく、開始前にversion/hashが固定された受入済みprotocol。参加者/審査/rights/検出力条件を捏造せず出典付きで記録 |
-| 2 | U006 | U004成立後の限定pilotを実施し、既存`manager_core/outcome_windows.py`等の契約を再利用して実行/観測を保存 | 少なくとも1件の実介入、曝露と独立観測の区別、撤回/欠測/害/STOP receipt |
-| 3 | U007 + D016 | `manager_core/causal_analysis.py`・`outcome_bench.py`の前提を確認して比較分析し、予測/実行/苦しみ・機能/持続/害/費用を統合 | 事前計画に合った効果・区間・分母・欠測・有害結果を含む再計算可能な集計。代理尺度を便益認定に使わない |
-| 4 | U008 | 実対象・期間に沿った継続意思、辞退、支援/支払commit、運用費を記録 | 出典/対象期間/費目と公式readback。確認できない収益はUNKNOWN |
-| 5 | V002 | `manager_core/evaluation.py`等の既存scorerを再利用し、NO_ACTION/簡単なrule/既存base/open-weight/APIを用途に合う同一条件で比較。AnnoMI/CAMI/MI-TAGSは必要な品質eval部分だけrights/split確認後に接続 | task別分母、valid/invalid/refusal/abstain、primary metric、害/圧力/依存、費用、独立人参照。Costelloでの無改善を別taskの結果へ転記しない |
-| 6 | V003 | 新purposeが定まり、V002比較で学習価値が示された場合だけ、新data/right/人物・時間holdout/基盤/seed/recipe/害gateをfreezeしてPEFT/TRLで単一adapterを比較 | 別の未見評価で既存baselineに対する再現可能な結果。旧final16と今回のevaluationは再利用しない。無改善はHOLD |
+| 2（並行） | V002 | `manager_core/evaluation.py`等の既存scorerを再利用し、NO_ACTION/簡単なrule/既存base/open-weight/APIを用途に合う同一条件で比較。AnnoMI/CAMI/MI-TAGSは必要な品質eval部分だけrights/split確認後に接続 | task別分母、valid/invalid/refusal/abstain、primary metric、害/圧力/依存、費用、独立人参照。Costelloでの無改善を別taskの結果へ転記しない |
+| 3 | V003 | 新purposeが定まり、V002比較で学習価値が示された場合だけ、新data/right/人物・時間holdout/基盤/seed/recipe/害gateをfreezeしてPEFT/TRLで単一adapterを比較 | 別の未見評価で既存baselineに対する再現可能な結果。旧final16と今回のevaluationは再利用しない。無改善はHOLD |
+| 4 | U006 | U004成立後の限定pilotを実施し、既存`manager_core/outcome_windows.py`等の契約を再利用して実行/観測を保存 | 少なくとも1件の実介入、曝露と独立観測の区別、撤回/欠測/害/STOP receipt |
+| 5 | U007 + D016 | `manager_core/causal_analysis.py`・`outcome_bench.py`の前提を確認して比較分析し、予測/実行/苦しみ・機能/持続/害/費用を統合 | 事前計画に合った効果・区間・分母・欠測・有害結果を含む再計算可能な集計。代理尺度を便益認定に使わない |
+| 6 | U008 | 実対象・期間に沿った継続意思、辞退、支援/支払commit、運用費を記録 | 出典/対象期間/費目と公式readback。確認できない収益はUNKNOWN |
 | 7 | V004 → V005 → V006 | V003とD016後に限定shadow/運用を審査し、第三者再現を経て複数の実案件を積む | owner承認、権限/費用/停止/復元/readback、第三者が同じ結果を再現、複数案件それぞれの分母/正負/不明結果 |
 | 8 | G003 → G004 → G005 → G006 | V006後に地域/人口差、監督責任・接続契約、純原価と支援、未測定/失敗/不公平を段階的に扱う | 複数集団の検証、責任・費用・許可の契約、実原価と人の便益の別表示、継続的な未測定領域棚卸し |
 | 9 | Y003 / Y005 | 公式W27の締切/申請条件をその時点で確認して実応募を読戻す。研究者/会社への連絡は公開業務窓口と相手別の具体的問い、本人承認範囲で記録 | 実提出receipt、接点ごとの送信/返信/未返信/拒否。採択、面談、研究参加を先取りしない |
-| 10 | C002 / Y008・出版 | [book outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)の残章を研究証拠から執筆し、全体レビュー後に無料版を改版。website EN/JAのsourceも実結果に更新する | 原稿/図/出典/表現レビュー、PDF/EPUB検査、媒体ごとの公開readback。書籍全体やwebsiteの公開完了は実読戻し後だけに記録 |
+| 10 | C002 / Y008・出版 | [book outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)の残章を研究証拠から執筆し、全体レビュー後に無料版を改版。website EN/JAのsourceは新しい確認結果に合わせて並行更新する | 原稿/図/出典/表現レビュー、PDF/EPUB検査、媒体ごとの公開readback。書籍全体やwebsiteの公開完了は実読戻し後だけに記録 |
 
-人の実証経路とmodel経路はU004以降で証拠を共有するが、条件が異なるため同一task扱いしない。技術受入済みのE01–E16へ戻ってやり直す必要はなく、既存の個別残件を再openする場合は根拠と別scopeを記録する。目標の終点はG006までの継続可能な責任ある運用であり、「全苦しみを終わらせた」ことを有限benchmarkや企業成果から宣言する終点ではない。
+人の実証経路とmodel経路はV004前に証拠を共有するが、条件が異なるため同一task扱いしない。技術受入済みのE01–E16へ戻ってやり直す必要はなく、既存の個別残件を再openする場合は根拠と別scopeを記録する。目標の終点はG006までの継続可能な責任ある運用であり、「全苦しみを終わらせた」ことを有限benchmarkや企業成果から宣言する終点ではない。
