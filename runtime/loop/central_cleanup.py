@@ -685,6 +685,8 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
                     values.append(str(Path(entry.path).resolve()))
                 elif entry.is_dir(follow_symlinks=False):
                     pending.append(entry.path)
+    if time.monotonic() >= deadline:
+        raise subprocess.TimeoutExpired("release dependency links", 0)
     return protected, values
 
 
