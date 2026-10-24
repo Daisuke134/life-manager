@@ -61,6 +61,61 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                 self.assertTrue((release / "node_modules").is_symlink())
                 self.assertTrue((release / "node_modules/.package-lock.json").is_file())
 
+    def test_export_drains_delayed_tar_padding_and_preserves_producer_failure(self):
+        for producer_status, expected_status in ((0, 0), (73, 1)):
+            with self.subTest(producer_status=producer_status), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                repo = self.make_sparse_release_repo(home)
+                archive_bytes = len(subprocess.check_output(
+                    ["git", "archive", "--format=tar", "HEAD", "--", "runtime/loop/runtime_event.py"],
+                    cwd=repo,
+                ))
+                producer = home / "delayed-archive.sh"
+                consumer_done = home / "consumer-done"
+                bounded_archive = home / "bounded.tar"
+                producer.write_text(
+                    "git() {\n"
+                    '  if [ "$#" -ge 3 ] && [ "$3" = archive ]; then\n'
+                    '    command git "$@" || return "$?"\n'
+                    "    archive_waits=0\n"
+                    f'    while [ ! -f "{consumer_done}" ]; do\n'
+                    '      [ "$archive_waits" -lt 1000 ] || return 88\n'
+                    "      archive_waits=$((archive_waits + 1))\n"
+                    "      sleep 0.01\n"
+                    "    done\n"
+                    '    command dd if=/dev/zero bs=4096 count=1024 2>/dev/null || return "$?"\n'
+                    f"    return {producer_status}\n"
+                    "  fi\n"
+                    '  command git "$@"\n'
+                    "}\n"
+                    # Keep native extraction real, but pin the consumer's early EOF
+                    # boundary instead of depending on this host's tar buffering.
+                    'tar() {\n'
+                    f'  command head -c {archive_bytes} > "{bounded_archive}" || return "$?"\n'
+                    f'  command tar "$@" < "{bounded_archive}"\n'
+                    '  local tar_status=$?\n'
+                    f'  : > "{consumer_done}"\n'
+                    '  return "$tar_status"\n'
+                    '}\n'
+                )
+                result, loops = self.run_cut(
+                    repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                    LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(producer),
+                )
+                self.assertEqual(result.returncode, expected_status, result.stderr)
+                releases = list((loops / "releases").iterdir())
+                if producer_status:
+                    self.assertIn("archive=73, tar=0", result.stderr)
+                    self.assertEqual(releases, [])
+                else:
+                    release, = releases
+                    self.assertEqual(
+                        (release / "runtime/loop/runtime_event.py").read_bytes(),
+                        (repo / "runtime/loop/runtime_event.py").read_bytes(),
+                    )
+                self.assertFalse((loops / "current").exists())
+                self.assertFalse((loops / ".release-cut.lock").exists())
+
     def test_export_failure_reports_native_archive_and_tar_exit_statuses(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -74,6 +129,22 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr)
             self.assertIn("archive=0, tar=72", result.stderr)
             self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / ".release-cut.lock").exists())
+
+    def test_export_reports_drain_failure_and_removes_partial_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            failure = home / "drain-failure.sh"
+            failure.write_text("cat() { command cat \"$@\"; return 74; }\n")
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(failure),
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("archive drain failed (drain=74)", result.stderr)
+            self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / "current").exists())
             self.assertFalse((loops / ".release-cut.lock").exists())
 
     def test_full_release_capacity_defers_before_export(self):
