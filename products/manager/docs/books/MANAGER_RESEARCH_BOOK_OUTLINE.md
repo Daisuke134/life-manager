@@ -6,6 +6,15 @@
 
 **追加実習章:** [「変わりたい」を、行動の変化と取り違えない](../articles/2026-10-24-motivation-is-not-behavior-ja.md)。Intrinsic AIの直後/追跡/行動の違い、本文と要旨の人数不一致、CAMIの設計、MI-TAGSの会話品質proxyを扱う。[調査記録](../research/2026-10-24-motivational-interviewing-reuse.md)と[実学習記録](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)を結ぶ。第2/4/6/12章の教材として同じ本へ組み込む。全書籍完成ではなく、本章のGitHub公開とPDF/EPUB/blogの各公開readbackは別に確認する。
 
+**公開実習の読書順（同じ本の原稿）:**
+
+1. [公開説得研究をRで再現する](../articles/2026-10-24-ai-persuasion-reproduction-ja.md) — 分母・欠測・効果と再現範囲。
+2. [「変わりたい」と行動を分ける](../articles/2026-10-24-motivation-is-not-behavior-ja.md) — 直後/追跡、active control、陰性結果。
+3. [会話データの単位と分割](../articles/2026-10-24-dialogue-data-evaluation-ja.md) — AnnoMI現物、多数決、動画/対話/発話/注釈者。
+4. [学習と予測利得を分ける](../articles/2026-10-24-training-is-not-predictive-gain-ja.md) — 実LoRA、強いbaseline、形式不成立、同じ予測という陰性結果。[全比較receipt](../verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md)。
+
+この4章で本全体の完成とはしない。最初の2章は無料PDF/EPUBもローカルexport済み（媒体側公開は別）。後続章も同じsource/method/実測/未実測/訂正の形式で執筆する。古い16章構成の環境/金融例は任意参照で、現Managerや本書最初の実習の必須実装には戻さない。
+
 **本書の現在の中心:** 行動の予測→働きかけ→行動/苦しみ/持続/害の観測→モデルと実施方法の更新。下記旧16章は参照可能な全体構成として保存し、環境制御/金融を現在の必須実装へ復帰させない。各章は出典、実習、実測、未実測、訂正履歴を持ち、企業の宣伝値と独立再現を区別する。
 
 > **2026-10-22 active production rule:** This is the canonical chapter outline. The separate three-volume curriculum is a packaging/teaching view of the same sources, not additional manuscripts to finish first. Start with one complete, source-checked chapter on prediction→intervention→verified benefit; use [the updated P plan](../plans/2026-10-22-manager-research-products-plan.md#2026-10-22-whole-project-alignment--concrete-editorial-and-founder-work). Older finance/indoor partner examples below are optional learning cases: F004/F007 are skipped and not prerequisites to the owned digital product. A book outline is not a completed book or research result.

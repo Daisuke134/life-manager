@@ -1,0 +1,807 @@
+{
+  "schema": "manager.costello-numeric-forecast-public-results.v1",
+  "recorded_utc": "2026-10-24T13:08:24.186007+00:00",
+  "status": "FINITE_COMPARISON_CLOSED_NO_PREDICTIVE_GAIN_OVER_PERSISTENCE",
+  "training_source_H": "4fa063bc7f30d2b67d03a7852ddfb7ef8588ddc4",
+  "generation_source_H": "f265018e2fab45262e383b0a76b5ad8be4ff0279",
+  "design_sha256": "f9010431cc7dd4a2edfda9db901fb7265986c032a125ad0f725f291f0180d6ca",
+  "private_comparison_sha256": "6f87fb2e06f1b067ff0a45099e3700d3420421452dfbc4328ce194cf997b0996",
+  "generation_results_freeze_sha256": "95d0d2f0ff2f10e999476d1d11744636836ff44edf3a00911d24fa3181730345",
+  "generation_contexts_per_arm": 102,
+  "adapter_grid_forecasts_equal_pre": 102,
+  "base_grid_invalid_outputs": 102,
+  "max_new_tokens": 16,
+  "parse_repair": false,
+  "retry": 0,
+  "resume": 0,
+  "extension": 0,
+  "terminals": {
+    "FROZEN_BASE": {
+      "monitor_sha256": "990ef570d6bdf5eb8b1c4181cb2a0722601b89ac7495901488ae6b829511f53a",
+      "operator_terminal_sha256": "1c883676a64eee59fa5c5d05fe9877f1364d849398723019aba8bff4535f2b11",
+      "elapsed_seconds": 461.704,
+      "peak_RSS_bytes": 1968340992,
+      "native_reaped": true,
+      "operator_own_reap": "NOT_CLAIMED"
+    },
+    "FROZEN_SINGLE_ADAPTER": {
+      "monitor_sha256": "07f25f3c52943a2fd28e2c66adb419480efe44b2dbeed8ab67ae58ed3eb0fa6f",
+      "operator_terminal_sha256": "8ae2210fabf3ceb6d2c6bc8b875df5e8c032083a152c8546c1f7350de98ed8e9",
+      "elapsed_seconds": 338.605,
+      "peak_RSS_bytes": 1963966464,
+      "native_reaped": true,
+      "operator_own_reap": "NOT_CLAIMED"
+    }
+  },
+  "waves": {
+    "development": {
+      "metrics": {
+        "PERSISTENCE_PRE": {
+          "assigned": 584,
+          "human_labelled": 568,
+          "human_label_missing": 16,
+          "states": {
+            "VALID": 584,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 568,
+          "mae_valid_labelled": 14.778169014084508,
+          "rmse_valid_labelled": 25.551315392947174,
+          "worst_case_mae_all_labelled": 14.778169014084508,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "TRAIN128_MEAN": {
+          "assigned": 584,
+          "human_labelled": 568,
+          "human_label_missing": 16,
+          "states": {
+            "VALID": 584,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 568,
+          "mae_valid_labelled": 22.20240977112676,
+          "rmse_valid_labelled": 27.764880982956587,
+          "worst_case_mae_all_labelled": 22.20240977112676,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "TRAIN128_OLS": {
+          "assigned": 584,
+          "human_labelled": 568,
+          "human_label_missing": 16,
+          "states": {
+            "VALID": 584,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 568,
+          "mae_valid_labelled": 15.624753265694572,
+          "rmse_valid_labelled": 21.655268383223905,
+          "worst_case_mae_all_labelled": 15.624753265694572,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "FROZEN_BASE": {
+          "assigned": 584,
+          "human_labelled": 568,
+          "human_label_missing": 16,
+          "states": {
+            "VALID": 0,
+            "INVALID": 584,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 0,
+          "mae_valid_labelled": null,
+          "rmse_valid_labelled": null,
+          "worst_case_mae_all_labelled": 100.0,
+          "coverage": 0.0,
+          "complete_forecast": false,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "FROZEN_SINGLE_ADAPTER": {
+          "assigned": 584,
+          "human_labelled": 568,
+          "human_label_missing": 16,
+          "states": {
+            "VALID": 584,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 568,
+          "mae_valid_labelled": 14.778169014084508,
+          "rmse_valid_labelled": 25.551315392947174,
+          "worst_case_mae_all_labelled": 14.778169014084508,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "NO_ACTION_ABSTAIN": {
+          "assigned": 584,
+          "human_labelled": 568,
+          "human_label_missing": 16,
+          "states": {
+            "VALID": 0,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 584
+          },
+          "valid_labelled": 0,
+          "mae_valid_labelled": null,
+          "rmse_valid_labelled": null,
+          "worst_case_mae_all_labelled": null,
+          "coverage": 0.0,
+          "complete_forecast": false,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        }
+      },
+      "strata": {
+        "Control": {
+          "PERSISTENCE_PRE": {
+            "assigned": 148,
+            "human_labelled": 144,
+            "human_label_missing": 4,
+            "states": {
+              "VALID": 148,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 144,
+            "mae_valid_labelled": 4.284722222222222,
+            "rmse_valid_labelled": 9.503288904374106,
+            "worst_case_mae_all_labelled": 4.284722222222222,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_MEAN": {
+            "assigned": 148,
+            "human_labelled": 144,
+            "human_label_missing": 4,
+            "states": {
+              "VALID": 148,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 144,
+            "mae_valid_labelled": 15.776692708333334,
+            "rmse_valid_labelled": 18.368069195837457,
+            "worst_case_mae_all_labelled": 15.776692708333334,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_OLS": {
+            "assigned": 148,
+            "human_labelled": 144,
+            "human_label_missing": 4,
+            "states": {
+              "VALID": 148,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 144,
+            "mae_valid_labelled": 4.555953688244921,
+            "rmse_valid_labelled": 9.49472943924828,
+            "worst_case_mae_all_labelled": 4.555953688244921,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_SINGLE_ADAPTER": {
+            "assigned": 148,
+            "human_labelled": 144,
+            "human_label_missing": 4,
+            "states": {
+              "VALID": 148,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 144,
+            "mae_valid_labelled": 4.284722222222222,
+            "rmse_valid_labelled": 9.503288904374106,
+            "worst_case_mae_all_labelled": 4.284722222222222,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_BASE": {
+            "assigned": 148,
+            "human_labelled": 144,
+            "human_label_missing": 4,
+            "states": {
+              "VALID": 0,
+              "INVALID": 148,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 0,
+            "mae_valid_labelled": null,
+            "rmse_valid_labelled": null,
+            "worst_case_mae_all_labelled": 100.0,
+            "coverage": 0.0,
+            "complete_forecast": false,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          }
+        },
+        "Treatment": {
+          "PERSISTENCE_PRE": {
+            "assigned": 436,
+            "human_labelled": 424,
+            "human_label_missing": 12,
+            "states": {
+              "VALID": 436,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 424,
+            "mae_valid_labelled": 18.34198113207547,
+            "rmse_valid_labelled": 29.050419735219883,
+            "worst_case_mae_all_labelled": 18.34198113207547,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_MEAN": {
+            "assigned": 436,
+            "human_labelled": 424,
+            "human_label_missing": 12,
+            "states": {
+              "VALID": 436,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 424,
+            "mae_valid_labelled": 24.384728773584907,
+            "rmse_valid_labelled": 30.300427902870723,
+            "worst_case_mae_all_labelled": 24.384728773584907,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_OLS": {
+            "assigned": 436,
+            "human_labelled": 424,
+            "human_label_missing": 12,
+            "states": {
+              "VALID": 436,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 424,
+            "mae_valid_labelled": 19.38396821652653,
+            "rmse_valid_labelled": 24.445857809009294,
+            "worst_case_mae_all_labelled": 19.38396821652653,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_SINGLE_ADAPTER": {
+            "assigned": 436,
+            "human_labelled": 424,
+            "human_label_missing": 12,
+            "states": {
+              "VALID": 436,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 424,
+            "mae_valid_labelled": 18.34198113207547,
+            "rmse_valid_labelled": 29.050419735219883,
+            "worst_case_mae_all_labelled": 18.34198113207547,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_BASE": {
+            "assigned": 436,
+            "human_labelled": 424,
+            "human_label_missing": 12,
+            "states": {
+              "VALID": 0,
+              "INVALID": 436,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 0,
+            "mae_valid_labelled": null,
+            "rmse_valid_labelled": null,
+            "worst_case_mae_all_labelled": 100.0,
+            "coverage": 0.0,
+            "complete_forecast": false,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          }
+        }
+      },
+      "all_forecast_arms_complete": false,
+      "paired_adapter_minus": {
+        "FROZEN_BASE": {
+          "n": 0,
+          "mae_difference": null,
+          "bootstrap_interval95": null
+        },
+        "PERSISTENCE_PRE": {
+          "n": 568,
+          "mae_difference": 0.0,
+          "bootstrap_interval95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 2000,
+          "seed": 20261024,
+          "rng": "Python random.Random/choices",
+          "interpretation": "DESCRIPTIVE_WITHIN_EXPOSED_WAVE_NOT_PRISTINE_GENERALIZATION"
+        },
+        "TRAIN128_OLS": {
+          "n": 568,
+          "mae_difference": -0.8465842516100645,
+          "bootstrap_interval95": [
+            -1.806020668495781,
+            0.07680483217062781
+          ],
+          "bootstrap_replicates": 2000,
+          "seed": 20261024,
+          "rng": "Python random.Random/choices",
+          "interpretation": "DESCRIPTIVE_WITHIN_EXPOSED_WAVE_NOT_PRISTINE_GENERALIZATION"
+        }
+      },
+      "comparison_claim": "PARTIAL_NO_SUPERIORITY_CLAIM"
+    },
+    "evaluation": {
+      "metrics": {
+        "PERSISTENCE_PRE": {
+          "assigned": 762,
+          "human_labelled": 738,
+          "human_label_missing": 24,
+          "states": {
+            "VALID": 762,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 738,
+          "mae_valid_labelled": 13.962059620596206,
+          "rmse_valid_labelled": 24.346248938971563,
+          "worst_case_mae_all_labelled": 13.962059620596206,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "TRAIN128_MEAN": {
+          "assigned": 762,
+          "human_labelled": 738,
+          "human_label_missing": 24,
+          "states": {
+            "VALID": 762,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 738,
+          "mae_valid_labelled": 20.711255081300813,
+          "rmse_valid_labelled": 26.668905002966653,
+          "worst_case_mae_all_labelled": 20.711255081300813,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "TRAIN128_OLS": {
+          "assigned": 762,
+          "human_labelled": 738,
+          "human_label_missing": 24,
+          "states": {
+            "VALID": 762,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 738,
+          "mae_valid_labelled": 14.10131046057232,
+          "rmse_valid_labelled": 20.90738208547575,
+          "worst_case_mae_all_labelled": 14.10131046057232,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "FROZEN_BASE": {
+          "assigned": 762,
+          "human_labelled": 738,
+          "human_label_missing": 24,
+          "states": {
+            "VALID": 0,
+            "INVALID": 762,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 0,
+          "mae_valid_labelled": null,
+          "rmse_valid_labelled": null,
+          "worst_case_mae_all_labelled": 100.0,
+          "coverage": 0.0,
+          "complete_forecast": false,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "FROZEN_SINGLE_ADAPTER": {
+          "assigned": 762,
+          "human_labelled": 738,
+          "human_label_missing": 24,
+          "states": {
+            "VALID": 762,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 0
+          },
+          "valid_labelled": 738,
+          "mae_valid_labelled": 13.962059620596206,
+          "rmse_valid_labelled": 24.346248938971563,
+          "worst_case_mae_all_labelled": 13.962059620596206,
+          "coverage": 1.0,
+          "complete_forecast": true,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        },
+        "NO_ACTION_ABSTAIN": {
+          "assigned": 762,
+          "human_labelled": 738,
+          "human_label_missing": 24,
+          "states": {
+            "VALID": 0,
+            "INVALID": 0,
+            "UNKNOWN": 0,
+            "NOT_RUN": 0,
+            "ABSTAIN": 762
+          },
+          "valid_labelled": 0,
+          "mae_valid_labelled": null,
+          "rmse_valid_labelled": null,
+          "worst_case_mae_all_labelled": null,
+          "coverage": 0.0,
+          "complete_forecast": false,
+          "proof": "P0",
+          "human_benefit": "NOT_MEASURED",
+          "can_execute": false
+        }
+      },
+      "strata": {
+        "Control": {
+          "PERSISTENCE_PRE": {
+            "assigned": 246,
+            "human_labelled": 238,
+            "human_label_missing": 8,
+            "states": {
+              "VALID": 246,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 238,
+            "mae_valid_labelled": 5.11344537815126,
+            "rmse_valid_labelled": 13.041788040530243,
+            "worst_case_mae_all_labelled": 5.11344537815126,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_MEAN": {
+            "assigned": 246,
+            "human_labelled": 238,
+            "human_label_missing": 8,
+            "states": {
+              "VALID": 246,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 238,
+            "mae_valid_labelled": 15.137998949579831,
+            "rmse_valid_labelled": 18.481009261787175,
+            "worst_case_mae_all_labelled": 15.137998949579831,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_OLS": {
+            "assigned": 246,
+            "human_labelled": 238,
+            "human_label_missing": 8,
+            "states": {
+              "VALID": 246,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 238,
+            "mae_valid_labelled": 5.273688975918315,
+            "rmse_valid_labelled": 12.96541756570438,
+            "worst_case_mae_all_labelled": 5.273688975918315,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_SINGLE_ADAPTER": {
+            "assigned": 246,
+            "human_labelled": 238,
+            "human_label_missing": 8,
+            "states": {
+              "VALID": 246,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 238,
+            "mae_valid_labelled": 5.11344537815126,
+            "rmse_valid_labelled": 13.041788040530243,
+            "worst_case_mae_all_labelled": 5.11344537815126,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_BASE": {
+            "assigned": 246,
+            "human_labelled": 238,
+            "human_label_missing": 8,
+            "states": {
+              "VALID": 0,
+              "INVALID": 246,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 0,
+            "mae_valid_labelled": null,
+            "rmse_valid_labelled": null,
+            "worst_case_mae_all_labelled": 100.0,
+            "coverage": 0.0,
+            "complete_forecast": false,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          }
+        },
+        "Treatment": {
+          "PERSISTENCE_PRE": {
+            "assigned": 516,
+            "human_labelled": 500,
+            "human_label_missing": 16,
+            "states": {
+              "VALID": 516,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 500,
+            "mae_valid_labelled": 18.174,
+            "rmse_valid_labelled": 28.176621515007792,
+            "worst_case_mae_all_labelled": 18.174,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_MEAN": {
+            "assigned": 516,
+            "human_labelled": 500,
+            "human_label_missing": 16,
+            "states": {
+              "VALID": 516,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 500,
+            "mae_valid_labelled": 23.364125,
+            "rmse_valid_labelled": 29.785894353559474,
+            "worst_case_mae_all_labelled": 23.364125,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "TRAIN128_OLS": {
+            "assigned": 516,
+            "human_labelled": 500,
+            "human_label_missing": 16,
+            "states": {
+              "VALID": 516,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 500,
+            "mae_valid_labelled": 18.303258287267624,
+            "rmse_valid_labelled": 23.773315175280256,
+            "worst_case_mae_all_labelled": 18.303258287267624,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_SINGLE_ADAPTER": {
+            "assigned": 516,
+            "human_labelled": 500,
+            "human_label_missing": 16,
+            "states": {
+              "VALID": 516,
+              "INVALID": 0,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 500,
+            "mae_valid_labelled": 18.174,
+            "rmse_valid_labelled": 28.176621515007792,
+            "worst_case_mae_all_labelled": 18.174,
+            "coverage": 1.0,
+            "complete_forecast": true,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          },
+          "FROZEN_BASE": {
+            "assigned": 516,
+            "human_labelled": 500,
+            "human_label_missing": 16,
+            "states": {
+              "VALID": 0,
+              "INVALID": 516,
+              "UNKNOWN": 0,
+              "NOT_RUN": 0,
+              "ABSTAIN": 0
+            },
+            "valid_labelled": 0,
+            "mae_valid_labelled": null,
+            "rmse_valid_labelled": null,
+            "worst_case_mae_all_labelled": 100.0,
+            "coverage": 0.0,
+            "complete_forecast": false,
+            "proof": "P0",
+            "human_benefit": "NOT_MEASURED",
+            "can_execute": false
+          }
+        }
+      },
+      "all_forecast_arms_complete": false,
+      "paired_adapter_minus": {
+        "FROZEN_BASE": {
+          "n": 0,
+          "mae_difference": null,
+          "bootstrap_interval95": null
+        },
+        "PERSISTENCE_PRE": {
+          "n": 738,
+          "mae_difference": 0.0,
+          "bootstrap_interval95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 2000,
+          "seed": 20261024,
+          "rng": "Python random.Random/choices",
+          "interpretation": "DESCRIPTIVE_WITHIN_EXPOSED_WAVE_NOT_PRISTINE_GENERALIZATION"
+        },
+        "TRAIN128_OLS": {
+          "n": 738,
+          "mae_difference": -0.13925083997611257,
+          "bootstrap_interval95": [
+            -0.8514234759189756,
+            0.6200640635258563
+          ],
+          "bootstrap_replicates": 2000,
+          "seed": 20261024,
+          "rng": "Python random.Random/choices",
+          "interpretation": "DESCRIPTIVE_WITHIN_EXPOSED_WAVE_NOT_PRISTINE_GENERALIZATION"
+        }
+      },
+      "comparison_claim": "PARTIAL_NO_SUPERIORITY_CLAIM"
+    }
+  },
+  "exposure": "PUBLIC_QC_EXPOSED_NOT_PRISTINE; pretraining contamination UNKNOWN",
+  "human_benefit": "NOT_MEASURED",
+  "harms_pressure_dependence": "NOT_MEASURED_NO_RESPONSE_LEVEL_GOLD",
+  "model_adoption": "HOLD",
+  "can_execute": false,
+  "old_final16_accessed": false,
+  "new_manager_participants": 0,
+  "intervention_runs": 0,
+  "monetary_cost": "UNKNOWN",
+  "new_paid_compute_contracts": false,
+  "operator_assertions_not_cryptographic_authority": true
+}

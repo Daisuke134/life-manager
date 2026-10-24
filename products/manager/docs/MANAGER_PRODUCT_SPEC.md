@@ -668,3 +668,13 @@ atomic作業とファイル別受入は[既存model計画のTask8](plans/2026-10
 Costello訂正パッケージは[研究note](research/2026-10-24-costello-correction-reuse.md)と[実receipt](verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md)の有限範囲で現物取得/上流R再現を完了した。これは新しいManagerの人便益ではない。[新しい数値forecast設計](plans/2026-10-24-costello-numeric-forecast.md)は入力2列・train128/dev584/evaluation762・単一LoRAと強い統計baselineを定義し、dev baselineだけを実測した。事後confidenceを真偽/苦しみ/個人因果効果に読み替えず、元final16は使わない。A09の学習用sliceは新caller/tests、exact-source review/公式CI、durable native wait/reap/terminal、900秒/5GiB・別freezeを成立させた。A10のtrain128一attemptは250.792秒で完了し、32 optimizer stepsと単一adapter保存を確認、評価前固定済み。[実学習receipt](verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)。A09全体の別G7評価条件とA11の新base/adapter比較は未成立/未実施。全V002/V003・人介入・モデル採用・YC応募/収益の状態を本追補で進めない。
 
 追加の[MI一次資料調査](research/2026-10-24-motivational-interviewing-reuse.md)を仕様の学習参照に接続する。Intrinsic AIの短期動機/行動課題/24時間追跡を別endpointとし、要旨N237と本文解析234/203の不一致は未解決と記録する。CAMIは判断分解の設計参照、MI-TAGSは会話品質eval候補で、未確認license/full dataを採用済みとしない。[追加の無料実習章](articles/2026-10-24-motivation-is-not-behavior-ja.md)をcanonical書籍へ接続した。次の順序はA11有限比較→U004の実行動研究条件具体化→実観測/比較→実証に沿う記事・章の更新。本人への実介入を現在のoffline研究と混ぜない。
+
+## 25. 有限比較の終了と、次に必要な証拠（2026-10-24）
+
+§24の「別G7評価条件未成立/比較未実施」は当時のsnapshot。現在は[実比較receipt](verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md)と[公開aggregate結果](../experiments/behavior-model/costello-numeric-forecast-results-v1.json)の有限範囲でA09の評価slice/A11を完了した。生成sourcef265、base/adapter各102 contextは正常終了。adapterは全条件で事前値維持と同じ予測、baseは固定JSON/16-token条件でvalid0。予測優位は認定せず、候補をHOLDとして閉じる。同じevaluationへの再学習/選別をしない。学習・形式順守の成立を、行動予測能力や人便益へ昇格しない。
+
+[AnnoMI現物監査](research/2026-10-24-annomi-artifact-audit.md)では原著/固定版CSVの単位と多数決処理を確認した。2023原著のfull版Public Domain宣言を保持し、GitHub license metadataのnullを一律の使用禁止と読まない。既存simple版の会話内分類が次の部分eval候補だが、今回組込/新学習はしていない。133対話/9699発話とfull13551注釈行を区別する。change talkを実行動/持続/苦しみのgoldへ変換しない。
+
+次は既存A12–A15の実条件具体化と真正な観測であり、公開データの数値予測だけで代替しない。本人が選ぶ具体的行動・実対象/役割・観測/比較・追跡/停止・測定rightsを実条件から埋める。新しい会話model研究は、別purpose/分割/baseline/用途条件を固定してから行う。独自モデル全体のscratch事前学習は初期必須にしない。専用app/chatの利用を必須条件へ戻さない。
+
+無料書籍には[動機と行動](articles/2026-10-24-motivation-is-not-behavior-ja.md)、[会話データ](articles/2026-10-24-dialogue-data-evaluation-ja.md)、[モデル比較](articles/2026-10-24-training-is-not-predictive-gain-ja.md)の実習章を追加し、[canonical outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)へ接続した。全書籍/全媒体公開は未完。新しい人参加者0/介入0、U004 DRAFT/NOT_REGISTERED、tasks85/18/10、モデル採用HOLD、実便益未測定を維持する。YC/採用/収益の成立を先取りしない。

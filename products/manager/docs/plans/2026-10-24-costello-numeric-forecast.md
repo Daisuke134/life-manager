@@ -1,6 +1,6 @@
-# Costello numeric forecasting — research decisions and next implementation
+# Costello numeric forecasting — research decisions and finite comparison outcome
 
-> **最新状態 2026-10-24 12:36 UTC以降:** A09の学習用sliceを別受入し、A10のtrain128一attemptは正常完了、単一adapterを評価前に固定した。[実receipt](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)。以下の未受入/未実施は実行前snapshot。新base/adapter比較はNOT_RUN、A09の別G7評価条件は未成立、採用HOLD。
+> **最新状態 2026-10-24 13:06 UTC以降:** A09の別G7評価sliceとA10/A11の有限実行を完了。[実比較receipt](../verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md)。baseは固定JSON/16-token条件でvalid0、adapterは全102 contextでpersistenceと同じ予測。予測優位は認定せず、採用HOLDでこの候補を閉じる。同じevaluationへretuneしない。以下の未受入/未実施は各実行前snapshot。
 
 **Goal:** 公開実験条件における本人報告confidenceの予測を、単純統計と一つのLoRAで有限比較する。説得文生成・個人因果効果・苦しみ低減の研究とは分ける。
 

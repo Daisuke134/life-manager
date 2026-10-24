@@ -170,10 +170,12 @@
 - [x] A01–A02 現物確認/用途/実schema: Zenodo59membersを選択取得、manifest自身以外58payloadの上流SHA一致。primary2094行/54列、post欠測50、公開key上のwave横断participant0を確認。[研究note](../research/2026-10-24-costello-correction-reuse.md)。
 - [x] A03–A04 有限の実再現: 上流build_results.Rと7部validate_analysis.Rを変更せず実行してPASS。互換R4.5.3、元lock4.5.0とは異なる。6表45行を許容差内で照合。全archive/survey reconstruction再現ではない。[実receipt](../verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md)。
 - [x] A05–A08 研究設計と私有入力準備: 二つの事前入力から事後本人報告confidenceを予測する有限候補、train128/dev584/evaluation762、NO_ACTION/事前値維持/平均/OLS/base/単一LoRAを固定。当該設計時点ではdevの単純baseline実測のみ。後続A10の実学習は次項、新LLM採点は未実施。[designと残code](2026-10-24-costello-numeric-forecast.md)。
-- [x] A09の学習用slice: source専用callerと15 focused tests、fresh review、exact-source公式CI、durable canary・native wait/reap/terminal契約、900秒/5GiBと別admissionを成立させた。A09全体の別G7評価用caller/CI/資源受入は未成立。
-- [x] A10の単一attempt: train128、32 optimizer steps、250.792秒、保存adapterを評価前固定。独立検査で112 tensorsがfinite、56 B tensorsがzero初期値と異なる。[実receipt](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)。新評価は未実施で採用HOLD。
-- [ ] A11: 別G7のgeneration caller/tests、exact-source review/CI、別予算freezeを成立させ、全assigned分母で比較して閉じる。元final16不使用、同じevaluationへretuneしない。
+- [x] A09の学習用slice: source専用callerと15 focused tests、fresh review、exact-source公式CI、durable canary・native wait/reap/terminal契約、900秒/5GiBと別admissionを成立させた。後続の別G7評価sliceもsource/review/公式CI・1800秒/5GiB per arm・別freezeを成立させた。
+- [x] A10の単一attempt: train128、32 optimizer steps、250.792秒、保存adapterを評価前固定。独立検査で112 tensorsがfinite、56 B tensorsがzero初期値と異なる。[実receipt](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)。別G7比較も完了し、persistenceを超える予測利得なしで採用HOLD。
+- [x] A11の有限比較: base/adapter各102 contextの正常終了後に結果固定、dev584/evaluation762の全assignedへ復元。base valid0、adapterは全contextでpersistenceと一致、優位認定なし/HOLD。[実比較](../verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md)。独立算術885 checks/finding0。元final16不使用、同じevaluationへretuneしない。
 - [x] 追加研究/原稿: Intrinsic AI、CAMI、MI-TAGSの[用途別一次資料調査](../research/2026-10-24-motivational-interviewing-reuse.md)と[追加実習章](../articles/2026-10-24-motivation-is-not-behavior-ja.md)。取得/静的読取/再現を分け、未取得rightsや人数不一致を残す。全研究網羅/全書籍完成ではない。
+
+- [x] AnnoMIの現物/単位監査と追加章: [source audit](../research/2026-10-24-annomi-artifact-audit.md)、[データ実習](../articles/2026-10-24-dialogue-data-evaluation-ja.md)、[学習比較の実習](../articles/2026-10-24-training-is-not-predictive-gain-ja.md)。新AnnoMIモデルの実装/採用はしていない。
 
 上の完了はこの有限研究の範囲だけ。全V002/V003/モデル採用/人便益の受入ではなく、tasks.json85/18/10・U004 participants0/interventions0・modelHOLDは維持する。
 
