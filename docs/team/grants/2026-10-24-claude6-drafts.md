@@ -35,6 +35,8 @@ Program facts (official page): self-funded tier, starts at $1,000 in credits (se
 
 Program facts (official page): free; any funding stage; no fees, deadlines or cohorts. Apply at https://programs.nvidia.com/phoenix/application.
 
+**Blocked (2026-10-24 13:40 JST, application page read):** membership requires an officially incorporated company and two contacts with non-alias business email (gmail.com and info@-style aliases are rejected). `docs/team/specs/funding-pipeline.md` L7 records that `company.legal_name=Anicca` is not proof of incorporation, so this cannot be submitted truthfully until the company is incorporated and a personal @aniccaai.com mailbox exists.
+
 - Company description: Anicca AI builds Life Manager, an open-source AI agent that runs small online businesses on a local Mac (contract work, apps, content, digital products), and AI Monk Index, a public research MCP server.
 - AI focus: agent orchestration, on-device and hosted LLM inference, AI video/voice content.
 - Website: https://aniccaai.com · GitHub: https://github.com/Daisuke134/life-manager
