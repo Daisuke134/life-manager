@@ -105,6 +105,12 @@ def _browser_registry(registry: dict, home: Path) -> str:
         lines.extend(("", "[[identity]]", f"id = {json.dumps(identity)}",
                       f"profile = {json.dumps(str(_home_path(browser['profile'], home)))}",
                       f"owner = {json.dumps(owner)}", f"declared_port = {browser['cdp_port']}"))
+        launcher = loops[owner].get("label") if owner in owners else None
+        external_label = f"ai.anicca.{owner}"
+        if launcher is None and external_label in registry.get("external_labels", []):
+            launcher = external_label
+        if launcher:
+            lines.append(f"launched_by = {json.dumps(launcher)}")
     return "\n".join(lines) + "\n"
 
 

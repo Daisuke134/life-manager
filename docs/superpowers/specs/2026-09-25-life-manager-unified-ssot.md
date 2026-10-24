@@ -536,13 +536,17 @@ INSTALL-REUSEの限定実受入receipt: accepted mainc97cad55188c661d801a94f9363
 
 所有・順序: primaryは本節・統合・main由来immutableの対象限定採用・自然readbackを所有する。source/testの正確な範囲は生成元と全callerの確認後にこの契約内で限定する。旧順序はRUNTIMEの自然待機再観測、新順序はRECYCLE-REGISTRYのRED→最小修復→review/CI/main→既存recycler1owner反映→自然terminal→Lancersの待機/公式成果照合。理由は既存回復ownerが台帳差により動作対象を失う再現があり、しきい値を緩めず回復経路を戻せるため。
 
-- [ ] RECYCLE-REGISTRY-RED/GREEN: common生成の台帳を実consumerへ渡す最小回帰を先に失敗させ、canonical専用browserだけが対象となるよう修復する。既存interactive/provisioned/busy/同PID/ageの回帰を維持する。source所有はruntime/host/local_profile.pyの_browser_registryだけ、test所有はruntime/host/tests/test_local_profile.pyだけ。managed labelはloop-registryのloops[owner].label、外部Mercorはexternal_labelsの一致を要求する。本人設定を保持するprepare_hostの既存動作とrecycler本体は変更しない。
+- [x] RECYCLE-REGISTRY-RED/GREEN: common生成の台帳を実consumerへ渡す最小回帰を先に失敗させ、canonical専用browserだけが対象となるよう修復する。既存interactive/provisioned/busy/同PID/ageの回帰を維持する。source所有はruntime/host/local_profile.pyの_browser_registryだけ、test所有はruntime/host/tests/test_local_profile.pyだけ。managed labelはloop-registryのloops[owner].label、外部Mercorはexternal_labelsの一致を要求する。本人設定を保持するprepare_hostの既存動作とrecycler本体は変更しない。
 - [ ] RECYCLE-REGISTRY-SHIP: focused/関連検証、fresh read-only反証、exact-head公式CI全項目、main統合と公開source readbackを受け入れる。
-- [ ] RECYCLE-REGISTRY-ACTUAL: accepted immutableと同じ生成経路で台帳を更新し、owner限定のloaded-idle apply、自然terminal、recycled/keep/busyの理由とmemory/disk前後を照合する。swap回復・全Lancers成果・別Mac・10,000 starsは個別に判定する。
+- [ ] RECYCLE-REGISTRY-ACTUAL: accepted immutableのgeneratorと一致する不足metadataを、まずLancers1行だけへ対象限定で補う。profile/port/owner/他fieldと0600を保持し、既存accepted atomic writerを使う。recycler本体は差分0なのでsource byte一致を確認し、不要なowner reloadを追加しない。既存の自然terminal、recycled/keep/busyの理由とmemory/disk前後、browser ownerの再生成/公式account状態を照合してから残metadataへ進む。swap回復・全Lancers成果・別Mac・10,000 starsは個別に判定する。
 
 前段receiptの統合: PR #8812/head ebfb29db0af503a613fe2f447d0e75011f8e26cf、Security Scan40045479601/attempt1はprimaryと独立検証で全13completed-success。match-head指定admin squashでmain1bc11d6f645bbf65dbaf6334ed5d0c38b7defacaへ統合し、GitHubからfetchしたpublic main objectでREADME公開receiptとINSTALL-REUSE限定実受入節のbyte一致を確認する。
 
 REDの受入: source未変更の新規1testは、生成TOMLを実recycle_targetsへ渡し、Lancers/Coconala/Mercorの3subtestsすべてで対象集合{}へのassertInが失敗する（3 failed/1 passed、0.32s）。fixture HOME/LaunchAgentsと開発Pythonを使用し、実browser/host設定/providerを変更しない。既存hostのAI_BROWSER_REGISTRYは本人設定なので汎用migrationを追加せず、source受入後、同じaccepted generatorとcanonical labelへ一致する既存行の不足metadataだけを対象限定で補う。profile/port/owner/他fieldは保持する。
+
+GREENの受入: sourceは既存generatorへの6行追加だけ。関連host profile/recycler/memoryの3filesは61 PASS/195subtests（3.20s）、adapter15 PASS、loop contract18/192/113/errors0、AST/diff/source-boundary/OSS self-containedがPASS。source SHA256=bd1034f8fdf4cc769c3d0c43cf07c5622937da201f7c902d45f006b5989f1d45、test=23464407cac7ddaa56a951f1a1bb664864edf7e7a708c0f69a397c9ea01bffb6。fresh-context反証は独立fixture10ケースと関連53 PASS/195subtests、blocking0/SHIP、前後hash一致。interactive/provisioned/未宣言externalのlease/close0、busy/age/同PIDの保護を確認する。
+
+全runtime検証のharness訂正: 初回unittest discoverは1055件/251.153sで5失敗となる。test_loop_cleanupのbusiness wake、release-root/terminal success/terminal fail、scratch保存の5条件は既存pytest conftestのswap隔離がunittest起動では適用されず、実hostのswap高値を読んでexit75になる。通常pytest経路で同5件を再実行し5 PASS（1.70s）を確認する。本番thresholdやsourceを変えず、同じ既存隔離条件を明示した全runtime検証を続ける。
 
 #### Lancers本人入力の実装計画
 

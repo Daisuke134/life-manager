@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from runtime.host.local_profile import prepare_host, load_host_profile, host_environment
+from runtime.host.local_profile import prepare_host, load_host_profile, host_environment, _browser_registry
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -86,6 +86,13 @@ class LocalProfileTest(unittest.TestCase):
                 self.assertTrue(Path(targets[identity]["profile"]).is_relative_to(self.home))
         self.assertNotIn("interactive:dais", targets)
         self.assertNotIn("promptbase:dais", targets)
+
+    def test_external_browser_binding_requires_declared_launcher(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        registry["external_labels"].remove("ai.anicca.job-search-mercor-browser")
+        bindings = tomllib.loads(_browser_registry(registry, self.home))
+        mercor = next(row for row in bindings["identity"] if row["id"] == "mercor:dais")
+        self.assertNotIn("launched_by", mercor)
 
     def test_explicit_profile_path_survives_into_child_environment(self):
         self.prepare()
