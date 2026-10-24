@@ -29,7 +29,7 @@ platform_args=()
 if [[ "$(uname -s)" == Linux ]]; then
   platform_args=(--headless=new --disable-dev-shm-usage)
 fi
-exec "$BROWSER" "${platform_args[@]}" --no-first-run --no-default-browser-check \
+exec "$BROWSER" ${platform_args[@]+"${platform_args[@]}"} --no-first-run --no-default-browser-check \
   --disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess \
   --renderer-process-limit="$renderer_limit" \
   --remote-debugging-address=127.0.0.1 --remote-allow-origins='*' \

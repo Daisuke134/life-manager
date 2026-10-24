@@ -42,6 +42,24 @@ class CloudCycleTest(unittest.TestCase):
             self.assertIn('--disable-dev-shm-usage', result.stdout.splitlines())
             self.assertNotIn('--no-sandbox', result.stdout.splitlines())
 
+    def test_macos_browser_owner_runs_under_bash32_with_no_platform_args(self):
+        """2026-10-24: 'platform_args[@]: unbound variable' kept the Capafy console browser down on macOS bash 3.2."""
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            browser = root / 'browser'
+            browser.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+            browser.chmod(0o700)
+            uname = root / 'uname'
+            uname.write_text('#!/bin/sh\necho Darwin\n')
+            uname.chmod(0o700)
+            script = MODULE.parent / 'browser-owner'
+            env = {'PATH': str(root) + ':/usr/bin:/bin', 'HOME': str(root),
+                   'CAPAFY_BROWSER_PORT_OWNED': '1', 'CAPAFY_CHROMIUM': str(browser)}
+            result = subprocess.run(['/bin/bash', str(script)], env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn('--headless=new', result.stdout.splitlines())
+            self.assertIn('--no-first-run', result.stdout.splitlines())
+
     def setUp(self):
         self.assertTrue(MODULE.exists(), 'cloud_cycle.py must implement the tenant adapter')
         spec = importlib.util.spec_from_file_location('cloud_cycle', MODULE)
