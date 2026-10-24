@@ -1417,6 +1417,21 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertTrue(referenced.exists())
         self.assertEqual(result["removed_releases"], 0)
         self.assertGreater(result["errors"], 0)
+        self.assertEqual(result["dependency_bundles"]["diagnostic"], {
+            "phase": "reference_path_resolution", "timeout_seconds": 0,
+        })
+
+    def test_release_gc_only_timeout_diagnostic_omits_untrusted_command(self):
+        bundle = self._bundle()
+        self._release(bundle)
+        failure = subprocess.TimeoutExpired(["/private/secret/token", "argument"], float("inf"))
+        with mock.patch.object(self.cleanup, "_bundle_references", side_effect=failure):
+            _code, result = self._gc()
+
+        self.assertEqual(result["dependency_bundles"]["diagnostic"], {
+            "phase": "reference_subprocess",
+        })
+        self.assertNotIn("/private/secret/token", json.dumps(result))
 
     def test_release_gc_only_preserves_unowned_fd_even_in_its_own_process(self):
         bundle = self._bundle()
