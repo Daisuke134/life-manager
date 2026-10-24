@@ -12,13 +12,14 @@
 |---|---|
 | 公開README | 英日READMEの冒頭に7事業、ChatGPT Plus以上/スリープしないMac、単一の導入入口、初期開発中の制限と詳細catalogを掲載済み。各事業が何で収益化するかも明記済み。 |
 | Mac導入のsource | 初回bootstrap、認証確認、共通依存など再現した導入不具合を修正し、mainへ反映済み。これで別Macの実機完走までは証明しない。 |
+| Mac architecture CI | PR #8878をmain `55f471e4`へ統合し、Apple Silicon/Intelのloop-control CIを含むmain後続Security Scan 14/14が成功。CIは別Macでの初回導入や実業務の完走を証明しない。 |
 | 受託platformの入口 | Coconala/Lancers/CrowdWorksの公開導入入口をmainに反映済み。Mercorの公開local setupも[PR #8863](https://github.com/Daisuke134/life-manager/pull/8863)でmainへ統合済み。installerの存在は実業務の成功を意味しない。 |
 
 ### 残っていること
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPENで、head `53a21430`のsourceはmain未統合。13/13 CI checksはこのheadで成功し、approval reviewは未記録。PR branchは最新mainへの更新後に再受入が必要。 | 最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
+| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN/CONFLICTING。head `53a21430`の14/14 CI checksは成功しているが、最新main `55f471e4`への統合・approval reviewは未完了。 | 最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
 | 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
 | 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
@@ -27,7 +28,7 @@
 
 ### ゴールまでの順序
 
-現在cursorは **REPLY-PROFILE-SHIP**。PR #8865は提出済みだが未統合で、13/13 CI checks成功だけでは完了ではない。最新mainとの競合を解消し、更新headのreview/CI、main統合、公開source readbackを通してからreleaseと実Macを再観測する。
+現在cursorは **REPLY-PROFILE-SHIP**。PR #8865は提出済みだが未統合で、現headの14/14 CI checks成功だけでは完了ではない。最新mainとの競合を解消し、更新headのreview/CI、main統合、公開source readbackを通してからreleaseと実Macを再観測する。
 
 1. PR #8865を最新mainへ合わせ、更新headのfocused test・独立review・全CIを確認して統合し、main由来releaseで公開checkoutからinstallerを再確認する。
 2. 現MacのMercor browser/profile/Paidを既存ownerの経路で整え、Reply/Paidの未確定effectは公式readbackで照合してから再開する。
@@ -42,7 +43,7 @@
 
 ### 10,000 starsを目指すREADMEの参考例
 
-GitHub公式README/APIを今回照合した値は、[n8n](https://github.com/n8n-io/n8n) 208,456 stars、[Dify](https://github.com/langgenius/dify) 159,400 stars、[Open WebUI](https://github.com/open-webui/open-webui) 156,616 stars。3つに共通する短い価値説明、試す前に分かる要件、Quick Start、画面またはdemo、詳しいdocs・community/contributionへの導線を参考にする。Life Managerでは7事業と実際の収益モデル、ChatGPT Plus以上とスリープしないMac、一つの導入command、利用可否と制限を初見向けに伝え、未完成機能や収益を約束しない。starsの観測値はREADMEがstarsを生む因果の証明ではない。
+GitHub公式APIの現行readbackは、[n8n](https://github.com/n8n-io/n8n) 208,470 stars、[Dify](https://github.com/langgenius/dify) 159,405 stars、[Open WebUI](https://github.com/open-webui/open-webui) 156,616 stars。3つに共通する短い価値説明、試す前に分かる要件、Quick Start、画面またはdemo、詳しいdocs・community/contributionへの導線を参考にする。Life Managerでは7事業と実際の収益モデル、ChatGPT Plus以上とスリープしないMac、一つの導入command、利用可否と制限を初見向けに伝え、未完成機能や収益を約束しない。starsの観測値はREADMEがstarsを生む因果の証明ではない。
 
 **README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。README構成の比較対象は上記のn8n、Dify、Open WebUIのGitHub公式README/APIとし、PIONのURL特定はREADME改訂の進行条件にしない。
 
