@@ -120,6 +120,49 @@
 - [ ] 既存full-site releaseと独立GETを確認して初めてlive更新とする。研究branchの本仕様更新では公開済みにしない。
 - [ ] C002/Y008の新記事・書籍等は本体優先の後段。Y003/Y005は期限と実際の提出/応答を別に扱い、採択/採用を約束しない。
 
+## Task 8: 学習開始とYC証拠へのatomic作業（2026-10-24）
+
+**Spec:** [仕様§23](../MANAGER_PRODUCT_SPEC.md#23-次の学習開始yc-w27成果atomic実行順2026-10-24)。既存Task2–7の具体化。以下は未実施の作業で、新しいtask ID/第二SSOT/学習実行許可ではない。状態はtasks.jsonの85/18/10を保持する。
+
+**Files:** 以下の新規pathは作成予定で、今回実装済みではない。
+- Create when executed: `docs/research/2026-10-24-costello-correction-reuse.md`（来歴/用途/再現範囲）、`experiments/behavior-model/costello-correction-artifacts-v1.json`（exact取得版/file/hash/用途のmetadata）、`docs/verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md`（実結果のみ）。raw/private記録と上流実行環境はGit外。
+- Reuse: `manager_core/outcome_bench.py::EvidenceReference/EvidenceBundle`、既存source-rightsのartifact別record形式、上流のR code/lockfile/cached results。
+- Modify after concrete findings: `pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md`、既存model subplan、`docs/founder/Y001_MANAGER_PITCH_EN_JA.md`。架空条件を補わない。
+- Reuse for training: `manager_core/helpsteer2_candidate_sft.py`の標準PEFT/TRL/save検証の形。旧HelpSteer2科学protocol/manifest/実行configを上書きせず、新用途は別versionで固定。
+- Reuse after study fits assumptions: `manager_core/causal_analysis.py::analyze_causal_study`、`manager_core/outcome_windows.py`。固定架空suite専用`collaboration_comparison.evaluate_suite`へ人研究CSVを直接投入しない。
+
+**Interfaces:** A01–A04はsource/版/用途と上流再現結果を渡す。A05–A09はpurpose/入力/出力/metric/学習・評価manifestと実資源を渡す。A10は単一adapter artifactと実terminalを渡し、A11は同一分母の固定比較を返す。A12–A15は実protocol→実観測→比較効果を渡す。A16–A18はactualだけを創業者packet/既存ownerへ渡す。source-specific schemaが未観測の間は汎用loader/signatureを先に発明しない。
+
+| 順序 / 既存task | 一つの作業 | 確認できる終了条件 |
+|---|---|---|
+| A01 / V002 | Dryad訂正版と案内先Zenodoの実artifact一覧・版・license・manifestを読み、用途別採用表へ固定 | URL/取得時刻/bytes/SHA/上流manifest一致、data/code/paperの用途を分離。非取得は未取得、未clear用途はHOLD |
+| A02 / V002 | data dictionaryから原著解析の入力列・単位・除外・欠測・重複・追跡条件を上記research noteへ対応付ける | participant/response/study/time単位とsource行が追え、原2024版/訂正版の混用0。公開strategy集計を個別応答goldに変換しない |
+| A03 / V002 | 上流R/lockfile/保存済み結果で再現する有限解析を選び、取得前後の費用/実行範囲を固定 | exact command/環境/主要表/分母/比較基準と上限が定義され、新API0で可能な範囲を明記。不可なら理由付きで終了 |
+| A04 / V002 | 受入済み範囲だけを実行し、元表と分母・効果・区間を照合してverificationへ保存 | 一致/不一致/実行不能を記録。上流実行を独自model優位にしない。新shimが必要なら実schemaから別の最小差分を定義し、意味あるRED/GREEN後に通常CIで統合 |
+| A05 / V002/V003 | 次のmodel研究が改善する一能力と主要metricを選び、既存planの新versionへ固定 | 実dataに対応する入力/出力/人参照/estimandが一意。原著の将来outcomeをpromptへ漏らさない。合う資料がなければ未成立を記録 |
+| A06 / V002 | 同じinputのNO_ACTION・ルール・既存base/APIの比較範囲を固定 | 全assigned・attempt/refusal/invalid/unknown/not_run、費用・予算、利用条件と人参照対応が一致。APIの現予算が不明なら新課金しない |
+| A07 / V003 | 学習候補のexact資料・用途rights・除外・人物等の利用可能な分割軸を固定 | 新train/dev/final manifest、漏洩/曝露台帳、primary/害評価が先に存在。旧final16読み書き/再利用0、欠けた分割軸はUNKNOWNでclaim限定 |
+| A08 / V003 | 単一base/recipe/seed/adapterの標準SFT/LoRA実行計画を作る | 既存PEFT/TRL/save経路を再利用。新trainerなし。変更が必要なcallerだけにsignature/RED/GREEN/検証commandを実schemaから追記 |
+| A09 / V003 | 実hostの時間/RAM/disk/費用・durable終了監視、code/review/CIを確認して別freeze | 仕様§23.3の4条件すべて成立。observer再接続後も真のwait/終了記録を保持する経路が確認できる。旧時間予算を流用しない |
+| A10 / V003 | 別受入の一attempt学習を行い、単一adapterと実終了を完全保存 | base/adapter/tokenizer/recipe/hash/実computeと費用UNKNOWNを含むreceipt。失敗を記録し、無断retry/延長/選別なし |
+| A11 / V003 | 固定した新評価でbase/adapter/ルール等を比較する | 主要metric・区間・全分母・失敗・害を報告。無改善ならHOLDで終了。評価後の同じfinalへのretuneなし。学習成功と運用採用を分離 |
+| A12 / U004 | 本人が選ぶ実行動・実roles・媒体・測定rights・停止/観測と比較をv2に埋める | 実需要/実条件を確認。人数/期間はendpoint/最小差/分散/脱落から根拠付け、開始前固定/適用登録を行う。モデル研究全体終了は一律前提にしない |
+| A13 / U006 | 成立したprotocol内で実介入と独立観測を記録する | 配信/曝露/本人報告/行動/欠測/撤回を区別。同じ人の反復を新参加者へ水増ししない |
+| A14 / U007/D016 | 固定比較で行動・苦しみ/機能・持続・害/負担・費用を分析し証拠へ結ぶ | ITT等の計画済み分母と効果/区間/欠測を保持。推定器が反復/clusterに適合することを確認。賛成率を便益へ昇格しない |
+| A15 / U008 | 実成果を基に継続意思/辞退・支援/支払commit・実運用費を記録 | 同期間/対象の出典を持ち、収益不明はUNKNOWN。単発pilotをMRRにしない |
+| A16 / Y003 | 既存pitchへ技術demo・model比較・実行動結果・継続/費用をactual/未実施別に結ぶ | 仕様§23.4の証拠表と各receiptへの対応があり、本人の寄与と陰性結果も説明できる |
+| A17 / Y005 | 別ownerとの重複を確認し、相手別の再現結果と技術的な問いを既存接点記録へ用意する | Murphy/Klasnja、Costelloら、Artificial Societies、humans&等の公開窓口/問い/承認範囲が明確。実送信/返信を草案から創作しない |
+| A18 / Y003 | 担当ownerが公式W27受付/締切/form/動画/本人情報を確認し、成立した応募を提出・読戻しする | 公式提出receipt。採択は別結果。実証未完ならその状態を記し、架空結果や未確認の締切を使わない |
+
+- [ ] A01–A04: 次の公開既存研究の有限offline再利用。新しい人対象介入ではない。
+- [ ] A05–A11: 次のmodel比較と学習。A09成立直後に開始判断でき、A12–A15全完了を一律に待たない。
+- [ ] A12–A15: 実研究線を並行し、真正な行動/苦しみ/継続の証拠を作る。
+- [ ] A16–A18: YC/接点の既存ownerへ実証跡を渡す。記事制作は後段。
+
+**後続の全終点:** V004はV003+D016成立後、V005第三者再現→V006実案件→G003異集団→G004接続契約→G005経済性→G006未測定/失敗棚卸し。U008はU007後の別枝。C002→Y008は本体後。全ID・依存は[既存roadmap](../roadmap/START_TO_END_20261022.md)。
+
+**検証:** 今回は仕様/計画のみ。相対link、変更範囲、tasks.json不変/85-18-10、PII/secret scan、diff checkを確認する。将来のcode taskでは上記の実schema/失敗例を確定してから対応既存testsへRED/GREENを追加し、該当suiteと通常CIを実行する。docs追記でmodel/data採用・学習/介入・応募/送信・公開は発火しない。
+
 ## 今回の計画のself-review
 
 scope・元snapshotの23残件から限定V001/G001/G002とD014/D015有限受入後の現18残件・独自重み・公開研究再利用・no UI・実結果・siteの各要求をTask1–7へ対応付けた。有限train27開始routeのG0 sourceを実採択し、評価科学定義の用途判断・独立reviewに基づくsource採択/freezeをG6実学習より前に記録済み。実G0–G6・CI/config受入、一attempt学習/完全保存と独立実結果検証・単一artifact固定を[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)へ結んだ。別G7/code/CI/resource/0400受入後の固定比較96/96完了と[独立実結果検証](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)を接続した。baseへの改善未観測・採用HOLDと全体未達を保持し、新しい研究は別version/用途適合holdoutを要する。未確定の研究条件はprotocol草案へ明記し、実行時に埋める方法と受入を指定した。本計画のcheckboxは実イベントと今後の手順を区別し、第二の状態台帳や達成件数にはしない。

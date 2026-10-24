@@ -604,3 +604,59 @@ Boba発表の100万超messages、利用例、290完了survey・29%回答率・70
 04:28 UTCの公式[Ashby一覧](https://jobs.ashbyhq.com/humans-and)と公開posting APIで、Product Engineer (Member of Technical Staff) とMember of Technical Staff（Research部署）の2件を掲載中と確認。両方SF・FullTime・OnSite。Productは人とcomputerのinteractionに関する卓越したproduct実績、Researchはfrontier AIの卓越したresearch/engineering実績が主眼。現時点のManager証拠ではProductを先に照合する価値があるが、本人の適格性を認定しない。求人・stack・公式URLは[実行マップ](plans/2026-10-22-manager-founder-execution-map.md)へ更新。
 
 数日を準備の目安とし、既存応募packetを再利用する。本体の実復旧とdemo → 本人の寄与が確定したCV/project evidence → role別noteとSF/full-time等の条件照合 → 提出時の公式form確認、の順。新しい記事公開は応募の前提にしない。今回のGETは求人の存在確認で、フォーム項目の操作、応募、連絡、数日後の自動送信予約は行っていない。Y003/Y005の状態は変えない。
+
+## 23. 次の学習開始・YC W27成果・atomic実行順（2026-10-24）
+
+ユーザー指定: 本体を先行し、既存研究・code・モデルを再利用して不足だけ作る。No UIは通常提供に専用app/chat操作を必須としないこと。Digital Buddha / Transparent Godは長期構想。現時点のAGI・覚り・全存在への便益・企業価値・YC採択を実証した表現にはしない。本節は既存計画の具体化で、第二の状態台帳ではない。113 IDs=85 done /18 todo /10 skipped、model HOLD、U004 DRAFT/NOT_REGISTERED/participants0/interventions0を変更しない。
+
+### 23.1 誰から何を使うか
+
+| 学習先 | 固定する採用方針と接続 | 現時点の境界 |
+|---|---|---|
+| Susan Murphy / Predrag Klasnjaの[HeartSteps](https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/)、Inbal Nahum-Shaniらの[JITAI](https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/) | decision point、availability、NO_ACTION、近接/長期結果をstudy v2と既存outcome_windowsへ結ぶ | 歩数効果を苦しみ低減へ移さず、既存H005 exact再現skipは維持 |
+| Katy Milkman / Angela Duckworthらの[megastudy](https://www.nature.com/articles/s41586-021-04128-4) | 共通対象・接触量・期間・主要結果で候補介入を比較する設計を借りる | 原著のpartner/参加者をManager実績に加算しない |
+| Francesco Salvi / Manoel Horta Ribeiro / Riccardo Gallotti / Robert Westの[対話説得研究](https://www.nature.com/articles/s41562-025-02194-6) | 対照を伴う事前/事後の意見変化の測り方を参考にする | 公開頁の2026年訂正案内を確認。短期意見変化を行動/便益とせず、属性別政治説得を実装する方針にはしない |
+| Thomas Costello / Gordon Pennycook / David Randの[原著](https://www.science.org/doi/10.1126/science.adq1814)と[訂正Dryad](https://datadryad.org/dataset/doi:10.5061/dryad.v6wwpzh4h) | 次の有限offline候補として訂正版の効果・追跡・欠測の再現可能性を確認する | 公開説明のみ確認済み。ZIP/コード/結果の独立再現は未実施。信念尺度は苦しみ尺度ではない |
+| Artificial Societiesの[AS Benchmark](https://github.com/artificial-societies/artificial-societies-benchmark) | metrics/scorecardの分布・個人・介入効果・欠測の区別を使う。既存再構築receiptを再利用 | Rothko本体weights導入ではなく、公開集計再構築も原human推論再現ではない |
+| Joon Sung Park / Percy Liang / Michael Bernsteinの[Generative Agents](https://github.com/joonspk-research/generative_agents) | memory/reflection/planningを必要箇所の設計参照にする | 初期作業を街全体の新simulator開発へ広げない |
+| humans& | 既存Ampersand adapter/sessionを比較用に再利用。Persimmonは反応予測候補、Bobaは協働/memory/tool利用の設計参照 | Persimmon実接続とBoba組込APIは未確認。Boba/iMessageはUI。定期Ampersand推論済みとしない |
+| Qwen / Hugging Face PEFT・TRL | 既存base・標準LoRA/SFT・保存・比較を再利用 | 現adapterは改善未観測/HOLD。独自trainerやscratch pretrainingを初期必須にしない |
+
+### 23.2 最初の追加offline研究と、その終了条件
+
+次の順番はCostelloらの訂正済み公開研究のartifact確認→再現可能な解析→目的別model比較の具体化。Dryad公開説明は2026-09訂正、6つのauthoritative deidentified tables、CC0、完全パッケージ[Zenodo DOI](https://doi.org/10.5281/zenodo.22754984)とcode MITを案内する。これはarchiveの現物確認や全素材権利受入ではない。取得時は版・SHA・manifest・各artifactの用途を別確認する。
+
+1. data dictionary・screening flow・欠測・重複/除外・追跡対象を固定。原2024版と訂正版を混ぜない。
+2. 上流R/lockfile/保存済み結果を調べ、新APIなしで再現できる解析を選ぶ。新規有料資源は自動追加しない。
+3. 同じ解析対象・estimand・効果・区間・追跡分母を照合。不一致/再現不能はそのまま有限結果として終了する。
+4. 上流結果はoutcome_benchのEvidenceReference/EvidenceBundleへ結ぶ。参加者CSVを固定架空suite専用collaboration_comparison.evaluate_suiteやstudy-level external_behavior_evalへ直接渡さない。
+5. 応答単位の圧力/依存/害goldがこの資料に含まれるとは仮定しない。公開説明ではstrategy ratingsは集計で、response単位bindingとは別。不足endpointは別用途資料で扱う。
+
+本研究は既存人研究の再現で、新たなManager参加者/介入/モデル効果を作らない。全V002終了や新学習の自動開始条件にもならない。
+
+### 23.3 次のモデル学習はいつ始めるか
+
+最初の有限学習は既に完了済み。train27 PRIVATE SFT、dev8/final16比較で改善未観測/HOLD。次の開始日はまだ確定していない。次の4条件が成立した直後に開始判断し、実pilot全体やYC応募完了を一律には待たない。
+
+1. **改善対象を一つに固定:** 行動/反応予測、限定された協働判断等からpurpose-fitなものを選び、入力・出力・主要metricを固定。短期意見変化の再現資料だけで介入policyの学習targetを決めない。
+2. **実在する学習資料と用途rights:** exact base/data/人ラベル対応・除外・privacy条件を確認。Costelloの公開dataはまず解析用途であり、自動的に会話学習dataへ転用しない。
+3. **新規評価の事前固定:** 新versionのtrain/dev/final、利用可能な人物/文脈/時間分割、漏洩/曝露履歴、NO_ACTION/ルール/base、主要metricと害/失敗判定を固定。旧final16はSCORED/NOT_PRISTINEで永久に今回の再学習/選別/再採点へ使わない。成立しない分割軸はUNKNOWN/UNAVAILABLEとしclaimを限定する。
+4. **実行を固定:** 既存PEFT/TRL・base/adapter/tokenizer・recipe/seed、実hostに合う時間/RAM/費用上限、保存/終了監視・独立review・通常CI・外部freezeを成立させる。今回失われたouter waitを再発させないdurable ownerを実確認する。旧10800秒/6GiBを新jobへ機械的に転記しない。
+
+最初は一つのbase・一つのrecipe・一つのadapterで比較する。基盤モデル全体の新規事前学習は、固有data・能力不足・必要compute/費用が示された後の別判断。新規評価が無改善なら不採用として閉じ、結果が出るまで同じfinalへretuneしない。V003全体とV004の一般受入依存は維持する。
+
+### 23.4 YCに示す結果とeval
+
+| 証拠 | 指標・比較・成果物 | 現在と到達条件 |
+|---|---|---|
+| 公開研究を正しく再現できる | source/版/分母/効果/区間/欠測の一致表、再現command、失敗 | AS公開集計再構築等は既存receipt。Costello訂正版は未実施。Manager自身の便益とは分ける |
+| modelの価値 | 同じ入力/分母/予算でNO_ACTION・ルール・API・open weights・新adapterを比較。attempt/invalid/refusal/欠測・費用・区間を併記 | generic preference/MCQの有限実測はあるが優位未確認/HOLD。予測はpurpose-fit MAE又は確率予測ならBrier/calibration等、異なる単位を合算しない |
+| 行動変容の価値 | 事前固定した主要行動endpointの対照差と区間、全割付分母、追跡、苦しみ/機能・害/圧力/依存・負担を別評価 | U004→U006→U007の実結果が必要。賛成率・満足度・モデルjudge・論文の参加者数で置換しない。人数/期間は主要endpointの検出力根拠から決める |
+| 提供と継続性 | 対象本人の継続/辞退、利用頻度の意味、実支援/支払commit、同期間の実費/settled収益 | U008等で実記録。現scopeの収益未確認はUNKNOWN。単発pilotをMRRにしない |
+| 主体としての実行 | 観測→判断→限定実行→独立readback→STOP/復元を同一occurrenceで示す短いdemoと監査記録 | 既存技術受入を再利用し、新行動channelの実適用はV004で別受入。専用chat操作を価値提供の必須にしない |
+
+YC application packetは既存docs/founder/Y001_MANAGER_PITCH_EN_JA.mdを更新し、上表のactual/未実施/陰性を区別した結果表、短い実動demo、本人の寄与、実継続/収益の出典を結ぶ。Y003で提出時の公式W27受付・締切・form/動画条件を確認し、実提出readbackを保存する。採択や企業価値を成果として先取りしない。未完の実証があれば未完と記載し、存在しない結果を待つために期限を見失わない。
+
+接点はY005の既存担当と重複を照合し、Murphy/Klasnjaにはdecision pointと負担、Costelloらには訂正版の追跡/分母、Artificial Societiesには効果予測の誤差、humans&には利用者simulationの校正について、再現結果に基づく個別の問いを準備する。公開業務窓口と承認済み対象/内容の範囲で実行し、今回のspec更新では送信/応募/面談成立を記録しない。記事C002/Y008は本体優先の後段。
+
+atomic作業とファイル別受入は[既存model計画のTask8](plans/2026-10-23-behavior-transformation-model-plan.md#task-8-学習開始とyc証拠へのatomic作業2026-10-24)に置く。
