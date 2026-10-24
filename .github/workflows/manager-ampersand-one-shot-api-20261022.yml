@@ -1,0 +1,169 @@
+name: Manager Ampersand One-Shot Authenticated API Probe
+on:
+  push:
+    branches:
+      - research/manager-ampersand-live-api-20261022
+    paths:
+      - .github/workflows/manager-ampersand-one-shot-api-20261022.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manager-ampersand-one-shot-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  one-shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official supported SDK
+        run: python -m pip install --disable-pip-version-check --no-input 'openai==3.24.0'
+      - name: Authenticated model lookup and ONE synthetic no-tools inference
+        env:
+          AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.request
+          from urllib.error import HTTPError, URLError
+
+          BASE = "https://ampersand.humansand.ai/v1"
+          MODEL = "ampersand-v0.1"
+          raw_key = os.environ.get("AMPERSAND_API_KEY", "")
+          if not raw_key:
+              print("RESULT=BLOCKED_MISSING_GITHUB_ACTIONS_SECRET")
+              print("Expected a repository Actions secret named AMPERSAND_API_KEY.")
+              sys.exit(2)
+          # OAuth/API credentials are ASCII. Copying via chat can substitute
+          # visually similar Unicode glyphs. Correct only known confusables
+          # in ephemeral memory; never print or persist a credential.
+          # A real console-generated ASCII copy remains the preferred fix.
+          import unicodedata
+          # Map only common look-alike glyphs found in copy/paste text.
+          # No value, substring, digest, or per-character position is logged.
+          confusables = str.maketrans({
+              "\u0445": "x", "\u0425": "X", "\u0412": "B",
+              "\u0421": "C", "\u0441": "c", "\u0456": "i",
+              "\u0406": "I", "\u0430": "a", "\u0410": "A",
+              "\u0435": "e", "\u0415": "E", "\u043e": "o",
+              "\u041e": "O", "\u0440": "p", "\u0420": "P",
+              "\u0443": "y", "\u0423": "Y", "\u043a": "k",
+              "\u041a": "K", "\u043c": "m", "\u041c": "M",
+              "\u041d": "H", "\u0422": "T", "\u0408": "J",
+              "\u0458": "j", "\u0391": "A", "\u0392": "B",
+              "\u0395": "E", "\u0397": "H", "\u0399": "I",
+              "\u039a": "K", "\u039c": "M", "\u039d": "N",
+              "\u039f": "O", "\u03a1": "P", "\u03a4": "T",
+              "\u03a5": "Y", "\u03a7": "X", "\u03bf": "o",
+              "\u03c1": "p",
+          })
+          key = "".join(unicodedata.normalize("NFKC", raw_key).split()).translate(confusables)
+          if key != raw_key:
+              print("KEY_FORMAT=IN_MEMORY_ASCII_NORMALIZATION_APPLIED")
+          if not key.isascii() or not key.startswith("hak_") or not key[4:].isalnum():
+              # Only high-level booleans are safe diagnostics, never codepoints,
+              # positions, key length, characters or partial credentials.
+              print("KEY_ASCII=" + str(key.isascii()))
+              print("KEY_PREFIX_VALID=" + str(key.startswith("hak_")))
+              print("KEY_SUFFIX_ALNUM=" + str(key[4:].isalnum()))
+              # Script family only, not characters, codepoints, positions or length.
+              families = set()
+              for letter in key:
+                  if ord(letter) > 127:
+                      name = unicodedata.name(letter, "UNKNOWN")
+                      families.add(
+                          "CYRILLIC" if name.startswith("CYRILLIC") else
+                          "GREEK" if name.startswith("GREEK") else
+                          "LATIN_EXTENDED" if name.startswith("LATIN") else
+                          "OTHER"
+                      )
+              print("KEY_UNMAPPED_SCRIPT_FAMILIES=" + ",".join(sorted(families)))
+              print("RESULT=BLOCKED_INVALID_KEY_CHARACTERS")
+              print("ACTION=REPLACE_GITHUB_SECRET_WITH_PROVIDER_COPY_BUTTON_VALUE")
+              sys.exit(2)
+          try:
+              req = urllib.request.Request(
+                  BASE + "/models", headers={"Authorization": "Bearer " + key})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  models = json.load(response)
+              found = sorted(
+                  str(x.get("id")) for x in models.get("data", [])
+                  if isinstance(x, dict) and x.get("id")
+              )
+              if MODEL not in found:
+                  print("RESULT=BLOCKED_MODEL_NOT_LISTED")
+                  print("AVAILABLE_MODEL_COUNT=" + str(len(found)))
+                  sys.exit(3)
+              print("MODEL_AUTHENTICATION=PASS")
+          except HTTPError as exc:
+              print("RESULT=AUTH_HTTP_ERROR")
+              print("AUTH_HTTP_STATUS=" + str(exc.code))
+              sys.exit(4)
+          except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+              print("RESULT=AUTH_TRANSPORT_ERROR")
+              print("AUTH_ERROR_CLASS=" + type(exc).__name__)
+              sys.exit(5)
+
+          from openai import OpenAI
+          instruction = (
+              "You are a collaboration assistant in an entirely fictional example. "
+              "Never claim to have executed actions. No tools are available. "
+              "Answer the user's question in two short sentences, in English.")
+          prompt = (
+              "A three-person project team plans a Friday review. "
+              "Earlier, Sam explicitly said they cannot attend Friday. "
+              "Should the assistant flag this issue, ask something, or wait? "
+              "Give your recommendation and why.")
+          try:
+              with OpenAI(
+                  base_url=BASE, api_key=key, max_retries=0, timeout=120
+              ) as client:
+                  with client.beta.agents.sessions.create(
+                      agent={"model": MODEL, "instructions": instruction},
+                      environment={"type": "none"},
+                      input=prompt,
+                      stream=True,
+                  ).with_result_collection() as stream:
+                      final_status = "STREAM_ENDED"
+                      for event in stream:
+                          typ = event.type
+                          if typ in {
+                              "agent.session.idle",
+                              "agent.session.failed",
+                              "agent.session.requires_action",
+                          }:
+                              final_status = typ
+                              break
+                      result = stream.get_final_result()
+                  output = (getattr(result, "output_text", None) or "").strip()
+                  session_id = getattr(result, "session_id", None)
+                  print("SESSION_ID=" + str(session_id or "NOT_RETURNED"))
+                  print("SESSION_FINAL_EVENT=" + final_status)
+                  if final_status != "agent.session.idle":
+                      print("RESULT=NO_COMPLETED_IDLE_STATE")
+                      sys.exit(6)
+                  if not output:
+                      print("RESULT=NO_OUTPUT_TEXT")
+                      sys.exit(7)
+                  # This is a fictional, public non-sensitive prompt; never print credentials.
+                  print("RESULT=REAL_AUTHENTICATED_INFERENCE_RECEIVED")
+                  print("OUTPUT_CHARS=" + str(len(output)))
+                  print("MODEL_ANSWER_BEGIN")
+                  print(output[:1600])
+                  print("MODEL_ANSWER_END")
+          except Exception as exc:
+              # Do not echo exception body, HTTP headers, keys or request payload.
+              print("RESULT=INFERENCE_FAILED")
+              print("INFERENCE_ERROR_CLASS=" + type(exc).__name__)
+              print("INFERENCE_HTTP_STATUS=" + str(getattr(exc, "status_code", "unknown")))
+              sys.exit(8)
+          PY
