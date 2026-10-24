@@ -1227,6 +1227,36 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertEqual(code, 0, result)
         self.assertFalse(bundle.exists(), "lock wait must not consume the reference census budget")
 
+    def test_release_gc_waits_for_a_90_second_admission_lock_owner(self):
+        import fcntl
+
+        bundle = self._bundle()
+        self._release(bundle)
+        admission_lock = os.open(self.loops / ".admission-protocol.lock",
+                                 os.O_RDWR | os.O_CREAT, 0o600)
+        fcntl.flock(admission_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        clock = [0.0]
+        released = [False]
+
+        def advance(seconds):
+            clock[0] += seconds
+            if clock[0] >= 90 and not released[0]:
+                fcntl.flock(admission_lock, fcntl.LOCK_UN)
+                released[0] = True
+
+        try:
+            with mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]), \
+                 mock.patch.object(self.cleanup.time, "sleep", side_effect=advance):
+                code, result = self._gc()
+        finally:
+            if not released[0]:
+                fcntl.flock(admission_lock, fcntl.LOCK_UN)
+            os.close(admission_lock)
+
+        self.assertEqual(code, 0, result)
+        self.assertTrue(released[0])
+        self.assertFalse(bundle.exists(), "release GC must resume after its admission-lock owner exits")
+
     def test_release_gc_gives_bundle_scan_a_fresh_budget_after_release_scan(self):
         bundle = self._bundle()
         self._release(bundle)

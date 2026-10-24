@@ -825,7 +825,8 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
               "preserved_releases": 0, "protected_deletions": 0, "errors": 0}
     bundles = releases.parent / "dependency-bundles"
-    lock_deadline = time.monotonic() + 15
+    # Reconcile held the admission lock for 90s; keep this wait separate from scans.
+    lock_deadline = time.monotonic() + 120
     try:
         empty = True
         for root in (releases, bundles):
