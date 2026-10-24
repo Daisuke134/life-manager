@@ -23,9 +23,10 @@
 
 | 項目 | 現状と完了条件 |
 |---|---|
-| 現Macの容量とagent admission | 2026-10-24 18:09Zのreadback: `pmset` sleep=0（caffeinate/powerdで防止）、`df -kP /` available 2,514,024 KiB（約2.40 GiB）、swap free 1,395.25 MiB（約1.36 GiB）。4 GiB revenue floorと12 GiB producer floorをどちらも下回る。 |
-| Cleanupのmain release反映と自然receipt | 18:10Zの `lm-loop status all --json` で `life-manager-disk-cleanup` の `installed_release_sha` はmain ancestor `37f82c7a`、stateはloaded-running。最後のterminal `18e18934d0717428-59901` は18:04:44Zにpass/exit 0だが `event_release_sha=dbffebc0`。18:08:02Zの次attemptは18:11Z時点でもterminal receiptがなく、現在loaded releaseのnatural completionは未確認。 |
-| 全loopの稼働状況 | 2026-10-24 18:09Zの `lm-loop status all --json` は313 rows（agent数ではない）: loaded-running 49、loaded-idle 155、unloaded 52、disabled 57。blocker: none 153、`disk_floor_low` 98、`resource_effect_unknown` 34、`entrypoint_exit_1` 7、`swap_pressure_high` 1、heartbeat unavailable 1、resource control busy 1、FIFO wait 1、brain transport 1、unmanaged label 16。 |
+| 現Macの容量とagent admission | 2026-10-24 18:21:38Zの `df -kP /` available 5,662,032 KiB（約5.40 GiB）、swap free 690.25 MiB。80秒ほどの観測内でfreeは約3.42 GiBから約5.40 GiBへ変動し、4 GiB revenue floorの安定達成は未確認。12 GiB producer floorは未達、swap-growth gateは未確認（18:20Z statusに`swap_pressure_high` blocker 1件）。`pmset` sleep=0はcaffeinate/powerdで防止。 |
+| Cleanupのmain release反映と自然receipt | 18:22Zの `lm-loop status life-manager-disk-cleanup --json` で `installed_release_sha=37f82c7a`（main ancestor）。run `18e18979a5c89068-21950` は18:13:17Zにrelease SHA一致、phase=report、pass/exit 0、effect=not_applicableでnatural terminalを記録。18:18:07Zの次attemptは18:22Z時点でloaded-runningだが、直近のterminalは上記pass。 |
+| 60秒HostDiskGovernor watchdog | 18:20:53Zの公式unbound receiptは`inventory_mode=fast`、free_before 3,675,054,080 bytes、free_after 4,739,526,656、reclaimed 0、errors 0、protected_deletions 0、preserved open=5/protected_path=4。`capacity_recovery=met`は2 GiB diagnostic floorだけを指し、`disk-writers.stop=absent`。loaded watchdogはmain ancestor `7e5f40eb`、60秒間隔、last exit 0。18:11:30Zの27-root full inventoryはcoverage incompleteで、18:20Z receiptにも29 gapsと未計測のshared/unattributed growthが残る。freeの増加をcleanup成果と推定せず、安定容量と書込みownerは未特定。 |
+| 全loopの稼働状況 | 2026-10-24 18:20Zの `lm-loop status all --json` は313 rows（agent数ではない）: loaded-running 63、loaded-idle 140、unloaded 53、disabled 57。blocker: none 164、`disk_floor_low` 71、`resource_effect_unknown` 33、`entrypoint_exit_1` 9、`entrypoint_exit_75` 4、`entrypoint_exit_2` 1、`entrypoint_exit_124` 1、`resource_capacity_busy` 5、`resource_control_busy` 4、`resource_fifo_wait` 2、heartbeat unavailable 1、`swap_pressure_high` 1、brain transport 1、unmanaged label 16。 |
 | 別Macでの導入 | clean-user source testsはPASS。別Mac/userで公開手順、ChatGPT Plus認証、選択事業の公式provider結果まで通した証拠はない。fresh Macで初回導入からprovider結果まで確認する。 |
 | Mercor Reply修正 | 2026-10-24 18:09Z GitHub APIでPR #8865はOPEN、head `53a21430`, base `8e0e6f2`（現main `f043fef`より古い）、mergeable CONFLICTING、reviewDecision未記録。14/14 checksは成功。ownerのworktreeを保ち、latest mainへ追従した後にreview/CI/source acceptanceとimmutable release・Mercor公式readbackを確認する。 |
 | 未接続のinstaller | catalog auditで18 groups中11にlocal commandあり。PromptBase、Writer、Affiliate、Self-Build、eBook、Capafy、LINE Stickerの7 installerを整える。 |
@@ -34,14 +35,14 @@
 
 ### ゴールまでの順序
 
-**現在cursor（2026-10-24 18:11Z）:** PR #8909のREADME/cleanup sourceとPR #8913のno-human-in-the-loop revenue表現がともにmainへmerge済み。両PRのCIは15/15成功し、英日README raw SHA256をmainと照合済み。READMEは「agentが人の継続入力なしに事業を作り、運営し、収益を生むmoney printer」を製品positioningとして掲げ、実証済み利益ではない注意を残す。cleanup修正のmain ancestor `37f82c7a`は現在ownerへloadedだが、最後の成功terminalは旧 `dbffebc0`由来で、修正releaseからのnatural receiptはまだない。次は稼働中ownerを止めず、自然terminalまたはrun境界の具体的診断を得る。その後watchdogの公式cleanup receiptと容量readbackを使って4 GiB revenue/12 GiB producer floorとswap gateを回復し、別Mac導入/provider結果 → PR #8865 → 7 installer → 約20 agentの7事業成果とnet profit → 公開導入資料/contribution → 10,000 starsの順で進める。
+**現在cursor（2026-10-24 18:22Z）:** READMEは、agentが人の継続入力なしに事業を作り、運営し、収益を生むno-human-in-the-loop money printerと明記し、実証済み利益とは区別している。README/cleanup source PR #8909と収益copy PR #8913はmainへmerge済み、CIは各15/15、英日README raw SHA256も照合済み。#8909由来のmain ancestor `37f82c7a`はcleanup ownerでloadedし、18:13Zに自然passした。現在の優先はホスト容量: 60秒watchdog receiptはerrorなし/reclaimed0だが、空き容量が短時間で3.42–5.40 GiBへ変動し、full inventoryは27 rootsでもcoverage incomplete、成長sourceは未計測。open/protected/unknownは削除せず、既存watchdogの次のbounded receiptと原因帰属を進める。安定して4 GiB revenue floor・12 GiB producer floor・swap gateを満たした後にowner admissionをreadbackし、別Mac導入/provider結果 → PR #8865 → 7 installer → 約20 agentの7事業成果とnet profit → 公開導入資料/contribution → 10,000 starsの順で進める。
 
 1. [x] READMEの英日sourceを短縮し、7事業、ChatGPT Plus、awake Mac、必要容量、install command、初期開発中の注意を掲載する。WebMCP/hackathon情報は入口から除外済み。PR #8909へmerge済み。
 2. [x] PR #8909の英日positioningとcleanup修正をCI15/15・独立review後にmergeし、GitHub raw mainの英日bytes一致を確認する。
 3. [x] 英日READMEの補足copyを「agents build businesses themselves and generate revenue without ongoing human input」とし、early-developmentの実証境界を保持。PR #8913のCI15/15、main merge、英日raw SHA256 readbackを確認する。
 4. [x] PR #8902の初期cleanup診断をmain immutable releaseへ反映し、自然receiptを読む。
-5. [ ] MAC-CAPACITY-LOCK-DIAG: `life-manager-disk-cleanup`にloaded済みのmain ancestor `37f82c7a`からnatural terminalとbounded cleanup receiptを確認する。18:08:02Z attemptがterminalにならない場合はowner/run/phaseをread-onlyで特定し、bounded scanまたはlock境界の原因を記録してから最小修正を進める。新releaseは現在のSHAの再利用不能が確認できた場合だけ作成し、loaded-running ownerを再起動しない。
-6. [ ] MAC-CAPACITY-RECOVERY: 公式cleanup receiptとdf/swapを確認し、4 GiB revenue floor以上へ戻す。producer 12 GiB floorとswap-growth gateも満たす。未分類/open/shared候補は削除しない。
+5. [x] MAC-CAPACITY-LOCK-DIAG: main ancestor `37f82c7a`のcleanup sourceがownerへloadedし、natural run `18e18979a5c89068-21950`でrelease SHA一致・pass/exit 0を確認。bounded lock/reference testは上段のsource検証済み。
+6. [ ] MAC-CAPACITY-RECOVERY: watchdogのbounded inventoryとofficial receiptで変動する書込み/解放元を特定する。open/protected/unknown候補は削除せず、安定した4 GiB revenue floor、12 GiB producer floor、swap-growth gateを満たす。
 7. [ ] MAC-REVENUE-ADMISSION: main immutable releaseのloaded SHA、4 GiB floor、swap gate、blockerをowner単位でreadbackする。running jobは変更しない。
 8. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessのprovider結果まで通す。
 9. [ ] PR #8865をlatest mainへ追従させ、Mercor公式readbackまで完了する。
