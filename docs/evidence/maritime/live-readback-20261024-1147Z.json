@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-24T11:47:00Z",
+  "scope": "Dated source readback for the Keiki × Maritime Life Manager Cloud tracker. Null means unknown or unavailable, not zero.",
+  "competition": {
+    "observed_at": "2026-10-24T11:47:00Z",
+    "official_terms": {
+      "url": "https://competition.maritime.sh/terms",
+      "last_updated": "2026-10-15",
+      "program_end": "2026-12-01T23:59:00-08:00",
+      "target": 1000,
+      "qualifier": "Distinct real users with real project usage; first three projects to reach the target, subject to verification.",
+      "usage_review": "Project-level Keiki or Maritime usage.",
+      "fake_duplicate_bot_fabricated_activity_excluded": true,
+      "per_user_retention_minimum": null,
+      "read_at": "2026-10-24T10:57Z"
+    },
+    "round_one": {
+      "exact_cutoff": null,
+      "timezone": null,
+      "top30_rubric": null,
+      "minimum_users": null,
+      "formal_project_form": null,
+      "required_fields": null,
+      "week_two_milestone": null,
+      "status": "Not published or confirmed in checked official sources."
+    },
+    "slack": {
+      "channels_checked": [
+        "competition-announcements",
+        "competition-help",
+        "competition-submissions"
+      ],
+      "checked_at": "2026-10-24T11:47:00Z",
+      "existing_life_manager_entry": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
+      "help_question_unanswered": true,
+      "submission_channel_warns_post_does_not_replace_form": true,
+      "duplicate_entry_created": false
+    },
+    "organizer_email": {
+      "followup_sent_at": "2026-10-24T10:56:44Z",
+      "reply_found_as_of": "2026-10-24T11:47:00Z",
+      "reply_found": false,
+      "reply_read_at": "2026-10-24T11:47:00Z"
+    },
+    "office_hours": {
+      "time": "2026-10-25T10:00:00+09:00",
+      "owner_clarification": "Discussion about the future of the owner’s company.",
+      "competition_requirements_gate": false,
+      "rsvp_used_for_competition_requirements": false
+    },
+    "formal_project_submission_status": "Existing channel entry only; formal route and receipt unconfirmed."
+  },
+  "product_and_runtime": {
+    "observed_at": "2026-10-24T11:47:00Z",
+    "source_main_sha": "6f81689f9e7bd5c12d296a2c4b73e5a2167ed379",
+    "public_english_pilot": {
+      "url": "https://life-call-production.up.railway.app/maritime?lang=en",
+      "http_status": 200,
+      "read_at": "2026-10-24T11:47:00Z"
+    },
+    "railway": {
+      "life_call_and_money_printer_worker_last_success_at": "2026-10-24T08:38:40.406Z",
+      "deployed_source_sha": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+      "main_deploy_attempt_at": "2026-10-24T11:46:00Z",
+      "main_deploy_attempt_status": "SKIPPED",
+      "apps_life_manager_diff_from_current_main": []
+    },
+    "other_railway_services": {
+      "openclaw_lm_pilot_last_success_at": "2026-06-24T08:40:48Z",
+      "life_manager_project_service_last_success_at": "2026-09-11T00:34:36Z",
+      "dedicated_maritime_image_or_runtime_sha": null
+    },
+    "source_pr_8745": {
+      "head": "764be4c2b15b297134c79e3b147d4e49e74aed7f",
+      "base": "5904b05b624a9b5216ac9f53d2a33d24a060cf5c",
+      "current_main": "6f81689f9e7bd5c12d296a2c4b73e5a2167ed379",
+      "state": "OPEN_DRAFT",
+      "mergeable": false,
+      "remaining": [
+        "trusted tenant binding",
+        "host executor",
+        "automatic enqueue caller"
+      ]
+    },
+    "owner_pkce_and_retention_consent": {
+      "same_origin_magic_link_request_status": 202,
+      "confirmation_email_received_at": "2026-10-24T11:42:28Z",
+      "usable_one_time_url_available_to_session": false,
+      "owner_browser_callback_or_session": false,
+      "activation_enrollment_or_consent_receipt": false,
+      "consent_version": "maritime-manager-v1",
+      "consent_text": "I agree to the retention terms and autonomous work in this pilot.",
+      "next_step": "Owner requests a fresh link and opens it in the same actual browser; then read back the visible notice and owner-bound consent/enrollment receipt.",
+      "retention_policy_url": "https://maritime.sh/privacy"
+    },
+    "database_counts": {
+      "lm_maritime_manager_enrollments": 0,
+      "lm_maritime_manager_executions": 0,
+      "lm_maritime_pilot_participants": 0,
+      "official_competition_user_count": null,
+      "official_competition_completed_work_and_cost": null
+    },
+    "distribution": {
+      "existing_english_x_post": "https://x.com/selawmqt/status/2113662565427691959",
+      "existing_japanese_awareness_x_post": "https://x.com/diceai0/status/2113665171407437975",
+      "existing_english_article": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
+      "new_posts_this_readback": 0,
+      "postiz_or_native_x_publisher_available_to_this_session": false,
+      "native_impressions_clicks_and_attribution": null,
+      "threads_publish_receipt": null,
+      "instagram_status": "Owner SMS reconnect required for anicca.en.",
+      "historical_x_audit_20261023": {
+        "selawmqt_followers": 7,
+        "last_20_posts_median_impressions_approx": 5,
+        "posting_frequency_approx_per_day": 23,
+        "interpretation": "Historical baseline; reply-first participation is an experiment to measure after product proof, not a guaranteed growth outcome."
+      }
+    },
+    "formal_submission": {
+      "existing_slack_entry": true,
+      "formal_form_or_route_confirmed": false,
+      "receipt": null,
+      "english_packet": "Draft only"
+    },
+    "sources": [
+      "https://competition.maritime.sh/terms",
+      "https://maritime.sh/privacy",
+      "https://life-call-production.up.railway.app/maritime?lang=en",
+      "https://x.com/selawmqt/status/2113662565427691959",
+      "https://x.com/diceai0/status/2113665171407437975",
+      "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en"
+    ]
+  },
+  "data_notice": {
+    "public_pilot_notice": "Starting the pilot sends necessary work inputs and results to Maritime. Its Privacy Policy says model calls through Maritime AI credits are retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
+    "maritime_privacy_policy": "https://maritime.sh/privacy",
+    "retention_summary": "AI calls through Maritime AI credits include requests/instructions, conversations, tool definitions/results, and model responses; stored encrypted in AWS S3, accessible to authorized Maritime staff, and retained indefinitely including after account deletion. Calls made with the user’s own API key do not go through Maritime AI credits and are not stored under that policy."
+  }
+}
