@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -1246,6 +1246,92 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertTrue(bundle.exists())
         self.assertEqual(result["dependency_bundles"]["removed"], 0)
         self.assertEqual(stat.S_IMODE(bundle.stat().st_mode), 0o555)
+
+    def test_release_gc_only_walks_regular_files_within_reference_budget(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        release.chmod(0o755)
+        nested = release / "ordinary" / "nested"
+        nested.mkdir(parents=True)
+        for index in range(40):
+            (nested / f"source-{index}.py").write_text("pass\n")
+        self._seal(release)
+        clock = [0.0]
+        lstat = os.lstat
+
+        def costly_metadata(path, *args, **kwargs):
+            if Path(path).parent == nested:
+                clock[0] += .5
+            return lstat(path, *args, **kwargs)
+
+        with mock.patch.object(os, "lstat", costly_metadata), \
+             mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
+            code, result = self._gc(keep=1)
+        self.assertEqual(code, 0, result)
+        self.assertTrue(release.exists() and bundle.exists())
+        self.assertLess(clock[0], 15)
+
+    def test_release_gc_only_preserves_deep_file_and_directory_links_without_following_them(self):
+        primary = self._bundle()
+        file_bundle = self._bundle("b" * 64)
+        directory_bundle = self._bundle("c" * 64)
+        release = self._release(primary)
+        release.chmod(0o755)
+        nested = release / "deep" / "nested"
+        nested.mkdir(parents=True)
+        (nested / "file-link").symlink_to(file_bundle / "node_modules/fixture.js")
+        (nested / "directory-link").symlink_to(directory_bundle / "node_modules")
+        (nested / "cycle").symlink_to(release)
+        self._seal(release)
+        scandir = os.scandir
+
+        def no_link_descent(path):
+            if any(Path(path).is_relative_to(bundle) for bundle in (primary, file_bundle, directory_bundle)) or Path(path).is_symlink():
+                raise AssertionError("reference walk followed a dependency or cyclic link")
+            return scandir(path)
+
+        with mock.patch.object(os, "scandir", side_effect=no_link_descent):
+            code, result = self._gc(keep=1)
+        self.assertEqual(code, 0, result)
+        for bundle in (primary, file_bundle, directory_bundle):
+            self.assertTrue((bundle / "node_modules/fixture.js").is_file())
+
+    def test_release_gc_only_preserves_everything_when_tree_inventory_fails_or_expires(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        release.chmod(0o755)
+        nested = release / "nested"
+        nested.mkdir()
+        for name in ("first.py", "second.py"):
+            (nested / name).write_text("pass\n")
+        self._seal(release)
+        scandir = os.scandir
+
+        for failure in ("open", "iteration", "deadline"):
+            with self.subTest(failure=failure):
+                clock = [0.0]
+
+                @contextmanager
+                def interrupted_scan(path):
+                    if Path(path) == nested and failure == "open":
+                        raise PermissionError("fixture inventory unavailable")
+                    with scandir(path) as entries:
+                        def interrupted_entries():
+                            yield next(entries)
+                            if failure == "iteration":
+                                raise PermissionError("fixture inventory interrupted")
+                            clock[0] = 16
+                            yield from entries
+                        yield interrupted_entries() if Path(path) == nested else entries
+
+                with mock.patch.object(os, "scandir", side_effect=interrupted_scan), \
+                     mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
+                    code, result = self._gc(keep=0)
+                self.assertEqual(code, 1, result)
+                self.assertGreater(result["errors"], 0)
+                self.assertEqual(result["removed_releases"], 0)
+                self.assertEqual(result["reclaimed_bytes"], 0)
+                self.assertTrue(release.exists() and bundle.exists())
 
     def test_release_gc_only_preserves_fd_opened_before_final_reference_snapshot(self):
         bundle = self._bundle()

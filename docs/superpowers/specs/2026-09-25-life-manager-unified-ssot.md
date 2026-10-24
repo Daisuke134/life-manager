@@ -579,6 +579,8 @@ RECYCLE-REGISTRY-ACTUALの次の診断: 旧cursorの自然待機再観測から�
 
 - [ ] MAC03-CROWDWORKS-RELEASE-REFERENCES: source所有をruntime/loop/central_cleanup.pyの_bundle_references内releaseリンク走査だけ、tests所有をruntime/loop/tests/test_cut_loop_release.py、資料を本節/BOARDに限定する。branch=fix/release-link-census-20261024、base=34e96212906378cb27791f6b04d05de482e927c0、worktree/ownerは継続する。各通常fileへの追加lstatをDirEntryの型情報で省き、全階層のfile/directory symlinkを引き続き収集し、symlink先へ降りない。新除外・snapshot間cache・期限延長・lock変更・保護解除は追加しない。既存のsnapshot予算testを手本に通常file多数で期限切れとなるREDを先に確認し、深いfile/directoryリンク保持、scandir失敗/列挙中期限切れの削除0を隔離fixtureで検証する。関連cleanup/cut tests・contract/source boundary・fresh read-only review・全CI・main/public readback後、accepted immutableを先に作り、そのmain由来実装で参照調査とcomplete CrowdWorks release作成を再検証する。rootはsource/統合/反映、subagentはread-only調査だけを所有する。本番current/他owner/閾値を変えず、CrowdWorks本人IDのread-only実受入へ戻る。
 
+RELEASE-REFERENCES RED: 通常file40件のnative lstat累積費用を既存の合成時計へ反映すると、旧実装は同じ15秒予算を超えてGC exit1/TimeoutExpired/削除0となる。新3testsは1FAIL/2PASS（失敗/期限切れ3subcasesはPASS）で、深いfile/directoryリンクと循環リンク非追跡の保護は旧実装でも保持する。source修正前にREDを確認する。
+
 - [ ] MAC03-CROWDWORKS-IDENTITY: 既存private本人profileとLancersの入力検証を比較し、空HOME/欠損・破損で作者ID・作者の実績・画像を本人として使わない。setup_requiredをprovider/planner前に返し、設定済みの別account fixtureでは本人の値だけをapplication/reply/paidへ渡す。既存の公開catalog・browser ownership・effect fenceを保持し、新しいidentity frameworkを作らない。source所有の正確なfiles/functionsは全caller確認後、実装前にこの節へ記録する。実credential/profile/browser/providerはsource検証で使用しない。
 
 #### Lancers本人入力の実装計画
