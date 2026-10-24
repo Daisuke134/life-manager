@@ -8,7 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
-- [Codex / Mercor公開導入] claim: feat/mercor-local-setup-20261024。primaryは統合SSOT/本BOARD/Git/受入、workerは限定7sourceと直接関連tests/guideを所有する。CWの容量/実業務未完を保持し、既存本人helperと共通local_installを再利用する。private/browser/runtime/provider effectには開発中触れない。残TODO正本 → 統合SSOT MAC03-MERCOR-SETUP。
+- [Codex / Mercor公開導入] PR8863/main8e0e6f2e・公開21file・complete immutable受入済み。claim: fix/mercor-reply-profile-dependency-20261024。実機の既存最小profileで応募materials不足がReplyまで保留する依存を限定修復する。workerはinstaller/直接test、primaryは統合SSOT/本BOARD/Git/受入を所有。実業務/別Mac/残7公開導入は未完。正本 → 統合SSOT MAC03-MERCOR-SETUP。
 - [Codex / CrowdWorks公開導入] claim: docs/mac-capacity-recovery-20261024、公開CW3ownerのd8導入とcleanup33run自然PASSを受入。primaryはSSOT/本BOARDとHOST-CAPACITY-OWNERSの既存担当者との限定coordination/容量実測を所有。source/private business/fence/loop停止は拡大しない。残TODO正本 → 統合SSOT MAC03-CROWDWORKS-SETUP。
 - [claude-8 / 4アプリ課金記事 note・Substack クロスポスト] claim（参謀依頼 13:1x）。原稿 docs/team/launch/fbs-article.md（JA/EN、aniccaai.com=utm_campaign=fbs-102/thankful-102、App Store=ct=<source>_<campaign>）。note は claude-7 の下書き nd42c30868e7c を流用し新規作成しない。note/Substack の公開は Dais 2026-07-12 の draft-only 決定によりダッシュボードで人が判断。
 - [Codex / Local Mac release acceptance] 完了: PR8828/main525bfcb1、source173件/36subtests・fresh R2指摘0・CI全13成功。実参照調査2.491s、complete immutable作成39.806s/依存7再利用/既存release-bundle削除0/current非切替。CrowdWorksの実dashboard本人ID一致、確認page1作成1終了/接続UUIDとprivate設定不変を受入。次はprivate本人入力の各caller接続と公開setup、正本は統合SSOTのMAC03-CROWDWORKS-IDENTITY。
