@@ -38,6 +38,7 @@ OWNER_ID = "hf-gig-apply-direct"
 BROWSER_IDENTITY = "coconala:kosuke"
 WITH_BROWSER = REPO_ROOT / "skills" / "browser" / "with-browser.sh"
 RECONCILER = SCRIPT_DIR / "application_occurrence_reconcile.py"
+GIG_VAULT = Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"
 
 
 def _scan_result_path(result: Path | None) -> Path:
@@ -103,6 +104,9 @@ def run_browser_reconcile(
     # ``with-browser.sh`` uses ``${VAR:-default}``; a blank value would therefore
     # re-enable its provisioning helper.  A non-executable sentinel disables it.
     environment["AI_ENSURE_PROVISION_BROWSER"] = "/dev/null"
+    # The fence reconciler has no Coconala session env; without it the leased context
+    # is seeded from the personal vault and the readback lands on /login (2026-10-25).
+    environment.setdefault("CLOAK_SESSION_VAULT_FILE", str(GIG_VAULT))
     completed = (runner or subprocess.run)(command, cwd=REPO_ROOT, env=environment, check=False)
     return int(completed.returncode)
 
