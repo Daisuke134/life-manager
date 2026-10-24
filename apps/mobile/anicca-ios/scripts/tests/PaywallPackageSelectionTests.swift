@@ -170,6 +170,15 @@ final class PaywallPackageSelectionTests {
         precondition(resolve([lifetime], selected: TestPackage("removed", .annual)) == nil)
     }
 
+    func testLifetimeIsAvailableOnlyForJapanStorefront() {
+        precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringIsCurrent: true))
+        precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "jpn", offeringIsCurrent: true))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "USA", offeringIsCurrent: true))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "GBR", offeringIsCurrent: true))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: nil, offeringIsCurrent: true))
+        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringIsCurrent: false))
+    }
+
     func testRepeatedRefreshKeepsUserSelection() {
         let annual = TestPackage("annual", .annual)
         let monthly = TestPackage("monthly", .monthly)
@@ -194,6 +203,7 @@ final class PaywallPackageSelectionTests {
         ("testRemovedSelectionFallsBackToAnnualThenMonthly", testRemovedSelectionFallsBackToAnnualThenMonthly),
         ("testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault", testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault),
         ("testNoAnnualOrMonthlyDoesNotInventADefault", testNoAnnualOrMonthlyDoesNotInventADefault),
+        ("testLifetimeIsAvailableOnlyForJapanStorefront", testLifetimeIsAvailableOnlyForJapanStorefront),
         ("testRepeatedRefreshKeepsUserSelection", testRepeatedRefreshKeepsUserSelection),
     ] }
 }

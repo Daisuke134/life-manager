@@ -76,6 +76,13 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         )
         self.assertIn("Button { purchase() } label:", self.source)
 
+    def test_lifetime_is_gated_by_current_app_store_storefront(self):
+        self.assertIn("import StoreKit", self.source)
+        self.assertIn("await Storefront.current", self.source)
+        self.assertIn("for await storefront in Storefront.updates", self.source)
+        self.assertIn("PaywallStorefrontEligibility.includesLifetime(", self.source)
+        self.assertNotIn("Locale.preferredLanguages", self.source)
+
     def test_policy_returns_current_match_before_annual_monthly_defaults(self):
         # Structural contract only. Execute the companion Swift tests to verify
         # actual selection behavior and reference identity in the Swift runtime.

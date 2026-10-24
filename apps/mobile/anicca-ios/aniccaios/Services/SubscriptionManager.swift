@@ -53,7 +53,7 @@ final class SubscriptionManager: NSObject {
         // 起動直後にオファリング取得を開始（並列実行で高速化）
         Task {
             await withTaskGroup(of: Void.self) { group in
-                group.addTask { await self.refreshOfferings() }
+                group.addTask { _ = await self.refreshOfferings() }
                 group.addTask { await self.listenCustomerInfo() }
             }
         }
@@ -154,8 +154,9 @@ final class SubscriptionManager: NSObject {
         )
     }
 
-    func refreshOfferings() async {
-        guard isConfigured else { return }
+    @discardableResult
+    func refreshOfferings() async -> Bool {
+        guard isConfigured else { return false }
         do {
             let result = try await Purchases.shared.offerings()
             let aniccaOffering = Self.resolveAniccaOffering(from: result)
@@ -164,6 +165,7 @@ final class SubscriptionManager: NSObject {
             await MainActor.run {
                 AppState.shared.updateOffering(aniccaOffering)
             }
+            return aniccaOffering != nil
         } catch {
             await MainActor.run {
                 // Keep existing cached offering on error
@@ -171,6 +173,7 @@ final class SubscriptionManager: NSObject {
                     AppState.shared.updateOffering(nil)
                 }
             }
+            return false
         }
     }
     

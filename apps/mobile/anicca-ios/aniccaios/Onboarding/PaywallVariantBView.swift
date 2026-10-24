@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import StoreKit
 
 /// Variant B paywall — CRO optimized design for RevenueCat Experiments A/B
 /// Offering swap is handled server-side by RevenueCat; this view always renders the `current` offering.
@@ -16,22 +17,23 @@ struct PaywallVariantBView: View {
     @State private var hasShownRetention = false
     @State private var showRetention = false
     @State private var showReloadAfterTimeout = false
+    @State private var storefrontCountryCode: String?
+    @State private var offeringIsCurrentForStorefront = false
 
     private var offering: Offering? { appState.cachedOffering }
-    private var packages: [Package] { offering?.availablePackages ?? [] }
+    private var packages: [Package] {
+        let available = offering?.availablePackages ?? []
+        guard PaywallStorefrontEligibility.includesLifetime(
+            countryCode: storefrontCountryCode,
+            offeringIsCurrent: offeringIsCurrentForStorefront
+        ) else {
+            return available.filter { $0.packageType != .lifetime }
+        }
+        return available
+    }
     private var yearlyPackage: Package? { packages.first { $0.packageType == .annual } }
     private var monthlyPackage: Package? { packages.first { $0.packageType == .monthly } }
-    // 2026-07-03 Dais: 買い切り(lifetime)は日本語話者にのみ表示する。
-    // 旧実装は StoreKit の storefront 国(JPN)で判定していたが、
-    // storefront は async 取得で初期値が空 → レースで非表示になるバグがあった。
-    // 端末の優先言語で判定し (UserProfile / QuoteProvider と同一パターン)、非同期依存を撤廃する。
-    private var isJapanese: Bool {
-        (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("ja")
-    }
-    private var lifetimePackage: Package? {
-        guard isJapanese else { return nil }
-        return packages.first { $0.packageType == .lifetime }
-    }
+    private var lifetimePackage: Package? { packages.first { $0.packageType == .lifetime } }
 
     private var savePct: Int? {
         guard let yearly = yearlyPackage, let monthly = monthlyPackage else { return nil }
@@ -97,6 +99,17 @@ struct PaywallVariantBView: View {
         // Observe instances: a refreshed offering can reuse package IDs and values.
         .onChange(of: packages.map { ObjectIdentifier($0) }) { _ in
             synchronizePackageSelection()
+        }
+        .task {
+            let storefront = await Storefront.current
+            storefrontCountryCode = storefront?.countryCode
+            offeringIsCurrentForStorefront = await SubscriptionManager.shared.refreshOfferings()
+
+            for await storefront in Storefront.updates {
+                storefrontCountryCode = storefront.countryCode
+                offeringIsCurrentForStorefront = false
+                offeringIsCurrentForStorefront = await SubscriptionManager.shared.refreshOfferings()
+            }
         }
         .sheet(isPresented: $showRetention) {
             RetentionOfferSheet { customerInfo in
