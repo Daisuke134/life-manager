@@ -76,6 +76,54 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         )
         self.assertIn("Button { purchase() } label:", self.source)
 
+    def test_lifetime_is_gated_by_current_app_store_storefront(self):
+        self.assertIn("import StoreKit", self.source)
+        self.assertIn("await Storefront.current", self.source)
+        self.assertIn("AsyncStream<Void>", self.source)
+        self.assertIn("for await storefront in Storefront.updates", self.source)
+        self.assertIn("await Task.yield()", self.source)
+        self.assertIn("latestStorefront?.countryCode?.uppercased() == countryCode?.uppercased()", self.source)
+        self.assertIn("PaywallStorefrontEligibility.includesLifetime(", self.source)
+        purchase = self.source.split("private func purchase()", 1)[1].split("private func restorePurchases()", 1)[0]
+        self.assertIn("let currentStorefront = isLifetimePackage ? await Storefront.current : nil", purchase)
+        self.assertIn("PaywallStorefrontEligibility.allowsPurchase(", purchase)
+        self.assertLess(purchase.index("PaywallStorefrontEligibility.allowsPurchase("), purchase.index("Purchases.shared.purchase(package: package)"))
+        self.assertIn("containsCurrentInstance(package, in: currentPackages)", purchase)
+        self.assertIn("appState.cachedOfferingStorefrontCountryCode", self.source)
+        self.assertNotIn("Locale.preferredLanguages", self.source)
+
+    def test_retry_and_timeout_recheck_storefront_eligibility(self):
+        retry = self.source.split('Button(String(localized: "paywall_b_retry"))', 1)[1].split(
+            'Button(String(localized: "paywall_plan_restore"))', 1
+        )[0]
+        self.assertIn("Task { await refreshStorefrontEligibility() }", retry)
+        timeout = self.source.split("private func scheduleReloadTimeout()", 1)[1].split("private func purchase()", 1)[0]
+        self.assertIn("Task { await refreshStorefrontEligibility() }", timeout)
+
+    def test_subscription_refresh_discards_outdated_and_cross_storefront_results(self):
+        manager = SUBSCRIPTION_MANAGER.read_text(encoding="utf-8")
+        self.assertIn("offeringsRefreshGeneration", manager)
+        self.assertIn("PaywallOfferingSelection.isLatestRefresh(", manager)
+        self.assertIn("PaywallStorefrontEligibility.sameStorefront(", manager)
+        self.assertLess(manager.index("PaywallOfferingSelection.isLatestRefresh("), manager.index("AppState.shared.updateOffering(aniccaOffering"))
+
+    def test_storefront_revision_rejects_roundtrip_and_purchase_time_races(self):
+        app_state = (APP_ROOT / "aniccaios/AppState.swift").read_text(encoding="utf-8")
+        manager = SUBSCRIPTION_MANAGER.read_text(encoding="utf-8")
+        self.assertIn("@Published private(set) var storefrontRevision", app_state)
+        self.assertIn("func recordStorefrontCountryCode(", app_state)
+        refresh = manager.split("func refreshOfferings()", 1)[1].split("func syncNow()", 1)[0]
+        self.assertIn("let requestStorefrontRevision = AppState.shared.storefrontRevision", refresh)
+        self.assertIn("isUnchangedStorefrontRevision(", refresh)
+        self.assertLess(refresh.index("isUnchangedStorefrontRevision("), refresh.index("updateOffering(aniccaOffering"))
+        self.assertIn("AppState.shared.recordStorefrontCountryCode(storefront.countryCode)", self.source)
+        purchase = self.source.split("private func purchase()", 1)[1].split("private func restorePurchases()", 1)[0]
+        self.assertIn("let purchaseStorefrontRevision = appState.storefrontRevision", purchase)
+        self.assertIn("isUnchangedStorefrontRevision(", purchase)
+        self.assertIn("appState.currentStorefrontCountryCode", purchase)
+        self.assertIn("Task { @MainActor in", purchase)
+        self.assertNotIn("await MainActor.run", purchase)
+
     def test_policy_returns_current_match_before_annual_monthly_defaults(self):
         # Structural contract only. Execute the companion Swift tests to verify
         # actual selection behavior and reference identity in the Swift runtime.
