@@ -191,6 +191,13 @@ PREVIEW_FATAL = ("FATAL: verify-preview FAILED — NOT publishing (an image may 
                  "or the preview could not be opened at all -- check the message above for which).")
 SUBSTACK_DRAFT_LINE = re.compile(r"== step 1/3: reuse stable Substack draft id=(\d+) ==")
 SUBSTACK_TERMINAL = re.compile(r"article-resume: run=(\S+) rc=(\d+) deterministic=(substack/(?:ja|en))")
+INITIALIZATION_TERMINAL = re.compile(
+    r"article-resume: run=(\S+) rc=([1-9]\d*) deterministic=initialize-([a-z0-9-]+/(?:ja|en))")
+INITIALIZATION_REFUSAL_PREFIX = "refuse initialization: "
+SELF_OWNED_PENDING = "article-resume: self-owned worker remains pending"
+# Lines a self-owned push that git rejected prints before the worker gives up; nothing else.
+REJECTED_PUSH_LINES = ("Traceback (most recent call last):", "  ", "SelfOwnedInvariant: To ",
+                       " ! [rejected]", "error: failed to push some refs", "hint: ")
 SUBSTACK_HOST = re.compile(r"[a-z0-9-]+\.substack\.com")
 TOUCHED_KEYS = ("writer_run_id", "pair", "draft_id", "host")
 HISTORICAL_RESUME_CATCHUP_PROOFS = {
@@ -725,16 +732,19 @@ def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_ro
     report, until, lines, records, branches = observed
     touched = None
     if branches == ("start", "publication"):
-        # The only accepted nonzero exit: the Substack preview gate refused before the publish POST.
-        touched = _substack_pass(observed, writer_root)
+        # Accepted nonzero exits: an initialization refused before staging, or the Substack
+        # preview gate refused before the publish POST.
+        touched = _initialization_refused_pass(observed)
         if isinstance(touched, str):
-            return touched
-        if not _preview_fatal(touched):
-            return "pass_substack_may_have_published"
-        readback = _touched_draft_unpublished(touched, queued_at, fetch_json)
-        if isinstance(readback, str):
-            return readback
-        touched = {**{key: touched[key] for key in TOUCHED_KEYS}, "stop": "verify-preview-fatal", **readback}
+            touched = _substack_pass(observed, writer_root)
+            if isinstance(touched, str):
+                return touched
+            if not _preview_fatal(touched):
+                return "pass_substack_may_have_published"
+            readback = _touched_draft_unpublished(touched, queued_at, fetch_json)
+            if isinstance(readback, str):
+                return readback
+            touched = {**{key: touched[key] for key in TOUCHED_KEYS}, "stop": "verify-preview-fatal", **readback}
     elif report.get("exit_code") != 0 or report.get("status") != "pass":
         return "pass_report_not_clean_exit"
     elif branches not in NO_PUBLICATION_PASSES:
@@ -794,6 +804,38 @@ def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_ro
     if touched is not None:
         proof["touched"] = touched
     return proof
+
+
+def _initialization_refused_pass(observed: tuple) -> dict | str:
+    """A start->publication pass that ended at an initialize-<pair> refusal before any staging.
+
+    execute-initialization-pair.py raises its "refuse initialization:" SystemExit before
+    prepare_all() or any provider call. The only other output allowed in the segment is a
+    self-owned push that git rejected atomically (remote unchanged).
+    """
+    report, _, lines, records, branches = observed
+    if branches != ("start", "publication") or records[0][1].get("run_ids") != []:
+        return "pass_branch_not_publication_free:" + ",".join(branches)
+    run_ids = records[1][1].get("run_ids")
+    if not isinstance(run_ids, list) or len(run_ids) != 1:
+        return "pass_record_unbound"
+    run_id, start = str(run_ids[0]), records[1][0] + 1
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("article-resume: run=")), None)
+    terminal = INITIALIZATION_TERMINAL.fullmatch(lines[end]) if end is not None else None
+    if not terminal or terminal[1] != run_id or int(terminal[2]) != report.get("exit_code"):
+        return "pass_initialization_terminal_unbound"
+    segment = lines[start:end]
+    if not segment or not segment[-1].startswith(INITIALIZATION_REFUSAL_PREFIX):
+        return "pass_initialization_not_refused"
+    body = segment[:-1]
+    if body:
+        if (body[-1] != SELF_OWNED_PENDING
+                or not any(line.startswith(" ! [rejected]") for line in body)
+                or any(" -> " in line and not line.startswith(" ! [rejected]") for line in body)
+                or not all(line.startswith(REJECTED_PUSH_LINES) for line in body[:-1])):
+            return "pass_self_owned_may_have_pushed"
+    return {"stop": "initialization-refused", "pair": terminal[3], "writer_run_id": run_id,
+            "self_owned_push": "rejected" if body else "none"}
 
 
 def _substack_pass(observed: tuple, writer_root: Path) -> dict | str:
