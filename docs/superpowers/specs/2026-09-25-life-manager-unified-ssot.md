@@ -2,7 +2,7 @@
 
 ## README整理とMac導入の継続修復
 
-**目的・範囲:** Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。READMEの内容、公開installer、約20 agentの実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
+**目的・範囲:** Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
 
 **利用者向けの約束:** Local版の基本条件はChatGPT Plus以上のsubscriptionと、スリープしないMac/Mac mini。core利用に別のOpenAI API keyは不要。利用する事業サービスごとの本人accountや追加有料サービスは別途必要になる。READMEは外部利用者向けに短く保ち、7つの収益モデル、最短の導入方法、利用条件、未完成の範囲を先に示す。
 
@@ -10,40 +10,39 @@
 
 | 項目 | 完了していること |
 |---|---|
-| 公開README | 英日READMEに7事業、ChatGPT Plus/awake Mac、単一の導入入口、early-developmentの制限と詳細catalogを掲載済み。 |
+| 公開README | 英日READMEの冒頭に7事業、ChatGPT Plus以上/スリープしないMac、単一の導入入口、初期開発中の制限と詳細catalogを掲載済み。各事業が何で収益化するかも明記済み。 |
 | Mac導入のsource | 初回bootstrap、認証確認、共通依存など再現した導入不具合を修正し、mainへ反映済み。これで別Macの実機完走までは証明しない。 |
 | 受託platformの入口 | Coconala/Lancers/CrowdWorksの公開導入入口をmainに反映済み。Mercorの公開local setupも[PR #8863](https://github.com/Daisuke134/life-manager/pull/8863)でmainへ統合済み。installerの存在は実業務の成功を意味しない。 |
-| Mercor Replyの狭いsource修正 | 最小profileでReplyまで応募資料不足扱いになる修正を作成。対象suite 200件PASS、独立read-only review指摘0、[PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)の13 CI checks PASS。sourceはまだmain未統合。 |
 
 ### 残っていること
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| Mercor Reply修正 | PR #8865はopen。head `53a21430`。 | mainへ統合し、main由来releaseで導入・Reply開始を再確認する。 |
+| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はopen。head `53a21430`、base `8e0e6f2`に対し現在のmainは`b0e05bf`。head上の13 CI checksはPASSだが、GitHubのmerge状態は`DIRTY`。Codex review表示は古いhead `9bed790`で実行中のまま。 | 最新mainへ変更を合わせ、対象test・独立review・全CIを更新headで再確認してから統合する。main由来releaseで導入とReply開始を再確認する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
 | 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
 | 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
-| Mac portability | 自分のMac Mini以外での初回導入から業務完了まで未証明。 | cleanな別Macで、公開手順だけを使い、対応するmacOS/Apple Silicon/Intel構成ごとに導入から実業務まで通す。 |
-| 10,000 stars | GitHub公式APIの直近値は8 stars / 2 forks。目標まで9,992 stars。 | 実利用者と継続利用を増やして到達する。stars、導入成功、実業務成果、収益は別指標で報告する。 |
+| Mac portability | 自分のMac Mini以外での初回導入から業務完了まで未証明。 | cleanな別Macで、公開手順だけを使い、サポート対象と明記するmacOS/Apple Silicon/Intel構成ごとに導入から実業務まで通す。Macがスリープせず稼働する設定も案内する。 |
+| 10,000 stars | GitHub公式APIで8 stars / 2 forksを確認。10,000 starsまで9,992。 | 実利用・導入成功・初回の確認済み成果・継続利用を増やして自然に目指す。stars、導入成功、実業務成果、収益は別指標で報告する。READMEやstars数だけを製品完成・収益の証明にしない。 |
 
 ### ゴールまでの順序
 
-現在cursorは **REPLY-PROFILE-SHIP**。次の作業はPR #8865のmain統合・release反映・実Mac再観測。
+現在cursorは **REPLY-PROFILE-SHIP**。PR #8865は13 checksが通ったheadのままでは最新mainと`DIRTY`なので、更新headのreview/CIを通してから統合・release反映・実Mac再観測する。
 
-1. PR #8865を統合し、同じmain由来releaseで公開checkoutからinstallerを再確認する。
+1. PR #8865を最新mainへ合わせ、更新headのfocused test・独立review・全CIを確認して統合し、main由来releaseで公開checkoutからinstallerを再確認する。
 2. 現MacのMercor browser/profile/Paidを既存ownerの経路で整え、Reply/Paidの未確定effectは公式readbackで照合してから再開する。
 3. 7つの不足installerを実装する。独立した事業はMercor復旧と並行できる。
 4. 約20 agentと7事業の対象一覧を一致させ、各業務の実行・公式結果・再開・重複防止を確認する。
 5. 新しい利用者のMacで初回installから実業務まで通し、対応機種・macOSの範囲を明示する。
-6. 迷わず試せるREADME/demo/quickstartと保守可能なrelease・contribution導線を整え、利用開始、初回の確認済み成果、継続利用、starsを別々に計測しながら10,000 starsを目指す。
+6. README/demo/quickstartと保守可能なrelease・contribution導線を整え、初見の訪問者が「価値と7事業を理解→条件を確認→導入→最初のprovider確認済み成果→継続利用」へ進めるよう改善する。導入成功・最初の成果・継続利用・starsを別々に追い、10,000 starsを自然な採用の目標として目指す。達成時期やstarsをREADMEだけで保証しない。
 
 ### 理想の完成状態
 
-利用者がChatGPT Plus以上と常時起動できるMac、自分の業務accountを用意し、一度導入・初回接続を済ませれば、対応する約20 agentが7事業を通常時は人手なしで回す。仕事の開始、応募/制作/納品/販売、provider上の結果確認、失敗からの安全な再開までつながり、重複実行を防ぎ、収益を公式証拠に基づいて報告する。利用者は日々の手作業を繰り返さず、Macを替えても同じ公開手順で立ち上げられる。本人確認やproviderが必須とする操作はその条件を明記する。収入や10,000 starsは保証せず、実測した結果としてのみ扱う。
+外部の人がREADMEだけで「何をする製品か」「7事業の収益源」「必要なもの」「どの機能が利用可能か」を理解し、ChatGPT Plus以上・スリープしないMacまたはMac mini・自分の業務accountで導入できる。初回接続後、対応する約20 agentが7事業の日常業務を可能な範囲で自動実行し、provider上の結果を確かめ、失敗から重複なく安全に再開する。利用者は仕事の進行と公式証拠に基づく成果を確認でき、Macを替えてもサポート対象の環境なら同じ公開手順で立ち上げられる。本人確認やproviderが必須とする操作と追加サービス費用は事前に明記する。実際の利用者が初回成果と継続価値を得て、信頼して紹介する状態から10,000 starsを目指す。収入やstars数・達成時期は保証しない。
 
 ### 10,000 starsを目指すREADMEの参考例
 
-GitHub公式README/APIの確認では、[n8n](https://github.com/n8n-io/n8n)は208,455 starsで短い価値説明・画面・機能・Quick Start・docs/communityを、[Dify](https://github.com/langgenius/dify)は159,400 starsで導入条件・そのまま試せる手順・FAQ・多言語導線を、[Open WebUI](https://github.com/open-webui/open-webui)は156,612 starsで短い説明・demo・導入方法・機能・docsを見せている。Life Managerでは構成だけを参考にし、未完成機能や収益を約束せず、READMEを短く保ったまま7事業、必要条件、ひとつの最短導入、確認済みの成果、制限、詳細docsへの導線を示す。各repoのstars数は観測値であり、READMEがstarsを生む因果の証明ではない。
+GitHub公式README/APIを今回照合した値は、[n8n](https://github.com/n8n-io/n8n) 208,456 stars、[Dify](https://github.com/langgenius/dify) 159,400 stars、[Open WebUI](https://github.com/open-webui/open-webui) 156,616 stars。3つに共通する短い価値説明、試す前に分かる要件、Quick Start、画面またはdemo、詳しいdocs・community/contributionへの導線を参考にする。Life Managerでは7事業と実際の収益モデル、ChatGPT Plus以上とスリープしないMac、一つの導入command、利用可否と制限を初見向けに伝え、未完成機能や収益を約束しない。starsの観測値はREADMEがstarsを生む因果の証明ではない。
 
 **README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。README構成の比較対象は上記のn8n、Dify、Open WebUIのGitHub公式README/APIとし、PIONのURL特定はREADME改訂の進行条件にしない。
 
