@@ -2,15 +2,17 @@
 
 ## README整理とMac導入の継続修復
 
-**目的・範囲:** Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
+**目的・範囲:** Local Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
 
-**利用者向けの約束:** Local版の中心となる条件はChatGPT Plus以上のsubscriptionと、スリープしないMac/Mac mini。core利用に別のOpenAI API keyは不要。インターネットは必要で、選択した事業の本人accountや追加有料サービスは各providerが求める場合に別途用意する。目指すのは、初回設定後の通常業務を人の都度指示なしで実行し、結果を公式provider情報で確かめられる製品。READMEは外部利用者向けに短く保ち、7つの収益モデル、最短の導入方法、利用条件、未完成の範囲を先に示す。
+**製品の中心価値:** Local Life Managerは、自分で事業を作り、運営し、収益を生むノーヒューマン・イン・ザ・ループのmoney printerを目指す。事業機会の発見から商品/サービス構築、顧客獲得、納品、入金、改善までを自律して回す。Local版を動かす基本条件はChatGPT Plus以上とスリープしないMac/Mac mini。個別事業の実行時には、そのproviderが求めるbusiness accountや費用を接続する。通常運転に都度の人のprompt/approvalを要しないことを完成条件にする。
+
+**公開表現と証明:** READMEではこのno-human-in-the-loop money printerという目的を正面から説明し、「AIが手伝う」だけに弱めない。現在はearly developmentで全事業の自律運転・収益が揃っていないことを隣接して明記する。収益の実績はofficial provider receiptと費用を使ったnet結果で示し、未検証のbusiness outcomeを現在の事実として書かない。ChatGPT PlusはcoreのAI利用条件であり、インターネット、各business account、providerが必要とする追加費用は別に明示する。
 
 ### 完了済み
 
 | 項目 | 完了していること |
 |---|---|
-| 公開README | 英日READMEの冒頭に7事業、ChatGPT Plus以上/スリープしないMac、単一の導入入口、初期開発中の制限と詳細catalogを掲載済み。各事業が何で収益化するかも明記済み。 |
+| 公開README | 英日READMEの冒頭に7事業、ChatGPT Plus以上/スリープしないMac、単一の導入入口、初期開発中の制限と詳細catalogを掲載済み。各事業が何で収益化するかも明記済み。WebMCP/hackathonの未完成project紹介は掲載していない。ただし、no-human-in-the-loopで事業を作り運営するmoney printerという核はまだ前面に出ていない。 |
 | Mac導入のsource | 初回bootstrap、認証確認、共通依存など再現した導入不具合を修正し、mainへ反映済み。これで別Macの実機完走までは証明しない。 |
 | Mac architecture CI | PR #8878をmain `55f471e4`へ統合し、Apple Silicon/Intelのloop-control CIを含むmain後続Security Scan 14/14が成功。CIは別Macでの初回導入や実業務の完走を証明しない。 |
 | 受託platformの入口 | Coconala/Lancers/CrowdWorksの公開導入入口をmainに反映済み。Mercorの公開local setupも[PR #8863](https://github.com/Daisuke134/life-manager/pull/8863)でmainへ統合済み。installerの存在は実業務の成功を意味しない。 |
@@ -19,33 +21,38 @@
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN/CONFLICTING。head `53a21430`の14/14 CI checksは成功しているが、最新main `55f471e4`への統合・approval reviewは未完了。 | 最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
+| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN/CONFLICTING。head `53a21430`の14/14 CI checksは成功しているが、最新main `edf5c206`への統合・approval reviewは未完了。更新は2026-10-24 11:09ZのREADME/spec PR #8880統合後。 | ownerの作業中worktreeを保持する。owner完了後に最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
+| 自律型money-printerの位置付け | READMEは製品と各業務を紹介しているが、「自分で事業を作って運営し、実際に収益を得る」という中心価値が明瞭でない。現時点の全業務収益もread-only planでverifiedではない。 | READMEのvalue propositionを「ノーヒューマン・イン・ザ・ループで事業を作り、動かし、収益を生む」に改める。完成前はearly-development表示を隣接させ、実証済みのnet収益だけを実績として載せる。 |
+| 現Macの実行状態 | 2026-10-24のread-only snapshotではオンラインMacは1台（Apple Silicon Mac mini）。install planは`prepared`だが`business_outcomes_verified=false`。192 registry jobsのhealthは18 healthy / 64 failed / 72 safely fenced / 10 effect_unknown / 28 runningで、7件はofficial readback待ち。 | 共有資源・owner別の失敗を原因ごとに解消し、未知effectのfenceを保持したまま、各有効事業の実業務と公式provider結果を確認する。このsnapshotやCIだけで全Mac対応・収益を証明しない。 |
 | 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
 | 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
 | Mac portability | 自分のMac Mini以外での初回導入から業務完了まで未証明。 | cleanな別Macで、公開手順だけを使い、サポート対象と明記するmacOS/Apple Silicon/Intel構成ごとに導入から実業務まで通す。Macがスリープせず稼働する設定も案内する。 |
-| 10,000 stars | GitHub公式APIで8 stars / 2 forksを確認。10,000 starsまで9,992。 | 実利用・導入成功・初回の確認済み成果・継続利用を増やして自然に目指す。stars、導入成功、実業務成果、収益は別指標で報告する。READMEやstars数だけを製品完成・収益の証明にしない。 |
+| 10,000 stars | GitHub公式APIの2026-10-24 11:29Z readbackは8 stars / 2 forks。10,000 starsまで9,992。 | 実利用・導入成功・初回の確認済み成果・継続利用を増やして自然に目指す。stars、導入成功、実業務成果、収益は別指標で報告する。READMEやstars数だけを製品完成・収益の証明にしない。 |
 
 ### ゴールまでの順序
 
-現在cursorは **REPLY-PROFILE-SHIP**。PR #8865は提出済みだが未統合で、現headの14/14 CI checks成功だけでは完了ではない。最新mainとの競合を解消し、更新headのreview/CI、main統合、公開source readbackを通してからreleaseと実Macを再観測する。
+現在cursorは **REPLY-PROFILE-SHIP**。PR #8865はhead `53a21430`のままOPEN/CONFLICTINGで、14/14 CI checksは成功、approval reviewは未完了。mainは`edf5c206`まで進んでいる。既存ownerのworktreeを変更せず、owner完了後に競合を解消し、更新headのreview/CI、main統合、公開source readbackを通してからreleaseと実Macを再観測する。
 
 1. PR #8865を最新mainへ合わせ、更新headのfocused test・独立review・全CIを確認して統合し、main由来releaseで公開checkoutからinstallerを再確認する。
-2. 現MacのMercor browser/profile/Paidを既存ownerの経路で整え、Reply/Paidの未確定effectは公式readbackで照合してから再開する。
-3. 7つの不足installerを実装する。独立した事業はMercor復旧と並行できる。
-4. 約20 agentと7事業の対象一覧を一致させ、各業務の実行・公式結果・再開・重複防止を確認する。
-5. 新しい利用者のMacで初回installから実業務まで通し、対応機種・macOSの範囲を明示する。
-6. README/demo/quickstartと保守可能なrelease・contribution導線を整え、初見の訪問者が「価値と7事業を理解→条件を確認→導入→最初のprovider確認済み成果→継続利用」へ進めるよう改善する。導入成功・最初の成果・継続利用・starsを別々に追い、10,000 starsを自然な採用の目標として目指す。達成時期やstarsをREADMEだけで保証しない。
+2. 現Macの稼働jobをowner別・失敗原因別に診断し、Mercor browser/profile/Paidを既存ownerの経路で整える。Reply/Paidの未確定effectは公式readbackで照合してから再開する。
+3. 英日READMEの先頭で「ノーヒューマン・イン・ザ・ループで事業を作り、運営し、収益を生む」と伝え、7事業、ChatGPT Plusとawake Mac、個別事業に必要なaccount/費用、early-developmentの現状を短く併記する。収益実績は費用控除後の公式確認済み分だけ載せる。
+4. 7つの不足installerを実装する。独立した事業は既存Macの復旧と並行できる。
+5. 約20 agentと7事業の対象一覧を一致させ、各業務の実行・公式結果・再開・重複防止を確認する。
+6. 新しい利用者のMacで初回installから実業務まで通し、対応機種・macOSの範囲を明示する。
+7. README/demo/quickstartと保守可能なrelease・contribution導線を整え、初見の訪問者が「価値と7事業を理解→条件を確認→導入→最初のprovider確認済み成果→継続利用」へ進めるよう改善する。導入成功・最初の成果・継続利用・starsを別々に追い、10,000 starsを自然な採用の目標として目指す。達成時期やstarsをREADMEだけで保証しない。
 
 ### 理想の完成状態
 
-外部の人がREADMEだけで「何をする製品か」「7事業の収益源」「必要なもの」「各機能の利用可否」を理解し、ChatGPT Plus以上のsubscriptionとスリープしないMac/Mac miniを中心条件として、自分の業務accountで導入できる。初回設定とproviderが求める本人手続きの後は、対応する約20 agentが7事業の反復業務を通常の人手指示なしで進め、案件獲得・制作・応募・公開・納品・販売などの結果を公式provider情報で確かめ、収益・費用・失敗を分けて示し、安全に重複なく再開する。KYC、2FA、CAPTCHA、providerが求める同意や人による審査、effectが不明な場合の確認は人の操作が残り得るため、その条件を開始前に説明する。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から実業務まで通る。通常業務に人の常時介入を要しない自律型の事業運用を目指すが、収益、導入成功、10,000 stars、達成時期は保証しない。利用者の初回成果と継続価値を実測し、信頼できる紹介から10,000 starsを目指す。
+外部の人がREADMEだけでLocal Life Managerを「自分で事業を作り、運営し、収益を得るノーヒューマン・イン・ザ・ループのmoney printer」と理解する。ChatGPT Plus以上とスリープしないMac/Mac miniを使い、対応する事業の顧客獲得、制作、販売、納品、入金、改善を自律的に回す。初回に必要なservice accountを接続した後、通常業務は人の都度prompt/approvalなしで進む。対応する約20 agentが7事業を動かし、official provider receiptで案件・注文・入金を照合、7事業すべての費用控除後の正のnet収益、失敗、再開状態を示す。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から最初の収益成果まで通る。Pion/Andon Labsのように事業全体を運営するagentを目指し、Life Managerは7 business linesのverified net revenueを外部に示す。現在のearly-development状態と未完了機能はREADMEで正直に示し、確認済み成果が揃うまで保証収益をうたわない。GitHub 10,000 starsは利用者に価値が届いた結果として目指す別の採用目標であり、収益・導入成功の証明とは分ける。
 
 ### 10,000 starsを目指すREADMEの参考例
 
-GitHub公式APIの現行readbackは、[n8n](https://github.com/n8n-io/n8n) 208,470 stars、[Dify](https://github.com/langgenius/dify) 159,405 stars、[Open WebUI](https://github.com/open-webui/open-webui) 156,616 stars。3つに共通する短い価値説明、試す前に分かる要件、Quick Start、画面またはdemo、詳しいdocs・community/contributionへの導線を参考にする。Life Managerでは7事業と実際の収益モデル、ChatGPT Plus以上とスリープしないMac、一つの導入command、利用可否と制限を初見向けに伝え、未完成機能や収益を約束しない。starsの観測値はREADMEがstarsを生む因果の証明ではない。
+GitHub公式APIの2026-10-24 11:21Z readbackは[OpenClaw](https://github.com/openclaw/openclaw) 392,913 stars、[n8n](https://github.com/n8n-io/n8n) 208,471、[Dify](https://github.com/langgenius/dify) 159,407、[Open WebUI](https://github.com/open-webui/open-webui) 156,619。今回READMEを確認したOpenClawは製品価値とローカル実行の説明、要件、install→onboarding→動作確認、security/docsへの順路を示す。n8nは短い価値説明、実画面、主な機能、Quick Start、resources・community・support・contributingを並べる。この構成を参考にし、Life ManagerはLocal Life Managerの価値、7つの収益モデル、ChatGPT Plus以上とawake Mac、業務ごとのaccount/費用、1つの導入command、最初の公式provider結果、機能の利用可否と制限、実動demo、docs/contributionへの導線を順に示す。GitHub API上のstar数は時点観測であり、READMEやPionの表現がstars・収益を生む因果の証拠ではない。
 
-**README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。README構成の比較対象は上記のn8n、Dify、Open WebUIのGitHub公式README/APIとし、PIONのURL特定はREADME改訂の進行条件にしない。
+**Pion / Andon Labsとの位置付け:** [Pion公式ページ](https://andonlabs.com/pion)はworkflow builderではなくagentが事業全体を継続運営する製品として説明し、[Andon Labsの説明記事](https://andonlabs.com/blog/why-we-built-pion)はvending businessの黒字化と、当時retail/caféが未黒字である点を分けている。ここから借りるのは「AIがbusiness全体を運営する」という明快なcategory framing。Life Managerの差別化はChatGPT Plusとawake Macで動くlocal OSS、7つの収益モデル、各事業の公式receiptと費用を結んだnet成果である。Pionの事例はLife Managerの現時点の収益証明ではない。
+
+**README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。README構成の比較対象は上記のOpenClaw、n8n、Dify、Open WebUIのGitHub公式README/APIとし、PIONのURL特定はREADME改訂の進行条件にしない。
 
 - [x] README-BUSINESSES: 収益事業の短い一覧を英日READMEの冒頭へ戻し、既存関連検証、CI、main統合、公開readbackまで完了する。
 
