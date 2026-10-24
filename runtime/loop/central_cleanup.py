@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import pwd
 import plistlib
@@ -824,7 +825,8 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
               "preserved_releases": 0, "protected_deletions": 0, "errors": 0}
     bundles = releases.parent / "dependency-bundles"
-    deadline = time.monotonic() + 15
+    # Reconcile held the admission lock for 90s; keep this wait separate from scans.
+    lock_deadline = time.monotonic() + 120
     try:
         empty = True
         for root in (releases, bundles):
@@ -839,8 +841,11 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
             return {**result, "protected_release_count": 0, "source_reclaim": {"status": "not_needed"},
                     "dependency_bundles": {"evaluated": 0, "removed": 0, "preserved": 0,
                                            "reclaimed_bytes": 0, "errors": 0}}
-        with _source_reclaim_lock(current, deadline), _release_cut_lock(current):
-            protected, _references = _bundle_references(releases, current, agents, bundles, deadline)
+        with _source_reclaim_lock(current, lock_deadline), _release_cut_lock(current):
+            # Lock contention must not consume the bounded reference-census window.
+            census_deadline = time.monotonic() + 15
+            protected, _references = _bundle_references(
+                releases, current, agents, bundles, census_deadline)
             if any(releases.iterdir()):
                 protected |= loaded_release_roots(agents, releases) | open_release_roots(releases)
             pins = releases / ".pins"
@@ -848,14 +853,44 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
                 protected |= {(releases / pin.name).resolve() for pin in pins.iterdir()}
             result = gc_releases(releases, current, keep=keep, protected=protected)
             result["protected_release_count"] = len(protected)
-            bundle_result = _gc_dependency_bundles(releases, current, agents, bundles, deadline)
+            # Bundle GC repeats the full host-reference census after release GC;
+            # give that independently bounded phase its own scan window.
+            bundle_deadline = time.monotonic() + 15
+            bundle_result = _gc_dependency_bundles(
+                releases, current, agents, bundles, bundle_deadline)
             result["dependency_bundles"] = bundle_result
             result["reclaimed_bytes"] += bundle_result["reclaimed_bytes"]
             result["errors"] += bundle_result["errors"]
     except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
         result["errors"] += 1
+        diagnostic = {"phase": "release_reference_check"}
+        if isinstance(error, subprocess.TimeoutExpired):
+            timeout_phases = {
+                "bundle references": "bundle_reference_deadline",
+                "plist references": "plist_reference_deadline",
+                "process references": "process_reference_deadline",
+                "process path boundaries": "process_path_deadline",
+                "reference path resolution": "reference_path_resolution",
+                "release dependency links": "release_dependency_deadline",
+                "bundle tree": "bundle_tree_deadline",
+                "plutil": "plist_conversion_probe",
+                "ps": "process_inventory_probe",
+                "lsof": "open_file_reference_probe",
+            }
+            command = error.cmd
+            if isinstance(command, str):
+                diagnostic["phase"] = timeout_phases.get(command, "reference_subprocess")
+            elif isinstance(command, (list, tuple)) and command:
+                executable = Path(os.fsdecode(command[0])).name
+                diagnostic["phase"] = timeout_phases.get(executable, "reference_subprocess")
+            if (type(error.timeout) is int and error.timeout >= 0) or (
+                    type(error.timeout) is float and math.isfinite(error.timeout) and error.timeout >= 0):
+                diagnostic["timeout_seconds"] = error.timeout
+        elif isinstance(error, RuntimeError):
+            diagnostic["phase"] = "lock_check"
         result["dependency_bundles"] = {"status": "reference_or_lock_unavailable",
-                                        "error_class": type(error).__name__}
+                                        "error_class": type(error).__name__,
+                                        "diagnostic": diagnostic}
     source_result = {"status": "not_needed"}
     if keep > 0:
         try:

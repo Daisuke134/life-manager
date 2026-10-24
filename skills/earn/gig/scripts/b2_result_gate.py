@@ -141,11 +141,13 @@ def build_context(prep: dict[str, Any], applied_path: Path) -> dict[str, Any]:
         # must be able to close without ever having swept /job_matching/outsources,
         # because sweeping a bucket it can no longer apply into is a page load and a
         # model call spent on an outcome that cannot happen.
+        # High-fit sources first; single:new stays as the deep fallback that
+        # _source_capacity_plan hands the unspent single slots to.
         "required_search_source_ids": [
+            *(("single:keyword",) if categories else ()),
+            *(f"single:category:{category}" for category in categories),
             "single:new",
             *("retainer:new",),
-            *(f"single:category:{category}" for category in categories),
-            *(("single:keyword",) if categories else ()),
         ],
     }
 

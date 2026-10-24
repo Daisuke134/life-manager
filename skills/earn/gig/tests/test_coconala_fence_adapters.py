@@ -1018,3 +1018,18 @@ def test_an_unbound_pre_effect_intent_does_not_hold_the_scoped_fence(tmp_path, m
                         calls.append(settled_proof()["unresolved_irreversible"]) or True)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     assert calls == [0]
+
+
+def test_application_reconcile_seeds_context_from_gig_vault(monkeypatch) -> None:
+    # The fence reconciler plist has no Coconala session env. Without this the leased
+    # context is seeded from the personal daily-driver vault (no _coconala_session) and
+    # the official readback lands on /login -> official_readback_route_invalid (2026-10-25).
+    wrapper = _load_wrapper()
+    monkeypatch.delenv("CLOAK_SESSION_VAULT_FILE", raising=False)
+    calls = []
+    wrapper.run_browser_reconcile(
+        ["true"], runner=lambda *a, **k: calls.append(k) or subprocess.CompletedProcess(a, 0)
+    )
+    assert calls[0]["env"]["CLOAK_SESSION_VAULT_FILE"] == str(
+        Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"
+    )
