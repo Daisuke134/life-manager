@@ -14,7 +14,7 @@
 
 - 公式の最終条件は、6週間以内に実利用する別々の人1,000人へ達し、検証を受けること。先着3プロジェクトが対象。
 - Top 30は第1週のcheckpoint。運営が公表していない採点配分・正確な初週締切を作らない。
-- signup、pageview、投稿imp、agent/VM/subagent数、founder/team/testは公式実利用者数へ加算しない。
+- signup、pageview、投稿imp、agent/VM/subagent数は公式実利用者数にしない。founder/team/testは保守的に内部集計で別枠とし、実在するdistinct founder/team memberが公式に数えられるか主催者に確認する。明示された公式除外条件と内部方針を混同しない。
 - 登録、明示的な保持条件同意、tenant-bound execution、実仕事receipt、結果メールreceipt、stopを別々に検証する。
 - 利用者に目標・予算の入力、毎日の指示、Telegram連携を必須にしない。
 - 未確認の外部effectを再送しない。effect_unknownは既存receiptで照合し、blind retryしない。
@@ -35,20 +35,6 @@
 
 ---
 
-## 現状の進捗
-
-| Lane | As-Is | To-Be / 完了証拠 | 状態 |
-|---|---|---|---|
-| 参加 | Keiki × Maritimeへaccepted。 | 受理の確認は済み。 | DONE |
-| Round 1 | Keiki公式Xが10/20に「7日でagentをbuild、Top 30が次へ」と告知。 | cutoff、rubric、必要提出物を主催者から確認し、Top 30の公式結果を読む。 | IN_PROGRESS / cutoff・rubric UNKNOWN |
-| Product | 英語pilot・EN記事は10/24に直接GETしてHTTP 200。Railway production life-call/workerは10/24 08:38ZにSUCCESS/Online各1/1、/healthは200/build 8e0e6f2。current main b0e05bfとの差分はapps/life-manager配下0。life-callは07:00Zのfailed deploymentが最近の失敗として1件残るが、08:38Zの後続SUCCESSで稼働。Maritime custom-image SHAは未readback。 | current-main対応を保ち、custom-image/runtime SHA、tenant binding、host executor、auto-enqueue、実利用cycleをreceipt付きで確認する。 | IN_PROGRESS / app稼働中・Maritime imageとend-to-endはUNKNOWN |
-| Cloud business path | T17 trusted Capafy prepare/publish chainのcoreはDraft PR #8745にある。tenant binding・host executor・automatic enqueue callerは未接続。PRは未merge・本番未反映。 | 所有者boundの外部仕事、verified provider receipt、日報email、stop/replay-zeroを同じ利用者で実証。 | BLOCKED / source＋owner操作 |
-| User proof | owner PKCEと明示retention consent、外部real user count、completed work/result/email/stopは現在未確認。 | 一人の許可された利用者がend-to-endを完了。receiptと同意記録を保存。 | BLOCKED_OWNER_ACTION + UNKNOWN |
-| English distribution | @selawmqtのEnglish X postが公開済み。EN blog記事は10/24にHTTP 200。 | UTM流入からsignup、first use、repeat useまでをsource別readback。 | IN_PROGRESS / conversion UNKNOWN |
-| Other distribution | @diceai0の日本語awareness postはEN postへのリンク付きで公開済み。Museは一件のEnglish Threads introを許可されている。Instagram anicca.enはSMS再接続待ち。 | Threadsは既存accountとpublish accessをreadbackした場合のみ一件公開。Instagramは所有者のSMS reconnect後に公開可。receiptを保存。 | PENDING_RECEIPT / IG BLOCKED |
-| Formal project submission | competition-submissionsに10/21のEnglish entry一件。Channel descriptionはSlack postが必要formの代わりとは限らないと明記。 | Organizerが示すrouteに一度提出し、受付ID/receiptを読む。 | UNKNOWN |
-| Metrics | Current signup、distinct real users、completed work、repeat use、official platform usage、costsは取得していない。 | Source別funnelとofficial usageを定期readback。未取得はnullのまま。 | UNKNOWN |
-
 Official reference: https://competition.maritime.sh/terms. Day-one public post: https://x.com/onkeiki/status/2112658078797791251. Round-one announcement does not publish an exact cutoff or scoring rubric.
 
 ## Metric Definitions
@@ -65,13 +51,13 @@ Official reference: https://competition.maritime.sh/terms. Day-one public post: 
 | Repeat use | Same authorized user returns and completes another qualifying use. Internal retention measure, not a separate official rule. | Tenant event + platform readback |
 | Official competition count | Distinct real people with project-level Keiki or Maritime usage, after organizer verification. | Platform usage and organizer readback |
 
-Do not present internal user cohort goals as organizer thresholds. Suggested internal checkpoints are 10 → 50 → 200 → 500 → 1,000 qualifying people; revise the pace from measured activation and current official count. At the 2026-10-24 09:43Z snapshot, about 38.93 days remain; if the verified count were zero, the simple average would be about 26 qualifying people/day. The actual verified count N is unknown, so the actual required pace is (1,000 − N) / D and cannot yet be stated.
+Do not present internal user cohort goals as organizer thresholds. Suggested internal checkpoints are 10 → 50 → 200 → 500 → 1,000 qualifying people; revise the pace from measured activation and current official count. At the 2026-10-24 09:53Z snapshot, about 38.92 days remain; if the verified count were zero, the simple average would be about 26 qualifying people/day. The actual verified count N is unknown, so the actual required pace is (1,000 − N) / D and cannot yet be stated.
 
 ## Atomic Work Plan
 
 ### P0 — Lock Round 1 requirements (next organizer office-hours slot)
 
-**Owner:** Codex prepares the questions and records evidence. Gmail shows the Oct 25 10:00–10:15 JST office-hours booking under Nizzy with Darshan; Dais attendance/invitation is not verified. If Dais is an attendee, he asks the organizer. Otherwise use the next participant-accessible official route and do not duplicate the existing unanswered #competition-help question. Do not infer from kickoff email or X wording.
+**Owner:** Codex prepares the questions and records evidence. The Cal.com confirmation addressed to Dais lists Dais and Darshan; Dais RSVP is `needsAction` for Oct 25 10:00–10:15 JST. Nizzy is the requested host but is not invited pending availability. If Dais attends, he asks the organizer; if he cannot attend, use the next participant-accessible official route. Do not duplicate the existing unanswered #competition-help question or infer from kickoff email/X wording.
 
 - [ ] P0.1 Ask in English: “What is the exact Round 1 cutoff time and timezone, and how will the Top 30 be selected?”
 - [ ] P0.2 Ask: “What is the required project submission route and packet? Does our Oct 21 #competition-submissions post count, or is there a separate form?”
@@ -86,7 +72,7 @@ Do not present internal user cohort goals as organizer thresholds. Suggested int
 
 **Owners:** Existing Codex/Maritime source claimant owns P1.1–P1.7 and keeps source changes on the claimed branch; Dais completes his own P1.8 PKCE/consent; Codex records readbacks and tracker updates; Muse owns the authorized Threads publish check; Dais owns the Instagram SMS reconnect. This document does not transfer those claims.
 
-- [x] P1.1a Snapshot current readback: main b0e05bf; #8745 is OPEN/DRAFT head 764be4c, base SHA 5904b05 (behind current main); life-call/worker are online on 8e0e6f2 and the apps/life-manager tree has no diff from current main. Exact current-head check/review state remains unverified.
+- [x] P1.1a Snapshot current sources separately: origin/main af2967f at 09:53Z; latest Railway state at 09:43Z, life-call/worker Online 1/1 on 8e0e6f2 with matching /health build. `apps/life-manager` has no diff from af2967f. PR #8745 is OPEN/DRAFT head 764be4c, base SHA 5904b05 (behind current main); exact current-head check/review state remains unverified.
 - [ ] P1.1b Read the existing T08/T16/T17/T18.9 plan and fetch exact-head CI/review status; identify current-base conflicts and record the source owner’s disposition.
 - [ ] P1.2 Re-review the PR against current main. Keep its bounded prepare→receipt→publish chain, stable effect key, one attempt, read-only reconciliation, and report receipt. Resolve current-base conflicts without dropping later main work.
 - [ ] P1.3 Close the actual missing trust boundary using existing T08/T16 ownership: resolve each participant's Capafy account/official subject/credential/browser session to that UID; ensure the host executor and automatic caller use only that binding; reject absent, ambiguous, or cross-tenant identity.
@@ -153,11 +139,6 @@ Do not present internal user cohort goals as organizer thresholds. Suggested int
 4. D0.4/D0.5/D1.1–D1.3 can proceed alongside P1 without waiting for a revenue outcome. Public claims must continue to say early pilot until P1 is complete.
 5. P2.5 gates the Week 2 plan; P3.1 inserts new rules into the same tracker; D1.6 growth continues through the common Dec 1 deadline.
 
-## Current Cursor
+## State Ownership
 
-- Immediate: P0 organizer requirements and P1.1b exact-head checks/review; P1.1a current-main/app-health snapshot is complete.
-- Human prerequisite: P1.8 owner PKCE and explicit retention consent.
-- Next product proof: P1.9–P1.10 one real hosted action → provider receipt → email receipt → stop.
-- Distribution: D0.4 metrics refresh, D0.5 Threads receipt/access, then D1 cohort instrumentation.
-- Formal status: P2.4 route unknown, no receipt; existing Slack entry remains posted.
-- Final competition target: 1,000 distinct real users verified on Keiki/Maritime before Dec 1 23:59 PT; current count unknown.
+The integrated SSOT owns current status, task ordering, and the single cursor. This plan contains detailed implementation steps and acceptance evidence only; update the SSOT when a task, requirement, or blocker changes.
