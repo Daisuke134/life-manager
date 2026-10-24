@@ -51,7 +51,7 @@ Official reference: https://competition.maritime.sh/terms. Day-one public post: 
 | Repeat use | Same authorized user returns and completes another qualifying use. Internal retention measure, not a separate official rule. | Tenant event + platform readback |
 | Official competition count | Distinct real people with project-level Keiki or Maritime usage, after organizer verification. | Platform usage and organizer readback |
 
-Do not present internal user cohort goals as organizer thresholds. Snapshot refresh: 2026-10-24 11:02Z, about 38.87 days remain to the official final deadline; verified user count and conversion remain unknown, so compute pace as (1,000 - N) / D only after obtaining N.
+Do not present internal user cohort goals as organizer thresholds. Snapshot refresh: 2026-10-24 11:10Z, about 38.87 days remain to the official final deadline; verified user count and conversion remain unknown, so compute pace as (1,000 - N) / D only after obtaining N.
 
 ## Atomic Work Plan
 
@@ -72,7 +72,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 **Owners:** Existing Codex/Maritime source claimant owns P1.1–P1.7 and keeps source changes on the claimed branch; Dais completes his own P1.8 PKCE/consent; Codex records readbacks and tracker updates; Muse owns the authorized Threads publish check; Dais owns the Instagram SMS reconnect. This document does not transfer those claims.
 
-- [x] P1.1a Snapshot current sources separately: current origin/main is 1ac2f6bf8375568c1fb724eecbe95a86548bbaa8 at 11:02Z; latest Railway status read 10:49Z shows life-call and money-printer-worker SUCCESS/online 1/1 on source 8e0e6f2, zero staged/pending changes, and no diff under apps/life-manager. Public EN pilot/article last returned HTTP 200 at 09:39Z. PR #8745 remains OPEN/DRAFT head 764be4c, base 5904b05 (not current), mergeable=false; Maritime image, end-to-end, official count, and cost remain unverified.
+- [x] P1.1a Snapshot current sources separately: current origin/main is edf5c206c1e4abb69f1664d4635376eff5307736 at 11:10Z; latest Railway status read 10:49Z shows life-call and money-printer-worker SUCCESS/online 1/1 on source 8e0e6f2, zero staged/pending changes, and no diff under apps/life-manager. Public EN pilot/article last returned HTTP 200 at 09:39Z. PR #8745 remains OPEN/DRAFT head 764be4c, base 5904b05 (not current), mergeable=false; Maritime image, end-to-end, official count, and cost remain unverified.
 - [ ] P1.1b Read the existing T08/T16/T17/T18.9 plan and fetch exact-head CI/review status; identify current-base conflicts and record the source owner’s disposition.
 - [ ] P1.2 Re-review the PR against current main. Keep its bounded prepare→receipt→publish chain, stable effect key, one attempt, read-only reconciliation, and report receipt. Resolve current-base conflicts without dropping later main work.
 - [ ] P1.3 Close the actual missing trust boundary using existing T08/T16 ownership: resolve each participant's Capafy account/official subject/credential/browser session to that UID; ensure the host executor and automatic caller use only that binding; reject absent, ambiguous, or cross-tenant identity.

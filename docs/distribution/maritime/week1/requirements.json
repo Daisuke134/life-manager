@@ -272,5 +272,13 @@
     "formal_submission": "draft prepared; route/fields/receipt unconfirmed",
     "new_posts_or_schedules": 0,
     "organizer_followup_sent": "2026-10-24T10:56:44Z; no reply at 10:57:29Z"
+  },
+  "latest_operational_readback_20261024T1110Z": {
+    "observed_at": "2026-10-24T11:10:40Z",
+    "source_main_sha": "edf5c206c1e4abb69f1664d4635376eff5307736",
+    "main_changed_docs_only_since_1ac2": true,
+    "apps_life_manager_diff_from_deployed_source": [],
+    "tracker_branch_rebased_on_latest_main": true,
+    "tracker_pr_remote_update_pending": true
   }
 }

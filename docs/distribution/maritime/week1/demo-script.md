@@ -1,6 +1,6 @@
 # Life Manager demo capture plan
 
-> Historical snapshot from 2026-10-21. Its dated counts, URLs, and statuses are not the current readback. Current status and cursor: [integrated SSOT](../../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md); current evidence: [2026-10-24 readback](../../../evidence/maritime/live-readback-20261024-1102Z.json).
+> Historical snapshot from 2026-10-21. Its dated counts, URLs, and statuses are not the current readback. Current status and cursor: [integrated SSOT](../../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md); current evidence: [2026-10-24 readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
 
 
 **Readback at 2026-10-21 11:10 UTC:** this file contains a shot list; no video has been captured or published. EN/JA production routes return HTTP 200, but both still describe daily email as current behavior and omit that the hosted cycle is unverified. Production is on SHA `982875d`; latest main is `cab4320` and contains source changes after the original copy fix. Owner PKCE/retention consent and the hosted work-to-report cycle are unverified; latest internal participant, execution, completed-work, and report counts are 0. Capture gates below prevent screenshots, narration, or edits from implying otherwise.

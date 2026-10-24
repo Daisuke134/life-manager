@@ -19,7 +19,7 @@
 
 ## Evidence and measurements
 
-- Public pilot and article returned HTTP 200 in the 2026-10-24 09:39Z readback; current evidence: [2026-10-24 11:02Z readback](../../../evidence/maritime/live-readback-20261024-1102Z.json).
+- Public pilot and article returned HTTP 200 in the 2026-10-24 09:39Z readback; current evidence: [2026-10-24 11:02Z readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
 - At the 10:49Z Railway readback, Life Manager app and worker deployments were SUCCESS/online at 1/1 replicas with no staged or pending changes. A separate trusted Maritime runtime/image SHA has not been verified.
 - Official Keiki/Maritime user count: **unknown**.
 - Completed external-work users, repeat users, report receipts, and costs: **unknown**.
