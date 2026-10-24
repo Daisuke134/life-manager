@@ -559,3 +559,12 @@ def test_selected_agent_now_under_review_is_a_healthy_pass_even_if_queue_stays_p
 def test_selected_agent_not_submitted_or_runner_failed_falls_through(tmp_path: Path, rc: int, lifecycle: str) -> None:
     code, marker = _run_submitted(tmp_path, rc=rc, lifecycle=lifecycle)
     assert code == 9 and not marker.exists()
+
+
+def test_drainer_prompts_say_a_sonnet_5_5_listing_hosts_on_the_sonnet_5_id():
+    """2026-10-25: the drainer agent stopped three times because publish_prepare printed
+    'model: Claude Sonnet 5' for a 'Claude Sonnet 5.5' listing; build_config.py maps one to the other by design."""
+    source = CHILD.read_text(encoding="utf-8")
+    sentence = "A LISTING Primary Model of Claude Sonnet 5.5 is hosted on the Claude Sonnet 5 id by design"
+    assert source.count(sentence) == 2
+    assert "not a stop condition" in source
