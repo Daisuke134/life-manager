@@ -1,0 +1,87 @@
+{
+  "schema": "manager.annomi-dialogue-evaluation-design.v1",
+  "status": "FROZEN_BEFORE_EVALUATION",
+  "purpose": "offline evaluation of released utterance annotation labels only",
+  "implementation": {
+    "module": "manager_core/annomi_dialogue_eval.py",
+    "module_sha256": "fd0d7664a30e1208a33a53f9bbaa9a9745a137810e89b54992b08d0c16e5c455",
+    "entrypoint": "scripts/evaluate_annomi_dialogue.py",
+    "entrypoint_sha256": "85f6f21385771cc64a949d437c3fe6c46c3540b090263729c7c3795792242474",
+    "test_file": "tests/test_annomi_dialogue_eval.py",
+    "test_file_sha256": "f934eb7d016b1fb593951661e76d937bbc5a7767e585cdbcf15edb93e15e824f"
+  },
+  "source": {
+    "repository": "uccollab/AnnoMI",
+    "revision": "42936645ec3857a9c84ab296a36a3c34b779ef49",
+    "artifact": "AnnoMI-simple.csv",
+    "sha256": "b178db3b0b9858a0fa4ed670dabeccd63e975ba67e141d7ae16f2e8214f78e61",
+    "rights_scope": {
+      "basis": "source-paper-declared_public_domain; see docs/research/2026-10-24-annomi-artifact-audit.md",
+      "allowed_activity": "bounded_private_local_aggregate_only_research",
+      "raw_row_or_text_redistribution": "HOLD",
+      "prediction_or_weight_publication": "HOLD",
+      "product_or_live_use": "HOLD",
+      "identity_video_consent_and_source_rights": "UNVERIFIED"
+    }
+  },
+  "tasks": {
+    "therapist": {
+      "role": "therapist",
+      "label_column": "main_therapist_behaviour",
+      "excluded_labels": ["", "n/a", "na", "not applicable"]
+    },
+    "client": {
+      "role": "client",
+      "label_column": "client_talk_type",
+      "excluded_labels": ["", "n/a", "na", "not applicable"]
+    }
+  },
+  "split": {
+    "method": "StratifiedGroupKFold",
+    "n_splits": 5,
+    "shuffle": true,
+    "seed": 20261024,
+    "grouping_unit": "platform_scoped_normalized_source_video_id_sha256",
+    "transcript_ids_and_video_ids_are_not_exported": true
+  },
+  "comparison": {
+    "primary_metric": "macro_f1",
+    "primary_comparison": "tfidf_logistic_regression_minus_train_fold_majority_baseline",
+    "secondary_metrics": ["balanced_accuracy", "accuracy"],
+    "classifier": {
+      "family": "scikit-learn LogisticRegression",
+      "c": 1.0,
+      "class_weight": "balanced",
+      "max_iter": 500,
+      "solver": "lbfgs",
+      "vectorizer": {
+        "family": "TfidfVectorizer",
+        "ngram_range": [1, 2],
+        "min_df": 2,
+        "max_features": 50000,
+        "sublinear_tf": true,
+        "strip_accents": "unicode"
+      }
+    },
+    "uncertainty": {
+      "method": "paired_percentile_video_group_bootstrap",
+      "resamples": 2000,
+      "seed": 20261024,
+      "confidence_level": 0.95
+    }
+  },
+  "leakage_audits": [
+    "same normalized video group never crosses train and test folds",
+    "count exact normalized utterance text appearing across distinct video groups",
+    "report out-of-fold metrics separately for text seen and unseen in that fold's training data"
+  ],
+  "privacy": {
+    "raw_rows_stdout_git": false,
+    "row_predictions_stdout_git": false,
+    "transcript_video_identifiers_stdout_git": false,
+    "weights_published": false,
+    "public_artifact": "aggregate metrics only"
+  },
+  "claim_boundary": "annotation_label_prediction_is_not_behavior_change_suffering_reduction_clinical_benefit_or_person_level_generalization",
+  "interpretation": "descriptive research slice; no deployment threshold or adoption decision"
+}

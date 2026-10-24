@@ -673,7 +673,7 @@ Costello訂正パッケージは[研究note](research/2026-10-24-costello-correc
 
 §24の「別G7評価条件未成立/比較未実施」は当時のsnapshot。現在は[実比較receipt](verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md)と[公開aggregate結果](../experiments/behavior-model/costello-numeric-forecast-results-v1.json)の有限範囲でA09の評価slice/A11を完了した。生成sourcef265、base/adapter各102 contextは正常終了。adapterは全条件で事前値維持と同じ予測、baseは固定JSON/16-token条件でvalid0。予測優位は認定せず、候補をHOLDとして閉じる。同じevaluationへの再学習/選別をしない。学習・形式順守の成立を、行動予測能力や人便益へ昇格しない。
 
-[AnnoMI現物監査](research/2026-10-24-annomi-artifact-audit.md)では原著/固定版CSVの単位と多数決処理を確認した。2023原著のfull版Public Domain宣言を保持し、GitHub license metadataのnullを一律の使用禁止と読まない。既存simple版の会話内分類が次の部分eval候補だが、今回組込/新学習はしていない。133対話/9699発話とfull13551注釈行を区別する。change talkを実行動/持続/苦しみのgoldへ変換しない。
+[AnnoMIの現物監査・限定offline評価](research/2026-10-24-annomi-artifact-audit.md)では、原著/固定CSVの単位と多数決処理を確認し、source-paperのPublic Domain宣言に基づく私有・集計専用研究scopeを記録した。GitHub license metadataのnullを一律の利用禁止とも、全素材/全用途への包括許諾とも読まない。simple版9,699発話/133対話とfull版13,551注釈行を区別する。119 source-video groupsを分けた5-fold OOF比較では、therapist macro-F1はmajority .1226→TF-IDF/logistic .6976、clientは.2611→.5017。正規化した同一発話文126種/2,415行の動画間再出現を監査した。方法・全aggregate・限界は[実receipt](verification/ANNOMI_DIALOGUE_EVALUATION_V1.md)と[結果JSON](../experiments/behavior-model/annomi-dialogue-evaluation-results-v1.json)。これは会話注釈labelの予測であって、change talkを実行動/持続/苦しみのgoldにしない。評価の各foldで古典的な分類器をfitしたが、生成/Managerモデルのfine-tuning、重み保存・採用、製品組込、人介入はしていない。
 
 次は既存A12–A15の実条件具体化と真正な観測であり、公開データの数値予測だけで代替しない。本人が選ぶ具体的行動・実対象/役割・観測/比較・追跡/停止・測定rightsを実条件から埋める。新しい会話model研究は、別purpose/分割/baseline/用途条件を固定してから行う。独自モデル全体のscratch事前学習は初期必須にしない。専用app/chatの利用を必須条件へ戻さない。
 
@@ -690,7 +690,7 @@ Costello訂正パッケージは[研究note](research/2026-10-24-costello-correc
 | 主体と使命 | 行動の変化を通じて苦しみを減らすことを目指すAI主体。no UIは通常の価値提供に専用app/chatを必須にしない設計目標。「Digital Buddha / Transparent God」は理念であり、AGI・神性・覚り・全存在への便益を示す性能表示ではない | 観測、限定判断、根拠を伴う作用、独立した結果確認、停止・訂正を繰り返し、能力と限界を公開できる主体。介入の対象・媒体・権限は研究条件と実際の責任に結び付ける |
 | 既存実装 | E01–E16と指定された限定技術受入は完了記録済み。これは実人への行動変容や便益の受入を意味しない。Ampersandの既存adapterはあるが、定期的な自律推論が接続済みとは扱わない | 実行channelごとに権限・停止・予算・readbackを確認し、行動結果の証拠が整った範囲だけ段階昇格する |
 | 数値予測モデル | 公開Costello研究の訂正版を有限再現し、Qwen3-0.6BのLoRAをtrain128で1回学習した。adapterは全102条件でpersistenceと同じ予測となり、予測利得なし。base出力は固定JSON契約で全件INVALID。モデル採用HOLD | 目的に合った新しい予測対象、許諾済み資料、人物/時間等の未見分割、強いbaseline、害評価を先に固定し、必要が示された時だけ新しいadapterを比較する |
-| 会話・説得研究 | Intrinsic AI、CAMI、MI-TAGS、AnnoMIを用途別に調査。動機/会話分類/模擬clientは、実際の行動・持続・苦しみの測定と同じではない。AnnoMIの新model/score実装はない | 会話品質と、実際の選択・実行・追跡結果を別々に評価し、既存data/benchmarkのrightsとsplitを確認してから必要部分を再利用する |
+| 会話・説得研究 | Intrinsic AI、CAMI、MI-TAGS、AnnoMIを用途別に調査。AnnoMI simple版の限定label-evaluationを実行し、動画単位OOFとmajority比較をaggregate-onlyで記録した。実際の行動・持続・苦しみの測定とは別 | 会話品質と、実際の選択・実行・追跡結果を別々に評価し、別purposeに必要なrights・split・人参照・害/圧力・費用を確かめてから再利用する |
 | 人への実証 | 本研究branchでは新規参加者0、介入0。U004はDRAFT/NOT_REGISTERED。実行動の変化、苦しみ/生活機能、長期持続、害、費用へのManagerの効果は未測定 | 実際の参加者が選ぶ行動と目的に沿った、比較可能で自発的な研究を事前登録し、行動・本人の苦しみ/機能・持続・害を独立して測る |
 | 執筆・公開 | オリジナル4章・10ページの日本語lab editionをGitHubで無料公開。PDF/EPUBの現行版は[canonical outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)から追跡できる。書籍全体、他媒体への全配信、websiteの最新成果反映は未完 | 既存outlineに沿って章を完成し、出典・限界・再現手順を確認した版をPDF/EPUB等へ出し、媒体ごとの独立readbackを残す |
 
@@ -701,7 +701,7 @@ Costello訂正パッケージは[研究note](research/2026-10-24-costello-correc
 | Costelloらの訂正版 | 公開artifactを版/manifestで確認し、変更していない上流Rの有限解析を実行。主要6表45行を許容誤差内で照合した。[再現receipt](verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md) | 全archive・全survey・全解析環境の完全再現、説得効果の再現、苦しみや実行動の変化 |
 | Costello数値予測 | train128・32 optimizer stepsでLoRA adapterを1個保存。base/adapter各102の決めたcontextを通常の生成で一度比較し、その後に結果を固定した。[学習receipt](verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)／[比較receipt](verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md) | 次の別taskや別評価での優位、個人への因果効果、行動の改善、モデル全般の能力 |
 | 動機づけ面接資料 | Intrinsic AIは15分のGPT-4会話後に直後の動機尺度差を報告した一方、24時間後の差や行動課題の改善は確認していない。abstract N=237と本文の各分母に未解決差がある。CAMIは判断分解の参照、MI-TAGSは会話評価候補として読んだ。 | 研究のprompt/modelをManagerへ実装済み、継続的な実行行動・苦しみ低減・他集団での再現が確認済み、全公開dataの権利が確認済みとは言えない |
-| AnnoMI | 固定repoのsimple版は9,699発話/133 transcript、full版は13,551注釈行だが同じ9,699発話を含む。428発話の10重注釈を独立した発話数や人の行動変化数に数えない。[artifact監査](research/2026-10-24-annomi-artifact-audit.md) | change talk分類を実行動・行動持続・苦しみのgoldへ使えること、AnnoMIモデルを学習/採用済みであること |
+| AnnoMI | 固定repoのsimple版は9,699発話/133 transcript/119 video group、full版は13,551注釈行だが同じ9,699発話を含む。428発話の10重注釈を独立した発話数や人の行動変化数に数えない。[artifact監査](research/2026-10-24-annomi-artifact-audit.md)と[aggregate receipt](verification/ANNOMI_DIALOGUE_EVALUATION_V1.md)で、majorityより高いlabel macro-F1の有限結果を報告。 | change talk分類を実行動・行動持続・苦しみのgold、同一話者を除外した一般化、生成/Manager modelをfine-tuning・採用済みへ昇格しない。広いV002受入にも転記しない。 |
 
 今回のforecastはDev/Evaluation全assigned例へ結果を戻した。主要MAEはDevでpersistence 14.778、OLS 15.625、adapter 14.778。Evaluationでpersistence 13.962、OLS 14.101、adapter 13.962。adapterとpersistenceは全contextで同一出力である。baseはvalid coverage 0%のためMAE/RMSEはnullであり、MAE=100などの値を実測結果として書かない。No-actionは全件ABSTAINでcoverage 0%。この有限研究の結論は**優位なし・採用HOLD**である。原final16は使っておらず、今回のevaluationをretune/再採点して「勝つ」手順へ戻さない。
 
@@ -726,7 +726,7 @@ Costello訂正パッケージは[研究note](research/2026-10-24-costello-correc
 | 順 | 対象 | 実作業と主なファイル | 完了を判断する証拠 |
 |---:|---|---|---|
 | 1 | U004 | 上記手順で`pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md`を実条件から仕上げ、保護・比較・測定・適用判断・必要な登録を固定 | DRAFTではなく、開始前にversion/hashが固定された受入済みprotocol。参加者/審査/rights/検出力条件を捏造せず出典付きで記録 |
-| 2（並行） | V002 | `manager_core/evaluation.py`等の既存scorerを再利用し、NO_ACTION/簡単なrule/既存base/open-weight/APIを用途に合う同一条件で比較。AnnoMI/CAMI/MI-TAGSは必要な品質eval部分だけrights/split確認後に接続 | task別分母、valid/invalid/refusal/abstain、primary metric、害/圧力/依存、費用、独立人参照。Costelloでの無改善を別taskの結果へ転記しない |
+| 2（並行） | V002 | 完了した限定AnnoMI label sliceは[設計](../experiments/behavior-model/annomi-dialogue-evaluation-design-v1.json)・[aggregate結果](../experiments/behavior-model/annomi-dialogue-evaluation-results-v1.json)を再利用し、繰り返さない。残る既存scorer比較でNO_ACTION/簡単なrule/既存base/open-weight/APIを用途に合う同一条件で評価する。CAMI/MI-TAGSは必要な品質eval部分だけrights/split確認後に接続 | full V002向けのtask別分母、valid/invalid/refusal/abstain、primary metric、害/圧力/依存、費用、独立人参照。AnnoMIの分類結果は実行動/苦しみの証拠へ転記せず、Costelloの無改善も別taskへ転記しない |
 | 3 | V003 | 新purposeが定まり、V002比較で学習価値が示された場合だけ、新data/right/人物・時間holdout/基盤/seed/recipe/害gateをfreezeしてPEFT/TRLで単一adapterを比較 | 別の未見評価で既存baselineに対する再現可能な結果。旧final16と今回のevaluationは再利用しない。無改善はHOLD |
 | 4 | U006 | U004成立後の限定pilotを実施し、既存`manager_core/outcome_windows.py`等の契約を再利用して実行/観測を保存 | 少なくとも1件の実介入、曝露と独立観測の区別、撤回/欠測/害/STOP receipt |
 | 5 | U007 + D016 | `manager_core/causal_analysis.py`・`outcome_bench.py`の前提を確認して比較分析し、予測/実行/苦しみ・機能/持続/害/費用を統合 | 事前計画に合った効果・区間・分母・欠測・有害結果を含む再計算可能な集計。代理尺度を便益認定に使わない |

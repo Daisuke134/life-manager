@@ -175,7 +175,8 @@
 - [x] A11の有限比較: base/adapter各102 contextの正常終了後に結果固定、dev584/evaluation762の全assignedへ復元。base valid0、adapterは全contextでpersistenceと一致、優位認定なし/HOLD。[実比較](../verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md)。独立算術885 checks/finding0。元final16不使用、同じevaluationへretuneしない。
 - [x] 追加研究/原稿: Intrinsic AI、CAMI、MI-TAGSの[用途別一次資料調査](../research/2026-10-24-motivational-interviewing-reuse.md)と[追加実習章](../articles/2026-10-24-motivation-is-not-behavior-ja.md)。取得/静的読取/再現を分け、未取得rightsや人数不一致を残す。全研究網羅/全書籍完成ではない。
 
-- [x] AnnoMIの現物/単位監査と追加章: [source audit](../research/2026-10-24-annomi-artifact-audit.md)、[データ実習](../articles/2026-10-24-dialogue-data-evaluation-ja.md)、[学習比較の実習](../articles/2026-10-24-training-is-not-predictive-gain-ja.md)。新AnnoMIモデルの実装/採用はしていない。
+- [x] AnnoMIの現物/単位監査と追加章: [source audit](../research/2026-10-24-annomi-artifact-audit.md)、[データ実習](../articles/2026-10-24-dialogue-data-evaluation-ja.md)、[学習比較の実習](../articles/2026-10-24-training-is-not-predictive-gain-ja.md)。この資料だけから生成/Managerモデルのfine-tuning・採用はしていない。
+- [x] AnnoMIの限定label-evaluation slice: [凍結設計](../../experiments/behavior-model/annomi-dialogue-evaluation-design-v1.json)、[aggregate結果](../../experiments/behavior-model/annomi-dialogue-evaluation-results-v1.json)、[実receipt](../verification/ANNOMI_DIALOGUE_EVALUATION_V1.md)。5-fold source-video holdoutでmajority baselineとの2役割比較を完了し、cross-fold video leak 0を確認した。各fold内で古典的分類器をfitしたが重みは保存していない。会話ラベル予測のみで、人物/実行動/持続/苦しみ/人の便益は評価せず、生成/Managerモデルのfine-tuningや採用はしていない。
 
 上の完了はこの有限研究の範囲だけ。全V002/V003/モデル採用/人便益の受入ではなく、tasks.json85/18/10・U004 participants0/interventions0・modelHOLDは維持する。
 

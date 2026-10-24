@@ -1,0 +1,142 @@
+{
+  "claim_boundary": "human_utterance_annotation_quality_only_not_behavior_or_welfare",
+  "schema": "manager.annomi-dialogue-evaluation.v1",
+  "source": {
+    "artifact": "AnnoMI-simple.csv",
+    "label_source": "released_human_utterance_annotations",
+    "repository": "uccollab/AnnoMI",
+    "revision": "42936645ec3857a9c84ab296a36a3c34b779ef49",
+    "rights_scope": "bounded_local_research; no source rows or weights published",
+    "sha256": "b178db3b0b9858a0fa4ed670dabeccd63e975ba67e141d7ae16f2e8214f78e61"
+  },
+  "split": {
+    "cross_fold_group_leaks": 0,
+    "grouping_unit": "normalized_source_video",
+    "n_folds": 5,
+    "seed": 20261024,
+    "source_rows_with_text_repeated_across_video_groups": 2415,
+    "source_texts_repeated_across_video_groups": 126,
+    "transcripts": 133,
+    "video_groups": 119,
+    "video_groups_by_platform": {
+      "vimeo": 3,
+      "youtube": 116
+    }
+  },
+  "status": "COMPLETE",
+  "tasks": {
+    "client": {
+      "assigned": 4817,
+      "attempted": 4817,
+      "classes": {
+        "change": 1174,
+        "neutral": 3102,
+        "sustain": 541
+      },
+      "cross_fold_group_leaks": 0,
+      "exact_text_reuse": {
+        "model_metrics_on_seen_text": {
+          "accuracy": 0.8466003316749585,
+          "balanced_accuracy": 0.3725186146385437,
+          "macro_f1": 0.35330019440622557,
+          "rows": 1206
+        },
+        "model_metrics_on_unseen_text": {
+          "accuracy": 0.5048463029631681,
+          "balanced_accuracy": 0.5007291959331064,
+          "macro_f1": 0.4701072632889473,
+          "rows": 3611
+        },
+        "rows_seen_in_training_video_folds": 1206,
+        "rows_unseen_in_training_video_folds": 3611
+      },
+      "groups_tested_once": 119,
+      "invalid": 0,
+      "metrics": {
+        "macro_f1_delta_vs_majority": {
+          "ci95": [
+            0.21121115662770898,
+            0.2706073759585866
+          ],
+          "method": "paired_percentile_video_group_bootstrap",
+          "n_groups": 119,
+          "point": 0.24054642304899793
+        },
+        "majority_baseline": {
+          "accuracy": 0.6439692754826656,
+          "balanced_accuracy": 0.3333333333333333,
+          "macro_f1": 0.26114408384897086,
+          "rows": 4817
+        },
+        "tfidf_logistic_regression": {
+          "accuracy": 0.5904089682374922,
+          "balanced_accuracy": 0.5298088921028533,
+          "macro_f1": 0.5016905068979688,
+          "rows": 4817
+        }
+      },
+      "not_run": 0,
+      "refused": 0,
+      "sklearn_version": "1.8.0",
+      "valid": 4817,
+      "video_groups": 119
+    },
+    "therapist": {
+      "assigned": 4882,
+      "attempted": 4882,
+      "classes": {
+        "other": 1586,
+        "question": 1386,
+        "reflection": 1296,
+        "therapist_input": 614
+      },
+      "cross_fold_group_leaks": 0,
+      "exact_text_reuse": {
+        "model_metrics_on_seen_text": {
+          "accuracy": 0.97506678539626,
+          "balanced_accuracy": 0.36767273362140457,
+          "macro_f1": 0.403290072859745,
+          "rows": 1123
+        },
+        "model_metrics_on_unseen_text": {
+          "accuracy": 0.6483107209364193,
+          "balanced_accuracy": 0.6036382097231148,
+          "macro_f1": 0.607501572493751,
+          "rows": 3759
+        },
+        "rows_seen_in_training_video_folds": 1123,
+        "rows_unseen_in_training_video_folds": 3759
+      },
+      "groups_tested_once": 119,
+      "invalid": 0,
+      "metrics": {
+        "macro_f1_delta_vs_majority": {
+          "ci95": [
+            0.5507553397562214,
+            0.6006717263443031
+          ],
+          "method": "paired_percentile_video_group_bootstrap",
+          "n_groups": 119,
+          "point": 0.5749633029849781
+        },
+        "majority_baseline": {
+          "accuracy": 0.3248668578451454,
+          "balanced_accuracy": 0.25,
+          "macro_f1": 0.12260358688930117,
+          "rows": 4882
+        },
+        "tfidf_logistic_regression": {
+          "accuracy": 0.7234739860712822,
+          "balanced_accuracy": 0.7058637681696411,
+          "macro_f1": 0.6975668898742793,
+          "rows": 4882
+        }
+      },
+      "not_run": 0,
+      "refused": 0,
+      "sklearn_version": "1.8.0",
+      "valid": 4882,
+      "video_groups": 119
+    }
+  }
+}
