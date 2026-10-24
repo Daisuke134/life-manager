@@ -16,6 +16,11 @@ if [ "${LIFE_MANAGER_LOOP_ID:-}" != "capafy-reel-daily" ] \
 fi
 export USER="${USER:-$(id -un)}"
 
+# Codex usage-limit outage: scoped, self-expiring Claude fallback for the text pass (see the helper).
+# shellcheck source=codex-limit-fallback-env.sh
+source "$SCRIPT_DIR/codex-limit-fallback-env.sh"
+capafy_use_codex_limit_fallback "$LIFE_MANAGER_REPO"
+
 _lm_marketing_env="${LIFE_MANAGER_MARKETING_ENV_FILE:-$HOME/.local/state/life-manager/private/marketing.env}"
 if [ -z "${LM_POSTIZ_API_KEY:-}" ] && [ -f "$_lm_marketing_env" ]; then
   # shellcheck source=/dev/null

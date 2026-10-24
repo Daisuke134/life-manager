@@ -41,6 +41,11 @@ fi
 ARTICLE_SELF_OWNED_LANDING_ROOT="${CAPAFY_DISTRIBUTE_LANDING_ROOT:-$HOME/.local/state/life-manager/writer/checkouts/self-owned-landing}"
 export ARTICLE_SELF_OWNED_LANDING_ROOT
 
+# Codex usage-limit outage: scoped, self-expiring Claude fallback for the text pass (see the helper).
+# shellcheck source=codex-limit-fallback-env.sh
+source "$SCRIPT_DIR/codex-limit-fallback-env.sh"
+capafy_use_codex_limit_fallback "$(cd "$SCRIPT_DIR/../../.." && pwd -P)"
+
 # Postiz: use Life Manager's own key from private/marketing.env (the same one the
 # mobile-app loops use). A legacy user-level env file is refused by the shared env
 # loader ("refusing to load env file beneath a legacy runtime root", first live run

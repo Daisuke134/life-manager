@@ -41,6 +41,11 @@ export LIFE_MANAGER_REPO="$LIFE_MANAGER_RELEASE_ROOT"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 set -uo pipefail
 RUN_AGENT="$SCRIPT_DIR/../../earn/marketing-engine/run_agent.sh"
+# Codex usage-limit outage: scoped, self-expiring Claude fallback for the model passes (the child
+# daily_loop.sh inherits AGENT_RUNNER_CONFIG). Expires on its own; see the helper.
+# shellcheck source=../../earn/capafy-marketing/codex-limit-fallback-env.sh
+source "$SCRIPT_DIR/../../earn/capafy-marketing/codex-limit-fallback-env.sh"
+capafy_use_codex_limit_fallback "$(cd "$SCRIPT_DIR/../../.." && pwd -P)"
 LOG="$HOME/.local/state/life-manager/logs/capafy-loop-daily.log"
 LAST_PASS_MARKER="$HOME/.local/state/life-manager/state/.capafy-loop-last-pass"
 HEALTHY_MARKER="$HOME/.local/state/life-manager/state/capafy-autopublish/.capafy-healthy-pass"
