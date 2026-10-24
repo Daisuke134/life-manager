@@ -41,7 +41,7 @@
 |---|---|---|---|
 | 参加 | Keiki × Maritimeへaccepted。 | 受理の確認は済み。 | DONE |
 | Round 1 | Keiki公式Xが10/20に「7日でagentをbuild、Top 30が次へ」と告知。 | cutoff、rubric、必要提出物を主催者から確認し、Top 30の公式結果を読む。 | IN_PROGRESS / cutoff・rubric UNKNOWN |
-| Product | 英語pilotとEN記事は10/24に直接GETしてHTTP 200。Railway app/workerの最後の記録はsource SHA 3c073080…でSUCCESS、各1/1 replicaを10/23にreadback（本日未再確認）。 | current mainとloaded production SHAを揃えて読み、動く範囲を表示する。 | IN_PROGRESS / 今日のruntime readbackなし |
+| Product | 英語pilot・EN記事は10/24に直接GETしてHTTP 200。Railway production life-call/workerは10/24 08:38ZにSUCCESS/Online各1/1、/healthは200/build 8e0e6f2。current main b0e05bfとの差分はapps/life-manager配下0。life-callは07:00Zのfailed deploymentが最近の失敗として1件残るが、08:38Zの後続SUCCESSで稼働。Maritime custom-image SHAは未readback。 | current-main対応を保ち、custom-image/runtime SHA、tenant binding、host executor、auto-enqueue、実利用cycleをreceipt付きで確認する。 | IN_PROGRESS / app稼働中・Maritime imageとend-to-endはUNKNOWN |
 | Cloud business path | T17 trusted Capafy prepare/publish chainのcoreはDraft PR #8745にある。tenant binding・host executor・automatic enqueue callerは未接続。PRは未merge・本番未反映。 | 所有者boundの外部仕事、verified provider receipt、日報email、stop/replay-zeroを同じ利用者で実証。 | BLOCKED / source＋owner操作 |
 | User proof | owner PKCEと明示retention consent、外部real user count、completed work/result/email/stopは現在未確認。 | 一人の許可された利用者がend-to-endを完了。receiptと同意記録を保存。 | BLOCKED_OWNER_ACTION + UNKNOWN |
 | English distribution | @selawmqtのEnglish X postが公開済み。EN blog記事は10/24にHTTP 200。 | UTM流入からsignup、first use、repeat useまでをsource別readback。 | IN_PROGRESS / conversion UNKNOWN |
