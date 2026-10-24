@@ -69,3 +69,15 @@ def test_default_agents_dir_ignores_a_foreign_home(monkeypatch, tmp_path):
     monkeypatch.delenv("LIFE_MANAGER_LAUNCH_AGENTS_DIR", raising=False)
     assert central_cleanup.default_launch_agents_dir() == Path(
         __import__("pwd").getpwuid(__import__("os").getuid()).pw_dir) / "Library" / "LaunchAgents"
+
+
+def test_memoized_resolution_matches_path_resolve(tmp_path):
+    (tmp_path / "a" / "b").mkdir(parents=True)
+    (tmp_path / "l").symlink_to(tmp_path / "a" / "b")
+    (tmp_path / "a" / "b" / "up").symlink_to("../a")
+    (tmp_path / "loop1").symlink_to(tmp_path / "loop2")
+    (tmp_path / "loop2").symlink_to(tmp_path / "loop1")
+    memo: dict = {}
+    for raw in ("l/x", "l/up/b/../b/y", "a/./b/", "missing/../a", "loop1/z", "a/b"):
+        path = str(tmp_path / raw)
+        assert central_cleanup._resolve_memo(path, memo) == str(Path(path).resolve()), raw

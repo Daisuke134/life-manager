@@ -576,6 +576,38 @@ def _release_cut_lock(current: Path):
             os.close(parent)
 
 
+
+def _resolve_memo(path: str, memo: dict[str, str]) -> str:
+    """Path(path).resolve() that reuses every resolved parent (same answer, far fewer lstat).
+
+    Plain components are joined lexically; a symlink component is handed to Path.resolve(),
+    so errors other than a missing path still propagate and keep release GC fail-closed.
+    """
+    cached = memo.get(path)
+    if cached is not None:
+        return cached
+    stripped = path.rstrip("/") or "/"
+    if stripped == "/":
+        return "/"
+    head, tail = os.path.split(stripped)
+    base = _resolve_memo(head or "/", memo)
+    if tail in ("", "."):
+        result = base
+    elif tail == "..":
+        result = os.path.dirname(base) or "/"
+    else:
+        full = os.path.join(base, tail)
+        try:
+            is_link = stat.S_ISLNK(os.lstat(full).st_mode)
+        except (FileNotFoundError, NotADirectoryError):
+            is_link = False
+        except OSError:
+            is_link = True  # let Path.resolve() decide, exactly as before memoization
+        result = str(Path(full).resolve()) if is_link else full
+    memo[path] = result
+    return result
+
+
 def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Path,
                        deadline: float, owned_fds=()) -> tuple[set[Path], list[str]]:
     if time.monotonic() >= deadline:
@@ -656,6 +688,10 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
                 if time.monotonic() >= deadline:
                     raise subprocess.TimeoutExpired("process path boundaries", 0)
                 path_values.append(suffix[:boundary.start()])
+    # ps argv yields ~270k overlapping prefixes on a busy host; resolving each one cost
+    # 10M lstat calls and blew the 15 s deadline, failing every release cut (2026-10-24).
+    # Resolve each distinct path once; the set of resolved paths is unchanged.
+    candidates: set[str] = set()
     for word in path_values:
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired("reference path resolution", 0)
@@ -663,12 +699,18 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
             if not path.startswith("/"):
                 path = path.split("=", 1)[-1]
             if path.startswith("/") and len(os.fsencode(path)) <= 4096:
-                values.append(str(Path(path).resolve()))
+                candidates.add(path)
+    memo: dict[str, str] = {}
+    for path in candidates:
+        if time.monotonic() >= deadline:
+            raise subprocess.TimeoutExpired("reference path resolution", 0)
+        values.append(_resolve_memo(path, memo))
     values.append(process.stdout)
     values.extend(map(str, _open_reference_paths((releases, bundles),
         min(4, max(.01, deadline-time.monotonic())), owned_fds, uid=os.getuid())))
+    haystack = "\n".join(values)
     protected = {path.resolve() for path in releases.iterdir()
-                 if path.is_dir() and any(str(path) in value or str(path.resolve()) in value for value in values)}
+                 if path.is_dir() and (str(path) in haystack or str(path.resolve()) in haystack)}
     errors = []
     for folder, directories, files in os.walk(releases, followlinks=False, onerror=errors.append):
         if time.monotonic() >= deadline:

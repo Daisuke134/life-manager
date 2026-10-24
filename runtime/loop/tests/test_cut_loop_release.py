@@ -1157,7 +1157,8 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.ps_stdout = f"node --require '{alias}/node_modules/fixture.js' worker.js\n"
         resolve = Path.resolve
         def unavailable_alias(path, *args, **kwargs):
-            if os.fspath(path).startswith(str(alias)):
+            # Match the alias by name: resolution may start from the canonical parent.
+            if alias.name in os.fspath(path):
                 raise PermissionError(errno.EACCES, "fixture alias probe unavailable")
             return resolve(path, *args, **kwargs)
         with mock.patch.object(Path, "resolve", unavailable_alias):
