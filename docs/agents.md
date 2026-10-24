@@ -44,7 +44,7 @@ The four gig capabilities share an earning lifecycle. A person still completes o
 identity, interview, consent, or physical-participation requirements when a marketplace requires
 them. An account setup gate is not completed paid work.
 
-Ten product entries still lack a complete guided provider installer. The fleet installer can
+Nine product entries still lack a complete guided provider installer. The fleet installer can
 prepare their host jobs, while the provider workflow remains `setup_required`. Check the
 current catalog and `./install.sh list` instead of treating registration as readiness.
 

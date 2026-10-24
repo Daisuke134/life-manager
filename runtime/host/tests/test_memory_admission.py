@@ -146,3 +146,39 @@ class MemoryAdmissionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _plateau_module():
+    import runtime.host.memory_admission as module
+    return module
+
+
+def test_swap_plateau_needs_five_minutes_of_history_before_it_can_pass(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(tmp_path / "swap.json"))
+    m = _plateau_module()
+    assert m.swap_plateau(15300.0, now=1000.0) is False
+    assert m.swap_plateau(15300.0, now=1000.0 + 299) is False
+    assert m.swap_plateau(15350.0, now=1000.0 + 301) is True
+
+
+def test_swap_plateau_is_false_while_swap_keeps_growing(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(tmp_path / "swap.json"))
+    m = _plateau_module()
+    m.swap_plateau(14000.0, now=2000.0)
+    assert m.swap_plateau(14600.0, now=2000.0 + 400) is False
+
+
+def test_swap_plateau_forgets_samples_older_than_the_window(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(tmp_path / "swap.json"))
+    m = _plateau_module()
+    m.swap_plateau(10000.0, now=3000.0)
+    # the 10000 MB sample is 20 minutes old, so it no longer proves a rise; only one fresh sample remains
+    assert m.swap_plateau(15300.0, now=3000.0 + 1200) is False
+
+
+def test_swap_plateau_fails_closed_when_history_cannot_be_written(tmp_path, monkeypatch):
+    blocked = tmp_path / "file"
+    blocked.write_text("x")
+    monkeypatch.setenv("LIFE_MANAGER_SWAP_SAMPLES", str(blocked / "swap.json"))
+    m = _plateau_module()
+    assert m.swap_plateau(15300.0, now=4000.0) is False

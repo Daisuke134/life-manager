@@ -3,15 +3,22 @@
 数字はこのファイルが正本。出典のある数字だけ書く。推測・未確認は書かない（不明は「未計測」）。
 更新したら該当行の「更新(JST)」と「出典」を書き換え、BOARD.md のログに1行追記する。
 
-## 最新（毎時更新） 2026-10-24 02:26 JST
+## 最新（毎時更新） 2026-10-24 12:10 JST
 
 | 項目 | 値 | 出典 |
 |---|---|---|
-| 共有応募台帳 行数 | 180（acknowledged 14 / acknowledged_unmapped_group 1 / application_email_sent 4 / application_receipt_verified_in_review 7 / applied 22 / assessment_pending 1 / claimed 4 / email_bounced 1 / historical_recorded_pending_not_reverified 52 / historical_submission_assertion_primary_receipt_not_reverified 14 / interview_or_scheduling_pending 5 / listed 2 / needs-owner 2 / outcome_mapping_pending 3 / rejected 28 / submission_uncertain 10 / submitted_official_confirmation_recorded 6 / withdrawn 4） | `ledger/APPLICATIONS.md` @ origin/main 5219377b52 |
-| Coconala 応募（今日JST） | 2件 | `~/gig/applied.jsonl` status==applied, ts>=今日0時JST |
-| Writer 有料記事 公開（今日） | 0本（台帳行 3） | `~/.local/state/life-manager/writer/articles.jsonl` live_url あり |
-| Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-23T14:08:37Z |
-| PromptBase 売上 | 0件 / $0.0 | `promptbase-sales.json` observed_at 2026-10-23T13:24:33Z |
+| 共有応募台帳 行数 | 197（status別: historical_recorded_pending_not_reverified 52 / rejected 32 / applied 22 / acknowledged 14 / historical_submission_assertion_primary_receipt_not_reverified 14 / claimed 12 / submission_uncertain 11 / application_receipt_verified_in_review 7 / submitted_official_confirmation_recorded 6 / interview_or_scheduling_pending 6 / application_email_sent 4 / withdrawn 4 / outcome_mapping_pending 3 / listed 2 / needs-owner 2 / acknowledged_unmapped_group 1 / assessment_pending 1 / email_bounced 1 / published 1 / blocked 1 / parked 1）（type別: job 165 / directory 11 / gig 7 / listing 4 / grant 3 / vc 2 / promo 2 / promotion 1 / content 1 / accelerator 1） | `ledger/APPLICATIONS.md` @ origin/main e18dd46266（ファイル最終変更 b34707a27d）、表のヘッダ・区切り以外の行を status/type 列で awk 集計 |
+| Capafy 初の有料販売（エージェント単位） | 「TikTok Series Continuity Planner」(9425449917) $9.99/週・トライアルなし 1件、流入元 direct | Capafy 通知メール「Your Agent "TikTok Series Continuity Planner" just made its first sale」2026-10-23 13:17 JST（Gmail id 1a166faac1614e9b）＋ `capafy-hourly-reconcile.json` `traffic_sources.by_agent.9425449917.last_30d`（paid_orders 1, sales_usd 9.99） |
+| Capafy 累計 gross / 非トライアル / トライアル | $112.74 / 33件 / 75件（creator earnings $83.78、pending $59.00、paid out $0.00） | `~/.local/state/life-manager/state/capafy-hourly-reconcile.json` `money.*`、observed_at 2026-10-23T17:28:09Z |
+| Capafy 流入（全エージェント） 7日 / 30日 | views 1,929（有料1・トライアル2）/ 5,476（有料9・トライアル6）。7日の内訳 search 1,125 / direct 422 / other 151 / ai_overview 91 / google 49 / 自社 ct 計55（hooklab_free 48・tiktok_x 4・hooklab_x 2・youtube_x 1） | 同ファイル `traffic_sources.last_7d.by_source`・`last_30d.by_source`、observed_at 2026-10-23T17:28:09Z |
+| 配信リーチ（X・IG・TikTok 表示回数） | 未計測（本更新では各プラットフォームの公式値を取得していない。自社 ct 経由の Capafy 流入は上の行） | — |
+| PromptBase 売上 | 0件 / $0.00 | `~/.local/state/life-manager/state/promptbase-sales.json` observed_at 2026-10-23T13:24:33Z |
+| Coconala 応募（今日JST） | 7件 | `~/gig/applied.jsonl` status==applied, ts>=2026-10-24 0時JST（12:05 JST 集計） |
+| Writer 有料記事 公開（今日JST） | 0本（今日の台帳行 0） | `~/.local/state/life-manager/writer/articles.jsonl` |
+| RevenueCat Anicca 28日 MRR / 売上 / 有効購読 / 新規顧客 | $20 / $0 / 5 / 45（active users 67） | RevenueCat v2 `GET /projects/projbb7b9d1b/metrics/overview?currency=USD` 2026-10-24 12:08 JST。APIキーは Anicca プロジェクトのみ参照可のため、他アプリは下の「売上 / MRR」表（10/23 17:40 スナップショット）が最新 |
+| App Store 新規DL 10/17〜10/22（6日計） | Honne 8 / Daily Affirmations - Anicca 4（＋再DL 1）/ Daily Dhamma 5 / STUDIO CHERIE 1（＋再DL 1）/ For Better Sleep 1 / Thankful 0。日別: 10/17 Honne1・10/18 Anicca1(+再1) Honne4 Dhamma1・10/19 Anicca2 CHERIE1 FBS1・10/20 Dhamma1 Honne1・10/21 Anicca1 Honne2(CHERIE再1)・10/22 Dhamma3 | ASC Sales Report API（DAILY SALES SUMMARY、全アプリ、Product Type 1/1F=新規・3/3F=再DL）を `business_outcomes.read_asc_sales_report` で 2026-10-24 12:06 JST に読取。10/23 は Apple『Report is not available yet』 |
+| App Store レビュー件数 | Daily Affirmations - Anicca 3件（平均 3.67）/ STUDIO CHERIE 1件（5.0）/ 他22アプリ 0件 | ASC API `GET /v1/apps/{id}/customerReviews`（全24アプリ）2026-10-24 12:09 JST |
+| GitHub stars（Daisuke134/life-manager） | 8 / 目標 10,000 | `gh api repos/Daisuke134/life-manager --jq .stargazers_count` 2026-10-24 12:05 JST |
 
 ## 2026-10-23 夜（参謀依頼）
 

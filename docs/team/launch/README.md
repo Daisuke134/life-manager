@@ -34,3 +34,29 @@ Every claim comes from `skills/earn/marketing-engine/registry/products/<product>
 
 - No measured launch post was found for a gratitude, sleep or message-interpretation app; the rules above come from general indie iOS launches.
 - Reach in the examples is partly follower count (two winners have 17,000+ followers); our accounts are smaller, so expect the study's medians, not the outliers.
+
+## TikTok / IG slideshow format (copied 2026-10-24 from [@ChadAppDev](https://x.com/ChadAppDev/status/2113646711197278623))
+
+Source the format first, then write it. Full teardown: `docs/team/specs/copy-the-winners.md`.
+
+1. Search TikTok for the problem the app solves. Keep posts whose views are far above the account's followers (example: 2K followers, 400K views).
+2. Use a structure only if 4–5 different accounts get results with it. Record those URLs with the post.
+3. Rebuild it slide by slide around our app. Copy the structure, never the words or images.
+
+Default six slides when the sourced format doesn't say otherwise:
+
+| Slide | Job |
+|---|---|
+| 1 | Hook: names the viewer's problem in their words (sourced hook shape) |
+| 2 | The problem, concrete moment |
+| 3 | Why it keeps happening / what people try that fails |
+| 4 | How the app helps, real app screen |
+| 5 | Result or proof (approved claims only) |
+| 6 | Clear reason to download + app name (link in bio) |
+
+One consistent visual style per product account; 3–5 posts/day is the winners' faceless cadence ([@ErnestoSOFTWARE](https://x.com/ErnestoSOFTWARE/status/2014110519913857122)), ramp up only after warm-up.
+
+## App Store check (copied from [@ErnestoSOFTWARE](https://x.com/ErnestoSOFTWARE/status/2014110519913857122))
+
+- Subtitle says what the app does, verb + outcome ("Block distractions and stay focused longer", not "An AI-powered productivity experience").
+- 3–5 screenshots, big text, one idea per screen, minimal UI. Subtitle + screenshot 1 do most of the work.

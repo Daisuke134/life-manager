@@ -342,6 +342,30 @@ def _fresh_capacity_fixture(tmp_path: Path, entries: dict):
     return guard, repo, sha, loops
 
 
+def _capacity_donor(repo: Path, loops: Path, relatives, name="prior"):
+    donor = loops / "releases" / name
+    donor.mkdir()
+    (donor / "RELEASE.json").write_bytes(
+        (loops / "releases/seed/RELEASE.json").read_bytes())
+    for relative in relatives:
+        directory = donor / relative
+        directory.mkdir(parents=True, exist_ok=True)
+        package = json.loads((repo / relative / "package.json").read_bytes())
+        package["scripts"] = {"test": "old script alias"}
+        (directory / "package.json").write_text(json.dumps(package))
+        lock = (repo / relative / "package-lock.json").read_bytes()
+        (directory / "package-lock.json").write_bytes(lock)
+        key = hashlib.sha256(f"{name}:{relative}".encode()).hexdigest()
+        bundle = loops / "dependency-bundles" / ("npm-" + key)
+        (bundle / "node_modules").mkdir(parents=True)
+        (bundle / "node_modules/.package-lock.json").write_bytes(lock)
+        (bundle / ".complete").write_text(key + "\n")
+        bundle.chmod(0o555)
+        (directory / "node_modules").symlink_to(bundle / "node_modules")
+    donor.chmod(0o555)
+    return donor
+
+
 def _locked_capacity_package():
     archive = io.BytesIO()
     with tarfile.open(fileobj=archive, mode="w:gz") as stream:
@@ -441,6 +465,7 @@ def test_first_release_measurement_failure_remains_closed(monkeypatch, tmp_path,
 def test_invalid_current_is_not_treated_as_first_install(tmp_path, capsys, invalid):
     package, _metadata, _payload = _locked_capacity_package()
     guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {"node_modules/fixture": package})
+    _capacity_donor(repo, loops, ("", "runtime/agentmail"))
     current = loops / "current"
     if invalid == "dangling":
         current.symlink_to(loops / "missing-release")
@@ -449,6 +474,94 @@ def test_invalid_current_is_not_treated_as_first_install(tmp_path, capsys, inval
         (current / "RELEASE.json").write_text("{}")
     assert guard.main(["--release-capacity", str(repo), sha, str(loops), "node", "npm"]) == 1
     assert json.loads(capsys.readouterr().err)["reason"] == "release_capacity_measurement_failed"
+
+
+@pytest.mark.parametrize("layout", ("one", "split", "invalid_first", "python_alias"))
+def test_release_capacity_without_current_reuses_each_root(monkeypatch, tmp_path, layout):
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {})
+    groups = (("",), ("runtime/agentmail",)) if layout == "split" else (("", "runtime/agentmail"),)
+    for index, relatives in enumerate(groups):
+        donor = _capacity_donor(repo, loops, relatives, f"prior-{index}")
+    if layout == "invalid_first":
+        invalid = _capacity_donor(repo, loops, ("", "runtime/agentmail"), "00-invalid")
+        (invalid / "RELEASE.json").write_text("[]")
+    if layout == "python_alias":
+        link = tmp_path / "python-alias"
+        link.symlink_to(Path(sys.executable).resolve())
+        descriptor = json.loads((donor / "RELEASE.json").read_text())
+        descriptor["runtime_python"] = str(link)
+        (donor / "RELEASE.json").write_text(json.dumps(descriptor))
+    fresh = []
+    monkeypatch.setattr(guard, "_fresh_dependency_bytes", lambda manifests, _block: fresh.append(manifests) or 0)
+
+    required, install = guard.release_capacity(repo, sha, loops, "node-next", "npm-next")
+
+    assert fresh == [], "reusable historical bundles were charged as fresh installs"
+    assert install is False
+    assert 64 * 1024**2 < required < 65 * 1024**2
+    assert not os.path.lexists(loops / "current")
+
+
+@pytest.mark.parametrize("unusable", ("missing", "manifest", "lock", "incomplete"))
+def test_release_capacity_without_current_measures_only_unreused_roots(monkeypatch, tmp_path, unusable):
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {})
+    donor = _capacity_donor(repo, loops, ("", "runtime/agentmail"))
+    directory = donor / "runtime/agentmail"
+    if unusable == "missing":
+        (directory / "node_modules").unlink()
+    elif unusable == "manifest":
+        (directory / "package.json").write_text('{"name":"different","version":"1.0.0"}')
+    elif unusable == "lock":
+        with (directory / "package-lock.json").open("ab") as handle:
+            handle.write(b"\n")
+    else:
+        bundle = (directory / "node_modules").resolve().parent
+        bundle.chmod(0o755)
+        (bundle / ".complete").unlink()
+        bundle.chmod(0o555)
+    fresh = []
+    monkeypatch.setattr(guard, "_fresh_dependency_bytes", lambda manifests, _block: fresh.append(manifests) or 0)
+
+    required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
+
+    expected = [("runtime/agentmail", [(repo / "runtime/agentmail" / name).read_bytes()
+                                      for name in ("package.json", "package-lock.json")])]
+    assert fresh == [expected], "fresh capacity must measure only the unmatched root"
+    assert install is True, "an unmatched empty lock still needs npm ci admission"
+    assert 64 * 1024**2 < required < 65 * 1024**2
+
+
+@pytest.mark.parametrize("invalid", ("sparse", "provenance", "writable", "reclaimed", "python", "cache_tag", "ancestry"))
+def test_release_capacity_without_current_does_not_reuse_invalid_donors(monkeypatch, tmp_path, invalid):
+    guard, repo, sha, loops = _fresh_capacity_fixture(tmp_path, {})
+    donor = _capacity_donor(repo, loops, ("", "runtime/agentmail"))
+    if invalid == "writable":
+        donor.chmod(0o755)
+    elif invalid == "reclaimed":
+        donor.chmod(0o755)
+        (donor / "RECLAIMED-RELEASE.json").write_text("{}")
+        donor.chmod(0o555)
+    else:
+        descriptor = json.loads((donor / "RELEASE.json").read_text())
+        field, value = {
+            "sparse": ("release_paths", ["runtime"]),
+            "provenance": ("provenance", "candidate"),
+            "python": ("runtime_python", "/fixture/different-python"),
+            "cache_tag": ("runtime_python_cache_tag", "different-tag"),
+            "ancestry": ("sha", "f" * 40),
+        }[invalid]
+        descriptor[field] = value
+        (donor / "RELEASE.json").write_text(json.dumps(descriptor))
+    fresh = []
+    monkeypatch.setattr(guard, "_fresh_dependency_bytes", lambda manifests, _block: fresh.append(manifests) or 0)
+
+    _required, install = guard.release_capacity(repo, sha, loops, "node", "npm")
+
+    expected = [(relative, [(repo / relative / name).read_bytes()
+                            for name in ("package.json", "package-lock.json")])
+                for relative in ("", "runtime/agentmail")]
+    assert fresh == [expected]
+    assert install is True
 
 
 def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(tmp_path: Path):
