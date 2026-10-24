@@ -5,7 +5,7 @@ const test = require("node:test");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified } = require("./honne-ja-cycle.js");
+const { ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, noDueSlotResult, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified } = require("./honne-ja-cycle.js");
 const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { marketingCtaLine } = require("../lib/marketing-app-store-cta.js");
 
@@ -101,6 +101,12 @@ test("Honne JA production CLI accepts only an optional exact slot", () => {
   assert.equal(parseArgs(["run", "--slot", slot]).slot, slot);
   assert.throws(() => parseArgs(["run", "--slot"]), /usage/i);
   assert.throws(() => runSlot("invalid", Date.now()), /timestamp is invalid/i);
+});
+
+test("the mobile no-due result uses the exact no-effect receipt contract", () => {
+  const error = Object.assign(new Error("marketing cycle has no due slot yet"), { code: "NO_DUE_SLOT" });
+  assert.deepEqual(noDueSlotResult(error), { status: "no_due_slot", reason: "no_due_slot" });
+  assert.equal(noDueSlotResult(new Error("other failure")), null);
 });
 
 test("a failed publication with no provider effect retries once; an unknown effect stays held", async (t) => {

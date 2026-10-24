@@ -79,6 +79,10 @@ function runSlot(slot, nowMs, slots = PRODUCTION_SLOTS) {
   return value;
 }
 
+function noDueSlotResult(error) {
+  return error?.code === "NO_DUE_SLOT" ? { status: "no_due_slot", reason: "no_due_slot" } : null;
+}
+
 function telegramNativeUrlVerified(lane, env, publicUrl) {
   return !lane.verifiedDirectUrlKey
     || String(env[lane.verifiedDirectUrlKey] || "").trim() === publicUrl;
@@ -282,6 +286,14 @@ async function runHonneJaCycle(argv, deps = {}) {
   return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id }, publication: publicationResult, telegram: { created: telegramQueued.created, held: false, message_id: telegram.message_id } };
 }
 
-if (require.main === module) runHonneJaCycle(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+if (require.main === module) runHonneJaCycle(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => {
+  const noEffectResult = noDueSlotResult(error);
+  if (noEffectResult) {
+    process.stdout.write(`${JSON.stringify(noEffectResult)}\n`);
+    return;
+  }
+  process.stderr.write(`${error.message}\n`);
+  process.exitCode = 1;
+});
 
-module.exports = { ANICCA_AFFIRMATION_YOUTUBE_SLOTS, ANICCA_AI_YOUTUBE_SLOTS, ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, reusePriorYouTubePublication, runHonneJaCycle, runSlot, telegramNativeUrlVerified };
+module.exports = { ANICCA_AFFIRMATION_YOUTUBE_SLOTS, ANICCA_AI_YOUTUBE_SLOTS, ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, noDueSlotResult, parseArgs, reusePriorYouTubePublication, runHonneJaCycle, runSlot, telegramNativeUrlVerified };

@@ -14,17 +14,47 @@ enum PaywallPackageSelection {
 
         return packages.first(where: isAnnual) ?? packages.first(where: isMonthly)
     }
+
+    static func containsCurrentInstance<Candidate: AnyObject>(_ candidate: Candidate, in candidates: [Candidate]) -> Bool {
+        candidates.contains { $0 === candidate }
+    }
 }
 
 /// Fails closed unless both the App Store region and its refreshed offering are known.
 enum PaywallStorefrontEligibility {
-    static func includesLifetime(countryCode: String?, offeringIsCurrent: Bool) -> Bool {
-        offeringIsCurrent && countryCode?.uppercased() == "JPN"
+    static func sameStorefront(first: String?, second: String?) -> Bool {
+        first?.uppercased() == second?.uppercased()
+    }
+
+    static func includesLifetime(countryCode: String?, offeringCountryCode: String?) -> Bool {
+        guard let countryCode, let offeringCountryCode else { return false }
+        let currentCountry = countryCode.uppercased()
+        return currentCountry == "JPN" && offeringCountryCode.uppercased() == currentCountry
+    }
+
+    static func allowsPurchase(
+        packageIsLifetime: Bool,
+        packageIsCurrent: Bool,
+        countryCode: String?,
+        offeringCountryCode: String?
+    ) -> Bool {
+        packageIsCurrent && (!packageIsLifetime || includesLifetime(
+            countryCode: countryCode,
+            offeringCountryCode: offeringCountryCode
+        ))
     }
 }
 
 
 enum PaywallOfferingSelection {
+    static func isLatestRefresh(requestID: Int, currentRequestID: Int) -> Bool {
+        requestID == currentRequestID
+    }
+
+    static func isUnchangedStorefrontRevision(startingRevision: Int, currentRevision: Int) -> Bool {
+        startingRevision == currentRevision
+    }
+
     static func resolve<Offering>(
         current: Offering?,
         all: [String: Offering],

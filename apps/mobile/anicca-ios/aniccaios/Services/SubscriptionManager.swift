@@ -1,12 +1,14 @@
 import RevenueCat
 import Foundation
 import AdSupport
+import StoreKit
 
 @MainActor
 final class SubscriptionManager: NSObject {
     static let shared = SubscriptionManager()
     private static let aniccaFallbackOfferingIdentifier = "anicca_variant_b"
     private var offerings: Offerings?
+    private var offeringsRefreshGeneration = 0
     private(set) var isConfigured = false
 
     private override init() {
@@ -157,21 +159,42 @@ final class SubscriptionManager: NSObject {
     @discardableResult
     func refreshOfferings() async -> Bool {
         guard isConfigured else { return false }
+        offeringsRefreshGeneration += 1
+        let requestID = offeringsRefreshGeneration
+        AppState.shared.updateOffering(AppState.shared.cachedOffering)
+        let requestStorefrontCountryCode = (await Storefront.current)?.countryCode
+        AppState.shared.recordStorefrontCountryCode(requestStorefrontCountryCode)
+        let requestStorefrontRevision = AppState.shared.storefrontRevision
         do {
             let result = try await Purchases.shared.offerings()
+            let latestStorefrontCountryCode = (await Storefront.current)?.countryCode
+            AppState.shared.recordStorefrontCountryCode(latestStorefrontCountryCode)
+            guard PaywallOfferingSelection.isLatestRefresh(
+                requestID: requestID,
+                currentRequestID: offeringsRefreshGeneration
+            ) else { return false }
+            guard PaywallOfferingSelection.isUnchangedStorefrontRevision(
+                startingRevision: requestStorefrontRevision,
+                currentRevision: AppState.shared.storefrontRevision
+            ) else { return false }
+            guard PaywallStorefrontEligibility.sameStorefront(
+                first: requestStorefrontCountryCode,
+                second: latestStorefrontCountryCode
+            ) else { return false }
+
             let aniccaOffering = Self.resolveAniccaOffering(from: result)
             print("[SubscriptionManager] Offerings loaded: current=\(result.current?.identifier ?? "nil"), selected=\(aniccaOffering?.identifier ?? "nil"), all=\(result.all.keys.joined(separator: ", "))")
             offerings = result
-            await MainActor.run {
-                AppState.shared.updateOffering(aniccaOffering)
-            }
+            AppState.shared.updateOffering(aniccaOffering, storefrontCountryCode: aniccaOffering == nil ? nil : requestStorefrontCountryCode)
             return aniccaOffering != nil
         } catch {
-            await MainActor.run {
-                // Keep existing cached offering on error
-                if AppState.shared.cachedOffering == nil {
-                    AppState.shared.updateOffering(nil)
-                }
+            guard PaywallOfferingSelection.isLatestRefresh(
+                requestID: requestID,
+                currentRequestID: offeringsRefreshGeneration
+            ) else { return false }
+            // Keep existing cached offering on error, but its storefront remains unverified.
+            if AppState.shared.cachedOffering == nil {
+                AppState.shared.updateOffering(nil)
             }
             return false
         }

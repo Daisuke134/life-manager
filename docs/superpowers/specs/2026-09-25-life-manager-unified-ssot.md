@@ -24665,3 +24665,34 @@ Next experiments (one variable at a time, judged on we_won / decided): (1) attac
 **TODO順変更:** 旧順=端末確認→審査提出/リリース→6アプリ指標baseline→Anicca hook/slideshow改善→既存SNS/website配信→他5アプリへ展開→MRR改善。新順=①Lifetime storefront gateのfocused testsは完了。Xcode 26.6 compiler crashはorigin/mainでも再現し、branch固有のfailureではない。source review/CIを通してmainへ統合し、Default Xcode Cloudから修正を含む新buildを作る。ASC review detail notesも新buildに揃える。②physical iOS deviceのdemo videoを撮影し、review attachmentへ登録し、JPN-only・availability・地域差を説明する。Lifetime IAPの`DEVELOPER_REJECTED` versionを修正し、同じreviewで提出可能な状態にする。③既存の拒否itemを編集・再提出し、Apple公式状態を追う。④Postiz connectorのworkspace/scopeを照合し、`@anicca.en` ownerの20 unknown effectとhost-heartbeat原因を調べ、exact receiptでのみ解決し、次の自然投稿を確認。⑤6アプリのApp Store/RevenueCat/Postiz baselineとアカウント対応表を揃える。⑥同じ対象・媒体で成果を出したslideshow/short-form事例を先に調べ、参照URL・hook/構成/テンポ/CTA・計測指標を記録して自社素材の小実験を行う。⑦勝ち筋を既存Postiz ownerと他5アプリに段階展開し、週次で獲得/有料転換/継続を改善する。順変更理由は、selected build 808とlatest valid build 810はいずれもstorefront branch変更前で、Apple指定の物理demo videoが未添付、Lifetime IAP versionがDeveloper Rejectedだから。`@anicca.en`はunknown effect、host heartbeat、今回のPostiz scope不一致により安全な投稿再開も確認できない。現在cursorは①baselineが同じcompiler crashを再現した後のsource review/CIとmain integration。実機iPhone 15はXcode上`available=false`で②の物理動画が外部依存。
 
 **未達・境界:** 1.9.6は審査未完了・未リリース。通知タップの該当メッセージ遷移、paywall表示、rating timing、sign outの挙動はbuild 808とのbinary SHA対応と実機挙動が未確定。StoreKit storefront gateのsource変更はfocused tests PASSだがXcode build未確認で、review videoも未添付。Postizの接続報告や過去のenabled readbackは現在の投稿成功を意味しない。6アプリの全体MRR、全profileの実稼働率、slideshow改善成果は未測定。RevenueCat credentialはこの作業中に変更していない。secretはchat/specに記録しない。
+
+## Anicca配信・出荷の現在地 — 2026-10-24T17:51:58Z
+
+**目的・範囲:** Aniccaを主力として6アプリの製品・配信を改善し、現時点で1日約5件と報告されたinstallを増やす。収益目標は合計MRR USD 10,000から段階的に拡大する。現時点の6アプリ横断MRR、各SNS経由のinstall、slideshow改善効果は未確認であり、目標や投稿数を達成実績として書かない。
+
+**Postizで登録されているLife Managerの対象:** `mobile-app-loops.json`にはAnicca 16 owner、Honne 2 ownerがある。これは設定上のowner一覧であり、各アカウントの現在の認証・稼働・投稿成功を示さない。
+
+| 対象 | 設定されたアカウント | 用途 |
+|---|---|---|
+| Anicca Instagram（6） | `@anicca.affirmation`、`@anicca.encards`、`@anicca.en`、`@anicca.jp.videos`、`@ani.cca1234`、`@anicca.jp1` | affirmation、card、widget、JA/EN video |
+| Anicca TikTok（8） | `@anicca_slideshow`、`@anicca.he`、`@aniccaaffirmation`、`@aniccaen2`、`@anicca.jp1`、`@anicca.jp4`、`@anicca_buddha`、`@anicca.jp` | slideshow、affirmation、JA/EN video |
+| Anicca YouTube（2） | `@anicca-ai`、`@life-manager-m4p` | AI / affirmation video |
+| Honne TikTok（2） | `@honnevideo`、`@honne_reveal` | JA / EN video |
+
+X、website、SEO/AEOはこの18件のmobile Postiz ownerに含まれない。PostizにX integrationがあることと、Anicca所有・計測済みのX配信ownerがあることは別である。今回の`life-manager-anicca-en-widget-instagram`はInstagramの`@anicca.en`だけを対象とし、他のInstagramやTikTokには投稿しない。
+
+**接続・投稿のfresh readback:** DaisはInstagramアカウントをPostizへ再接続したと報告している。Postiz MCP connectorはgroup/integration/postを0件返し、直接APIの前回readbackと一致しないため、connectorのworkspace scopeは未解決。直接API readbackでは25 integrations（TikTok 12、Instagram 9、YouTube 2、X 2）、Instagramの8/9 recordがenabled、1件がdisabledで、`@anicca.en` recordはenabledだった。enabled recordは有効なOAuth/sessionや投稿成功の証拠ではない。
+
+`@anicca.en`向けPostiz queryには直近3件の`ERROR`がある。2026-10-23 10:58Zの1件はsession invalidation後に1–2日待つよう案内し、2026-10-24 05:26Zと10:13Zの2件は`Refresh channel needed`。2026-10-26〜11-02の予約投稿queryは0件。新しい`PUBLISHED` receiptは未確認。session invalidationから48時間となる2026-10-25 10:58Zより前に再投稿しない。
+
+対象ownerのread-only `lm-loop status`は`loaded-idle`、installed release `dbffebc0e349c0dd81fce2523833c059b24a338c`、exit 75、blocker `host_admission_deferred:disk_floor_low`。statusには20件の`effect_unknown` detailがあるが、20件の実投稿を意味しない。read-only admission DBには858 raw `effect_unknown` rows（848 claimed、10 released）があり、実投稿件数とは未照合。12件のsidecar identityを調べたexact reconcilerは`no_match`で、完全一致receiptは得られていない。未解決effectは保持し、再送・手動投稿・fence解除をしない。
+
+**原因とsource修正:** `honne-ja-cycle.js`は配信枠が無い時に`status: no_due_slot`と説明文を`reason`へ出す一方、共通`mobile-effect-result.js`は`reason`が同じ固定値`no_due_slot`の時だけ無投稿receiptを認める。この契約不一致は保存済みstderrの`mobile publication result is invalid`と整合するが、そのrunのstdoutは保存されておらず、個別occurrenceの内容までは断定しない。修正はrunner側で認識済みno-effect resultを共通契約へ正規化する。追加したfocused regressionは修正前に失敗し、修正後の`honne-ja-cycle.test.js`と`mobile-app-command.test.js`合計33 testsがPASS。production releaseへの反映と自然runは未実施。
+
+**iOS source修正:** `AppState`がstorefront country/revisionを追跡し、`SubscriptionManager`は最新requestかつ同一country/revisionのRevenueCat offeringだけを採用する。`PaywallVariantBView`はStorefront変更後に再取得し、購入直前にcurrent country、offering country、選択package identityを検証する。Japan以外・未知・stale offeringではLifetimeを表示・購入しない。native regression 19件、wiring 9件、Swift parse、`git diff --check`はPASS。Xcode 26.6/Swift 6.3.3のsimulator buildはcompilerの`SILPerformanceInlinerPass`内crashで失敗し、未変更`origin/main`でも同じfailureを再現した。branch sourceのXcode compileは未確認。
+
+**獲得指標:** 最新メールのApp Analytics週報（2026-10-12〜18）は6アプリ合計1,593 impressions / 15 App Units / proceeds 0。Aniccaは234 impressions（前週比+4%）/ 2 App Units（-71%）/ proceeds 0。6アプリ合計の前週比較は無く、合計install減少とは結論しない。最新週報で取得可能なApple/App Store指標だけを示し、RevenueCat MRRや純収益と同一視しない。
+
+**TODO順・現在cursor:** 旧cursorはstorefront修正のfocused test後にApple提出へ進むことだった。新順は (1) StoreKit race修正とno-due receipt contract修正を同一PR #8911のsource acceptanceへ載せ、focused tests・loop contract・CI・reviewをPASSしてmainへ統合する、(2) main由来immutable releaseを用意し、OAuthの48時間待機後かつhost disk admissionが通る時だけ対象ownerを適用し、exact pending effectは公式receiptで照合する。ownerの自然scheduled runで`@anicca.en`の動画を1件だけ公式`PUBLISHED` readback・durable receipt・replay-zeroまで確認する、(3) merged SHAからXcode Cloud buildを作り、exact buildでpaywall/offering、通知tapから同一メッセージへの遷移、rating timing、Settings sign outを確かめる、(4) rejected Lifetime IAPを修正し、物理iPhoneでJapan-only storefront demoを撮影・添付し、既存の拒否submission itemを更新してAppleへ再提出する、(5) 6アプリのApp Store/RevenueCat/Postiz weekly baselineとaccount→owner→campaign対応を揃え、reach→click→install→paid→retentionを同じ期間で追う、(6) 同じ対象・媒体・目的で成果を出したslideshow/short-form事例を先に調べ、URL・hook・構成・tempo・CTA・指標を記録した上で自社素材の小実験を行い、(7) 勝ち形式を他のPostiz owner、残り5アプリ、website SEO/AEO/ASOへ広げる。順変更理由はno-due resultのsource契約不一致、Postiz cooldown、ownerのdisk-floor blocker、exact effect receipt欠落を修正せずに投稿を再開できず、現行app buildにもpaywall/通知の未検証事項が残るため。**現在cursorは (1) のPR #8911 source acceptance、focused validation、push後のCI/review確認。**
+
+**未完了:** 新sourceのpush/CI/review/main integration、immutable releaseとnatural Postiz post、Appleの新build/物理demo/再提出、6アプリの統一MRR・attribution、成功例を基にしたslideshow実験は未完了。RevenueCat passwordはこの作業で変更していない。secret valueは記録しない。
