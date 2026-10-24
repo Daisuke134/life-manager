@@ -11,6 +11,26 @@ from runtime.loop.loop_cleanup import _release_immutable_store_probe
 
 
 class CutLoopReleasePressureTest(unittest.TestCase):
+    def test_pruning_failure_preserves_receipt_without_exporting_or_activating(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            receipt = {"ok": False, "errors": 1, "protected_deletions": 0,
+                       "dependency_bundles": {"status": "reference_or_lock_unavailable",
+                                              "error_class": "TimeoutExpired"}}
+            (repo / "runtime/loop/central_cleanup.py").write_text(
+                f"print({json.dumps(receipt)!r})\nraise SystemExit(1)\n")
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable,
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(json.dumps(receipt), result.stderr)
+            self.assertIn("safe release pruning failed", result.stderr)
+            self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / "current").exists())
+            self.assertFalse((loops / ".release-cut.lock").exists())
+
     def test_first_complete_release_installs_dependencies_after_capacity_admission(self):
         for free in (0, 128 * 1024**2):
             with self.subTest(free=free), tempfile.TemporaryDirectory() as directory:

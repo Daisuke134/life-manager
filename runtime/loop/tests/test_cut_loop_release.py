@@ -1027,6 +1027,25 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
             code = self.cleanup.main()
         return code, json.loads(output.getvalue())
 
+    def test_release_gc_only_preserves_open_bundle_with_minimal_host_path(self):
+        bundle = self._bundle()
+        self.lsof_stdout = f"p12345\nf7\nn{bundle}/node_modules/fixture.js\n"
+        probe = self._probe
+
+        def minimal_path_probe(command, **kwargs):
+            if command[0] == "lsof":
+                raise FileNotFoundError(2, "No such file or directory", "lsof")
+            return probe(command, **kwargs)
+
+        with mock.patch.dict(os.environ, {"PATH": "/bin:/usr/bin"}), \
+             mock.patch.object(self, "_probe", side_effect=minimal_path_probe):
+            code, result = self._gc()
+
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["errors"], 0)
+        self.assertTrue(bundle.exists())
+        self.assertEqual(result["dependency_bundles"]["removed"], 0)
+
     def test_release_gc_only_reclaims_readonly_bundle_without_current_and_replays_zero(self):
         bundle = self._bundle()
         release = self._release(bundle)
@@ -1222,7 +1241,7 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertFalse(bundle.exists(), "duplicate resolution exhausted the unchanged reference budget")
         self.assertEqual(code, 0, result)
         self.assertLess(clock[0], 15)
-        self.assertEqual(sum(command[0] == "lsof" for command in self.commands), 3)
+        self.assertEqual(sum(Path(command[0]).name == "lsof" for command in self.commands), 3)
 
     def test_release_gc_only_rechecks_same_alias_in_final_reference_snapshot(self):
         bundle = self._bundle()
@@ -1369,7 +1388,7 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
             return collect(*args, **kwargs)
         with mock.patch.object(self.cleanup, "_bundle_references", side_effect=references):
             _code, result = self._gc()
-        self.assertEqual(sum(command[0] == "lsof" for command in self.commands), 3)
+        self.assertEqual(sum(Path(command[0]).name == "lsof" for command in self.commands), 3)
         self.assertTrue(bundle.exists())
         self.assertEqual(result["dependency_bundles"]["removed"], 0)
         self.assertEqual(stat.S_IMODE(bundle.stat().st_mode), 0o555)

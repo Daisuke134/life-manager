@@ -182,7 +182,7 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
     lsof_calls = 0
     def run(command, **kw):
         nonlocal lsof_calls
-        if command[0] == "lsof":
+        if Path(command[0]).name == "lsof":
             lsof_calls += 1
             lines = ["p" + str(os.getpid())]
             # The first inventory is clear; a second inventory sees a newly opened
@@ -259,7 +259,7 @@ def test_owner_reclaims_only_when_fresh_official_branch_keeps_source(
 
     def run(command, **kwargs):
         nonlocal branch_deleted_during_run
-        if command[0] == "lsof":
+        if Path(command[0]).name == "lsof":
             if not remote_branch_deleted and not branch_deleted_during_run:
                 real_run(["git", "-C", str(repo), "push", "origin", "--delete", "source-branch"],
                          check=True, capture_output=True)
@@ -329,7 +329,7 @@ def test_owner_skips_held_roots_before_expensive_store_inventory(tmp_path, monke
         lambda *_: {held} if held_kind == "open" else set())
     real_run = subprocess.run
     def run(command, **kwargs):
-        if command[0] == "lsof":
+        if Path(command[0]).name == "lsof":
             return subprocess.CompletedProcess(command, 0, "", "")
         return real_run(command, **kwargs)
     monkeypatch.setattr(central_cleanup.subprocess, "run", run)
