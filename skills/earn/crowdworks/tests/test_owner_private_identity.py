@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -185,3 +186,34 @@ def test_owner_checks_explicit_profile_paths_instead_of_defaults(tmp_path, owner
     assert all(str(arg) in forwarded for arg in args)
     if owner == "paid-owner":
         assert forwarded[forwarded.index("--account-id") + 1] == "5432107"
+
+
+@pytest.mark.parametrize("script", ["reconcile_application_no_submit.py",
+                                   "reconcile_reply_no_send.py",
+                                   "reconcile_reply_accept_contract.py"])
+def test_reconcile_setup_failure_preserves_admission_fence(tmp_path, monkeypatch, capsys, script):
+    sys.path.insert(0, str(SCRIPTS))
+    name = "crowdworks_private_" + script.removesuffix(".py")
+    spec = importlib.util.spec_from_file_location(name, SCRIPTS / script)
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, name, module)
+    spec.loader.exec_module(module)
+    state = tmp_path / "fenced-state"
+    state.mkdir()
+    database = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(database) as db:
+        db.execute("CREATE TABLE fence (state TEXT, effect_unknown INTEGER)")
+        db.execute("INSERT INTO fence VALUES ('claimed',1)")
+    before = database.read_bytes()
+    args = ["--state-root", str(state), "--resolve"]
+    if script == "reconcile_reply_accept_contract.py":
+        args += ["--occurrence", "crowdworks-revenue-reply:run-1", "--thread-id", "123"]
+    else:
+        args += ["--admission-db", str(database)]
+        if script == "reconcile_reply_no_send.py":
+            args += ["--all-fenced"]
+
+    assert module.main(args) == 78
+    assert json.loads(capsys.readouterr().out)["error"] == "setup_required"
+    assert database.read_bytes() == before
+    assert list(state.iterdir()) == []

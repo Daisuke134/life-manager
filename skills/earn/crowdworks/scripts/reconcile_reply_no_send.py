@@ -280,6 +280,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolve", action="store_true",
                         help="release each proven claimed occurrence")
     args = parser.parse_args(argv)
+    from reply_adapter import profile_module
+    try:
+        profile_module.load_identity()
+    except profile_module.SetupRequired as error:
+        print(json.dumps({"owner_id":OWNER,"checked":0,"resolved":[],"fenced":{},"error":"setup_required","missing":error.missing}))
+        return 78
     if args.all_fenced and args.resolve:
         selected_database = args.admission_db.expanduser().resolve()
         resolver_database = (admission_state_root() / "admission-v2.sqlite3").expanduser().resolve()

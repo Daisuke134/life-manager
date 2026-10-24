@@ -17,6 +17,39 @@ def load():
     return module
 
 
+def test_provider_readback_builds_with_the_private_users_identity(tmp_path, monkeypatch):
+    from skills.earn.crowdworks.tests.test_owner_private_identity import write_inputs
+    home=tmp_path/"private-home"
+    candidate, provider=write_inputs(home)
+    monkeypatch.setenv("HOME",str(home))
+    module=load()
+    expected=state()
+    monkeypatch.setattr(module,"_read_state",lambda *_args:expected)
+    original=module.build_reply_adapter
+    adapters=[]
+    closed=[]
+
+    def build(argv):
+        adapter, planner=original(argv)
+        adapters.append(adapter)
+        adapter.observe_threads=lambda:adapter.rows.update({"305271360":{}})
+        adapter.readback=lambda _intent:{"verified":True,"provider_receipt_id":"fixture-receipt"}
+        adapter.close=lambda:closed.append(True)
+        return adapter, planner
+
+    monkeypatch.setattr(module,"build_reply_adapter",build)
+    before=(candidate.read_bytes(),provider.read_bytes())
+
+    result=module.read_provider_state(tmp_path/"reply","305271360")
+
+    assert result=={"state":expected,"readback":{"verified":True,"provider_receipt_id":"fixture-receipt"}}
+    assert adapters[0].provider_profile["provider_employee_id"]=="5432107"
+    assert adapters[0].provider_profile["display_name"]=="別の利用者"
+    assert adapters[0].candidate_profile==candidate.resolve()
+    assert (candidate.read_bytes(),provider.read_bytes())==before
+    assert closed==[True]
+
+
 def state(occurrence="crowdworks-revenue-reply:run-1"):
     return {
         "occurrence_id": occurrence,

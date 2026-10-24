@@ -619,6 +619,10 @@ CALLERSの正確な所有: workerはreply_adapter.pyのbuild/__init__/_open/_obs
 
 CALLERSのowner RED/GREEN: 先に新13条件を9 FAIL/4 PASSで再現し、Applicationの不足時browser呼出、ensure本人不一致の無視、3ownerのpreflight欠落、Paid作者ID固定と明示path無視を修復する。追加のprofile不足理由消失も1 RED→GREEN。Mac標準/bin/bashでprivate pathの分離/equals形式を実行し、既存Paid pre-effect/handoff/正確occurrence回帰を合わせ23 PASS（3.01s）。既存pending bytesとcursor保持、missing時lock/kernel呼出0を確認する。profile.assert_accountとrequire_apply_configは既存検証境界を抽出して共有する。次はadapter担当とreconcile本人proofの接続、main統合はまだ行わない。
 
+CIのcaller closure: 同じloop-control jobのCrowdWorks stepへ、変更したadapter/owner/reconcileとその既存回帰を追加する。実DOM fixtureに必要なbeautifulsoup4と既存Playwright importはrequirements-runtime.txtのexact pin行をそのままpipへ渡して準備し、別version正本を作らない。runtime requirements/本番依存/CI権限・job数は変更しない。
+
+reconcile本人bindingのRED/GREEN: 作者senderを別利用者の合成ID/表示名へ置き換え、pure評価/公式proposal読取が明示providerを受け取る契約を6 FAIL/3 PASSで再現する。3CLIの不足時gateも3 RED、accept readbackのprivate build不使用も1 REDを確認する。sender照合の値だけを本人providerから渡し、exact occurrence/window/official receipt/保留条件は保持する。合成admission DBのclaimed/effect_unknown=1は不足時byte不変、必要な本人設定後だけ既存resolverへ進む。owner/reconcile4filesの45 PASS（0.95s）を確認し、実providerや本番fenceの操作は0。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。

@@ -199,6 +199,10 @@ def test_seller_is_our_profile_link_and_zero_sellers_fail_closed(tmp_path):
 
 
 def test_resolve_reports_database_mismatch_without_side_effects(monkeypatch, tmp_path, capsys):
+    from skills.earn.crowdworks.tests.test_owner_private_identity import write_inputs
+    home=tmp_path/"private-home"
+    write_inputs(home)
+    monkeypatch.setenv("HOME",str(home))
     module = load()
     from runtime.host import resource_admission
 

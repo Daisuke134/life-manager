@@ -58,12 +58,24 @@ jobs:
           apps/lancers-revenue/tests/test_persona_facts_in_planner.py
           apps/lancers-revenue/tests/test_form_failures_name_themselves.py
           apps/lancers-revenue/tests/test_telegram_report.py
-      - name: Verify CrowdWorks account and private profile contracts
+      - name: Install CrowdWorks contract dependencies from runtime pins
+        run: python3 -m pip install --disable-pip-version-check -r <(grep -E '^(playwright|beautifulsoup4)==' requirements-runtime.txt)
+      - name: Verify CrowdWorks private identity and caller contracts
         run: >-
           python3 -m pytest -q
           skills/earn/crowdworks/tests/test_account_identity.py
           skills/earn/crowdworks/tests/test_profile_avatar.py
           skills/earn/crowdworks/tests/test_profile_private_identity.py
+          skills/earn/crowdworks/tests/test_adapter_private_identity.py
+          skills/earn/crowdworks/tests/test_owner_private_identity.py
+          skills/earn/crowdworks/tests/test_reply_adapter.py
+          skills/earn/crowdworks/tests/test_paid_adapter.py
+          skills/earn/crowdworks/tests/test_application_owner_hourly.py
+          skills/earn/crowdworks/tests/test_reconcile_application_no_submit.py
+          skills/earn/crowdworks/tests/test_reconcile_reply_accept_contract.py
+          skills/earn/crowdworks/tests/test_reconcile_reply_no_send.py
+          skills/earn/crowdworks/tests/test_paid_owner_pre_effect_hint.py
+          apps/crowdworks-revenue/tests/test_paid_owner_observation_boundary.py
       - name: Verify browser lease ownership and tab preservation
         run: >-
           python3 -m pytest -q
