@@ -678,3 +678,62 @@ Costello訂正パッケージは[研究note](research/2026-10-24-costello-correc
 次は既存A12–A15の実条件具体化と真正な観測であり、公開データの数値予測だけで代替しない。本人が選ぶ具体的行動・実対象/役割・観測/比較・追跡/停止・測定rightsを実条件から埋める。新しい会話model研究は、別purpose/分割/baseline/用途条件を固定してから行う。独自モデル全体のscratch事前学習は初期必須にしない。専用app/chatの利用を必須条件へ戻さない。
 
 無料書籍には[動機と行動](articles/2026-10-24-motivation-is-not-behavior-ja.md)、[会話データ](articles/2026-10-24-dialogue-data-evaluation-ja.md)、[モデル比較](articles/2026-10-24-training-is-not-predictive-gain-ja.md)の実習章を追加し、[canonical outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)へ接続した。全書籍/全媒体公開は未完。新しい人参加者0/介入0、U004 DRAFT/NOT_REGISTERED、tasks85/18/10、モデル採用HOLD、実便益未測定を維持する。YC/採用/収益の成立を先取りしない。
+
+## 26. 現在の研究結果と残作業の実行順（2026-10-24）
+
+本節を現在の状態説明として優先する。§23–24のうち「Costello比較前」と書かれた箇所は当時のsnapshotであり、後続の§25と本節の結果により更新済み。task ID・依存関係・受入状態の唯一の台帳は既存の[roadmap/tasks.json](roadmap/tasks.json)。全体は113件＝85 done /18 todo /10 skippedのままで、本追記でdoneを増やしたり、別の状態台帳を作ったりしない。
+
+### 26.1 現状（As-is）と目標（To-be）
+
+| 領域 | As-is：確認できた状態 | To-be：次に実証する状態 |
+|---|---|---|
+| 主体と使命 | 行動の変化を通じて苦しみを減らすことを目指すAI主体。no UIは通常の価値提供に専用app/chatを必須にしない設計目標。「Digital Buddha / Transparent God」は理念であり、AGI・神性・覚り・全存在への便益を示す性能表示ではない | 観測、限定判断、根拠を伴う作用、独立した結果確認、停止・訂正を繰り返し、能力と限界を公開できる主体。介入の対象・媒体・権限は研究条件と実際の責任に結び付ける |
+| 既存実装 | E01–E16と指定された限定技術受入は完了記録済み。これは実人への行動変容や便益の受入を意味しない。Ampersandの既存adapterはあるが、定期的な自律推論が接続済みとは扱わない | 実行channelごとに権限・停止・予算・readbackを確認し、行動結果の証拠が整った範囲だけ段階昇格する |
+| 数値予測モデル | 公開Costello研究の訂正版を有限再現し、Qwen3-0.6BのLoRAをtrain128で1回学習した。adapterは全102条件でpersistenceと同じ予測となり、予測利得なし。base出力は固定JSON契約で全件INVALID。モデル採用HOLD | 目的に合った新しい予測対象、許諾済み資料、人物/時間等の未見分割、強いbaseline、害評価を先に固定し、必要が示された時だけ新しいadapterを比較する |
+| 会話・説得研究 | Intrinsic AI、CAMI、MI-TAGS、AnnoMIを用途別に調査。動機/会話分類/模擬clientは、実際の行動・持続・苦しみの測定と同じではない。AnnoMIの新model/score実装はない | 会話品質と、実際の選択・実行・追跡結果を別々に評価し、既存data/benchmarkのrightsとsplitを確認してから必要部分を再利用する |
+| 人への実証 | 本研究branchでは新規参加者0、介入0。U004はDRAFT/NOT_REGISTERED。実行動の変化、苦しみ/生活機能、長期持続、害、費用へのManagerの効果は未測定 | 実際の参加者が選ぶ行動と目的に沿った、比較可能で自発的な研究を事前登録し、行動・本人の苦しみ/機能・持続・害を独立して測る |
+| 執筆・公開 | オリジナル4章・10ページの日本語lab editionをGitHubで無料公開。PDF/EPUBの現行版は[canonical outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)から追跡できる。書籍全体、他媒体への全配信、websiteの最新成果反映は未完 | 既存outlineに沿って章を完成し、出典・限界・再現手順を確認した版をPDF/EPUB等へ出し、媒体ごとの独立readbackを残す |
+
+### 26.2 調査・実験で確定したこと
+
+| 研究 | 実施した範囲と結果 | この結果からは言えないこと |
+|---|---|---|
+| Costelloらの訂正版 | 公開artifactを版/manifestで確認し、変更していない上流Rの有限解析を実行。主要6表45行を許容誤差内で照合した。[再現receipt](verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md) | 全archive・全survey・全解析環境の完全再現、説得効果の再現、苦しみや実行動の変化 |
+| Costello数値予測 | train128・32 optimizer stepsでLoRA adapterを1個保存。base/adapter各102の決めたcontextを通常の生成で一度比較し、その後に結果を固定した。[学習receipt](verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)／[比較receipt](verification/COSTELLO_NUMERIC_FORECAST_COMPARISON_20261024.md) | 次の別taskや別評価での優位、個人への因果効果、行動の改善、モデル全般の能力 |
+| 動機づけ面接資料 | Intrinsic AIは15分のGPT-4会話後に直後の動機尺度差を報告した一方、24時間後の差や行動課題の改善は確認していない。abstract N=237と本文の各分母に未解決差がある。CAMIは判断分解の参照、MI-TAGSは会話評価候補として読んだ。 | 研究のprompt/modelをManagerへ実装済み、継続的な実行行動・苦しみ低減・他集団での再現が確認済み、全公開dataの権利が確認済みとは言えない |
+| AnnoMI | 固定repoのsimple版は9,699発話/133 transcript、full版は13,551注釈行だが同じ9,699発話を含む。428発話の10重注釈を独立した発話数や人の行動変化数に数えない。[artifact監査](research/2026-10-24-annomi-artifact-audit.md) | change talk分類を実行動・行動持続・苦しみのgoldへ使えること、AnnoMIモデルを学習/採用済みであること |
+
+今回のforecastはDev/Evaluation全assigned例へ結果を戻した。主要MAEはDevでpersistence 14.778、OLS 15.625、adapter 14.778。Evaluationでpersistence 13.962、OLS 14.101、adapter 13.962。adapterとpersistenceは全contextで同一出力である。baseはvalid coverage 0%のためMAE/RMSEはnullであり、MAE=100などの値を実測結果として書かない。No-actionは全件ABSTAINでcoverage 0%。この有限研究の結論は**優位なし・採用HOLD**である。原final16は使っておらず、今回のevaluationをretune/再採点して「勝つ」手順へ戻さない。
+
+したがって「モデルをいつ学習し始めるか」の現状回答は、**小型open-weight基盤での最初の限定LoRA学習は既に実施した。次の学習日時は未設定**である。直近の学習は会話説得modelでもManager本体modelでもなく、過去のconfidence評定を予測する有限実験だった。新規事前学習を急ぐ根拠はまだない。次回の学習は、新しい目的・権利確認済みdata・別の未見評価・比較baseline・失敗/害条件が先に固定され、学習で解くべき不足が示された後に別判断する。古いevaluationの再利用や無改善adapterのretuneを学習開始条件にしない。
+
+### 26.3 今の本当のblockerと、解消の手順
+
+現在止まっているのはhost、GPU、Railway、Supabase、APIキーの不足ではない。有限モデル学習と比較は既存cloud上で完了した。人の行動変容をManager自身の効果として検証する経路の次のgateは**U004**で、protocolが未登録であり、実際に誰がどの行動を選び、何を比較し、どう観測し、害があればどう止めるかが確定していない。協力者・測定権利・必要な独立審査・人数の根拠も、DRAFTから推測して補えない。
+
+これを解消する順序は以下のとおり。
+
+1. 実際の対象者と本人が選ぶ具体的行動を定める。対象者にとって意味のある行動機会・実行の定義・確認方法を固定し、動機や賛成を実行と見なさない。
+2. `products/manager/pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md` に対象/役割、任意参加と撤回、比較条件、介入内容と停止条件、主要行動endpoint、本人報告の苦しみ/機能、追跡時点、欠測/悪化/害、個人情報と測定rightsを具体化する。説得は選択を偽装・強制する方法ではなく、本人が拒否・中断できる研究条件で評価する。
+3. 実条件から最小効果・ばらつき・脱落を見積もって人数/期間を根拠付け、独立した適用判断と必要な倫理・法務・組織上の審査を得る。登録/実施前に新しいprotocol versionとhashを固定する。条件を満たせなければU004はtodoのままにし、実施を開始しない。
+4. U004受入後に限り、U006で実施・配信・曝露・返信・本人が選んだ行動・独立観測・撤回を分けて記録する。本人同意なしの隠れた標的化、政治的説得、集団への未検証の一斉配信はこのpilotの近道にしない。
+5. U007/D016で事前固定した比較、効果と不確実性、全分母、持続、苦しみ/機能、負担・圧力・依存・害・費用を同時に報告する。結果がない/不明ならnull/UNKNOWNを保つ。U008は実際の継続意思・支援commit・運用費を後から記録し、収益を推定しない。
+
+### 26.4 残作業：依存順のatomic checklist
+
+全IDと受入条件は既存の[全工程roadmap](roadmap/START_TO_END_20261022.md)、研究/modelのfile-by-file手順は[既存plan Task 1–8](plans/2026-10-23-behavior-transformation-model-plan.md)を使う。下表は次に触る順序の案内であり、完了状態を変更するチェックリストではない。
+
+| 順 | 対象 | 実作業と主なファイル | 完了を判断する証拠 |
+|---:|---|---|---|
+| 1 | U004 | 上記手順で`pilot/BEHAVIOR_TRANSFORMATION_STUDY_V2.md`を実条件から仕上げ、保護・比較・測定・適用判断・必要な登録を固定 | DRAFTではなく、開始前にversion/hashが固定された受入済みprotocol。参加者/審査/rights/検出力条件を捏造せず出典付きで記録 |
+| 2 | U006 | U004成立後の限定pilotを実施し、既存`manager_core/outcome_windows.py`等の契約を再利用して実行/観測を保存 | 少なくとも1件の実介入、曝露と独立観測の区別、撤回/欠測/害/STOP receipt |
+| 3 | U007 + D016 | `manager_core/causal_analysis.py`・`outcome_bench.py`の前提を確認して比較分析し、予測/実行/苦しみ・機能/持続/害/費用を統合 | 事前計画に合った効果・区間・分母・欠測・有害結果を含む再計算可能な集計。代理尺度を便益認定に使わない |
+| 4 | U008 | 実対象・期間に沿った継続意思、辞退、支援/支払commit、運用費を記録 | 出典/対象期間/費目と公式readback。確認できない収益はUNKNOWN |
+| 5 | V002 | `manager_core/evaluation.py`等の既存scorerを再利用し、NO_ACTION/簡単なrule/既存base/open-weight/APIを用途に合う同一条件で比較。AnnoMI/CAMI/MI-TAGSは必要な品質eval部分だけrights/split確認後に接続 | task別分母、valid/invalid/refusal/abstain、primary metric、害/圧力/依存、費用、独立人参照。Costelloでの無改善を別taskの結果へ転記しない |
+| 6 | V003 | 新purposeが定まり、V002比較で学習価値が示された場合だけ、新data/right/人物・時間holdout/基盤/seed/recipe/害gateをfreezeしてPEFT/TRLで単一adapterを比較 | 別の未見評価で既存baselineに対する再現可能な結果。旧final16と今回のevaluationは再利用しない。無改善はHOLD |
+| 7 | V004 → V005 → V006 | V003とD016後に限定shadow/運用を審査し、第三者再現を経て複数の実案件を積む | owner承認、権限/費用/停止/復元/readback、第三者が同じ結果を再現、複数案件それぞれの分母/正負/不明結果 |
+| 8 | G003 → G004 → G005 → G006 | V006後に地域/人口差、監督責任・接続契約、純原価と支援、未測定/失敗/不公平を段階的に扱う | 複数集団の検証、責任・費用・許可の契約、実原価と人の便益の別表示、継続的な未測定領域棚卸し |
+| 9 | Y003 / Y005 | 公式W27の締切/申請条件をその時点で確認して実応募を読戻す。研究者/会社への連絡は公開業務窓口と相手別の具体的問い、本人承認範囲で記録 | 実提出receipt、接点ごとの送信/返信/未返信/拒否。採択、面談、研究参加を先取りしない |
+| 10 | C002 / Y008・出版 | [book outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)の残章を研究証拠から執筆し、全体レビュー後に無料版を改版。website EN/JAのsourceも実結果に更新する | 原稿/図/出典/表現レビュー、PDF/EPUB検査、媒体ごとの公開readback。書籍全体やwebsiteの公開完了は実読戻し後だけに記録 |
+
+人の実証経路とmodel経路はU004以降で証拠を共有するが、条件が異なるため同一task扱いしない。技術受入済みのE01–E16へ戻ってやり直す必要はなく、既存の個別残件を再openする場合は根拠と別scopeを記録する。目標の終点はG006までの継続可能な責任ある運用であり、「全苦しみを終わらせた」ことを有限benchmarkや企業成果から宣言する終点ではない。
