@@ -17,11 +17,12 @@ test("list exposes every catalog product and the remaining missing local install
   assert.equal(result.status, 0, result.stderr);
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.loops.length, 18);
-  assert.equal(plan.loops.filter((loop) => loop.command === null).length, 9);
+  assert.equal(plan.loops.filter((loop) => loop.command === null).length, 8);
   assert.equal(plan.starts_automatically, false);
   assert.deepEqual(plan.external_effects, []);
   assert.equal(plan.loops.find((loop) => loop.id === "gig-coconala").command[1], "coconala");
   assert.deepEqual(plan.loops.find((loop) => loop.id === "gig-lancers").command, ["./install.sh", "lancers"]);
+  assert.deepEqual(plan.loops.find((loop) => loop.id === "gig-crowdworks").command, ["./install.sh", "crowdworks"]);
 });
 
 test("plan --all uses catalog IDs while retaining individual requirement gates", () => {
