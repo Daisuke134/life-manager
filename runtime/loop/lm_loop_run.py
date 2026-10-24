@@ -38,7 +38,9 @@ from runtime.loop.runtime_event import (
     validate_runtime_event,
 )
 from runtime.host.disk_admission import REVENUE_FLOOR_BYTES, _producer_gate, disk_free_bytes
-from runtime.host.memory_admission import memory_free_percent, physical_memory_mb, swap_used_mb
+from runtime.host.memory_admission import (
+    memory_free_percent, physical_memory_mb, swap_plateau, swap_used_mb,
+)
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, bounded_launchd_output
@@ -1716,7 +1718,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if used is None or not ram:
             return None
         limit = ram * max_swap_percent / 100
-        if used < limit:
+        # Above the limit but flat for >=5 min is an idle host sitting high (2026-10-24: 14-15.6 GB
+        # for 10 hours); only growth is the storm this gate exists for.
+        if used < limit or swap_plateau(used):
             return None
         return {"status": "deferred", "effect": 0, "reason": "swap_pressure_high",
                 "swap_used_mb": used, "swap_limit_mb": limit, "free_percent": available_free}
