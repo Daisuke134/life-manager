@@ -393,6 +393,28 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         self.assertEqual(codex_failover_action(acct1, error_class, False, False), "retry_next_account")
         self.assertEqual(codex_failover_action(acct2, error_class, False, False), "continue_next_non_codex")
 
+    def test_real_codex_usage_limit_with_a_curly_apostrophe_is_a_quota_failure(self):
+        # Captured from the 2026-10-24 14:25 JST capafy-distribute-daily run: Codex writes
+        # "You\u2019ve" (U+2019). The straight-quote prefix never matched, so the failure was
+        # classed validation_or_task_failure and acct2 was never tried.
+        message = ("You\u2019ve hit your usage limit. Visit https://chatgpt.com/codex/settings/usage "
+                   "to purchase more credits or try again at Oct 31st, 2026 10:54 AM.")
+        stdout = "\n".join(json.dumps(row) for row in (
+            {"type": "thread.started", "thread_id": "t"},
+            {"type": "turn.started"},
+            {"type": "error", "message": message},
+            {"type": "turn.failed", "error": {"message": message}},
+        ))
+        error_class = classify_provider_error(1, False, stdout, "", "", provider="codex")
+        self.assertEqual(error_class, "transient_quota")
+        acct1 = {"provider": "codex", "profile_alias": "acct1", "account_fallback_next": True}
+        self.assertEqual(codex_failover_action(acct1, error_class, False, False), "retry_next_account")
+
+    def test_straight_apostrophe_usage_limit_still_matches(self):
+        stdout = json.dumps({"type": "turn.failed", "error": {"message": "You've hit your usage limit."}})
+        self.assertEqual(classify_provider_error(1, False, stdout, "", "", provider="codex"),
+                         "transient_quota")
+
     def test_arbitrary_agent_text_that_mentions_quota_never_authorizes_account_fallback(self):
         text = json.dumps({
             "type": "item.completed",

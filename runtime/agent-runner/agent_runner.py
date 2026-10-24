@@ -1593,7 +1593,11 @@ def _codex_structured_error_class(stdout: str, stderr: str) -> str | None:
         }
         status = next((int(error[key]) for key in ("status", "status_code", "statusCode", "http_status")
                        if str(error.get(key, "")).isdigit()), None)
-        message = " ".join(error.get("message", "").split()).casefold() if isinstance(error.get("message"), str) else ""
+        # Codex writes "You\u2019ve hit your usage limit" with a curly apostrophe; fold it to a straight one
+        # or the straight-quote prefixes never match and acct2 is never tried (2026-10-24 14:25 JST).
+        message = (" ".join(error.get("message", "").split()).casefold()
+                   .replace("\u2019", "'").replace("\u2018", "'")
+                   if isinstance(error.get("message"), str) else "")
         if codes & CODEX_UNAVAILABLE_CODES or status in CODEX_UNAVAILABLE_STATUS:
             return "transient_unavailable"
         if codes & CODEX_AUTH_CODES or status in CODEX_AUTH_STATUS or any(
