@@ -92,12 +92,14 @@ def _candidate(source: Path | None, home: Path, environment: dict, *, write: boo
         value, missing = _profile(raw)
         if not missing or not receipt.exists():
             return value, missing
+        materials = value.get("materials")
+        resumes = materials.get("resumes") if isinstance(materials, dict) else None
+        if not isinstance(resumes, dict) or not isinstance(resumes.get("engineering"), str):
+            return value, missing
         previous = _read(receipt)
         if (previous.get("profile_path") != str(destination) or previous.get("provider") != "codex"
                 or _read(manifest_path) != manifest):
             raise ValueError("job_search_install_conflict")
-        materials = value["materials"]
-        resumes = materials["resumes"]
         original = {**resumes, **{variant: resumes.get(variant) or resumes["engineering"]
                                 for variant in manifest["resumes"]}}
         installed = {variant: str(data / relative) for variant, relative in manifest["resumes"].items()}

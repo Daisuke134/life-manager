@@ -321,6 +321,37 @@ def test_missing_resume_holds_application_without_blocking_ready_reply(installat
     assert rows["mercor-revenue-application"]["state"] == "setup_required"
 
 
+@pytest.mark.parametrize("command", ["plan", "install"])
+def test_existing_minimal_profile_keeps_legacy_materials_without_holding_reply(installation, capsys, command):
+    case = installation
+    value = json.loads(case.source.read_text())
+    value.pop("materials")
+    _write(case.private, value)
+    _write(case.private.with_name("install.json"), {
+        "version": 1, "profile_path": str(case.private), "provider": "codex", "scheduler": "none",
+    })
+    data = case.home / ".local/share/anicca/job-search/materials"
+    _write(data / "manifest.v1.json", {"version": 1, "resumes": {
+        variant: f"legacy/{variant}.pdf" for variant in ("engineering", "technical_business", "japanese")
+    }})
+    _write(case.state, {"resume_file": str(case.resume)})
+    _write(case.state.parent.parent / "reply/unknown-effect.json", {"effect": "unknown", "receipt": None})
+    before = _tree(case.home)
+
+    code, _result, rows = _call(case, capsys, command)
+
+    assert "candidate_profile" not in rows["mercor-revenue-reply"]["missing"]
+    assert "application_profile" in rows["mercor-revenue-application"]["missing"]
+    assert "resume_state_conflict" in rows["mercor-revenue-application"]["missing"]
+    assert "paid_account_binding" in rows["mercor-revenue-paid"]["missing"]
+    assert _tree(case.home) == before
+    if command == "plan":
+        assert code == 0 and not case.events and not case.applied
+    else:
+        assert code == 78 and case.applied == ["mercor-revenue-reply"]
+    assert rows["mercor-revenue-application"]["state"] == "setup_required"
+
+
 def test_other_gmail_account_is_not_accepted_for_reply_or_recovery(installation, capsys):
     case = installation
     case.gmail_accounts = [{"email": "foreign@fixture.invalid", "services": ["gmail"]}]
