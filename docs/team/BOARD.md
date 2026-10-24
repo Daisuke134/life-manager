@@ -54,7 +54,7 @@
 - 2026-10-24 08:51 JST Codex(Reason): Dots本人 daisuke/chatgpt（agent chatgpt / Mac mini / through Reason）を最新list_teamで再確認し、参加条件を満たす。取得時idle 10hで稼働中とは断定しない。連絡手順の本人アドレスとも一致。空き4.15GiBのため2文書だけを疎worktreeで更新し、アプリ終了・logout・再登録・設定変更なし。HANDOFFの同名節を参照。claim済み求人5行は全件原稿あり、未作成0。結果を専用PR/mainとReasonで参謀へ共有する。
 - 2026-10-23 21:27 Codex(Manager): 同入力shadow比較とcheckpoint結果保存を実装、最終70focused/430full成功・skip0、Task1/2独立review指摘0。既定OFF・モデル要求0・原台帳80/30/3を維持。次: 全体review・公式CI・通常main統合。
 - 2026-10-23 21:03 Codex(Manager): SDK固定PR8693はmain f29c10074へ通常統合、最終16check失敗0。研究同期は974 local tests／公式948 tests成功（任意依存skipを別記）。次: 既存仕様の同入力比較と結果保存をオフライン実装。
-- Codex Mobile: → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。公開6商品CFO sourceはPR8864/main3a5233df、現況/account/TODOはPR8866/mainb0e05bfdへ統合済み。Fix nowに従いops/mobile-cfo-public-promotion-20261024でCFO 1ownerのmain由来immutable採用/実GET/自然readbackを進める。IG再接続はDais担当で、こちらは認証/復旧/再連携を操作しない。主cursor1/6TODO順序を保持する。
+- Codex Mobile: → 統合SSOT「Anicca旗艦・公開6アプリの配信と継続課金」。CFO公開6商品sourceの完全immutable b0e05bfd/公式GET5商品/単一owner採用/別loaded readbackを確認。新SHA起動時runはmemory_headroom_low/exit75で自然取得・通知は未確認。過去5fence IDを保持。IG再接続はDais担当、こちらの認証操作0。ops/mobile-cfo-public-promotion-20261024で本結果を記録し、主cursor1/6TODO順を保持する。
 - 2026-10-23 20:30 Codex(Manager): PR8693のSDK固定は6focused/410full・独立review指摘0、公式SDKの隔離constructor確認はmodel要求0。必須CIの既存停止fixtureに未考慮の正当なSIGKILL経路を隔離再現。次: 安全境界を保つtest修復と通常CI/main。
 - 2026-10-23 21:57 Codex(Manager): PR8710自動reviewの公開projection整合性指摘を実装修復。RED51cases→435full成功・skip0、独立task review指摘0。次: 全体review・通常CI/main。推論/host/台帳は不変。
 - 2026-10-23 19:18 Codex(Manager): D011の公開成果物・platform Paid接続を実装、独立R1指摘0。D003 main統合後の全404 tests成功、収入未検証・作用0。次: 通常CI/mainと元source受入。
