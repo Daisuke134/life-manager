@@ -8,7 +8,13 @@
 
 **完了条件:** 英日READMEに短い用途説明・一つのMac導入入口・導入後の確認方法・現状の限界・詳細docsを揃える。変更した導入動作の最小RED/GREEN、既存関連検証、source/context契約、独立read-only review、CI、PR/main統合、公開ファイルreadbackまで行う。別Mac実機と本人account未接続の受入は未完として具体的に残す。
 
-**順序・現在cursor:** 既存MAC01とMAC04 source受入を保持し、README-MAC-01（比較・入口整理）とREADME-MAC-02（公開導入の呼出し境界診断・修復）を並行、統合後に既存MAC02–05へ戻る。理由は、前回の共通installerがPR #8617でmainへ入っており、再実装せず公開入口と残る停止点を直すため。所有worktree=`.worktrees/readme-mac-product-20261023`、branch=`fix/readme-mac-product-20261023`、owner=`codex-readme-mac-product`。旧portability worktreeは別ownerのleaseを維持する。
+**順序・現在cursor:** README-MAC-01–04とINSTALL-REUSE source受入を保持する。最新の明示要件により、旧INSTALL-REUSE-ACTUAL→残runtimeから、新README-BUSINESSES→INSTALL-REUSE-ACTUAL→残runtimeへ進める。理由は短文化で落とした収益事業を初見向けfront pageへ戻すため。進行中provider effectは中断・再送しない。所有worktree=`.worktrees/lancers-local-setup-20261023`、branch=`docs/readme-businesses-20261024`、base=`c97cad55188c661d801a94f936395663276fbe07`、owner=`codex-lancers-local-setup`。
+
+**README-BUSINESSESの仕様:** primaryがREADME.md/README.ja.mdと本節だけを所有する。初見の人が「どんな事業で収益化するか」を先に読めるよう、冒頭にBusiness/Revenue modelの短い表を置く。Contract workはCoconala/Lancers/CrowdWorks/Mercorを1行へまとめ、Mobile apps、Affiliate & CPA、Writing、Digital products、Agent services、Investingを既存catalog/sourceと本人の明示した事業分類に沿って説明する。CPAの独立job/provider channelは公開source未確認なので、affiliateと同じ行で収益モデルを示し、独立実装・稼働・収益実績を捏造しない。求人/助成金/イベント/経理は補助用途の1文にまとめる。ChatGPT Plus/awake Mac/一つの導入command/既存early-developmentとavailabilityリンクを保持し、内部運用報告・実行数・全18名称の列挙を入口へ戻さない。英日各70行以内を目安とし、既存context/link検証と公開main byte readbackで受け入れる。新しいruntime動作やテストframeworkは作らない。PIONの正確なURLはまだ特定できず、GitHub検索とDuckDuckGo HTML取得では一次本文を得られないため参考URLを任意確認中。README編集はこの確認を進行条件にしない。
+
+- [ ] README-BUSINESSES: 収益事業の短い一覧を英日READMEの冒頭へ戻し、既存関連検証、CI、main統合、公開readbackまで完了する。
+
+README-BUSINESSESの受入進捗: 英日各59行、7事業のBusiness/Revenue model表を必要条件・導入commandより先へ置き、契約4platformを1行へまとめる。sourceの独立read-only確認はcatalog/docs/agents、skills/affiliate、Writer publication_contract、eBook product registry、Capafy SKILL、x402 research-productに基づく。Capafyは外向けAI services行の有料AIスキル/subscriptionへ含め、未確認の外部ツール操作を約束しない。既存context3filesの28 tests PASS、startup-context audit oktrue/errors0/公式3links200・identity/context一致、英日local links計21参照欠損0、diffcheck PASS。既存の未検証mediaはREADMEへ追加しない。source改変/新tests/新収益実績の主張は無く、最終CI/main/public byte照合は未完。
 
 - [x] README-MAC-01: 成功例の構成・導入方式を比較してREADMEを整理する。英日各52行、導入コマンドは26行目。内部情報を本文へ強制する旧assertを削除し、metadata/旧URL禁止は保持する。North StarはTHESISへ移設する。
 - [x] README-MAC-02: 現mainの公開導入を検証し、再現した認証確認漏れと`bs4`不足を最小修復する。source/空環境の範囲で受入、全Mac/provider完了ではない。
@@ -96,7 +102,7 @@ MAC02の旧記録診断: 実installed immutable7db9c90bの選択済みHF_GIG_PYT
 
 ### MAC03-LANCERS: 外部利用者の本人設定へ接続する
 
-目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=fix/release-capacity-reuse-20261024、base=7f88bc6233110afdfbd04591205f3b23ea008a1e（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=MAC03-LANCERS-RUNTIMEのINSTALL-REUSE-SHIP。BUNDLE-GCの候補限定実回収とreplay-zeroを完了する。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
+目的・範囲: 既存7jobsとcommon local installerを再利用し、作者の本人属性・account・portfolioを別Macへ持ち込まない。継続worktree=.worktrees/lancers-local-setup-20261023、lease owner=codex-lancers-local-setup。現在branch=docs/readme-businesses-20261024、base=c97cad55188c661d801a94f936395663276fbe07（最新main由来、他ownerの変更を保持する）。primaryが受入を所有する。現在cursor=README-BUSINESSES→MAC03-LANCERS-RUNTIMEのINSTALL-REUSE-ACTUAL。BUNDLE-GCの候補限定実回収とreplay-zeroを完了する。実回収receiptを保持し、snapshot内だけの重複除去を実装する。PROVENANCE/BOOTSTRAPのsource・限定受入を完了し、CAPACITYの自然動作修復を保持する。ACCOUNT/READY-Aと公開INSTALLのsource・初回release作成を実機で受け入れ、全業務成果と出品本人入力は未完。証拠は下のACCOUNT/READY-A-SHIPを参照する。
 
 - [x] MAC03-LANCERS-IDENTITY: 空HOME/欠損・壊れた本人profileで24歳/東京/日本国籍/日本語native/作者accountを確認済みとして扱わない。本人candidateとLancers provider入力だけを使い、CrowdWorks profileへfallbackしない。作者のprofile/portfolio/package IDsや公開sourceを利用者自身の実績として自動注入しない。未設定はsetup_requiredと不足項目を返し、planner/browser/sendへ到達しない。設定済みの別account fixtureは本人の値だけがpaid argv/planner証拠へ届く。portfolioの有無を能力whitelistにしない。既存事実・official readback・effect fenceは保持する。
 - [x] MAC03-BROWSER-RELEASE: 共有browser-guardのreleaseはleaseだけを解放し、既存tabを変更しない。authorized/wrong-holder両方のsweep呼出をRED再現し、自動sweep 3行を除く。既存lease ownership/beat/acquire/collision、callerのactor限定close_targetとcontext GCを保持する。独立review指摘0、関連29件と公開CI13項目PASS、PR #8723/main742479ee2e57b1ef6153ef780cc1d4628c22a4d6へ統合。main由来immutable候補から本人accountの公式観測まで実施する。
@@ -507,7 +513,9 @@ BUNDLE-GCの追加P1: fresh reviewerが絶対alias名dependency=alias with space
 - [x] INSTALL-REUSE-GREEN: 既存helperと既存donor検証を使う最小修復。manifest/lock差・不完全bundle・writable/reclaimed/Python不適格ではfresh側、真の初回とstrict currentを保持し、関連既存testsをPASSする。
 source受入の進捗: RED4b27221b36は8 FAIL/9 PASS（7.89s）で、全再利用4条件と一部再利用4条件がfresh測定へ全2rootsを渡す実assertで失敗する。修復d6fd47043edb0effe62bab7d65ac618cc5dc22e5はrelease_capacity内のnet18行だけで既存検証/変更依存予算を共用し、限定17 PASS（16.67s）、workerの関連host file全体63 PASS（16.62s）、AST/diff/source境界PASS、remote一致である。source SHA256=41839bb2edc6ee81d91088b7f28e9a319c1bea76ebb5334ad25e77dfe6c05e14、test SHA256=2d2bdcb193b716caf52abdd60f4547dc1115ff564f05662ccd9b4c0b23ecf796。primaryの隔離HOMEと明示temp LaunchAgentsによるhostdisk/cutrelease/cutpressureの3filesは129 PASS/20subtests（58.68s）、AST/diff/source-boundary/OSS self-containedはPASS。fresh-context read-only reviewerは関連28 PASSと独立fixture5シナリオ（7roots別donor、部分reuse加算、測定0のflag、測定不能拒否、不正current fallback禁止）PASSでblocking0/SHIP、検証前後の上記SHA256一致を確認する。最終exact-head CI/main/実再利用は未完。
 
-- [ ] INSTALL-REUSE-SHIP: fresh read-only review、exact-head既存13jobs success、main/public byte照合を受け入れる。
+- [x] INSTALL-REUSE-SHIP: fresh read-only review、exact-head既存13jobs success、main/public byte照合を受け入れる。
+公開source受入: PR #8807/head9b2b7b171a5f70bf826787d12147b28d7f732310、Security Scan run40043647452/attempt1はprimaryと独立monitorの公式確認で総13/全13completed-success/未完・失敗0。match-head指定admin squashでmainc97cad55188c661d801a94f936395663276fbe07へ統合し、公開source41839bb2/test2d2bdcb1と本INSTALL-REUSE節はreview済みbyteと一致する。sourceは完了、actualは未完のまま維持する。
+
 - [ ] INSTALL-REUSE-ACTUAL: accepted main由来の同じcutter経路で自所有公開導入先の既存依存を再利用し、容量測定・install flag・release作成をreadbackする。未取得の別Mac成果を断定しない。
 
 #### Lancers本人入力の実装計画
