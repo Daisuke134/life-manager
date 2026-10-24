@@ -4,9 +4,9 @@
 
 **The open-source, no-human-in-the-loop money printer that builds and runs businesses on your Mac.**
 
-After you connect the required accounts, Life Manager's agents build and run businesses themselves: finding opportunities, launching offers, serving customers, and generating revenue without a human in the loop.
+Connect the required accounts once. Life Manager's agents find opportunities, build new businesses, launch offers, and serve customers without ongoing human input, with the goal of earning revenue on their own.
 
-> **Early development:** Full autonomy and verified profit are not yet proven across the businesses below. Check the [agent catalog](docs/agents.md) for current capabilities.
+> **Early development:** Autonomous operation and verified profit are goals, not proven results across the businesses below. Check the [agent catalog](docs/agents.md) for current capabilities.
 
 [日本語](README.ja.md) · [Setup guide](docs/getting-started.md) · [Agent catalog](docs/agents.md)
 
