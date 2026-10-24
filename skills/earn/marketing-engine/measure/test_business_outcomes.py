@@ -344,7 +344,9 @@ class ProjectScopedRevenueCatTest(unittest.TestCase):
             self.assertNotIn("fixture-", url)
             if parsed.path.endswith("/products"):
                 if products_denied:
-                    raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+                    error = urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+                    error.close()
+                    raise error
                 return {"items": []}
             if parsed.path.endswith("/options"):
                 return {"filters": [{"id": "app_id", "options": [{"id": app}]}]}
@@ -399,6 +401,22 @@ class ProjectScopedRevenueCatTest(unittest.TestCase):
         conversion = source["data"]["charts"]["conversion_to_paying"]
         self.assertEqual(conversion["reason"], "product_query_failed")
         self.assertIsNone(conversion["data"])
+
+    def test_optional_conversion_failure_keeps_verified_mrr(self):
+        route = self.ROUTES[2]
+        get = self.chart_get(route)
+        def conversion_denied(url, headers):
+            if "/products?" in url:
+                return {"items": [{"id": "product-fixture", "app_id": "appd13f39e1cf"}]}
+            if "/conversion_to_paying/" in url:
+                raise PermissionError("fixture-secret-must-not-appear")
+            return get(url, headers)
+        row = self.snapshot(route[0], self.credentials(), conversion_denied)
+        source = row["sources"]["revenuecat"]
+        self.assertEqual(source["status"], "available")
+        self.assertEqual(source["data"]["charts"]["mrr"]["latest_complete"]["MRR"]["value"], 0)
+        self.assertEqual(source["data"]["charts"]["conversion_to_paying"]["reason"], "conversion_query_failed")
+        self.assertNotIn("fixture-secret", json.dumps(row))
 
 
 class AppStoreContractTest(unittest.TestCase):
