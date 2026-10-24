@@ -581,6 +581,8 @@ RECYCLE-REGISTRY-ACTUALの次の診断: 旧cursorの自然待機再観測から�
 
 RELEASE-REFERENCES RED: 通常file40件のnative lstat累積費用を既存の合成時計へ反映すると、旧実装は同じ15秒予算を超えてGC exit1/TimeoutExpired/削除0となる。新3testsは1FAIL/2PASS（失敗/期限切れ3subcasesはPASS）で、深いfile/directoryリンクと循環リンク非追跡の保護は旧実装でも保持する。source修正前にREDを確認する。
 
+RELEASE-REFERENCES GREEN: _bundle_referencesの走査19行だけを変更し、DirEntryのis_symlinkを先に評価し、実directoryだけをstackへ積む。各entryと各directoryで同じdeadlineを確認し、scandir例外は既存のfail-closed境界へ渡す。新3件/失敗境界3subcasesがPASS、既存CentralReleaseBundleGC・release_gc_fail_closed・release_source_reclaim・loop_cleanupは計143PASS/25subtests PASS/24.06s。contractは18/192/113/errors0、diff check PASS。cut全体のarchive系検証はこのsource commit後に実行し、独立review/CI/main/実機受入は未完。
+
 - [ ] MAC03-CROWDWORKS-IDENTITY: 既存private本人profileとLancersの入力検証を比較し、空HOME/欠損・破損で作者ID・作者の実績・画像を本人として使わない。setup_requiredをprovider/planner前に返し、設定済みの別account fixtureでは本人の値だけをapplication/reply/paidへ渡す。既存の公開catalog・browser ownership・effect fenceを保持し、新しいidentity frameworkを作らない。source所有の正確なfiles/functionsは全caller確認後、実装前にこの節へ記録する。実credential/profile/browser/providerはsource検証で使用しない。
 
 #### Lancers本人入力の実装計画

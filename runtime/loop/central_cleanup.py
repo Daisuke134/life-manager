@@ -672,16 +672,19 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
         min(4, max(.01, deadline-time.monotonic())), owned_fds, uid=os.getuid())))
     protected = {path.resolve() for path in releases.iterdir()
                  if path.is_dir() and any(str(path) in value or str(path.resolve()) in value for value in values)}
-    errors = []
-    for folder, directories, files in os.walk(releases, followlinks=False, onerror=errors.append):
+    pending = [releases]
+    while pending:
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired("release dependency links", 0)
-        for name in directories + files:
-            path = Path(folder) / name
-            if path.is_symlink():
-                values.append(str(path.resolve()))
-    if errors:
-        raise errors[0]
+        # DirEntry retains the directory's type information without lstat on every leaf.
+        with os.scandir(pending.pop()) as entries:
+            for entry in entries:
+                if time.monotonic() >= deadline:
+                    raise subprocess.TimeoutExpired("release dependency links", 0)
+                if entry.is_symlink():
+                    values.append(str(Path(entry.path).resolve()))
+                elif entry.is_dir(follow_symlinks=False):
+                    pending.append(entry.path)
     return protected, values
 
 
