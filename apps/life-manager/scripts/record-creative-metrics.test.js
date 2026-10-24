@@ -68,7 +68,7 @@ function write24hMetricSnapshot(dataDir, { owner, postId, providerPostId, platfo
   fs.writeFileSync(path.join(directory, "24h.combined.json"), JSON.stringify({
     schema_version: 1, tenant_id: "dais-local", kind, product_id: "anicca-ios", locale: "en", account_id: accountId,
     provider_post_id: providerPostId, public_url: publicUrl, window: "24h",
-    observed_at: "2026-10-12T12:00:00.000Z", post,
+    observed_at: "2026-10-12T12:00:00.000Z", published_at: "2026-10-11T12:00:00.000Z", post,
   }), { mode: 0o600 });
 }
 
@@ -220,4 +220,92 @@ test("recordCreativeMetrics leaves empty Postiz analytics pending instead of rec
   assert.deepEqual(result.pending, ["post-1"]);
   assert.equal(result.recorded.length, 0);
   assert.equal(readCreativeMetrics(dataDir).length, 0);
+});
+
+
+test("native 24h learning records exact account views for hook selection without API calls", async () => {
+  const dataDir = tmpDir();
+  const base = "AN-EN-001-aaaaaaaaaaaa";
+  const publicUrl = "https://www.instagram.com/reel/ABC123/";
+  writeReceiptLedger(dataDir, [
+    generationRow({ jobId: "g1", hookId: "AN-EN-001", creativeId: base, productId: "anicca-ios", formatId: "larry", locale: "en" }),
+    publicationRow({ jobId: "p1", creativeId: `${base}-20261012`, providerPostId: "post-instagram", productId: "anicca-ios", formatId: "larry", locale: "en", platform: "instagram", publicUrl, providerReconciled: true }),
+  ]);
+  write24hMetricSnapshot(dataDir, { owner: "anicca.en", postId: "ABC123", providerPostId: "post-instagram", platform: "instagram", accountId: "@anicca.en", publicUrl,
+    post: { views: { status: "measured", value: 200 }, likes: { status: "measured", value: 50 } } });
+  const nativeAccount = { platform: "instagram", accountId: "@anicca.en" };
+  const options = { dataDir, tenantId: "dais-local", productId: "anicca-ios", formatId: "larry", locale: "en", nativeAccount,
+    fetchAnalytics: async () => { throw new Error("native learning must not fetch analytics"); } };
+  const first = await recordCreativeMetrics(options);
+  assert.equal(first.recorded.length, 1);
+  assert.equal(first.recorded[0].score, 200);
+  assert.equal(first.recorded[0].account_id, "@anicca.en");
+  assert.equal(first.recorded[0].metric, "views");
+  assert.equal(first.recorded[0].window, "24h");
+  assert.equal(first.recorded[0].observed_at, "2026-10-12T12:00:00.000Z");
+  assert.deepEqual((await recordCreativeMetrics(options)).recorded, []);
+  const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
+  const scope = { tenantId: "dais-local", productId: "anicca-ios", formatId: "larry", locale: "en" };
+  assert.deepEqual(await createCreativeMetricsProvider(dataDir, nativeAccount).list(scope), [{ hook_id: "AN-EN-001", score: 200 }]);
+  assert.deepEqual(await createCreativeMetricsProvider(dataDir, { platform: "instagram", accountId: "@other" }).list(scope), []);
+  assert.deepEqual(await createCreativeMetricsProvider(dataDir, { platform: "tiktok", accountId: "@anicca.en" }).list(scope), []);
+});
+
+for (const bad of ["other_account", "unreconciled", "missing_views", "ambiguous", "too_early", "too_late"]) {
+  test(`native 24h learning leaves ${bad} out of hook scores`, async () => {
+    const dataDir = tmpDir(); const base = "AN-EN-001-aaaaaaaaaaaa";
+    const publicUrl = "https://www.instagram.com/reel/ABC123/";
+    writeReceiptLedger(dataDir, [
+      generationRow({ jobId: "g1", hookId: "AN-EN-001", creativeId: base, productId: "anicca-ios", formatId: "larry", locale: "en" }),
+      publicationRow({ jobId: "p1", creativeId: `${base}-20261012`, providerPostId: "post-instagram", productId: "anicca-ios", formatId: "larry", locale: "en", platform: "instagram", publicUrl, providerReconciled: bad !== "unreconciled" }),
+    ]);
+    const snapshot = { owner: "anicca.en", postId: "ABC123", providerPostId: "post-instagram", platform: "instagram", accountId: bad === "other_account" ? "@other" : "@anicca.en", publicUrl,
+      post: { views: bad === "missing_views" ? { status: "unavailable", value: null, reason: "missing" } : { status: "measured", value: 200 } } };
+    write24hMetricSnapshot(dataDir, snapshot);
+    if (bad === "ambiguous") write24hMetricSnapshot(dataDir, { ...snapshot, owner: "duplicate" });
+    if (bad === "too_early" || bad === "too_late") {
+      const file = path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.en/ABC123/24h.combined.json");
+      const value = JSON.parse(fs.readFileSync(file));
+      value.published_at = bad === "too_early" ? "2026-10-12T11:00:00.000Z" : "2026-10-01T12:00:00.000Z";
+      fs.writeFileSync(file, JSON.stringify(value));
+    }
+
+    const result = await recordCreativeMetrics({ dataDir, tenantId: "dais-local", productId: "anicca-ios", formatId: "larry", locale: "en",
+      nativeAccount: { platform: "instagram", accountId: "@anicca.en" }, fetchAnalytics: async () => { throw new Error("must not fetch"); } });
+    assert.deepEqual(result.recorded, []);
+    assert.deepEqual(readCreativeMetrics(dataDir), []);
+  });
+}
+
+
+test("native account scores prefer the stronger hook and the production cycle ingests them before generation", async () => {
+  const dataDir = tmpDir(); const nativeAccount = { platform: "instagram", accountId: "@anicca.en" };
+  const rows = [];
+  for (const [suffix, views] of [["001", 10], ["002", 200]]) {
+    const base = `AN-EN-${suffix}-aaaaaaaaaaaa`; const publicUrl = `https://www.instagram.com/reel/P${suffix}/`;
+    rows.push(generationRow({ jobId: `g${suffix}`, hookId: `AN-EN-${suffix}`, creativeId: base, productId: "anicca-ios", formatId: "reelclaw-widget", locale: "en" }),
+      publicationRow({ jobId: `p${suffix}`, creativeId: `${base}-20261012`, providerPostId: `post-${suffix}`, productId: "anicca-ios", formatId: "reelclaw-widget", locale: "en", platform: "instagram", publicUrl, providerReconciled: true }));
+    write24hMetricSnapshot(dataDir, { owner: "anicca.en", postId: `P${suffix}`, providerPostId: `post-${suffix}`, platform: "instagram", accountId: "@anicca.en", publicUrl, post: { views: { status: "measured", value: views } } });
+  }
+  writeReceiptLedger(dataDir, rows);
+  const { runHonneJaCycle } = require("./honne-ja-cycle.js");
+  const { createContentObjectStore } = require("../lib/content-object-store.js");
+  const { selectHook } = require("../lib/marketing-video-generation-adapter.js");
+  const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
+  const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
+  const source = path.join(dataDir, "approval.json");
+  fs.writeFileSync(source, JSON.stringify({ scope: "standing", product_id: "anicca-ios", locale: "en", platform: "instagram", account: "@anicca.en" }));
+  const ref = objectStore.import(source).ref;
+  const pack = { product_id: "anicca-ios", format_id: "reelclaw-widget", locale: "en", hooks: [{ id: "AN-EN-001" }, { id: "AN-EN-002" }] };
+  assert.equal(selectHook(pack, [], []).id, "AN-EN-001");
+  await assert.rejects(runHonneJaCycle(["run-anicca-en-widget-instagram"], {
+    dataDir, nowMs: Date.parse("2026-10-13T01:00:00.000Z"),
+    env: { LM_RUNTIME_TENANT_ID: "dais-local", LM_ANICCA_EN_WIDGET_PRODUCTION_PACK_REF: ref, LM_ANICCA_EN_WIDGET_PRODUCTION_MEDIA_REFS: ref, LM_ANICCA_EN_WIDGET_PRODUCTION_APPROVAL_REF: ref },
+    store: { async enqueueJob() { return { created: true }; }, async readReceipt() {
+      const metrics = await createCreativeMetricsProvider(dataDir, nativeAccount).list({ tenantId: "dais-local", productId: "anicca-ios", formatId: "reelclaw-widget", locale: "en" });
+      assert.equal(metrics.length, 2);
+      assert.equal(selectHook(pack, [], metrics).id, "AN-EN-002");
+      throw new Error("stop_before_render_and_publish");
+    } },
+  }), /stop_before_render_and_publish/);
 });

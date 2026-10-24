@@ -49,6 +49,14 @@ function recordCreativeMetric(dataDir, input = {}) {
       if (!PROVIDER_POST_ID.test(text)) throw new Error("creative metric provider_post_id is invalid");
       return text;
     })(),
+    ...(input.nativeAccount ? {
+      account_id: (() => {
+        if (!/^@[A-Za-z0-9._-]{1,127}$/.test(input.nativeAccount.accountId || "")) throw new Error("creative metric account is invalid");
+        return input.nativeAccount.accountId;
+      })(),
+      platform: identifier(input.nativeAccount.platform, "creative metric platform"),
+      window: "24h", metric: "views",
+    } : {}),
     score: (() => {
       const value = Number(input.score);
       if (!Number.isFinite(value) || value < 0) throw new Error("creative metric score is invalid");
@@ -75,7 +83,7 @@ function readCreativeMetrics(dataDir) {
 
 // Returns a historyProvider-shaped { list } that marketing-video-generation-adapter's
 // execute() can call to bias hook selection toward hooks with a better recorded score.
-function createCreativeMetricsProvider(dataDir) {
+function createCreativeMetricsProvider(dataDir, nativeAccount = null) {
   return {
     async list({ tenantId, productId, formatId, locale: localeId }) {
       const rows = readCreativeMetrics(dataDir).filter((row) => (
@@ -83,6 +91,8 @@ function createCreativeMetricsProvider(dataDir) {
         && row.product_id === productId
         && row.format_id === formatId
         && row.locale === localeId
+        && (!nativeAccount || (row.account_id === nativeAccount.accountId
+          && row.platform === nativeAccount.platform && row.window === "24h" && row.metric === "views"))
       ));
       const byHook = new Map();
       for (const row of rows) {

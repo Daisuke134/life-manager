@@ -143,7 +143,7 @@ function buildNativeMetricJoins(dataDir, publications, generations, expected) {
     const snapshot = candidates[0];
     const metrics = Object.fromEntries(NATIVE_METRIC_FIELDS.map((field) => [field, nativeMetricValue(snapshot.post?.[field])]));
     const status = Object.values(metrics).some((metric) => metric.status === "measured") ? "measured" : "unavailable";
-    return { ...base, account_id: snapshot.account_id, status, reason: status === "measured" ? null : "supported_native_metrics_unavailable", observed_at: snapshot.observed_at, metrics };
+    return { ...base, account_id: snapshot.account_id, status, reason: status === "measured" ? null : "supported_native_metrics_unavailable", observed_at: snapshot.observed_at, published_at: snapshot.published_at, metrics };
   });
   return joins;
 }
@@ -193,6 +193,7 @@ async function recordCreativeMetrics(options = {}) {
     env = process.env,
     fetchAnalytics = fetchPostizPostAnalytics,
     now = () => new Date().toISOString(),
+    nativeAccount = null,
   } = options;
   const generations = readWrappedReceipts(dataDir, "marketing_video_artifact").filter((row) => (
     row.tenant_id === tenantId
@@ -215,12 +216,30 @@ async function recordCreativeMetrics(options = {}) {
         && row.product_id === productId
         && row.format_id === formatId
         && row.locale === locale
+        && (!nativeAccount || (row.account_id === nativeAccount.accountId && row.platform === nativeAccount.platform
+          && row.window === "24h" && row.metric === "views"))
       ))
       .map((row) => row.provider_post_id),
   );
   const recorded = [];
   const skipped = [];
   const pending = [];
+  const nativeMetricJoins = buildNativeMetricJoins(dataDir, publications, generations, { tenantId, productId, formatId, locale });
+  if (nativeAccount) {
+    for (const row of nativeMetricJoins) {
+      const age = Date.parse(row.observed_at) - Date.parse(row.published_at);
+      if (row.account_id !== nativeAccount.accountId || row.platform !== nativeAccount.platform
+        || row.status !== "measured" || row.metrics.views.status !== "measured"
+        || !(age >= 86400000 && age <= 93600000) || alreadyRecorded.has(row.provider_post_id)) continue;
+      recorded.push(recordCreativeMetric(dataDir, {
+        tenantId, productId, formatId, locale, nativeAccount,
+        hookId: row.arm_id, providerPostId: row.provider_post_id,
+        score: row.metrics.views.value, observedAt: new Date(row.observed_at).toISOString(),
+      }));
+      alreadyRecorded.add(row.provider_post_id);
+    }
+    return { recorded, skipped, pending, native_metric_joins: nativeMetricJoins, arm_comparisons: compareNativeMetricArms(nativeMetricJoins) };
+  }
   for (const publication of publications) {
     const providerPostId = publication.receipt.provider_post_id;
     if (alreadyRecorded.has(providerPostId)) continue;
@@ -243,7 +262,6 @@ async function recordCreativeMetrics(options = {}) {
     });
     recorded.push(row);
   }
-  const nativeMetricJoins = buildNativeMetricJoins(dataDir, publications, generations, { tenantId, productId, formatId, locale });
   return { recorded, skipped, pending, native_metric_joins: nativeMetricJoins, arm_comparisons: compareNativeMetricArms(nativeMetricJoins) };
 }
 
