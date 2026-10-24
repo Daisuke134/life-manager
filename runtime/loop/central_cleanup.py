@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import math
 import os
@@ -26,6 +27,19 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 RECONCILE_CALL_TAIL_BYTES = 4 * 1024 * 1024
+SCRATCH_GC_CANDIDATE_BUDGET = 6000
+SCRATCH_GC_TIME_BUDGET_SECONDS = 60
+# The 60-second budget applies to candidate evaluation. Preflight has separate
+# size caps; the largest observed host has 105 roots, 76,979 candidates total,
+# and 11,090 candidates in one root. Oversized inventories defer before deletion.
+SCRATCH_GC_ROOT_LIMIT = 128
+SCRATCH_GC_DIRECTORY_ENTRY_LIMIT = 20_000
+SCRATCH_GC_ROOT_CANDIDATE_LIMIT = 20_000
+SCRATCH_GC_TOTAL_CANDIDATE_LIMIT = 100_000
+SCRATCH_GC_EVENT_LOG_MAX_BYTES = 20 * 1024 * 1024
+SCRATCH_GC_EVENT_LINE_MAX_BYTES = 1024 * 1024
+SCRATCH_GC_OWNER_MAX_BYTES = 64 * 1024
+_EVENT_LOOP_ID_FIELD = re.compile(rb'"loop_id"\s*:\s*("(?:\\.|[^"\\])*")')
 
 from runtime.loop.loop_cleanup import (
     gc_releases, remove_owned_tree, reclaim_release_source, release_is_reclaimed,
@@ -71,42 +85,96 @@ def no_effect_loop_ids(registry_path: Path) -> set[str]:
 
 
 def recorded_run_metadata(
-        events_path: Path, loop_ids: set[str]
-        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None,
-                                        str | None, str | None, str | None]]:
+        events_path: Path, loop_ids: set[str], *,
+        candidate_keys: set[tuple[str, str]] | None = None,
+        ) -> tuple[dict[tuple[str, str], tuple[str | None, str | None, str | None,
+                                             str | None, str | None, str | None]],
+                   str | None]:
+    """Read bounded effect metadata; return a reason when coverage is incomplete."""
     observed: dict[tuple[str, str], set[tuple[str | None, str | None, str | None]]] = {}
     latest_effect: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
+    descriptor = -1
     try:
-        with events_path.open(encoding="utf-8") as handle:
-            for line in handle:
+        descriptor = os.open(
+            events_path, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+            return {}, "event_log_untrusted"
+        if info.st_size > SCRATCH_GC_EVENT_LOG_MAX_BYTES:
+            return {}, "event_file_budget"
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = -1
+            total_bytes = 0
+            while True:
+                line = handle.readline(SCRATCH_GC_EVENT_LINE_MAX_BYTES + 1)
+                if not line:
+                    break
+                total_bytes += len(line)
+                if len(line) > SCRATCH_GC_EVENT_LINE_MAX_BYTES:
+                    return {}, "event_line_budget"
+                if total_bytes > SCRATCH_GC_EVENT_LOG_MAX_BYTES:
+                    return {}, "event_file_budget"
                 if not line.strip():
+                    continue
+                loop_matches = []
+                for match in _EVENT_LOOP_ID_FIELD.finditer(line):
+                    try:
+                        value = json.loads(match.group(1))
+                    except (UnicodeError, json.JSONDecodeError):
+                        return {}, "event_log_invalid"
+                    if isinstance(value, str):
+                        loop_matches.append(value)
+                if not loop_matches:
+                    # Valid legacy records without loop_id are irrelevant; malformed
+                    # records without a parseable owner key make coverage unknown.
+                    try:
+                        event = json.loads(line)
+                    except (UnicodeError, json.JSONDecodeError):
+                        return {}, "event_log_invalid"
+                    if isinstance(event, dict) and not isinstance(event.get("loop_id"), str):
+                        continue
+                    return {}, "event_log_invalid"
+                if not any(loop_id in loop_ids for loop_id in loop_matches):
                     continue
                 try:
                     event = json.loads(line)
                 except (UnicodeError, json.JSONDecodeError):
-                    return {}
+                    return {}, "event_log_invalid"
                 if not isinstance(event, dict):
-                    return {}
+                    return {}, "event_log_invalid"
                 loop_id, run_id, effect_class, occurrence_id, release_sha = (
                     event.get("loop_id"), event.get("run_id"), event.get("effect_class"),
                     event.get("occurrence_id"), event.get("release_sha"))
                 if not isinstance(loop_id, str) or loop_id not in loop_ids:
                     continue
                 if not isinstance(run_id, str):
-                    return {}
+                    return {}, "event_log_invalid"
                 key = (loop_id, run_id)
-                observed.setdefault(key, set()).add((
+                if candidate_keys is not None and key not in candidate_keys:
+                    continue
+                values = observed.setdefault(key, set())
+                values.add((
                     effect_class if isinstance(effect_class, str) else None,
                     occurrence_id if isinstance(occurrence_id, str) else None,
                     release_sha if isinstance(release_sha, str) else None,
                 ))
+                # Two distinct rows are enough to make a field ambiguous; keeping
+                # more would grow memory with event history without changing the
+                # fail-closed result.
+                if len(values) > 2:
+                    values.pop()
                 latest_effect[key] = (
                     event.get("effect_status") if isinstance(event.get("effect_status"), str) else None,
                     event.get("provider_receipt_id") if isinstance(event.get("provider_receipt_id"), str) else None,
                     event.get("official_readback_ref") if isinstance(event.get("official_readback_ref"), str) else None,
                 )
-    except (OSError, UnicodeError):
-        return {}
+    except FileNotFoundError:
+        return {}, None
+    except OSError:
+        return {}, "event_log_unavailable"
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
     result: dict[tuple[str, str], tuple[str | None, str | None, str | None,
                                         str | None, str | None, str | None]] = {}
     for key, values in observed.items():
@@ -118,7 +186,24 @@ def recorded_run_metadata(
             next(iter(releases)) if len(releases) == 1 and None not in releases else None,
             *latest_effect.get(key, (None, None, None)),
         )
-    return result
+    return result, None
+
+
+def _scratch_gc_directory_names(
+        descriptor: int,
+        ) -> tuple[list[str], str | None, int]:
+    """Return a bounded, sorted directory inventory or a fail-closed reason."""
+    names = []
+    try:
+        with os.scandir(descriptor) as entries:
+            for entry in entries:
+                names.append(entry.name)
+                if len(names) > SCRATCH_GC_DIRECTORY_ENTRY_LIMIT:
+                    return [], "directory_entry_budget", len(names)
+    except OSError:
+        raise
+    names.sort()
+    return names, None, len(names)
 
 
 def closed_reconcile_occurrences(path: Path, *, max_bytes: int = RECONCILE_CALL_TAIL_BYTES
@@ -222,169 +307,404 @@ def _diagnostic_relay_live(run_fd: int, starts: dict | None, loop_id: str, run_i
         if directory >= 0: os.close(directory)
 
 
+def _scratch_gc_read_cursor(path: Path | None, root_keys: set[str]):
+    if path is None:
+        return None
+    descriptor = -1
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or info.st_size > 4096
+                or stat.S_IMODE(info.st_mode) != 0o600):
+            return None
+        payload = os.read(descriptor, 4097)
+        if len(payload) > 4096:
+            return None
+        value = json.loads(payload)
+        if not isinstance(value, dict) or not value:
+            return None
+        root, loop, run = value.get("root"), value.get("loop"), value.get("run")
+        if (not isinstance(root, str) or root not in root_keys
+                or any(not isinstance(name, str) or not name or name in {".", ".."}
+                       or "/" in name for name in (loop, run))):
+            return None
+        return root, loop, run
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _scratch_gc_after(items: list[str], anchor: str) -> list[str]:
+    """Rotate a sorted candidate list to the first item after its prior cursor."""
+    index = next((index for index, item in enumerate(items) if item > anchor), None)
+    if index is None:
+        return items
+    return items[index:] + items[:index]
+
+
+def _scratch_gc_write_cursor(path: Path | None, cursor) -> None:
+    if path is None:
+        return
+    from runtime.loop.lm_loop import _atomic_private_json
+    value = ({"root": cursor[0], "loop": cursor[1], "run": cursor[2]}
+             if cursor is not None else {})
+    _atomic_private_json(path, value)
+
+
 def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                starts: dict[int, str] | None = None,
                no_effect_loop_ids: set[str] | frozenset[str] = frozenset(),
                reconciled_occurrences: set[tuple[str, str, str]] | frozenset[tuple[str, str, str]] = frozenset(),
-               ) -> dict[str, int | bool]:
-    """Delete only crashed per-run scratch whose process identity is provably stale."""
+               cursor_path: Path | None = None,
+               candidate_budget: int | None = None,
+               time_budget_seconds: float | None = None,
+               ) -> dict[str, int | bool | str]:
+    """Delete stale scratch with bounded preflight and candidate evaluation."""
+    if ((candidate_budget is not None and
+         (type(candidate_budget) is not int or candidate_budget <= 0))
+            or (time_budget_seconds is not None
+                and (not isinstance(time_budget_seconds, (int, float))
+                     or not math.isfinite(time_budget_seconds) or time_budget_seconds <= 0))
+            or ((candidate_budget is not None or time_budget_seconds is not None)
+                and cursor_path is None)):
+        raise ValueError("bounded scratch GC requires positive budgets and a cursor path")
     started_ns = time.time_ns() if snapshot_started_ns is None else snapshot_started_ns
+    scan_deadline = None
     identities = process_starts() if starts is None else starts
-    result: dict[str, int | bool] = {
+    result: dict[str, int | bool | str] = {
         "evaluated": 0, "removed": 0, "preserved": 0, "errors": 0,
+        "scanned": 0, "preprocessed_entries": 0, "deferred": False,
+        "blocking_defer": False,
         "owner_metadata_invalid": 0,
         "contents_reclaimed": 0,
         "identity_snapshot_available": identities is not None,
     }
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     nofollow = getattr(os, "O_NOFOLLOW", 0)
-    for root in roots:
+    root_map = {str(root.resolve()): root for root in roots}
+    root_keys = sorted(root_map)
+    if len(root_keys) > SCRATCH_GC_ROOT_LIMIT:
+        result["deferred"] = True
+        result["blocking_defer"] = True
+        result["budget_reason"] = "root_budget"
+        return result
+    cursor = _scratch_gc_read_cursor(cursor_path, set(root_keys))
+    inventories: dict[str, tuple[list[str], dict[str, list[str]]]] = {}
+    candidates: list[tuple[str, str, str]] = []
+    last_cursor = None
+    stop_reason = None
+
+    # Inventory candidates before deleting anything, then apply one cursor to
+    # the complete ordered set so nested loop/run boundaries cannot starve.
+    for root_key in root_keys:
+        root = root_map[root_key]
         root_fd = scratch_fd = -1
         try:
-            root_fd = os.open(root.resolve(), flags)
+            root_fd = os.open(root_key, flags)
             scratch_fd = os.open("loop-tmp", flags, dir_fd=root_fd)
-            loop_names = os.listdir(scratch_fd)
+            loop_names, inventory_reason, entry_count = _scratch_gc_directory_names(
+                scratch_fd)
+            result["preprocessed_entries"] += entry_count
         except FileNotFoundError:
             continue
         except OSError:
             result["errors"] += 1
             continue
         finally:
+            if scratch_fd >= 0:
+                os.close(scratch_fd)
             if root_fd >= 0:
                 os.close(root_fd)
-        event_metadata = recorded_run_metadata(root / "events.jsonl", set(loop_names))
-        try:
-            for loop_name in loop_names:
-                loop_fd = -1
-                try:
-                    loop_fd = os.open(loop_name, flags, dir_fd=scratch_fd)
-                    run_names = os.listdir(loop_fd)
-                except OSError:
-                    continue
-                try:
-                    for run_name in run_names:
-                        run_fd = owner_fd = -1
-                        try:
-                            run_fd = os.open(run_name, flags, dir_fd=loop_fd)
-                            owner_fd = os.open(
-                                ".owner.json", os.O_RDONLY | nofollow, dir_fd=run_fd)
-                        except (FileNotFoundError, NotADirectoryError):
-                            for descriptor in (owner_fd, run_fd):
-                                if descriptor >= 0:
-                                    os.close(descriptor)
-                            continue
-                        except OSError:
-                            result["errors"] += 1
-                            result["preserved"] += 1
-                            for descriptor in (owner_fd, run_fd):
-                                if descriptor >= 0:
-                                    os.close(descriptor)
-                            continue
-                        result["evaluated"] += 1
-                        if _diagnostic_relay_live(run_fd, identities, loop_name, run_name):
-                            os.close(owner_fd); os.close(run_fd)
-                            result["preserved"] += 1
-                            continue
-                        try:
-                            try:
-                                os.stat(".terminal-unrecorded", dir_fd=run_fd,
-                                        follow_symlinks=False)
-                            except FileNotFoundError:
-                                has_terminal_unrecorded = False
-                            else:
-                                has_terminal_unrecorded = True
-                            # Without this marker, lm_loop_run persisted the terminal event and
-                            # ordinary stale-owner GC may reclaim the completed scratch.
-                            owner_stat = os.fstat(owner_fd)
-                            owner_bytes = b""
-                            while chunk := os.read(owner_fd, 65536):
-                                owner_bytes += chunk
-                            owner = json.loads(owner_bytes)
-                            if not isinstance(owner, dict):
-                                raise ValueError("owner must be an object")
-                            pid, expected = owner.get("pid"), owner.get("process_start")
-                            if (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0
-                                    or not isinstance(expected, str) or not expected):
-                                raise ValueError("invalid owner identity")
-                            if "effect_class" in owner:
-                                owner_effect_class = owner["effect_class"]
-                                if (not isinstance(owner_effect_class, str)
-                                        or not owner_effect_class):
-                                    raise ValueError("invalid owner effect class")
-                            else:
-                                owner_effect_class = None
-                            event_key = (loop_name, run_name)
-                            metadata = event_metadata.get(event_key)
-                            (recorded_effect_class, occurrence_id, release_sha, effect_status,
-                             provider_receipt_id, official_readback_ref) = (
-                                metadata if metadata is not None else (None, None, None, None, None, None)
-                            )
-                            verified_close = (
-                                isinstance(occurrence_id, str)
-                                and isinstance(release_sha, str)
-                                and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
-                            )
-                            no_effect_without_reconcile = (
-                                recorded_effect_class == "none"
-                                and loop_name in no_effect_loop_ids
-                            )
-                            if has_terminal_unrecorded:
-                                if (event_key not in event_metadata
-                                        or recorded_effect_class is None
-                                        or (not no_effect_without_reconcile and not verified_close)
-                                        or (owner_effect_class is not None
-                                            and owner_effect_class != recorded_effect_class)):
-                                    result["preserved"] += 1
-                                    continue
-                            if metadata is not None:
-                                effect_is_closed = (
-                                    verified_close
-                                    or no_effect_without_reconcile
-                                    or (recorded_effect_class not in {None, "none"}
-                                        and effect_status == "not_applicable"
-                                        and not provider_receipt_id and not official_readback_ref)
-                                    or (recorded_effect_class not in {None, "none"}
-                                        and effect_status in {"verified", "reconciled"}
-                                        and provider_receipt_id and official_readback_ref)
-                                )
-                                if not effect_is_closed:
-                                    result["preserved"] += 1
-                                    continue
-                            if identities is None or owner_stat.st_mtime_ns >= started_ns:
-                                result["preserved"] += 1
-                                continue
-                            actual = identities.get(pid)
-                            if actual is not None and actual == expected:
-                                result["preserved"] += 1
-                                continue
-                            browser_live = _browser_profiles_live(
-                                root / "loop-tmp" / loop_name / run_name)
-                            if browser_live is not False:
-                                result["preserved"] += 1
-                                continue
-                            removal = remove_owned_tree(loop_fd, run_fd, run_name)
-                            if removal is True:
-                                result["removed"] += 1
-                            elif removal == "contents_reclaimed":
-                                result["contents_reclaimed"] += 1
-                                result["preserved"] += 1
-                            else:
-                                result["errors"] += 1
-                                result["preserved"] += 1
-                        except (TypeError, ValueError, json.JSONDecodeError):
-                            result["owner_metadata_invalid"] += 1
-                            result["preserved"] += 1
-                        except OSError:
-                            result["errors"] += 1
-                            result["preserved"] += 1
-                        finally:
-                            for descriptor in (owner_fd, run_fd):
-                                if descriptor >= 0:
-                                    os.close(descriptor)
-                finally:
+        if inventory_reason is not None:
+            stop_reason = inventory_reason
+            break
+
+        run_names_by_loop: dict[str, list[str]] = {}
+        root_candidate_count = 0
+        for loop_name in loop_names:
+            root_fd = scratch_fd = loop_fd = -1
+            try:
+                root_fd = os.open(root_key, flags)
+                scratch_fd = os.open("loop-tmp", flags, dir_fd=root_fd)
+                loop_fd = os.open(loop_name, flags, dir_fd=scratch_fd)
+                run_names, inventory_reason, entry_count = _scratch_gc_directory_names(
+                    loop_fd)
+                result["preprocessed_entries"] += entry_count
+            except OSError:
+                continue
+            finally:
+                if loop_fd >= 0:
                     os.close(loop_fd)
+                if scratch_fd >= 0:
+                    os.close(scratch_fd)
+                if root_fd >= 0:
+                    os.close(root_fd)
+            if inventory_reason is not None:
+                stop_reason = inventory_reason
+                break
+            root_candidate_count += len(run_names)
+            if root_candidate_count > SCRATCH_GC_ROOT_CANDIDATE_LIMIT:
+                stop_reason = "root_candidate_budget"
+                break
+            run_names_by_loop[loop_name] = run_names
+
+        if stop_reason is not None:
+            break
+        if len(candidates) + root_candidate_count > SCRATCH_GC_TOTAL_CANDIDATE_LIMIT:
+            stop_reason = "total_candidate_budget"
+            break
+        inventories[root_key] = (loop_names, run_names_by_loop)
+        candidates.extend(
+            (root_key, loop_name, run_name)
+            for loop_name, run_names in run_names_by_loop.items()
+            for run_name in run_names
+        )
+
+    if stop_reason is None and candidates:
+        candidates.sort()
+        if cursor is not None:
+            start_index = next(
+                (index for index, candidate in enumerate(candidates)
+                 if candidate > cursor),
+                0,
+            )
+            candidates = candidates[start_index:] + candidates[:start_index]
+
+        cursor_metadata = None
+        cursor_metadata_loaded = False
+        current_root_key = None
+        current_root_fd = current_scratch_fd = current_loop_fd = -1
+        current_loop_name = None
+        event_metadata = {}
+
+        try:
+            groups = itertools.groupby(
+                candidates, key=lambda candidate: (candidate[0], candidate[1]))
+            for (root_key, loop_name), candidate_group in groups:
+                if root_key != current_root_key:
+                    for descriptor in (current_loop_fd, current_scratch_fd, current_root_fd):
+                        if descriptor >= 0:
+                            os.close(descriptor)
+                    current_root_fd = current_scratch_fd = current_loop_fd = -1
+                    current_root_key = None
+                    current_loop_name = None
+                    root = root_map[root_key]
+                    try:
+                        current_root_fd = os.open(root_key, flags)
+                        current_scratch_fd = os.open(
+                            "loop-tmp", flags, dir_fd=current_root_fd)
+                    except FileNotFoundError:
+                        for descriptor in (current_scratch_fd, current_root_fd):
+                            if descriptor >= 0:
+                                os.close(descriptor)
+                        current_root_fd = current_scratch_fd = -1
+                        continue
+                    except OSError:
+                        result["errors"] += 1
+                        for descriptor in (current_scratch_fd, current_root_fd):
+                            if descriptor >= 0:
+                                os.close(descriptor)
+                        current_root_fd = current_scratch_fd = -1
+                        continue
+                    current_root_key = root_key
+                    loop_names, run_names_by_loop = inventories[root_key]
+                    if (cursor is not None and root_key == cursor[0]
+                            and cursor_metadata_loaded):
+                        event_metadata = cursor_metadata
+                    else:
+                        candidate_keys = {
+                            (candidate_loop, run_name)
+                            for candidate_loop, run_names in run_names_by_loop.items()
+                            for run_name in run_names
+                        }
+                        event_metadata, metadata_reason = recorded_run_metadata(
+                            root / "events.jsonl", set(loop_names),
+                            candidate_keys=candidate_keys)
+                        if root_key == (cursor[0] if cursor is not None else None):
+                            cursor_metadata = event_metadata
+                            cursor_metadata_loaded = True
+                        if metadata_reason is not None:
+                            if metadata_reason not in {
+                                "time_budget", "event_file_budget", "event_line_budget"
+                            }:
+                                result["errors"] += 1
+                            stop_reason = metadata_reason
+                            break
+
+                if loop_name != current_loop_name:
+                    if current_loop_fd >= 0:
+                        os.close(current_loop_fd)
+                    current_loop_fd = -1
+                    current_loop_name = loop_name
+                    try:
+                        current_loop_fd = os.open(
+                            loop_name, flags, dir_fd=current_scratch_fd)
+                    except OSError:
+                        continue
+
+                for candidate_root, candidate_loop, run_name in candidate_group:
+                    if current_loop_fd < 0:
+                        continue
+                    if (candidate_budget is not None
+                            and result["scanned"] >= candidate_budget):
+                        stop_reason = "candidate_budget"
+                        break
+                    if scan_deadline is None and time_budget_seconds is not None:
+                        scan_deadline = time.monotonic() + time_budget_seconds
+                    if scan_deadline is not None and time.monotonic() >= scan_deadline:
+                        stop_reason = "time_budget"
+                        break
+
+                    result["scanned"] += 1
+                    last_cursor = (candidate_root, candidate_loop, run_name)
+                    run_fd = owner_fd = -1
+                    try:
+                        run_fd = os.open(run_name, flags, dir_fd=current_loop_fd)
+                        owner_fd = os.open(
+                            ".owner.json", os.O_RDONLY | os.O_NONBLOCK | nofollow,
+                            dir_fd=run_fd)
+                    except (FileNotFoundError, NotADirectoryError):
+                        for descriptor in (owner_fd, run_fd):
+                            if descriptor >= 0:
+                                os.close(descriptor)
+                        continue
+                    except OSError:
+                        result["errors"] += 1
+                        result["preserved"] += 1
+                        for descriptor in (owner_fd, run_fd):
+                            if descriptor >= 0:
+                                os.close(descriptor)
+                        continue
+                    result["evaluated"] += 1
+                    if _diagnostic_relay_live(
+                            run_fd, identities, loop_name, run_name):
+                        os.close(owner_fd)
+                        os.close(run_fd)
+                        result["preserved"] += 1
+                        continue
+                    try:
+                        try:
+                            os.stat(".terminal-unrecorded", dir_fd=run_fd,
+                                    follow_symlinks=False)
+                        except FileNotFoundError:
+                            has_terminal_unrecorded = False
+                        else:
+                            has_terminal_unrecorded = True
+                        # Without this marker, lm_loop_run persisted the terminal event and
+                        # ordinary stale-owner GC may reclaim the completed scratch.
+                        owner_stat = os.fstat(owner_fd)
+                        if (not stat.S_ISREG(owner_stat.st_mode)
+                                or owner_stat.st_size > SCRATCH_GC_OWNER_MAX_BYTES):
+                            raise ValueError("owner metadata exceeds bounded size")
+                        owner_bytes = os.read(owner_fd, SCRATCH_GC_OWNER_MAX_BYTES + 1)
+                        if len(owner_bytes) > SCRATCH_GC_OWNER_MAX_BYTES:
+                            raise ValueError("owner metadata exceeds bounded size")
+                        owner = json.loads(owner_bytes)
+                        if not isinstance(owner, dict):
+                            raise ValueError("owner must be an object")
+                        pid, expected = owner.get("pid"), owner.get("process_start")
+                        if (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0
+                                or not isinstance(expected, str) or not expected):
+                            raise ValueError("invalid owner identity")
+                        if "effect_class" in owner:
+                            owner_effect_class = owner["effect_class"]
+                            if (not isinstance(owner_effect_class, str)
+                                    or not owner_effect_class):
+                                raise ValueError("invalid owner effect class")
+                        else:
+                            owner_effect_class = None
+                        event_key = (loop_name, run_name)
+                        metadata = event_metadata.get(event_key)
+                        (recorded_effect_class, occurrence_id, release_sha, effect_status,
+                         provider_receipt_id, official_readback_ref) = (
+                            metadata if metadata is not None else
+                            (None, None, None, None, None, None)
+                        )
+                        verified_close = (
+                            isinstance(occurrence_id, str)
+                            and isinstance(release_sha, str)
+                            and (loop_name, occurrence_id, release_sha)
+                            in reconciled_occurrences
+                        )
+                        no_effect_without_reconcile = (
+                            recorded_effect_class == "none"
+                            and loop_name in no_effect_loop_ids
+                        )
+                        if has_terminal_unrecorded:
+                            if (event_key not in event_metadata
+                                    or recorded_effect_class is None
+                                    or (not no_effect_without_reconcile and not verified_close)
+                                    or (owner_effect_class is not None
+                                        and owner_effect_class != recorded_effect_class)):
+                                result["preserved"] += 1
+                                continue
+                        if metadata is not None:
+                            effect_is_closed = (
+                                verified_close
+                                or no_effect_without_reconcile
+                                or (recorded_effect_class not in {None, "none"}
+                                    and effect_status == "not_applicable"
+                                    and not provider_receipt_id and not official_readback_ref)
+                                or (recorded_effect_class not in {None, "none"}
+                                    and effect_status in {"verified", "reconciled"}
+                                    and provider_receipt_id and official_readback_ref)
+                            )
+                            if not effect_is_closed:
+                                result["preserved"] += 1
+                                continue
+                        if identities is None or owner_stat.st_mtime_ns >= started_ns:
+                            result["preserved"] += 1
+                            continue
+                        actual = identities.get(pid)
+                        if actual is not None and actual == expected:
+                            result["preserved"] += 1
+                            continue
+                        browser_live = _browser_profiles_live(
+                            root / "loop-tmp" / loop_name / run_name)
+                        if browser_live is not False:
+                            result["preserved"] += 1
+                            continue
+                        removal = remove_owned_tree(current_loop_fd, run_fd, run_name)
+                        if removal is True:
+                            result["removed"] += 1
+                        elif removal == "contents_reclaimed":
+                            result["contents_reclaimed"] += 1
+                            result["preserved"] += 1
+                        else:
+                            result["errors"] += 1
+                            result["preserved"] += 1
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        result["owner_metadata_invalid"] += 1
+                        result["preserved"] += 1
+                    except OSError:
+                        result["errors"] += 1
+                        result["preserved"] += 1
+                    finally:
+                        for descriptor in (owner_fd, run_fd):
+                            if descriptor >= 0:
+                                os.close(descriptor)
+
+                if stop_reason is not None:
+                    break
         finally:
-            os.close(scratch_fd)
+            for descriptor in (current_loop_fd, current_scratch_fd, current_root_fd):
+                if descriptor >= 0:
+                    os.close(descriptor)
+    if stop_reason is not None:
+        result["deferred"] = True
+        result["blocking_defer"] = stop_reason not in {"candidate_budget", "time_budget"}
+        result["budget_reason"] = stop_reason
+        last_cursor = last_cursor or cursor
+    try:
+        _scratch_gc_write_cursor(cursor_path, last_cursor if stop_reason is not None else None)
+    except (OSError, RuntimeError, ValueError):
+        result["errors"] += 1
+        result["deferred"] = True
+        result["blocking_defer"] = True
+        result["budget_reason"] = "cursor_write_failed"
     return result
 
 
@@ -823,7 +1143,8 @@ def _gc_dependency_bundles(releases, current, agents, bundles, deadline) -> dict
 def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     """Collect releases and their unreferenced immutable dependency bundles."""
     result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
-              "preserved_releases": 0, "protected_deletions": 0, "errors": 0}
+              "preserved_releases": 0, "protected_deletions": 0, "errors": 0,
+              "deferred": 0}
     bundles = releases.parent / "dependency-bundles"
     deadline = time.monotonic() + 15
     try:
@@ -848,15 +1169,16 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
             if pins.is_dir():
                 protected |= {(releases / pin.name).resolve() for pin in pins.iterdir()}
             result = gc_releases(releases, current, keep=keep, protected=protected)
+            result.setdefault("deferred", 0)
             result["protected_release_count"] = len(protected)
             bundle_result = _gc_dependency_bundles(releases, current, agents, bundles, deadline)
             result["dependency_bundles"] = bundle_result
             result["reclaimed_bytes"] += bundle_result["reclaimed_bytes"]
             result["errors"] += bundle_result["errors"]
     except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
-        result["errors"] += 1
+        timed_out = isinstance(error, subprocess.TimeoutExpired)
         diagnostic = {"phase": "release_reference_check"}
-        if isinstance(error, subprocess.TimeoutExpired):
+        if timed_out:
             timeout_phases = {
                 "bundle references": "bundle_reference_deadline",
                 "plist references": "plist_reference_deadline",
@@ -878,16 +1200,27 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
             if (type(error.timeout) is int and error.timeout >= 0) or (
                     type(error.timeout) is float and math.isfinite(error.timeout) and error.timeout >= 0):
                 diagnostic["timeout_seconds"] = error.timeout
+            diagnostic["retryable"] = True
+            diagnostic["next_action"] = "retry_next_scheduled_run"
         elif isinstance(error, RuntimeError):
             diagnostic["phase"] = "lock_check"
-        result["dependency_bundles"] = {"status": "reference_or_lock_unavailable",
+        deferred = timed_out and diagnostic["phase"] == "reference_path_resolution"
+        if deferred:
+            result["deferred"] += 1
+        else:
+            result["errors"] += 1
+        result["dependency_bundles"] = {"status": "deferred" if deferred
+                                        else "reference_or_lock_unavailable",
                                         "error_class": type(error).__name__,
                                         "diagnostic": diagnostic}
     source_result = {"status": "not_needed"}
     if keep > 0:
         try:
-            if _current_release(current, releases) is not None and result["errors"] == 0:
+            if (_current_release(current, releases) is not None
+                    and result["errors"] == 0 and result["deferred"] == 0):
                 source_result = reclaim_unreferenced_source(releases, current, agents, keep)
+            elif result["deferred"]:
+                source_result = {"status": "deferred"}
         except (OSError, ValueError):
             source_result = {"status": "invalid_current"}
     result["source_reclaim"] = source_result
@@ -1286,7 +1619,7 @@ def main() -> int:
                                 keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
         except (OSError, ValueError) as error:
             print(json.dumps({"ok": False, "error": str(error)}, sort_keys=True)); return 1
-        result["ok"] = result["errors"] == 0
+        result["ok"] = result["errors"] == 0 and result.get("deferred", 0) == 0
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 0 if result["ok"] else 1
     git_result = git_duplicate_cleanup(Path(os.environ.get(
@@ -1316,8 +1649,13 @@ def main() -> int:
         installed_state_roots(agents), snapshot_started_ns=snapshot_started_ns,
         starts=process_starts(),
         no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"),
-        reconciled_occurrences=reconciled_occurrences)
-    result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
+        reconciled_occurrences=reconciled_occurrences,
+        cursor_path=home / ".local/state/life-manager/central-cleanup-scratch-cursor.json",
+        candidate_budget=SCRATCH_GC_CANDIDATE_BUDGET,
+        time_budget_seconds=SCRATCH_GC_TIME_BUDGET_SECONDS)
+    result.update({"ok": result["errors"] == 0 and result.get("deferred", 0) == 0
+                   and host_ok and scratch_result["errors"] == 0
+                   and not scratch_result.get("blocking_defer", False),
                    "git_cleanup": git_result,
                    "codex_storage": codex_result,
                    "admission_queue": queue_result,
