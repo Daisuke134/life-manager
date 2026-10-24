@@ -64,3 +64,16 @@ A05–A08は研究設計/私有入力準備として成立し、学習code実装
 既存のprivate `helpsteer2_watchdog.monitor`の固定sourceを再利用する。新しい常駐ownerや第二のmonitorは作らず、privateの薄いdurable shimがその関数を呼び、戻った後にconfig/monitor-terminalのSHAと実child wait/reap/PID不存在/group空をfsyncして記録する。外側の起動元shellの終了後にもshimが動くことを、標準Pythonのsleepだけのcanaryで確認した。native子はexit0、reaped/PID不存在/group空、elapsed2.440秒。新LLM/学習は0。
 
 新研究のterminal契約は、固定monitorが実際にnative子をwait/reapした記録と、戻り後のdurable operator terminal、正常save/inventoryを結ぶ。shim自身のreapを観測済みとはしない。旧SafetyBench v1の別outer-reap条件を事後変更せず、UNFINALIZEDを保持する。この新しい有限契約は、モデル学習開始前の独立review/外部freezeで別受入する。通常CIや事前の資源検査だけで実nativeの成功を推定しない。
+
+## 次のG7: 同じ入力を一回だけ生成する
+
+A10保存済みartifactを再学習・選別しない。Git外の事前proposalに沿い、pre50..100 × Control/Treatmentの102 contextを固定順でbase/単一adapterそれぞれ一回だけgreedy生成する。完全に同じ2-feature promptの結果だけを再利用し、参加者はdev584/evaluation762の全分母へ戻す。102 contextを102人と呼ばない。model generatorは個票・人labelを開かない。
+
+**Files/interfaces:** 新規`manager_core/costello_forecast_generate.py`は`contexts()`、`collect_contexts(generate, checkpoint)`、`expand_predictions(cases, report)`、`validate_generation_settings(settings)`、`run_generate(config_path)`を持つ。既存ForecastCase.prompt/parse_prediction/Prediction/score_predictions、PrivateCheckpoint、base asset/save inventoryとsource/monitor検証の形を再利用。新規`scripts/generate_costello_forecast.py`は静音CLI。新規`tests/test_costello_forecast_generate.py`は架空入力だけを使う。旧data/final16/学習entryを変えない。
+
+- context開始をcheckpoint後、返答を保存。途中終了の開始済み未返答はUNKNOWN、未着手はNOT_RUN、JSON不正はINVALID。修復・clipping・retry・resumeなし。過長rawはprivate生成記録にだけ残し、Predictionの上限を緩めない。
+- settingsはdo_sample=false / num_beams1 / max_new_tokens16 / use_cache=true / seed42 / batch1。model.eval/inference_mode、CPU BF16/eager/threads2、local_files_only/trust_remote_code=false。Transformers標準generateを使い、独自decoder/cacheを作らない。
+- admissionはroot0400・exact-source commit/closure・固定base assets/packages・別G7用途/review/公式CI・評価前adapter freeze/inventory・実RUNNING native monitorをML import前に検査する。outputはfresh private、全世界実行can_execute=false。別armの結果や旧学習configをG7許可に流用しない。
+- 時間/RSSの案は1800秒/5GiB **per arm**。実資源の再確認後に別freeze。対象modelのgeneration throughputは未測定でも、この保守的な有限上限を採択できるが、完走を保証しない。部分結果なら全参加者へ状態を伝播し、優位を主張しない。throughput測定のために事前に新modelを採点しない。
+
+**Verification:** 先に新testを実行しmissing generatorのREDを観測→最小実装→GREEN。102 context順序、label/ID非入力、同feature別人の分母維持、不正/過長/途中中断の状態、異なるcontext/重複journalの拒否、静音CLI、import時MLなしを検証。`python3 -B -m unittest discover -s tests -p 'test_costello_forecast*.py'`のfocused後、`python3 -B -m unittest discover -s tests`を全実行。fresh whole-code review・exact-source通常CI後にのみ別G7 freeze/実行し、実terminalと完全journalを確認してからoperatorが人labelへ照合する。
