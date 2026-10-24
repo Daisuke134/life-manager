@@ -1,73 +1,96 @@
-# Honne (本音翻訳AI) launch kit
+# Honne (本音翻訳AI) launch kit (1.0.5)
 
-- App Store: `https://apps.apple.com/jp/app/id6759667221` → post with `<APP_STORE_URL>` (campaign link, `ct=honne-launch-x-<n>`)
-- Version in review: 1.0.5 (build 202610240347), submitted 2026-10-24 04:40 JST.
-- Approved claims only: analyzes pasted conversation text; suggests possible emotional context and a reply. Do not say it "reads minds", "reveals the truth" or is accurate.
-- Price: weekly and annual subscription; the app requires a subscription after onboarding (hard paywall since 1.0.5). RevenueCat 2026-10-23 lists ¥1,300/week and ¥1,810/year; confirm in App Store Connect before quoting.
-- Images (attach 1–4, photo beats video in the study): ① a pasted message → result screen (本音 / 心理状態 / 返信案), ② the relationship picker, ③ the plan screen only if the post states the price.
+型は `docs/team/launch/thankful.md`（1.0.2）と同じ。共通ルールと勝ち組の根拠は `docs/team/launch/README.md`、文体は `~/team/head-of-content/X-WRITING-STYLE.md`（短く、一人称、具体的な数字、1投稿1つ、ダッシュ・ハッシュタグ・教訓の締めは使わない）。
 
-## EN 1 — story opener
+- Status: 1.0.5（build 202610240347）は審査待ち。ASC `appStoreVersions` 1.0.5 = `WAITING_FOR_REVIEW`（2026-10-24 12:30 JST に確認）。Ready for Distribution になるまで予約しない。
+- App Store (id 6759667221): 下の「リンク」を使う。`ct` は App Store Connect のキャンペーン計測用、`utm_*` は共通キー（Apple は `utm_*` を集計しないので、DL の帰属は `ct` で読む）。
+- Approved claims only (`skills/earn/marketing-engine/registry/products/honne-ai.json`): analyzes pasted conversation text; suggests possible emotional context and a reply. 「本音が分かる」「心が読める」「当たる」とは書かない。
+- 1.0.5 で変わったこと（事実）:
+  - オンボーディングの後に課金画面を出し、閉じられなくした（購入か復元で先に進む）。年額を最初から選択（life-manager #8711）。
+  - AI 分析の中継先を自分のサイトに移した。Rork の公開 toolkit は鍵なしで `POST /llm/object` が 403。aniccaai.com の Netlify 関数 `/api/honne/llm/object` を書き、OpenRouter の DeepSeek V4.1 Flash を呼ぶ。実測は1回あたり $0.00005〜$0.0002、推論トークンを切って 100〜150 トークン（anicca-products #623/#625）。最初は推論トークンが 800 中 461 を使って JSON が途中で切れていた。
+  - 利用規約リンクを Apple 標準 EULA に直した（以前は相対 URL で何も開かなかった）（#8764）。
+- Price (ASC subscription prices, read 2026-10-24): weekly ¥1,300 / $7.99, monthly ¥660 / $4.99, yearly ¥1,810 / $39.99。無料体験はない（導入オファーなし）。課金画面の初期選択は年額。
+- Numbers (RevenueCat projcfa60dd8, 2026-10-23, `docs/team/specs/honne-paywall.md`): 28日 MRR $4・売上 $38・新規 24・トライアル 0。7月以降の新規 41 人のうち、7日以内の課金は 0 人。
+- Images: ① 会話を貼った後の結果画面（本音／心理状態／返信案）、② 相手との関係を選ぶ画面、③ 価格を書く投稿だけ課金画面。
+- Post time: 夜 JST。
 
-```
-I kept rereading one text from a friend for an hour.
+## リンク
 
-"It's fine, do whatever you want."
-
-So I built an iPhone app for that moment.
-
-Paste the conversation, pick who it's from, and it suggests what they might be feeling and a reply you could send.
-
-What message would you paste first?
-```
-
-## EN 2 — one difference
+`<cc>` = `jp`（日本語投稿）/ `us`（英語投稿）。`<channel>` = `x`, `bluesky`, `mastodon` など。
 
 ```
-Most AI chat apps answer you.
-
-This one looks at the message someone sent you.
-
-Paste the text, choose the relationship (partner, boss, parent, friend), and get a possible emotional read plus a reply draft.
-
-Honne is on the App Store. Link below.
-
-Which relationship is hardest to read for you?
+https://apps.apple.com/<cc>/app/id6759667221?pt=93486075&ct=<channel>-honne-105&mt=8&utm_source=<channel>&utm_campaign=honne-105
 ```
 
-## EN 3 — result / build-in-public
+## JA 1 — 実話（中継を作った）
 
 ```
-Shipped a new version of my iPhone app today.
+本音翻訳AIの更新を作っていたら、使っていたAIの中継が鍵なしで403を返すようになっていた。
 
-It reads a pasted conversation and suggests the emotion behind it and a reply.
+自分のサイトに中継を1本書いた。
+1回の分析で約0.0001ドル。
 
-This week I rebuilt the plan screen so prices come straight from the App Store, and moved the AI to my own server.
-
-Link in the reply. What would make you trust a tool like this?
+最初は推論に800トークン中461を使われて、返事が途中で切れていた。推論を切ったら直った。
 ```
 
-## JP — yokoichi777 shape
+## JA 2 — 課金画面（数字）
+
+```
+本音翻訳AI、7月から新しく入った41人のうち、7日以内に課金したのは0人だった。
+
+課金画面が×で閉じられたから。
+
+1.0.5から、最初の説明の後に出す課金画面は閉じられない。
+週1,300円か年1,810円。
+```
+
+## JA 3 — yokoichi777 shape
 
 ```
 「別にいいよ、好きにすれば」
 
-この一言の裏にある気持ち、気になったことはありませんか。
+この一言、どう返すか迷ったことありますか。
 
-『本音翻訳AI』を作りました。
-会話を貼って相手との関係を選ぶと、考えられる気持ちと返信の案を出してくれるiPhoneアプリです。
-
-<BUILD_MONTHS>ヶ月かけて作りました（不明なら行ごと削除）
+『本音翻訳AI』は、会話を貼って相手との関係を選ぶと、考えられる気持ちと返信の案を出すiPhoneアプリです。
 
 祝個人開発
 詳細はツリーに
 ```
 
-## First reply (all posts)
+## EN 1 — real event
 
 ```
-App Store: <APP_STORE_URL>
+Shipping an update to my Japanese iPhone app. The AI relay it used started returning 403 without a key.
+
+Wrote my own relay on my site instead.
+About $0.0001 per analysis.
+
+First version cut its JSON in half. Reasoning was eating 461 of 800 tokens. Turned reasoning off, fixed.
 ```
-JP: `App Storeはこちら → <APP_STORE_URL>`
+
+## EN 2 — paywall numbers
+
+```
+41 new users since July. 0 paid within 7 days.
+
+The paywall had a close button.
+
+1.0.5 shows it after onboarding and you can't skip it. $7.99 a week or $39.99 a year.
+```
+
+## 2件目（すべての投稿）
+
+```
+App Store: <上の「リンク」で cc と channel を埋めたURL>
+```
+
+## Schedule (Postiz)
+
+Ready for Distribution の後に入れる。Thankful 1.0.2 と同じく Postiz public API `POST /public/v1/posts`（`type: schedule`）、integration `cmm6d7m5703rwpr0yr5vtme3w`（X @aniccaxxx）、各投稿は2件のスレッド（1件目が本文＋画像、2件目がリンク）。Bluesky / Mastodon は Postiz に連携がないので、Thankful と同じく今回は予約しない。
+
+| postId | 予約 (JST) | 本文 | readback |
+|---|---|---|---|
+| （未予約） | | | |
 
 ## ASO keyword candidates
 
