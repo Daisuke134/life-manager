@@ -1027,6 +1027,33 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
             code = self.cleanup.main()
         return code, json.loads(output.getvalue())
 
+    def test_release_gc_gives_slow_release_link_censuses_a_fresh_bounded_window(self):
+        bundle = self._bundle()
+        release = self._release(bundle)
+        clock = [0.0]
+        calls = 0
+
+        def slow_reference_snapshot(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            deadline = args[4]
+            remaining = deadline - clock[0]
+            if remaining < 20:
+                raise subprocess.TimeoutExpired("release dependency links", remaining)
+            clock[0] += 20
+            return set(), [str(bundle)]
+
+        with mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]), \
+             mock.patch.object(self.cleanup, "_bundle_references", side_effect=slow_reference_snapshot):
+            code, result = self._gc(keep=1)
+
+        self.assertEqual(code, 0, result)
+        self.assertEqual(calls, 2)
+        self.assertTrue(release.exists())
+        self.assertTrue(bundle.exists())
+        self.assertEqual(result["dependency_bundles"]["preserved"], 1)
+        self.assertEqual(result["errors"], 0)
+
     def test_release_gc_only_preserves_open_bundle_with_minimal_host_path(self):
         bundle = self._bundle()
         self.lsof_stdout = f"p12345\nf7\nn{bundle}/node_modules/fixture.js\n"
@@ -1429,7 +1456,7 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
                             yield next(entries)
                             if failure == "iteration":
                                 raise PermissionError("fixture inventory interrupted")
-                            clock[0] = 16
+                            clock[0] = 31
                             yield from entries
                         yield interrupted_entries() if Path(path) == nested else entries
 
@@ -1457,7 +1484,7 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
             with scandir(path) as entries:
                 yield entries
             if not isinstance(path, int) and Path(path) == empty:
-                clock[0] = 16
+                clock[0] = 31
 
         with mock.patch.object(os, "scandir", side_effect=delayed_empty_scan), \
              mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
