@@ -198,5 +198,87 @@
     "message_count": 2,
     "organizer_reply_found": false,
     "formal_project_submission_status": "unconfirmed"
+  },
+  "latest_official_refresh_20261024T1057Z": {
+    "observed_at": "2026-10-24T10:57:29Z",
+    "official_terms": {
+      "url": "https://competition.maritime.sh/terms",
+      "http_status": 200,
+      "last_updated": "2026-10-15",
+      "program_end": "2026-12-01T23:59:00-08:00",
+      "target": 1000,
+      "qualifier": "distinct real users with real project usage; the first three projects to reach the target, subject to verification",
+      "usage_review": "project-level Keiki or Maritime usage",
+      "fake_duplicate_bot_fabricated_activity_excluded": true,
+      "per_user_retention_minimum": null
+    },
+    "round_one": {
+      "exact_cutoff": null,
+      "timezone": null,
+      "top30_rubric": null,
+      "minimum_users": null,
+      "formal_project_form": null,
+      "required_fields": null,
+      "status": "not published or confirmed in current official sources"
+    },
+    "slack": {
+      "workspace": "Keiki X Maritime",
+      "announcements_checked_at": "2026-10-24T10:49:00Z",
+      "round_one_search": "no newer organizer answer found",
+      "week_two_search": "no organizer milestone found",
+      "submission_search": "only the channel instruction was returned; it says posting does not replace any required form",
+      "existing_life_manager_entry": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
+      "duplicate_entry_created": false
+    },
+    "organizer_email": {
+      "thread_id": "1a15d3141c56ee22",
+      "latest_followup_id": "1a16d8e4ccf6ad69",
+      "sent_at": "2026-10-24T10:56:44Z",
+      "recipient": "contact@maritime.sh",
+      "questions": [
+        "exact Week 1 cutoff and Top 30 criteria",
+        "formal submission route and required fields/demo; whether the existing channel entry is sufficient",
+        "what qualifies toward the 1,000 users, including founder/team treatment",
+        "Week 2 milestone and deadline"
+      ],
+      "reply_found_as_of": "2026-10-24T10:57:29Z",
+      "reply_found": false
+    },
+    "office_hours": {
+      "time": "2026-10-25T10:00:00+09:00",
+      "invitee": "Dais",
+      "organizer": "Darshan Golchha",
+      "rsvp": "needsAction"
+    },
+    "formal_project_submission_status": "unconfirmed",
+    "source": "Official terms live scrape, current Slack readback/search, and Gmail thread readback."
+  },
+  "latest_operational_readback_20261024T1102Z": {
+    "observed_at": "2026-10-24T11:02:01Z",
+    "source_main_sha": "1ac2f6bf8375568c1fb724eecbe95a86548bbaa8",
+    "railway_status_read_at": "2026-10-24T10:49:00Z",
+    "deployed_app_and_worker_source_sha": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+    "apps_life_manager_diff_paths": [],
+    "pilot_and_article_http_200_read_at": "2026-10-24T09:39:00Z",
+    "source_pr_8745": {
+      "head": "764be4c2b15b297134c79e3b147d4e49e74aed7f",
+      "base": "5904b05b624a9b5216ac9f53d2a33d24a060cf5c",
+      "current_main": "1ac2f6bf8375568c1fb724eecbe95a86548bbaa8",
+      "state": "OPEN_DRAFT",
+      "mergeable": false
+    },
+    "owner_pkce_and_retention_consent": "pending owner action",
+    "official_users_and_cost": "unknown",
+    "formal_submission": "draft prepared; route/fields/receipt unconfirmed",
+    "new_posts_or_schedules": 0,
+    "organizer_followup_sent": "2026-10-24T10:56:44Z; no reply at 10:57:29Z"
+  },
+  "latest_operational_readback_20261024T1110Z": {
+    "observed_at": "2026-10-24T11:10:40Z",
+    "source_main_sha": "edf5c206c1e4abb69f1664d4635376eff5307736",
+    "main_changed_docs_only_since_1ac2": true,
+    "apps_life_manager_diff_from_deployed_source": [],
+    "tracker_branch_rebased_on_latest_main": true,
+    "tracker_pr_remote_update_pending": true
   }
 }
