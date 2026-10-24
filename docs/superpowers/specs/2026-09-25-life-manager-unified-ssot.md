@@ -18,7 +18,7 @@
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN。head `53a21430`、`origin/main`は`af2967f`。GitHubのmerge状態は`DIRTY` / `CONFLICTING`。13/13 CI checksは成功しているが、approval reviewは未記録でmain未統合。 | 最新mainへ変更を合わせ、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
+| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPENで、head `53a21430`のsourceは未統合。13/13 CI checksは成功し、approval reviewは未記録。GitHub RESTはmainとのmerge stateを`dirty`と報告している。 | 最新mainへ変更を合わせ、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
 | 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
 | 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
