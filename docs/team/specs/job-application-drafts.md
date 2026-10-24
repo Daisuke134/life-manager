@@ -81,3 +81,22 @@ claim受入: [PR #8780](https://github.com/Daisuke134/life-manager/pull/8780)を
 検証・統合: source-boundary、diff --check、公式フォームとの対応、私的値の非掲載、5ファイル以外にruntime/ledger変更がないことを確認する。GitHub mainのrequired status checksは未設定で、rules APIは空配列。claim PRは関連チェックを含む12件成功時に統合し、範囲外Monk動画環境準備の1件を追加gateにしない。CI/統合の実際の結果は各PRのGitHub readbackを正本とし、未完の検証を成功と報告しない。
 
 現在cursor: 追加5原稿の作成と内容受入を完了する。ドラフトbranch `docs/job-drafts-next-five-20261024` のPR/main統合結果をGitHubで確認し、参謀へ両PR URLと5キーをReason返信する。原稿作成後の業務は参謀による不足事実・添付・現行フォームの照合と応募提出。台帳はclaimedを維持し、原稿の存在を応募済み/全欄提出可能へ置換しない。前回5原稿はPR #8730で完了済みとして保持する。
+
+## found 10件の応募素材（claude-8、Codex 利用上限による引継ぎ 2026-10-24）
+
+目的: claude-3 が `found` で登録した10件に、公式フォームの実際の設問への回答案とカバーレターを作る。提出は参謀。根拠は上の経歴根拠と aniccaai.com/about に限り、不足は不足と書く。claim は PR #8843。
+
+| 求人 | key | 原稿 | 状態と最大の注意 |
+|---|---|---|---|
+| Canonical Python/K8s Engineer | `job:canonical:5703396` | [canonical-python-kubernetes-engineer-data-ai.md](../jobs/drafts/canonical-python-kubernetes-engineer-data-ai.md) | drafted。Worldwide remote、日本から勤務ならsponsorship不要。必須設問に「AI生成文を使えば失格」への同意があるため、記述回答は本人が書く事実アウトライン。Kubernetes/Python職務経験の根拠なし |
+| Canonical MLOps Field Engineer | `job:canonical:6783943` | [canonical-mlops-field-engineer.md](../jobs/drafts/canonical-mlops-field-engineer.md) | drafted。同じAI生成禁止の同意あり。Kubernetes・顧客向け技術職の根拠なし |
+| Supabase AI Platform Engineer | `job:supabase:3b5d54ca-741b-45ac-bd3f-31605a0d3541` | [supabase-ai-platform-engineer.md](../jobs/drafts/supabase-ai-platform-engineer.md) | drafted。Remote Global、sponsorship不要。MCP server作成・GCP/IaC運用の根拠なし |
+| Binance Accelerator Applied AI Application Engineer | `job:binance:5002569101` | [binance-accelerator-applied-ai-application-engineer.md](../jobs/drafts/binance-accelerator-applied-ai-application-engineer.md) | drafted。学生/新卒向け6か月インターン、2026/27卒の在学生が必須で満たせない可能性が高い。日本から勤務ならsponsorship不要 |
+| Binance Accelerator Full Stack Engineer (AI) | `job:binance:5002443101` | [binance-accelerator-full-stack-engineer-ai.md](../jobs/drafts/binance-accelerator-full-stack-engineer-ai.md) | drafted。同インターン枠。必須の言語・DB設計の根拠なし |
+| Binance Accelerator iOS Architect | `job:binance:5002685101` | [binance-accelerator-ios-architect.md](../jobs/drafts/binance-accelerator-ios-architect.md) | drafted。同インターン枠（6か月）。在学/卒業2年以内の可否はNAIST学位授与次第 |
+| Agoda Staff/Lead LLM Data Scientist (SG) | `job:agoda:7916603` | [agoda-staff-lead-llm-data-scientist-singapore.md](../jobs/drafts/agoda-staff-lead-llm-data-scientist-singapore.md) | drafted。SG移住前提・"Full visa sponsorship and relocation assistance"。senior DS職歴なし、移住意思は本人未確認 |
+| Agoda Staff SWE Full Stack AI (BKK) | `job:agoda:7543802` | [agoda-staff-software-engineer-full-stack-ai-bangkok.md](../jobs/drafts/agoda-staff-software-engineer-full-stack-ai-bangkok.md) | drafted。BKK移住・"Visa sponsorship for you and your family"。8+年必須に対し不足 |
+| Agoda Staff SWE Front End AI (BKK) | `job:agoda:7543795` | [agoda-staff-software-engineer-front-end-ai-bangkok.md](../jobs/drafts/agoda-staff-software-engineer-front-end-ai-bangkok.md) | drafted。BKK移住・"Visa, flight & moving package"。8+年・Webフロント経験なしで最も不適合 |
+| Agoda Principal SWE Back End (BKK) | `job:agoda:7777498` | なし | skipped: needs sponsorship, skip（ビザ支援の記載なし） |
+
+資料間の食い違い（提出前に本人が揃える）: A10 Lab の在籍期間（about: 2020-11〜2022-01 / resume・profile: 2020-01〜2021-01）、Life Manager の売上記述（about: 2026-09に20万円 / profile: 2026-08にUSD 1,000）。どちらも回答には使っていない。
