@@ -19,7 +19,7 @@
 
 ## Evidence and measurements
 
-- Public pilot and article returned HTTP 200 in the 2026-10-24 09:39Z readback; current evidence: [2026-10-24 11:02Z readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
+- Public pilot and article returned HTTP 200 in the 2026-10-24 09:39Z readback; current evidence: [2026-10-24 11:10Z readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
 - At the 10:49Z Railway readback, Life Manager app and worker deployments were SUCCESS/online at 1/1 replicas with no staged or pending changes. A separate trusted Maritime runtime/image SHA has not been verified.
 - Official Keiki/Maritime user count: **unknown**.
 - Completed external-work users, repeat users, report receipts, and costs: **unknown**.
@@ -32,4 +32,4 @@ The live service must not be described as a completed autonomous work-to-email p
 
 ## Submission gate
 
-Do not submit this draft to an inferred route. Submit once after the organizer confirms the official form, required fields, and deadline, then retain its receipt separately from the existing Slack entry.
+Do not submit this draft to an inferred route. First confirm the official form, required fields, and cutoff. For the complete Week 1 packet, also wait for one owner-authorized end-to-end tenant cycle and a truthful demo backed by an authoritative provider receipt, an accepted result-email receipt, and a verified stop with no replay. If the organizer sets an earlier cutoff, ask whether a clearly labeled early-pilot packet is acceptable before submitting; do not imply unverified completion. Save the formal receipt separately from the existing Slack entry.
