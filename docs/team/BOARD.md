@@ -32,6 +32,7 @@
 - [Codex / Manager] D011: 公開OSS成果物と公表Paidの限定source接続。products/managerのadapter/test/資料を所有。既存owner・配信・応募は変更しない。
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 ## ログ
+- Codex(CrowdWorks限定反映): 独立反証0件/旧unknown保持の既存1test PASS後、paidとreplyだけをloaded-idle条件でmain2fb77acdの完全immutableへ反映。install eventとloaded/installed argv/SHAが各一致、本人profile不変/直接provider操作0/手動fence解決0。次: 自然terminal/公式成果と公開setup。応募の職種設定、全業務/別Mac/10,000starsは未完。
 - Codex(CrowdWorks限定promotion): 公式dashboardの本人IDと選択済detail/公開detail一致をread-only確認。private大分類とは不一致のため補完0/応募反映0。page作成1/close1、入力hash不変。native preflight全PASS、返信/受注後の2ownerだけfresh反証→loaded-idle反映へ進む。公開setup/全業務/別Macは未完、正本 → IDENTITY-PROMOTION。
 - Codex(CrowdWorks実行版): PR8836/main2fb77acdはfresh R2指摘0件/独立349 PASS+19反証、CI13成功、公開24files一致。完全immutableのsource12files/依存7linksを確認しcurrent不変。本人設定はidentity valid/応募occupation_detail不足、network0/入力書換0。次は公式read-only職種照合→本人設定補完→対象owner限定反映。全業務/別Mac/10,000starsは未完。
 - Codex(CrowdWorks全caller): 応募/返信/受注後/照合をprivate本人IDへ接続し、公式sender hrefで同名buyer/改名を識別する。新adapter30件を含む担当224 PASS、primary全451 PASS/既知4 FAIL。旧fixtureの既定CDP接続試行をsentinelへ閉じ、接続/効果の未取得範囲は統合SSOTへ残す。次: fresh R2/公開CI/main。公開setup・実業務成果・別Macは未完。
