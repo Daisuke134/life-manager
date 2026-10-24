@@ -154,6 +154,20 @@ test("CrowdWorks guided setup exposes the local command and keeps account requir
   assert.equal(cloud.loops[0].command, null);
 });
 
+test("Mercor guided setup exposes its own installer while provider accounts remain required", () => {
+  const pending = planProductOnboarding({ host: "local", selected_loop_ids: ["gig-mercor"],
+    verified_requirements: ["telegram_credentials"] });
+  assert.equal(pending.loops[0].state, "setup_required");
+  assert.deepEqual(pending.loops[0].missing, ["mercor_account", "work_profile"]);
+  assert.deepEqual(pending.loops[0].command, ["./install.sh", "mercor"]);
+  assert.equal(pending.starts_automatically, false);
+  assert.deepEqual(pending.external_effects, []);
+  const cloud = planProductOnboarding({ host: "cloud", selected_loop_ids: ["gig-mercor"],
+    verified_requirements: ["mercor_account", "work_profile"] });
+  assert.equal(cloud.loops[0].command, null);
+  assert.equal(cloud.loops[0].state, "setup_required");
+});
+
 test("Cloud /start uses the same catalog while unsupported host adapters stay setup_required", () => {
   const economy = planProductOnboarding({ host: "cloud", selected_loop_ids: ["agent-economy"] });
   assert.equal(economy.loops[0].state, "ready_to_start");

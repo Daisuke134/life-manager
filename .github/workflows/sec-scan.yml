@@ -78,6 +78,17 @@ jobs:
           skills/earn/crowdworks/tests/test_reconcile_reply_no_send.py
           skills/earn/crowdworks/tests/test_paid_owner_pre_effect_hint.py
           apps/crowdworks-revenue/tests/test_paid_owner_observation_boundary.py
+      - name: Install Mercor contract dependency from runtime pin
+        run: python3 -m pip install --disable-pip-version-check -r <(grep -E '^websockets==' requirements-runtime.txt)
+      - name: Verify Mercor public setup and account isolation
+        run: >-
+          env PYTHONPATH=apps/job-search-loop python3 -m pytest -q
+          skills/earn/mercor/tests/test_install_local.py
+          skills/earn/mercor/tests/test_application_owner.py
+          apps/job-search-loop/tests/test_mercor_auth_readback.py
+          apps/job-search-loop/tests/test_mercor_email_auth.py
+          apps/job-search-loop/tests/test_profile_setup.py
+          apps/job-search-loop/tests/test_local_setup.py
       - name: Verify browser lease ownership and tab preservation
         run: >-
           python3 -m pytest -q
