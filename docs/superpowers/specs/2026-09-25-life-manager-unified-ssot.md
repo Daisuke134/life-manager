@@ -4,7 +4,7 @@
 
 **目的・範囲:** Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
 
-**利用者向けの約束:** Local版の基本条件はChatGPT Plus以上のsubscriptionと、スリープしないMac/Mac mini。core利用に別のOpenAI API keyは不要。利用する事業サービスごとの本人accountや追加有料サービスは別途必要になる。READMEは外部利用者向けに短く保ち、7つの収益モデル、最短の導入方法、利用条件、未完成の範囲を先に示す。
+**利用者向けの約束:** Local版の中心となる条件はChatGPT Plus以上のsubscriptionと、スリープしないMac/Mac mini。core利用に別のOpenAI API keyは不要。インターネットは必要で、選択した事業の本人accountや追加有料サービスは各providerが求める場合に別途用意する。目指すのは、初回設定後の通常業務を人の都度指示なしで実行し、結果を公式provider情報で確かめられる製品。READMEは外部利用者向けに短く保ち、7つの収益モデル、最短の導入方法、利用条件、未完成の範囲を先に示す。
 
 ### 完了済み
 
@@ -18,7 +18,7 @@
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はopen。head `53a21430`、base `8e0e6f2`に対し現在のmainは`b0e05bf`。head上の13 CI checksはPASSだが、GitHubのmerge状態は`DIRTY`。Codex review表示は古いhead `9bed790`で実行中のまま。 | 最新mainへ変更を合わせ、対象test・独立review・全CIを更新headで再確認してから統合する。main由来releaseで導入とReply開始を再確認する。 |
+| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN。head `53a21430`、`origin/main`は`af2967f`。GitHubのmerge状態は`DIRTY` / `CONFLICTING`。13/13 CI checksは成功しているが、approval reviewは未記録でmain未統合。 | 最新mainへ変更を合わせ、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
 | 公開installer | catalogは18 group中11にlocal commandがあり、7は未接続。対象はPromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Sticker。 | 7件それぞれに公開導入、必要条件、失敗時の説明を揃える。 |
 | 約20 agentと7事業 | catalog上のgroup数と「約20 agent」は同じ数ではない。全agentの実業務完了や収益は未確認。 | 公開対象を照合し、各agentで開始からprovider公式結果、再開、重複防止まで実運用確認する。収益は公式証拠のある分だけ記録する。 |
@@ -27,7 +27,7 @@
 
 ### ゴールまでの順序
 
-現在cursorは **REPLY-PROFILE-SHIP**。PR #8865は13 checksが通ったheadのままでは最新mainと`DIRTY`なので、更新headのreview/CIを通してから統合・release反映・実Mac再観測する。
+現在cursorは **REPLY-PROFILE-SHIP**。PR #8865は提出済みだが未統合で、13/13 CI checks成功だけでは完了ではない。最新mainとの競合を解消し、更新headのreview/CI、main統合、公開source readbackを通してからreleaseと実Macを再観測する。
 
 1. PR #8865を最新mainへ合わせ、更新headのfocused test・独立review・全CIを確認して統合し、main由来releaseで公開checkoutからinstallerを再確認する。
 2. 現MacのMercor browser/profile/Paidを既存ownerの経路で整え、Reply/Paidの未確定effectは公式readbackで照合してから再開する。
@@ -38,7 +38,7 @@
 
 ### 理想の完成状態
 
-外部の人がREADMEだけで「何をする製品か」「7事業の収益源」「必要なもの」「どの機能が利用可能か」を理解し、ChatGPT Plus以上・スリープしないMacまたはMac mini・自分の業務accountで導入できる。初回接続後、対応する約20 agentが7事業の日常業務を可能な範囲で自動実行し、provider上の結果を確かめ、失敗から重複なく安全に再開する。利用者は仕事の進行と公式証拠に基づく成果を確認でき、Macを替えてもサポート対象の環境なら同じ公開手順で立ち上げられる。本人確認やproviderが必須とする操作と追加サービス費用は事前に明記する。実際の利用者が初回成果と継続価値を得て、信頼して紹介する状態から10,000 starsを目指す。収入やstars数・達成時期は保証しない。
+外部の人がREADMEだけで「何をする製品か」「7事業の収益源」「必要なもの」「各機能の利用可否」を理解し、ChatGPT Plus以上のsubscriptionとスリープしないMac/Mac miniを中心条件として、自分の業務accountで導入できる。初回設定とproviderが求める本人手続きの後は、対応する約20 agentが7事業の反復業務を通常の人手指示なしで進め、案件獲得・制作・応募・公開・納品・販売などの結果を公式provider情報で確かめ、収益・費用・失敗を分けて示し、安全に重複なく再開する。KYC、2FA、CAPTCHA、providerが求める同意や人による審査、effectが不明な場合の確認は人の操作が残り得るため、その条件を開始前に説明する。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から実業務まで通る。通常業務に人の常時介入を要しない自律型の事業運用を目指すが、収益、導入成功、10,000 stars、達成時期は保証しない。利用者の初回成果と継続価値を実測し、信頼できる紹介から10,000 starsを目指す。
 
 ### 10,000 starsを目指すREADMEの参考例
 
