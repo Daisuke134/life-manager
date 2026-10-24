@@ -43,9 +43,12 @@ def _producer_floor_bytes() -> int:
         return PRODUCER_FLOOR_BYTES
 _PRODUCER_FLOOR_REASON = "disk_floor_low"
 # Revenue lanes keep running down to this lower floor, like Kubernetes evicting low-priority
-# pods first: a flat 12 GiB floor stopped every revenue lane at 11 GiB (2026-10-16). 10 GiB still
-# leaves the unarmed 8 GiB ballast plus the 2 GiB recovery floor as headroom for swap growth.
-REVENUE_FLOOR_BYTES = 10 * 1024**3
+# pods first: a flat 12 GiB floor stopped every revenue lane at 11 GiB (2026-10-16), and a 10 GiB
+# floor stopped them for 16+ hours on 2026-10-24 while the host sat at 7.8-10.2 GiB. 7 GiB leaves 5 GiB
+# above the 2 GiB recovery floor; runaway swap growth (the 10-23 collapse to ~1 GiB) is stopped
+# separately by the swap-growth gate, so this floor is not the only protection. (The 8 GiB ballast an
+# earlier comment relied on does not exist on this host.)
+REVENUE_FLOOR_BYTES = 7 * 1024**3
 
 
 def _is_revenue_loop(loop_id: str | None) -> bool:
