@@ -165,11 +165,24 @@ if [ -n "${ARCHIVE_PATHS[*]:-}" ]; then
     ARCHIVE_PATHS+=("runtime/browser")
   fi
 fi
+# tar may stop at its end marker before git finishes writing trailing padding.
+# Keep the pipe open through EOF without hiding extraction or producer failures.
+extract_archive() {
+  tar -x -C "$DEST"
+  local tar_status=$?
+  cat - >/dev/null
+  local drain_status=$?
+  if [ "$drain_status" -ne 0 ]; then
+    echo "cut-loop-release: archive drain failed (drain=$drain_status)" >&2
+  fi
+  [ "$tar_status" -eq 0 ] || return "$tar_status"
+  return "$drain_status"
+}
 if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
-  git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
+  git -C "$REPO_ROOT" archive --format=tar "$SHA" | extract_archive
   ARCHIVE_RC=$? ARCHIVE_PIPESTATUS=("${PIPESTATUS[@]}")
 else
-  git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | tar -x -C "$DEST"
+  git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | extract_archive
   ARCHIVE_RC=$? ARCHIVE_PIPESTATUS=("${PIPESTATUS[@]}")
 fi
 if [ "$ARCHIVE_RC" -ne 0 ]; then
