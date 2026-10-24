@@ -427,6 +427,7 @@ def reconcile_pre_provider_prompt_failure(
         x_fn=lambda _start, _end: {"ok": True, "posts": posts},
         started_at_fn=lambda _occurrence: started,
         expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        model_no_response_fn=lambda _started, _slot: None,  # never read the developer's real daily log
     )
 
 
@@ -464,6 +465,7 @@ def test_exact_pre_provider_failure_keeps_other_preexisting_post_fenced(tmp_path
         },
         started_at_fn=lambda _occurrence: started,
         expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        model_no_response_fn=lambda _started, _slot: None,  # never read the developer's real daily log
     )
 
     assert result["verified"] is False
@@ -527,6 +529,7 @@ def test_pre_provider_failure_with_matching_landing_commit_is_effected(tmp_path,
         page_status_fn=lambda _slug: 200,
         started_at_fn=lambda _occurrence: started,
         expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        model_no_response_fn=lambda _started, _slot: None,  # never read the developer's real daily log
     )
 
     assert result["verified"] is True
@@ -545,6 +548,7 @@ def test_pre_provider_failure_with_other_landing_commit_stays_fenced(tmp_path, m
         x_fn=lambda _start, _end: {"ok": True, "posts": ["cmvhqvaid0429oh0ywbv95g8r"]},
         started_at_fn=lambda _occurrence: started,
         expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        model_no_response_fn=lambda _started, _slot: None,  # never read the developer's real daily log
     )
 
     assert result["verified"] is False
@@ -561,6 +565,7 @@ def test_pre_provider_failure_keeps_fence_on_postiz_readback_failure(tmp_path, m
         x_fn=lambda _start, _end: {"ok": False, "reason": "postiz_readback_failed"},
         started_at_fn=lambda _occurrence: started,
         expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        model_no_response_fn=lambda _started, _slot: None,  # never read the developer's real daily log
     )
 
     assert result["verified"] is False
@@ -1434,3 +1439,119 @@ def test_damaged_url_is_not_ignored_when_a_valid_url_is_also_present(tmp_path, m
     for path in (slug.encode('ascii') + b'\xff-other', b''):
         prompt.write_bytes(prefix + slug.encode('ascii') + b'\n' + prefix + path + b'\n')
         assert rec.expected_article_slug(OCC) == slug
+
+
+# --- model_no_response: the run provably never reached publish (2026-10-24 14:25 JST, Codex usage limit) ---
+MANUAL_POST = {"ok": True, "posts": ["cmvlp7rqs0jn2qu1cj6ugacyu"]}  # a teammate's own X post in the window
+NO_RESPONSE = {"slot": "2026-09-29-h15", "rc": 1, "published_marker_in_block": False,
+               "ledger_has_slot_post": False, "block_started_within_s": 1.0}
+
+
+def proof_nr(now_min, commits, x, evidence, slot="2026-09-29-h15"):
+    return rec.build_proof(OCC, Q, started_at=Q, expected_slug=EXPECTED_SLUG,
+                           now=Q + dt.timedelta(minutes=now_min), commits=commits, x_posts=x,
+                           page_status_fn=lambda s: 200,
+                           model_no_response={**evidence, "expected_slot": slot} if evidence else None)
+
+
+def test_model_no_response_ignores_a_manual_x_post_in_the_window():
+    p = proof_nr(200, {"ok": True, "commits": []}, MANUAL_POST, NO_RESPONSE)
+    assert p["verified"] and p["effected"] is False
+    assert p["proof_kind"] == "occurrence_bound_model_no_response"
+
+
+def test_without_the_evidence_a_manual_x_post_still_fences_the_occurrence():
+    p = proof_nr(200, {"ok": True, "commits": []}, MANUAL_POST, None)
+    assert not p["verified"] and p["reason"] == "x_post_without_article"
+
+
+def test_model_no_response_never_overrides_a_landing_commit():
+    p = proof_nr(200, {"ok": True, "commits": [{"sha": "a" * 40, "slug": EXPECTED_SLUG,
+                                                "at": Q.isoformat()}]}, MANUAL_POST, NO_RESPONSE)
+    assert p["effected"] is True
+
+
+def test_model_no_response_with_a_published_marker_or_ledger_post_is_rejected():
+    for bad in ({"published_marker_in_block": True}, {"ledger_has_slot_post": True}, {"rc": 0}):
+        p = proof_nr(200, {"ok": True, "commits": []}, MANUAL_POST, {**NO_RESPONSE, **bad})
+        assert not p["verified"], bad
+
+
+def test_model_no_response_bound_to_another_slot_or_a_loose_block_is_rejected():
+    assert not proof_nr(200, {"ok": True, "commits": []}, MANUAL_POST, NO_RESPONSE,
+                        slot="2026-09-29-h16")["verified"]
+    loose = {**NO_RESPONSE, "block_started_within_s": 60.0}
+    assert not proof_nr(200, {"ok": True, "commits": []}, MANUAL_POST, loose)["verified"]
+
+
+def test_model_no_response_still_waits_for_the_effect_window():
+    assert not proof_nr(30, {"ok": True, "commits": []}, MANUAL_POST, NO_RESPONSE)["verified"]
+
+
+# --- reading the evidence from the daily log + ledger (real shape captured 2026-10-24) ---
+STARTED = dt.datetime(2026, 10, 24, 5, 25, 24, 569423, tzinfo=dt.timezone.utc)  # 14:25:24 JST
+FAILED_BLOCK = """\\
+=== capafy-distribute-daily run 2026-10-24 14:25:25 JST ===
+=== capafy-distribute-daily run 2026-10-24 14:25:26 JST ===
+{"already_published": false, "date": "2026-10-24-h14m00"}
+capafy-distribute-daily: selection={"date": "2026-10-24", "capafy_skill": "hook-lab"}
+capafy-distribute-daily: seo keyword={"query": "tiktok hook formulas", "slug": "tiktok-hook-formulas"}
+writer shared runner failed rc=1 {"attempt": 1, "provider": "codex"}
+capafy-distribute-daily: model pass exit=1 slot=2026-10-24-h14m00 skill=hook-lab
+"""
+PUBLISHED_BLOCK = """\\
+=== capafy-distribute-daily run 2026-10-24 05:47:28 JST ===
+capafy-distribute-daily: model pass exit=0 slot=2026-10-24-h05m30 skill=tiktok-script-pro
+capafy-distribute-daily: wrapper publish: {"status": "published", "slug": "tiktok-script-for-etsy-shop"}
+capafy-distribute-daily: x post: {"dry_run": false, "action": "published", "post_id": "cmvlg6n9e06cvn61com9yrde8"}
+"""
+
+
+def _log(tmp_path, text):
+    p = tmp_path / "daily.log"
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+def _ledger(tmp_path, entries):
+    p = tmp_path / "ledger.json"
+    p.write_text(json.dumps(entries), encoding="utf-8")
+    return p
+
+
+def test_failed_model_block_yields_exact_no_response_evidence(tmp_path):
+    ev = rec.model_no_response_evidence(STARTED, "2026-10-24-h14m00",
+                                        log_path=_log(tmp_path, PUBLISHED_BLOCK + FAILED_BLOCK),
+                                        ledger_path=_ledger(tmp_path, {}))
+    assert ev["slot"] == "2026-10-24-h14m00" and ev["rc"] == 1
+    assert ev["published_marker_in_block"] is False and ev["ledger_has_slot_post"] is False
+    assert 0 <= ev["block_started_within_s"] <= 5
+
+
+def test_a_published_block_is_never_no_response_evidence(tmp_path):
+    started = dt.datetime(2026, 10, 23, 20, 47, 28, 300000, tzinfo=dt.timezone.utc)  # 05:47:28 JST
+    ev = rec.model_no_response_evidence(started, "2026-10-24-h05m30",
+                                        log_path=_log(tmp_path, PUBLISHED_BLOCK),
+                                        ledger_path=_ledger(tmp_path, {}))
+    assert ev is None  # rc == 0 and a publish marker: not a no-response block
+
+
+def test_ledger_post_for_the_slot_voids_the_evidence(tmp_path):
+    ledger = {"2026-10-24-h14m00": {"status": "published",
+                                    "destinations": {"x": {"post_id": "cmv123", "status": "PUBLISHED"}}}}
+    ev = rec.model_no_response_evidence(STARTED, "2026-10-24-h14m00",
+                                        log_path=_log(tmp_path, FAILED_BLOCK),
+                                        ledger_path=_ledger(tmp_path, ledger))
+    assert ev is None or ev["ledger_has_slot_post"] is True
+
+
+def test_missing_or_unreadable_log_gives_no_evidence(tmp_path):
+    assert rec.model_no_response_evidence(STARTED, "2026-10-24-h14m00",
+                                          log_path=tmp_path / "absent.log",
+                                          ledger_path=_ledger(tmp_path, {})) is None
+
+
+def test_block_for_a_different_slot_gives_no_evidence(tmp_path):
+    assert rec.model_no_response_evidence(STARTED, "2026-10-24-h15m00",
+                                          log_path=_log(tmp_path, FAILED_BLOCK),
+                                          ledger_path=_ledger(tmp_path, {})) is None

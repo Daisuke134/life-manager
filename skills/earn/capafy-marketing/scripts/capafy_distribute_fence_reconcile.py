@@ -220,6 +220,12 @@ def record_occurrence_manifest(path: Path, *, owner_id: str, run_id: str,
 
 def expected_article_slug(occurrence_id: str, occurrences_root: Path | None = None) -> str:
     """Read the wrapper-owned occurrence binding outside the model workspace."""
+    return expected_article_slot_and_slug(occurrence_id, occurrences_root)[1]
+
+
+def expected_article_slot_and_slug(occurrence_id: str,
+                                   occurrences_root: Path | None = None) -> tuple[str, str]:
+    """Same checked read as expected_article_slug, also returning the slot."""
     run_id = _run_id_for_occurrence(occurrence_id)
     root = occurrences_root or OCCURRENCES_ROOT
     if root.is_symlink() or not root.is_dir():
@@ -248,8 +254,8 @@ def expected_article_slug(occurrence_id: str, occurrences_root: Path | None = No
             or record.get("run_id") != run_id
             or record.get("occurrence_id") != occurrence_id):
         raise ValueError("occurrence manifest identity mismatch")
-    _slot, slug = _validate_slot_article(record.get("slot"), record.get("article_slug"))
-    return slug
+    slot, slug = _validate_slot_article(record.get("slot"), record.get("article_slug"))
+    return slot, slug
 
 
 def pre_effect_manifest_enospc(occurrence_id: str, started_at: dt.datetime, *,
@@ -538,12 +544,94 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
     return result
 
 
+MODEL_NO_RESPONSE_MAX_BLOCK_START_SKEW_SECONDS = 5.0
+
+DAILY_LOG_PATH = Path.home() / ".local/state/life-manager/writer/capafy-distribute/logs/capafy-distribute-daily.log"
+_LOG_HEADING = re.compile(r"^=== capafy-distribute-daily run (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) JST ===$")
+_MODEL_PASS = re.compile(r"^capafy-distribute-daily: model pass exit=(\d+) slot=(\S+) ")
+# Lines that only appear once the trusted wrapper has started publishing.
+_PUBLISH_MARKERS = ("wrapper publish:", "x post:", "PII-GATE PASS", "CAPAFY_DRAFT_OUTPUT=PASS")
+
+
+def _ledger_has_slot_post(ledger_path: Path, slot: str) -> bool:
+    try:
+        entry = json.loads(ledger_path.read_text(encoding="utf-8")).get(slot)
+    except (OSError, ValueError):
+        return True  # unreadable ledger: assume the slot may have published
+    if not entry:
+        return False
+    if entry.get("status") == "published":
+        return True
+    destinations = entry.get("destinations") or {}
+    return any(isinstance(d, dict) and (d.get("post_id") or d.get("status") in {"PUBLISHED", "published"})
+               for d in destinations.values())
+
+
+def model_no_response_evidence(started_at: dt.datetime, slot: str, *,
+                               log_path: Path | None = None,
+                               ledger_path: Path | None = None) -> dict[str, Any] | None:
+    """Read the run's own log block: the model pass failed and nothing after it published.
+
+    Bound by the occurrence start time (block heading within a few seconds) and by the slot named
+    on the model-pass line. None when the log is unreadable or no block matches.
+    """
+    try:
+        lines = (log_path or DAILY_LOG_PATH).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    jst = ZoneInfo("Asia/Tokyo")
+    headings = []
+    for index, line in enumerate(lines):
+        match = _LOG_HEADING.match(line)
+        if match:
+            when = dt.datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=jst)
+            headings.append((index, when))
+    best = None
+    for position, (index, when) in enumerate(headings):
+        skew = abs((when - started_at.astimezone(jst)).total_seconds())
+        if skew > MODEL_NO_RESPONSE_MAX_BLOCK_START_SKEW_SECONDS:
+            continue
+        end = headings[position + 1][0] if position + 1 < len(headings) else len(lines)
+        block = lines[index:end]
+        passes = [m for m in (_MODEL_PASS.match(line) for line in block) if m]
+        if len(passes) != 1 or passes[0].group(2) != slot:
+            continue
+        if int(passes[0].group(1)) == 0:
+            continue  # the model pass succeeded: not a no-response block
+        candidate = {
+            "slot": passes[0].group(2), "rc": int(passes[0].group(1)),
+            "published_marker_in_block": any(marker in line for line in block for marker in _PUBLISH_MARKERS),
+            "ledger_has_slot_post": _ledger_has_slot_post(ledger_path or LEDGER_PATH, slot),
+            "block_started_within_s": round(skew, 3),
+        }
+        if best is None or skew < best["block_started_within_s"]:
+            best = candidate
+    return best
+
+
+
+
+def _model_no_response_is_exact(evidence: dict[str, Any]) -> bool:
+    """Every condition must hold; any doubt keeps the occurrence fenced."""
+    skew = evidence.get("block_started_within_s")
+    return (
+        isinstance(evidence.get("expected_slot"), str)
+        and evidence.get("slot") == evidence.get("expected_slot")
+        and type(evidence.get("rc")) is int and evidence["rc"] != 0
+        and evidence.get("published_marker_in_block") is False
+        and evidence.get("ledger_has_slot_post") is False
+        and isinstance(skew, (int, float)) and not isinstance(skew, bool)
+        and 0 <= skew <= MODEL_NO_RESPONSE_MAX_BLOCK_START_SKEW_SECONDS
+    )
+
+
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
                 started_at: dt.datetime, expected_slug: str | None, now: dt.datetime,
                 commits: dict[str, Any], x_posts: dict[str, Any],
                 page_status_fn: Callable[[str], int] = page_status,
                 pre_effect: dict[str, Any] | None = None,
-                pre_provider_failure: dict[str, Any] | None = None) -> dict[str, Any]:
+                pre_provider_failure: dict[str, Any] | None = None,
+                model_no_response: dict[str, Any] | None = None) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat(),
                              "occurrence_started_at": started_at.isoformat(),
@@ -658,6 +746,26 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
     age = (now - started_at).total_seconds()
     if age <= NO_EFFECT_MIN_AGE_SECONDS:
         proof["reason"] = f"too_recent:{int(age)}s<={NO_EFFECT_MIN_AGE_SECONDS}s"
+        return proof
+    if model_no_response is not None and pre_provider_failure is not None:
+        proof["reason"] = "model_no_response_not_combinable_with_pre_provider_failure"
+        return proof
+    if model_no_response is not None and not _model_no_response_is_exact(model_no_response):
+        proof["reason"] = "model_no_response_evidence_not_exact"
+        return proof
+    if model_no_response is not None:
+        # The run's own log block shows the model pass returned nothing (rc != 0), no publish marker
+        # followed, and the ledger holds no post for this slot, so it never reached any provider
+        # effect. An X post by the same integration inside the window therefore belongs to someone
+        # else (2026-10-24: a teammate's manual promo post). No landing commit exists (checked above).
+        proof.update(
+            verified=True, effected=False,
+            provider_receipt_id=(f"model-no-response:{model_no_response['expected_slot']}:"
+                                 f"{started_at.isoformat()}"),
+            proof_kind="occurrence_bound_model_no_response",
+            model_no_response=model_no_response,
+            checked_at=now.isoformat(timespec="seconds"),
+        )
         return proof
     if not x_posts.get("ok"):
         proof["reason"] = x_posts.get("reason")
@@ -959,7 +1067,8 @@ def write_no_effect_result_hint(occurrence_id: str, path: Path, reason: str,
 def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | None = None,
               fenced_row_fn=fenced_row, commits_fn=read_landing_commits,
               x_fn=read_x_posts, page_status_fn=page_status, resolve_fn=None,
-              started_at_fn=None, expected_slug_fn=None) -> dict[str, Any]:
+              started_at_fn=None, expected_slug_fn=None,
+              model_no_response_fn=None) -> dict[str, Any]:
     now = now or dt.datetime.now(dt.timezone.utc)
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     started_at = (started_at_fn or occurrence_started_at)(occurrence_id)
@@ -985,12 +1094,24 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
         )
     commits_readback = commits_fn(started_at, end)
     postiz_readback = x_fn(started_at, end)
+    model_no_response = None
+    # The one hard-coded historical case keeps its own, stricter proof untouched.
+    if expected_slug is not None and pre_provider_failure is None:
+        try:
+            slot, _slug = expected_article_slot_and_slug(occurrence_id)
+        except ValueError:
+            slot = None
+        evidence = ((model_no_response_fn or model_no_response_evidence)(started_at, slot)
+                    if slot is not None else None)
+        if evidence is not None:
+            model_no_response = {**evidence, "expected_slot": slot}
     proof = build_proof(
         occurrence_id, queued_at, started_at=started_at,
         expected_slug=expected_slug, now=now,
         commits=commits_readback,
         x_posts=postiz_readback, page_status_fn=page_status_fn,
         pre_effect=pre_effect, pre_provider_failure=pre_provider_failure,
+        model_no_response=model_no_response,
     )
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
