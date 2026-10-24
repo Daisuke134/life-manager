@@ -29,6 +29,7 @@ DELIVERY_SCHEMA_VERSION = "marketing.owner-delivery.v1"
 PRODUCTS = (
     "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
     "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en",
+    "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful",
 )
 _PRODUCT_DISPLAY_NAMES = {
     "anicca-ios": "Anicca iOS",
@@ -39,6 +40,10 @@ _PRODUCT_DISPLAY_NAMES = {
     "micro-mood": "Micro-Mood",
     "ebook-ja": "日本語電子書籍",
     "ebook-en": "英語電子書籍",
+    "dhamma-quotes": "Daily Dhamma",
+    "sleep-reset": "Sleep Reset",
+    "studio-cherie": "STUDIO CHERIE",
+    "thankful": "Thankful",
 }
 _PLATFORM_DISPLAY_NAMES = {
     "instagram": "Instagram",

@@ -15,7 +15,8 @@
       "command": ["{python}", "{repo}/skills/earn/marketing-engine/measure/business_outcomes.py"],
       "product_ids": [
         "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
-        "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en", "life-manager-cloud"
+        "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en", "life-manager-cloud",
+        "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"
       ],
       "quarantine_reason": null
     },
