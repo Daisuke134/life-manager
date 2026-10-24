@@ -4,11 +4,27 @@ from pathlib import Path
 import sqlite3
 import sys
 
+import pytest
+from skills.earn.crowdworks.tests.test_owner_private_identity import write_inputs
+
 
 ROOT = Path(__file__).resolve().parents[4]
 PATH = ROOT / "skills/earn/crowdworks/scripts/reconcile_application_no_submit.py"
 OWNER = "crowdworks-revenue-application"
 OCC = f"{OWNER}:run-1"
+PROVIDER = {"provider_employee_id": "5432107", "display_name": "別の利用者"}
+
+
+@pytest.fixture(autouse=True)
+def private_inputs(tmp_path, monkeypatch):
+    home=tmp_path/"private-home"
+    write_inputs(home)
+    monkeypatch.setenv("HOME",str(home))
+    monkeypatch.setenv("AI_BROWSER_REGISTRY",str(tmp_path/"browsers.toml"))
+
+
+def evaluate(module, *args):
+    return module.evaluate(*args, provider_profile=PROVIDER)
 
 
 def load():
@@ -45,7 +61,7 @@ def test_no_proposal_in_claim_run_window_is_no_submit(tmp_path):
     module = load()
     setup(tmp_path)
     proposals = [(400, "2026年09月20日 12:07")] + BEFORE
-    proof, reason = module.evaluate(tmp_path, [OCC], proposals)[OCC]
+    proof, reason = evaluate(module,tmp_path, [OCC], proposals)[OCC]
     assert reason == "ok" and proof["proof_type"] == "pre_effect"
     assert proof["evidence_ref"].startswith(f"lm-crowdworks-application-readback://{OWNER}/run-1/")
 
@@ -54,21 +70,21 @@ def test_proposal_in_window_or_bound_receipt_keeps_fence(tmp_path):
     module = load()
     setup(tmp_path)
     proposals = [(400, "2026年09月20日 12:02")] + BEFORE
-    assert module.evaluate(tmp_path, [OCC], proposals)[OCC] == (None, "proposal_in_window:400")
+    assert evaluate(module,tmp_path, [OCC], proposals)[OCC] == (None, "proposal_in_window:400")
     setup(tmp_path, receipts=[{"occurrence_id": OCC, "application_external_id": "1"}])
-    assert module.evaluate(tmp_path, [OCC], BEFORE)[OCC] == (None, "application_receipt_bound")
+    assert evaluate(module,tmp_path, [OCC], BEFORE)[OCC] == (None, "application_receipt_bound")
     setup(tmp_path, pending={"x": {"occurrence_id": OCC}})
-    assert module.evaluate(tmp_path, [OCC], BEFORE)[OCC] == (None, "application_transaction_pending")
+    assert evaluate(module,tmp_path, [OCC], BEFORE)[OCC] == (None, "application_transaction_pending")
 
 
 def test_incomplete_or_unordered_readback_keeps_fence(tmp_path):
     module = load()
     setup(tmp_path)
-    assert module.evaluate(tmp_path, [OCC], None)[OCC] == (None, "proposal_readback_incomplete")
+    assert evaluate(module,tmp_path, [OCC], None)[OCC] == (None, "proposal_readback_incomplete")
     unordered = [(400, "2026年09月19日 08:00"), (300, "2026年09月20日 11:57")]
-    assert module.evaluate(tmp_path, [OCC], unordered)[OCC] == (None, "proposal_order_unverified")
+    assert evaluate(module,tmp_path, [OCC], unordered)[OCC] == (None, "proposal_order_unverified")
     # Readback stopped before reaching a proposal older than the window.
-    assert module.evaluate(tmp_path, [OCC], [(400, "2026年09月20日 12:07")])[OCC] == (
+    assert evaluate(module,tmp_path, [OCC], [(400, "2026年09月20日 12:07")])[OCC] == (
         None, "proposal_readback_incomplete")
 
 
@@ -76,7 +92,7 @@ def test_unclaimed_occurrence_keeps_fence(tmp_path):
     module = load()
     setup(tmp_path)
     other = f"{OWNER}:run-2"
-    assert module.evaluate(tmp_path, [other], BEFORE)[other] == (None, "claim_run_unavailable")
+    assert evaluate(module,tmp_path, [other], BEFORE)[other] == (None, "claim_run_unavailable")
 
 
 def test_recorded_proposals_are_read_even_when_unlisted(tmp_path):
@@ -111,12 +127,12 @@ def test_read_proposals_rejects_redirect_to_another_proposal():
             return self
 
         def text_content(self):
-            return "Kaito｜AI自動化"
+            return "別の利用者"
 
         def get_attribute(self, name):
             return {
                 "datetime": "2026年09月20日 12:02",
-                "href": "/public/employees/7145638",
+                "href": "/public/employees/5432107",
             }.get(name)
 
     class ProposalPage:
@@ -138,15 +154,15 @@ def test_read_proposals_rejects_redirect_to_another_proposal():
         def locator(self, _selector):
             return Node()
 
-    assert module.read_proposals(ProposalPage(402), 0.0) is None
-    proposals = module.read_proposals(ProposalPage(401), 0.0)
+    assert module.read_proposals(ProposalPage(402), 0.0, provider_profile=PROVIDER) is None
+    proposals = module.read_proposals(ProposalPage(401), 0.0, provider_profile=PROVIDER)
     assert proposals is not None and len(proposals) == 1
     assert {key: value for key, value in proposals[0].items() if key != "observed_at"} == {
         "proposal_id": 401,
         "proposal_url": "https://crowdworks.jp/proposals/401",
         "seller_identity": {
-            "display_name": "Kaito｜AI自動化",
-            "profile_url": "https://crowdworks.jp/public/employees/7145638",
+            "display_name": "別の利用者",
+            "profile_url": "https://crowdworks.jp/public/employees/5432107",
         },
         "first_message_timestamp": "2026年09月20日 12:02",
         "first_message_minute": "2026-09-20T12:02+09:00",
@@ -182,8 +198,8 @@ def test_exact_verified_receipt_reconciles_effect_only_after_opt_in(tmp_path, mo
         "proposal_id": 401,
         "proposal_url": "https://crowdworks.jp/proposals/401",
         "seller_identity": {
-            "display_name": "Kaito｜AI自動化",
-            "profile_url": "https://crowdworks.jp/public/employees/7145638",
+            "display_name": "別の利用者",
+            "profile_url": "https://crowdworks.jp/public/employees/5432107",
         },
         "first_message_timestamp": "2026年09月20日 12:02",
         "first_message_minute": "2026-09-20T12:02+09:00",

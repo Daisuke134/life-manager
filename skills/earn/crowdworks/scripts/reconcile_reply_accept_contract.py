@@ -14,7 +14,7 @@ from runtime.host.resource_admission import resolve_unknown_occurrence
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from reply_adapter import CrowdWorksReplyAdapter  # noqa: E402
+from reply_adapter import build as build_reply_adapter, profile_module  # noqa: E402
 _KERNEL_PATH = HERE.parents[3] / "skills/_shared/marketplace-core/scripts/reply_kernel.py"
 _SPEC = importlib.util.spec_from_file_location("crowdworks_reply_kernel", _KERNEL_PATH)
 if _SPEC is None or _SPEC.loader is None:
@@ -70,7 +70,7 @@ def read_provider_state(state_root: Path, thread_id: str) -> dict[str, Any]:
     if state is None:
         raise RuntimeError("exact_accept_contract_intent_unavailable")
     intent = dict(state["intent"])
-    adapter = CrowdWorksReplyAdapter({}, state_path=state_root)
+    adapter, _ = build_reply_adapter(["--state-path",str(state_root/"state.json")])
     try:
         adapter.observe_threads()
         if thread_id not in adapter.rows:
@@ -109,6 +109,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolve", action="store_true",
                         help="release the exact claimed occurrence after receipt readback")
     args = parser.parse_args(argv)
+    try:
+        profile_module.load_identity()
+    except profile_module.SetupRequired as error:
+        print(json.dumps({"owner_id":OWNER,"error":"setup_required","missing":error.missing}))
+        return 78
     result = reconcile(state_root=args.state_root.expanduser().resolve(), owner=args.owner,
                        occurrence=args.occurrence, thread_id=args.thread_id,
                        resolve=args.resolve)
