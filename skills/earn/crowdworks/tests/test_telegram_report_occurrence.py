@@ -82,3 +82,37 @@ def test_run_reports_provider_rejection_as_not_ok(tmp_path, monkeypatch):
     assert result["provider_rejected"] == 1
     assert result["pre_send_failed"] == 0
     assert result["delivery_uncertain"] == 0
+
+
+def test_report_uses_the_same_custom_environment_file_as_setup(tmp_path, monkeypatch):
+    from skills._shared import telegram
+
+    home = (tmp_path / "different-owner").resolve()
+    home.mkdir(mode=0o700)
+    monkeypatch.setenv("HOME", str(home))
+    custom = home / "settings" / "notifications.env"
+    custom.parent.mkdir(mode=0o700)
+    custom.write_text("TELEGRAM_BOT_TOKEN=synthetic-private-token\n")
+    custom.chmod(0o600)
+    monkeypatch.setenv("LIFE_MANAGER_ENV_FILE", str(custom))
+    monkeypatch.setenv("CROWDWORKS_REPORT_CHAT", "synthetic-owner-chat")
+    module = load()
+    from skills.earn.crowdworks.scripts.install_local import _report_missing
+
+    assert _report_missing(home, {"LIFE_MANAGER_ENV_FILE": str(custom)}) == []
+    sent = []
+    monkeypatch.setattr(module.delivery, "_load", lambda *_args: telegram)
+    monkeypatch.setattr(telegram.TelegramClient, "send_text",
+                        lambda self, message: sent.append(message) or {"message_ids": [701]})
+    for name in ("enqueue_decisions", "enqueue_declines", "enqueue_wake_summary"):
+        monkeypatch.setattr(module, name, lambda *_args, **_kwargs: 0)
+    database = home / "outbox.sqlite3"
+    module.outbox.enqueue(database, "synthetic-report", "owner report", "2026-10-24T00:00:00Z")
+
+    result = module.run(database=database, now="2026-10-24T00:01:00Z")
+
+    assert result["ok"] is True
+    assert result["delivered"] == 1
+    assert result["pre_send_failed"] == result["delivery_uncertain"] == 0
+    assert sent == ["owner report"]
+    assert not (home / ".local/state/life-manager/.env").exists()

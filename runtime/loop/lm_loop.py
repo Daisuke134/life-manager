@@ -1557,6 +1557,7 @@ def _admission_rebind_guard(
     item: dict | None = None,
     release_sha: str | None = None,
     launchctl_safe: Path | None = None,
+    installed_path: Path | None = None,
     replace_reserved_policy_drift: bool = False,
     allow_reserved_release_rebind: bool = False,
 ):
@@ -1566,6 +1567,24 @@ def _admission_rebind_guard(
     with owner_deploy_lock(loop_id) as acquired:
         if not acquired:
             raise RuntimeError("owner deploy busy")
+        if installed_path is not None and item is not None and release_sha:
+            try:
+                installed_path.lstat()
+                installed = True
+            except FileNotFoundError:
+                installed = False
+            except OSError:
+                installed = True
+            try:
+                installed_sha = _release_from_plist(installed_path)
+            except (AttributeError, OSError, TypeError, ValueError):
+                installed_sha = None
+            if (installed and (not installed_sha or installed_sha != release_sha
+                               and not _loaded_sha_is_ancestor(installed_sha, release_sha))):
+                yield {"ok": True, "label": item["label"],
+                       "release_sha": release_sha, "changed": False,
+                       "skipped": "ancestry-unverified"}
+                return
         pending = _owner_has_pending_admission(loop_id)
         if not pending:
             yield None
@@ -3141,6 +3160,8 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                     entry=registry["loops"][item["loop_id"]],
                     item=item, release_sha=release_sha,
                     launchctl_safe=launchctl_safe,
+                    installed_path=(agents_dir / f"{item['label']}.plist"
+                                    if require_current else None),
                     replace_reserved_policy_drift=replace_reserved_policy_drift,
                     allow_reserved_release_rebind=allow_reserved_release_rebind,
             ) as pending_admission:
