@@ -4,7 +4,7 @@
 
 **目的・範囲:** Local Life Managerを、背景を知らない人が理解し、自分のMacで導入・運用できるOSSへ仕上げる。README、公開installer、約20 agentが担う7事業の実業務、Mac portability、公式な業務結果、GitHub 10,000 starsを別々の完了条件として追う。この冒頭を現況と再開順の正本とし、後続の個別節にある古いcursorやsnapshotは当時の受入記録として読む。
 
-**製品の中心価値:** Local Life Managerは、既存の人間運営の事業を補助するだけのAIではない。人の継続的な指示や承認なしに、自分で事業機会を選び、事業そのものを企画・構築・立ち上げ、顧客を獲得し、商品/サービスを届け、入金し、採算を改善するノーヒューマン・イン・ザ・ループのmoney printerを目指す。Local版を動かす基本条件はChatGPT Plus以上とスリープしないMac/Mac mini。個別事業の実行時には、そのproviderが求めるbusiness accountや費用を接続する。初期設定後、通常運転に人のprompt/approvalを要しないことを完成条件にする。
+**製品の中心価値:** Local Life Managerは、既存の人間運営の事業を補助するだけのAIではない。人の継続的な指示や承認なしに、自分で事業機会を選び、事業そのものを企画・構築・立ち上げ、顧客を獲得し、商品/サービスを届け、入金し、採算を改善するノーヒューマン・イン・ザ・ループのmoney printerを目指す。Local版を動かす基本条件はChatGPT Plus以上、12 GiB以上の空き容量があるスリープしないMac/Mac mini。個別事業の実行時には、そのproviderが求めるbusiness accountや費用を接続する。初期設定後、通常運転に人のprompt/approvalを要しないことを完成条件にする。
 
 **公開表現と証明:** READMEでは「人間が運営する事業を手伝うAI」ではなく、事業自体を作り、運営し、収益を得るno-human-in-the-loop money printerを目指すと正面から説明する。現在はearly developmentで全事業の自律運転・収益が揃っていないことを隣接して明記し、完成済みの能力や利益と誤解させない。収益の実績はofficial provider receiptと費用を使ったnet結果で示し、未検証のbusiness outcomeを現在の事実として書かない。ChatGPT PlusはcoreのAI利用条件であり、インターネット、各business account、providerが必要とする追加費用は別に明示する。
 
@@ -22,10 +22,10 @@
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| README money-printer改訂 | `docs/lm-readme-portability-20261024`で英日READMEを各45行に整理。no-human-in-the-loopでLife Manager自身が事業を作り運営するheadline、7事業、ChatGPT Plus、常時起動Mac、単一導入command、未実証の注意書きを含む。startup-context 20/20、URL migration、context audit、source boundaryはPASS。まだPR/main/public readback前。 | focused CIとreviewをPASSしmainへ統合。GitHub rawの英日READMEが受入commitと一致することを確認する。 |
-| 現Macのresource admission | 2026-10-24 12:59Zのread-only観測: macOS 15.6/arm64、AC時の`sleep=0`。`df`空き8,498,380 KiB、swap使用16,781.62/18,432 MiB。192 managed jobの最新状態はblocked 135 / fail 13 / pass 21 / running 23。blocker別ではdisk floor 87、effect unknown 38、entrypoint exit 1が11、swap pressure 4。これはjob数でありagent数ではない。 | 既存ownerの失敗runをoccurence単位で特定し、容量回復後にnatural retryとreadbackを追う。effect unknownのfenceや稼働ownerを推測で解除・再起動しない。 |
-| Disk cleanup ownerの失敗 | run `18e17804a9836d08-4236`は12:58:35Zに`entrypoint_exit_1`で終了。stderr末尾に`OSError(28, 'No space left on device')`があるが、ログにrun IDがなくその例外を当該runへ確実にbindできていない。12:59Zのhost healthはcapacity recovered / free 8,700,375,040 bytesを返す。 | 同じownerのoccurrence/phase/commandと例外を結びつけて原因を確認し、必要なsource修正をfocused testで証明してから、既存ownerの安全な自然実行で再確認する。 |
-| 別Macの初回導入 | clean-user/bootstrapのsource testsは成功。別ユーザーのclean Macで公開手順を使った初回導入、ChatGPT Plus login、選択businessのprovider成果は未確認。 | fresh macOS user/deviceでinstallから選んだbusinessの公式provider readbackまで通し、tested macOS/architectureだけをサポート範囲として公開する。 |
+| README money-printer改訂 | PR #8894、branch `docs/lm-readme-portability-20261024`で英日READMEを各45行に整理。no-human-in-the-loopでLife Manager自身が事業を作り運営するheadline、7事業、ChatGPT Plus、awake Mac、12 GiB free storage、単一導入command、未実証の注意書きを記載。README契約20/20、URL migration、context audit、Mac bootstrap 11/11はPASS。追加した12 GiB要件のPR CI/main/raw readbackは未完。 | #8894の最新headでfocused CIをPASSしmainへ統合。GitHub rawの英日READMEとsetup guideが受入commitに一致することを確認する。 |
+| 現Macのresource admission | 2026-10-24 13:05Z: macOS 15.6/arm64、AC時`sleep=0`。disk preflightの空き8,717,578,240 bytes (8.1 GiB)に対して通常producer floorは12 GiB、revenue floorは10 GiB。host recoveryの2 GiB floorを超えてもproducerは起動できない。192 managed jobはblocked 138 / fail 12 / pass 19 / running 23。blockerはdisk floor 90 / effect unknown 38 / entrypoint exit 1が12 / swap pressure 4。 |
+| Disk cleanup ownerの失敗 | run `18e178d52f661f08-48445`は13:04:53Zに`entrypoint_exit_1`で終了。最新installed releaseは`59b10f00`、ownerはloaded-idle、next actionは`reconcile_owner`。stderr末尾に`OSError(28, 'No space left on device')`があるがrun IDの記録がなく、この例外を該当runにbindできていない。 | 次の自然runについてcommand/phase/exceptionをoccurrence ID付きで観測し、エラー境界を特定する。再現する自己所有sourceだけをfocused test付きで修正し、既存ownerの安全な自然実行で検証する。 |
+| 別Macの初回導入 | clean-user/bootstrapのsource testsは成功。別ユーザーのclean Macで公開手順を使った初回導入、ChatGPT Plus login、選択businessのprovider成果は未確認。12 GiBの空き容量を実用要件としてREADME/setupへ追記中。 | fresh macOS user/deviceで、12 GiB以上の空き容量を含む要件を満たした状態からinstall、ChatGPT Plus認証、選択businessの公式provider結果まで通す。動作を確認したmacOS/architectureだけを対応範囲として公開する。 |
 | Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN。head `53a21430`、base `8e0e6f2e`はmain `59b10f00`より古い。14 CI checks成功、review decisionなし（2026-10-24 12:59Z readback）。既存owner worktreeはlocked。 | owner完了後にlatest mainへ合わせ、updated headのfocused test/review/CIを通して統合。main由来releaseと公開sourceでReplyを再確認する。 |
 | 7つの未接続installer | 18 catalog group中11にlocal commandがあり、PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7つが未接続。 | 各事業の公開導入、必要条件、失敗説明を揃える。 |
 | 約20 agentと7事業のend-to-end | catalog group数とagent数は別。全agentの開始から顧客/販売/納品/支払までの公式結果、重複防止、再開動作は未確認。利益実績も未集計。 | 対象一覧を確定し、各有効事業の公式結果と費用控除後のnet収益を証拠つきで確認する。 |
@@ -33,10 +33,10 @@
 
 ### ゴールまでの順序
 
-**順序変更（2026-10-24）:** 旧順は `#8865 → 現Mac/Mercor → README → installer → agent → 別Mac → stars`。新順は `README公開 → 現Mac resource failureの診断 → clean Mac導入とprovider成果 → #8865 → 7 installer → 全agent/7事業の証明 → Mac portability → 10,000 stars`。README短文化とPlus/awake Macの入口を先に閉じ、現在の容量・cleanup問題は初回Mac受入を妨げる共有blockerなので前倒しする。#8865のowner worktreeは変更しない。現在cursorは **README-MONEY-PR**。
+**順序変更（2026-10-24）:** 旧順は `#8865 → 現Mac/Mercor → README → installer → agent → 別Mac → stars`。新順は `README公開 → 12 GiB/10 GiBのMac容量関門とcleanup失敗を診断 → clean Mac導入とprovider成果 → #8865 → 7 installer → 全agent/7事業の証明 → Mac portability → 10,000 stars`。公開導入条件に実測の空き容量要件を追加し、現在jobを止める共有resource blockerの原因特定を前倒しする。#8865のowner worktreeやeffect-unknown fenceは変更しない。現在cursorは **README-MONEY-PR**。
 
-1. 英日READMEをmoney-printer/no-human-in-the-loopの外向け価値提案へ短く改訂し、7事業、ChatGPT Plus、常時起動Mac、必要なservice account、単一install command、未実証の限界を残してmainへ反映する。
-2. 現Macのdisk floor / swap pressure / cleanup exitをoccurrence単位で診断し、自己所有sourceに再現する不具合だけを修正。unknown effect fenceと既存ownerを保持してnatural retryを確認する。
+1. 英日READMEと導入guideをno-human-in-the-loop money-printerの外向け価値提案へ短く整える。7事業、ChatGPT Plus、常時起動Mac、12 GiB以上のfree storage、必要なservice account、単一install command、未実証の限界を残してmainへ反映する。
+2. 現Macのdisk floor / swap pressure / cleanup exitをoccurrence単位で診断し、既存の容量回復ownerで安全に増やせる余地を確認する。共有effect fenceと稼働ownerを保持し、disk floorを根拠なしに引き下げない。
 3. clean Macの初回installからChatGPT Plus認証、選択businessの公式provider結果まで通し、動作確認したmacOS/architectureの範囲を公開する。
 4. [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)をownerの作業完了後にlatest mainへ合わせ、review/CI/公開source/実業務を確認して統合する。
 5. PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7つに公開installerと必要条件を実装する。
@@ -46,7 +46,7 @@
 
 ### 理想の完成状態
 
-外部の人がREADMEだけでLocal Life Managerを、人間の既存事業を手伝うだけでなく事業自体を発想・構築・立ち上げ、運営して収益を生むノーヒューマン・イン・ザ・ループのmoney printerと理解する。ChatGPT Plus以上とスリープしないMac/Mac miniを使い、対応する事業の顧客獲得、制作、販売、納品、入金、改善を自律的に回す。初回に必要なservice accountを接続した後、通常業務は人の都度prompt/approvalなしで進む。対応する約20 agentが7事業を動かし、official provider receiptで案件・注文・入金を照合、7事業すべての費用控除後の正のnet収益、失敗、再開状態を示す。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から最初の収益成果まで通る。Pion/Andon Labsのように事業全体を運営するagentを目指し、Life Managerは7 business linesのverified net revenueを外部に示す。現在のearly-development状態と未完了機能はREADMEで正直に示し、確認済み成果が揃うまで保証収益をうたわない。GitHub 10,000 starsは利用者に価値が届いた結果として目指す別の採用目標であり、収益・導入成功の証明とは分ける。
+外部の人がREADMEだけでLocal Life Managerを、人間の既存事業を手伝うだけでなく事業自体を発想・構築・立ち上げ、運営して収益を生むノーヒューマン・イン・ザ・ループのmoney printerと理解する。ChatGPT Plus以上と12 GiB以上の空き容量があるスリープしないMac/Mac miniを使い、対応する事業の顧客獲得、制作、販売、納品、入金、改善を自律的に回す。初回に必要なservice accountを接続した後、通常業務は人の都度prompt/approvalなしで進む。対応する約20 agentが7事業を動かし、official provider receiptで案件・注文・入金を照合、7事業すべての費用控除後の正のnet収益、失敗、再開状態を示す。Macを替えても、明記したサポート対象なら同じ公開手順で初回導入から最初の収益成果まで通る。Pion/Andon Labsのように事業全体を運営するagentを目指し、Life Managerは7 business linesのverified net revenueを外部に示す。現在のearly-development状態と未完了機能はREADMEで正直に示し、確認済み成果が揃うまで保証収益をうたわない。GitHub 10,000 starsは利用者に価値が届いた結果として目指す別の採用目標であり、収益・導入成功の証明とは分ける。
 
 ### 10,000 starsを目指すREADMEの参考例
 

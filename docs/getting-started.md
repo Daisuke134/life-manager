@@ -7,8 +7,9 @@ service accounts. Docker is not required. This is early software; some agents ne
 
 ## What you need
 
-- A Mac or Mac mini that stays awake, with internet access. The installer accepts Apple Silicon
-  and Intel; Coconala's public beta targets macOS 14 or newer.
+- A Mac or Mac mini that stays awake, with internet access and at least 12 GiB of free disk
+  space. The installer accepts Apple Silicon and Intel; Coconala's public beta targets macOS 14
+  or newer.
 - ChatGPT Plus or higher. Sign in through the official `codex login` flow; no separate OpenAI
   API key is required for this subscription path.
 - Your own accounts for the agents you select. Some services require email, SMS, KYC, a payout

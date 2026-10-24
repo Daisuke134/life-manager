@@ -25,7 +25,7 @@ After setup, Life Manager is designed to find opportunities, create businesses, 
 ## Core requirements
 
 - **ChatGPT Plus or higher.** Sign in with ChatGPT; no separate OpenAI API key is required.
-- **A Mac that stays awake** and has internet access. A Mac mini works well for always-on use.
+- **A Mac that stays awake**, with internet and at least 12 GiB of free disk space. A Mac mini works well for always-on use.
 
 For each business you enable, connect your own service accounts. Some services may cost extra.
 
