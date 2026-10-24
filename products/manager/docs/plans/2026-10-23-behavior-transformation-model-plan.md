@@ -163,6 +163,17 @@
 
 **検証:** 今回は仕様/計画のみ。相対link、変更範囲、tasks.json不変/85-18-10、PII/secret scan、diff checkを確認する。将来のcode taskでは上記の実schema/失敗例を確定してから対応既存testsへRED/GREENを追加し、該当suiteと通常CIを実行する。docs追記でmodel/data採用・学習/介入・応募/送信・公開は発火しない。
 
+### 2026-10-24 research実進捗と出版優先順の更新
+
+最新ユーザー指示は「A01–A09の研究を先に進め、ファイルを更新し、記事と無料公開書籍も書く」。先行の「新記事は後段」は履歴として残し、本追補以降は研究に沿う記事/章の執筆・無料配布を並行する。まだない実証・全書籍完成・全媒体公開を先取りしない。既存canonical outlineを使い、別のbook計画/SSOTを増やさない。
+
+- [x] A01–A02 現物確認/用途/実schema: Zenodo59membersを選択取得、manifest自身以外58payloadの上流SHA一致。primary2094行/54列、post欠測50、公開key上のwave横断participant0を確認。[研究note](../research/2026-10-24-costello-correction-reuse.md)。
+- [x] A03–A04 有限の実再現: 上流build_results.Rと7部validate_analysis.Rを変更せず実行してPASS。互換R4.5.3、元lock4.5.0とは異なる。6表45行を許容差内で照合。全archive/survey reconstruction再現ではない。[実receipt](../verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md)。
+- [x] A05–A08 研究設計と私有入力準備: 二つの事前入力から事後本人報告confidenceを予測する有限候補、train128/dev584/evaluation762、NO_ACTION/事前値維持/平均/OLS/base/単一LoRAを固定。devの単純baseline実測のみ、新LLM採点/学習なし。[designと残code](2026-10-24-costello-numeric-forecast.md)。
+- [ ] A09 resource/package/asset存在を確認したが、新source-specific caller、意味あるtests、exact-source review/CI、durable outer wait/評価予算の固定は未成立。旧27例entryを緩めず次の最小code作業へ進む。A10は未実施。
+
+上の完了はこの有限研究の範囲だけ。全V002/V003/モデル採用/人便益の受入ではなく、tasks.json85/18/10・U004 participants0/interventions0・modelHOLDは維持する。
+
 ## 今回の計画のself-review
 
 scope・元snapshotの23残件から限定V001/G001/G002とD014/D015有限受入後の現18残件・独自重み・公開研究再利用・no UI・実結果・siteの各要求をTask1–7へ対応付けた。有限train27開始routeのG0 sourceを実採択し、評価科学定義の用途判断・独立reviewに基づくsource採択/freezeをG6実学習より前に記録済み。実G0–G6・CI/config受入、一attempt学習/完全保存と独立実結果検証・単一artifact固定を[実結果](../verification/HELPSTEER2_PRIVATE_SFT_CPU_20261023.md)へ結んだ。別G7/code/CI/resource/0400受入後の固定比較96/96完了と[独立実結果検証](../verification/HELPSTEER2_FIXED_ADAPTER_CPU_20261023.md)を接続した。baseへの改善未観測・採用HOLDと全体未達を保持し、新しい研究は別version/用途適合holdoutを要する。未確定の研究条件はprotocol草案へ明記し、実行時に埋める方法と受入を指定した。本計画のcheckboxは実イベントと今後の手順を区別し、第二の状態台帳や達成件数にはしない。

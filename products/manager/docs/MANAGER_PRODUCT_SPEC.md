@@ -660,3 +660,9 @@ YC application packetは既存docs/founder/Y001_MANAGER_PITCH_EN_JA.mdを更新�
 接点はY005の既存担当と重複を照合し、Murphy/Klasnjaにはdecision pointと負担、Costelloらには訂正版の追跡/分母、Artificial Societiesには効果予測の誤差、humans&には利用者simulationの校正について、再現結果に基づく個別の問いを準備する。公開業務窓口と承認済み対象/内容の範囲で実行し、今回のspec更新では送信/応募/面談成立を記録しない。記事C002/Y008は本体優先の後段。
 
 atomic作業とファイル別受入は[既存model計画のTask8](plans/2026-10-23-behavior-transformation-model-plan.md#task-8-学習開始とyc証拠へのatomic作業2026-10-24)に置く。
+
+## 24. 研究実行と無料書籍の最新指示（2026-10-24）
+
+ユーザーはA01–A09の研究を先に実行し、ファイルを継続更新し、記事と無料公開書籍を執筆・配布するよう指定した。先行する「新記事は後段」の記述は当時の履歴で、本追補以降は研究に沿う記事/章の制作を並行する。既存の[canonical書籍outline](books/MANAGER_RESEARCH_BOOK_OUTLINE.md)を使い、全体SSOTや別book計画を増やさない。原著全文や許諾外素材を複製せず、初心者が方法を再現できるオリジナルの説明・実習を無料で公開する。GitHub/owned blog/PDF/EPUB/既存配信先は媒体ごとに実公開を読戻しし、未知のアカウント/掲載条件を仮定しない。
+
+Costello訂正パッケージは[研究note](research/2026-10-24-costello-correction-reuse.md)と[実receipt](verification/COSTELLO_CORRECTION_REPRODUCTION_V1.md)の有限範囲で現物取得/上流R再現を完了した。これは新しいManagerの人便益ではない。[新しい数値forecast設計](plans/2026-10-24-costello-numeric-forecast.md)は入力2列・train128/dev584/evaluation762・単一LoRAと強い統計baselineを定義し、dev baselineだけを実測した。事後confidenceを真偽/苦しみ/個人因果効果に読み替えず、元final16は使わない。A09は実資源/software確認済みだが、新caller/tests/exact-source CI/durable ownerと新評価予算の受入は未完、A10学習は未実施。全V002/V003・人介入・モデル採用・YC応募/収益の状態を本追補で進めない。

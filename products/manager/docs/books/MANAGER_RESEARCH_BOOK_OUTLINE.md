@@ -1,5 +1,11 @@
 # Manager — Open Research Book / Living Field Guide
 
+> **2026-10-24 latest owner instruction:** 研究A01–A09を先行し、研究に沿う記事と無料公開書籍を並行執筆・配布する。旧「記事は本体後段」指定はこの範囲で更新された。GitHub原稿、owned blog、PDF/EPUB、既存の配信先を無料公開候補とし、媒体ごとに実URL/readbackで公開を確認する。外部媒体が未接続でもGitHub原稿公開を別に進め、未公開媒体を公開済みにしない。有料広告/配信契約を追加しない。全書籍の完成や全媒体公開は未達。
+
+**最初の新しい完成原稿:** [AIによる説得を、どこまで確かめられるか](../articles/2026-10-24-ai-persuasion-reproduction-ja.md)。Costelloらの訂正済み研究を上流Rコードで再実行し、6表45行照合と7部validatorの実結果を説明する実習章。予測/介入/説得を学び始めるエンジニア向けに、単位・分母・欠測・追跡・baselineとモデル学習の関係を扱う。GitHubへのpush後の原稿公開と、blog/PDF等の公開状態は別管理。既存の2026-10-22 Artificial Societies章と同じ本へ接続し、第三のbook outlineを作らない。
+
+**本書の現在の中心:** 行動の予測→働きかけ→行動/苦しみ/持続/害の観測→モデルと実施方法の更新。下記旧16章は参照可能な全体構成として保存し、環境制御/金融を現在の必須実装へ復帰させない。各章は出典、実習、実測、未実測、訂正履歴を持ち、企業の宣伝値と独立再現を区別する。
+
 > **2026-10-22 active production rule:** This is the canonical chapter outline. The separate three-volume curriculum is a packaging/teaching view of the same sources, not additional manuscripts to finish first. Start with one complete, source-checked chapter on prediction→intervention→verified benefit; use [the updated P plan](../plans/2026-10-22-manager-research-products-plan.md#2026-10-22-whole-project-alignment--concrete-editorial-and-founder-work). Older finance/indoor partner examples below are optional learning cases: F004/F007 are skipped and not prerequisites to the owned digital product. A book outline is not a completed book or research result.
 
 **Working title:** *The What-If Machine Meets the Real World: Prediction, Intervention, and Verifiable Human Benefit*  

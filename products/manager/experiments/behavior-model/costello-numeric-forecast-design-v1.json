@@ -1,0 +1,153 @@
+{
+  "schema": "manager.costello-numeric-forecast-research-design.v1",
+  "status": "DESIGN_FIXED_NOT_EXECUTABLE",
+  "created_utc": "2026-10-24T12:04:27.632567+00:00",
+  "purpose": "Predict participant-reported post-dialogue confidence from two pre/outcome-independent fields under published experimental conditions",
+  "input_features": [
+    "Pre_Belief_Specific",
+    "ExperimentalCondition"
+  ],
+  "forbidden_features": [
+    "post or followup values",
+    "DV_BeliefChange_Specific",
+    "PercentChange",
+    "attrition/screen-in indicators derived after exposure",
+    "all response-word-counts",
+    "public IDs",
+    "demographics",
+    "original/placeholder conversation text"
+  ],
+  "output": {
+    "format": "single JSON object with exactly post_belief integer0..100",
+    "max_new_tokens": 16,
+    "parse_repair": false,
+    "numeric_clipping_for_model": false
+  },
+  "split": {
+    "train_pool": "StudyNumber1 with observed target",
+    "train_selected": "first128 by SHA256(costello-forecast-train128-v1 NUL public_participant_id), no outcome ranking",
+    "development": "StudyNumber2, all584 including16 missing labels",
+    "evaluation": "StudyNumber3, all762 including24 missing labels"
+  },
+  "prepared_private_manifest_sha256": "f3d3e24cf8bf167abcb379cc51fb929f47d6c5c64227963e2f00c2eaa9fe514e",
+  "public_part_counts": {
+    "train_pool": {
+      "assigned": 738,
+      "labelled": 738,
+      "sha256": "2b6dd94a2fd352b40c36b069999664d4b913501758d35642768e2caee3caad33"
+    },
+    "development": {
+      "assigned": 584,
+      "labelled": 568,
+      "sha256": "96dccf00acf220ed41d6aa702794df1471857cdec4494ea6a2441231e3f87da0"
+    },
+    "evaluation": {
+      "assigned": 762,
+      "labelled": 738,
+      "sha256": "cb05276372ffc034b7f50b2b4166b4ace44961bc80b9208e990d1954019abee8"
+    },
+    "train_selected": {
+      "assigned": 128,
+      "labelled": 128,
+      "sha256": "639f1f568ce8af2643d87394220fc1c7359ee7ecb5d206a1ce680258336d0ad3"
+    }
+  },
+  "exposure": {
+    "public_data": true,
+    "model_training_contamination": "UNKNOWN",
+    "QC_and_upstream_analyses_exposed": true,
+    "target_LLM_new_scores_observed": false,
+    "evaluation_wave_baseline_scored": false,
+    "claim": "PUBLIC_EXPOSED_LIMITED_CROSS_WAVE_FORECASTING_ONLY"
+  },
+  "metrics": {
+    "primary": "MAE slider points on common human-labelled complete-prediction pairs",
+    "all_assigned_reporting": [
+      "human_label_missing",
+      "valid",
+      "invalid",
+      "unknown",
+      "not_run",
+      "coverage"
+    ],
+    "invalid_forecast_sensitivity": "100-point absolute error for invalid/unknown/not_run on observed human-label rows; report separately from conditional MAE",
+    "secondary": [
+      "RMSE",
+      "control/treatment stratum MAE",
+      "paired participant bootstrap2000 seed20261024"
+    ],
+    "NO_ACTION": "ABSTAIN, MAE null, zero forecast coverage; not a no-intervention clinical control",
+    "minimum_for_comparative_claim": "all forecasting arms intended to produce a point forecast complete on the same assigned input; NO_ACTION remains an intentional abstention control excluded from MAE ranking; otherwise partial and no superiority claim",
+    "no_human_welfare_claim": true
+  },
+  "comparators": [
+    "NO_ACTION_ABSTAIN",
+    "PERSISTENCE_PRE",
+    "TRAIN128_MEAN",
+    "TRAIN128_OLS",
+    "Qwen3-0.6B_BASE",
+    "SINGLE_LORA_ADAPTER"
+  ],
+  "recipe": {
+    "base": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "library_versions": {
+      "torch": "2.8.0+cpu",
+      "transformers": "4.56.2",
+      "trl": "0.23.1",
+      "peft": "0.17.1",
+      "datasets": "4.1.1",
+      "accelerate": "1.10.1",
+      "safetensors": "0.8.0",
+      "tokenizers": "0.22.2"
+    },
+    "training_rows": 128,
+    "seed": 42,
+    "epochs": 1,
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 4,
+    "expected_optimizer_opportunities": 32,
+    "learning_rate": 0.0002,
+    "completion_only_loss": true,
+    "loss": "standard TRL completion-token NLL; differs from primary point-forecast MAE",
+    "max_sequence_tokens": 256,
+    "truncation": false,
+    "packing": false,
+    "lora": {
+      "r": 8,
+      "lora_alpha": 8,
+      "lora_dropout": 0.0,
+      "target_modules": [
+        "q_proj",
+        "v_proj"
+      ],
+      "bias": "none"
+    },
+    "one_adapter": true,
+    "final_tuning_or_retraining": false
+  },
+  "resources": {
+    "observed_host_memory_bytes": 8589934592,
+    "observed_host_CPU_quota": 2,
+    "proposal_train_wall_seconds": 900,
+    "proposal_sampled_RSS_limit_bytes": 5368709120,
+    "evaluation_budget": "TO_BE_FIXED_FROM_SOURCE_AND_THROUGHPUT_PREFLIGHT_BEFORE_NEW_MODEL_SCORING",
+    "actual_cost": "UNKNOWN",
+    "new_paid_resources": false
+  },
+  "reuse": {
+    "existing_helpsteer_entry": "DO_NOT_RUN: hardcoded27/source/protocol restrictions; preserve unchanged",
+    "new_source_specific_caller_needed": true,
+    "trainer": "standard PEFT/TRL/SFTTrainer",
+    "statistical_estimator": "upstream R lm; no custom estimator"
+  },
+  "A09_unmet": [
+    "new source-specific numeric dataset/parser/caller code and meaningful tests",
+    "exact-source independent review and official CI",
+    "durable execution owner/outer wait and new resource-bound acceptance"
+  ],
+  "can_execute_training": false,
+  "human_intervention": false,
+  "rights_registry_changed": false,
+  "old_final16_used": false
+}

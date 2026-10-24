@@ -1,0 +1,413 @@
+{
+  "schema": "manager.costello-correction-public-artifacts.v1",
+  "recorded_at_utc": "2026-10-24T11:58:02.244384+00:00",
+  "purpose": "PRIVATE_OFFLINE_CORRECTED_RESEARCH_REPRODUCTION",
+  "sources": {
+    "dryad": {
+      "doi": "10.5061/dryad.v6wwpzh4h",
+      "dataset_id": 136984,
+      "version": 8,
+      "version_id": 466347,
+      "direct_download_http": 401
+    },
+    "zenodo": {
+      "doi": "10.5281/zenodo.22754984",
+      "record_id": 22754984,
+      "version": "1.0",
+      "archive_bytes": 675811309,
+      "declared_archive_md5": "7470493c33e6df76d0355fbc3850bc1b",
+      "full_archive_digest_verified": false,
+      "selection": "56 members by HTTP206, no full archive download"
+    }
+  },
+  "verification": {
+    "selected_members": 56,
+    "payloads_matching_author_manifest_sha256": 55,
+    "crc32": "ALL_SELECTED_MATCH",
+    "full_archive_hash": "NOT_COMPUTED",
+    "total_selected_members": 59,
+    "total_payloads_matching_author_manifest_sha256": 58
+  },
+  "rights": {
+    "code": "MIT per acquired LICENSE",
+    "linked_dryad_data": "CC0 per acquired LICENSE and official Dryad metadata",
+    "publication_materials": "PUBLISHER_DEFINED_NOT_RELICENSED",
+    "training": "NOT_ADOPTED_BY_THIS_REPRODUCTION"
+  },
+  "files": [
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/LICENSE",
+      "bytes": 1595,
+      "sha256": "886a75497e1c597c2efb24608ae4265e4ee6f316ea973bfd323b0a6bda0bff05",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/MANIFEST.csv",
+      "bytes": 24916,
+      "sha256": "80d9965a8fbe6e04a52ec464a85bcfd5823e608583e7a9e6a75b5c9b24bb257b",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/README.md",
+      "bytes": 3365,
+      "sha256": "2ff57c41d15093177cd2c9bd919a8e7f8398842a457e71b91c9b40f17ce47de3",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/REPRODUCIBILITY.md",
+      "bytes": 3553,
+      "sha256": "102ee07b88ba8a4761de0fe56e3913181696487fd3b866e4eb7fd650146ce2c3",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/analysis/precomputed/causal_forest_summary.csv",
+      "bytes": 558,
+      "sha256": "5965a0469b9b93905473ccfb62dd47b926ddbd1033090e0eb1496e0da7a750a5",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/analysis/precomputed/correction_results.csv",
+      "bytes": 3983,
+      "sha256": "270899d0157a2ab73ade020f64fff0aef74d05d113f506e1622db008825a2b7c",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/analysis/precomputed/headline_comparison_ledger.csv",
+      "bytes": 513,
+      "sha256": "50e0232cebc8d893c4cdf128674705850b886cf98920428600b59f8936f7f4de",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/analysis/precomputed/headline_records.csv",
+      "bytes": 1321,
+      "sha256": "8f8e30db73a03cdd94e7c2abe83b2173d4af12f9f28ee9f5cd36bd0f5b4db17b",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/analysis/precomputed/supplement_model_metadata.csv",
+      "bytes": 2639,
+      "sha256": "9dda9ffbc4e228c76c464d6aaf88412d366fa2f6fe1676ed75e5094ecbd4572a",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/analysis/precomputed/supplement_model_results.csv",
+      "bytes": 28581,
+      "sha256": "b45038843f811922775a56427bfe65a45ec672dd60a81f0f18b5107bef55231a",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/deidentified/public_ai_strategy_rating_counts.csv",
+      "bytes": 16627,
+      "sha256": "4ee0f7a43888b2e22a854308177dd3a7cf39b987e697474312d537db6e6b4e16",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/deidentified/public_cluster_labels_deidentified.csv",
+      "bytes": 134818,
+      "sha256": "454378f254aad19eb97843f04977125b344cdf1eb284fd7e1a4956d6b3e344b4",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/deidentified/public_duplicate_attempt_selection_deidentified.csv",
+      "bytes": 14672,
+      "sha256": "eac2311761a252c693499fa43116cb783ccfa118aa26b351b295527348dd47a3",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/deidentified/public_participant_screening_flow_deidentified.csv",
+      "bytes": 373766,
+      "sha256": "c63201192aa4231aec99ae7a6628c5df9069663a8ead078ee6c6733ab48705a2",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/deidentified/public_primary_analysis_deidentified.csv",
+      "bytes": 526028,
+      "sha256": "61315d476d6d3aab24053e2d0b32b57f0692e18f2431340ac43e6ec3d9cc6091",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/deidentified/public_screening_flow_summary_deidentified.csv",
+      "bytes": 10005,
+      "sha256": "fcc455dbb41c2b34896032aaddb80983a02dcf1e4b8482a2187fbdd58ddb31d9",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/ai_strategy_rating_bridge.csv",
+      "bytes": 901,
+      "sha256": "5cb7ecbfa5153757ccbc1ebb39c2205b2ee1537217d1d854d5d3c6241cb2e6de",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/ai_strategy_rating_summary.csv",
+      "bytes": 4341,
+      "sha256": "837323a384c5da85bc2c698e08b08c84efab3763616bc4593bee5665f72b1b1d",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/deidentification_manifest.csv",
+      "bytes": 2357,
+      "sha256": "a251cb488835d64a0d55c887ce48045eed69971b927b13f44d9aef6dda1077c9",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s2_counts.csv",
+      "bytes": 2098,
+      "sha256": "139cf4d66d5d71a0a6410a5d17001b692b7320b740a64a6c41234f616b964879",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s3_counts.csv",
+      "bytes": 1993,
+      "sha256": "a0f5ca4f1648416cc7b9d9c7f8dc08194007c6093f27df29256572e2da66c137",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s4_counts.csv",
+      "bytes": 2939,
+      "sha256": "ad503aeefc0dca08206233b6ec3a1819aad25e97aba6d5bfedc10730f07ea8c5",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s5_counts.csv",
+      "bytes": 183,
+      "sha256": "95955eb4e79fd816e3180af42503d300814b52185e0e9dceea45d8df3fcf55d7",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s5_model_results.csv",
+      "bytes": 2708,
+      "sha256": "7c56c9021d3f7d796e9cafefd6645a9a87f5b6c82825984ce45a6b8b6fb0598b",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s5_predictions.csv",
+      "bytes": 1291,
+      "sha256": "d6a582c6d0cc868159387d78e61512e35a42d7e1a39ba2454dffc118d8b89a0d",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s6_model_metadata.csv",
+      "bytes": 622,
+      "sha256": "f056ef4db6b4325937780c87b55c92137c1cc5fcaf334e4244267e9eb8d70fe7",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s6_model_results.csv",
+      "bytes": 744,
+      "sha256": "f88581b36f0f55dc7350522b559e48b5fdfef320acb7bc7e888340aaf3ed6d30",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s6_plot_counts.csv",
+      "bytes": 12543,
+      "sha256": "f05d52fc705e2b3a4955b515e89954a65fcac56307098ddbca5ccc4c44cbfdc9",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s6_predictions.csv",
+      "bytes": 543,
+      "sha256": "9a267d153a8803427c08715493cff8926808403327c35ffd9e5c0641603d424f",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s7_cluster_counts.csv",
+      "bytes": 1090,
+      "sha256": "b961ec1d21002611901b7cfdff37657e09c37f3f76c8655722259fb094348139",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s7_model_metadata.csv",
+      "bytes": 889,
+      "sha256": "011d32b44c4332c263a279b6c578cc83229a58b4e2d93651738405449c459c91",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s7_model_results.csv",
+      "bytes": 10014,
+      "sha256": "1eaa6c4d68a18a18df0ddd7e99a05fea18b082904e63f108e01356be52727910",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s7_plot_counts.csv",
+      "bytes": 26980,
+      "sha256": "4418f9d009daf00826d5904fe6a74bca4a3f80057bcdf6337bb4e9abe265fdce",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s7_predictions.csv",
+      "bytes": 3484,
+      "sha256": "82b02766f460f26b120f00f2397eee39bd41ccf6fc3606d65f2b3f1d3deb34d0",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s8_cluster_counts.csv",
+      "bytes": 941,
+      "sha256": "7fbf7d1a451e88aae25e2be7fc81d86f5d8263676de8d5beccb30c4807a800a4",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s8_model_metadata.csv",
+      "bytes": 933,
+      "sha256": "a0e46b7b438cbf8539a3270d9ebd5d701b2419af08e2f5e861d188e420954a92",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s8_model_results.csv",
+      "bytes": 6222,
+      "sha256": "09aabbc2b47b4dd76d6e9d9481664a0bffdff13a82a4c66ba83a818519a3eb2f",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s8_plot_counts.csv",
+      "bytes": 25732,
+      "sha256": "bd1c87443300aa7ed1b54828b84ae1964154fda1ec5aab0c4f889b276a46b450",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/figure_s8_predictions.csv",
+      "bytes": 2166,
+      "sha256": "36ff06e4a48dceb8cd937be089dc16a1f02346cfe20e180747f8089a1b8c84c1",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/participant_flow_assertions.csv",
+      "bytes": 1382,
+      "sha256": "846ddfe91f1a04afc522531137231f30d4bf09f0f97c69af5641ae350ab229b9",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/primary_cluster_provenance.csv",
+      "bytes": 1304,
+      "sha256": "4048ca8304160a612b3050935201d55058a86f2ff27bc3ed5a36c07d2572a760",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/prompt_pair_agreement_counts.csv",
+      "bytes": 4433,
+      "sha256": "d8ffab5d86bcfeaa8fa888301114ace404a7c795d3a2a2e0ba956d78ec249522",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/public_data_dictionary.csv",
+      "bytes": 47480,
+      "sha256": "66fa45c6c3b105fe32d6848317e170693d1d8a351e22cb6b12f777fa3125389f",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/data/manifests/public_data_inventory.csv",
+      "bytes": 1242,
+      "sha256": "ee374b4b19da2e4e5b2952508e7450ac02bdbc20f2deb615dd5b282f18c61ebe",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/renv.lock",
+      "bytes": 249277,
+      "sha256": "cda98434e3369ea31327571535cf13515bb25f4bd950c115c318079bb26c4bc5",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_article_figures.R",
+      "bytes": 10342,
+      "sha256": "539ee35727209e7b0156ecb791b16c498ab29d2b081b5385057a7c781a54b1b6",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_figure_s6.R",
+      "bytes": 8881,
+      "sha256": "6dce921935ea878c926d0fe665bf1bcb14cccacedfb4c8ff204366faff65b8a2",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_figure_s7.R",
+      "bytes": 9962,
+      "sha256": "14d87a51e3ef3d5dfae0d5eaaf57520548120652656343d633e3c4571a0febe1",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_figure_s8.R",
+      "bytes": 10881,
+      "sha256": "5acf4a8f4f72465b47768e45dd966a8f45f359e3a43ee6186fdf8a99ba5fddbd",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_figures_s3_s5.R",
+      "bytes": 10258,
+      "sha256": "4f2ad872a986ebca7f70832ef5426769e85caa4bc285cd6110f492ac9403c83f",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_results.R",
+      "bytes": 10773,
+      "sha256": "d4b5b718490668deaeb815b7a3727bfad8ef489ca0cb9fc1db546008dd9a29ed",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_strategy_figures.R",
+      "bytes": 13165,
+      "sha256": "0287e64d41d49957528c5c4f6b448819daa2f53c9f54a730ce92db8c7ae32e6c",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/build_supplement_tables_s5_s12.R",
+      "bytes": 19242,
+      "sha256": "d02d47156188b2ff2d59d22cbd8b99ae4ff3163405c0861c46f8c3c8ae4df301",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/validate_analysis.R",
+      "bytes": 14909,
+      "sha256": "bc76abb695f0cc83df628e59a14aee2c080126fdca109b59a8d8f722ccf3ed10",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/verify_causal_forest_cache.R",
+      "bytes": 11648,
+      "sha256": "6d774ddadfa9b0192a3ebac43c03c3277fa45b086c605e9627b2db67944999e6",
+      "crc_match": true
+    },
+    {
+      "path": "ConspiracyAI-Correction-Public-Repository/scripts/verify_reconstruction_rds.R",
+      "bytes": 6220,
+      "sha256": "46c69d71bbd44bcca401e55f6bf3d806c737ad430d2ef4b1b7cb82502c8e2b26",
+      "crc_match": true
+    }
+  ],
+  "model_calls": 0,
+  "new_human_participants": 0,
+  "current_analysis_execution": "UPSTREAM_BUILD_RESULTS_AND_SEVEN_PART_VALIDATE_ANALYSIS_PASSED_COMPATIBLE_R",
+  "native_R_lock_version": "4.5.0",
+  "crosswalk": "Published pseudonyms only; no external linkage/reidentification",
+  "subsequent_tail_members": [
+    {
+      "path": "supplement/tables/Table_S21_corrected_coefficients.csv",
+      "bytes": 1708,
+      "sha256": "1c7db27520e9934d866d6e36dc14f887d4cbad7b76388b24d1f87d6ba2e9b532",
+      "source": "PREVIOUS_TAIL_NO_NEW_NETWORK",
+      "manifest_match": true
+    },
+    {
+      "path": "supplement/tables/Table_S7_corrected_lm.csv",
+      "bytes": 790,
+      "sha256": "d978caea73f60e565338f0263e20bf9a44b6032adafa4bd8ffe3323e43d272a6",
+      "source": "PREVIOUS_TAIL_NO_NEW_NETWORK",
+      "manifest_match": true
+    },
+    {
+      "path": "supplement/tables/Table_S8_corrected_lm.csv",
+      "bytes": 798,
+      "sha256": "b438cc88ad892c6b181ee842b96f2597894bf6f222cb9e52162421bf6eb66ba9",
+      "source": "PREVIOUS_TAIL_NO_NEW_NETWORK",
+      "manifest_match": true
+    }
+  ],
+  "execution": {
+    "R": "4.5.3",
+    "upstream_lock_R": "4.5.0",
+    "exact_lock_environment": false,
+    "build_terminal_sha256": "180abc7512b0292a73cbcfedd24106ec84c12fb10818a4e54d52461194119445",
+    "validation_terminal_sha256": "c5c193122b4c9af0d30748e9d558f1bf033a003f3dfa69e5647be9f26fd8fc20",
+    "output_comparison_sha256": "8076e16acc22ba3254160e0306dbf626fbbeee357a01492729e7dd85e205a7b5",
+    "initial_validation_failures_preserved": 2,
+    "source_and_primary_input_unchanged": true
+  }
+}
