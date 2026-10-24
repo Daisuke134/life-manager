@@ -21,7 +21,7 @@
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN/CONFLICTING。head `53a21430`の14/14 CI checksは成功しているが、最新main `edf5c206`への統合・approval reviewは未完了。更新は2026-10-24 11:09ZのREADME/spec PR #8880統合後。 | ownerの作業中worktreeを保持する。owner完了後に最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
+| Mercor Reply修正 | [PR #8865](https://github.com/Daisuke134/life-manager/pull/8865)はOPEN/DIRTY/CONFLICTING。head `53a21430`の14/14 CI checksは成功しているが、review decisionは未記録。GitHubのbaseRefOid `8e0e6f2e`は現mainより古く、現mainは`b71fde5c`（README/spec PR #8884、2026-10-24 12:02Z統合）。2026-10-24 12:05Zの公式readback。 | ownerの作業中worktreeを保持する。owner完了後に最新mainを取り込み、更新headのfocused test・独立review・全CIを再確認して統合する。main由来releaseで公開導入とReplyの再観測を行い、実業務や別Macの完走とは分けて記録する。 |
 | 現MacでのMercor運用 | 専用browser到達性、応募profile/materials、Paid本人bindingと自動fulfillment、過去Reply/Paid effectの公式照合に未完がある。 | 既存ownerの安全な復旧、本人条件の確認、公式provider readbackと重複実行0を記録する。未知のeffectは証拠なしに解除・再送しない。 |
 | 自律型money-printerの位置付け | READMEは製品と各業務を紹介しているが、「自分で事業を作って運営し、実際に収益を得る」という中心価値が明瞭でない。現時点の全業務収益もread-only planでverifiedではない。 | READMEのvalue propositionを「ノーヒューマン・イン・ザ・ループで事業を作り、動かし、収益を生む」に改める。完成前はearly-development表示を隣接させ、実証済みのnet収益だけを実績として載せる。 |
 | 現Macの実行状態 | 2026-10-24のread-only snapshotではオンラインMacは1台（Apple Silicon Mac mini）。install planは`prepared`だが`business_outcomes_verified=false`。192 registry jobsのhealthは18 healthy / 64 failed / 72 safely fenced / 10 effect_unknown / 28 runningで、7件はofficial readback待ち。 | 共有資源・owner別の失敗を原因ごとに解消し、未知effectのfenceを保持したまま、各有効事業の実業務と公式provider結果を確認する。このsnapshotやCIだけで全Mac対応・収益を証明しない。 |
@@ -32,7 +32,7 @@
 
 ### ゴールまでの順序
 
-現在cursorは **REPLY-PROFILE-SHIP**。PR #8865はhead `53a21430`のままOPEN/CONFLICTINGで、14/14 CI checksは成功、approval reviewは未完了。mainは`edf5c206`まで進んでいる。既存ownerのworktreeを変更せず、owner完了後に競合を解消し、更新headのreview/CI、main統合、公開source readbackを通してからreleaseと実Macを再観測する。
+現在cursorは **REPLY-PROFILE-SHIP**。2026-10-24 12:05Zのreadbackで、PR #8865はhead `53a21430`のままOPEN/DIRTY/CONFLICTING、14/14 CI checks成功、review decisionなし。PR baseは`8e0e6f2e`、現mainは`b71fde5c`。既存ownerのworktreeを変更せず、owner完了後に最新mainを取り込み、競合解消・更新headのreview/CI・main統合・公開source readbackを通してからreleaseと実Macを再観測する。
 
 1. PR #8865を最新mainへ合わせ、更新headのfocused test・独立review・全CIを確認して統合し、main由来releaseで公開checkoutからinstallerを再確認する。
 2. 現Macの稼働jobをowner別・失敗原因別に診断し、Mercor browser/profile/Paidを既存ownerの経路で整える。Reply/Paidの未確定effectは公式readbackで照合してから再開する。
