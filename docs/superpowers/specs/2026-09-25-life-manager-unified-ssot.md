@@ -570,6 +570,7 @@ RECYCLE-REGISTRY-ACTUALの次の診断: 旧cursorの自然待機再観測から�
   - source受入は関連テスト・diff/source boundary・fresh read-only review・exact-head CI全項目・main/public readback。本番確認はmain由来immutableのstatusを既存leaseで1回だけ読み、公式account一致と専用target終了を確認する。自然継続・全業務成果・別Macは引き続き未完。
   - 公式read-only観測では現dashboardのisLogin=true/login formなし、headerMenuPropsにはID無し、上記sidebarのavatar/nameの2リンクが同じprivate本人IDと一致する。専用targetは各回closeし、provider mutation0/private binding write0。profile公開画面・推測API・記憶上の作者IDを正の証拠にしない。
   - PR8822/head2b9498d7はSecurity Scan40057830212/attempt1の全13successをprimaryと独立monitorで照合し、maineee7c8efc0ee3ee5392751feb14256897aaa3df0へ統合する。未提供installer9件の公開docs訂正とRECYCLEの実機診断を保持する。
+  - RED: 実HTML構造を既存bs4で評価する新13件は0.35sで3failed/10passed。authenticated=trueでも別利用者2IDをstatusへ返せず、ensureにもID無しという期待どおりの3失敗を確認する。pytestの共有temp旧fixtureに対するcleanup警告が出るため、次回は自分専用の新規basetempへ隔離し、他fixtureの削除や権限変更は行わない。
 
 - [ ] MAC03-CROWDWORKS-IDENTITY: 既存private本人profileとLancersの入力検証を比較し、空HOME/欠損・破損で作者ID・作者の実績・画像を本人として使わない。setup_requiredをprovider/planner前に返し、設定済みの別account fixtureでは本人の値だけをapplication/reply/paidへ渡す。既存の公開catalog・browser ownership・effect fenceを保持し、新しいidentity frameworkを作らない。source所有の正確なfiles/functionsは全caller確認後、実装前にこの節へ記録する。実credential/profile/browser/providerはsource検証で使用しない。
 
