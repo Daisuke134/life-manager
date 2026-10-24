@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "gates"))
 from product_router import canonical_product_id  # noqa: E402
 DEFAULT_ENV = Path.home() / ".local" / "state" / "life-manager" / ".env"
+CREDENTIALS_FILE = Path.home() / ".local" / "share" / "anicca" / "credentials.json"
 
 
 def default_storage_paths(environment: dict[str, str] | None = None) -> tuple[Path, Path]:
@@ -82,14 +83,20 @@ PRODUCTS = {
         "revenuecat_app_id": "appdda58236fa",
         "analytics": None,
     },
-    # Vendor apps with Sales report rows but no app in the RevenueCat project
-    # (RevenueCat is recorded unavailable for them, never zero).
+    # Public vendor apps use separate RevenueCat projects when verified.
+    # Studio remains ASC-only; missing sources are unavailable, never zero.
     "dhamma-quotes": {
+        "revenuecat_app_id": "appbe1e2ee955",
+        "revenuecat_project_id": "86624956",
+        "revenuecat_credential_service": "revenuecat-dhamma-existing-api-v2-ani",
         "asc_app_id": "6757726663",
         "asc_sku": "dailydhamma",
         "analytics": None,
     },
     "sleep-reset": {
+        "revenuecat_app_id": "appd13f39e1cf",
+        "revenuecat_project_id": "77301666",
+        "revenuecat_credential_service": "revenuecat-sleep-reset-metrics-read-v2",
         "asc_app_id": "6762143790",
         "asc_sku": "app.rork.vcinrjbl3ke00f07gtlzf",
         "analytics": None,
@@ -100,6 +107,9 @@ PRODUCTS = {
         "analytics": None,
     },
     "thankful": {
+        "revenuecat_app_id": "app2672aee816",
+        "revenuecat_project_id": "7aaf9429",
+        "revenuecat_credential_service": "revenuecat-thankful-existing-api-v2",
         "asc_app_id": "6759514159",
         "asc_sku": "app.rork.thankful-gratitude-app",
         "analytics": None,
@@ -595,6 +605,36 @@ def load_env(path: Path = DEFAULT_ENV) -> dict[str, str]:
     return env
 
 
+class RevenueCatCredentialUnavailable(ValueError):
+    """The exact product credential is missing or does not match its scope."""
+
+
+def revenuecat_env(env: dict[str, str], product_id: str, config: dict) -> dict[str, str]:
+    service = config.get("revenuecat_credential_service")
+    if not service:
+        return env
+    try:
+        data = json.loads(CREDENTIALS_FILE.read_text(encoding="utf-8"))
+        credentials = data.get("credentials") if isinstance(data, dict) else None
+        matches = [row for row in credentials
+                   if isinstance(row, dict) and row.get("service") == service
+                   ] if isinstance(credentials, list) else []
+        if len(matches) != 1:
+            raise ValueError("credential_not_unique")
+        row = matches[0]
+        key = row.get("api_key")
+        if (row.get("product_id") != product_id
+                or row.get("project_id") != config["revenuecat_project_id"]
+                or row.get("app_id") != config["revenuecat_app_id"]
+                or not isinstance(key, str) or not key.strip()
+                or not key.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in key)):
+            raise ValueError("credential_scope_invalid")
+    except (OSError, ValueError, KeyError):
+        raise RevenueCatCredentialUnavailable("revenuecat_credential_unavailable") from None
+    return {**env, "REVENUECAT_PROJECT_ID": config["revenuecat_project_id"],
+            "REVENUECAT_V2_SECRET_KEY": key}
+
+
 def http_json(
     url: str,
     headers: dict[str, str],
@@ -1051,36 +1091,43 @@ def collect_revenuecat(
             # complete daily point gives the window total, not RevenueCat's
             # single latest per-day value.
             result["charts"][chart]["window_sum"] = sum_complete_chart_points(body, "Revenue")
-    products = revenuecat_products(env).get(app_id, [])
-    if products:
-        chart = "conversion_to_paying"
-        options = http_json(f"{base}/{chart}/options", headers)
-        product_option = next(
-            (item for item in options.get("filters", []) if item.get("id") == "product_id"),
-            None,
-        )
-        allowed = {item.get("id") for item in (product_option or {}).get("options", [])}
-        safe_products = [item for item in products if item in allowed]
-        if safe_products:
-            query = urllib.parse.urlencode({
-                "start_date": start_date,
-                "end_date": end_date,
-                "resolution": "0",
-                "filters": json.dumps(
-                    [{"name": "product_id", "values": safe_products}],
-                    separators=(",", ":"),
-                ),
-            })
-            body = http_json(f"{base}/{chart}?{query}", headers)
-            result["charts"][chart] = {
-                "latest_complete": latest_complete_chart_points(body),
-                "product_ids": safe_products,
-                "evidence_sha256": _json_hash(body),
-            }
+    try:
+        products = revenuecat_products(env).get(app_id, [])
+    except Exception:
+        result["charts"]["conversion_to_paying"] = unavailable_source("product_query_failed")
+        return result
+    try:
+        if products:
+            chart = "conversion_to_paying"
+            options = http_json(f"{base}/{chart}/options", headers)
+            product_option = next(
+                (item for item in options.get("filters", []) if item.get("id") == "product_id"),
+                None,
+            )
+            allowed = {item.get("id") for item in (product_option or {}).get("options", [])}
+            safe_products = [item for item in products if item in allowed]
+            if safe_products:
+                query = urllib.parse.urlencode({
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "resolution": "0",
+                    "filters": json.dumps(
+                        [{"name": "product_id", "values": safe_products}],
+                        separators=(",", ":"),
+                    ),
+                })
+                body = http_json(f"{base}/{chart}?{query}", headers)
+                result["charts"][chart] = {
+                    "latest_complete": latest_complete_chart_points(body),
+                    "product_ids": safe_products,
+                    "evidence_sha256": _json_hash(body),
+                }
+            else:
+                result["charts"][chart] = unavailable_source("products_not_offered_by_chart")
         else:
-            result["charts"][chart] = unavailable_source("products_not_offered_by_chart")
-    else:
-        result["charts"]["conversion_to_paying"] = unavailable_source("no_app_products")
+            result["charts"]["conversion_to_paying"] = unavailable_source("no_app_products")
+    except Exception:
+        result["charts"]["conversion_to_paying"] = unavailable_source("conversion_query_failed")
     return result
 
 
@@ -1161,7 +1208,8 @@ def collect_snapshot(
         else:
             try:
                 data = collect_revenuecat(
-                    env, config["revenuecat_app_id"], start, business_date
+                    revenuecat_env(env, product_id, config),
+                    config["revenuecat_app_id"], start, business_date
                 )
                 source = available_source(data)
                 source["evidence_sha256"] = _json_hash({
@@ -1170,9 +1218,11 @@ def collect_snapshot(
                     "data": source["data"],
                 })
                 sources["revenuecat"] = source
+            except RevenueCatCredentialUnavailable:
+                sources["revenuecat"] = unavailable_source("credential_unavailable")
             except Exception as error:
                 sources["revenuecat"] = unavailable_source(
-                    "provider_query_failed", error=f"{type(error).__name__}: {error}"
+                    "provider_query_failed", error=type(error).__name__
                 )
         try:
             asc = collect_asc(
