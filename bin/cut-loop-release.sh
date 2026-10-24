@@ -84,9 +84,12 @@ trap cleanup EXIT INT TERM HUP
 
 prune_releases_after() {
   local keep="$1"
-  LIFE_MANAGER_RELEASE_KEEP="$keep" \
-    "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/loop/central_cleanup.py" --release-gc-only >/dev/null || \
+  local pruning_receipt
+  if ! pruning_receipt=$(LIFE_MANAGER_RELEASE_KEEP="$keep" \
+    "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/loop/central_cleanup.py" --release-gc-only); then
+    printf '%s\n' "$pruning_receipt" >&2
     die "safe release pruning failed"
+  fi
 }
 
 # A release nobody else can fetch is not reproducible, and the acceptance bar this house already

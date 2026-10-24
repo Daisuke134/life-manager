@@ -479,7 +479,7 @@ def open_release_roots(releases_root: Path, timeout: float = 15) -> set[Path]:
 
 
 def _open_reference_paths(roots, timeout: float, owned_fds=(), *, uid=None) -> set[Path]:
-    command = ["lsof", "-nP"]
+    command = ["/usr/sbin/lsof", "-nP"]
     if uid is not None:
         command += ["-a", "-u", str(uid)]
     opened = subprocess.run(command + ["-Fpnf"], check=True, capture_output=True,
