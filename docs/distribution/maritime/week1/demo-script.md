@@ -1,5 +1,8 @@
 # Life Manager demo capture plan
 
+> Historical snapshot from 2026-10-21. Its dated counts, URLs, and statuses are not the current readback. Current status and cursor: [integrated SSOT](../../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md); current evidence: [2026-10-24 readback](../../../evidence/maritime/live-readback-20261024-1102Z.json).
+
+
 **Readback at 2026-10-21 11:10 UTC:** this file contains a shot list; no video has been captured or published. EN/JA production routes return HTTP 200, but both still describe daily email as current behavior and omit that the hosted cycle is unverified. Production is on SHA `982875d`; latest main is `cab4320` and contains source changes after the original copy fix. Owner PKCE/retention consent and the hosted work-to-report cycle are unverified; latest internal participant, execution, completed-work, and report counts are 0. Capture gates below prevent screenshots, narration, or edits from implying otherwise.
 
 **Audience and goal:** reviewers and prospective pilot users should see one truthfully labeled manager cycle: email entry, Life Manager choosing work without a user-entered goal or budget, an artifact, a provider-confirmed result only if one exists for that same job, and a report only if its provider receipt exists. The demo must not imply the full hosted cycle is verified today. Existing research suggests one specific problem → visible action/result → one proof point → one CTA. Source map: docs/research/maritime/2026-10-20-source-map.md. Todoist, Ahrefs, Levels, Arc, and Panda provide mechanisms only; no same-product causal example proves this campaign will reach 1,000 users. Their metrics are not Life Manager results.
