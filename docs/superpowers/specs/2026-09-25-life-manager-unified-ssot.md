@@ -18,14 +18,14 @@
 | Apple Silicon / Intel CI | mainのloop-control CIを含むSecurity Scan 14/14が成功。CIは別Macでの初回導入や実業務を証明しない。 |
 | revenue admission floor | PR #8899でrevenue floorを10 GiBから7 GiBへ変更。swap-growth gateとproducer向け12 GiB floorは維持。 |
 | 受託platformの導入入口 | Coconala、Lancers、CrowdWorksの公開入口とMercor local setupをmainへ反映。installerの存在は実業務や売上の証明ではない。 |
-| cleanup失敗の診断と自然run | PR #8902 head 668a10de906a2dd72511f024bae79d846a5bd79cは15 checks PASS後、14:34:13Zにmain 67fe285305036b8979a1863c799b7ce8a8b55800へ統合。immutable release 20261024T234148-67fe2853を対象ownerへ反映し、launchd readbackと14:53–14:55Zの自然run 18e17ed5cda39640-92690でrelease SHA、exit 0、terminal pass、blockerなしを確認。bounded receiptではdependency-bundle cleanup errors 0、削除0、保護対象削除0。source reclaimのphase lifecycle_lock / RuntimeErrorも記録できた。診断とowner passの受入であり、空き容量の回復は未達。 |
+| cleanup失敗の診断と自然run | PR #8902の診断コードをmain 67fe2853由来releaseへ反映。自然run 18e17ed5cda39640-92690は14:55:15Zにexit 0 / pass / blockerなしだった。次の自然run 18e17f1cb8d6cda8-8764は15:00:42Zにexit 1。phase付きreceiptを両方で保存できた。診断の本番受入は完了したが、連続稼働は未達。 |
 
 ### 残っていること
 
 | 項目 | 現状 | 完了条件 |
 |---|---|---|
-| 現Macの容量とagent admission | 2026-10-24 14:58Zのdf -kP /は6,159,652 KiB（約5.87 GiB）free、swap free 1,530.44 MiB。revenue floor 7 GiBを約1.13 GiB、producer floor 12 GiBを約6.13 GiB下回る。持続的な回復は未確認。 | 既存7 GiB/12 GiB floorとswap gateを下げずに容量を回復し、自然runで関門が通る状態を確認する。 |
-| cleanup source reclaimのlock競合 | 新releaseの自然runはpass。receiptのsource_reclaimはlifecycle_lock_busy、phase=lifecycle_lock、error=RuntimeError、削除0 / protected deletions 0。競合lockのownerは未特定。 | 次の自然runで共有lockのownerを観測し、自所有の競合なら安全に解消する。source reclaimと空き容量への実際の効果をreceiptで確かめる。 |
+| 現Macの容量とagent admission | 2026-10-24 15:01Zのdf -kP /は6,135,072 KiB（約5.85 GiB）free、swap free 1,676.62 MiB。revenue floor 7 GiBを約1.15 GiB、producer floor 12 GiBを約6.15 GiB下回る。持続的な回復は未確認。 | 既存7 GiB/12 GiB floorとswap gateを下げずに容量を回復し、自然runで関門が通る状態を確認する。 |
+| cleanup source reclaim / bundle scan | 14:53 runはsource reclaim phase=lifecycle_lock / RuntimeErrorでskip。15:00 runはdependency-bundle phase=bundle_reference_deadline / TimeoutExpired / timeout 0秒、source reclaim not_needed。release 12件を保持、削除0、reclaimed 0 bytes、protected deletion 0、scratch削除0。事実: central_cleanup.pyのrelease GCは15秒deadlineをlock取得と参照scanに共有する。推定: timeout 0秒は参照scan開始時までに残予算が尽きたことを示し、lock待ちまたは先行phaseが消費した可能性がある。実行時のlock ownerと各phase時間は未記録。 | 次の自然runでlock ownerと15秒予算の境界を読み、自己所有の競合を修正する。参照確認とbounded cleanupを再確認する。 |
 | 全jobの稼働 | 14:58Zのlm-loop status allは313 job rows: blockerなし160、disk_floor_low 91、resource_effect_unknown 36、entrypoint_exit_1 10、entrypoint_exit_75 1、その他のresource/swap blockers 6。状態はloaded-running 43、loaded-idle 160、disabled 57、unloaded 53。job rowsはagent数ではない。 | まず容量/admission blockerを解き、各jobのowner、自然run、公式結果を個別に確認する。 |
 | 別Macの初回導入 | clean-user/bootstrap source testsはPASS。別ユーザーのclean Macで公開手順、ChatGPT Plus login、選んだbusinessの公式provider成果まで通した証拠はない。 | fresh macOS user/deviceで公開手順を実行し、初回接続から選択businessのprovider結果まで通す。確認したmacOS/architectureだけを対応範囲とする。 |
 | Mercor Reply修正 | PR #8865はOPEN。head 53a21430aacae3efbbb3ec32eb4554e403b95cfe、base 8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf。14:58ZのGitHub readbackでreview decisionなし。latest main 04b547299770fd9ab98f4724951ab4a1276c5abaより古い。 | owner完了後にlatest mainへ更新し、review/CI/source acceptanceを通し、main由来releaseとMercorの公式readbackで受け入れる。 |
@@ -35,17 +35,18 @@
 
 ### ゴールまでの順序
 
-**順序更新（2026-10-24 14:55Z）:** README公開とMac cleanup診断は完了し、自然runでcleanup ownerのpassも確認したが、容量は両floor未満でsource reclaimはlifecycle lockに阻まれた。旧順序は MAC-CAPACITY-DIAG → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability → stars。新順序は MAC-CAPACITY-RECOVERY → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability/導入導線 → 10,000 stars。現在cursorは **MAC-CAPACITY-RECOVERY**。#8865のowner worktree、外部effect fence、既存稼働ownerは変更しない。
+**順序更新（2026-10-24 15:00Z）:** 旧順序は MAC-CAPACITY-RECOVERY → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability/導入導線 → 10,000 stars。15:00:42Zの自然runでbundle reference deadlineが0秒で尽き、14:53 runではsource reclaimがlifecycle lock busyだったため、容量回復より先にlock待ちと共通15秒deadlineの消費境界を確定する。新順序は MAC-CAPACITY-LOCK-DIAG → MAC-CAPACITY-RECOVERY → clean Mac/provider成果 → #8865 → 7 installer → 全agent/7事業 → portability/導入導線 → 10,000 stars。現在cursorは **MAC-CAPACITY-LOCK-DIAG**。#8865のowner worktree、外部effect fence、既存稼働ownerは変更しない。
 
-1. [x] 外向けREADMEをmoney-printerの明確なheadlineと7事業、ChatGPT Plus、awake Mac、必要容量、単一install command、early-development caveatに整理し、mainとpublic raw readbackで確認する。
-2. [x] PR #8902をmain由来immutable releaseへ反映し、自然runでdiagnostic phase、exit、削除0を確認する。
-3. [ ] **MAC-CAPACITY-RECOVERY:** lifecycle lock ownerを次の自然runで特定し、安全なsource reclaimと容量回復を進める。7 GiB/12 GiB floor、swap gate、effect fenceを保ち、loop全体のblockingが減るか再確認する。
-4. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessの公式provider結果まで通す。
-5. [ ] PR #8865をlatest mainへ追従させ、Mercor Replyを確認する。
-6. [ ] PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7 installerを整える。
-7. [ ] 約20 agentを7事業へ対応づけ、公式provider結果、納品、支払、重複防止、再開、費用控除後net収益を確認する。
-8. [ ] サポート対象のMac/architecture、demo、導入後の確認方法、contribution導線を実証に合わせて明記する。
-9. [ ] 導入、初回成果、継続利用、収益、starsを別々に計測し、利用者へ価値を届けて10,000 starsを目指す。
+1. [x] 外向けREADMEにno-human-in-the-loop money-printer headline、7事業、ChatGPT Plus、awake Mac、必要容量、単一install command、early-development caveatを掲載し、公開raw readbackで確認する。
+2. [x] PR #8902の診断をimmutable releaseへ反映し、自然runでlifecycle_lockとbundle_reference_deadlineのphase付きreceiptを確認する。
+3. [ ] **MAC-CAPACITY-LOCK-DIAG:** 次の自然runでsource/admission/release-cut lockのownerと、共通15秒deadlineを消費する区間を特定する。自己所有コードの競合なら最小修正する。disk floorとeffect fenceは変えない。
+4. [ ] **MAC-CAPACITY-RECOVERY:** lock修正後、source reclaimと容量回復をreceiptおよびdf/swapで確認し、既存7 GiB/12 GiB floorとswap gateを通す。
+5. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessの公式provider結果まで通す。
+6. [ ] PR #8865をlatest mainへ追従させ、review/CI/source acceptanceとMercor公式readbackで完了する。
+7. [ ] PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7 installerを整える。
+8. [ ] 約20 agentを7事業へ対応づけ、provider成果、納品、支払、重複防止、再開、費用控除後net収益を確認する。
+9. [ ] Mac対応範囲、demo、導入後の確認方法、contribution導線を実証に合わせて明記する。
+10. [ ] 導入、初回成果、継続利用、収益、starsを別々に測り、利用者へ価値を届けて10,000 starsを目指す。
 
 ### 理想の完成状態
 
