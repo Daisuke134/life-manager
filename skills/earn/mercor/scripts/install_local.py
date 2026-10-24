@@ -20,7 +20,7 @@ for directory in (ROOT, ROOT / "apps/job-search-loop"):
     if str(directory) not in sys.path:
         sys.path.insert(0, str(directory))
 
-from job_search_loop import local_setup, mercor_auth_readback, mercor_page_ready, profile_setup
+from job_search_loop import local_setup, profile_setup
 from job_search_loop.config import validate_profile
 from runtime.loop import local_install
 from skills._shared import telegram
@@ -81,11 +81,46 @@ def _profile(value: dict) -> tuple[dict, list[str]]:
 
 def _candidate(source: Path | None, home: Path, environment: dict, *, write: bool) -> tuple[dict | None, list[str], list[str]]:
     destination = home / ".config/anicca/job-search/profile.json"
+    data = home / ".local/share/anicca/job-search/materials"
+    manifest = {"version": 1, "resumes": {variant: f"resumes/{variant}.pdf"
+                                         for variant in ("engineering", "technical_business", "japanese")}}
+    receipt = destination.with_name("install.json")
+    manifest_path = data / "manifest.v1.json"
+
+    def prepare(raw: dict) -> tuple[dict, list[str]]:
+        value, missing = _profile(raw)
+        if not missing or not receipt.exists():
+            return value, missing
+        previous = _read(receipt)
+        if (previous.get("profile_path") != str(destination) or previous.get("provider") != "codex"
+                or _read(manifest_path) != manifest):
+            raise ValueError("job_search_install_conflict")
+        materials = value["materials"]
+        resumes = materials["resumes"]
+        original = {**resumes, **{variant: resumes.get(variant) or resumes["engineering"]
+                                for variant in manifest["resumes"]}}
+        installed = {variant: str(data / relative) for variant, relative in manifest["resumes"].items()}
+        for variant, target in installed.items():
+            if not isinstance(original[variant], str) or not Path(original[variant]).is_absolute():
+                raise ValueError("resume_materials_conflict")
+            _safe(Path(target))
+            info = Path(target).stat()
+            if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600:
+                raise ValueError("resume_materials_conflict")
+        validation = {**value, "candidate": dict(value["candidate"]),
+                      "materials": {**materials, "resumes": {**resumes, **installed}}}
+        try:
+            normalized = profile_setup.prepare_profile(validation)
+        except profile_setup.ProfileSetupError:
+            return value, missing
+        normalized["materials"]["resumes"] = original
+        return normalized, []
+
     try:
-        value, application_missing = _profile(_read(source.expanduser().absolute() if source else destination,
-                                                    private=source is None))
+        value, application_missing = prepare(_read(source.expanduser().absolute() if source else destination,
+                                                  private=source is None))
         if destination.exists() or destination.is_symlink():
-            if _profile(_read(destination))[0] != value:
+            if prepare(_read(destination))[0] != value:
                 return None, ["candidate_profile_conflict"], []
         alias = destination.with_name("codex-auth.json")
         _safe(alias.parent)
@@ -101,24 +136,20 @@ def _candidate(source: Path | None, home: Path, environment: dict, *, write: boo
             if write and not destination.exists():
                 _write_once(destination, value)
             return value, [], application_missing
-        data = roots["data"] / "anicca/job-search/materials"
-        manifest = {"version": 1, "resumes": {variant: f"resumes/{variant}.pdf"
-                                             for variant in ("engineering", "technical_business", "japanese")}}
         complete = True
         for variant in manifest["resumes"]:
             target = data / manifest["resumes"][variant]
             _safe(target)
             if target.exists():
-                if not target.is_file() or target.read_bytes() != Path(value["materials"]["resumes"][variant]).read_bytes():
+                original = Path(value["materials"]["resumes"][variant])
+                if not target.is_file() or original.exists() and target.read_bytes() != original.read_bytes():
                     return None, ["resume_materials_conflict"], []
             else:
                 complete = False
-        manifest_path = data / "manifest.v1.json"
         _safe(manifest_path)
         if manifest_path.exists() and _read(manifest_path) != manifest:
             return None, ["resume_materials_conflict"], []
         complete = complete and manifest_path.exists()
-        receipt = destination.with_name("install.json")
         _safe(receipt)
         if receipt.exists():
             previous = _read(receipt)
@@ -158,7 +189,9 @@ def _resume(home: Path, environment: dict, *, write: bool) -> list[str]:
 
 
 def _gmail_missing(account: str | None, environment: dict, *, observe: bool) -> list[str]:
-    executable = environment.get("JOB_SEARCH_GOG") or shutil.which("gog", path=environment.get("PATH"))
+    environment = {**environment, **local_install.host_environment()}
+    environment.pop("JOB_SEARCH_GOG", None)
+    executable = shutil.which("gog", path=environment.get("PATH"))
     if not executable:
         return ["gmail_executable", "gmail_authorization"]
     if observe and account:
@@ -230,6 +263,8 @@ def _inherited_lease() -> bool:
 def _observe_owned() -> dict:
     if not _inherited_lease():
         return {}
+    from job_search_loop import mercor_auth_readback, mercor_page_ready
+
     lease: dict = {}
     observation: dict = {}
     command = [sys.executable, str(ROOT / "skills/browser/scripts/cdp_context_lease.py")]

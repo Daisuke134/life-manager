@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import plistlib
 import shutil
 import socket
 import stat
@@ -87,6 +88,19 @@ def test_empty_home_plan_has_no_writes_or_subprocesses(isolated_home, monkeypatc
     assert "paid_account_binding" in rows["mercor-revenue-paid"]["missing"]
 
 
+def test_plan_before_dependency_setup_uses_only_the_standard_library(isolated_home):
+    before = _tree(isolated_home)
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", "-B", str(SCRIPT), "plan"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["status"] == "plan"
+    assert all("host_profile" in row["missing"] for row in _rows(output).values())
+    assert _tree(isolated_home) == before
+
+
 def test_root_dispatches_mercor_plan_without_preparing_the_host(tmp_path, isolated_home):
     repository = tmp_path / "wrapper-repository"
     repository.mkdir()
@@ -141,7 +155,8 @@ def installation(tmp_path, isolated_home, monkeypatch):
     telegram.parent.mkdir(parents=True, exist_ok=True)
     telegram.write_text("TELEGRAM_BOT_TOKEN=PRIVATE-TOKEN\nJOB_SEARCH_TELEGRAM_CHAT_ID=123456\n")
     telegram.chmod(0o600)
-    gog = home / "selected-tools/gog"
+    gog = home / ".local/bin/gog"
+    gog.parent.mkdir(parents=True, exist_ok=True)
     gog.write_text("#!/bin/sh\nexit 94\n")
     gog.chmod(0o700)
     monkeypatch.setenv("PATH", str(codex.parent) + os.pathsep + os.environ["PATH"])
@@ -303,6 +318,68 @@ def test_other_gmail_account_is_not_accepted_for_reply_or_recovery(installation,
     assert "gmail_authorization" in rows["mercor-revenue-reply"]["missing"]
 
 
+def test_transient_gog_override_cannot_replace_the_persisted_runtime_account(installation, monkeypatch, capsys):
+    from runtime.loop import lm_loop_apply
+
+    case = installation
+    custom = case.codex.parent / "gog"
+    custom.write_text("#!/bin/sh\nexit 95\n")
+    custom.chmod(0o700)
+    monkeypatch.setenv("JOB_SEARCH_GOG", str(custom))
+    registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+    runtime_environment = plistlib.loads(lm_loop_apply._plist(
+        "mercor-revenue-reply", registry["loops"]["mercor-revenue-reply"], case.release, "a" * 40,
+        runtime_python=Path(sys.executable)))["EnvironmentVariables"]
+    assert "JOB_SEARCH_GOG" not in runtime_environment
+    assert shutil.which("gog", path=runtime_environment["PATH"]) == str(case.gog)
+    case.gmail_accounts = []
+    previous_run = subprocess.run
+    observed = []
+
+    def run(command, **options):
+        if str(command[0]) == str(custom):
+            observed.append("transient")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"accounts": [
+                {"email": "another-owner@fixture.invalid", "services": ["gmail"]}]}), "")
+        return previous_run(command, **options)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    _code, _result, rows = _call(case, capsys, "install", "--profile", str(case.source))
+    assert not case.applied and not observed
+    assert "gmail_authorization" in rows["mercor-revenue-application"]["missing"]
+    assert "gmail_authorization" in rows["mercor-revenue-reply"]["missing"]
+
+
+@pytest.mark.parametrize("explicit_profile", [False, True])
+def test_replay_uses_private_resume_copies_after_original_pdf_is_removed(installation, capsys, explicit_profile):
+    case = installation
+    _call(case, capsys, "install", "--profile", str(case.source))
+    expected_resume = Path(json.loads(case.state.read_text())["resume_file"])
+    expected_bytes = case.resume.read_bytes()
+    case.resume.unlink()
+    before = _tree(case.home)
+    inputs = ["--profile", str(case.source)] if explicit_profile else []
+    _code, _result, planned = _call(case, capsys, "plan", *inputs)
+    assert "application_profile" not in planned["mercor-revenue-application"]["missing"]
+    assert "resume_runtime_reference" not in planned["mercor-revenue-application"]["missing"]
+    assert _tree(case.home) == before
+    case.applied.clear()
+    _code, _result, installed = _call(case, capsys, "install", *inputs)
+    assert installed["mercor-revenue-application"]["state"] == "installed"
+    assert set(case.applied) == {"mercor-revenue-application", "mercor-revenue-reply"}
+    assert _tree(case.home) == before
+    assert Path(json.loads(case.state.read_text())["resume_file"]) == expected_resume
+    assert expected_resume.read_bytes() == expected_bytes
+    changed = json.loads(case.source.read_text())
+    changed["candidate"]["application_email"] = "different-owner@fixture.invalid"
+    _write(case.source, changed)
+    case.applied.clear()
+    _code, _result, conflicts = _call(case, capsys, "install", "--profile", str(case.source))
+    assert not case.applied
+    assert "candidate_profile_conflict" in conflicts["mercor-revenue-application"]["missing"]
+    assert _tree(case.home) == before
+
+
 @pytest.mark.parametrize("observation", [{"status": "authenticated", "firebase_identity_matched": False},
                                        {"status": "authenticated"}, {"status": "logged_out"}])
 def test_unbound_session_never_activates_owners(installation, capsys, observation):
@@ -441,8 +518,10 @@ def test_owned_observation_preserves_the_exact_lease_and_session_binding(install
         return {"status": "authenticated", "firebase_identity_matched": True}
 
     monkeypatch.setattr(subprocess, "run", run)
-    monkeypatch.setattr(installer.mercor_page_ready, "prepare", prepare)
-    monkeypatch.setattr(installer.mercor_auth_readback, "observe", observe)
+    from job_search_loop import mercor_auth_readback, mercor_page_ready
+
+    monkeypatch.setattr(mercor_page_ready, "prepare", prepare)
+    monkeypatch.setattr(mercor_auth_readback, "observe", observe)
     result = installer._observe_owned()
     assert result.get("status") == ("authenticated" if failure in {None, "missing_resume"} else None)
     verbs = [command[2] for command in commands]
