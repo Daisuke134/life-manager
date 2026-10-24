@@ -145,6 +145,9 @@ cases, board updates") — text/structured-output only, `run_online`-safe, not y
 Takeaway: no fabricated "winner" this pass (sales_selector signal=none across our 28), so this sweep
 is enrichment only per the loop contract — did not change which listing gets published this pass.
 
+## 13a. MARKET SWEEP (2026-10-25, Capafy homepage WebSearch)
+Official Capafy homepage search results showed Ocup Football Analysis at 3,121 sold and US$8.33/month, plus short-form/video-adjacent agents such as MotionAce (82 sold, US$10.83/month) and Viralume (61 sold, US$6.99/day). The figures confirm sustained demand for analysis and short-form creator work, but several featured products perform video generation or claim live data and are not valid pure-LLM run_online clones. Retain the sandbox honesty boundary: sell structured outputs from buyer-pasted input only; do not claim video rendering, browsing, or live data.
+
 ## 13. MARKET SWEEP (2026-09-28, own-seller + marketplace revenue audit) — WINNER FAMILY SUPPLY
 Measured, not invented: every one of our own listings with actual revenue is short-form creator
 content — Hook Lab (hooks, $34.88), Slide Maker, Marketing Strategist, TikTok Script Pro, YouTube
