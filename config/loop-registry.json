@@ -4309,7 +4309,7 @@
     },
     "writer-claim-loop": {
       "adapter": "exec",
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 900
       },
@@ -4325,7 +4325,7 @@
       "entrypoint": "skills/writer-agent/scripts/claim-loop-owner",
       "label": "ai.anicca.writer-claim-loop",
       "log_root": "~/.local/state/life-manager/writer/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
