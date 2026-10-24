@@ -11,10 +11,39 @@ import threading
 
 import pytest
 
+from skills.earn.crowdworks.tests.test_profile_private_identity import CANDIDATE, provider, write_json
+
 
 ROOT = Path(__file__).resolve().parents[4]
 PATH = ROOT / "skills/earn/crowdworks/scripts/paid_adapter.py"
 OWNER = ROOT / "skills/earn/crowdworks/scripts/paid-owner"
+
+
+def synthetic_provider():
+    return provider() | {"provider_employee_id": "7145638", "display_name": "Kaito"}
+
+
+@pytest.fixture(autouse=True)
+def synthetic_private_home(tmp_path, monkeypatch):
+    home = tmp_path / "synthetic-home"
+    home.mkdir(mode=0o700)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(tmp_path / "state"))
+    registry = tmp_path / "browsers.toml"
+    registry.write_text("", encoding="utf-8")
+    monkeypatch.setenv("AI_BROWSER_REGISTRY", str(registry))
+    write_json(home / ".config/anicca/job-search/profile.json", CANDIDATE)
+    write_json(home / ".config/anicca/crowdworks/public-profile.json", synthetic_provider())
+
+
+def _adapter(module, **kwargs):
+    # Browser lifecycle tests use synthetic input and an injected account boundary below.
+    candidate = kwargs.setdefault("candidate_profile", Path.home() / ".config/anicca/job-search/profile.json")
+    if not candidate.exists():
+        write_json(candidate, CANDIDATE)
+    kwargs["provider_profile"] = synthetic_provider() | (kwargs.get("provider_profile") or {})
+    kwargs.setdefault("connection_factory", lambda: pytest.fail("browser connection must be injected"))
+    return module.CrowdWorksPaidAdapter(**kwargs)
 
 
 def load():
@@ -23,7 +52,18 @@ def load():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    # These fake pages exercise lifecycle/DOM behavior; live dashboard binding has its own tests.
+    module.profile_module.assert_account = lambda _page, account_id: account_id == "7145638" or pytest.fail("wrong synthetic account")
+    module.composer.compose = lambda *_args, **_kwargs: pytest.fail("model calls must be injected")
     return module
+
+
+def test_synthetic_adapter_requires_an_injected_browser_connection():
+    adapter = _adapter(load(), account_id="7145638")
+    with pytest.raises(pytest.fail.Exception, match="browser connection must be injected"):
+        adapter._open()
+    assert adapter.page is None
+    assert adapter.browser is None
 
 
 def test_cdp_connection_retries_until_one_browser_context_is_available():
@@ -242,7 +282,7 @@ def _detail_for_amount_dom(module, cells):
         cells,
         f"{title} {client} 業務を開始しています。無関係な固定報酬制 50,000円",
     )
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = page
     adapter._goto_contract = lambda _work_id: None
     adapter._expand_folded_messages = lambda: None
@@ -460,7 +500,7 @@ def test_adapter_prunes_shared_blank_pages_only_when_enabled(prune_blank_source_
         def stop(self):
             pass
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
         context_factory=lambda _browser, _source: Context(),
         prune_blank_source_pages=prune_blank_source_pages,
@@ -475,7 +515,7 @@ def test_adapter_prunes_shared_blank_pages_only_when_enabled(prune_blank_source_
 
 def test_two_official_active_contracts_normalize_to_unique_stable_observations():
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", inventory_reader=lambda: {"ok": True, "source_complete": True,
             "contract_candidates": [funded(), escrow()]})
     rows = adapter.observe_active()
@@ -509,7 +549,7 @@ def test_active_inventory_waits_for_contract_rows_after_commit_navigation():
             assert selector == 'a[href^="/contracts/"]'
             return Links()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._open = lambda: None
     assert adapter._list_contracts_once() == [
@@ -538,7 +578,7 @@ def test_detail_expands_folded_buyer_messages_before_readback():
 
         def wait_for_timeout(self, value): events.append(("wait", value))
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._expand_folded_messages()
     assert events == ["click", ("wait", 300), "click", ("wait", 300)]
@@ -558,7 +598,7 @@ def test_detail_rejects_folded_message_expansion_failure():
             assert exact is False
             return Folding()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
 
     with pytest.raises(RuntimeError, match="crowdworks_paid_message_context_incomplete"):
@@ -587,7 +627,7 @@ def test_latest_buyer_event_reads_message_api_identity_without_storing_body():
                  "senddate": "2026年09月16日 11:43", "body": "correction"},
             ]})}
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
 
     assert adapter._latest_buyer_event() == {
@@ -621,7 +661,7 @@ def test_paid_handoff_maps_only_a_funded_contract_with_official_terms_and_price(
         "artifact_verified": True,
         "document_urls": ["https://docs.google.com/document/d/1234567890123456/edit"],
     }
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
 
     bundle = adapter.paid_handoff("63570481", {
         "contract": contract,
@@ -659,7 +699,7 @@ def test_paid_handoff_maps_only_a_funded_contract_with_official_terms_and_price(
 def test_paid_handoff_identifies_missing_or_invalid_price_and_official_terms(
         field, value, error_detail):
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
 
     contract = {
         **funded(),
@@ -691,7 +731,7 @@ def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     module = load()
     contract = {**funded(), "work_id": "63568785", "form_url": None}
     contract["buyer_event_id"] = "427573234"
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", inventory_reader=lambda: {
             "ok": True, "source_complete": True, "contract_candidates": [contract, funded()],
         },
@@ -776,7 +816,7 @@ def test_form_selector_uses_candidate_context_and_exact_allowed_url(tmp_path, mo
     monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
                         lambda **_kwargs: {"candidate": {"display_name": "Kaito"}})
     monkeypatch.setattr(module.composer, "compose", lambda context, **_kwargs: seen.append(context) or urls[1])
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", state_path=tmp_path,
         candidate_profile=tmp_path / "candidate.json",
         provider_profile={"display_name": "Kaito"},
@@ -820,7 +860,7 @@ def test_form_candidates_wait_on_long_source_instead_of_truncating():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._form_candidates(["https://forms.gle/long"]) == []
 
@@ -849,7 +889,7 @@ def test_form_candidates_wait_for_short_url_redirect_and_form():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._form_candidates(["https://forms.gle/short"]) == [{
         "url": "https://forms.gle/short", "title": "form title", "body": "form source"}]
@@ -862,7 +902,7 @@ def test_completed_form_can_be_selected_as_a_buyer_correction_revision(tmp_path,
     monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
                         lambda **_kwargs: {"candidate": {}})
     monkeypatch.setattr(module.composer, "compose", lambda *_args, **_kwargs: url)
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", state_path=tmp_path,
         candidate_profile=tmp_path / "candidate.json",
         provider_profile={"display_name": "Kaito"},
@@ -893,7 +933,7 @@ def test_decide_emits_new_event_binding_for_form_correction():
 
 def test_form_binding_preserves_revision_event_as_a_new_receipt_namespace(tmp_path):
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     binding = adapter._form_binding({**funded(), "form_revision_event_id": "buyer-event-2"}, "a" * 64)
     assert binding["revision_event_id"] == "buyer-event-2"
 
@@ -907,7 +947,7 @@ def test_form_correction_readback_uses_revision_event_binding(tmp_path, monkeypa
                         lambda _root, binding: bindings.append(binding) or {
                             "url_sha256": form_sha, "confirmation_sha256": "confirmed",
                         })
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     adapter._goto_contract = lambda _work_id: None
 
     result = adapter.readback({"action": "submit", "work_id": "63570481", "effect_key": "revision",
@@ -926,7 +966,7 @@ def test_completed_form_without_new_buyer_event_cannot_be_selected(tmp_path, mon
     monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
                         lambda **_kwargs: {"candidate": {}})
     monkeypatch.setattr(module.composer, "compose", lambda *_args, **_kwargs: url)
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", state_path=tmp_path,
         candidate_profile=tmp_path / "candidate.json",
         provider_profile={"display_name": "Kaito"},
@@ -944,7 +984,7 @@ def test_context_reopens_browser_before_fetching_cached_form_candidates():
     module = load()
     urls = ["https://forms.gle/video", "https://forms.gle/ads"]
     item = {**funded(), "form_url": None, "form_urls": urls}
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._cache_replace([item])
     calls = []
     adapter._open = lambda: calls.append("open")
@@ -965,7 +1005,7 @@ def test_context_fetches_single_completed_form_candidate_for_correction():
     url = "https://forms.gle/correction"
     item = {**funded(), "form_url": None, "form_urls": [url],
             "completed_form_urls": [url]}
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._contract_cache = {item["work_id"]: dict(item)}
     calls = []
     adapter._open = lambda: calls.append("open")
@@ -987,7 +1027,7 @@ def test_answer_prompt_requires_permission_request_when_buyer_context_is_inacces
                         lambda **_kwargs: {"candidate": {}})
     monkeypatch.setattr(module.composer, "compose",
                         lambda context, **_kwargs: seen.append(context) or "権限を付与してください。")
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", state_path=tmp_path,
         candidate_profile=tmp_path / "candidate.json",
         provider_profile={"display_name": "Kaito"},
@@ -1003,7 +1043,7 @@ def test_answer_prompt_requires_permission_request_when_buyer_context_is_inacces
 def test_submit_effect_does_not_formal_deliver_in_same_mutation():
     module = load()
     events = []
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: funded()
     adapter._submit_form_once = lambda item: events.append(("form", item["work_id"]))
     adapter._complete_once = lambda *_args: (_ for _ in ()).throw(AssertionError("delivery combined"))
@@ -1023,7 +1063,7 @@ def test_form_correction_revision_can_resubmit_completed_form_with_new_event():
     events = []
     current = {**funded(), "form_url": None, "form_urls": [url],
                "completed_form_urls": [url], "buyer_event_id": "buyer-correction-2"}
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: current
     adapter._submit_form_once = lambda item: events.append(item["form_revision_event_id"])
 
@@ -1042,7 +1082,7 @@ def test_form_correction_mutation_rejects_stale_buyer_event():
     url = funded()["form_url"]
     current = {**funded(), "form_url": None, "form_urls": [url],
                "completed_form_urls": [url], "buyer_event_id": "new-event"}
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: current
     adapter._submit_form_once = lambda _item: (_ for _ in ()).throw(
         AssertionError("stale correction must not submit"))
@@ -1058,7 +1098,7 @@ def test_form_correction_mutation_rejects_stale_buyer_event():
 def test_formal_delivery_is_a_separate_mutation():
     module = load()
     events = []
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: {
         **funded(), "form_url": None, "form_urls": ["https://forms.gle/ads"],
         "completed_form_urls": ["https://forms.gle/ads"],
@@ -1077,7 +1117,7 @@ def test_formal_delivery_is_a_separate_mutation():
 
 def test_formal_delivery_rejects_missing_form_progress():
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: funded()
     adapter._complete_once = lambda *_args: (_ for _ in ()).throw(AssertionError("delivery must be fenced"))
 
@@ -1093,7 +1133,7 @@ def test_no_form_formal_delivery_requires_verified_answer_message():
     module = load()
     events = []
     answer = "依頼内容に沿ったフィードバックです。"
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: {
         **funded(), "form_url": None, "form_urls": [], "buyer_context": "assignment",
     }
@@ -1127,7 +1167,7 @@ def test_formal_delivery_readback_rejects_unrelated_inspection_text():
     class Page:
         def locator(self, _selector): return Locator()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     result = adapter.readback({"action": "formal_delivery", "work_id": "63570481",
@@ -1152,7 +1192,7 @@ def test_formal_delivery_readback_requires_target_dialog_to_be_gone():
     class Page:
         def locator(self, _selector): return Locator()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     adapter._seller_message_contains = lambda _work_id, _buyer_event_id, _body: True
@@ -1198,7 +1238,7 @@ def test_formal_delivery_readback_accepts_hidden_disabled_target_form_during_ins
                 return Locator("target_form")
             return Locator("other")
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     adapter._seller_message_contains = lambda _work_id, _buyer_event_id, _body: True
@@ -1225,7 +1265,7 @@ def test_formal_delivery_readback_rejects_another_open_milestone():
     class Page:
         def locator(self, _selector): return Locator()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     adapter._seller_message_contains = lambda _work_id, _buyer_event_id, _body: True
@@ -1253,7 +1293,7 @@ def test_formal_delivery_readback_rejects_same_message_for_different_milestone()
     class Page:
         def locator(self, _selector): return Locator()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     adapter._seller_message_contains = lambda _work_id, _buyer_event_id, body: body != target_message
@@ -1304,7 +1344,7 @@ def test_answer_mutation_posts_one_contract_message():
 
         def wait_for_timeout(self, timeout): events.append(("wait", timeout))
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda work_id: events.append(("contract", work_id))
     adapter._targeted_detail = lambda work_id: funded()
@@ -1330,7 +1370,7 @@ def test_answer_mutation_posts_one_contract_message():
 
 def test_answer_mutation_rejects_missing_quality_proof():
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: funded()
     with pytest.raises(RuntimeError, match="crowdworks_paid_answer_quality_unverified"):
         adapter.mutate({"action": "answer", "work_id": "63570481",
@@ -1339,7 +1379,7 @@ def test_answer_mutation_rejects_missing_quality_proof():
 
 def test_permission_surface_rejects_an_arbitrary_unverified_answer():
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._targeted_detail = lambda _work_id: {
         **funded(), "artifact_access": "permission_required", "form_url": None, "form_urls": []}
     with pytest.raises(RuntimeError, match="crowdworks_paid_answer_quality_unverified"):
@@ -1359,7 +1399,7 @@ def test_answer_readback_requires_seller_visible_body():
             assert selector == "body"
             return Body()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda work_id: None
     result = adapter.readback({"action": "answer", "work_id": "63570481",
@@ -1397,7 +1437,7 @@ def test_answer_readback_requires_a_new_seller_message_after_buyer_event():
                  "senddate": "2026年09月16日 11:44", "body": expected},
             ]})}
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     result = adapter.readback({"action": "answer", "work_id": "63570481",
@@ -1436,7 +1476,7 @@ def test_answer_readback_accepts_new_seller_message_bound_to_buyer_event():
                  "senddate": "2026年09月16日 11:45", "body": "後続の確認メッセージ"},
             ]})}
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     result = adapter.readback({"action": "answer", "work_id": "63568785",
@@ -1473,7 +1513,7 @@ def test_answer_readback_accepts_message_api_when_thread_body_is_folded():
                  "senddate": "2026年09月23日 14:30", "body": expected},
             ]})}
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
     result = adapter.readback({"action": "answer", "work_id": "63568785",
@@ -1506,7 +1546,7 @@ def test_answer_readback_normalizes_message_api_html_breaks():
                  "body": "一行目<br />\r\n<br />\r\n二行目"},
             ]})}
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
 
     assert adapter._seller_message_contains("63568785", "426855154", expected) is True
@@ -1528,7 +1568,7 @@ def test_document_access_reports_permission_required_without_verifying_artifact(
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
         "artifact_required": True, "artifact_access": "permission_required",
@@ -1543,7 +1583,7 @@ def test_document_access_prefers_gog_drive_export_without_browser_context(monkey
         "buyer assignment contents" if value == url else None
     ))
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
 
     assert adapter._document_access([url]) == {
         "artifact_required": True, "artifact_access": "readable",
@@ -1587,7 +1627,7 @@ def test_document_access_does_not_ignore_unresolved_doc_when_cli_reads_only_one(
     unresolved = "https://docs.google.com/document/d/2222222222222222/edit"
     monkeypatch.setattr(module, "_gog_document_text", lambda url: "one doc" if url == readable else None)
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
 
     assert adapter._document_access([readable, unresolved]) == {
         "artifact_required": True, "artifact_access": "unknown", "artifact_verified": False,
@@ -1614,7 +1654,7 @@ def test_document_access_waits_for_permission_surface_after_commit():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
         "artifact_required": True, "artifact_access": "permission_required",
@@ -1642,7 +1682,7 @@ def test_document_access_keeps_polling_until_delayed_permission_surface_is_visib
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
         "artifact_required": True, "artifact_access": "permission_required",
@@ -1673,7 +1713,7 @@ def test_document_access_keeps_readable_content_for_model_work():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
 
     assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
@@ -1685,7 +1725,7 @@ def test_document_access_keeps_readable_content_for_model_work():
 
 def test_cached_inventory_detail_is_reused_until_explicit_refresh():
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     calls = []
     row = funded()
     adapter._list_contracts = lambda: [row]
@@ -1702,7 +1742,7 @@ def test_targeted_detail_restores_durable_form_url_after_provider_hides_submitte
     module = load()
     url = "https://forms.gle/vZeQpKMg2ma72Eeu6"
     row = {**funded(), "form_url": None, "form_urls": []}
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", state_path=tmp_path,
     )
     adapter._list_contracts = lambda: [row]
@@ -1752,7 +1792,7 @@ def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
                 return Forms()
             return Locator(selector)
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda work_id: None
     adapter._proposal_application_date = lambda proposal_id: None
@@ -1800,7 +1840,7 @@ def test_detail_extracts_plain_text_google_form_links_from_buyer_messages():
                 return Forms()
             return Locator(selector)
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda _work_id: None
 
@@ -1844,7 +1884,7 @@ def test_canonical_form_reuses_confirmed_receipt_bound_to_legacy_query_url(tmp_p
         {"version": 1, "status": "confirmed", "receipt_key": receipt_key},
     )
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
 
     assert adapter._completed_form_urls(item) == [canonical_url]
 
@@ -1867,7 +1907,7 @@ def test_exact_verified_apply_receipt_is_jst_application_date_fallback(tmp_path)
                "opportunity_external_id": "13440101", "application_external_id": "305139864",
                "opportunity_title": funded()["title"], "observed_at": "2026-09-09T11:34:46.521685+00:00"}
     path = tmp_path / "application-receipts.jsonl"; path.write_text(json.dumps(receipt) + "\n", encoding="utf-8")
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", application_receipts_path=path)
+    adapter = _adapter(module, account_id="7145638", application_receipts_path=path)
     assert adapter._receipt_application_date(funded()["title"], "305139864") == "2026-09-09"
 
 
@@ -1886,7 +1926,7 @@ def test_proposal_timeout_falls_through_to_verified_receipt_lookup():
     class Browser:
         contexts = [Context()]
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.browser = Browser()
     adapter.owned_context = adapter.browser.contexts[0]
     adapter._goto = lambda *args: (_ for _ in ()).throw(module.CrowdWorksPaidProposalTimeout())
@@ -1902,7 +1942,7 @@ def test_ambiguous_or_nonexact_apply_receipt_never_supplies_date(tmp_path):
              "opportunity_title": funded()["title"], "observed_at": "2026-09-09T11:34:46+00:00"}
     path = tmp_path / "application-receipts.jsonl"
     path.write_text("\n".join(json.dumps(row) for row in (valid, {**valid, "observed_at": "2026-09-10T00:00:00+00:00"})) + "\n", encoding="utf-8")
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", application_receipts_path=path)
+    adapter = _adapter(module, account_id="7145638", application_receipts_path=path)
     assert adapter._receipt_application_date(funded()["title"], "305139864") is None
     assert adapter._receipt_application_date("other title", "305139864") is None
 
@@ -1913,7 +1953,7 @@ def test_apply_receipt_date_converts_to_asia_tokyo_before_form_use(tmp_path):
            "opportunity_external_id": "13440101", "application_external_id": "305139864",
            "opportunity_title": funded()["title"], "observed_at": "2026-09-09T16:00:00+00:00"}
     path = tmp_path / "application-receipts.jsonl"; path.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    assert module.CrowdWorksPaidAdapter(account_id="7145638", application_receipts_path=path)._receipt_application_date(
+    assert _adapter(module, account_id="7145638", application_receipts_path=path)._receipt_application_date(
         funded()["title"], "305139864") == "2026-09-10"
 
 
@@ -1942,7 +1982,7 @@ def test_adapter_opens_injected_thread_owned_cdp_connection_not_account_browser(
     original = module.account._browser
     module.account._browser = lambda *_: (_ for _ in ()).throw(AssertionError("global browser forbidden"))
     try:
-        adapter = module.CrowdWorksPaidAdapter(account_id="7145638",
+        adapter = _adapter(module, account_id="7145638",
             connection_factory=lambda: (Runtime(), Browser()),
             context_factory=lambda _browser, source: source)
         adapter._open()
@@ -1978,7 +2018,7 @@ def test_default_open_clones_auth_into_owned_context_and_closes_it():
     class Runtime:
         def stop(self): calls.append(("runtime_stop",))
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
     adapter._open()
     adapter.close()
@@ -2018,7 +2058,7 @@ def test_blank_source_page_gc_preserves_provider_pages_and_one_newtab():
     class Runtime:
         def stop(self): pass
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
     adapter._open()
 
@@ -2049,7 +2089,7 @@ def test_open_falls_back_to_source_context_when_clone_creation_fails():
     class Runtime:
         def stop(self): calls.append(("runtime_stop",))
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
     adapter._open()
 
@@ -2082,7 +2122,7 @@ def test_active_inventory_falls_back_to_locked_persistent_context_after_clone_ti
     class Runtime:
         def stop(self): calls.append(("runtime_stop",))
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
     adapter._open()
     attempts = [0]
@@ -2131,7 +2171,7 @@ def test_three_workers_never_open_a_page_in_the_persistent_context():
         def stop(self): pass
 
     browser = Browser()
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), browser))
 
     def worker():
@@ -2232,7 +2272,7 @@ def test_active_contract_timeout_has_bounded_stage_specific_name():
         def stop(self):
             pass
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638",
+    adapter = _adapter(module, account_id="7145638",
         connection_factory=lambda: (Runtime(), Browser()),
         context_factory=lambda _browser, source: source)
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
@@ -2288,7 +2328,7 @@ def test_active_contract_dom_timeout_has_same_safe_stage_code():
         def stop(self):
             pass
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
         context_factory=lambda _browser, source: source)
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
@@ -2320,7 +2360,7 @@ def test_empty_active_contract_inventory_fails_closed_instead_of_reporting_zero(
     class Runtime:
         def stop(self): pass
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
         context_factory=lambda _browser, source: source)
     with pytest.raises(RuntimeError, match="crowdworks_paid_contract_source_unavailable"):
@@ -2339,7 +2379,7 @@ def test_contract_detail_dom_timeout_has_safe_contract_stage_code():
         def locator(self, *_):
             return Locator()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda *_: None
     with pytest.raises(module.CrowdWorksPaidContractTimeout) as error:
@@ -2362,7 +2402,7 @@ def test_inspection_pending_contract_is_read_as_delivered_without_resubmission()
             assert selector == "body"
             return Body()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter._goto_contract = lambda work_id: None
 
@@ -2397,7 +2437,7 @@ def test_contract_detail_dom_timeout_retries_once_on_fresh_page():
     class Browser:
         contexts = [Context()]
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.browser = Browser()
     adapter.owned_context = adapter.browser.contexts[0]
     adapter.page = Page()
@@ -2421,7 +2461,7 @@ def test_contract_detail_timeout_falls_back_to_narrow_surface():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
     adapter.owned_context = Context()
     adapter._fallback_to_source_context = lambda: False
@@ -2443,7 +2483,7 @@ def test_contract_detail_timeout_falls_back_to_narrow_surface():
 def test_detail_timeout_keeps_basic_contract_and_does_not_block_other_rows():
     module = load()
     rows = [funded(), {**funded(), "work_id": "63568785", "title": "教材フィードバック"}]
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._list_contracts = lambda: rows
 
     def detail(row):
@@ -2511,7 +2551,7 @@ def test_contract_navigation_timeout_retries_once_on_fresh_page():
         def stop(self):
             pass
 
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
         context_factory=lambda _browser, source: source)
     adapter._goto_contract("63570481")
@@ -2522,7 +2562,7 @@ def test_contract_navigation_timeout_retries_once_on_fresh_page():
 
 def test_observation_keeps_adapter_account_identity():
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="different-account")
+    adapter = _adapter(module, account_id="different-account")
     assert adapter._observation(funded())["account_id"] == "different-account"
 
 
@@ -2544,7 +2584,7 @@ def test_no_form_funded_contract_uses_full_buyer_context_for_answer(tmp_path, mo
     contract = {**funded(), "form_url": None, "form_urls": [],
                 "buyer_context": "Google Docs assignment link and buyer request",
                 "buyer_event_id": "427573234"}
-    adapter = module.CrowdWorksPaidAdapter(
+    adapter = _adapter(module,
         account_id="7145638", state_path=tmp_path,
         candidate_profile=tmp_path / "candidate.json", provider_profile={"display_name": "Kaito"})
     action = module.decide({"context": {"contract": contract}},
@@ -2742,7 +2782,7 @@ def test_document_access_does_not_call_generic_body_readable():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
         "artifact_required": True, "artifact_access": "unknown", "artifact_verified": False,
@@ -2775,7 +2815,7 @@ def test_document_access_does_not_ignore_a_second_blocked_document():
         def __init__(self): self.pages = [Page("readable shell"), Page("編集権限をリクエスト")]
         def new_page(self): return self.pages.pop(0)
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._document_access([
         "https://docs.google.com/document/d/readable/edit",
@@ -2805,7 +2845,7 @@ def test_document_access_waits_when_complete_content_exceeds_bound():
     class Context:
         def new_page(self): return Page()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._document_access(["https://docs.google.com/document/d/long/edit"]) == {
         "artifact_required": True, "artifact_access": "unknown", "artifact_verified": False,
@@ -2849,7 +2889,7 @@ def test_no_form_without_buyer_context_stays_waiting():
 
 def test_delivered_contract_is_kernel_noop_and_replay_zero(tmp_path):
     module, kernel = load(), load_kernel()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", inventory_reader=lambda: {
+    adapter = _adapter(module, account_id="7145638", inventory_reader=lambda: {
         "ok": True, "source_complete": True, "contract_candidates": [delivered()]})
     result = kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path)
     replay = kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path)
@@ -2860,7 +2900,7 @@ def test_delivered_contract_is_kernel_noop_and_replay_zero(tmp_path):
 def test_kernel_concurrency_keeps_paid_adapter_thread_state_isolated(tmp_path):
     module, kernel = load(), load_kernel()
     rows = [funded(), {**funded(), "work_id": "63570482", "milestone_id": "13798057"}]
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", inventory_reader=lambda: {
+    adapter = _adapter(module, account_id="7145638", inventory_reader=lambda: {
         "ok": True, "source_complete": True, "contract_candidates": rows})
     barrier, seen, mutated = threading.Barrier(2), [], set()
 
@@ -2935,7 +2975,7 @@ def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
             events.append("runtime")
 
     def adapter_for(rows):
-        adapter = module.CrowdWorksPaidAdapter(account_id="7145638",
+        adapter = _adapter(module, account_id="7145638",
             connection_factory=lambda: (Runtime(), Browser()),
             context_factory=lambda _browser, source: source,
             state_path=tmp_path / "receipts")
@@ -2967,7 +3007,7 @@ def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
 def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
     module, kernel = load(), load_kernel()
     rows, list_calls, details = [escrow(), delivered()], [], []
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter._list_contracts = lambda: (list_calls.append("full"), rows)[1]
     adapter._detail = lambda row: (details.append(row["work_id"]), dict(row))[1]
 
@@ -2992,7 +3032,8 @@ def test_mutation_targeted_refresh_rejects_changed_contract_before_submit(tmp_pa
         current = original if len(reads) < 4 else changed
         return {"ok": True, "source_complete": True, "contract_candidates": [current]}
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", inventory_reader=inventory)
+    adapter = _adapter(module, account_id="7145638", inventory_reader=inventory)
+    adapter._open = lambda: None
     adapter.readback = lambda intent: {"authoritative_absent": True}
     adapter._submit_form_once = lambda item: sent.append(item)
     result = kernel.run_wake(
@@ -3010,7 +3051,7 @@ def test_prepared_form_receipt_fences_replay_before_any_second_post(tmp_path):
     module = load()
     url = funded()["form_url"]
     digest = hashlib.sha256(url.encode()).hexdigest()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     binding = adapter._form_binding(funded(), digest, include_buyer_event=True)
     receipt = tmp_path / "external-actions" / f"{digest}.json"
     receipt.parent.mkdir()
@@ -3098,7 +3139,7 @@ def test_milestone_completion_targets_only_the_visible_duplicate_form():
         def nth(self, index):
             return Control("todo-tab", True)
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     page = Page()
     adapter.page = page
     adapter._goto_contract = lambda work_id: selected.append(("contract", work_id))
@@ -3150,7 +3191,7 @@ def test_milestone_completion_opens_the_contract_dialog_anchor():
             return EmptyTabs()
         def wait_for_load_state(self, *args, **kwargs): pass
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     page = Page()
     adapter.page = page
     adapter._goto_contract = lambda work_id: None
@@ -3178,7 +3219,7 @@ def test_delivery_primes_visible_duplicate_message_textareas():
             assert selector == 'textarea[name="message[body]"]'
             return Areas()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = Page()
 
     adapter._fill_delivery_message("納品メッセージ")
@@ -3220,7 +3261,7 @@ def test_milestone_completion_reveals_mobile_only_todo_surface_before_effect():
         def wait_for_load_state(self, *args, **kwargs): pass
 
     page = Page()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.page = page
     adapter._goto_contract = lambda work_id: events.append(("contract", work_id))
     def switch(work_id):
@@ -3259,7 +3300,7 @@ def test_narrow_contract_clones_auth_and_changes_only_isolated_device_cookie():
             received.append(kwargs)
             return MobileContext()
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.browser = Browser()
     adapter.owned_context = adapter.browser.contexts[0]
     adapter.page = Page()
@@ -3288,7 +3329,7 @@ def test_narrow_contract_closes_new_context_when_cookie_setup_fails():
         def new_context(self, **kwargs): return MobileContext()
 
     source = SourceContext()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter = _adapter(module, account_id="7145638")
     adapter.browser = Browser()
     adapter.owned_context = source
 
@@ -3310,7 +3351,7 @@ def test_paid_form_uses_only_the_worker_owned_context(tmp_path, monkeypatch):
 
     monkeypatch.setattr(module.google_form, "submit_once",
                         lambda **kwargs: seen.append(kwargs) or {"confirmation_sha256": "ok"})
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     adapter.browser = Browser()
     adapter.owned_context = owned
 
@@ -3322,7 +3363,7 @@ def test_paid_form_uses_only_the_worker_owned_context(tmp_path, monkeypatch):
 
 def test_paid_form_receipts_are_isolated_by_contract_binding(tmp_path):
     module = load()
-    binding = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)._form_binding(
+    binding = _adapter(module, account_id="7145638", state_path=tmp_path)._form_binding(
         funded(), hashlib.sha256(funded()["form_url"].encode()).hexdigest())
     other = {**binding, "contract_id": "63570482", "milestone_id": "13798057"}
     key = module.google_form._identity({**binding, "submission_payload_sha256": "payload"})
@@ -3350,7 +3391,7 @@ def test_date_question_uses_google_forms_year_month_day_fields(tmp_path):
         def evaluate(self, expression):
             return [[None, "応募日", None, 9, [[12, [], True]]]]
 
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     fields = dict(adapter._form_fields(Page(), funded()))
     assert set(fields) == {"entry.12_year", "entry.12_month", "entry.12_day"}
 
@@ -3377,7 +3418,7 @@ def test_required_form_choice_is_model_owned_and_exactly_validated(tmp_path, mon
 
     monkeypatch.setattr(module.composer, "compose", compose)
     monkeypatch.setattr(module.grounding_module, "build_reply_grounding", lambda **kwargs: {"candidate": {}})
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     adapter.candidate_profile = tmp_path / "candidate.json"
     adapter.provider_profile = {"display_name": "Kaito"}
 
@@ -3391,7 +3432,7 @@ def test_required_form_choice_rejects_model_output_outside_official_choices(tmp_
     module = load()
     monkeypatch.setattr(module.composer, "compose", lambda *args, **kwargs: "その他")
     monkeypatch.setattr(module.grounding_module, "build_reply_grounding", lambda **kwargs: {"candidate": {}})
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     adapter.candidate_profile = tmp_path / "candidate.json"
     adapter.provider_profile = {"display_name": "Kaito"}
     with pytest.raises(RuntimeError, match="crowdworks_paid_form_choice_invalid"):
@@ -3401,7 +3442,7 @@ def test_required_form_choice_rejects_model_output_outside_official_choices(tmp_
 
 def test_readback_rejects_non_submit_without_browser_mutation(tmp_path):
     module = load()
-    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter = _adapter(module, account_id="7145638", state_path=tmp_path)
     assert adapter.readback({"action": "noop"}) == {"authoritative_absent": True}
 
 

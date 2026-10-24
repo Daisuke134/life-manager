@@ -1448,7 +1448,8 @@ def _fatal_segment():
     ]
 
 
-def _fatal_fixture(tmp_path, *, segment=None, rc=1, exit_code=1, target=FATAL_DRAFT, tail=()):
+def _fatal_fixture(tmp_path, *, segment=None, rc=1, exit_code=1, target=FATAL_DRAFT, tail=(),
+                   terminal_pair="substack/en"):
     writer = tmp_path / "writer"
     (writer / "logs").mkdir(parents=True)
     lines = [
@@ -1463,7 +1464,7 @@ def _fatal_fixture(tmp_path, *, segment=None, rc=1, exit_code=1, target=FATAL_DR
         '"deployed_commit":"06141970eb640087ef4f9e696c909fbc607cfc5e"}',
         _fatal_record("publication", "2026-10-18T01:29:35Z", [FATAL_RUN]),
         *(segment if segment is not None else _fatal_segment()),
-        f"article-resume: run={FATAL_RUN} rc={rc} deterministic=substack/en",
+        f"article-resume: run={FATAL_RUN} rc={rc} deterministic={terminal_pair}",
         *tail,
     ]
     (writer / "logs/article-resume.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -1698,3 +1699,46 @@ def test_an_earlier_execute_whose_run_published_keeps_the_fence(tmp_path):
                          pre_effect_resolver=lambda owner, occ, **k: closed.append(occ) or True)
     assert result["status"] == "inconclusive" and result["reason"] == "run_reached_publication"
     assert closed == []
+
+
+INIT_REFUSAL = ("refuse initialization: v1 manifest must bind every active pair once "
+                "with one landing URL and product id")
+REJECTED_SELF_OWNED_PUSH = [
+    "Traceback (most recent call last):",
+    '  File "/r/skills/writer-agent/scripts/self_owned_article.py", line 622, in resume_publication',
+    '    _git(landing_root, "push", remote, f"HEAD:refs/heads/{branch}")',
+    "SelfOwnedInvariant: To https://github.com/Daisuke134/anicca-products.git",
+    " ! [rejected]        HEAD -> main (fetch first)",
+    "error: failed to push some refs to 'https://github.com/Daisuke134/anicca-products.git'",
+    "hint: Updates were rejected because the remote contains work that you do not",
+    "article-resume: self-owned worker remains pending",
+]
+
+
+def test_a_pass_whose_initialization_refused_before_staging_closes_from_its_own_log(tmp_path):
+    # 2026-10-24 article-resume:18e138af98c6dd90-45840: rejected self-owned push, then
+    # execute-initialization-pair refused before any staging; Writer resume stayed fenced 7 days.
+    m = _load()
+    writer = _fatal_fixture(tmp_path, segment=[*REJECTED_SELF_OWNED_PUSH, INIT_REFUSAL],
+                            terminal_pair="initialize-note/ja")
+    result, calls = _fatal_reconcile(m, tmp_path, writer)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True, result
+    touched = calls[0][2]["touched"]
+    assert (touched["stop"], touched["pair"], touched["writer_run_id"], touched["self_owned_push"]) == (
+        "initialization-refused", "note/ja", FATAL_RUN, "rejected")
+
+
+def test_an_initialization_pass_that_may_have_had_an_effect_stays_fenced(tmp_path):
+    m = _load()
+    pushed = [line for line in REJECTED_SELF_OWNED_PUSH if "[rejected]" not in line]
+    cases = {
+        "no refusal line": ([*REJECTED_SELF_OWNED_PUSH], "initialize-note/ja"),
+        "push not rejected": ([*pushed, "   1a2b3c4..5d6e7f8  HEAD -> main", INIT_REFUSAL], "initialize-note/ja"),
+        "unknown line before refusal": ([*REJECTED_SELF_OWNED_PUSH, "staged note draft 123", INIT_REFUSAL],
+                                        "initialize-note/ja"),
+    }
+    for name, (segment, pair) in cases.items():
+        case_root = tmp_path / name.replace(" ", "-")
+        writer = _fatal_fixture(case_root, segment=segment, terminal_pair=pair)
+        result, calls = _fatal_reconcile(m, case_root, writer)
+        assert result["closed"] is False and calls == [], (name, result)

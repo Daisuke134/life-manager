@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 import sys
 from typing import Any, Mapping
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urljoin, urlsplit
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
@@ -82,20 +82,36 @@ class CrowdWorksReplyAdapter:
         self.grounding = dict(grounding)
         self.state_path = Path(state_path) if state_path is not None else None
         self.candidate_profile = Path(candidate_profile) if candidate_profile is not None else None
-        self.provider_profile = dict(provider_profile) if provider_profile is not None else None
+        try:
+            self.provider_profile = profile_module.validate_config(provider_profile) if provider_profile is not None else None
+        except profile_module.ProfileError:
+            raise profile_module.SetupRequired(["provider_profile"]) from None
         self.browser = None
         self.page = None
         self.rows: dict[str, dict[str, Any]] = {}
         self.conversations: dict[str, list[dict[str, Any]]] = {}
 
     def _open(self) -> None:
+        missing = (["candidate_profile"] if self.candidate_profile is None else []) + (
+            ["provider_profile"] if self.provider_profile is None else [])
+        if missing:
+            raise profile_module.SetupRequired(missing)
+        try:
+            profile_module.validate_profile(json.loads(self.candidate_profile.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            raise profile_module.SetupRequired(["candidate_profile"]) from None
         if self.page is not None:
             return
         if not account._cdp_alive():
             raise RuntimeError("crowdworks_browser_unavailable")
         self.browser = account._browser(account.CDP_URL)
         self.page = self.browser.contexts[0].new_page()
-        self.page.set_default_timeout(10_000)
+        try:
+            self.page.set_default_timeout(10_000)
+            profile_module.assert_account(self.page, self.provider_profile["provider_employee_id"])
+        except Exception:
+            self.close()
+            raise
 
     def _reset_page(self) -> None:
         if self.page is not None:
@@ -104,7 +120,12 @@ class CrowdWorksReplyAdapter:
             except Exception:
                 pass
         self.page = self.browser.contexts[0].new_page()
-        self.page.set_default_timeout(10_000)
+        try:
+            self.page.set_default_timeout(10_000)
+            profile_module.assert_account(self.page, self.provider_profile["provider_employee_id"])
+        except Exception:
+            self.close()
+            raise
 
     @staticmethod
     def _provider_route(url: str) -> tuple[str, str] | None:
@@ -170,9 +191,10 @@ class CrowdWorksReplyAdapter:
                 raise RuntimeError("crowdworks_inbox_page_limit")
         return [self._observation(row) for row in self.rows.values()]
 
-    @staticmethod
-    def _observation(row: Mapping[str, Any]) -> dict[str, str]:
-        result = {"provider": "crowdworks", "account_id": "7145638",
+    def _observation(self, row: Mapping[str, Any]) -> dict[str, str]:
+        if self.provider_profile is None:
+            raise profile_module.SetupRequired(["provider_profile"])
+        result = {"provider": "crowdworks", "account_id": self.provider_profile["provider_employee_id"],
                   "thread_id": _text(row.get("thread_id")),
                   "latest_event_id": _text(row.get("id")), "observed_at": _now()}
         if row.get("proposal_status") == "proposed":
@@ -180,6 +202,7 @@ class CrowdWorksReplyAdapter:
         return result
 
     def _open_thread_page(self, thread_id: str) -> None:
+        self._open()
         row = self.rows.get(thread_id)
         if row is None:
             raise RuntimeError("crowdworks_thread_unavailable")
@@ -203,12 +226,14 @@ class CrowdWorksReplyAdapter:
             """nodes => nodes.map(node => {
               const full=[...node.querySelectorAll('div[class*="_messageBody_"]')]
                 .find(item => item.querySelector('p'));
-              const sender=full?.querySelector('a[class*="_senderName_"]')?.textContent?.trim();
+              const senderLink=full?.querySelector('a[class*="_senderName_"]');
+              const sender=senderLink?.textContent?.trim();
+              const sender_href=senderLink?.getAttribute('href');
               const time=full?.querySelector('time')?.getAttribute('datetime');
               const bodies=[...full?.querySelectorAll('p') || []]
                 .map(item => item.innerText.trim()).filter(Boolean).sort((a,b)=>b.length-a.length);
               const links=[...full?.querySelectorAll('a[href]') || []].map(a=>a.href);
-              return {sender, time, body:bodies[0] || '', links};
+              return {sender, sender_href, time, body:bodies[0] || '', links};
             })"""
         )
         if not isinstance(values, list) or not values:
@@ -218,12 +243,24 @@ class CrowdWorksReplyAdapter:
             if not isinstance(value, Mapping):
                 raise RuntimeError("crowdworks_conversation_invalid")
             sender, sent_at, body = (_text(value.get(key)) for key in ("sender", "time", "body"))
+            href = value.get("sender_href")
+            if not isinstance(href, str) or not href.strip():
+                raise RuntimeError("crowdworks_conversation_invalid")
+            try:
+                sender_url = urlsplit(urljoin("https://crowdworks.jp", href))
+            except ValueError:
+                raise RuntimeError("crowdworks_conversation_invalid") from None
+            if ((sender_url.scheme, sender_url.netloc, sender_url.query, sender_url.fragment)
+                    != ("https", "crowdworks.jp", "", "")
+                    or not re.fullmatch(r"/public/(employees|employers)/[1-9][0-9]*", sender_url.path)):
+                raise RuntimeError("crowdworks_conversation_invalid")
             digest = hashlib.sha256(f"{sender}\0{sent_at}\0{body}".encode()).hexdigest()
             links = value.get("links")
             if not isinstance(links, list) or not all(isinstance(link, str) for link in links):
                 raise RuntimeError("crowdworks_conversation_invalid")
-            result.append({"event_id": digest, "role": "seller" if sender == "Kaito｜AI自動化" else "buyer",
-                           "sender": sender, "sent_at": sent_at, "body": body,
+            own_path = f"/public/employees/{self.provider_profile['provider_employee_id']}"
+            result.append({"event_id": digest, "role": "seller" if sender_url.path == own_path else "buyer",
+                           "sender": sender, "sender_href": href, "sent_at": sent_at, "body": body,
                            "links": links})
         self.conversations[thread_id] = result
         return result
@@ -786,7 +823,8 @@ def build(argv: list[str]):
     parser.add_argument("--provider-profile", type=Path,
                         default=Path.home() / ".config/anicca/crowdworks/public-profile.json")
     args = parser.parse_args(argv)
-    provider_profile = profile_module.load_config(args.provider_profile)
+    identity = profile_module.load_identity(args.candidate_profile, args.provider_profile)
+    provider_profile = identity["provider"]
     grounding = grounding_module.build_reply_grounding(
         candidate_profile_path=args.candidate_profile,
         provider_profile=provider_profile,
