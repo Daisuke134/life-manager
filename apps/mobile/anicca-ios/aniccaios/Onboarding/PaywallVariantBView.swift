@@ -139,7 +139,7 @@ struct PaywallVariantBView: View {
                 startingRevision: revision,
                 currentRevision: appState.storefrontRevision
             ) else { continue }
-            guard latestStorefront?.countryCode?.uppercased() == countryCode?.uppercased() else {
+            guard latestStorefront?.countryCode.uppercased() == countryCode?.uppercased() else {
                 continue
             }
             return
