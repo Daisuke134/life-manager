@@ -4814,7 +4814,7 @@ def test_disk_floor_defers_before_queue_and_provider_child(tmp_path):
 
 @pytest.mark.parametrize(("free_gib", "expected_kicks"), (
     (11, ["support-1", "support-2", "daily-revenue"]),
-    (6, []),  # below the 7 GiB revenue floor (was 9 against the old 10 GiB floor)
+    (3, []),  # below the 4 GiB revenue floor (was 6 against the 7 GiB floor)
 ))
 def test_disk_floor_deferral_hands_slot_to_runnable_revenue_owner(
         tmp_path, monkeypatch, free_gib, expected_kicks):
