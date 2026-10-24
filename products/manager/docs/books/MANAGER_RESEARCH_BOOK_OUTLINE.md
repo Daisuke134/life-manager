@@ -6,6 +6,8 @@
 
 **追加実習章:** [「変わりたい」を、行動の変化と取り違えない](../articles/2026-10-24-motivation-is-not-behavior-ja.md)。Intrinsic AIの直後/追跡/行動の違い、本文と要旨の人数不一致、CAMIの設計、MI-TAGSの会話品質proxyを扱う。[調査記録](../research/2026-10-24-motivational-interviewing-reuse.md)と[実学習記録](../verification/COSTELLO_NUMERIC_TRAIN128_20261024.md)を結ぶ。第2/4/6/12章の教材として同じ本へ組み込む。全書籍完成ではなく、本章のGitHub公開とPDF/EPUB/blogの各公開readbackは別に確認する。
 
+**無料ダウンロード実習版:** [PDF・全4章10ページ](exports/manager-open-research-labs-ja-20261024.pdf) / [EPUB](exports/manager-open-research-labs-ja-20261024.epub) / [固定原稿とfile hash](exports/manager-open-research-labs-ja-20261024.json)。原稿sourceはcommit66e953e9、各章を研究の進行順で収録し、前章の未実施は当時のsnapshot、最新比較は第4章。本全体は執筆中。PDFは日本語text/全ページboundsと表・code・図のpreview、EPUBはXML/spine/image参照を確認。formal epubcheckは未実行。GitHubへの反映/実公開readback後に無料配布を確認し、blog/他媒体公開は別とする。
+
 **公開実習の読書順（同じ本の原稿）:**
 
 1. [公開説得研究をRで再現する](../articles/2026-10-24-ai-persuasion-reproduction-ja.md) — 分母・欠測・効果と再現範囲。

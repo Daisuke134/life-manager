@@ -1,1 +1,3 @@
 /memory/ export-ignore
+/products/manager/docs/books/exports/*.pdf binary
+/products/manager/docs/books/exports/*.epub binary

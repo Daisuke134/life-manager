@@ -1,0 +1,28 @@
+{
+  "schema": "manager.free-research-lab-book.v1",
+  "edition": "FOUR_ORIGINAL_CHAPTERS_BOOK_IN_PROGRESS",
+  "created_utc": "2026-10-24T13:20:14Z",
+  "source_commit": "66e953e9c298e3acc5eb9fd3d61f13d9dc70b4ef",
+  "sources_sha256": {
+    "products/manager/docs/articles/2026-10-24-ai-persuasion-reproduction-ja.md": "9e3b63d9bde635a214b51e8efb84b0d45cd15612a2fc6f30ade29a5d74b1fd0b",
+    "products/manager/docs/articles/2026-10-24-motivation-is-not-behavior-ja.md": "7d20e4a96825abd311082d00a320d6d2d40277a1ebef5b45a485243ac99a1aaf",
+    "products/manager/docs/articles/2026-10-24-dialogue-data-evaluation-ja.md": "b770bbff9468cc8099c76f365d6847fbb6353ba56adb4e69598d3e0669b12e54",
+    "products/manager/docs/articles/2026-10-24-training-is-not-predictive-gain-ja.md": "a7179445eb9dc27681c904bf24b8c2cc570afc98a05e37696bd762daf7030699"
+  },
+  "pdf_pages": 10,
+  "epub_xml_check": "PASS",
+  "formal_epubcheck": "NOT_RUN",
+  "pdf_math_normalization": "Unicode superscript exponents use explicit ASCII caret notation; numerical values unchanged",
+  "full_book_complete": false,
+  "human_benefit_demonstrated": false,
+  "files": {
+    "manager-open-research-labs-ja-20261024.pdf": {
+      "bytes": 147651,
+      "sha256": "ebaf90f7302c33d4cc816f470b60d5291d5dc88cf7eaf4715d0f37a452b8015a"
+    },
+    "manager-open-research-labs-ja-20261024.epub": {
+      "bytes": 99404,
+      "sha256": "5270edf7c499ded007fa040744081b2b542fbee7e71b911bc9d3b2a8188ae39a"
+    }
+  }
+}
