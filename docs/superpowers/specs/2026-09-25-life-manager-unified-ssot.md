@@ -603,6 +603,8 @@ CrowdWorks account実受入: 同complete immutableのrun_statusを既存crowdwor
 - [ ] IDENTITY-CALLERS: profile.load_identityをapplication_owner.main、reply_adapter.build/_observation、paid_adapter.build/read_only_inventory、reply-owner/paid-ownerへ接続し、固定account IDを除く。欠損時はbrowser/planner/kernel前に止め、別accountの本人入力だけを渡す。CLIの明示candidate/provider pathsも同じ検証へ渡す。reconcile_application_no_submitとreconcile_reply_accept_contractの直接adapter生成・作者sender固定も本人設定へ接続し、既存exact occurrence/official receipt/fenceの条件は変えない。正確な追加所有functions/testsはこの段階の実装前に追記する。
 - [ ] IDENTITY-PROMOTION: 全callerのsource受入後、main由来immutableと本人setupの準備状況を照合し、既存owner限定反映・自然実行・公式成果へ進む。実本人設定が不足するlaneを無条件activateしない。公開installer9業務、別Mac実機、全業務成果と10,000starsは未完のまま保持する。
 
+IDENTITY-PROFILEの初期RED: repo作者asset/overlayを正解とする既存testを本人private入力へ更新し、隔離HOMEのtest_profile_avatar.pyは2 FAIL/13 PASSとなる。別利用者543210のproviderが固定ID/schemaでconfig_invalidになることと、削除対象commercial overlayのエラー名依存を再現する。実provider/browser/private本人入力は使用しない。
+
 #### Lancers本人入力の実装計画
 
 > 実行はprimaryが所有し、bounded実装と独立read-only reviewを使う。ユーザーのNo-human-loop指示に従い、計画の再承認を進行条件にしない。
