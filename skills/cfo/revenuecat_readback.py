@@ -97,6 +97,7 @@ def fetch_current_mrr(
     project_id: str | None,
     api_key: str | None,
     product_bindings: dict[str, dict] = MOBILE_PRODUCT_BINDINGS,
+    credentials_path: Path | None = None,
     get: Callable | None = None,
     now: Callable[[], dt.datetime] | None = None,
 ) -> dict:
@@ -118,56 +119,55 @@ def fetch_current_mrr(
     if set(product_bindings) != set(product_names) or len(product_bindings) != 6:
         product_bindings = MOBILE_PRODUCT_BINDINGS
 
-    project = str(project_id or "").strip()
-    key = str(api_key or "").strip()
-    project_path = urllib.parse.quote(project, safe="")
-    base = f"https://api.revenuecat.com/v2/projects/{project_path}/charts/mrr"
-    options_scope = {
-        "project_id": project or None,
-        "chart": "mrr",
-        "endpoint": "options",
-        "start_date": start_text,
-        "end_date": end_text,
-        "resolution": "0",
-    }
-
-    def unavailable_all(reason: str, observed_at: str, scope: dict) -> dict:
-        rows = []
-        for product in product_names:
-            app_id = product_bindings[product].get("revenuecat_app_id")
-            rows.append(_failed_row(
-                product, app_id, end_text, observed_at, reason, scope, helpers,
-            ))
-        return timed_result(rows)
-
-    if not project:
-        return unavailable_all("project_id_missing", started_at, options_scope)
-    if not key:
-        scope = {**options_scope, "credential_status": "missing"}
-        return unavailable_all("credential_missing", started_at, scope)
-
+    base_env = {"REVENUECAT_PROJECT_ID": str(project_id or "").strip(),
+                "REVENUECAT_V2_SECRET_KEY": str(api_key or "").strip()}
     request_json = get or helpers.http_json
-    headers = {"Authorization": f"Bearer {key}"}
-    options_url = f"{base}/options"
-    try:
-        options = request_json(options_url, headers)
-    except Exception:
-        return unavailable_all(
-            "provider_query_failed", _utc_text(current()), options_scope,
-        )
-    if not isinstance(options, dict):
-        return unavailable_all("scope_invalid", _utc_text(current()), options_scope)
-
+    options_cache = {}
     latest_observations: list[str] = []
     rows = []
     definition = dict(helpers.REVENUECAT_MRR_DEFINITION)
     for product in product_names:
-        app_id = product_bindings[product].get("revenuecat_app_id")
-        query_scope = {
-            **options_scope,
-            "app_id": app_id,
-            "filters": None,
+        binding = product_bindings[product]
+        app_id = binding.get("revenuecat_app_id")
+        options_scope = {
+            "project_id": binding.get("revenuecat_project_id") or base_env["REVENUECAT_PROJECT_ID"] or None,
+            "chart": "mrr", "endpoint": "options", "start_date": start_text,
+            "end_date": end_text, "resolution": "0",
         }
+        if not app_id:
+            rows.append(_failed_row(product, None, end_text, _utc_text(current()),
+                                    "no_revenuecat_app", options_scope, helpers))
+            continue
+        try:
+            env = helpers.revenuecat_env(base_env, product, binding, credentials_path=credentials_path)
+        except helpers.RevenueCatCredentialUnavailable:
+            rows.append(_failed_row(product, app_id, end_text, _utc_text(current()),
+                                    "credential_unavailable", options_scope, helpers))
+            continue
+        project, key = env["REVENUECAT_PROJECT_ID"], env["REVENUECAT_V2_SECRET_KEY"]
+        options_scope["project_id"] = project or None
+        if not project or not key:
+            reason = "project_id_missing" if not project else "credential_missing"
+            if not key:
+                options_scope["credential_status"] = "missing"
+            rows.append(_failed_row(product, app_id, end_text, _utc_text(current()),
+                                    reason, options_scope, helpers))
+            continue
+        base = f"https://api.revenuecat.com/v2/projects/{urllib.parse.quote(project, safe='')}/charts/mrr"
+        headers = {"Authorization": f"Bearer {key}"}
+        cache_key = (project, key)
+        if cache_key not in options_cache:
+            try:
+                options = request_json(f"{base}/options", headers)
+                options_cache[cache_key] = (options, None if isinstance(options, dict) else "scope_invalid")
+            except Exception:
+                options_cache[cache_key] = (None, "provider_query_failed")
+        options, failure = options_cache[cache_key]
+        if failure:
+            rows.append(_failed_row(product, app_id, end_text, _utc_text(current()),
+                                    failure, options_scope, helpers))
+            continue
+        query_scope = {**options_scope, "app_id": app_id, "filters": None}
         try:
             filters = helpers.revenuecat_app_filter(options, app_id)
             if (

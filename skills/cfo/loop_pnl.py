@@ -202,6 +202,7 @@ def _live_mobile_revenuecat_readback(env: dict[str, str]) -> dict:
             project_id=env.get("REVENUECAT_PROJECT_ID"),
             api_key=api_key,
             product_bindings=capafy_mobile.MOBILE_PRODUCT_BINDINGS,
+            credentials_path=CREDENTIALS,
         )
     except Exception:
         # A missing helper/credential read is a coverage gap; it must not reopen the static MRR.
@@ -547,14 +548,14 @@ def _persist_mobile_natural_evidence(*, mobile_readback: dict, records: list[dic
             "scope_invalid", "chart_response_invalid", "chart_incomplete_flag_invalid",
             "chart_periods_invalid", "chart_period_order_invalid", "mrr_point_unavailable",
             "mrr_period_invalid", "mrr_period_out_of_scope", "currency_missing",
-            "provider_response_invalid",
+            "provider_response_invalid", "credential_unavailable", "no_revenuecat_app",
         }:
             reason = None
         data = source.get("data") if isinstance(source.get("data"), dict) else {}
         meta = data.get("readback") if isinstance(data.get("readback"), dict) else {}
         outer = row.get("readback") if isinstance(row.get("readback"), dict) else {}
         query = meta.get("query") if isinstance(meta.get("query"), dict) else outer.get("query_scope")
-        app_id = capafy_mobile.MOBILE_PRODUCT_BINDINGS[product_id]["revenuecat_app_id"]
+        app_id = capafy_mobile.MOBILE_PRODUCT_BINDINGS[product_id].get("revenuecat_app_id")
         filters = query.get("filters") if isinstance(query, dict) else None
         scope = None
         project_id = query.get("project_id") if isinstance(query, dict) else None

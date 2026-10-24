@@ -23,6 +23,21 @@ This skill runs one repository-owned CFO pass and exits. It is the operator-faci
 - A failure produces a fixed redacted status envelope and a non-zero exit. It never invents a
   financial amount, retries out of band, or logs raw provider/error payloads.
 
+### Public mobile portfolio
+
+The mobile attribution scope is the six public products in
+`skills/_shared/mobile_products.py`: Anicca, Honne, Dhamma Quotes, Thankful,
+Sleep Reset, and Studio Cherie. Marketing collection and CFO share these provider
+bindings. Legacy draft apps are not substituted for a missing public product.
+
+The live MRR reader uses the existing deployment credential for Anicca/Honne and
+exact product/project/app-matched private SSOT records for the other three
+RevenueCat projects. It caches chart options by project and key in memory only.
+Missing credentials or one failed project leave other projects readable. Studio
+has no RevenueCat binding: it produces `no_revenuecat_app` without a provider
+query. Missing Studio data keeps the six-product MRR total unknown; it is not a
+zero-MRR app, and synthetic six-app test fixtures do not prove live coverage.
+
 ### App Store Connect financial packet
 
 `LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET` may point to one private JSON packet with

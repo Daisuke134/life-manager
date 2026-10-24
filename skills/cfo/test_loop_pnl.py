@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import loop_pnl as m  # noqa: E402
 from skills.cfo import economic_attribution as contract  # noqa: E402
 from skills.cfo.adapters import writer as writer_adapter  # noqa: E402
+from skills.cfo.test_capafy_mobile_attribution import synthetic_mobile_portfolio
 
 FIX = Path(__file__).parent / "fixtures" / "loop_pnl"
 DAY = date(2026, 9, 26)  # Asia/Tokyo: 2026-09-25T15:00Z .. 2026-09-26T15:00Z
@@ -464,6 +465,9 @@ class UsageTest(unittest.TestCase):
 
 
 class B7IntegrationTest(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(synthetic_mobile_portfolio())
+
     def test_platform_specific_marketplace_readback_preserves_unconnected_siblings(self):
         import hashlib
         payload = {
@@ -791,6 +795,9 @@ class TableTest(unittest.TestCase):
 
 
 class MobileNaturalEvidenceTest(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(synthetic_mobile_portfolio())
+
     def _economic_fixture(self, name):
         return json.loads((
             Path(__file__).parent / "fixtures" / "economic_attribution" / name

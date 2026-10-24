@@ -28,6 +28,8 @@ from typing import Any, Iterable
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT.parents[2]))
+from skills._shared.mobile_products import PUBLIC_MOBILE_PRODUCT_BINDINGS  # noqa: E402
 sys.path.insert(0, str(ROOT / "gates"))
 from product_router import canonical_product_id  # noqa: E402
 DEFAULT_ENV = Path.home() / ".local" / "state" / "life-manager" / ".env"
@@ -47,18 +49,8 @@ DEFAULT_STATE, DEFAULT_EVIDENCE = default_storage_paths()
 
 PRODUCTS = {
     "life-manager-cloud": {"web_funnel": True},
-    "anicca-ios": {
-        "asc_app_id": "6755129214",
-        "asc_sku": "anicca-ios-001",
-        "revenuecat_app_id": "app511ef26659",
-        "analytics": "mixpanel",
-    },
-    "honne-ai": {
-        "asc_app_id": "6759667221",
-        "asc_sku": "app.rork.hon-ne-honyaku-ai",
-        "revenuecat_app_id": "app3bbd298d22",
-        "analytics": None,
-    },
+    "anicca-ios": PUBLIC_MOBILE_PRODUCT_BINDINGS["anicca-ios"],
+    "honne-ai": PUBLIC_MOBILE_PRODUCT_BINDINGS["honne-ai"],
     "breath-reset": {
         "asc_app_id": "6760253231",
         "asc_sku": "breathcalm-test-001",
@@ -85,35 +77,10 @@ PRODUCTS = {
     },
     # Public vendor apps use separate RevenueCat projects when verified.
     # Studio remains ASC-only; missing sources are unavailable, never zero.
-    "dhamma-quotes": {
-        "revenuecat_app_id": "appbe1e2ee955",
-        "revenuecat_project_id": "86624956",
-        "revenuecat_credential_service": "revenuecat-dhamma-existing-api-v2-ani",
-        "asc_app_id": "6757726663",
-        "asc_sku": "dailydhamma",
-        "analytics": None,
-    },
-    "sleep-reset": {
-        "revenuecat_app_id": "appd13f39e1cf",
-        "revenuecat_project_id": "77301666",
-        "revenuecat_credential_service": "revenuecat-sleep-reset-metrics-read-v2",
-        "asc_app_id": "6762143790",
-        "asc_sku": "app.rork.vcinrjbl3ke00f07gtlzf",
-        "analytics": None,
-    },
-    "studio-cherie": {
-        "asc_app_id": "6766485903",
-        "asc_sku": "app.rork.xhozd938ie79zdqd5plem",
-        "analytics": None,
-    },
-    "thankful": {
-        "revenuecat_app_id": "app2672aee816",
-        "revenuecat_project_id": "7aaf9429",
-        "revenuecat_credential_service": "revenuecat-thankful-existing-api-v2",
-        "asc_app_id": "6759514159",
-        "asc_sku": "app.rork.thankful-gratitude-app",
-        "analytics": None,
-    },
+    "dhamma-quotes": PUBLIC_MOBILE_PRODUCT_BINDINGS["dhamma-quotes"],
+    "sleep-reset": PUBLIC_MOBILE_PRODUCT_BINDINGS["sleep-reset"],
+    "studio-cherie": PUBLIC_MOBILE_PRODUCT_BINDINGS["studio-cherie"],
+    "thankful": PUBLIC_MOBILE_PRODUCT_BINDINGS["thankful"],
     "ebook-en": {"stripe_product_ids": ["prod_UQ2LTH66Rwict4"]},
     "ebook-ja": {"stripe_product_ids": ["prod_UQ2LrpVy4b1bAY"]},
 }
@@ -609,12 +576,15 @@ class RevenueCatCredentialUnavailable(ValueError):
     """The exact product credential is missing or does not match its scope."""
 
 
-def revenuecat_env(env: dict[str, str], product_id: str, config: dict) -> dict[str, str]:
+def revenuecat_env(
+    env: dict[str, str], product_id: str, config: dict, *, credentials_path: Path | None = None,
+) -> dict[str, str]:
     service = config.get("revenuecat_credential_service")
     if not service:
         return env
     try:
-        data = json.loads(CREDENTIALS_FILE.read_text(encoding="utf-8"))
+        path = CREDENTIALS_FILE if credentials_path is None else credentials_path
+        data = json.loads(path.read_text(encoding="utf-8"))
         credentials = data.get("credentials") if isinstance(data, dict) else None
         matches = [row for row in credentials
                    if isinstance(row, dict) and row.get("service") == service
