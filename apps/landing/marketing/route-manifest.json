@@ -8,43 +8,43 @@
       "source": "pages/en.html",
       "public_route": "/",
       "export_path": "index.html",
-      "sha256": "a22f78f4e547cd703c1804b1f5e5dd15eeb42e3454a842bcab17679ecc035b4d"
+      "sha256": "30054edd38d22f4ec9486d2e3202495f8edb6f653dfc455053cfed155763d1b3"
     },
     {
       "source": "pages/en.html",
       "public_route": "/en",
       "export_path": "en.html",
-      "sha256": "a22f78f4e547cd703c1804b1f5e5dd15eeb42e3454a842bcab17679ecc035b4d"
+      "sha256": "30054edd38d22f4ec9486d2e3202495f8edb6f653dfc455053cfed155763d1b3"
     },
     {
       "source": "pages/ja.html",
       "public_route": "/ja",
       "export_path": "ja.html",
-      "sha256": "e297d20528573f0ba4b8e95e03b590cfee7d52773b27b666b6da8ece23bc6bc0"
+      "sha256": "28bb09ff9317ff54e28d43cfd315d09a3cb87d5c20fa682136ba567714a7c4de"
     },
     {
       "source": "pages/products-en.html",
       "public_route": "/dais",
       "export_path": "dais.html",
-      "sha256": "addeab06734c063748b5e34c285e833bb441d0043360f53b484f5571a850cc1f"
+      "sha256": "243b6d8b489ec9e1d11352185c2182e5cc93e0174b21ca7ecf25a96e5b964f2f"
     },
     {
       "source": "pages/products.html",
       "public_route": "/dais/ja",
       "export_path": "dais/ja.html",
-      "sha256": "c1f21e7f7444208697ea72092bf7d4978603d7966dbb806c3e41fd6c1502dd84"
+      "sha256": "e084bf9faf8f5252fd54b799b6b010065556363b234ec3d9d28e408845921558"
     },
     {
       "source": "pages/life-manager-en.html",
       "public_route": "/lm",
       "export_path": "lm.html",
-      "sha256": "4b9e8c7d4a7abeb33b39efd706c22082f3159e7a83040cfb86e8a8a5ac7025cb"
+      "sha256": "289ebf54b3473d9790d91a48857f37410cf35227e6ba652134ace7a79d6d4e37"
     },
     {
       "source": "pages/life-manager.html",
       "public_route": "/lm/ja",
       "export_path": "lm/ja.html",
-      "sha256": "f799198122c98cd770959656982a69b8dc6599951be3e5ad58a39e478afec45c"
+      "sha256": "1bb64f68b622ea25de2259c8e5b06ef227983541e8ae81c586a3e796f7a603a4"
     },
     {
       "source": "assets/styles.css",

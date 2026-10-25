@@ -87,6 +87,17 @@ class LocalProfileTest(unittest.TestCase):
         self.assertNotIn("interactive:dais", targets)
         self.assertNotIn("promptbase:dais", targets)
 
+    def test_capafy_factory_identity_resolves_to_the_capafy_browser_owner(self):
+        """2026-10-25: the factory and CP1 docs lease capafy:kosuke; the generated registry only had
+        capafy-browser:local, so with-browser.sh exited 10 for every agent run under the host profile."""
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        bindings = tomllib.loads(_browser_registry(registry, self.home))
+        rows = {row["id"]: row for row in bindings["identity"]}
+        self.assertEqual(rows["capafy:kosuke"]["owner"], "capafy-browser")
+        self.assertEqual(rows["capafy:kosuke"]["declared_port"], 9229)
+        self.assertTrue(Path(rows["capafy:kosuke"]["profile"]).is_relative_to(self.home))
+        self.assertNotIn("capafy-browser:local", rows)
+
     def test_external_browser_binding_requires_declared_launcher(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         registry["external_labels"].remove("ai.anicca.job-search-mercor-browser")

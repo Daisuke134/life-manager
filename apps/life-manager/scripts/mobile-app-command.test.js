@@ -345,6 +345,47 @@ test("the mobile result helper records an off-slot no_due_slot result as exact n
   });
 });
 
+test("the mobile result helper replaces a host marker with an exact reconciled provider receipt", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-reconciled-result-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const helper = path.join(root, "apps/life-manager/scripts/mobile-effect-result.js");
+  const input = path.join(directory, "reconciled.stdout");
+  const output = path.join(directory, "entrypoint-result.json");
+  const owner = "life-manager-anicca-en-affirmation-instagram";
+  const occurrence = `${owner}:existing-slot-1`;
+  fs.writeFileSync(input, `${JSON.stringify({ publication: {
+    created: false,
+    provider_effect_created: false,
+    result_occurrence_id: occurrence,
+    provider_post_id: "postiz-existing-1",
+    provider_reconciled: true,
+  } })}\n`);
+  fs.writeFileSync(output, '{"status":"pre_effect_failure","effect":0}\n', { mode: 0o600 });
+  const result = spawnSync(process.execPath, [helper, input, "--require-origin-occurrence"], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_LOOP_ID: owner,
+      LIFE_MANAGER_OCCURRENCE_ID: occurrence,
+      LIFE_MANAGER_RESULT_HINT_PATH: output,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(output, "utf8")), {
+    schema_version: 1,
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+    effect: 1,
+    owner_id: owner,
+    occurrence_id: occurrence,
+    provider: "postiz",
+    provider_receipt_id: "postiz-existing-1",
+    effect_status: "reconciled",
+  });
+});
+
 test("the mobile result helper records a daily-limit result as exact no-effect proof", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-daily-limit-result-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -374,7 +415,7 @@ test("the mobile result helper records a daily-limit result as exact no-effect p
   });
 });
 
-test("the shared mobile wrapper persists exact no-effect proof for a no_due_slot result", (t) => {
+test("the shared mobile wrapper replaces the host pre-effect marker with exact no-effect proof", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-no-due-wrapper-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const calls = path.join(directory, "python-calls.txt");
@@ -389,6 +430,7 @@ test("the shared mobile wrapper persists exact no-effect proof for a no_due_slot
   fs.writeFileSync(envFile, `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\n`, { mode: 0o600 });
   const owner = "life-manager-anicca-en-affirmation-instagram";
   const occurrence = `${owner}:off-slot-2`;
+  fs.writeFileSync(resultHint, '{"status":"pre_effect_failure","effect":0}\n', { mode: 0o600 });
   const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), [owner], {
     cwd: root,
     env: {

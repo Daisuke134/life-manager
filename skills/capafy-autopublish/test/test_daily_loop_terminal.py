@@ -584,3 +584,31 @@ def test_drainer_prompts_retry_a_transient_with_browser_exit_10_before_stopping(
     plain codex exec succeeded on the loaded host (load 6-13), so one 10 is not proof the browser is down."""
     source = CHILD.read_text(encoding="utf-8")
     assert source.count("If with-browser.sh exits 10, wait 30 seconds and retry up to 3 times") == 2
+
+
+def test_drainer_prompt_additions_have_no_shell_substitution_characters():
+    """2026-10-25: backticks and <ID> inside the double-quoted PROMPT ran as command substitution
+    (daily_loop.sh line 412 syntax error) and the sentence never reached the agent."""
+    source = CHILD.read_text(encoding="utf-8")
+    for marker in ("Run the official status check from the repo root as",
+                   "If with-browser.sh exits 10, wait 30 seconds"):
+        for line in (l for l in source.splitlines() if marker in l):
+            assert "`" not in line and "$(" not in line and "<ID>" not in line
+
+
+def test_cp1_agent_timeout_default_leaves_room_for_the_price_tab_and_cp2_cp3():
+    """2026-10-25: MLB Pitcher Workload Brief hit rc=124 at 1800s in the price tab (73 steps, no failure);
+    TikTok UGC Creator Brief finished CP1 in 14 min. 2400s + CP2/CP3 (~10 min) stays inside the 3600s pass."""
+    source = CHILD.read_text(encoding="utf-8")
+    assert "CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-2400" in source
+    assert "CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800" not in source
+
+
+def test_drainer_prompts_tell_the_agent_to_check_every_plan_trial_choice():
+    """2026-10-25: MLB Pitcher Workload Brief had PRICES_MATCH 3 but one plan card had neither trial option
+    selected, so 価格設定 stayed red and 提出を確認 stayed disabled; the prices tool cannot see an unselected radio."""
+    source = CHILD.read_text(encoding="utf-8")
+    sentence = "PRICES_MATCH does not prove the trial choice: scroll every plan card and confirm its trial option is actually selected"
+    assert source.count(sentence) == 2
+    for line in (l for l in source.splitlines() if sentence in l):
+        assert "`" not in line and "$(" not in line and "<ID>" not in line
