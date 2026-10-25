@@ -56,10 +56,20 @@ def preflight_cross_release(first: Mapping, second: Mapping) -> dict:
         reasons.add("COHORT_OR_CONSTRUCT_NOT_COMPARABLE")
     else:
         a_partition, b_partition = first["partition"], second["partition"]
-        a = {cell["category"]: cell["count"] for cell in a_partition["cells"]}
-        b = {cell["category"]: cell["count"] for cell in b_partition["cells"]}
+        a_cells = {cell["category"]: cell for cell in a_partition["cells"]}
+        b_cells = {cell["category"]: cell for cell in b_partition["cells"]}
+        a = {name: cell["count"] for name, cell in a_cells.items()}
+        b = {name: cell["count"] for name, cell in b_cells.items()}
         if set(a) != set(b):
             reasons.add("CROSS_RELEASE_CATEGORIES_DIFFER")
+        elif any(
+            a_cells[name]["sensitive"] != b_cells[name]["sensitive"]
+            for name in a
+        ):
+            # Sensitivity describes a category, not whether this edition
+            # suppressed its count. A conflicting declaration means the
+            # partition semantics cannot be safely aligned for subtraction.
+            reasons.add("CROSS_RELEASE_SENSITIVITY_NOT_COMPARABLE")
         elif a_partition["total"] != b_partition["total"]:
             # A rolling window or genuinely changing population might differ;
             # do not infer a residual from two inconsistent denominators.

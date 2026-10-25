@@ -48,8 +48,10 @@ def packet(suffix):
 
 
 def cells(**kwargs):
+    # Category sensitivity is intrinsic to the fictional construct and does
+    # not change when a release hides or reveals its aggregate count.
     return [
-        {"category": category, "count": count, "sensitive": count is None}
+        {"category": category, "count": count, "sensitive": True}
         for category, count in kwargs.items()
     ]
 
@@ -117,6 +119,33 @@ class CrossReleaseTest(unittest.TestCase):
         r = preflight_cross_release(a, b)
         self.assertEqual(r["status"], "REVIEW_REQUIRED")
         self.assertIn("COHORT_OR_CONSTRUCT_NOT_COMPARABLE", r["reason_codes"])
+
+    def test_conflicting_sensitivity_flags_block_arithmetic_inference(self):
+        a, b = self.pair()
+        a["partition"]["cells"] = cells(alpha=60, beta=None, gamma=None)
+        b["partition"]["cells"] = cells(alpha=None, beta=None, gamma=35)
+        # An apparently matching category was classified differently by
+        # two purported releases. Their partition semantics are ambiguous.
+        b["partition"]["cells"][-1]["sensitive"] = False
+        r = preflight_cross_release(a, b)
+        self.assertEqual(r["status"], "REVIEW_REQUIRED")
+        self.assertIn("CROSS_RELEASE_SENSITIVITY_NOT_COMPARABLE", r["reason_codes"])
+        self.assertNotIn("CROSS_RELEASE_SINGLE_HIDDEN_CELL", r["reason_codes"])
+        self.assertNotIn("CROSS_RELEASE_SUPPRESSION_UNDONE", r["reason_codes"])
+        self.assertFalse(r["can_ingest"])
+        self.assertFalse(r["can_publish"])
+        self.assertFalse(r["can_execute"])
+        self.assertFalse(r["disclosure_certified"])
+
+    def test_consistent_category_sensitivity_still_detects_reconstruction(self):
+        a, b = self.pair()
+        a["partition"]["cells"] = cells(alpha=60, beta=None, gamma=None)
+        b["partition"]["cells"] = cells(alpha=None, beta=None, gamma=35)
+        self.assertEqual(preflight_public_aggregate(a)["status"], "REVIEW_REQUIRED")
+        self.assertEqual(preflight_public_aggregate(b)["status"], "REVIEW_REQUIRED")
+        r = preflight_cross_release(a, b)
+        self.assertEqual(r["status"], "REJECT")
+        self.assertIn("CROSS_RELEASE_SINGLE_HIDDEN_CELL", r["reason_codes"])
 
     def test_different_categories_are_not_subtracted(self):
         a, b = self.pair()
