@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+from collections import Counter
 from pathlib import Path
 
 MANAGER_ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +40,20 @@ class EbaCatalogManifestTests(unittest.TestCase):
             [item["source"] for item in self.manifest["candidates"]], self.inventory
         )
         eba_manifest.validate_catalog(self.manifest, self.inventory_bytes)
+
+    def test_inventory_rights_status_has_no_precleared_candidate(self) -> None:
+        self.assertEqual(
+            Counter(item["rights"] for item in self.inventory),
+            {
+                "UPSTREAM_LICENSE_CHECK": 66,
+                "DATA_RIGHTS_REVIEW_REQUIRED": 18,
+                "PUBLIC_METHOD_ONLY": 6,
+            },
+        )
+        self.assertFalse(
+            any(item["rights"] not in {"UPSTREAM_LICENSE_CHECK", "DATA_RIGHTS_REVIEW_REQUIRED", "PUBLIC_METHOD_ONLY"}
+                for item in self.inventory)
+        )
 
     def test_catalog_has_seven_separate_unscored_dimensions(self) -> None:
         self.assertEqual(
