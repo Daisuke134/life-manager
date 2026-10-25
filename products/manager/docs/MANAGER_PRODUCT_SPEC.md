@@ -4,7 +4,7 @@
 
 **2026-10-25 final-review修正:** E16の期限切れrequest再送、read-only recovery停止、公開readback receiptの例外を修正。request v2で元の作成・期限時刻を固定し、送信側とpublisher側で元の6時間leaseを検証する。owner無効時は新規write/planningを止めて、保存済みeffect/deliveryの照合だけを行う。`PYTHONPATH=tests python3 -m unittest discover -s tests -q` は730件成功・5件skip（canonical worktree上のlocal結果）。この追補は未pushで、GitHub CI・main・Railway配備の証拠ではない。
 
-**Web掲載状況:** `apps/landing/marketing/pages/en.html` と `ja.html` のトップ候補を2026-10-25に更新し、Managerの方向性、65本の英日研究記事、人口合成、EBA提案、Ampersand合成実験とE16の未配備状態を記載した。`route-manifest.json` のhashも更新済み。公開済みの `/blog/manager` には研究記事collectionがある一方、実際の `/en` トップは旧説明のまま。候補ページは別repo `Daisuke134/anicca-products` の固定workflow pin更新・CI・Netlify deployへ未統合で、本番反映はしていない。細部は [`apps/landing/marketing/README.md`](../../../apps/landing/marketing/README.md) を参照。
+**Web掲載状況:** `apps/landing/marketing/pages/en.html` と `ja.html` のトップ候補を2026-10-25に更新し、Managerの方向性、公開中の67本/34メディア、人口合成、EBA提案、Ampersand合成実験、新しいAI assistant対agent記事、人工社会の行動研究記事とE16の未配備状態を記載した。`route-manifest.json` のhashも更新済み。`/blog/manager` と固定installer/content revisionには67本があり、公開URLとpackageのslugも一致する一方、実際の `/en` トップは旧説明のまま。候補ページは別repo `Daisuke134/anicca-products` の固定workflow pin更新・CI・Netlify deployへ未統合で、本番反映はしていない。細部は [`apps/landing/marketing/README.md`](../../../apps/landing/marketing/README.md) を参照。
 
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
