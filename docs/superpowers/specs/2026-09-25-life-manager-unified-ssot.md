@@ -25227,7 +25227,6 @@ Manager v1は「大きなモデルを作った時」ではなく、(1)既存研�
 - **判断 / 受入条件:** iPhoneは作業操作面、Xcode CloudはAniccaの既存build hostとして分けて扱う。Mac miniをAniccaのbuild用に維持する根拠はないが、他ownerの利用とCodex remote環境の有無を確認せずMac mini全体を停止しない。次の通知/paywall修正版を使い「iPhoneのCodex app → 利用可能なmanaged remote Codex environmentで編集・push → 既存Xcode Cloud build → TestFlightから同じiPhoneへinstall → notification tapが同じmessageを開き、paywallが表示・購入/復元へ進める」を一連で確認し、どのhostでXcode/署名が動くかを記録する。別setup-only pilotは追加しない。
 - **TODO / 現在cursor:** 実行順とcurrent cursorは直前の`Anicca occurrence / admission 最新照合 — 2026-10-25T13:10Z`が正本で、現在は`(1)`のwidget health/admission差分とaffirmation TikTok identity/receipt照合。順序変更なし。このiPhone経路は同cursorの`(3)`通知/paywall修正版に重ねて「iPhone操作→managed remote Codex environment→既存Xcode Cloud→同じiPhoneのTestFlight実機確認」の受入条件を定義する。別setup-only pilotは作らない。
 - **今回の作業:** OpenAI/Apple公式ページと共有画像をread-onlyで確認し仕様を更新。iPhone接続先の変更、host停止、Xcode Cloud build、TestFlight提出/配信、投稿、credential変更は行っていない。
-
 ### Anicca distribution live checkpoint — 2026-10-25T14:25Z
 
 - **共有画像の追記:** 追加画像の返信には、Codexを実機側へ入れてWi-Fiでbuildを届けるという体験談がある。一方、投稿者の実際のMac/Xcode/Cloud構成や再現可能な手順は示されていない。iPhoneを操作面にしてremote hostで開発・buildする案の参考とし、「iPhone単体でbuildできる」「Mac miniが不要」とは確定しない。既存の受入条件は維持する。
