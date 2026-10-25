@@ -3096,6 +3096,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-daily": {
+      "effect_reconcile": {"argv": ["runtime/loop/ledger_fence_reconcile.py", "--owner", "life-manager-daily"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 60},
       "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
@@ -3673,6 +3674,7 @@
       "state_root": "~/.local/state/life-manager/marketing-metrics-daily"
     },
     "marketing-mine-daily": {
+      "effect_reconcile": {"argv": ["runtime/loop/ledger_fence_reconcile.py", "--owner", "marketing-mine-daily"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 60},
       "admission_class": "revenue",
       "resource_class": "agent",
       "priority": "distribution",
