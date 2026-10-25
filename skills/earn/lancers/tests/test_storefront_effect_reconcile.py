@@ -370,6 +370,91 @@ def test_b3_target_proof_receipt_binds_official_id_and_fresh_readback_digest(tmp
                and proof["verified"] is True for proof in (first, other_id, other_readback))
 
 
+def test_b3_catalog_creation_snapshot_allows_official_readback_without_catalog(tmp_path, monkeypatch):
+    module = load_module()
+    case = _creation_case(module, tmp_path, kind="catalog_listing")
+    snapshot = {"product": case.product,
+                "owner_overlay_sha256": module.offer._product_digest(json.loads(case.path.read_text()))}
+    ledger = json.loads(case.ledger.read_text())
+    ledger["pending_create_snapshot"] = snapshot
+    case.ledger.write_text(json.dumps(ledger))
+    case.catalog.write_text("not-json")
+    monkeypatch.setattr(module.offer, "DEFAULT_CATALOG", tmp_path / "missing-bundled-catalog.json")
+    runner = _creation_runner(case)
+
+    proof = module.official_proof(OCCURRENCE, case.state.parent, case.path,
+                                  catalog_path=case.catalog, runner=runner)
+
+    assert proof["verified"] is True and proof["proof_type"] == "official_creation_matches_owner_intent"
+    assert runner.call_count == 1
+
+
+def test_b3_catalog_creation_snapshot_restores_after_official_readback_without_catalog(
+    tmp_path, monkeypatch, capsys,
+):
+    module = load_module()
+    case = _creation_case(module, tmp_path, kind="catalog_listing")
+    ledger = json.loads(case.ledger.read_text())
+    ledger["pending_create_snapshot"] = {
+        "product": case.product,
+        "owner_overlay_sha256": module.offer._product_digest(json.loads(case.path.read_text())),
+    }
+    case.ledger.write_text(json.dumps(ledger))
+    case.catalog.write_text("not-json")
+    monkeypatch.setattr(module.offer, "DEFAULT_CATALOG", tmp_path / "missing-bundled-catalog.json")
+    resolver = Mock(side_effect=lambda _owner, _occurrence, *, official_readback, **_kwargs:
+                    official_readback()["verified"] is True)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+    runner = _creation_runner(case, monkeypatch=monkeypatch)
+
+    code = _creation_call(module, case, runner, "--resolve")
+
+    result = json.loads(capsys.readouterr().out)
+    after = json.loads(case.ledger.read_text())
+    assert code == 0 and result["state"] == "RECONCILED" and result["verified"] is True
+    assert runner.call_count == resolver.call_count == 1
+    assert after["catalog_listings"]["other"]["listing_external_id"] == "92001"
+    assert "pending_create" not in after and "pending_create_snapshot" not in after
+
+
+def test_b3_catalog_creation_snapshot_holds_if_owner_overlay_changed(tmp_path, monkeypatch):
+    module = load_module()
+    case = _creation_case(module, tmp_path, kind="catalog_listing")
+    ledger = json.loads(case.ledger.read_text())
+    ledger["pending_create_snapshot"] = {
+        "product": case.product,
+        "owner_overlay_sha256": module.offer._product_digest(json.loads(case.path.read_text())),
+    }
+    case.ledger.write_text(json.dumps(ledger))
+    changed = json.loads(case.path.read_text())
+    changed["seller_profile"]["subtitle"] = "変更後の本人入力"
+    case.path.write_text(json.dumps(changed))
+    case.catalog.write_text("not-json")
+    monkeypatch.setattr(module.offer, "DEFAULT_CATALOG", tmp_path / "missing-bundled-catalog.json")
+    runner = _creation_runner(case)
+
+    with pytest.raises(module.Held, match="owner_input_changed"):
+        module.official_proof(OCCURRENCE, case.state.parent, case.path,
+                              catalog_path=case.catalog, runner=runner)
+
+    assert runner.call_count == 0
+
+
+def test_b3_legacy_catalog_creation_uses_bundled_catalog_for_official_readback(tmp_path, monkeypatch):
+    module = load_module()
+    case = _creation_case(module, tmp_path, kind="catalog_listing")
+    bundled = _private_catalog(tmp_path / "bundled-catalog")
+    bundled.write_bytes(case.catalog.read_bytes())
+    case.catalog.write_text("not-json")
+    monkeypatch.setattr(module.offer, "DEFAULT_CATALOG", bundled)
+    runner = _creation_runner(case)
+
+    proof = module.official_proof(OCCURRENCE, case.state.parent, case.path,
+                                  catalog_path=case.catalog, runner=runner)
+
+    assert proof["verified"] is True and runner.call_count == 1
+
+
 @pytest.mark.parametrize("scope", ["unscoped", "other-occurrence"])
 def test_b3_pending_without_matching_occurrence_context_never_resolves(tmp_path, monkeypatch, capsys, scope):
     module = load_module()

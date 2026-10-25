@@ -303,6 +303,10 @@ async function runHonneEnCanary(argv, deps = {}) {
   const fail = deps.failJob || ((input) => store.failJob(input));
   let publicationJob = await readStoredJob(store, tenantId, args.jobId);
   let publicationReceipt = await readStoredReceipt(store, tenantId, args.jobId);
+  const existingPublicationReceipt = Boolean(publicationReceipt);
+  const currentOccurrenceId = typeof env.LIFE_MANAGER_OCCURRENCE_ID === "string"
+    ? env.LIFE_MANAGER_OCCURRENCE_ID
+    : process.env.LIFE_MANAGER_OCCURRENCE_ID;
   if (transport === "postiz") assertRealCanaryJob(env, publicationJob);
   let publicationReplay = { created: false };
   if (publicationReceipt) {
@@ -341,6 +345,11 @@ async function runHonneEnCanary(argv, deps = {}) {
     publicationReceipt = await (deps.readReceipt || readReceipt)(store, tenantId, args.jobId);
     publicationReplay = await store.enqueueJob(jobInput(publicationJob));
   }
+  const providerEffectCreated = publicationReceipt.provider_effect_created === false
+    ? false
+    : (typeof currentOccurrenceId === "string" && typeof publicationReceipt.origin_occurrence_id === "string"
+      ? publicationReceipt.origin_occurrence_id === currentOccurrenceId
+      : !existingPublicationReceipt);
   const publicUrl = await (transport === "postiz" ? verifyDirectPublicUrl : (deps.verifyDirectPublicUrl || verifyDirectPublicUrl))(
     publicationReceipt.public_url,
     transport === "postiz" ? globalThis.fetch : (deps.fetchImpl || globalThis.fetch),
@@ -394,10 +403,13 @@ async function runHonneEnCanary(argv, deps = {}) {
     publication: {
       job_id: args.jobId,
       ...(typeof publicationReceipt.provider_effect_created === "boolean" ? {
-        created: publicationReceipt.provider_effect_created,
-        provider_effect_created: publicationReceipt.provider_effect_created,
+        created: providerEffectCreated,
+        provider_effect_created: providerEffectCreated,
         ...(typeof publicationReceipt.origin_occurrence_id === "string"
           ? { origin_occurrence_id: publicationReceipt.origin_occurrence_id }
+          : {}),
+        ...(!providerEffectCreated && typeof currentOccurrenceId === "string"
+          ? { result_occurrence_id: currentOccurrenceId }
           : {}),
       } : {}),
       status: publicationReceipt.status,

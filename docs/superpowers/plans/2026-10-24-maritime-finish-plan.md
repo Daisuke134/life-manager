@@ -4,7 +4,7 @@
 
 **Goal:** 既に開発中のLife Manager Cloudを、Top 30選出に必要な動く証拠、実際に使う人、英語中心の配布につなぎ、公式の実利用者1,000人へ進める。
 
-**Architecture:** 現在のLife Managerを同一repoのMaritime custom runtimeで実行する。既存Railway queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resendの日報をつなぐ。新しいプロダクト、scheduler、publisherは作らない。公開pilot routeと既存記事、既存Xアカウントを利用する。
+**Architecture:** 現在のLife Managerを同一repoのMaritime custom runtimeで実行する。既存Railway queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resendの日報をつなぐ。新しいプロダクト、scheduler、publisherは作らない。既存のLife Manager product page `/lm`、記事、既存Xアカウントを利用する。別のpublic pilot pageは作らない。
 
 **Tech Stack:** 既存Node/CommonJS、Railway life-call/worker、Supabase Auth/Manager state、Maritime custom image/runtime、Capafy official API/receipt、既存Resend/CFO日報、既存UTM/funnel observer。
 
@@ -23,7 +23,7 @@
 - 英語をglobal product、submission、demo、今後のlaunch assetの主言語にする。過去の日本語投稿は削除・再投稿せず、独立したconversionとして数えない。
 - Distributionは既存アカウントと無料の所有チャネルを使う。広告・新規アカウント・複数回の不確かな投稿は行わない。
 - 成功を主張する前に、native/provider receiptと公開先を再読する。記録のnullはunknownであってzeroではない。
-- 正式提出は公式routeと必須fieldを確定して一度だけ行い、受付receiptを読む。既存Slack entryの再投稿はしない。
+- 正式提出は公式routeと必須fieldを確定して一度だけ行い、受付receiptを読む。既存project entryを重複登録しない。
 
 ## Review Focus
 
@@ -57,7 +57,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ### P0 — Resolve Round 1 unknowns through written organizer channels
 
-**Owner:** Codex reads and records replies. The owner clarified that the Oct 25 10:00–10:15 JST office-hours conversation is about the future of the company, not Maritime rules or submission. Keep it separate and out of P0. The existing #competition-help question and 10/24 10:56:44Z organizer email follow-up already ask for the Round 1 cutoff, Top 30 criteria, official form/fields, counting rule, and Week 2. Do not duplicate them. Record an organizer reply or a dated no-reply readback for each field.
+**Owner:** Codex reads public official updates and the existing organizer email thread. The owner clarified that the Oct 25 10:00–10:15 JST office-hours conversation is about the future of the company, not Maritime rules or submission. Keep it separate and out of P0. The 10/24 10:56:44Z organizer email follow-up already asks for the Round 1 cutoff, Top 30 criteria, official form/fields, counting rule, and Week 2. Do not send a duplicate inquiry. Record an organizer reply or a dated no-reply readback for each field.
 
 - [x] P0.1 Asked in the 10/24 10:56:44Z organizer follow-up; reply not found as of 11:47Z. Exact cutoff/timezone and Top 30 rubric remain UNKNOWN.
 - [x] P0.2 Asked in the same follow-up; reply not found as of 11:47Z. Formal route, fields, and whether the Oct 21 channel entry is sufficient remain UNKNOWN.
@@ -65,6 +65,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 - [x] P0.4 Asked in the same follow-up; reply not found as of 11:47Z. Week 2 milestone and deadline remain UNKNOWN.
 - [x] P0.5 Recorded the follow-up questions and dated no-reply status in requirements.json, the live readback, and the current tracker. Unknown fields remain UNKNOWN; do not duplicate the existing posts.
 - [x] P0.6 Recalculated the planning estimate: seven calendar days after the Oct 20 kickoff is Oct 27. Exact official cutoff and timezone remain UNKNOWN.
+- [ ] P0.7 Refresh the official competition page and existing organizer email thread before submission. Confirm the current cutoff/timezone, Top 30 rubric, Week 2 milestone, official counting rule, and form/required fields. If still unanswered, preserve UNKNOWN and prepare no unsupported submission claim.
 
 **DONE when:** written organizer answer or a dated “no answer yet” readback exists for each field. This task does not block independent product/source work.
 
@@ -88,11 +89,11 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ### P2 — Convert the working cycle into Top 30 proof
 
-- [ ] P2.1 Update the English pilot page only to match the current live capability. Keep early-pilot, retention, and unverified-work disclosures until the corresponding readbacks pass.
+- [ ] P2.1 Publish the existing English/Japanese Life Manager page update (source PR #8934 merged at `43445aeb`). Set both `MANAGER_MARKETING_REVISION` pins and both overlay-script SHA256 checks in `Daisuke134/anicca-products/.github/workflows/landing-pr-build.yml` and `netlify-deploy.yml` to that source and script SHA. Verify the PR build, production overlay/deploy, money-path smoke/rollback, and live `/lm` response. Describe Calendar travel-time as one current workflow and the full paid, phone-first Maritime Cloud as in development until the runtime and tenant readbacks pass. Keep the existing `/lm` page; do not create a separate public pilot page.
 - [ ] P2.2 Create an English 2–3 minute screen recording from the actual flow: signup/consent → manager selects work → visible action → provider receipt/result → email receipt → stop. No simulated result represented as production.
 - [ ] P2.3 Make a one-page English submission packet using only confirmed data: user problem, what the agent does, live URL, actual demo, proof links, limits, measured counts with date, and next milestone. Keep all unknowns labeled.
-- [ ] P2.4 Submit once via the organizer-confirmed route, verify receipt, and link it from the existing Slack entry if that is requested. Do not duplicate the project entry.
-- [ ] P2.5 Read the organizer's Top 30 decision. Record selected/not selected/unknown and evidence; do not infer advancement from continued Slack access or social engagement.
+- [ ] P2.4 Submit once via the organizer-confirmed route, verify receipt, and update the existing project listing only if requested. Do not duplicate the project entry.
+- [ ] P2.5 Read the organizer's Top 30 decision. Record selected/not selected/unknown and evidence; do not infer advancement from social engagement or continued platform access.
 
 **DONE when:** the official submission receipt and an explicit Top 30 status are recorded separately.
 
@@ -108,10 +109,10 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 **Distribution strategy:** Use one verified Life Manager workflow as the English anchor story. The existing EN X post and article are already live; once P1 proves the hosted cycle, create one honest 2–3 minute product demo and one tracked CTA, then adapt it for verified existing X, Threads, and Instagram identities. No duplicate launch copy. The 10/23 X audit found @selawmqt at 7 followers, about 5 median impressions across its last 20 posts and roughly 23 posts/day, while sampled high-reach builder accounts had reply-heavy timelines. Treat that as a baseline to test reply-first participation, not evidence that posting more will grow reach. Start with 10 real people outside the team who match the supported workflow, offer direct onboarding, record first-use friction and repeat use, and fix the largest measured drop-off. Compare native post metrics and the first-party funnel at 24 hours and 7 days; separate impressions, visits, qualified use, and official Keiki/Maritime counts.
 
-- [ ] D1.1 Reuse the existing /maritime page, article, current X posts and tracked URL patterns. Assign one unique UTM content value per next authorized English post/account; confirm the actual expanded CTA after publishing.
+- [ ] D1.1 Reuse the existing /lm product page, article, current X posts and tracked URL patterns. Assign one unique UTM content value per next authorized English post/account; confirm the actual expanded CTA after publishing. Keep one Life Manager product page; do not create a separate pilot page.
 - [ ] D1.2 Add or use the existing funnel events for source → landing → confirmed signup → explicit consent → first actual use → completed work → report accepted → repeat use. Reuse T21's existing observer/cookie/store; do not build a second analytics framework.
 - [ ] D1.3 Verify source attribution survives email confirmation and later enrollment without placing email, work text, cookies, or credentials in public analytics.
-- [ ] D1.4 Run a first 10-person real pilot cohort as an internal target after the owner flow works. Record onboarding failures, first task, completed/failed/deferred state, repeat use, and support burden. Do not describe 10 as an official cutoff.
+- [ ] D1.4 Run a first 10-person real-user cohort as an internal target after the owner flow works. Record onboarding failures, first task, completed/failed/deferred state, repeat use, and support burden. Do not describe 10 as an official cutoff.
 - [ ] D1.5 Fix the largest measured conversion/use failure. Keep an experiment log with hypothesis, one change, dates, source, before/after counts, and uncertainty.
 - [ ] D1.6 Repeat with measured cohort targets (50/200/500/1,000). Compute needed traffic from actual visitor→first-use conversion; never assume conversion from X impressions.
 - [ ] D1.7 After P1 proof, run a measured reply-first English builder/hackathon participation experiment from the owner-authorized X identity; use the live demo/one tracked CTA only where relevant. Compare reach, profile visits, landing visits, and first qualifying uses against the 10/23 baseline. No paid promotion, repetitive solicitation, duplicate posts, fake users, or unverified outcomes.

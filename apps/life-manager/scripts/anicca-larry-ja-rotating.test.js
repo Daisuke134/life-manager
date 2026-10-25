@@ -8,6 +8,7 @@ const {
   runAniccaLarryJaRotatingCanary,
   runAniccaMainTikTokRotatingCanary,
   runAniccaEnAffirmationTikTokRotatingCanary,
+  runAniccaEnSlideshowTikTokRotatingCanary,
   runAniccaBuddhaTikTokRotatingCanary,
 } = require("./anicca-larry-ja-rotating.js");
 const { EN_AFFIRMATION_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
@@ -67,7 +68,7 @@ test("runAniccaLarryJaRotatingCanary propagates a rotation resolution failure in
 
 test("an already-attempted slot becomes a no-effect result without invoking the canary", async () => {
   let canaryCalls = 0;
-  const result = await runAniccaEnAffirmationTikTokRotatingCanary(["run-en-affirmation-tiktok-production"], {
+  const result = await runAniccaEnSlideshowTikTokRotatingCanary(["run-en-slideshow-tiktok-production"], {
     resolveLarryJaSlot: () => {
       throw Object.assign(new Error("slot already has a publication attempt"), { code: "SLOT_ALREADY_ATTEMPTED" });
     },
@@ -80,8 +81,15 @@ test("an already-attempted slot becomes a no-effect result without invoking the 
 
 test("rotating runner skips the canary when the current slot already has a verified publication", async () => {
   let canaryCalls = 0;
+  const ownerId = "life-manager-anicca-en-slideshow-tiktok";
+  const occurrenceId = `${ownerId}:already-published-1`;
   const result = await runAniccaEnAffirmationTikTokRotatingCanary(["run-en-affirmation-tiktok-production"], {
-    env: { LM_DATA_DIR: "/tmp/x", LM_RUNTIME_TENANT_ID: "dais-local" },
+    env: {
+      LM_DATA_DIR: "/tmp/x",
+      LM_RUNTIME_TENANT_ID: "dais-local",
+      LIFE_MANAGER_LOOP_ID: ownerId,
+      LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
+    },
     resolveLarryJaSlot: () => ({ slot: SLOT, selected: null, alreadyPublished: true, providerPostId: "postiz-slot-1" }),
     runAniccaCarouselCanary: () => { canaryCalls += 1; throw new Error("must not publish a second pack in the same slot"); },
   });
@@ -89,7 +97,13 @@ test("rotating runner skips the canary when the current slot already has a verif
   assert.deepEqual(result, {
     status: "already_published",
     slot: SLOT,
-    publication: { created: false, provider_post_id: "postiz-slot-1", provider_reconciled: true },
+    publication: {
+      created: false,
+      provider_effect_created: false,
+      result_occurrence_id: occurrenceId,
+      provider_post_id: "postiz-slot-1",
+      provider_reconciled: true,
+    },
   });
   assert.equal(canaryCalls, 0);
 });

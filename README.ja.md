@@ -37,7 +37,7 @@
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager local
 ```
 
-案内に従ってChatGPTにログインし、利用するサービスを接続します。Dockerは不要です。
+公式CodexログインでChatGPTアカウントにログインします。その後、導入ガイドに沿って利用する事業のアカウントを設定します。Dockerは不要です。
 
 [導入手順、Macのスリープ防止、エージェント状態の確認 →](docs/getting-started.md)
 

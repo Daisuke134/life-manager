@@ -4,9 +4,9 @@
 
 **An open-source, no-human-in-the-loop money printer: AI agents build businesses from scratch and run them on your Mac.**
 
-Connect the accounts your chosen businesses need. Life Manager's agents are designed to find opportunities, build businesses from scratch, sell products and services, and run them day to day to generate revenue—without ongoing human input.
+Connect the accounts your chosen businesses need. Life Manager's agents are designed to find opportunities, build businesses, sell products and services, and handle day-to-day operations toward revenue without ongoing human input.
 
-> **Early development:** Autonomous operation and verified profit are goals, not proven results yet. Check the [agent catalog](docs/agents.md) for current capabilities.
+> **Early development:** Autonomous operation and verified profit are goals, not proven results yet. See the [agent catalog](docs/agents.md) for current capabilities.
 
 [日本語](README.ja.md) · [Setup guide](docs/getting-started.md) · [Agent catalog](docs/agents.md)
 
@@ -25,9 +25,9 @@ Connect the accounts your chosen businesses need. Life Manager's agents are desi
 ## Core requirements
 
 - **ChatGPT Plus or higher.** Sign in with ChatGPT; no separate OpenAI API key is required.
-- **A Mac that stays awake**, with internet and at least 12 GiB of free disk space. A Mac mini works well for always-on use.
+- **A Mac that stays awake**, internet access, and at least 12 GiB of free disk space. A Mac mini works well for always-on use.
 
-For each business you enable, connect your own service accounts. Some services may cost extra.
+Each business needs its service accounts; some services may cost extra.
 
 ## Install
 
@@ -37,9 +37,9 @@ Run this in Terminal:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager local
 ```
 
-Follow the prompts to sign in to ChatGPT and connect the services you want to use. Docker is not required.
+Sign in with your ChatGPT account through the official Codex login flow. Then follow the setup guide to connect accounts for the businesses you choose. Docker is not required.
 
-See the [setup guide](docs/getting-started.md) for full installation, keeping your Mac awake, and checking agent status.
+See the [setup guide](docs/getting-started.md) for installation, keeping your Mac awake, and checking agent status.
 
 - [Report an issue](https://github.com/Daisuke134/life-manager/issues)
 - **License:** [MIT](LICENSE)

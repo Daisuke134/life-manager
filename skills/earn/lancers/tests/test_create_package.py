@@ -3452,6 +3452,12 @@ def test_b3_pending_context_is_saved_atomically_before_create(tmp_path, monkeypa
     assert observed[0].get("pending_create_context") == B3_CONTEXT
     assert set(observed[0]["pending_create"]) == {
         "kind", "product_id", "product_version", "content_sha256", "seller_path", "catalog_family"}
+    if kind == "catalog_listing":
+        snapshot = observed[0].get("pending_create_snapshot")
+        assert isinstance(snapshot, dict) and set(snapshot) == {"product", "owner_overlay_sha256"}
+        assert snapshot["owner_overlay_sha256"] == module._product_digest(module._load_product_file(path))
+        assert module._creation_intent(snapshot["product"], observed[0]["pending_create"]["catalog_family"],
+                                       kind="catalog_listing") == observed[0]["pending_create"]
     assert json.loads(state.with_name("listing.json").read_text()) == observed[0]
 
 

@@ -214,3 +214,67 @@ def test_result_hint_cli_reads_back_a_claimed_unfenced_occurrence(tmp_path, monk
     assert reconcile.main(["--occurrence", OCC, "--result-hint", str(hint)]) == 0
     assert d.exists() and _verified_terminal_effect_result(hint, OWNER_ID, OCC, ENTRYPOINT) == (
         "reconciled", "postiz://posts/igpost9")
+
+
+def test_postiz_key_falls_back_to_the_credential_ssot_when_the_reconciler_has_no_env(tmp_path, monkeypatch):
+    import capafy_reel_fence_reconcile as reconcile
+
+    for name in ("LM_POSTIZ_API_KEY", "POSTIZ_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    store = tmp_path / ".local/share/anicca"
+    store.mkdir(parents=True)
+    (store / "credentials.json").write_text(json.dumps({"credentials": [{"service": "postiz", "api_key": "k-ssot"}]}))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    seen = {}
+
+    class _Resp:
+        def read(self):
+            return b'{"posts": []}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=0):
+        seen["auth"] = req.get_header("Authorization")
+        return _Resp()
+
+    monkeypatch.setattr(reconcile.urllib.request, "urlopen", fake_urlopen)
+    assert reconcile.postiz_posts_at("ig", "2026-11-01T13:00:00Z") == []
+    assert seen["auth"] == "k-ssot"
+
+
+def test_created_id_missing_from_the_wide_listing_after_two_hours_is_vanished_not_effected(tmp_path):
+    d = _run_dir(tmp_path, markers=("x", "ig"))
+    receipts = _created(tmp_path, d, "x-post-1", marker="x")
+    _created(tmp_path, d, "ig-gone", marker="ig")
+    far = 10**10
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: ["x-post-1"] if net == "x" else [],
+                        receipts_dir=receipts, wide_fn=lambda net, slot: ["x-post-1"] if net == "x" else [], now=far)
+    assert proof["verified"] is True and proof["provider_receipt_id"] == "x:x-post-1"
+    assert proof["vanished_create_ids"] == {"ig": "ig-gone"}
+
+
+def test_vanished_needs_two_hours_and_a_wide_listing(tmp_path):
+    d = _run_dir(tmp_path, markers=("x", "ig"))
+    receipts = _created(tmp_path, d, "x-post-1", marker="x")
+    _created(tmp_path, d, "ig-gone", marker="ig")
+    only_x = lambda net, slot: ["x-post-1"] if net == "x" else []  # noqa: E731
+    soon = build_proof(OCC, d, posts_fn=only_x, receipts_dir=receipts, wide_fn=only_x, now=0)
+    no_wide = build_proof(OCC, d, posts_fn=only_x, receipts_dir=receipts, now=10**10)
+    assert soon["verified"] is False and no_wide["verified"] is False
+
+
+def test_no_create_id_vanishes_only_when_the_wide_listing_is_empty(tmp_path):
+    d = _run_dir(tmp_path, markers=("x", "ig"))
+    receipts = _created(tmp_path, d, "x-post-1", marker="x")
+    (d / "dispatch-ig.json").write_text("{}")  # dispatched, create receipt never written
+    wide_empty = lambda net, slot: ["x-post-1"] if net == "x" else []  # noqa: E731
+    wide_busy = lambda net, slot: ["x-post-1"] if net == "x" else ["someone-else"]  # noqa: E731
+    only_x = lambda net, slot: ["x-post-1"] if net == "x" else []  # noqa: E731
+    ok = build_proof(OCC, d, posts_fn=only_x, receipts_dir=receipts, wide_fn=wide_empty, now=10**10)
+    held = build_proof(OCC, d, posts_fn=only_x, receipts_dir=receipts, wide_fn=wide_busy, now=10**10)
+    assert ok["verified"] is True and ok["vanished_create_ids"] == {"ig": None}
+    assert held["verified"] is False

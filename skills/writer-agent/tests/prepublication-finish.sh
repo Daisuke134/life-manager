@@ -252,4 +252,37 @@ ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_CLIPROXY_CONFIG="$TMP/cliproxy.con
 [ "$(cat "$FAKE_HEADLINE_CALLS")" = "$(printf 'commit headline\nverify key=')" ] \
   && [ -f "$RUN/headline-image.png" ] || { cat "$FAKE_HEADLINE_CALLS"; fail "$LINENO"; }
 
+# 10. The model sandbox cannot reach kroki/mermaid.ink, so the agent writes body-diagram.mmd
+#     but never a PNG (runs 20261024-150602 and 20261025-040107: missing-body-diagram.png).
+#     The finisher renders it once and commits it as the body asset, then finishes as usual.
+RUN="$(make_run 20261025-040107)"
+rm -f "$RUN/body-diagram.png"
+printf 'flowchart TD\n  A-->B\n' >"$RUN/body-diagram.mmd"
+cat >"$TMP/bin/render.py" <<'PY'
+import os, sys
+args = sys.argv[1:]
+with open(os.environ["FAKE_HEADLINE_CALLS"], "a", encoding="utf-8") as handle:
+    handle.write("render " + os.path.basename(args[args.index("--in") + 1]) + "\n")
+open(args[args.index("--out") + 1], "wb").write(b"png")
+PY
+: >"$FAKE_HEADLINE_CALLS"; rm -f "$FAKE_INIT_ARGS"
+ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_BODY_DIAGRAM_RENDERER="$TMP/bin/render.py" \
+  ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out10" 2>&1 || { cat "$TMP/out10"; exit 1; }
+[ "$(cat "$FAKE_HEADLINE_CALLS")" = "$(printf 'render body-diagram.mmd\ncommit body')" ] \
+  || { cat "$FAKE_HEADLINE_CALLS"; fail "$LINENO"; }
+[ -f "$RUN/body-diagram.png" ] && [ -f "$FAKE_INIT_ARGS" ] || fail "$LINENO"
+
+# 10b. A body commit receipt without the PNG is never re-rendered: a different second
+#      candidate would be refused, so the run stays skipped for the reconciler.
+RUN="$(make_run 20261025-050000)"
+rm -f "$RUN/body-diagram.png"
+printf 'flowchart TD\n  A-->B\n' >"$RUN/body-diagram.mmd"
+printf '{}' >"$RUN/gates/body-diagram-create.json"
+: >"$FAKE_HEADLINE_CALLS"
+ARTICLE_PUBLICATION_POLICY=continuous ARTICLE_BODY_DIAGRAM_RENDERER="$TMP/bin/render.py" \
+  ARTICLE_MEDIA_CREATE_ONCE="$TMP/bin/media.py" \
+  bash "$FINISH" --run-dir "$RUN" >"$TMP/out10b" 2>&1 || { cat "$TMP/out10b"; exit 1; }
+[ ! -s "$FAKE_HEADLINE_CALLS" ] && grep -q "reason=missing-body-diagram.png" "$TMP/out10b" || fail "$LINENO"
+
 echo "prepublication-finish: PASS"
