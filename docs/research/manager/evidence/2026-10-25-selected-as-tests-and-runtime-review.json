@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "review_date_jst": "2026-10-25",
+  "authority": "research snapshot only; no execution or product adoption approval",
+  "reviewed_main_sha": "fdab34f4a4e23d3232623019d5881e74a760233b",
+  "official_source_repository": "https://github.com/artificial-societies/artificial-societies-benchmark",
+  "source_files": {
+    "benchmark_experiment/metrics.py": {
+      "git_blob_sha": "a4d339639187c6615801cf68032643fbe8c5aa32",
+      "sha256": "84664061ccc9e7fb8f663c3c8db5181e92fde038311386d35c975635bcf4fee1",
+      "bytes": 9290
+    },
+    "tests/test_experiment_metrics.py": {
+      "git_blob_sha": "5a719a5d1b59d65472ce5461e5a80751c415ab43",
+      "sha256": "2aa05019190183e2dd7bfdba3d3d25854867f0b875f09b456f37165017c53f50",
+      "bytes": 2425
+    }
+  },
+  "linux_selected_tests": {
+    "environment": "ChatGPT Linux container",
+    "python": "3.13.5",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "pytest": "9.0.2",
+    "exit_code": 0,
+    "summary": "5 passed in 0.38s",
+    "full_lockfile_environment_reproduced": false
+  },
+  "mac_selected_tests": {
+    "environment": "user-authorized Mac Mini through Remote Desktop Commander",
+    "platform": "Darwin arm64",
+    "started_utc": "2026-10-25T04:52:36.377879+00:00",
+    "finished_utc": "2026-10-25T04:52:38.609654+00:00",
+    "python": "3.14.7",
+    "numpy": "2.4.4",
+    "scipy": "1.18.0",
+    "pytest": "9.0.3",
+    "exit_code": 0,
+    "stdout": ".....                                                                    [100%]\n5 passed in 1.02s\n",
+    "stderr": "",
+    "command": "python -m pytest tests/test_experiment_metrics.py -q -p no:cacheprovider --junitxml=selected_tests.xml",
+    "isolation": "new private research directory, existing Python packages, external pytest plugins disabled, numerical-library thread limits set to 1, child-process timeout 45 seconds",
+    "paid_api_calls": 0,
+    "model_calls": 0,
+    "package_installs": 0,
+    "full_lockfile_environment_reproduced": false
+  },
+  "manager_scheduled_run_observed": {
+    "run_id": 40142390243,
+    "job_id": 121016895686,
+    "url": "https://github.com/Daisuke134/life-manager/actions/runs/40142390243",
+    "source_sha": "30335cd07ca5f27ffc2fc46637b93c6cf71acd7e",
+    "workflow_conclusion": "success",
+    "summary_timestamp_utc": "2026-10-24T23:24:37.6587562Z",
+    "status": "NO_ACTION",
+    "reason": "MISSING_TYPED_CANDIDATE",
+    "writes": 0,
+    "E16_ACCEPTANCE": "INCOMPLETE",
+    "positive_canary": "NOT_RUN",
+    "human_outcome": "NOT_MEASURED",
+    "proof_level": "P0"
+  },
+  "not_established": [
+    "Complete Artificial Societies benchmark test-suite success",
+    "Reproduction of original paper scores or of the official lockfile environment",
+    "Rothko model availability or inference",
+    "New model training",
+    "Human intervention effectiveness or clinical safety",
+    "Completion of E16 or other Manager acceptance gates"
+  ]
+}
