@@ -114,6 +114,93 @@ def test_unconfigured_deterministic_revenue_capacity_admits_five_workers(
         admission.release_and_reserve(claim, reserve=False, now=201)
 
 
+def test_aged_deterministic_support_uses_released_host_slot(
+        tmp_path, monkeypatch):
+    capacity_env = (
+        "LIFE_MANAGER_HOST_MAX_FINITE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_REVENUE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_RUNS",
+        "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
+        "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS",
+        "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS",
+    )
+    for name in capacity_env:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", "10")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", "4")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "3")
+    admission.activate_durable_v2()
+
+    claims = []
+    try:
+        for index in range(4):
+            owner = f"agent-revenue-worker-{index}"
+            ticket, reason = admission.enqueue_durable(
+                "agent", owner, admission_class="revenue",
+                priority="revenue", now=100 + index,
+            )
+            assert ticket is not None, reason
+            claim, reason = admission.claim_durable(
+                "agent", owner, admission_class="revenue", now=100 + index,
+            )
+            assert claim is not None and reason == "acquired", reason
+            claims.append(claim)
+
+        for index in range(5):
+            owner = f"deterministic-revenue-worker-{index}"
+            ticket, reason = admission.enqueue_durable(
+                "deterministic", owner, admission_class="revenue",
+                priority="revenue", now=200 + index,
+            )
+            assert ticket is not None, reason
+            claim, reason = admission.claim_durable(
+                "deterministic", owner, admission_class="revenue",
+                now=200 + index,
+            )
+            assert claim is not None and reason == "acquired", reason
+            claims.append(claim)
+
+        ticket, reason = admission.enqueue_durable(
+            "deterministic", "aged-support-worker-1", admission_class="borrow",
+            priority="support", now=100,
+        )
+        assert ticket is not None and reason == "capacity_busy", reason
+        support_claim, reason = admission.claim_durable(
+            "deterministic", "aged-support-worker-1", admission_class="borrow",
+            now=10_000,
+        )
+        assert support_claim is not None and reason == "acquired", reason
+        claims.append(support_claim)
+
+        ticket, reason = admission.enqueue_durable(
+            "deterministic", "aged-support-worker-2", admission_class="borrow",
+            priority="support", now=100,
+        )
+        assert ticket is not None and reason == "capacity_busy", reason
+        released = claims.pop(0)
+        assert admission.release_and_reserve(released, now=10_001) == [
+            "aged-support-worker-2"]
+        support_claim, reason = admission.claim_durable(
+            "deterministic", "aged-support-worker-2", admission_class="borrow",
+            now=10_001,
+        )
+        assert support_claim is not None and reason == "acquired", reason
+        claims.append(support_claim)
+
+        ticket, reason = admission.enqueue_durable(
+            "deterministic", "aged-support-worker-3", admission_class="borrow",
+            priority="support", now=100,
+        )
+        assert ticket is not None and reason == "capacity_busy", reason
+        released = claims.pop(0)
+        assert admission.release_and_reserve(released, now=10_002) == []
+    finally:
+        for claim in reversed(claims):
+            admission.release_and_reserve(claim, reserve=False, now=10_003)
+
+
 def test_cfo_registry_uses_revenue_slot_when_deterministic_borrow_slots_are_full(
         tmp_path, monkeypatch):
     capacity_env = (
