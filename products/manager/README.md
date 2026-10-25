@@ -78,6 +78,30 @@ mainの明示的なworkflow dispatchでは、`operation`から`run-once`、`stop
 記録します。人の結果は`NOT_MEASURED`、欠測はnullのままです。Explorerの
 集計表示はローカル描画機能で、公開サイトへの接続・実観測の受入れは別に確認します。
 
+## EBA source catalog
+
+EBA v1のcatalogは既存90件のsource inventoryを固定hashで参照します。各候補は
+rights・version・評価dimensionの対応が確認されるまで未検証のまま保持し、7 dimensionの
+scoreは実行するまで`null`です。このcatalogはbenchmarkの実行結果、共通leaderboard、
+人の行動・便益の証拠ではありません。
+
+既存のEBA v0.1 synthetic developer harnessは`eba/`に保存し、共通の
+`manager_core.evaluation`のTVD/Brier実装を使います。こちらは公開goldを使うP0の形式・
+安全性demoで、実モデルの比較でも人への効果評価でもありません。90件catalogの評価結果
+とも別物です。
+
+```sh
+cd products/manager
+python -B -m manager_core.eba_manifest --check
+python -B -m unittest tests.test_eba_manifest -v
+python -B -m eba
+python -B -m unittest tests.test_eba_benchmark -v
+```
+
+90件を個別に採用するには、上流source/version、license、population、unit、label、holdout、
+metricを先に確認します。分からない値はunknownのままにし、dimensionへ未レビューの候補を
+割り当てません。
+
 ## 進捗の正本
 
 このREADMEは実装の入口であり、新しいTODO一覧ではありません。
