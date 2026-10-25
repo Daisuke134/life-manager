@@ -1768,6 +1768,27 @@ def _restore_pre_effect_hint(path: Path) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
+LEDGER_URL = "https://raw.githubusercontent.com/Daisuke134/life-manager/main/ledger/APPLICATIONS.md"
+LEDGER_ERRORS = ("ledger_claimed_elsewhere", "ledger_unavailable")
+
+
+def _read_shared_ledger() -> str:
+    """The shared cross-agent APPLICATIONS ledger on origin/main (public repo, no auth). The query string
+    bypasses the raw CDN cache, so a claim pushed minutes ago is visible."""
+    request = urllib.request.Request(f"{LEDGER_URL}?t={int(time.time())}", headers={"Cache-Control": "no-cache"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return response.read().decode("utf-8")
+
+
+def _ledger_claims(text: str, key: str) -> bool:
+    """True when `key` (platform:id) sits in the ledger's key column for any owner or account."""
+    for line in text.splitlines():
+        cells = [cell.strip().lower() for cell in line.split("|")]
+        if len(cells) > 5 and cells[4] == key:
+            return True
+    return False
+
+
 def run_live_tick(
     *, project_id: str, proposal_text: str, proposed_amount_minor: int, delivery_due_on: str,
     title: Optional[str] = None,
@@ -1784,6 +1805,14 @@ def run_live_tick(
             return TickResult(ok=False, error=TERMINAL_STATE_STATUS, project_id=str(project_id))
     except RuntimeError:
         return TickResult(ok=False, error="state_invalid", project_id=str(project_id))
+    # Another agent or account may already hold this project. A claim we already carry in our own state is a
+    # resumed send and passes; an unreadable ledger skips only this send.
+    if not _state_has_claim(state_path, str(project_id)):
+        try:
+            if _ledger_claims(_read_shared_ledger(), f"lancers:{project_id}"):
+                return TickResult(ok=False, error="ledger_claimed_elsewhere", project_id=str(project_id))
+        except Exception:
+            return TickResult(ok=False, error="ledger_unavailable", project_id=str(project_id))
     browser = page = None
     try:
         with account_lock(
