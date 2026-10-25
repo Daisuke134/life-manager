@@ -3,13 +3,22 @@
 This package contains Life Manager's current calendar-and-commute workflow and
 Telegram transport. That is one capability within the broader Life Manager
 product, which is being built around one shared core for Local and phone-first
-Cloud use. The Cloud target is an isolated, always-on Maritime VM per customer;
-Grok Bot, Muse, and Dots still need verified adapters to that same manager.
+Cloud use. Life Manager Cloud targets one isolated, always-on VM per customer.
+Its first earning workflow is Capafy; the complete work-to-verified-result and
+email-report path still needs end-to-end proof. Cloud sign-in uses Google, and
+Google Calendar is optional rather than an onboarding requirement. Grok Bot,
+Muse, and Dots still need verified adapters to that same manager.
 
 This package's current workflow calls when it is time to leave, sends the route
 once the user is out the door, and asks before telling anyone the user is late.
 It does not by itself represent the complete Life Manager product or its Cloud
-runtime.
+runtime. The public product entry is `/lm` on Netlify. The Cloud onboarding and
+tenant manager run on the existing Railway `life-call` service and should be
+served through Netlify same-origin `/maritime` and Google OAuth proxy routes, so
+the customer stays on `aniccaai.com`. `LM_MARITIME_WEB_ORIGIN=https://aniccaai.com`
+and the Supabase callback allowlist are required before that route can work in
+production. Until those host settings and deployment are read back, the live
+app still uses the Railway URL directly.
 
 ## Read this before you change anything
 

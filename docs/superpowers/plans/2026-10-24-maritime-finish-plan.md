@@ -4,7 +4,7 @@
 
 **Goal:** 既に開発中のLife Manager Cloudを、Top 30選出に必要な動く証拠、実際に使う人、英語中心の配布につなぎ、公式の実利用者1,000人へ進める。
 
-**Architecture:** 現在のLife Managerを同一repoのMaritime custom runtimeで実行する。既存Railway queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resendの日報をつなぐ。新しいプロダクト、scheduler、publisherは作らない。既存のLife Manager product page `/lm`、記事、既存Xアカウントを利用する。別のpublic pilot pageは作らない。
+**Architecture:** Life Managerは一つの製品で、LocalとCloudは実行モード。Cloudの入口は`aniccaai.com/lm`、Cloud manager UIは同じ`aniccaai.com` originの`/maritime` routeで提供し、Netlify rewrite経由で既存Railway `life-call` backendへつなぐ。`/auth/google`と`/auth/google/callback`も同じoriginでproxyし、PKCE cookieとcallbackを同一hostへ保つ。Railwayはbackend/worker/tenant VMの実行基盤であり、公開Webサイトのhostではない。Google sign-inが最初の入口、Google Calendar/Telegramは初回に要求しない。Capafyは最初のCloud収益workflow。既存queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resend日報をつなぐ。新しい製品や別のpublic pilot pageは作らない。
 
 **Tech Stack:** 既存Node/CommonJS、Railway life-call/worker、Supabase Auth/Manager state、Maritime custom image/runtime、Capafy official API/receipt、既存Resend/CFO日報、既存UTM/funnel observer。
 
@@ -19,6 +19,7 @@
 - 利用者に目標・予算の入力、毎日の指示、Telegram連携を必須にしない。
 - 未確認の外部effectを再送しない。effect_unknownは既存receiptで照合し、blind retryしない。
 - FounderのCapafy account、browser session、商品、売上を別利用者へ共有しない。所有者のPKCEとMaritime保持条件への同意を代理で済ませない。
+- CapafyのPublisher Agreement §2.9は「one Publisher Account per Publisher」を定め、書面承認なしの複数Publisher Accountを認めない。新規登録は、このPublisherに許された唯一のaccountか、Capafyの書面例外がある場合に限る。最初のSkill公開前にPublisher Certification、本人確認資料、返金不可US$0.99申請料が必要。振込先はCertification後に追加でき、公開前には不要。[Publisher Agreement](https://capafy.ai/publisher-agreement/) · [Certification](https://capafy.ai/developer/doc/1.3) · [Payout setup](https://capafy.ai/developer/doc/3.5)
 - 新しい利用者の私的な業務データを送る前に、保存条件と送信対象を示し、明示同意を記録する。
 - 英語をglobal product、submission、demo、今後のlaunch assetの主言語にする。過去の日本語投稿は削除・再投稿せず、独立したconversionとして数えない。
 - Distributionは既存アカウントと無料の所有チャネルを使う。広告・新規アカウント・複数回の不確かな投稿は行わない。
@@ -43,7 +44,7 @@ Official reference: https://competition.maritime.sh/terms. Day-one public post: 
 |---|---|---|
 | Reach | Post impressions/views as returned by the platform; awareness only. | Native social readback |
 | Visit | Unique tracked landing visitor, grouped by source/campaign/content without storing email or task text in analytics. | Existing web funnel/UTM observer |
-| Signup | Email identity confirmed. Signup is not product usage. | Existing auth/enrollment store |
+| Signup | Verified Google identity. Signup is not product usage. | Existing auth/enrollment store |
 | Consent | Current product/data retention notice accepted through the explicit Manager action. | Tenant-bound consent record |
 | First real use | Distinct human makes an actual request/action to the Life Manager; confirm that this precise event qualifies with organizers. | Keiki or Maritime project-level usage |
 | Completed work | A bounded external task completes and has an authoritative provider receipt. | Central job/receipt chain + provider readback |
@@ -81,7 +82,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 - [ ] P1.5 Run the source-boundary command, relevant provider/runtime/report checks, required CI for the exact current head, and an independent read-only review. Fix or classify every current finding. Do not merge because the previous head was green.
 - [ ] P1.6 Integrate via the repository merge path only after current-head checks/review. Record merged SHA and new current main. This is source acceptance only, not deployment or product completion.
 - [ ] P1.7 Build/deploy through the existing Maritime custom-image service and current main-derived sanitized artifact. Keep existing Railway app/worker identities. Read back artifact SHA, service deployment IDs/status, worker capability allowlist, owner binding, and health before any business effect.
-- [ ] P1.8 Owner-authorized email PKCE/retention consent is still incomplete. A same-origin request returned HTTP 202 check_email and a Magic Link email arrived at 11:42:28Z. The request was initiated from a temporary Remote Desktop PKCE cookie jar; Gmail did not provide the one-use URL, so no callback, owner session, activation, enrollment, or consent was recorded. The owner must request and open a fresh link in the same actual browser; then verify the visible notice/checkbox and read back the owner-bound enrollment and consent_version receipt. Do not extract the hidden link or write a consent receipt directly.
+- [ ] P1.8 Owner-authorized Google PKCE login and retention consent are still incomplete. The public web entry should initiate Google sign-in through the same-origin Netlify proxy and return through `https://aniccaai.com/auth/google/callback`; Cloud OAuth must fail closed until `LM_MARITIME_WEB_ORIGIN` and the Supabase redirect allowlist are configured. After the owner completes that flow in the browser, verify the visible retention/autonomous-work notice, explicit checkbox, owner-bound enrollment, and `consent_version` receipt. Do not substitute a Google Calendar permission request for sign-in or record consent on the owner's behalf.
 - [ ] P1.9 Using that one authorized tenant and an explicitly bound business account, run one actual bounded task. Read back the same occurrence's trusted provider receipt, literal artifact/result, associated cost or UNKNOWN, and project-level Maritime/Keiki usage.
 - [ ] P1.10 Confirm the report email accepted receipt and then stop. Read back paused state, no successor/new publish/send, and zero replay. Keep separate source, deployment, work-completion, email, and usage evidence.
 
@@ -89,7 +90,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ### P2 — Convert the working cycle into Top 30 proof
 
-- [ ] P2.1 Publish the existing English/Japanese Life Manager page update (source PR #8934 merged at `43445aeb`). Set both `MANAGER_MARKETING_REVISION` pins and both overlay-script SHA256 checks in `Daisuke134/anicca-products/.github/workflows/landing-pr-build.yml` and `netlify-deploy.yml` to that source and script SHA. Verify the PR build, production overlay/deploy, money-path smoke/rollback, and live `/lm` response. Describe Calendar travel-time as one current workflow and the full paid, phone-first Maritime Cloud as in development until the runtime and tenant readbacks pass. Keep the existing `/lm` page; do not create a separate public pilot page.
+- [ ] P2.1 Publish the English/Japanese `/lm` update through the existing immutable marketing overlay and keep its primary CTA on `https://aniccaai.com/maritime`. In the existing `anicca-products` Netlify configuration, proxy `/maritime`, `/maritime/*`, `/auth/google`, and `/auth/google/callback` to the Railway `life-call` service with status-200 rewrites and forced path handling. Keep the redirect query string and cookies intact; verify the exact behavior on a Netlify deploy before claiming same-origin login. Configure `LM_MARITIME_WEB_ORIGIN=https://aniccaai.com` on Railway and add the exact callback `https://aniccaai.com/auth/google/callback` to the Supabase Auth Redirect URLs list. Set both `MANAGER_MARKETING_REVISION` pins and script SHA256 checks to the approved Life Manager source. Verify preview build, production overlay/deploy, money-path smoke/rollback, `/lm` EN/JA hashes, `/maritime` proxy response, PKCE Set-Cookie/callback exchange, activation POST, and stop POST. Keep the current `/lm` route; do not create a separate product/pilot page or send Calendar users to the Cloud onboarding by default.
 - [ ] P2.2 Create an English 2–3 minute screen recording from the actual flow: signup/consent → manager selects work → visible action → provider receipt/result → email receipt → stop. No simulated result represented as production.
 - [ ] P2.3 Make a one-page English submission packet using only confirmed data: user problem, what the agent does, live URL, actual demo, proof links, limits, measured counts with date, and next milestone. Keep all unknowns labeled.
 - [ ] P2.4 Submit once via the organizer-confirmed route, verify receipt, and update the existing project listing only if requested. Do not duplicate the project entry.
@@ -109,7 +110,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 **Distribution strategy:** Use one verified Life Manager workflow as the English anchor story. The existing EN X post and article are already live; once P1 proves the hosted cycle, create one honest 2–3 minute product demo and one tracked CTA, then adapt it for verified existing X, Threads, and Instagram identities. No duplicate launch copy. The 10/23 X audit found @selawmqt at 7 followers, about 5 median impressions across its last 20 posts and roughly 23 posts/day, while sampled high-reach builder accounts had reply-heavy timelines. Treat that as a baseline to test reply-first participation, not evidence that posting more will grow reach. Start with 10 real people outside the team who match the supported workflow, offer direct onboarding, record first-use friction and repeat use, and fix the largest measured drop-off. Compare native post metrics and the first-party funnel at 24 hours and 7 days; separate impressions, visits, qualified use, and official Keiki/Maritime counts.
 
-- [ ] D1.1 Reuse the existing /lm product page, article, current X posts and tracked URL patterns. Assign one unique UTM content value per next authorized English post/account; confirm the actual expanded CTA after publishing. Keep one Life Manager product page; do not create a separate pilot page.
+- [ ] D1.1 Reuse the existing `/lm` product page, article, current X posts, and tracked URL patterns. Assign one unique UTM content value per next authorized English post/account; confirm the actual expanded CTA after publishing. Keep one Life Manager product page and one same-origin Cloud route; do not create a separate pilot page.
 - [ ] D1.2 Add or use the existing funnel events for source → landing → confirmed signup → explicit consent → first actual use → completed work → report accepted → repeat use. Reuse T21's existing observer/cookie/store; do not build a second analytics framework.
 - [ ] D1.3 Verify source attribution survives email confirmation and later enrollment without placing email, work text, cookies, or credentials in public analytics.
 - [ ] D1.4 Run a first 10-person real-user cohort as an internal target after the owner flow works. Record onboarding failures, first task, completed/failed/deferred state, repeat use, and support burden. Do not describe 10 as an official cutoff.
@@ -137,7 +138,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 1. P0 requirements clarification and P1 source/owner prep start immediately and proceed in parallel.
 2. P1.3 trusted binding → P1.5 current-head acceptance → P1.7 deployment → P1.8 owner consent → P1.9 real work → P1.10 report/stop.
 3. P0 answers determine P2.3/P2.4 submission details. Prepare the truthful packet while the form is unknown; do not submit to an invented route.
-4. D0.4/D0.5/D1.1–D1.3 can proceed alongside P1 without waiting for a revenue outcome. Public claims must continue to say early pilot until P1 is complete.
+4. D0.4/D0.5/D1.1–D1.3 can proceed alongside P1 without waiting for a revenue outcome. Public claims must describe only the live, verified behavior; do not claim completed income work or customer revenue until the same-tenant provider/report receipts prove it.
 5. P2.5 gates the Week 2 plan; P3.1 inserts new rules into the same tracker; D1.6 growth continues through the common Dec 1 deadline.
 
 ## State Ownership

@@ -12,6 +12,8 @@ const {
 const { recordWebFunnelEvent } = require("./web-funnel-events.js");
 
 const WEB_AUTH_COOKIE = "lm-web-auth";
+const GOOGLE_OAUTH_INTENT_COOKIE = "lm-web-auth-intent";
+const GOOGLE_OAUTH_CALLBACK_PATH = "/auth/google/callback";
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function envFor(opts) {
@@ -424,6 +426,13 @@ function publicOrigin(req, opts = {}) {
   throw new Error("public Web origin unavailable");
 }
 
+function cloudPublicOrigin(req, opts = {}) {
+  const env = envFor(opts);
+  const configured = String(opts.cloudPublicOrigin || env.LM_MARITIME_WEB_ORIGIN || "").trim();
+  if (!configured) throw new Error("Life Manager Cloud public origin is required");
+  return publicOrigin(req, { ...opts, publicOrigin: configured });
+}
+
 function sendText(res, status, text) {
   if (!res.headersSent) {
     res.writeHead(status, {
@@ -450,6 +459,42 @@ function clearCookie(res, opts, name) {
   const settings = cookieOptions(opts);
   delete settings.name;
   appendResponseCookies(res, [{ name, value: "", options: { ...settings, maxAge: 0, expires: new Date(0) } }], serializer);
+}
+
+function setGoogleOAuthIntentCookie(res, opts, intent) {
+  const serializer = opts.serializeCookieHeader || ssrFor(opts).serializeCookieHeader;
+  if (typeof serializer !== "function") return;
+  const settings = cookieOptions(opts);
+  delete settings.name;
+  appendResponseCookies(res, [{ name: GOOGLE_OAUTH_INTENT_COOKIE, value: intent, options: {
+    ...settings, path: GOOGLE_OAUTH_CALLBACK_PATH, maxAge: 600,
+  } }], serializer);
+}
+
+function clearGoogleOAuthIntentCookie(res, opts) {
+  const serializer = opts.serializeCookieHeader || ssrFor(opts).serializeCookieHeader;
+  if (typeof serializer !== "function") return;
+  const settings = cookieOptions(opts);
+  delete settings.name;
+  appendResponseCookies(res, [{ name: GOOGLE_OAUTH_INTENT_COOKIE, value: "", options: {
+    ...settings, path: GOOGLE_OAUTH_CALLBACK_PATH, maxAge: 0, expires: new Date(0),
+  } }], serializer);
+}
+
+function googleOAuthIntentFromQuery(query) {
+  const intents = query.getAll("intent");
+  const languages = query.getAll("lang");
+  if (intents.length !== 1 || intents[0] !== "maritime_cloud" || languages.length > 1) return null;
+  const language = String(languages[0] || "en").toLowerCase();
+  return ["en", "ja"].includes(language) ? `maritime_cloud-${language}` : null;
+}
+
+function googleOAuthIntentFromCookie(req, opts) {
+  let cookies;
+  try { cookies = requestCookies(req, opts); } catch { return null; }
+  const matching = cookies.filter((cookie) => cookie && cookie.name === GOOGLE_OAUTH_INTENT_COOKIE);
+  if (matching.length !== 1 || !["maritime_cloud-en", "maritime_cloud-ja"].includes(String(matching[0].value || ""))) return null;
+  return String(matching[0].value);
 }
 
 function responseCookieCleared(res, name) {
@@ -511,8 +556,9 @@ async function handleWebAuthRequest(req, res, opts = {}) {
 
   if (path === "/auth/google") {
     try {
+      const intent = googleOAuthIntentFromQuery(requestQuery(req));
       const client = createWebAuthClient(req, res, opts);
-      const origin = publicOrigin(req, opts);
+      const origin = intent ? cloudPublicOrigin(req, opts) : publicOrigin(req, opts);
       const result = await client.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${origin}/auth/google/callback`, skipBrowserRedirect: true },
@@ -527,26 +573,34 @@ async function handleWebAuthRequest(req, res, opts = {}) {
         const cookie = captureWebAttribution(requestQuery(req), secret);
         if (cookie) setAttributionCookie(res, opts, cookie);
       }
+      clearGoogleOAuthIntentCookie(res, opts);
+      if (intent) setGoogleOAuthIntentCookie(res, opts, intent);
       sendRedirect(res, redirect);
     } catch {
+      clearGoogleOAuthIntentCookie(res, opts);
       redirectToConnectionError(res);
     }
     return;
   }
 
+  const oauthIntent = googleOAuthIntentFromCookie(req, opts);
+  const callbackFailure = () => {
+    clearGoogleOAuthIntentCookie(res, opts);
+    redirectToConnectionError(res);
+  };
   const query = requestQuery(req);
   const code = String(query.get("code") || "");
   if (!code) {
-    redirectToConnectionError(res);
+    callbackFailure();
     return;
   }
   try {
     if (!hasPkceVerifier(req, opts)) {
-      redirectToConnectionError(res);
+      callbackFailure();
       return;
     }
   } catch {
-    redirectToConnectionError(res);
+    callbackFailure();
     return;
   }
 
@@ -559,7 +613,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     sessionMayExist = Boolean(exchange && exchange.data && exchange.data.session);
     if (!exchange || exchange.error || !sessionMayExist) {
       clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
-      redirectToConnectionError(res);
+      callbackFailure();
       return;
     }
 
@@ -567,7 +621,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
     const user = verified && verified.data && verified.data.user;
     if (!verified || verified.error || !user || !hasVerifiedGoogleIdentity(user)) {
       await clearWebSession(client, req, res, opts);
-      redirectToConnectionError(res);
+      callbackFailure();
       return;
     }
     const uid = await ensureWebUser(user.id, {
@@ -607,15 +661,22 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       });
     } catch { /* funnel telemetry must not block a verified Google sign-in */ }
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
-    sendRedirect(res, "/lm?start_calendar=1");
+    clearGoogleOAuthIntentCookie(res, opts);
+    const location = oauthIntent === "maritime_cloud-ja"
+      ? "/maritime?lang=ja&verified=1"
+      : oauthIntent === "maritime_cloud-en"
+        ? "/maritime?lang=en&verified=1"
+        : "/lm?start_calendar=1";
+    sendRedirect(res, location);
   } catch (error) {
     if (sessionMayExist && client) await clearWebSession(client, req, res, opts);
-    redirectToConnectionError(res);
+    callbackFailure();
   }
 }
 
 module.exports = {
   publicOrigin,
+  cloudPublicOrigin,
   hasPkceVerifier,
   csrfSecret,
   createWebAuthClient,

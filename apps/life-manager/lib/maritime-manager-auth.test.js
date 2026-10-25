@@ -181,7 +181,7 @@ test("completed_provision_job_requires_active_enrollment_and_configure_receipt",
 
 test("email_campaign_page_is_independent_of_telegram_and_get_never_enrolls",async()=>{
   assert.equal(typeof handleMaritimeManagerPage,"function");const {deps,calls}=fixture({user:null});let events=0;deps.distributionStore={recordAnonymousEvent:async()=>{events++;return true;}};const res=response();
-  await handleMaritimeManagerPage(request("/maritime?source=referral&lang=en"),res,deps);assert.equal(res.statusCode,200);assert.match(res.body,/action="\/auth\/maritime\/email"/);assert.equal(events,1);assert.equal(calls.some(x=>x[0]==="ensure"),false);
+  await handleMaritimeManagerPage(request("/maritime?source=referral&lang=en"),res,deps);assert.equal(res.statusCode,200);assert.match(res.body,/href="\/auth\/google\?intent=maritime_cloud&lang=en"/);assert.doesNotMatch(res.body,/auth\/maritime\/email|start_calendar=1/);assert.equal(events,1);assert.equal(calls.some(x=>x[0]==="ensure"),false);
 });
 test("verified_campaign_page_displays_activation_or_persisted_state_without_dispatch",async()=>{
   assert.equal(typeof handleMaritimeManagerPage,"function");const {deps}=fixture();deps.distributionStore={recordAnonymousEvent:async()=>true};deps.managerStore={read:async()=>null};let res=response();

@@ -312,6 +312,81 @@ test("OAuth start keeps the PKCE verifier cookie separate from the authenticated
   assert.equal(input.options.redirectTo, `${CALLBACK_ORIGIN}/auth/google/callback`);
 });
 
+test("Cloud sign-in intent is stored in a short-lived callback-only cookie", async () => {
+  const events = [];
+  const client = authClient({ events });
+  const fixture = authOptions(client, { cloudPublicOrigin: "https://aniccaai.com" });
+  fixture.options.env.NODE_ENV = "production";
+  const res = makeResponse();
+
+  await handleWebAuthRequest({
+    method: "GET",
+    url: "/auth/google?intent=maritime_cloud&lang=ja&utm_source=anicca",
+    headers: { host: "life-manager.example.test" },
+  }, res, fixture.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.match(setCookieHeaders(res).join("\n"), /lm-web-auth-intent=maritime_cloud-ja; Path=\/auth\/google\/callback; Max-Age=600; HttpOnly; Secure; SameSite=lax/);
+  assert.equal(fixture.calls[0].options.auth.flowType, "pkce");
+  const oauthOptions = events.find(([name]) => name === "signInWithOAuth")[1].options;
+  assert.equal(oauthOptions.redirectTo,
+    "https://aniccaai.com/auth/google/callback");
+  assert.equal(oauthOptions.scopes, undefined, "Cloud sign-in must not request Calendar or Gmail permissions");
+});
+
+test("Cloud sign-in fails closed until its first-party callback origin is configured", async () => {
+  const events = [];
+  const client = authClient({ events });
+  const fixture = authOptions(client);
+  const res = makeResponse();
+
+  await handleWebAuthRequest({
+    method: "GET",
+    url: "/auth/google?intent=maritime_cloud&lang=en",
+    headers: { host: "life-manager.example.test" },
+  }, res, fixture.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
+  assert.deepEqual(events, []);
+});
+
+test("verified Google callback returns Cloud sign-in to the Life Manager Cloud page", async () => {
+  const client = authClient({ exchange: async (_code, cookies) => {
+    cookies.setAll([{ name: "lm-web-auth", value: "verified-session", options: { path: "/", httpOnly: true } }]);
+    return { data: { session: { access_token: "verified-session" } }, error: null };
+  } });
+  const fixture = authOptions(client, { fetch: makeRestFetch().fetch });
+  const res = makeResponse();
+
+  await handleWebAuthRequest(callbackRequest({
+    cookie: "lm-web-auth-code-verifier=pkce-verifier; lm-web-auth-intent=maritime_cloud-ja",
+  }), res, fixture.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/maritime?lang=ja&verified=1");
+  assert.equal(finalCookieValue(res, "lm-web-auth-intent"), "");
+});
+
+test("unrecognized OAuth intent cannot choose a redirect target", async () => {
+  const client = authClient();
+  const fixture = authOptions(client);
+  const res = makeResponse();
+
+  await handleWebAuthRequest({
+    method: "GET",
+    url: "/auth/google?intent=https%3A%2F%2Fevil.example",
+    headers: { host: "life-manager.example.test" },
+  }, res, fixture.options);
+  assert.equal(finalCookieValue(res, "lm-web-auth-intent"), "");
+
+  const callbackClient = authClient({ exchange: async () => ({ data: { session: { access_token: "session" } }, error: null }) });
+  const callbackFixture = authOptions(callbackClient, { fetch: makeRestFetch().fetch });
+  const callback = makeResponse();
+  await handleWebAuthRequest(callbackRequest(), callback, callbackFixture.options);
+  assert.equal(callback.getHeader("location"), "/lm?start_calendar=1");
+});
+
 test("email-only Supabase sessions cannot resolve a Life Manager Web tenant", async () => {
   const events = [];
   const db = makeRestFetch();

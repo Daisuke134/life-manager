@@ -127,7 +127,7 @@ async function deliverMaritimeDailyResult({enrollment,result,observedAt}={},deps
  if(typeof current.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email))invalid();
  const env=deps.env||process.env;
  const origin=result.work.some(work=>work.artifactRefs.length)
-  ?require('./web-auth.js').publicOrigin(null,{publicOrigin:deps.publicOrigin||env.LM_PANEL_BASE_URL,env:{}}):null;
+  ?require('./web-auth.js').publicOrigin(null,{publicOrigin:deps.publicOrigin||env.LM_MARITIME_WEB_ORIGIN||env.LM_PANEL_BASE_URL,env:{}}):null;
  return require('./cfo-cloud-delivery.js').deliverCloudCfoEmail({uid,periodKey:result.periodKey,
   message:renderMaritimeDailyEmail(result,{publicOrigin:origin}),observedAt,recipient:current.email},deps);
 }
