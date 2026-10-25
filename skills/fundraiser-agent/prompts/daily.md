@@ -38,8 +38,11 @@ reopen from an older terms/consent blocked-state row when the latest row already
 that acknowledgement was authorized and reached a later video, artifact, or
 CAPTCHA blocker. A changed queue reason is not new evidence when its authorization
 was already exercised and reflected by that latest receipt.
-For an opened candidate, complete every truthful authorized field and either
-obtain an official submission receipt or record an explicit candidate failure.
+For an opened candidate, apply the eligibility gate first. An evidence-backed
+exclusion or hold recorded in the cursor completes its classification without a
+submission or failure receipt. For candidates that pass, complete every truthful
+authorized field and obtain an official submission receipt or record an explicit
+candidate failure under the existing effect protocol.
 When a page contains duplicate labels, names, or IDs because a modal overlays a
 background form, inspect bounding boxes and operate on the visible, enabled
 control inside the active dialog. Read back that same control before continuing;
@@ -84,6 +87,56 @@ and durable continuation state is saved. Zero receipt-backed applications or
 verified introductions is a failed pass, never a successful no-op. After a
 failure proven before effect claim, continue with the next eligible target. An
 unresolved claimed effect holds the current occurrence as described below.
+
+## Eligibility and evidence-backed personalization
+
+Apply this gate after replay/unknown-effect checks and before form filling,
+`--prepare`, or any external effect, including configured `apply_now` items.
+Queue priority, optional fields, geography preferences, and pressure to produce
+receipts never override mandatory eligibility. General answer-inference rules
+below do not establish mandatory company qualifications; those require verified
+facts even when the form accepts an inferred answer.
+
+- Verify all mandatory conditions on current official policy/application pages:
+  legal entity and jurisdiction, operating location (if required), stage, sector,
+  deadline, and any other stated hard condition. Distinguish conditions required
+  now from conditions explicitly permitted to be satisfied later. Record that
+  timing and its source; never assume a future incorporation or relocation.
+- Compare each condition with verified company facts, not founder nationality,
+  personal address, travel intent, or the ability to leave a form field blank.
+  A proven mandatory mismatch excludes the candidate from send candidates.
+  Missing, stale, ambiguous, or conflicting policy/company evidence holds it
+  without submitting; continue discovery elsewhere. Only all confirmed matches
+  permit proceeding, subject to every existing replay and effect gate.
+- Store the assessment in the existing draft `context_used.eligibility`: each
+  condition, required timing, official URL and supporting excerpt, UTC checked_at,
+  company fact and exact authorized source/claim reference, fact verified_at,
+  match/mismatch/unknown result, and reason. Record excluded/held discovery
+  candidates in the existing cursor, without fabricating an application receipt.
+  Do not reserve a target merely to record an eligibility hold.
+- Before drafting an investor pitch, verify its official thesis and relevant
+  published investments. For grants/fellowships, use official program objectives
+  and selection criteria; for research introductions, use the lab's official
+  research focus. Investor portfolio evidence is not required for those routes.
+  In `context_used.personalization`, record target-specific evidence
+  with official URLs, excerpts and UTC checked_at, the verified Life Manager
+  claim references used, and the explicit connection supporting this exact ask.
+  If no relevant investment is published, record that absence; never invent one.
+  Require at least one substantive, evidenced target-to-product connection in
+  the actual submitted narrative, tied to its question/answer or email body in
+  the draft. Evidence metadata alone does not personalize a generic message.
+  A replaced name, generic AI enthusiasm, or unsupported portfolio analogy is
+  not personalization. Without a supported connection, hold rather than send.
+- Keep revenue period/provenance intact. Never invent revenue, growth, customers,
+  location, incorporation, legal qualification, or commitments to fit the target.
+  Recheck the final rendered answers against the cited facts and assessment
+  before the existing prepare/claim sequence. `context_used` is already included
+  in the recorder's application digest; retain this binding and all current
+  target-intent, duplicate, terminal-receipt, and unknown-effect protections.
+- A rejection does not reopen a submitted or unknown application. Conflicting
+  rejection-mail and official-page criteria require reconciliation, not a new
+  submission. Do not reinterpret an eligibility rejection as evidence of poor
+  writing. Never reconstruct missing sent content from a rejection notice.
 
 ## Investor and AI/AGI lab outreach
 
@@ -238,7 +291,8 @@ startup context, repository, prior applications, and absence of contrary evidenc
 then continue. Record the answer as `inferred` with its evidence in the application
 dossier. Canonical examples: sole ownership plus no named cofounder means answer
 `No` to cofounders; no recorded outside financing means answer `No` to prior
-capital; use the profile's current country/city for location. Assuming the best
+capital; use the profile's current country/city only for the founder's personal
+location, never as evidence of company location or legal eligibility. Assuming the best
 supported answer is allowed; fabricating a unique identifier or claiming observed
 provider success is not. Never ask a human for an ordinary missing answer. When a
 required field would need an invented person, credential, legal registration
@@ -249,8 +303,9 @@ continue immediately to the next candidate and live discovery.
 
 1. Process every configured `apply_now` priority target as required above,
    ordered by the configured queue, before X or broad Web discovery. Only after
-   each has a current-cycle submission receipt or explicit candidate failure may you
-   generate broad live Web queries in English and Japanese limited to Tokyo and
+   each is classified by existing terminal receipt, current-cycle submission,
+   explicit pre-effect failure, or evidence-backed eligibility exclusion/hold
+   in the cursor may you generate broad live Web queries in English and Japanese limited to Tokyo and
    the United States.
 2. Open one owned tab in the existing authenticated daily-driver and search rendered
    X posts, accounts, threads, and links for new funding leads. Close that tab
@@ -273,9 +328,11 @@ continue immediately to the next candidate and live discovery.
    Prefer in-person Tokyo and United States cohorts, with San Francisco Bay Area
    first. Remote programs remain eligible when their current official terms fit
    Life Manager, even when they were discovered outside the opportunity file.
-5. Skip only exact receipt duplicates, actually closed programs, or demonstrably
-   ineligible programs. Record a blocked candidate as failure or retry state and
-   continue immediately with the next candidate. Human waiting is never a loop state.
+5. Skip exact receipt duplicates and closed or demonstrably ineligible programs.
+   Hold candidates whose mandatory eligibility or target-specific evidence is
+   unverified, as defined by the eligibility gate. Preserve their evidence and
+   missing facts in the existing cursor and continue to the next candidate;
+   a candidate hold never requires waiting or submitting to fill the pass quota.
 
 ## Apply loop
 
@@ -315,8 +372,10 @@ For every queued candidate until the execution window ends:
    Rendered requiredness is authoritative for this application attempt. A blank
    optional video, social profile, incorporation-status, deck, demo, or narrative
    field (`required=false` and valid) never requires a person. Leave it blank
-   and continue to final Submit. Program-page eligibility or future investment
-   terms do not turn an optional application field into a required one.
+   only if the separate eligibility gate has passed. Optional form fields do not
+   waive mandatory program eligibility. Future investment conditions must be
+   distinguished from current application requirements using official evidence;
+   unclear timing or conflicting evidence holds the candidate without Submit.
 3. Choose one next action from the fresh observation and full context, perform it
    through the existing worker, and observe again.
    Use `cdp.py eval` to resolve the visible control from its current label,
