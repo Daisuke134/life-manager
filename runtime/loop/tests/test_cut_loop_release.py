@@ -1054,6 +1054,25 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         self.assertEqual(result["dependency_bundles"]["preserved"], 1)
         self.assertEqual(result["errors"], 0)
 
+    def test_bundle_reference_open_file_probe_uses_bounded_census_budget(self):
+        bundle = self._bundle()
+        self._release(bundle)
+        timeouts = []
+        probe = self._probe
+
+        def record_probe(command, **kwargs):
+            if Path(command[0]).name == "lsof":
+                timeouts.append(kwargs.get("timeout"))
+            return probe(command, **kwargs)
+
+        with mock.patch.object(self, "_probe", side_effect=record_probe):
+            code, result = self._gc(keep=1)
+
+        self.assertEqual(code, 0, result)
+        self.assertTrue(timeouts)
+        self.assertEqual(timeouts[0], 15)
+        self.assertLessEqual(timeouts[0], 30)
+
     def test_release_gc_only_preserves_open_bundle_with_minimal_host_path(self):
         bundle = self._bundle()
         self.lsof_stdout = f"p12345\nf7\nn{bundle}/node_modules/fixture.js\n"

@@ -990,7 +990,7 @@ def _bundle_references(releases: Path, current: Path, agents: Path, bundles: Pat
                 values.append(str(Path(path).resolve()))
     values.append(process.stdout)
     values.extend(map(str, _open_reference_paths((releases, bundles),
-        min(4, max(.01, deadline-time.monotonic())), owned_fds, uid=os.getuid())))
+        min(15, max(.01, deadline-time.monotonic())), owned_fds, uid=os.getuid())))
     protected = {path.resolve() for path in releases.iterdir()
                  if path.is_dir() and any(str(path) in value or str(path.resolve()) in value for value in values)}
     pending = [releases]
