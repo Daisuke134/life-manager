@@ -96,6 +96,7 @@ def _browser_registry(registry: dict, home: Path) -> str:
         "profile": "~/.cloak/profiles/job-search-mercor", "cdp_port": 9334})
     bindings["promptbase:dais"] = ("promptbase-loop-daily", {
         "profile": "~/.cloak/profiles/promptbase", "cdp_port": 0})
+    bindings["capafy:kosuke"] = ("capafy-browser", owners["capafy-browser"])
     assigned = {owner for owner, _ in bindings.values()}
     for owner, browser in owners.items():
         if owner not in assigned:
