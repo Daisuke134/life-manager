@@ -59,9 +59,10 @@ SPECS: dict[str, dict[str, Any]] = {
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
     from runtime.host import resource_admission
     database = resource_admission.state_root() / "admission-v2.sqlite3"
-    # busy-wait briefly: 80+ lm_loop_run processes share this database and a bare ro open raises
-    # "database is locked" the moment one of them holds a write transaction.
-    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=5.0) as connection:
+    # The admission database runs journal_mode=delete, so a read blocks behind any writer and
+    # 50-80 lm_loop_run processes write to it; a bare ro open raised "database is locked" on three
+    # tries in a row (2026-10-25). Wait like a writer would.
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30.0) as connection:
         row = connection.execute(
             """SELECT state, queued_at FROM occurrences
                  WHERE owner_id=? AND occurrence_id=? AND effect_unknown=1""",
