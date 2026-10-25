@@ -8,31 +8,31 @@
       "source": "pages/en.html",
       "public_route": "/",
       "export_path": "index.html",
-      "sha256": "9979300f35257a93a53f90db635191af0d9591732c09d929ed1036a20d9bde77"
+      "sha256": "a3fadb56949fd0dcdfbdd55593b7cebed9df3169bcf99ea7bb114a40a951cd85"
     },
     {
       "source": "pages/en.html",
       "public_route": "/en",
       "export_path": "en.html",
-      "sha256": "9979300f35257a93a53f90db635191af0d9591732c09d929ed1036a20d9bde77"
+      "sha256": "a3fadb56949fd0dcdfbdd55593b7cebed9df3169bcf99ea7bb114a40a951cd85"
     },
     {
       "source": "pages/ja.html",
       "public_route": "/ja",
       "export_path": "ja.html",
-      "sha256": "07371a45506dc56f6eacb58cb32269d29f9a07140d6f3aed600a4694c848ed9e"
+      "sha256": "c0a492341af84cc277f26e525c0930cdd29c0cef02dfbfcd549867ddf9e11f5e"
     },
     {
       "source": "pages/products-en.html",
       "public_route": "/dais",
       "export_path": "dais.html",
-      "sha256": "73c9fbd30ece9cbe798f3be8ddb606f1ce8c1e54f7dc6a75e673a897356eb177"
+      "sha256": "addeab06734c063748b5e34c285e833bb441d0043360f53b484f5571a850cc1f"
     },
     {
       "source": "pages/products.html",
       "public_route": "/dais/ja",
       "export_path": "dais/ja.html",
-      "sha256": "9e1e5b5d737590a6971df246d2de42fa39fb8e37da36f6e50af96b76864313bd"
+      "sha256": "c1f21e7f7444208697ea72092bf7d4978603d7966dbb806c3e41fd6c1502dd84"
     },
     {
       "source": "pages/life-manager-en.html",
