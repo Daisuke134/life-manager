@@ -24,6 +24,14 @@ for(const [file,status] of [['products-en.html','preparing to open'],['products.
  assert.ok(card.includes(status),'availability is stated in the page locale');
  assert.ok(card.includes('href="/ai-monk-factory"'),'card links to the real Factory route');
 });
+for(const [file,status] of [['products-en.html','Free'],['products.html','無料']]) test(`${file}: AI Monk Database is listed as free public research`,()=>{
+ const html=read(`pages/${file}`);
+ const section=html.match(/<section\b[^>]*id="web-products"[^>]*>[\s\S]*?<\/section>/)?.[0]||'';
+ const card=[...section.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/g)].map(m=>m[1]).find(c=>c.includes('<h3>AI Monk Database</h3>'));
+ assert.ok(card,'AI Monk Database card is present in the web-products section');
+ assert.ok(card.includes(status),'free availability is stated in the page locale');
+ assert.ok(card.includes('href="/ai-monk-database"'),'card links to the public database route');
+});
 test('primary nav exposes Articles on all home and portfolio locales',()=>{
  for(const file of ['en.html','ja.html','products-en.html','products.html']){
   const nav=read(`pages/${file}`).match(/<nav\b.*?<\/nav>/s)[0];

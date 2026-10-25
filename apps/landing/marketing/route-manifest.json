@@ -26,13 +26,13 @@
       "source": "pages/products-en.html",
       "public_route": "/dais",
       "export_path": "dais.html",
-      "sha256": "0c772ebf32c601900c69cccd5dec7a1e0a69100e80dc053e78ef20f6965a0686"
+      "sha256": "ef0935f2ee75e020f72474ea124c14ba93a3d8796559c4509f6c6b7862cbb19d"
     },
     {
       "source": "pages/products.html",
       "public_route": "/dais/ja",
       "export_path": "dais/ja.html",
-      "sha256": "c1f21e7f7444208697ea72092bf7d4978603d7966dbb806c3e41fd6c1502dd84"
+      "sha256": "7a34ad8be5e6a8b84792c316de106ca6a4f02783256ae9a4087774100b0d18a4"
     },
     {
       "source": "pages/life-manager-en.html",
