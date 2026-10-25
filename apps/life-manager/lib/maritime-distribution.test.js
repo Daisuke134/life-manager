@@ -229,6 +229,12 @@ test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_tele
   assert.doesNotMatch(html,/<input[^>]+name="(?:task|goal|budget|telegram)"/);
   assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram setup are not required/);
 });
+test("google_signin_failures_show_a_localized_retry_message_on_the_cloud_page",()=>{
+  const en=renderMaritimeLanding({language:"en",authError:"connection"});
+  const ja=renderMaritimeLanding({language:"ja",authError:"connection"});
+  assert.match(en,/Google sign-in did not complete\. Please try again\./);
+  assert.match(ja,/Googleログインを完了できませんでした。もう一度お試しください。/);
+});
 test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   const html=renderMaritimeLanding({source:"x",language:"ja",user:{email:'person<bad>@example.invalid',csrf:"a".repeat(64)},state:null});
   assert.match(html,/data-action="activate"/);assert.match(html,/data-csrf="a{64}"/);

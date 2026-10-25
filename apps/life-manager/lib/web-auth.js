@@ -449,8 +449,12 @@ function sendRedirect(res, location) {
   res.end();
 }
 
-function redirectToConnectionError(res) {
-  sendRedirect(res, "/lm?auth_error=connection");
+function redirectToConnectionError(res, intent = null) {
+  const language = intent === "maritime_cloud-ja" ? "ja"
+    : intent === "maritime_cloud-en" ? "en" : null;
+  sendRedirect(res, language
+    ? "/maritime?auth_error=connection&lang=" + language
+    : "/lm?auth_error=connection");
 }
 
 function clearCookie(res, opts, name) {
@@ -555,8 +559,8 @@ async function handleWebAuthRequest(req, res, opts = {}) {
   }
 
   if (path === "/auth/google") {
+    const intent = googleOAuthIntentFromQuery(requestQuery(req));
     try {
-      const intent = googleOAuthIntentFromQuery(requestQuery(req));
       const client = createWebAuthClient(req, res, opts);
       const origin = intent ? cloudPublicOrigin(req, opts) : publicOrigin(req, opts);
       const result = await client.auth.signInWithOAuth({
@@ -578,7 +582,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       sendRedirect(res, redirect);
     } catch {
       clearGoogleOAuthIntentCookie(res, opts);
-      redirectToConnectionError(res);
+      redirectToConnectionError(res, intent);
     }
     return;
   }
@@ -586,7 +590,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
   const oauthIntent = googleOAuthIntentFromCookie(req, opts);
   const callbackFailure = () => {
     clearGoogleOAuthIntentCookie(res, opts);
-    redirectToConnectionError(res);
+    redirectToConnectionError(res, oauthIntent);
   };
   const query = requestQuery(req);
   const code = String(query.get("code") || "");

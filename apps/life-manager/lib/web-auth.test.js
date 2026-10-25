@@ -350,8 +350,22 @@ test("Cloud sign-in fails closed until its first-party callback origin is config
   }, res, fixture.options);
 
   assert.equal(res.statusCode, 302);
-  assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
+  assert.equal(res.getHeader("location"), "/maritime?auth_error=connection&lang=en");
   assert.deepEqual(events, []);
+});
+
+test("Cloud OAuth callback failures return to the same localized Cloud page", async () => {
+  const client = authClient();
+  const fixture = authOptions(client);
+  const res = makeResponse();
+
+  await handleWebAuthRequest(callbackRequest({
+    cookie: "lm-web-auth-code-verifier=pkce-verifier; lm-web-auth-intent=maritime_cloud-ja",
+  }), res, fixture.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/maritime?auth_error=connection&lang=ja");
+  assert.equal(finalCookieValue(res, "lm-web-auth-intent"), "");
 });
 
 test("verified Google callback returns Cloud sign-in to the Life Manager Cloud page", async () => {

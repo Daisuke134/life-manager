@@ -251,7 +251,8 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "vary": "Cookie",
       "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" });
-    res.end(renderMaritimeLanding({ source, language, user, state, telegramAvailable: options.telegramAvailable === true }));
+    res.end(renderMaritimeLanding({ source, language, user, state, telegramAvailable: options.telegramAvailable === true,
+      authError: url.searchParams.get("auth_error") === "connection" ? "connection" : null }));
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
 }

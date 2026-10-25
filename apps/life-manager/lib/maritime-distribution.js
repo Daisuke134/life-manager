@@ -44,7 +44,8 @@ function sourceAttribution(source, medium = "telegram") {
   };
 }
 
-function renderMaritimeLanding({ source = "direct", language = "en", user = null, state = null, telegramAvailable = false } = {}) {
+function renderMaritimeLanding({ source = "direct", language = "en", user = null, state = null, telegramAvailable = false,
+  authError = null } = {}) {
   const campaignSource = normalizeMaritimeSource(source);
   const ja = String(language).toLowerCase().startsWith("ja");
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -54,6 +55,7 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
     scope: "まずCapafyの制作・配布・収益化ワークフローをCloudへ接続しています。最初のSkill公開前にPublisher Certificationが必要で、本人確認と返金不可のUS$0.99申請料がかかります。必要書類は地域・Publisher種別で異なります。新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります。Capafyによると、振込先情報は認証後に追加でき、公開前には不要です。公開や収益を確認できるまで、公開済み・収益発生とは報告しません。仕事から確認済み結果、メール報告までの全経路はまだ検証中です。収益は保証されません。",
     notice: "開始後、業務に必要な入力と結果をMaritimeへ送信します。Maritime AI credits経由のmodel callは、MaritimeのPrivacy Policy上、アカウント削除後も無期限保持の対象です。停止しても送信済みデータは削除されません。",
     googleSignin: "Googleアカウントで続ける",
+    signinError: "Googleログインを完了できませんでした。もう一度お試しください。",
     consent: "データ保持条件を確認し、自律実行と確認済みメールへの状況・結果レポートに同意します。", activate: "Life Manager Cloudを開始する",
     queued: "開始を受け付けました。専用VMの準備を進めています。仕事の完了や収益は、確認できる結果が得られるまで確定扱いしません。",
     failed: "開始できませんでした。しばらくしてから状態を確認してください。", signedIn: "確認済みメール",
@@ -66,6 +68,7 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
     scope: "We are connecting the first Capafy creation-and-distribution workflow to the Cloud runtime. Capafy requires Publisher Certification before your first Skill can publish, including an identity review and a non-refundable US$0.99 application fee; required documents depend on region and publisher type. Capafy requires the publisher to confirm the selected Skills and configuration on Capafy's website for each new or updated version. Capafy says payout details can be added after certification and are not required to publish. Life Manager will not report a live listing or earnings until Capafy confirms them. The complete path from work through verified result and email report has not yet been verified. Earnings are not guaranteed.",
     notice: "Starting Life Manager Cloud sends necessary work inputs and results to Maritime. Maritime’s Privacy Policy says model calls through Maritime AI credits can be retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
     googleSignin: "Continue with Google",
+    signinError: "Google sign-in did not complete. Please try again.",
     consent: "I have read the data-retention terms, agree to autonomous work, and agree to receive status and result reports at my verified sign-in email.", activate: "Start Life Manager Cloud",
     queued: "Your start request is queued and your dedicated VM is being prepared. Work and earnings are not treated as complete until results are verified.",
     failed: "We could not start the manager. Please check the status again shortly.", signedIn: "Verified email",
@@ -74,6 +77,7 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
     states: { pending: "Preparing your manager", provisioning: "Preparing your manager", active: "Life Manager is active; Capafy listing and earnings are not verified yet.", paused: "Paused", effect_unknown: "Checking execution results" },
   };
   const ready = user && state == null;
+  const authFeedback = authError === "connection" ? copy.signinError : "";
   const controls = !user
     ? `<a class="signin" id="google-signin" href="/auth/google?intent=maritime_cloud&lang=${ja ? "ja" : "en"}">${copy.googleSignin}</a>`
     : `<p>${copy.signedIn}: <strong>${escape(user.email)}</strong></p>${ready
@@ -81,7 +85,7 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
       : `<p role="status" data-manager-state>${copy.states[state] || copy.failed}</p>`}`;
   const stopControl = user ? `<button type="button" data-action="stop" data-csrf="${escape(user.csrf)}"${state == null ? " hidden" : ""}>${copy.stop}</button><p>${copy.stopNote}</p>` : "";
   const telegram = telegramAvailable ? `<p><a href="/maritime/start?source=${campaignSource}">Telegram (${ja ? "任意" : "optional"})</a></p>` : "";
-  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager Cloud</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}.signin{display:inline-block;margin:16px 0;padding:12px 20px;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;text-decoration:none}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[hidden]{display:none}.consent{display:block;margin-top:20px}</style><main data-source="${campaignSource}"><p>Life Manager Cloud</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">${ja ? "Maritimeのプライバシーポリシー" : "Maritime Privacy Policy"}</a></p>${controls}${stopControl}<p id="feedback" role="status" aria-live="polite"></p>${telegram}<noscript>${ja ? "開始と状態確認にはJavaScriptを有効にしてください。" : "Enable JavaScript to start Life Manager Cloud and check its status."}</noscript></main><script>
+  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager Cloud</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}.signin{display:inline-block;margin:16px 0;padding:12px 20px;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;text-decoration:none}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[hidden]{display:none}.consent{display:block;margin-top:20px}</style><main data-source="${campaignSource}"><p>Life Manager Cloud</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">${ja ? "Maritimeのプライバシーポリシー" : "Maritime Privacy Policy"}</a></p>${controls}${stopControl}<p id="feedback" role="status" aria-live="polite">${authFeedback}</p>${telegram}<noscript>${ja ? "開始と状態確認にはJavaScriptを有効にしてください。" : "Enable JavaScript to start Life Manager Cloud and check its status."}</noscript></main><script>
 const feedback=document.getElementById('feedback');
 const main=document.querySelector('main');
 let source=main.dataset.source;

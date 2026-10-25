@@ -183,6 +183,11 @@ test("email_campaign_page_is_independent_of_telegram_and_get_never_enrolls",asyn
   assert.equal(typeof handleMaritimeManagerPage,"function");const {deps,calls}=fixture({user:null});let events=0;deps.distributionStore={recordAnonymousEvent:async()=>{events++;return true;}};const res=response();
   await handleMaritimeManagerPage(request("/maritime?source=referral&lang=en"),res,deps);assert.equal(res.statusCode,200);assert.match(res.body,/href="\/auth\/google\?intent=maritime_cloud&lang=en"/);assert.doesNotMatch(res.body,/auth\/maritime\/email|start_calendar=1/);assert.equal(events,1);assert.equal(calls.some(x=>x[0]==="ensure"),false);
 });
+test("google_OAuth_failure_is_rendered_on_the_same_localized_Cloud_page",async()=>{
+  const {deps}=fixture({user:null});deps.distributionStore={recordAnonymousEvent:async()=>true};const res=response();
+  await handleMaritimeManagerPage(request("/maritime?auth_error=connection&lang=ja"),res,deps);
+  assert.match(res.body,/Googleログインを完了できませんでした。もう一度お試しください。/);
+});
 test("verified_campaign_page_displays_activation_or_persisted_state_without_dispatch",async()=>{
   assert.equal(typeof handleMaritimeManagerPage,"function");const {deps}=fixture();deps.distributionStore={recordAnonymousEvent:async()=>true};deps.managerStore={read:async()=>null};let res=response();
   await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);assert.match(res.body,/<button[^>]+data-action="activate"/);
