@@ -1,4 +1,6 @@
 # EBA & Manager — execution roadmap from remaining Phase06 through validated welfare impact
+
+> **Historical research chapter numbering, not current task state.** Phase07–11 below use a different grouping from the original113-task Phase07–12. Use [the full start-to-end map](START_TO_END_20261022.md) for the correspondence and all remaining41 IDs. F004/F007 are now skipped/retired, and the current engineering cursor is E16; old BLOCKED/301-test entries below are historical. Scientific requirements are not waived by this clarification.
 **2026-10-22 | Execution ledger supplement, NOT a replacement for the 113-task SSOT.** Canonical statuses are in [tasks.json](tasks.json). Existing [54 Phase06 atomic substeps](PHASE06_TO_COMPLETION_RESEARCH_JA.md) retain their IDs; do not silently mark physical/financial tasks done because a web site was published.
 
 ## Actual baseline and gates

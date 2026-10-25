@@ -30,3 +30,7 @@ def assert_disjoint_groups(train_ids, test_ids):
         raise ValueError('two nonempty groups of IDs required')
     if set(train_ids) & set(test_ids):
         raise ValueError('data leakage: shared group/study in train and test')
+
+# Reuse the existing calibration facade; scoped regression stays a focused unit.
+from .error_calibration import (ErrorReference, PredictionCase, ErrorEstimate,
+    ErrorCalibrator, RiskPoint, fit_error_calibrator, selective_risk_curve)

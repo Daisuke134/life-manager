@@ -1,0 +1,65 @@
+name: Manager E01 Freeze Original Real Ampersand Trial
+on:
+  push:
+    branches: [research/manager-e01-e16-execution-20261022]
+    paths: ['.github/workflows/manager-e01-freeze-trial.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  freeze-existing-real-trial:
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-e01-e16-execution-20261022'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/manager-e01-e16-execution-20261022
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Retrieve original immutable GitHub artifact and validate exact raw bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p products/manager/docs/verification/ampersand-20261022
+          curl --fail --location --silent --show-error --retry 2 \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/Daisuke134/life-manager/actions/artifacts/12398755518/zip" \
+            --output /tmp/manager-e01-original.zip
+          unzip -p /tmp/manager-e01-original.zip report.json > products/manager/docs/verification/ampersand-20261022/ten_case_raw.json
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          original=Path('products/manager/docs/verification/ampersand-20261022/ten_case_raw.json')
+          raw=original.read_bytes()
+          assert hashlib.sha256(raw).hexdigest()=='c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585'
+          assert len(raw)==14759
+          result=json.loads(raw)
+          assert result['schema']=='manager.ampersand-p0-lab.v1'
+          assert result['model_sessions_created']==10
+          assert result['real_people']==0 and result['real_world_effects']==0
+          print('SOURCE_BYTES_SHA256_VERIFIED, real sessions=10, human benefit NOT_MEASURED')
+          PY
+      - name: Commit only exact historical source bytes
+        run: |
+          git diff --check
+          git add -- products/manager/docs/verification/ampersand-20261022/ten_case_raw.json
+          python - <<'PY'
+          import subprocess
+          changed=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          assert changed==['products/manager/docs/verification/ampersand-20261022/ten_case_raw.json'],changed
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --cached --quiet; then
+            git commit -m "evidence(manager E01): freeze exact prior ten-case P0 Ampersand trial bytes"
+            git push origin HEAD:refs/heads/research/manager-e01-e16-execution-20261022
+          fi

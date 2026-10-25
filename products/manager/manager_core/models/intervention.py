@@ -58,3 +58,73 @@ class InterventionPlan:
             return no_action
         candidates = [o for o in self.options if not o.no_action and o.expected_effect[0] > o.cost + o.risk]
         return max(candidates, key=lambda o: o.expected_effect[0]-o.cost-o.risk) if candidates else no_action
+
+# Owned digital candidates do not reuse the fixture-only scalar effect arithmetic.
+from dataclasses import field
+from decimal import Decimal
+
+
+@dataclass(frozen=True)
+class OutcomeEndpoint:
+    metric: str
+    unit: str
+    value: float | None
+    comparator: str
+    evidence_kind: str = field(default='PREDICTION_OR_UNKNOWN',init=False)
+    causal_support: bool = field(default=False,init=False)
+
+    def __post_init__(self):
+        for text in (self.metric,self.unit,self.comparator):_text(text)
+        if self.value is not None and (type(self.value) not in (int,float) or not isfinite(self.value)):
+            raise ValueError('finite native-unit estimate or unknown required')
+
+
+def combine_outcomes(*endpoints):
+    if not endpoints or any(type(e) is not OutcomeEndpoint for e in endpoints):
+        raise ValueError('typed native-unit endpoints required')
+    first=endpoints[0]
+    if any((e.metric,e.unit,e.comparator)!=(first.metric,first.unit,first.comparator) for e in endpoints):
+        raise ValueError('incompatible metrics, units or comparisons cannot be added')
+    value=None if any(e.value is None for e in endpoints) else sum(e.value for e in endpoints)
+    return OutcomeEndpoint(first.metric,first.unit,value,first.comparator)
+
+
+@dataclass(frozen=True)
+class OutcomeVector:
+    endpoints: tuple[OutcomeEndpoint,...] = ()
+
+    def __post_init__(self):
+        if type(self.endpoints) is not tuple or any(type(e) is not OutcomeEndpoint for e in self.endpoints):
+            raise ValueError('typed outcome vector required')
+        keys=[(e.metric,e.unit,e.comparator) for e in self.endpoints]
+        if len(set(keys))!=len(keys):raise ValueError('duplicate endpoint must not silently double-count')
+
+
+@dataclass(frozen=True)
+class Candidate:
+    candidate_id: str
+    action: str
+    target: str
+    source_refs: tuple[str,...]
+    technical_criterion: str
+    outcomes: OutcomeVector = OutcomeVector()
+    command_cost_usd: Decimal = Decimal('0')
+    opportunity_cost: None = field(default=None,init=False)
+    causal_support: bool = field(default=False,init=False)
+    authorized_execution: bool = field(default=False,init=False)
+    proof_level: str = field(default='P0',init=False)
+
+    def __post_init__(self):
+        for text in (self.candidate_id,self.action,self.target,self.technical_criterion):_text(text)
+        if self.action not in {'NO_ACTION','ASK','PASS','CORRECT_LINK','IMPROVE_ACCESSIBILITY'}:
+            raise ValueError('outside bounded candidate catalog')
+        if (type(self.source_refs) is not tuple or any(type(r) is not str or not r.strip() for r in self.source_refs)
+                or len(set(self.source_refs))!=len(self.source_refs) or type(self.outcomes) is not OutcomeVector):
+            raise ValueError('explicit source references and outcome vector required')
+        if (type(self.command_cost_usd) is not Decimal or not self.command_cost_usd.is_finite()
+                or self.command_cost_usd!=0):raise ValueError('initial owned release has no financial transfer')
+        if self.action in {'CORRECT_LINK','IMPROVE_ACCESSIBILITY'} and not self.source_refs:
+            raise ValueError('technical action needs source evidence')
+
+    @property
+    def no_action(self):return self.action=='NO_ACTION'

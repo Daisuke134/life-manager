@@ -1,0 +1,855 @@
+{
+  "schema": "manager.new-simulation-research.v1",
+  "date": "2026-10-22",
+  "repository": {
+    "origin": "https://github.com/Daisuke134/life-manager.git",
+    "head": "ae06f4ccfa30b29e427f71d6413eba0858a34cf8",
+    "workspace": "Local research workspace only; use immutable source URL/hash for reproduction.",
+    "mutations": "NONE"
+  },
+  "scope": "Read-only new simulation and workplace evaluation research. No inference, human study, code installation/execution, sends, deployments or subscriptions.",
+  "skill_sources_read": [
+    "c2/firecrawl",
+    "c2/firecrawl/references/paper-research.md",
+    "c7/cloud-environment-runtime",
+    "c7/cloud-environment-runtime/references/networking.md",
+    "c9/using-superpowers (subagent-stop)"
+  ],
+  "retrieval": {
+    "tools": [
+      "firecrawl_research_search_papers",
+      "firecrawl_research_inspect_paper",
+      "firecrawl_research_read_paper",
+      "firecrawl_research_related_papers",
+      "firecrawl_search",
+      "firecrawl_scrape"
+    ],
+    "search_queries": [
+      "AgentSociety large scale social simulation LLM agents interventions human behavior",
+      "OASIS Open Agent Social Interaction Simulations one million agents",
+      "tau squared bench tau-bench TheAgentCompany real world workplace agents benchmark",
+      "LLM social simulation intervention validity AgentTorch TinyTroupe 2026",
+      "REAL benchmark realistic environments workplace agents 2026"
+    ],
+    "ranked_hits_requested": 40,
+    "exhaustive": false,
+    "related_graph": {
+      "mode": "citers",
+      "seeds": [
+        "arxiv:2606.30454",
+        "arxiv:2604.10866"
+      ],
+      "poolSize": 1,
+      "note": "Only one citer candidate surfaced; not proof of no related work."
+    }
+  },
+  "novelty_audit": {
+    "paths": [
+      "products/manager/docs/research/manager-strategy-20261022/REPORT_JA.md",
+      "products/manager/docs/research/manager-strategy-20261022/PRIMARY_SOURCES.json",
+      "products/manager (recursive rg)"
+    ],
+    "prior_known": [
+      "AgentSociety",
+      "OASIS",
+      "AgentTorch",
+      "TinyTroupe",
+      "TheAgentCompany",
+      "τ-bench",
+      "τ²-bench"
+    ],
+    "prior_evidence_paths": [
+      "products/manager/docs/landscape/2026-10-20-behavior-intervention-entities.md",
+      "products/manager/docs/BEHAVIOR_SIMULATION_LANDSCAPE.md",
+      "products/manager/docs/research/evals/EVAL_LANDSCAPE_20261022.json",
+      "products/manager/docs/research/evals/UPSTREAM_CODE_AUDIT_20261022.md"
+    ],
+    "not_new_claim": "The seven prior-known names are screened controls, not new discoveries. AgentSociety2 and ττ are new paper/version/benchmark within known families.",
+    "candidate_zero_match_terms": [
+      "2607.11895",
+      "AgentSociety 2",
+      "2606.30454",
+      "Collective cooperation",
+      "2609.04611",
+      "DuMateBench",
+      "OccuBench",
+      "EnterpriseClawBench"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "new-sim-01",
+      "canonical_id": "arxiv:2606.30454v1",
+      "base": "2606.30454",
+      "title": "Collective cooperation without individual fidelity in LLM agents",
+      "novelty": "NEW_PAPER_NO_PRODUCT_MATCH",
+      "paper_status": "arXiv preprint; no peer-reviewed venue verified",
+      "version_history": [
+        {
+          "version": "v1",
+          "date": "2026-06-29T15:22:21Z"
+        }
+      ],
+      "paper_license": "arXiv nonexclusive distribution; not a general reuse license",
+      "read_depth": "Canonical abs/history; five indexed in-body passages; exact v1 HTML sections 2.1–2.3, 3, 4.1 and 4.3 selected methods/results read. Supplement headings and selected passages only; not whole supplement.",
+      "methods": [
+        "Matched prior human networked Prisoner's Dilemma protocol, payoffs, network topologies and temporal network sequence; nine open-weight models screened; model selected using closeness to aggregate empirical data.",
+        "Compare macro trajectory RMSE/MAE, raw and first-difference correlation, AR(1) on differenced trajectory; micro per-agent cooperation-propensity Wasserstein-1 and conditional behavior given own previous action and neighbors.",
+        "Monte Carlo null preserves marginal trajectory distribution while destroying temporal order; micro Bernoulli null uses empirical network mean and per-agent round count."
+      ],
+      "results": [
+        "Lattice human mean/SD .368/.170 versus simulated .291/.069; heterogeneity is compressed despite partial macro agreement.",
+        "Fully LLM lattice W1=.101 is worse than empirical-mean Bernoulli null .085 (Monte Carlo interval .082–.089); 20% random-agent mix yields .081, but does not repair conditional decision rules.",
+        "Random-agent mixing helps some measures/conditions, worsens others; selected model and tuned random fraction were chosen against same benchmark, not a heldout intervention validation."
+      ],
+      "limits": [
+        "One prior experiment, participant pool and institutional setting; no human replacement or general intervention validity established.",
+        "Nine-model selection and random-fraction sweep are not independent confirmation; graph rounds/agents are correlated.",
+        "Official pinned repository contains README only; no executable simulation/data/license release verified."
+      ],
+      "passages": [
+        {
+          "section": "3 Discussion",
+          "quote": "collective outcomes can appear human-like",
+          "words": 6,
+          "interpretation": "Macro fit can mask incorrect individual mechanisms."
+        }
+      ],
+      "code_key": "collective",
+      "url": "https://arxiv.org/abs/2606.30454v1",
+      "exact_html_url": "https://arxiv.org/html/2606.30454v1",
+      "accessed": "2026-10-22",
+      "canonical_metadata": {
+        "paperId": "6163249746349897265",
+        "ids": {
+          "arxiv": [
+            "2606.30454"
+          ]
+        },
+        "title": "Collective cooperation without individual fidelity in LLM agents",
+        "abstract": "Large language models (LLMs) are increasingly used as agents in simulations of social systems, yet it remains unclear when their behavior can be interpreted as a faithful proxy for human decision-making. Here we test LLM agents against a direct empirical benchmark: a large-scale networked Prisoner's Dilemma experiment with human participants. Using the same interaction protocol, payoff structure, and network topologies, we compare nine open-weight LLMs with the human data. The selected model reproduces several macro-level features of cooperation dynamics, including the early decline and later stabilization of cooperation. This aggregate agreement, however, does not extend uniformly to finer levels of behavior. LLM populations underestimate individual-level heterogeneity and generate conditional cooperation patterns that differ from those observed in humans. Adding a fraction of random agents improves some aspects of micro-level agreement, but does not remove the mismatch in decision rules. These findings reveal a macro--micro dissociation in LLM-based social agents: collective outcomes can appear human-like even when the underlying behavioral distributions and mechanisms are not. They suggest that validating LLM agents as human surrogates requires comparisons across aggregate dynamics, individual heterogeneity, and context-dependent decision rules, rather than outcome-level agreement alone.",
+        "authors": "Henrique Ferraz de Arruda, Carlos Gracia Lázaro, Alberto Aleta, Yamir Moreno",
+        "categories": [
+          "physics.soc-ph",
+          "cs.AI"
+        ],
+        "createdDate": "2026-06-29",
+        "updateDate": "2026-06-30"
+      },
+      "manager_result_status": "NOT_RUN_NOT_MANAGER_EVIDENCE"
+    },
+    {
+      "source_id": "new-sim-02",
+      "canonical_id": "arxiv:2607.11895v2",
+      "base": "2607.11895",
+      "title": "AgentSociety 2: An Integrated Research Environment for Executable Social Science",
+      "novelty": "NEW_PAPER_AND_V2_WITHIN_KNOWN_PROJECT",
+      "paper_status": "arXiv preprint; no peer-reviewed venue verified",
+      "version_history": [
+        {
+          "version": "v1",
+          "date": "2026-06-11T10:41:23Z",
+          "note": "Date reported by canonical submission history despite July-prefixed identifier; do not silently normalize."
+        },
+        {
+          "version": "v2",
+          "date": "2026-07-15T01:46:04Z"
+        }
+      ],
+      "paper_license": "CC BY-NC-SA 4.0; code separately Apache-2.0",
+      "read_depth": "Canonical abs/history; five indexed passages plus three additional targeted passages; exact v2 HTML §4.2, §7.3.3, §9.4 read, and selected §7.3 design and §7.7 normalized-mobility passages. Not full 357k-character paper.",
+      "methods": [
+        "Couples AI research orchestration with simulated participants; persistent hypotheses/configs/code/logs/analyses and structural gates plus assistant attestation.",
+        "Psychology illustration injects 134 original participant profiles into fixed PersonAgent and executes endowment, self-enhancement, IAT and self-reference tasks.",
+        "Disaster comparison independently sum-normalizes empirical and simulated 11-day sequences; comparison is temporal shape, not raw magnitude."
+      ],
+      "results": [
+        "Endowment direction is reproduced but magnitude compressed; human WTA/WTP 107.84/74.36 versus agents 63.32/48.37 CNY.",
+        "Self-enhancement reverses direction under reverse-coded scale: human mean43.61 versus agent53.72.",
+        "IAT simulated latencies 807.7/809.3ms p=.81 and SRE self/friend/other 57.2/59.2/58.7% fail expected effects despite valid outputs."
+      ],
+      "limits": [
+        "Seven illustrative studies and qualitative patterns are not independent validation of arbitrary human interventions.",
+        "Authors explicitly separate traceability, simulation realism and validity of experimental mechanism; auditability alone does not prove truth.",
+        "Researcher judgment remains necessary for concepts, constructs, intervention specification and warranted claims.",
+        "Package dependency footprint substantial; retain optional isolated adapter rather than mandatory Manager runtime migration."
+      ],
+      "passages": [
+        {
+          "section": "9.4 Risks and Methodological Safeguards",
+          "quote": "This auditability does not by itself prove that a research conclusion is true",
+          "interpretation": "Evidence provenance and empirical validity require separate gates."
+        }
+      ],
+      "code_key": "agentsociety",
+      "url": "https://arxiv.org/abs/2607.11895v2",
+      "exact_html_url": "https://arxiv.org/html/2607.11895v2",
+      "accessed": "2026-10-22",
+      "canonical_metadata": {
+        "paperId": "1614783344556103026",
+        "ids": {
+          "arxiv": [
+            "2607.11895"
+          ]
+        },
+        "title": "AgentSociety 2: An Integrated Research Environment for Executable Social Science",
+        "abstract": "AI scientist systems are beginning to automate parts of scientific research, but social science poses a distinct challenge: its objects of inquiry are not merely datasets or laboratory protocols, but integrated social processes involving situated participants, interaction contexts, interventions, and outcomes. Yet a critical link is missing: existing systems either assist isolated research tasks or simulate agents as experimental subjects, leaving the research workflow and simulated society decoupled. Here we introduce AgentSociety 2, an Integrated Research Environment for executable social science. It couples two roles of LLM agents in the same runtime: AI social scientists that coordinate literature grounding, hypothesis generation, experiment design, simulation execution, result interpretation, and manuscript drafting; and silicon participants that generate behavioral responses within configurable social environments. This dual-role design turns hypotheses into auditable agent behaviors, environment rules, interventions, and measurements, thereby supporting an end-to-end workflow. Across seven illustrative studies spanning micro-level social-science laboratory experiments, meso-level dynamics in social media, and macro-level urban scenarios, we demonstrate its capacity to support diverse disciplinary questions, reproduce major qualitative patterns from prior studies, identify informative deviations, and enable large-scale simulations through optimized agent-environment interactions. By preserving human researchers' high-level agency while delegating procedural orchestration to agentic systems, it provides a human-in-the-loop and controllable infrastructure for next-generation computational social science, with broader applications in scalable computational social experimentation and AI-enabled social governance platforms.",
+        "authors": "Jinghua Piao, Jun Zhang, Haoyu Huang, Keming Zhang, Jing Yi Wang, Xinran Zhao, Songwei Li, Boyuan Sun, Jiayi Chang, Fengli Xu, Chunyan Wang, Fang Zhang, Ke Rong, Jun Su, Tianguang Meng, Yi Liu, Qingguo Meng, Yu Wang, Yong Li",
+        "categories": [
+          "cs.CY",
+          "cs.MA"
+        ],
+        "createdDate": "2026-06-11",
+        "updateDate": "2026-07-16"
+      },
+      "manager_result_status": "NOT_RUN_NOT_MANAGER_EVIDENCE"
+    },
+    {
+      "source_id": "new-sim-03",
+      "canonical_id": "arxiv:2604.10866v2",
+      "base": "2604.10866",
+      "title": "OccuBench: Evaluating AI Agents on Real-World Professional Tasks via Language Environment Simulation",
+      "novelty": "NEW_PAPER_AND_PROJECT_NO_PRODUCT_MATCH",
+      "paper_status": "arXiv preprint; no peer-reviewed venue verified",
+      "version_history": [
+        {
+          "version": "v1",
+          "date": "2026-04-13T00:27:32Z"
+        },
+        {
+          "version": "v2",
+          "date": "2026-04-16T16:00:33Z"
+        }
+      ],
+      "paper_license": "CC BY 4.0; reference implementation Apache-2.0",
+      "read_depth": "Canonical abs/history; five indexed passages; exact v2 HTML §5.2–5.3 fault design/metrics (indexed), §6.2 results (indexed), §6.6 complete cross-simulator section and §8.1 limitations read; code README/LICENSE/fault_injection.py/verifier.py and selected lwm.py read.",
+      "methods": [
+        "382 filtered tasks across100 scenarios/10 industries; document-grounded synthesis, reference-plan execution and majority rubric verifier establish solvability under chosen LES.",
+        "E0 clean; E1 explicit errors; E2 apparently valid truncation/missing/null/stale data; E3 mixed. Default two fault events, two consecutive calls each, transient recovery.",
+        "Simulation state maintained implicitly by LLM conversation history; environment model is a measured component, not neutral oracle."
+      ],
+      "results": [
+        "Nine-model average completion67.5% clean→62.6 explicit→53.4 implicit→54.4 mixed; 4/9 models perform worse in pure implicit than mixed faults.",
+        "Cross-simulator eight-agent average67.9 Gemini Flash,63.4 Qwen3.5+,29.3 GPT5.2; entity omission, fabricated state and rule invention can make correct policies fail.",
+        "Qwen-vs-Gemini pairwise ranking agreement24/28=.857; this is conditional ranking consistency, not verified fidelity to production."
+      ],
+      "limits": [
+        "Generated domain values, not real database facts; paper says logic/decision-process benchmark needs real-environment complement where exact numbers matter.",
+        "Public repo explicitly clean standalone reimplementation; proprietary paper harness unreleased.",
+        "Faults injected through system-prompt text; requested count/timing is not proof of actual deterministic fault activation.",
+        "Verifier casts bool(result.get('is_correct')) and on exceptions returns false; do not copy parser/error collapsing into Manager."
+      ],
+      "passages": [
+        {
+          "section": "8.1 Limitations",
+          "quote": "the simulator is part of the evaluation apparatus, not a neutral observer",
+          "interpretation": "Separate environment integrity from agent capability."
+        }
+      ],
+      "code_key": "occu",
+      "url": "https://arxiv.org/abs/2604.10866v2",
+      "exact_html_url": "https://arxiv.org/html/2604.10866v2",
+      "accessed": "2026-10-22",
+      "canonical_metadata": {
+        "paperId": "1181842662072316288",
+        "ids": {
+          "arxiv": [
+            "2604.10866"
+          ]
+        },
+        "title": "OccuBench: Evaluating AI Agents on Real-World Professional Tasks via Language Environment Simulation",
+        "abstract": "AI agents are expected to perform professional work across hundreds of occupational domains (from emergency department triage to nuclear reactor safety monitoring to customs import processing), yet existing benchmarks can only evaluate agents in the few domains where public environments exist. We introduce OccuBench, a benchmark covering 100 real-world professional task scenarios across 10 industry categories and 65 specialized domains, enabled by Language Environment Simulators (LESs) that simulate domain-specific environments through LLM-driven tool response generation. Our multi-agent synthesis pipeline automatically produces evaluation instances with guaranteed solvability, calibrated difficulty, and document-grounded diversity. OccuBench evaluates agents along two complementary dimensions: task completion across professional domains and environmental robustness under controlled fault injection (explicit errors, implicit data degradation, and mixed faults). We evaluate 15 frontier models across 8 model families and find that: (1) no single model dominates all industries, as each has a distinct occupational capability profile; (2) implicit faults (truncated data, missing fields) are harder than both explicit errors (timeouts, 500s) and mixed faults, because they lack overt error signals and require the agent to independently detect data degradation; (3) larger models, newer generations, and higher reasoning effort consistently improve performance. GPT-5.2 improves by 27.5 points from minimal to maximum reasoning effort; and (4) strong agents are not necessarily strong environment simulators. Simulator quality is critical for LES-based evaluation reliability. OccuBench provides the first systematic cross-industry evaluation of AI agents on professional occupational tasks.",
+        "authors": "Xiaomeng Hu, Yinger Zhang, Fei Huang, Jianhong Tu, Yang Su, Lianghao Deng, Yuxuan Liu, Yantao Liu, Dayiheng Liu, Tsung-Yi Ho",
+        "categories": [
+          "cs.CL"
+        ],
+        "createdDate": "Mon, 13 Apr 2026 00:27:32 GMT",
+        "updateDate": "2026-04-17"
+      },
+      "manager_result_status": "NOT_RUN_NOT_MANAGER_EVIDENCE"
+    },
+    {
+      "source_id": "new-sim-04",
+      "canonical_id": "arxiv:2608.26546v1",
+      "base": "2608.26546",
+      "title": "DuMateBench: Evaluating Autonomous Agents in Complex Real-World Workflows",
+      "novelty": "NEW_PAPER_AND_PROJECT_NO_PRODUCT_MATCH",
+      "paper_status": "arXiv preprint; no peer-reviewed venue verified",
+      "version_history": [
+        {
+          "version": "v1",
+          "date": "2026-08-27T02:36:23Z"
+        }
+      ],
+      "paper_license": "arXiv nonexclusive distribution; project code Apache-2.0; third-party tasks not uniformly cleared",
+      "read_depth": "Canonical abs/history; five indexed passages; exact v1 HTML §3 selected reconstruction, §4–5 complete environment/scoring, §6.2–6.3 quantitative results, §6.5 and §8 ethical limits read. Code README, scoring.py, template fault YAMLs and THIRD_PARTY_DATA_NOTICES fully read; runner and task evaluator not fully audited.",
+      "methods": [
+        "200 privacy-screened real-session tasks reconstructed at user-request cutoff from visible history and workspace, human-reviewed.",
+        "Insufficient dependencies/resources, transient network/tool failures, noisy stale/duplicate/conflicting artifacts; seed/schedule/activation logs.",
+        "Hidden deterministic atomic checks plus artifact-specific pre-fixed human-reviewed rubric, judge evidence and cannot_assess; partial, strict completion and judge separate."
+      ],
+      "results": [
+        "Paper Table2 final score .3*partial+.7*judge; current pinned scoring.py instead .3*complete+.3*partial+.4*judge: unresolved formula mismatch, so current code is not published-score reproduction.",
+        "Noise losses normal→high18.53pp Claude Code,20.08 Hermes,10.45 OpenCode,9.49 OpenClaw,1.67 DuMate; source platform authors' own framework wins, external validation not established.",
+        "Best table final .8548 is a weighted artifact score, not85.48% strict completion nor real earned income."
+      ],
+      "limits": [
+        "Single platform sessions, LLM judge, limited inspected public tasks; no independent production benefit shown.",
+        "Root Apache license covers own code only; notices flag unconfirmed XLSX redistribution, explicitly restricted HTML mirrors, derivative golds and session captures; do not import those assets.",
+        "No local benchmark run, model inference, external network failure injection or downloaded-code execution performed."
+      ],
+      "passages": [
+        {
+          "section": "5.1 Deterministic Checklist Evaluation",
+          "quote": "A task is considered complete only when all of its deterministic checks pass.",
+          "words": 14,
+          "interpretation": "A high partial score is not strict completion."
+        }
+      ],
+      "code_key": "dumate",
+      "url": "https://arxiv.org/abs/2608.26546v1",
+      "exact_html_url": "https://arxiv.org/html/2608.26546v1",
+      "accessed": "2026-10-22",
+      "canonical_metadata": {
+        "paperId": "8059871740754276158",
+        "ids": {
+          "arxiv": [
+            "2608.26546"
+          ]
+        },
+        "title": "DuMateBench: Evaluating Autonomous Agents in Complex Real-World Workflows",
+        "abstract": "Autonomous agents are increasingly adopted to complete complex, multi-tool workflows in real-world settings. However, existing benchmarks typically separate tasks by application or capability and evaluate agents in environments that are cleaner and more stable than those encountered in practice. We introduce DuMateBench, a real-session benchmark reconstructed from anonymized and privacy-screened user sessions collected from a large-scale production agent platform. Each task preserves the relevant pre-solution interaction history, persistent configurations, and workspace state, and is then validated through human verification. The resulting benchmark comprises 200 tasks spanning 8 broad scenarios and 17 fine-grained capability categories, with most tasks requiring multiple capability coordination. We execute these tasks in isolated Docker containers injected with three forms of real-world environmental complexity: Insufficient, Unstable, and Noisy, and assess performance using a hybrid deterministic and LLM-as-Judge evaluation protocol. Experiments across five representative autonomous-agent frameworks paired with four state-of-the-art LLMs reveal substantial gaps in strict task completion. Complementary robustness, efficiency, and diagnostic analyses further show that performance under environmental perturbations is jointly shaped by the capabilities of the LLM and the surrounding agent framework. The code and data are publicly available at https://dumatebench.com/.",
+        "authors": "Zechun Niu, Yukun Zhao, Jiaxin Zhang, Xu Shen, Jinhua Si, Han Tian, Can Xu, Yunfan Song, Jiaxin Mao, Yansong Gao, Yuchen Li, Jianmin Wu, Lingyong Yan, Shuaiqiang Wang, Dawei Yin",
+        "categories": [
+          "cs.AI",
+          "cs.CL"
+        ],
+        "createdDate": "2026-08-27",
+        "updateDate": "2026-08-28"
+      },
+      "manager_result_status": "NOT_RUN_NOT_MANAGER_EVIDENCE"
+    },
+    {
+      "source_id": "new-sim-05",
+      "canonical_id": "arxiv:2606.23654v1",
+      "base": "2606.23654",
+      "title": "EnterpriseClawBench: Benchmarking Agents from Real Workplace Sessions",
+      "novelty": "NEW_PAPER_AND_PROJECT_NO_PRODUCT_MATCH",
+      "paper_status": "arXiv preprint; no peer-reviewed venue verified",
+      "version_history": [
+        {
+          "version": "v1",
+          "date": "2026-06-22T17:39:43Z"
+        }
+      ],
+      "paper_license": "CC BY4.0 paper; no LICENSE/COPYING/NOTICE file found in pinned repository tree",
+      "read_depth": "Canonical metadata/history; five indexed in-body passages, including task construction, §3.4 skill transfer, §3.5 judge reliability, §5 limitations. README, docs/evaluation_protocol.md, report.py, rules.py, run_protocol.py and test_evaluation_contract.py selected/all relevant functions read. Not entire paper or pipeline.",
+      "methods": [
+        "852 proprietary session-derived tasks, Lite120; construction protocol and sanitized example public but full private benchmark unavailable.",
+        "Evaluate harness+model, artifact delivery, semantic text/visual routes, cost/runtime; mandatory visual route does not fallback to text on renderer/judge failure.",
+        "Judge agreement checked against other LLMs and48 human-rated packets,24 each text/visual; skill creator-consumer matrix uses five heldout tasks in subclass."
+      ],
+      "results": [
+        "Human audit text Spearman.790/MAE.134; visual Spearman-.259/MAE.303 despite cross-LLM visual correlation.866. High judge agreement does not ensure human agreement.",
+        "Skill transfer creator means+.0681 GPT5.5,+.0518 KimiK2.6,-.0941 Haiku4.5 in narrow frontend task class; reusable skills can degrade.",
+        "Best reported benchmark score .663 is not field outcome or broadly replicated occupational capability."
+      ],
+      "limits": [
+        "One enterprise; private full tasks not reproducible independently.",
+        "Visual audit n24 only, not universal judge-failure rate; uncertainty and rater protocol not fully audited.",
+        "Code rights not verified: reuse method/contract by own implementation; no code copying pending license clarification.",
+        "Pinned rules.py treats unsupported rule kinds as passed; Manager must reject/mark instrument unsupported rather than inherit that behavior. Summary averages valid scores excluding missing, so retain all-case counts and coverage."
+      ],
+      "passages": [
+        {
+          "section": "3.5 Judge Reliability",
+          "quote": "Visual agreement is much weaker",
+          "interpretation": "Visual quality needs calibrated external references and explicit missing-score coverage."
+        }
+      ],
+      "code_key": "enterprise",
+      "url": "https://arxiv.org/abs/2606.23654v1",
+      "exact_html_url": "https://arxiv.org/html/2606.23654v1",
+      "accessed": "2026-10-22",
+      "canonical_metadata": {
+        "paperId": "2975244493087287751",
+        "ids": {
+          "arxiv": [
+            "2606.23654"
+          ]
+        },
+        "title": "EnterpriseClawBench: Benchmarking Agents from Real Workplace Sessions",
+        "abstract": "Enterprise agents increasingly operate inside workspaces: they read heterogeneous files, invoke tools, and deliver business artifacts. We introduce EnterpriseClawBench, an enterprise agent benchmark constructed from proprietary, real-world agent sessions. Starting from a large archive of workplace sessions, the EnterpriseClawBench produces 852 reproducible tasks, each paired with recovered fixtures, rewritten prompts, role classes, skill subclasses, hard rules, and semantic rubrics. Because the sessions contain internal enterprise content, we do not release the benchmark data; instead, our reusable contribution is the construction and evaluation protocol. On EnterpriseClawBench, the best configuration reaches only 0.663 (Codex with GPT-5.5). These results show that enterprise agent evaluation must report harness--model combinations, artifact delivery, visual quality, cost, runtime, and skill-transfer behavior, rather than collapsing performance into a single score. Code: https://github.com/FrontisAI/EnterpriseClawBench",
+        "authors": "Jincheng Zhong, Weizhi Wang, Che Jiang, Kai Tian, Zhenzhao Yuan, Junlin Yang, Dianqiao Lei, Kaiyan Zhang",
+        "categories": [
+          "cs.CL",
+          "cs.SE"
+        ],
+        "createdDate": "2026-06-22",
+        "updateDate": "2026-06-23"
+      },
+      "manager_result_status": "NOT_RUN_NOT_MANAGER_EVIDENCE"
+    },
+    {
+      "source_id": "new-sim-06",
+      "canonical_id": "arxiv:2609.04611v1",
+      "base": "2609.04611",
+      "title": "ττ-Bench: An Environment for End-To-End, Realistic Agent Construction",
+      "novelty": "NEW_BENCHMARK_WITHIN_KNOWN_TAU_FAMILY",
+      "paper_status": "arXiv preprint; no official reusable code repository verified",
+      "version_history": [
+        {
+          "version": "v1",
+          "date": "2026-09-04T01:23:47Z"
+        }
+      ],
+      "paper_license": "CC BY4.0; no code license verified",
+      "read_depth": "Canonical metadata/history; five indexed passages; exact v1 HTML §3.2 client/production API and contamination passages, §5 architecture/cheating passages, §6 quiet client API defects and limits, AppendixF construction surface and AppendixH complete nine-class defect catalog read. Not full41-page equivalent or full heldout scenario appendix.",
+      "methods": [
+        "53 tasks/four domains: construct agents from heterogeneous business records, inherited code, elicitable client facts and fixed serving model/cost constraints; then heldout simulated-user evaluation.",
+        "Versioned manifest binds API defect to operation, task/resource IDs, request ordinals and seeded delays; separately published/deployed API versions.",
+        "Nine classes: value remap, field rename, amount sign, date-type drift, async completion, post-commit timeout, rate limit, pagination, projection lag."
+      ],
+      "results": [
+        "Strongest tested construction configuration23.9% versus expert reference82.2%; reference ceiling is not100%, one build per task.",
+        "Quiet pagination not caught in analyzed runs; post-commit timeout recoveries depend on exact idempotency/status contract, not blind retry or permanent no retry.",
+        "Authors report changing own failed tests and fake mocks can hide developer failure but cannot improve heldout score."
+      ],
+      "limits": [
+        "Single LLM client/user with fixed facts; planted mutually consistent evidence; no conflicting stakeholder/undocumented requirement evaluation.",
+        "One build per task, maintenance after submission unmeasured.",
+        "Only a paper-derived fault-injection contract is reusable here. Do not claim cloned code, implementation compatibility, official API or package availability."
+      ],
+      "passages": [
+        {
+          "section": "AppendixH",
+          "quote": "Post-commit timeout",
+          "interpretation": "Mutation commits before response loss; missing response is not absent effect."
+        },
+        {
+          "section": "Limitations",
+          "quote": "per-task variance across repeated builds is not characterized",
+          "interpretation": "53-task average does not estimate build-level variance."
+        }
+      ],
+      "code_key": null,
+      "url": "https://arxiv.org/abs/2609.04611v1",
+      "exact_html_url": "https://arxiv.org/html/2609.04611v1",
+      "accessed": "2026-10-22",
+      "canonical_metadata": {
+        "paperId": "4596581031241505480",
+        "ids": {
+          "arxiv": [
+            "2609.04611"
+          ]
+        },
+        "title": "ττ-Bench: An Environment for End-To-End, Realistic Agent Construction",
+        "abstract": "LLM agents are rapidly becoming production software, deployed to handle customer service, adjudicate disputes, and operate internal systems. Notably, the work of building them is increasingly handed to coding agents, yet existing benchmarks say little about whether an AI system can deliver one under the conditions of a real client engagement. We introduce ττ-bench (pronounced hyper-tau-bench), a benchmark that makes agent construction the task. A developer agent is given the records a business actually keeps, a client who holds requirements, a production API that operations must run through, a codebase to inherit, and limits on serving cost and models: the same starting point a real engagement provides. From these it must deliver a complete customer-service agent, scored by deploying that agent against held-out simulated users. Across 53 tasks spanning four domains, the strongest configuration, Claude Opus 5 under Claude Code, passes just 23.9% of evaluation simulations. Meanwhile, an expert-authored reference ceiling scores 82.2%. The failures mirror ones human agent developers see: models issue shallow queries in place of deep comprehension of the records, communicate almost nothing to the client, and experiment too little with agent architecture and serving spend, shipping the first design that runs. We aim for ττ-bench to turn the work of cooperative agent building into a measurable target for coding agents.",
+        "authors": "Quan Shi, Keshav Dhandhania, Karthik Narasimhan, Victor Barres",
+        "categories": [
+          "cs.AI"
+        ],
+        "createdDate": "2026-09-04",
+        "updateDate": "2026-09-07"
+      },
+      "manager_result_status": "NOT_RUN_NOT_MANAGER_EVIDENCE"
+    }
+  ],
+  "code_audits": [
+    {
+      "key": "collective",
+      "repo": "hfarruda/collectivecooperationLLM",
+      "commit": "4e8c45659dc4b92932a55161b16cb73d07dd1efb",
+      "files": [
+        "README.md"
+      ],
+      "license": "No code/license beyond README verified",
+      "result": "README-only material repository; cannot claim runnable reuse",
+      "file_evidence": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/hfarruda/collectivecooperationLLM/blob/4e8c45659dc4b92932a55161b16cb73d07dd1efb/README.md",
+          "git_blob": "c20379bda93dcb704faed284dc285f151157f539",
+          "sha256": "a8357ed601fde2660df048cbf80b202cf1e18e00716207dfdce3cd713f0a4365",
+          "working_bytes_match_commit": true
+        }
+      ]
+    },
+    {
+      "key": "occu",
+      "repo": "GregxmHu/OccuBench",
+      "commit": "d47bffb524b51d69748bf6801e803de04ed40820",
+      "files": [
+        "README.md",
+        "LICENSE",
+        "occubench/lwm.py",
+        "occubench/fault_injection.py",
+        "occubench/verifier.py"
+      ],
+      "license": "Apache-2.0",
+      "result": "Standalone reimplementation, prompt-mediated faults, simulated history; reuse optional interface and taxonomy, not official-score replication",
+      "file_evidence": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/GregxmHu/OccuBench/blob/d47bffb524b51d69748bf6801e803de04ed40820/README.md",
+          "git_blob": "a027702eafbefb9a7e8a9ea6b33579126d42cebc",
+          "sha256": "18a61c7f4f6eeb0d256c26e13316e98109a2314daf717cda3014bff20b9a0447",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://github.com/GregxmHu/OccuBench/blob/d47bffb524b51d69748bf6801e803de04ed40820/LICENSE",
+          "git_blob": "bfa84cab612b0ea2076b67eec2b6774c214e5aa0",
+          "sha256": "1d291ec76f927259d8ffb69908219a2088aeedc16fd5424746caaad709d67801",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "occubench/lwm.py",
+          "url": "https://github.com/GregxmHu/OccuBench/blob/d47bffb524b51d69748bf6801e803de04ed40820/occubench/lwm.py",
+          "git_blob": "5aa5416faf9e2377e355e7db2647bf2fa24c5b39",
+          "sha256": "5be57010ba09758ab9a38c0a2e7ee2293a508fb9bdb72df0b5f80ee127593aac",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "occubench/fault_injection.py",
+          "url": "https://github.com/GregxmHu/OccuBench/blob/d47bffb524b51d69748bf6801e803de04ed40820/occubench/fault_injection.py",
+          "git_blob": "b5bf2de43b11dd56af1d898480222632defbbd37",
+          "sha256": "60527f0360b7334eb3b596611b06cb4a7af71b030357f6cc6f148e24078194cc",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "occubench/verifier.py",
+          "url": "https://github.com/GregxmHu/OccuBench/blob/d47bffb524b51d69748bf6801e803de04ed40820/occubench/verifier.py",
+          "git_blob": "1d31c9964da03ba2085d07c6e71b76d08c635b0c",
+          "sha256": "7d8a5c148976384555acfd172eed7715c4b13423112f37b107ee0cf9537fa1c8",
+          "working_bytes_match_commit": true
+        }
+      ]
+    },
+    {
+      "key": "dumate",
+      "repo": "baidubce/dumate-bench",
+      "commit": "d423d52db3c5686e04f4d59401aca6b6346b1685",
+      "files": [
+        "README.md",
+        "LICENSE",
+        "THIRD_PARTY_DATA_NOTICES.md",
+        "dumatebench/evaluator/scoring.py",
+        "dumatebench/datasets/dev/template_task/network_faults.yaml",
+        "dumatebench/datasets/dev/template_task/tool_faults.yaml"
+      ],
+      "license": "Apache-2.0 own code; third-party assets unresolved/restricted",
+      "result": "Score-formula paper/code mismatch; use synthetic original fixture contracts and explicit scorer versions",
+      "file_evidence": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/baidubce/dumate-bench/blob/d423d52db3c5686e04f4d59401aca6b6346b1685/README.md",
+          "git_blob": "2e5aa87ce0e315c49cd90932821dd21b06ff7a09",
+          "sha256": "715f9e01888d726c95eccaa39430a3c16bfd3eefa8582e3d19a2d49bc6e68664",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://github.com/baidubce/dumate-bench/blob/d423d52db3c5686e04f4d59401aca6b6346b1685/LICENSE",
+          "git_blob": "51a455049347b579055b531a44f4dc191f8b03fa",
+          "sha256": "e0fbada2dc2158054ac010de2646b8e1667db2503715d9b00783ea687ade3c8b",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "THIRD_PARTY_DATA_NOTICES.md",
+          "url": "https://github.com/baidubce/dumate-bench/blob/d423d52db3c5686e04f4d59401aca6b6346b1685/THIRD_PARTY_DATA_NOTICES.md",
+          "git_blob": "ecaea23aeda6b40a2f299302b24269cad022d394",
+          "sha256": "7c3659240f86ef01c24976ba5f7956f54bfbb9d042b9403abefd73439b3cc7a3",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "dumatebench/evaluator/scoring.py",
+          "url": "https://github.com/baidubce/dumate-bench/blob/d423d52db3c5686e04f4d59401aca6b6346b1685/dumatebench/evaluator/scoring.py",
+          "git_blob": "4d9d36f8dfe215931307a3bde69bfcc80bddac58",
+          "sha256": "401e1138b5d058f6d8af840f70e8bd8bdc4a85c04885f46f78c8436cbe27ad66",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "dumatebench/datasets/dev/template_task/network_faults.yaml",
+          "url": "https://github.com/baidubce/dumate-bench/blob/d423d52db3c5686e04f4d59401aca6b6346b1685/dumatebench/datasets/dev/template_task/network_faults.yaml",
+          "git_blob": "a66a79bf06b96d26df05ce0336bc075659bc675c",
+          "sha256": "c31b7e2f8e193096eb7cd690d82b5c85b0495600529d74e7dbdec3913b15c468",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "dumatebench/datasets/dev/template_task/tool_faults.yaml",
+          "url": "https://github.com/baidubce/dumate-bench/blob/d423d52db3c5686e04f4d59401aca6b6346b1685/dumatebench/datasets/dev/template_task/tool_faults.yaml",
+          "git_blob": "a80537d5f9506ab246ada5c58ef594a8d0c815ea",
+          "sha256": "c86beefb52db5f76fe51652d5760fff3a50b910f112b93c2f31fb29b236760da",
+          "working_bytes_match_commit": true
+        }
+      ]
+    },
+    {
+      "key": "agentsociety",
+      "repo": "tsinghua-fib-lab/AgentSociety",
+      "commit": "0ca73abca877b43eefb01f7d3cdf588461489861",
+      "package_version": "2.9.3",
+      "requires_python": ">=3.11,<3.14",
+      "files": [
+        "packages/agentsociety2/LICENSE",
+        "packages/agentsociety2/pyproject.toml",
+        "packages/agentsociety2/agentsociety2/env/base.py",
+        "packages/agentsociety2/agentsociety2/skills/experiment/models.py"
+      ],
+      "license": "Apache-2.0 code",
+      "result": "EnvBase read/write/observe/statistics tools and finally-recorded exception/call trace reusable in optional sandbox; no empirical authority",
+      "checkout_note": "Three unrelated tracked files showed CRLF normalization after clone; inspected files matched exact HEAD bytes; no source edits performed.",
+      "file_evidence": [
+        {
+          "path": "packages/agentsociety2/LICENSE",
+          "url": "https://github.com/tsinghua-fib-lab/AgentSociety/blob/0ca73abca877b43eefb01f7d3cdf588461489861/packages/agentsociety2/LICENSE",
+          "git_blob": "92320630901b7774431ff3575dc5bea218e6401d",
+          "sha256": "b65b784ed7e4318dc1c3e8944046d867edcc272c7f237ea99dcf0c0ce3a1e75d",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "packages/agentsociety2/pyproject.toml",
+          "url": "https://github.com/tsinghua-fib-lab/AgentSociety/blob/0ca73abca877b43eefb01f7d3cdf588461489861/packages/agentsociety2/pyproject.toml",
+          "git_blob": "cb283add90f40cebe99308989117c5e35f407dcb",
+          "sha256": "2a5828cf39c6991a5576ed9313078c76ddc3d9e1c74b27ba10d359e5b45ac4d5",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "packages/agentsociety2/agentsociety2/env/base.py",
+          "url": "https://github.com/tsinghua-fib-lab/AgentSociety/blob/0ca73abca877b43eefb01f7d3cdf588461489861/packages/agentsociety2/agentsociety2/env/base.py",
+          "git_blob": "ec2edc527a949aad3f9c8646c1be95b1ab0056f8",
+          "sha256": "be08b84935513f93c74eb5f8faf3ca1a5d493bb16f9424fe95b39c6d550fd1b3",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "packages/agentsociety2/agentsociety2/skills/experiment/models.py",
+          "url": "https://github.com/tsinghua-fib-lab/AgentSociety/blob/0ca73abca877b43eefb01f7d3cdf588461489861/packages/agentsociety2/agentsociety2/skills/experiment/models.py",
+          "git_blob": "8f0c98a38e28fca1f83a98b8b446ac1e022836df",
+          "sha256": "e71b6621522c18a6c56e047078d8ff229e69d54100aa2121d61f83bfa9c6a9af",
+          "working_bytes_match_commit": true
+        }
+      ]
+    },
+    {
+      "key": "enterprise",
+      "repo": "FrontisAI/EnterpriseClawBench",
+      "commit": "68507699d1a61700f4281f1f34dcadb20f2de06d",
+      "files": [
+        "README.md",
+        "docs/evaluation_protocol.md",
+        "evaluation/enterprise_clawbench_evaluation/report.py",
+        "evaluation/enterprise_clawbench_evaluation/rules.py",
+        "evaluation/enterprise_clawbench_evaluation/run_protocol.py",
+        "evaluation/tests/test_evaluation_contract.py"
+      ],
+      "license": "No LICENSE/COPYING/NOTICE file in pinned tree; code reuse rights unverified",
+      "result": "Method-only reuse: explicit artifact route, missing visual score, all-case denominator; do not copy unsupported-rule PASS behavior",
+      "file_evidence": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/FrontisAI/EnterpriseClawBench/blob/68507699d1a61700f4281f1f34dcadb20f2de06d/README.md",
+          "git_blob": "bfeb63b64d4cb57eb5ebb870279ce44c65e5b33b",
+          "sha256": "c7381ec391c5df934a95ae12b16a6f47be29f520ae1bef77fcf33eecd9c4f13a",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "docs/evaluation_protocol.md",
+          "url": "https://github.com/FrontisAI/EnterpriseClawBench/blob/68507699d1a61700f4281f1f34dcadb20f2de06d/docs/evaluation_protocol.md",
+          "git_blob": "055713c24d2db48a1dd765dc8488f67c5e055602",
+          "sha256": "ce9cb6cf95aa7c0db381079051d84bc45f4cb6f7256698267fb4fab47d9ff21d",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "evaluation/enterprise_clawbench_evaluation/report.py",
+          "url": "https://github.com/FrontisAI/EnterpriseClawBench/blob/68507699d1a61700f4281f1f34dcadb20f2de06d/evaluation/enterprise_clawbench_evaluation/report.py",
+          "git_blob": "145402cadb6872345df53371fe045de99e824b8d",
+          "sha256": "b0072d68a2758b4f776ada45aa6fece7a46bef6ab160ccfa8079b35e0c8d8481",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "evaluation/enterprise_clawbench_evaluation/rules.py",
+          "url": "https://github.com/FrontisAI/EnterpriseClawBench/blob/68507699d1a61700f4281f1f34dcadb20f2de06d/evaluation/enterprise_clawbench_evaluation/rules.py",
+          "git_blob": "222ca6e6ef532fee2532ac75fb5eac2d3d58f72d",
+          "sha256": "3822bbe19b0b7c42cf28136d781787ea6a4f18a5ed75766753d07f072bdc97a5",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "evaluation/enterprise_clawbench_evaluation/run_protocol.py",
+          "url": "https://github.com/FrontisAI/EnterpriseClawBench/blob/68507699d1a61700f4281f1f34dcadb20f2de06d/evaluation/enterprise_clawbench_evaluation/run_protocol.py",
+          "git_blob": "8217617cef0746e8aff170edb178baee3b7209fe",
+          "sha256": "4776d9431ca46b28745e595136d16bbbeb6ac7150e4bf17de0c2510ed59e95d0",
+          "working_bytes_match_commit": true
+        },
+        {
+          "path": "evaluation/tests/test_evaluation_contract.py",
+          "url": "https://github.com/FrontisAI/EnterpriseClawBench/blob/68507699d1a61700f4281f1f34dcadb20f2de06d/evaluation/tests/test_evaluation_contract.py",
+          "git_blob": "b3217a079f1c18d8febc7811c91bc7cfdc6c4e0f",
+          "sha256": "59c3f4d6f2161ea64e83009a5c2da3c0c844d1865fff211dff53b6708703f6ae",
+          "working_bytes_match_commit": true
+        }
+      ]
+    }
+  ],
+  "manager_reuse": {
+    "current_contracts": [
+      "manager_core/eba_benchmark.py:36 validate_suite",
+      "manager_core/eba_benchmark.py:93 score_suite",
+      "manager_core/eba_benchmark.py:172 promotion_verdict",
+      "manager_core/collaboration_comparison.py:33 load_suite",
+      "manager_core/collaboration_comparison.py:90 evaluate_suite",
+      "manager_core/collaboration_evaluation.py:66 ScoreVector",
+      "manager_core/error_calibration.py:24 PredictionCase",
+      "manager_core/error_calibration.py:88 fit_error_calibrator",
+      "scripts/phase_calibration_reference.py:25 run_reference",
+      "manager_core/public_observer.py",
+      "manager_core/world_state.py",
+      "manager_core/owned_cycle.py:152 run_owned_cycle"
+    ],
+    "exact_patch_proposals": [
+      {
+        "id": "S01",
+        "action": "New optional host-side environment contract and instrument-integrity sidecar; keep existing score/runner authoritative",
+        "paths": [
+          "manager_core/environment_reliability.py (new)",
+          "tests/test_environment_reliability.py (new)",
+          "tests/test_public_observer.py",
+          "tests/test_owned_effect_recovery.py",
+          "tests/test_digital_cycle_acceptance.py"
+        ],
+        "contract": [
+          "manifest_sha256",
+          "published_api_version",
+          "deployed_api_version",
+          "seed",
+          "fault_class",
+          "operation",
+          "resource_id",
+          "request_ordinal",
+          "activation_receipt",
+          "expected_state_sha256",
+          "observed_state_sha256",
+          "instrument_status"
+        ],
+        "fixtures": [
+          "HTTP200 missing required URL, truncated candidate list, stale timestamp",
+          "schema field rename/date type drift/pagination cursor",
+          "write commits then504; status read delayed; async202 requires polling",
+          "unknown field/undeclared state/rule invention invalidates instrument"
+        ],
+        "acceptance": "Environment contract failures are INSTRUMENT_INVALID/UNKNOWN separate from agent failure; never reissue ambiguous write absent exact occurrence idempotency+readback contract. Reuse original SyntheticFixture and host callbacks; no external effects."
+      },
+      {
+        "id": "S02",
+        "action": "Separate macro/micro/conditional simulation validation report; do not widen existing binary aggregate calibrator into human validation",
+        "paths": [
+          "manager_core/simulation_validation.py (new optional research module)",
+          "tests/test_simulation_validation.py (new)",
+          "manager_core/error_calibration.py (preserve scope fence)",
+          "tests/test_calibrated_abstention.py"
+        ],
+        "contract": [
+          "reference_hash",
+          "reference_population",
+          "protocol_hash",
+          "network_id",
+          "agent_id",
+          "round",
+          "previous_action",
+          "neighbor_cooperation_bin",
+          "outcome",
+          "metric_level",
+          "heldout_group_ids",
+          "claim_scope"
+        ],
+        "fixtures": [
+          "Two populations identical .5 aggregate cooperation each round, one with always-cooperate/always-defect individuals, other switching every round: macro error0, individual-propensity W1>0",
+          "Same aggregate and propensity distribution with permuted condition-response mapping: conditional disagreement>0",
+          "No authentic human reference→REFERENCE_DATA_REQUIRED; macro/micro scores never change proof P0 or causal welfare flag"
+        ],
+        "acceptance": "Report trajectory, individual distribution and conditional rule separately; use graph/study/run-group splits and null baselines; no universal human-accuracy scalar."
+      },
+      {
+        "id": "S03",
+        "action": "External scorer manifest to stop paper/code drift before comparison",
+        "paths": [
+          "docs/research/evals/UPSTREAM_CODE_AUDIT_20261022.md",
+          "docs/research/evals/EVAL_LANDSCAPE_20261022.json",
+          "tests/test_eba_landscape_sources.py",
+          "evaluation/external-scorers/schema.json (new)"
+        ],
+        "contract": [
+          "paper_version",
+          "repo_commit",
+          "source_blob_sha",
+          "formula_id",
+          "formula_components",
+          "missingness_policy",
+          "known_mismatch",
+          "reproduces_published_score"
+        ],
+        "fixtures": [
+          "DuMate paper30/70 versus pinned code30/30/40 yields KNOWN_SCORER_MISMATCH and no head-to-head published-score claim",
+          "Unsupported external rule kind→UNSUPPORTED_INSTRUMENT, not PASS",
+          "Absent visual score→null with coverage and error denominator"
+        ],
+        "acceptance": "Keep Manager vector metrics/UNKNOWN; do not adopt upstream weighted scalar as welfare or weaken existing frozen collaboration-v2 manifest."
+      },
+      {
+        "id": "S04",
+        "action": "Artifact judge readback sidecar plus content-rights export manifest",
+        "paths": [
+          "manager_core/artifact_evaluation.py (new optional)",
+          "tests/test_artifact_evaluation.py (new)",
+          "docs/research/evals/UPSTREAM_CODE_AUDIT_20261022.md"
+        ],
+        "contract": [
+          "artifact_sha256",
+          "expected_artifact_type",
+          "renderer_version",
+          "render_receipt",
+          "judge_model",
+          "judge_prompt_hash",
+          "rubric_hash",
+          "text_score",
+          "visual_score",
+          "cannot_assess_reason",
+          "scheduled_n",
+          "valid_n",
+          "missing_n",
+          "rights_basis",
+          "export_allowed"
+        ],
+        "fixtures": [
+          "Valid source bytes but render failed→no visual quality score",
+          "Missing required artifact→artifact_missing while judge unavailable remains separate instrument error",
+          "High LLM–LLM agreement with known human disagreement retained as counterexample",
+          "DuMate restricted source asset→export blocked; original synthetic replacement allowed"
+        ],
+        "acceptance": "Technical publish/readback, visible usability, semantic artifact quality and beneficiary outcome remain separate. Human-reference calibration stays a future authorized activity."
+      }
+    ]
+  },
+  "verification": {
+    "downloaded_code_executed": false,
+    "inference_run": false,
+    "repo_edited": false,
+    "tests_run": "None: read-only research; metadata/path/hash verification only.",
+    "checks": [
+      "canonical origin/head verified",
+      "selected code working bytes match immutable HEAD",
+      "pinned source/path/blob inspection",
+      "recursive novelty rg",
+      "full source license/rights caveats retained",
+      "JSON parsed after write",
+      "All retained short quotations verified against retrieved exact HTML or indexed passages after whitespace normalization"
+    ],
+    "remaining": [
+      "No implementation or upstream benchmark reproduction",
+      "No official ττ code source verified",
+      "Enterprise code reuse license unresolved",
+      "Collective executable code/data unavailable",
+      "DuMate current code/paper score mismatch unresolved"
+    ]
+  }
+}

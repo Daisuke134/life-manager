@@ -1,0 +1,665 @@
+{
+  "schema_version": 1,
+  "report_id": "new-durable-research-20261022",
+  "retrieved_at_utc": "2026-10-22T13:56:28.843190+00:00",
+  "scope": {
+    "repository": "https://github.com/Daisuke134/life-manager",
+    "checkout": "Local research workspace only; use immutable source URL/hash for reproduction.",
+    "manager_commit": "ae06f4ccfa30b29e427f71d6413eba0858a34cf8",
+    "mode": "read-only research; proposals only; no install, execution of third-party code, infrastructure, deployments or sends",
+    "skills_read": [
+      "c2/firecrawl-deep-research"
+    ]
+  },
+  "novelty": {
+    "query": "rg -n -i 'DBOS|Restate|Inngest|Hatchet|Windmill|Kestra' products/manager/docs/research products/manager/research/imozuru",
+    "result": "no matches at research start",
+    "meaning": "new relative to inspected Manager local research corpus; not a claim of never previously considered anywhere",
+    "excluded_as_already_studied": [
+      "LangGraph",
+      "Temporal",
+      "Letta",
+      "OpenHands",
+      "Railway",
+      "Simile",
+      "Aaru",
+      "Radiant",
+      "Inspect"
+    ]
+  },
+  "sources": [
+    {
+      "id": "D0",
+      "url": "https://docs.dbos.dev/python/tutorials/step-tutorial",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Steps | DBOS Docs",
+      "scrape_id": "01a163de-fcf6-7408-a833-abc85944b539",
+      "quote": "If you call a step from outside a workflow, it runs as an ordinary function, without checkpoints, retries, or timeouts.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "D1",
+      "url": "https://docs.dbos.dev/python/tutorials/workflow-tutorial",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Workflows | DBOS Docs",
+      "scrape_id": "01a163de-fd11-7457-ab86-b7557b6c6fc6",
+      "quote": "An assigned workflow ID acts as an idempotency key: if a workflow is called multiple times with the same ID, it executes only once.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "D2",
+      "url": "https://docs.restate.dev/develop/python/durable-steps",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Durable Steps - Restate",
+      "scrape_id": "01a163de-fd48-769a-b11e-efb8db3232f4",
+      "quote": "If Restate doesn’t receive new journal entries from a service for more than one minute (by default), it will automatically suspend the invocation and retry it.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "D3",
+      "url": "https://www.inngest.com/docs/durable-execution/best-practices",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Best practices | Durable Execution - Inngest Docs",
+      "scrape_id": "01a163de-fcaa-76fd-9cd4-32080d1c9f13",
+      "quote": "A request can succeed and then fail before Inngest records the step's result. The retry sends that request again.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "D4",
+      "url": "https://www.inngest.com/docs/durable-execution/durable-workflows",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Durable Workflows | How Inngest Functions Run - Inngest Docs",
+      "scrape_id": "01a163de-fc8a-74db-82d1-6fca45a490cb",
+      "quote": "Python doesn't support checkpointing, so it uses standard orchestration for every step.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "D5",
+      "url": "https://docs.hatchet.run/v1/durable-tasks",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Durable Tasks - Hatchet Documentation",
+      "scrape_id": "01a163de-fcdc-72db-af5c-76b08eb52353",
+      "quote": "Push side effects into child tasks",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "M0",
+      "url": "https://docs.dbos.dev/python/tutorials/database-connection",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "DBOS Database Connections | DBOS Docs",
+      "scrape_id": "01a163e0-73af-7758-bc7f-378b45e5712b",
+      "quote": "However, because a SQLite database is just a file on disk, it can't be used in a distributed setting where an application runs on multiple servers.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "M1",
+      "url": "https://docs.hatchet.run/v1/architecture-and-guarantees",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Architecture & Guarantees - Hatchet Documentation",
+      "scrape_id": "01a163e0-72d5-75a9-86d3-c82331ed0082",
+      "quote": "Hatchet is **at least once**: tasks are not silently dropped, and failures retry according to your configuration.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "M2",
+      "url": "https://docs.restate.dev/services/configuration",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Service Configuration - Restate",
+      "scrape_id": "01a163e0-72ae-76c9-86a7-435cd2a5d526",
+      "quote": "It does **not** introduce cross-request deduplication: only retries of the same in-flight request are collapsed.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "M3",
+      "url": "https://docs.restate.dev/develop/python/service-communication",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Service Communication - Restate",
+      "scrape_id": "01a163e0-731f-729c-9516-fb8ed3fe3cf9",
+      "quote": "Restate automatically deduplicates calls made during the same handler execution, so there’s no need to provide an idempotency key in that case.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "M4",
+      "url": "https://www.inngest.com/docs/durable-execution/guides-and-advanced/idempotency",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Idempotency | Prevent Duplicate Runs - Inngest Docs",
+      "scrape_id": "01a163e0-750e-7760-8315-bbd61cce667a",
+      "quote": "Event IDs will only be used to prevent duplicate execution for a 24 hour period.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "S0",
+      "url": "https://www.inngest.com/docs/self-hosting",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Self-Hosting Inngest | Configuration & Setup - Inngest Docs",
+      "scrape_id": "01a163e1-fe1d-724c-9928-2b5f2d264c7a",
+      "quote": "Queue and state store snapshots are periodically saved to the SQLite database, including prior to shutdown.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "S1",
+      "url": "https://www.windmill.dev/docs/core_concepts/workflows_as_code",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Workflows as code | Windmill",
+      "scrape_id": "01a163e1-fe2e-757c-ac41-7c47b544cf0b",
+      "quote": "If a replay's checkpoint was written by a different version of the script, Windmill refuses to resume it and fails the job with an error asking you to restart it, rather than replaying against step keys that may have shifted.",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    },
+    {
+      "id": "S2",
+      "url": "https://kestra.io/docs/workflow-components/retries",
+      "retrieved_at": "2026-10-22",
+      "retrieval_method": "Firecrawl scrape, maxAge=0",
+      "status": 200,
+      "title": "Task Retries in Kestra – Handle Transient Failures | Kestra",
+      "scrape_id": "01a163e1-fdef-763d-b097-a2b582722151",
+      "quote": "Each retry creates a new [task run]",
+      "quote_exact_in_retrieved_body": true,
+      "publication_or_release_date": null,
+      "claims_are": "official vendor documentation; source behavior separately inspected; not a runtime verification"
+    }
+  ],
+  "code_audits": {
+    "dbos": {
+      "repo": "dbos-inc/dbos-transact-py",
+      "commit": "e63ee714e031287c9b3447a173be835d6eaf1f95",
+      "commit_date": "2026-10-20",
+      "files": [
+        {
+          "path": "pyproject.toml",
+          "sha256": "a4190461262bc585bcac19bc46c1dc2e20bd4ccca08818cedc71556bef4b8f0b",
+          "url": "https://github.com/dbos-inc/dbos-transact-py/blob/e63ee714e031287c9b3447a173be835d6eaf1f95/pyproject.toml"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "546662b7f6b9fa4770f564fa7d8e63c40595c0643380b1723d6adc55552154d5",
+          "url": "https://github.com/dbos-inc/dbos-transact-py/blob/e63ee714e031287c9b3447a173be835d6eaf1f95/LICENSE"
+        },
+        {
+          "path": "dbos/_core.py",
+          "sha256": "d8eef606a61220ff2f6d7916ad1f8c93ee620277f9033644356d716aafb9574d",
+          "url": "https://github.com/dbos-inc/dbos-transact-py/blob/e63ee714e031287c9b3447a173be835d6eaf1f95/dbos/_core.py"
+        },
+        {
+          "path": "dbos/_sys_db.py",
+          "sha256": "b21396fafc4362255c05f7378f5a1067312ae18f6ec63011548d8c949ae4cb78",
+          "url": "https://github.com/dbos-inc/dbos-transact-py/blob/e63ee714e031287c9b3447a173be835d6eaf1f95/dbos/_sys_db.py"
+        },
+        {
+          "path": "dbos/_sys_db_sqlite.py",
+          "sha256": "58e0cbbdaf7da6a061b9306f2586b5a6f3d61471aecd528b36152e6a26c820e8",
+          "url": "https://github.com/dbos-inc/dbos-transact-py/blob/e63ee714e031287c9b3447a173be835d6eaf1f95/dbos/_sys_db_sqlite.py"
+        }
+      ]
+    },
+    "restate": {
+      "repo": "restatedev/sdk-python",
+      "commit": "37953b6f6fe50554aaea98b9d72f34e4da4d6256",
+      "commit_date": "2026-10-21",
+      "files": [
+        {
+          "path": "pyproject.toml",
+          "sha256": "d26b563846c11a0c43cc196701c95322ec41f6b56aa48692a9abcf0b226ebb31",
+          "url": "https://github.com/restatedev/sdk-python/blob/37953b6f6fe50554aaea98b9d72f34e4da4d6256/pyproject.toml"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "472a896c2882badfadf430c5ba931640de3ea1318b42adae1eca114cf33bbfc0",
+          "url": "https://github.com/restatedev/sdk-python/blob/37953b6f6fe50554aaea98b9d72f34e4da4d6256/LICENSE"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "81b923e340b6879c994a3a213f9a366f3fa696c4defc17bf74e14687d497a019",
+          "url": "https://github.com/restatedev/sdk-python/blob/37953b6f6fe50554aaea98b9d72f34e4da4d6256/Cargo.toml"
+        },
+        {
+          "path": "python/restate/server_context.py",
+          "sha256": "c75abd36f006f3023de0abcb979984aa9801fbca3f32e7e7ddfd13f3aaf5d380",
+          "url": "https://github.com/restatedev/sdk-python/blob/37953b6f6fe50554aaea98b9d72f34e4da4d6256/python/restate/server_context.py"
+        },
+        {
+          "path": "python/restate/context.py",
+          "sha256": "bc63c7636a09306b0628f0179ade9e0316a910df3ce6ada425e7ca8bce79bb89",
+          "url": "https://github.com/restatedev/sdk-python/blob/37953b6f6fe50554aaea98b9d72f34e4da4d6256/python/restate/context.py"
+        },
+        {
+          "path": "python/restate/vm.py",
+          "sha256": "b7bd80c4a6c23fa1227854e07f8016c2df00598f3934d1e5abe2eaab2e8229e3",
+          "url": "https://github.com/restatedev/sdk-python/blob/37953b6f6fe50554aaea98b9d72f34e4da4d6256/python/restate/vm.py"
+        }
+      ]
+    },
+    "inngest": {
+      "repo": "inngest/inngest-py",
+      "commit": "0c53b506108a12ebf0a83044a2db8641f128ba14",
+      "commit_date": "2026-10-14",
+      "files": [
+        {
+          "path": "pkg/inngest/pyproject.toml",
+          "sha256": "6116321b3892637b01591cd67f9ecbb6852e966dc9b12b6440696b0f818b3689",
+          "url": "https://github.com/inngest/inngest-py/blob/0c53b506108a12ebf0a83044a2db8641f128ba14/pkg/inngest/pyproject.toml"
+        },
+        {
+          "path": "LICENSE.md",
+          "sha256": "50c9c17c2354cfa82569923cefddd8909c58f27c1bae7ce48693d6482b5fc2a5",
+          "url": "https://github.com/inngest/inngest-py/blob/0c53b506108a12ebf0a83044a2db8641f128ba14/LICENSE.md"
+        },
+        {
+          "path": "pkg/inngest/inngest/_internal/step_lib/step_sync.py",
+          "sha256": "5a60fa81cb946ebff3048d1cb7cee87834b4dbcd508d3c7fbe3a3076acb08d5d",
+          "url": "https://github.com/inngest/inngest-py/blob/0c53b506108a12ebf0a83044a2db8641f128ba14/pkg/inngest/inngest/_internal/step_lib/step_sync.py"
+        },
+        {
+          "path": "pkg/inngest/inngest/_internal/step_lib/base.py",
+          "sha256": "d92c2fd9056c9c0d05204e470172563fb69ea3721ad77bd4b578bbb0ee68b925",
+          "url": "https://github.com/inngest/inngest-py/blob/0c53b506108a12ebf0a83044a2db8641f128ba14/pkg/inngest/inngest/_internal/step_lib/base.py"
+        }
+      ]
+    },
+    "hatchet": {
+      "repo": "hatchet-dev/hatchet",
+      "commit": "2c2f73ff8c8bce320740cfc13e1d83bbe4cab5e6",
+      "commit_date": "2026-10-22",
+      "files": [
+        {
+          "path": "sdks/python/pyproject.toml",
+          "sha256": "1629502dc49ed17e53efe8a58c3e561f0fc8d42c19da39c0ac4b796ee0868f8e",
+          "url": "https://github.com/hatchet-dev/hatchet/blob/2c2f73ff8c8bce320740cfc13e1d83bbe4cab5e6/sdks/python/pyproject.toml"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "7388b34bd1ad4b9db3c72dcb73f434ea27c88e5ca8f02a24d4f970c906d79be3",
+          "url": "https://github.com/hatchet-dev/hatchet/blob/2c2f73ff8c8bce320740cfc13e1d83bbe4cab5e6/LICENSE"
+        },
+        {
+          "path": "sdks/python/hatchet_sdk/context/context.py",
+          "sha256": "08a5921e9805fcf8b707e3e868529ef0f686173fdc40f442030e87bff0604c20",
+          "url": "https://github.com/hatchet-dev/hatchet/blob/2c2f73ff8c8bce320740cfc13e1d83bbe4cab5e6/sdks/python/hatchet_sdk/context/context.py"
+        },
+        {
+          "path": "pkg/repository/sqlcv1/durable_event_log.sql",
+          "sha256": "3212138b40067f13ca3fe8dfbd485c9a74eaf475045f5c346137346261413fd8",
+          "url": "https://github.com/hatchet-dev/hatchet/blob/2c2f73ff8c8bce320740cfc13e1d83bbe4cab5e6/pkg/repository/sqlcv1/durable_event_log.sql"
+        },
+        {
+          "path": "pkg/repository/durable_events.go",
+          "sha256": "41e4e3d0a9aa8b914a6f0900c90279f7c71399f028ae36b4ab3ad5478769cd63",
+          "url": "https://github.com/hatchet-dev/hatchet/blob/2c2f73ff8c8bce320740cfc13e1d83bbe4cab5e6/pkg/repository/durable_events.go"
+        }
+      ]
+    }
+  },
+  "candidates": [
+    {
+      "id": "dbos",
+      "depth": "deep official docs + immutable actual source",
+      "official_url": "https://docs.dbos.dev/python",
+      "sdk_license": "MIT",
+      "server_license": "no separate DBOS server required for local library; Postgres separately licensed if selected",
+      "python": ">=3.10; matches Manager >=3.11 on metadata only",
+      "source_version": "SCM dynamic version at e63ee714e031287c9b3447a173be835d6eaf1f95; do not infer it equals release 3.3.0",
+      "latest_release_observed": {
+        "tag": "3.3.0",
+        "published_at": "2026-10-15T17:25:47Z",
+        "url": "https://github.com/dbos-inc/dbos-transact-py/releases/tag/3.3.0"
+      },
+      "lifecycle": {
+        "archived": false,
+        "disabled": false,
+        "commit_date": "2026-10-20"
+      },
+      "code_semantics": [
+        {
+          "path": "dbos/_core.py",
+          "lines": "2215-2388",
+          "symbol": "invoke_step",
+          "verified": "check_existing_result replays persisted result; func executes before record_operation_result; retries_allowed controls exception retry, not crash recovery atomicity"
+        },
+        {
+          "path": "dbos/_sys_db.py",
+          "lines": "2777-2881",
+          "symbol": "_record_operation_result_txn / record_operation_result",
+          "verified": "workflow_uuid+function_id key, owner token check and transaction persist result separately from external function execution"
+        },
+        {
+          "path": "dbos/_sys_db_sqlite.py",
+          "lines": "20-50",
+          "symbol": "SQLiteSystemDatabase._create_engine",
+          "verified": "SQLAlchemy SQLite engine; IMMEDIATE isolation; busy_timeout=30000; foreign_keys ON"
+        }
+      ],
+      "reuse_direct": "Use upstream DBOS workflow/step/sleep/queue APIs as optional MIT library with pinned source and required notice; do not copy private _core implementation.",
+      "reuse_contract": "Named serializable step results and restart failure matrix can inform current kernel without dependency.",
+      "limits": [
+        "SQLite is file-local; official production recommendation is Postgres.",
+        "No remote-effect exactly-once: crash after remote call before result persistence reruns code.",
+        "The existing journal must remain authoritative; retries_allowed=False alone does not prevent recovery reexecution.",
+        "SDK runtime, serializers, application-version replay compatibility, footprint and integrations were not executed or benchmarked."
+      ],
+      "lifecycle_metadata_url": "https://api.github.com/repos/dbos-inc/dbos-transact-py",
+      "release_metadata_url": "https://api.github.com/repos/dbos-inc/dbos-transact-py/releases/latest"
+    },
+    {
+      "id": "restate",
+      "depth": "deep official docs + immutable Python SDK actual source; fixed server license only",
+      "official_url": "https://docs.restate.dev/develop/python/durable-steps",
+      "sdk_license": "MIT",
+      "server_license": "Business Source License 1.1 at server 20efb1b83a39b8227451e531c366e067588ae9ee; four-year Apache-2.0 conversion; Additional Use Grant allows own production workflows, excludes Public Restate Platform Service",
+      "server_license_url": "https://github.com/restatedev/restate/blob/20efb1b83a39b8227451e531c366e067588ae9ee/LICENSE",
+      "python": ">=3.10, CPython/Rust extension",
+      "source_version": "1.1.0 in Cargo.toml",
+      "latest_release_observed": {
+        "tag": "v1.1.0",
+        "published_at": "2026-10-21T07:32:54Z",
+        "url": "https://github.com/restatedev/sdk-python/releases/tag/v1.1.0"
+      },
+      "server_release_observed": {
+        "tag": "v1.8.1",
+        "published_at": "2026-10-21T12:31:17Z"
+      },
+      "lifecycle": {
+        "archived": false,
+        "disabled": false,
+        "commit_date": "2026-10-21"
+      },
+      "code_semantics": [
+        {
+          "path": "python/restate/server_context.py",
+          "lines": "850-916",
+          "symbol": "create_run_coroutine",
+          "verified": "action completes, then serde, then propose_run_completion_success; TerminalError proposes failure, ordinary Exception proposes transient failure with retry configuration"
+        },
+        {
+          "path": "python/restate/server_context.py",
+          "lines": "920-999",
+          "symbol": "run / run_typed",
+          "verified": "vm.sys_run, skip action scheduling when run.replayed, otherwise schedule run closure"
+        },
+        {
+          "path": "python/restate/vm.py",
+          "lines": "484-488",
+          "symbol": "propose_run_completion_success",
+          "verified": "passes result to Rust shared-core VM, not an atomic transaction with external service"
+        }
+      ],
+      "reuse_direct": "MIT SDK ctx.run_typed/RunOptions plus separately operated Restate server if durable backend service orchestration becomes required.",
+      "reuse_contract": "Separate terminal vs transient read errors, bounded retries, explicit idempotency retention.",
+      "limits": [
+        "Server operations and BSL use terms remain separate from MIT SDK.",
+        "Default idempotency retention 24h; default ingress random key only collapses same in-flight request, not unrelated duplicate calls.",
+        "Action-before-record crash gap remains; a virtual-object or workflow key does not prove GitHub occurrence.",
+        "No server code semantics or deployment topology tested."
+      ],
+      "lifecycle_metadata_url": "https://api.github.com/repos/restatedev/sdk-python",
+      "release_metadata_url": "https://api.github.com/repos/restatedev/sdk-python/releases/latest"
+    },
+    {
+      "id": "inngest",
+      "depth": "deep official docs + immutable Python SDK actual source; fixed server license only",
+      "official_url": "https://www.inngest.com/docs/durable-execution/durable-workflows",
+      "sdk_license": "Apache-2.0",
+      "server_license": "SSPL-1.0 plus future Apache-2.0 grant effective third anniversary of availability at server 83a17957a7808fa797cefc85a3aea01a40f76e38",
+      "server_license_url": "https://github.com/inngest/inngest/blob/83a17957a7808fa797cefc85a3aea01a40f76e38/LICENSE.md",
+      "python": ">=3.10",
+      "source_version": "0.5.19 at pkg/inngest/pyproject.toml, not root workspace 0.0.0",
+      "latest_release_observed": {
+        "tag": "inngest@0.5.19",
+        "published_at": "2026-06-23T19:45:18Z",
+        "url": "https://github.com/inngest/inngest-py/releases/tag/inngest%400.5.19"
+      },
+      "server_release_observed": {
+        "tag": "v1.47.0",
+        "published_at": "2026-10-21T19:41:13Z"
+      },
+      "lifecycle": {
+        "archived": false,
+        "disabled": false,
+        "commit_date": "2026-10-14"
+      },
+      "code_semantics": [
+        {
+          "path": "pkg/inngest/inngest/_internal/step_lib/step_sync.py",
+          "lines": "194-252",
+          "symbol": "StepSync._run",
+          "verified": "replay saved step.output without handler; otherwise execute handler, serialize, raise ResponseInterrupt(StepResponse); durable result stored by orchestration service after response"
+        },
+        {
+          "path": "pkg/inngest/inngest/_internal/step_lib/base.py",
+          "lines": "112-159",
+          "symbol": "_parse_step_id / StepIDCounter",
+          "verified": "step id plus deterministic reuse counter hashed to state key"
+        }
+      ],
+      "reuse_direct": "Apache Python SDK step.run, sleep and event waits through separately run service/hosted platform, if event ingress and managed orchestration become core need.",
+      "reuse_contract": "Stable per-occurrence external idempotency keys; preserve step IDs/order through version changes.",
+      "limits": [
+        "Python supports standard step-per-request orchestration, not the newer TypeScript v4 same-handler checkpointing mode; this is not absence of durable step results.",
+        "Event ID/function idempotency only 24h; documented exclusions for batching/debounce/paused functions.",
+        "Official docs explicitly warn remote request can succeed before result recording, so retry repeats it.",
+        "Self-host defaults to SQLite persistence plus in-memory Redis queue/run state with periodic snapshots, not SQLite transactional durability for every in-flight state change.",
+        "SSPL server scope separate from permissive SDK."
+      ],
+      "lifecycle_metadata_url": "https://api.github.com/repos/inngest/inngest-py",
+      "release_metadata_url": "https://api.github.com/repos/inngest/inngest-py/releases/latest"
+    },
+    {
+      "id": "hatchet",
+      "depth": "deep official docs + immutable monorepo Python SDK and selected engine SQL actual source",
+      "official_url": "https://docs.hatchet.run/v1/durable-tasks",
+      "sdk_license": "MIT",
+      "server_license": "MIT at audited root; this is not audit of separately commercial cloud contracts",
+      "python": ">=3.10,<4",
+      "source_version": "Python SDK 1.42.1 at sdks/python/pyproject.toml",
+      "latest_release_observed": {
+        "tag": "v0.110.5",
+        "published_at": "2026-10-06T07:44:23Z",
+        "url": "https://github.com/hatchet-dev/hatchet/releases/tag/v0.110.5",
+        "caution": "Repository latest release metadata, not verified engine/SDK version pairing"
+      },
+      "lifecycle": {
+        "archived": false,
+        "disabled": false,
+        "commit_date": "2026-10-22"
+      },
+      "code_semantics": [
+        {
+          "path": "sdks/python/hatchet_sdk/context/context.py",
+          "lines": "849-945",
+          "symbol": "DurableContext.aio_wait_for / aio_sleep_for",
+          "verified": "durable listener sends WaitForEvent, returns ack node/branch IDs, waits for callback; deterministic wait index"
+        },
+        {
+          "path": "sdks/python/hatchet_sdk/context/context.py",
+          "lines": "1037-1071",
+          "symbol": "_spawn_children_no_wait",
+          "verified": "send RunChildrenEvent, consume ack with workflow run external ID, node and branch ID"
+        },
+        {
+          "path": "pkg/repository/sqlcv1/durable_event_log.sql",
+          "lines": "1-67",
+          "symbol": "GetAndLockLogFilesWithBranchPoints / IncrementLogFileInvocationCounts",
+          "verified": "Postgres FOR UPDATE event-log-file lock and conflict update of invocation count"
+        }
+      ],
+      "reuse_direct": "MIT Python SDK durable task/child APIs and Postgres engine if distributed child execution, tenant controls and worker-slot release become required.",
+      "reuse_contract": "Move effects into child boundary; keep parent deterministic; replay using authoritative durable log rather than wall clock.",
+      "limits": [
+        "Ordinary and child task delivery is at-least-once; official architecture requires task code idempotency.",
+        "Exactly-once wording on durable-task page is conditional on waits/child checkpoints and deterministic orchestration, not arbitrary external call atomicity.",
+        "Introduces API/engine/Postgres and broad SDK dependencies; current single-host flock cannot become multi-host ownership solely by adding Hatchet.",
+        "Audited selected SQL paths only, no end-to-end crash test or compatible deployment version pair."
+      ],
+      "lifecycle_metadata_url": "https://api.github.com/repos/hatchet-dev/hatchet",
+      "release_metadata_url": "https://api.github.com/repos/hatchet-dev/hatchet/releases/latest"
+    },
+    {
+      "id": "windmill",
+      "depth": "shallow official workflow docs + pinned license + release metadata, no actual execution code audit",
+      "official_url": "https://www.windmill.dev/docs/core_concepts/workflows_as_code",
+      "novel_to_corpus": true,
+      "python": "Python workflows supported per official docs; Python package version bounds not audited",
+      "release": {
+        "tag": "v1.846.1",
+        "published_at": "2026-10-21T20:05:13Z",
+        "commit": "01084cd405ed930b340c729a73f904287b2e353e"
+      },
+      "lifecycle": {
+        "archived": false,
+        "disabled": false
+      },
+      "license": "Mixed: backend/frontend AGPLv3 except proprietary enterprise code; python-client/OpenFlow Apache-2.0; published Community Edition includes proprietary/non-public components with extra terms",
+      "license_url": "https://github.com/windmill-labs/windmill/blob/01084cd405ed930b340c729a73f904287b2e353e/LICENSE",
+      "semantics": "Vendor docs: child-job checkpoint/replay, worker released during wait; script-version mismatch refuses resume and asks restart.",
+      "reuse": "Contract reference for approval/wait UX and replay version checks; no direct engine adoption recommended from shallow audit.",
+      "limits": "Operational platform migration and mixed binary/source licenses need further audit; no exact-once remote-effect claim verified.",
+      "lifecycle_metadata_url": "https://api.github.com/repos/windmill-labs/windmill",
+      "release_metadata_url": "https://api.github.com/repos/windmill-labs/windmill/releases/latest"
+    },
+    {
+      "id": "kestra",
+      "depth": "shallow official retry docs + pinned license + release metadata, no actual execution code audit",
+      "official_url": "https://kestra.io/docs/workflow-components/retries",
+      "novel_to_corpus": true,
+      "python": "Python script execution integration not audited; Java core platform, not Python drop-in",
+      "release": {
+        "tag": "v2.0.7",
+        "published_at": "2026-10-20T14:07:27Z",
+        "commit": "49b62a2c820d37e98a1c7b63aa35fd83f960d4ec"
+      },
+      "lifecycle": {
+        "archived": false,
+        "disabled": false
+      },
+      "license": "Apache-2.0 core; no audit of enterprise plugin/feature contracts",
+      "license_url": "https://github.com/kestra-io/kestra/blob/49b62a2c820d37e98a1c7b63aa35fd83f960d4ec/LICENSE",
+      "semantics": "Vendor docs: maxAttempts includes initial attempt; RETRY_FAILED_TASK retries failed child, RETRY_FLOWABLE reruns whole block; subflow retry creates new execution.",
+      "reuse": "Contract reference for explicit retry scope and bounded attempt/time accounting; no direct code reuse proposed.",
+      "limits": "Broader declarative platform adds migration surface; Python package, persistence guarantees, dedup and actual code not audited.",
+      "lifecycle_metadata_url": "https://api.github.com/repos/kestra-io/kestra",
+      "release_metadata_url": "https://api.github.com/repos/kestra-io/kestra/releases/latest"
+    }
+  ],
+  "recommendation": {
+    "now": "Keep current single-owner SQLite+flock+Git CAS boundary for E16; current exact LocalGitCycleSandbox type gate still means no production deployment adapter. Scheduling alone does not justify runtime replacement.",
+    "first_comparison": "DBOS+SQLite is first genuinely new candidate to compare in an isolated offline failure harness, pinned audited e63ee714e031287c9b3447a173be835d6eaf1f95, with no install or infra introduced by this research. Compare existing kernel against multi-stage recovery and durable waits, not only cadence.",
+    "strongest_counterargument": "DBOS already supplies maintained recovery, queueing and durable sleeps; continuing to grow custom recovery logic can cost more and be less reliable than a library. The existing cadence commits slot before work and is not a general resumable workflow. Do not reject DBOS merely because current code exists.",
+    "switching_trigger": "When an actual E16 workload needs multi-step resume/long waits and custom state/recovery code grows beyond cadence/journal fences, use the offline matrix to compare recovery completeness, authority preservation, operational footprint and cost; select DBOS if it removes that code without weakening no-double-send/readback. For true multi-host ownership, SQLite runtime alone fails and Postgres/shared authority fence must be proven first.",
+    "avoid_false_novelty": "Railway remains an already-studied host option, not a newly discovered durable engine."
+  },
+  "patch_proposals": [
+    {
+      "id": "P1",
+      "file": "products/manager/manager_core/owned_cycle.py",
+      "symbols": [
+        "run_owned_cycle",
+        "proposed dispatch_owned_once"
+      ],
+      "proposal": "Extract one helper that performs fresh journal lookup, pure admission, reserve and immediate guarded send under existing owner_lock. It returns serializable key/status/receipt, never replayable dispatch=True permission. Retain exact sandbox host type guard. Do not decorate host.send alone with retry.",
+      "interface": "dispatch_owned_once(state_store, host, packet, now) -> dict[str, object]",
+      "why": "All inspected runtimes execute action before recording result; cached reserve.dispatch=True in a separate checkpoint can authorize duplicate sends."
+    },
+    {
+      "id": "P2",
+      "file": "products/manager/manager_core/outbox.py",
+      "symbols": [
+        "OwnedEffectJournal.record",
+        "OwnedEffectJournal.reserve",
+        "proposed pending_records"
+      ],
+      "proposal": "Expose bounded immutable stored pending records, preserving packet_json/expected_parent binding and dispatch=False on existing rows. Do not convert state to an engine idempotency TTL. Support startup recovery of pending keys before accepting new scheduled candidates.",
+      "interface": "pending_records(limit: int = 100) -> tuple[OwnedEffectRecord, ...]"
+    },
+    {
+      "id": "P3",
+      "file": "products/manager/manager_core/reconcile.py",
+      "symbols": [
+        "reconcile_owned",
+        "proposed resume_owned_effect"
+      ],
+      "proposal": "Resume from stored key+original packet+original expected_parent through read-only exact occurrence lookup. Retry reads with bounded backoff; UNKNOWN remains UNKNOWN; a later observation must be new read execution rather than cached UNKNOWN. Before rollback require target still equals exact candidate; moved target stays superseded/UNKNOWN instead of restoring stale bytes.",
+      "interface": "resume_owned_effect(journal, key, read_occurrence, observed_at) -> ReconcileResult",
+      "boundary": "Only reconcile_owned validates occurrence and closes journal PRESENT; engine success/cached output never does."
+    },
+    {
+      "id": "P4",
+      "file": "products/manager/tests/test_digital_cycle_acceptance.py",
+      "symbols": [
+        "test_lost_send_response_is_unknown_count_then_reconciled_without_resend",
+        "test_lost_checkpoint_never_repeats_committed_effect",
+        "new engine-replay/backup cases"
+      ],
+      "proposal": "Extend existing real Git offline fixture for runtime-neutral restart boundaries and use same assertions for optional DBOS experiment.",
+      "assertions": [
+        "Crash after reservation before send: retry/resume send count 0, UNKNOWN remains; no liveness guessed.",
+        "Remote commit then lost reply or lost engine result: exactly 1 target advance and total send count <=1; restart reconciles original receipt, later replay writes0.",
+        "Cached reserve.dispatch=True must not be reusable send permission; helper rechecks journal and refuses second dispatch.",
+        "Engine dedup expires after >24h: retained journal key still blocks duplicate and reconciles original occurrence.",
+        "Restore backup after reservation, commit happened after backup: restored pending record reconciles exact original SHA/parent/bodies, no send.",
+        "Restore backup from before reservation: missing journal is not proof of absence; do not reconstruct expected_parent from current target. Block dispatch until original binding/authoritative recovery; Git CAS still prevents stale expected-parent target advance.",
+        "Wrong occurrence/parent or missing source evidence never produces PRESENT; UNKNOWN writes remains null.",
+        "Second owner blocked and target moved after old worker starts cannot be advanced by old expected_parent CAS.",
+        "Keep tests/test_owned_digital_cycle.py authority/scope guards and test_host_required_not_ci_deployed unchanged."
+      ]
+    }
+  ],
+  "limits": [
+    "No implementation changes or dependencies introduced.",
+    "Third-party code was read, not executed; no durability benchmark or production reliability claim.",
+    "Latest release metadata and retrieval timestamp are separate from source commit date; mutable docs were live fetched and source code pinned independently.",
+    "Full third-party bodies are not included in report/JSON; local scratch clones remain outside source repository.",
+    "Server runtime implementation deeply inspected only for selected Hatchet SQL; Restate/Inngest server licenses inspected, not their entire server semantics."
+  ],
+  "retrieved_at_semantics": "Collection completion timestamp; individual source records use the actual retrieval calendar date, not publication date."
+}

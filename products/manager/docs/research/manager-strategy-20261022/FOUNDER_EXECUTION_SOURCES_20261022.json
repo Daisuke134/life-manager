@@ -1,0 +1,336 @@
+{
+  "schema": "manager.founder_execution_sources.v1",
+  "checked_on": "2026-10-22",
+  "purpose": "Source provenance for founder execution specification; no separate task authority",
+  "limits": [
+    "Read-depth is explicit; retrieved page text is not reproduced here.",
+    "First-party sales, benchmark and career claims are not independent outcome or income verification.",
+    "Different sources and versions are not independent replications.",
+    "Open roles and deadlines must be rechecked before submission."
+  ],
+  "yc_careers_sources": [
+    {
+      "url": "https://www.ycombinator.com/apply",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://www.ycombinator.com/video",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://www.ycombinator.com/faq",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://www.ycombinator.com/howtoapply",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://simile.ai/careers",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://jobs.ashbyhq.com/simile/33d75074-c23b-4a1f-bfdb-129bcc5be662",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://aaru.com/careers",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://aaru.com/careers/f04cd7a3-b53c-4797-bb8f-ebfe0467e9fe",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://societies.ai/careers/ml-engineer",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://societies.ai/careers/forward-deployed-engineer",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://andonlabs.com/join",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://andonlabs.notion.site/32851e560a9581ea910ff74837b37806?pvs=105",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://humansand.ai/",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://jobs.ashbyhq.com/humans-and",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://jobs.ashbyhq.com/humans-and/3daf12ad-471f-43ba-b940-8552e9ad61aa",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5198255008",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://ai.engineer/code/2026",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://neurips.cc/",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://neurips.cc/Conferences/2026/Pricing",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://warwick.ac.uk/fac/sci/dcs/aamas2027/",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://warwick.ac.uk/fac/sci/dcs/aamas2027/calls/call-for-blue-sky-ideas/",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 200,
+      "error": null
+    },
+    {
+      "url": "https://sushitech-startup.metro.tokyo.lg.jp/en/",
+      "checked_on": "2026-10-22",
+      "retrieval": "Firecrawl scrape, Manager account, maxAge:0",
+      "read_depth": "full_returned_markdown",
+      "http_status": 503,
+      "error": null
+    }
+  ],
+  "publishing_revenue_sources": [
+    {
+      "id": "S01",
+      "url": "https://hamel.dev/blog/posts/evals-faq/",
+      "title": "AI Evals: Everything You Need to Know – Hamel’s Blog",
+      "http_status": 200,
+      "scrape_id": "01a163a6-650b-763c-9c2e-dd7e1896ac05",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S02",
+      "url": "https://parlance-labs.com/",
+      "title": "Parlance Labs",
+      "http_status": 200,
+      "scrape_id": "01a163a6-6397-720f-b0bf-7dc197484e37",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S03",
+      "url": "https://github.com/chiphuyen/aie-book",
+      "title": "GitHub - chiphuyen/aie-book: [WIP] Resources for AI engineers. Also contains supporting materials for the book AI Engineering (Chip Huyen, 2025) · GitHub",
+      "http_status": 200,
+      "scrape_id": "01a163a6-6345-759d-bc7a-426623b5c76a",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S04",
+      "url": "https://huyenchip.com/books/",
+      "title": "Books",
+      "http_status": 200,
+      "scrape_id": "01a163a6-61ab-72fa-8bfc-ed2ac4cec5a0",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S05",
+      "url": "https://simonwillison.net/about/",
+      "title": "About Simon Willison",
+      "http_status": 200,
+      "scrape_id": "01a163a6-61c3-756d-9899-af7d0eba9fa7",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S06",
+      "url": "https://simonwillison.net/2025/Nov/6/upgrading-datasette-plugins/",
+      "title": "Video + notes on upgrading a Datasette plugin for the latest 1.0 alpha, with help from uv and OpenAI Codex CLI",
+      "http_status": 200,
+      "scrape_id": "01a163a6-63ef-724d-be3f-b6e67b0b8cf7",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S07",
+      "url": "https://jxnl.co/writing/2025/04/04/creating-content-that-converts-my-guide-for-ai-consultants/",
+      "title": "Creating Content That Converts: My Guide for AI Consultants - Jason Liu",
+      "http_status": 200,
+      "scrape_id": "01a163a6-625d-7551-8219-310f236856e5",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S08",
+      "url": "https://jxnl.co/services/",
+      "title": "Availability - Jason Liu",
+      "http_status": 200,
+      "scrape_id": "01a163a6-6ad1-74cc-9688-69ee4c7d83fc",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S09",
+      "url": "https://jxnl.co/",
+      "title": "Introductions - Jason Liu",
+      "http_status": 200,
+      "scrape_id": "01a163a6-f399-7431-ac8e-ddbc9dff56cf",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S10",
+      "url": "https://github.com/567-labs/instructor",
+      "title": "GitHub - 567-labs/instructor: structured outputs for llms · GitHub",
+      "http_status": 200,
+      "scrape_id": "01a163a6-f2f3-772a-96df-98ca8f3274f1",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    },
+    {
+      "id": "S11",
+      "url": "https://hamel.dev/blog/posts/decision-model-evals/",
+      "title": "How To Use Decision Models for Evals – Hamel’s Blog",
+      "http_status": 200,
+      "scrape_id": "01a163a6-f2cb-7082-bd0d-e7c4c1e16fa8",
+      "read_depth": "full_page_markdown_retrieved; relevant_sections_read",
+      "max_age": 0,
+      "source_type": "first_party",
+      "revenue_verified": false,
+      "limits": "Author/vendor self-report is not independent financial verification; public availability of artifact is distinct from effect or revenue."
+    }
+  ],
+  "reuse_sources_ledger": "FOUNDER_REUSE_AUDIT_20261022.md",
+  "external_effects": {
+    "sent": 0,
+    "submitted": 0,
+    "registered": 0,
+    "deployed": 0,
+    "new_paid_trials": 0
+  },
+  "manager_revenue": {
+    "amount": null,
+    "status": "UNKNOWN",
+    "reason": "No authoritative payment/settlement coverage was obtained in this work."
+  }
+}

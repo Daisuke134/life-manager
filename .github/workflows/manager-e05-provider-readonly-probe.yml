@@ -1,0 +1,96 @@
+name: Manager E05 Read-Only Real Provider Schema Probe
+on:
+  push:
+    branches: [research/manager-e01-e16-execution-20261022]
+    paths: ['.github/workflows/manager-e05-provider-readonly-probe.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install documented API client
+        run: python -m pip install --disable-pip-version-check --no-input 'openai==3.24.0'
+      - name: Read-only authenticated provider sessions (no create, no tool calls)
+        env:
+          AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
+          PYTHONPATH: products/manager
+        run: |
+          python - <<'PY'
+          import os,re
+          from openai import OpenAI
+          key=os.environ.get("AMPERSAND_API_KEY","")
+          if not re.fullmatch(r"hak_[A-Za-z0-9]{8,256}",key):
+              raise SystemExit("E05_READONLY=BLOCKED_SECRET_UNAVAILABLE_OR_MALFORMED")
+          try:
+              with OpenAI(base_url="https://ampersand.humansand.ai/v1",
+                          api_key=key,max_retries=0,timeout=30) as client:
+                  page=client.beta.agents.sessions.list(limit=5,order="desc")
+                  rows=getattr(page,"data",None)
+                  more=getattr(page,"has_more",None)
+                  if type(rows) is not list or type(more) is not bool:
+                      print("E05_READONLY=UNSUPPORTED_PAGINATION_SCHEMA")
+                      print("SCHEMA_TYPE="+type(page).__name__)
+                      raise SystemExit(2)
+                  print("E05_READONLY=SUCCESS")
+                  print("SESSION_PAGE_SIZE="+str(len(rows)))
+                  print("SESSION_HAS_MORE="+str(more))
+                  print("HAS_METADATA_FIELD="+str(all(hasattr(x,"metadata") for x in rows)))
+                  print("SESSION_ID_FORMATS_VALID="+str(all(
+                      isinstance(getattr(x,"id",None),str) and
+                      getattr(x,"id").startswith("sess_") for x in rows)))
+                  if rows:
+                      sid=rows[0].id
+                      turns=client.beta.agents.sessions.turns.list(sid,limit=1,order="desc")
+                      print("TURN_LIST_READBACK=SUCCESS")
+                      print("TURN_PAGE_SIZE="+str(len(getattr(turns,"data",[]))))
+                      if getattr(turns,"data",[]):
+                          t=turns.data[0]
+                          print("TURN_STATUS_CLASS="+str(getattr(t,"status","UNKNOWN")))
+                          print("TURN_HAS_USAGE="+str(getattr(t,"usage",None) is not None))
+                          import inspect
+                          print("SDK_TURN_RETRIEVE_SIGNATURE="+str(inspect.signature(
+                              client.beta.agents.sessions.turns.retrieve)))
+                          print("SDK_ITEM_LIST_SIGNATURE="+str(inspect.signature(
+                              client.beta.agents.sessions.items.list)))
+                          exact=client.beta.agents.sessions.turns.retrieve(
+                              t.id,session_id=sid)
+                          print("EXACT_TURN_READBACK="+str(exact.id==t.id))
+                          from manager_core.ampersand_api import read_saved_assistant_items
+                          messages=read_saved_assistant_items(client,sid,t.id)
+                          print("EXACT_TURN_SAVED_MESSAGES="+str(len(messages)))
+                          print("EXACT_TURN_SAVED_OUTPUT_CHARS="+str(sum(map(len,messages))))
+                      page=client.beta.agents.sessions.items.list(sid,limit=5,order="desc")
+                      print("SAVED_ITEM_COUNT="+str(len(page.data)))
+                      print("SAVED_ITEM_PAGE_HAS_MORE="+str(page.has_more))
+                      print("SAVED_ITEM_IDS_START_WITH_ITEM="+str(all(
+                          isinstance(item.id,str) and item.id.startswith("item_")
+                          for item in page.data)))
+                      print("SAVED_ASSISTANT_MESSAGES="+str(sum(
+                          getattr(item,"type",None)=="message" and
+                          getattr(item,"role",None)=="assistant"
+                          for item in page.data)))
+                      content_types=set()
+                      for item in page.data:
+                          if getattr(item,"type",None)=="message":
+                              for c in getattr(item,"content",[]) or []:
+                                  kind=(c.get("type") if isinstance(c,dict)
+                                        else getattr(c,"type",None))
+                                  content_types.add(str(kind))
+                      print("SAVED_CONTENT_TYPES="+",".join(sorted(content_types)))
+          except Exception as exc:
+              print("E05_READONLY=ERROR")
+              print("ERROR_CLASS="+type(exc).__name__)
+              print("ERROR_STATUS="+str(getattr(exc,"status_code","unknown")))
+              raise SystemExit(3)
+          PY

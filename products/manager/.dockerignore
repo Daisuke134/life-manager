@@ -1,0 +1,11 @@
+**
+!manager_core/
+!manager_core/**
+!scripts/
+!scripts/phase06_kernel_release.py
+!scripts/phase06_release_guard.py
+!scripts/run_owned_digital_cycle.py
+!scripts/owned_runtime_entrypoint.py
+!public_goods/
+!public_goods/service/
+!public_goods/service/catalog.json

@@ -72,3 +72,22 @@ class PolicyLearner:
                 db.execute("UPDATE active_policy SET version=?,previous=NULL WHERE id=1",(row[1],))
                 return row[1]
             return row[0]
+
+    def record_sandbox_technical(self,event):
+        """Store native sandbox verdicts separately from scalar policy losses.
+
+        No promotion, human-benefit score or public proof level is inferred.
+        UNKNOWN remains an explicit observation with no numerical loss.
+        """
+        if (type(event) is not dict or event.get('proof_level')!='P0'
+                or event.get('human_outcome')!='NOT_MEASURED' or event.get('deployed') is not False
+                or type(event.get('status')) is not str):
+            raise ValueError('explicit sandbox technical observation required')
+        with sqlite3.connect(self.path) as db:
+            db.execute('CREATE TABLE IF NOT EXISTS sandbox_technical_observations(id INTEGER PRIMARY KEY,event_json TEXT NOT NULL)')
+            db.execute('INSERT INTO sandbox_technical_observations(event_json) VALUES(?)',(json.dumps(event,sort_keys=True,allow_nan=False),))
+
+    def sandbox_technical_observations(self):
+        with sqlite3.connect(self.path) as db:
+            db.execute('CREATE TABLE IF NOT EXISTS sandbox_technical_observations(id INTEGER PRIMARY KEY,event_json TEXT NOT NULL)')
+            return [json.loads(row[0]) for row in db.execute('SELECT event_json FROM sandbox_technical_observations ORDER BY id')]

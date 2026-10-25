@@ -25,6 +25,19 @@ class ReviewRegressions(unittest.TestCase):
         self.assertIn('git push origin HEAD:gh-pages',workflow)
         self.assertNotIn('git push --force',workflow)
 
+    def test_main_publisher_is_dispatch_only_and_requires_owner_bound_request(self):
+        workflow=(ROOT.parents[1]/'.github/workflows/manager-phase06-service.yml').read_text()
+        self.assertIn('owned_request:',workflow)
+        self.assertIn('request_id:',workflow)
+        self.assertIn('run-name: Manager owned request ${{ inputs.request_id',workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'",workflow)
+        self.assertIn("github.ref == 'refs/heads/main'",workflow)
+        self.assertIn('--owned-request',workflow)
+        self.assertIn('MANAGER_OWNER_ID',workflow)
+        self.assertIn('secrets.MANAGER_RELEASE_ENABLED',workflow)
+        self.assertIn("refs/heads/research/manager-product-r006-20261020",workflow)
+        self.assertIn('path: source\n          persist-credentials: false',workflow)
+
     def test_fixture_suite_works_in_2030_while_production_stale_catalog_is_rejected(self):
         from manager_core import digital_environment as impl
         import json

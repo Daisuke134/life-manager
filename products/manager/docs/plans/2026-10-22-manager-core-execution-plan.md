@@ -19,7 +19,7 @@
 
 ## Global Constraints
 
-- **Current branch source boundary:** The authenticated Ampersand adapter is currently on the separate, NOT-YET-INTEGRATED branch `research/manager-ampersand-integration-20261022` (commit `66997ea549f8d1373a7670b8a11add9af17613ea`). At the start of E01, inspect and safely integrate/review its four files `manager_core/collaboration.py`, `manager_core/ampersand_api.py`, `tests/test_ampersand_integration.py`, `scripts/phase_ampersand_lab.py` (and its reviewed research workflow). Do **not** assume the module exists in this phase06 branch. Run its full offline tests after integration before doing E02. Never reuse credentials from research artifacts. This is setup WITHIN E01, not a separate earlier F implementation.
+- **Historical E01 integration setup, not a current blocker:** At initial planning the authenticated Ampersand adapter was on `research/manager-ampersand-integration-20261022` (commit `66997ea549f8d1373a7670b8a11add9af17613ea`). E01 subsequently integrated the verified P0 modules and E01–E05 now have SSOT receipts. The current branch includes `manager_core/collaboration.py`, `manager_core/ampersand_api.py`, `manager_core/provider_sessions.py`, the partial `manager_core/provider_budget.py`, their tests and lab. Read the current HEAD and reuse them; do not repeat the old integration or borrow credentials. Historical E01 checkboxes below preserve its original brief, not a new instruction to redo completed work.
 - `products/manager/docs/roadmap/tasks.json` is the Manager task-status authority. Do not edit Life Manager's status/runtime or mark field gates done from a local test.
 - Model output remains P0, `authorized_execution=False`, `causal_support=False`; execution is separately authorized and independently verified.
 - No private records, third-party messages, money transfers or arbitrary tools. No per-action human approval inside a previously established owned-digital scope; unavailable privilege means NO_ACTION.
@@ -34,7 +34,7 @@
 2. Synthetic or superseded source mistaken for fresh observed truth (E03,E10,E11).
 3. Host-constructed privileged flags or duplicate JSON key ambiguity (E02,E04).
 4. Legitimate abstention mistaken for failure, or pipeline success mistaken for model utility (E07–E09).
-5. Ephemeral runner restart, concurrent owner, quota exhaustion or rollback to an unrelated target (E06,E15–E18).
+5. Ephemeral runner restart, concurrent owner, quota exhaustion or rollback to an unrelated target (E06,E15–E16).
 
 ## File map and execution mechanics
 
@@ -94,13 +94,13 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 
 ## E06 — Budget, wall-clock, silent-turn and cancellation accounting
 
-**Files:** Modify `ampersand_api.py`, `scripts/phase_ampersand_lab.py`; create `manager_core/provider_budget.py`, `tests/test_provider_budget.py`. **Depends:** E05. **Maps:** V004,G005.
+**Files:** Audit/modify existing `manager_core/ampersand_api.py`, `scripts/phase_ampersand_lab.py`, `manager_core/provider_budget.py`, `tests/test_provider_budget.py`. These E06 files already exist at the reviewed HEAD; finish the missing contract rather than recreating them. **Depends:** E05. **Maps:** V004,G005.
 **Interfaces:** `BudgetLedger.reserve(run_id: str, estimated_upper_usd: Decimal) -> Reservation`; `settle(reservation, usage: Usage | None)`; `cancel_and_reconcile(session_id, turn_id) -> State`.
 - [ ] RED tests unknown usage is None not zero; timeout within streaming triggers cancellation then readback; valid silent completed turn is SILENT_COMPLETED, not FAILED; cumulative reservation cannot exceed configured ceiling.
-- [ ] Run RED with monotonic fake clock; do not actually burn tokens for timeout tests.
-- [ ] Add process-wide deadline and conservative reservation before every model continuation, reconcile official usage including cached/reasoning tokens. Default live tests disabled unless a numeric budget is supplied; no top-up or tier change. No guessed max_output_tokens if provider rejects it.
+- [ ] Add and run RED `test_initial_stream_deadline_cancels_known_turn`, `test_stream_without_events_has_bounded_transport_wait`, `test_unknown_initial_id_remains_quarantined`, and `test_cancel_ack_without_terminal_readback_stays_unknown`. Use a fake monotonic clock and a transport fixture that raises its configured read-timeout; no real tokens or long blocking sleeps. Existing budget tests are regression evidence, not a new RED run.
+- [ ] Complete the initial and follow-up streaming paths under the same process-wide monotonic deadline and bounded transport read timeout; per-event checks alone do not bound a silent blocked iterator. Reserve before every call; known IDs use cancellation plus exact saved-turn readback, unknown creation uses E05 reconciliation. Reconcile official usage including cached/reasoning tokens once. Default live tests disabled unless numeric budget and verified provider charging/stop exposure are supplied; local reservation is admission control, not an invoice cap guarantee. No top-up, tier change or guessed max_output_tokens.
 - [ ] GREEN `python -m unittest discover -s tests -p 'test_provider_budget.py' -v`; count calls, cancellations and unresolved reservations.
-- [ ] Commit measured cost receipts only when observed; estimated and settled values have distinct fields.
+- [ ] Commit only after source-specific CI passes. Keep estimated reservation, token-priced estimate and authoritative settled billing in distinct fields; settled dollars remain null without official billing. Record whether initial/follow-up/no-event timeout/cancel were offline-tested and whether any live recovery was actually run. Only then append a valid E06 receipt and advance the SSOT to E07.
 
 ## E07 — Freeze evaluation semantics before another score
 
@@ -135,7 +135,7 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 ## E10 — Public-source observer with bounded acquisition
 
 **Files:** Create `manager_core/public_observer.py`, `config/public-sources.json`, `tests/test_public_observer.py`. **Depends:** E03. **Maps:** F001/F002 support,U005.
-**Interfaces:** `fetch_snapshot(spec: PublicSourceSpec, now: datetime, transport) -> ObservedSnapshot | FetchFailure`.
+**Interfaces:** `fetch_snapshot(spec: PublicSourceSpec, now: datetime, transport) -> FetchedSnapshot | FetchFailure`; `FetchedSnapshot.observation` is the existing `ObservedSnapshot`, with exact bytes and HTTP/cache metadata retained separately. Neither wrapper nor hash authenticates truth or grants execution.
 - [ ] RED tests unchanged ETag304, redirect to private IP, unapproved domain, >1MiB, timeout15s, empty body, malformed timestamp, rights not allowed, byte-hash mismatch.
 - [ ] Run RED with local HTTP fixture; never send sensitive input to a scrape provider.
 - [ ] Implement HTTPS host/IP and redirect validation, source rights, UTC/hash, conditional fetch and bounded body. Retain facts only from original official pages; retrieval error creates explicit missing observation.
@@ -207,3 +207,59 @@ For each task below execute the five checkbox steps **in order**. Run commands f
 **Single active cursor:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16. The original evaluation/observation streams can be developed by independent workers when their shared interfaces are stable, but the project-wide completion cursor is strictly the ordered E list in `../roadmap/tasks.json`; never present parallel work as a second authoritative sequence. **After E verification, assess F005 → F006 → F008 → F009 as acceptance gates**, not new engineering tasks. Content P01–P07 is a separate editorial lane and does not move the E cursor. Do not parallel-write shared schema, ledger, publishing branch or authority state.
 
 The detailed simulator, actual beneficiary, cross-domain, outreach and governance gates remain in [Phase06–12 acceptance evidence](../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md) and the v2 Phase06 scope amendment. There is no separate F-first execution plan. Finishing E16 is a finite technical product release, not a declaration that Manager eliminated suffering or all 113 original tasks are complete.
+
+## 2026-10-22 strategy-review addendum — same E order, concrete remaining patches
+
+This is a derived implementation brief, not task status. The [updated product spec](../MANAGER_PRODUCT_SPEC.md) and [technical design](../specs/2026-10-22-manager-validated-autonomy-design.md) specify mission/product/research/business boundaries. E01–E05 receipts remain unchanged. Every task below still uses its five RED→implementation→GREEN→commit/evidence steps above.
+
+### Start-of-execution checklist
+
+- [ ] Read current branch HEAD, AGENTS.md, F009 cursor/completed/receipts, and source-specific CI. Use the user-named research branch; do not accidentally replace it with current main. Record the stacked PR base before any integration.
+- [ ] Reuse existing module/test interfaces. Run `python -m unittest discover -s tests -q`, `python scripts/check_boundaries.py`, `python scripts/make_roadmap.py --check` from `products/manager`. If using a source export, include repository-level publication fixtures and workflows that existing tests read; an incomplete export is not a product regression.
+- [ ] Verify legitimate provider/budget configuration without reading secret values. Live calls remain disabled when absent. Inspect official current contracts at implementation time, not an old research note.
+- [ ] Prepare E09 reference-data feasibility and E16 persistent-host/volume/owner feasibility through read-only inspection while E06–E08 proceed. This does not complete those stages or allow skipping them.
+
+### Patch review checklist by E task
+
+| Task | Additional exact test / assertion | Existing/target patch boundary | Stop condition |
+|---|---|---|---|
+| E06 | New initial/no-event/cancel tests listed in E06; count calls and unresolved reservations | Finish existing `provider_budget.py`, `ampersand_api.py`, lab and budget tests | No proven charging/stop exposure: no live call; no green receipt: cursor stays |
+| E07 | `test_critical_boundary_failure_not_averaged`; `test_judge_cannot_read_policy_hidden_labels` | `outcome_bench.py`, frozen collaboration-v2 schema/rubric and test file | Ambiguous usefulness definition or sole self-judge: no new score claim |
+| E08 | `test_eval_is_40_cases_120_provider_repeats`; existing family split/equal information tests | Frozen cases, baselines and lab adapter; reuse maintained eval tooling where compatible | No budget: report offline manifest verification only; no superiority from it |
+| E09 | `test_reference_scope_mismatch_abstains`; probability/group/OOD tests above | Existing `calibration.py`/`evaluation.py`; reference and split manifest | Missing suitable references: REFERENCE_DATA_REQUIRED; no PASSED/cursor jump |
+| E10 | `test_source_body_cannot_supply_tool_instructions`; existing SSRF/size/rights tests | Bounded `public_observer.py`, source allowlist, provenance types | Missing permission, unsupported source or retrieval failure: no observation |
+| E11 | `test_restart_preserves_context_hash`; superseded/future/stale tests | SQLite `world_state.py`, existing typed source/context contracts | Cannot reconstruct exact current context: no action |
+| E12 | `test_human_outcome_prediction_not_required_for_technical_link_fix`; existing unit/scope/NO_ACTION tests | Existing intervention model plus minimal candidate catalog | Human benefit score must not be invented to justify a technical correction |
+| E13 | `test_clean_existing_bundle_needs_no_change`; existing script/link/route tests | Existing digital renderer/handoff and Playwright/axe checks | No demonstrable technical improvement: NO_ACTION; never manufacture a change to show activity |
+| E14 | `test_expired_or_revoked_scope_denies`; `test_generic_fixture_executor_stays_disabled` | Existing kernel→admitted owned publisher connection only | Missing standing owner scope: dry-run/NO_ACTION, no generic write enable |
+| E15 | `test_transient_not_found_is_unknown`; `test_old_inflight_owner_cannot_commit_new_parent` | Existing outbox/reconcile and target occurrence adapter | No authoritative finality/idempotency: quarantine UNKNOWN; ABSENT is not replay permission |
+| E16 | `test_host_required_not_ci_deployed`; existing lease/catch-up/readback/rollback tests | Existing owner scheduler after identity verification, persistent state and cycle script | No host/volume/owner: DEPLOYMENT_HOST_REQUIRED, no deployed claim |
+
+A passing synthetic contract is not a passing empirical/live acceptance. If an E stage cannot meet its declared gate, keep that cursor, record the exact missing evidence in its SSOT receipt/note, and work on independent read-only data/host research or the separate P/Y preparation. Changing that gate requires an explicit versioned scope amendment, not an unrecorded workaround.
+
+### Evidence fields and final integration
+
+For each completed E receipt record actual source commit, source-specific CI URL, focused/full test totals and skips, evidence scope, independent readbacks where required, live-not-run fields, unresolved limitations and cost unknowns. Do not write a receipt referring to a future CI run. The snapshot itself does not contain a release receipt for Digital Autonomy v0.1.
+
+After E16, assess F005→F006→F008→F009 with the actual released occurrences. U/D/V/G original tasks retain their own dependencies and field requirements. YC preparation Y and editorial P can proceed independently within their authorization, but no interview, application, public post or beneficiary is fabricated.
+
+
+### E13–E16 implementation boundary recorded 2026-10-22
+
+E13 uses a dedicated `candidate_verification.py` wrapper around the existing renderer/manifest/release guard so the established publisher stays unchanged. E14 adds the typed host bridge into the original publisher; it does not change its SOURCE_REF. E15 adds a separate owned reservation table while preserving the generic fixture-only fence. These are implementation-location rulings, not broader authority.
+
+E16's reference cycle and fail-closed preflight are implemented in `owned_cycle.py` / `scripts/run_owned_digital_cycle.py`. They currently support **only an offline local-Git sandbox**, with P0 receipts and separate served files. Production adapter/scheduler integration remains unfinished pending actual owner/volume identity. See [the E16 gate and remaining exact order](../verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md). E16 must remain the active cursor; do not reinterpret passing reference tests as deployment or complete the original acceptance gates.
+
+
+### E16 cloud target and remaining checks — 2026-10-22
+
+The initial target is a dedicated Railway Python worker and persistent volume in the connected `life-manager` project. Access is verified; the worker/volume/production adapter are not created or deployed. Preserve the existing service until source/owner/purpose are known, begin with isolated staging, and retain the normal release/publisher admission path. Mac host details are not a prerequisite. Volume services cannot use replicas and have a brief redeployment outage; do not claim HA.
+
+Before live canary, supplement the existing `manager_core/owned_cycle.py`, `manager_core/outbox.py`, `manager_core/reconcile.py`, `scripts/run_owned_digital_cycle.py` and `tests/test_owned_digital_cycle.py` / `tests/test_digital_cycle_acceptance.py` work with these acceptance cases: drain unresolved occurrences independently of new candidate/context/scope, then plan; crash immediately after schedule-slot reservation; commit succeeds but response is lost; readback is unavailable; old owner attempts a new-parent commit; actual host restart/backup restore/rollback. These are required next verification cases, not reproduced production failures or completed patches. Use a failing test before each implementation change and keep unresolved effects quarantined. The prior sandbox-only type guard must be replaced only by an admitted production-host adapter with actual owner identity, not by accepting arbitrary objects or fixture execution.
+
+[Founder execution map](2026-10-22-manager-founder-execution-map.md) supplies the cloud, evidence, customer, publication, career and W27 schedule without changing the E cursor or the original task dependencies.
+
+
+### Additional primary-source patch plan
+
+[2026-10-22 atomic patches](2026-10-22-manager-e16-atomic-patches.md) specify current file/function/test deltas, first DBOS fit comparison, prior-intent recovery, typed delivery outcomes, actual privileged bridge and backup/restore. This derived plan supersedes vague next-host wording without changing E ordering/status. No current SOURCE_REF or fixture gate was modified. [New alternatives and exact evidence](../research/manager-options-additional-20261022/REPORT_JA.md) distinguish inspected code from runtime verification.

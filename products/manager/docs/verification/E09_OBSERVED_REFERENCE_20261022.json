@@ -1,0 +1,126 @@
+{
+  "schema": "manager.scoped-error-calibration.v1",
+  "scope": "uci_dc_daily_weather_frequency_2011q1_to_2012",
+  "source": {
+    "url": "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip",
+    "doi": "https://doi.org/10.24432/C5W894",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Hadi Fanaee-T, UCI Bike Sharing Dataset",
+    "body_sha256": "a6bcf826782d3c0fbfdcbeead17cd0884185a0dafe8ff10cd48a874ee7ba18be",
+    "bytes": 57569
+  },
+  "evidence": "ACTUAL_OBSERVED_NONPERSONAL_AGGREGATE_RETROSPECTIVE",
+  "partitions": {
+    "base_fit": 90,
+    "error_fit": 91,
+    "threshold_validation": 184,
+    "heldout_test": 366
+  },
+  "split_groups": {
+    "training": [
+      "2011-04",
+      "2011-05",
+      "2011-06"
+    ],
+    "validation": [
+      "2011-07",
+      "2011-08",
+      "2011-09",
+      "2011-10",
+      "2011-11",
+      "2011-12"
+    ],
+    "test": [
+      "2012-01",
+      "2012-02",
+      "2012-03",
+      "2012-04",
+      "2012-05",
+      "2012-06",
+      "2012-07",
+      "2012-08",
+      "2012-09",
+      "2012-10",
+      "2012-11",
+      "2012-12"
+    ]
+  },
+  "model": {
+    "intercept": 0.6431031169917025,
+    "slope": -0.791334467522821,
+    "threshold": 0.3793249611507622,
+    "max_validation_risk": 0.25,
+    "reference_hash": "d147d7590aca4cc398a796557f4c22c02179f5c7a9002e605c4b22a1bdf0f74a",
+    "base_count_threshold": 1629.0,
+    "base_weather_probabilities": {
+      "2": 0.4411764705882353,
+      "1": 0.5471698113207547,
+      "3": 0.3333333333333333
+    }
+  },
+  "evaluation": {
+    "coverage": 1.0,
+    "accepted_brier": 0.2409337384067195,
+    "all_case_brier": 0.2409337384067195,
+    "accepted_days": 366,
+    "subgroups": [
+      {
+        "weather": 1,
+        "days": 237,
+        "accepted": 237,
+        "coverage": 1.0,
+        "accepted_brier": 0.20545323725878092
+      },
+      {
+        "weather": 2,
+        "days": 123,
+        "accepted": 123,
+        "coverage": 1.0,
+        "accepted_brier": 0.3075013362590373
+      },
+      {
+        "weather": 3,
+        "days": 6,
+        "accepted": 6,
+        "coverage": 1.0,
+        "accepted_brier": 0.27777777777777785
+      }
+    ],
+    "coverage_risk_curve": [
+      {
+        "coverage": 0.0,
+        "risk": null,
+        "count": 0,
+        "groups": 0
+      },
+      {
+        "coverage": 0.6475409836065574,
+        "risk": 0.20545323725878092,
+        "count": 237,
+        "groups": 12
+      },
+      {
+        "coverage": 0.9836065573770492,
+        "risk": 0.24031967108386856,
+        "count": 360,
+        "groups": 12
+      },
+      {
+        "coverage": 1.0,
+        "risk": 0.2409337384067195,
+        "count": 366,
+        "groups": 12
+      }
+    ]
+  },
+  "promotion_decision": "DENIED_SUBGROUP_RISK",
+  "human_outcome": "NOT_MEASURED",
+  "human_behavior_calibration": "NOT_ESTABLISHED",
+  "owned_digital_predictions": "ABSTAIN_SCOPE",
+  "limitations": [
+    "Prior research already examined this public dataset: not a fresh independent external holdout.",
+    "Temporal groups prevent partition overlap but do not guarantee exchangeability or future calibration.",
+    "Small retrospective error-regression diagnostic; no causal, human welfare or universal coverage guarantee.",
+    "The model is never used to score human benefit or authorize an owned digital change."
+  ]
+}

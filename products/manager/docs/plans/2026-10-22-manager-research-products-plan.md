@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- The user's latest request **does authorize publishing reviewed English/Japanese research articles and improving their owned site**. No future article should imply simulated welfare outcomes are field causal effects.
+- **Publication scope and this turn:** Earlier approved publication work covers reviewed English/Japanese research articles and the owned site through its existing bridge. The present user request is to research, update the specification/plan and discuss it; this turn does not invoke publication. A future execution must use the actually authorized channel/scope and independent readback. No article may imply simulated welfare outcomes are field causal effects.
 - Publisher/source separation: content in `life-manager`; dedicated bridge in `Daisuke134/anicca-products`; live source in `apps/landing/marketing/pages/`; do not install or overwrite the whole site blindly.
 - Baseline publication package: at least 65 published Manager articles / 33 media in the earlier verified release. Preserve earlier package hashes, existing unrelated articles/assets, cross-language canonical links and sitemap; independently re-audit current production rather than assuming baselines unchanged.
 - Existing `articles-2026-10-22.json` and `BLOG_PUBLICATION_PACKAGE_20261022.json` use a *frozen source revision*. Never silently repoint its source hashes or mutate an existing published article without an explicit revision and integrity checks.
@@ -100,3 +100,64 @@
 ## Execution order and stop rules
 
 P01 → P02 → P03; P04 after P01; P05 after P01, P06 after P05; P07 after P03/P04/P06. This runs alongside the core E tasks without mutating shared task statuses or product runtime. The technical blog and homepage may publish independently of original field-dependent `C002/Y008`; **do not mark those original tasks done** unless their original dependency+acceptance have genuinely occurred. Save favorable, negative and null outcomes with identical editorial discipline.
+
+## 2026-10-22 whole-project alignment — concrete editorial and founder work
+
+This addendum implements the explicitly requested specification/plan update, not permission to start a study, contact anyone, submit YC or publish new material in this turn. State still lives only in `../roadmap/tasks.json`. The [current product spec](../MANAGER_PRODUCT_SPEC.md) and [source-backed review](../research/manager-strategy-20261022/REPORT_JA.md) supply the design brief. P identifiers are the existing derived editorial work packages, not new Manager task IDs.
+
+### First next deliverable: one finished chapter/article, then reuse it
+
+- [ ] P01: Reuse `docs/research/manager-strategy-20261022/PRIMARY_SOURCES.json` as research input; do not turn it into a second evidence/task-state database. Construct the existing planned claim-index using actual paper version/read depth, Manager experiment receipt, rights, limitation, and whether a number is vendor-reported, observed or inferred. Validate source links and original ten-case bytes. Do not wait for E07 to write source-only explanations; claims about collaboration-v2 scores still depend on E07/E08.
+- [ ] P02/P05: Make the first complete paired EN/JA chapter **“Prediction, intervention, and what counts as an improvement”** by revising the existing `docs/articles/manager-prediction-intervention-blessing-en.md` and adding its JA companion under the same naming pattern. Use the exact current outline in `docs/books/MANAGER_RESEARCH_BOOK_OUTLINE.md`; do not create another book project.
+- [ ] Include the probability/causal distinction, source-reviewed simulation failure, an explicitly fictional worked example linked to existing `examples/02_scores.py`, the LA/OES positive/null service examples with their read-depth limits, one original Mermaid diagram and a reproducible command. No new claimed field result.
+- [ ] P05 verification: bibliography/version/rights check, execute the existing example and relevant tests, inspect rendered footnotes/links/reading order, make a real HTML/EPUB artifact only when the exporter is installed and checked. A completed Markdown chapter is a manuscript milestone, not a published book.
+- [ ] P06: Derive the first 12-slide talk and one 8-panel carousel from that chapter's exact claim IDs. Use existing renderers, cite evidence, inspect actual exported slides/images. A manga script remains a script until rendered panels are inspected.
+- [ ] P03/P04/P07: Use the existing reviewed source→publisher bridge; maintain old content hashes, EN/JA slugs/canonical/sitemap, source/deployment identity and independent public GET. No current draft, Github commit or model answer is a publication receipt.
+
+### One curriculum, different packaging
+
+| Existing chapter grouping | Sources/exercises to reuse | What mastery means | Required limit in the text |
+|---|---|---|---|
+| Probability, choice and population | Existing L001–L003 examples, `02_scores.py`, grouped split checks | Explain distributions, Brier/TVD and individual vs population error with a counterexample | Toy math is not field behavior |
+| Generative agents and synthetic people | Existing Concordia adapter; Socrates/SocSci210 source cards | Explain input grounding, memory/action/environment, task meaning, data/weight rights | A coherent persona is not a verified person |
+| Validity, drift and calibration | AS Benchmark, Lin 2605.20767, Hullman 2602.15785, Simile/Aaru methodology | State assumptions, negative controls, holdout and coverage-risk; identify a failure case | Vendor metrics and unlike datasets are not a head-to-head ranking |
+| Intervention and causal measurement | Existing L005–L012, DoWhy adapter, SNAP positive/null experiments | Define target/estimand/comparator, costs, harms, missingness and transport | Library execution or pre/post change is not causal identification |
+| Autonomous operation and recovery | E05/E06/E10–E16, existing kernel/outbox/publisher/readback | Trace one exact intent to occurrence and restart/rollback evidence | No universal external exactly-once or CI-only deployed claim |
+| Real benefit, institutions and business | WHO/OECD/CFPB/WOAH source cards, U/D/V/G and YC evidence | Separate customer, operator and beneficiary; explain native units and outcome chain | No universal suffering score, fabricated customer or outcome |
+
+The existing three-volume teaching proposal is a packaging view of these same canonical chapters, not three parallel manuscripts or an obligation to finish 30 chapters before testing the product. Source-only chapters may progress independently; empirical result chapters wait for real E/U/V evidence.
+
+### Research-paper candidates and go/no-go
+
+| Candidate | Necessary original contribution | Next concrete action | Do not claim |
+|---|---|---|---|
+| Engineering evaluation | Frozen E07/E08 rubric/cases; fair baselines; reproducible failures/costs; bounded claims | Freeze before calls, collect authorized outputs, calculate family-level uncertainty | A new human-behavior foundation model or universal superiority |
+| Simulation validation | Task-matched real references, leakage/drift controls, human-baseline comparison | Complete E09 data suitability review and predeclare target/metric/split | Human causal fidelity from fictional personas |
+| Public-service field study | Meaningful real endpoint, legitimate scope/voluntary study conditions, comparator and adequate design | Satisfy U004/U006/U007 and methods/rights prerequisites | Welfare improvement from URLs, clicks or small feasibility pilots |
+| Literature/methods field guide | Accurate synthesis, source/version table, worked examples and limitations | Complete the first chapter and source-linked case studies | Peer-reviewed empirical discovery or experiments not actually run |
+
+### YC and customer learning lane — existing U/Y tasks
+
+- [ ] Y001/Y002: Refresh the existing `docs/founder/Y001_MANAGER_PITCH_EN_JA.md` and current demo material with one customer/problem hypothesis, actual dated P2 prototype evidence, E01–E15 engineering status, next E16 runtime patch and known missing human/customer evidence. Keep the full mission as the long-term direction, not a claimed present capability.
+- [ ] U002: Collect the existing required five qualifying consented interviews across affected users/operators/supporters. Record the real current workflow, recurring failure, burden, workaround and who can authorize/pay; do not manufacture quotes or send messages without authorization. This is founder learning, not per-action Manager operation.
+- [ ] U003: Compare the current owned-navigation candidate with an operator's critical-journey maintenance problem and existing static checking/monitoring/manual alternatives. Select based on actual problem evidence; customer willingness to authorize/continue/pay is not inferred from desk research.
+- [ ] Y003 preparation: Read the live official YC application/questions before assembling answers; verify founder/account/logistics, real demo link, evidence dates and any time-sensitive requirements. W27 on-time deadline snapshot is 2026-11-02 20:00 PT = 2026-11-03 04:00 UTC = 13:00 JST; recheck before submission. Full science/book completion is not an application prerequisite.
+- [ ] Y003 submission and Y005 contact are separate external actions. A saved draft/plan is not a submitted application, scheduled conversation or acceptance. If submission is separately authorized, preserve the actual confirmation receipt and read it back.
+
+### Immediate work order without adding a second technical cursor
+
+The next product patch is E16: the selected Railway single-worker runtime and actual deployment proof. E01–E15 have source-specific receipts and must not be repeated. P01 source indexing, the first evidence-backed chapter/case study and U/Y application/customer/career preparation proceed alongside E16; W27 submission does not wait for a finished book or field RCT. Shared schemas, source manifests, publication branch, SSOT and runtime owner are serialized. No manuscript or YC milestone advances E status. No E unit test completes the original U/D/V/G field gate.
+
+
+## 2026-10-22 precedent-based founder execution update
+
+Use the [12-package execution map](2026-10-22-manager-founder-execution-map.md) and [new first-party research](../research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md). The first canonical engineering case uses the actual deadline-cancel/recovery/replay-zero regressions, dated source and limits. The initial foundation chapter remains “Prediction, intervention, and what counts as an improvement”; reuse that case as its example rather than starting another book. After source review, derive one EN/JA article pair, one existing-book chapter, 12 slides, 8 carousel panels and a 60–90-second slideshow from the same claim IDs. Source-only manuscripts may progress now; every actual public/paid/native artifact needs its own evidence.
+
+Follow the observed structure of Hamel's eval case/code/teaching, Chip Huyen's coherent book resources, Simon Willison's small working changes with notes/releases, and Jason Liu's OSS/problem-specific teaching. Do not copy text or transfer their customers, earnings or reputation to Manager. Jason's archived consulting content is not a current open offer. Preserve the original 65/33 publication package as a historical snapshot until live re-audited.
+
+Every content release has one relevant CTA, a canonical proof/code URL, channel identification, actual permalink/readback and correction route. Measure useful technical responses, qualified conversations, applications/interviews and verified payments separately from impressions/followers. Short form points to the source-backed long form; it does not drop limitations to promise welfare outcomes or guaranteed income.
+
+
+### Additional exporter and publishing evidence
+
+The [new primary-source comparison](../research/manager-options-additional-20261022/PUBLISHING_JA.md) and [atomic patches08–10](2026-10-22-manager-e16-atomic-patches.md) keep the P01 evidence index and P06 `docs/content/behavior-agi-20261022/storyboard.json` as the existing planned inputs. Use native python-pptx/Pillow/FFmpeg first; MyST DOCX/JATS and Slidev are conditional comparisons. Existing blog `media` accepts images only, and current native carousel lanes are six-panel/Anicca-specific. Explicit additive download artifacts and a separately checked Manager distribution lane are needed; a new CMS, renderer runtime or scheduler is not. No new artifact or publication was produced by this specification update.

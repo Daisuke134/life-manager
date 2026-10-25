@@ -1,5 +1,7 @@
 # Manager — Open Research Book / Living Field Guide
 
+> **2026-10-22 active production rule:** This is the canonical chapter outline. The separate three-volume curriculum is a packaging/teaching view of the same sources, not additional manuscripts to finish first. Start with one complete, source-checked chapter on prediction→intervention→verified benefit; use [the updated P plan](../plans/2026-10-22-manager-research-products-plan.md#2026-10-22-whole-project-alignment--concrete-editorial-and-founder-work). Older finance/indoor partner examples below are optional learning cases: F004/F007 are skipped and not prerequisites to the owned digital product. A book outline is not a completed book or research result.
+
 **Working title:** *The What-If Machine Meets the Real World: Prediction, Intervention, and Verifiable Human Benefit*  
 **Japanese companion:** 『予測から介入へ――AIは世界を本当に良くできるのか』  
 **Status:** Book proposal and source/experiment outline, not a completed or publicly distributed book. **Owner:** Manager / Anicca research; GitHub version-controlled original text only.  

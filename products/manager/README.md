@@ -1,11 +1,22 @@
-# Manager — independent intervention research prototype
+# Manager — development record for a transparent agent/entity
 
+**開始から最後まで:** [全Phase00〜12・残41件・依存・完成条件・出版/サイト/YCの並行線](docs/roadmap/START_TO_END_20261022.md)。原計画の末尾はPhase12/G006、現在地はE16です。
 
-## 2026-10-22 現行実装の入口 — ここから開始
+**最新の再開入口:** [E16本番配備ゲートと残作業の引継ぎ](docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md)。E01–E15の実装・CI証跡は [tasks.json](docs/roadmap/tasks.json) に記録。E16ではmain限定のRailway→GitHub publisher bridgeのsource実装とCI検証まで完了しましたが、研究branchは未promotionで、専用host/volume/credential・実canaryは未成立。E16は `DEPLOYMENT_HOST_REQUIRED / BLOCKED`、人への便益は未測定、モデルの優位性も未証明です。
+
+**Managerの位置づけ:** Managerはアプリ製品ではなく、継続して学習・予測・評価・限定介入するagent/entityとして構想します。「digital Buddha」「透明な善意のentity」は使命の比喩・長期目標であり、現時点のAGI能力や全存在への効果の主張ではありません。日常利用者向けUIを持たないことは設計目標ですが、owner側の停止・失効・異議・監査と証拠表示は残します。**Digital Autonomy v0.1**はManager自体の名前ではなく、最初に配備する有限な能力束です。[entity・使命・能力・証拠の仕様](docs/MANAGER_PRODUCT_SPEC.md)。
+
+**全体設計:** [entityの使命・能力・研究・事業・YC](docs/MANAGER_PRODUCT_SPEC.md)、[一次資料から学ぶこと](docs/research/manager-strategy-20261022/REPORT_JA.md)、[E01–E16実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。[旧E06引継ぎ](docs/handoffs/2026-10-22-manager-e06-session-handoff.md) は保存時点の履歴で、現在のカーソルを上書きしません。唯一の状態正本は `tasks.json` です。
+
+**全体戦略の追加更新:** [他社の先例・再利用判断・YC/採用/出版/収益の12作業](docs/plans/2026-10-22-manager-founder-execution-map.md)。本番の採用先はRailway単一worker＋専用volume。接続は確認済み、Managerの配備は未完了です。
+
+**新規候補を追加した一次資料調査:** [OpenClaw/Khoj/n8n・DBOS/Restate・新arXiv論文・browser/exporter/hostの比較](docs/research/manager-options-additional-20261022/REPORT_JA.md)、[実ファイル・関数・テストを指定したatomic patch plan](docs/plans/2026-10-22-manager-e16-atomic-patches.md)。既知名の繰返しは新規件数に含めず、第三者実装は固定sourceの静的読取で、動作再現済みとは扱いません。
+
+## 2026-10-25 現行実装の入口 — ここから開始
 
 **Managerの唯一のタスク状態・順序・カーソル正本:** [`docs/roadmap/tasks.json`](docs/roadmap/tasks.json)（`F009.technical_execution_sequence` と `technical_execution_cursor`）。
 
-**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは **E01**。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
+**実装順:** **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16**。現在のカーソルは**SSOTの `technical_execution_cursor` を参照**（実際の値はSSOTを参照）。詳細は [Superpowers実装計画](docs/plans/2026-10-22-manager-core-execution-plan.md)。
 
 **F005 → F006 → F008 → F009** はEの後に証拠で確認する **Phase 06の受け入れ条件** で、Eより前に実装する順序ではありません。旧F004/F007の資金提供者・施設許可は必須ルートから除外、`skipped`（未実施）です。状態は **113件 = done 69 / todo 41 / blocked 0 / skipped 3**。技術的P1/P2と受益者へのP3/P4は別物で、後者は未測定です。
 
@@ -98,28 +109,30 @@ then-current implementation statements are superseded by the current registry.
 
 [Full final Phase04 evidence, actual metrics, traceable GitHub CI and remaining scientific gates](docs/verification/PHASE04_FINAL_REAL_DATA_EVIDENCE_JA.md); [45 done / 65 todo / 2 blocked / 1 skipped canonical tasks](docs/roadmap/tasks.json). This supersedes historical Phase04 progress sections below.
 
-**Manager research processing vs product runtime:** explicit operator-authorized individual survey research was executed on ephemeral GitHub CI machines; original raw source records, individual profiles, sensitive attributes, prompts and predictions were never committed as a public repository artifact. The Manager product itself remains independent of Life Manager and has no live third-party execution privileges or verified beneficiary improvement. **Gate1 still UNMET**.
+**Manager research processing vs runtime:** explicit operator-authorized individual survey research was executed on ephemeral GitHub CI machines; original raw source records, individual profiles, sensitive attributes, prompts and predictions were never committed as a public repository artifact. The Manager runtime remains independent of Life Manager and has no verified beneficiary improvement. **Gate1 still UNMET**.
 
 **Code unit:** `manager-independent` (independent package). GitHub source is mirrored at [Daisuke134/life-manager, branch `research/manager-product-r006-20261020`](https://github.com/Daisuke134/life-manager/tree/research/manager-product-r006-20261020/products/manager) under a Manager-only directory, as explicitly authorized by the user. This does not connect Life Manager runtime to Manager.
 
 > **Mission: End suffering.** A domain-general, evidence-grounded system for proposing, safely executing, and causally evaluating interventions based on lawful public information. “Digital Buddha” is an aspiration/metaphor—not omniscience, unrestricted permission, or an achieved system.
 
-## Product boundary
+## Manager entity and current execution boundary
 
 **Manager ≠ Life Manager.** This standalone repository has no imports, credentials, runtime contracts, or shared database with Life Manager. Later integration would require a separately reviewed API contract. Previous Life Manager code is **not** imported.
 
-**Current status:** Phase05 offline fixture kernel implemented and tested; no live intervention, human causal fidelity validation, or actual human-impact claim.
+Manager is the intended agent/entity, not a chat app or a product UI. “No UI” means ordinary operation should not require a person to chat with it or approve every run. Owner controls for stopping, revoking, appealing and auditing, plus public evidence views, remain part of the surrounding environment. Those controls do not constitute the entity itself.
 
-## What is intentionally forbidden in this scaffold
+**Current status:** Phase05 offline fixture kernel plus an E16 main-only release bridge are implemented in source. The bridge can request a bounded update to the existing public support bundle only through a protected GitHub publisher; the research branch has not been promoted or deployed. There is no general-purpose agent runtime, persuasion/intervention model, live behavior experiment, human causal-fidelity validation or verified human benefit. The E16 gate and remaining order are in [the deployment handoff](docs/handoffs/2026-10-22-manager-e16-deployment-handoff.md).
 
-- All external writes, donations, public posting, physical device changes are disabled in `manager_core/config.py`. There is not yet a live executor.
+## What the current narrow capability does not authorize
+
+- The current E16 path is limited to the existing seven-file support bundle and protected main workflow. It does not authorize general external writes, donations, persuasion, private-account access or physical device changes. It is not deployed from this research branch.
 - No private individual information; a publicly reachable page containing sensitive personal data is not automatically acceptable.
 - No automated publishing of blog posts or articles. Research precedes future optional English-language publications.
 - No claim that a simulation or an API response alone proves reduced suffering.
 
 ## Architecture and tasks
 
-- [Manager product specification](docs/MANAGER_PRODUCT_SPEC.md)
+- [Manager entity, capability and evidence specification](docs/MANAGER_PRODUCT_SPEC.md)
 - [GitHub research source and verification](docs/GITHUB_SOURCE.md)
 - [Architecture](docs/architecture/ARCHITECTURE.md)
 - [R006 source rights review](docs/research-rights.md)
@@ -130,7 +143,7 @@ then-current implementation statements are superseded by the current registry.
 - [imozuru verification report](research/imozuru/manager-foundations/report.html)
 - [Upstream imozuru script and provenance](tools/imozuru/README.md)
 
-## Offline checks
+## Offline local checks
 
 ```bash
 python3 -m manager_core
@@ -139,7 +152,9 @@ python3 scripts/check_boundaries.py
 python3 tools/imozuru/report.py research/imozuru/manager-foundations --check
 ```
 
-All checks are offline, standard-library only. GitHub branch-level source mirror is reviewed separately from this standalone historical Git repository; a GitHub-hosted source tree is **not** equivalent to a tested production deployment. The research branch also adds a root `.github/workflows/manager-research-ci.yml` for offline tests; hosted check results have not yet been verified.
+この4コマンドはlocal coreのoffline checkです。E16初期実装branchではPython 723 tests、Playwright desktop/mobile 16ケース、source-boundary gate、pinned Docker buildと[GitHub Actions検証run](https://github.com/Daisuke134/life-manager/actions/runs/40155688159)を実施済みです。verify jobはsuccess、publisherとlive-readback jobは研究branch gateによりskipでした。最終reviewで見つかった3件を修正したlocal worktreeではPython全730 testsが成功（5 skip）しましたが、この追補は未pushでGitHub CIは未実行です。どちらのCIもRailway deploymentや人への効果を証明しません。E16はmain promotion、専用Railway service/volume、実workflow/readback、restart/restore evidenceが揃うまでBLOCKEDです。Manager sourceはこのrepository内の `products/manager/` にあり、Life Manager runtimeとは独立させています。
+
+以下のOctober 20–22およびPhase03–05の進捗記述は、当時の研究・実装履歴として保存しています。件数や状態は過去時点のsnapshotであり、最新の完了状態は先頭のE16引継ぎ/specと唯一のstate正本 `docs/roadmap/tasks.json` を参照してください。
 
 ## Current research record
 
@@ -149,7 +164,7 @@ All checks are offline, standard-library only. GitHub branch-level source mirror
 - [R005: Effect-error data with first-source locators](docs/research/R005_CAUSAL_ERROR_EVIDENCE.json)
 - [imozuru R005 evidence report](research/imozuru/causal-r005/report.html)
 - [Completion and blessings roadmap](docs/roadmap/PRODUCT_COMPLETION_GATES.md)
-- [Illustrative long-term vision image](docs/visuals/manager-longterm-vision-ja.png) (aspiration, not a measured result)
+- [Manager evidence ladder](docs/visuals/great-manager-evidence-ladder.svg) (technical evidence and human benefit remain separate)
 - [R004 source map](research/imozuru/heartsteps-r004/map.md)
 - [R004 reproduction questions](research/imozuru/heartsteps-r004/OPEN_REPRODUCTION_QUESTIONS.md)
 - Ordered task status remains in the existing [atomic backlog](docs/roadmap/ATOMIC_BACKLOG.md) and its [structured view](docs/roadmap/tasks.json). This page does not introduce another task sequence.

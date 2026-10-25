@@ -1,0 +1,11 @@
+{
+  "purpose": "read-only existing public baseline, not E16 deployment",
+  "observed_at": "2026-10-22T11:30:22.783668+00:00",
+  "url": "https://daisuke134.github.io/life-manager/manager-support/",
+  "human_outcome": "NOT_MEASURED",
+  "new_deployment": false,
+  "status": "EXISTING_SERVED_BUNDLE_HASHES_MATCH",
+  "source_commit": "de8656444c132fe2c51b7ed79f007724ce152d2a",
+  "manifest_digest": "d13b823071723dc2b20b4b6dfb6730bbe99aa9be035b7fee4386676a93dab4bb",
+  "verified_page_count": 6
+}

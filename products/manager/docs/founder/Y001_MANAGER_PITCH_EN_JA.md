@@ -1,6 +1,6 @@
 # Manager: English pitch with Japanese support
 
-**Y001 draft for YC W27 preparation.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a truthful product narrative and evidence ledger, not an application submission. No application deadline, interview date or presentation booking has been verified or asserted.
+**Y001 draft for YC W27 preparation.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a truthful product narrative and evidence ledger, not an application submission. The official W27 deadline was rechecked on 2026-10-22; no application submission, interview or presentation booking is claimed.
 
 ## One sentence
 
@@ -46,7 +46,7 @@ Managerは、公的支援へのアクセスを改善し、何が変わったか�
 | Causal net benefit and replication | Not established | “Requires a credible comparator, costs and harms, uncertainty, and replication.” |
 | Users, customers, revenue and product-market fit | No verified customer, revenue or conversion evidence is provided by this package | State as unvalidated; do not invent a user count, revenue number, pipeline or forecast. |
 | Five consented interviews / selected first wedge | No qualifying interview evidence in this package; U003 remains provisional | “A candidate use case to validate with beneficiaries and operators.” |
-| Real funding or indoor-environment interventions | Original permission/funding/site gates remain unresolved in the baseline | Do not imply a page release completed the original transfer or indoor-environment tasks. |
+| Real funding or indoor-environment interventions | F004/F007 are retired/skipped in current Phase06 v2, not completed; no corresponding real transfer/facility intervention is claimed | These are optional future scopes, not prerequisites to the first owned-digital product. |
 
 The product evidence categories are [P0 simulation/model score; P1 authentic receipt; P2 independently observed state change; P3 authentic human outcome; P4 causal net improvement; P5 replication](../MANAGER_PRODUCT_SPEC.md). The current public-delivery claim is **P2 artifact only**. A published artifact is real, but it is not P3 or P4 human benefit.
 
@@ -72,6 +72,34 @@ This is not an exclusivity claim. For example, [Simile's official site](https://
 
 ## Publication and reuse checks
 
-The short pitch can be reused with its evidence sentence and timestamp. Update factual status only when a new receipt or independently verified outcome exists. A newly passing test must not retroactively change the 2026-10-21 baseline. Remove no uncertainty merely to shorten a slide. YC W27 is the planning context from the task registry; this artifact does not verify eligibility, deadlines, admission, an interview or an application submission.
+The short pitch can be reused with its evidence sentence and timestamp. Update factual status only when a new receipt or independently verified outcome exists. A newly passing test must not retroactively change the 2026-10-21 baseline. Remove no uncertainty merely to shorten a slide. YC W27 is the planning context from the task registry; this artifact does not verify founder eligibility, admission, an interview or an application submission; the deadline is a time-sensitive official-page snapshot below.
 
 Y001's one-liner, beneficiary/customer hypothesis and truthful evidence level are now drafted in English and Japanese. Y003 application submission, Y005 conversations, U002 interviews and U003 final selection remain separate work. Primary-source retrieval details are in [the source registry](../research/COMPLETION_PRIMARY_SOURCES_20261022.json).
+
+## 2026-10-22 alignment: mission, product and application readiness
+
+Long-term mission: reduce avoidable suffering and support flourishing for welfare-bearing beings. The first finite product is Digital Autonomy v0.1: maintaining and improving an owned public-information journey with scoped autonomous execution, independent readback and rollback. There is no claim of achieved AGI, independently validated human behavior simulation or reduced suffering.
+
+A tighter customer hypothesis is an operator maintaining a critical public-service information journey. Beneficiaries and paying operators need not be the same. This remains unvalidated: interviews, use, willingness to pay, revenue and retention have not been established by a literature review. The first owned site provides a technical test surface, not customer traction. See [current spec](../MANAGER_PRODUCT_SPEC.md) and [the source-backed strategy review](../research/manager-strategy-20261022/REPORT_JA.md).
+
+### Official YC snapshot and preparation
+
+- Source read live on 2026-10-22: [YC apply](https://www.ycombinator.com/apply) and [FAQ](https://www.ycombinator.com/faq).
+- Winter 2027 batch: January–March 2027, in person in San Francisco.
+- Page's on-time deadline: November 2 at 8pm PT. Year inferred from the W27 cycle: **2026-11-02 20:00 America/Los_Angeles = 2026-11-03 04:00 UTC = 13:00 JST**. Recheck the page before submitting; daylight-saving conversion uses the actual date.
+- The page says on-time decisions by December 11 (2026 inferred from cycle); late applications may be considered without guaranteed response timing. These are the official page's statements, not a promised response or acceptance for Manager.
+- An idea-stage application is possible; all E/U/V/G tasks, a book or a welfare RCT need not be complete first. Use truthful evidence and a working demo rather than hypothetical users or simulation scores described as impact.
+
+Next preparation: one buyer/problem hypothesis, actual observed customer pain if interviews occur, current demo/evidence sentence, build status, costs/known unknowns, founder logistics, and a concrete next experiment. Submission remains Y003; outreach remains Y005. This document update sends neither.
+
+## Latest engineering and founder-execution addendum — 2026-10-22 UTC
+
+The dated public-release evidence above remains a historical release claim. The current research branch has E01–E15 implemented and verified; E16 has a sandbox/reference cycle, and its production adapter, persistent worker, dedicated volume and live canary remain incomplete. The source baseline for this addendum is `3391f6a5237681ad1166ebaadb38597db1d0c9e6`, with [deterministic CI](https://github.com/Daisuke134/life-manager/actions/runs/39771869106) and [browser CI](https://github.com/Daisuke134/life-manager/actions/runs/39771869142). The 661 Python checks include five optional skips; software checks do not measure beneficiary outcomes.
+
+We selected a Railway single Python worker with a dedicated persistent volume as the initial target, using the current code rather than rebuilding a general agent framework. Connected project access is confirmed. A new Manager worker/volume has **not** been created or deployed; the existing service, whose purpose is not yet confirmed, is preserved. A Mac host is not a prerequisite. Volume-based operation has no replicas and a short redeployment outage; it is not an HA claim. See [the source-backed founder update](../research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md).
+
+Current Manager revenue is **UNKNOWN**, with no authoritative payment/settlement coverage obtained here. Consulting, employment, content, investment and other Life Manager products cannot be relabeled as Manager subscription revenue. A proposed operator-paid pilot is a hypothesis; a proposal, simulated result or invoice is not a settled payment.
+
+The near-term plan is one reproducible case study reused for an English/Japanese article, a chapter of the existing book, a talk/carousel, a role-specific technical packet and a truthful YC application. Publication volume is not customer traction. Prepare YC without waiting for the whole book or E16: internal submission target **2026-11-01 23:59 JST**, official on-time deadline snapshot **2026-11-03 13:00 JST**. [YC's video guidance](https://www.ycombinator.com/video) requires a one-minute founders-talking video; the product demo is a separate application item.
+
+YC applications and job preparation can proceed together. [YC FAQ](https://www.ycombinator.com/faq) permits applying while employed but expects full-time commitment to the company during and after the batch if accepted. W27 is in person in SF. Do not promise simultaneous full-time employment elsewhere. Founder biography, work authorization, relocation and commitment require actual personal facts; none are invented in this packet. The [execution map](../plans/2026-10-22-manager-founder-execution-map.md) contains the six official-role candidates, three events, dependency-preserving order and receipt requirements. No application, outreach, event registration or external publication was performed by this addendum.

@@ -1,74 +1,99 @@
-# Manager: validated autonomy and research products — design checkpoint
+# Manager validated autonomy — current technical design
+
+**更新:** 2026-10-22 UTC。今回のユーザー依頼で全体仕様と実行手順を更新。製品全体の規範は [MANAGER_PRODUCT_SPEC](../MANAGER_PRODUCT_SPEC.md)、研究根拠は [調査報告](../research/manager-strategy-20261022/REPORT_JA.md)。旧設計の固定版は [更新前commit](https://github.com/Daisuke134/life-manager/blob/1b7a8e5c234e4ce3c66366f34539e55844bcc0e5/products/manager/docs/specs/2026-10-22-manager-validated-autonomy-design.md)。
+
+## 実行契約
+
+状態と順序は `../roadmap/tasks.json` のみ。E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。F005 → F006 → F008 → F009 は後続の証拠受入。F004/F007はskipped、成功に数えない。文書更新ではカーソル・受入・権限を変更しない。
+
+**Goal:** 公開観測から所有デジタル資産への限定変更・独立readback・技術評価・復旧までを、通常の人手指示なしで動かす。人の便益・人間シミュレーション・事業需要の実証は別のゲート。
+
+**Tech Stack:** product Python >=3.11、既存stdlib/dataclasses/json/sqlite3/urllib、現在のSDK契約、既存Node/Playwright/axe、所有publisher。既存GrowthBook 3.2.2、DoWhy 0.14、Concordia隔離環境を再利用。ConcordiaなどPython>=3.12が必要なupstreamをcoreへ一括依存させない。新しいagent framework・分散worker・モデル学習を既定にしない。
+
+## 1. 研究・製品・事業を分離する境界
+
+| 面 | 入力 | 出力 | それだけでは成立しない主張 |
+|---|---|---|---|
+| Research | 利用条件確認済みデータ・仮想ケース・公開論文 | 誤差、比較、仮説、negative results | 本番実行許可、因果的な実便益 |
+| Product | 真正な公開観測、host-owned scope、候補、予算 | 限定intent・実receipt・公開状態差分 | 支援受領、臨床効果、市場需要 |
+| Evaluation | 固定した結果定義、参照、比較群 | 条件付きの技術/予測/因果評価 | 全領域への普遍的妥当性 |
+| Business | 実際の利用・課題確認・費用・顧客の意思 | 選ぶべき利用場面・継続性の証拠 | 利用者の便益、YC採択 |
+| Communication | 上記の版固定された証拠 | 原稿・図・デモ・応募資料 | 未測定の結果、公開・提出の完了 |
+
+顧客、受益者、実行資産の所有者、結果の観測者は同じとは限らない。各役割を一つのpersonaへ合成しない。
+
+## 2. 既存モジュールを結ぶデータフロー
+
+1. `public_observer.py`（E10実装済み）はallowlist、利用条件、HTTPS/接続先、redirect、15秒取得期限、1 MiB上限、ETag/Last-Modified、実バイトhashを検査する。本文中の命令を実行しない。
+2. `world_state.py`（E11実装済み）は観測をSQLiteで追記し、旧版を保持して現在viewを生成する。48時間超の古い観測、未来時刻、訂正済み出典は現在の判断根拠にしない。取得失敗は不明。
+3. `candidate_catalog.py`（E12実装済み）は公開情報のリンク訂正・アクセス性改善・ASK/PASS/NO_ACTIONに限定する。費用・結果の単位・比較・仮定を別フィールドで保持する。
+4. 既存 `digital_environment.py`、`digital_handoff.py`、Playwright/axe（E13）は正しい出典、リンク、対象外route保全、script注入、baseline/candidate差分を固定基準で検証する。
+5. `kernel.py`/`authority.py`から既存publisherへの接続（E14）は、host-issued standing scope・対象7パス・予算・失効・既存release参照を確認する。モデル文章やcandidateを権限発行元にしない。
+6. `outbox.py`/`reconcile.py`（E15）はeffect identity、parent/target hash、送信前intent、単一owner、UNKNOWNを永続化する。応答消失時は外部の当該occurrenceを照合し、無条件で再送しない。
+7. `public_good_readback.py`/`learning.py`と `run_owned_digital_cycle.py`（E16部分実装、本番接続未完了）は独立GETと実commitを照合し、技術的な成功・無変更・負・不明を評価する。悪化は停止・限定復元し、復元後も読み戻す。
+
+現在の実装とsource-specific証跡はSSOTを参照する。既存コードの同等機能が確認できた場合は改名・複製より接続を選ぶ。実装時のインターフェース・テスト名はE計画を参照し、この文書に第二のsignature定義を置かない。
+
+## 3. 助言providerと費用制御（E06）
+
+Ampersandは任意のP0助言provider。API利用の継続を製品の成立条件にしない。`provider_budget.py` と `test_provider_budget.py` は既存HEADにあり、E06は監査・完成として扱う。
+
+| 入力・障害 | 必要な状態遷移/検証 |
+|---|---|
+| 初回session/continuation | 各通信前に永続予約、stable request/event identity、同じbody |
+| 予約上限に到達 | 新規通信0件。既存のUNKNOWNを消さない |
+| tokensのusage欠落 | `None` / UNKNOWN_USAGE。請求額ゼロを推定しない |
+| cache/reasoning tokens | 公式SDKの包含関係に従い、一度だけ計上。単価の版を記録 |
+| 出力のない正常完了 | 明示opt-in時のSILENT_COMPLETED。通信成功・有用性・実行は別 |
+| eventが届き続ける/届かない | 外側monotonic期限とtransport read timeoutの両方で有限化 |
+| deadline、session/turn ID既知 | 文書化されたcancel要求→当該保存turnの独立readback |
+| ID未取得の応答消失 | creation intentをUNKNOWNで維持し、公式paginationで照合 |
+| cancel受付済み | 受付を完了としない。completed-before-cancel/failed/cancelled/unknownを分離 |
+
+**費用保証の限界:** ローカル予約は新規呼出しのadmission制御で、provider請求そのものの上限保証ではない。予約に使う保守的な上限の根拠、provider側制御、課金を伴うcancel後の挙動を確認する。真の上限が証明できないものを「絶対に予算超過しない」と説明しない。liveを有効にするにはnumeric capと課金exposure/停止契約の確認が必要。不足時はlive disabled。推測の `max_output_tokens` を送らない。
+
+この不足はE06実装と最終レビュー修正で再現検査から解消した。絶対期限、無イベント待機、created-event期限到達時のdurable bind回復を含む12 deadline testsとsource-specific CIを記録済み。live課金上限の保証とは別であり、詳細は [E06証跡](../verification/E06_PROVIDER_LIMITS_20261022.md) とSSOTのfollow-upを参照。
+
+## 4. 評価を固定してから比較する（E07–E09）
+
+E07はtransport、format、privacy/authority、正当なusefulness、uncertainty、interruptionを分ける。consentを尋ねる提案と実行は別。複数の妥当な選択肢を許し、重大境界違反を平均点で相殺しない。ルール評価かモデルjudgeかを明示し、judgeを使う場合は版/promptを固定し盲検の人参照との不一致も記録する。LLM自己採点だけで有用性を確定しない。
+
+E08の既存設計は12 family × 5 variants、4 family開発/8 family評価、評価ケースごと3反復。評価側は40ケース・120 provider反復になるため、live前に実費exposureを計算する。決定的NO_ACTION/ルールと同じ観測情報を与え、予算・モデル計算量の差を開示する。独立反復はprovider乱数を完全制御できるという意味ではない。8 familyの2000回cluster bootstrapはengineering stress-testの不確実性評価であり、十分な検出力の人間試験とは呼ばない。
+
+E09は対象task・population・language・dateに適合する参照を要する。予測分布の正規化、group/time split、Brier/TVD、validation-only threshold、coverage-risk、分布外・未対応言語のABSTAINを検証する。UCI集計予測、仮想case、人の行動予測を同じ校正保証へまとめない。参照がなければ `REFERENCE_DATA_REQUIRED`、そのままPASSEDやcalibrated-humanとはしない。
+
+**着手前の読取準備:** E06–E08中に、既存source registryから対象適合性・権利・意味が確認できる参照候補を調べ、利用するsplitと評価対象を記録する。該当参照がなければ現順序のcursorはE09で止まり、仕様/acceptance変更を明示的にレビューする。データ不足を隠してE10へ飛ばない。
+
+## 5. 実行の信頼性と運用（E14–E16）
+
+所有publisherの現在のscopeを再確認し、対象外routeへ拡張しない。root configの汎用external writesを全面解禁しない。実行grant、モデルの提案、実行intent、provider receipt、公開bytesは別物である。
+
+E15で保証するのは、実証したtarget契約の下での重複admission防止、同一occurrenceの照合、restart後のreplay-zero。ネットワークをまたぐ無条件のexactly-onceは保証しない。`ABSENT`にするには、その読取の整合性、対象識別、反映遅延と確認範囲が必要。一度のnot-foundやeventual-consistencyの空応答ではUNKNOWNを保つ。ABSENTそれ自体は再送の許可ではない。
+
+E16の配備先はRailway単一worker＋専用volumeに決定。既存projectへの接続は確認したがManagerのruntime作成・本番adapter・実配備は未完了。配備条件はpersistent host/volume、単一owner lease、監視、停止/取消し、backup/restore、起動時reconcile、schedule catch-up-once、独立readback、限定rollback。ホスト未確認なら `DEPLOYMENT_HOST_REQUIRED`。一時CIを永続ownerにしない。既存ownerの実identityが確認できるまでschedulerを変更しない。
+
+2026-10-25 implementation update: source now contains a separate Railway finite-cycle adapter that creates a versioned request only after current-main/current-Pages/served-byte checks, resolves prior effect and delivery records first, and sends through the protected GitHub publisher once. The older `run_owned_cycle` remains the local no-remote fixture. A pinned Docker image, private-mount preflight, and privilege-dropping entrypoint are also implemented. Railway's current docs support an hourly exiting cron job and expose the required system volume/source variables; old `railway.json` config-as-code is deprecated for new services. The service settings will be applied only to a dedicated staging service after normal main promotion. Source/unit/Docker validation is not a live deployment. E16 remains `DEPLOYMENT_HOST_REQUIRED` until real host identity, volume, secrets, workflow occurrence, served bytes, restart/restore and replay-zero are independently recorded.
+
+学習はpolicy/versionの候補作成→隔離評価→shadow→限定昇格。権限、予算、対象、結果尺度をpolicyが拡張しない。予測誤差の減少と実便益の増加も別に検証する。
+
+## 6. 最初の研究・顧客・発信の判断
+
+- **問題確認:** U002の実インタビューを満たし、受益者の障壁と運営者の反復作業・費用を確認。無断の連絡は行わず、同意された会話で記録する。
+- **選定:** U003は既存監視/静的リンクチェッカー/手作業で足りない問題、実行可能scope、結果観測、運営負担を比較して決める。自社ページだけで市場検証済みとしない。
+- **利用試行:** 既存ツール比較、明示されたowner scope、停止/復旧、実コストと利用継続を観測。課金・契約・人研究は別の設定が必要。
+- **効果研究:** U004/U006/U007の比較と結果観測が成立してから実施。十分な件数・測定適合性がなければfeasibilityと因果評価を区別する。privacyを理由に個人データを捏造せず、真正な集計や適切な自発的結果測定を検討する。
+- **YC:** 実際に動くデモ、受益者/顧客仮説、試行結果、費用、失敗、次の実験。申請は全科学実証完了を待つ必要はなく、成果を誇張しない。
+- **記事/書籍:** 一つの出典カード・実験receiptから日英原稿、章、スライド、図を派生。独自の結果がなければ実証論文と呼ばない。技術デモ/原稿/公開/売上を区別する。
+
+## 7. レビューと今回の変更範囲
+
+最初の仕様整理時点では仕様・派生計画・一次資料台帳のみを更新。その後の実装は [E16引継ぎ](../handoffs/2026-10-22-manager-e16-deployment-handoff.md) とSSOTの証跡を参照。E01–E15の技術検証とE16の参照サイクルが進んだが、本番アダプター/常駐ホスト未確認でE16は未完了。公開サイトへの今回コード配備・live推論・参加者研究・YC送信・第三者連絡・マージは実施していない。
+
+検査は既存全suite、product boundary、roadmap生成一致、全新規相対リンク/JSON、差分が文書だけか、出典と数値の意味、古いspecへの参照。Mac専用source guardとクラウドsource snapshotの検証は同じチェックとして扱わない。
 
 
-> **ACTIVE 2026-10-22 EXECUTION POLICY:** Implement **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** first. F005→F006→F008→F009 are **acceptance labels**, assessed only with valid E-derived evidence, not executable jobs placed before E01. Original F004/F007 third-party facility/funding tasks are retired/skipped, not blocked or completed. See `../roadmap/tasks.json` for task status/cursor and `../plans/2026-10-22-manager-core-execution-plan.md` for E implementation details. This notice supersedes older wording below about original financial/indoor acceptance.
+## 8. 先例再調査後の本番接続と創業者作業
 
+[創業者実行マップ](../plans/2026-10-22-manager-founder-execution-map.md)に、12の派生work package、W27までの日付、記事/既存book/slide/carousel、実入金、採用/業務連絡/eventの証拠条件を整理した。これは新たな技術順やtask-status台帳ではない。source/current/runtimeと外部pluginの接続を混同しない。Railway volumeのreplica不可・redeploy小停止を許容する単一worker設計で、無停止HAとは説明しない。
 
-Date: 2026-10-22 JST. This amends the engineering interpretation of `../MANAGER_PRODUCT_SPEC.md`, not the historical acceptance or status of `../roadmap/tasks.json`. Manager remains independent of Life Manager runtime, customers, databases, and credentials.
-
-## Intent and release boundary
-
-Build the best evidence-grounded Manager we can test, not a claim to universal superiority. The first release is **Digital Autonomy v0.1**: an unattended public-source observation → typed world state → candidate comparison including NO_ACTION → authorized owned-digital change → independent readback → technical evaluation → rollback loop. No per-action human approval is required inside a standing owner-issued scope and budget. Third-party privileges, personal profiles, private records, finance, facility operation and human experiments are not borrowed from Life Manager and are not unlocked by model output.
-
-The original F004/F007 charity/facility pathways have been explicitly retired from Phase06 v2 as **skipped, never completed**. They are not prerequisites to Manager's owned-public-digital product; do not substitute website deployment for evidence of actual external charity/facility intervention.  The next scientific release is a **calibrated simulator and outcome-evaluation system**; field claims require real suitable comparison data. Commercial research products are articles, a book and derivative educational media, not proof of welfare improvement.
-
-The user's latest instruction explicitly reauthorizes public articles and updates to aniccaai.com. Earlier GitHub-only instructions remain historical. Do not publish private profiles, secrets, unpublished third-party text, or unverified empirical claims. Submission to YC, cold outreach, advertising purchases, billing changes and enrollment of people are not implied.
-
-## Verified starting state
-
-Code inspected at `66997ea549f8d1373a7670b8a11add9af17613ea`. Original registry: 113 tasks, 69 done, 41 todo, 2 blocked, 1 scientific waiver. This checkpoint changes none of those counts. The 21 Ampersand integration tests pass on the exported source snapshot. The latest real API experiment is GitHub Actions run `39713799676`; a successful pipeline is not evidence of a superior policy.
-
-The experiment has 10 author-written fictional cases: 7/10 agreement with author labels; first 3 cases used in prompt development 3/3; remaining 7 cases 4/7, exactly equal to always-PASS on those 7. One same-session follow-up and 10 P0 kernel audit chains completed. No human participant, external intervention or measured welfare outcome exists. Exact settled cost is unknown. The seven cases were not independent external validation; scenario text and labels were authored in the same project.
-
-Failures matter: stale-plan lacks a clear unmet need; no-effects proposed seeking consent, which is not unauthorized execution; corrected-information produced a PROPOSE but its rationale exceeded the local 600-character validator. Do not change labels retrospectively and report a better score. The follow-up references an original source even after an updated fact, requiring versioned provenance.
-
-Additional local diagnostics: `AdvisoryResult` currently permits constructor overrides of `proof_level`, `causal_support`, `authorized_execution`; duplicate JSON keys are accepted. These are representation-boundary defects, **not evidence that the kernel dispatched unauthorized actions**. Preserve regression evidence and repair before live policy promotion.
-
-## Selected architecture and rejected shortcuts
-
-1. Keep Python 3.11+ product compatibility, stdlib domain contracts, existing SQLite outbox/audit/state-machine, source rights and proof ladder. Reuse existing GrowthBook 3.2.2 assignment preparation, DoWhy 0.14 and installed statistical engines; do not build a second causal library or randomizer.
-2. Ampersand is an OPTIONAL advisory provider behind an interface; current documented client is openai 3.24.0. Compare it with deterministic rules and NO_ACTION. No CORO/base-model training is needed. No provider is selected for deployment merely because a vendor leaderboard is high.
-3. Separate `Observation`, `SyntheticScenario`, `Prediction`, `Proposal`, `ExecutionReceipt`, `OutcomeObservation` and `CausalEstimate`. An object label or SHA alone does not authenticate observed bytes, rights or consent. Synthetic states must never be silently admitted as real public observations.
-4. Keep the present single-writer execution model first. Retain durable runtime state on a persistent host outside Git, and reconcile effects against authoritative external records. GitHub-hosted CI is a test runner, not a durable always-on scheduler. Do not introduce Temporal or distributed workers until a recorded multi-worker requirement and failure benchmark justify it.
-5. Preserve the existing owned digital publisher and independent public readback. A technical public change can establish P1/P2 within the defined contract, not a human-benefit claim. Output comparisons and source IDs are not grants.
-6. Reuse the pinned Concordia adapter for controlled fictional simulations. Persimmon is an optional provider requiring its own verified access and terms; absence must not block offline or public digital work. Aaru/Simile methods guide calibration, not an assumed integrated API license.
-7. Keep the existing Markdown-to-blog builder and canonical-source publishing bridge. Use a common evidence/citation catalog and language-independent result records for articles, book chapters, presentation scripts, carousel panels and manga scripts. Quarto is the selected export tool for a later book EPUB/HTML/PDF build; existing presentation scripts remain first choice for slides. Do not present outlines as finished books or scripts as rendered manga.
-
-## Non-negotiable contracts
-
-- Proof ladder: P0 simulation/model/advice; P1 external execution evidence; P2 independent state change; P3 directly observed beneficiary outcome; P4 justified causal net effect; P5 replication. Product code cannot promote its own grade from confidence or prose.
-- Runtime authority, budget, audience and stop/revoke controls are host-owned. Interventions must stay within scoped property rights. Refusal and withdrawal cannot be overridden by inferred welfare.
-- Never add dollars, minutes, emotions, PM2.5 or heterogeneous risks into a scalar without explicit, validated units/normalization and sensitivity analysis. Default is a vector of outcomes and hard constraints.
-- API credentials are exact provider-issued values; reject malformed Unicode, do not guess or normalize secrets. Never put secrets in source, saved prompts, artifacts or logs.
-- Session creation is not idempotent. Save intent before sending; persist IDs immediately; if uncertain, reconcile rather than duplicate. Events use stable key + identical body. One writer per session. Silent completion, failure, cancellation, timeout and missing usage are different states.
-- Provider docs currently do not guarantee constrained JSON final output. Host validation must reject duplicate keys, unknown fields, nonfinite numbers, out-of-bound rationale, invented sources and execution flags. Fallback is classified NO_ACTION, not a fabricated successful model answer.
-- Freeze experiment manifests before calls. Separate infrastructure success, valid format, safety, justified usefulness, prediction calibration and actual outcomes. Label uncertainty; permit multiple defensible advisory classes where the scenario genuinely permits them.
-- Human-simulation conditions must hold declared invariant attributes constant. Compare negative controls across intervention arms. A simulation's internal causal effect is not automatically a real-world effect.
-- No field study begins from an outline: actual owner authority, rights, appropriate voluntary participation, prespecified comparator, analysis and stop conditions are external gates. Do not invent interviewees, payments, deployments, consent or statistical significance.
-
-## Engineering defaults fixed for v0.1
-
-Owned digital path initially allows only factual link corrections and accessible presentation improvements to existing Manager-owned pages, with signed/verified scope, public nonpersonal sources, a hard max-change count, rollback reference and zero financial transfer. New grants, health advice, finance transactions, private messaging and arbitrary shell/tool execution are out of scope.
-
-Public source collector defaults: HTTPS allowlist; no redirects to unapproved/private/link-local origins; 1 MiB body cap; 15 s request deadline; conditional ETag/Last-Modified; UTC timestamp/hash; 48 h freshness gate; missing/failed fetch is unknown, not zero. These are conservative product choices, not universal scientific thresholds.
-
-Evaluation v2: first use deterministic fixtures to validate contracts; then freeze a new set of scenario families before provider use, separate development families from all evaluation variants, and run an explicitly budgeted repeat schedule. Report per-family distributions and interval methods; no universal accuracy threshold proves field utility. Promotion requires no critical boundary failure and demonstrated held-out improvement against a matched comparator under the preregistered rule. No autonomous retraining expands permissions.
-
-## Research decisions that change the plan
-
-- Lin et al., 2026, *The Illusion of Intervention*: intervention prompts can change the simulated user population. Add paired scenario identity, negative-control invariant checks and explicit user-drift reporting, not only naturalness scoring. https://arxiv.org/html/2605.20767v1
-- Hullman et al., 2026, *Validating LLM simulations as behavioral evidence*: heuristic realism is exploratory; confirmatory inference requires suitable human data and calibration assumptions. Keep exploratory and field-confirmatory gates separate. https://arxiv.org/html/2602.15785v1
-- Simile confidence research: predict model error on grouped held-out questions/experimental samples, not trust output entropy or verbal confidence. https://www.simile.com/blog/confidence
-- Aaru replication-floor report: univariate population answer-share agreement is narrower than joint behavior or causal effect. Store task/population/date/answer-space and raw versus adjusted error separately. https://aaru.com/publications/population-simulation-at-the-replication-floor-research
-- Andon Labs: real-world incident collection complements simulated success. Preserve complete negative/unknown incident records and workload/privacy costs. https://andonlabs.com/blog/why-we-built-pion
-- Ampersand official integration contract: host-owned permissions, non-idempotent creation, idempotent events, legitimate silence. https://ampersand.humansand.ai/docs/GUIDES.html
-- Quarto book outputs provide one-source HTML/PDF/EPUB, not an alternative website owner. https://quarto.org/docs/books/book-output.html
-
-## Completion and execution documents
-
-The linked implementation plans are derived execution views, NOT new task-status authorities. The sole E order and cursor are stored in `../roadmap/tasks.json`; the E code implementation work and F acceptance status must never be conflated:
-- `../plans/2026-10-22-manager-core-execution-plan.md`: critical hardening and digital closed loop.
-- `../verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`: historical/updated evidence matrix; Phase06 v2 replaces F004/F007 dependencies. For other phases read `../roadmap/tasks.json` and their verified acceptance checks, not an extra SSOT.
-- `../plans/2026-10-22-manager-research-products-plan.md`: bilingual evidence-to-content pipeline and website release.
-
-Maintain `tasks.json` as the Manager status authority and regenerate ATOMIC_BACKLOG.md only when original acceptance has actually been met. Preserve original descriptions, dependency history, prior negative results and external blockers.
+本番adapterの前に、未解決intent全件drainを新plannerより先にする設計と、schedule slot保存直後crash、候補変更/期限切れでも旧UNKNOWNを照合するテストを追加する。現在sandbox経路のコード読取から得た未確認保証であり、実測bugと断定しない。元publisher/ref/artifact gateを保ったcloud ownerとして登録し、Git CAS・独立GET・復元証拠で受入を判定する。

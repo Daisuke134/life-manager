@@ -1,0 +1,206 @@
+{
+  "schema": "manager.e16-offline-runtime-comparison.v1",
+  "generated_at": "2026-10-22T15:35:35.883414+00:00",
+  "scope": "P0_LOCAL_GIT_ONLY",
+  "production_evidence": false,
+  "human_outcome": "NOT_MEASURED",
+  "manager_local_source": {
+    "head": "46fa9cda3b23e373d80a201d14b6b1f9174f3131",
+    "repo": "Daisuke134/life-manager",
+    "working_file_sha256": {
+      "manager_core/outbox.py": "fc1b76c21ae988607c9f98a34d6814b6c11efb537a1d03803306cfd2c2d1927e",
+      "manager_core/owned_cycle.py": "ce0b59095c0960467ff566f083d6476662140150e90cad7a77fcdc44b6e60cf5",
+      "manager_core/owned_public_collector.py": "8de801a2716dffc185522c50813525c839d9609cdb66aa58889a3a9f887e7f82",
+      "manager_core/reconcile.py": "ddd2a475c4cf792305a3a6a5c7a65bd9ecfec6df45426e4645acd0b962b5d4b9",
+      "scripts/phase06_kernel_release.py": "52a6cdda9d236df5aaf5d605986a13e875449c55a6130302932b06363556da97"
+    }
+  },
+  "dbos": {
+    "available": true,
+    "direct_url": {
+      "url": "https://github.com/dbos-inc/dbos-transact-py.git",
+      "vcs_info": {
+        "commit_id": "e63ee714e031287c9b3447a173be835d6eaf1f95",
+        "requested_revision": "e63ee714e031287c9b3447a173be835d6eaf1f95",
+        "vcs": "git"
+      }
+    },
+    "version": "3.4.0a4"
+  },
+  "dependencies": {
+    "PyYAML": "6.0.3",
+    "SQLAlchemy": "2.1.6",
+    "click": "8.5.0",
+    "croniter": "6.2.4",
+    "dbos": "3.4.0a4",
+    "greenlet": "3.5.6",
+    "pip": "25.0.1",
+    "psycopg": "3.3.6",
+    "psycopg-binary": "3.3.6",
+    "python-dateutil": "3.0.0",
+    "six": "1.17.0",
+    "typing_extensions": "4.16.0",
+    "tzdata": "2026.5"
+  },
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "probe_sha256": "8b2f703364344d4a594e7ccf0b7133aac182b4c440fa98060135ef1d1638167e",
+  "case_count": 16,
+  "failure_count": 0,
+  "decision": "KEEP_CURRENT_SINGLE_WORKER; DBOS_ADOPTION_UNDECIDED",
+  "cases": [
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "slot_claim",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "337bcbe3bbb349905ebf7623e618789551175ec3"
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "reserved_before_send",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 0,
+      "target_advance_count": 0,
+      "receipt": null
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "response_loss",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "e594fb957f6cf0cf6087a1412175e208db3f9fd9"
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "checkpoint_loss",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "e594fb957f6cf0cf6087a1412175e208db3f9fd9"
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "cached_step_replay",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "b21e4dbff35a0d7f3624e7a0b3e931ebaa0c6144"
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "before_delivery_read",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "b21e4dbff35a0d7f3624e7a0b3e931ebaa0c6144"
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "fresh_engine_metadata",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "d5536f321c3f3dfaac2a8b5c00d367ce85f073a9"
+    },
+    {
+      "backend": "current",
+      "version": "existing-single-worker",
+      "failure_case": "readonly_multistage_wait",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "d5536f321c3f3dfaac2a8b5c00d367ce85f073a9",
+      "short_wait_resume_seconds": 2.0001264689999516
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "slot_claim",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "0221662aab3a6d20e2f24b786e822dc4e27fbde8"
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "reserved_before_send",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 0,
+      "target_advance_count": 0,
+      "receipt": null
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "response_loss",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "bb6be4b593a883ae702c0726e6235ff6c3a24452"
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "checkpoint_loss",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "f96006f7164e635907302fef9e4bfd0792ffc6f8"
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "cached_step_replay",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "d3e99c90b2fcf3efcd528f2d673fcdfb800b078d"
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "before_delivery_read",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "0f036b11a0f42913ff15a56d34ae87c095546962"
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "fresh_engine_metadata",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "b7e4a9e946b8893aeb2f51e296f80a7e812e7450"
+    },
+    {
+      "backend": "dbos",
+      "version": "3.4.0a4",
+      "failure_case": "readonly_multistage_wait",
+      "status": "PASS_OFFLINE_INVARIANTS",
+      "dispatch_count": 1,
+      "target_advance_count": 1,
+      "receipt": "a59ccd8eaf53d7722c3cf8014443e9b982d5e792",
+      "short_wait_resume_seconds": 0.0004939450009260327
+    }
+  ],
+  "limitations": [
+    "Six crash points plus fresh engine metadata and shortened 2-second multi-stage wait, each backend",
+    "No production host, public delivery, stale backup restore, real long wait, cost or workload-reduction proof",
+    "Current cached-step case injects a caller JSON cache; current has no workflow engine",
+    "slot_claim performs its first send only at the next eligible slot; restart itself sends zero",
+    "Core file hashes identify tested content even when a later remote commit has different metadata"
+  ],
+  "raw_session_artifact": "/workspace/scratch/e16-reviewed-runtime-comparison-20261022/results.json"
+}

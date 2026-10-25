@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
@@ -20,7 +21,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from manager_core.audit import AuditTrail
 from manager_core.digital_environment import verify_bundle, verify_readback
 from manager_core.digital_handoff import (
-    REPOSITORY, SOURCE_REF, WORKFLOW, PUBLIC_BASE, PublisherContext,
+    REPOSITORY, SOURCE_REF, MAIN_SOURCE_REF, WORKFLOW, PUBLIC_BASE, PublisherContext,
     admit_release, validate_commit_receipt, validate_intent, commit_message,
 )
 from manager_core.kernel import ManagerKernel
@@ -46,27 +47,35 @@ def public_get(url):
         return body
 
 
-def live_snapshot():
-    manifest=json.loads(public_get(PUBLIC_BASE+'manifest.json'))
+def served_snapshot(*,get=None):
+    """Read a bounded current snapshot; mismatch is not itself a regression."""
+    get=get or public_get
+    manifest=json.loads(get(PUBLIC_BASE+'manifest.json'))
     # Validate the manifest before using even its page names to construct URLs.
     from manager_core.digital_handoff import _manifest
     _manifest(manifest)
-    bodies={name:public_get(PUBLIC_BASE+name) for name in manifest['files']}
+    bodies={name:get(PUBLIC_BASE+name) for name in manifest['files']}
+    return manifest,bodies
+
+
+def live_snapshot(*,get=None):
+    manifest,bodies=served_snapshot(get=get)
     verify_readback(manifest,bodies)
     return manifest,bodies
 
 
-def immutable_snapshot(commit):
+def immutable_snapshot(commit,*,get=None):
     """Read the exact seven-file bundle at one provider commit; no branch lookup."""
     if not isinstance(commit,str) or not re.fullmatch('[0-9a-f]{40}',commit):
         raise ValueError('immutable provider SHA required')
     base=f'https://raw.githubusercontent.com/{REPOSITORY}/{commit}/manager-support/'
-    raw=public_get(base+'manifest.json')
+    get=get or public_get
+    raw=get(base+'manifest.json')
     manifest=json.loads(raw)
     from manager_core.digital_handoff import _manifest
     _manifest(manifest)
     bodies={'manifest.json':raw}
-    bodies.update({name:public_get(base+name) for name in manifest['files']})
+    bodies.update({name:get(base+name) for name in manifest['files']})
     return manifest,bodies
 
 
@@ -99,18 +108,56 @@ def prepare(site,output,now):
     write_json(rollback/'manifest.json',baseline)
     verify_bundle(rollback,baseline)
     kernel=ManagerKernel(None,None,AuditTrail(output/'digital-trace.sqlite'))
-    packet=kernel.prepare_digital_release('release-'+candidate['source_commit'],baseline,candidate,now)
+    source_ref=MAIN_SOURCE_REF if os.environ.get('GITHUB_REF')==MAIN_SOURCE_REF else SOURCE_REF
+    packet=kernel.prepare_digital_release('release-'+candidate['source_commit'],baseline,candidate,now,
+                                         source_ref=source_ref)
     write_json(output/'release-intent.json',packet)
     write_json(output/'kernel-trace.json',kernel.audit.trace('release-'+candidate['source_commit']))
     return packet
 
 
-def admit(site,checkout,audit_path,intent_path,output,now):
+def _checkout_parent(checkout):
+    try:
+        return subprocess.check_output(
+            ['git','-C',str(checkout),'rev-parse','HEAD'],stderr=subprocess.DEVNULL,
+            text=True,timeout=10).strip()
+    except (OSError,subprocess.SubprocessError) as exc:
+        raise PermissionError('publisher target must be an immutable Git checkout') from exc
+
+
+def admit(site,checkout,audit_path,intent_path,output,now,*,owned_request=None):
     packet=json.loads(intent_path.read_text())
     validate_intent(packet)
-    expected_workflow=f'{REPOSITORY}/{WORKFLOW}@{SOURCE_REF}'
+    source_ref=packet['ref']
+    expected_workflow=f'{REPOSITORY}/{WORKFLOW}@{source_ref}'
     if os.environ.get('GITHUB_WORKFLOW_REF')!=expected_workflow:
         raise PermissionError('publisher workflow identity mismatch')
+    if source_ref==MAIN_SOURCE_REF:
+        if (os.environ.get('GITHUB_EVENT_NAME')!='workflow_dispatch' or owned_request is None
+                or not os.environ.get('MANAGER_OWNER_ID')):
+            raise PermissionError('main publisher requires the owner-bound workflow request')
+        from manager_core.digital_handoff import plan_release
+        from manager_core.owned_platform_host import (
+            OwnedWorkflowRequest, parse_owned_workflow_request,
+            validate_owned_workflow_request,
+        )
+        parsed_request = (owned_request if type(owned_request) is OwnedWorkflowRequest
+                          else parse_owned_workflow_request(owned_request))
+        original_packet = plan_release(
+            packet['baseline'], packet['candidate'],
+            datetime.fromisoformat(parsed_request.created_at),
+            source_ref=MAIN_SOURCE_REF)
+        bound_request=validate_owned_workflow_request(
+            parsed_request,packet=original_packet,
+            expected_owner_id=os.environ['MANAGER_OWNER_ID'],
+            current_parent=_checkout_parent(checkout))
+        if os.environ.get('MANAGER_REQUEST_ID')!=bound_request.request_id:
+            raise PermissionError('workflow run does not match the stable owner request ID')
+        # Run the original six-hour lease through the publisher admission gate.
+        # A retry cannot mint a fresh packet timestamp to renew an old request.
+        packet=original_packet
+    elif owned_request is not None:
+        raise PermissionError('owned workflow requests are accepted only by the versioned main publisher')
     context=PublisherContext(os.environ.get('GITHUB_REPOSITORY'),os.environ.get('GITHUB_REF'),
                              WORKFLOW,os.environ.get('GITHUB_SHA'),os.environ.get('GITHUB_RUN_ID'))
     # Verify both actual directories; caller-provided hashes never suffice.
@@ -130,6 +177,31 @@ def admit(site,checkout,audit_path,intent_path,output,now):
     result.update(changed_files=staged['changed_files'],commit_message=commit_message(packet))
     write_json(output,result)
     return result
+
+
+def admit_owned(context,assessment,standing_scope,prepared,checkout,audit_path,output,now,*,owned_request=None):
+    """Host bridge: revalidate scope/source/artifact immediately before original admission.
+
+    No CLI/model input creates a scope. The separately privileged owner must
+    supply these typed host objects and the original GitHub workflow identity.
+    This function only stages; the platform still owns CAS commit/push.
+    """
+    from manager_core.digital_handoff import prepare_owned_change
+    validate_intent(prepared.packet)
+    if not datetime.fromisoformat(prepared.packet['created_at'])<=now<datetime.fromisoformat(prepared.packet['expires_at']):
+        raise PermissionError('original owned intent expired')
+    check=prepare_owned_change(context,assessment,standing_scope,now)
+    # Packet timestamps may differ; compare immutable bindings, then use fresh intent.
+    if (prepared.status!='PREPARED_PLATFORM_AUTHORITY_REQUIRED'
+            or check.status!=prepared.status or check.context_hash!=prepared.context_hash
+            or check.packet['effect_key']!=prepared.packet['effect_key']):
+        raise PermissionError('owned scope/context/artifact no longer eligible')
+    output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        intent=Path(tmp)/'intent.json';write_json(intent,check.packet)
+        return admit(Path(context.candidate_bundle),Path(checkout),Path(audit_path),intent,output,now,
+                     owned_request=owned_request)
 
 
 def render_explorer(report):
@@ -188,11 +260,15 @@ def main():
     p.add_argument('--intent',type=Path,default=OUT/'release-intent.json')
     p.add_argument('--checkout',type=Path);p.add_argument('--audit',type=Path)
     p.add_argument('--pages-commit')
+    p.add_argument('--owned-request',type=Path,
+                   help='exact owner-bound request passed to the versioned main publisher')
     args=p.parse_args();now=datetime.now(timezone.utc)
     if args.command=='plan':result=prepare(args.site,args.output,now)
     elif args.command=='admit':
         if args.checkout is None or args.audit is None:p.error('admit needs --checkout and --audit')
-        result=admit(args.site,args.checkout,args.audit,args.intent,args.output,now)
+        request=args.owned_request.read_text() if args.owned_request is not None else None
+        result=admit(args.site,args.checkout,args.audit,args.intent,args.output,now,
+                     owned_request=request)
     else:result=prove(args.intent,args.pages_commit,args.output,now)
     print(json.dumps(result,sort_keys=True,ensure_ascii=False,indent=2))
 

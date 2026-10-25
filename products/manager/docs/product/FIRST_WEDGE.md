@@ -1,5 +1,7 @@
 # First wedge: access to official financial support
 
+> **Current interpretation, 2026-10-22:** This remains a provisional technical wedge, not verified demand or U003 completion. F004/F007 have been retired as `skipped` under Phase06 v2; older text below about preserving unresolved original finance/facility prerequisites is historical. No such partner is required for the owned digital loop. The long-term customer hypothesis is an operator paying to maintain a critical public-service journey; validate its actual recurring problem, existing alternatives, authority and willingness to pay before expanding the product. Five qualifying U002 interviews remain the existing acceptance requirement; no synthetic personas count. See [current product spec](../MANAGER_PRODUCT_SPEC.md) and [primary-source findings, including a null enrollment result](../research/manager-strategy-20261022/REPORT_JA.md).
+
 **Decision status: PROVISIONAL — U003 is not complete.** Prepared 2026-10-22 JST / 2026-10-21 UTC. This is a technical selection for the existing owned public surface. Five consented interviews required by U002 have not been evidenced, and no service operator or beneficiary cohort has been enrolled. The original Phase06 funding and indoor-environment acceptance conditions remain unchanged.
 
 ## Who could benefit, and what Manager would change
@@ -63,3 +65,17 @@ Reconsider this wedge if interviews show that navigation is not a material barri
 The next selection decision should cite the five consented interviews, identify the actual operator, define the endpoint and denominator, state the cost ceiling and explain rejected alternatives. Until then, **U003 remains todo**. This file makes the candidate concrete and reviewable; it does not complete U002, funding/site permissions, human outcome collection or any P3/P4/P5 gate.
 
 Primary sources were retrieved on 2026-10-21 UTC / 2026-10-22 JST; URLs, retrieval status and interpretation limits are in [the source registry](../research/COMPLETION_PRIMARY_SOURCES_20261022.json).
+
+
+## Additional native-product baseline — 2026-10-22
+
+Status: **UNVALIDATED**. [New primary-source research](../research/manager-options-additional-20261022/REPORT_JA.md) adds existing products as real alternatives. Use the following comparison fields in future customer cases: `user_job / native_alternative / existing_interface / missing_boundary / evidence / operating_cost_unknowns / decision`.
+
+| user job | native alternative / interface | missing boundary to test | decision now |
+|---|---|---|---|
+| Personal scheduled research and memory | OpenClaw automation / Khoj query automation | A separate bounded-publishing/effect-proof requirement has not been validated | USE_EXISTING_PRODUCT candidate; do not rebuild personal agent OS |
+| Monitor information, route approval, update a known app | n8n / Activepieces native flow | Whether operator needs independent exact occurrence/readback and recovery beyond native flow | UNVALIDATED; compare native flow before a Manager integration |
+| Business app assistant | Gumloop MCP/API, Relevance AI workforce, Lindy routines | Whether bounded authority and independently measured outcome add enough value | USE_EXISTING_PRODUCT candidate; no new generic agent UI |
+| Maintain owned support-information journey | Existing link checker/manual process/native workflow plus thin Manager kernel | Operator need, recurring burden, evidence quality, cost, downstream outcome | TEST_THIN_MANAGER_BOUNDARY; commercial demand remains UNVALIDATED |
+
+These are source-backed alternative capabilities, not customer interview results. Runtime/vendor claims do not prove field efficacy, adoption or revenue. If the native alternative meets the job, omit the custom patch. Exact documentation/code/version/license/read depth is in the linked reports. Five consented U002 interviews and all original U003 acceptance remain required.

@@ -369,3 +369,6 @@ def summarize_portfolio(entries: tuple[PortfolioEntry, ...]) -> PortfolioSummary
     # No effect total: even matching units may have overlapping populations,
     # different denominators or incompatible estimands.
     return PortfolioSummary(entries, MappingProxyType(dict(counts)), MappingProxyType(costs))
+
+# Same OutcomeBench facade; scoring implementation stays focused and reusable.
+from .collaboration_evaluation import ScenarioCase, ValidationResult, ScoreVector, score_case

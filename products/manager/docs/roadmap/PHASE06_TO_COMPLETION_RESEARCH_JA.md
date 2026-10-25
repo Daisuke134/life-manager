@@ -3,9 +3,11 @@
 
 > **歴史的な2026-10-21時点の研究分解。現行の実装順ではありません。**
 >
-> **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** が現行唯一の実装順。次はE01。**F005 → F006 → F008 → F009** は実装後の証拠による受け入れ判定。F004/F007は必須経路から外れ、履歴を保存した `skipped`（未実施）。
+> **E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16** が現行唯一の実装順。現在の技術カーソルはE16（E01–E15は限定実装のreceiptあり）。**F005 → F006 → F008 → F009** は実装後の証拠による受け入れ判定。F004/F007は必須経路から外れ、履歴を保存した `skipped`（未実施）。
 >
 > 下記の旧F系54分解（旧F004の第1手順など）は**当時の原案の歴史的記録**であり、E01〜E16と同じ名前の現在の作業でも、現行の実装順でもありません。タスク状態・順序・カーソルSSOTは [`tasks.json`](tasks.json)、詳細は [Core実装計画](../plans/2026-10-22-manager-core-execution-plan.md)。
+
+現行の全Phase/残41件は [全工程view](START_TO_END_20261022.md)。この文書の旧54分解と当時のblocked記述は現状態を上書きしない。
 
 **Updated:** 2026-10-21. **Not a new task registry.** Read statuses/dependencies in [`tasks.json`](tasks.json), not this note; it is a cross-phase explanation. Read [evidence map](../research/2026-10-21_MANAGER_SIM_TO_REAL_ECOSYSTEM_JA.md), [F001/U001 opportunity matrix](../product/OPPORTUNITIES.md), and [authority gates](../../pilot/FEASIBILITY_AND_AUTHORITY.md).
 

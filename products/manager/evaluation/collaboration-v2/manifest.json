@@ -1,0 +1,11 @@
+{
+  "schema": "manager.collaboration-evaluation.freeze.v1",
+  "evaluator_version": "collaboration-v2.0",
+  "frozen_before_provider_calls": true,
+  "provider_calls": 0,
+  "hashes": {
+    "rubric.md": "d5cec8f9e7ad6d61ed6061a92b93293f4c8389001b609c8ed26b3a3358fd7225",
+    "schema.json": "2001844c874a0edca735e54a3003269abfb83534ec3e5bef695fc4d468b9942b"
+  },
+  "scope": "P0_ACCEPTABLE_DECISION_AGREEMENT_NOT_HUMAN_UTILITY"
+}

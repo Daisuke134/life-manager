@@ -1,0 +1,19 @@
+{
+  "schema": "manager.ampersand-p0-evidence-receipt.v1",
+  "study": "ampersand-v0.1-ten-fictional-scenarios",
+  "run_id": 39713799676,
+  "run_url": "https://github.com/Daisuke134/life-manager/actions/runs/39713799676",
+  "source_commit": "66997ea549f8d1373a7670b8a11add9af17613ea",
+  "artifact_id": 12398755518,
+  "artifact_name": "manager-ampersand-research-66997ea549f8d1373a7670b8a11add9af17613ea",
+  "artifact_reported_sha256": "8690ddcf3ca2a4aec66bb780b03a83c9634cc6dec7934e3a67199c916fc11226",
+  "raw_file": "ten_case_raw.json",
+  "raw_sha256": "c46503170d9fc337137d6283fb6d38821a29149f72609f751a79366103f70585",
+  "raw_bytes": 14759,
+  "collected_utc": "2026-10-22T02:54:31Z",
+  "recorded_as": "P0_SYNTHETIC_ONLY",
+  "actual_people": 0,
+  "actual_effects": 0,
+  "settled_cost_usd": null,
+  "note": "Immutable bytes downloaded from a prior Github Actions artifact by an independent Actions workflow; actual model inference in fictional scenarios; no human welfare evidence."
+}

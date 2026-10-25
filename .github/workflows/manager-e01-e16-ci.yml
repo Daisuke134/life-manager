@@ -1,0 +1,42 @@
+name: Manager E01-E16 deterministic incremental verification
+on:
+  push:
+    branches: [research/manager-e01-e16-execution-20261022]
+    paths:
+      - 'products/manager/**'
+      - '.github/workflows/manager-e01-e16-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manager-e-execution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: E01 evidence receipt contract
+        run: python -m unittest discover -s tests -p 'test_ampersand_evidence_receipt.py' -v
+      - name: Ampersand P0 advisory regression
+        run: python -m unittest discover -s tests -p 'test_ampersand_integration.py' -v
+      - name: Verify E-task SSOT and source boundaries
+        run: |
+          python scripts/make_roadmap.py --check
+          python scripts/check_boundaries.py
+      - name: Entire existing Manager suite
+        run: python -m unittest discover -s tests -q
+
+# E01 source evidence preserved at immutable GitHub artifact 12398755518.

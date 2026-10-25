@@ -1,0 +1,476 @@
+{
+  "schema": "manager.new-publishing-research.v1",
+  "as_of_utc": "2026-10-22",
+  "baseline_commit": "ae06f4ccfa30b29e427f71d6413eba0858a34cf8",
+  "repo": "https://github.com/Daisuke134/life-manager.git",
+  "scope": "Read-only research; proposals only; no tests/render/exports/publication or account changes performed",
+  "novelty": {
+    "search_scope": [
+      "products/manager",
+      "docs/research/manager/publication"
+    ],
+    "existing_known": [
+      "Quarto",
+      "Postiz"
+    ],
+    "new_to_searched_product": [
+      "Jupyter Book 2 / MyST",
+      "Slidev",
+      "Marp (screened only)",
+      "Remotion",
+      "Ghost Admin API",
+      "Typefully v2",
+      "Buffer GraphQL",
+      "Made With ML / Goku Mohandas",
+      "Full Stack / askFSDL"
+    ],
+    "not_reused": [
+      "Hamel Husain",
+      "Chip Huyen",
+      "Simon Willison",
+      "Jason Liu"
+    ],
+    "limits": "Term-search novelty only; not a claim of first invention"
+  },
+  "source_count": 18,
+  "sources": [
+    {
+      "id": "PUB-MYST-DOCS",
+      "url": "https://mystmd.org/guide/documents-exports",
+      "supports": [
+        "Current export list PDF/TeX/Typst/JATS/Word/CITATION.cff/MyST; exports config and myst build commands"
+      ],
+      "limits": [
+        "Does not establish EPUB support; no exporter executed"
+      ],
+      "depth": "Full page retrieved; export types/config/CLI/template sections read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-JB2",
+      "url": "https://jupyterbook.org/stable/",
+      "supports": [
+        "Jupyter Book distribution of MyST Document Engine; CLI verb differs"
+      ],
+      "limits": [
+        "Do not transfer v1/Sphinx feature guarantees"
+      ],
+      "depth": "Full page read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-MYST-CODE",
+      "url": "https://github.com/jupyter-book/mystmd/tree/033fa068af225e974d183143ead7f5dd180663da",
+      "sha": "033fa068af225e974d183143ead7f5dd180663da",
+      "version": "mystmd 1.11.0",
+      "license": "MIT",
+      "supports": [
+        "build/export selectors and DOCX/JATS/CFF functions exist; notebook execution default disabled"
+      ],
+      "limits": [
+        "No dependency installation/build/execution; templates retain separate rights"
+      ],
+      "depth": "Shallow clone; LICENSE/package metadata/selected build and export code/docs inspected",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-SLIDEV",
+      "url": "https://sli.dev/guide/exporting.html",
+      "companion_urls": [
+        "https://sli.dev/builtin/cli"
+      ],
+      "supports": [
+        "PNG/PDF/image-PPTX and pptx-editable; notes; fallback/font/Chromium/click-step caveats"
+      ],
+      "limits": [
+        "Browser render differs from PowerPoint; editable may fall back"
+      ],
+      "depth": "Both full pages retrieved; all export format/limit sections read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-SLIDEV-CODE",
+      "url": "https://github.com/slidevjs/slidev/tree/73053ab2b9653ed475960301b56e1ce4439d9c75",
+      "sha": "73053ab2b9653ed475960301b56e1ce4439d9c75",
+      "version": "@slidev/cli 53.0.0",
+      "license": "MIT",
+      "supports": [
+        "exportSlides/exportNotes/exportPptxEditable/buildPptx functions and format choices exist"
+      ],
+      "limits": [
+        "Node >=22.12.0; no install/render executed"
+      ],
+      "depth": "Shallow clone; full LICENSE, package metadata, selected export/PPTX code inspected",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-REMOTION",
+      "url": "https://www.remotion.dev/docs/renderer/render-media",
+      "companion_urls": [
+        "https://www.remotion.dev/docs/renderer/select-composition",
+        "https://www.remotion.dev/docs/dataset-render"
+      ],
+      "supports": [
+        "bundle/selectComposition/renderMedia JSON props flow"
+      ],
+      "limits": [
+        "No rendering; full renderMedia long option reference not audited end-to-end"
+      ],
+      "depth": "Full renderMedia page retrieved; top API and serveUrl/composition/codec/outputLocation/inputProps/concurrency sections read; other URLs search excerpts",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-REMOTION-CODE",
+      "url": "https://github.com/remotion-dev/remotion/tree/aa5d82347db5eeab4a2be3557aff3c3c3a373e9d",
+      "sha": "aa5d82347db5eeab4a2be3557aff3c3c3a373e9d",
+      "version": "4.0.537",
+      "license": "Custom Remotion license; free individuals/for-profit <=3 employees/nonprofits/noncommercial evaluation",
+      "supports": [
+        "Current custom license and renderMedia/selectComposition exports verified"
+      ],
+      "limits": [
+        "Not MIT/OSI blanket grant; derivative resale restriction; license warns of future v5 change; no execution"
+      ],
+      "depth": "Shallow clone; full LICENSE.md/package metadata/selected render APIs read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-GHOST",
+      "url": "https://docs.ghost.org/admin-api",
+      "companion_urls": [
+        "https://docs.ghost.org/admin-api/posts/creating-a-post"
+      ],
+      "supports": [
+        "JWT integration token authentication, permission model, create lexical posts, lossy source=html conversion"
+      ],
+      "limits": [
+        "No server/account/version/plan connection checked; code license not audited"
+      ],
+      "depth": "Full pages retrieved; auth/base/version and entire create page read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-TYPEFULLY",
+      "url": "https://typefully.com/docs/api",
+      "companion_urls": [
+        "https://support.typefully.com/en/articles/8718287-typefully-api",
+        "https://support.typefully.com/en/articles/13133296-typefully-api-v1-v2-migration-guide"
+      ],
+      "supports": [
+        "v2 social-set draft paths, bearer user-inherited permissions, per-user/per-set limits, comment marker integrity"
+      ],
+      "limits": [
+        "Paid/free API entitlement unverified; no auth/API calls; migration page search excerpt only"
+      ],
+      "depth": "Full API page retrieved; overview/auth/permissions/rate limits/draft/comment sections read; companion search excerpts",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-BUFFER",
+      "url": "https://developers.buffer.com/guides/posts-and-scheduling.html",
+      "companion_urls": [
+        "https://developers.buffer.com/guides/efficient-api-usage.html",
+        "https://developers.buffer.com/guides/your-first-post.html"
+      ],
+      "supports": [
+        "Current GraphQL createPost/channel/schedule flow; official no create_post idempotency key; timeout recovery via filtered list; shared MCP/API quota"
+      ],
+      "limits": [
+        "No account/plan/auth/publication checked; code license not audited"
+      ],
+      "depth": "Two full pages retrieved; lifecycle/create and quota/retry/idempotency sections read; first-post search excerpt",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-POSTIZ",
+      "url": "https://docs.postiz.com/public-api/introduction",
+      "companion_urls": [
+        "https://docs.postiz.com/public-api/posts/create"
+      ],
+      "supports": [
+        "type draft/now/schedule; integrations identity; create-post quota90/hour cloud100"
+      ],
+      "limits": [
+        "Existing known tool; current user connections/plan/quota not queried"
+      ],
+      "depth": "Full pages retrieved; auth/rate/error/type/provider sections read",
+      "novel": false,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-MARP-SCREEN",
+      "url": "https://marp.app/",
+      "supports": [
+        "Official Markdown-to-HTML/PDF/PowerPoint overview"
+      ],
+      "limits": [
+        "No repo/CLI/license audit, screened only; not implementation recommendation"
+      ],
+      "depth": "Full homepage retrieved; relevant export/commonmark portions read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-MWML-HOME",
+      "url": "https://madewithml.com/",
+      "supports": [
+        "One application curriculum through design/data/model/testing/reproducibility/production"
+      ],
+      "limits": [
+        "Upcoming cohort interest form lacks verified current event date"
+      ],
+      "depth": "Subagent full page retrieved/read; evidence conveyed with exact URLs",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-MWML-CAREER",
+      "url": "https://www.anyscale.com/blog/machine-learning-for-developers",
+      "published": "2023-07-26",
+      "supports": [
+        "First-person report Goku and Made With ML joined Anyscale; self-reported consulting/reach"
+      ],
+      "limits": [
+        "No revenue/acquisition price/current salary or causal attribution disclosed"
+      ],
+      "depth": "Subagent full article retrieved/read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-MWML-CODE",
+      "url": "https://github.com/GokuMohandas/Made-With-ML/tree/3361aeb8ddfc2affdba9f545c978c38c85cee764",
+      "sha": "3361aeb8ddfc2affdba9f545c978c38c85cee764",
+      "commit_date": "2026-03-04",
+      "license": "MIT",
+      "supports": [
+        "MkDocs/mkdocstrings docs deployment and module-navigation mapping"
+      ],
+      "limits": [
+        "Do not copy --force deployment or infer rights to videos/other sites; no execution"
+      ],
+      "depth": "Subagent GitHub API metadata/LICENSE/documentation.yaml/mkdocs.yml read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-FSDL",
+      "url": "https://fullstackdeeplearning.com/llm-bootcamp/",
+      "companion_urls": [
+        "https://fullstackdeeplearning.com/llm-bootcamp/spring-2023/",
+        "https://fullstackdeeplearning.com/llm-bootcamp/spring-2023/askfsdl-walkthrough/"
+      ],
+      "supports": [
+        "Free April2023 recordings; code/video/chapter images/summary/community integrated; account limitations"
+      ],
+      "limits": [
+        "Historical course archive, not verified current paid enrollment or revenue"
+      ],
+      "depth": "Subagent full official pages retrieved/read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-FSDL-CODE",
+      "url": "https://github.com/the-full-stack/ask-fsdl/tree/b725c0ecdf0d484b48b79e32c37905614522ba4d",
+      "sha": "b725c0ecdf0d484b48b79e32c37905614522ba4d",
+      "commit_date": "2023-11-24",
+      "license": "MIT (LICENSE.txt)",
+      "supports": [
+        "Runnable source companion available under MIT"
+      ],
+      "limits": [
+        "No installation/execution or reproduction; third-party service accounts may be required"
+      ],
+      "depth": "Subagent GitHub metadata and complete correct LICENSE.txt inspected",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    },
+    {
+      "id": "PUB-FSDL-WEBSITE",
+      "url": "https://github.com/the-full-stack/the-full-stack-website/tree/c315f42e16b8b0208039cc841c3f34da0c405a2e",
+      "sha": "c315f42e16b8b0208039cc841c3f34da0c405a2e",
+      "commit_date": "2026-10-21",
+      "license": "GitHub license metadata null; no blanket license established",
+      "supports": [
+        "MkDocs site/readme and lecture-notes creator exist"
+      ],
+      "limits": [
+        "Do not treat site prose/images as MIT; creator requires auth/Modal"
+      ],
+      "depth": "Subagent metadata and README/lecture-notes-creator README read",
+      "novel": true,
+      "retrieved": "2026-10-22",
+      "source_type": "official primary source",
+      "evidence_kind": "documentation_or_public_artifact_not_Manager_outcome"
+    }
+  ],
+  "selected_repository_snapshots": [
+    {
+      "path": "Local research workspace only; use immutable source URL/hash for reproduction.",
+      "sha": "73053ab2b9653ed475960301b56e1ce4439d9c75",
+      "version": "53.0.0",
+      "license": "MIT",
+      "executed": false
+    },
+    {
+      "path": "Local research workspace only; use immutable source URL/hash for reproduction.",
+      "sha": "033fa068af225e974d183143ead7f5dd180663da",
+      "version": "1.11.0",
+      "license": "MIT",
+      "executed": false
+    },
+    {
+      "path": "Local research workspace only; use immutable source URL/hash for reproduction.",
+      "sha": "aa5d82347db5eeab4a2be3557aff3c3c3a373e9d",
+      "version": "4.0.537",
+      "license": "Custom Remotion License",
+      "executed": false
+    }
+  ],
+  "existing_paths_and_interfaces": [
+    {
+      "path": "products/manager/scripts/build_blog_publication.py",
+      "interfaces": [
+        "source_file",
+        "additive_media",
+        "public_markdown",
+        "build_publication",
+        "main --check"
+      ]
+    },
+    {
+      "path": "products/manager/scripts/build_manager_completion_presentations.py",
+      "interfaces": [
+        "build_slide",
+        "notes",
+        "footer",
+        "markdown",
+        "main"
+      ]
+    },
+    {
+      "path": "apps/landing/manager-blog/scripts/install.mjs",
+      "interfaces": [
+        "installManagerBlog"
+      ]
+    },
+    {
+      "path": "apps/landing/manager-blog/scripts/package-contract.mjs",
+      "interfaces": [
+        "validatePublication"
+      ]
+    },
+    {
+      "path": "apps/landing/manager-blog/lib/render-manager-markdown.mjs",
+      "interfaces": [
+        "renderManagerMarkdown"
+      ]
+    },
+    {
+      "path": "apps/life-manager/scripts/render-slide-image.py",
+      "interfaces": [
+        "load_font",
+        "fit_text",
+        "draw_scrim",
+        "measure_contrast",
+        "main positional bg/out/width/height/text"
+      ]
+    },
+    {
+      "path": "apps/life-manager/lib/marketing-native-carousel-publication-adapter.js",
+      "interfaces": [
+        "selectMarketingNativeCarouselLane",
+        "buildMarketingNativeCarouselPublicationJob",
+        "executeMarketingNativeCarouselPublicationJob",
+        "verifyMarketingNativeCarouselPublicationReceipt"
+      ],
+      "limits": [
+        "6 slides",
+        "Anicca app identity",
+        "App Store CTA",
+        "official provider reconciliation"
+      ]
+    },
+    {
+      "path": "skills/video/canonical-renderer/render.py",
+      "interfaces": [
+        "render",
+        "parser",
+        "probe",
+        "validate_probe",
+        "validate_audio",
+        "validate_no_black_frames",
+        "validate_opening_motion",
+        "create_contact_sheet"
+      ]
+    },
+    {
+      "path": "skills/earn/marketing-engine/publish/postiz_adapter.py",
+      "interfaces": [
+        "HttpPostizClient",
+        "PostizAdapter"
+      ]
+    }
+  ],
+  "patch_candidates_count": 7,
+  "preferred_chain": "canonical Markdown + reviewed claim/storyboard JSON -> existing python-pptx/Pillow/FFmpeg -> hash-bound existing blog package -> existing installer/Next/Netlify -> actual live readback",
+  "countercases": [
+    "Use existing renderer instead of Remotion for slide sequence",
+    "Use existing blog instead of Ghost",
+    "Use existing Postiz fences/readback instead of new Typefully/Buffer connection",
+    "Keep existing Quarto EPUB plan; add MyST only for actual DOCX/JATS need",
+    "Preserve editable python-pptx decks; Slidev only conditional technical-deck comparison"
+  ],
+  "unknowns": [
+    "Current social-provider authorization/connected channels and plan entitlement",
+    "Current revenue, subscribers or career outcomes for Manager",
+    "Third-party precedent dollar revenue or acquisition amount",
+    "Actual new export artifact usability until rendered and inspected",
+    "Commercial rights for any third-party figure/video/font not individually licensed"
+  ]
+}
