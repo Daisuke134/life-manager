@@ -516,3 +516,64 @@ def test_commit_contract_rebases_onto_a_remote_that_moved_ahead(tmp_path):
     files = subprocess.run(["git", "ls-tree", "-r", "--name-only", remote_head], cwd=remote,
                            check=True, text=True, capture_output=True).stdout.split()
     assert article in files and "unrelated.txt" in files
+
+
+def test_japanese_title_slug_keeps_a_content_hash_so_it_stays_unique():
+    """2026-10-25 run 20261025-040107: 「AI長文…」 slugged to bare `ai`, which an earlier
+    article already owned, so aniccaai.com refused it with "slug conflict"."""
+    module = soa()
+    first = module.build_contract(run_id="20261025-040107", lang="ja",
+                                  markdown=_markdown(title="AI長文で本当に測るべきこと"))
+    second = module.build_contract(run_id="20261025-040108", lang="ja",
+                                   markdown=_markdown(title="AIで読者を増やす方法"))
+    assert first["slug"].startswith("ai-") and len(first["slug"]) > len("ai-")
+    assert first["slug"] != second["slug"]
+    english = module.build_contract(run_id="20261025-040107", lang="en", markdown=_markdown())
+    assert english["slug"] == "a-useful-title"
+
+
+def _safe_state(tmp_path, module, ja_title: str):
+    run_dir = tmp_path / "20261025-040107"
+    run_dir.mkdir(exist_ok=True)
+    (run_dir / "article-ja.md").write_text(_markdown(title=ja_title), encoding="utf-8")
+    (run_dir / "article-en.md").write_text(_markdown(), encoding="utf-8")
+    state_path = tmp_path / "publication-state.json"
+    state_path.write_text(json.dumps({
+        "run_id": "20261025-040107", "run_dir": str(run_dir), "topic_id": "topic-1",
+        "safety_status": "ALLOW", "self_owned_base_url": "https://aniccaai.com",
+        "drafts": {lang: {"path": str(run_dir / f"article-{lang}.md"),
+                          "sha256": module.sha256_text((run_dir / f"article-{lang}.md").read_text())}
+                   for lang in ("ja", "en")},
+    }), encoding="utf-8")
+    return state_path
+
+
+def test_undelivered_intent_is_replanned_with_the_new_slug(tmp_path):
+    module = soa()
+    state_path = _safe_state(tmp_path, module, "AI長文で本当に測るべきこと")
+    store = module.SelfOwnedPublicationStore(tmp_path / "adjunct.json", tmp_path / "ledger.jsonl")
+    contracts = module.contracts_from_publication_state(state_path)
+    legacy = [dict(c, slug="ai") if c["lang"] == "ja" else c for c in contracts]
+    landing = tmp_path / "landing"
+    articles_dir = landing / "apps/landing/private/writer-articles"
+    articles_dir.mkdir(parents=True)
+    (articles_dir / "ai.json").write_text(json.dumps({"run_id": "20261019-000000"}), encoding="utf-8")
+    store.prepare(state_path, legacy, base_url="https://aniccaai.com")
+    without_root = store.prepare
+    with pytest.raises(module.SelfOwnedInvariant):
+        without_root(state_path, contracts, base_url="https://aniccaai.com")
+    store.prepare(state_path, contracts, base_url="https://aniccaai.com", landing_root=landing)
+    current = json.loads((tmp_path / "adjunct.json").read_text(encoding="utf-8"))
+    assert current["articles"]["self-owned/ja"]["target"] == next(
+        c["slug"] for c in contracts if c["lang"] == "ja")
+
+    (tmp_path / "adjunct.json").unlink()
+    store.prepare(state_path, legacy, base_url="https://aniccaai.com")
+    (articles_dir / "ai.json").write_text(json.dumps({"run_id": "20261025-040107"}), encoding="utf-8")
+    with pytest.raises(module.SelfOwnedInvariant):
+        store.prepare(state_path, contracts, base_url="https://aniccaai.com", landing_root=landing)
+
+    delivered = dict(current, delivery={"commit": "abc"})
+    (tmp_path / "adjunct.json").write_text(json.dumps(delivered), encoding="utf-8")
+    with pytest.raises(module.SelfOwnedInvariant):
+        store.prepare(state_path, legacy, base_url="https://aniccaai.com", landing_root=tmp_path / "none")

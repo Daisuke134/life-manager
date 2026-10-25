@@ -17,6 +17,9 @@ test('English Manager homepage exposes current evidence, research, and honest li
   assert.match(text, /OIDC checkpoint restore/i);
   assert.match(text, /positive canary[^.]*STOP \/ rollback[^.]*native-observation/i);
   assert.match(text, /Manager has not yet demonstrated reliable human-behavior prediction or real-world effects of intervention/i);
+  assert.match(text, /entity Anicca aims to build/i);
+  assert.match(text, /beneficiaries should not need a dedicated app or chat/i);
+  assert.match(text, /operator oversight, audit, and stop controls remain/i);
   assert.match(html, /href="https:\/\/aniccaai\.com\/blog\/manager"/);
   assert.match(html, /href="https:\/\/aniccaai\.com\/blog\/manager-eba-benchmark-landscape-en"/);
   assert.match(text, /Ampersand/);
@@ -39,6 +42,9 @@ test('Japanese Manager homepage exposes the same evidence boundaries and researc
   assert.match(text, /GitHub OIDCによるcheckpoint restore・update・release/i);
   assert.match(text, /positive canary[^.]*STOP \/ rollback[^.]*native observation/i);
   assert.match(text, /人の行動を確かに予測し、介入によって現実の結果を改善したことは、まだ実証していません/);
+  assert.match(text, /Aniccaが生み出すことを目指すAIエンティティ/);
+  assert.match(text, /受益者に専用のアプリやチャット操作を求めない構想/);
+  assert.match(text, /運営者の監督・監査・停止手段は保ちます/);
   assert.match(html, /href="https:\/\/aniccaai\.com\/blog\/manager"/);
   assert.match(html, /href="https:\/\/aniccaai\.com\/blog\/manager-eba-benchmark-landscape-en"/);
   assert.match(text, /Ampersand/);

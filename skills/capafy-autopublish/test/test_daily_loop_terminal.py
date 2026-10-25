@@ -568,3 +568,19 @@ def test_drainer_prompts_say_a_sonnet_5_5_listing_hosts_on_the_sonnet_5_id():
     sentence = "A LISTING Primary Model of Claude Sonnet 5.5 is hosted on the Claude Sonnet 5 id by design"
     assert source.count(sentence) == 2
     assert "not a stop condition" in source
+
+
+def test_drainer_prompts_give_the_status_command_path_and_the_only_lease_stop():
+    """2026-10-25: the agent ran `vendor/capafy-publisher/packager.py` from the repo root (rc 127, no such
+    file), never ran with-browser.sh, then reported the browser lease as unavailable (status 10)."""
+    source = CHILD.read_text(encoding="utf-8")
+    command = "python3 skills/capafy-autopublish/vendor/capafy-publisher/packager.py publish-remote-status --agent-id"
+    assert source.count(command) == 2
+    assert source.count("only a with-browser.sh exit of 75 or 10") == 2
+
+
+def test_drainer_prompts_retry_a_transient_with_browser_exit_10_before_stopping():
+    """2026-10-25 05:13Z: with-browser.sh exited 10 for the agent while the same call from a shell and from a
+    plain codex exec succeeded on the loaded host (load 6-13), so one 10 is not proof the browser is down."""
+    source = CHILD.read_text(encoding="utf-8")
+    assert source.count("If with-browser.sh exits 10, wait 30 seconds and retry up to 3 times") == 2

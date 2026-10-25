@@ -20,6 +20,7 @@ test("YouTube changed-caption slot reuses a verified publication or holds unreso
     platform: "youtube", video_sha256: "a".repeat(64), caption_sha256: "b".repeat(64),
     public_url: "https://www.youtube.com/watch?v=iEDdaIWdwY4",
     provider_post_id: "prior-post", provider_route: "postiz", provider_reconciled: true,
+    origin_occurrence_id: "life-manager-anicca-affirmation-youtube:original-publish",
     published_at: "2026-10-11T05:18:08.723Z",
   };
   const refs = { product_ref: "product://anicca-ios", format_ref: "format://reelclaw-card",
@@ -30,8 +31,12 @@ test("YouTube changed-caption slot reuses a verified publication or holds unreso
     form_ref: "form://nudge-card", creative_ref: "creative://anicca-ios/prior-creative",
     video_ref: `object://sha256/${receipt.video_sha256}`, caption_ref: `object://sha256/${receipt.caption_sha256}` } };
   const store = (value) => ({ async readPriorPublicationForSlot() { return value; } });
-  const reused = await reusePriorYouTubePublication(store({ job: priorJob, receipt }), current);
+  const resultOccurrenceId = "life-manager-anicca-affirmation-youtube:reconcile-prior";
+  const reused = await reusePriorYouTubePublication(store({ job: priorJob, receipt }), current, resultOccurrenceId);
   assert.equal(reused.created, false);
+  assert.equal(reused.provider_effect_created, false);
+  assert.equal(reused.origin_occurrence_id, receipt.origin_occurrence_id);
+  assert.equal(reused.result_occurrence_id, resultOccurrenceId);
   assert.equal(reused.public_url, receipt.public_url);
   assert.equal(reused.provider_post_id, receipt.provider_post_id);
   assert.equal(reused.reused_prior_slot, true);
@@ -107,6 +112,91 @@ test("the mobile no-due result uses the exact no-effect receipt contract", () =>
   const error = Object.assign(new Error("marketing cycle has no due slot yet"), { code: "NO_DUE_SLOT" });
   assert.deepEqual(noDueSlotResult(error), { status: "no_due_slot", reason: "no_due_slot" });
   assert.equal(noDueSlotResult(new Error("other failure")), null);
+});
+
+test("reused Instagram publication receipt binds the current result occurrence", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "honne-reused-instagram-publication-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
+  const importText = (name, value) => {
+    const source = path.join(dataDir, name);
+    fs.writeFileSync(source, value);
+    return objectStore.import(source).ref;
+  };
+  const packRef = importText("pack.json", "{}");
+  const mediaRef = importText("media.bin", "media");
+  const videoRef = importText("video.mp4", "video");
+  const copyRef = importText("copy.txt", "A small affirmation for today.");
+  const approvalRef = importText("approval.json", JSON.stringify({
+    scope: "standing", product_id: "anicca-ios", locale: "en", platform: "instagram", account: "@anicca.en",
+  }));
+  const occurrenceId = "life-manager-anicca-en-widget-instagram:reconcile-1";
+  const slot = "2026-10-25T00:30:00.000Z";
+  const artifact = {
+    creative_id: "reused-creative",
+    form: "daily-affirmation-widget",
+    video_ref: videoRef,
+    copy_ref: copyRef,
+  };
+  const publicationReceipt = {
+    schema_version: 1,
+    kind: "marketing_video_distribution",
+    status: "published",
+    product_id: "anicca-ios",
+    format_id: "reelclaw-widget",
+    form: "daily-affirmation-widget",
+    locale: "en",
+    slot,
+    creative_id: "reused-creative-20261025003000000",
+    platform: "instagram",
+    video_sha256: "a".repeat(64),
+    caption_sha256: "b".repeat(64),
+    public_url: "https://www.instagram.com/reel/PreviouslyPublished1/",
+    provider_post_id: "postiz-existing-instagram-reel",
+    provider_route: "postiz",
+    provider_reconciled: true,
+    provider_effect_created: true,
+    origin_occurrence_id: "life-manager-anicca-en-widget-instagram:original-publish-1",
+    published_at: "2026-10-25T00:31:00.000Z",
+  };
+  let generationJobId;
+  const store = {
+    async enqueueJob(input) {
+      if (input.capability === "marketing.video.generate") generationJobId = input.jobId;
+      return { created: true };
+    },
+    async readReceipt({ jobId }) {
+      if (jobId === generationJobId) return artifact;
+      if (generationJobId && jobId !== generationJobId) return publicationReceipt;
+      return null;
+    },
+  };
+  const env = {
+    LM_DATA_DIR: dataDir,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-en-widget-instagram",
+    LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
+    LM_ANICCA_EN_WIDGET_PRODUCTION_PACK_REF: packRef,
+    LM_ANICCA_EN_WIDGET_PRODUCTION_MEDIA_REFS: mediaRef,
+    LM_ANICCA_EN_WIDGET_PRODUCTION_APPROVAL_REF: approvalRef,
+  };
+
+  const result = await runHonneJaCycle(["run-anicca-en-widget-instagram", "--slot", slot], {
+    dataDir,
+    env,
+    nowMs: Date.parse(slot) + 60_000,
+    metricsProvider: {},
+    store,
+  });
+
+  assert.deepEqual(result.publication, {
+    created: false,
+    provider_effect_created: false,
+    origin_occurrence_id: "life-manager-anicca-en-widget-instagram:original-publish-1",
+    result_occurrence_id: occurrenceId,
+    public_url: publicationReceipt.public_url,
+    provider_post_id: publicationReceipt.provider_post_id,
+  });
 });
 
 test("a failed publication with no provider effect retries once; an unknown effect stays held", async (t) => {

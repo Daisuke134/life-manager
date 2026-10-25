@@ -25,7 +25,9 @@ RELEASES="$LOOPS_ROOT/releases"
 DEPENDENCY_BUNDLES="$LOOPS_ROOT/dependency-bundles"
 CURRENT="$LOOPS_ROOT/current"
 # state root is intentionally not resolved here (see RELEASE.json note below)
-KEEP="${LOOPS_KEEP_RELEASES:-1}"
+# 999 by default: a cut must never prune releases loaded plists still run (2026-10-25: 136 loops lost
+# their executable). Disk reclaim of unreferenced releases belongs to the central release GC.
+KEEP="${LOOPS_KEEP_RELEASES:-999}"
 REF="${1:-HEAD}"
 RELEASE_PATHS="${LOOPS_RELEASE_PATHS:-}"
 ACTIVATE_CURRENT="${LOOPS_ACTIVATE_CURRENT:-1}"

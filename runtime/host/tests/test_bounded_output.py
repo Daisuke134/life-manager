@@ -71,7 +71,9 @@ def test_detached_writer_survives_original_parent_exit(tmp_path):
     marker = tmp_path / "alive"
     subprocess.run([sys.executable, "-B", str(helper), str(root), str(marker)], check=True, timeout=5)
     deadline = time.monotonic() + 5
-    while not marker.exists() and time.monotonic() < deadline:
+    while time.monotonic() < deadline:
+        if marker.exists() and marker.read_text() == "alive":
+            break
         time.sleep(0.02)
     assert marker.read_text() == "alive"
 

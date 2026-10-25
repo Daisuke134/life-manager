@@ -67,6 +67,10 @@ def _slug(title: str, lang: str, source: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_title).strip("-")
     if not slug:
         slug = f"writer-{lang}-{sha256_text(source)[:12]}"
+    elif len(ascii_title) != len(title):
+        # A Japanese title loses everything but its ASCII words ("AI長文…" -> "ai"), and the
+        # next such title collides with it (2026-10-25). Keep the slug unique per article.
+        return f"{slug[:87].rstrip('-')}-{sha256_text(source)[:12]}"
     return slug[:100].rstrip("-")
 
 
@@ -184,6 +188,20 @@ def _contract_target(root: Path, contract: dict) -> tuple[Path, Path, str]:
     relative = Path("apps/landing/private/writer-articles") / f"{slug}.json"
     encoded = json.dumps(contract, ensure_ascii=False, indent=2) + "\n"
     return relative, root / relative, encoded
+
+
+def _landing_target_is_run(root: Path, slug: object, run_id: object) -> bool:
+    """True when the landing repo already holds this run's article under slug (a push may
+    have landed before its delivery was recorded); unreadable counts as ours."""
+    if not isinstance(slug, str):
+        return True
+    target = Path(root) / "apps/landing/private/writer-articles" / f"{slug}.json"
+    if not target.exists():
+        return False
+    try:
+        return json.loads(target.read_text(encoding="utf-8")).get("run_id") == run_id
+    except (OSError, UnicodeError, json.JSONDecodeError, AttributeError):
+        return True
 
 
 REGISTRY_RELATIVE = Path(
@@ -306,6 +324,7 @@ class SelfOwnedPublicationStore:
 
     def prepare(
         self, publication_state_path: Path, contracts: list[dict], *, base_url: str,
+        landing_root: Path | None = None,
     ) -> dict:
         try:
             publication = json.loads(Path(publication_state_path).read_text(encoding="utf-8"))
@@ -390,6 +409,20 @@ class SelfOwnedPublicationStore:
                         ):
                             entry["target_kind"] = "self-owned-slug"
                     _atomic_json(self.state_path, current)
+                if (
+                    current.get("run_id") == desired["run_id"]
+                    and not current.get("delivery")
+                    and current.get("articles")
+                    and all(isinstance(entry, dict) and entry.get("status") == "intent"
+                            for entry in current["articles"].values())
+                    and landing_root is not None
+                    and not any(_landing_target_is_run(landing_root, entry.get("target"), run_id)
+                                for entry in current["articles"].values())
+                ):
+                    # Nothing left the machine for an intent without delivery, so a corrected
+                    # plan (e.g. the 2026-10-25 slug fix) may replace it.
+                    _atomic_json(self.state_path, desired)
+                    return self.plan()
                 if (
                     current.get("schema_version") != 1
                     or current.get("run_id") != desired["run_id"]
@@ -590,7 +623,7 @@ def resume_publication(
     state_path = publication_state_path.with_name("self-owned-publication.json")
     store = SelfOwnedPublicationStore(state_path, Path(ledger_path))
     contracts = contracts_from_publication_state(publication_state_path)
-    store.prepare(publication_state_path, contracts, base_url=base_url)
+    store.prepare(publication_state_path, contracts, base_url=base_url, landing_root=landing_root)
     if store.plan()["status"] == "complete":
         return {"status": "complete", "run_id": contracts[0]["run_id"]}
 
