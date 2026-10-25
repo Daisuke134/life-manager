@@ -265,10 +265,10 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     const lock = services.withControlLock || ((uid, callback) => require('./runtime-job-store.js').withRuntimeTenantControlLock({ tenantId: uid }, callback));
     return lock(c.tenantId, operation);
   }
-  async function enrollment(c, requireActive = false, allowPaused = false) {
+  async function enrollment(c, requireActive = false, allowPaused = false, allowLegacyConsentRead = false) {
     const row = await services.managerStore?.read(c.tenantId);
     if (!row || row.uid !== c.tenantId || row.release_sha !== c.releaseSha) throw new CycleError('maritime_provision_binding_invalid', false);
-    if (c.phase !== 'pause' && !managerConsentCurrent(row)) throw new CycleError('maritime_provision_consent_required', false);
+    if (c.phase !== 'pause' && !allowLegacyConsentRead && !managerConsentCurrent(row)) throw new CycleError('maritime_provision_consent_required', false);
     if (c.phase === 'pause' ? (row.status !== 'paused' || !row.paused_at)
       : ((!allowPaused && (row.status === 'paused' || row.paused_at))
         || (requireActive && row.status !== 'active' && !(allowPaused && (row.status === 'paused' || row.paused_at))))) {
@@ -319,8 +319,8 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
         && (c.phase === 'create' ? value.schedule_sha256 === null : /^[0-9a-f]{64}$/.test(value.schedule_sha256 || '')));
     } catch { return false; }
   }
-  async function inspect(c, job) {
-    const row = await enrollment(c, c.phase === 'configure', true);
+  async function inspect(c, job, allowLegacyConsentRead = false) {
+    const row = await enrollment(c, c.phase === 'configure', true, allowLegacyConsentRead);
     if (c.phase === 'create') {
       const agent = await services.readAgent(source(c));
       if (agent?.status === 'deploying') return { state: 'pending' };
@@ -383,7 +383,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     },
     async reconcile(job) {
       const c = provisionContract(job);
-      try { return c.phase === 'pause' ? await controlLock(c, () => reconcilePause(c, job)) : await inspect(c, job); }
+      try { return c.phase === 'pause' ? await controlLock(c, () => reconcilePause(c, job)) : await inspect(c, job, true); }
       catch { return { state: 'unknown', errorClass: c.phase === 'pause' ? 'maritime_pause_cleanup_unconfirmed' : 'maritime_provision_readback_unconfirmed',
         nextAction: c.phase === 'pause' ? 'inspect_paused_schedule' : 'inspect_agent_deployment', retryable: false }; }
     },

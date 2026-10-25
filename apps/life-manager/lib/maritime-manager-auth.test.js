@@ -88,14 +88,21 @@ function activationFixture({capacityFull=false,user=USER}={}) {
       consent_version:input.consentVersion,release_sha:input.releaseSha});
     return rows.get(input.uid);},reconsent:async input=>{
       const row=rows.get(input.uid);
-      if(!row||row.auth_subject!==input.authSubject||row.status!=="active"||row.paused_at)return null;
-      row.consent_version=input.consentVersion;return row;
+      if(!row||row.auth_subject!==input.authSubject||!["pending","provisioning","active"].includes(row.status)||row.paused_at)return null;
+      row.consent_version=input.consentVersion;row.consent_v2_at ||= "2026-10-26T02:00:00.000Z";return row;
     }};
   f.deps.distributionStore={accept:async()=>capacityFull?{ok:false,status:"capacity_full"}:{ok:true,status:"consented"}};
   f.deps.enqueueJob=async job=>{
     const existing=jobs.get(job.job_id);
     if(existing)assert.deepEqual(job,existing);else jobs.set(job.job_id,job);
     return {created:!existing,job:{...job,status:"queued"}};};
+  f.deps.enqueueJobAt=async (job,availableAt)=>{
+    const existing=jobs.get(job.job_id);
+    if(existing){assert.equal(job.job_id,existing.job_id);assert.equal(job.tenant_id,existing.tenant_id);assert.equal(existing.available_at,availableAt);}
+    else jobs.set(job.job_id,{...job,available_at:availableAt});
+    return {created:!existing,job:{...job,available_at:availableAt,status:"queued"}};
+  };
+  f.deps.nowMs=Date.parse("2026-10-26T02:00:00.000Z");
   f.rows=rows;f.jobs=jobs;return f;
 }
 function activateRequest(deps,method="POST",csrf=true){
@@ -138,7 +145,42 @@ test("legacy_active_enrollment_requires_new_consent_without_reprovisioning",asyn
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
   assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
   assert.equal(rows.get(uid).consent_version,"maritime-manager-v2");
-  assert.equal(accepted,0);assert.equal(reconsented,1);assert.equal(jobs.size,0);
+  assert.equal(accepted,1);assert.equal(reconsented,1);assert.equal(jobs.size,2);
+  assert.deepEqual(new Set([...jobs.values()].map(job=>job.capability)),new Set(["maritime.manager.cycle","maritime.manager.report"]));
+  assert.equal([...jobs.values()].every(job=>job.tenant_id===uid&&job.input_refs.release_ref===`release://git/${"a".repeat(40)}`),true);
+});
+
+test("active_v2_retry_recreates_both_resume_jobs_from_the_persisted_anchor_after_partial_enqueue",async()=>{
+ const {deps,rows,jobs}=activationFixture();const uid=`lm_${SUBJECT}`;let fail=true;
+ rows.set(uid,{uid,auth_subject:SUBJECT,email:USER.email,timezone:"Asia/Tokyo",status:"active",source:"direct",
+  consent_version:"maritime-manager-v1",agent_id:"agent-a",release_sha:"a".repeat(40),paused_at:null});
+ deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
+  external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
+ const enqueueAt=deps.enqueueJobAt;deps.enqueueJobAt=async(job,at)=>{
+  if(job.capability==="maritime.manager.cycle"&&fail){fail=false;throw new Error("temporary queue failure");}
+  return enqueueAt(job,at);
+ };
+ let res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,503);assert.equal(rows.get(uid).consent_version,"maritime-manager-v2");
+ assert.equal(jobs.size,1);const anchor=rows.get(uid).consent_v2_at;const reportId=[...jobs.keys()][0];
+ deps.nowMs=Date.parse("2026-10-27T00:30:00.000Z");
+ res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,200);assert.equal(rows.get(uid).consent_v2_at,anchor);assert.equal(jobs.size,2);
+ assert.equal(jobs.has(reportId),true);assert.deepEqual(new Set([...jobs.values()].map(job=>job.capability)),new Set(["maritime.manager.cycle","maritime.manager.report"]));
+});
+
+test("legacy_pending_or_provisioning_enrollment_requires_consent_refresh_before_retrying_one_provision_job",async()=>{
+ for(const status of ["pending","provisioning"]){
+  const {deps,rows,jobs}=activationFixture();const uid=`lm_${SUBJECT}`;let accepted=0,reconsented=0;
+  rows.set(uid,{uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status,source:"direct",
+   consent_version:"maritime-manager-v1",agent_id:null,release_sha:"c".repeat(40),paused_at:null});
+  const accept=deps.distributionStore.accept;deps.distributionStore.accept=async(...args)=>{accepted++;return accept(...args);};
+  const reconsent=deps.managerStore.reconsent;deps.managerStore.reconsent=async input=>{reconsented++;return reconsent(input);};
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+  assert.equal(res.statusCode,202,status);assert.equal(rows.get(uid).consent_version,"maritime-manager-v2",status);
+  assert.equal(rows.get(uid).release_sha,"c".repeat(40),status);assert.equal(accepted,1,status);assert.equal(reconsented,1,status);
+  assert.equal(jobs.size,1,status);assert.equal([...jobs.values()][0].input_refs.release_ref,`release://git/${"c".repeat(40)}`,status);
+ }
 });
 
 test("paused_or_unknown_enrollment_does_not_request_new_provisioning",async()=>{
@@ -196,6 +238,18 @@ test("legacy_active_page_requires_consent_refresh_instead_of_showing_active_work
  assert.match(res.body,/data-consent="maritime-manager-v2"/);
  assert.match(res.body,/register or sign in to my authorized Publisher account/i);
  assert.doesNotMatch(res.body,/Verified work|Work in progress/);
+});
+
+test("legacy_pending_and_provisioning_pages_require_updated_consent_before_work_resumes",async()=>{
+ for(const state of ["pending","provisioning"]){
+  const {deps}=fixture();const uid=`lm_${SUBJECT}`;deps.distributionStore={recordAnonymousEvent:async()=>true};
+  deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:state,source:"direct",
+   consent_version:"maritime-manager-v1",agent_id:null,release_sha:"a".repeat(40),paused_at:null})};
+  const res=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),res,deps);
+  assert.equal(res.statusCode,200,state);assert.match(res.body,/data-action="activate"/,state);
+  assert.match(res.body,/data-consent="maritime-manager-v2"/,state);assert.match(res.body,/updated authorization before work continues/i,state);
+  assert.doesNotMatch(res.body,/Preparing your manager/,state);
+ }
 });
 
 test("active_cloud_page_shows_only_verified_work_and_email_receipts",async()=>{

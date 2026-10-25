@@ -398,3 +398,15 @@ test('paused accepted provision still reads the official result without creating
  assert.equal(configProof.state,'present');assert.equal(loaded,1);assert.equal(await configured.continuation(configJob,configProof.receipt),null);
  await assert.rejects(()=>configured.execute(configJob),/inactive/);assert.equal(loaded,1);
 });
+
+test('stale-consent provision jobs allow read-only provider reconciliation but cannot repeat create effects',async()=>{
+ const row={uid:UID,agent_id:null,release_sha:SHA,status:'provisioning',consent_version:'maritime-manager-v1',paused_at:null,
+  created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};let reads=0,creates=0;
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},
+  provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)}),
+  ensureAgent:async()=>{creates++;},readAgent:async()=>{reads++;return {agentId:'agent-a',status:'active'};}});
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA});
+ await assert.rejects(()=>adapter.execute(job),/consent_required/);assert.equal(creates,0);
+ const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');assert.equal(adapter.verify(proof.receipt,job),true);
+ assert.equal(reads,1);assert.equal(creates,0);
+});

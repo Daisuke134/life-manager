@@ -3,7 +3,7 @@
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUBJECT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA = /^[0-9a-f]{40}$/;
-const SELECT = "uid,auth_subject,email,timezone,status,source,consent_version,agent_id,release_sha,paused_at,created_at";
+const SELECT = "uid,auth_subject,email,timezone,status,source,consent_version,consent_v2_at,agent_id,release_sha,paused_at,created_at";
 const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
 function invalid() { throw new Error("maritime_manager_input_invalid"); }
 function identifier(value, pattern) {
@@ -69,7 +69,8 @@ function createMaritimeManagerStore(options = {}) {
       throw new Error("maritime_manager_store_invalid");
     }
     if (!rows[0]) return null;
-    return { ...rows[0], paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) };
+    return { ...rows[0], consent_v2_at: timestampIso(rows[0].consent_v2_at, true),
+      paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) };
   }
   async function listPending(limit = 20) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
@@ -133,15 +134,24 @@ function createMaritimeManagerStore(options = {}) {
     const authSubject = identifier(input?.authSubject, SUBJECT).toLowerCase();
     if (input?.consentVersion !== MANAGER_CONSENT_VERSION) invalid();
     const rows = await queryPg(
-      `UPDATE public.lm_maritime_manager_enrollments SET consent_version = $3
-       WHERE uid = $1 AND auth_subject = $2 AND status = 'active' AND paused_at IS NULL AND agent_id IS NOT NULL
+      `UPDATE public.lm_maritime_manager_enrollments
+       SET consent_version = $3, consent_v2_at = COALESCE(consent_v2_at, clock_timestamp())
+       WHERE uid = $1 AND auth_subject = $2 AND consent_version = 'maritime-manager-v1'
+         AND status IN ('pending', 'provisioning', 'active') AND paused_at IS NULL
+         AND ((status = 'active' AND agent_id IS NOT NULL)
+           OR (status IN ('pending', 'provisioning') AND agent_id IS NULL))
        RETURNING ${SELECT}`,
       [uid, authSubject, MANAGER_CONSENT_VERSION],
     );
     if (rows.length > 1 || (rows[0] && (rows[0].uid !== uid || rows[0].auth_subject !== authSubject
-      || rows[0].consent_version !== MANAGER_CONSENT_VERSION || rows[0].status !== "active"
-      || rows[0].paused_at != null || !rows[0].agent_id))) throw new Error("maritime_manager_store_invalid");
-    return rows[0] ? { ...rows[0], paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) } : null;
+      || rows[0].consent_version !== MANAGER_CONSENT_VERSION || rows[0].paused_at != null
+      || !Number.isFinite(Date.parse(timestampIso(rows[0].consent_v2_at)))
+      || (rows[0].status === "active" ? !rows[0].agent_id
+        : (!["pending", "provisioning"].includes(rows[0].status) || rows[0].agent_id != null))))) {
+      throw new Error("maritime_manager_store_invalid");
+    }
+    return rows[0] ? { ...rows[0], consent_v2_at: timestampIso(rows[0].consent_v2_at),
+      paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) } : null;
   }
   async function claimProvision(uid) {
     identifier(uid, UID);

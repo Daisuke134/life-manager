@@ -69,7 +69,8 @@ function fixture() {
     if (opts.method === "PATCH" && row) Object.assign(row, body);
     return response(row ? [row] : []);
   };
-  const pgRow = row => ({ ...row, paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
+  const pgRow = row => ({ ...row, consent_v2_at: row.consent_v2_at == null ? null : new Date(row.consent_v2_at),
+    paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
   const pgPool = { query: async (statement, values = []) => {
     pgQueries.push({ statement, values });
     let selected;
@@ -83,11 +84,14 @@ function fixture() {
       }
       return { rows: [] };
     }
-    if (statement.includes("UPDATE public.lm_maritime_manager_enrollments SET consent_version")) {
+    if (statement.includes("UPDATE public.lm_maritime_manager_enrollments") && statement.includes("SET consent_version = $3")) {
       const [uid, authSubject, consentVersion] = values;
       const row = rows.get(uid);
-      if (!row || row.auth_subject !== authSubject || row.status !== "active" || row.paused_at != null || !row.agent_id) return { rows: [] };
-      row.consent_version = consentVersion;
+      const eligible = row && ["pending", "provisioning", "active"].includes(row.status) && row.paused_at == null
+        && row.consent_version === "maritime-manager-v1"
+        && ((row.status === "active" && row.agent_id != null) || (row.status !== "active" && row.agent_id == null));
+      if (!eligible || row.auth_subject !== authSubject) return { rows: [] };
+      row.consent_version = consentVersion;row.consent_v2_at ||= "2026-10-26T02:00:00.000Z";
       return { rows: [pgRow(row)] };
     }
     if (statement.includes("claim_lm_maritime_manager_provision_v1")) {
@@ -201,9 +205,24 @@ test("reconsent_updates_only_the_matching_active_tenant_and_preserves_its_agent"
   assert.equal(updated.status, "active");
   assert.equal(updated.agent_id, "agent-a");
   assert.equal(updated.release_sha, SHA);
+  assert.equal(updated.consent_v2_at, "2026-10-26T02:00:00.000Z");
   assert.equal(await store.reconsent({ uid: UID_A, authSubject: SUBJECT_B, consentVersion: MANAGER_CONSENT_VERSION }), null);
   assert.match(pgQueries.find(item => item.statement.includes("SET consent_version" )).statement,
-    /status = 'active' AND paused_at IS NULL AND agent_id IS NOT NULL/);
+    /status IN \('pending', 'provisioning', 'active'\).*paused_at IS NULL/);
+});
+test("reconsent_updates_legacy_pending_and_provisioning_rows_but_not_paused_or_unknown_rows",async()=>{
+ const {store,rows}=fixture();
+ const enrollment=await store.enroll(input());
+ for(const status of ["pending","provisioning"]){
+  const row=rows.get(UID_A);row.status=status;row.consent_version="maritime-manager-v1";row.agent_id=null;row.consent_v2_at=null;
+  const updated=await store.reconsent({uid:UID_A,authSubject:SUBJECT_A,consentVersion:MANAGER_CONSENT_VERSION});
+  assert.equal(updated.status,status);assert.equal(updated.consent_version,MANAGER_CONSENT_VERSION);assert.equal(updated.agent_id,null);
+  assert.equal(updated.release_sha,SHA);assert.equal(updated.created_at,enrollment.created_at);
+ }
+ for(const status of ["paused","effect_unknown"]){
+  const row=rows.get(UID_A);row.status=status;row.paused_at=status==="paused"?"2026-10-25T00:00:00.000Z":null;row.consent_version="maritime-manager-v1";
+  assert.equal(await store.reconsent({uid:UID_A,authSubject:SUBJECT_A,consentVersion:MANAGER_CONSENT_VERSION}),null);
+ }
 });
 test("pause_before_provision_blocks_claim_and_late_binding_never_reactivates", async () => {
   const { store } = fixture(); await store.enroll(input()); await store.pause(UID_A);

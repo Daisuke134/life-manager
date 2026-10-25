@@ -226,7 +226,8 @@ test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_tele
   assert.match(html,/will not report a live listing or earnings until Capafy confirms them/i);
   assert.match(html,/payout details can be added after certification and are not required to publish/i);
   assert.match(html,/Google sign-in verifies your identity and supplies your verified email address; it does not connect Calendar or grant access to your personal Gmail inbox/i);
-  assert.match(html,/if platform email verification needs an inbox, Life Manager provisions an isolated mailbox for your tenant and uses it/i);
+  assert.match(html,/A tenant-isolated mailbox is the planned path if platform email verification needs inbox access, but automatic mailbox provisioning is not yet available/i);
+  assert.doesNotMatch(html,/Life Manager provisions an isolated mailbox for your tenant and uses it/i);
   assert.match(html,/does not read your personal Gmail inbox/i);
   assert.match(html,/No task prompt is needed to start/i);
   assert.match(html,/uses that address for authorized platform contact and result reports/i);
@@ -248,7 +249,7 @@ test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   assert.match(html,/確認済みメールへの状況・結果レポートに同意します/);
   assert.match(html,/Googleログインだけで個人Gmail受信箱にアクセスすることはなく、読み取りません/);
   assert.match(html,/確認済みサインインメールを使った、承認済みPublisherアカウントの登録・利用/);
-  assert.match(html,/認証メールの確認が必要な場合、Life Managerがテナント専用の隔離メールボックスを用意・利用することを許可します/);
+  assert.match(html,/テナント専用メールボックス機能が利用可能になり、認証メール確認に必要な場合、Life Managerがそれを用意・利用することを許可します/);
   assert.match(html,/承認済みPublisherアカウントの登録・利用/);
   assert.match(html,/規約同意.*本人確認.*Publisher確認はご本人が行います/);
   assert.match(html,/data-consent="maritime-manager-v2"/);
@@ -258,10 +259,10 @@ test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   assert.match(html,/公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
   assert.match(html,/Googleログインは本人確認とメールアドレスの取得に使用し、Calendar接続や個人Gmail受信箱の読み取り権限は求めません/);
   assert.match(html,/確認済みメールは連絡先と結果報告に使います/);
-  assert.match(html,/プラットフォームの認証メール確認が必要な場合は、テナント専用の隔離メールボックスを用意して使用し/);
+  assert.match(html,/テナント専用メールボックス機能が利用可能になり、認証メール確認に必要な場合、Life Managerがそれを用意・利用することを許可します/);
   const en=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"b".repeat(64)},state:"consent_required"});
   assert.match(en,/using my verified sign-in email to register or sign in to my authorized Publisher account/i);
-  assert.match(en,/If platform email verification needs an inbox, I authorize Life Manager to provision and use a mailbox isolated to my tenant/i);
+  assert.match(en,/If tenant-mailbox provisioning becomes available and platform email verification needs an inbox, I authorize Life Manager to provision and use a mailbox isolated to my tenant/i);
   assert.match(en,/Google sign-in alone does not grant access to my personal Gmail inbox, and Life Manager will not read it/i);
   assert.match(en,/register or sign in to my authorized Publisher account/i);
   assert.match(en,/legal, identity, and Publisher confirmations remain mine/i);

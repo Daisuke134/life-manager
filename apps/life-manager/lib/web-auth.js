@@ -673,12 +673,12 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       try {
         const record = opts.recordMaritimeEmailVerifiedImpl
           || require("./maritime-manager-usage.js").recordMaritimeEmailVerified;
-        await record(uid, {
-          env: envFor(opts),
-          fetchImpl: opts.fetch,
-          attribution: firstTouch,
+        const usage = require("./maritime-manager-usage.js");
+        void usage.observeMaritimeUsage("maritime_email_verified", uid, signal => record(uid, {
+          env: envFor(opts), fetchImpl: opts.fetch, signal, attribution: firstTouch,
           writeUsageDiagnostic: opts.writeUsageDiagnostic,
-        });
+        }), { env: envFor(opts), usageTimeoutMs: opts.usageTimeoutMs,
+          writeUsageDiagnostic: opts.writeUsageDiagnostic });
       } catch { /* Cloud identity telemetry must not block a verified Google sign-in */ }
     }
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);

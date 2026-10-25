@@ -400,6 +400,22 @@ test("verified Google callback returns Cloud sign-in to the Life Manager Cloud p
   assert.deepEqual(managerEvents, [WEB_UID]);
 });
 
+test("slow Cloud identity telemetry never delays the verified Google sign-in redirect",async()=>{
+ const client=authClient({exchange:async(_code,cookies)=>{
+  cookies.setAll([{name:"lm-web-auth",value:"verified-session",options:{path:"/",httpOnly:true}}]);
+  return {data:{session:{access_token:"verified-session"}},error:null};
+ },user:{id:SUBJECT,email:"verified@example.test",email_confirmed_at:"2026-10-25T00:00:00Z",
+  app_metadata:{provider:"google",providers:["google"]},identities:[{provider:"google",id:SUBJECT}]}});
+ const fixture=authOptions(client,{fetch:makeRestFetch().fetch,recordMaritimeEmailVerifiedImpl:()=>new Promise(()=>{}),
+  usageTimeoutMs:20,writeUsageDiagnostic:()=>{}});
+ const res=makeResponse();
+ const completed=await Promise.race([
+  handleWebAuthRequest(callbackRequest({cookie:"lm-web-auth-code-verifier=pkce-verifier; lm-web-auth-intent=maritime_cloud-en"}),res,fixture.options).then(()=>true),
+  new Promise(resolve=>setTimeout(()=>resolve(false),100)),
+ ]);
+ assert.equal(completed,true);assert.equal(res.statusCode,302);assert.equal(res.getHeader("location"),"/maritime?lang=en&verified=1");
+});
+
 test("Cloud email-verified milestone is not emitted until Supabase confirms the email", async () => {
   const managerEvents = [];
   const client = authClient({ exchange: async (_code, cookies) => {

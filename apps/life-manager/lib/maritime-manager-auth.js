@@ -65,6 +65,23 @@ async function managerReady(row, options) {
   return Boolean(receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
     && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref));
 }
+async function enqueueMaritimeReconsentJobs(row, options) {
+  const plans = require("./maritime-manager-wake.js").buildMaritimeReconsentJobs(row);
+  const enqueue = options.enqueueJobAt || require("./runtime-job-store.js").enqueueJobAt;
+  for (const plan of [plans.report, plans.cycle]) {
+    const queued = await enqueue(plan.job, plan.availableAt, options.storeOptions || {});
+    let availableAt = null;
+    try { availableAt = new Date(queued?.job?.available_at).toISOString(); } catch { /* validated below */ }
+    if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== plan.job.job_id
+      || queued.job?.tenant_id !== row.uid || availableAt !== plan.availableAt
+      || !["queued", "running", "completed", "dead_letter", "reconciling"].includes(queued.job.status)) {
+      throw new Error("reconsent_job_receipt_invalid");
+    }
+    if (queued.job.status === "dead_letter" || queued.job.status === "reconciling") {
+      throw new Error("reconsent_job_not_ready");
+    }
+  }
+}
 async function handleMaritimeManagerActivate(req, res, options = {}) {
   const path = new URL(req.url || "/", "http://localhost").pathname;
   if (path !== "/maritime/activate") return false;
@@ -98,11 +115,33 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     const lock = options.withControlLock || ((uid, operation) => require("./runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, options.storeOptions || {}));
     await lock(user.uid, async () => {
     const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env });
-    const existing = await store.read(user.uid);
+    let existing = await store.read(user.uid);
+    let retentionAccepted = false;
     if (existing?.status === "paused" || existing?.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (existing?.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
+    if (["pending", "provisioning"].includes(existing?.status) && existing.consent_version !== MANAGER_CONSENT_VERSION) {
+      const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
+      const consent = await distribution.accept(user.uid, normalizeMaritimeSource(existing.source || body.source || "direct"));
+      if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503,
+        { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
+      const reconsent = options.reconsentManagerImpl || store.reconsent;
+      if (typeof reconsent !== "function") throw new Error("manager_reconsent_unavailable");
+      const updated = await reconsent.call(store, { uid: user.uid, authSubject: user.subject,
+        consentVersion: MANAGER_CONSENT_VERSION });
+      if (!updated || updated.uid !== user.uid || updated.auth_subject !== user.subject
+        || !["pending", "provisioning"].includes(updated.status) || updated.paused_at || updated.agent_id
+        || updated.release_sha !== existing.release_sha || updated.consent_version !== MANAGER_CONSENT_VERSION) {
+        throw new Error("manager_reconsent_unconfirmed");
+      }
+      existing = updated;
+      retentionAccepted = true;
+    }
     if (existing?.status === "active") {
       if (existing.consent_version !== MANAGER_CONSENT_VERSION) {
+        const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
+        const consent = await distribution.accept(user.uid, normalizeMaritimeSource(existing.source || body.source || "direct"));
+        if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503,
+          { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
         const reconsent = options.reconsentManagerImpl || store.reconsent;
         if (typeof reconsent !== "function") throw new Error("manager_reconsent_unavailable");
         const updated = await reconsent.call(store, { uid: user.uid, authSubject: user.subject,
@@ -112,14 +151,17 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
           throw new Error("manager_reconsent_unconfirmed");
         }
         const ready = await managerReady(updated, options);
+        if (ready) await enqueueMaritimeReconsentJobs(updated, options);
         send(res, ready ? 200 : 202, { status: ready ? "active" : "pending", consentUpdated: true });
         return true;
       }
-      const ready = await managerReady(existing, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
+      const ready = await managerReady(existing, options);
+      if (ready && existing.consent_v2_at) await enqueueMaritimeReconsentJobs(existing, options);
+      send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
     }
-    const source = normalizeMaritimeSource(body.source || "direct");
+    const source = normalizeMaritimeSource(existing?.source || body.source || "direct");
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
-    const consent = await distribution.accept(user.uid, source);
+    const consent = retentionAccepted ? { ok: true, status: "consented" } : await distribution.accept(user.uid, source);
     if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503, { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
     const row = await store.enroll({ uid: user.uid, authSubject: user.subject, email: user.email,
       timezone: body.timezone || "UTC", source, consentVersion: MANAGER_CONSENT_VERSION, releaseSha });
@@ -196,7 +238,7 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
       state = row?.status || null;
-      if (state === "active" && row.consent_version !== MANAGER_CONSENT_VERSION) state = "consent_required";
+      if (["pending", "provisioning", "active"].includes(state) && row.consent_version !== MANAGER_CONSENT_VERSION) state = "consent_required";
       else if (state === "active" && !await managerReady(row, options)) state = "provisioning";
       if (state === "active") {
         try { workbench = await require("./maritime-manager-workbench.js").readMaritimeManagerWorkbench({ uid: user.uid }, options); }
