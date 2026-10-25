@@ -594,3 +594,11 @@ def test_drainer_prompt_additions_have_no_shell_substitution_characters():
                    "If with-browser.sh exits 10, wait 30 seconds"):
         for line in (l for l in source.splitlines() if marker in l):
             assert "`" not in line and "$(" not in line and "<ID>" not in line
+
+
+def test_cp1_agent_timeout_default_leaves_room_for_the_price_tab_and_cp2_cp3():
+    """2026-10-25: MLB Pitcher Workload Brief hit rc=124 at 1800s in the price tab (73 steps, no failure);
+    TikTok UGC Creator Brief finished CP1 in 14 min. 2400s + CP2/CP3 (~10 min) stays inside the 3600s pass."""
+    source = CHILD.read_text(encoding="utf-8")
+    assert "CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-2400" in source
+    assert "CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800" not in source
