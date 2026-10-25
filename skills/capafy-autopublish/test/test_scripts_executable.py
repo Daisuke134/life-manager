@@ -18,6 +18,9 @@ class ScriptsTheAgentRunsDirectlyAreExecutable(unittest.TestCase):
         missing = [n for n in direct if not os.access(ROOT / "scripts" / n, os.X_OK)]
         self.assertEqual(missing, [])
 
+    def test_the_publisher_cli_the_prompt_runs_directly_has_the_exec_bit(self):
+        self.assertTrue(os.access(ROOT / "vendor/capafy-publisher/packager.py", os.X_OK))
+
 
 if __name__ == "__main__":
     unittest.main()
