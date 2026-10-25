@@ -17,7 +17,7 @@ TENANT = 'lm_11111111-1111-4111-8111-111111111111'
 class MaritimeBrowserCommandTests(unittest.TestCase):
     def command(self, env):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             env = dict(env)
             tenant_id = env.get('LM_RUNTIME_TENANT_ID', TENANT)
             tenant_root = root / tenant_id
