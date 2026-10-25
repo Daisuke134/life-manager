@@ -1520,14 +1520,12 @@ class CentralReleaseBundleGCTest(unittest.TestCase):
         unrelated.write_text("unrelated fixture\n")
         alias_path = str(alias / "fixture.js")
         self.ps_stdout = f"node --require '{alias_path}' {unrelated}\n"
-        clock = [0.0]
         resolve = Path.resolve
-        def costly_path(path, *args, **kwargs):
+        def expired_path(path, *args, **kwargs):
             if os.fspath(path) in {alias_path, str(unrelated)}:
-                clock[0] += 16
+                raise subprocess.TimeoutExpired("reference path resolution", 0)
             return resolve(path, *args, **kwargs)
-        with mock.patch.object(Path, "resolve", costly_path), \
-             mock.patch.object(self.cleanup.time, "monotonic", side_effect=lambda: clock[0]):
+        with mock.patch.object(Path, "resolve", expired_path):
             code, result = self._gc(keep=1)
         self.assertTrue(release.exists())
         self.assertTrue(bundle.exists())
