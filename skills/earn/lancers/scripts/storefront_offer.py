@@ -452,7 +452,7 @@ def _write_receipt(state_path: Path, product: Mapping[str, Any], demand: Mapping
     if not isinstance(existing, dict): raise OfferError("listing_receipt_invalid")
     if "catalog_listings" in existing:
         value["catalog_listings"] = existing["catalog_listings"]
-    for key in ("pending_create", "pending_create_context", "last_creation"):
+    for key in ("pending_create", "pending_create_context", "pending_create_snapshot", "last_creation"):
         if key in existing:
             value[key] = existing[key]
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -1509,11 +1509,20 @@ def _runtime_creation_context() -> dict[str, str] | None:
 
 
 def _begin_creation(state_path: Path, ledger: dict[str, Any], intent: dict[str, Any],
-                    context: dict[str, str] | None) -> None:
+                    context: dict[str, str] | None, *, product_snapshot: dict[str, Any] | None = None,
+                    owner_overlay_sha256: str | None = None) -> None:
     value = ledger | {"pending_create": intent}
     value.pop("pending_create_context", None)
+    value.pop("pending_create_snapshot", None)
     if context is not None:
         value["pending_create_context"] = context
+    if product_snapshot is not None:
+        if not isinstance(owner_overlay_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", owner_overlay_sha256) is None:
+            raise OfferError("creation_snapshot_invalid")
+        value["pending_create_snapshot"] = {
+            "product": deepcopy(product_snapshot),
+            "owner_overlay_sha256": owner_overlay_sha256,
+        }
     _write_private(state_path.with_name("listing.json"), value)
 
 
@@ -1523,6 +1532,7 @@ def _clear_creation(state_path: Path, intent: dict[str, Any], external_id: str) 
     ledger["last_creation"] = {"intent": intent, "context": ledger.pop("pending_create_context", None),
                                "external_id": external_id}
     del ledger["pending_create"]
+    ledger.pop("pending_create_snapshot", None)
     _write_private(state_path.with_name("listing.json"), ledger)
 
 
@@ -1579,6 +1589,8 @@ def _creation_record(state_path: Path, occurrence_id: str | None = None) -> dict
     if "pending_create" in ledger:
         record = {"intent": ledger["pending_create"], "context": ledger.get("pending_create_context"),
                   "external_id": None}
+        if "pending_create_snapshot" in ledger:
+            record["snapshot"] = ledger["pending_create_snapshot"]
     else:
         record = ledger.get("last_creation")
         if not isinstance(record, dict):
@@ -1601,18 +1613,40 @@ def _creation_product(product_path: Path, state_path: Path, record: Mapping[str,
                       catalog_path: Path | None) -> tuple[dict[str, Any], dict[str, Any], str | None]:
     intent = record["intent"]; kind = intent["kind"]
     raw = _load_product_file(product_path)
-    product, _, _ = _product(product_path, catalog_path, creating=kind == "listing",
-                              applying=kind != "listing", raw_value=raw)
     family = intent.get("catalog_family")
     if kind == "catalog_listing":
-        if catalog_path is None or not isinstance(family, str): raise OfferError("creation_pending")
-        catalog_module = _reach_marketplace_core()
-        try:
-            product |= _family_create_product(catalog_module, catalog_module.load(catalog_path), family)
-        except (catalog_module.CatalogError, KeyError, TypeError, ValueError, UnicodeError):
-            raise OfferError("creation_pending") from None
+        if not isinstance(family, str): raise OfferError("creation_pending")
+        snapshot = record.get("snapshot")
+        if snapshot is not None:
+            if (not isinstance(snapshot, Mapping) or set(snapshot) != {"product", "owner_overlay_sha256"}
+                    or snapshot.get("owner_overlay_sha256") != _product_digest(raw)
+                    or not isinstance(snapshot.get("product"), dict)):
+                raise OfferError("creation_pending")
+            product = deepcopy(snapshot["product"])
+            if _creation_intent(product, family, kind=kind) != intent:
+                raise OfferError("creation_pending")
+        else:
+            catalog_module = _reach_marketplace_core()
+            effective_catalog = catalog_path or DEFAULT_CATALOG
+            try:
+                catalog = catalog_module.load(effective_catalog)
+            except (catalog_module.CatalogError, OSError, UnicodeError):
+                if effective_catalog == DEFAULT_CATALOG or not DEFAULT_CATALOG.is_file():
+                    raise OfferError("creation_pending") from None
+                effective_catalog = DEFAULT_CATALOG
+                try:
+                    catalog = catalog_module.load(effective_catalog)
+                except (catalog_module.CatalogError, OSError, UnicodeError):
+                    raise OfferError("creation_pending") from None
+            product, _, _ = _product(product_path, effective_catalog, applying=True, raw_value=raw)
+            try:
+                product |= _family_create_product(catalog_module, catalog, family)
+            except (catalog_module.CatalogError, KeyError, TypeError, ValueError, UnicodeError):
+                raise OfferError("creation_pending") from None
         pinned = _read_catalog_listings(state_path).get(family, {}).get("listing_external_id", "")
     else:
+        product, _, _ = _product(product_path, catalog_path, creating=kind == "listing",
+                                 applying=kind != "listing", raw_value=raw)
         if family != raw.get("catalog_family"): raise OfferError("creation_pending")
         pinned = product["listing_external_id"] if kind == "listing" else product[kind]["external_id"]
         if kind == "listing":
@@ -1981,16 +2015,22 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG, *
             if selection["action"] != "candidate_selected":
                 return selection
             family, product = selection["family"], selection["product"]
+            owner_overlay = _load_product_file(product_path)
             try:
-                _owner_product, image, _avatar = _product(product_path, catalog_path)
+                _owner_product, image, _avatar = _product(product_path, catalog_path, raw_value=owner_overlay)
             except OfferError:
                 return _product_setup_required(Path(state_path))
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True
-            intent = _creation_intent(dict(_owner_product) | dict(product), family, kind="catalog_listing")
+            resolved_product = dict(_owner_product) | dict(product)
+            intent = _creation_intent(resolved_product, family, kind="catalog_listing")
             try:
-                _begin_creation(Path(state_path), ledger, intent, context)
+                if _load_product_file(product_path) != owner_overlay:
+                    raise OfferError("product_changed")
+                _begin_creation(Path(state_path), ledger, intent, context,
+                                product_snapshot=resolved_product,
+                                owner_overlay_sha256=_product_digest(owner_overlay))
             except OSError:
                 return {"ok": False, "logged_in": True, "error": "private_storage"}
             result = create_package(page, product, image)
