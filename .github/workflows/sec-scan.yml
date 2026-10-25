@@ -367,3 +367,5 @@ jobs:
           set -e
           find . -name '*.sh' -not -path './.git/*' -exec bash -n {} \;
           echo "✅ all .sh files parse"
+      - name: Verify merge guard behavior
+        run: bash tests/bin/test_merge_when_green.sh
