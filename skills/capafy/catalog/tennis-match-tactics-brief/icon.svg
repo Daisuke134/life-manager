@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Tennis Match Tactics Brief</title>
+  <desc id="desc">A tennis ball and tactics card on a clay-court background.</desc>
+  <rect width="512" height="512" rx="96" fill="#52251C"/>
+  <path d="M44 144h424M44 368h424" stroke="#F8C98C" stroke-width="8" opacity=".45"/>
+  <path d="M256 44v424" stroke="#FFE7C0" stroke-width="8" opacity=".25"/>
+  <circle cx="174" cy="252" r="106" fill="#D7F04A" stroke="#FFF5C9" stroke-width="10"/>
+  <path d="M105 171c38 34 38 128 0 162M243 171c-38 34-38 128 0 162" fill="none" stroke="#F6FAE5" stroke-width="11"/>
+  <g transform="translate(258 124)">
+    <rect x="0" y="0" width="184" height="238" rx="24" fill="#FFF6E4"/>
+    <rect x="28" y="37" width="99" height="14" rx="7" fill="#52251C"/>
+    <rect x="28" y="75" width="128" height="11" rx="5.5" fill="#D8703F"/>
+    <rect x="28" y="104" width="111" height="11" rx="5.5" fill="#D8703F"/>
+    <rect x="28" y="133" width="124" height="11" rx="5.5" fill="#D8703F"/>
+    <path d="M31 190h106" stroke="#52251C" stroke-width="9" stroke-linecap="round"/>
+    <path d="M112 166l30 24-30 24" fill="none" stroke="#D8703F" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="256" y="452" text-anchor="middle" fill="#FFF6E4" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="1.5">TACTICS BRIEF</text>
+</svg>
