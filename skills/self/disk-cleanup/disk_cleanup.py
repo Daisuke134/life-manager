@@ -1617,16 +1617,21 @@ class HostDiskGovernor:
         releases = loops / "releases"
         # A loop that was applied to an immutable release names it by absolute path,
         # so a release with no symlink can still be what 158 agents actually launch.
+        # A missing, empty or unreadable directory proves nothing is launched no more than
+        # it proves everything is; with RELEASE_RETENTION = 1 treating it as "none" deletes
+        # every loaded release (central_cleanup.loaded_release_roots, 2026-10-24).
         agents = self.home / "Library/LaunchAgents"
         try:
-            if agents.is_dir():
-                for plist in agents.glob("*.plist"):
-                    try:
-                        text = plist.read_text(encoding="utf-8", errors="ignore")
-                    except OSError:
-                        return None
-                    for name in RELEASE_NAME_PATTERN.findall(text):
-                        roots.add((releases / name).resolve())
+            plists = list(agents.glob("*.plist")) if agents.is_dir() else []
+            if not plists:
+                return None
+            for plist in plists:
+                try:
+                    text = plist.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    return None
+                for name in RELEASE_NAME_PATTERN.findall(text):
+                    roots.add((releases / name).resolve())
         except OSError:
             return None
         pins = releases / ".pins"

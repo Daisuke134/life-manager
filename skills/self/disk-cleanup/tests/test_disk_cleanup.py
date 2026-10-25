@@ -2481,9 +2481,44 @@ def test_regular_artifact_probe_uses_global_open_paths(tmp_path: Path, monkeypat
         disk_cleanup._open_paths.cache_clear()
 
 
+def _launch_agents(home: Path) -> Path:
+    """Release retention needs a readable launchd inventory before it may delete anything."""
+    agents = home / "Library/LaunchAgents"
+    agents.mkdir(parents=True, exist_ok=True)
+    (agents / "ai.anicca.unrelated.plist").write_text("<plist/>", encoding="utf-8")
+    return agents
+
+
+@pytest.mark.parametrize("inventory", ["missing", "empty", "unreadable"])
+def test_release_retention_refuses_without_a_launchd_inventory(tmp_path: Path, inventory: str) -> None:
+    """2026-10-25: an absent LaunchAgents dir read as "nothing launched" and RELEASE_RETENTION=1."""
+    releases = tmp_path / "loops" / "releases"
+    releases.mkdir(parents=True)
+    for name in ("20260828T010101-aaaaaaaa", "20260830T010101-cccccccc", "20260831T010101-dddddddd"):
+        (releases / name).mkdir()
+    agents = tmp_path / "Library/LaunchAgents"
+    if inventory == "empty":
+        agents.mkdir(parents=True)
+    elif inventory == "unreadable":
+        _launch_agents(tmp_path).chmod(0)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+    try:
+        assert governor._referenced_releases() is None
+        assert [item for item in governor.discover_candidates() if item["owner"] == "release-retention"] == []
+    finally:
+        if agents.exists():
+            agents.chmod(0o700)
+
+
 def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
+    _launch_agents(tmp_path)
     names = [
         "20260828T010101-aaaaaaaa",  # oldest, unreferenced -> reclaimable
         "20260829T010101-bbbbbbbb",  # referenced by the protected list
@@ -2517,6 +2552,7 @@ def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Pat
 def test_read_only_release_export_is_still_reclaimable(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
+    _launch_agents(tmp_path)
     stale = releases / "20260828T010101-aaaaaaaa"
     (stale / "bin").mkdir(parents=True)
     (stale / "bin" / "loop.sh").write_bytes(b"x" * 8)
@@ -2544,6 +2580,7 @@ def test_release_retention_preserves_memory_and_state_jsonl_but_reclaims_plain_r
 ) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
+    _launch_agents(tmp_path)
     memory_release = releases / "20260828T010101-aaaaaaaa"
     state_release = releases / "20260829T010101-bbbbbbbb"
     dangling_memory_release = releases / "20260830T010101-cccccccc"

@@ -762,10 +762,15 @@ def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
             continue
         if not isinstance(plist, dict):
             continue
+        # A release named only in WorkingDirectory or an environment value such as
+        # LIFE_MANAGER_REPO is still what the job runs from (175 of 199 plists, 2026-10-25).
         program_arguments = plist.get("ProgramArguments")
-        if not isinstance(program_arguments, list):
-            continue
-        for value in map(str, program_arguments):
+        values = list(map(str, program_arguments)) if isinstance(program_arguments, list) else []
+        environment = plist.get("EnvironmentVariables")
+        environment = list(environment.values()) if isinstance(environment, dict) else []
+        values += [value for value in [plist.get("WorkingDirectory"), *environment]
+                   if isinstance(value, str)]
+        for value in values:
             candidate = Path(os.path.expanduser(value))
             try:
                 resolved = candidate.resolve(strict=True)

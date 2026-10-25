@@ -53,6 +53,12 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Homebrew, pip, and uv package download caches are regenerable candidates and
   are reclaimed only after the same confirmed-closed check.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
+- Release retention deletes no release unless `~/Library/LaunchAgents` exists, is
+  readable and holds at least one plist. Central release GC protects a release
+  named in a plist's `ProgramArguments`, `WorkingDirectory` or any
+  `EnvironmentVariables` value, and appends `{ts,path,pid,argv,keep,protected_count}`
+  to `~/.local/state/life-manager/release-gc.jsonl` before each removal; if that
+  write fails the release stays.
 - The 2 GiB recovery value is a cleanup diagnostic only; it does not determine
   cleanup pass/fail and does not pause producers. The release cutter retains its
   existing pre-export physical-capacity guard.
