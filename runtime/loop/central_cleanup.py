@@ -46,6 +46,7 @@ from runtime.loop.loop_cleanup import (
     RELEASE_NAME, _release_immutable_store_probe,
 )
 from runtime.host import resource_admission
+from runtime.loop import host_cache_cleanup
 from runtime.host.resource_admission import process_starts
 
 
@@ -1661,6 +1662,12 @@ def main() -> int:
         cursor_path=home / ".local/state/life-manager/central-cleanup-scratch-cursor.json",
         candidate_budget=SCRATCH_GC_CANDIDATE_BUDGET,
         time_budget_seconds=SCRATCH_GC_TIME_BUDGET_SECONDS)
+    # AI Monk landing worktrees and oversized logs ate 10 GiB in two hours (2026-10-25/26);
+    # neither owns a loop, so the five-minute cleanup shares their node_modules, drops idle
+    # .next/cache and rotates the allowlisted logs on every pass.
+    landing_result = host_cache_cleanup.landing_cache_cleanup(home, root=ROOT)
+    log_result = host_cache_cleanup.rotate_large_logs(home)
+    result["errors"] += landing_result["errors"] + log_result["errors"]
     result.update({"ok": result["errors"] == 0 and result.get("deferred", 0) == 0
                    and host_ok and scratch_result["errors"] == 0
                    and not scratch_result.get("blocking_defer", False),
@@ -1669,9 +1676,11 @@ def main() -> int:
                    "admission_queue": queue_result,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
+                   "landing_cache": landing_result,
+                   "log_rotation": log_result,
                    "run_binding": binding,
                    "idle_reconcile": [],
-                   "shared_cache_candidates": 0, "orphan_candidates": 0})
+                   "shared_cache_candidates": landing_result["examined"], "orphan_candidates": 0})
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return 0 if result["ok"] else 1
 
