@@ -10,24 +10,22 @@ const sha256 = (path) => createHash('sha256').update(readFileSync(new URL(path, 
 test('English Life Manager page presents one broad product and its Cloud target', () => {
   const html = read('pages/life-manager-en.html');
 
-  assert.match(html, /Life Manager is one proactive manager for work, money, everyday responsibilities, body, and mind\./);
+  assert.match(html, /Life Manager is being built as one proactive manager for work, money, everyday responsibilities, body, and mind\./);
   assert.match(html, /same open-source core locally/);
-  assert.match(html, /dedicated cloud VM/);
+  assert.match(html, /dedicated Maritime VM/);
   assert.match(html, /from your phone/);
-  assert.match(html, /Google sign-in is the web starting point and verifies identity only/i);
-  assert.match(html, /Work and results are designed to be verified and reported to your sign-in email/i);
-  assert.match(html, /No Calendar, Gmail inbox, task prompt, goal, budget, or payout details are required at signup/i);
-  assert.match(html, /No task, goal, budget, or daily prompt is required to start the earning workflow/i);
-  assert.match(html, /Capafy requires Publisher Certification before the first Skill can publish/i);
-  assert.match(html, /confirm the selected Skills and configuration on Capafy's website for each new or updated version/i);
-  assert.match(html, /will not report a live listing or earnings until Capafy confirms them/i);
-  assert.match(html, /payout details can be added after certification/i);
+  assert.match(html, /Google sign-in verifies identity only/i);
+  assert.match(html, /Progress and verified results are designed to go to your sign-in email/i);
+  assert.match(html, /signup does not require Calendar or Gmail inbox access, a task prompt, goals, budget, or payout details/i);
+  assert.match(html, /No daily instructions or user-defined goals and budgets are required/i);
+  assert.match(html, /Capafy requires Publisher Certification and publisher confirmation of selected Skills and configuration before each Agent version can go live/i);
+  assert.match(html, /reports listings and earnings only after Capafy confirms them/i);
   assert.match(html, /earnings are not guaranteed/i);
-  assert.match(html, /Start on the web with Google sign-in/i);
   assert.doesNotMatch(html, /Telegram is required|Connect Google Calendar/);
   assert.doesNotMatch(html, /Start with the hosted Calendar assistant/);
   assert.doesNotMatch(html, /CLOUD · CALENDAR ASSISTANT/);
   assert.match(html, /href="\/maritime\?source=landing&amp;lang=en"/);
+  assert.equal((html.match(/<a[^>]*data-lm-cloud-entry/g) || []).length, 3);
   assert.doesNotMatch(html, /life-call-production\.up\.railway\.app/);
   assert.doesNotMatch(html, /href="https:\/\/life-call-production\.up\.railway\.app\/lm\?start_calendar=1"/);
   assert.match(html, /Capafy/);
@@ -39,23 +37,20 @@ test('English Life Manager page presents one broad product and its Cloud target'
 test('Japanese Life Manager page keeps the same broad product position', () => {
   const html = read('pages/life-manager.html');
 
-  assert.match(html, /仕事、お金、日々の用事、体と心/);
+  assert.match(html, /仕事、お金、日々の用事、体と心をひとつで管理する自発型マネージャーとして開発中です/);
   assert.match(html, /同じオープンソースコア/);
-  assert.match(html, /専用クラウドVM/);
+  assert.match(html, /専用Maritime VM/);
   assert.match(html, /スマートフォン/);
-  assert.match(html, /GoogleログインはWebで始める本人確認だけです/);
-  assert.match(html, /仕事と結果を確認し、ログインで使ったメールアドレスへ報告する設計です/);
-  assert.match(html, /登録時にCalendarやGmailの受信箱、タスク、目標、予算、振込先情報は求めません/);
-  assert.match(html, /初回にタスク、目標、予算を入力したり、毎日指示したりする必要はありません/);
-  assert.match(html, /Capafyでは最初のSkillを公開する前にPublisher Certificationが必要です/);
-  assert.match(html, /新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
-  assert.match(html, /公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
-  assert.match(html, /振込先情報は認証後に追加できます/);
+  assert.match(html, /Googleログインは本人確認だけに使います/);
+  assert.match(html, /確認済みの進捗・結果はログイン時のメールへ報告する設計です/);
+  assert.match(html, /登録時にCalendarやGmail受信箱、タスク、目標、予算、振込先情報は求めません/);
+  assert.match(html, /公開前にはPublisher Certificationと、Agentの各バージョンごとのSkill・設定内容の確認がCapafy上で必要です/);
+  assert.match(html, /Capafyの確認前に公開や収益を報告しません/);
   assert.match(html, /収益は保証されません/);
-  assert.match(html, /WebからGoogleログインで始められます/);
   assert.doesNotMatch(html, /ホスト版はカレンダー管理から/);
   assert.doesNotMatch(html, /CLOUD · CALENDAR ASSISTANT/);
   assert.match(html, /href="\/maritime\?source=landing&amp;lang=ja"/);
+  assert.equal((html.match(/<a[^>]*data-lm-cloud-entry/g) || []).length, 3);
   assert.doesNotMatch(html, /life-call-production\.up\.railway\.app/);
   assert.doesNotMatch(html, /href="https:\/\/life-call-production\.up\.railway\.app\/lm\?start_calendar=1"/);
   assert.match(html, /Capafy/);
