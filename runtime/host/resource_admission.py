@@ -790,6 +790,17 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
     return rank
 
 
+def _is_aged_support_borrower(row: dict[str, object], now: float) -> bool:
+    queued_at = row.get("queued_at")
+    return (
+        row.get("admission_class", "borrow") == "borrow"
+        and row.get("base_priority") == "support"
+        and isinstance(queued_at, (int, float))
+        and not isinstance(queued_at, bool)
+        and now - float(queued_at) >= PRIORITY_AGE_SECONDS["support"]
+    )
+
+
 def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, float, int, str]:
     priority = row.get("base_priority")
     queued_at = row.get("queued_at")
@@ -802,7 +813,7 @@ def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, flo
     straggler = (row.get("resource_class") != "agent"
                  or (isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
                      and now - float(queued_at) >= AGENT_SUPPORT_JUMP_SECONDS))
-    overdue_support = (aged and priority == "support" and row.get("admission_class") == "borrow"
+    overdue_support = (_is_aged_support_borrower(row, now)
                        and borrow_slot and straggler)
     wait_started = (float(queued_at) if isinstance(queued_at, (int, float))
                     and not isinstance(queued_at, bool) else float("inf"))
@@ -852,6 +863,7 @@ def _next_durable_candidate(connection: sqlite3.Connection, owners: Path,
             connection, owners, resource_class,
             str(row.get("admission_class", "borrow")), now,
             starts, snapshot_started_ns, excluded_claim=excluded_claim,
+            allow_aged_support=_is_aged_support_borrower(row, now),
         )
         if available:
             return row
@@ -876,7 +888,8 @@ def _legacy_owner_present(occupied: list[dict[str, object]]) -> bool:
 
 
 def _capacity_available(occupied: list[dict[str, object]],
-                        resource_class: str, admission_class: str) -> bool:
+                        resource_class: str, admission_class: str, *,
+                        allow_aged_support: bool = False) -> bool:
     total, per_class = _limits(resource_class, admission_class)
     if len(occupied) >= total:
         return False
@@ -887,9 +900,25 @@ def _capacity_available(occupied: list[dict[str, object]],
     if (admission_class == "revenue" and _revenue_floor(total)
             and _legacy_owner_present(occupied)):
         return False
-    if sum(_uses_limited_capacity(row, resource_class, admission_class)
-           for row in occupied) >= per_class:
-        return False
+    limited_count = sum(
+        _uses_limited_capacity(row, resource_class, admission_class)
+        for row in occupied
+    )
+    if limited_count >= per_class:
+        can_use_aged_borrow_slot = (
+            allow_aged_support
+            and resource_class == "deterministic"
+            and admission_class == "borrow"
+            and _revenue_floor(total) > 0
+        )
+        borrowed_deterministic_count = sum(
+            row.get("resource_class") == "deterministic"
+            and row.get("admission_class", "borrow") == "borrow"
+            for row in occupied
+        )
+        if (not can_use_aged_borrow_slot
+                or borrowed_deterministic_count >= per_class):
+            return False
     if admission_class == "borrow":
         borrow_count = sum(
             row.get("admission_class", "borrow") == "borrow"
@@ -901,7 +930,8 @@ def _capacity_available(occupied: list[dict[str, object]],
 
 
 def _capacity_overflow(occupied: list[dict[str, object]],
-                       resource_class: str, admission_class: str) -> bool:
+                       resource_class: str, admission_class: str, *,
+                       allow_aged_support: bool = False) -> bool:
     total, per_class = _limits(resource_class, admission_class)
     if len(occupied) > total:
         return True
@@ -909,9 +939,25 @@ def _capacity_overflow(occupied: list[dict[str, object]],
             and sum(row.get("resource_class") == "agent" for row in occupied)
             > _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", DEFAULT_AGENT_TOTAL_RUNS)):
         return True
-    if sum(_uses_limited_capacity(row, resource_class, admission_class)
-           for row in occupied) > per_class:
-        return True
+    limited_count = sum(
+        _uses_limited_capacity(row, resource_class, admission_class)
+        for row in occupied
+    )
+    if limited_count > per_class:
+        can_use_aged_borrow_slot = (
+            allow_aged_support
+            and resource_class == "deterministic"
+            and admission_class == "borrow"
+            and _revenue_floor(total) > 0
+        )
+        borrowed_deterministic_count = sum(
+            row.get("resource_class") == "deterministic"
+            and row.get("admission_class", "borrow") == "borrow"
+            for row in occupied
+        )
+        if (not can_use_aged_borrow_slot
+                or borrowed_deterministic_count > per_class):
+            return True
     if admission_class == "borrow":
         borrow_count = sum(
             row.get("admission_class", "borrow") == "borrow"
@@ -935,6 +981,7 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                       now: float, starts: dict[int, str | None],
                       snapshot_started_ns: int, *,
                       excluded_claim: Path | None = None,
+                      allow_aged_support: bool = False,
                       ) -> tuple[bool, list[dict[str, object]]]:
     live = []
     live_occurrences = set()
@@ -1039,7 +1086,10 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     LEFT JOIN priorities p ON p.owner_id=r.owner_id
                 """)]
     occupied = live + reserved
-    available = _capacity_available(occupied, resource_class, admission_class)
+    available = _capacity_available(
+        occupied, resource_class, admission_class,
+        allow_aged_support=allow_aged_support,
+    )
     return available, occupied
 
 
@@ -1083,10 +1133,25 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             return None, "control_busy"
         with _database(database) as connection:
             instant = time.time() if now is None else now
+            priority_row = connection.execute(
+                """SELECT COALESCE(admission_class,'borrow'),base_priority,queued_at
+                     FROM priorities WHERE owner_id=?""",
+                (owner_id,),
+            ).fetchone()
+            allow_aged_support = (
+                priority_name == "support" and priority_row is not None
+                and _is_aged_support_borrower({
+                    "admission_class": priority_row[0],
+                    "base_priority": priority_row[1],
+                    "queued_at": priority_row[2],
+                }, instant)
+            )
             available, _ = _durable_capacity(
                 connection, owners, resource_class, admission_class,
                 instant,
-                starts, snapshot_started_ns)
+                starts, snapshot_started_ns,
+                allow_aged_support=allow_aged_support,
+            )
             owner_files = [
                 _row(path) or {} for path in owners.glob("*.json")
             ]
@@ -1261,9 +1326,15 @@ def claim_durable(resource_class: str, owner_id: str, *,
                 return None, "ticket_missing"
             if row[5] != effect_scope:
                 raise RuntimeError("durable owner effect scope changed")
+            allow_aged_support = _is_aged_support_borrower({
+                "admission_class": row[2],
+                "base_priority": row[3],
+                "queued_at": row[4],
+            }, instant)
             available, occupied = _durable_capacity(
                 connection, owners, resource_class, admission_class, instant,
-                starts, snapshot_started_ns)
+                starts, snapshot_started_ns,
+                allow_aged_support=allow_aged_support)
             occurrence = connection.execute(
                 """SELECT occurrence_id,base_priority,queued_at
                      FROM occurrences
@@ -1295,7 +1366,9 @@ def claim_durable(resource_class: str, owner_id: str, *,
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
             if reserved and (
-                    _capacity_overflow(occupied, resource_class, admission_class)
+                    _capacity_overflow(
+                        occupied, resource_class, admission_class,
+                        allow_aged_support=allow_aged_support)
                     or (admission_class == "revenue"
                         and _revenue_floor(_limits(resource_class, admission_class)[0])
                         and _legacy_owner_present(occupied))):
