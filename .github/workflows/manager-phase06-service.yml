@@ -1,9 +1,19 @@
 name: Manager Phase06 Digital Environment
+run-name: Manager owned request ${{ inputs.request_id || 'verification' }}
 on:
   push:
     branches: [research/manager-product-r006-20261020, research/manager-phase06-service-execution-20261021, research/manager-completion-20261022]
     paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
   workflow_dispatch:
+    inputs:
+      owned_request:
+        description: Versioned Manager-owned release request; ignored outside main.
+        required: false
+        type: string
+      request_id:
+        description: Stable digest used to correlate this request with its workflow run.
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -69,7 +79,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
   publish-owned-prefix:
-    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-product-r006-20261020'
+    if: >-
+      github.repository == 'Daisuke134/life-manager' &&
+      (
+        github.ref == 'refs/heads/research/manager-product-r006-20261020' ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref == 'refs/heads/main' &&
+         inputs.owned_request != '' &&
+         inputs.request_id != '')
+      )
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -89,6 +107,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Materialize bounded main owner request without logging it
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+        env:
+          MANAGER_OWNED_REQUEST_JSON: ${{ inputs.owned_request }}
+          MANAGER_REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          raw=os.environ.get('MANAGER_OWNED_REQUEST_JSON','')
+          request_id=os.environ.get('MANAGER_REQUEST_ID','')
+          if not raw or len(raw)>8192 or len(request_id)!=64 or any(c not in '0123456789abcdef' for c in request_id):
+              raise SystemExit('missing or oversized owner request')
+          (Path(os.environ['RUNNER_TEMP'])/'manager-owned-request.json').write_text(raw)
+          PY
       - uses: actions/download-artifact@v4
         with:
           name: manager-service-${{ github.sha }}
@@ -112,9 +145,15 @@ jobs:
       - name: Admit kernel intent, stage exact Manager files, preserve every other git path
         id: publish
         env:
-          MANAGER_RELEASE_ENABLED: 'true'
+          MANAGER_RELEASE_ENABLED: ${{ github.ref == 'refs/heads/research/manager-product-r006-20261020' && 'true' || secrets.MANAGER_RELEASE_ENABLED }}
+          MANAGER_OWNER_ID: ${{ secrets.MANAGER_OWNER_ID }}
+          MANAGER_REQUEST_ID: ${{ inputs.request_id }}
         run: |
-          python source/products/manager/scripts/phase06_kernel_release.py admit --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json --intent verified/output/service/release-intent.json --output "$RUNNER_TEMP/manager-admission.json"
+          args=()
+          if [ "$GITHUB_REF" = 'refs/heads/main' ]; then
+            args+=(--owned-request "$RUNNER_TEMP/manager-owned-request.json")
+          fi
+          python source/products/manager/scripts/phase06_kernel_release.py admit --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json --intent verified/output/service/release-intent.json --output "$RUNNER_TEMP/manager-admission.json" "${args[@]}"
           python - <<'PY'
           import json,os
           from pathlib import Path

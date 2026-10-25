@@ -30,6 +30,14 @@ Python公式 `sqlite3.Connection.backup(target, *, pages=-1, progress=None, name
 
 これらは次のpatch提案であり、今回実装・配備した結果ではない。
 
+## 2026-10-25 Railway一次資料での運用方式更新
+
+Railway公式の[cron contract](https://docs.railway.com/cron-jobs)は、service start commandを指定時刻に起動し、短いtaskが完了後にexitする構成を要求する。UTCで動き、最低5分の間隔を要し、前runが終了していない場合は次runを積まずskipする。Managerは毎時UTCに一度だけ有限tickを行うため、常駐schedulerではなく `0 * * * *` を採る。`CycleStore.due()`は3600秒slotを確認し、同一時間の重複起動を抑え、SQLite/flockがさらに同時ownerを拒否する。実際の開始時刻は分単位で保証されないので、期限精度は約束しない。
+
+[Railway variables reference](https://docs.railway.com/variables/reference#railway-provided-variables)にはproject/environment/service/deployment IDと、volume name/mount path、Git由来deploymentのrepository/branch/commit SHAが列挙されている。現preflightはこれらを読み、expected project/environment/service/volume IDを別の `MANAGER_EXPECTED_*` 設定と照合する。`MANAGER_WORKFLOW_DISPATCH_TOKEN`の値は期待IDやログへ混ぜず、workerだけに渡す。
+
+[Config as Code](https://docs.railway.com/config-as-code)はdeprecatedで、2026-12-01に既存利用のhard cutoff、新しいserviceはopt-in不可と記載されている。このため`railway.json`/`railway.toml`は追加しない。専用staging serviceが用意できる段階で、Railway service settingsにproduct root、Dockerfile、hourly cronを設定し、`/data/manager`に一つのdedicated volumeをmountする。Docker imageは必要なruntime filesだけを含め、root entrypointは正確なhost/mount preflightを通した後にvolume root inodeだけをowner UIDへ渡し、workerをUID 10001で実行する。これはDockerfileとlocal testsの実装状況であり、実image build、Railway mount ownership、service cost、cron/restart実測は未実施。
+
 ## 主な一次資料
 
 - [Render disks](https://render.com/docs/disks) / [Background workers](https://render.com/docs/background-workers) / [Workflows](https://render.com/docs/workflows)
@@ -37,6 +45,9 @@ Python公式 `sqlite3.Connection.backup(target, *, pages=-1, progress=None, name
 - [Modal volumes](https://modal.com/docs/guide/volumes)
 - [Cloudflare workflow rules](https://developers.cloudflare.com/workflows/build/rules-of-workflows/) / [sleep/retry](https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/) / [scheduled triggers](https://developers.cloudflare.com/workflows/build/trigger-workflows/) / [Python runtime](https://developers.cloudflare.com/workers/languages/python/how-python-workers-work/)
 - [Python SQLite backup](https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup)
+- [Railway Cron Jobs](https://docs.railway.com/cron-jobs) — 2026-10-25、finite task/UTC/minimum interval/non-overlap/skip contract
+- [Railway variables reference](https://docs.railway.com/variables/reference#railway-provided-variables) — 2026-10-25、system/volume/Git deployment variables
+- [Railway Config as Code](https://docs.railway.com/config-as-code) — 2026-10-25、deprecation/new-service restriction/2026-12-01 cutoff
 
 確認日とrelease日は別。本文を取得したことと、全service/全SDKを監査したことは別。Fly初回URLは新docsへredirect、indexだけでは保証を読めないためoverview/snapshotsを追加取得した。Modal v1/v2とPython最新docsの世代も保持する。
 

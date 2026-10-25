@@ -77,14 +77,15 @@ class ManagerKernel:
             'benefit_status':'NOT_MEASURED','proof_level':'P0'})
         return result
 
-    def prepare_digital_release(self, run_id, baseline, candidate, now):
+    def prepare_digital_release(self, run_id, baseline, candidate, now, *, source_ref=None):
         """Plan an inert handoff; only the separate owned CI job can publish.
 
         The fixture outbox and fixture signing authority are deliberately not
         used. A technical page comparison is not causal evidence about people.
         """
-        from .digital_handoff import plan_release
-        packet=plan_release(baseline,candidate,now)
+        from .digital_handoff import SOURCE_REF, plan_release
+        source_ref=SOURCE_REF if source_ref is None else source_ref
+        packet=plan_release(baseline,candidate,now,source_ref=source_ref)
         self.audit.append(run_id,'observation',{
             'source_url':packet['target'],'content_hash':packet['baseline_sha256'],
             'recorded_at':now.isoformat(),'unit':'public_artifact_bytes'})

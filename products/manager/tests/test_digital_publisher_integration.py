@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -61,6 +62,23 @@ class PublisherIntegrationTests(unittest.TestCase):
             self.assertTrue(verify_bundle(pages/'manager-support',json.loads((old/'manifest.json').read_text())))
             self.assertEqual((pages/'unrelated.html').read_text(),'keep exact bytes')
 
+    def test_plan_selects_versioned_main_intent_only_for_main_workflow_ref(self):
+        from manager_core.digital_handoff import MAIN_SOURCE_REF, SOURCE_REF
+        m=self.load()
+        with TemporaryDirectory() as t,patch('manager_core.digital_environment.datetime',FixedReviewDate):
+            old,new,_,_,_=self.setup_files(Path(t))
+            before=json.loads((old/'manifest.json').read_text())
+            bodies={name:(old/name).read_bytes() for name in before['files']}
+            bodies['manifest.json']=(old/'manifest.json').read_bytes()
+            with patch.object(m,'live_snapshot',return_value=(before,bodies)),patch.dict(os.environ,{'GITHUB_REF':MAIN_SOURCE_REF}):
+                main_packet=m.prepare(new,Path(t)/'main-out',NOW)
+            self.assertEqual(main_packet['ref'],MAIN_SOURCE_REF)
+            self.assertEqual(main_packet['schema'],'manager.digital-handoff.v2')
+            with patch.object(m,'live_snapshot',return_value=(before,bodies)),patch.dict(os.environ,{'GITHUB_REF':'refs/heads/research/manager-e01-e16-execution-20261022'}):
+                research_packet=m.prepare(new,Path(t)/'research-out',NOW)
+            self.assertEqual(research_packet['ref'],SOURCE_REF)
+            self.assertEqual(research_packet['schema'],'manager.digital-handoff.v1')
+
     def test_missing_workflow_identity_revocation_or_stale_audit_writes_nothing(self):
         m=self.load()
         for bad in ('workflow','revoked','stale','future'):
@@ -77,6 +95,55 @@ class PublisherIntegrationTests(unittest.TestCase):
                 with self.assertRaises((ValueError,PermissionError)):
                     m.admit(new,pages,audit,intent,Path(t)/'admission.json',NOW)
                 self.assertEqual(snapshot,{p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()})
+
+    def test_main_admission_requires_fresh_bound_request_and_exact_target_parent(self):
+        from manager_core.digital_handoff import MAIN_SOURCE_REF, plan_release
+        from manager_core.owned_platform_host import create_owned_workflow_request
+        m=self.load()
+        with TemporaryDirectory() as t,patch('manager_core.digital_environment.datetime',FixedReviewDate):
+            old,new,pages,intent,audit=self.setup_files(Path(t))
+            subprocess.run(['git','-C',str(pages),'init','-q'],check=True)
+            subprocess.run(['git','-C',str(pages),'config','user.name','Manager fixture'],check=True)
+            subprocess.run(['git','-C',str(pages),'config','user.email','manager-fixture@example.invalid'],check=True)
+            subprocess.run(['git','-C',str(pages),'add','.'],check=True)
+            subprocess.run(['git','-C',str(pages),'commit','-qm','fixture baseline'],check=True)
+            parent=subprocess.check_output(['git','-C',str(pages),'rev-parse','HEAD'],text=True).strip()
+            before=json.loads((old/'manifest.json').read_text())
+            candidate=json.loads((new/'manifest.json').read_text())
+            packet=plan_release(before,candidate,NOW,source_ref=MAIN_SOURCE_REF)
+            intent.write_text(json.dumps(packet))
+            request=create_owned_workflow_request(packet,'manager-owner-1',parent)
+            env={'GITHUB_REPOSITORY':'Daisuke134/life-manager','GITHUB_REF':MAIN_SOURCE_REF,
+                 'GITHUB_WORKFLOW_REF':f'Daisuke134/life-manager/.github/workflows/manager-phase06-service.yml@{MAIN_SOURCE_REF}',
+                 'GITHUB_SHA':'b'*40,'GITHUB_RUN_ID':'12345','GITHUB_EVENT_NAME':'workflow_dispatch',
+                 'MANAGER_RELEASE_ENABLED':'true','MANAGER_OWNER_ID':'manager-owner-1',
+                 'MANAGER_REQUEST_ID':request.request_id}
+            original={p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()}
+            for changes in ({'GITHUB_EVENT_NAME':'push'},
+                            {'MANAGER_OWNER_ID':'other-owner'},
+                            {'MANAGER_RELEASE_ENABLED':'false'}):
+                with self.subTest(changes=changes),patch.dict(os.environ,{**env,**changes}),self.assertRaises(PermissionError):
+                    m.admit(new,pages,audit,intent,Path(t)/'rejected-admission.json',NOW,
+                            owned_request=request)
+                self.assertEqual(original,{p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()})
+            with patch.dict(os.environ,env):
+                result=m.admit(new,pages,audit,intent,Path(t)/'main-admission.json',NOW,
+                               owned_request=request)
+            self.assertEqual(result['status'],'ADMITTED_MANAGER_PREFIX_ONLY')
+            self.assertEqual(len(result['changed_files']),7)
+
+            snapshot={p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()}
+            subprocess.run(['git','-C',str(pages),'add','manager-support'],check=True)
+            subprocess.run(['git','-C',str(pages),'commit','-qm','bound request replay fixture'],check=True)
+            with patch.dict(os.environ,env),self.assertRaises(PermissionError):
+                m.admit(new,pages,audit,intent,Path(t)/'replayed-admission.json',NOW,
+                        owned_request=request)
+            self.assertEqual(snapshot,{p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()})
+            bad_request=create_owned_workflow_request(packet,'manager-owner-1','f'*40)
+            with patch.dict(os.environ,env),self.assertRaises(PermissionError):
+                m.admit(new,pages,audit,intent,Path(t)/'bad-admission.json',NOW,
+                        owned_request=bad_request)
+            self.assertEqual(snapshot,{p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()})
 
 
 if __name__=='__main__':unittest.main()

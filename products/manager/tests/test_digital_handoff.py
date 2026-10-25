@@ -67,6 +67,24 @@ class DigitalHandoffTests(unittest.TestCase):
                 m.admit_release(p, m.PublisherContext(**c), manifest('a'*40,'old'),
                                 manifest('b'*40,'new'), NOW)
 
+    def test_main_source_uses_versioned_admission_and_exact_workflow_ref(self):
+        m = self.api()
+        p = m.plan_release(manifest('a'*40, 'old'), manifest('b'*40, 'new'), NOW,
+                           source_ref=m.MAIN_SOURCE_REF)
+        self.assertEqual(p['schema'], 'manager.digital-handoff.v2')
+        self.assertEqual(p['ref'], m.MAIN_SOURCE_REF)
+        context = m.PublisherContext(m.REPOSITORY, m.MAIN_SOURCE_REF, m.WORKFLOW,
+                                     'b'*40, '12345')
+        accepted = m.admit_release(p, context, manifest('a'*40, 'old'),
+                                   manifest('b'*40, 'new'), NOW)
+        self.assertEqual(accepted['status'], 'ADMITTED_MANAGER_PREFIX_ONLY')
+        with self.assertRaises(PermissionError):
+            m.admit_release(p, self.context(), manifest('a'*40, 'old'),
+                            manifest('b'*40, 'new'), NOW)
+        with self.assertRaises(ValueError):
+            m.plan_release(manifest('a'*40, 'old'), manifest('b'*40, 'new'), NOW,
+                           source_ref='refs/heads/research/unreviewed')
+
     def test_tampered_expired_revoked_and_widened_intents_are_denied(self):
         m = self.api()
         mutations = [lambda p:p['candidate']['files'].__setitem__('index.html','f'*64),

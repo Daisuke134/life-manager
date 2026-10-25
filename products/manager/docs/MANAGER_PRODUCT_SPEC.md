@@ -7,6 +7,8 @@
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
 **確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16は参照サイクルまで検証。本番の採用先はRailwayに決定し、既存 `life-manager` プロジェクトへの読取接続を確認したが、Manager専用worker・volume・本番adapter・実配備証拠は未充足で `DEPLOYMENT_HOST_REQUIRED` を維持。Digital Autonomy v0.1は未配備。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
 
+**2026-10-25 E16 PATCH-05 source更新:** 固定request schema、Railway runtime identity preflight、main専用のversioned admission、durable one-shot sender/outbox、request ID付きGitHub run照合に加え、`run_owned_workflow_bridge_once` が固定support catalogから候補を作り、main SHA・現gh-pages commit・公開中の全bundleを照合して、due時にrequest/effectを永続予約する処理を追加した。古いeffectの occurrence と delivery を先にreconcileし、不明な過去effectが残る場合は新requestを送らない。run照合は最大10ページを走査し、ページ上限まで履歴が続く場合は一意性を主張せずUNKNOWNにする。timeout/読戻し不明は再送せず`UNKNOWN`/reconciliationへ残す。`.github/workflows/manager-phase06-service.yml` はmainのworkflow_dispatchにだけrequestを受け付け、保護されたowner ID、同一SHAのverified artifact、現gh-pages parent、既存7-file guard/CASへ再結合する。これらはsourceとfake transport/SQLiteによる検証であり、実Railway service/volume/secrets、main promotion、実workflow run、commit occurrence、独立した公開bytes照合、restart/replay-zeroは未達。E16とF受入はBLOCKEDのまま。Mac MiniはRailway実行経路の前提ではない。
+
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
 **今回の全体戦略・先例・応募先・順序:** [創業者実行マップ](plans/2026-10-22-manager-founder-execution-map.md) と [追加調査](research/manager-strategy-20261022/FOUNDER_EXECUTION_UPDATE_JA.md)。実装状態、公開、入金、応募、返信、採択は別々の証拠で更新する。
@@ -225,7 +227,7 @@ E16のローカル障害復旧補助として `scripts/backup_owned_cycle.py` �
 
 ### 本番の未接続部分をファイルで特定する
 
-現 `run_owned_cycle` はsandbox限定、現workflowはCLI `admit` を呼び `admit_owned` は未接続。workflow_dispatchにowned-intent入力もない。Railwayへ置くだけでは本番cycleにならず、ChatGPT pluginの接続が常駐workerのcredentialになるとも扱わない。worker proposal→固定source/artifact再検証→特権publisher→exact occurrence→独立deliveryというbridgeを作る。元のSOURCE_REFを研究branchへ差し替えて通さず、正規main promotionと契約移行が必要ならversioned admissionの別review/検査にする。
+旧 `run_owned_cycle` はlocal sandbox限定であり、`admit_owned` はGitHub Actionsの特権publisher内でのみ使う。これとは別に2026-10-25、Railway入口 `run_owned_workflow_bridge_once` を追加した。これは正確なRailway project/environment/service/volume設定と実mountを起動時に要求し、永続SQLite/flockを開いた後、前のeffect/公開deliveryを照合する。次に固定main source SHAがGitHub mainと一致し、gh-pagesのimmutable bundleと公開中のmanifest/page bytesが完全一致し、scheduleがdueのときだけ、catalog由来の候補・main intent・requestを原子的に予約し、最大一度だけdispatchする。GitHub publisherは同一SHAのverified artifact、request・protected owner ID・正確なgh-pages parentを再検査して既存7-file guard/CASを使う。発見できない過去effectは`UNKNOWN`として新規送信を止める。コード経路は実装済みだが、GitHub pluginの認証はRailway credentialではなく、Railway dispatch token、GitHub `MANAGER_RELEASE_ENABLED` / `MANAGER_OWNER_ID`、専用service/volume、通常のmain promotion、実workflow run・commit・独立public readback・restart/replay-zeroの証拠がまだない。したがって本番運転/配備済みとは扱わず、E16/F受入はBLOCKED。旧SOURCE_REFとその互換性は維持し、今回の研究branchを新しいpublisher allowlistへ加えない。
 
 本番adapterではreadbackをboolへ潰さず `VERIFIED|PENDING|REGRESSION|UNKNOWN` に分ける。lag/timeout/missingやhash不一致だけでrollbackしない。公式deploymentと現在candidateに結び付いた観測に対し固定rubricで回帰を確認した時だけ、target CASを再確認して限定復元する。backupから失われた予約を「未送信」とせず、元binding/外部occurrenceを回収できるまでdispatchしない。
 

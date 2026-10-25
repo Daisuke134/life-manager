@@ -18,6 +18,11 @@ from .models.source import _aware
 
 REPOSITORY = 'Daisuke134/life-manager'
 SOURCE_REF = 'refs/heads/research/manager-product-r006-20261020'
+MAIN_SOURCE_REF = 'refs/heads/main'
+_INTENT_SCHEMAS = {
+    SOURCE_REF: 'manager.digital-handoff.v1',
+    MAIN_SOURCE_REF: 'manager.digital-handoff.v2',
+}
 WORKFLOW = '.github/workflows/manager-phase06-service.yml'
 PUBLIC_BASE = 'https://daisuke134.github.io/life-manager/manager-support/'
 ALLOWED_PATHS = tuple(sorted(PUBLISH_PREFIX+n for n in PAGES | {'manifest.json'}))
@@ -50,16 +55,18 @@ class PublisherContext:
     run_id: str
 
 
-def plan_release(baseline, candidate, now: datetime):
+def plan_release(baseline, candidate, now: datetime, *, source_ref=SOURCE_REF):
     """Compare actual public baseline with tested candidate; produce no effect."""
     _aware(now)
+    if type(source_ref) is not str or source_ref not in _INTENT_SCHEMAS:
+        raise ValueError('unsupported immutable publisher source ref')
     baseline, candidate = _manifest(baseline), _manifest(candidate)
-    identity = {'repository':REPOSITORY, 'ref':SOURCE_REF, 'workflow':WORKFLOW,
+    identity = {'repository':REPOSITORY, 'ref':source_ref, 'workflow':WORKFLOW,
                 'target':PUBLIC_BASE, 'candidate':candidate,
                 'allowed_paths':list(ALLOWED_PATHS)}
     changed = sorted(n for n in PAGES if baseline['files'][n] != candidate['files'][n])
     same = baseline == candidate
-    packet = {'schema':'manager.digital-handoff.v1', **identity,
+    packet = {'schema':_INTENT_SCHEMAS[source_ref], **identity,
               'effect_key':digest(identity), 'baseline':baseline,
               'baseline_sha256':digest(baseline), 'candidate_sha256':digest(candidate),
               'created_at':now.isoformat(), 'expires_at':(now+LEASE).isoformat(),
@@ -78,7 +85,11 @@ def validate_intent(packet):
         raise ValueError('typed release intent required')
     try:
         created = datetime.fromisoformat(packet['created_at'])
-        expected = plan_release(packet['baseline'],packet['candidate'],created)
+        source_ref = packet['ref']
+        if packet.get('schema') != _INTENT_SCHEMAS.get(source_ref):
+            raise ValueError('intent schema does not match its immutable source ref')
+        expected = plan_release(packet['baseline'],packet['candidate'],created,
+                                source_ref=source_ref)
     except (KeyError,TypeError,ValueError) as exc:
         raise ValueError('invalid release intent') from exc
     if packet != expected:
@@ -95,7 +106,7 @@ def admit_release(packet, context: PublisherContext, current, candidate,
         raise PermissionError('revoked, future or expired release intent')
     if (not isinstance(context,PublisherContext) or
         (context.repository,context.ref,context.workflow,context.source_commit) !=
-        (REPOSITORY,SOURCE_REF,WORKFLOW,packet['candidate']['source_commit']) or
+        (REPOSITORY,packet['ref'],WORKFLOW,packet['candidate']['source_commit']) or
         not isinstance(context.run_id,str) or not re.fullmatch(r'[1-9][0-9]*',context.run_id)):
         raise PermissionError('not the separately authorized publisher context')
     candidate, current = _manifest(candidate), _manifest(current)
@@ -212,7 +223,7 @@ class OwnedReleaseIntent:
     def authorized_execution(self):return False
 
 
-def prepare_owned_change(context,assessment,standing_scope,now):
+def prepare_owned_change(context,assessment,standing_scope,now,*,source_ref=SOURCE_REF):
     """Recompute static verification; emit an inert intent, never a write grant."""
     from dataclasses import asdict
     from .authority import OwnedDigitalScope
@@ -240,7 +251,7 @@ def prepare_owned_change(context,assessment,standing_scope,now):
     if (not scope.allows(c.candidate.target,now) or len(assessment.changed_paths)>scope.max_changed_files
             or not set(assessment.changed_paths)<=scope.allowed_paths):return no('OUTSIDE_HOST_SCOPE')
     before,_=_load(context.baseline_bundle);after,_=_load(context.candidate_bundle)
-    packet=plan_release(before,after,now)
+    packet=plan_release(before,after,now,source_ref=source_ref)
     bindings={'run_id':run,'goal':context.planner.goal,'observed_at':context.planner.observed_at.isoformat(),
               'facts':[{'source':{**asdict(f.source),'retrieved_at':f.source.retrieved_at.isoformat()},'summary':f.summary}
                        for f in context.planner.facts],

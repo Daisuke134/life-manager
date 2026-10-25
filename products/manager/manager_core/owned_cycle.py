@@ -1,14 +1,16 @@
-"""E16 reference cycle; production ownership is intentionally not fabricated.
+"""E16 local reference cycle and bounded Railway-to-GitHub owner bridge.
 
-Only an exact offline local-Git sandbox adapter is implemented here. The real
-publisher/collector retain their existing platform boundary. No scheduler is
-installed, no remote is pushed, and sandbox evidence never becomes P1/P2.
+`run_owned_cycle` remains limited to the no-remote local-Git sandbox. The
+Railway bridge has a separate fixed-main request contract and delegates every
+publication to the protected GitHub workflow; it does not push Git itself.
+Neither path turns technical publication evidence into human-outcome evidence.
 """
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime,timezone
 import fcntl
 import json
+import os
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -288,6 +290,219 @@ def dispatch_owned_once(state_store,host,packet,now):
         if delivery is not None:return delivery
         if state_store.stopped():return dict(status='STOPPED_REGRESSION',writes=0)
         return _dispatch_owned_locked(state_store,host,packet,now)
+
+
+def run_owned_workflow_bridge_once(state_root,*,env=None,now=None,get=None,post=None,
+                                   public_get=None,mount_check=os.path.ismount):
+    """Run one bounded Railway cycle for the fixed main-source service bundle.
+
+    It reconciles earlier effects first, builds a candidate only from this
+    immutable main deployment, binds it to the exact current Pages parent, and
+    reserves one request before dispatch. Publication is still owned by the
+    protected GitHub workflow; this function never commits to Pages itself.
+    """
+    from tempfile import TemporaryDirectory
+    from .digital_environment import build_site
+    from .digital_handoff import (
+        MAIN_SOURCE_REF, PublisherContext, REPOSITORY, WORKFLOW, plan_release,
+    )
+    from .owned_platform_host import (
+        RuntimeConfigurationError, create_owned_workflow_request,
+        read_github_ref_commit, read_railway_runtime_identity,
+        reconcile_reserved_owned_workflow,
+    )
+    env=os.environ if env is None else env
+    now=now or datetime.now(timezone.utc);_aware(now)
+    try:
+        identity=read_railway_runtime_identity(
+            env,
+            expected_project_id=env.get('MANAGER_EXPECTED_RAILWAY_PROJECT_ID'),
+            expected_environment_id=env.get('MANAGER_EXPECTED_RAILWAY_ENVIRONMENT_ID'),
+            expected_service_id=env.get('MANAGER_EXPECTED_RAILWAY_SERVICE_ID'),
+            expected_volume_name=env.get('MANAGER_EXPECTED_RAILWAY_VOLUME_NAME'),
+            source_root=Path(__file__).resolve().parents[1],
+            state_root=state_root,
+            mount_check=mount_check,
+        )
+    except (RuntimeConfigurationError, OSError, TypeError, ValueError):
+        return _cycle_result('DEPLOYMENT_HOST_REQUIRED',reason='RAILWAY_OWNER_PREFLIGHT_FAILED')
+
+    try:
+        store=CycleStore(state_root)
+    except (OSError, sqlite3.Error, ValueError):
+        return _cycle_result('DEPLOYMENT_HOST_REQUIRED',reason='PERSISTENT_OWNER_STATE_UNAVAILABLE')
+    if store.restore_requires_reconciliation():
+        return _cycle_result('RESTORE_RECONCILIATION_REQUIRED')
+
+    from scripts.phase06_kernel_release import (
+        immutable_snapshot, live_snapshot, public_get as default_public_get,
+    )
+    from .owned_public_collector import collect_owned_delivery, collect_owned_occurrence
+    from .reconcile import reconcile_owned, reconcile_pending_owned
+    public_reader=public_get or default_public_get
+
+    with store.owner_lock() as acquired:
+        if not acquired:return _cycle_result('OWNER_BUSY')
+        requests=store.journal.pending_workflow_dispatches(limit=2)
+        if len(requests)>1:
+            return _cycle_result('RECONCILIATION_REQUIRED',
+                                 reason='MULTIPLE_PENDING_WORKFLOW_REQUESTS')
+
+        def read_occurrence(key):
+            return collect_owned_occurrence(key,store.journal,now,get=public_reader)
+
+        if requests:
+            request_record=requests[0]
+            prior_deliveries=store.journal.pending_deliveries(limit=100)
+            for prior_delivery in prior_deliveries:
+                if prior_delivery.key==request_record.effect_key:
+                    continue
+                evidence=collect_owned_delivery(
+                    prior_delivery.key,store.journal,now,get=public_reader)
+                store.journal.save_delivery(prior_delivery.key,evidence)
+                if evidence['status']!='VERIFIED':
+                    return _cycle_result('DELIVERY_RECONCILIATION_REQUIRED',
+                                         effect_key=prior_delivery.key,
+                                         delivery_status=evidence['status'],
+                                         reason='PRIOR_DELIVERY_NOT_VERIFIED')
+            if (len(prior_deliveries)==100 and
+                    store.journal.pending_deliveries(
+                        limit=1,after_key=prior_deliveries[-1].key)):
+                return _cycle_result('DELIVERY_RECONCILIATION_REQUIRED',
+                                     reason='MORE_PRIOR_DELIVERIES_REMAIN')
+            # An older intent without a workflow request may still represent an
+            # external effect. Reconcile it before touching the newer request;
+            # a missing public occurrence is UNKNOWN, never permission to pass it.
+            prior_page=store.journal.pending_records(limit=100)
+            prior_records=tuple(record for record in prior_page
+                                if record.key!=request_record.effect_key)
+            for prior in prior_records:
+                occurrence=reconcile_owned(store.journal,prior.key,read_occurrence,now)
+                if occurrence.status!='PRESENT':
+                    return _cycle_result('RECONCILIATION_REQUIRED',
+                                         effect_key=prior.key,
+                                         reason='UNRESOLVED_PRIOR_OWNER_EFFECT')
+                effect=store.journal.record(prior.key)
+                evidence=collect_owned_delivery(
+                    effect.key,store.journal,now,get=public_reader)
+                store.journal.save_delivery(effect.key,evidence)
+                if evidence['status']!='VERIFIED':
+                    return _cycle_result('RECONCILIATION_REQUIRED',
+                                         effect_key=effect.key,
+                                         delivery_status=evidence['status'],
+                                         reason='PRIOR_DELIVERY_NOT_VERIFIED')
+            if (len(prior_page)==100 and
+                    store.journal.pending_records(limit=1,after_key=prior_page[-1].key)):
+                return _cycle_result('RECONCILIATION_REQUIRED',
+                                     reason='MORE_PRIOR_OWNER_EFFECTS_REMAIN')
+            if store.stopped() and request_record.status=='READY':
+                return _cycle_result('STOPPED',request_id=request_record.request_id)
+            if request_record.status!='READY':
+                reconcile_owned(store.journal,request_record.effect_key,read_occurrence,now)
+                effect=store.journal.record(request_record.effect_key)
+                if effect is not None and effect.status=='PRESENT':
+                    evidence=collect_owned_delivery(
+                        effect.key,store.journal,now,get=public_reader)
+                    store.journal.save_delivery(effect.key,evidence)
+                    if evidence['status']=='VERIFIED':
+                        return _cycle_result(
+                            'VERIFIED_PUBLIC_ARTIFACT_ONLY',
+                            effect_key=effect.key,receipt_ref=effect.receipt_ref,
+                            delivery_status=evidence['status'],published=True,
+                            proof_level=evidence['proof_level'])
+                    return _cycle_result(
+                        'DELIVERY_'+evidence['status'],effect_key=effect.key,
+                        receipt_ref=effect.receipt_ref,delivery_status=evidence['status'],
+                        reason=evidence['reason'],published=False)
+            bridge=reconcile_reserved_owned_workflow(
+                store.journal,request_record.request_id,
+                token=env['MANAGER_WORKFLOW_DISPATCH_TOKEN'],get=get,post=post)
+            return _cycle_result(
+                bridge.status,
+                request_id=bridge.request_id,
+                sent=bridge.sent,
+                workflow_run_id=bridge.run_id,
+                workflow_run_status=bridge.run_status,
+                dispatch_http_status=bridge.http_status,
+                published=False,
+            )
+
+        pending=store.journal.pending_records(limit=100)
+        if pending:
+            reconcile_pending_owned(store.journal,read_occurrence,now)
+            if store.journal.pending_records(limit=1):
+                return _cycle_result('RECONCILIATION_REQUIRED',
+                                     reason='UNRESOLVED_PRIOR_OWNER_EFFECT')
+
+        delivery_batch=store.journal.recovery_batch('delivery')
+        for record in delivery_batch:
+            evidence=collect_owned_delivery(record.key,store.journal,now,get=public_reader)
+            store.journal.save_delivery(record.key,evidence)
+        store.journal.complete_recovery_batch('delivery',delivery_batch)
+        if store.journal.pending_deliveries(limit=1):
+            return _cycle_result('DELIVERY_RECONCILIATION_REQUIRED')
+        if store.stopped():return _cycle_result('STOPPED')
+
+        token=env['MANAGER_WORKFLOW_DISPATCH_TOKEN']
+        main_head=read_github_ref_commit('main',token=token,get=get)
+        if main_head.status!='FOUND':
+            return _cycle_result('UNKNOWN',reason='MAIN_HEAD_UNAVAILABLE')
+        if main_head.commit_sha!=identity.source_commit:
+            return _cycle_result('SOURCE_NOT_CURRENT',reason='WORKER_SHA_DIFFERS_FROM_MAIN')
+        config=CycleConfig(identity.owner_id,identity.interval_seconds)
+        if not store.due(config,now):return _cycle_result('NOT_DUE')
+
+        pages_head=read_github_ref_commit('gh-pages',token=token,get=get)
+        if pages_head.status!='FOUND':
+            return _cycle_result('UNKNOWN',reason='PAGES_HEAD_UNAVAILABLE')
+        try:
+            baseline,live_bodies=live_snapshot(get=public_reader)
+            committed,parent_bodies=immutable_snapshot(pages_head.commit_sha,get=public_reader)
+        except (OSError,ValueError,TypeError,KeyError) as exc:
+            return _cycle_result('UNKNOWN',reason='PUBLIC_BASELINE_UNAVAILABLE',
+                                 error_type=type(exc).__name__)
+        if baseline!=committed:
+            return _cycle_result('UNKNOWN',reason='PAGES_BRANCH_MANIFEST_NOT_SERVED_YET')
+        branch_pages={name:parent_bodies[name] for name in baseline['files']}
+        if live_bodies!=branch_pages:
+            different=sorted(name for name in set(live_bodies)|set(branch_pages)
+                             if live_bodies.get(name)!=branch_pages.get(name))
+            return _cycle_result('UNKNOWN',reason='PAGES_BRANCH_BYTES_NOT_SERVED_YET',
+                                 different_paths=different)
+
+        catalog_path=Path(__file__).resolve().parents[1]/'public_goods/service/catalog.json'
+        catalog=json.loads(catalog_path.read_text())
+        try:
+            with TemporaryDirectory(prefix='manager-owned-candidate-') as tmp:
+                candidate=build_site(catalog,Path(tmp)/'site',identity.source_commit)
+                packet=plan_release(baseline,candidate,now,source_ref=MAIN_SOURCE_REF)
+        except (OSError,ValueError,TypeError,KeyError):
+            return _cycle_result('NO_ACTION',reason='CANDIDATE_BUILD_OR_VALIDATION_FAILED')
+        if packet['decision']=='NO_ACTION':
+            return _cycle_result('NO_ACTION',reason='CANDIDATE_ALREADY_CURRENT')
+
+        request=create_owned_workflow_request(
+            packet,identity.owner_id,pages_head.commit_sha)
+        # run_id is syntactic context for pure admission only. GitHub Actions
+        # supplies and authenticates the actual workflow context at the receiver.
+        context=PublisherContext(REPOSITORY,MAIN_SOURCE_REF,WORKFLOW,
+                                identity.source_commit,'1')
+        try:
+            reserved=store.journal.reserve(
+                packet,context,baseline,candidate,pages_head.commit_sha,now,
+                workflow_request=request,owner_id=identity.owner_id)
+        except (PermissionError,ValueError):
+            return _cycle_result('RECONCILIATION_REQUIRED',reason='REQUEST_RESERVATION_REJECTED')
+        if not reserved.dispatch:
+            return _cycle_result(reserved.status,effect_key=reserved.key,
+                                 reason='REQUEST_ALREADY_RESERVED')
+        bridge=reconcile_reserved_owned_workflow(
+            store.journal,request.request_id,token=token,get=get,post=post)
+        return _cycle_result(
+            bridge.status,request_id=bridge.request_id,sent=bridge.sent,
+            workflow_run_id=bridge.run_id,workflow_run_status=bridge.run_status,
+            dispatch_http_status=bridge.http_status,published=False,
+        )
 
 
 def run_owned_cycle(config,state_store,*,host=None,now=None):

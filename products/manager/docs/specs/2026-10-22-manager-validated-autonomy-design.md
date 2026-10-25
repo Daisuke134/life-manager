@@ -72,6 +72,8 @@ E15で保証するのは、実証したtarget契約の下での重複admission�
 
 E16の配備先はRailway単一worker＋専用volumeに決定。既存projectへの接続は確認したがManagerのruntime作成・本番adapter・実配備は未完了。配備条件はpersistent host/volume、単一owner lease、監視、停止/取消し、backup/restore、起動時reconcile、schedule catch-up-once、独立readback、限定rollback。ホスト未確認なら `DEPLOYMENT_HOST_REQUIRED`。一時CIを永続ownerにしない。既存ownerの実identityが確認できるまでschedulerを変更しない。
 
+2026-10-25 implementation update: source now contains a separate Railway finite-cycle adapter that creates a versioned request only after current-main/current-Pages/served-byte checks, resolves prior effect and delivery records first, and sends through the protected GitHub publisher once. The older `run_owned_cycle` remains the local no-remote fixture. A pinned Docker image, private-mount preflight, and privilege-dropping entrypoint are also implemented. Railway's current docs support an hourly exiting cron job and expose the required system volume/source variables; old `railway.json` config-as-code is deprecated for new services. The service settings will be applied only to a dedicated staging service after normal main promotion. Source/unit/Docker validation is not a live deployment. E16 remains `DEPLOYMENT_HOST_REQUIRED` until real host identity, volume, secrets, workflow occurrence, served bytes, restart/restore and replay-zero are independently recorded.
+
 学習はpolicy/versionの候補作成→隔離評価→shadow→限定昇格。権限、予算、対象、結果尺度をpolicyが拡張しない。予測誤差の減少と実便益の増加も別に検証する。
 
 ## 6. 最初の研究・顧客・発信の判断

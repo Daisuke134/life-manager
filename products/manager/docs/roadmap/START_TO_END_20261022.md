@@ -132,6 +132,7 @@ flowchart LR
 ## 4. 本当の依存と並行可能性
 
 1. 技術線は **E01→…→E16**。F009 metadataの `technical_execution_completed` はE01–E15、cursorは **E16**。E16 receiptは `BLOCKED / VERIFIED_REFERENCE_CYCLE_P0_DEPLOYMENT_HOST_REQUIRED`、`deployed=false`、`production_adapter_implemented=false`。Railwayが選定されread access確認済みでも専用worker/volume/本番bridge/実配備証拠が未成立。
+   **2026-10-25 source update:** fixed main-only Railway/GitHub bridge, candidate/request producer, old-effect barrier, exact bounded run lookup, finite Docker package and non-root entrypoint are now implemented and locally tested. E16 acceptance remains BLOCKED: there is still no promoted main release, dedicated Railway service/volume/owner secrets, live workflow/commit/readback, or host restart/restore/replay-zero receipt. Thus source implementation advances while task acceptance remains unchanged.
 2. E完了後に **F005→F006→F008→F009** を証拠で判定。`depends` graph自体はF005→F006とF005→F008の分岐、F009がF006/F008 join。受入れcursorの指定順序はF005/F006/F008/F009なのでそれに従う。F005の`depends=[K009]`だけ見てE16前にdoneにしない。E後ゲートはF009の`sequence_contract`と現行specにも記載。
 3. F005は実provider commit/parent/allowlistと独立served GET、replay-zero・対象外不変。F006は技術baseline/比較/欠測/費用/害の版付き報告、P3/P4 NOT_MEASURED。F008は別URL/テーマの2件目のP2と復元可能性。F009は共通kernelと両readbackの統合。古い公開ページが存在するだけでは新E実行の同一occurrence証拠を自動充足しない。
 4. PMF線は **U002→U003→{U004,U005}**、**{U004,F005}→U006→（F006も必要）U007→U008**。U004はF002、U005はK010、U008はU002も必要。U002の5件以上の実面談を架空personaや既存文書で置換しない。

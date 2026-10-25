@@ -1,13 +1,13 @@
 # Manager — 追加一次資料に基づくatomic patch plan
 
-> **For agentic workers:** Use Superpowers executing-plans or subagent-driven-development when implementing. This request authorizes research/specification work; unchecked implementation steps below are proposed patches, not completed behavior changes.
+> **For agentic workers:** Use the applicable Superpowers implementation procedure when available. This plan began as research/specification work; the user's later explicit instruction authorized source implementation. Unchecked implementation steps remain incomplete and must not be reported as completed behavior.
 
 **Goal:** 既成のruntime・agent・renderer・評価資産を比較し、E16の本番接続と証拠からの出版を、実ファイル単位で進める。
 **Architecture:** 既存の権限/intent/outbox/正確なprovider照合を核として維持。汎用scheduler/memory/browser/eval engineを増やさず、既存部品へ最小接続する。DBOSを最初のdurable-runtime適合比較とし、製品名だけで移行を確定しない。
 **Tech Stack:** 現core Python>=3.11、SQLite、GitHub既存publisher、Playwright/axe、既存python-pptx/FFmpeg/記事installer。追加runtimeは比較後に固定版とlicenseを確認。
 **Spec:** [製品仕様](../MANAGER_PRODUCT_SPEC.md)、[追加選択肢調査](../research/manager-options-additional-20261022/REPORT_JA.md)。
 
-**実行再開の記録:** 後続の継続指示でsource実装へ進んだ。PATCH-01、PATCH-02の送信境界と隔離比較、PATCH-04のcollector/typed delivery、PATCH-06のローカルSQLite backup/isolated restore＋quarantineを実装・P0検証した。実結果と残る本番条件は [recovery receipt](../verification/E16_RECOVERY_HARDENING_20261022.md) を参照。以下の未チェックを本番完了と読み替えず、既実装部分を再作成しない。PATCH-05、PATCH-06のhost/volume試験とE16実配備受入れは未達。
+**実行再開の記録（2026-10-25）:** 後続の継続指示でsource実装へ進んだ。PATCH-01、PATCH-02の送信境界と隔離比較、PATCH-04のcollector/typed delivery、PATCH-06のローカルSQLite backup/isolated restore＋quarantineを実装・P0検証した。PATCH-05ではrequest schema、Railway runtime preflight、versioned main admission/receiver、durable request outbox、one-shot sender、read-only workflow run reconciliationに加え、main SHA/gh-pages親/公開bytesを照合して候補からrequestを作る有限cycleと、旧effectのoccurrence/delivery先行reconciliationを実装。workerはunknownな旧effectを越えて新requestを送らない。ローカルfake transport/testsは通過したが、owner secrets、専用Railway service/volume、通常のmain promotion、実workflow run/readback、PATCH-06 host/volume実機試験、E16実配備受入れは未達。実結果は [recovery receipt](../verification/E16_RECOVERY_HARDENING_20261022.md) と本追記を参照し、未チェックを本番完了と読み替えず、既実装部分を再作成しない。
 
 ## Global constraints
 
@@ -79,24 +79,32 @@
 ## PATCH-05 — workerから既存の特権publisherへ接続する
 
 **Files:** Create `manager_core/owned_platform_host.py`, `tests/test_owned_platform_host.py`; Modify `scripts/run_owned_digital_cycle.py`、`scripts/phase06_kernel_release.py::admit_owned` と `.github/workflows/manager-phase06-service.yml` の必要最小bridge。
-**Current evidence:** 現workflow_dispatchには入力がなく、workflowはCLI `admit`を呼び、`admit_owned`は未接続。Railwayへ置くだけでは候補を既存publisherへ渡せない。接続済みChatGPT pluginの認証がRailwayへ自動で渡るとも扱わない。
+**Current evidence:** 既存workflowは旧research refでCLI `admit`を実行していた。2026-10-25にmain intent v2とmainのworkflow_dispatch＋owner requestを要求するreceiver入口、durable request outbox、one-shot sender、exact GitHub run lookup、Railway identity preflight、main source/Pages baseline/served bytesを照合してrequestを作る有限worker cycle、過去effect occurrence/deliveryの先行reconciliationを追加。未確定過去effectは新requestを止める。コード・fake transport/SQLiteの範囲で検証し、実Railway host/volume、owner secrets、通常promotion、実workflow/readbackは未達。接続済みChatGPT pluginの認証がRailwayへ自動で渡るとも扱わない。
 **Produces:** workerはproposal/effect keyを送るだけ。特権jobが同一の固定source/artifactを再構築・照合し、scopeとassessmentを再検証し、元の7-file guard/CASを実行。hostのconstructorやenv flagは権限ではない。
 
+**2026-10-25 implementation receipt:** `manager_core/owned_platform_host.py` defines `manager.owned-workflow-request.v1` (owner, effect key, immutable packet digest, source SHA, expected parent, request ID) and strict parser/rebinding. Requests can only be created from the fixed `main` intent version. The digest covers every validated packet field except its short-lived created/expiry timestamps and self-digest. The SQLite outbox atomically reserves request/effect; its atomic `READY→SENDING` claim also marks the effect `DISPATCHING`, while a not-yet-sent request remains `RESERVED`. POST is fixed to the exact repository/workflow/main ref; timeout and ambiguous responses remain UNKNOWN and never resend. Run lookup filters exact request title, branch, event and source SHA across at most ten pages; a duplicate across pages is retained, while a full page bound leaves uniqueness UNKNOWN. `read_railway_runtime_identity` binds Railway project/environment/service/volume values to separately supplied expected IDs, requires the `Daisuke134/life-manager` `main` SHA, a separate mounted state directory, explicit owner enablement, bounded cadence and a present dispatch credential; the credential is not returned. `digital-handoff.v2` preserves v1 reads/admission while allowing only fixed `refs/heads/main` for the new version. The workflow binds main requests to protected `MANAGER_OWNER_ID`, current Pages HEAD and the original seven-path release guard. `run_owned_workflow_bridge_once` now performs the complete source-level cycle: it reconciles old occurrence and delivery records first, confirms Railway source SHA equals current main, confirms the gh-pages manifest and each published page match the live served bundle, builds the checked-in support catalog for that SHA, and reserves/submits at most one request when due. A regression test confirms an unresolved older effect blocks the newer request without POST. The entrypoint is wired to the finite cycle, not just an existing-request drain. Focused request, sender, replay/race, bounded-run-pagination, worker, prior-effect barrier, runtime-preflight, main-admission and workflow-structure tests pass. This remains local fake-transport evidence; no owner secrets, dedicated Railway service/volume, ordinary main promotion, real workflow/commit/readback, or host restart/restore proof is connected.
+
 - [ ] RED fake owner/env、wrong source/artifact/run、changed scope/target parent、replayed request、fixture host、tokenがagent出力へ渡るケースを拒否。
-- [ ] worker→verified artifact→privileged admissionのrequest schemaをversion固定し、effect key/packet digest/owner identity/source commit/expected parentを必須化。modelが決めるartifact URLや任意callbackは受けない。
-- [ ] 元SOURCE_REFに実装を載せられない場合、通常main promotionに合わせたversioned admission移行を別reviewで行う。新live sourceはmerged mainの固定SHA、旧receiptの読取互換と新write許可を分離。今回研究branchのrefをallowlistに足す変更は禁止。
-- [ ] 既存jobのartifact/actual env/7paths/CAS/Pages workflow委譲を維持。GitHub App等のcredential供給元と最小権限をownerが実確認するまでCLI preflightはexit2。
+- [ ] RED fake owner/env、wrong source/artifact、changed scope/target parent、extra/duplicate request fields、malformed request JSON、token exposureを拒否。**Partial:** request field/parser/owner/packet/parent cases are covered; workflow run/artifact authenticity, durable replay at the receiver, and credential-redaction across an actual agent output path remain untested until a receiver exists.
+- [x] Worker request schema version-fixes effect key/packet digest/owner identity/source commit/expected parent; no model-selected artifact URL or callback is accepted. Strict parser and rebinding tests pass.
+- [x] Railway runtime identity preflight rejects wrong configured project/environment/service/volume, non-main/wrong repository source, missing mount separation, disabled/unbounded owner config and missing dispatch credential without returning the credential. It is wired to the finite cycle CLI; **fake environment/mount test only, with no live Railway deployment.**
+- [x] Main向けversioned admissionを追加。`digital-handoff.v1`/旧SOURCE_REFを保持し、新`v2`は厳密な`refs/heads/main`＋actual workflow contextだけを受入れ。今回研究branchはallowlistへ追加しない。
+- [x] Existing jobのsame-run artifact、actual workflow context、7-path guard/CAS、既存Pages workflow委譲を維持。main入口にowner request inputを追加し、fake Git integrationでwrong owner/event/release toggle/target parent/replayを無書込みで拒否。
+- [x] Railway sender・durable request outboxとbounded cycleを実装。固定repository/workflow/ref以外へ送らず、HTTP 204は「run accepted」に限定し、timeout/connection lossはUNKNOWNとして同じrequest IDをread-only照合する。source SHA・gh-pages parent/manifest・live bytesから候補とrequestを作り、古いeffectのexact occurrenceとdelivery readbackを先にreconcileする。UNKNOWN/未読戻しなら新規requestを止め、過去要求を再送しない。Fake HTTP/SQLite/public-reader fixturesのみ。**実host接続は未達。**
+- [ ] GitHub protected `MANAGER_OWNER_ID` / `MANAGER_RELEASE_ENABLED` settingsと実workflow run/readbackを確認。未確認ならCLI/workerはexit2・write無しを維持。
 - [ ] GREEN unit/contract→レビュー→通常promotion→1canary→official readback→replay-zero。Commitと配備証拠は別。
 
 ## PATCH-06 — host設定・backup・restoreを実物で検証
 
-**Files:** Create `deploy/owned-digital/Dockerfile`, `deploy/owned-digital/railway.json`, `scripts/backup_owned_cycle.py`, `tests/test_owned_state_recovery.py`; Modify CLIのpreflight/loop入口。Render/Flyのconfigを同時に量産しない。
-**Produces:** immutable source binding、private `/data/manager`、単一owner、SIGTERM graceful stop、budget/stop/health metadata。backupはstdlib `sqlite3.Connection.backup`を使う。
+**Files:** `deploy/owned-digital/Dockerfile` と product-level `.dockerignore`、`scripts/owned_runtime_entrypoint.py`、`tests/test_owned_runtime_entrypoint.py` を追加。`scripts/backup_owned_cycle.py` と `tests/test_owned_state_recovery.py` は既にlocal実装済み。Railway service settingsはconnector経由で別途管理し、`railway.json` は作らない。
+**Produces:** main由来のimmutable container source、private `/data/manager`、単一owner、finite hourly cron tick、start時のmount/ID検査後に非root UIDへdrop、stop/backup/restore/health/費用記録。backupはstdlib `sqlite3.Connection.backup`を使う。
+**Platform basis:** 2026-10-25に一次資料を再取得。Railway Cronは短命で完了後exitするtask用、UTC、5分以上の間隔、前runが続くと次runをskipする。system varsにはproject/environment/service/deployment/volume name/mount pathとGit repository/branch/SHAがある。Config as Code (`railway.json`/`.toml`) はdeprecatedでnew servicesはopt-in不可、2026-12-01 cutoff。従ってmain promotion後、Manager専用staging service/volumeへ`rootDirectory=products/manager`, Dockerfile path=`deploy/owned-digital/Dockerfile`, volume mount=`/data/manager`, `cronSchedule=0 * * * *`, one replicaをRailway settingsで設定する。現行 `MANAGER_INTERVAL_SECONDS=3600` と整合する。公式根拠: [Cron Jobs](https://docs.railway.com/cron-jobs), [Variables Reference](https://docs.railway.com/variables/reference#railway-provided-variables), [Config as Code](https://docs.railway.com/config-as-code)。
 
 - [ ] RED tmp/ephemeral/source配下state、reservation前/後のstale restore、許可外sourceからのproduction起動。**一部済み:** 同時owner/backup corruption/source内state/non-overwriting restoreは追加testでRED→GREEN。
 - [x] `python -m unittest discover -s tests -p 'test_owned_state_recovery.py' -v` — 3 test pass (2026-10-25; local fixture only)。
 - [x] Local DB online-backup API→integrity/hash→新規隔離先restore。古いsnapshotを起動cycle/direct dispatch両方で拒否。
 - [ ] Production起動時に元parent/packetのofficial occurrenceを読み取り回復し、回復不能なら隔離を維持する。restored markerを解除する手順は実hostとofficial collectorでのみ設計/検証する。backup取得後の外部commit欠落を新しいparentで再予約しない。
+- [x] Source package: Docker context allowlist、Python 3.12 slim image、systemd-free finite entrypoint、mount/ID preflight後のsingle-inode chownとUID/GID 10001へのdropを追加。local Docker image build pass。設定なしでは`DEPLOYMENT_HOST_REQUIRED`、fake identity＋temporary mount＋network-noneではpreflight通過後に`UNKNOWN / MAIN_HEAD_UNAVAILABLE`・effect writes=0で停止。**Railway実volume権限/cron/実workerは未検証。**
 - [ ] Railwayの専用staging service/volumeでlock・kill/restart・restore・単一catch-up・停止時間・費用を観測。現在の既存serviceは用途確認まで保全。productionはnormal promotion後のみ。
 - [ ] E16/F受入を実receiptで判定し、それ以前はBLOCKEDを維持。
 
@@ -166,7 +174,7 @@ PATCH-01→02→04→05→06がE16の技術線。PATCH-03は既成製品を直�
 
 - PATCH-01: `python -m unittest discover -s tests -p 'test_owned_recovery_order.py' -v`。
 - PATCH-02: 上記専用testに加え、提案CLI `python scripts/compare_owned_runtime.py --backend current --case checkpoint_loss --state-dir <private-isolated-dir>`、次に同じcaseを `--backend dbos`。出力receiptでversion/source/dispatch_countを比較。実装前のコマンドなので今回の実行結果ではない。
-- PATCH-04/05/06: `test_owned_public_collector.py` / `test_owned_platform_host.py` / `test_owned_state_recovery.py` を各 `python -m unittest discover -s tests -p '<file>' -v` で個別実行。
+- PATCH-04/05/06: `test_owned_public_collector.py` / `test_owned_platform_host.py` / `test_owned_state_recovery.py` / `test_owned_runtime_entrypoint.py` を各 `python -m unittest discover -s tests -p '<file>' -v` で個別実行。fake transport/SQLite/mount testsはlocal source contractのみで、Railway実物や課金/停止/volume permissionsの証明ではない。
 - PATCH-07: source JSON parseと既存 `python -m unittest discover -s tests -p 'test_eba_landscape_sources.py' -v`。新fixtureを実装する時だけ専用failure testを追加。
 - PATCH-08: `python -m unittest discover -s tests -p 'test_content_evidence_index.py' -v`。
 - PATCH-09: `python -m unittest discover -s tests -p 'test_blog_publication.py' -v`、repo rootから `node --test apps/landing/manager-blog/tests/{package,install,integration}.test.mjs`。
