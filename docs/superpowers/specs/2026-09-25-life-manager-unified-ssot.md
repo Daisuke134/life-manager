@@ -25,22 +25,24 @@
 | 項目 | 現状と完了条件 |
 |---|---|
 | Cleanup sourceとLocal表題の公開 | PR #8915は2026-10-24 19:40:33Zにmerge済み（merge commit `42c397d73c3d9d8fa57978d67c34d20ec5d39efd`）。source commit `5a0c4a1`と英日READMEの`Local Life Manager`表題はmainに入った。immutable releaseへの反映と自然receiptは別項目で追う。 |
-| Release GC timeout修正 | PR #8919は2026-10-25 03:55:30ZにMERGED（merge `b8d386bd42d2de6ac453eeaee70e31d9f14f3cf8`）。bounded 30-second GC scan fixはmain sourceに存在する。最新installed release `e313b0b89d88876a6f0addd6c64dd065e1686f44`には未反映で、immutable release・owner限定loaded SHA・自然receiptが残る。 |
-| 現Macの容量とagent admission | 2026-10-25 04:32Zの`df -Pk /` readbackは空き7,892,292 KiB（約7.52 GiB）。4 GiB revenue floorは上回るが12 GiB producer/release floorには届かない。swap-growth gateは今回freshに測っておらず、単一時点から増減を推定しない。 |
-| Cleanupのmain release反映と自然receipt | PR #8915/#8919のsourceはmainにあるが、現installed release SHAは`e313b0b89d88876a6f0addd6c64dd065e1686f44`。このreleaseで#8919の修正を確認した自然cleanup receiptは未取得。以前のcleanup passやfree容量の変動を、修正反映・容量回復の証明にしない。 |
+| Release GC timeout修正 | PR #8919は2026-10-25 03:55:30ZにMERGED（merge `b8d386bd42d2de6ac453eeaee70e31d9f14f3cf8`）。bounded 30-second GC scan fixはmain sourceに存在する。PR #8945はOPEN、head `9d19c451d6ea00aa44b55ef5226e0c54faca296a`、latest main `d04367bd58a2e4868ea89786a592e8ae64d3ef42`とCONFLICTING。run `40164127444`はarm64/x86_64を含む全15 checksがSUCCESSだが、review decisionは空で人のreviewは未提出。 |
+| 現Macの容量とagent admission | 2026-10-25 05:07Zのhealth readbackはfree `4,391,870,464` bytes（4.09 GiB）、192 rows中healthy 13 / running 24 / failed 82 / safely_fenced 70 / effect_unknown 3 / human_required 0 / telemetry_gap 0。`capacity_recovered=true`は2 GiB floorを指す。この時点で4 GiB revenue floorは越えたが、12 GiB producer floorは未達。安定容量とswap-growth gateは未確認。 |
+| Cleanupのmain release反映と自然receipt | PR #8915/#8919のsourceはmainにある。#8919 merge後のimmutable release、owner限定loaded SHA、自然cleanup receiptは未取得。過去のcleanup passやfree容量の変動を、修正反映・容量回復の証明にしない。 |
 | 60秒HostDiskGovernor watchdog | 18:20:53Zの公式unbound receiptは`inventory_mode=fast`、free_before 3,675,054,080 bytes、free_after 4,739,526,656、reclaimed 0、errors 0、protected_deletions 0、preserved open=5/protected_path=4。`capacity_recovery=met`は2 GiB diagnostic floorだけを指し、`disk-writers.stop=absent`。loaded watchdogはmain ancestor `7e5f40eb`、60秒間隔、last exit 0。18:11:30Zの27-root full inventoryはcoverage incompleteで、18:20Z receiptにも29 gapsと未計測のshared/unattributed growthが残る。freeの増加をcleanup成果と推定せず、安定容量と書込みownerは未特定。 |
 | 全loopの稼働状況 | 最終snapshot（2026-10-24 18:59Z）の `./bin/lm-loop status all --json` は313 rows（agent数ではない）: loaded-running 43、loaded-idle 161、unloaded 52、disabled 57。blocker: none 158、`disk_floor_low` 95、`resource_effect_unknown` 35、`entrypoint_exit_1` 9、`brain_transport` 1、`resource_fifo_wait` 1、`swap_pressure_high` 2、`resource_heartbeat_unavailable` 1、`resource_control_busy` 2、unmanaged label 9。現在状態ではないため、作業再開時にfresh readbackする。 |
 | 別Macでの導入 | clean-user source testsはPASS。別Mac/userで公開手順、ChatGPT Plus認証、選択事業の公式provider結果まで通した証拠はない。fresh Macで初回導入からprovider結果まで確認する。 |
 | Mercor Reply修正 | 現在もPR #8865はOPEN、head `53a21430aacae3efbbb3ec32eb4554e403b95cfe`、base `8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf`、latest main `81c3e6b204ba33d3f46b73db6e31a64bce71e76`に対してCONFLICTING。14/14 checksは成功済みだが、latest main追従、review/CI/source acceptance、immutable release、Mercor公式readbackが残る。 |
 | 未接続のinstaller | catalog auditで18 groups中11にlocal commandあり。PromptBase、Writer、Affiliate、Self-Build、eBook、Capafy、LINE Stickerの7 installerを整える。 |
 | 約20 agent / 7事業の実成果 | 目標は各agentが人の継続介入なしに事業を作り、顧客・注文・納品・支払い・費用控除後利益まで作ること。各事業を横断した公式receiptと費用控除後net profitの確認は未完。agent数・loaded job数を売上の証拠にしない。 |
-| 10,000 GitHub stars | 2026-10-25 02:46ZのGitHub API readbackは8 stars / 2 forks。目標まで9,992 stars。利用価値、導入成功、初回成果、継続利用を測り、収益とstarsを分けて追う。 |
+| 10,000 GitHub stars | 2026-10-25 05:28ZのGitHub API readbackは8 stars / 2 forks。目標まで9,992 stars。導入成功、初回成果、継続利用、収益、starsを別々に測る。 |
 
 ### ゴールまでの順序
 
 **TODO順序変更（2026-10-25）:** 旧順序は`MAC-CAPACITY-RECOVERY → MAC-REVENUE-ADMISSION → 別Mac導入 → PR #8865 → 7 installer → 7事業成果 → 公開導入 → 10,000 stars`。新順序は`LANCERS-CATALOG-CREATION-READBACK → PR #8919 main integration (完了) → effect-unknownの公式receipt照合 / current capacity・doctor診断 → 12 GiB floor回復・unmanaged owner分類 → immutable release/natural receipt → MAC-REVENUE-ADMISSION → 別Mac導入 → PR #8865 → 7 installer → 7事業成果 → 公開導入 → 10,000 stars`。理由はPR #8919がmainへ統合済みで、現release未反映・producer floor未達・未分類label・外部effect unknownが次の実測blockerになったため。公式receiptがないeffect fenceは維持し、投稿を再送しない。
 
 **現在cursor（2026-10-25 04:32Z）:** README短縮・7事業・no-human-in-the-loop positioning・ChatGPT Plus・awake Mac・容量条件・導入commandはmainに反映済み。PR #8919（merge `b8d386bd`）、effect identity fix PR #8935（merge `f8c3f209`）、本specのPR #8938（merge `fdab34f4`）は統合済み。`~/loops/current`のinstalled SHAは`e313b0b89d88876a6f0addd6c64dd065e1686f44`でmain由来最新sourceより古い。04:32Zのfree diskは7,892,292 KiB（約7.52 GiB）で12 GiB producer/release floor未達。current-release `lm-loop doctor --json` は192 registry entries、missing entrypoints 0、retired labels 0、unmanaged label `ai.anicca.x402-seller-8414` 1件で`ok=false`。Anicca Instagram/TikTok ownerにはreceipt/refがないeffect-unknown occurrenceがあり、次は公式provider履歴とowner occurrenceを照合する。容量とunmanaged labelのowner分類を並行診断し、既存effectを再送・fence解除せず、floor・doctor・idle・fence条件が揃った後だけimmutable releaseと自然receiptを進める。その後TikTok予約/Instagram動画、iOS ASC・実機受入、6アプリ別funnel、勝ちslideshow実験、全channel/SEO/AEO/ASO、7事業成果・公開導入・10,000 starsへ進む。
+
+**Life Manager cursor（2026-10-25 05:28Z）:** latest mainは`d04367bd58a2e4868ea89786a592e8ae64d3ef42`。README短縮、7事業一覧、ChatGPT Plus、awake Macの前提はmainに反映済み。#8945のCIは全件成功したが、PRはmainと競合しreview未提出。TODO status refresh PR #8949は旧head `6d9a8b5d`時点でCONFLICTING、run `40164586699`のx86_64 jobは`test_detached_writer_survives_original_parent_exit`で失敗した。失敗テストは`marker.exists()`だけを待ってから内容を読むため、ファイル作成と書込み完了の間を観測し得る。これはテスト側のrace仮説であり、実装修正前に内容readinessを待つfocused probeで切り分ける。GitHub APIは8 stars / 2 forks。
 
 1. [x] READMEの英日sourceを短縮し、7事業、ChatGPT Plus、awake Mac、必要容量、install command、初期開発中の注意を掲載する。WebMCP/hackathon情報は入口から除外済み。PR #8909へmerge済み。
 2. [x] PR #8909の英日positioningとcleanup修正をCI15/15・独立review後にmergeし、GitHub raw mainの英日bytes一致を確認する。
@@ -50,14 +52,15 @@
 6. [x] LANCERS-CATALOG-CREATION-READBACK-SOURCE: 新しいcatalog作成では解決済みproductとowner overlay digestをpending ledgerへ保存し、catalog不在でもexact official readbackを継続する。旧形式pendingではbundled catalogへfallbackし、intent不一致やoverlay変更時はheldを維持する。関連suite 233/233 PASS、independent review blocking 0。
 7. [x] LANCERS-CATALOG-CREATION-READBACK-INTEGRATION: PR #8932をCI 15/15 PASSでmainへ統合し、merge commit `1e8fdd9e09dc369c25a2f27fb818058ee82eb959`をGitHub APIで確認。実provider readbackと費用控除後収益は7事業の成果確認項目で別途追う。
 8. [x] PR #8919: latest-main review/CI後にmerge。merge `b8d386bd42d2de6ac453eeaee70e31d9f14f3cf8`。immutable releaseとowner限定loaded SHA・自然receiptは次のcapacity/release項目で確認する。
-9. [ ] MAC-CAPACITY-RECOVERY: #8915/#8919 sourceはmainにmerge済み。現在free 7,892,292 KiBで12 GiB producer/release floor未達、current doctorにunmanaged `ai.anicca.x402-seller-8414`が1件ある。ownerを分類し、open/protected/unknown候補を保護したfresh inventoryと容量変動source診断を進め、安定した4 GiB revenue floor、12 GiB producer floor、swap-growth gateを満たす。その後immutable release、owner限定loaded SHA、natural cleanup receiptを確認する。
-10. [ ] MAC-REVENUE-ADMISSION: main immutable releaseのloaded SHA、4 GiB floor、swap gate、blockerをowner単位でreadbackする。running jobは変更しない。
-11. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessのprovider結果まで通す。
-12. [ ] PR #8865をlatest mainへ追従させ、Mercor公式readbackまで完了する。
-13. [ ] PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7 installerを整える。
-14. [ ] 約20 agentを7事業へ対応づけ、provider成果、納品、支払い、重複防止、再開、net収益を確認する。
-15. [ ] 対応Mac範囲、実動demo、導入後の確認、contribution導線を確認済みの機能に合わせて整える。
-16. [ ] 導入、初回成果、継続利用、収益、starsを別々に測り、利用者へ価値を届けて10,000 starsを目指す。
+9. [ ] PR #8945 / RELEASE-GC-ACCEPTANCE: latest mainとの競合を解消し、人のreviewを受けてmergeする。main-derived immutable releaseを発行し、owner限定loaded SHAと自然run receiptでtimeout・remove/protect挙動を確認する。
+10. [ ] MAC-CAPACITY-RECOVERY: #8915/#8919 sourceはmainにmerge済み。fresh inventoryで容量変動sourceを特定し、open/protected/unknown候補を保護する。安定した4 GiB revenue floor、12 GiB producer floor、swap-growth gateを満たした後、immutable release、owner限定loaded SHA、自然cleanup receiptを確認する。
+11. [ ] MAC-REVENUE-ADMISSION: main immutable releaseのloaded SHA、4 GiB floor、swap gate、blockerをowner単位でreadbackする。running jobは変更しない。
+12. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessのprovider結果まで通す。
+13. [ ] PR #8865をlatest mainへ追従させ、Mercor公式readbackまで完了する。
+14. [ ] PromptBase / Writer / Affiliate / Self-Build / eBook / Capafy / LINE Stickerの7 installerを整える。
+15. [ ] 約20 agentを7事業へ対応づけ、provider成果、納品、支払い、重複防止、再開、net収益を確認する。
+16. [ ] 対応Mac範囲、実動demo、導入後の確認、contribution導線を確認済みの機能に合わせて整える。
+17. [ ] 導入、初回成果、継続利用、収益、starsを別々に測り、利用者へ価値を届けて10,000 starsを目指す。
 
 ### 理想の完成状態
 
