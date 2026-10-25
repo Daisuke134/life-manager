@@ -15,7 +15,9 @@ Decision:
     shared, so a post in the slot's minute (even the only one) never proves ours.
   - no dispatch marker was ever written -> pre-effect proof; close via
     resolve_pre_effect_occurrence.
-  - a marker without a read-back post, or any read failure -> held.
+  - a net whose created id (or, with no id, any post at all) is absent from the integration's +-24h
+    listing >= 2h after dispatch did not land -> not effected; the other nets still need a read-back.
+  - a marker without a read-back post otherwise, or any read failure -> held.
 
 Usage: capafy_reel_fence_reconcile.py --occurrence capafy-reel-daily:<run_id> [--resolve]
        capafy_reel_fence_reconcile.py --occurrence capafy-reel-daily:<run_id> --result-hint PATH
@@ -29,6 +31,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -66,8 +69,12 @@ def create_post_id(receipts_dir: Path, marker: Path, net: str, slot: str) -> str
     return post_id if rec.get("scheduled_for") == slot and isinstance(post_id, str) and post_id else None
 
 
+VANISH_AFTER_SECONDS = 2 * 60 * 60  # a created id still missing from a +-24h listing this long after dispatch
+
+
 def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, str], list[str]],
-                receipts_dir: Path | None = None) -> dict:
+                receipts_dir: Path | None = None, wide_fn: Callable[[str, str], list[str]] | None = None,
+                now: float | None = None) -> dict:
     from capafy_reel_daily import BASE, slots  # noqa: PLC0415
 
     manifest_path = run_dir / "occurrence.json"
@@ -89,9 +96,23 @@ def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, s
     created = {m: create_post_id(receipts_dir or BASE, run_dir / f"dispatch-{m}.json", *at(m)) for m in dispatched}
     candidates = {m: posts_fn(*at(m)) for m in dispatched}
     found = {m: created[m] if created[m] and created[m] in candidates[m] else None for m in dispatched}
-    if all(found.values()):
+    # Not effected: past two hours, the provider's +-24h listing for that integration holds neither this
+    # net's created id nor (when no id was ever recorded) any post at all, so nothing exists to reconcile.
+    clock = time.time() if now is None else now
+    vanished = []
+    for m in dispatched:
+        if found[m] or wide_fn is None:
+            continue
+        if clock - (run_dir / f"dispatch-{m}.json").stat().st_mtime < VANISH_AFTER_SECONDS:
+            continue
+        listing = wide_fn(*at(m))
+        if (created[m] and created[m] not in listing) or (not created[m] and not listing):
+            vanished.append(m)
+    kept = [m for m in dispatched if found[m]]
+    if kept and all(found[m] or m in vanished for m in dispatched):
         return {**base, "verified": True, "outcome": "effected",
-                "provider_receipt_id": ",".join(f"{n}:{found[n]}" for n in dispatched)}
+                "provider_receipt_id": ",".join(f"{n}:{found[n]}" for n in kept),
+                **({"vanished_create_ids": {m: created[m] for m in vanished}} if vanished else {})}
     return {**base, "verified": False, "outcome": "held", "dispatched": dispatched, "read_back": found,
             "create_ids": created, "candidates": candidates}
 
@@ -131,8 +152,8 @@ def write_result_hint(proof: dict, path: Path) -> bool:
     return True
 
 
-def postiz_posts_at(net: str, slot: str) -> list[str]:
-    """Every live post on this net's integration within a minute of the slot (any owner)."""
+def postiz_posts_at(net: str, slot: str, minutes: int = 1) -> list[str]:
+    """Every live post on this net's integration within `minutes` of the slot (any owner)."""
     from capafy_distribute_fence_reconcile import postiz_key  # noqa: PLC0415
     from capafy_reel_daily import IG_ID, TT_ID, X_ID  # noqa: PLC0415
 
@@ -140,8 +161,8 @@ def postiz_posts_at(net: str, slot: str) -> list[str]:
     if not key:
         raise RuntimeError("postiz_key_missing")
     at = dt.datetime.fromisoformat(slot.replace("Z", "+00:00"))
-    q = urllib.parse.urlencode({"startDate": (at - dt.timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-                                "endDate": (at + dt.timedelta(minutes=1)).isoformat().replace("+00:00", "Z")})
+    q = urllib.parse.urlencode({"startDate": (at - dt.timedelta(minutes=minutes)).isoformat().replace("+00:00", "Z"),
+                                "endDate": (at + dt.timedelta(minutes=minutes)).isoformat().replace("+00:00", "Z")})
     req = urllib.request.Request(f"https://api.postiz.com/public/v1/posts?{q}", headers={"Authorization": key})
     data = json.load(urllib.request.urlopen(req, timeout=60))
     integration = {"ig": IG_ID, "x": X_ID, "tt": TT_ID, "tc": TT_ID}[net]
@@ -171,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.resolve:
             parser.error("--result-hint and --resolve are exclusive")
         try:
-            proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_posts_at)
+            proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_posts_at,
+                                wide_fn=lambda net, slot: postiz_posts_at(net, slot, minutes=24 * 60))
         except (OSError, ValueError, KeyError) as exc:
             print(f"CAPAFY_REEL_RESULT_HINT=FAIL {type(exc).__name__}:{exc}", file=sys.stderr)
             return 1
@@ -181,7 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if written else 1
     try:
         state = fenced_state(args.occurrence)
-        proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_posts_at)
+        proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_posts_at,
+                                wide_fn=lambda net, slot: postiz_posts_at(net, slot, minutes=24 * 60))
     except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
         print(json.dumps({"owner_id": OWNER_ID, "occurrence_id": args.occurrence, "verified": False,
                           "error": f"{type(exc).__name__}:{exc}"}))
