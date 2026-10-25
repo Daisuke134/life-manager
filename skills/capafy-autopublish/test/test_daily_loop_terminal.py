@@ -568,3 +568,12 @@ def test_drainer_prompts_say_a_sonnet_5_5_listing_hosts_on_the_sonnet_5_id():
     sentence = "A LISTING Primary Model of Claude Sonnet 5.5 is hosted on the Claude Sonnet 5 id by design"
     assert source.count(sentence) == 2
     assert "not a stop condition" in source
+
+
+def test_drainer_prompts_give_the_status_command_path_and_the_only_lease_stop():
+    """2026-10-25: the agent ran `vendor/capafy-publisher/packager.py` from the repo root (rc 127, no such
+    file), never ran with-browser.sh, then reported the browser lease as unavailable (status 10)."""
+    source = CHILD.read_text(encoding="utf-8")
+    command = "python3 skills/capafy-autopublish/vendor/capafy-publisher/packager.py publish-remote-status --agent-id"
+    assert source.count(command) == 2
+    assert source.count("only a with-browser.sh exit of 75 or 10") == 2
