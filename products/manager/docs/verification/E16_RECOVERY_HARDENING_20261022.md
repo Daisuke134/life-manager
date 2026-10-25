@@ -41,7 +41,7 @@ Using-superpowers, executing-plans, test-driven-development, using-git-worktrees
 
 ## Observed production prerequisites
 
-Fresh authenticated Railway reads show the existing life-manager project with one existing service, no volumes, no variables and no staged changes. Its old SUCCESS deployment is not a Manager E16 worker. Existing service, credentials and infrastructure were preserved. The cloud development environment has no configured runtime secret/outbound identity, which does not negate connector access.
+Fresh authenticated Railway reads show the existing `life-manager` project has one `production` environment, one existing service, no volumes, no staged changes and no shared variables. The service has only 11 Railway-managed variable names; connected OAuth withholds their values, and no Manager publisher credential is configured there. Its old SUCCESS deployment is not a Manager E16 worker. Existing service and infrastructure were preserved. The cloud development environment has no configured runtime secret/outbound identity, which does not negate authenticated Railway connector access.
 
 The next production work is PATCH-05/06: versioned main-SHA admission with legacy-v1 read compatibility; a real worker-to-privileged-publisher bridge; dedicated persistent worker/volume and verified backup/restore; secure delivery of a machine credential with the required minimum permissions; an observed hosting cost/stop boundary; then reviewed main promotion and one real scoped canary/readback/replay-zero/restart/rollback. The current research branch must not be added to the live source allowlist. Do not demand Mac host details or recreate a generic scheduler.
 
