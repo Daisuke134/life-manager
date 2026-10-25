@@ -186,3 +186,28 @@ def test_unreadable_official_roster_stays_fenced(tmp_path, monkeypatch, capsys):
     assert code == 1
     assert result["reason"] == "official_roster_unavailable"
     resolver.assert_not_called()
+
+
+def test_two_claimant_runs_bracket_from_the_earliest_start(tmp_path, monkeypatch, capsys):
+    """A wake retried after an in-run defer leaves two claimant terminals (2026-10-23)."""
+    module, occurrence_id, runtime, store = setup(tmp_path, monkeypatch)
+    retry = [
+        dict(row, timestamp=row["timestamp"].replace("00:05:", "00:06:"))
+        for row in start_terminal_events("retry-run", terminal_occurrence_id=occurrence_id)
+    ]
+    first = json.loads((runtime / "events.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    write_jsonl(runtime / "events.jsonl", [
+        first, *start_terminal_events("legacy-run", terminal_occurrence_id=occurrence_id)[1:],
+        *retry,
+    ])
+    resolver = Mock(return_value=True)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+
+    code = run(module, occurrence_id, runtime, store, child(SERVICES), "--resolve")
+    result = json.loads(capsys.readouterr().out)
+
+    assert code == 0, result
+    assert result["state"] == "RECONCILED"
+    receipt = json.loads(Path(result["receipt_path"]).read_text(encoding="utf-8"))
+    assert receipt["before"]["path"].endswith("storefront-direct-1-1/official-inventory.json")
+    assert receipt["claimant_run_ids"] == ["legacy-run", "retry-run"]

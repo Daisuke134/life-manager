@@ -160,10 +160,39 @@ def _child() -> int:
     return 0
 
 
+def _claimant_runs(rows: list[dict], occurrence_id: str) -> tuple[float, list[str]]:
+    """Earliest claimant start and every claimant run id for one occurrence.
+
+    A wake retried after an in-run defer leaves several claimant terminals; the
+    roster bracket covers them all when it opens before the earliest one starts.
+    """
+    run_ids = sorted({
+        row.get("run_id") for row in rows
+        if row.get("owner_id") == OWNER_ID and row.get("phase") == "report"
+        and row.get("occurrence_id") == occurrence_id
+        # Same exclusion as the exact proof: an admission defer never dispatched the owner.
+        and not (str(row.get("error_class") or "").startswith("host_admission_deferred:")
+                 and (row.get("effect_status") == "not_applicable"
+                      or (row.get("status") == "blocked"
+                          and row.get("failure_layer") == "admission"
+                          and row.get("exit_code") == 75)))
+    }, key=str)
+    if not run_ids or not all(isinstance(run_id, str) and run_id for run_id in run_ids):
+        raise pre.EvidenceError("runtime_occurrence_event_invalid")
+    starts = []
+    for run_id in run_ids:
+        start = [row for row in rows if row.get("run_id") == run_id and row.get("phase") == "execute"]
+        if len(start) != 1:
+            raise pre.EvidenceError("runtime_event_phase_invalid")
+        starts.append(pre._epoch(start[0]["timestamp"]))
+    return min(starts), run_ids
+
+
 def official_proof(occurrence_id: str, runtime: Path, store: Path, *,
                    runner=None) -> tuple[dict, dict]:
-    start, _terminal, run_id = pre._find_window(pre._read_runtime_events(runtime), occurrence_id)
-    path, before, observed = pre_occurrence_snapshot(store, pre._epoch(start["timestamp"]))
+    started, run_ids = _claimant_runs(pre._read_runtime_events(runtime), occurrence_id)
+    run_id = run_ids[-1]
+    path, before, observed = pre_occurrence_snapshot(store, started)
     assert_owner_quiet_since(store, observed)
     live = browser_readback(runner=runner)
     if _roster(live.get("services")) != _roster(before["services"]):
@@ -174,7 +203,7 @@ def official_proof(occurrence_id: str, runtime: Path, store: Path, *,
         "provider_receipt_id": f"coconala-storefront-roster:{live['content_sha256']}",
     }
     receipt = {
-        **proof, "run_id": run_id,
+        **proof, "run_id": run_id, "claimant_run_ids": run_ids,
         "before": {"path": str(path), "observed_at": before["observed_at"]},
         "after": {"observed_at": live.get("observed_at"), "service_count": live.get("service_count")},
         "recorded_at": datetime.now(timezone.utc).isoformat(),
