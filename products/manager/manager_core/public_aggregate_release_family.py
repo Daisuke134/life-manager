@@ -19,6 +19,68 @@ MIN_RELEASES = 3
 MAX_RELEASES = 8
 
 
+
+def _comparable_subfamily_arithmetic(releases: tuple) -> set[str]:
+    """Flag arithmetic risk within a declared comparable subset of 3+ tables.
+
+    Used when an otherwise unrelated release makes the *whole* batch
+    incomparable. This is a conservative metadata-only screen, not proof
+    that the real cohorts coincide or a disclosure risk has materialized.
+    Never return reconstructed counts.
+    """
+    reference = releases[0]
+    if any(
+        release["population"] != reference["population"]
+        or release["outcome"] != reference["outcome"]
+        or release["route"] != reference["route"]
+        for release in releases[1:]
+    ):
+        return set()
+
+    partitions = [release["partition"] for release in releases]
+    first_total = partitions[0]["total"]
+    cell_maps = [
+        {cell["category"]: cell for cell in partition["cells"]}
+        for partition in partitions
+    ]
+    categories = set(cell_maps[0])
+    if (
+        any(partition["total"] != first_total for partition in partitions[1:])
+        or any(set(mapped) != categories for mapped in cell_maps[1:])
+        or any(
+            len({mapped[name]["sensitive"] for mapped in cell_maps}) != 1
+            for name in categories
+        )
+    ):
+        return set()
+
+    visible = {}
+    suppression_exposed = False
+    for name in categories:
+        entries = [mapped[name]["count"] for mapped in cell_maps]
+        observed = {count for count in entries if count is not None}
+        if len(observed) > 1:
+            # Contradictory counts cannot be subtracted as the same population.
+            return set()
+        if observed and None in entries:
+            suppression_exposed = True
+        visible[name] = next(iter(observed)) if observed else None
+
+    findings = set()
+    if suppression_exposed:
+        findings.add("FAMILY_SUPPRESSION_UNDONE")
+    hidden = sum(value is None for value in visible.values())
+    remainder = first_total - sum(
+        value for value in visible.values() if value is not None
+    )
+    if remainder < 0 or (hidden == 0 and remainder != 0):
+        findings.add("FAMILY_INCONSISTENT_TOTAL")
+    elif hidden == 1:
+        findings.add("FAMILY_SINGLE_HIDDEN_CELL")
+    elif hidden >= 2 and remainder < MIN_CELL:
+        findings.add("FAMILY_SMALL_COMPLEMENT")
+    return findings
+
 def preflight_release_family(releases: list | tuple) -> dict:
     """Screen a small *declared* family of published, same-partition aggregates.
 
@@ -100,6 +162,15 @@ def preflight_release_family(releases: list | tuple) -> dict:
                     reasons.add("FAMILY_SINGLE_HIDDEN_CELL")
                 elif hidden >= 2 and residual < MIN_CELL:
                     reasons.add("FAMILY_SMALL_COMPLEMENT")
+
+    # A fourth unrelated table must not mask reconstruction within A, B, C.
+    # Examine every proper 3+ subfamily (at most 8 releases, bounded);
+    # incompatible cohorts/totals/categories/sensitivity/counts are never
+    # pooled. Pairwise checks above are retained for the whole batch.
+    if len(releases) > MIN_RELEASES:
+        for size in range(MIN_RELEASES, len(releases)):
+            for subset in combinations(releases, size):
+                reasons.update(_comparable_subfamily_arithmetic(subset))
 
     reject_reasons = {
         "FAMILY_MEMBER_REJECTED",

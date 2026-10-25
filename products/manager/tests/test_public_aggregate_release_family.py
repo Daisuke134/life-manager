@@ -192,5 +192,75 @@ class ReleaseFamilyTest(unittest.TestCase):
         self.assertEqual(result["next_action"], "NO_ACTION")
 
 
+    def _disclosive_triple(self):
+        a, b, c = self.family()
+        # Fictional total 100: alpha15, beta15, gamma20, delta10, epsilon40.
+        # Any pair still hides two categories. Three combined hide only alpha.
+        a["partition"]["cells"] = cells({
+            "alpha": None, "beta": None, "gamma": None,
+            "delta": 10, "epsilon": 40,
+        })
+        b["partition"]["cells"] = cells({
+            "alpha": None, "beta": None, "gamma": 20,
+            "delta": None, "epsilon": 40,
+        })
+        c["partition"]["cells"] = cells({
+            "alpha": None, "beta": 15, "gamma": None,
+            "delta": None, "epsilon": 40,
+        })
+        return a, b, c
+
+    def test_unrelated_fourth_release_does_not_mask_three_way_risk(self):
+        a, b, c = self._disclosive_triple()
+        fourth = packet("d")
+        fourth["population"]["window"] = "Unrelated fictional date range"
+        for family in ([a, b, c, fourth], [fourth, c, a, b]):
+            with self.subTest(order=[x["source"]["source_id"] for x in family]):
+                result = preflight_release_family(family)
+                self.assertEqual(result["status"], "REJECT")
+                self.assertIn("FAMILY_SCOPE_NOT_COMPARABLE", result["reason_codes"])
+                self.assertIn("FAMILY_SINGLE_HIDDEN_CELL", result["reason_codes"])
+                self.assertIn("FAMILY_SUPPRESSION_UNDONE", result["reason_codes"])
+                self.assertFalse(result["can_publish"])
+                rendered = json.dumps(result)
+                for forbidden in ("fictional-family", "alpha", "epsilon", "Unrelated"):
+                    self.assertNotIn(forbidden, rendered)
+
+    def test_unrelated_total_must_not_mask_three_way_reconstruction(self):
+        a, b, c = self._disclosive_triple()
+        fourth = packet("d")
+        fourth["partition"]["total"] = 110
+        fourth["partition"]["cells"][1]["count"] = 50
+        result = preflight_release_family([a, fourth, b, c])
+        self.assertIn("FAMILY_TOTALS_NOT_COMPARABLE", result["reason_codes"])
+        self.assertIn("FAMILY_SINGLE_HIDDEN_CELL", result["reason_codes"])
+        self.assertFalse(result["disclosure_certified"])
+
+    def test_incompatible_counts_cannot_be_used_to_infer_hidden_cell(self):
+        a, b, c = self._disclosive_triple()
+        # The only potential third same-scoped source conflicts with b's
+        # published gamma count; no consistent 3-way reconstruction.
+        c["partition"]["cells"] = cells({
+            "alpha": None, "beta": 15, "gamma": 25,
+            "delta": None, "epsilon": 40,
+        })
+        fourth = packet("d")
+        fourth["population"]["window"] = "Another fictional period"
+        result = preflight_release_family([a, b, c, fourth])
+        self.assertIn("FAMILY_SCOPE_NOT_COMPARABLE", result["reason_codes"])
+        self.assertNotIn("FAMILY_SINGLE_HIDDEN_CELL", result["reason_codes"])
+        self.assertFalse(result["can_ingest"])
+
+    def test_only_two_comparable_releases_cannot_form_a_three_way_subset(self):
+        a, b, c = self._disclosive_triple()
+        c["population"]["window"] = "Other fictional cohort C"
+        fourth = packet("d")
+        fourth["population"]["window"] = "Other fictional cohort D"
+        result = preflight_release_family([a, b, c, fourth])
+        self.assertNotIn("FAMILY_SINGLE_HIDDEN_CELL", result["reason_codes"])
+        self.assertEqual(result["next_action"], "NO_ACTION")
+
+
+
 if __name__ == "__main__":
     unittest.main()
