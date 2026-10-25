@@ -592,6 +592,34 @@ def _content_in_main(
     return bool(lines) and lines[0].strip() == main_tree.stdout.strip()
 
 
+PUSHED_WORKTREE_MIN_AGE_SECONDS = 72 * 3600
+
+
+def _pushed_and_stale(
+    worktree: Path, *, deadline: float | None = None,
+    clock: Callable[[], float] = time.monotonic,
+) -> bool:
+    """True when every commit of the checkout is on its upstream and nobody touched it for 72h.
+
+    Removing such a worktree loses nothing: the branch stays on origin and a new checkout
+    restores it. This is the proof that survives the squash-then-append pattern: PRs land as
+    squashes and main keeps appending to BOARD/SSOT, so ``_content_in_main``'s merge attempt
+    conflicts forever (70 worktrees, ~9 GiB, 2026-10-26) while the work itself is long merged.
+    """
+    upstream = _run_git(worktree, "rev-parse", "--verify", "--quiet", "@{upstream}^{commit}",
+                        deadline=deadline, clock=clock)
+    if upstream is None or re.fullmatch(r"[0-9a-f]{40,64}", upstream.stdout.strip()) is None:
+        return False
+    ahead = _run_git(worktree, "rev-list", "--count", "@{upstream}..HEAD", deadline=deadline, clock=clock)
+    if ahead is None or ahead.stdout.strip() != "0":
+        return False
+    try:
+        age = time.time() - worktree.stat().st_mtime
+    except OSError:
+        return False
+    return age >= PUSHED_WORKTREE_MIN_AGE_SECONDS
+
+
 def _tracked_paths(
     worktree: Path, *, deadline: float | None = None,
     clock: Callable[[], float] = time.monotonic,
@@ -1379,8 +1407,11 @@ class HostDiskGovernor:
             )
         except (OSError, subprocess.SubprocessError):
             return None
-        if ancestry.stderr.strip() or (
-                ancestry.returncode != 0 and not _content_in_main(repository, head, remote_head, deadline=deadline, clock=self.clock)):
+        if ancestry.stderr.strip():
+            return None
+        if (ancestry.returncode != 0
+                and not _content_in_main(repository, head, remote_head, deadline=deadline, clock=self.clock)
+                and not _pushed_and_stale(lexical, deadline=deadline, clock=self.clock)):
             return None
         if deadline is not None and self.clock() >= deadline:
             return None
