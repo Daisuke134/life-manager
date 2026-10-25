@@ -53,9 +53,13 @@ function executionFixture() {
     nextEligibleAt: null, status: 'completed', errorClass: null } };
   const capturedOutput = JSON.stringify(envelope.result);
   const services = {
+    withControlLock: async (_uid, operation) => operation(),
     managerStore: {
       read: async () => structuredClone(enrollment),
-      readCycleDispatch: async () => checkpoint && structuredClone(checkpoint),
+      readCycleDispatch: async (input) => checkpoint
+        && checkpoint.uid === input.uid && checkpoint.agent_id === input.agentId
+        && checkpoint.occurrence_id === input.occurrenceId && checkpoint.date_key === input.dateKey
+        && checkpoint.release_sha === input.releaseSha ? structuredClone(checkpoint) : null,
       claimCycleDispatch: async (input) => {
         if (checkpoint) return { claimed: false, row: structuredClone(checkpoint) };
         checkpoint = { uid: input.uid, agent_id: input.agentId, occurrence_id: input.occurrenceId,
@@ -388,7 +392,7 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
  for(const bound of [true,false]){
   const row={uid:UID,agent_id:bound?'agent-a':null,release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
   let revoked=false,revokeCalls=0,writes=0,schedules=[{id:'old'}];
-  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row,listRecentCycleDispatches:async()=>[]},
    isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;revokeCalls++;},
    writeScheduleSnapshot:async input=>{assert.equal(input.snapshot.paused,true);assert.deepEqual(input.snapshot.schedules,[]);writes++;schedules=[];},
    readWakeConfiguration:async()=>({ready:true,schedules}),
@@ -402,12 +406,92 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
  }
 });
 
+test('pause cleanup cancels recent tenant executions and confirms the terminal provider readback',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
+ let revoked=false,schedules=[{id:'old'}],cancelled=[];
+ const dispatches=[
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-running',date_key:'2026-10-21',execution_id:'exec-running'},
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-completed',date_key:'2026-10-21',execution_id:'exec-completed'},
+ ];
+ const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),
+  managerStore:{read:async()=>row,listRecentCycleDispatches:async input=>{assert.deepEqual(input,{uid:UID,agentId:'agent-a',releaseSha:SHA});return dispatches;}},
+  isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+  writeScheduleSnapshot:async input=>{assert.deepEqual(input.snapshot.schedules,[]);schedules=[];},
+  readWakeConfiguration:async()=>({ready:true,schedules}),
+  readExecution:async input=>({executionId:input.executionId,status:input.executionId==='exec-running'&&!cancelled.includes(input.executionId)?'running':'completed',exitCode:0}),
+  cancelExecution:async input=>{cancelled.push(input.executionId);return {executionId:input.executionId,status:'cancelled',exitCode:-1};},
+ });
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const proof=await adapter.reconcile(job);
+ assert.equal(proof.state,'present');assert.equal(adapter.verify(proof.receipt,job),true);
+ assert.equal(proof.receipt.checked_execution_count,2);
+ assert.match(proof.receipt.execution_status_sha256,/^[0-9a-f]{64}$/);
+ assert.deepEqual(cancelled,['exec-running']);
+ assert.equal((await adapter.reconcile(job)).state,'present');
+ assert.deepEqual(cancelled,['exec-running']);
+});
+
+test('pause cleanup remains unconfirmed while an execution survives provider cancellation',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
+ let revoked=false,schedules=[{id:'old'}];
+ const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),
+  managerStore:{read:async()=>row,listRecentCycleDispatches:async()=>[{uid:UID,agent_id:'agent-a',release_sha:SHA,
+   occurrence_id:'cycle-running',date_key:'2026-10-21',execution_id:'exec-running'}]},
+  isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+  writeScheduleSnapshot:async()=>{schedules=[];},readWakeConfiguration:async()=>({ready:true,schedules}),
+  readExecution:async()=>({status:'running'}),
+  cancelExecution:async input=>({executionId:input.executionId,status:'running'}),
+ });
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const proof=await adapter.reconcile(job);
+ assert.equal(proof.state,'unknown');assert.equal(proof.retryable,false);
+ assert.equal(proof.errorClass,'maritime_pause_cleanup_unconfirmed');
+});
+
 
 function controlMutex(){let tail=Promise.resolve();return async(_uid,operation)=>{const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;try{return await operation();}finally{release();}};}
+test('Stop serializes with a dispatch in flight and cancels its persisted execution before confirming pause',async()=>{
+ const f=executionFixture(),lock=controlMutex();f.services.withControlLock=lock;
+ let enterDispatch,releaseDispatch,cancelled=false,revoked=false,schedules=[];
+ const entered=new Promise(resolve=>{enterDispatch=resolve;}),gate=new Promise(resolve=>{releaseDispatch=resolve;});
+ f.services.dispatchCycle=async()=>{enterDispatch();await gate;return {executionId:'exec-1'};};
+ f.services.managerStore.listRecentCycleDispatches=async({uid,agentId,releaseSha})=>{
+  assert.deepEqual({uid,agentId,releaseSha},{uid:UID,agentId:'agent-a',releaseSha:SHA});
+  const row=f.checkpoint();return row?[{uid,agent_id:agentId,release_sha:releaseSha,occurrence_id:row.occurrence_id,
+    date_key:row.date_key,execution_id:row.execution_id}]:[];
+ };
+ f.services.readExecution=async({executionId})=>({executionId,status:cancelled?'cancelled':'running',exitCode:cancelled?-1:undefined});
+ f.services.cancelExecution=async({executionId})=>{cancelled=true;return {executionId,status:'cancelled',exitCode:-1};};
+ const cycleAdapter=createMaritimeManagerLoopAdapter(f.services),cycleJob=buildMaritimeManagerCycleJob(cycle);
+ const cycleExecution=cycleAdapter.execute(cycleJob).catch(error=>error);
+ await entered;
+ f.enrollment.status='paused';f.enrollment.paused_at='2026-10-25T21:00:00.000Z';
+ const provisionAdapter=createMaritimeManagerProvisionAdapter({withControlLock:lock,
+  managerStore:{read:async()=>f.enrollment,listRecentCycleDispatches:f.services.managerStore.listRecentCycleDispatches},
+  isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+  writeScheduleSnapshot:async input=>{assert.deepEqual(input.snapshot.schedules,[]);schedules=[];},
+  readWakeConfiguration:async()=>({ready:true,schedules}),
+  readExecution:f.services.readExecution,cancelExecution:f.services.cancelExecution,
+ });
+ const pauseJob=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const cleanup=provisionAdapter.reconcile(pauseJob);
+ const early=await Promise.race([cleanup.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15))]);
+ assert.equal(early,false,'pause waits until the in-flight dispatch has an immutable execution id');
+ releaseDispatch();
+ const cycleError=await cycleExecution;
+ assert.match(cycleError.message,/pending/);
+ const proof=await cleanup;
+ assert.equal(proof.state,'present');assert.equal(provisionAdapter.verify(proof.receipt,pauseJob),true);
+ assert.equal(proof.receipt.checked_execution_count,1);assert.equal(cancelled,true);
+ const next=await cycleAdapter.continuation({...cycleJob,available_at:'2026-10-25T21:00:00.000Z'});
+ assert.equal(next,null);
+ await assert.rejects(cycleAdapter.execute(buildMaritimeManagerCycleJob({...cycle,occurrenceId:'cycle-after-stop'})),/paused/);
+});
+
 test('pause final confirmation waits for the older configure writer before clearing schedules',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
  let enter,release;const entered=new Promise(resolve=>{enter=resolve;}),gate=new Promise(resolve=>{release=resolve;});let schedules=[],revoked=false;
- const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row)},withControlLock:controlMutex(),
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row),listRecentCycleDispatches:async()=>[]},withControlLock:controlMutex(),
   writeScheduleSnapshot:async input=>{if(!input.snapshot.paused){enter();await gate;}schedules=input.snapshot.schedules;},
   configureWake:async()=>{},readWakeConfiguration:async()=>({ready:true,schedules}),isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
  });

@@ -5,6 +5,8 @@ let createMaritimeManagerStore;
 try { ({ createMaritimeManagerStore } = require("./maritime-manager-store.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
+const fs = require("node:fs");
+const path = require("node:path");
 const SUBJECT_A = "11111111-1111-4111-8111-111111111111";
 const SUBJECT_B = "22222222-2222-4222-8222-222222222222";
 const UID_A = `lm_${SUBJECT_A}`;
@@ -121,7 +123,8 @@ function fixture() {
       const claimed = Boolean(enrollment && enrollment.status === "active" && enrollment.paused_at == null
         && enrollment.agent_id === agentId && enrollment.release_sha === releaseSha && !executions.has(key));
       if (claimed) executions.set(key, { uid, occurrence_id: occurrenceId, agent_id: agentId,
-        date_key: new Date(`${dateKey}T00:00:00.000Z`), release_sha: releaseSha, execution_id: null });
+        date_key: new Date(`${dateKey}T00:00:00.000Z`), release_sha: releaseSha, execution_id: null,
+        claimed_at: new Date('2026-10-20T00:00:00.000Z') });
       return { rows: [{ claimed }] };
     }
     if (statement.includes("bind_lm_maritime_manager_execution_v1")) {
@@ -134,6 +137,13 @@ function fixture() {
         && (row.execution_id == null || row.execution_id === executionId) && !duplicateExecution);
       if (bound) row.execution_id = executionId;
       return { rows: [{ bound }] };
+    }
+    if (statement.includes("claimed_at >= $4::timestamptz")) {
+      const [uid, agentId, releaseSha, cutoff, limit] = values;
+      const selected = [...executions.values()].filter(row => row.uid === uid && row.agent_id === agentId
+        && row.release_sha === releaseSha && row.claimed_at >= new Date(cutoff))
+        .sort((a, b) => b.claimed_at - a.claimed_at || a.occurrence_id.localeCompare(b.occurrence_id)).slice(0, limit);
+      return { rows: selected.map(row => ({ ...row })) };
     }
     if (statement.includes("FROM public.lm_maritime_manager_executions")) {
       const row = executions.get(values[0] + ":" + values[1]);
@@ -276,6 +286,29 @@ test('cycle replay preserves its dispatch marker and immutable execution id', as
   assert.equal(resume.row.execution_id, 'exec-1');
   await assert.rejects(store.bindCycleExecution({ ...identity, executionId: 'exec-2' }), /binding_rejected/);
   assert.equal((await store.readCycleDispatch(identity)).execution_id, 'exec-1');
+});
+
+test('stop readback lists only recent cycle executions for the bound tenant agent and release', async () => {
+  const f = await activeFixture();
+  const identity = cycleIdentity();
+  await f.store.claimCycleDispatch(identity);
+  await f.store.bindCycleExecution({ ...identity, executionId: 'exec-1' });
+  const rows = await f.store.listRecentCycleDispatches({ uid: UID_A, agentId: 'agent-a', releaseSha: SHA });
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0], { uid: UID_A, occurrence_id: 'cycle-1', agent_id: 'agent-a',
+    date_key: '2026-10-20', release_sha: SHA, execution_id: 'exec-1', claimed_at: '2026-10-20T00:00:00.000Z' });
+  const query = f.pgQueries.find(row => row.statement.includes('claimed_at >= $4::timestamptz'));
+  assert.match(query.statement, /ORDER BY claimed_at DESC.*LIMIT \$5/s);
+  assert.deepEqual(query.values.slice(0, 3), [UID_A, 'agent-a', SHA]);
+  assert.equal(Date.parse(query.values[3]), Date.parse('2026-10-19T22:00:00.000Z'));
+  assert.equal(query.values[4], 33);
+  assert.deepEqual(await f.store.listRecentCycleDispatches({ uid: UID_B, agentId: 'agent-b', releaseSha: SHA }), []);
+  await assert.rejects(f.store.listRecentCycleDispatches({ uid: UID_A, agentId: 'agent-a', releaseSha: 'bad' }), /input_invalid/);
+});
+
+test('Stop recent-dispatch readback has a tenant-agent-release time index', () => {
+  const migration = fs.readFileSync(path.join(__dirname, "../migrations/20261025221000_lm_maritime_manager_execution_stop_lookup.sql"), "utf8");
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS lm_maritime_manager_execution_stop_lookup\s+ON public\.lm_maritime_manager_executions\s+\(uid, agent_id, release_sha, claimed_at DESC, occurrence_id ASC\)/i);
 });
 
 test('an occurrence cannot be rebound to another date agent or release', async () => {

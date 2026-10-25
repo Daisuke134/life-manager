@@ -210,6 +210,15 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       if (!Number.isInteger(result.exitCode) || typeof result.stdout !== 'string') throw new TransportError('execution_invalid');
       return { status: result.status, exitCode: result.exitCode, stdout: result.stdout };
     }); },
+    cancelExecution(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), executionId = valid(input.executionId, ID);
+      const row = await enrollment(uid, agentId);
+      if (row.status !== 'paused' || !row.paused_at) throw new TransportError('cancel_requires_pause', false);
+      const result = await request(`/api/agents/${agentId}/exec/${executionId}`, 'DELETE');
+      if (result?.executionId !== executionId || !['completed', 'timed_out', 'cancelled', 'failed'].includes(result.status)
+        || !Number.isInteger(result.exitCode)) throw new TransportError('execution_cancel_unconfirmed');
+      return { executionId, status: result.status, exitCode: result.exitCode };
+    }); },
     readCycleReceipt(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID); const occurrence = valid(input.occurrenceId, OCCURRENCE);
       await enrollment(uid, agentId);

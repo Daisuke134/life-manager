@@ -18,6 +18,7 @@ catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 
 const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
 const CONSENT_ANCHOR_MIGRATION = path.join(__dirname, "../../migrations/20261025174214_lm_maritime_manager_consent_anchor.sql");
+const STOP_LOOKUP_MIGRATION = path.join(__dirname, "../../migrations/20261025221000_lm_maritime_manager_execution_stop_lookup.sql");
 const MANAGER_TABLES = [
   "lm_maritime_manager_identities",
   "lm_maritime_manager_enrollments",
@@ -93,6 +94,10 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
     assert.equal(fs.existsSync(CONSENT_ANCHOR_MIGRATION), true, "consent resume anchor migration must exist");
     await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
+    assert.equal(fs.existsSync(STOP_LOOKUP_MIGRATION), true, "bounded Stop readback index migration must exist");
+    await client.query(fs.readFileSync(STOP_LOOKUP_MIGRATION, "utf8"));
+    assert.equal((await client.query("SELECT to_regclass('public.lm_maritime_manager_execution_stop_lookup')::text")).rows[0].to_regclass,
+      "lm_maritime_manager_execution_stop_lookup", "Stop readback index is present");
     assert.equal((await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_enrollments' AND column_name='consent_v2_at'",
     )).rowCount, 1, "consent resume anchor column is present");
@@ -699,6 +704,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
     await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
     await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
+    await client.query(fs.readFileSync(STOP_LOOKUP_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
     assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
     assert.equal((await client.query("SELECT event_id FROM public.lm_web_funnel_events WHERE event_id='work-1'")).rows[0].event_id, "work-1", "reapplying the migration preserves append-only events");

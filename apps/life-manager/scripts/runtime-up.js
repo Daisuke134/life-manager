@@ -482,6 +482,8 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
     const transport = dependencies.maritimeTransport
       || require("../lib/transport/maritime-manager.js").createMaritimeManagerTransport({ env, managerStore,
         getWakeBinding, fetchImpl: dependencies.fetchImpl });
+    const withControlLock = dependencies.withControlLock
+      || ((uid, operation) => require("../lib/runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, { connect: dependencies.connect }));
     if (capabilities.includes("maritime.manager.provision")) {
       const distribution = dependencies.maritimeDistributionStore
         || managerDependencies?.distributionStore;
@@ -491,8 +493,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
         if (state?.ok !== true) throw new Error("maritime_consent_readback_unavailable");
         return state.participant == null || Boolean(state.participant.revoked_at);
       };
-      servicesByAdapter["maritime-manager-provision"] = { managerStore,
-        withControlLock: dependencies.withControlLock || ((uid, operation) => require("../lib/runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, { connect: dependencies.connect })),
+      servicesByAdapter["maritime-manager-provision"] = { managerStore, withControlLock,
         isConsentRevoked,
         revokeConsent: async uid => {
           if (await isConsentRevoked(uid)) return;
@@ -502,6 +503,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
         ensureAgent: transport.ensureAgent, readAgent: transport.readAgent,
         configureWake: transport.configureWake, readWakeConfiguration: transport.readWakeConfiguration,
         writeScheduleSnapshot: transport.writeScheduleSnapshot,
+        readExecution: transport.readExecution, cancelExecution: transport.cancelExecution,
         provisionSource: releaseSha => {
           if (releaseSha !== env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA) throw new Error("maritime source release unavailable");
           return { uploadS3Key: env.LM_MARITIME_MANAGER_SOURCE_S3_KEY, archiveSha256: env.LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256 };
@@ -510,7 +512,8 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
           { query: dependencies.query }),
       };
     }
-    servicesByAdapter["maritime-manager-cycle"] = { managerStore, prepareCycle: input => transport.readWakeConfiguration({ ...input, activeOnly: true }), dispatchCycle: transport.dispatchCycle,
+    servicesByAdapter["maritime-manager-cycle"] = { managerStore, withControlLock,
+      prepareCycle: input => transport.readWakeConfiguration({ ...input, activeOnly: true }), dispatchCycle: transport.dispatchCycle,
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
     if (capabilities.some(value => /^maritime\.manager\.capafy\.(prepare|publish)$/.test(value))) {
       if (typeof dependencies.query !== "function") throw new Error("maritime provider database unavailable");

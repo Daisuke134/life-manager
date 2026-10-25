@@ -1385,13 +1385,20 @@ test("legacy pending tenants stay reconsentable without a job or after the no-ef
 test("Maritime pause job uses the existing consent store and never sends a report",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40);let revoked=false,calls=0;
  const runtime=require('../lib/maritime-manager-runtime.js');
+ const lock=async(_uid,operation)=>operation();
+ const transport={dispatchCycle:async()=>({executionId:"exec-1"}),readExecution:async()=>({}),cancelExecution:async()=>({})};
+ let provisionServices,cycleServices;
  const handlers=createWorkerHandlers({},['maritime.manager.provision'],{
-  withControlLock:async(_uid,operation)=>operation(),
+  withControlLock:lock,
   maritimeManagerStore:{read:async()=>({uid,agent_id:null,release_sha:sha,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'})},
-  maritimeTransport:{},query:async()=>{throw new Error('no report enqueue');},
+  maritimeTransport:transport,query:async()=>{throw new Error('no report enqueue');},
   maritimeDistributionStore:{getParticipant:async()=>({ok:true,participant:{revoked_at:revoked?'2026-10-21T00:00:01.000Z':null}}),revoke:async()=>{calls++;revoked=true;return true;}},
-  createRegistry:({servicesByAdapter})=>{const adapter=runtime.createMaritimeManagerProvisionAdapter(servicesByAdapter['maritime-manager-provision']);return {hasCapability:()=>true,getByCapability:()=>adapter};},
+  createRegistry:({servicesByAdapter})=>{provisionServices=servicesByAdapter['maritime-manager-provision'];cycleServices=servicesByAdapter['maritime-manager-cycle'];
+   const adapter=runtime.createMaritimeManagerProvisionAdapter(provisionServices);return {hasCapability:()=>true,getByCapability:()=>adapter};},
  });
+ assert.equal(provisionServices.withControlLock,lock);assert.equal(cycleServices.withControlLock,lock);
+ assert.equal(provisionServices.readExecution,transport.readExecution);assert.equal(provisionServices.cancelExecution,transport.cancelExecution);
+ assert.equal(cycleServices.dispatchCycle,transport.dispatchCycle);
  const job=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:'pause'});
  assert.equal((await handlers[job.capability](job)).receipt.consent_revoked,true);assert.equal(calls,1);
  await handlers[job.capability](job);assert.equal(calls,1);
