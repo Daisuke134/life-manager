@@ -1088,5 +1088,5 @@ ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-pub
 17d400f225ab4ee320daae337b2e866e0c32884a:products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json:generic-api-key:191
 # Independently reviewed historical authority-control prose; exact occurrence only.
 a6f8deaf743033dae21132be54d27223293b09f7:products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:generic-api-key:22
-# PR #8745: synthetic value in a browser-redaction test, removed from the current tree; no credential.
+# PR #8745: synthetic browser-redaction fixture, removed from the current tree; not a credential.
 dbd128f27c963d049ee47c66887720ffa3340cd2:apps/life-manager/maritime/test_browser_mcp.py:generic-api-key:65
