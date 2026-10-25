@@ -246,11 +246,18 @@ test("Capafy email verification step submits in Chromium before the code is avai
         return { ok: true, status: 202, json: async () => ({ status: "check_email", challengeRef: "opaque-challenge" }) };
       };
     });
+    assert.equal(await page.locator('#capafy-terms').getAttribute('href'), 'https://api.capafy.ai/terms-of-service');
+    assert.equal(await page.locator('#capafy-privacy').getAttribute('href'), 'https://api.capafy.ai/privacy-policy');
     await page.locator("#capafy-email").fill("seller@example.com");
+    assert.equal(await page.getByRole("button", { name: "Send verification code" }).isDisabled(), true);
+    assert.equal(await page.evaluate(() => window.__capafyRequests.length), 0);
+    await page.locator('#capafy-policy-consent').check();
     await page.getByRole("button", { name: "Send verification code" }).click();
     await page.waitForFunction(() => window.__capafyRequests.length === 1, undefined, { timeout: 2000 });
     assert.deepEqual(await page.evaluate(() => window.__capafyRequests[0]), {
-      url: "/maritime/capafy/connect/start", body: { email: "seller@example.com" },
+      url: "/maritime/capafy/connect/start", body: {
+        email: "seller@example.com", termsAccepted: true, privacyAccepted: true,
+      },
     });
     assert.equal(await page.locator("#capafy-verification").isVisible(), true);
     assert.equal(await page.locator("#capafy-code").isDisabled(), false);

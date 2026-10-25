@@ -288,16 +288,24 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   const bindingStore = (() => { try { return capafyBindingStore(options); } catch { return null; } })();
   if (!bindingStore) { send(res, 503, { error: "capafy_connection_unavailable" }); return true; }
   if (pathname === CAPAFY_CONNECT_PATH) {
-    if (Object.keys(body).some(key => key !== "email") || typeof body.email !== "string") {
+    if (Object.keys(body).some(key => !["email", "termsAccepted", "privacyAccepted"].includes(key))
+      || typeof body.email !== "string") {
       send(res, 400, { error: "invalid_request" }); return true;
+    }
+    if (body.termsAccepted !== true || body.privacyAccepted !== true) {
+      send(res, 400, { error: "capafy_policy_consent_required" }); return true;
     }
     try {
       bindingStore.assertConfigured?.();
+      const { CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION, CAPAFY_TERMS_URL, CAPAFY_PRIVACY_URL } = require("./maritime-manager-capafy-binding.js");
+      const acceptedAt = options.now?.() || new Date().toISOString();
       const connector = options.capafyConnector || require("./maritime-manager-capafy-binding.js").createCapafyAccountConnector({ fetchImpl: options.fetchImpl });
       const challenge = await connector.startLogin(body.email);
       const challengeRef = require("./maritime-manager-capafy-binding.js").sealChallenge({
         tenantId: user.uid, authSubject: user.subject, challengeId: challenge.challengeId,
-        expiresInSec: challenge.expiresInSec, now: options.now?.() || new Date().toISOString(),
+        expiresInSec: challenge.expiresInSec, now: acceptedAt,
+        policyConsentVersion: CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION, termsAcceptedAt: acceptedAt,
+        termsUrl: CAPAFY_TERMS_URL, privacyUrl: CAPAFY_PRIVACY_URL,
       }, require("./web-auth.js").csrfSecret(options));
       send(res, 202, { status: "check_email", challengeRef, expiresInSec: challenge.expiresInSec });
     } catch (error) {
@@ -327,7 +335,9 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
       const identity = await connector.verifyLogin({ challengeId: challenge.challengeId, code: body.code });
       const saved = await bindingStore.save({ tenantId: user.uid, authSubject: user.subject,
         providerSubject: identity.providerSubject, accessToken: identity.accessToken,
-        autonomyConsentVersion: body.autonomyConsentVersion });
+        autonomyConsentVersion: body.autonomyConsentVersion,
+        policyConsentVersion: challenge.policyConsentVersion, termsAcceptedAt: challenge.termsAcceptedAt,
+        termsUrl: challenge.termsUrl, privacyUrl: challenge.privacyUrl });
       send(res, 200, { status: "connected", provider: saved.provider, accountRef: saved.accountRef,
         developerVerified: true, autonomyConsentVersion: saved.autonomyConsentVersion });
     } catch (error) {

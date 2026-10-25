@@ -3,6 +3,9 @@
 const { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes, timingSafeEqual } = require("node:crypto");
 
 const API_ORIGIN = "https://api.capafy.ai";
+const CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION = "capafy-publisher-terms-privacy-v1";
+const CAPAFY_TERMS_URL = `${API_ORIGIN}/terms-of-service`;
+const CAPAFY_PRIVACY_URL = `${API_ORIGIN}/privacy-policy`;
 const CAPAFY_AUTONOMY_CONSENT_VERSION = "maritime-capafy-autonomy-v1";
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUBJECT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,14 +20,22 @@ function nowIso(value) {
   return date.toISOString();
 }
 
-function sealChallenge({ tenantId, authSubject, challengeId, expiresInSec, now = new Date().toISOString() } = {}, secret) {
+function sealChallenge({ tenantId, authSubject, challengeId, expiresInSec, now = new Date().toISOString(),
+  policyConsentVersion, termsAcceptedAt, termsUrl, privacyUrl } = {}, secret) {
   const uid = validTenant(tenantId), subject = validSubject(authSubject);
   if (typeof secret !== "string" || secret.length < 16
     || typeof challengeId !== "string" || !/^[A-Za-z0-9_-]{8,512}$/.test(challengeId)
     || !Number.isInteger(expiresInSec) || expiresInSec < 1 || expiresInSec > 600) fail("maritime_capafy_challenge_invalid");
-  const issued = Date.parse(nowIso(now));
+  const issuedAt = nowIso(now);
+  const acceptedAt = nowIso(termsAcceptedAt);
+  if (policyConsentVersion !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
+    || acceptedAt !== issuedAt || termsUrl !== CAPAFY_TERMS_URL || privacyUrl !== CAPAFY_PRIVACY_URL) {
+    fail("maritime_capafy_policy_consent_required");
+  }
+  const issued = Date.parse(issuedAt);
   const payload = Buffer.from(JSON.stringify({ v: 1, uid, subject,
-    challengeId, expiresAt: new Date(issued + expiresInSec * 1000).toISOString() })).toString("base64url");
+    challengeId, expiresAt: new Date(issued + expiresInSec * 1000).toISOString(),
+    policyConsentVersion, termsAcceptedAt: acceptedAt, termsUrl, privacyUrl })).toString("base64url");
   const signature = createHmac("sha256", secret).update(`maritime-capafy-otp:v1\0${payload}`).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -41,10 +52,17 @@ function openChallenge(value, { tenantId, authSubject, secret, now = new Date().
     const payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
     if (!payload || payload.v !== 1 || payload.uid !== uid || payload.subject !== subject
       || !/^[A-Za-z0-9_-]{8,512}$/.test(payload.challengeId || "")
-      || Object.keys(payload).sort().join(",") !== "challengeId,expiresAt,subject,uid,v") fail("invalid");
+      || payload.policyConsentVersion !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
+      || nowIso(payload.termsAcceptedAt) !== payload.termsAcceptedAt
+      || payload.termsUrl !== CAPAFY_TERMS_URL || payload.privacyUrl !== CAPAFY_PRIVACY_URL
+      || Object.keys(payload).sort().join(",") !== "challengeId,expiresAt,policyConsentVersion,privacyUrl,subject,termsAcceptedAt,termsUrl,uid,v") fail("invalid");
     const expiresAt = nowIso(payload.expiresAt);
-    if (Date.parse(nowIso(now)) >= Date.parse(expiresAt)) fail("maritime_capafy_challenge_expired");
-    return Object.freeze({ challengeId: payload.challengeId, expiresAt });
+    const current = Date.parse(nowIso(now));
+    if (current >= Date.parse(expiresAt)) fail("maritime_capafy_challenge_expired");
+    if (Date.parse(payload.termsAcceptedAt) > current) fail("invalid");
+    return Object.freeze({ challengeId: payload.challengeId, expiresAt,
+      policyConsentVersion: payload.policyConsentVersion, termsAcceptedAt: payload.termsAcceptedAt,
+      termsUrl: payload.termsUrl, privacyUrl: payload.privacyUrl });
   } catch (error) {
     if (error?.message === "maritime_capafy_challenge_expired") throw error;
     fail("maritime_capafy_challenge_invalid");
@@ -89,57 +107,81 @@ function createMaritimeCapafyBindingStore({ query, encryptionKey, now = () => ne
     deriveEncryptionKey(encryptionKey);
     return true;
   }
-  async function save({ tenantId, authSubject, providerSubject, accessToken, autonomyConsentVersion } = {}) {
+  async function save({ tenantId, authSubject, providerSubject, accessToken, autonomyConsentVersion,
+    policyConsentVersion, termsAcceptedAt, termsUrl, privacyUrl } = {}) {
     const uid = validTenant(tenantId), subject = validSubject(authSubject), external = validSubject(providerSubject);
     if (autonomyConsentVersion !== CAPAFY_AUTONOMY_CONSENT_VERSION) fail("maritime_capafy_autonomy_consent_required");
+    if (policyConsentVersion !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
+      || termsUrl !== CAPAFY_TERMS_URL || privacyUrl !== CAPAFY_PRIVACY_URL) {
+      fail("maritime_capafy_policy_consent_required");
+    }
+    const acceptedAt = nowIso(termsAcceptedAt);
+    if (acceptedAt > nowIso(now())) fail("maritime_capafy_policy_consent_required");
     const accountRef = `account://capafy/${uid}/${external}`;
     const sealed = encryptToken({ tenantId: uid, authSubject: subject, providerSubject: external, accessToken }, encryptionKey);
     const rows = (await query(`
       INSERT INTO private.lm_maritime_manager_capafy_bindings
-        (uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version,connected_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::timestamptz)
+        (uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version,
+         policy_consent_version,terms_accepted_at,terms_url,privacy_url,connected_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::timestamptz,$11,$12,$13::timestamptz)
       ON CONFLICT (uid) DO UPDATE SET
-        ciphertext=EXCLUDED.ciphertext,iv=EXCLUDED.iv,tag=EXCLUDED.tag,connected_at=EXCLUDED.connected_at
+        ciphertext=EXCLUDED.ciphertext,iv=EXCLUDED.iv,tag=EXCLUDED.tag,
+        policy_consent_version=EXCLUDED.policy_consent_version,terms_accepted_at=EXCLUDED.terms_accepted_at,
+        terms_url=EXCLUDED.terms_url,privacy_url=EXCLUDED.privacy_url,connected_at=EXCLUDED.connected_at
       WHERE private.lm_maritime_manager_capafy_bindings.auth_subject=EXCLUDED.auth_subject
         AND private.lm_maritime_manager_capafy_bindings.provider_subject=EXCLUDED.provider_subject
         AND private.lm_maritime_manager_capafy_bindings.account_ref=EXCLUDED.account_ref
         AND private.lm_maritime_manager_capafy_bindings.autonomy_consent_version=EXCLUDED.autonomy_consent_version
-      RETURNING uid,auth_subject,provider_subject,account_ref,autonomy_consent_version
+      RETURNING uid,auth_subject,provider_subject,account_ref,autonomy_consent_version,
+        policy_consent_version,terms_accepted_at,terms_url,privacy_url
     `, [uid, subject, external, accountRef, sealed.ciphertext, sealed.iv, sealed.tag,
-      CAPAFY_AUTONOMY_CONSENT_VERSION, nowIso(now())])).rows;
+      CAPAFY_AUTONOMY_CONSENT_VERSION, policyConsentVersion, acceptedAt, termsUrl, privacyUrl, nowIso(now())])).rows;
     if (!Array.isArray(rows) || rows.length !== 1 || rows[0].uid !== uid || rows[0].auth_subject !== subject
       || rows[0].provider_subject !== external || rows[0].account_ref !== accountRef
-      || rows[0].autonomy_consent_version !== CAPAFY_AUTONOMY_CONSENT_VERSION) fail("maritime_capafy_binding_rejected");
+      || rows[0].autonomy_consent_version !== CAPAFY_AUTONOMY_CONSENT_VERSION
+      || rows[0].policy_consent_version !== policyConsentVersion || nowIso(rows[0].terms_accepted_at) !== acceptedAt
+      || rows[0].terms_url !== termsUrl || rows[0].privacy_url !== privacyUrl) fail("maritime_capafy_binding_rejected");
     return Object.freeze({ provider: "capafy", tenantId: uid, providerSubject: external, accountRef,
-      autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION });
+      autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION, policyConsentVersion,
+      termsAcceptedAt: acceptedAt, termsUrl, privacyUrl });
   }
   async function read({ tenantId, authSubject } = {}) {
     const uid = validTenant(tenantId), subject = validSubject(authSubject);
     const rows = (await query(`
-      SELECT uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version
+      SELECT uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version,
+        policy_consent_version,terms_accepted_at,terms_url,privacy_url
       FROM private.lm_maritime_manager_capafy_bindings WHERE uid=$1 AND auth_subject=$2 LIMIT 2
     `, [uid, subject])).rows;
     if (!Array.isArray(rows) || rows.length !== 1) fail("maritime_capafy_binding_unavailable");
     const row = rows[0];
     if (row.uid !== uid || row.auth_subject !== subject || row.autonomy_consent_version !== CAPAFY_AUTONOMY_CONSENT_VERSION
+      || row.policy_consent_version !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
+      || row.terms_url !== CAPAFY_TERMS_URL || row.privacy_url !== CAPAFY_PRIVACY_URL
       || row.account_ref !== `account://capafy/${uid}/${row.provider_subject}`) fail("maritime_capafy_binding_invalid");
     return Object.freeze({ provider: "capafy", tenantId: uid, authSubject: subject,
       providerSubject: validSubject(row.provider_subject), accountRef: row.account_ref,
-      autonomyConsentVersion: row.autonomy_consent_version, accessToken: decryptToken(row, encryptionKey) });
+      autonomyConsentVersion: row.autonomy_consent_version,
+      policyConsentVersion: row.policy_consent_version, termsAcceptedAt: nowIso(row.terms_accepted_at),
+      termsUrl: row.terms_url, privacyUrl: row.privacy_url, accessToken: decryptToken(row, encryptionKey) });
   }
   async function readStatus({ tenantId, authSubject } = {}) {
     const uid = validTenant(tenantId), subject = validSubject(authSubject);
     const rows = (await query(`
-      SELECT uid,auth_subject,provider_subject,account_ref,autonomy_consent_version
+      SELECT uid,auth_subject,provider_subject,account_ref,autonomy_consent_version,
+        policy_consent_version,terms_accepted_at,terms_url,privacy_url
       FROM private.lm_maritime_manager_capafy_bindings WHERE uid=$1 AND auth_subject=$2 LIMIT 2
     `, [uid, subject])).rows;
     if (!Array.isArray(rows) || rows.length > 1) fail("maritime_capafy_binding_invalid");
     if (!rows.length) return Object.freeze({ connected: false });
     const row = rows[0];
     if (row.uid !== uid || row.auth_subject !== subject || row.autonomy_consent_version !== CAPAFY_AUTONOMY_CONSENT_VERSION
+      || row.policy_consent_version !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
+      || row.terms_url !== CAPAFY_TERMS_URL || row.privacy_url !== CAPAFY_PRIVACY_URL
       || row.account_ref !== `account://capafy/${uid}/${validSubject(row.provider_subject)}`) fail("maritime_capafy_binding_invalid");
     return Object.freeze({ connected: true, provider: "capafy", tenantId: uid,
-      accountRef: row.account_ref, autonomyConsentVersion: row.autonomy_consent_version });
+      accountRef: row.account_ref, autonomyConsentVersion: row.autonomy_consent_version,
+      policyConsentVersion: row.policy_consent_version, termsAcceptedAt: nowIso(row.terms_accepted_at),
+      termsUrl: row.terms_url, privacyUrl: row.privacy_url });
   }
   async function disconnect({ tenantId, authSubject } = {}) {
     const uid = validTenant(tenantId), subject = validSubject(authSubject);
@@ -258,5 +300,6 @@ function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connec
   return Object.freeze({ readAccountBinding: resolve, withAccessToken });
 }
 
-module.exports = { CAPAFY_AUTONOMY_CONSENT_VERSION, createMaritimeCapafyBindingStore,
+module.exports = { CAPAFY_AUTONOMY_CONSENT_VERSION, CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION,
+  CAPAFY_TERMS_URL, CAPAFY_PRIVACY_URL, createMaritimeCapafyBindingStore,
   createCapafyAccountConnector, createMaritimeCapafyAccountBinding, sealChallenge, openChallenge };

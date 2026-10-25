@@ -17,12 +17,39 @@ CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_bindings (
   tag bytea NOT NULL CHECK (octet_length(tag) = 16),
   autonomy_consent_version text NOT NULL
     CHECK (autonomy_consent_version = 'maritime-capafy-autonomy-v1'),
+  policy_consent_version text NOT NULL,
+  terms_accepted_at timestamptz NOT NULL,
+  terms_url text NOT NULL,
+  privacy_url text NOT NULL,
   connected_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   CHECK (uid ~ '^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
   CHECK (account_ref = 'account://capafy/' || uid || '/' || provider_subject::text),
   FOREIGN KEY (uid, auth_subject)
     REFERENCES public.lm_maritime_manager_enrollments(uid, auth_subject) ON DELETE CASCADE
 );
+
+-- Keep older bindings readable only when they contain explicit publisher-policy
+-- consent. Existing rows without this evidence remain invalid until reconnected.
+ALTER TABLE private.lm_maritime_manager_capafy_bindings
+  ADD COLUMN IF NOT EXISTS policy_consent_version text,
+  ADD COLUMN IF NOT EXISTS terms_accepted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS terms_url text,
+  ADD COLUMN IF NOT EXISTS privacy_url text;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lm_maritime_manager_capafy_policy_consent_check') THEN
+    ALTER TABLE private.lm_maritime_manager_capafy_bindings
+      ADD CONSTRAINT lm_maritime_manager_capafy_policy_consent_check
+      CHECK (policy_consent_version IS NOT NULL
+        AND policy_consent_version = 'capafy-publisher-terms-privacy-v1'
+        AND terms_accepted_at IS NOT NULL
+        AND terms_url IS NOT NULL
+        AND terms_url = 'https://api.capafy.ai/terms-of-service'
+        AND privacy_url IS NOT NULL
+        AND privacy_url = 'https://api.capafy.ai/privacy-policy') NOT VALID;
+  END IF;
+END $$;
 
 ALTER TABLE private.lm_maritime_manager_capafy_bindings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS lm_maritime_manager_capafy_bindings_service_role_access

@@ -16,9 +16,13 @@ const NOW = "2026-10-25T12:00:00.000Z";
 
 test("Capafy OTP challenge is signed, time limited, and bound to the authenticated Life Manager identity", () => {
   const challenge = sealChallenge({ tenantId: UID, authSubject: SUBJECT, challengeId: "challenge-1",
-    expiresInSec: 300, now: NOW }, "csrf-secret-longer");
+    expiresInSec: 300, now: NOW, policyConsentVersion: "capafy-publisher-terms-privacy-v1",
+    termsAcceptedAt: NOW, termsUrl: "https://api.capafy.ai/terms-of-service",
+    privacyUrl: "https://api.capafy.ai/privacy-policy" }, "csrf-secret-longer");
   assert.deepEqual(openChallenge(challenge, { tenantId: UID, authSubject: SUBJECT,
-    secret: "csrf-secret-longer", now: NOW }), { challengeId: "challenge-1", expiresAt: "2026-10-25T12:05:00.000Z" });
+    secret: "csrf-secret-longer", now: NOW }), { challengeId: "challenge-1", expiresAt: "2026-10-25T12:05:00.000Z",
+    policyConsentVersion: "capafy-publisher-terms-privacy-v1", termsAcceptedAt: NOW,
+    termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy" });
   assert.throws(() => openChallenge(challenge, { tenantId: "lm_22222222-2222-4222-8222-222222222222",
     authSubject: SUBJECT, secret: "csrf-secret-longer", now: NOW }), /invalid/i);
   assert.throws(() => openChallenge(challenge, { tenantId: UID, authSubject: "22222222-2222-4222-8222-222222222222",
@@ -85,28 +89,38 @@ test("Capafy access tokens are encrypted at rest with tenant and owner authentic
   const queries = [];
   const row = { uid: UID, auth_subject: SUBJECT, provider_subject: CAPAFY_SUBJECT,
     account_ref: `account://capafy/${UID}/${CAPAFY_SUBJECT}`, ciphertext: null, iv: null, tag: null,
-    autonomy_consent_version: CAPAFY_AUTONOMY_CONSENT_VERSION };
+    autonomy_consent_version: CAPAFY_AUTONOMY_CONSENT_VERSION,
+    policy_consent_version: "capafy-publisher-terms-privacy-v1", terms_accepted_at: NOW,
+    terms_url: "https://api.capafy.ai/terms-of-service", privacy_url: "https://api.capafy.ai/privacy-policy" };
   const store = createMaritimeCapafyBindingStore({ query: async (sql, values) => {
     queries.push({ sql, values });
     if (/INSERT INTO private\.lm_maritime_manager_capafy_bindings/i.test(sql)) {
-      const [uid, subject, providerSubject, accountRef, ciphertext, iv, tag, consent] = values;
+      const [uid, subject, providerSubject, accountRef, ciphertext, iv, tag, consent,
+        policyVersion, termsAcceptedAt, termsUrl, privacyUrl] = values;
       Object.assign(row, { uid, auth_subject: subject, provider_subject: providerSubject, account_ref: accountRef,
-        ciphertext: Buffer.from(ciphertext), iv: Buffer.from(iv), tag: Buffer.from(tag), autonomy_consent_version: consent });
+        ciphertext: Buffer.from(ciphertext), iv: Buffer.from(iv), tag: Buffer.from(tag), autonomy_consent_version: consent,
+        policy_consent_version: policyVersion, terms_accepted_at: termsAcceptedAt,
+        terms_url: termsUrl, privacy_url: privacyUrl });
       return { rows: [{ uid, auth_subject: subject, provider_subject: providerSubject, account_ref: accountRef,
-        autonomy_consent_version: consent }] };
+        autonomy_consent_version: consent, policy_consent_version: policyVersion,
+        terms_accepted_at: termsAcceptedAt, terms_url: termsUrl, privacy_url: privacyUrl }] };
     }
-    if (/SELECT uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version/i.test(sql)) {
+    if (/SELECT uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version,\s*policy_consent_version,\s*terms_accepted_at,\s*terms_url,\s*privacy_url/i.test(sql)) {
       return row.uid === values[0] && row.auth_subject === values[1] ? { rows: [{ ...row }] } : { rows: [] };
     }
     if (/SELECT uid,auth_subject,provider_subject,account_ref,autonomy_consent_version/i.test(sql)) {
-      const { uid, auth_subject, provider_subject, account_ref, autonomy_consent_version } = row;
+      const { uid, auth_subject, provider_subject, account_ref, autonomy_consent_version,
+        policy_consent_version, terms_accepted_at, terms_url, privacy_url } = row;
       return row.uid === values[0] && row.auth_subject === values[1]
-        ? { rows: [{ uid, auth_subject, provider_subject, account_ref, autonomy_consent_version }] } : { rows: [] };
+        ? { rows: [{ uid, auth_subject, provider_subject, account_ref, autonomy_consent_version,
+          policy_consent_version, terms_accepted_at, terms_url, privacy_url }] } : { rows: [] };
     }
     throw new Error("unexpected query");
   }, encryptionKey: KEY });
   const saved = await store.save({ tenantId: UID, authSubject: SUBJECT, providerSubject: CAPAFY_SUBJECT,
-    accessToken: TOKEN, autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION });
+    accessToken: TOKEN, autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION,
+    policyConsentVersion: "capafy-publisher-terms-privacy-v1", termsAcceptedAt: NOW,
+    termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy" });
   assert.equal(saved.accountRef, row.account_ref);
   assert.equal(saved.provider, "capafy");
   assert.equal(JSON.stringify(row).includes(TOKEN), false);
@@ -114,9 +128,14 @@ test("Capafy access tokens are encrypted at rest with tenant and owner authentic
   const loaded = await store.read({ tenantId: UID, authSubject: SUBJECT });
   assert.equal(loaded.accessToken, TOKEN);
   assert.equal(loaded.providerSubject, CAPAFY_SUBJECT);
+  assert.deepEqual({ policyConsentVersion: loaded.policyConsentVersion, termsAcceptedAt: loaded.termsAcceptedAt,
+    termsUrl: loaded.termsUrl, privacyUrl: loaded.privacyUrl }, { policyConsentVersion: "capafy-publisher-terms-privacy-v1",
+    termsAcceptedAt: NOW, termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy" });
   const status = await store.readStatus({ tenantId: UID, authSubject: SUBJECT });
   assert.deepEqual(status, { connected: true, provider: "capafy", tenantId: UID,
-    accountRef: row.account_ref, autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION });
+    accountRef: row.account_ref, autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION,
+    policyConsentVersion: "capafy-publisher-terms-privacy-v1", termsAcceptedAt: NOW,
+    termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy" });
   assert.equal(JSON.stringify(status).includes(TOKEN), false);
   await assert.rejects(store.read({ tenantId: UID, authSubject: "22222222-2222-4222-8222-222222222222" }), /unavailable/i);
   assert.match(queries[0].sql, /WHERE private\.lm_maritime_manager_capafy_bindings\.auth_subject=EXCLUDED\.auth_subject/);
@@ -128,8 +147,11 @@ test("Capafy binding refuses missing autonomy consent and tampered encrypted ide
   const store = createMaritimeCapafyBindingStore({ query: async () => ({ rows: [] }), encryptionKey: KEY });
   await assert.rejects(store.save({ tenantId: UID, authSubject: SUBJECT, providerSubject: CAPAFY_SUBJECT,
     accessToken: TOKEN }), /consent/i);
+  await assert.rejects(store.save({ tenantId: UID, authSubject: SUBJECT, providerSubject: CAPAFY_SUBJECT,
+    accessToken: TOKEN, autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION }), /policy_consent/i);
   const challenge = sealChallenge({ tenantId: UID, authSubject: SUBJECT, challengeId: "challenge-1", expiresInSec: 300,
-    now: NOW }, "secret-long-enough");
+    now: NOW, policyConsentVersion: "capafy-publisher-terms-privacy-v1", termsAcceptedAt: NOW,
+    termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy" }, "secret-long-enough");
   assert.throws(() => openChallenge(challenge, { tenantId: UID, authSubject: SUBJECT, secret: "other", now: NOW }), /invalid/i);
 });
 
@@ -142,6 +164,8 @@ test("private binding migration denies public roles and keys credentials to the 
   assert.match(migration, /FOREIGN KEY \(uid, auth_subject\)[\s\S]*REFERENCES public\.lm_maritime_manager_enrollments\(uid, auth_subject\)/i);
   assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS lm_maritime_manager_enrollments_uid_auth_subject\s+ON public\.lm_maritime_manager_enrollments \(uid, auth_subject\)/i);
   assert.match(migration, /autonomy_consent_version = 'maritime-capafy-autonomy-v1'/i);
+  assert.match(migration, /policy_consent_version = 'capafy-publisher-terms-privacy-v1'/i);
+  assert.match(migration, /terms_accepted_at IS NOT NULL/i);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS private\.lm_maritime_manager_capafy_recovery_cursor/i);
   assert.match(migration, /CREATE POLICY lm_maritime_manager_capafy_recovery_cursor_service_role_access\s+ON private\.lm_maritime_manager_capafy_recovery_cursor FOR ALL TO service_role\s+USING \(true\) WITH CHECK \(true\)/i);
   assert.match(migration, /REVOKE ALL ON TABLE private\.lm_maritime_manager_capafy_recovery_cursor FROM PUBLIC, anon, authenticated/i);

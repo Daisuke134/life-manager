@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MIGRATION="$ROOT_DIR/migrations/20261025160000_maritime_manager_capafy_bindings.sql"
+MIGRATION="$ROOT_DIR/migrations/20261025134600_maritime_manager_capafy_bindings.sql"
 DB_NAME="maritime_capafy_rls_test"
 DOCKER_NAME="maritime-capafy-rls-$$"
 
@@ -58,14 +58,16 @@ BEGIN
 
   INSERT INTO private.lm_maritime_manager_capafy_bindings (
     uid, auth_subject, provider_subject, account_ref, ciphertext, iv, tag,
-    autonomy_consent_version
+    autonomy_consent_version, policy_consent_version, terms_accepted_at, terms_url, privacy_url
   ) VALUES (
     'lm_11111111-1111-4111-8111-111111111111',
     '11111111-1111-4111-8111-111111111111',
     '019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',
     'account://capafy/lm_11111111-1111-4111-8111-111111111111/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',
     decode('ff', 'hex'), decode(repeat('00', 12), 'hex'), decode(repeat('00', 16), 'hex'),
-    'maritime-capafy-autonomy-v1'
+    'maritime-capafy-autonomy-v1', 'capafy-publisher-terms-privacy-v1',
+    '2026-10-25T11:59:00Z', 'https://api.capafy.ai/terms-of-service',
+    'https://api.capafy.ai/privacy-policy'
   );
   IF (SELECT count(*) FROM private.lm_maritime_manager_capafy_bindings
       WHERE uid = 'lm_11111111-1111-4111-8111-111111111111') <> 1 THEN
