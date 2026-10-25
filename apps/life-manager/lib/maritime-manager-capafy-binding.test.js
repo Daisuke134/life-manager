@@ -156,7 +156,7 @@ test("Capafy binding refuses missing autonomy consent and tampered encrypted ide
 });
 
 test("private binding migration denies public roles and keys credentials to the enrollment owner", () => {
-  const migration = fs.readFileSync(path.join(__dirname, "../migrations/20261025160000_maritime_manager_capafy_bindings.sql"), "utf8");
+  const migration = fs.readFileSync(path.join(__dirname, "../migrations/20261025134600_maritime_manager_capafy_bindings.sql"), "utf8");
   assert.match(migration, /private\.lm_maritime_manager_capafy_bindings/i);
   assert.match(migration, /ENABLE ROW LEVEL SECURITY/i);
   assert.match(migration, /CREATE POLICY lm_maritime_manager_capafy_bindings_service_role_access\s+ON private\.lm_maritime_manager_capafy_bindings FOR ALL TO service_role\s+USING \(true\) WITH CHECK \(true\)/i);
