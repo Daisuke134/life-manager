@@ -141,3 +141,24 @@ here. Its SHA-256 was
 Only the analysis script, aggregate record, this explanation, and the four
 original figures belong to this research task. No product runtime, external
 account, experiment participant, or publishing configuration was changed here.
+
+## Future article and book library (2026-10-22; GitHub storage only)
+
+The user requested that newly researched material be saved as **files** and **not published** to the blog automatically. The following additive materials extend this independently reproducible recalculation without replacing the frozen source record:
+
+- [Japanese long-form book chapter](BOOK_CHAPTER_DEEP_DIVE_JA.md) — fundamentals, Persimmon, CORO math, honest evaluation, Simile/Aaru/Andon comparison, Manager implications.
+- [English long-form book chapter](BOOK_CHAPTER_DEEP_DIVE_EN.md) — chapter-length bilingual companion for later adaptation into published content.
+- [Read-only Ampersand API protocol probe](ampersand_readonly_probe.py) with [12 offline contract tests](test_ampersand_readonly_probe.py). In the current runtime, authenticated inference is **BLOCKED_NO_API_KEY**; the mock's 12 passing tests only establish safe request/validation behavior.
+- [Prioritized implementation backlog and actual experiment record](IMPLEMENTATION_ORDER_AND_PROBE_RECORD.md) — detailed observation/planning/evaluation architecture, dependency gates and next actions.
+
+Publication manifest, generated blog artifact hashes, payment workflows, and the original 113-task Manager roadmap are deliberately unchanged by this extension. Keep study provenance, simulated data, model-provider claims, mathematical reanalysis, API trial evidence and independently measured human effects as separate classes. If future vendor evidence changes, add dated errata rather than silently rewriting this frozen public snapshot.
+
+## Follow-up: simulation, reality and suffering (2026-10-22)
+
+[Simulation and Reality: Reactions, Suffering, and Human Agency](SIMULATION_REALITY_SUFFERING.md) adds English/Japanese material, ten proposed synthetic tests, and ordered integration tasks. Distinguish reaction, self-report, material conditions, autonomy, and longer-term causal outcomes. Compare communication with removing environmental barriers; do not optimize agreement alone.
+
+A credential was subsequently supplied by the user. The earlier `BLOCKED_NO_API_KEY` entry above is a historical observation, **not the present blocker**. The current execution environment could not complete the external API preflight, and a browser execution check was blocked. The credential was not sent to any provider or stored in files. Authenticated requests, model inference, Persimmon simulations, and human interventions in this follow-up are all **0**. Credential validity and model availability remain unverified, not rejected.
+
+Code review also established that the existing `--smoke` path ends after session creation; it does not retrieve the completed answer. Extend and verify that readback before reporting a successful inference test. The proposed ten cases are NOT RUN, and the earlier mock-test report has not been rerun in this follow-up.
+
+No article publication or deployment was initiated. This repository is public: a manuscript stored here is not confidential. Credentials, actual participant profiles, and private conversations must remain outside Git.
