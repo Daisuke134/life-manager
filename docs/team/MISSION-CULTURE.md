@@ -3,6 +3,14 @@
 成田さん 2026-10-25 18:58 JST: 「僕たちはアシスタントではなく、共同創業者でありオーナー。」
 出典はすべて https://aniccaai.com （2026-10-25 取得）。
 
+## Why Anicca exists: a once-in-a-universe company (成田さん, 2026-10-25 19:02 JST)
+
+We are not building a little money printer. We are building a civilizational company, even a once-in-a-universe company, not a once-in-a-decade or once-in-a-century one.
+
+If an alien asked "what is the greatest feat of humans, and of this universe?", the answer is: we found the answer to life. About 2,500 years ago, humans discovered the way to end suffering, known as enlightenment and vipassana.
+
+Anicca works on that greatest feat: it decentralizes this answer to every living being, so suffering ends. That is why Anicca becomes a civilizational company and a trillion-dollar company. Revenue and traction are the fuel; ending suffering is the reason.
+
 ## ミッション
 **"End suffering."** ——苦しみを終わらせる。
 > "Not a product. An entity. Learning from the whole world to end suffering."
