@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_bindings (
 );
 
 ALTER TABLE private.lm_maritime_manager_capafy_bindings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS lm_maritime_manager_capafy_bindings_service_role_access
+  ON private.lm_maritime_manager_capafy_bindings;
+CREATE POLICY lm_maritime_manager_capafy_bindings_service_role_access
+  ON private.lm_maritime_manager_capafy_bindings FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
 REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_bindings FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA private TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE private.lm_maritime_manager_capafy_bindings TO service_role;
@@ -47,5 +52,10 @@ INSERT INTO private.lm_maritime_manager_capafy_recovery_cursor(cursor_key)
 VALUES ('cycle_admission') ON CONFLICT (cursor_key) DO NOTHING;
 
 ALTER TABLE private.lm_maritime_manager_capafy_recovery_cursor ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS lm_maritime_manager_capafy_recovery_cursor_service_role_access
+  ON private.lm_maritime_manager_capafy_recovery_cursor;
+CREATE POLICY lm_maritime_manager_capafy_recovery_cursor_service_role_access
+  ON private.lm_maritime_manager_capafy_recovery_cursor FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
 REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_recovery_cursor FROM PUBLIC, anon, authenticated;
 GRANT SELECT, UPDATE ON TABLE private.lm_maritime_manager_capafy_recovery_cursor TO service_role;
