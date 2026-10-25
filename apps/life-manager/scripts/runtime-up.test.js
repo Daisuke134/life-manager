@@ -1263,7 +1263,7 @@ test("Maritime report worker injects existing queue reader and shared CFO receip
 
 test("pending Maritime enrollment recovery reuses stable jobs and skips undeclared capability",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),calls=[];
- const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},
+ const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha,consent_version:"maritime-manager-v2"}];}},
   readProvisionJobState:async()=>null,enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job:{...job,status:"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.cycle"],dependencies);assert.equal(calls.length,0);
  await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
@@ -1354,13 +1354,30 @@ test("Maritime post-send continuation failure reconciles the receipt without a s
 });
 
 test("terminal pending provision is quarantined so the next tenant can recover",async()=>{
- const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40)},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
+ const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40),consent_version:"maritime-manager-v2"},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
  const rows=[a,b],queued=[],quarantined=[];
  const deps={managerStore:{listPaused:async()=>[],listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
  readProvisionJobState:async({tenantId,job})=>tenantId===a.uid?{job_id:job.job_id,tenant_id:tenantId,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_UNCONFIGURED"}:null,
  enqueueJob:async job=>{queued.push(job.tenant_id);return {created:job.tenant_id===b.uid,job:{...job,status:job.tenant_id===a.uid?"dead_letter":"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
  assert.deepEqual(quarantined,[a.uid]);assert.deepEqual(queued,[b.uid]);
+});
+
+test("legacy pending tenants stay reconsentable without a job or after the no-effect consent dead letter",async()=>{
+ const sha="c".repeat(40);
+ for(const state of [null,{status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_CONSENT_REQUIRED"}]){
+  const uid=state?"lm_44444444-4444-4444-8444-444444444444":"lm_33333333-3333-4333-8333-333333333333";
+  const row={uid,release_sha:sha,status:"pending",consent_version:"maritime-manager-v1",consent_v2_at:null,agent_id:null,paused_at:null};
+  const quarantined=[];let reads=0,enqueues=0;
+  const store={listPending:async()=>[row],listPaused:async()=>[],quarantinePendingProvision:async id=>{quarantined.push(id);row.status="effect_unknown";},
+   reconsent:async()=>{if(row.status!=="pending"||row.consent_version!=="maritime-manager-v1")return null;
+    row.consent_version="maritime-manager-v2";row.consent_v2_at="2026-10-22T00:00:00.000Z";return row;}};
+  await recoverMaritimeEnrollments(["maritime.manager.provision"],{managerStore:store,
+   readProvisionJobState:async()=>{reads++;return state?{job_id:"old",tenant_id:uid,...state}:null;},
+   enqueueJob:async()=>{enqueues++;throw new Error("legacy tenant must not dispatch before reconsent");}});
+  assert.deepEqual(quarantined,[]);assert.equal(row.status,"pending");assert.equal(reads,0);assert.equal(enqueues,0);
+  const updated=await store.reconsent();assert.equal(updated.consent_version,"maritime-manager-v2");
+ }
 });
 
 

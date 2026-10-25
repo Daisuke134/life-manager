@@ -295,7 +295,10 @@ async function enqueueMaritimeProvisionRecovery(row, phase, { enqueueJob, readPr
 async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, readProvisionJobState,
   storeOptions = {}, pausedCursor = null } = {}) {
   if (!capabilities.includes("maritime.manager.provision")) return;
+  const { MANAGER_CONSENT_VERSION } = require("../lib/maritime-distribution.js");
   for (const row of await managerStore.listPending(1)) {
+    // The legacy customer must explicitly accept v2 before any new provisioning job can be created.
+    if (row.consent_version !== MANAGER_CONSENT_VERSION) continue;
     const queued = await enqueueMaritimeProvisionRecovery(row, "create", { enqueueJob, readProvisionJobState, storeOptions });
     if (["dead_letter", "completed"].includes(queued?.job?.status)) {
       await managerStore.quarantinePendingProvision(row.uid);

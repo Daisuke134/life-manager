@@ -75,11 +75,14 @@ function createMaritimeManagerStore(options = {}) {
   async function listPending(limit = 20) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
     const rows = await queryPg(
-      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments WHERE status IN ('pending', 'provisioning') AND paused_at IS NULL AND agent_id IS NULL ORDER BY created_at ASC, uid ASC LIMIT $1`,
-      [limit],
+      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments WHERE consent_version = $1
+       AND status IN ('pending', 'provisioning') AND paused_at IS NULL AND agent_id IS NULL
+       ORDER BY created_at ASC, uid ASC LIMIT $2`,
+      [MANAGER_CONSENT_VERSION, limit],
     );
     if (rows.length > limit || rows.some(row => !row || !UID.test(row.uid)
-      || !['pending', 'provisioning'].includes(row.status) || row.paused_at !== null || row.agent_id !== null || !SHA.test(row.release_sha))) {
+      || row.consent_version !== MANAGER_CONSENT_VERSION || !['pending', 'provisioning'].includes(row.status)
+      || row.paused_at !== null || row.agent_id !== null || !SHA.test(row.release_sha))) {
       throw new Error('maritime_manager_store_invalid');
     }
     return rows.map(row => ({ ...row, created_at: timestampIso(row.created_at) }));
