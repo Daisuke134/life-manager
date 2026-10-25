@@ -2313,7 +2313,7 @@ def _main(argv: list[str] | None = None) -> int:
                 )
             effect_identity_ref = None
             effect_identity_status = None
-            if entry.get("effect_class") != "none" and child_return_code != 0:
+            if entry.get("effect_class") != "none" and effect_result is None:
                 try:
                     identity_result = _persist_effect_identity(
                         scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
