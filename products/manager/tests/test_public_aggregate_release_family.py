@@ -230,7 +230,11 @@ class ReleaseFamilyTest(unittest.TestCase):
         a, b, c = self._disclosive_triple()
         fourth = packet("d")
         fourth["partition"]["total"] = 110
-        fourth["partition"]["cells"][1]["count"] = 50
+        # Retain the same five-category partition, varying ONLY the denominator.
+        fourth["partition"]["cells"] = cells({
+            "alpha": 40, "beta": 20, "gamma": 20,
+            "delta": 10, "epsilon": 20,
+        })
         result = preflight_release_family([a, fourth, b, c])
         self.assertIn("FAMILY_TOTALS_NOT_COMPARABLE", result["reason_codes"])
         self.assertIn("FAMILY_SINGLE_HIDDEN_CELL", result["reason_codes"])
