@@ -17,6 +17,7 @@ def _tick(monkeypatch, tmp_path: Path, *, account_ready: bool = True):
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     monkeypatch.setattr(module, "_open_owned_page", lambda _factory: (object(), object()))
+    monkeypatch.setattr(module, "_read_shared_ledger", lambda: "")  # the send gate must not need the network
     monkeypatch.setattr(module, "_production_account_ready", lambda _page: account_ready)
     monkeypatch.setattr(module, "_production_prepare", lambda *_args: None)
     monkeypatch.setattr(module, "_close_owned_page", lambda *_args: True)
