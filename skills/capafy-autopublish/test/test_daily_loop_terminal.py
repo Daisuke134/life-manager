@@ -584,3 +584,13 @@ def test_drainer_prompts_retry_a_transient_with_browser_exit_10_before_stopping(
     plain codex exec succeeded on the loaded host (load 6-13), so one 10 is not proof the browser is down."""
     source = CHILD.read_text(encoding="utf-8")
     assert source.count("If with-browser.sh exits 10, wait 30 seconds and retry up to 3 times") == 2
+
+
+def test_drainer_prompt_additions_have_no_shell_substitution_characters():
+    """2026-10-25: backticks and <ID> inside the double-quoted PROMPT ran as command substitution
+    (daily_loop.sh line 412 syntax error) and the sentence never reached the agent."""
+    source = CHILD.read_text(encoding="utf-8")
+    for marker in ("Run the official status check from the repo root as",
+                   "If with-browser.sh exits 10, wait 30 seconds"):
+        for line in (l for l in source.splitlines() if marker in l):
+            assert "`" not in line and "$(" not in line and "<ID>" not in line
