@@ -66,6 +66,21 @@ if [ ! -f "$RUN_DIR/headline-image.png" ] && [ -s "$GATES/headline-image-prompt.
       --receipt "$GATES/headline-image-api-receipt.json" \
     || block "headline-image-commit-failed"
 fi
+# The model sandbox cannot reach kroki/mermaid.ink either, so the agent writes body-diagram.mmd
+# but no PNG (runs 20261024-150602, 20261025-040107). Render it here once; an existing body
+# receipt means a commit already happened, and a second candidate would be refused.
+if [ ! -f "$RUN_DIR/body-diagram.png" ] && [ -s "$RUN_DIR/body-diagram.mmd" ] \
+  && [ ! -e "$GATES/body-diagram-create.json" ]; then
+  BODY_RENDERER="${ARTICLE_BODY_DIAGRAM_RENDERER:-$SCRIPT_DIR/render_body_diagram.py}"
+  MEDIA_CREATE_ONCE="${ARTICLE_MEDIA_CREATE_ONCE:-$SCRIPT_DIR/media_create_once.py}"
+  BODY_CANDIDATE="$GATES/media-candidates/body-diagram-render.png"
+  mkdir -p "$GATES/media-candidates"
+  { [ -f "$BODY_CANDIDATE" ] || python3 "$BODY_RENDERER" --in "$RUN_DIR/body-diagram.mmd" --out "$BODY_CANDIDATE"; } \
+    || block "body-diagram-render-failed"
+  python3 "$MEDIA_CREATE_ONCE" commit --candidate "$BODY_CANDIDATE" \
+      --destination "$RUN_DIR/body-diagram.png" --receipt "$GATES/body-diagram-create.json" --kind body \
+    || block "body-diagram-commit-failed"
+fi
 for f in article-ja.md article-en.md x-post-ja.txt headline-image.png body-diagram.png; do
   [ -f "$RUN_DIR/$f" ] || skip "missing-$f"
 done
