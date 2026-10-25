@@ -158,7 +158,7 @@ function services(env, dataDir, tenantId, lane) {
   };
 }
 
-async function reusePriorYouTubePublication(store, job) {
+async function reusePriorYouTubePublication(store, job, resultOccurrenceId) {
   const prior = await store.readPriorPublicationForSlot(job);
   if (!prior) return null;
   const receipt = prior.receipt;
@@ -179,7 +179,15 @@ async function reusePriorYouTubePublication(store, job) {
     && priorRefs.creative_ref === `creative://${receipt.product_id}/${receipt.creative_id}`
     && priorRefs.video_ref === `object://sha256/${receipt.video_sha256}`
     && priorRefs.caption_ref === `object://sha256/${receipt.caption_sha256}`) {
-    return { created: false, reused_prior_slot: true, public_url: receipt.public_url, provider_post_id: receipt.provider_post_id };
+    return {
+      created: false,
+      provider_effect_created: false,
+      ...(typeof receipt.origin_occurrence_id === "string" ? { origin_occurrence_id: receipt.origin_occurrence_id } : {}),
+      ...(typeof resultOccurrenceId === "string" ? { result_occurrence_id: resultOccurrenceId } : {}),
+      reused_prior_slot: true,
+      public_url: receipt.public_url,
+      provider_post_id: receipt.provider_post_id,
+    };
   }
   return { created: false, held: true, reason: "prior_slot_publication_unresolved",
     prior_job_id: prior.job.job_id, public_url: null, provider_post_id: null };
@@ -188,6 +196,9 @@ async function reusePriorYouTubePublication(store, job) {
 async function runHonneJaCycle(argv, deps = {}) {
   const parsed = parseArgs(argv);
   const env = deps.env || process.env;
+  const currentOccurrenceId = typeof env.LIFE_MANAGER_OCCURRENCE_ID === "string"
+    ? env.LIFE_MANAGER_OCCURRENCE_ID
+    : process.env.LIFE_MANAGER_OCCURRENCE_ID;
   // Lanes with a literal integrationId (already Postiz-connected) keep it
   // verbatim; a lane with integrationEnvKey instead (not yet connected, e.g.
   // run-capafy-ig) resolves it from the environment and fails closed with
@@ -254,14 +265,16 @@ async function runHonneJaCycle(argv, deps = {}) {
       locale: lane.locale,
     });
   const publicationJob = buildMarketingVideoPublicationJob({ tenantId, productId: lane.product, formatId: lane.format, form: artifact.form, locale: lane.locale, slot, creativeId: publicationCreativeId, platform: lane.platform, videoRef: artifact.video_ref, captionRef, approvalRef, instagramProfileRef: lane.platform === "instagram" ? lane.instagramProfileRef : "profile://instagram/unassigned", postizTokenRef: "secret://postiz/api-key", ...(lane.platform === "instagram" ? { instagramIntegrationRef: lane.integrationRef } : lane.platform === "youtube" ? { youtubeIntegrationRef: lane.integrationRef } : { tiktokIntegrationRef: lane.integrationRef }) });
-  const priorPublication = lane.platform === "youtube" ? await reusePriorYouTubePublication(store, publicationJob) : null;
+  const priorPublication = lane.platform === "youtube"
+    ? await reusePriorYouTubePublication(store, publicationJob, currentOccurrenceId)
+    : null;
   if (priorPublication) {
     return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id },
       publication: priorPublication, telegram: { created: false, held: true, message_id: null } };
   }
   const publicationQueued = await store.enqueueJob({ jobId: publicationJob.job_id, tenantId, loopId: publicationJob.loop_id, capability: publicationJob.capability, effectClass: publicationJob.effect_class, effectKey: publicationJob.effect_key, inputRefs: publicationJob.input_refs, maxAttempts: publicationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
   if (publicationQueued.prior_slot_publication) {
-    const prior = await reusePriorYouTubePublication(store, publicationJob);
+    const prior = await reusePriorYouTubePublication(store, publicationJob, currentOccurrenceId);
     if (!prior) throw new Error("YouTube prior slot publication is unavailable after enqueue refusal");
     return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id },
       publication: prior, telegram: { created: false, held: true, message_id: null } };
@@ -276,7 +289,23 @@ async function runHonneJaCycle(argv, deps = {}) {
   if (!verifyMarketingVideoPublicationReceipt(publication) || publication.provider_reconciled !== true || !direct.test(publication.public_url)) {
     throw new Error(`${lane.name} publication receipt is not account-bound and reconciled`);
   }
-  const publicationResult = { created: publicationQueued.created, ...(typeof publication.provider_effect_created === "boolean" ? { provider_effect_created: publication.provider_effect_created, ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}) } : {}), public_url: publication.public_url, provider_post_id: publication.provider_post_id };
+  const providerEffectCreated = publication.provider_effect_created === false
+    ? false
+    : (typeof currentOccurrenceId === "string" && typeof publication.origin_occurrence_id === "string"
+      ? publication.origin_occurrence_id === currentOccurrenceId
+      : publicationQueued.created);
+  const publicationResult = {
+    created: providerEffectCreated,
+    ...(typeof publication.provider_effect_created === "boolean" ? {
+      provider_effect_created: providerEffectCreated,
+      ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}),
+      ...(!providerEffectCreated && typeof currentOccurrenceId === "string"
+        ? { result_occurrence_id: currentOccurrenceId }
+        : {}),
+    } : {}),
+    public_url: publication.public_url,
+    provider_post_id: publication.provider_post_id,
+  };
   if (!telegramNativeUrlVerified(lane, env, publication.public_url)) {
     return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id }, publication: publicationResult, telegram: { created: false, held: true, message_id: null } };
   }

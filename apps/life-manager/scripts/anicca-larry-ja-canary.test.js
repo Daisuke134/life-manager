@@ -387,6 +387,44 @@ test("first canary publishes once and holds Telegram without native verification
   assert.doesNotMatch(jobs, /postiz-secret|telegram-secret|\/Users\/|openclaw/i);
 });
 
+test("reconciled canary publication binds its result occurrence without claiming a new provider effect", async (t) => {
+  const value = fixture();
+  t.after(() => fs.rmSync(value.dataDir, { recursive: true, force: true }));
+  const occurrenceId = "life-manager-anicca-larry-ja-instagram:reconcile-1";
+  const previous = Object.fromEntries(["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RUN_ID"]
+    .map((name) => [name, process.env[name]]));
+  Object.assign(process.env, {
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-larry-ja-instagram",
+    LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
+    LIFE_MANAGER_RUN_ID: "reconcile-1",
+  });
+  let result;
+  try {
+    result = await runAniccaLarryJaCanary(["run", "--slot", SLOT], {
+      env: {
+        ...value.env,
+        LIFE_MANAGER_LOOP_ID: "life-manager-anicca-larry-ja-instagram",
+        LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
+      },
+      runDistribution: providerCalls([], { provider_effect_created: false }),
+      now: () => "2026-08-26T07:31:00.000Z",
+    });
+  } finally {
+    for (const [name, oldValue] of Object.entries(previous)) {
+      if (oldValue === undefined) delete process.env[name];
+      else process.env[name] = oldValue;
+    }
+  }
+
+  assert.deepEqual(result.publication, {
+    created: false,
+    provider_effect_created: false,
+    result_occurrence_id: occurrenceId,
+    public_url: "https://www.instagram.com/p/LarryCanary1/",
+    provider_post_id: "postiz-larry-canary-1",
+  });
+});
+
 test("tenant and ordered-ref environment bindings are exact", async () => {
   const wrongTenant = fixture();
   wrongTenant.env.LM_RUNTIME_TENANT_ID = "other-tenant";
@@ -413,10 +451,28 @@ test("missing or mismatched native verification holds Telegram", async () => {
   assert.equal(publicationCalls.length, 1);
 });
 
-test("exact native verification releases one natural Telegram receipt and replay is idempotent", async () => {
+test("exact native verification releases one Telegram receipt and replay binds the current occurrence", async (t) => {
   const value = fixture();
+  const priorIdentity = Object.fromEntries(["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RUN_ID"]
+    .map((name) => [name, process.env[name]]));
+  t.after(() => {
+    for (const [name, oldValue] of Object.entries(priorIdentity)) {
+      if (oldValue === undefined) delete process.env[name];
+      else process.env[name] = oldValue;
+    }
+  });
   const publicationCalls = [];
   const telegramCalls = [];
+  const firstOccurrenceId = "life-manager-anicca-larry-ja-instagram:first-publish";
+  Object.assign(process.env, {
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-larry-ja-instagram",
+    LIFE_MANAGER_OCCURRENCE_ID: firstOccurrenceId,
+    LIFE_MANAGER_RUN_ID: "first-publish",
+  });
+  Object.assign(value.env, {
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-larry-ja-instagram",
+    LIFE_MANAGER_OCCURRENCE_ID: firstOccurrenceId,
+  });
   const options = {
     env: value.env,
     runDistribution: providerCalls(publicationCalls),
@@ -426,10 +482,20 @@ test("exact native verification releases one natural Telegram receipt and replay
   const first = await runAniccaLarryJaCanary(["run", "--slot", SLOT], options);
   const receiptPath = path.join(value.dataDir, "marketing", "receipts.jsonl");
   const publicationReceipt = JSON.parse(fs.readFileSync(receiptPath, "utf8")).receipt;
+  const replayOccurrenceId = "life-manager-anicca-larry-ja-instagram:reconcile-publish";
+  process.env.LIFE_MANAGER_OCCURRENCE_ID = replayOccurrenceId;
+  process.env.LIFE_MANAGER_RUN_ID = "reconcile-publish";
+  value.env.LIFE_MANAGER_OCCURRENCE_ID = replayOccurrenceId;
   value.env.LM_ANICCA_LARRY_JA_NATIVE_VERIFICATION_REF = verification(value, publicationReceipt);
   const replayOptions = { ...options, now: () => "2026-08-26T08:01:00.000Z" };
   const second = await runAniccaLarryJaCanary(["run", "--slot", SLOT], replayOptions);
   const third = await runAniccaLarryJaCanary(["run", "--slot", SLOT], replayOptions);
+  assert.equal(first.publication.created, true);
+  assert.equal(first.publication.origin_occurrence_id, firstOccurrenceId);
+  assert.equal(second.publication.created, false);
+  assert.equal(second.publication.provider_effect_created, false);
+  assert.equal(second.publication.origin_occurrence_id, firstOccurrenceId);
+  assert.equal(second.publication.result_occurrence_id, replayOccurrenceId);
   assert.equal(first.telegram.held, true);
   assert.deepEqual(second.telegram, { created: true, held: false, message_id: 42 });
   assert.deepEqual(third.telegram, { created: false, held: false, message_id: 42 });

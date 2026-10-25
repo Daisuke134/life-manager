@@ -66,11 +66,18 @@ async function runRotatingCarouselCanary(argv = [], { action, lane, productionSl
     throw error;
   }
   if (resolution.alreadyPublished === true) {
+    const currentOccurrenceId = typeof env.LIFE_MANAGER_OCCURRENCE_ID === "string"
+      ? env.LIFE_MANAGER_OCCURRENCE_ID
+      : process.env.LIFE_MANAGER_OCCURRENCE_ID;
     return {
       status: "already_published",
       slot: resolution.slot,
       publication: {
         created: false,
+        provider_effect_created: false,
+        ...(typeof currentOccurrenceId === "string"
+          ? { result_occurrence_id: currentOccurrenceId }
+          : {}),
         provider_post_id: resolution.providerPostId,
         provider_reconciled: true,
       },
