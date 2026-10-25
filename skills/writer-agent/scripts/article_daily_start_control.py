@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -1197,6 +1198,19 @@ def _no_effect_row(row: dict[str, Any]) -> bool:
     return not any(token in text for token in forbidden)
 
 
+def _pid_alive(pid: object) -> bool:
+    """Unknown or reused-looking pids count as alive: only a provably gone owner frees the run."""
+    if type(pid) is not int or pid <= 0:
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_id: str) -> bool:
     """A run that stopped before any destination was dispatched cannot have published.
 
@@ -1213,8 +1227,12 @@ def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_
         attempts = state.get("attempts")
         last = attempts[-1] if isinstance(attempts, list) and attempts and isinstance(attempts[-1], dict) else {}
         code = last.get("return_code")
-        if not (state.get("status") == "provider-failed-ambiguous"
-                and type(code) is int and code != 0):
+        failed = state.get("status") == "provider-failed-ambiguous" and type(code) is int and code != 0
+        # 2026-10-25: run 20261024-150602 returned (rc 0) with media blocked and no row, then
+        # the host rebooted. A returned attempt whose owner is gone can no longer dispatch.
+        returned = (state.get("status") == "provider-returned" and type(code) is int
+                    and bool(last.get("finished_at")) and not _pid_alive(last.get("owner_pid")))
+        if not (failed or returned):
             return False
     elif not all(_no_effect_row(row) for row in own):
         return False

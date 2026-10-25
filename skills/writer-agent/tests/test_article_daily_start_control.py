@@ -1401,14 +1401,15 @@ class AmbiguousPrepublicationFailureDoesNotBlockTheDayTest(unittest.TestCase):
     06:05 and 07:05 then blocked as same-jst-day-unclassified-run and no article shipped."""
 
     def _run(self, root: Path, status: str = "provider-failed-ambiguous", return_code=1,
-             publication_state: bool = False):
+             publication_state: bool = False, **attempt):
         run_id = "20261016-152709"
         run_dir = root / "runs" / run_id
         (run_dir / "gates").mkdir(parents=True)
         (run_dir / "git-hash.txt").write_text("abc\n")
         (run_dir / "article-ja.md").write_text("# ja\n")
         (run_dir / "gates" / "generation-state.json").write_text(json.dumps(
-            {"status": status, "attempts": [{"status": status, "return_code": return_code}]}))
+            {"status": status,
+             "attempts": [{"status": status, "return_code": return_code, **attempt}]}))
         if publication_state:
             (run_dir / "gates" / "publication-state.json").write_text("{}")
         (root / "articles.jsonl").write_text("")
@@ -1420,6 +1421,21 @@ class AmbiguousPrepublicationFailureDoesNotBlockTheDayTest(unittest.TestCase):
         self.assertEqual(decision["action"], "new")
         self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
         self.assertEqual(decision["previous_run_id"], "20261016-152709")
+
+    def test_returned_provider_whose_owner_died_without_dispatch_starts_a_new_run(self):
+        """2026-10-25: run 20261024-150602 returned (rc 0) with media blocked, wrote no ledger
+        row, and the host rebooted; every later 2026-10-25 start blocked as unclassified."""
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), status="provider-returned", return_code=0,
+                                 finished_at="2026-10-24T15:21:14Z", owner_pid=2 ** 22 + 7)
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+
+    def test_returned_provider_with_a_live_owner_still_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), status="provider-returned", return_code=0,
+                                 finished_at="2026-10-24T15:21:14Z", owner_pid=os.getpid())
+        self.assertNotEqual(decision["action"], "new")
 
     def test_publication_state_or_a_live_attempt_still_blocks(self):
         for kwargs in ({"publication_state": True}, {"status": "invoking", "return_code": None}):
