@@ -301,6 +301,39 @@ test('provision create and configure are separate stable jobs with read-only rec
  await assert.rejects(()=>adapter.execute(job),/inactive/);
 });
 
+test('consent recovery provision jobs are anchored and preserve their stable identity across phases',async()=>{
+ const resumeAt='2026-10-26T02:00:00.000Z';
+ const base=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA});
+ const create=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,resumeAt});
+ const configure=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure',resumeAt});
+ assert.notEqual(create.job_id,base.job_id);assert.notEqual(create.effect_key,base.effect_key);
+ assert.equal(create.input_refs.provision_resume_ref,`maritime-provision-resume://${encodeURIComponent(resumeAt)}`);
+ assert.equal(configure.job_id,buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure',resumeAt}).job_id);
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,
+  consent_v2_at:resumeAt,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},readAgent:async()=>({agentId:'agent-a',status:'active'}),
+  provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)})});
+ const proof=await adapter.reconcile({...create,available_at:row.created_at});assert.equal(proof.state,'present');
+ const next=await adapter.continuation({...create,available_at:row.created_at},proof.receipt);
+ assert.equal(next.job.job_id,configure.job_id);assert.equal(next.job.input_refs.provision_resume_ref,create.input_refs.provision_resume_ref);
+});
+
+test('reconsented configure continuation seeds the persisted resume occurrence instead of the old enrollment date',async()=>{
+ const resumeAt='2026-10-26T02:00:00.000Z';
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,
+  consent_v2_at:resumeAt,paused_at:null,created_at:'2026-09-01T00:00:00.000Z',timezone:'UTC'};
+ let ready=false,schedules=[],seededReport=null;
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},withControlLock:async(_uid,operation)=>operation(),
+  writeScheduleSnapshot:async input=>{schedules=input.snapshot.schedules;},configureWake:async()=>{ready=true;},
+  readWakeConfiguration:async()=>({ready,schedules}),seedInitialReport:async plan=>{seededReport=plan;}});
+ const job={...buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure',resumeAt}),available_at:resumeAt};
+ const {receipt}=await adapter.execute(job);const next=await adapter.continuation(job,receipt);
+ const expected=require('./maritime-manager-wake.js').buildMaritimeReconsentJobs(row);
+ assert.equal(require('./maritime-manager-runtime.js').readMaritimeCycleContract(next.job).occurrenceId,'consent-v2-resume');
+ assert.equal(next.job.job_id,expected.cycle.job.job_id);assert.equal(next.availableAt,expected.cycle.availableAt);
+ assert.deepEqual(seededReport,expected.report);
+});
+
 
 test('first configure readback failure happens after settings and recovers read-only',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};

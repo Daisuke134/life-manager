@@ -10,6 +10,7 @@ const {
   enqueueJob,
   enqueueJobAt,
   readCommonJob,
+  readRuntimeJobState,
   readCommonReceipt,
   claimJobs,
   claimReconcilingJobs,
@@ -179,6 +180,26 @@ test("Postgres rows project through the common Job contract at a tenant-scoped r
   await assert.rejects(readCommonJob({ tenantId: "tenant-a", jobId: "legacy" }, {
     query: async () => ({ rows: [{ ...row, loop_id: "legacy loop" }] }),
   }), /common Job loop_id invalid/);
+});
+
+test("runtime state read checks the complete tenant-bound job contract and exposes bounded terminal state", async () => {
+  const job = buildRuntimeJob(sampleJob({ loopId: "marketing.anicca.slideshow" }));
+  const row = { ...job, status: "dead_letter", attempt: 1, last_error_code: "MARITIME_PROVISION_CONSENT_REQUIRED" };
+  const calls = [];
+  const state = await readRuntimeJobState({ tenantId: "tenant-a", job }, {
+    query: async (sql, params) => { calls.push({ sql, params }); return { rows: [row] }; },
+  });
+  assert.deepEqual(state, { job_id: job.job_id, tenant_id: job.tenant_id, status: "dead_letter",
+    attempt: 1, max_attempts: 3, last_error_code: "MARITIME_PROVISION_CONSENT_REQUIRED" });
+  assert.match(calls[0].sql, /WHERE job_id = \$1 AND tenant_id = \$2/i);
+  assert.deepEqual(calls[0].params, [job.job_id, "tenant-a"]);
+  assert.equal(await readRuntimeJobState({ tenantId: "tenant-a", job }, { query: async () => ({ rows: [] }) }), null);
+  await assert.rejects(readRuntimeJobState({ tenantId: "tenant-a", job }, {
+    query: async () => ({ rows: [{ ...row, tenant_id: "tenant-b" }] }),
+  }), /job contract|tenant/i);
+  await assert.rejects(readRuntimeJobState({ tenantId: "tenant-a", job }, {
+    query: async () => ({ rows: [{ ...row, status: "unknown" }] }),
+  }), /state invalid/i);
 });
 
 test("immutable Postgres receipts project only with provider verification evidence", async () => {

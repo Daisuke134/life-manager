@@ -36,6 +36,16 @@ test('v2 reconsent resume jobs use the persisted consent anchor and tenant-local
  assert.equal(plans.report.job.input_refs.period_ref,'maritime-period://maritime%3Adaily%3A2026-10-26');
  assert.deepEqual(buildMaritimeReconsentJobs(row),plans);
 });
+test('authenticated wake for a reconsented tenant reuses the same persisted resume jobs',async()=>{
+ const f=fixture();const row={...enrollment,consent_v2_at:'2026-10-25T16:30:00.000Z'};
+ f.options.managerStore.read=async()=>structuredClone(row);
+ const expected=buildMaritimeReconsentJobs(row).cycle;
+ const res=response();await handleMaritimeManagerWake(request({kind:'cycle'}),res,f.options);
+ assert.equal(res.status,202);assert.equal(f.jobs.size,1);
+ const [job]=f.jobs.values();assert.equal(job.job_id,expected.job.job_id);
+ assert.equal(f.calls.find(call=>call[0]==='enqueue')[2],expected.availableAt);
+ assert.notEqual(job.job_id,buildMaritimeInitialJobs(row).cycle.job.job_id);
+});
 test('authenticated wake seeds one initial cycle and caller identity and commands have no authority',async()=>{
  const f=fixture();
  for(let n=0;n<2;n++){const res=response();await handleMaritimeManagerWake(request({kind:'cycle',uid:'foreign',tenantId:'foreign',releaseSha:'b'.repeat(40),command:'unsafe'}),res,f.options);assert.equal(res.status,202);assert.equal(res.body.accepted,true);}

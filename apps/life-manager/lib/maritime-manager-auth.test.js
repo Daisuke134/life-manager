@@ -79,7 +79,7 @@ test("manager_session_requires_a_confirmed_google_provider_identity",async()=>{
 });
 
 function activationFixture({capacityFull=false,user=USER}={}) {
-  const f=fixture({user});const rows=new Map();const jobs=new Map();
+  const f=fixture({user});const rows=new Map();const jobs=new Map();const provisionStates=new Map();
   f.deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="a".repeat(40);
   f.deps.readCommonReceipt=async()=>null;
   f.deps.withControlLock=async(_uid,operation)=>operation();
@@ -102,8 +102,9 @@ function activationFixture({capacityFull=false,user=USER}={}) {
     else jobs.set(job.job_id,{...job,available_at:availableAt});
     return {created:!existing,job:{...job,available_at:availableAt,status:"queued"}};
   };
+  f.deps.readProvisionJobState=async ({job})=>provisionStates.get(job.job_id)||null;
   f.deps.nowMs=Date.parse("2026-10-26T02:00:00.000Z");
-  f.rows=rows;f.jobs=jobs;return f;
+  f.rows=rows;f.jobs=jobs;f.provisionStates=provisionStates;return f;
 }
 function activateRequest(deps,method="POST",csrf=true){
   const {createWebCsrfToken}=require("./web-auth.js");
@@ -181,6 +182,59 @@ test("legacy_pending_or_provisioning_enrollment_requires_consent_refresh_before_
   assert.equal(rows.get(uid).release_sha,"c".repeat(40),status);assert.equal(accepted,1,status);assert.equal(reconsented,1,status);
   assert.equal(jobs.size,1,status);assert.equal([...jobs.values()][0].input_refs.release_ref,`release://git/${"c".repeat(40)}`,status);
  }
+});
+
+test("legacy_pending_reconsent_restarts_only_a_known_no_effect_dead_letter_with_a_new_stable_job",async()=>{
+ const {deps,rows,jobs,provisionStates}=activationFixture();const uid=`lm_${SUBJECT}`,releaseSha="c".repeat(40);
+ rows.set(uid,{uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"pending",source:"direct",
+  consent_version:"maritime-manager-v1",agent_id:null,release_sha:releaseSha,paused_at:null});
+ const runtime=require("./maritime-manager-runtime.js");
+ const original=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha});
+ provisionStates.set(original.job_id,{job_id:original.job_id,tenant_id:uid,status:"dead_letter",attempt:1,
+  last_error_code:"MARITIME_PROVISION_CONSENT_REQUIRED"});
+ const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,202);assert.equal(jobs.size,1);
+ const resumed=[...jobs.values()][0];assert.notEqual(resumed.job_id,original.job_id);
+ assert.equal(resumed.input_refs.provision_resume_ref,`maritime-provision-resume://${encodeURIComponent("2026-10-26T02:00:00.000Z")}`);
+ assert.notEqual(resumed.effect_key,original.effect_key);
+});
+
+test("legacy provision recovery refuses dead letters without the exact no-effect consent guard",async()=>{
+ const {deps,rows,jobs,provisionStates}=activationFixture();const uid=`lm_${SUBJECT}`,releaseSha="c".repeat(40);
+ rows.set(uid,{uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"pending",source:"direct",
+  consent_version:"maritime-manager-v1",agent_id:null,release_sha:releaseSha,paused_at:null});
+ const original=require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha});
+ provisionStates.set(original.job_id,{job_id:original.job_id,tenant_id:uid,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_UNCONFIGURED"});
+ const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,503);assert.equal(jobs.size,0);
+});
+
+test("active legacy reconsent resumes a consent-guarded configure job before scheduling work",async()=>{
+ const {deps,rows,jobs,provisionStates}=activationFixture();const uid=`lm_${SUBJECT}`,releaseSha="a".repeat(40);
+ const active={uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",
+  consent_version:"maritime-manager-v1",agent_id:"agent-a",release_sha:releaseSha,paused_at:null};rows.set(uid,active);
+ const runtime=require("./maritime-manager-runtime.js");
+ const original=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha,phase:"configure"});
+ provisionStates.set(original.job_id,{job_id:original.job_id,tenant_id:uid,status:"dead_letter",attempt:1,
+  last_error_code:"MARITIME_PROVISION_CONSENT_REQUIRED"});
+ deps.readCommonReceipt=async()=>null;
+ const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,202);assert.equal(jobs.size,1);
+ const resumed=[...jobs.values()][0];assert.notEqual(resumed.job_id,original.job_id);
+ assert.equal(resumed.capability,"maritime.manager.provision");
+ assert.equal(resumed.input_refs.provision_phase_ref,"maritime-provision-phase://configure");
+ assert.ok(resumed.input_refs.provision_resume_ref);
+});
+
+test("active legacy reconsent leaves an unknown configure effect fenced",async()=>{
+ const {deps,rows,jobs,provisionStates}=activationFixture();const uid=`lm_${SUBJECT}`,releaseSha="a".repeat(40);
+ rows.set(uid,{uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",
+  consent_version:"maritime-manager-v1",agent_id:"agent-a",release_sha:releaseSha,paused_at:null});
+ const configure=require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha,phase:"configure"});
+ provisionStates.set(configure.job_id,{job_id:configure.job_id,tenant_id:uid,status:"reconciling",attempt:1,last_error_code:"PROVIDER_RESULT_UNKNOWN"});
+ deps.readCommonReceipt=async()=>null;
+ const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,409);assert.equal(jobs.size,0);
 });
 
 test("paused_or_unknown_enrollment_does_not_request_new_provisioning",async()=>{

@@ -82,7 +82,8 @@ async function handleMaritimeManagerWake(request,response,options={}){
   if(!enrollment||enrollment.uid!==identity.uid||enrollment.agent_id!==identity.agentId||enrollment.release_sha!==identity.releaseSha){send(response,403,{accepted:false,error:'wake_binding_rejected'});return true;}
   if(enrollment.status!=='active'||enrollment.paused_at){send(response,409,{accepted:false,error:'manager_inactive'});return true;}
   if(enrollment.consent_version!==MANAGER_CONSENT_VERSION){send(response,409,{accepted:false,error:'manager_consent_required'});return true;}
-  const plan=buildMaritimeInitialJobs(enrollment)[kind];
+  const plans=enrollment.consent_v2_at?buildMaritimeReconsentJobs(enrollment):buildMaritimeInitialJobs(enrollment);
+  const plan=plans[kind];
   if(!(options.isCapabilityRegistered||registered)(plan.job.capability)){send(response,503,{accepted:false,error:'worker_capability_unavailable'});return true;}
   const queued=await (options.enqueueJobAt||require('./runtime-job-store.js').enqueueJobAt)(plan.job,plan.availableAt,options.storeOptions||{});
   if(typeof queued?.created!=='boolean'||queued.job?.job_id!==plan.job.job_id||queued.job?.tenant_id!==identity.uid

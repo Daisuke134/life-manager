@@ -55,15 +55,51 @@ async function handleMaritimeManagerAuth(req, res) {
 async function managerReady(row, options) {
   const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
   if (row?.status !== "active" || row.paused_at || !row.agent_id || row.consent_version !== MANAGER_CONSENT_VERSION) return false;
-  const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({
-    tenantId: row.uid, releaseSha: row.release_sha, phase: "configure",
-  });
-  const receipt = await (options.readCommonReceipt || require("./runtime-job-store.js").readCommonReceipt)({
-    tenantId: row.uid, jobId: job.job_id, attempt: 1,
-  }, options.storeOptions || {});
   const ref = `maritime-agent://${row.agent_id}`;
-  return Boolean(receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
-    && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref));
+  const runtime = require("./maritime-manager-runtime.js");
+  const jobs = [runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase: "configure" })];
+  if (typeof row.consent_v2_at === "string" && Number.isFinite(Date.parse(row.consent_v2_at))) {
+    jobs.push(runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha,
+      phase: "configure", resumeAt: new Date(row.consent_v2_at).toISOString() }));
+  }
+  const readReceipt = options.readCommonReceipt || require("./runtime-job-store.js").readCommonReceipt;
+  for (const job of jobs) {
+    const receipt = await readReceipt({ tenantId: row.uid, jobId: job.job_id, attempt: 1 }, options.storeOptions || {});
+    if (receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
+      && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref)) return true;
+  }
+  return false;
+}
+async function enqueueMaritimeProvisionRecovery(row, phase, options) {
+  const build = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob;
+  const base = build({ tenantId: row.uid, releaseSha: row.release_sha, phase });
+  const readState = options.readProvisionJobState || require("./runtime-job-store.js").readRuntimeJobState;
+  const read = async job => readState({ tenantId: row.uid, job }, options.storeOptions || {});
+  let job = base;
+  let state = await read(base);
+  if (state && (state.job_id !== job.job_id || state.tenant_id !== row.uid
+    || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(state.status))) {
+    throw new Error("provision_state_invalid");
+  }
+  if (state?.status === "dead_letter" && state.last_error_code === "MARITIME_PROVISION_CONSENT_REQUIRED"
+    && state.attempt === 1 && typeof row.consent_v2_at === "string" && Number.isFinite(Date.parse(row.consent_v2_at))) {
+    const resumeAt = new Date(row.consent_v2_at).toISOString();
+    job = build({ tenantId: row.uid, releaseSha: row.release_sha, phase, resumeAt });
+    state = await read(job);
+    if (state && (state.job_id !== job.job_id || state.tenant_id !== row.uid
+      || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(state.status))) {
+      throw new Error("provision_state_invalid");
+    }
+  }
+  if (state) return { created: false, job: { ...job, status: state.status } };
+  const enqueue = options.enqueueJob || require("./runtime-job-store.js").enqueueJob;
+  const queued = await enqueue(job, options.storeOptions || {});
+  if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
+    || queued.job?.tenant_id !== row.uid
+    || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(queued.job.status)) {
+    throw new Error("provision_enqueue_receipt_invalid");
+  }
+  return queued;
 }
 async function enqueueMaritimeReconsentJobs(row, options) {
   const plans = require("./maritime-manager-wake.js").buildMaritimeReconsentJobs(row);
@@ -151,11 +187,41 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
           throw new Error("manager_reconsent_unconfirmed");
         }
         const ready = await managerReady(updated, options);
-        if (ready) await enqueueMaritimeReconsentJobs(updated, options);
-        send(res, ready ? 200 : 202, { status: ready ? "active" : "pending", consentUpdated: true });
+        if (ready) {
+          await enqueueMaritimeReconsentJobs(updated, options);
+          send(res, 200, { status: "active", consentUpdated: true });
+          return true;
+        }
+        const provision = await enqueueMaritimeProvisionRecovery(updated, "configure", options);
+        if (provision.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
+        if (provision.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
+        if (provision.job.status === "completed") {
+          const latest = await store.read(user.uid);
+          if (await managerReady(latest, options)) {
+            await enqueueMaritimeReconsentJobs(latest, options);
+            send(res, 200, { status: "active", consentUpdated: true });
+          } else send(res, 409, { error: "provision_state_unconfirmed" });
+          return true;
+        }
+        send(res, 202, { status: "pending", consentUpdated: true });
         return true;
       }
       const ready = await managerReady(existing, options);
+      if (!ready && existing.consent_v2_at) {
+        const provision = await enqueueMaritimeProvisionRecovery(existing, "configure", options);
+        if (provision.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
+        if (provision.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
+        if (provision.job.status === "completed") {
+          const latest = await store.read(user.uid);
+          if (await managerReady(latest, options)) {
+            await enqueueMaritimeReconsentJobs(latest, options);
+            send(res, 200, { status: "active" });
+          } else send(res, 409, { error: "provision_state_unconfirmed" });
+          return true;
+        }
+        send(res, 202, { status: "pending" });
+        return true;
+      }
       if (ready && existing.consent_v2_at) await enqueueMaritimeReconsentJobs(existing, options);
       send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
     }
@@ -173,8 +239,10 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
       catch { /* Acquisition telemetry cannot authorize or duplicate business work. */ }
     }
     const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({ tenantId: user.uid, releaseSha: row.release_sha });
-    const queued = await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job);
-    if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
+    const queued = retentionAccepted
+      ? await enqueueMaritimeProvisionRecovery(row, "create", options)
+      : await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job);
+    if (!queued || typeof queued.created !== "boolean" || (!retentionAccepted && queued.job?.job_id !== job.job_id)
       || queued.job?.tenant_id !== user.uid) throw new Error("enqueue_receipt_invalid");
     if (queued.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
     if (queued.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
