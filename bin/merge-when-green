@@ -8,14 +8,34 @@ pr="${1:?usage: merge-when-green <pr> [merge args]}"; shift
 [ $# -eq 0 ] && set -- --squash --admin
 poll="${MERGE_WHEN_GREEN_POLL:-20}"; tries="${MERGE_WHEN_GREEN_TRIES:-90}"
 for _ in $(seq 1 "$tries"); do
-  head="$(gh pr view "$pr" --json headRefOid --jq .headRefOid 2>/dev/null)"
-  buckets="$(gh pr checks "$pr" --json bucket --jq '.[].bucket' 2>/dev/null)"
-  if [ -z "${buckets//[[:space:]]/}" ] || [ -z "$head" ]; then
+  snapshot="$(gh pr view "$pr" --json headRefOid,statusCheckRollup --jq '
+    def bucket:
+      if .__typename == "CheckRun" then
+        if .status != "COMPLETED" then "pending"
+        elif .conclusion == "SUCCESS" or .conclusion == "NEUTRAL" or .conclusion == "SKIPPED" then "pass"
+        else "fail" end
+      elif .__typename == "StatusContext" then
+        if .state == "SUCCESS" then "pass"
+        elif .state == "PENDING" or .state == "EXPECTED" then "pending"
+        else "fail" end
+      else "fail" end;
+    .headRefOid as $head
+    | ((.statusCheckRollup // []) | map(bucket)) as $states
+    | [$head, (if ($states | length) == 0 then "none"
+               elif ($states | index("fail")) != null then "fail"
+               elif ($states | index("pending")) != null then "pending"
+               else "green" end)]
+    | @tsv
+  ' 2>/dev/null)" || snapshot=""
+  IFS=$'\t' read -r head state <<< "$snapshot"
+  if [ -z "$head" ] || [ -z "$state" ] || [ "$state" = "none" ]; then
     echo "merge-when-green: no checks or head for #$pr (gh error or none registered)" >&2; sleep "$poll"; continue
   fi
-  case " $(echo $buckets) " in
-    *" fail "*|*" cancel "*) echo "merge-when-green: #$pr has a failed check; not merging" >&2; exit 2 ;;
-    *" pending "*) sleep "$poll"; continue ;;
+  case "$state" in
+    fail) echo "merge-when-green: #$pr has a failed check; not merging" >&2; exit 2 ;;
+    pending) sleep "$poll"; continue ;;
+    green) ;;
+    *) echo "merge-when-green: #$pr has an unknown check state '$state'; not merging" >&2; exit 2 ;;
   esac
   # CodeRabbit may pass before GitHub registers the mandatory workflow's jobs.
   workflow="$(gh run list --workflow sec-scan.yml --commit "$head" --event pull_request --limit 1 \
