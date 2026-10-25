@@ -1488,6 +1488,33 @@ def test_model_no_response_still_waits_for_the_effect_window():
     assert not proof_nr(30, {"ok": True, "commits": []}, MANUAL_POST, NO_RESPONSE)["verified"]
 
 
+def proof_nr_finished(now_min, finished):
+    return rec.build_proof(OCC, Q, started_at=Q, expected_slug=EXPECTED_SLUG,
+                           now=Q + dt.timedelta(minutes=now_min), commits={"ok": True, "commits": []},
+                           x_posts=MANUAL_POST, page_status_fn=lambda s: 200,
+                           model_no_response={**NO_RESPONSE, "expected_slot": "2026-09-29-h15"},
+                           run_finished=finished)
+
+
+def test_model_no_response_skips_the_85_minute_wait_only_once_the_run_has_finished():
+    """2026-10-25: a busy-Codex defer (rc 75 in ~1s) left distribution stopped for 85 minutes per defer.
+    The wait exists so a still-running wrapper cannot publish after the proof; a report event removes that risk."""
+    assert proof_nr_finished(10, True)["verified"] is True
+    assert proof_nr_finished(10, True)["proof_kind"] == "occurrence_bound_model_no_response"
+    assert proof_nr_finished(10, False)["verified"] is False
+
+
+def test_run_finished_reads_only_this_occurrences_report_event(tmp_path):
+    events = tmp_path / "events.jsonl"
+    rows = [{"owner_id": rec.OWNER_ID, "run_id": "r1", "occurrence_id": OCC, "phase": "execute", "status": "running"},
+            {"owner_id": rec.OWNER_ID, "run_id": "r2", "occurrence_id": "capafy-distribute-daily:r2", "phase": "report"}]
+    events.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    assert rec.occurrence_run_finished(OCC, events_path=events) is False
+    rows.append({"owner_id": rec.OWNER_ID, "run_id": OCC.split(":", 1)[1], "occurrence_id": OCC, "phase": "report"})
+    events.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    assert rec.occurrence_run_finished(OCC, events_path=events) is True
+
+
 # --- reading the evidence from the daily log + ledger (real shape captured 2026-10-24) ---
 STARTED = dt.datetime(2026, 10, 24, 5, 25, 24, 569423, tzinfo=dt.timezone.utc)  # 14:25:24 JST
 FAILED_BLOCK = """\\
