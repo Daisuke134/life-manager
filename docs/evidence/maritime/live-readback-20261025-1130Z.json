@@ -1,0 +1,79 @@
+{
+  "observed_at": "2026-10-25T11:30:13Z",
+  "source": {
+    "repository": "Daisuke134/life-manager",
+    "origin_main": "5b019d6b9b08f01f0eef45ae94b3aebccc8ea264",
+    "candidate_branch": "feat/lm-cloud-capafy-first-20261025",
+    "candidate_commit": "2c1b04989cdf5cefb30e8e3c99e146a05950ee6e",
+    "candidate_merged": false
+  },
+  "public_web": {
+    "observed_at": "2026-10-25T11:29:57Z",
+    "routes": [
+      {
+        "url": "https://aniccaai.com/lm",
+        "status": 200,
+        "bytes": 8239,
+        "sha256": "4b9e8c7d4a7abeb33b39efd706c22082f3159e7a83040cfb86e8a8a5ac7025cb"
+      },
+      {
+        "url": "https://aniccaai.com/lm/ja",
+        "status": 200,
+        "bytes": 9104,
+        "sha256": "f799198122c98cd770959656982a69b8dc6599951be3e5ad58a39e478afec45c"
+      },
+      {
+        "url": "https://aniccaai.com/maritime?lang=en",
+        "status": 404
+      },
+      {
+        "url": "https://life-call-production.up.railway.app/maritime?lang=en",
+        "status": 200,
+        "bytes": 5708,
+        "sha256": "d1b418885714deb84561f2a12cf21f7d59f067b72ab37797e4440ee2e77f5c50",
+        "contains_pilot_copy": true,
+        "contains_google_sign_in": false
+      }
+    ]
+  },
+  "railway": {
+    "project": "Anicca",
+    "environment": "production",
+    "service": "life-call",
+    "latest_deployment": {
+      "id": "812300a2-0080-4d01-a0ef-dd6b445c5f3e",
+      "status": "SUCCESS",
+      "created_at": "2026-10-25T08:10:22.658Z"
+    },
+    "pending_work": [],
+    "lm_maritime_web_origin_variable_present": false,
+    "note": "Recent main deployments were SKIPPED; no candidate from this branch is deployed."
+  },
+  "other_source_claim": {
+    "pull_request": 8745,
+    "url": "https://github.com/Daisuke134/life-manager/pull/8745",
+    "state": "OPEN",
+    "draft": true,
+    "head": "940d9cbe751cc14ee95c41c3729344d8a778a63f",
+    "base": "1a69fa9b8266870bca205ea70e6b69ad6635f57e",
+    "current_main": "5b019d6b9b08f01f0eef45ae94b3aebccc8ea264",
+    "ownership": "Preserve the existing claimant; this worktree does not modify that PR."
+  },
+  "capafy_policy": {
+    "publisher_agreement": "https://capafy.ai/publisher-agreement/",
+    "version": "v1.2",
+    "effective_date": "2026-09-28",
+    "section_2_9": "Each Publisher (individual or entity under common control) may hold only one Publisher Account unless Capafy grants written approval for additional accounts.",
+    "certification": "https://capafy.ai/developer/doc/1.3",
+    "payout_setup": "https://capafy.ai/developer/doc/3.5",
+    "payout_details_required_to_publish": false,
+    "new_duplicate_publisher_account_created": false
+  },
+  "unverified": [
+    "Supabase production redirect allowlist contains the exact first-party callback.",
+    "A tenant has completed Google sign-in, consent, Maritime VM provisioning, and a real Capafy action.",
+    "A verified provider receipt and result email exist for one same-tenant work occurrence.",
+    "The Life Manager Cloud chat UI and public tenant-bound message API are implemented.",
+    "Cloud billing, current paid MRR, gross margin, qualifying-user count, and current distribution conversion metrics."
+  ]
+}

@@ -53,7 +53,7 @@ const {
   handleLateApprovalCallback,
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
-const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
+const { configuredCloudOrigin, handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
 const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop,
   handleMaritimeManagerCapafyConnection } = require("./lib/maritime-manager-auth.js");
 const { handleMaritimeManagerArtifact } = require("./lib/maritime-manager-artifacts.js");
@@ -259,9 +259,9 @@ function getMaritimeManagerDependencies() {
   return maritimeManagerDependencies;
 }
 function maritimeManagerHttpOptions() {
-  const options = { publicOrigin: LM_PANEL_BASE };
+  const options = { publicOrigin: LM_MARITIME_WEB_ORIGIN };
   if (process.env.LM_MARITIME_MANAGER_EMAIL_ENABLED !== "1") return options;
-  return { ...options, ...getMaritimeManagerDependencies(), env: process.env,
+  return { ...getMaritimeManagerDependencies(), ...options, env: process.env,
     query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) };
 }
 function getInvestmentStateStore() {
@@ -442,6 +442,7 @@ function browserCastPublicUrl(ticket, env = process.env) {
 // Railway supplies RAILWAY_PUBLIC_DOMAIN; LM_PANEL_BASE_URL is the explicit override for custom domains.
 const LM_PANEL_BASE = process.env.LM_PANEL_BASE_URL ||
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
+const LM_MARITIME_WEB_ORIGIN = configuredCloudOrigin(process.env);
 
 function panelOriginForPath(path) {
   return String(path).startsWith("/api/panel/money-printer") ? PUBLIC_BASE : LM_PANEL_BASE;
@@ -780,7 +781,7 @@ const server = http.createServer(async (req, res) => {
     if (path === "/auth/google") {
       void recordWebFunnelRequest(req.url, { method: req.method, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
     }
-    handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+    handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE, cloudPublicOrigin: LM_MARITIME_WEB_ORIGIN }).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(302, { location: "/lm?auth_error=connection", "cache-control": "no-store", "content-length": "0" });
       res.end();

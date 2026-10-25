@@ -3,12 +3,11 @@
 const { createHmac, createHash } = require("node:crypto");
 const { recordWebFunnelEvent } = require("./web-funnel-events.js");
 const { sanitizeWebAttribution } = require("./web-attribution.js");
-const { CAPAFY_TERMS_URL, CAPAFY_PRIVACY_URL } = require("./maritime-manager-capafy-binding.js");
 
 const DEFAULT_PUBLIC_MAX_USERS = 25;
 const MAX_PUBLIC_USERS = 1000;
 const CONSENT_VERSION = "maritime-retention-v1";
-const MANAGER_CONSENT_VERSION = "maritime-manager-v1";
+const MANAGER_CONSENT_VERSION = "maritime-manager-v2";
 const PARTICIPANT_ID_RE = /^[a-f0-9]{64}$/;
 const SOURCES = new Set([
   "landing", "aniccaai", "x", "instagram", "reddit", "discord", "telegram", "community", "referral", "hackathon", "direct", "other",
@@ -45,90 +44,63 @@ function sourceAttribution(source, medium = "telegram") {
   };
 }
 
-function renderMaritimeLanding({ source = "direct", language = "en", user = null, state = null, telegramAvailable = false,
-  capafyStatus = null } = {}) {
+function renderMaritimeLanding({ source = "direct", language = "en", user = null, state = null, workbench = null,
+  workbenchUnavailable = false, telegramAvailable = false, authError = null } = {}) {
   const campaignSource = normalizeMaritimeSource(source);
   const ja = String(language).toLowerCase().startsWith("ja");
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const copy = ja ? {
-    title: "あなたの人生を先回りして支える、Life Manager Cloud。",
-    intro: "仕事、お金、日々の用事、身体、心。Life Managerは必要な仕事を選び、実行して結果を確かめる汎用エージェントです。Cloud版はMaritime上のテナント別環境で動くよう設計されています。目標・予算の入力は必須ではありません。Telegramは任意です。",
-    scope: "Cloudの商品作成からCapafy公開までの接続は開発中です。公式の公開レシートが確認されるまでは、商品公開・売上・入金を完了済みとは表示しません。",
-    notice: "開始後、業務に必要な入力・結果をMaritimeへ送信します。Maritime AI credits経由のmodel callは、同社Privacy Policy上、account削除後も無期限保持の対象です。停止は送信済みデータの削除ではありません。",
-    email: "メールアドレス", signup: "確認メールを受け取る", check: "確認メールを送信しました。このブラウザでリンクを開いてください。",
-    consent: "Maritimeのデータ保持条件を確認し、Life Manager Cloudの自律実行を許可します。", activate: "Life Manager Cloudを開始する",
-    queued: "Cloud環境の準備を受け付けました。公開や収益は公式レシートで確認できた場合だけ表示します。",
+    title: "暮らしの仕事を進める、Life Manager Cloud。",
+    intro: "Googleログインは本人確認とメールアドレスの取得に使用し、Calendar接続や個人Gmail受信箱の読み取り権限は求めません。確認済みメールは連絡先と結果報告に使います。プラットフォームの認証メール確認にはテナント専用の隔離メールボックスを使う予定ですが、自動作成機能はまだ利用できません。個人Gmail受信箱は読み取りません。初回にタスク、目標、予算を入力する必要はありません。Calendarは必要な仕事が出た時に接続できます。Telegramは任意です。",
+    scope: "Life Managerは、あなたが承認したPublisherアカウントを使ってCapafyの需要調査・制作・配布・結果確認を自律的に行います。最初のSkill公開前にPublisher Certificationが必要で、本人確認と返金不可のUS$0.99申請料がかかります。必要書類は地域・Publisher種別で異なります。新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります。規約同意、本人確認、Certification、料金、必要なPublisher確認はご本人が行います。Capafyによると、振込先情報は認証後に追加でき、公開前には不要です。公開や収益を確認できるまで、公開済み・収益発生とは報告しません。仕事から確認済み結果、メール報告までの全経路はまだ検証中です。収益は保証されません。",
+    notice: "開始後、業務に必要な入力と結果をMaritimeへ送信します。Maritime AI credits経由のmodel callは、MaritimeのPrivacy Policy上、アカウント削除後も無期限保持の対象です。停止しても送信済みデータは削除されません。",
+    googleSignin: "Googleアカウントで続ける",
+    signinError: "Googleログインを完了できませんでした。もう一度お試しください。",
+    consent: "データ保持条件を確認しました。自律作業を許可し、確認済みサインインメールを使った、承認済みPublisherアカウントの登録・利用に同意します。テナント専用メールボックス機能が利用可能になり、認証メール確認に必要な場合、Life Managerがそれを用意・利用することを許可します。Googleログインだけで個人Gmail受信箱にアクセスすることはなく、読み取りません。確認済みメールへの状況・結果レポートに同意します。規約同意・本人確認・Publisher確認はご本人が行います。", activate: "Life Manager Cloudを開始する", reconsent: "更新内容に同意して続ける",
+    queued: "開始を受け付けました。専用VMの準備を進めています。仕事の完了や収益は、確認できる結果が得られるまで確定扱いしません。",
     failed: "開始できませんでした。しばらくしてから状態を確認してください。", signedIn: "確認済みメール",
     stop: "Life Managerを停止する", stopped: "新しい仕事と今後のメールを停止しました。", stopPending: "新しい仕事と今後のメールは停止済みです。一部の停止設定は確認待ちです。", stopFailed: "停止を確認できませんでした。もう一度お試しください。",
     stopNote: "進行中の処理は完了する場合があります。その結果確認は続けます。既存データは削除しません。",
-    capafyTitle: "収益ワークフロー · Capafy",
-    capafyDescription: "ご本人の検証済みCapafy開発者アカウントを接続できます。トークンはテナントごとに暗号化して保存され、画面には返しません。切断するとLife Manager内のトークンを削除しますが、Capafy側のセッションは失効しません。接続だけでは公開されず、売上も保証されません。",
-    capafyEmail: "Capafyアカウントのメールアドレス", capafyStart: "確認コードを送信", capafyCode: "Capafyから届いた確認コード",
-    capafyPolicyIntro: "確認コードを送る前に、Capafyの利用規約とプライバシーポリシーを確認してください。",
-    capafyPolicyConsent: "Capafyの利用規約とプライバシーポリシーに同意します。",
-    capafyConsent: "Capafyの公式確認手順に従い、今後の商品準備・公開にこのアカウントを使うことを許可します。",
-    capafyVerify: "アカウントを確認して接続", capafyConnected: "Capafy開発者アカウントを接続済み（接続時に本人確認済み）",
-    capafyDisconnect: "Capafyを切断する", capafyUnavailable: "アカウント接続状態を確認できません。時間をおいて再読み込みしてください。",
-    capafyDisabled: "このCloud環境ではCapafy接続はまだ有効化されていません。",
-    capafyPaused: "Capafy接続はLife Manager Cloudを再開してから行えます。",
-    capafyConnectedDisabled: "Capafyアカウント接続済み（自動処理は現在停止中）",
-    capafyCheck: "Capafyから届いたコードを入力し、利用許可を確認してください。", capafySaved: "Capafyアカウントを接続しました。",
-    capafyRemoved: "Capafyアカウントを切断しました。", capafyFailed: "Capafyとの接続を確認できませんでした。状態を確認して再試行してください。",
-    states: { pending: "開始準備中", provisioning: "開始準備中", active: "稼働中", paused: "停止中", effect_unknown: "実行結果を確認中" },
+    states: { pending: "開始準備中", provisioning: "開始準備中", consent_required: "同意内容が更新されました。内容を確認して続行してください。", active: "Life Managerは稼働中です。Capafyでの公開と収益はまだ確認できていません。", paused: "停止中", effect_unknown: "実行結果を確認中" },
   } : {
-    title: "Your whole life. A manager that takes initiative.",
-    intro: "Work, money, everyday tasks, body, and mind. Life Manager is a proactive general agent designed to choose useful work, act, and verify results. Life Manager Cloud is designed to run in a tenant-isolated Maritime environment. Goal and budget setup are not required. Telegram is optional.",
-    scope: "The Cloud path from product creation to Capafy publication is still being connected. We show publication, sales, and payouts only after official provider receipts confirm them.",
-    notice: "Starting Life Manager Cloud sends necessary work inputs and results to Maritime. Its Privacy Policy says model calls through Maritime AI credits are retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
-    email: "Email address", signup: "Continue with email", check: "Check your email and open the link in this browser.",
-    consent: "I have reviewed Maritime's data-retention terms and authorize Life Manager Cloud to run work autonomously.", activate: "Start Life Manager Cloud",
-    queued: "Your Cloud environment is being prepared. Publications and earnings appear only after official receipts confirm them.",
+    title: "Life Manager Cloud gets your work moving.",
+    intro: "Google sign-in verifies your identity and supplies your verified email address; it does not connect Calendar or grant access to your personal Gmail inbox. Life Manager Cloud uses that address for authorized platform contact and result reports. A tenant-isolated mailbox is the planned path if platform email verification needs inbox access, but automatic mailbox provisioning is not yet available. Life Manager does not read your personal Gmail inbox. No task prompt is needed to start. Calendar can be connected later if a task needs it. Goals, budgets, and Telegram setup are not required to get started.",
+    scope: "Life Manager autonomously researches demand, creates work, distributes it through authorized surfaces, and checks outcomes using the Publisher account you authorize. Capafy requires Publisher Certification before your first Skill can publish, including an identity review and a non-refundable US$0.99 application fee; required documents depend on region and publisher type. Capafy requires the publisher to confirm the selected Skills and configuration on Capafy's website for each new or updated version. Terms acceptance, identity checks, certification, fees, and required Publisher confirmations remain yours. Capafy says payout details can be added after certification and are not required to publish. Life Manager will not report a live listing or earnings until Capafy confirms them. The complete path from work through verified result and email report has not yet been verified. Earnings are not guaranteed.",
+    notice: "Starting Life Manager Cloud sends necessary work inputs and results to Maritime. Maritime’s Privacy Policy says model calls through Maritime AI credits can be retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
+    googleSignin: "Continue with Google",
+    signinError: "Google sign-in did not complete. Please try again.",
+    consent: "I have read the data-retention terms. I authorize autonomous work, including using my verified sign-in email to register or sign in to my authorized Publisher account and handle supported platform work. If tenant-mailbox provisioning becomes available and platform email verification needs an inbox, I authorize Life Manager to provision and use a mailbox isolated to my tenant. Google sign-in alone does not grant access to my personal Gmail inbox, and Life Manager will not read it. I agree to receive status and result reports at my verified email. Legal, identity, and Publisher confirmations remain mine.", activate: "Start Life Manager Cloud", reconsent: "Agree to the updated terms and continue",
+    queued: "Your start request is queued and your dedicated VM is being prepared. Work and earnings are not treated as complete until results are verified.",
     failed: "We could not start the manager. Please check the status again shortly.", signedIn: "Verified email",
     stop: "Stop Life Manager", stopped: "New work and future emails are paused.", stopPending: "New work and future emails are paused. Some stop settings are awaiting confirmation.", stopFailed: "We could not confirm the stop. Please try again.",
     stopNote: "Work already in progress may finish. Its result checks continue. Existing data is retained.",
-    capafyTitle: "Money workflow · Capafy",
-    capafyDescription: "Connect your own verified Capafy developer account. Its access token is encrypted for your tenant and is never returned to this page. Disconnecting removes Life Manager's stored token but does not revoke your Capafy sessions. Connecting alone does not publish anything or guarantee sales.",
-    capafyEmail: "Email on your Capafy account", capafyStart: "Send verification code", capafyCode: "Verification code from Capafy",
-    capafyPolicyIntro: "Before sending an email code, review Capafy's Terms of Service and Privacy Policy.",
-    capafyPolicyConsent: "I agree to Capafy's Terms of Service and Privacy Policy.",
-    capafyConsent: "I authorize Life Manager to use this account for future product preparation and publication, following Capafy's required confirmation steps.",
-    capafyVerify: "Verify and connect account", capafyConnected: "Capafy developer account connected (verified when linked)",
-    capafyDisconnect: "Disconnect Capafy", capafyUnavailable: "We could not verify the connection status. Reload and try again later.",
-    capafyDisabled: "Capafy account connection is not enabled on this Cloud environment yet.",
-    capafyPaused: "Resume Life Manager Cloud before connecting a Capafy account.",
-    capafyConnectedDisabled: "Capafy account connected; automated work is currently disabled.",
-    capafyCheck: "Enter the code Capafy emailed you and confirm the account authorization.", capafySaved: "Capafy account connected.",
-    capafyRemoved: "Capafy account disconnected.", capafyFailed: "We could not confirm the Capafy connection. Check the status and try again.",
-    states: { pending: "Preparing your manager", provisioning: "Preparing your manager", active: "Active", paused: "Paused", effect_unknown: "Checking execution results" },
+    states: { pending: "Preparing your manager", provisioning: "Preparing your manager", consent_required: "Please review and accept the updated authorization before work continues.", active: "Life Manager is active; Capafy listing and earnings are not verified yet.", paused: "Paused", effect_unknown: "Checking execution results" },
   };
-  const ready = user && state == null;
+  const ready = user && (state == null || state === "consent_required");
+  const authFeedback = authError === "connection" ? copy.signinError : "";
   const controls = !user
-    ? `<form id="signup" method="post" action="/auth/maritime/email"><label for="email">${copy.email}</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="320"><button type="submit">${copy.signup}</button></form>`
+    ? `<a class="signin" id="google-signin" href="/auth/google?intent=maritime_cloud&lang=${ja ? "ja" : "en"}">${copy.googleSignin}</a>`
     : `<p>${copy.signedIn}: <strong>${escape(user.email)}</strong></p>${ready
-      ? `<label class="consent"><input id="consent" type="checkbox">${copy.consent}</label><button type="button" data-action="activate" data-csrf="${escape(user.csrf)}" data-consent="${MANAGER_CONSENT_VERSION}" disabled>${copy.activate}</button>`
+      ? `${state === "consent_required" ? `<p role="status">${copy.states.consent_required}</p>` : ""}<label class="consent"><input id="consent" type="checkbox">${copy.consent}</label><button type="button" data-action="activate" data-csrf="${escape(user.csrf)}" data-consent="${MANAGER_CONSENT_VERSION}" disabled>${state === "consent_required" ? copy.reconsent : copy.activate}</button>`
       : `<p role="status" data-manager-state>${copy.states[state] || copy.failed}</p>`}`;
-  const capafyPanel = user && state != null && capafyStatus != null ? `<section id="capafy-account"><h2>${copy.capafyTitle}</h2><p>${copy.capafyDescription}</p>${capafyStatus === "connected" || capafyStatus === "connected_disabled"
-    ? `<p role="status">${capafyStatus === "connected_disabled" ? copy.capafyConnectedDisabled : copy.capafyConnected}</p><button type="button" data-action="capafy-disconnect" data-csrf="${escape(user.csrf)}">${copy.capafyDisconnect}</button>`
-    : capafyStatus === "not_connected" && state === "active" ? `<form data-action="capafy-connect" data-csrf="${escape(user.csrf)}"><label for="capafy-email">${copy.capafyEmail}</label><input id="capafy-email" name="email" type="email" autocomplete="email" required maxlength="320"><p>${copy.capafyPolicyIntro} <a id="capafy-terms" href="${CAPAFY_TERMS_URL}" target="_blank" rel="noopener noreferrer">${ja ? "利用規約" : "Terms of Service"}</a> · <a id="capafy-privacy" href="${CAPAFY_PRIVACY_URL}" target="_blank" rel="noopener noreferrer">${ja ? "プライバシーポリシー" : "Privacy Policy"}</a></p><label class="consent"><input id="capafy-policy-consent" type="checkbox">${copy.capafyPolicyConsent}</label><button type="submit" disabled>${copy.capafyStart}</button><div id="capafy-verification" hidden><label for="capafy-code">${copy.capafyCode}</label><input id="capafy-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{4,8}" disabled><label class="consent"><input id="capafy-consent" type="checkbox">${copy.capafyConsent}</label><button id="capafy-verify" type="button" data-csrf="${escape(user.csrf)}" data-consent="maritime-capafy-autonomy-v1" disabled>${copy.capafyVerify}</button></div></form><p id="capafy-feedback" role="status" aria-live="polite"></p>`
-      : `<p role="status">${capafyStatus === "disabled" ? copy.capafyDisabled : capafyStatus === "not_connected" ? copy.capafyPaused : copy.capafyUnavailable}</p>`}</section>` : "";
   const stopControl = user ? `<button type="button" data-action="stop" data-csrf="${escape(user.csrf)}"${state == null ? " hidden" : ""}>${copy.stop}</button><p>${copy.stopNote}</p>` : "";
   const telegram = telegramAvailable ? `<p><a href="/maritime/start?source=${campaignSource}">Telegram (${ja ? "任意" : "optional"})</a></p>` : "";
-  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager Cloud</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}section{border:1px solid #d6d6d0;border-radius:12px;padding:16px 20px;margin:24px 0}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}input[type=email],input[inputmode]{display:block;width:min(95%,420px);padding:12px;margin:8px 0;font:inherit}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:28px;background:#c99439;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[hidden]{display:none}[hidden]{display:none!important}.consent{display:block;margin-top:20px}</style><main data-source="${campaignSource}"><p>Life Manager Cloud</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">Maritime Privacy Policy</a></p>${controls}${capafyPanel}${stopControl}<p id="feedback" role="status" aria-live="polite"></p>${telegram}<noscript>${ja ? "メール登録後の開始にはJavaScriptを有効にしてください。" : "Enable JavaScript to activate Life Manager Cloud after email confirmation."}</noscript></main><script>
+  const workbenchSection = user && state === "active"
+    ? require("./maritime-manager-workbench.js").renderMaritimeWorkbench({ language, workbench, unavailable: workbenchUnavailable }) : "";
+  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager Cloud</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}.signin{display:inline-block;margin:16px 0;padding:12px 20px;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;text-decoration:none}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[hidden]{display:none}.consent{display:block;margin-top:20px}.workbench{margin:32px 0;padding:20px;border:1px solid #d5d9d6;border-radius:12px;background:#fff}.workbench h2{margin-top:0}.workbench ul{padding-left:20px}.workbench li{margin:12px 0}.workbench time{display:block;color:#627069;font-size:.9rem}</style><main data-source="${campaignSource}"><p>Life Manager Cloud</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">${ja ? "Maritimeのプライバシーポリシー" : "Maritime Privacy Policy"}</a></p>${controls}${stopControl}${workbenchSection}<p id="feedback" role="status" aria-live="polite">${authFeedback}</p>${telegram}<noscript>${ja ? "開始と状態確認にはJavaScriptを有効にしてください。" : "Enable JavaScript to start Life Manager Cloud and check its status."}</noscript></main><script>
 const feedback=document.getElementById('feedback');
 const main=document.querySelector('main');
 let source=main.dataset.source;
 let attribution={};
-try{const params=new URLSearchParams(location.search);for(const key of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']){const values=params.getAll(key);if(values.length===1&&new TextEncoder().encode(values[0]).length<=200)attribution[key]=values[0];}const key='lm-maritime-first-source';const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&typeof saved.source==='string'&&Date.now()-saved.at<30*86400000){source=saved.source;attribution=saved.attribution&&typeof saved.attribution==='object'&&!Array.isArray(saved.attribution)?saved.attribution:{};}else localStorage.setItem(key,JSON.stringify({source,attribution,at:Date.now()}));}catch{}
-const form=document.getElementById('signup');
-if(form)form.addEventListener('submit',async event=>{event.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const result=await fetch(form.action,{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify({email:form.elements.email.value,attribution})});feedback.textContent=result.ok?${JSON.stringify(copy.check)}:${JSON.stringify(copy.failed)};}catch{feedback.textContent=${JSON.stringify(copy.failed)};}finally{button.disabled=false;}});
+try{const keys=['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];const params=new URLSearchParams(location.search);for(const key of keys){const values=params.getAll(key);if(values.length===1&&new TextEncoder().encode(values[0]).length<=200)attribution[key]=values[0];}const key='lm-maritime-first-source';const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&typeof saved.source==='string'&&Date.now()-saved.at<30*86400000){source=saved.source;attribution={};if(saved.attribution&&typeof saved.attribution==='object'&&!Array.isArray(saved.attribution))for(const key of keys){const value=saved.attribution[key];if(typeof value==='string'&&new TextEncoder().encode(value).length<=200)attribution[key]=value;}}else localStorage.setItem(key,JSON.stringify({source,attribution,at:Date.now()}));}catch{}
+const googleSignin=document.getElementById('google-signin');
+if(googleSignin){const params=new URLSearchParams({intent:'maritime_cloud',lang:${JSON.stringify(ja ? "ja" : "en")}});for(const key of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'])if(typeof attribution[key]==='string')params.set(key,attribution[key]);googleSignin.href='/auth/google?'+params.toString();}
 const activate=document.querySelector('[data-action="activate"]');
 if(activate){const consent=document.getElementById('consent');consent.addEventListener('change',()=>{activate.disabled=!consent.checked;});activate.addEventListener('click',async()=>{if(!consent.checked)return;activate.disabled=true;try{const result=await fetch('/maritime/activate',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':activate.dataset.csrf},body:JSON.stringify({consentVersion:activate.dataset.consent,source,attribution,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'})});if(result.ok){feedback.textContent=${JSON.stringify(copy.queued)};activate.remove();consent.disabled=true;const stop=document.querySelector('[data-action="stop"]');if(stop)stop.hidden=false;}else{feedback.textContent=${JSON.stringify(copy.failed)};activate.disabled=false;}}catch{feedback.textContent=${JSON.stringify(copy.failed)};activate.disabled=false;}});}
-const capafyForm=document.querySelector('[data-action="capafy-connect"]');
-if(capafyForm){let challengeRef='';const capafyFeedback=document.getElementById('capafy-feedback'),policyConsent=document.getElementById('capafy-policy-consent'),start=capafyForm.querySelector('button[type="submit"]'),verification=document.getElementById('capafy-verification'),verify=document.getElementById('capafy-verify'),verifyConsent=document.getElementById('capafy-consent'),code=document.getElementById('capafy-code');policyConsent.addEventListener('change',()=>{start.disabled=!policyConsent.checked;});capafyForm.addEventListener('submit',async event=>{event.preventDefault();if(!policyConsent.checked)return;start.disabled=true;try{const result=await fetch('/maritime/capafy/connect/start',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':capafyForm.dataset.csrf},body:JSON.stringify({email:capafyForm.elements.email.value,termsAccepted:true,privacyAccepted:true})});const data=await result.json();if(result.ok&&data.status==='check_email'&&typeof data.challengeRef==='string'){challengeRef=data.challengeRef;code.disabled=false;verification.hidden=false;capafyFeedback.textContent=${JSON.stringify(copy.capafyCheck)};}else capafyFeedback.textContent=${JSON.stringify(copy.capafyFailed)};}catch{capafyFeedback.textContent=${JSON.stringify(copy.capafyFailed)};}finally{start.disabled=!policyConsent.checked;}});const updateVerify=()=>{verify.disabled=!challengeRef||!(/^[0-9]{4,8}$/.test(code.value))||!verifyConsent.checked;};code.addEventListener('input',updateVerify);verifyConsent.addEventListener('change',updateVerify);verify.addEventListener('click',async()=>{if(verify.disabled)return;verify.disabled=true;try{const result=await fetch('/maritime/capafy/connect/verify',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':verify.dataset.csrf},body:JSON.stringify({challengeRef,code:code.value,autonomyConsentVersion:verify.dataset.consent})});if(result.ok){capafyFeedback.textContent=${JSON.stringify(copy.capafySaved)};location.reload();}else capafyFeedback.textContent=${JSON.stringify(copy.capafyFailed)};}catch{capafyFeedback.textContent=${JSON.stringify(copy.capafyFailed)};}finally{verify.disabled=false;}});}
-const capafyDisconnect=document.querySelector('[data-action="capafy-disconnect"]');
-if(capafyDisconnect)capafyDisconnect.addEventListener('click',async()=>{capafyDisconnect.disabled=true;try{const result=await fetch('/maritime/capafy/connect/disconnect',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':capafyDisconnect.dataset.csrf},body:'{}'});if(result.ok)location.reload();else{const node=document.createElement('p');node.setAttribute('role','status');node.textContent=${JSON.stringify(copy.capafyFailed)};document.getElementById('capafy-account').append(node);}}catch{const node=document.createElement('p');node.setAttribute('role','status');node.textContent=${JSON.stringify(copy.capafyFailed)};document.getElementById('capafy-account').append(node);}finally{capafyDisconnect.disabled=false;}});
 const stopControl=document.querySelector('[data-action="stop"]');
 if(stopControl)stopControl.addEventListener('click',async()=>{stopControl.disabled=true;try{const result=await fetch('/maritime/stop',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':stopControl.dataset.csrf},body:'{}'});const body=await result.json();if(body.status==='paused'){feedback.textContent=body.cleanupPending?${JSON.stringify(copy.stopPending)}:${JSON.stringify(copy.stopped)};const state=document.querySelector('[data-manager-state]');if(state)state.textContent=${JSON.stringify(copy.states.paused)};}else feedback.textContent=${JSON.stringify(copy.stopFailed)};}catch{feedback.textContent=${JSON.stringify(copy.stopFailed)};}finally{stopControl.disabled=false;}});
+const refreshWorkbench=document.querySelector('[data-action="refresh-workbench"]');
+if(refreshWorkbench)refreshWorkbench.addEventListener('click',()=>location.reload());
 </script></html>`;
 }
 

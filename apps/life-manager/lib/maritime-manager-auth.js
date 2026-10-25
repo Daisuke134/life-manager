@@ -1,7 +1,7 @@
 "use strict";
 
 const { createWebAuthClient, createWebCsrfToken, ensureWebUser, publicOrigin,
-  hasPkceVerifier, csrfSecret, captureWebFirstTouchCookie, readWebFirstTouchCookie } = require("./web-auth.js");
+  csrfSecret, hasVerifiedGoogleIdentity } = require("./web-auth.js");
 const SIGNUP_PATH = "/auth/maritime/email";
 const CONFIRM_PATH = "/auth/maritime/confirm";
 const CAPAFY_CONNECT_PATH = "/maritime/capafy/connect/start";
@@ -15,7 +15,6 @@ function send(res, status, body, extra = {}) {
     "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", ...extra });
   res.end(body == null ? "" : JSON.stringify(body));
 }
-function redirect(res, location) { send(res, 302, null, { location }); }
 function clientFor(req, res, options) {
   return (options.createClient || createWebAuthClient)(req, res, options);
 }
@@ -25,7 +24,8 @@ async function resolveMaritimeManagerUser(req, res, options = {}) {
     const client = clientFor(req, res, options);
     const result = await client.auth.getUser();
     const user = result?.data?.user;
-    if (result?.error || !user || !user.email || !Number.isFinite(Date.parse(user.email_confirmed_at))) return null;
+    if (result?.error || !user || !user.email || !Number.isFinite(Date.parse(user.email_confirmed_at))
+      || !hasVerifiedGoogleIdentity(user)) return null;
     const uid = await (options.ensureWebUserImpl || ensureWebUser)(user.id, options);
     return { uid, subject: user.id, email: user.email,
       csrf: createWebCsrfToken(uid, csrfSecret(options)) };
@@ -49,84 +49,77 @@ async function readMaritimeBody(req) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid_body");
   return body;
 }
-async function signupBody(req) {
-  const body = await readMaritimeBody(req);
-  if (Object.keys(body).some(key => !["email", "attribution"].includes(key)) || typeof body.email !== "string") throw new Error("invalid_body");
-  const email = body.email.trim().toLowerCase();
-  if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("invalid_body");
-  return { email, attribution: require("./web-attribution.js").sanitizeWebAttribution(body.attribution) };
-}
-async function handleMaritimeManagerAuth(req, res, options = {}) {
+async function handleMaritimeManagerAuth(req, res) {
   const url = new URL(req.url || "/", "http://localhost");
   if (![SIGNUP_PATH, CONFIRM_PATH].includes(url.pathname)) return false;
-  if (!enabled(options)) { send(res, 503, { error: "manager_email_unavailable" }); return true; }
-  const expectedMethod = url.pathname === SIGNUP_PATH ? "POST" : "GET";
-  if (req.method !== expectedMethod) { send(res, 405, { error: "method_not_allowed" }, { allow: expectedMethod }); return true; }
-  if (url.pathname === SIGNUP_PATH) {
-    let origin;
-    try { origin = publicOrigin(req, options); }
-    catch { send(res, 503, { error: "manager_email_unavailable" }); return true; }
-    if (req.headers?.origin !== origin) { send(res, 403, { error: "origin_rejected" }); return true; }
-    let email, attribution;
-    try { ({email, attribution} = await signupBody(req)); }
-    catch { send(res, 400, { error: "invalid_email_request" }); return true; }
-    try {
-      captureWebFirstTouchCookie(req, res, attribution, options);
-      const client = clientFor(req, res, options);
-      const result = await client.auth.signInWithOtp({ email,
-        options: { shouldCreateUser: true, emailRedirectTo: `${origin}${CONFIRM_PATH}` } });
-      if (result?.error) {
-        send(res, result.error.status === 429 ? 429 : 503, { error: "email_request_unavailable" });
-      } else send(res, 202, { status: "check_email" });
-    } catch { send(res, 503, { error: "email_request_unavailable" }); }
-    return true;
-  }
-  // Mail link scanners can authenticate; only the later CSRF-protected POST activates work.
-  let client;
-  let sessionEstablished = false;
-  try {
-    for (const key of ["token_hash", "code", "type"]) {
-      if (url.searchParams.getAll(key).length > 1) throw new Error("invalid_confirmation");
-    }
-    const code = url.searchParams.get("code");
-    // Only exchange the PKCE code for the browser that initiated signup.
-    // A bearer token_hash callback could otherwise replace somebody else's session.
-    if (url.searchParams.has("token_hash") || !code || code.length > 2048 || !hasPkceVerifier(req, options)) {
-      throw new Error("invalid_confirmation");
-    }
-    client = clientFor(req, res, options);
-    const result = await client.auth.exchangeCodeForSession(code);
-    if (result?.error || !result?.data?.session) throw new Error("invalid_confirmation");
-    sessionEstablished = true;
-    const user = await resolveMaritimeManagerUser(req, res, { ...options, createClient: () => client });
-    if (!user) throw new Error("invalid_confirmation");
-    const attribution = readWebFirstTouchCookie(req, options);
-    void require("./maritime-manager-usage.js").observeMaritimeUsage("email_verified", user.uid, async signal => {
-      if (Object.keys(attribution).length) {
-        const fetchImpl = options.fetchImpl || globalThis.fetch;
-        const fetch = (url, init = {}) => fetchImpl(url, { ...init, signal: init.signal ? AbortSignal.any([signal, init.signal]) : signal });
-        if (!await (options.storeFirstTouch || require("./web-auth.js").storeWebFirstTouch)(user.uid, attribution, { ...options, fetch })) return false;
-      }
-      return (options.recordEmailVerified || require("./maritime-manager-usage.js").recordMaritimeEmailVerified)(user.uid, { ...options, attribution, signal });
-    }, options);
-    redirect(res, "/maritime?verified=1");
-  } catch {
-    if (client && sessionEstablished) { try { await client.auth.signOut({ scope: "local" }); } catch {} }
-    redirect(res, "/maritime?auth_error=connection");
-  }
+  send(res, 410, { error: "google_sign_in_required" });
   return true;
 }
 async function managerReady(row, options) {
-  if (row?.status !== "active" || row.paused_at || !row.agent_id) return false;
-  const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({
-    tenantId: row.uid, releaseSha: row.release_sha, phase: "configure",
-  });
-  const receipt = await (options.readCommonReceipt || require("./runtime-job-store.js").readCommonReceipt)({
-    tenantId: row.uid, jobId: job.job_id, attempt: 1,
-  }, options.storeOptions || {});
+  const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
+  if (row?.status !== "active" || row.paused_at || !row.agent_id || row.consent_version !== MANAGER_CONSENT_VERSION) return false;
   const ref = `maritime-agent://${row.agent_id}`;
-  return Boolean(receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
-    && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref));
+  const runtime = require("./maritime-manager-runtime.js");
+  const jobs = [runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase: "configure" })];
+  if (typeof row.consent_v2_at === "string" && Number.isFinite(Date.parse(row.consent_v2_at))) {
+    jobs.push(runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha,
+      phase: "configure", resumeAt: new Date(row.consent_v2_at).toISOString() }));
+  }
+  const readReceipt = options.readCommonReceipt || require("./runtime-job-store.js").readCommonReceipt;
+  for (const job of jobs) {
+    const receipt = await readReceipt({ tenantId: row.uid, jobId: job.job_id, attempt: 1 }, options.storeOptions || {});
+    if (receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
+      && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref)) return true;
+  }
+  return false;
+}
+async function enqueueMaritimeProvisionRecovery(row, phase, options) {
+  const build = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob;
+  const base = build({ tenantId: row.uid, releaseSha: row.release_sha, phase });
+  const readState = options.readProvisionJobState || require("./runtime-job-store.js").readRuntimeJobState;
+  const read = async job => readState({ tenantId: row.uid, job }, options.storeOptions || {});
+  let job = base;
+  let state = await read(base);
+  if (state && (state.job_id !== job.job_id || state.tenant_id !== row.uid
+    || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(state.status))) {
+    throw new Error("provision_state_invalid");
+  }
+  if (state?.status === "dead_letter" && state.last_error_code === "MARITIME_PROVISION_CONSENT_REQUIRED"
+    && state.attempt === 1 && typeof row.consent_v2_at === "string" && Number.isFinite(Date.parse(row.consent_v2_at))) {
+    const resumeAt = new Date(row.consent_v2_at).toISOString();
+    job = build({ tenantId: row.uid, releaseSha: row.release_sha, phase, resumeAt });
+    state = await read(job);
+    if (state && (state.job_id !== job.job_id || state.tenant_id !== row.uid
+      || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(state.status))) {
+      throw new Error("provision_state_invalid");
+    }
+  }
+  if (state) return { created: false, job: { ...job, status: state.status } };
+  const enqueue = options.enqueueJob || require("./runtime-job-store.js").enqueueJob;
+  const queued = await enqueue(job, options.storeOptions || {});
+  if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
+    || queued.job?.tenant_id !== row.uid
+    || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(queued.job.status)) {
+    throw new Error("provision_enqueue_receipt_invalid");
+  }
+  return queued;
+}
+async function enqueueMaritimeReconsentJobs(row, options) {
+  const plans = require("./maritime-manager-wake.js").buildMaritimeReconsentJobs(row);
+  const enqueue = options.enqueueJobAt || require("./runtime-job-store.js").enqueueJobAt;
+  for (const plan of [plans.report, plans.cycle]) {
+    const queued = await enqueue(plan.job, plan.availableAt, options.storeOptions || {});
+    let availableAt = null;
+    try { availableAt = new Date(queued?.job?.available_at).toISOString(); } catch { /* validated below */ }
+    if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== plan.job.job_id
+      || queued.job?.tenant_id !== row.uid || availableAt !== plan.availableAt
+      || !["queued", "running", "completed", "dead_letter", "reconciling"].includes(queued.job.status)) {
+      throw new Error("reconsent_job_receipt_invalid");
+    }
+    if (queued.job.status === "dead_letter" || queued.job.status === "reconciling") {
+      throw new Error("reconsent_job_not_ready");
+    }
+  }
 }
 async function handleMaritimeManagerActivate(req, res, options = {}) {
   const path = new URL(req.url || "/", "http://localhost").pathname;
@@ -161,15 +154,83 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     const lock = options.withControlLock || ((uid, operation) => require("./runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, options.storeOptions || {}));
     await lock(user.uid, async () => {
     const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env });
-    const existing = await store.read(user.uid);
+    let existing = await store.read(user.uid);
+    let retentionAccepted = false;
     if (existing?.status === "paused" || existing?.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (existing?.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
-    if (existing?.status === "active") {
-      const ready = await managerReady(existing, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
+    if (["pending", "provisioning"].includes(existing?.status) && existing.consent_version !== MANAGER_CONSENT_VERSION) {
+      const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
+      const consent = await distribution.accept(user.uid, normalizeMaritimeSource(existing.source || body.source || "direct"));
+      if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503,
+        { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
+      const reconsent = options.reconsentManagerImpl || store.reconsent;
+      if (typeof reconsent !== "function") throw new Error("manager_reconsent_unavailable");
+      const updated = await reconsent.call(store, { uid: user.uid, authSubject: user.subject,
+        consentVersion: MANAGER_CONSENT_VERSION });
+      if (!updated || updated.uid !== user.uid || updated.auth_subject !== user.subject
+        || !["pending", "provisioning"].includes(updated.status) || updated.paused_at || updated.agent_id
+        || updated.release_sha !== existing.release_sha || updated.consent_version !== MANAGER_CONSENT_VERSION) {
+        throw new Error("manager_reconsent_unconfirmed");
+      }
+      existing = updated;
+      retentionAccepted = true;
     }
-    const source = normalizeMaritimeSource(body.source || "direct");
+    if (existing?.status === "active") {
+      if (existing.consent_version !== MANAGER_CONSENT_VERSION) {
+        const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
+        const consent = await distribution.accept(user.uid, normalizeMaritimeSource(existing.source || body.source || "direct"));
+        if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503,
+          { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
+        const reconsent = options.reconsentManagerImpl || store.reconsent;
+        if (typeof reconsent !== "function") throw new Error("manager_reconsent_unavailable");
+        const updated = await reconsent.call(store, { uid: user.uid, authSubject: user.subject,
+          consentVersion: MANAGER_CONSENT_VERSION });
+        if (!updated || updated.uid !== user.uid || updated.auth_subject !== user.subject
+          || updated.status !== "active" || updated.paused_at || updated.consent_version !== MANAGER_CONSENT_VERSION) {
+          throw new Error("manager_reconsent_unconfirmed");
+        }
+        const ready = await managerReady(updated, options);
+        if (ready) {
+          await enqueueMaritimeReconsentJobs(updated, options);
+          send(res, 200, { status: "active", consentUpdated: true });
+          return true;
+        }
+        const provision = await enqueueMaritimeProvisionRecovery(updated, "configure", options);
+        if (provision.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
+        if (provision.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
+        if (provision.job.status === "completed") {
+          const latest = await store.read(user.uid);
+          if (await managerReady(latest, options)) {
+            await enqueueMaritimeReconsentJobs(latest, options);
+            send(res, 200, { status: "active", consentUpdated: true });
+          } else send(res, 409, { error: "provision_state_unconfirmed" });
+          return true;
+        }
+        send(res, 202, { status: "pending", consentUpdated: true });
+        return true;
+      }
+      const ready = await managerReady(existing, options);
+      if (!ready && existing.consent_v2_at) {
+        const provision = await enqueueMaritimeProvisionRecovery(existing, "configure", options);
+        if (provision.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
+        if (provision.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
+        if (provision.job.status === "completed") {
+          const latest = await store.read(user.uid);
+          if (await managerReady(latest, options)) {
+            await enqueueMaritimeReconsentJobs(latest, options);
+            send(res, 200, { status: "active" });
+          } else send(res, 409, { error: "provision_state_unconfirmed" });
+          return true;
+        }
+        send(res, 202, { status: "pending" });
+        return true;
+      }
+      if (ready && existing.consent_v2_at) await enqueueMaritimeReconsentJobs(existing, options);
+      send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
+    }
+    const source = normalizeMaritimeSource(existing?.source || body.source || "direct");
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
-    const consent = await distribution.accept(user.uid, source);
+    const consent = retentionAccepted ? { ok: true, status: "consented" } : await distribution.accept(user.uid, source);
     if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503, { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
     const row = await store.enroll({ uid: user.uid, authSubject: user.subject, email: user.email,
       timezone: body.timezone || "UTC", source, consentVersion: MANAGER_CONSENT_VERSION, releaseSha });
@@ -181,8 +242,10 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
       catch { /* Acquisition telemetry cannot authorize or duplicate business work. */ }
     }
     const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({ tenantId: user.uid, releaseSha: row.release_sha });
-    const queued = await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job);
-    if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
+    const queued = retentionAccepted
+      ? await enqueueMaritimeProvisionRecovery(row, "create", options)
+      : await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job);
+    if (!queued || typeof queued.created !== "boolean" || (!retentionAccepted && queued.job?.job_id !== job.job_id)
       || queued.job?.tenant_id !== user.uid) throw new Error("enqueue_receipt_invalid");
     if (queued.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
     if (queued.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
@@ -231,7 +294,6 @@ async function handleMaritimeManagerStop(req, res, options = {}) {
   } catch { send(res, 503, { ...(paused ? { status: "paused", cleanupPending: true } : {}), error: "stop_cleanup_unconfirmed" }); }
   return true;
 }
-
 function maritimeCsrfMatches(user, req) {
   const supplied = Buffer.from(String(req.headers?.["x-lm-web-csrf"] || ""));
   const expected = Buffer.from(user.csrf);
@@ -359,31 +421,27 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   return true;
 }
 
+
 async function handleMaritimeManagerPage(req, res, options = {}) {
   const url = new URL(req.url || "/", "http://localhost");
   if (url.pathname !== "/maritime") return false;
   if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
   if (req.method !== "GET") { send(res, 405, { error: "method_not_allowed" }, { allow: "GET" }); return true; }
-  const { normalizeMaritimeSource, createMaritimeDistributionStore, renderMaritimeLanding } = require("./maritime-distribution.js");
+  const { MANAGER_CONSENT_VERSION, normalizeMaritimeSource, createMaritimeDistributionStore, renderMaritimeLanding } = require("./maritime-distribution.js");
   const source = normalizeMaritimeSource(url.searchParams.get("source") || "direct");
   const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
   try {
     const user = await resolveMaritimeManagerUser(req, res, options);
-    let state = null, capafyStatus = null;
+    let state = null, workbench = null, workbenchUnavailable = false;
     if (user) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
       state = row?.status || null;
-      if (state === "active" && !await managerReady(row, options)) state = "provisioning";
-      if (row?.uid === user.uid && row.auth_subject?.toLowerCase() === user.subject.toLowerCase()) {
-        const capafyEnabled = options.capafyConnectionEnabled === true
-          || (options.env || process.env).LM_MARITIME_CAPAFY_CONNECTION_ENABLED === "1";
-        try {
-          const bindingStore = options.capafyBindingStore || (typeof options.query === "function" ? capafyBindingStore(options) : null);
-          const connection = await bindingStore?.readStatus?.({ tenantId: user.uid, authSubject: user.subject });
-          capafyStatus = connection?.connected === true ? (capafyEnabled ? "connected" : "connected_disabled")
-            : connection?.connected === false ? (capafyEnabled ? "not_connected" : "disabled") : "unavailable";
-        } catch { capafyStatus = "unavailable"; }
+      if (["pending", "provisioning", "active"].includes(state) && row.consent_version !== MANAGER_CONSENT_VERSION) state = "consent_required";
+      else if (state === "active" && !await managerReady(row, options)) state = "provisioning";
+      if (state === "active") {
+        try { workbench = await require("./maritime-manager-workbench.js").readMaritimeManagerWorkbench({ uid: user.uid }, options); }
+        catch { workbenchUnavailable = true; }
       }
       void require("./maritime-manager-usage.js").observeMaritimeUsage("returned", user.uid, signal => (options.recordReturn || require("./maritime-manager-usage.js").recordMaritimeManagerReturn)(user.uid, { ...options, signal, request: req, managerStore: store }), options);
     }
@@ -392,8 +450,9 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "vary": "Cookie",
       "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" });
-    res.end(renderMaritimeLanding({ source, language, user, state, capafyStatus,
-      telegramAvailable: options.telegramAvailable === true }));
+    res.end(renderMaritimeLanding({ source, language, user, state, workbench, workbenchUnavailable,
+      telegramAvailable: options.telegramAvailable === true,
+      authError: url.searchParams.get("auth_error") === "connection" ? "connection" : null }));
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
 }

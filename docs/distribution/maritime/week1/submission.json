@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "packet_status": "draft_not_submitted",
-  "generated_at": "2026-10-24T11:10:40Z",
-  "product_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+  "generated_at": "2026-10-25T14:34:00Z",
+  "product_url": "https://aniccaai.com/lm",
   "demo_url": null,
   "release_sha": null,
   "official_required_fields": null,
@@ -11,9 +11,9 @@
     "external_work_events": null,
     "completed_external_work_users": null,
     "official_keiki_or_maritime_users": null,
-    "readback_at": "2026-10-24T10:57:29Z",
+    "readback_at": "2026-10-25T14:34:00Z",
     "status": "unknown",
-    "reason": "No fresh authoritative application database or Keiki/Maritime project-usage count was read back."
+    "reason": "The official Keiki/Maritime project usage count was not available in this readback; unknown is not zero."
   },
   "work_receipts": [],
   "costs": null,
@@ -24,14 +24,16 @@
   },
   "submission_receipt": null,
   "limitations": [
-    "The official project submission form, cutoff, rubric, and required fields remain unconfirmed.",
-    "The public page is an early pilot; the complete hosted work-to-report cycle is unverified.",
-    "No fresh authoritative count of users or completed work was obtained; unknown is not zero.",
-    "No demo recording or official project-usage readback is available.",
-    "Costs are unknown, not USD 0.",
-    "The existing Slack channel entry is not a confirmed formal submission receipt."
+    "The public product page is https://aniccaai.com/lm. Its same-origin Cloud start route /maritime returns HTTP 404 in the current live readback.",
+    "The public marketing page now describes Life Manager broadly but says the full Cloud runtime is in development and names Calendar travel-time planning as a current hosted workflow.",
+    "No real Cloud Google login, dedicated tenant VM, completed Capafy work, official Capafy receipt, result-email receipt, or Stop/replay-zero proof is verified.",
+    "No authoritative official count of distinct users, completed work, repeat use, or costs was obtained; unknown is not zero.",
+    "No verified demo recording is available; do not present a mock flow as live proof.",
+    "The organizer kickoff email confirms the project is already in the program. The public general application form is open but is not identified as the Week 1 project-submission form.",
+    "The existing competition-channel entry is not a confirmed formal Week 1 submission receipt; do not duplicate it.",
+    "The Cloud candidate and Netlify proxy are PRs, not production deployments."
   ],
-  "current_readback_at": "2026-10-24T11:10:40Z",
+  "current_readback_at": "2026-10-25T14:34:00Z",
   "historical_readback_20261021": {
     "source": "Earlier internal runtime-PG aggregate readback; not a current official competition count.",
     "user_counts": {
@@ -42,22 +44,49 @@
     },
     "release_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce"
   },
-  "current_app_deployment_source_sha": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+  "current_app_deployment_source_sha": null,
   "maritime_runtime_image_sha": null,
   "maritime_runtime_image_status": "unknown; no separate trusted Maritime image/runtime readback",
   "demo_status": "not recorded or independently read back",
   "costs_status": "unknown; no fresh billing readback",
-  "formal_submission_status": "unconfirmed; no formal route/receipt; English packet remains draft",
+  "formal_submission_status": "Week 1 project-submission route and receipt remain unconfirmed; general application form is not identified as the Week 1 submission.",
   "draft_answers_en": {
     "project_name": "Life Manager Cloud",
-    "one_line": "Life Manager is building a cloud personal manager designed to choose a bounded next task, carry it through an authorized workflow, check the result, and report verified outcomes by email—without requiring a goal or budget setup first.",
-    "current_status": "Early pilot. The English pilot page is public. The complete authenticated hosted work-to-report cycle has not been verified.",
-    "product_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+    "one_line": "Life Manager is one proactive personal manager for work, money, everyday responsibilities, body, and mind. Its Cloud mode is being built to run continuously for each customer on a dedicated Maritime VM, choose useful work without a daily prompt, verify outcomes, and report them by email. Capafy is the first income-generating workflow.",
+    "problem": "People coordinate work, money, and everyday responsibilities across too many disconnected tools and reminders. Life Manager aims to take initiative on bounded work and return verifiable outcomes.",
+    "current_status": "The public /lm page is live with broad product positioning in English and Japanese. The same-origin /maritime Cloud start route currently returns HTTP 404. Cloud Google login, tenant VM provisioning, and the Capafy work-to-receipt-to-email cycle are not yet verified.",
+    "product_url": "https://aniccaai.com/lm",
     "article_url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
-    "demo": "No verified end-to-end recording is available yet; do not present a mock flow as live proof.",
-    "measured_results": "Verified official user count, completed external work, repeat use, and costs are unknown.",
-    "next_milestone": "Complete one owner-authorized, tenant-bound task with an official provider receipt, accepted result-email receipt, and stop/replay-zero readback; then record a truthful demo."
+    "demo": "No verified end-to-end demo recording is available. Do not present a mock flow as live proof.",
+    "measured_results": "Verified official user count, completed external work, repeat use, accepted result reports, and costs are unknown.",
+    "next_milestone": "Deploy the accepted Cloud flow, complete one owner-authorized tenant run with an official Capafy receipt, matching Life Manager receipt, accepted verified-address result email, and Stop/replay-zero readback; then record a truthful demo."
   },
   "current_source_of_truth": "docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md",
-  "current_source_main_sha": "edf5c206c1e4abb69f1664d4635376eff5307736"
+  "current_source_main_sha": "d6a9ece12ed08996276641972aadd54efdf966df",
+  "program_application_status": "Accepted per the organizer kickoff email dated 2026-10-19; no duplicate general application was sent.",
+  "application_url": "https://competition.maritime.sh/",
+  "official_program": {
+    "official_terms_url": "https://competition.maritime.sh/terms",
+    "terms_last_updated": "2026-10-15",
+    "terms_start_date": "2026-10-20",
+    "deadline": "2026-12-01T23:59:00-08:00",
+    "timezone": "America/Los_Angeles",
+    "target": "1,000 distinct people with real agent usage; first three projects to reach the target, subject to verification.",
+    "week1_email": "Product expected by end of week one; real users are brownie points; only the Top 30 advance.",
+    "week1_cutoff_rubric_and_form": "Unknown; current public Terms do not specify them.",
+    "start_date_discrepancy": "The kickoff email body says October 19; current Terms say October 20."
+  },
+  "cloud_status_readback": {
+    "observed_at": "2026-10-25T14:22:00Z",
+    "lm_http": 200,
+    "lm_ja_http": 200,
+    "maritime_http": 404,
+    "published_manager_revision": "973d3f6e7ae02562fcbfd9c1c0cccca5011a98bd",
+    "copy": "Broad Life Manager product positioning is live; the page says full Cloud runtime is in development and Calendar travel-time planning is a current workflow.",
+    "google_login_verified": false,
+    "tenant_vm_verified": false,
+    "capafy_cycle_verified": false,
+    "result_email_receipt": null,
+    "stop_replay_zero": null
+  }
 }

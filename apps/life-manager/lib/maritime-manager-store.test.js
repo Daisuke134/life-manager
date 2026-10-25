@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 let createMaritimeManagerStore;
 try { ({ createMaritimeManagerStore } = require("./maritime-manager-store.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
+const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
 const SUBJECT_A = "11111111-1111-4111-8111-111111111111";
 const SUBJECT_B = "22222222-2222-4222-8222-222222222222";
 const UID_A = `lm_${SUBJECT_A}`;
@@ -11,7 +12,7 @@ const UID_B = `lm_${SUBJECT_B}`;
 const SHA = "a".repeat(40);
 function input(uid = UID_A, subject = SUBJECT_A) {
   return { uid, authSubject: subject, email: "person@example.invalid", timezone: "Asia/Tokyo",
-    source: "referral", consentVersion: "maritime-retention-v1", releaseSha: SHA };
+    source: "referral", consentVersion: MANAGER_CONSENT_VERSION, releaseSha: SHA };
 }
 function fixture() {
   assert.equal(typeof createMaritimeManagerStore, "function", "enrollment store must exist");
@@ -68,7 +69,8 @@ function fixture() {
     if (opts.method === "PATCH" && row) Object.assign(row, body);
     return response(row ? [row] : []);
   };
-  const pgRow = row => ({ ...row, paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
+  const pgRow = row => ({ ...row, consent_v2_at: row.consent_v2_at == null ? null : new Date(row.consent_v2_at),
+    paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
   const pgPool = { query: async (statement, values = []) => {
     pgQueries.push({ statement, values });
     let selected;
@@ -81,6 +83,16 @@ function fixture() {
         return { rows: [{ uid }] };
       }
       return { rows: [] };
+    }
+    if (statement.includes("UPDATE public.lm_maritime_manager_enrollments") && statement.includes("SET consent_version = $3")) {
+      const [uid, authSubject, consentVersion] = values;
+      const row = rows.get(uid);
+      const eligible = row && ["pending", "provisioning", "active"].includes(row.status) && row.paused_at == null
+        && row.consent_version === "maritime-manager-v1"
+        && ((row.status === "active" && row.agent_id != null) || (row.status !== "active" && row.agent_id == null));
+      if (!eligible || row.auth_subject !== authSubject) return { rows: [] };
+      row.consent_version = consentVersion;row.consent_v2_at ||= "2026-10-26T02:00:00.000Z";
+      return { rows: [pgRow(row)] };
     }
     if (statement.includes("claim_lm_maritime_manager_provision_v1")) {
       const row = rows.get(values[0]);
@@ -180,6 +192,37 @@ test("a_foreign_subject_or_agent_binding_is_rejected", async () => {
   await assert.rejects(store.bindAgent({ uid: UID_A, authSubject: SUBJECT_A, agentId: "agent-a", releaseSha: "b".repeat(40) }), /binding_rejected/);
   assert.equal((await store.read(UID_B)).agent_id, null);
   assert.equal((await store.read(UID_A)).release_sha, SHA);
+});
+test("reconsent_updates_only_the_matching_active_tenant_and_preserves_its_agent", async () => {
+  const { store, rows, pgQueries } = fixture();
+  await store.enroll(input());
+  await store.claimProvision(UID_A);
+  await store.bindAgent({ uid: UID_A, authSubject: SUBJECT_A, agentId: "agent-a", releaseSha: SHA });
+  rows.get(UID_A).consent_version = "maritime-manager-v1";
+
+  const updated = await store.reconsent({ uid: UID_A, authSubject: SUBJECT_A, consentVersion: MANAGER_CONSENT_VERSION });
+  assert.equal(updated.consent_version, MANAGER_CONSENT_VERSION);
+  assert.equal(updated.status, "active");
+  assert.equal(updated.agent_id, "agent-a");
+  assert.equal(updated.release_sha, SHA);
+  assert.equal(updated.consent_v2_at, "2026-10-26T02:00:00.000Z");
+  assert.equal(await store.reconsent({ uid: UID_A, authSubject: SUBJECT_B, consentVersion: MANAGER_CONSENT_VERSION }), null);
+  assert.match(pgQueries.find(item => item.statement.includes("SET consent_version" )).statement,
+    /status IN \('pending', 'provisioning', 'active'\).*paused_at IS NULL/);
+});
+test("reconsent_updates_legacy_pending_and_provisioning_rows_but_not_paused_or_unknown_rows",async()=>{
+ const {store,rows}=fixture();
+ const enrollment=await store.enroll(input());
+ for(const status of ["pending","provisioning"]){
+  const row=rows.get(UID_A);row.status=status;row.consent_version="maritime-manager-v1";row.agent_id=null;row.consent_v2_at=null;
+  const updated=await store.reconsent({uid:UID_A,authSubject:SUBJECT_A,consentVersion:MANAGER_CONSENT_VERSION});
+  assert.equal(updated.status,status);assert.equal(updated.consent_version,MANAGER_CONSENT_VERSION);assert.equal(updated.agent_id,null);
+  assert.equal(updated.release_sha,SHA);assert.equal(updated.created_at,enrollment.created_at);
+ }
+ for(const status of ["paused","effect_unknown"]){
+  const row=rows.get(UID_A);row.status=status;row.paused_at=status==="paused"?"2026-10-25T00:00:00.000Z":null;row.consent_version="maritime-manager-v1";
+  assert.equal(await store.reconsent({uid:UID_A,authSubject:SUBJECT_A,consentVersion:MANAGER_CONSENT_VERSION}),null);
+ }
 });
 test("pause_before_provision_blocks_claim_and_late_binding_never_reactivates", async () => {
   const { store } = fixture(); await store.enroll(input()); await store.pause(UID_A);
@@ -350,12 +393,12 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
 test('pending enrollment recovery is bounded and excludes paused or claimed rows', async () => {
   const requested=[];
   const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{
-    requested.push({statement,values});return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'pending',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
+    requested.push({statement,values});return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'provisioning',source:'direct',consent_version:MANAGER_CONSENT_VERSION,agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
   }}});
   const rows=await store.listPending(5);
-  assert.equal(rows.length,1);assert.equal(rows[0].uid,UID_A);
-  assert.match(requested[0].statement,/status = \$1 AND paused_at IS NULL AND agent_id IS NULL/);
-  assert.deepEqual(requested[0].values,['pending',5]);
+  assert.equal(rows.length,1);assert.equal(rows[0].uid,UID_A);assert.equal(rows[0].status,'provisioning');
+  assert.match(requested[0].statement,/consent_version = \$1.*status IN \('pending', 'provisioning'\).*paused_at IS NULL AND agent_id IS NULL/s);
+  assert.deepEqual(requested[0].values,[MANAGER_CONSENT_VERSION,5]);
   assert.equal(rows[0].created_at,'2026-10-20T00:00:00.000Z');
   for(const limit of [0,101,'5'])await assert.rejects(store.listPending(limit),/input_invalid/);
   assert.equal(requested.length,1);
@@ -363,13 +406,26 @@ test('pending enrollment recovery is bounded and excludes paused or claimed rows
   await assert.rejects(foreign.listPending(1),/store_invalid/);
 });
 
+test('reconsented active configuration recovery reads bounded rows with a stable cursor',async()=>{
+ const calls=[];const row={uid:UID_B,auth_subject:SUBJECT_B,email:'person@example.invalid',timezone:'UTC',status:'active',source:'direct',
+  consent_version:MANAGER_CONSENT_VERSION,consent_v2_at:new Date('2026-10-22T00:00:00Z'),agent_id:'agent-b',release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')};
+ const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{calls.push({statement,values});return {rows:[row]};}}});
+ const rows=await store.listReconsentedActive(20,UID_A);
+ assert.equal(rows.length,1);assert.equal(rows[0].consent_v2_at,'2026-10-22T00:00:00.000Z');
+ assert.deepEqual(calls[0].values,[MANAGER_CONSENT_VERSION,UID_A,20]);
+ assert.match(calls[0].statement,/status = 'active'.*consent_v2_at IS NOT NULL.*uid > \$2/s);
+ await assert.rejects(()=>store.listReconsentedActive(0),/input_invalid/);
+ await assert.rejects(()=>store.listReconsentedActive(20,'foreign'),/input_invalid/);
+ assert.equal(calls.length,1);
+});
+
 
 test('quarantine pending provision is tenant scoped and cannot change active or paused enrollments',async()=>{
  const calls=[];
  const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{
   calls.push({statement,values});
-  assert.match(statement,/status = \$2/);assert.match(statement,/status = \$3 AND paused_at IS NULL AND agent_id IS NULL/);
-  assert.deepEqual(values,[UID_A,'effect_unknown','pending']);
+  assert.match(statement,/status = \$2/);assert.match(statement,/status IN \('pending', 'provisioning'\) AND paused_at IS NULL AND agent_id IS NULL/);
+  assert.deepEqual(values,[UID_A,'effect_unknown']);
   return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'effect_unknown',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
  }}});
  assert.equal((await store.quarantinePendingProvision(UID_A)).status,'effect_unknown');

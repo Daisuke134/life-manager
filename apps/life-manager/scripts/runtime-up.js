@@ -234,15 +234,81 @@ async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) 
   }
 }
 
-async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, storeOptions = {}, pausedCursor = null } = {}) {
+function validateMaritimeProvisionState(state, job, tenantId) {
+  if (!state) return null;
+  if (state.job_id !== job.job_id || state.tenant_id !== tenantId
+    || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(state.status)
+    || !Number.isInteger(state.attempt) || state.attempt < 0 || state.attempt > job.max_attempts
+    || (state.last_error_code != null && (typeof state.last_error_code !== "string"
+      || state.last_error_code.length < 1 || state.last_error_code.length > 200))) {
+    throw new Error("maritime_provision_recovery_state_invalid");
+  }
+  return state;
+}
+
+async function enqueueMaritimeProvisionRecovery(row, phase, { enqueueJob, readProvisionJobState, storeOptions = {} } = {}) {
+  const runtime = require("../lib/maritime-manager-runtime.js");
+  const { MANAGER_CONSENT_VERSION } = require("../lib/maritime-distribution.js");
+  const readState = readProvisionJobState || require("../lib/runtime-job-store.js").readRuntimeJobState;
+  const enqueue = enqueueJob || require("../lib/runtime-job-store.js").enqueueJob;
+  const read = async job => validateMaritimeProvisionState(
+    await readState({ tenantId: row.uid, job }, storeOptions), job, row.uid,
+  );
+  const base = runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase });
+  const canResume = state => state?.status === "dead_letter"
+    && state.last_error_code === "MARITIME_PROVISION_CONSENT_REQUIRED" && state.attempt === 1
+    && row.consent_version === MANAGER_CONSENT_VERSION
+    && typeof row.consent_v2_at === "string" && Number.isFinite(Date.parse(row.consent_v2_at));
+
+  let job = base;
+  let state = await read(base);
+  if (canResume(state)) {
+    job = runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase,
+      resumeAt: new Date(row.consent_v2_at).toISOString() });
+    state = await read(job);
+  }
+  if (state) return { created: false, job: { ...job, status: state.status } };
+
+  const queued = await enqueue(job, storeOptions);
+  if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
+    || queued.job?.tenant_id !== row.uid
+    || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(queued.job.status)) {
+    throw new Error("maritime_provision_recovery_enqueue_invalid");
+  }
+  // Close the read-then-enqueue race: the legacy job may dead-letter on its
+  // no-effect consent guard between our first state read and the idempotent enqueue.
+  if (job.job_id === base.job_id && queued.job.status === "dead_letter") {
+    const terminal = await read(base);
+    if (canResume(terminal)) {
+      const resume = runtime.buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase,
+        resumeAt: new Date(row.consent_v2_at).toISOString() });
+      const resumedState = await read(resume);
+      if (resumedState) return { created: false, job: { ...resume, status: resumedState.status } };
+      const resumed = await enqueue(resume, storeOptions);
+      if (!resumed || typeof resumed.created !== "boolean" || resumed.job?.job_id !== resume.job_id
+        || resumed.job?.tenant_id !== row.uid
+        || !["queued", "running", "reconciling", "completed", "dead_letter"].includes(resumed.job.status)) {
+        throw new Error("maritime_provision_recovery_enqueue_invalid");
+      }
+      return resumed;
+    }
+  }
+  return queued;
+}
+
+async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, readProvisionJobState,
+  storeOptions = {}, pausedCursor = null } = {}) {
   if (!capabilities.includes("maritime.manager.provision")) return;
-  const { buildMaritimeManagerProvisionJob } = require("../lib/maritime-manager-runtime.js");
+  const { MANAGER_CONSENT_VERSION } = require("../lib/maritime-distribution.js");
   for (const row of await managerStore.listPending(1)) {
-    const queued = await enqueueJob(buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha }), storeOptions);
+    // The legacy customer must explicitly accept v2 before any new provisioning job can be created.
+    if (row.consent_version !== MANAGER_CONSENT_VERSION) continue;
+    const queued = await enqueueMaritimeProvisionRecovery(row, "create", { enqueueJob, readProvisionJobState, storeOptions });
     if (["dead_letter", "completed"].includes(queued?.job?.status)) {
       await managerStore.quarantinePendingProvision(row.uid);
     }
   }
+  const { buildMaritimeManagerProvisionJob } = require("../lib/maritime-manager-runtime.js");
   const paused = await managerStore.listPaused(20, pausedCursor);
   for (const row of paused) {
     await enqueueJob(buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase: "pause" }), storeOptions);
@@ -373,6 +439,16 @@ async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = fa
   return { status: "checked", queued, candidates: rows.length };
 }
 
+async function recoverReconsentedMaritimeConfigurations(capabilities, { managerStore, enqueueJob, readProvisionJobState,
+  storeOptions = {}, activeCursor = null } = {}) {
+  if (!capabilities.includes("maritime.manager.provision") || typeof managerStore?.listReconsentedActive !== "function") return null;
+  const rows = await managerStore.listReconsentedActive(20, activeCursor);
+  for (const row of rows) {
+    await enqueueMaritimeProvisionRecovery(row, "configure", { enqueueJob, readProvisionJobState, storeOptions });
+  }
+  return rows.length === 20 ? rows.at(-1).uid : null;
+}
+
 function createMaritimeManagerWorkerDependencies({ pgPool, env = process.env, recordMaritimeManagerCompletion } = {}) {
   const managerDependencies = require("../lib/maritime-manager-dependencies.js").createMaritimeManagerDependencies({ pgPool, env });
   const recordCompletion = recordMaritimeManagerCompletion
@@ -467,7 +543,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
       if (typeof dependencies.query !== "function") throw new Error("maritime report database unavailable");
       const report = require("../lib/maritime-manager-report.js");
       const deliveryDeps = { env, managerStore, resendKey: env.RESEND_API_KEY,
-        fetchImpl: dependencies.fetchImpl, publicOrigin: env.LM_PANEL_BASE_URL };
+        fetchImpl: dependencies.fetchImpl };
       const io = dependencies.maritimeReportReceiptIO
         || managerDependencies?.cfoReceiptIO;
       if (!io) throw new Error("maritime_manager_postgres_cfo_receipt_io_unavailable");
@@ -1006,6 +1082,7 @@ async function runCapabilityWorker(env = process.env, runtimeDependencies = {}) 
   });
   let nextMaritimeRecoveryMs = 0;
   let maritimePausedCursor = null;
+  let maritimeReconsentCursor = null;
   const handlers = createWorkerHandlers(env, capabilities, {
     maritimeManagerDependencies,
     maritimeManagerStore,
@@ -1047,7 +1124,11 @@ async function runCapabilityWorker(env = process.env, runtimeDependencies = {}) 
       }
       if (maritimeManagerStore && Date.now() >= nextMaritimeRecoveryMs) {
         maritimePausedCursor = await recoverMaritimeEnrollments(capabilities, { managerStore: maritimeManagerStore,
-          enqueueJob: runtimeStore.enqueueJob, storeOptions: opts, pausedCursor: maritimePausedCursor });
+          enqueueJob: runtimeStore.enqueueJob, readProvisionJobState: runtimeStore.readRuntimeJobState,
+          storeOptions: opts, pausedCursor: maritimePausedCursor });
+        maritimeReconsentCursor = await recoverReconsentedMaritimeConfigurations(capabilities, { managerStore: maritimeManagerStore,
+          enqueueJob: runtimeStore.enqueueJob, readProvisionJobState: runtimeStore.readRuntimeJobState,
+          storeOptions: opts, activeCursor: maritimeReconsentCursor });
         await recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled: capafyProviderEnabled,
           provider: maritimeCapafyProvider, managerStore: maritimeManagerStore, enqueueJob: runtimeStore.enqueueJob,
           query: opts.query, storeOptions: opts,
@@ -1122,5 +1203,6 @@ module.exports = {
   executeCapabilityJob,
   reconcileMaritimeCapabilityJobs,
   recoverMaritimeEnrollments,
+  recoverReconsentedMaritimeConfigurations,
   runCapabilityWorker,
 };

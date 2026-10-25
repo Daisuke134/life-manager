@@ -1,0 +1,127 @@
+{
+  "observed_at": "2026-10-25T11:48:32Z",
+  "life_manager": {
+    "repository": "Daisuke134/life-manager",
+    "origin_main": "2a5b2950917bf72a78df422a1f842cc3801c0082",
+    "candidate_branch": "feat/lm-cloud-capafy-first-20261025",
+    "candidate_commit": "a040103e2565b785be671c0b8ee89fb2059c33eb",
+    "candidate_pull_request": {
+      "number": 8986,
+      "url": "https://github.com/Daisuke134/life-manager/pull/8986",
+      "state": "OPEN",
+      "draft": false,
+      "merged": false,
+      "base": "2a5b2950917bf72a78df422a1f842cc3801c0082",
+      "checks": {
+        "Cloud reminder contracts": "success",
+        "Security Scan": "in_progress"
+      }
+    },
+    "source_tests": {
+      "source_boundary": "pass",
+      "auth_distribution_report": "79_pass",
+      "runtime_adapters": "348_pass_1_skipped",
+      "marketing": "34_pass",
+      "diff_check": "pass"
+    }
+  },
+  "anicca_products": {
+    "repository": "Daisuke134/anicca-products",
+    "origin_main": "67f6606a40f0679508389f72c4ceaca39d2c6f8d",
+    "proxy_branch": "codex/lm-cloud-maritime-netlify-proxy-20261025",
+    "proxy_commit": "b348522c730ba8947c6b71210c67c8536b79a1d5",
+    "pull_request": {
+      "number": 743,
+      "url": "https://github.com/Daisuke134/anicca-products/pull/743",
+      "state": "OPEN",
+      "draft": true,
+      "merged": false,
+      "base": "67f6606a40f0679508389f72c4ceaca39d2c6f8d",
+      "landing_pr_build": {
+        "run_id": 40190395411,
+        "status": "in_progress"
+      }
+    },
+    "validation": {
+      "landing_contract_tests": "51_pass",
+      "static_build": "pass_670_routes_with_existing_warnings"
+    }
+  },
+  "public_web": {
+    "observed_at": "2026-10-25T11:47:06Z",
+    "routes": [
+      {
+        "url": "https://aniccaai.com/lm",
+        "status": 200,
+        "bytes": 8239,
+        "sha256": "4b9e8c7d4a7abeb33b39efd706c22082f3159e7a83040cfb86e8a8a5ac7025cb"
+      },
+      {
+        "url": "https://aniccaai.com/lm/ja",
+        "status": 200,
+        "bytes": 9104,
+        "sha256": "f799198122c98cd770959656982a69b8dc6599951be3e5ad58a39e478afec45c"
+      },
+      {
+        "url": "https://aniccaai.com/maritime?lang=en",
+        "status": 404,
+        "bytes": 8748,
+        "sha256": "b20aa2c39e2b89f9f956ac27d15bfdbea68ed0afdf35eef1a8488b8e204bec5e"
+      },
+      {
+        "url": "https://life-call-production.up.railway.app/maritime?lang=en",
+        "status": 200,
+        "bytes": 5708,
+        "sha256": "d1b418885714deb84561f2a12cf21f7d59f067b72ab37797e4440ee2e77f5c50",
+        "contains_pilot_copy": true,
+        "contains_google_sign_in": false
+      }
+    ]
+  },
+  "railway": {
+    "project": "Anicca",
+    "environment": "production",
+    "service": "life-call",
+    "service_state": "live",
+    "latest_successful_deployment": {
+      "id": "812300a2-0080-4d01-a0ef-dd6b445c5f3e",
+      "created_at": "2026-10-25T08:10:22.658Z"
+    },
+    "latest_main_deploy_attempt": {
+      "id": "f6a6b28c-a094-4695-af0d-2102d41d9f24",
+      "status": "SKIPPED",
+      "created_at": "2026-10-25T11:41:24.570Z",
+      "commit": "2a5b2950917bf72a78df422a1f842cc3801c0082"
+    },
+    "staged_changes": null,
+    "lm_maritime_web_origin_variable_present": false,
+    "variable_values_redacted": true
+  },
+  "other_source_claim": {
+    "pull_request": 8745,
+    "url": "https://github.com/Daisuke134/life-manager/pull/8745",
+    "state": "OPEN",
+    "draft": true,
+    "head": "940d9cbe751cc14ee95c41c3729344d8a778a63f",
+    "base": "1a69fa9b8266870bca205ea70e6b69ad6635f57e",
+    "current_main": "2a5b2950917bf72a78df422a1f842cc3801c0082",
+    "ownership": "Preserve the existing claimant; the onboarding branch does not modify this PR."
+  },
+  "capafy_policy": {
+    "publisher_agreement": "https://capafy.ai/publisher-agreement/",
+    "version": "v1.2",
+    "effective_date": "2026-09-28",
+    "section_2_9": "One Publisher Account per individual/entity under common control unless Capafy grants written approval for additional accounts.",
+    "certification": "https://capafy.ai/developer/doc/1.3",
+    "payout_setup": "https://capafy.ai/developer/doc/3.5",
+    "payout_details_required_to_publish": false,
+    "duplicate_test_account_created": false
+  },
+  "unverified": [
+    "Supabase production callback allowlist includes https://aniccaai.com/auth/google/callback.",
+    "Life Manager Cloud has a public tenant-scoped chat API/workspace.",
+    "A tenant has completed Google sign-in, explicit retention consent, paid Cloud entitlement, Maritime VM provisioning, and a real Capafy action.",
+    "A provider receipt and accepted result email exist for the same tenant/job occurrence.",
+    "Cloud pricing, current paid MRR, per-tenant gross margin, official competition count/submission, and current distribution conversion metrics."
+  ]
+}
