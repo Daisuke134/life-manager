@@ -378,11 +378,16 @@ test("Cloud OAuth callback failures return to the same localized Cloud page", as
 });
 
 test("verified Google callback returns Cloud sign-in to the Life Manager Cloud page", async () => {
+  const managerEvents = [];
   const client = authClient({ exchange: async (_code, cookies) => {
     cookies.setAll([{ name: "lm-web-auth", value: "verified-session", options: { path: "/", httpOnly: true } }]);
     return { data: { session: { access_token: "verified-session" } }, error: null };
-  } });
-  const fixture = authOptions(client, { fetch: makeRestFetch().fetch });
+  }, user: { id: SUBJECT, email: "verified@example.test", email_confirmed_at: "2026-10-25T00:00:00Z",
+    app_metadata: { provider: "google", providers: ["google"] }, identities: [{ provider: "google", id: SUBJECT }] } });
+  const fixture = authOptions(client, {
+    fetch: makeRestFetch().fetch,
+    recordMaritimeEmailVerifiedImpl: async (uid) => { managerEvents.push(uid); return true; },
+  });
   const res = makeResponse();
 
   await handleWebAuthRequest(callbackRequest({
@@ -392,6 +397,29 @@ test("verified Google callback returns Cloud sign-in to the Life Manager Cloud p
   assert.equal(res.statusCode, 302);
   assert.equal(res.getHeader("location"), "/maritime?lang=ja&verified=1");
   assert.equal(finalCookieValue(res, "lm-web-auth-intent"), "");
+  assert.deepEqual(managerEvents, [WEB_UID]);
+});
+
+test("Cloud email-verified milestone is not emitted until Supabase confirms the email", async () => {
+  const managerEvents = [];
+  const client = authClient({ exchange: async (_code, cookies) => {
+    cookies.setAll([{ name: "lm-web-auth", value: "unconfirmed-session", options: { path: "/", httpOnly: true } }]);
+    return { data: { session: { access_token: "unconfirmed-session" } }, error: null };
+  }, user: { id: SUBJECT, email: "unverified@example.test", email_confirmed_at: null,
+    app_metadata: { provider: "google", providers: ["google"] }, identities: [{ provider: "google", id: SUBJECT }] } });
+  const fixture = authOptions(client, {
+    fetch: makeRestFetch().fetch,
+    recordMaritimeEmailVerifiedImpl: async (uid) => { managerEvents.push(uid); return true; },
+  });
+  const res = makeResponse();
+
+  await handleWebAuthRequest(callbackRequest({
+    cookie: "lm-web-auth-code-verifier=pkce-verifier; lm-web-auth-intent=maritime_cloud-en",
+  }), res, fixture.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/maritime?lang=en&verified=1");
+  assert.deepEqual(managerEvents, []);
 });
 
 test("unrecognized OAuth intent cannot choose a redirect target", async () => {
@@ -475,6 +503,7 @@ test("Google OAuth callback cannot provision a tenant from an email-only Supabas
 test("ignores client tenant fields and derives lm uid from subject", async () => {
   const events = [];
   const funnelEvents = [];
+  const managerEvents = [];
   const client = authClient({
     events,
     exchange: async (_code, cookies) => {
@@ -491,6 +520,7 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   const fixture = authOptions(client, {
     fetch: db.fetch,
     recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
+    recordMaritimeEmailVerifiedImpl: async (uid) => { managerEvents.push(uid); return true; },
   });
   const req = callbackRequest({
     query: "&uid=lm_attacker&email=attacker%40example.test&chat_id=999&paid=true",
@@ -515,6 +545,7 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   assert.deepEqual(funnelEvents, [{
     eventName: "google_authenticated", uid: WEB_UID, sourceObjectId: WEB_UID, attribution: {},
   }]);
+  assert.deepEqual(managerEvents, []);
 
   const resolveEvents = [];
   const resolveClient = authClient({ events: resolveEvents });

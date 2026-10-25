@@ -668,6 +668,19 @@ async function handleWebAuthRequest(req, res, opts = {}) {
         fetchImpl: opts.fetch,
       });
     } catch { /* funnel telemetry must not block a verified Google sign-in */ }
+    if ((oauthIntent === "maritime_cloud-en" || oauthIntent === "maritime_cloud-ja")
+      && Number.isFinite(Date.parse(user.email_confirmed_at))) {
+      try {
+        const record = opts.recordMaritimeEmailVerifiedImpl
+          || require("./maritime-manager-usage.js").recordMaritimeEmailVerified;
+        await record(uid, {
+          env: envFor(opts),
+          fetchImpl: opts.fetch,
+          attribution: firstTouch,
+          writeUsageDiagnostic: opts.writeUsageDiagnostic,
+        });
+      } catch { /* Cloud identity telemetry must not block a verified Google sign-in */ }
+    }
     clearCookie(res, opts, `${authCookieName(opts)}-code-verifier`);
     clearGoogleOAuthIntentCookie(res, opts);
     const location = oauthIntent === "maritime_cloud-ja"

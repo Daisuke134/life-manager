@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 let createMaritimeManagerStore;
 try { ({ createMaritimeManagerStore } = require("./maritime-manager-store.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
+const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
 const SUBJECT_A = "11111111-1111-4111-8111-111111111111";
 const SUBJECT_B = "22222222-2222-4222-8222-222222222222";
 const UID_A = `lm_${SUBJECT_A}`;
@@ -11,7 +12,7 @@ const UID_B = `lm_${SUBJECT_B}`;
 const SHA = "a".repeat(40);
 function input(uid = UID_A, subject = SUBJECT_A) {
   return { uid, authSubject: subject, email: "person@example.invalid", timezone: "Asia/Tokyo",
-    source: "referral", consentVersion: "maritime-retention-v1", releaseSha: SHA };
+    source: "referral", consentVersion: MANAGER_CONSENT_VERSION, releaseSha: SHA };
 }
 function fixture() {
   assert.equal(typeof createMaritimeManagerStore, "function", "enrollment store must exist");
@@ -81,6 +82,13 @@ function fixture() {
         return { rows: [{ uid }] };
       }
       return { rows: [] };
+    }
+    if (statement.includes("UPDATE public.lm_maritime_manager_enrollments SET consent_version")) {
+      const [uid, authSubject, consentVersion] = values;
+      const row = rows.get(uid);
+      if (!row || row.auth_subject !== authSubject || row.status !== "active" || row.paused_at != null || !row.agent_id) return { rows: [] };
+      row.consent_version = consentVersion;
+      return { rows: [pgRow(row)] };
     }
     if (statement.includes("claim_lm_maritime_manager_provision_v1")) {
       const row = rows.get(values[0]);
@@ -180,6 +188,22 @@ test("a_foreign_subject_or_agent_binding_is_rejected", async () => {
   await assert.rejects(store.bindAgent({ uid: UID_A, authSubject: SUBJECT_A, agentId: "agent-a", releaseSha: "b".repeat(40) }), /binding_rejected/);
   assert.equal((await store.read(UID_B)).agent_id, null);
   assert.equal((await store.read(UID_A)).release_sha, SHA);
+});
+test("reconsent_updates_only_the_matching_active_tenant_and_preserves_its_agent", async () => {
+  const { store, rows, pgQueries } = fixture();
+  await store.enroll(input());
+  await store.claimProvision(UID_A);
+  await store.bindAgent({ uid: UID_A, authSubject: SUBJECT_A, agentId: "agent-a", releaseSha: SHA });
+  rows.get(UID_A).consent_version = "maritime-manager-v1";
+
+  const updated = await store.reconsent({ uid: UID_A, authSubject: SUBJECT_A, consentVersion: MANAGER_CONSENT_VERSION });
+  assert.equal(updated.consent_version, MANAGER_CONSENT_VERSION);
+  assert.equal(updated.status, "active");
+  assert.equal(updated.agent_id, "agent-a");
+  assert.equal(updated.release_sha, SHA);
+  assert.equal(await store.reconsent({ uid: UID_A, authSubject: SUBJECT_B, consentVersion: MANAGER_CONSENT_VERSION }), null);
+  assert.match(pgQueries.find(item => item.statement.includes("SET consent_version" )).statement,
+    /status = 'active' AND paused_at IS NULL AND agent_id IS NOT NULL/);
 });
 test("pause_before_provision_blocks_claim_and_late_binding_never_reactivates", async () => {
   const { store } = fixture(); await store.enroll(input()); await store.pause(UID_A);

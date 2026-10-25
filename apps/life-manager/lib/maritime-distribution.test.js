@@ -6,6 +6,7 @@ const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { createHmac } = require("node:crypto");
 const {
+  MANAGER_CONSENT_VERSION,
   normalizeMaritimeSource,
   renderMaritimeLanding,
   parseMaritimeStartPayload,
@@ -215,6 +216,7 @@ test("full cohort cap does not create a consent record or a provider milestone",
 
 test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_telegram",()=>{
   const html=renderMaritimeLanding({source:"referral",language:"en"});
+  assert.equal(MANAGER_CONSENT_VERSION,"maritime-manager-v2");
   assert.match(html,/href="\/auth\/google\?intent=maritime_cloud&lang=en"/);
   assert.doesNotMatch(html,/action="\/auth\/maritime\/email"|<input[^>]+type="email"/);
   assert.doesNotMatch(html,/start_calendar=1|Connect Google Calendar/);
@@ -223,9 +225,12 @@ test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_tele
   assert.match(html,/confirm the selected Skills and configuration on Capafy's website for each new or updated version/i);
   assert.match(html,/will not report a live listing or earnings until Capafy confirms them/i);
   assert.match(html,/payout details can be added after certification and are not required to publish/i);
-  assert.match(html,/Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access/i);
+  assert.match(html,/Google sign-in verifies your identity and supplies your verified email address; it does not connect Calendar or grant access to your personal Gmail inbox/i);
+  assert.match(html,/if platform email verification needs an inbox, Life Manager provisions an isolated mailbox for your tenant and uses it/i);
+  assert.match(html,/does not read your personal Gmail inbox/i);
   assert.match(html,/No task prompt is needed to start/i);
-  assert.match(html,/email work summaries to that verified address/i);
+  assert.match(html,/uses that address for authorized platform contact and result reports/i);
+  assert.match(html,/using the Publisher account you authorize/i);
   assert.doesNotMatch(html,/<input[^>]+name="(?:task|goal|budget|telegram)"/);
   assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram setup are not required/);
 });
@@ -241,12 +246,25 @@ test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   assert.match(html,/person&lt;bad&gt;@example.invalid/);assert.doesNotMatch(html,/person<bad>/);
   assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
   assert.match(html,/確認済みメールへの状況・結果レポートに同意します/);
+  assert.match(html,/Googleログインだけで個人Gmail受信箱にアクセスすることはなく、読み取りません/);
+  assert.match(html,/確認済みサインインメールを使った、承認済みPublisherアカウントの登録・利用/);
+  assert.match(html,/認証メールの確認が必要な場合、Life Managerがテナント専用の隔離メールボックスを用意・利用することを許可します/);
+  assert.match(html,/承認済みPublisherアカウントの登録・利用/);
+  assert.match(html,/規約同意.*本人確認.*Publisher確認はご本人が行います/);
+  assert.match(html,/data-consent="maritime-manager-v2"/);
   assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
   assert.match(html,/返金不可のUS\$0\.99/);assert.match(html,/振込先情報は認証後に追加でき、公開前には不要です/);
   assert.match(html,/新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
   assert.match(html,/公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
-  assert.match(html,/Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません/);
-  assert.match(html,/確認済みのメールアドレスへ送る設計です/);
+  assert.match(html,/Googleログインは本人確認とメールアドレスの取得に使用し、Calendar接続や個人Gmail受信箱の読み取り権限は求めません/);
+  assert.match(html,/確認済みメールは連絡先と結果報告に使います/);
+  assert.match(html,/プラットフォームの認証メール確認が必要な場合は、テナント専用の隔離メールボックスを用意して使用し/);
+  const en=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"b".repeat(64)},state:"consent_required"});
+  assert.match(en,/using my verified sign-in email to register or sign in to my authorized Publisher account/i);
+  assert.match(en,/If platform email verification needs an inbox, I authorize Life Manager to provision and use a mailbox isolated to my tenant/i);
+  assert.match(en,/Google sign-in alone does not grant access to my personal Gmail inbox, and Life Manager will not read it/i);
+  assert.match(en,/register or sign in to my authorized Publisher account/i);
+  assert.match(en,/legal, identity, and Publisher confirmations remain mine/i);
 });
 test("paused_or_uncertain_landing_does_not_offer_activation",()=>{
   for(const state of ["paused","effect_unknown","provisioning","pending","active"]){

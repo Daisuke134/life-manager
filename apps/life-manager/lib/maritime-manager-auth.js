@@ -53,7 +53,8 @@ async function handleMaritimeManagerAuth(req, res) {
   return true;
 }
 async function managerReady(row, options) {
-  if (row?.status !== "active" || row.paused_at || !row.agent_id) return false;
+  const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
+  if (row?.status !== "active" || row.paused_at || !row.agent_id || row.consent_version !== MANAGER_CONSENT_VERSION) return false;
   const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({
     tenantId: row.uid, releaseSha: row.release_sha, phase: "configure",
   });
@@ -101,6 +102,19 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     if (existing?.status === "paused" || existing?.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (existing?.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
     if (existing?.status === "active") {
+      if (existing.consent_version !== MANAGER_CONSENT_VERSION) {
+        const reconsent = options.reconsentManagerImpl || store.reconsent;
+        if (typeof reconsent !== "function") throw new Error("manager_reconsent_unavailable");
+        const updated = await reconsent.call(store, { uid: user.uid, authSubject: user.subject,
+          consentVersion: MANAGER_CONSENT_VERSION });
+        if (!updated || updated.uid !== user.uid || updated.auth_subject !== user.subject
+          || updated.status !== "active" || updated.paused_at || updated.consent_version !== MANAGER_CONSENT_VERSION) {
+          throw new Error("manager_reconsent_unconfirmed");
+        }
+        const ready = await managerReady(updated, options);
+        send(res, ready ? 200 : 202, { status: ready ? "active" : "pending", consentUpdated: true });
+        return true;
+      }
       const ready = await managerReady(existing, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
     }
     const source = normalizeMaritimeSource(body.source || "direct");
@@ -172,7 +186,7 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   if (url.pathname !== "/maritime") return false;
   if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
   if (req.method !== "GET") { send(res, 405, { error: "method_not_allowed" }, { allow: "GET" }); return true; }
-  const { normalizeMaritimeSource, createMaritimeDistributionStore, renderMaritimeLanding } = require("./maritime-distribution.js");
+  const { MANAGER_CONSENT_VERSION, normalizeMaritimeSource, createMaritimeDistributionStore, renderMaritimeLanding } = require("./maritime-distribution.js");
   const source = normalizeMaritimeSource(url.searchParams.get("source") || "direct");
   const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
   try {
@@ -182,7 +196,8 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
       state = row?.status || null;
-      if (state === "active" && !await managerReady(row, options)) state = "provisioning";
+      if (state === "active" && row.consent_version !== MANAGER_CONSENT_VERSION) state = "consent_required";
+      else if (state === "active" && !await managerReady(row, options)) state = "provisioning";
       if (state === "active") {
         try { workbench = await require("./maritime-manager-workbench.js").readMaritimeManagerWorkbench({ uid: user.uid }, options); }
         catch { workbenchUnavailable = true; }

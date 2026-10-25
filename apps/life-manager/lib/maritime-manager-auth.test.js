@@ -84,8 +84,13 @@ function activationFixture({capacityFull=false,user=USER}={}) {
   f.deps.readCommonReceipt=async()=>null;
   f.deps.withControlLock=async(_uid,operation)=>operation();
   f.deps.managerStore={read:async uid=>rows.get(uid)||null,enroll:async input=>{
-    if(!rows.has(input.uid))rows.set(input.uid,{uid:input.uid,auth_subject:input.authSubject,email:input.email,status:"pending",release_sha:input.releaseSha});
-    return rows.get(input.uid);}};
+    if(!rows.has(input.uid))rows.set(input.uid,{uid:input.uid,auth_subject:input.authSubject,email:input.email,status:"pending",
+      consent_version:input.consentVersion,release_sha:input.releaseSha});
+    return rows.get(input.uid);},reconsent:async input=>{
+      const row=rows.get(input.uid);
+      if(!row||row.auth_subject!==input.authSubject||row.status!=="active"||row.paused_at)return null;
+      row.consent_version=input.consentVersion;return row;
+    }};
   f.deps.distributionStore={accept:async()=>capacityFull?{ok:false,status:"capacity_full"}:{ok:true,status:"consented"}};
   f.deps.enqueueJob=async job=>{
     const existing=jobs.get(job.job_id);
@@ -95,7 +100,7 @@ function activationFixture({capacityFull=false,user=USER}={}) {
 }
 function activateRequest(deps,method="POST",csrf=true){
   const {createWebCsrfToken}=require("./web-auth.js");
-  return request("/maritime/activate",method,{consentVersion:"maritime-manager-v1",source:"referral"},{
+  return request("/maritime/activate",method,{consentVersion:"maritime-manager-v2",source:"referral"},{
     "x-lm-web-csrf":csrf?createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET):"invalid"});
 }
 test("activate_post_enqueues_once_but_get_prefetch_does_not",async()=>{
@@ -119,6 +124,21 @@ test("repeat_activation_uses_original_enrollment_release_for_stable_job",async()
   await handleMaritimeManagerActivate(activateRequest(deps),response(),deps);deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="b".repeat(40);
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
   assert.equal(res.statusCode,202);assert.equal(jobs.size,1);assert.equal([...jobs.values()][0].input_refs.release_ref,`release://git/${"a".repeat(40)}`);
+});
+
+test("legacy_active_enrollment_requires_new_consent_without_reprovisioning",async()=>{
+  const {deps,rows,jobs}=activationFixture();const uid=`lm_${SUBJECT}`;let accepted=0,reconsented=0;
+  rows.set(uid,{uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",
+    consent_version:"maritime-manager-v1",agent_id:"agent-a",release_sha:"a".repeat(40),paused_at:null});
+  deps.distributionStore.accept=async()=>{accepted++;return {ok:true,status:"consented"};};
+  const reconsent=deps.managerStore.reconsent;
+  deps.managerStore.reconsent=async input=>{reconsented++;return reconsent(input);};
+  deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
+    external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+  assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
+  assert.equal(rows.get(uid).consent_version,"maritime-manager-v2");
+  assert.equal(accepted,0);assert.equal(reconsented,1);assert.equal(jobs.size,0);
 });
 
 test("paused_or_unknown_enrollment_does_not_request_new_provisioning",async()=>{
@@ -164,10 +184,24 @@ test("verified_campaign_page_displays_activation_or_persisted_state_without_disp
   assert.doesNotMatch(res.body,/<button[^>]+data-action="activate"/);assert.match(res.body,/実行結果を確認中/);
 });
 
+test("legacy_active_page_requires_consent_refresh_instead_of_showing_active_work",async()=>{
+ const {deps}=fixture();const uid=`lm_${SUBJECT}`,sha="a".repeat(40);
+ deps.distributionStore={recordAnonymousEvent:async()=>true};
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",
+   consent_version:"maritime-manager-v1",agent_id:"agent-a",release_sha:sha})};
+ deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
+   external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
+ const res=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),res,deps);
+ assert.equal(res.statusCode,200);assert.match(res.body,/data-action="activate"/);
+ assert.match(res.body,/data-consent="maritime-manager-v2"/);
+ assert.match(res.body,/register or sign in to my authorized Publisher account/i);
+ assert.doesNotMatch(res.body,/Verified work|Work in progress/);
+});
+
 test("active_cloud_page_shows_only_verified_work_and_email_receipts",async()=>{
  const {deps}=fixture();const uid=`lm_${SUBJECT}`,sha="a".repeat(40);
  deps.distributionStore={recordAnonymousEvent:async()=>true};
- deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",agent_id:"agent-a",release_sha:sha})};
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",consent_version:"maritime-manager-v2",agent_id:"agent-a",release_sha:sha})};
  deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
   external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
  const cycle={...require("./maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,releaseSha:sha,occurrenceId:"cycle-1",dateKey:"2026-10-25"}),status:"completed",attempt:1};
@@ -192,7 +226,7 @@ test("active_cloud_page_shows_only_verified_work_and_email_receipts",async()=>{
 test("active_cloud_page_renders_dead_letter_cycle_as_failed_not_pending",async()=>{
  const {deps}=fixture();const uid=`lm_${SUBJECT}`,sha="a".repeat(40);
  deps.distributionStore={recordAnonymousEvent:async()=>true};
- deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",agent_id:"agent-a",release_sha:sha})};
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",consent_version:"maritime-manager-v2",agent_id:"agent-a",release_sha:sha})};
  deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
   external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
  const cycle={...require("./maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,releaseSha:sha,occurrenceId:"cycle-1",dateKey:"2026-10-25"}),status:"dead_letter",attempt:1};
@@ -204,7 +238,7 @@ test("active_cloud_page_renders_dead_letter_cycle_as_failed_not_pending",async()
 test("dead_letter_email_report_is_rendered_as_failed_not_pending",async()=>{
  const {deps}=fixture();const uid=`lm_${SUBJECT}`,sha="a".repeat(40);
  deps.distributionStore={recordAnonymousEvent:async()=>true};
- deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",agent_id:"agent-a",release_sha:sha})};
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",source:"direct",consent_version:"maritime-manager-v2",agent_id:"agent-a",release_sha:sha})};
  deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
   external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
  const report={...require("./maritime-manager-runtime.js").buildMaritimeManagerReportJob({tenantId:uid,releaseSha:sha,
@@ -227,7 +261,7 @@ test('an app deployment SHA alone cannot label an unconfigured VM image release'
 
 test("bound enrollment stays preparing until configure completion is committed",async()=>{
  const {deps,rows}=activationFixture();const uid=`lm_${SUBJECT}`;
- rows.set(uid,{uid,status:"active",agent_id:"agent-a",release_sha:"a".repeat(40)});
+ rows.set(uid,{uid,status:"active",auth_subject:SUBJECT,consent_version:"maritime-manager-v2",agent_id:"agent-a",release_sha:"a".repeat(40)});
  let receipt=null,reads=0;
  deps.readCommonReceipt=async input=>{reads++;assert.equal(input.tenantId,uid);assert.equal(input.attempt,1);return receipt;};
  let res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
@@ -273,7 +307,7 @@ test("late activation cannot restore consent after the serialized stop cleanup",
 test("manager activation forwards only sanitized first touch through the existing writer",async()=>{
  const {deps}=activationFixture(),stored=[];deps.storeFirstTouch=async(uid,attribution)=>{stored.push({uid,attribution});return true;};
  const csrf=require('./web-auth.js').createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET),res=response();
- await handleMaritimeManagerActivate(request('/maritime/activate','POST',{consentVersion:'maritime-manager-v1',source:'instagram',attribution:{utm_source:'instagram',utm_medium:'dm',email:'private@example.invalid',token:'private-token'}},{'x-lm-web-csrf':csrf}),res,deps);
+ await handleMaritimeManagerActivate(request('/maritime/activate','POST',{consentVersion:'maritime-manager-v2',source:'instagram',attribution:{utm_source:'instagram',utm_medium:'dm',email:'private@example.invalid',token:'private-token'}},{'x-lm-web-csrf':csrf}),res,deps);
  assert.equal(res.statusCode,202);assert.deepEqual(stored,[{uid:`lm_${SUBJECT}`,attribution:{utm_source:'instagram',utm_medium:'dm'}}]);
 });
 

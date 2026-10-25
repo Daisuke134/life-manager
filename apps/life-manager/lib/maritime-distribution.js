@@ -7,7 +7,7 @@ const { sanitizeWebAttribution } = require("./web-attribution.js");
 const DEFAULT_PUBLIC_MAX_USERS = 25;
 const MAX_PUBLIC_USERS = 1000;
 const CONSENT_VERSION = "maritime-retention-v1";
-const MANAGER_CONSENT_VERSION = "maritime-manager-v1";
+const MANAGER_CONSENT_VERSION = "maritime-manager-v2";
 const PARTICIPANT_ID_RE = /^[a-f0-9]{64}$/;
 const SOURCES = new Set([
   "landing", "aniccaai", "x", "instagram", "reddit", "discord", "telegram", "community", "referral", "hackathon", "direct", "other",
@@ -51,37 +51,37 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const copy = ja ? {
     title: "暮らしの仕事を進める、Life Manager Cloud。",
-    intro: "Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません。仕事の概要は確認済みのメールアドレスへ送る設計です。初回にタスク、目標、予算を入力する必要はありません。Calendarは必要な仕事が出た時に接続できます。Telegramは任意です。",
-    scope: "まずCapafyの制作・配布・収益化ワークフローをCloudへ接続しています。最初のSkill公開前にPublisher Certificationが必要で、本人確認と返金不可のUS$0.99申請料がかかります。必要書類は地域・Publisher種別で異なります。新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります。Capafyによると、振込先情報は認証後に追加でき、公開前には不要です。公開や収益を確認できるまで、公開済み・収益発生とは報告しません。仕事から確認済み結果、メール報告までの全経路はまだ検証中です。収益は保証されません。",
+    intro: "Googleログインは本人確認とメールアドレスの取得に使用し、Calendar接続や個人Gmail受信箱の読み取り権限は求めません。確認済みメールは連絡先と結果報告に使います。プラットフォームの認証メール確認が必要な場合は、テナント専用の隔離メールボックスを用意して使用し、個人Gmail受信箱は読み取りません。初回にタスク、目標、予算を入力する必要はありません。Calendarは必要な仕事が出た時に接続できます。Telegramは任意です。",
+    scope: "Life Managerは、あなたが承認したPublisherアカウントを使ってCapafyの需要調査・制作・配布・結果確認を自律的に行います。最初のSkill公開前にPublisher Certificationが必要で、本人確認と返金不可のUS$0.99申請料がかかります。必要書類は地域・Publisher種別で異なります。新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります。規約同意、本人確認、Certification、料金、必要なPublisher確認はご本人が行います。Capafyによると、振込先情報は認証後に追加でき、公開前には不要です。公開や収益を確認できるまで、公開済み・収益発生とは報告しません。仕事から確認済み結果、メール報告までの全経路はまだ検証中です。収益は保証されません。",
     notice: "開始後、業務に必要な入力と結果をMaritimeへ送信します。Maritime AI credits経由のmodel callは、MaritimeのPrivacy Policy上、アカウント削除後も無期限保持の対象です。停止しても送信済みデータは削除されません。",
     googleSignin: "Googleアカウントで続ける",
     signinError: "Googleログインを完了できませんでした。もう一度お試しください。",
-    consent: "データ保持条件を確認し、自律実行と確認済みメールへの状況・結果レポートに同意します。", activate: "Life Manager Cloudを開始する",
+    consent: "データ保持条件を確認しました。自律作業を許可し、確認済みサインインメールを使った、承認済みPublisherアカウントの登録・利用に同意します。認証メールの確認が必要な場合、Life Managerがテナント専用の隔離メールボックスを用意・利用することを許可します。Googleログインだけで個人Gmail受信箱にアクセスすることはなく、読み取りません。確認済みメールへの状況・結果レポートに同意します。規約同意・本人確認・Publisher確認はご本人が行います。", activate: "Life Manager Cloudを開始する", reconsent: "更新内容に同意して続ける",
     queued: "開始を受け付けました。専用VMの準備を進めています。仕事の完了や収益は、確認できる結果が得られるまで確定扱いしません。",
     failed: "開始できませんでした。しばらくしてから状態を確認してください。", signedIn: "確認済みメール",
     stop: "Life Managerを停止する", stopped: "新しい仕事と今後のメールを停止しました。", stopPending: "新しい仕事と今後のメールは停止済みです。一部の停止設定は確認待ちです。", stopFailed: "停止を確認できませんでした。もう一度お試しください。",
     stopNote: "進行中の処理は完了する場合があります。その結果確認は続けます。既存データは削除しません。",
-    states: { pending: "開始準備中", provisioning: "開始準備中", active: "Life Managerは稼働中です。Capafyでの公開と収益はまだ確認できていません。", paused: "停止中", effect_unknown: "実行結果を確認中" },
+    states: { pending: "開始準備中", provisioning: "開始準備中", consent_required: "同意内容が更新されました。内容を確認して続行してください。", active: "Life Managerは稼働中です。Capafyでの公開と収益はまだ確認できていません。", paused: "停止中", effect_unknown: "実行結果を確認中" },
   } : {
     title: "Life Manager Cloud gets your work moving.",
-    intro: "Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access. Life Manager Cloud is designed to email work summaries to that verified address. No task prompt is needed to start. Calendar can be connected later if a task needs it. Goals, budgets, and Telegram setup are not required to get started.",
-    scope: "We are connecting the first Capafy creation-and-distribution workflow to the Cloud runtime. Capafy requires Publisher Certification before your first Skill can publish, including an identity review and a non-refundable US$0.99 application fee; required documents depend on region and publisher type. Capafy requires the publisher to confirm the selected Skills and configuration on Capafy's website for each new or updated version. Capafy says payout details can be added after certification and are not required to publish. Life Manager will not report a live listing or earnings until Capafy confirms them. The complete path from work through verified result and email report has not yet been verified. Earnings are not guaranteed.",
+    intro: "Google sign-in verifies your identity and supplies your verified email address; it does not connect Calendar or grant access to your personal Gmail inbox. Life Manager Cloud uses that address for authorized platform contact and result reports. If platform email verification needs an inbox, Life Manager provisions an isolated mailbox for your tenant and uses it; it does not read your personal Gmail inbox. No task prompt is needed to start. Calendar can be connected later if a task needs it. Goals, budgets, and Telegram setup are not required to get started.",
+    scope: "Life Manager autonomously researches demand, creates work, distributes it through authorized surfaces, and checks outcomes using the Publisher account you authorize. Capafy requires Publisher Certification before your first Skill can publish, including an identity review and a non-refundable US$0.99 application fee; required documents depend on region and publisher type. Capafy requires the publisher to confirm the selected Skills and configuration on Capafy's website for each new or updated version. Terms acceptance, identity checks, certification, fees, and required Publisher confirmations remain yours. Capafy says payout details can be added after certification and are not required to publish. Life Manager will not report a live listing or earnings until Capafy confirms them. The complete path from work through verified result and email report has not yet been verified. Earnings are not guaranteed.",
     notice: "Starting Life Manager Cloud sends necessary work inputs and results to Maritime. Maritime’s Privacy Policy says model calls through Maritime AI credits can be retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
     googleSignin: "Continue with Google",
     signinError: "Google sign-in did not complete. Please try again.",
-    consent: "I have read the data-retention terms, agree to autonomous work, and agree to receive status and result reports at my verified sign-in email.", activate: "Start Life Manager Cloud",
+    consent: "I have read the data-retention terms. I authorize autonomous work, including using my verified sign-in email to register or sign in to my authorized Publisher account and handle supported platform work. If platform email verification needs an inbox, I authorize Life Manager to provision and use a mailbox isolated to my tenant. Google sign-in alone does not grant access to my personal Gmail inbox, and Life Manager will not read it. I agree to receive status and result reports at my verified email. Legal, identity, and Publisher confirmations remain mine.", activate: "Start Life Manager Cloud", reconsent: "Agree to the updated terms and continue",
     queued: "Your start request is queued and your dedicated VM is being prepared. Work and earnings are not treated as complete until results are verified.",
     failed: "We could not start the manager. Please check the status again shortly.", signedIn: "Verified email",
     stop: "Stop Life Manager", stopped: "New work and future emails are paused.", stopPending: "New work and future emails are paused. Some stop settings are awaiting confirmation.", stopFailed: "We could not confirm the stop. Please try again.",
     stopNote: "Work already in progress may finish. Its result checks continue. Existing data is retained.",
-    states: { pending: "Preparing your manager", provisioning: "Preparing your manager", active: "Life Manager is active; Capafy listing and earnings are not verified yet.", paused: "Paused", effect_unknown: "Checking execution results" },
+    states: { pending: "Preparing your manager", provisioning: "Preparing your manager", consent_required: "Please review and accept the updated authorization before work continues.", active: "Life Manager is active; Capafy listing and earnings are not verified yet.", paused: "Paused", effect_unknown: "Checking execution results" },
   };
-  const ready = user && state == null;
+  const ready = user && (state == null || state === "consent_required");
   const authFeedback = authError === "connection" ? copy.signinError : "";
   const controls = !user
     ? `<a class="signin" id="google-signin" href="/auth/google?intent=maritime_cloud&lang=${ja ? "ja" : "en"}">${copy.googleSignin}</a>`
     : `<p>${copy.signedIn}: <strong>${escape(user.email)}</strong></p>${ready
-      ? `<label class="consent"><input id="consent" type="checkbox">${copy.consent}</label><button type="button" data-action="activate" data-csrf="${escape(user.csrf)}" data-consent="${MANAGER_CONSENT_VERSION}" disabled>${copy.activate}</button>`
+      ? `${state === "consent_required" ? `<p role="status">${copy.states.consent_required}</p>` : ""}<label class="consent"><input id="consent" type="checkbox">${copy.consent}</label><button type="button" data-action="activate" data-csrf="${escape(user.csrf)}" data-consent="${MANAGER_CONSENT_VERSION}" disabled>${state === "consent_required" ? copy.reconsent : copy.activate}</button>`
       : `<p role="status" data-manager-state>${copy.states[state] || copy.failed}</p>`}`;
   const stopControl = user ? `<button type="button" data-action="stop" data-csrf="${escape(user.csrf)}"${state == null ? " hidden" : ""}>${copy.stop}</button><p>${copy.stopNote}</p>` : "";
   const telegram = telegramAvailable ? `<p><a href="/maritime/start?source=${campaignSource}">Telegram (${ja ? "任意" : "optional"})</a></p>` : "";

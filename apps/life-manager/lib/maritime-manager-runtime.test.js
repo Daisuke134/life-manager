@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, createMaritimeManagerReportAdapter, createMaritimeManagerProvisionAdapter, buildMaritimeManagerProvisionJob } = require('./maritime-manager-runtime.js');
+const { MANAGER_CONSENT_VERSION } = require('./maritime-distribution.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const cycle = { tenantId: UID, occurrenceId: 'cycle-1', dateKey: '2026-10-20', releaseSha: SHA };
@@ -44,7 +45,7 @@ test('invalid dates and path-like occurrence ids cannot enter the queue', () => 
 });
 
 function executionFixture() {
-  const enrollment = { uid: UID, agent_id: 'agent-a', release_sha: SHA, status: 'active', paused_at: null };
+  const enrollment = { uid: UID, agent_id: 'agent-a', release_sha: SHA, status: 'active', consent_version: MANAGER_CONSENT_VERSION, paused_at: null };
   let checkpoint = null;
   const calls = [];
   const envelope = { dateKey: cycle.dateKey, releaseSha: SHA, result: { tenantId: UID, occurrenceId: 'cycle-1',
@@ -93,6 +94,25 @@ test('lost dispatch response remains unknown and cannot dispatch again', async (
     await assert.rejects(adapter.execute(job), error => error.unknownEffect === true && !error.message.includes('fixture-secret'));
   }
   assert.equal(f.calls.length, 1);
+});
+
+test('outdated consent blocks new Capafy work and result email without dispatching', async () => {
+  const f = executionFixture();
+  f.enrollment.consent_version = 'maritime-manager-v1';
+  const cycleAdapter = createMaritimeManagerLoopAdapter(f.services);
+  const cycleJob = buildMaritimeManagerCycleJob(cycle);
+  await assert.rejects(cycleAdapter.execute(cycleJob), /consent_required/);
+  assert.equal(f.calls.length, 0);
+  assert.equal(await cycleAdapter.continuation(cycleJob), null);
+
+  let sends = 0;
+  const reportAdapter = createMaritimeManagerReportAdapter({ managerStore: { read: async () => f.enrollment },
+    readDailyObservations: async () => ({ actionReceipts: [], financialRecords: [] }),
+    deliverDailyResult: async () => { sends++; return { status: 'sent' }; } });
+  const reportJob = buildMaritimeManagerReportJob({ tenantId: UID, releaseSha: SHA, periodKey: 'maritime:daily:2026-10-20' });
+  await assert.rejects(reportAdapter.execute(reportJob), /inactive/);
+  assert.equal(await reportAdapter.continuation(reportJob), null);
+  assert.equal(sends, 0);
 });
 
 test('paused users cannot start new work but an existing execution still reconciles', async () => {
@@ -212,7 +232,7 @@ test('cycle continuation preserves stable due identity and stops when enrollment
 
 
 test('daily report adapter sends through existing delivery and reconciles without sending again', async () => {
-  const enrollment = { uid: UID, release_sha: SHA, status: 'active', paused_at: null, timezone: 'America/New_York' };
+  const enrollment = { uid: UID, release_sha: SHA, status: 'active', consent_version: MANAGER_CONSENT_VERSION, paused_at: null, timezone: 'America/New_York' };
   const job = { ...buildMaritimeManagerReportJob({ tenantId: UID, releaseSha: SHA, periodKey: 'maritime:daily:2026-10-31' }), available_at: '2026-10-31T23:00:00.000Z' };
   let sends = 0, stored = null;
   const adapter = createMaritimeManagerReportAdapter({
@@ -249,7 +269,7 @@ test('daily report adapter sends through existing delivery and reconciles withou
 
 
 test('provision create and configure are separate stable jobs with read-only reconciliation',async()=>{
- const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'Asia/Tokyo'};
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'Asia/Tokyo'};
  const calls=[];let status='deploying',ready=false,schedules=[];
  const services={withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
   ensureAgent:async()=>{calls.push('create');return {agentId:'agent-a',status};},
@@ -283,7 +303,7 @@ test('provision create and configure are separate stable jobs with read-only rec
 
 
 test('first configure readback failure happens after settings and recovers read-only',async()=>{
- const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
  let writes=0,reloads=0,reads=0,schedules=[];
  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
   writeScheduleSnapshot:async input=>{writes++;schedules=input.snapshot.schedules;},configureWake:async()=>{reloads++;},
@@ -352,7 +372,7 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
 
 function controlMutex(){let tail=Promise.resolve();return async(_uid,operation)=>{const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;try{return await operation();}finally{release();}};}
 test('pause final confirmation waits for the older configure writer before clearing schedules',async()=>{
- const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
  let enter,release;const entered=new Promise(resolve=>{enter=resolve;}),gate=new Promise(resolve=>{release=resolve;});let schedules=[],revoked=false;
  const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row)},withControlLock:controlMutex(),
   writeScheduleSnapshot:async input=>{if(!input.snapshot.paused){enter();await gate;}schedules=input.snapshot.schedules;},
@@ -367,7 +387,7 @@ test('pause final confirmation waits for the older configure writer before clear
 });
 
 test('paused accepted provision still reads the official result without creating a successor',async()=>{
- const row={uid:UID,agent_id:null,release_sha:SHA,status:'provisioning',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};let reads=0,creates=0,status='deploying';
+ const row={uid:UID,agent_id:null,release_sha:SHA,status:'provisioning',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};let reads=0,creates=0,status='deploying';
  const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)}),ensureAgent:async()=>{creates++;},
  readAgent:async()=>{reads++;if(status==='active')row.agent_id='agent-a';return {agentId:'agent-a',status};}});
  const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA});await assert.rejects(()=>adapter.execute(job),/pending/);
