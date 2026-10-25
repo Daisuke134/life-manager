@@ -311,9 +311,7 @@ def _guard_reports(
         current = canonical(existing["card"])
         return ([report for report in reports if isinstance(report.get("card"), dict)
                  and canonical(report["card"]) == current], True)
-    btc = [report for report in reports if isinstance(report.get("card"), dict)
-           and report["card"].get("instruments") == ["BTC/USDC"]]
-    return (btc if btc else reports), False
+    return reports, False
 
 
 def provision_selection(path: str | Path, reports_path: str | Path,

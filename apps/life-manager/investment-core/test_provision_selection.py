@@ -374,6 +374,43 @@ class ProvisionSelectionTests(unittest.TestCase):
                         walk(child, held)
                 walk(ast.parse(path.read_text()))
 
+    def test_valid_etf_report_is_not_hidden_by_rejected_btc_report(self):
+        from strategy_policy import candidate_cards
+        from strategy_validation import select_strategy
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            etf = _report(report_id="positive-etf")
+            btc_card = candidate_cards()["alpaca-btc-5m-reversion-400-v2"].to_mapping()
+            btc = _report(net="-0.69", report_id="rejected-btc")
+            btc.update({
+                "strategy_id": btc_card["strategy_id"],
+                "card": btc_card,
+                "decision": "rejected",
+                "holdout": {"trades": 11, "net_pnl_usd": "-0.69",
+                            "max_drawdown_usd": "0.69"},
+                "cost_model": btc_card["cost_model"],
+                "benchmark": None,
+                "evidence_ids": ["alpaca-paper://crypto-bars/rejected-btc"],
+                "turnover": "11",
+            })
+            reports.write_text(json.dumps([etf, btc]), encoding="utf-8")
+
+            self.assertEqual(
+                select_strategy([etf, btc])["strategy_id"],
+                "alpaca-etf-126d-momentum-v1",
+            )
+
+            result = provision_selection(destination, reports)
+
+            self.assertEqual(result["status"], "created")
+            selection = json.loads(destination.read_text(encoding="utf-8"))
+            self.assertEqual(selection["selection"], "selected")
+            self.assertEqual(selection["strategy_id"], "alpaca-etf-126d-momentum-v1")
+            self.assertEqual(selection["report_id"], "positive-etf")
+
     def test_selected_report_is_written_as_release_pinned_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
