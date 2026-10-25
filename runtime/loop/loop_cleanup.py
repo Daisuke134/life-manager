@@ -7,10 +7,12 @@ import json
 import errno
 import hashlib
 import os
+import pwd
 import re
 import shutil
 import stat
 import subprocess
+import sys
 import time
 from contextlib import ExitStack
 from pathlib import Path
@@ -168,8 +170,30 @@ def _contains_protected(path: Path) -> bool:
         return True
 
 
-def _remove_marked(path: Path) -> int:
+def _record_release_removal(path: Path, keep: int, protected_count: int) -> None:
+    """Append one receipt per release removal; a failed write raises so the release stays.
+
+    2026-10-25: 136 loaded releases vanished in four minutes and no successful prune said who.
+    The real user's home, not $HOME: agent runners hand children a private HOME.
+    """
+    log = Path(os.environ.get("LIFE_MANAGER_RELEASE_GC_LOG") or Path(
+        pwd.getpwuid(os.getuid()).pw_dir) / ".local/state/life-manager/release-gc.jsonl")
+    log.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    line = json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "path": str(path),
+                       "pid": os.getpid(), "ppid": os.getppid(), "argv": sys.argv, "keep": keep,
+                       "protected_count": protected_count}, sort_keys=True).encode() + b"\n"
+    descriptor = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    try:
+        if os.write(descriptor, line) != len(line):
+            raise OSError(f"short release GC receipt write: {log}")
+    finally:
+        os.close(descriptor)
+
+
+def _remove_marked(path: Path, *, release_receipt: tuple[int, int] | None = None) -> int:
     size = _tree_bytes(path)
+    if release_receipt is not None:
+        _record_release_removal(path, *release_receipt)
     trash = path.with_name(f".{path.name}.gc-trash.{os.getpid()}")
     os.replace(path, trash)
     shutil.rmtree(trash)
@@ -504,7 +528,8 @@ def gc_releases(releases_root: Path, current: Path, *, keep: int,
         result["preserved_releases"] += 1
     for _, path in reversed(ordered[max(0, keep):]):
         try:
-            result["reclaimed_bytes"] += _remove_marked(path)
+            result["reclaimed_bytes"] += _remove_marked(
+                path, release_receipt=(keep, len(protected)))
             result["removed_releases"] += 1
         except OSError:
             result["errors"] += 1
@@ -531,7 +556,8 @@ def gc_releases(releases_root: Path, current: Path, *, keep: int,
                 unavailable += size
                 continue
             try:
-                result["reclaimed_bytes"] += _remove_marked(path)
+                result["reclaimed_bytes"] += _remove_marked(
+                    path, release_receipt=(keep, len(protected)))
                 result["removed_releases"] += 1
                 total -= size
             except OSError:
