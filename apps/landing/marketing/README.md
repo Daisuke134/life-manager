@@ -6,6 +6,10 @@ Production readback on 2026-10-25: `https://aniccaai.com/lm` returned HTTP 200 w
 
 `route-manifest.json` defines six page candidates, the target routes/export paths and SHA256 hashes. English is primary at `/en`, `/dais`, `/lm`; Japanese at `/ja`, `/dais/ja`, `/lm/ja`. The existing `/`→`/en` behavior belongs to the full site's routing and is preserved. `pages/` contains ordinary HTML, with working locale links, canonical/hreflang/description/Open Graph metadata. The Calendar onboarding link continues to the existing Railway web application; callbacks and billing are not reimplemented.
 
+## Products catalog source and availability
+
+The public `/dais` and `/dais/ja` product listings are authored in `pages/products-en.html` and `pages/products.html` and published through the pinned overlay. Keep web-product entries in these canonical templates, not in the duplicate Next.js `DaisBody` source in `anicca-products`. A product can appear before its service opens only when the card labels that status accurately in both locales and links to its real route. For AI Monk Factory, use “preparing to open” / “公開準備中”; the catalog entry does not claim generation, Instagram publishing, or Checkout readiness.
+
 Do not deploy this directory as the whole website: it would omit the other products, blog, legal pages, assets and serverless functions. Publish reviewed candidates by updating both immutable overlay pins and both verified script SHA checks to the same source revision. Retain all unrelated routes, Netlify redirects/functions, the Calendar/Stripe onboarding/billing, and the money-path smoke/rollback. Verify the live `/lm` response after the production workflow completes.
 
 The existing full site and production path were inspected read-only in `Daisuke134/anicca-products`. Its main-branch deploy workflow identifies the source/build/publish sequence, and the public response hash matches the workflow's pinned overlay. A direct Netlify deploy-ID/API readback was not available in this session.
