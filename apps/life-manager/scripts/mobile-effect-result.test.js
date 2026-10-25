@@ -6,7 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { main } = require("./mobile-effect-result.js");
+const { main, writePrivateJson } = require("./mobile-effect-result.js");
 
 test("slot-already-attempted result records no new provider effect", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mobile-effect-result-"));
@@ -72,4 +72,69 @@ test("reconciled publication binds the current result without replacing the orig
     provider_receipt_id: "postiz-existing-reel-1",
     effect_status: "reconciled",
   });
+});
+
+test("an interrupted marker replacement preserves the host pre-effect marker", { concurrency: false }, (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mobile-effect-result-interrupted-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const hint = path.join(directory, "entrypoint-result.json");
+  const original = '{"status":"pre_effect_failure","effect":0}\n';
+  const replacement = {
+    schema_version: 1,
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+    effect: 1,
+    owner_id: "life-manager-anicca-en-widget-instagram",
+    occurrence_id: "life-manager-anicca-en-widget-instagram:run-1",
+    provider: "postiz",
+    provider_receipt_id: "postiz-run-1",
+    effect_status: "verified",
+  };
+  fs.writeFileSync(hint, original, { mode: 0o600 });
+
+  const writeSync = fs.writeSync;
+  const writeFileSync = fs.writeFileSync;
+  let injected = false;
+  fs.writeSync = (descriptor, buffer, offset, length, position) => {
+    if (Buffer.isBuffer(buffer) && buffer.includes(Buffer.from('"verified_effect"'))) {
+      writeSync(descriptor, buffer, offset, Math.min(5, length), position);
+      injected = true;
+      throw new Error("injected result write failure");
+    }
+    return writeSync(descriptor, buffer, offset, length, position);
+  };
+  fs.writeFileSync = (descriptor, data, ...options) => {
+    if (typeof descriptor === "number" && String(data).includes('"verified_effect"')) {
+      const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data, options[0] || "utf8");
+      writeSync(descriptor, bytes, 0, Math.min(5, bytes.length), 0);
+      injected = true;
+      throw new Error("injected result write failure");
+    }
+    return writeFileSync(descriptor, data, ...options);
+  };
+  try {
+    assert.throws(() => writePrivateJson(hint, replacement), /injected result write failure/);
+  } finally {
+    fs.writeSync = writeSync;
+    fs.writeFileSync = writeFileSync;
+  }
+
+  assert.equal(injected, true);
+  assert.equal(fs.readFileSync(hint, "utf8"), original);
+  assert.deepEqual(fs.readdirSync(directory), ["entrypoint-result.json"]);
+});
+
+test("result marker replacement requires a private per-run directory", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mobile-effect-result-shared-dir-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const hint = path.join(directory, "entrypoint-result.json");
+  const original = '{"status":"pre_effect_failure","effect":0}\n';
+  fs.writeFileSync(hint, original, { mode: 0o600 });
+  fs.chmodSync(directory, 0o755);
+
+  assert.throws(() => writePrivateJson(hint, {
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+  }), /parent is invalid/);
+  assert.equal(fs.readFileSync(hint, "utf8"), original);
 });

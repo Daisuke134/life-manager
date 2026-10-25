@@ -79,14 +79,42 @@ function effectStatus(publication, options = {}) {
 function writePrivateJson(target, value) {
   const parent = path.dirname(target);
   const parentInfo = fs.lstatSync(parent);
-  if (!parentInfo.isDirectory() || parentInfo.isSymbolicLink()) {
+  if (!parentInfo.isDirectory() || parentInfo.isSymbolicLink()
+      || parentInfo.uid !== process.getuid() || (parentInfo.mode & 0o777) !== 0o700) {
     throw new Error("mobile result hint parent is invalid");
   }
+  let existing;
   try {
-    fs.lstatSync(target);
-    throw new Error("mobile result hint already exists");
+    existing = fs.lstatSync(target);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
+  }
+  if (existing) {
+    if ((value.kind !== "life_manager_effect_result"
+        && value.kind !== "life_manager_no_effect_result") || !existing.isFile()) {
+      throw new Error("mobile result hint already exists");
+    }
+    const descriptor = fs.openSync(
+      target,
+      fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0),
+    );
+    try {
+      const info = fs.fstatSync(descriptor);
+      if (!info.isFile() || info.uid !== process.getuid()
+          || info.nlink !== 1 || (info.mode & 0o777) !== 0o600
+          || info.size > 4096 || info.dev !== existing.dev || info.ino !== existing.ino) {
+        throw new Error("mobile result hint already exists");
+      }
+      const marker = JSON.parse(fs.readFileSync(descriptor, "utf8"));
+      if (!marker || typeof marker !== "object" || Array.isArray(marker)
+          || Object.keys(marker).sort().join(",") !== "effect,status"
+          || marker.status !== "pre_effect_failure"
+          || typeof marker.effect !== "number" || marker.effect !== 0) {
+        throw new Error("mobile result hint already exists");
+      }
+    } finally {
+      fs.closeSync(descriptor);
+    }
   }
   const temporary = path.join(
     parent,
@@ -100,6 +128,21 @@ function writePrivateJson(target, value) {
     fs.closeSync(descriptor);
     descriptor = undefined;
     fs.chmodSync(temporary, 0o600);
+    // shortcut: one writer per occurrence is enforced by its private run directory; add a platform compare-and-swap primitive if writes become concurrent.
+    const currentParent = fs.lstatSync(parent);
+    if (!currentParent.isDirectory() || currentParent.isSymbolicLink()
+        || currentParent.uid !== process.getuid() || (currentParent.mode & 0o777) !== 0o700
+        || currentParent.dev !== parentInfo.dev || currentParent.ino !== parentInfo.ino) {
+      throw new Error("mobile result hint parent is invalid");
+    }
+    if (existing) {
+      const current = fs.lstatSync(target);
+      if (!current.isFile() || current.uid !== process.getuid()
+          || current.nlink !== 1 || (current.mode & 0o777) !== 0o600
+          || current.size > 4096 || current.dev !== existing.dev || current.ino !== existing.ino) {
+        throw new Error("mobile result hint already exists");
+      }
+    }
     fs.renameSync(temporary, target);
   } finally {
     if (descriptor !== undefined) fs.closeSync(descriptor);
