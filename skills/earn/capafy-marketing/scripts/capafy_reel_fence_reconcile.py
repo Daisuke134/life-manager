@@ -133,9 +133,12 @@ def write_result_hint(proof: dict, path: Path) -> bool:
 
 def postiz_posts_at(net: str, slot: str) -> list[str]:
     """Every live post on this net's integration within a minute of the slot (any owner)."""
+    from capafy_distribute_fence_reconcile import postiz_key  # noqa: PLC0415
     from capafy_reel_daily import IG_ID, TT_ID, X_ID  # noqa: PLC0415
 
-    key = os.environ["LM_POSTIZ_API_KEY"]
+    key = postiz_key()
+    if not key:
+        raise RuntimeError("postiz_key_missing")
     at = dt.datetime.fromisoformat(slot.replace("Z", "+00:00"))
     q = urllib.parse.urlencode({"startDate": (at - dt.timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
                                 "endDate": (at + dt.timedelta(minutes=1)).isoformat().replace("+00:00", "Z")})
