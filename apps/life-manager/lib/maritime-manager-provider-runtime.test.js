@@ -214,19 +214,32 @@ test("completed central cycle selects one guarded original artifact and idempote
   await assert.rejects(runtime().enqueueMaritimeCapafyPrepareFromCycle({...input,receipt:{...f.cycleReceipt,providerReceiptRefs:["fake"]}},services));
 });
 
-test("pause after successful prepare persists the known receipt without a publish successor",async()=>{
+test("pause after successful prepare preserves readback job and fences provider reads until resume",async()=>{
  const f=fixture();f.services.managerStore.read=async()=>({uid:UID,status:"paused",paused_at:"2026-10-23T12:00:01.000Z",release_sha:SHA});
+ let confirmationReads=0,publishReads=0;
+ f.provider.readPublisherConfirmation=async ({agentId,agentVersionId})=>{confirmationReads++;return {agentId,agentVersionId,
+  isConfirmedSkills:true,isConfirmedConfigKeys:true,platformStatus:"under_review"};};
+ f.provider.readPublish=async()=>{publishReads++;return {state:"present",receipt:f.publishReceipt};};
  const adapter=runtime().createMaritimeManagerCapafyPrepareAdapter(f.services);
  assert.equal((await adapter.reconcile(f.prepare)).state,"present");
- assert.equal(await adapter.continuation(f.prepare,f.prepareReceipt),null);
- let commits=0;
+ const next=await adapter.continuation(f.prepare,f.prepareReceipt);
+ assert.equal(next.job.capability,"maritime.manager.capafy.publish");
+ let commits=0,enqueued=null;
  await require("../scripts/runtime-up.js").reconcileMaritimeCapabilityJobs([f.prepare.capability],{
   registry:{getByCapability:()=>adapter},store:{
    claimReconcilingJobs:async()=>[{...f.prepare,status:"reconciling"}],
    recordUnknownReconciliation:async()=>{throw new Error("known success must not age");},
-   resolveReconciliationAndEnqueue:async()=>{throw new Error("paused tenant cannot publish");},
-   resolveReconciliation:async input=>{assert.equal(input.decision,"present");assert.deepEqual(input.receipt,f.prepareReceipt);commits++;},
+   resolveReconciliationAndEnqueue:async input=>{assert.equal(input.decision,"present");assert.deepEqual(input.receipt,f.prepareReceipt);
+    assert.equal(input.nextJob.capability,"maritime.manager.capafy.publish");enqueued=input.nextJob;commits++;},
+   resolveReconciliation:async()=>{throw new Error("valid prepare receipt must atomically retain its readback successor");},
   },
  });
  assert.equal(commits,1);assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+ const publishAdapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
+ await assert.rejects(publishAdapter.execute({...enqueued,attempt:1,status:"running"}),error=>error.unknownEffect===true
+  && error.code==="MARITIME_CAPAFY_MANAGER_PAUSED");
+ assert.equal(confirmationReads,0);assert.equal(publishReads,0);
+ f.services.managerStore.read=async()=>({uid:UID,status:"active",paused_at:null,release_sha:SHA});
+ assert.deepEqual(await publishAdapter.execute({...enqueued,attempt:1,status:"running"}),{receipt:f.publishReceipt});
+ assert.equal(confirmationReads,1);assert.equal(publishReads,1);assert.deepEqual(f.counts(),{prepares:0,publishes:0});
 });

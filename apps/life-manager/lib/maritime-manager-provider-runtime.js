@@ -145,9 +145,15 @@ function createAdapter(phase,services={}) {
       :verifyMaritimeCapafyPublishReceipt(receipt,job,bound.prepared.job,bound.prepared.receipt,bound.cycle.job,bound.cycle.receipt);
   }
   async function inspect(job,bound) {
-    if(phase==="publish" && !await publisherConfirmed(bound,bound.c.agentId,bound.c.agentVersionId))
-      return {state:"unknown",errorClass:"maritime_capafy_publisher_confirmation_required",
-        nextAction:"confirm_in_capafy",retryable:false};
+    if(phase==="publish") {
+      let enrollment;
+      try {enrollment=await services.managerStore?.read(bound.c.tenantId);}catch {}
+      if(enrollment?.uid!==bound.c.tenantId || enrollment.status!=="active" || enrollment.paused_at)
+        return {state:"unknown",errorClass:"maritime_capafy_manager_paused",nextAction:"resume_manager",retryable:false};
+      if(!await publisherConfirmed(bound,bound.c.agentId,bound.c.agentVersionId))
+        return {state:"unknown",errorClass:"maritime_capafy_publisher_confirmation_required",
+          nextAction:"confirm_in_capafy",retryable:false};
+    }
     const read=provider[phase==="prepare"?"readPrepare":"readPublish"];
     if(typeof read!=="function")throw new ProviderError("maritime_capafy_unconfigured");
     // This trusted host service must read official target and action evidence.
@@ -164,7 +170,9 @@ function createAdapter(phase,services={}) {
   return Object.freeze({
     plan:async input=>[providerJob(phase,input)],
     async execute(job) {
-      const bound=await context(job,{active:true,guard:phase==="prepare"});
+      // Publish jobs now only read back the Publisher's own Capafy action. Keep
+      // them durable across pause; inspect() holds provider reads until resume.
+      const bound=await context(job,{active:phase==="prepare",guard:phase==="prepare"});
       if(job.status!=="running")invalid();
       if(phase==="publish") {
         // Capafy requires the publisher to submit each Agent version through its website.
@@ -197,9 +205,6 @@ function createAdapter(phase,services={}) {
       if(phase!=="prepare")return null;
       const bound=await context(job);
       if(!verifyWithContext(receipt,job,bound))invalid();
-      const enrollment=await services.managerStore?.read(bound.c.tenantId);
-      if(enrollment?.uid!==bound.c.tenantId)throw new ProviderError("maritime_capafy_binding_unknown");
-      if(enrollment.status!=="active" || enrollment.paused_at || enrollment.release_sha!==bound.c.releaseSha)return null;
       const availableAt=(services.now||(()=>new Date().toISOString()))();
       if(!Number.isFinite(Date.parse(availableAt)))invalid();
       return {job:buildMaritimeCapafyPublishJob({...bound.c,prepareJobId:job.job_id,
