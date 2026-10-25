@@ -2734,9 +2734,19 @@ deterministic/light resource classで行い、収益browser枠を奪わない。
 このSpecは「無監督で次世代foundation modelを作った」とは判定しない。
 
 OpenAIの公開説明も「Fully autonomous recursive self-improvement ... is not happening today」として
-おり、Life Managerは現在、RSI-0/RSI-1の実装とRSI-2の安全な接続を進める段階である。AGIという
+おり、Life Managerにはowner別のRSI-0/RSI-1の一部があるが、全18業務をつなぐ統一improvement loopは未確認。RSI-2は設計対象で、production実装済みとは扱わない。AGIという
 製品主張は、未知の課題への長期自律性、改善前後の再現可能な評価、外部効果、safety evidenceを
 独立に示した後でのみ検討する。
+
+### I2. RSI method selection and rollout boundary (2026-10-21)
+
+Primary-source comparison and evidence limits → [EDD/RSI prior-art research](../../research/2026-10-12-edd-and-autonomy-benchmarks.md).
+
+**Selected method:** use Harness²’s offline Propose–Probe–Compose pattern for harness candidates, implemented through Life Manager’s existing EDD and owner/release contracts. Do not install a second production scheduler, business ledger, or live strategy writer. The paper’s benchmark gains are agent-task scores, not investment returns.
+
+For each product-loop family, Life Manager keeps a separate outcome contract. The improvement worker may propose prompt, skill, tool guidance, or adapter changes on an isolated candidate branch; it cannot edit the evaluator, held-out labels, identity, permissions, effect/readback rules, or spend cap. A frozen baseline and held-out split are required; financial candidates also require cost-complete returns, benchmark excess, drawdown, and official settlement before live adoption.
+
+**Rollout order:** (1) finish the current investment capacity/validation gates in the unified SSOT; (2) run one offline candidate comparison with the existing investment EDD, then require natural paper and official readback; (3) repeat the same bounded pattern for one additional revenue agent; (4) extend to the other owner families only after each family has a domain-specific grader and the pilot shows held-out improvement without safety or cost regression. Dream-RSI replay is an optional later screening method for validated histories. RSI-Anything world-model adaptation and MASS weight training remain research-only until a concrete need and independent benefit are demonstrated.
 
 ### J. Local and cloud are one implementation
 
