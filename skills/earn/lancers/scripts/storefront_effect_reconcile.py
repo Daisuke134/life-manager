@@ -138,7 +138,7 @@ def _creation_proof(occurrence_id: str, state_root: Path, product_path: Path,
             if (offer._load_product_file(product_path) != expected_raw
                     or offer._creation_record(state_path, occurrence_id) != expected_record):
                 raise Held("creation_restore_incomplete")
-            _, _, saved_id = offer._creation_product(product_path, state_path, expected_record, catalog_path)
+            _, _, saved_id = offer._creation_product(product_path, state_path, record, catalog_path)
             if saved_id != external_id: raise Held("creation_restore_incomplete")
         elif (offer._load_product_file(product_path) != raw
               or offer._creation_record(state_path, occurrence_id) != record):
