@@ -107,7 +107,8 @@ class CrossReleaseTest(unittest.TestCase):
 
     def test_conflicting_published_counts_do_not_create_spurious_inference(self):
         a, b = self.pair()
-        b["partition"]["cells"] = cells(alpha=55, beta=45)
+        b["partition"]["cells"][0]["count"] = 55
+        b["partition"]["cells"][1]["count"] = 45
         r = preflight_cross_release(a, b)
         self.assertEqual(r["status"], "REVIEW_REQUIRED")
         self.assertIn("CROSS_RELEASE_COUNTS_CONFLICT", r["reason_codes"])
@@ -157,7 +158,7 @@ class CrossReleaseTest(unittest.TestCase):
     def test_different_totals_not_assumed_a_stable_cohort(self):
         a, b = self.pair()
         b["partition"]["total"] = 110
-        b["partition"]["cells"] = cells(alpha=60, beta=50)
+        b["partition"]["cells"][1]["count"] = 50
         r = preflight_cross_release(a, b)
         self.assertEqual(r["status"], "REVIEW_REQUIRED")
         self.assertIn("CROSS_RELEASE_TOTALS_DIFFER", r["reason_codes"])
