@@ -3,15 +3,34 @@
 数字はこのファイルが正本。出典のある数字だけ書く。推測・未確認は書かない（不明は「未計測」）。
 更新したら該当行の「更新(JST)」と「出典」を書き換え、BOARD.md のログに1行追記する。
 
-## 最新（毎時更新） 2026-10-24 18:54 JST
+## 最新（毎時更新） 2026-10-25 14:29 JST
 
 | 項目 | 値 | 出典 |
 |---|---|---|
-| 共有応募台帳 行数 | 215（acknowledged 14 / acknowledged_unmapped_group 1 / application_email_sent 4 / application_receipt_verified_in_review 7 / applied 22 / assessment_pending 1 / blocked 2 / claimed 18 / drafted 3 / email_bounced 1 / historical_recorded_pending_not_reverified 52 / historical_submission_assertion_primary_receipt_not_reverified 14 / interview_or_scheduling_pending 5 / listed 3 / needs-owner 2 / outcome_mapping_pending 3 / parked 1 / published 2 / rejected 29 / skipped 9 / submission_uncertain 10 / submitted 2 / submitted_official_confirmation_recorded 6 / withdrawn 4） | `ledger/APPLICATIONS.md` @ origin/main af2967f276 |
-| Coconala 応募（今日JST） | 17件 | `~/gig/applied.jsonl` status==applied, ts>=今日0時JST |
-| Writer 有料記事 公開（今日） | 3本（台帳行 6） | `~/.local/state/life-manager/writer/articles.jsonl` live_url あり |
-| Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-24T08:50:02Z |
+| 共有応募台帳 行数 | 215（acknowledged 14 / acknowledged_unmapped_group 1 / application_email_sent 4 / application_receipt_verified_in_review 7 / applied 22 / assessment_pending 1 / blocked 2 / claimed 18 / drafted 3 / email_bounced 1 / historical_recorded_pending_not_reverified 52 / historical_submission_assertion_primary_receipt_not_reverified 14 / interview_or_scheduling_pending 5 / listed 3 / needs-owner 2 / outcome_mapping_pending 3 / parked 1 / published 2 / rejected 29 / skipped 9 / submission_uncertain 10 / submitted 2 / submitted_official_confirmation_recorded 6 / withdrawn 4） | `ledger/APPLICATIONS.md` @ origin/main d04367bd58 |
+| Coconala 応募（今日JST） | 4件 | `~/gig/applied.jsonl` status==applied, ts>=今日0時JST |
+| Coconala 今月 earned（手数料控除後） | 3件 / ¥31,980（出金申請 0件・銀行未照合） | 公式 https://coconala.com/mypage/revenue → `~/gig/earnings.jsonl`（revenue_collector, 最終更新 10-25 14:28 JST） |
+| Writer 有料記事 公開（今日） | 0本（台帳行 0） | `~/.local/state/life-manager/writer/articles.jsonl` live_url あり |
+| Capafy 累計 gross / 非トライアル | $112.74 / 33件 | `capafy-hourly-reconcile.json` observed_at 2026-10-25T04:34:57Z |
 | PromptBase 売上 | 0件 / $0.0 | `promptbase-sales.json` observed_at 2026-10-23T13:24:33Z |
+
+### 費用（Dots 照合 2026-10-25 14:12 JST・売上/利益に未合算・期間と通貨は行ごとに異なる）
+
+| サービス | 内容 | 状態 | 根拠 |
+|---|---|---|---|
+| Grok Super | ¥10,735 支払済 10/25–11/25（次回 11/25 ¥17,800） | 照合済 | Gmail 1a1716b0efc4a3ba / 1a17169ef7f80976 |
+| X Premium | ¥918 支払済 10/24–11/24（次回金額未確認） | 照合済 | Gmail 1a16da1dfe3968d1 |
+| Claude Max5x | 9月 ¥20,000 は過去請求。最新通知は 10/27 有効期限終了、次回支払に計上しない | 現在設定 | Gmail 1a12d177f111cb1a |
+| HeyGen Creator | ¥4,500 領収 10/20（次回 11/21 表示） | 照合済 | Gmail 1a15d47ebb8e5182 |
+| Replit Core | $20 = 同一決済 ¥3,283 10/7–11/7（二重計上不可） | 照合済 | Gmail 1a1193f6906182ad |
+| Railway | $26.07 支払済（使用量＋Hobby、含有 $5 控除後）。固定月額ではない | 照合済 | Gmail 1a0e2f3d4a3efb69 |
+| DigitalOcean Anicca | 9月 $0.08 使用量はクレジット相殺、請求 $0。10月未確認 | 未照合（10月） | Gmail 1a0f66b97cab95f3 |
+| Hetzner | $1.55 請求通知のみ、決済完了未確認 | 未照合 | Gmail 1a0f5a2f96b84fb4 |
+| ChatGPT | 10/20 Pro→Plus 切替予定通知、現在金額未確認。旧 Pro $200 を継続費にしない | 未照合 | Gmail 1a1542d7dbf6689a |
+| Gemini Anicca | AI Studio 無料枠/請求先未設定を確認。過去発生費用は別途 | 現在設定 | AI Studio 画面 10/25 |
+| Apple Grok Bot Pro（旧） | 10/16 解約・¥3,221 返金通知。旧 ¥4,000/月 を継続費から除外 | 照合済 | Gmail 1a143ef1d6c24c00 |
+
+原本は本人 Gmail 内。共有側で開けない行は原本確認待ち。Coconala の 8/9 月行は金額 field 不一致のため未確認（0 売上扱いしない）。
 
 ## 2026-10-23 夜（参謀依頼）
 
