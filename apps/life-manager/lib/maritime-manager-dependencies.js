@@ -7,6 +7,7 @@ function createMaritimeManagerDependencies({ pgPool, env = process.env } = {}) {
   if (!pgPool || typeof pgPool.query !== "function") throw new Error("maritime_manager_dependencies_unconfigured");
   const managerPersistence = createMaritimeManagerPersistence({ pgPool, env });
   return Object.freeze({
+    query: pgPool.query.bind(pgPool),
     managerStore: createMaritimeManagerStore({ pgPool, env }),
     managerPersistence,
     distributionStore: managerPersistence,

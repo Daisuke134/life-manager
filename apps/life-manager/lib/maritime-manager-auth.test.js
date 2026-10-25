@@ -195,6 +195,43 @@ test("verified_campaign_page_displays_activation_or_persisted_state_without_disp
   assert.doesNotMatch(res.body,/<button[^>]+data-action="activate"/);assert.match(res.body,/実行結果を確認中/);
 });
 
+test("active_cloud_page_shows_only_verified_work_and_email_receipts",async()=>{
+ const {deps}=fixture();const uid=`lm_${SUBJECT}`,sha="a".repeat(40);
+ deps.distributionStore={recordAnonymousEvent:async()=>true};
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",agent_id:"agent-a",release_sha:sha})};
+ deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
+  external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
+ const cycle={...require("./maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,releaseSha:sha,occurrenceId:"cycle-1",dateKey:"2026-10-25"}),status:"completed",attempt:1};
+ const cycleReceipt={schema_version:1,kind:"maritime_manager_cycle",tenant_id:uid,job_id:cycle.job_id,occurrence_id:"cycle-1",
+  date_key:"2026-10-25",release_sha:sha,agent_id:"agent-a",execution_id:"execution-1",status:"completed",
+  artifact_refs:["artifact://cycle-1/result.md","artifact://cycle-1/metrics.json"],error_class:null,provider:"maritime",
+  external_ref:"maritime-execution://agent-a/execution-1",evidence_refs:["maritime-execution://agent-a/execution-1"]};
+ const report={...require("./maritime-manager-runtime.js").buildMaritimeManagerReportJob({tenantId:uid,releaseSha:sha,periodKey:"maritime:daily:2026-10-25"}),status:"completed",attempt:1};
+ const reportReceipt={schema_version:1,kind:"maritime_manager_report",status:"completed",provider:"resend",tenant_id:uid,
+  job_id:report.job_id,period_key:"maritime:daily:2026-10-25",release_sha:sha,provider_message_id:"message-1",
+  recipient_hash:"b".repeat(64),snapshot_hash:"c".repeat(64),sent_at:"2026-10-25T11:00:00.000Z",
+  external_ref:"resend-email://message-1",evidence_refs:["resend-email://message-1"]};
+ deps.query=async(sql,values)=>{assert.match(sql,/jobs\.tenant_id\s*=\s*\$1/);assert.match(sql,/PARTITION BY jobs\.capability/);assert.deepEqual(values,[uid,10]);return {rows:[
+  {job:report,receipt:reportReceipt,observed_at:"2026-10-25T11:00:00.000Z"},
+  {job:cycle,receipt:cycleReceipt,observed_at:"2026-10-25T10:00:00.000Z"},
+ ]};};
+ const res=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),res,deps);
+ assert.equal(res.statusCode,200);assert.match(res.body,/Verified work/);assert.match(res.body,/2 files/);
+ assert.match(res.body,/Verified email report sent/);assert.match(res.body,/This activity feed does not verify income earned by Life Manager/);
+});
+
+test("active_cloud_page_does_not_call_unconfirmed_cycle_output_verified_work",async()=>{
+ const {deps}=fixture();const uid=`lm_${SUBJECT}`,sha="a".repeat(40);
+ deps.distributionStore={recordAnonymousEvent:async()=>true};
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,email:USER.email,timezone:"UTC",status:"active",agent_id:"agent-a",release_sha:sha})};
+ deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
+  external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
+ const cycle={...require("./maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,releaseSha:sha,occurrenceId:"cycle-1",dateKey:"2026-10-25"}),status:"dead_letter",attempt:1};
+ deps.query=async()=>({rows:[{job:cycle,receipt:null,observed_at:"2026-10-25T10:00:00.000Z"}]});
+ const res=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),res,deps);
+ assert.equal(res.statusCode,200);assert.match(res.body,/Result confirmation is pending/);assert.doesNotMatch(res.body,/Verified work|This run did not complete/);
+});
+
 test('manager activation pins the VM image release independently of the central app release',async()=>{
   const {deps,rows}=activationFixture();deps.env.LM_RELEASE_SHA='b'.repeat(40);deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA='c'.repeat(40);
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,202);assert.equal([...rows.values()][0].release_sha,'c'.repeat(40));
@@ -303,13 +340,17 @@ test("server manager dependencies share the supplied Runtime PG pool", async () 
     return { rows: [] };
   } };
   const dependencies = createMaritimeManagerDependencies({ pgPool, env: { LM_UID_SECRET: "fixture-only-secret" } });
+  assert.equal(typeof dependencies.query, "function");
+  assert.deepEqual(await dependencies.query("SELECT 1", []), { rows: [] });
+  assert.equal(queries.at(-1).statement, "SELECT 1");
   assert.equal(dependencies.distributionStore, dependencies.managerPersistence);
   assert.equal(dependencies.cfoReceiptIO, dependencies.managerPersistence.cfoReceiptIO);
   assert.equal(await dependencies.managerStore.read(uid), null);
   assert.equal(await dependencies.ensureWebUserImpl(subject), uid);
-  assert.equal(queries.length, 3);
-  assert.match(queries[0].statement, /lm_maritime_manager_enrollments/);
-  assert.deepEqual(queries[0].values, [uid]);
-  assert.match(queries[1].statement, /lm_maritime_manager_identities/);
+  assert.equal(queries.length, 4);
+  assert.equal(queries[0].statement, "SELECT 1");
+  assert.match(queries[1].statement, /lm_maritime_manager_enrollments/);
+  assert.deepEqual(queries[1].values, [uid]);
   assert.match(queries[2].statement, /lm_maritime_manager_identities/);
+  assert.match(queries[3].statement, /lm_maritime_manager_identities/);
 });

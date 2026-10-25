@@ -238,12 +238,16 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
   try {
     const user = await resolveMaritimeManagerUser(req, res, options);
-    let state = null;
+    let state = null, workbench = null, workbenchUnavailable = false;
     if (user) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
       state = row?.status || null;
       if (state === "active" && !await managerReady(row, options)) state = "provisioning";
+      if (state === "active") {
+        try { workbench = await require("./maritime-manager-workbench.js").readMaritimeManagerWorkbench({ uid: user.uid }, options); }
+        catch { workbenchUnavailable = true; }
+      }
       void require("./maritime-manager-usage.js").observeMaritimeUsage("returned", user.uid, signal => (options.recordReturn || require("./maritime-manager-usage.js").recordMaritimeManagerReturn)(user.uid, { ...options, signal, request: req, managerStore: store }), options);
     }
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env: options.env || process.env });
@@ -251,7 +255,8 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "vary": "Cookie",
       "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" });
-    res.end(renderMaritimeLanding({ source, language, user, state, telegramAvailable: options.telegramAvailable === true,
+    res.end(renderMaritimeLanding({ source, language, user, state, workbench, workbenchUnavailable,
+      telegramAvailable: options.telegramAvailable === true,
       authError: url.searchParams.get("auth_error") === "connection" ? "connection" : null }));
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
