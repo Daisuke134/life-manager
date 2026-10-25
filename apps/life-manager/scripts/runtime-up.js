@@ -295,9 +295,32 @@ async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = fa
   if (enabled !== true || !capabilities.includes("maritime.manager.capafy.prepare")
     || !maritimeCapafyHostProviderConfigured(provider) || !managerStore
     || typeof enqueueJob !== "function" || typeof query !== "function") return { status: "disabled", queued: 0 };
-  const rows = (await query(`
-    WITH candidates AS (
-      SELECT DISTINCT ON (jobs.tenant_id) jobs.tenant_id, jobs.completed_at,
+  const cursorKey = "cycle_admission";
+  const cursorRows = (await query(`
+    SELECT completed_at::text AS completed_at, tenant_id, job_id
+    FROM private.lm_maritime_manager_capafy_recovery_cursor
+    WHERE cursor_key=$1 LIMIT 2
+  `, [cursorKey])).rows;
+  if (!Array.isArray(cursorRows) || cursorRows.length !== 1) throw new Error("maritime_capafy_admission_cursor_unavailable");
+  const currentCursor = cursorRows[0];
+  let cursor = currentCursor.completed_at == null && currentCursor.tenant_id == null && currentCursor.job_id == null
+    ? null : { completed_at: currentCursor.completed_at, tenant_id: currentCursor.tenant_id, job_id: currentCursor.job_id };
+  if (cursor && (!Number.isFinite(Date.parse(cursor.completed_at))
+    || !/^lm_[0-9a-f-]{36}$/i.test(cursor.tenant_id || "")
+    || !/^maritime-cycle:[0-9a-f]{64}$/i.test(cursor.job_id || ""))) {
+    throw new Error("maritime_capafy_admission_cursor_invalid");
+  }
+  const persistCursor = async value => {
+    const result = await query(`
+      UPDATE private.lm_maritime_manager_capafy_recovery_cursor
+      SET completed_at=$2::timestamptz, tenant_id=$3, job_id=$4, updated_at=clock_timestamp()
+      WHERE cursor_key=$1 RETURNING cursor_key
+    `, [cursorKey, value?.completed_at ?? null, value?.tenant_id ?? null, value?.job_id ?? null]);
+    if (!Array.isArray(result?.rows) || result.rows.length !== 1) throw new Error("maritime_capafy_admission_cursor_write_unconfirmed");
+  };
+  const readCandidates = async after => {
+    const result = await query(`
+      SELECT jobs.completed_at::text AS completed_at, jobs.tenant_id, jobs.job_id,
         row_to_json(jobs) AS job, receipts.receipt
       FROM public.lm_runtime_jobs AS jobs
       JOIN public.lm_runtime_job_receipts AS receipts
@@ -318,16 +341,34 @@ async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = fa
           WHERE prepares.tenant_id=jobs.tenant_id AND prepares.capability='maritime.manager.capafy.prepare'
             AND prepares.input_refs->>'source_cycle_job_id'=jobs.job_id
         )
-      ORDER BY jobs.tenant_id, jobs.completed_at DESC, jobs.job_id DESC
-    )
-    SELECT job, receipt FROM candidates ORDER BY completed_at DESC LIMIT 20
-  `, [])).rows;
-  if (!Array.isArray(rows)) throw new Error("maritime_capafy_admission_read_invalid");
+        AND ($1::timestamptz IS NULL OR (jobs.completed_at, jobs.tenant_id, jobs.job_id) > ($1::timestamptz, $2::text, $3::text))
+      ORDER BY jobs.completed_at ASC, jobs.tenant_id ASC, jobs.job_id ASC
+      LIMIT 20
+    `, [after?.completed_at ?? null, after?.tenant_id ?? null, after?.job_id ?? null]);
+    if (!Array.isArray(result?.rows) || result.rows.length > 20) throw new Error("maritime_capafy_admission_read_invalid");
+    return result.rows;
+  };
+  let rows = await readCandidates(cursor);
+  if (rows.length === 0 && cursor) {
+    // Wrap to the start after reaching the end. Persisted keyset pagination
+    // ensures deferred/refused rows cannot permanently occupy the first batch.
+    await persistCursor(null);
+    cursor = null;
+    rows = await readCandidates(cursor);
+  }
   let queued = 0;
   for (const row of rows) {
     const result = await enqueueMaritimeCapafyPrepareAfterCompletion(row?.job, row?.receipt,
       { provider, managerStore, enqueueJob, storeOptions, observe });
     if (result.status === "queued") queued += Number(result.created === true);
+    const completedAt = row?.completed_at;
+    const tenantId = row?.tenant_id || row?.job?.tenant_id;
+    const jobId = row?.job_id || row?.job?.job_id;
+    if (!Number.isFinite(Date.parse(completedAt)) || typeof tenantId !== "string" || typeof jobId !== "string") {
+      throw new Error("maritime_capafy_admission_candidate_invalid");
+    }
+    cursor = { completed_at: completedAt, tenant_id: tenantId, job_id: jobId };
+    await persistCursor(cursor);
   }
   return { status: "checked", queued, candidates: rows.length };
 }

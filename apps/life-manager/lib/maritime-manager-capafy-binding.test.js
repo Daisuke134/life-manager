@@ -139,7 +139,11 @@ test("private binding migration denies public roles and keys credentials to the 
   assert.match(migration, /ENABLE ROW LEVEL SECURITY/i);
   assert.match(migration, /REVOKE ALL ON TABLE private\.lm_maritime_manager_capafy_bindings FROM PUBLIC, anon, authenticated/i);
   assert.match(migration, /FOREIGN KEY \(uid, auth_subject\)[\s\S]*REFERENCES public\.lm_maritime_manager_enrollments\(uid, auth_subject\)/i);
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS lm_maritime_manager_enrollments_uid_auth_subject\s+ON public\.lm_maritime_manager_enrollments \(uid, auth_subject\)/i);
   assert.match(migration, /autonomy_consent_version = 'maritime-capafy-autonomy-v1'/i);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS private\.lm_maritime_manager_capafy_recovery_cursor/i);
+  assert.match(migration, /REVOKE ALL ON TABLE private\.lm_maritime_manager_capafy_recovery_cursor FROM PUBLIC, anon, authenticated/i);
+  assert.match(migration, /GRANT SELECT, UPDATE ON TABLE private\.lm_maritime_manager_capafy_recovery_cursor TO service_role/i);
 });
 
 test("Capafy unlink remains available when encryption-key configuration is unavailable", async () => {

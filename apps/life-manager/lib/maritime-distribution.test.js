@@ -2,15 +2,18 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
+const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { createHmac } = require("node:crypto");
+const { chromium } = require("playwright-core");
 const {
   normalizeMaritimeSource,
   renderMaritimeLanding,
   parseMaritimeStartPayload,
   createMaritimeDistributionStore,
 } = require("./maritime-distribution.js");
+const CHROMIUM_PATH = process.env.LM_TEST_CHROMIUM_PATH
+  || ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"].find(existsSync);
 
 test("deep-link source is allowlisted and malformed payloads do not become campaign tags", () => {
   assert.equal(normalizeMaritimeSource("community"), "community");
@@ -228,6 +231,32 @@ test("active Life Manager Cloud shows a transparent, tenant-owned Capafy connect
   assert.match(html,/does not publish anything or guarantee sales/i);
   assert.match(html,/\/maritime\/capafy\/connect\/start/);assert.match(html,/\/maritime\/capafy\/connect\/verify/);
   assert.doesNotMatch(html,/\bpilot\b/i);assert.doesNotMatch(html,/CAPAFY_ACCESS_TOKEN|am_sk_/i);
+});
+test("Capafy email verification step submits in Chromium before the code is available", { skip: !CHROMIUM_PATH && "Chromium executable is not installed" }, async () => {
+  const browser = await chromium.launch({ headless: true, executablePath: CHROMIUM_PATH,
+    args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(renderMaritimeLanding({ language: "en",
+      user: { email: "person@example.invalid", csrf: "a".repeat(64) }, state: "active", capafyStatus: "not_connected" }));
+    await page.evaluate(() => {
+      window.__capafyRequests = [];
+      window.fetch = async (url, options) => {
+        window.__capafyRequests.push({ url, body: JSON.parse(options.body) });
+        return { ok: true, status: 202, json: async () => ({ status: "check_email", challengeRef: "opaque-challenge" }) };
+      };
+    });
+    await page.locator("#capafy-email").fill("seller@example.com");
+    await page.getByRole("button", { name: "Send verification code" }).click();
+    await page.waitForFunction(() => window.__capafyRequests.length === 1, undefined, { timeout: 2000 });
+    assert.deepEqual(await page.evaluate(() => window.__capafyRequests[0]), {
+      url: "/maritime/capafy/connect/start", body: { email: "seller@example.com" },
+    });
+    assert.equal(await page.locator("#capafy-verification").isVisible(), true);
+    assert.equal(await page.locator("#capafy-code").isDisabled(), false);
+  } finally {
+    await browser.close();
+  }
 });
 test("connected Capafy account is shown without its identifier and can be unlinked",()=>{
  const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state:"active",capafyStatus:"connected"});

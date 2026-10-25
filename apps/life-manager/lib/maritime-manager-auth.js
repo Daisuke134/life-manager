@@ -257,7 +257,8 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   const pathname = new URL(req.url || "/", "http://localhost").pathname;
   if (![CAPAFY_CONNECT_PATH, CAPAFY_VERIFY_PATH, CAPAFY_DISCONNECT_PATH].includes(pathname)) return false;
   if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
-  if (options.capafyConnectionEnabled !== true && (options.env || process.env).LM_MARITIME_CAPAFY_CONNECTION_ENABLED !== "1") {
+  if (pathname !== CAPAFY_DISCONNECT_PATH && options.capafyConnectionEnabled !== true
+    && (options.env || process.env).LM_MARITIME_CAPAFY_CONNECTION_ENABLED !== "1") {
     send(res, 503, { error: "capafy_connection_unavailable" }); return true;
   }
   if (req.method !== "POST") { send(res, 405, { error: "method_not_allowed" }, { allow: "POST" }); return true; }
@@ -364,17 +365,15 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       const row = await store.read(user.uid);
       state = row?.status || null;
       if (state === "active" && !await managerReady(row, options)) state = "provisioning";
-      if (state === "active") {
+      if (row?.uid === user.uid && row.auth_subject?.toLowerCase() === user.subject.toLowerCase()) {
         const capafyEnabled = options.capafyConnectionEnabled === true
           || (options.env || process.env).LM_MARITIME_CAPAFY_CONNECTION_ENABLED === "1";
-        if (!capafyEnabled) capafyStatus = "disabled";
-        else {
-          try {
-            const bindingStore = options.capafyBindingStore || (typeof options.query === "function" ? capafyBindingStore(options) : null);
-            const connection = await bindingStore?.readStatus?.({ tenantId: user.uid, authSubject: user.subject });
-            capafyStatus = connection?.connected === true ? "connected" : connection?.connected === false ? "not_connected" : "unavailable";
-          } catch { capafyStatus = "unavailable"; }
-        }
+        try {
+          const bindingStore = options.capafyBindingStore || (typeof options.query === "function" ? capafyBindingStore(options) : null);
+          const connection = await bindingStore?.readStatus?.({ tenantId: user.uid, authSubject: user.subject });
+          capafyStatus = connection?.connected === true ? (capafyEnabled ? "connected" : "connected_disabled")
+            : connection?.connected === false ? (capafyEnabled ? "not_connected" : "disabled") : "unavailable";
+        } catch { capafyStatus = "unavailable"; }
       }
       void require("./maritime-manager-usage.js").observeMaritimeUsage("returned", user.uid, signal => (options.recordReturn || require("./maritime-manager-usage.js").recordMaritimeManagerReturn)(user.uid, { ...options, signal, request: req, managerStore: store }), options);
     }

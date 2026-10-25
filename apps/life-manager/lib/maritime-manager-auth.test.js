@@ -205,7 +205,29 @@ test("active Life Manager page reads only safe Capafy connection metadata for it
  assert.deepEqual(calls,[{tenantId:uid,authSubject:SUBJECT}]);
  delete deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED;
  const disabled=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),disabled,deps);
- assert.match(disabled.body,/Capafy account connection is not enabled/);assert.equal(calls.length,1);
+ assert.match(disabled.body,/automated work is currently disabled/i);
+ assert.match(disabled.body,/data-action="capafy-disconnect"/);assert.equal(calls.length,2);
+});
+
+test("paused Life Manager keeps the tenant's Capafy disconnect control available", async () => {
+  const { deps } = fixture();
+  const uid = `lm_${SUBJECT}`, reads = [];
+  deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED = "1";
+  deps.managerStore = { read: async tenantId => ({ uid: tenantId, auth_subject: SUBJECT,
+    status: "paused", paused_at: "2026-10-25T11:00:00.000Z" }) };
+  deps.capafyBindingStore = { readStatus: async identity => {
+    reads.push(identity);
+    return { connected: true, provider: "capafy", tenantId: uid,
+      accountRef: `account://capafy/${uid}/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5`,
+      autonomyConsentVersion: "maritime-capafy-autonomy-v1" };
+  } };
+  deps.distributionStore = { recordAnonymousEvent: async () => true };
+  const res = response();
+  await handleMaritimeManagerPage(request("/maritime?lang=en"), res, deps);
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body, /data-action="capafy-disconnect"/);
+  assert.doesNotMatch(res.body, /<form data-action="capafy-connect"/);
+  assert.deepEqual(reads, [{ tenantId: uid, authSubject: SUBJECT }]);
 });
 
 test('manager activation pins the VM image release independently of the central app release',async()=>{
@@ -421,6 +443,17 @@ test("Capafy unlink only deletes the signed-in tenant's binding", async () => {
     { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(JSON.parse(res.body), { status: "disconnected", disconnected: true });
+  assert.deepEqual(f.calls, [["disconnect", { tenantId: f.uid, authSubject: SUBJECT }]]);
+});
+
+test("Capafy unlink remains available when its feature flag is disabled", async () => {
+  const f = capafyConnectionFixture();
+  delete f.deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED;
+  delete f.deps.env.LM_MARITIME_CAPAFY_ENCRYPTION_KEY;
+  const res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/disconnect", "POST", {},
+    { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 200);
   assert.deepEqual(f.calls, [["disconnect", { tenantId: f.uid, authSubject: SUBJECT }]]);
 });
 

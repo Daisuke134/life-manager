@@ -2,6 +2,11 @@
 CREATE SCHEMA IF NOT EXISTS private;
 REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
 
+-- PostgreSQL requires an exact unique key for the composite binding FK even
+-- though uid and auth_subject are each unique on their own.
+CREATE UNIQUE INDEX IF NOT EXISTS lm_maritime_manager_enrollments_uid_auth_subject
+  ON public.lm_maritime_manager_enrollments (uid, auth_subject);
+
 CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_bindings (
   uid text PRIMARY KEY,
   auth_subject uuid NOT NULL,
@@ -23,3 +28,24 @@ ALTER TABLE private.lm_maritime_manager_capafy_bindings ENABLE ROW LEVEL SECURIT
 REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_bindings FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA private TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE private.lm_maritime_manager_capafy_bindings TO service_role;
+
+-- A durable keyset prevents a finite recovery batch from repeatedly selecting
+-- the same deferred cycles and starving older or other-tenant work.
+CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_recovery_cursor (
+  cursor_key text PRIMARY KEY CHECK (cursor_key = 'cycle_admission'),
+  completed_at timestamptz,
+  tenant_id text,
+  job_id text,
+  updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  CHECK (
+    (completed_at IS NULL AND tenant_id IS NULL AND job_id IS NULL)
+    OR (completed_at IS NOT NULL AND tenant_id ~ '^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      AND job_id ~ '^maritime-cycle:[0-9a-f]{64}$')
+  )
+);
+INSERT INTO private.lm_maritime_manager_capafy_recovery_cursor(cursor_key)
+VALUES ('cycle_admission') ON CONFLICT (cursor_key) DO NOTHING;
+
+ALTER TABLE private.lm_maritime_manager_capafy_recovery_cursor ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_recovery_cursor FROM PUBLIC, anon, authenticated;
+GRANT SELECT, UPDATE ON TABLE private.lm_maritime_manager_capafy_recovery_cursor TO service_role;
