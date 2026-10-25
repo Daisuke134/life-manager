@@ -34,3 +34,11 @@ test('Japanese Life Manager page keeps the same broad product position', () => {
   const manifest = JSON.parse(read('route-manifest.json'));
   assert.equal(manifest.files.find((file) => file.public_route === '/lm/ja').sha256, sha256('pages/life-manager.html'));
 });
+
+test('every published overlay file matches its immutable manifest hash', () => {
+  const manifest = JSON.parse(read('route-manifest.json'));
+
+  for (const file of manifest.files) {
+    assert.equal(sha256(file.source), file.sha256, `stale SHA-256 for ${file.source}`);
+  }
+});
