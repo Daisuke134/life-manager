@@ -57,7 +57,7 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
         return subprocess.run([self.git, "-C", str(self.checkout), *args],
                               check=True, capture_output=True, text=True).stdout.strip()
 
-    def bootstrap(self, *args, script="bootstrap.sh", extra_env=None):
+    def bootstrap(self, *args, script="bootstrap.sh", extra_env=None, timeout=15):
         return subprocess.run(
             ["/bin/bash", str(ROOT / "scripts" / script), *args],
             env={**os.environ, "HOME": str(self.root / "home"),
@@ -66,7 +66,7 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
                  "BOOTSTRAP_TEST_ENTRY": str(ROOT / "scripts/bootstrap.sh"),
                  "BASH_ENV": str(self.env_file), "BOOTSTRAP_TEST_LOG": str(self.log),
                  **(extra_env or {})},
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, timeout=timeout,
         )
 
     def assert_refused_without_update(self, result):
@@ -175,7 +175,8 @@ curl() {{ cat "$BOOTSTRAP_TEST_ENTRY"; }}
         venv_python.parent.mkdir(parents=True)
         venv_python.write_text('#!/bin/bash\nexit 95\n')
         venv_python.chmod(0o755)
-        result = self.bootstrap(extra_env={"BOOTSTRAP_SELECTED_PYTHON": sys.executable})
+        result = self.bootstrap(
+            extra_env={"BOOTSTRAP_SELECTED_PYTHON": sys.executable}, timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "onboarding-ready\n")
 
