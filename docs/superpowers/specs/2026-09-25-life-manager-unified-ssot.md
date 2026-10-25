@@ -25,9 +25,9 @@
 | 項目 | 現状と完了条件 |
 |---|---|
 | Cleanup sourceとLocal表題の公開 | PR #8915は2026-10-24 19:40:33Zにmerge済み（merge commit `42c397d73c3d9d8fa57978d67c34d20ec5d39efd`）。source commit `5a0c4a1`と英日READMEの`Local Life Manager`表題はmainに入った。immutable releaseへの反映と自然receiptは別項目で追う。 |
-| Release GC timeout修正 | PR #8919はOPEN、最新main `1e8fdd9e09dc369c25a2f27fb818058ee82eb959`へrebase済み。独立reviewはblocking 0、arm64 contractはPASS。x86_64で2回CI failureを診断・修正した。1回目はpath-resolution timeout test fixtureの`set`順依存で、決定的timeout injectionへ変更後hash seed 1〜40・focused suite 65/65 PASS。2回目はslow Intel runnerでclean venv bootstrap testが固定15秒上限に達し、当該テストだけ60秒へ延長、ローカル1/1 PASS。fix push後の全CI、merge、immutable release、owner限定loaded SHA、自然receiptが残る。 |
-| 現Macの容量とagent admission | 最終readback（2026-10-24 18:59Z）は空き3,295,348 KiB（約3.14 GiB）、swap free 1,050 MiBで、4 GiB revenue floorと12 GiB producer floorを下回った。19:01Zの電源readbackはAC `sleep=0`、`caffeinate`の`PreventUserIdleSystemSleep=1`が有効。これは古いsnapshotであり、再開時にfresh readbackが必要。swap growthは単一時点では判定できず、連続観測が必要。 |
-| Cleanupのmain release反映と自然receipt | 最終owner readback（2026-10-24 19:00:07Z）は`installed_release_sha=event_release_sha=f043fef6985cb52d4b528f5f9d8842a191834c71`、run `18e18c354ef2a058-28212`、pass/exit 0。直前run `18e18a0694f0f7e8-50630`ではreference path resolution timeoutがあり、scratch GCは76,824件全てpreserve・削除0だった。passは容量回復や後続のGC timeout修正を証明しない。PR #8915のsourceはmainにあるが、#8919は未mergeで新sourceは未導入。 |
+| Release GC timeout修正 | PR #8919は2026-10-25 03:55:30ZにMERGED（merge `b8d386bd42d2de6ac453eeaee70e31d9f14f3cf8`）。bounded 30-second GC scan fixはmain sourceに存在する。最新installed release `e313b0b89d88876a6f0addd6c64dd065e1686f44`には未反映で、immutable release・owner限定loaded SHA・自然receiptが残る。 |
+| 現Macの容量とagent admission | 2026-10-25 04:32Zの`df -Pk /` readbackは空き7,892,292 KiB（約7.52 GiB）。4 GiB revenue floorは上回るが12 GiB producer/release floorには届かない。swap-growth gateは今回freshに測っておらず、単一時点から増減を推定しない。 |
+| Cleanupのmain release反映と自然receipt | PR #8915/#8919のsourceはmainにあるが、現installed release SHAは`e313b0b89d88876a6f0addd6c64dd065e1686f44`。このreleaseで#8919の修正を確認した自然cleanup receiptは未取得。以前のcleanup passやfree容量の変動を、修正反映・容量回復の証明にしない。 |
 | 60秒HostDiskGovernor watchdog | 18:20:53Zの公式unbound receiptは`inventory_mode=fast`、free_before 3,675,054,080 bytes、free_after 4,739,526,656、reclaimed 0、errors 0、protected_deletions 0、preserved open=5/protected_path=4。`capacity_recovery=met`は2 GiB diagnostic floorだけを指し、`disk-writers.stop=absent`。loaded watchdogはmain ancestor `7e5f40eb`、60秒間隔、last exit 0。18:11:30Zの27-root full inventoryはcoverage incompleteで、18:20Z receiptにも29 gapsと未計測のshared/unattributed growthが残る。freeの増加をcleanup成果と推定せず、安定容量と書込みownerは未特定。 |
 | 全loopの稼働状況 | 最終snapshot（2026-10-24 18:59Z）の `./bin/lm-loop status all --json` は313 rows（agent数ではない）: loaded-running 43、loaded-idle 161、unloaded 52、disabled 57。blocker: none 158、`disk_floor_low` 95、`resource_effect_unknown` 35、`entrypoint_exit_1` 9、`brain_transport` 1、`resource_fifo_wait` 1、`swap_pressure_high` 2、`resource_heartbeat_unavailable` 1、`resource_control_busy` 2、unmanaged label 9。現在状態ではないため、作業再開時にfresh readbackする。 |
 | 別Macでの導入 | clean-user source testsはPASS。別Mac/userで公開手順、ChatGPT Plus認証、選択事業の公式provider結果まで通した証拠はない。fresh Macで初回導入からprovider結果まで確認する。 |
@@ -38,9 +38,9 @@
 
 ### ゴールまでの順序
 
-**TODO順序変更（2026-10-25）:** 旧順序は`MAC-CAPACITY-RECOVERY → MAC-REVENUE-ADMISSION → 別Mac導入 → PR #8865 → 7 installer → 7事業成果 → 公開導入 → 10,000 stars`。新順序は`LANCERS-CATALOG-CREATION-READBACK → PR #8919 latest-main integration → immutable release/natural receipt → MAC-CAPACITY-RECOVERY → MAC-REVENUE-ADMISSION → 別Mac導入 → PR #8865 → 7 installer → 7事業成果 → 公開導入 → 10,000 stars`。理由は、未確定の外部作成を誤って未開始扱いするreview findingを、後続の通常運用より先に塞ぐため。既存の外部effectは中断・再送しない。
+**TODO順序変更（2026-10-25）:** 旧順序は`MAC-CAPACITY-RECOVERY → MAC-REVENUE-ADMISSION → 別Mac導入 → PR #8865 → 7 installer → 7事業成果 → 公開導入 → 10,000 stars`。新順序は`LANCERS-CATALOG-CREATION-READBACK → PR #8919 main integration (完了) → effect-unknownの公式receipt照合 / current capacity・doctor診断 → 12 GiB floor回復・unmanaged owner分類 → immutable release/natural receipt → MAC-REVENUE-ADMISSION → 別Mac導入 → PR #8865 → 7 installer → 7事業成果 → 公開導入 → 10,000 stars`。理由はPR #8919がmainへ統合済みで、現release未反映・producer floor未達・未分類label・外部effect unknownが次の実測blockerになったため。公式receiptがないeffect fenceは維持し、投稿を再送しない。
 
-**現在cursor（2026-10-25 03:30Z）:** README短縮・7事業・no-human-in-the-loop positioning・ChatGPT Plus・awake Mac・容量条件・導入commandはPR #8909/#8913でmainに反映済み。Lancers catalog creation readbackの修正PR #8932はCI 15/15 PASSで`1e8fdd9e09dc369c25a2f27fb818058ee82eb959`へmerge済み。PR #8919はlatest mainへrebase済み。独立reviewはblocking 0、arm64 contract PASS。x86_64の初回failureは順序依存fixture、2回目はslow runnerでbootstrap testが15秒上限に達したもの。前者はhash seed 1〜40・focused suite 65/65 PASS、後者は当該testだけ60秒へ延長して1/1 PASS。2つの修正をpushして全CI再実行、merge、release/natural receiptが残る。現Macとloopのsnapshotは10/24で古く、容量floor未達を示す。次は#8919のCIを完了してmerge、immutable release、owner限定loaded SHA、自然receiptを確認する。その後fresh capacity/loop readback → open/protected/unknown候補を保護した容量回復 → agent admission → 別Macのinstall/ChatGPT Plus/provider結果 → #8865 → 7 installer → 7事業の公式receiptとnet profit → 公開導入/contribution → 10,000 starsへ進む。
+**現在cursor（2026-10-25 04:32Z）:** README短縮・7事業・no-human-in-the-loop positioning・ChatGPT Plus・awake Mac・容量条件・導入commandはmainに反映済み。PR #8919（merge `b8d386bd`）、effect identity fix PR #8935（merge `f8c3f209`）、本specのPR #8938（merge `fdab34f4`）は統合済み。`~/loops/current`のinstalled SHAは`e313b0b89d88876a6f0addd6c64dd065e1686f44`でmain由来最新sourceより古い。04:32Zのfree diskは7,892,292 KiB（約7.52 GiB）で12 GiB producer/release floor未達。current-release `lm-loop doctor --json` は192 registry entries、missing entrypoints 0、retired labels 0、unmanaged label `ai.anicca.x402-seller-8414` 1件で`ok=false`。Anicca Instagram/TikTok ownerにはreceipt/refがないeffect-unknown occurrenceがあり、次は公式provider履歴とowner occurrenceを照合する。容量とunmanaged labelのowner分類を並行診断し、既存effectを再送・fence解除せず、floor・doctor・idle・fence条件が揃った後だけimmutable releaseと自然receiptを進める。その後TikTok予約/Instagram動画、iOS ASC・実機受入、6アプリ別funnel、勝ちslideshow実験、全channel/SEO/AEO/ASO、7事業成果・公開導入・10,000 starsへ進む。
 
 1. [x] READMEの英日sourceを短縮し、7事業、ChatGPT Plus、awake Mac、必要容量、install command、初期開発中の注意を掲載する。WebMCP/hackathon情報は入口から除外済み。PR #8909へmerge済み。
 2. [x] PR #8909の英日positioningとcleanup修正をCI15/15・独立review後にmergeし、GitHub raw mainの英日bytes一致を確認する。
@@ -49,8 +49,8 @@
 5. [x] MAC-CAPACITY-LOCK-DIAG: main ancestor `37f82c7a`のcleanup sourceがownerへloadedし、natural run `18e18979a5c89068-21950`でrelease SHA一致・pass/exit 0を確認。bounded lock/reference testは上段のsource検証済み。
 6. [x] LANCERS-CATALOG-CREATION-READBACK-SOURCE: 新しいcatalog作成では解決済みproductとowner overlay digestをpending ledgerへ保存し、catalog不在でもexact official readbackを継続する。旧形式pendingではbundled catalogへfallbackし、intent不一致やoverlay変更時はheldを維持する。関連suite 233/233 PASS、independent review blocking 0。
 7. [x] LANCERS-CATALOG-CREATION-READBACK-INTEGRATION: PR #8932をCI 15/15 PASSでmainへ統合し、merge commit `1e8fdd9e09dc369c25a2f27fb818058ee82eb959`をGitHub APIで確認。実provider readbackと費用控除後収益は7事業の成果確認項目で別途追う。
-8. [ ] PR #8919: latest mainへ追従し、review/CIを再確認した後に統合する。immutable releaseを発行し、owner限定loaded SHAと自然receiptでGC timeout修正を確認する。
-9. [ ] MAC-CAPACITY-RECOVERY: #8915 sourceはmainにmerge済み。immutable release、owner限定loaded SHA、自然receiptで5分cadence内の完走を確認する。fresh watchdog inventoryで容量変動sourceを特定し、open/protected/unknown候補を削除せず、安定した4 GiB revenue floor、12 GiB producer floor、swap-growth gateを満たす。
+8. [x] PR #8919: latest-main review/CI後にmerge。merge `b8d386bd42d2de6ac453eeaee70e31d9f14f3cf8`。immutable releaseとowner限定loaded SHA・自然receiptは次のcapacity/release項目で確認する。
+9. [ ] MAC-CAPACITY-RECOVERY: #8915/#8919 sourceはmainにmerge済み。現在free 7,892,292 KiBで12 GiB producer/release floor未達、current doctorにunmanaged `ai.anicca.x402-seller-8414`が1件ある。ownerを分類し、open/protected/unknown候補を保護したfresh inventoryと容量変動source診断を進め、安定した4 GiB revenue floor、12 GiB producer floor、swap-growth gateを満たす。その後immutable release、owner限定loaded SHA、natural cleanup receiptを確認する。
 10. [ ] MAC-REVENUE-ADMISSION: main immutable releaseのloaded SHA、4 GiB floor、swap gate、blockerをowner単位でreadbackする。running jobは変更しない。
 11. [ ] 別のclean Mac/userでinstall、ChatGPT Plus認証、選択businessのprovider結果まで通す。
 12. [ ] PR #8865をlatest mainへ追従させ、Mercor公式readbackまで完了する。
@@ -24885,3 +24885,69 @@ source head `a7f2d21851a03757eee493ce80401685d5b11a69`のGitHub CIは15/15 PASS�
 - **baseline結果:** clean detached worktree `origin/main`=`f8c3f2095982c346547a5c518092606ef80e2d4b`で`python3 -m unittest runtime.loop.tests.test_lm_loop_apply runtime.loop.tests.test_ubi_watcher_contract`を実行。212 tests中9 failures。PR #8935 worktreeでも同じ212 tests中9 failuresを再現し、両方とも同じ2 modules内の`ANICCA_HOME`、managed Python/Nodeのplist値とtest期待値の不一致。該当のapply実装・test fileはPR #8935差分にないため、今回のeffect identity修正による回帰ではない。ambient managed pathsがtestへ入る原因と正しい期待値の契約は別TODOとして残す。Python 3.14のResourceWarningも両実行に出た。
 - **TODO順を成果に合わせて更新:** 旧cursor=(1) baseline test mismatchの比較、(2)unknown receipts、(3)capacity/doctor/#8919。新cursor=(1)Instagram/TikTok unknown occurrenceをofficial receiptとowner occurrenceで照合し、曖昧ならfence維持、(2)capacity 12 GiB以上・`lm-loop doctor` unmanaged label・PR #8919を解消、(3)idle/fence/release条件が揃ってからmain-derived immutable releaseを作り自然runのidentity/receipt/replay-zero確認、(4)TikTok予約readbackと`@anicca.en`動画/Reel 1件のprovider公開証拠、(5)iOS実機/ASC/再提出、(6)6アプリ計測とsmall slideshow experiment、勝ち筋展開、(7)mainでも再現する9 plist test failuresを別workとして修正。順序変更理由はbaseline比較で9件が既にmainにあることを確認し、このsource patchの統合・releaseを止める根拠ではないと分かったため。
 - **現在cursor:** `(1)`effectful Instagram/TikTok occurrenceの公式receipt readback。Postizの接続一覧は投稿可能性、TikTok `PUBLISHED`は公開stateのみを示し、reach/install/paid/MRRではない。DaisはInstagram再接続と`@anicca.en`動画再開可能を報告しているが、動画/Reelの公開receiptは未確認。10K Anicca MRRと60K全portfolio MRRは未達状況を含め現在値未確認。
+
+### Anicca distribution fresh readback — 2026-10-25T04:37Z
+
+- **目的・完了条件:** Aniccaを6アプリの旗艦として、製品・配信・実測を同時に改善する。
+  10K USD Anicca MRR / 60K USD portfolio MRRは目標で、現在値・達成値として扱わない。
+  投稿数ではなく、source/account/post/ownerを紐づけたreach/view → profile/link click → install → paid → retention → MRRを同じ期間で照合する。
+- **mainとruntime:** `origin/main=fdab34f4a4e23d3232623019d5881e74a760233b`。
+  PR #8919は03:55:30Zにmerge `b8d386bd42d2de6ac453eeaee70e31d9f14f3cf8`。
+  PR #8935は04:00:25Zにmerge `f8c3f2095982c346547a5c518092606ef80e2d4b`。
+  #8935のeffect identity sourceはmainにあるが、current installed release `e313b0b89d88876a6f0addd6c64dd065e1686f44`には未反映。
+- **容量・doctor:** 04:32Zの`df -Pk /` freeは7,892,292 KiB（約7.52 GiB）で、12 GiB producer/release floor未達。
+  current-release `lm-loop doctor --json`は192 registry entries、missing entrypoints 0、retired labels 0、unmanaged `ai.anicca.x402-seller-8414` 1件、`ok=false`。
+  このlabelのowner分類は未確認で、削除・停止・release applyをしていない。
+  swap growthは今回未測定。
+- **Anicca loop状態:** 04:31Z statusでTikTok `life-manager-anicca-en-slideshow-tiktok`は`loaded-running`。
+  occurrenceは`life-manager-anicca-en-slideshow-tiktok:18e1986155764500-76202`、latest terminalは`entrypoint_exit_75`、`effect_status=unknown`でprovider receipt/readback refなし。
+  Instagram `life-manager-anicca-en-widget-instagram`は`loaded-idle`。
+  occurrenceは`life-manager-anicca-en-widget-instagram:18e1a38a90752a20-10472`で、latest terminal passでも`effect_status=unknown`、receipt/readback refなし。
+  Postiz post状態とowner occurrenceの因果joinは未確立。
+  両fenceを維持し、再送・restart・applyをしない。
+- **IG再接続の境界:** Daisは全Instagram accountをPostizへ再接続し、`@anicca.en`で動画を再投稿できると報告。
+  04:32ZのPostiz Personal integration listは25件（TikTok 12、Instagram 9、YouTube 2、X 2）を返した。
+  list応答にはOAuth健全性/disabled状態がないため、全9件の認証有効までは検証していない。
+  計測付き実験laneとして正本に記録されているのはInstagram `@anicca.en`とTikTok `@anicca_slideshow`の2つ。
+  ほかの連携先に投稿があることは、改善実験や成果計測の存在を意味しない。
+- **Postiz投稿readback:** 公式posts listのUTC範囲は2026-10-18〜2026-11-02、合計319行。
+  Instagram `@anicca.en` / integration `cmn8y95rg02d2qx0y09bbk5pb`（`Daily Anicca Nudges`）は5件で、`PUBLISHED` 2、`ERROR` 3、`QUEUE` 0。
+  公開2件の`settings.post_type=post`で、video/Reel公開の証拠ではない。
+  失敗post IDは`cmvkuwlbk0svdmk0yncmz0inw`、`cmvlyhcmg0a10ln1csp5jhkte`、`cmvm8qubr0qealn1cytr64s2a`。
+  10/23 10:58Z、10/24 05:26Z、10/24 10:13Zの各error本文はnullで、根因は不明。
+  TikTok `@anicca_slideshow` / integration `cmnenjkff01j1pa0ysufmzhfr`（`anicca`）は`PUBLISHED` 24、`QUEUE` 2、`ERROR` 0。
+  予約post `cmvkyord10w2qmk0yqvu2v299`は10/25 11:30Z、`cmvkyotch0w2tmk0y2jfhxujn`は10/26 11:30Zで、各時刻後に状態を照合する。
+  Postiz stateはreach・install・課金の証明ではない。
+- **YouTube / vidIQ:** PostizにはYouTube integration 2件、X integration 2件があるが、このrunでは改善計測laneを設定していない。
+  YouTube integration `cmq3u37gi005iqp0y90a2w92n`は公開3・失敗2、`cmn8ymq6c02oio70y5ea1trv8`は公開3・失敗1で、3件のerrorは日次upload quota exhausted。
+  vidIQ `user_channels`は認証済みaccount情報を返したが`channels=[]`。
+  個人YouTube Analyticsはこの接続から取得できないため、意図したYouTube accountへ接続し直して再照合する。
+  vidIQ Instagram connected accountsも空でowner insightsは未取得。
+  Postiz OAuthとは別接続で、public profile/reel researchは別途実行できる。
+  PIIのため認証メールはこのrepoへ保存しない。
+- **iOS / revenue:** source PR #8911（Storefront purchase race/no-due receipts）と#8916（StoreKit storefront country chaining）はmerge済み。
+  mergeはApp Store出荷や画面挙動の証明ではない。
+  最新の保存済みASC snapshotは10/24 19:37Z時点で1.9.6 build 812 `VALID` / `APP_STORE_ELIGIBLE`、submission `REJECTED`。
+  このturnではASC/Reviewを再取得していないため、現在状態はunknown。
+  notification tapで同じmessageを開くこと、paywall loadと次画面への遷移、purchase/restore、Lifetime demo、拒否理由の解消・再提出の実機/公式確認が残る。
+  RevenueCat current MRRも未取得で、credential変更・共有はしていない。
+- **残TODO・順序:**
+  1. Instagram/TikTok occurrenceごとにPostiz公式履歴・receiptを照合し、exact joinがないものはunknown fenceを維持する。
+  2. 12 GiB producer floor回復とswap-growth計測、unmanaged x402 labelのowner/effect分類を行う。
+  3. owner idle・fence安全・doctor/capacity gate成立後にだけmain-derived immutable releaseを作る。
+     対象ownerのloaded SHA、自然terminal、durable identity、provider receipt、replay-zeroを確認する。
+  4. 既存TikTok予約を各slot後に照合し、Instagram errorの説明を得る。
+     その後、既存approved mediaで`@anicca.en`のvideo/Reel 1件のmedia type・provider ID/permalink・durable receiptを確認する。
+     追加投稿や再送はこの記録では行わない。
+  5. ASC current stateとreview rejectionを再読込し、notification/paywall/purchaseの実機条件と正確な拒否理由を閉じて審査へ戻す。
+  6. 6アプリ別・account/channel別の同期間baselineとfunnelをApp Store Connect/RevenueCat/Postizから揃え、現MRRを確認する。
+  7. 成功slideshowの同一audience/platform事例を4〜5 account単位で調査し、hook・slide構成・tempo・visual・CTA・出典URL・指標を記録して小さな計測実験を回す。
+     既存`docs/team/specs/copy-the-winners.md`の6-slide構成は参照済みだが、Aniccaの勝ち筋として実証済みではない。
+     その後ほか5アプリ、残りのInstagram/TikTok/YouTube/X、website・SEO/AEO/ASOへ広げる。
+  8. 別件の既知test debtとして、`test_lm_loop_apply`と`test_ubi_watcher_contract`の212 tests中9 failuresを維持記録する。
+     04:09Zのclean-mainとsource worktreeの双方で再現し、managed plist pathとtest期待値の不一致だった。
+     Anicca配信sourceのacceptanceとは分離し、ambient managed pathがtestへ入る理由と正しい契約を別途修正する。
+- **current cursor:** `(1)`effect-unknownのowner occurrenceをPostiz公式記録と照合する。
+  `(2)`容量/doctor/unmanaged labelを並行read-only診断する。
+  releaseは12 GiB floor、分類済みowner、安全なidle/fence条件が揃うまで待つ。
+  現在の投稿・video/Reel・install・paid conversion・MRRの成果は未確認。
