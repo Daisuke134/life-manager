@@ -37,7 +37,7 @@ Run this in Terminal:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager local
 ```
 
-Follow the prompts to sign in to ChatGPT and connect the services you want to use. Docker is not required.
+Sign in with your ChatGPT account through the official Codex login flow. Then follow the setup guide to connect accounts for the businesses you choose. Docker is not required.
 
 See the [setup guide](docs/getting-started.md) for installation, keeping your Mac awake, and checking agent status.
 
