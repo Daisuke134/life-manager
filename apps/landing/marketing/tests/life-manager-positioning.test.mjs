@@ -19,6 +19,8 @@ test('English Life Manager page presents one broad product and its Cloud target'
   assert.match(html, /No Calendar, Gmail inbox, task prompt, goal, budget, or payout details are required at signup/i);
   assert.match(html, /No task, goal, budget, or daily prompt is required to start the earning workflow/i);
   assert.match(html, /Capafy requires Publisher Certification before the first Skill can publish/i);
+  assert.match(html, /confirm the selected Skill and configuration on Capafy's website/i);
+  assert.match(html, /will not report a live listing or earnings until Capafy confirms them/i);
   assert.match(html, /payout details can be added after certification/i);
   assert.match(html, /earnings are not guaranteed/i);
   assert.match(html, /Start on the web with Google sign-in/i);
@@ -46,6 +48,8 @@ test('Japanese Life Manager page keeps the same broad product position', () => {
   assert.match(html, /登録時にCalendarやGmailの受信箱、タスク、目標、予算、振込先情報は求めません/);
   assert.match(html, /初回にタスク、目標、予算を入力したり、毎日指示したりする必要はありません/);
   assert.match(html, /Capafyでは最初のSkillを公開する前にPublisher Certificationが必要です/);
+  assert.match(html, /Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
+  assert.match(html, /公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
   assert.match(html, /振込先情報は認証後に追加できます/);
   assert.match(html, /収益は保証されません/);
   assert.match(html, /WebからGoogleログインで始められます/);

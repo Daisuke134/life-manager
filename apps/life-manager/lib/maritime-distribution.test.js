@@ -220,6 +220,8 @@ test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_tele
   assert.doesNotMatch(html,/start_calendar=1|Connect Google Calendar/);
   assert.doesNotMatch(html,/pilot/i);
   assert.match(html,/Publisher Certification/);assert.match(html,/US\$0\.99/);
+  assert.match(html,/confirm the selected Skill and configuration on Capafy's website/i);
+  assert.match(html,/will not report a live listing or earnings until Capafy confirms them/i);
   assert.match(html,/payout details can be added after certification and are not required to publish/i);
   assert.match(html,/Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access/i);
   assert.match(html,/No task prompt is needed to start/i);
@@ -235,6 +237,8 @@ test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   assert.match(html,/確認済みメールへの状況・結果レポートに同意します/);
   assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
   assert.match(html,/返金不可のUS\$0\.99/);assert.match(html,/振込先情報は認証後に追加でき、公開前には不要です/);
+  assert.match(html,/Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
+  assert.match(html,/公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
   assert.match(html,/Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません/);
   assert.match(html,/確認済みのメールアドレスへ送る設計です/);
 });
@@ -243,6 +247,14 @@ test("paused_or_uncertain_landing_does_not_offer_activation",()=>{
     const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state});
     assert.doesNotMatch(html,/<button[^>]+data-action="activate"/,state);
   }
+});
+
+test("active manager status does not imply a verified Capafy listing or earnings",()=>{
+  const user={email:"person@example.invalid",csrf:"a".repeat(64)};
+  const en=renderMaritimeLanding({language:"en",user,state:"active"});
+  assert.match(en,/Life Manager is active; Capafy listing and earnings are not verified yet\./);
+  const ja=renderMaritimeLanding({language:"ja",user,state:"active"});
+  assert.match(ja,/Life Managerは稼働中です。Capafyでの公開と収益はまだ確認できていません。/);
 });
 
 test("landing_inline_script_is_valid_javascript",()=>{
