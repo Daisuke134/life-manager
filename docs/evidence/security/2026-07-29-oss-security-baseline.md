@@ -264,3 +264,16 @@ absent from this PR's current tree, so rewriting the current tree cannot remove
 the historical finding. Only this exact commit/path/rule/line fingerprint is
 recorded in `.gitleaksignore`. Scanner rules, path allowlists, current-tree
 scanning, and detection of findings at new locations remain unchanged.
+
+## PR #8745 — synthetic browser-redaction test placeholder
+
+Security Scan `40229736789` passes the current-tree Gitleaks scan but its
+full-history scan finds one `generic-api-key` occurrence at commit
+`dbd128f27c963d049ee47c66887720ffa3340cd2`,
+`apps/life-manager/maritime/test_browser_mcp.py:65`. The value is deterministic
+test-only text used to verify that browser page observations redact API-key
+assignments. It was never a provider credential and was not sent to any service.
+The current test uses a low-entropy placeholder, and the current-tree Gitleaks
+scan passes. Only this exact historical commit/path/rule/line fingerprint is
+recorded in `.gitleaksignore`; full-history scanning and detection at all other
+locations remain enabled. No credential rotation is indicated.
