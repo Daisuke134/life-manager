@@ -15,6 +15,7 @@ const {
   observeWorkerPoll,
   reconcileMaritimeCapabilityJobs,
   recoverMaritimeEnrollments,
+  recoverReconsentedMaritimeConfigurations,
 } = require("./runtime-up.js");
 const {
   buildMarketingObservationJob,
@@ -1262,11 +1263,61 @@ test("Maritime report worker injects existing queue reader and shared CFO receip
 
 test("pending Maritime enrollment recovery reuses stable jobs and skips undeclared capability",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),calls=[];
- const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job};}};
+ const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},
+  readProvisionJobState:async()=>null,enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job:{...job,status:"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.cycle"],dependencies);assert.equal(calls.length,0);
  await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
  await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
  assert.deepEqual(calls[0],calls[1]);assert.equal(calls[0].tenant_id,uid);assert.equal(calls[0].capability,"maritime.manager.provision");
+});
+
+test("pending provision recovers after a consent-guard dead letter appears between worker polls",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),anchor="2026-10-22T00:00:00.000Z";
+ const row={uid,release_sha:sha,status:"provisioning",consent_version:"maritime-manager-v2",consent_v2_at:anchor};
+ const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha});
+ const states=new Map([[base.job_id,{job_id:base.job_id,tenant_id:uid,status:"running",attempt:1,last_error_code:null}]]),queued=[],quarantined=[];
+ const deps={managerStore:{listPending:async()=>[row],listPaused:async()=>[],quarantinePendingProvision:async id=>{quarantined.push(id);}},
+  readProvisionJobState:async({tenantId,job})=>{assert.equal(tenantId,uid);return states.get(job.job_id)||null;},
+  enqueueJob:async job=>{queued.push(job);return {created:false,job:{...job,status:"running"}};}};
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
+ assert.equal(queued.length,0);assert.deepEqual(quarantined,[]);
+ states.set(base.job_id,{job_id:base.job_id,tenant_id:uid,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_CONSENT_REQUIRED"});
+ const resume=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,resumeAt:anchor});
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],{...deps,enqueueJob:async job=>{queued.push(job);return {created:true,job:{...job,status:"queued"}};}});
+ assert.equal(queued.length,1);assert.equal(queued[0].job_id,resume.job_id);assert.deepEqual(quarantined,[]);
+});
+
+test("active reconsented configuration recovers only the known no-effect dead letter",async()=>{
+ const uid="lm_22222222-2222-4222-8222-222222222222",sha="b".repeat(40),anchor="2026-10-22T00:00:00.000Z";
+ const row={uid,release_sha:sha,status:"active",consent_version:"maritime-manager-v2",consent_v2_at:anchor,agent_id:"agent-b"};
+ const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure"});
+ const states=new Map([[base.job_id,{job_id:base.job_id,tenant_id:uid,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_CONSENT_REQUIRED"}]]),queued=[];
+ const deps={managerStore:{listReconsentedActive:async(limit,after)=>{assert.equal(limit,20);assert.equal(after,null);return [row];}},
+  readProvisionJobState:async({job})=>states.get(job.job_id)||null,
+  enqueueJob:async job=>{queued.push(job);return {created:true,job:{...job,status:"queued"}};}};
+ const cursor=await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],deps);
+ const resume=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure",resumeAt:anchor});
+ assert.equal(cursor,null);assert.equal(queued.length,1);assert.equal(queued[0].job_id,resume.job_id);
+});
+
+test("active configuration with an unknown terminal result remains fenced",async()=>{
+ const uid="lm_22222222-2222-4222-8222-222222222222",sha="b".repeat(40);
+ const row={uid,release_sha:sha,status:"active",consent_version:"maritime-manager-v2",consent_v2_at:"2026-10-22T00:00:00.000Z",agent_id:"agent-b"};
+ const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure"});
+ const deps={managerStore:{listReconsentedActive:async()=>[row]},
+  isProvisionReady:async()=>false,readProvisionJobState:async()=>({job_id:base.job_id,tenant_id:uid,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_CONFIGURATION_UNCONFIRMED"}),
+  enqueueJob:async()=>{throw new Error("unknown configure must not be retried");}};
+ await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],deps);
+});
+
+test("completed active configure job is not reconfigured by background recovery",async()=>{
+ const uid="lm_22222222-2222-4222-8222-222222222222",sha="b".repeat(40);
+ const row={uid,release_sha:sha,status:"active",consent_version:"maritime-manager-v2",consent_v2_at:"2026-10-22T00:00:00.000Z",agent_id:"agent-b"};
+ const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure"});
+ const deps={managerStore:{listReconsentedActive:async()=>[row]},
+  readProvisionJobState:async()=>({job_id:base.job_id,tenant_id:uid,status:"completed",attempt:1,last_error_code:null}),
+  enqueueJob:async()=>{throw new Error("ready tenants must not be reconfigured");}};
+ await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],deps);
 });
 
 test("Maritime provision worker binds release-specific source and shared Manager persistence",async()=>{
@@ -1306,9 +1357,10 @@ test("terminal pending provision is quarantined so the next tenant can recover",
  const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40)},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
  const rows=[a,b],queued=[],quarantined=[];
  const deps={managerStore:{listPaused:async()=>[],listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
+ readProvisionJobState:async({tenantId,job})=>tenantId===a.uid?{job_id:job.job_id,tenant_id:tenantId,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_UNCONFIGURED"}:null,
  enqueueJob:async job=>{queued.push(job.tenant_id);return {created:job.tenant_id===b.uid,job:{...job,status:job.tenant_id===a.uid?"dead_letter":"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
- assert.deepEqual(quarantined,[a.uid]);assert.deepEqual(queued,[a.uid,b.uid]);
+ assert.deepEqual(quarantined,[a.uid]);assert.deepEqual(queued,[b.uid]);
 });
 
 

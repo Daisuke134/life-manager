@@ -75,14 +75,38 @@ function createMaritimeManagerStore(options = {}) {
   async function listPending(limit = 20) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
     const rows = await queryPg(
-      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments WHERE status = $1 AND paused_at IS NULL AND agent_id IS NULL ORDER BY created_at ASC, uid ASC LIMIT $2`,
-      ["pending", limit],
+      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments WHERE status IN ('pending', 'provisioning') AND paused_at IS NULL AND agent_id IS NULL ORDER BY created_at ASC, uid ASC LIMIT $1`,
+      [limit],
     );
     if (rows.length > limit || rows.some(row => !row || !UID.test(row.uid)
-      || row.status !== 'pending' || row.paused_at !== null || row.agent_id !== null || !SHA.test(row.release_sha))) {
+      || !['pending', 'provisioning'].includes(row.status) || row.paused_at !== null || row.agent_id !== null || !SHA.test(row.release_sha))) {
       throw new Error('maritime_manager_store_invalid');
     }
     return rows.map(row => ({ ...row, created_at: timestampIso(row.created_at) }));
+  }
+  async function listReconsentedActive(limit = 20, afterUid = null) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
+    if (afterUid !== null) identifier(afterUid, UID);
+    const rows = await queryPg(
+      `SELECT ${SELECT} FROM public.lm_maritime_manager_enrollments
+       WHERE status = 'active' AND consent_version = $1 AND consent_v2_at IS NOT NULL
+         AND paused_at IS NULL AND agent_id IS NOT NULL AND ($2::text IS NULL OR uid > $2)
+       ORDER BY uid ASC LIMIT $3`,
+      [MANAGER_CONSENT_VERSION, afterUid, limit],
+    );
+    if (rows.length > limit) throw new Error('maritime_manager_store_invalid');
+    let previous = afterUid;
+    for (const row of rows) {
+      if (!row || !UID.test(row.uid) || row.status !== 'active' || row.consent_version !== MANAGER_CONSENT_VERSION
+        || !Number.isFinite(Date.parse(timestampIso(row.consent_v2_at))) || row.paused_at !== null
+        || typeof row.agent_id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(row.agent_id)
+        || !SHA.test(row.release_sha) || (previous !== null && row.uid <= previous)) {
+        throw new Error('maritime_manager_store_invalid');
+      }
+      previous = row.uid;
+    }
+    return rows.map(row => ({ ...row, consent_v2_at: timestampIso(row.consent_v2_at),
+      paused_at: timestampIso(row.paused_at, true), created_at: timestampIso(row.created_at) }));
   }
   async function listPaused(limit = 20, afterUid = null) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
@@ -179,8 +203,8 @@ function createMaritimeManagerStore(options = {}) {
     identifier(uid, UID);
     const rows = await queryPg(
       `UPDATE public.lm_maritime_manager_enrollments SET status = $2
-       WHERE uid = $1 AND status = $3 AND paused_at IS NULL AND agent_id IS NULL RETURNING ${SELECT}`,
-      [uid, "effect_unknown", "pending"],
+       WHERE uid = $1 AND status IN ('pending', 'provisioning') AND paused_at IS NULL AND agent_id IS NULL RETURNING ${SELECT}`,
+      [uid, "effect_unknown"],
     );
     if (rows.length > 1 || (rows[0] && (rows[0].uid !== uid
       || rows[0].status !== "effect_unknown" || rows[0].agent_id !== null || rows[0].paused_at !== null))) {
@@ -256,7 +280,7 @@ function createMaritimeManagerStore(options = {}) {
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;
   }
-  return Object.freeze({ enroll, reconsent, read, listPending, listPaused, claimProvision, bindAgent, pause, quarantinePendingProvision,
+  return Object.freeze({ enroll, reconsent, read, listPending, listReconsentedActive, listPaused, claimProvision, bindAgent, pause, quarantinePendingProvision,
     claimCycleDispatch, readCycleDispatch, bindCycleExecution });
 }
 module.exports = { createMaritimeManagerStore };

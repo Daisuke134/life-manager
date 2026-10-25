@@ -325,4 +325,5 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
 }
-module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop };
+module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate,
+  handleMaritimeManagerPage, handleMaritimeManagerStop };

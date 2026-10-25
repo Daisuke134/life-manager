@@ -393,12 +393,12 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
 test('pending enrollment recovery is bounded and excludes paused or claimed rows', async () => {
   const requested=[];
   const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{
-    requested.push({statement,values});return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'pending',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
+    requested.push({statement,values});return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'provisioning',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
   }}});
   const rows=await store.listPending(5);
-  assert.equal(rows.length,1);assert.equal(rows[0].uid,UID_A);
-  assert.match(requested[0].statement,/status = \$1 AND paused_at IS NULL AND agent_id IS NULL/);
-  assert.deepEqual(requested[0].values,['pending',5]);
+  assert.equal(rows.length,1);assert.equal(rows[0].uid,UID_A);assert.equal(rows[0].status,'provisioning');
+  assert.match(requested[0].statement,/status IN \('pending', 'provisioning'\) AND paused_at IS NULL AND agent_id IS NULL/);
+  assert.deepEqual(requested[0].values,[5]);
   assert.equal(rows[0].created_at,'2026-10-20T00:00:00.000Z');
   for(const limit of [0,101,'5'])await assert.rejects(store.listPending(limit),/input_invalid/);
   assert.equal(requested.length,1);
@@ -406,13 +406,26 @@ test('pending enrollment recovery is bounded and excludes paused or claimed rows
   await assert.rejects(foreign.listPending(1),/store_invalid/);
 });
 
+test('reconsented active configuration recovery reads bounded rows with a stable cursor',async()=>{
+ const calls=[];const row={uid:UID_B,auth_subject:SUBJECT_B,email:'person@example.invalid',timezone:'UTC',status:'active',source:'direct',
+  consent_version:MANAGER_CONSENT_VERSION,consent_v2_at:new Date('2026-10-22T00:00:00Z'),agent_id:'agent-b',release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')};
+ const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{calls.push({statement,values});return {rows:[row]};}}});
+ const rows=await store.listReconsentedActive(20,UID_A);
+ assert.equal(rows.length,1);assert.equal(rows[0].consent_v2_at,'2026-10-22T00:00:00.000Z');
+ assert.deepEqual(calls[0].values,[MANAGER_CONSENT_VERSION,UID_A,20]);
+ assert.match(calls[0].statement,/status = 'active'.*consent_v2_at IS NOT NULL.*uid > \$2/s);
+ await assert.rejects(()=>store.listReconsentedActive(0),/input_invalid/);
+ await assert.rejects(()=>store.listReconsentedActive(20,'foreign'),/input_invalid/);
+ assert.equal(calls.length,1);
+});
+
 
 test('quarantine pending provision is tenant scoped and cannot change active or paused enrollments',async()=>{
  const calls=[];
  const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{
   calls.push({statement,values});
-  assert.match(statement,/status = \$2/);assert.match(statement,/status = \$3 AND paused_at IS NULL AND agent_id IS NULL/);
-  assert.deepEqual(values,[UID_A,'effect_unknown','pending']);
+  assert.match(statement,/status = \$2/);assert.match(statement,/status IN \('pending', 'provisioning'\) AND paused_at IS NULL AND agent_id IS NULL/);
+  assert.deepEqual(values,[UID_A,'effect_unknown']);
   return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'effect_unknown',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
  }}});
  assert.equal((await store.quarantinePendingProvision(UID_A)).status,'effect_unknown');
