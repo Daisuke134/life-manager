@@ -310,6 +310,8 @@ test("OAuth start keeps the PKCE verifier cookie separate from the authenticated
   const [, input] = events[0];
   assert.equal(input.provider, "google");
   assert.equal(input.options.redirectTo, `${CALLBACK_ORIGIN}/auth/google/callback`);
+  assert.equal(input.options.scopes, "openid email profile");
+  assert.doesNotMatch(input.options.scopes, /calendar/i);
 });
 
 test("Cloud sign-in intent is stored in a short-lived callback-only cookie", async () => {
@@ -331,7 +333,8 @@ test("Cloud sign-in intent is stored in a short-lived callback-only cookie", asy
   const oauthOptions = events.find(([name]) => name === "signInWithOAuth")[1].options;
   assert.equal(oauthOptions.redirectTo,
     "https://aniccaai.com/auth/google/callback");
-  assert.equal(oauthOptions.scopes, undefined, "Cloud sign-in must not request Calendar or Gmail permissions");
+  assert.equal(oauthOptions.scopes, "openid email profile", "Cloud sign-in uses identity scopes only");
+  assert.doesNotMatch(oauthOptions.scopes, /calendar|gmail/i);
 });
 
 test("Cloud sign-in fails closed until its first-party callback origin is configured", async () => {

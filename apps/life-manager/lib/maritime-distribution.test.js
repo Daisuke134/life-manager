@@ -220,7 +220,7 @@ test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_tele
   assert.doesNotMatch(html,/start_calendar=1|Connect Google Calendar/);
   assert.doesNotMatch(html,/pilot/i);
   assert.match(html,/Publisher Certification/);assert.match(html,/US\$0\.99/);
-  assert.match(html,/confirm the selected Skill and configuration on Capafy's website/i);
+  assert.match(html,/confirm the selected Skills and configuration on Capafy's website for each new or updated version/i);
   assert.match(html,/will not report a live listing or earnings until Capafy confirms them/i);
   assert.match(html,/payout details can be added after certification and are not required to publish/i);
   assert.match(html,/Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access/i);
@@ -237,7 +237,7 @@ test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   assert.match(html,/確認済みメールへの状況・結果レポートに同意します/);
   assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
   assert.match(html,/返金不可のUS\$0\.99/);assert.match(html,/振込先情報は認証後に追加でき、公開前には不要です/);
-  assert.match(html,/Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
+  assert.match(html,/新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
   assert.match(html,/公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
   assert.match(html,/Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません/);
   assert.match(html,/確認済みのメールアドレスへ送る設計です/);

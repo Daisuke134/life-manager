@@ -561,7 +561,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
       const origin = intent ? cloudPublicOrigin(req, opts) : publicOrigin(req, opts);
       const result = await client.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${origin}/auth/google/callback`, skipBrowserRedirect: true },
+        options: { redirectTo: `${origin}/auth/google/callback`, scopes: "openid email profile", skipBrowserRedirect: true },
       });
       const redirect = result && result.data && result.data.url;
       if (!redirect || result.error) throw new Error("Google OAuth start failed");
