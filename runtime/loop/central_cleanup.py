@@ -22,8 +22,6 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from xml.parsers.expat import ExpatError
 
-from runtime.loop import host_cache_cleanup
-
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -48,6 +46,7 @@ from runtime.loop.loop_cleanup import (
     RELEASE_NAME, _release_immutable_store_probe,
 )
 from runtime.host import resource_admission
+from runtime.loop import host_cache_cleanup
 from runtime.host.resource_admission import process_starts
 
 
