@@ -1,7 +1,74 @@
 "use strict";
-const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test"); const { importContentObject } = require("../lib/content-object-store.js"); const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview } = require("./marketing-product-summary.js");
+const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test"); const { importContentObject } = require("../lib/content-object-store.js"); const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview, sendSummary } = require("./marketing-product-summary.js");
+const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
+const { buildMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
 
-test("attribution coverage joins product totals while keeping activation and retention unavailable", () => {
+async function summaryDeliveryFixture(t) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-summary-delivery-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const summary = persistAniccaDaily(dataDir, "2026-10-23", "2026-10-23T19:19:22.638Z");
+  const summaryRef = importContentObject(summary.file, { objectDir: path.join(dataDir, "objects") }).ref;
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload: { lane: "marketing-product-summary-anicca", product: "anicca-ios", locale: "ja", platform: "multi", status: "summary", period: "daily", observed_at: summary.snapshot.observed_at, summary_ref: summaryRef } });
+  const store = createMarketingLocalLedger({ dataDir });
+  await store.enqueueJob({ ...job, available_at: "2026-01-01T00:00:00.000Z" });
+  const id = { tenantId: job.tenant_id, jobId: job.job_id };
+  const worker = { ...id, capability: job.capability, workerId: "fixture-worker", leaseSeconds: 120 };
+  const claim = await store.claimJob(worker);
+  const env = { LM_TELEGRAM_BOT_TOKEN: "fixture-token", LM_TELEGRAM_ALERT_CHAT_ID: "fixture-chat" };
+  const sent = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.equal(url, "https://api.telegram.org/botfixture-token/sendMessage");
+    sent.push(JSON.parse(options.body).text);
+    return { json: async () => ({ ok: true, result: { message_id: 708 } }) };
+  });
+  return { dataDir, summary, store, id, worker, claim, env, sent };
+}
+
+test("a retained summary retries the same known no-effect job and never resends its receipt", async (t) => {
+  const f = await summaryDeliveryFixture(t);
+  await f.store.failJob({ ...f.worker, attempt: f.claim.attempt, errorCode: "CAPABILITY_EXECUTION_FAILED", unknownEffect: false });
+  const result = await sendSummary({ ...f.summary, created: false }, f.env, f.dataDir);
+  assert.equal(result.message_id, 708);
+  assert.equal((await f.store.readJob(f.id)).status, "completed");
+  assert.equal((await f.store.readJob(f.id)).attempt, 2);
+  assert.equal((await f.store.readReceipt(f.id)).message_id, 708);
+  assert.deepEqual(f.sent, [f.summary.snapshot.message]);
+  assert.equal((await sendSummary({ ...f.summary, created: false }, f.env, f.dataDir)).created, false);
+  assert.equal(f.sent.length, 1);
+});
+
+test("retained summary recovery preserves running, unknown and retry-limit fences", async (t) => {
+  for (const state of ["running", "unknown", "exhausted"]) await t.test(state, async (t) => {
+    const f = await summaryDeliveryFixture(t);
+    if (state !== "running") {
+      await f.store.failJob({ ...f.worker, attempt: f.claim.attempt, errorCode: "fixture_failure", unknownEffect: state === "unknown" });
+      if (state === "exhausted") for (let i = 0; i < 2; i++) {
+        await f.store.retryJob(f.id);
+        const claim = await f.store.claimJob(f.worker);
+        await f.store.failJob({ ...f.worker, attempt: claim.attempt, errorCode: "fixture_failure", unknownEffect: false });
+      }
+    }
+    const before = await f.store.readJob(f.id);
+    assert.equal((await sendSummary({ ...f.summary, created: false }, f.env, f.dataDir)).created, false);
+    assert.deepEqual(await f.store.readJob(f.id), before);
+    assert.deepEqual(f.sent, []);
+  });
+});
+
+test("summary delivery cannot report success without a durable Telegram receipt", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-summary-no-receipt-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const summary = persistAniccaDaily(dataDir, "2026-10-23", "2026-10-23T19:19:22.638Z");
+  summary.snapshot.message = "Invalid sender：送信前に拒否する本文";
+  fs.writeFileSync(summary.file, JSON.stringify(summary.snapshot));
+  t.mock.method(globalThis, "fetch", async () => { assert.fail("invalid summary must not reach the provider"); });
+  await assert.rejects(sendSummary(summary, { LM_TELEGRAM_BOT_TOKEN: "fixture-token", LM_TELEGRAM_ALERT_CHAT_ID: "fixture-chat" }, dataDir), /marketing product summary receipt unavailable/);
+  const jobs = fs.readFileSync(path.join(dataDir, "marketing/jobs.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line).job);
+  assert.equal(jobs.at(-1).status, "failed");
+  assert.equal(jobs.at(-1).unknown_effect, false);
+});
+
+test("attribution coverage joins dated downloads while keeping activation and retention unavailable", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-attribution-summary-")); const day = "2026-08-23"; const objectDir = path.join(dataDir, "objects");
   const source = path.join(dataDir, "source.json"); fs.writeFileSync(source, "{}\n"); const ref = importContentObject(source, { objectDir }).ref;
   const ascDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", day); fs.mkdirSync(ascDir, { recursive: true });
@@ -9,7 +76,7 @@ test("attribution coverage joins product totals while keeping activation and ret
     { campaign_id: "anicca-ios_ig_anicca-en_en", platform: "instagram", account_id: "@anicca.en", locale: "en", metrics: { first_time_downloads: { status: "measured", value: 2, source: "app_store_connect_app_downloads_detailed" }, impressions: { status: "measured", value: 5, source: "app_store_connect_discovery_engagement_detailed" } } },
     { campaign_id: "anicca-ios_tt_aniccaaff_en", platform: "tiktok", account_id: "@aniccaaffirmation", locale: "en", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold" }, impressions: { status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold" } } },
     { campaign_id: "anicca-ios_youtube_en", platform: "youtube", account_id: "@anicca-ai", locale: "en", metrics: { first_time_downloads: { status: "measured", value: 1, source: "app_store_connect_app_downloads_detailed" }, impressions: { status: "measured", value: 12, source: "app_store_connect_discovery_engagement_detailed" } } },
-  ], metrics: { first_time_downloads: { status: "measured", value: 1 }, campaign_first_time_downloads: { status: "measured", value: 1 }, campaign_impressions: { status: "measured", value: 12 } } }, { product_id: "honne-ai", source_status: "unavailable", attribution_status: "unattributed", attribution_reason: "campaign_link_configured_no_product_readback", campaign_id: "honne_en_base_20260823", campaign_status: "unavailable", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_impressions: { status: "unavailable", value: null, reason: "report_pending" } } }] }));
+  ], daily_metrics: [{ date: "2026-08-22", metrics: { first_time_downloads: { status: "measured", value: 1 } } }], metrics: { first_time_downloads: { status: "measured", value: 1 }, campaign_first_time_downloads: { status: "measured", value: 1 }, campaign_impressions: { status: "measured", value: 12 } } }, { product_id: "honne-ai", source_status: "unavailable", attribution_status: "unattributed", attribution_reason: "campaign_link_configured_no_product_readback", campaign_id: "honne_en_base_20260823", campaign_status: "unavailable", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_impressions: { status: "unavailable", value: null, reason: "report_pending" } } }] }));
   const rcDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/revenuecat", day); fs.mkdirSync(rcDir, { recursive: true });
   fs.writeFileSync(path.join(rcDir, "subscriptions.json"), JSON.stringify({ snapshot_ref: ref, products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: { trial_starts: { status: "unavailable", value: null, reason: "missing" }, active_subscriptions: { status: "unavailable", value: null, reason: "missing" }, renewals: { status: "unavailable", value: null, reason: "missing" }, cancellations: { status: "unavailable", value: null, reason: "missing" }, proceeds_usd: { status: "unavailable", value: null, reason: "missing" } } })) }));
   const first = persistAttributionCoverage(dataDir, day, "2026-08-23T13:00:00.000Z"); const replay = persistAttributionCoverage(dataDir, day, "2026-08-23T14:00:00.000Z");
@@ -23,6 +90,65 @@ test("attribution coverage joins product totals while keeping activation and ret
   assert.match(first.snapshot.message, /アカウント・期間単位の集計/);
   assert.doesNotMatch(first.snapshot.message, /anicca-ios_(?:ig|tt|youtube)|honne_en_base_20260823|campaign_metrics_observed_for_subset|campaign_not_observed_or_privacy_threshold|campaign attribution|Source status|\b(?:measured|unavailable|partial|unattributed)\b/);
   assert.equal(first.snapshot.products[0].metrics.activation.value, null); assert.equal(first.snapshot.products[0].metrics.d7_retention.value, null);
+});
+
+test("ASC daily downloads select the preceding date without aggregate fallback", async (t) => {
+  const reportDay = "2026-10-23";
+  const measured = (value) => ({ status: "measured", value, source: "app_store_connect_app_downloads_standard" });
+  for (const [name, dailyMetrics, expected, aggregate = measured(306)] of [
+    ["mixed periods without the target date", [
+      { date: "2026-01-21", metrics: { first_time_downloads: measured(2) } },
+      { date: "2026-10-21", metrics: { impressions: { status: "measured", value: 3 } } },
+    ], { status: "unavailable", value: null, reason: "report_pending" }],
+    ["exact target date", [
+      { date: "2026-10-21", metrics: { first_time_downloads: measured(8) } },
+      { date: "2026-10-22", metrics: { first_time_downloads: measured(3) } },
+      { date: reportDay, metrics: { first_time_downloads: measured(9) } },
+    ], measured(3)],
+    ["measured zero", [{ date: "2026-10-22", metrics: { first_time_downloads: measured(0) } }], measured(0)],
+    ["missing metric", [{ date: "2026-10-22", metrics: {} }], { status: "unavailable", value: null, reason: "report_pending" }],
+    ["explicit privacy suppression", [{ date: "2026-10-22", metrics: { first_time_downloads: { status: "unavailable", value: null, reason: "metric_not_observed_or_privacy_threshold" } } }], { status: "unavailable", value: null, reason: "metric_not_observed_or_privacy_threshold" }],
+    ["legacy aggregate-only input", undefined, { status: "unavailable", value: null, reason: "report_pending" }],
+    ...["source_timeout", "source_unavailable", "empty_report"].map((reason) => {
+      const metric = { status: "unavailable", value: null, reason };
+      return [reason, [], metric, metric];
+    }),
+  ]) {
+    await t.test(name, () => {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-daily-period-"));
+      t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+      const writeInput = (relative, snapshot) => {
+        const file = path.join(dataDir, path.basename(relative)); fs.writeFileSync(file, JSON.stringify(snapshot));
+        const ref = importContentObject(file, { objectDir: path.join(dataDir, "objects") }).ref;
+        const pointer = path.join(dataDir, "tenants/dais-local/marketing/attribution", relative);
+        fs.mkdirSync(path.dirname(pointer), { recursive: true }); fs.writeFileSync(pointer, JSON.stringify({ ...snapshot, snapshot_ref: ref }));
+      };
+      // Synthetic aggregate deliberately differs from every daily value.
+      writeInput(`asc/${reportDay}/acquisition.json`, { schema_version: 1, kind: "marketing_asc_acquisition", report_day: reportDay, products: [
+        { product_id: "anicca-ios", source_status: "measured", metrics: { first_time_downloads: aggregate }, daily_metrics: dailyMetrics },
+        { product_id: "honne-ai", source_status: "unavailable", metrics: {} },
+      ] });
+      writeInput(`revenuecat/${reportDay}/subscriptions.json`, { products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: {} })) });
+      const result = persistAttributionCoverage(dataDir, reportDay, "2026-10-23T13:00:00.000Z");
+      const installs = result.snapshot.products.find((product) => product.product_id === "anicca-ios").metrics.installs;
+      assert.deepEqual(installs, { ...expected, source_date: "2026-10-22" });
+      assert.ok(result.snapshot.message.includes(`Anicca iOS: 初回ダウンロード ${expected.status === "measured" ? expected.value : "取得不可"}（対象日: 2026-10-22）`));
+      assert.doesNotMatch(result.snapshot.message, /初回ダウンロード 306/);
+    });
+  }
+});
+
+test("new daily summaries do not present undated legacy coverage as daily downloads", (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-legacy-period-")); const day = "2026-10-23";
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const file = path.join(dataDir, "tenants/dais-local/marketing/attribution/coverage", day, "summary.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const original = JSON.stringify({ products: [{ product_id: "anicca-ios", metrics: { installs: { status: "measured", value: 306 } } }] });
+  fs.writeFileSync(file, original);
+  const result = persistAniccaDaily(dataDir, day, "2026-10-23T13:00:00.000Z");
+  assert.match(result.snapshot.message, /初回ダウンロード 取得不可（対象日不明）/);
+  assert.doesNotMatch(result.snapshot.message, /初回ダウンロード 306/);
+  assert.equal(fs.readFileSync(file, "utf8"), original);
 });
 
 test("Honne daily summary binds EN and JA immutable daily sources and replays", () => {
@@ -219,4 +345,43 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
   assert.match(summary.snapshot.message, /アカウントいいね 31.*アカウントコメント 0.*アカウントシェア 6.*アカウント保存数 25.*アカウント返信数 0/);
   assert.match(summary.snapshot.message, /https:\/\/www\.instagram\.com\/reel\/DdvxhT1jm8F/); assert.doesNotMatch(summary.snapshot.message, /object:\/\/sha256|Views|Reach|Saves|Likes|Comments|Shares|Source status|Source:|Funnel:|Campaign attribution/);
   assert.doesNotMatch(summary.snapshot.message, /999999|888888|777777|Account totals 7/);
+});
+
+
+test("Anicca daily summary persists native TikTok photos without weakening source validation", async (t) => {
+  const day = "2026-10-23";
+  const photo = {
+    kind: "tiktok_daily_metric_digest", window: "daily", observed_at: "2026-10-23T13:00:00.000Z",
+    published_at: "2026-10-23T07:00:00.000Z", account_id: "@anicca.jp", locale: "ja",
+    public_url: "https://www.tiktok.com/@anicca.jp/photo/7564191602695326977",
+    post: { views: { status: "measured", value: 42 } }, account_metrics: { status: "unavailable" },
+  };
+  for (const [name, changed, accepted] of [
+    ["photo permalink", {}, true],
+    ["different account", { account_id: "@honnevideo" }, false],
+    ["different locale", { locale: "en" }, false],
+    ["non-numeric post", { public_url: "https://www.tiktok.com/@anicca.jp/photo/not-a-post" }, false],
+    ["foreign host", { public_url: "https://example.com/@anicca.jp/photo/7564191602695326977" }, false],
+  ]) {
+    await t.test(name, () => {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-photo-summary-"));
+      t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+      const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.jp/photo1/daily");
+      fs.mkdirSync(directory, { recursive: true });
+      fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ ...photo, ...changed }));
+      const persist = () => persistAniccaDaily(dataDir, day, "2026-10-23T14:00:00.000Z");
+      if (!accepted) {
+        assert.throws(persist, /Anicca iOS @anicca\.jp daily source mismatch/);
+        assert.equal(fs.existsSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/anicca-ios/daily", `${day}.json`)), false);
+        return;
+      }
+      const first = persist();
+      assert.equal(first.created, true);
+      assert.equal(first.snapshot.source_refs.length, 1);
+      assert.match(first.snapshot.message, /@anicca\.jp TikTok: 閲覧数 42/);
+      assert.ok(first.snapshot.message.includes(photo.public_url));
+      assert.equal(JSON.parse(fs.readFileSync(first.file, "utf8")).source_refs[0], first.snapshot.source_refs[0]);
+      assert.equal(persist().created, false);
+    });
+  }
 });

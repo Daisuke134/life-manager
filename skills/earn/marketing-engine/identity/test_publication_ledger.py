@@ -118,6 +118,62 @@ class PublicationLedgerTest(unittest.TestCase):
         self.assertEqual(row["native_post_id"], "7669159327655054613")
         self.assertEqual(row["provenance"], ["postiz_public_api"])
 
+    def test_direct_tiktok_photo_receipt_resolves_without_profile_snapshot(self):
+        value = post(platform="tiktok")
+        value["releaseId"] = "7699734532601171221"
+        value["releaseURL"] = "https://www.tiktok.com/@aniccaen2/photo/7699734532601171221"
+        row = ledger.make_row(value, [], "2026-10-24T10:00:00Z")
+        self.assertEqual(row["identity_status"], "resolved")
+        self.assertEqual(row["native_post_id"], "7699734532601171221")
+        self.assertEqual(row["native_post_url"], value["releaseURL"])
+        self.assertEqual(row["resolution_method"], "postiz_provider_native_receipt")
+        self.assertEqual(row["provenance"], ["postiz_public_api"])
+
+    def test_invalid_tiktok_photo_receipts_remain_unresolved_without_independent_proof(self):
+        for release_id, url in [
+            ("7699734532601171222", "https://www.tiktok.com/@handle/photo/7699734532601171221"),
+            ("v_pub_file~token", "https://www.tiktok.com/@handle/photo/7699734532601171221"),
+            ("7699734532601171221", "https://www.tiktok.com.evil.test/@handle/photo/7699734532601171221"),
+            ("7699734532601171221", "https://www.tiktok.com@evil.test/@handle/photo/7699734532601171221"),
+            ("7699734532601171221", "http://www.tiktok.com/@handle/photo/7699734532601171221"),
+            ("7699734532601171221", "https://www.tiktok.com/@handle/photo/7699734532601171221/extra"),
+            ("7699734532601171221", "https://www.tiktok.com/@handle"),
+        ]:
+            with self.subTest(release_id=release_id, url=url):
+                value = post(platform="tiktok")
+                value["releaseId"] = release_id
+                value["releaseURL"] = url
+                row = ledger.make_row(value, [], "2026-10-24T10:00:00Z")
+                self.assertEqual(row["identity_status"], "unresolved")
+                self.assertIsNone(row["native_post_id"])
+
+    def test_photo_only_reconcile_does_not_launch_public_profile_browser(self):
+        value = post(platform="tiktok")
+        value["releaseId"] = "7699734532601171221"
+        value["releaseURL"] = "https://www.tiktok.com/@handle/photo/7699734532601171221"
+        value["integration"]["id"] = "integration-ebook-ja"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = root / ".env"
+            env.write_text("POSTIZ_API_KEY=test-only\n", encoding="utf-8")
+            products, accounts = binding_registries(root)
+            output = root / "publication-identity.jsonl"
+            with (
+                mock.patch.object(ledger, "utc_now", return_value=dt.datetime(2026, 8, 5, 12, tzinfo=dt.timezone.utc)),
+                mock.patch.object(ledger, "fetch_postiz_posts", return_value=[value]),
+                mock.patch.object(ledger, "fetch_tiktok_public_profiles", return_value=[]) as public_fetch,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                result = ledger.main([
+                    "--days", "8", "--env-file", str(env), "--output", str(output),
+                    "--report", str(root / "report.json"), "--product-registry", str(products),
+                    "--account-registry", str(accounts),
+                ])
+            row = json.loads(output.read_text().splitlines()[0])
+        public_fetch.assert_not_called()
+        self.assertEqual(result, 0)
+        self.assertEqual(row["native_post_id"], "7699734532601171221")
+
     def test_profile_only_tiktok_receipt_uses_free_public_browser_snapshot(self):
         value = post(platform="tiktok")
         value["releaseId"] = "publish-token"

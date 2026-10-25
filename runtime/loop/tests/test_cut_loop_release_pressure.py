@@ -11,6 +11,162 @@ from runtime.loop.loop_cleanup import _release_immutable_store_probe
 
 
 class CutLoopReleasePressureTest(unittest.TestCase):
+    def test_pruning_failure_preserves_receipt_without_exporting_or_activating(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            receipt = {"ok": False, "errors": 1, "protected_deletions": 0,
+                       "dependency_bundles": {"status": "reference_or_lock_unavailable",
+                                              "error_class": "TimeoutExpired"}}
+            (repo / "runtime/loop/central_cleanup.py").write_text(
+                f"print({json.dumps(receipt)!r})\nraise SystemExit(1)\n")
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable,
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(json.dumps(receipt), result.stderr)
+            self.assertIn("safe release pruning failed", result.stderr)
+            self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / "current").exists())
+            self.assertFalse((loops / ".release-cut.lock").exists())
+
+    def test_first_complete_release_installs_dependencies_after_capacity_admission(self):
+        for free in (0, 128 * 1024**2):
+            with self.subTest(free=free), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                repo = self.make_sparse_release_repo(home)
+                (repo / "package.json").write_text('{"name":"first-install","version":"1.0.0"}\n')
+                (repo / "package-lock.json").write_text(
+                    '{"name":"first-install","lockfileVersion":3,"packages":{}}\n')
+                subprocess.run(["git", "add", "."], cwd=repo, check=True)
+                subprocess.run(["git", "commit", "-qm", "first install"], cwd=repo, check=True)
+                subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
+                probe = home / "capacity-probe"
+                probe.mkdir()
+                (probe / "sitecustomize.py").write_text(
+                    "import shutil,types,urllib.request\n"
+                    f"shutil.disk_usage=lambda p: types.SimpleNamespace(free={free})\n"
+                    "def forbidden(*a,**kw): raise AssertionError('network forbidden')\n"
+                    "urllib.request.urlopen=forbidden\n")
+                npm = home / "npm"
+                npm.write_text(
+                    f"#!{sys.executable}\n"
+                    "import pathlib,sys\n"
+                    "assert sys.argv[1:]==['ci','--omit=dev','--ignore-scripts']\n"
+                    "root=pathlib.Path.cwd(); (root/'node_modules').mkdir()\n"
+                    "(root/'node_modules/.package-lock.json').write_bytes((root/'package-lock.json').read_bytes())\n"
+                    f"pathlib.Path({str(home / 'npm-ran')!r}).write_text('ci')\n")
+                npm.chmod(0o755)
+                result, loops = self.run_cut(
+                    repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe),
+                    LOOPS_RUNTIME_PYTHON=sys.executable, NPM_BIN=str(npm), NPM_NODE_BIN="",
+                    NPM_NODE_VERSION="v-test", NPM_VERSION="test",
+                )
+                self.assertFalse((loops / "current").exists())
+                if not free:
+                    self.assertEqual(result.returncode, 75, result.stderr)
+                    self.assertEqual(json.loads(result.stdout)["reason"], "disk_headroom_low")
+                    self.assertFalse((home / "npm-ran").exists())
+                    self.assertEqual(list((loops / "releases").iterdir()), [])
+                    continue
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((home / "npm-ran").read_text(), "ci")
+                release, = (loops / "releases").iterdir()
+                manifest = json.loads((release / "RELEASE.json").read_text())
+                self.assertEqual(manifest["release_paths"], "ALL")
+                self.assertEqual(manifest["provenance"], "ancestor-of-origin-main")
+                self.assertGreater(manifest["capacity_required_bytes"], 64 * 1024**2)
+                self.assertEqual(release.stat().st_mode & 0o222, 0)
+                self.assertTrue((release / "node_modules").is_symlink())
+                self.assertTrue((release / "node_modules/.package-lock.json").is_file())
+
+    def test_export_drains_delayed_tar_padding_and_preserves_producer_failure(self):
+        for producer_status, expected_status in ((0, 0), (73, 1)):
+            with self.subTest(producer_status=producer_status), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                repo = self.make_sparse_release_repo(home)
+                archive_bytes = len(subprocess.check_output(
+                    ["git", "archive", "--format=tar", "HEAD", "--", "runtime/loop/runtime_event.py"],
+                    cwd=repo,
+                ))
+                producer = home / "delayed-archive.sh"
+                consumer_done = home / "consumer-done"
+                bounded_archive = home / "bounded.tar"
+                producer.write_text(
+                    "git() {\n"
+                    '  if [ "$#" -ge 3 ] && [ "$3" = archive ]; then\n'
+                    '    command git "$@" || return "$?"\n'
+                    "    archive_waits=0\n"
+                    f'    while [ ! -f "{consumer_done}" ]; do\n'
+                    '      [ "$archive_waits" -lt 1000 ] || return 88\n'
+                    "      archive_waits=$((archive_waits + 1))\n"
+                    "      sleep 0.01\n"
+                    "    done\n"
+                    '    command dd if=/dev/zero bs=4096 count=1024 2>/dev/null || return "$?"\n'
+                    f"    return {producer_status}\n"
+                    "  fi\n"
+                    '  command git "$@"\n'
+                    "}\n"
+                    # Keep native extraction real, but pin the consumer's early EOF
+                    # boundary instead of depending on this host's tar buffering.
+                    'tar() {\n'
+                    f'  command head -c {archive_bytes} > "{bounded_archive}" || return "$?"\n'
+                    f'  command tar "$@" < "{bounded_archive}"\n'
+                    '  local tar_status=$?\n'
+                    f'  : > "{consumer_done}"\n'
+                    '  return "$tar_status"\n'
+                    '}\n'
+                )
+                result, loops = self.run_cut(
+                    repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                    LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(producer),
+                )
+                self.assertEqual(result.returncode, expected_status, result.stderr)
+                releases = list((loops / "releases").iterdir())
+                if producer_status:
+                    self.assertIn("archive=73, tar=0", result.stderr)
+                    self.assertEqual(releases, [])
+                else:
+                    release, = releases
+                    self.assertEqual(
+                        (release / "runtime/loop/runtime_event.py").read_bytes(),
+                        (repo / "runtime/loop/runtime_event.py").read_bytes(),
+                    )
+                self.assertFalse((loops / "current").exists())
+                self.assertFalse((loops / ".release-cut.lock").exists())
+
+    def test_export_failure_reports_native_archive_and_tar_exit_statuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            failure = home / "export-failure.sh"
+            failure.write_text("tar() { command cat >/dev/null; return 72; }\n")
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(failure),
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("archive=0, tar=72", result.stderr)
+            self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / ".release-cut.lock").exists())
+
+    def test_export_reports_drain_failure_and_removes_partial_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            failure = home / "drain-failure.sh"
+            failure.write_text("cat() { command cat \"$@\"; return 74; }\n")
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(failure),
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("archive drain failed (drain=74)", result.stderr)
+            self.assertEqual(list((loops / "releases").iterdir()), [])
+            self.assertFalse((loops / "current").exists())
+            self.assertFalse((loops / ".release-cut.lock").exists())
+
     def test_full_release_capacity_defers_before_export(self):
         source = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as directory:
@@ -246,6 +402,30 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             releases = list((loops / "releases").iterdir())
             self.assertEqual(len(releases), 1)
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
+
+    def test_selected_python_does_not_require_ambient_python3(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_home:
+            home = Path(raw_home)
+            repo = self.make_sparse_release_repo(home)
+            trace = home / "unselected-python-calls"
+            bash_env = home / "no-ambient-python.sh"
+            bash_env.write_text(
+                'python3() {\n'
+                '  printf "unselected\\n" >> "$UNSELECTED_PYTHON_TRACE"\n'
+                '  return 127\n'
+                '}\n'
+                'export -f python3\n'
+            )
+            result, loops = self.run_cut(
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                LOOPS_RUNTIME_PYTHON=sys.executable, BASH_ENV=str(bash_env),
+                UNSELECTED_PYTHON_TRACE=str(trace),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release, = (loops / "releases").iterdir()
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            self.assertEqual(manifest["runtime_python"], sys.executable)
+            self.assertFalse(trace.exists(), "cutter used unselected python3")
 
     def test_legacy_archive_size_limit_does_not_block_sparse_release(self) -> None:
         with tempfile.TemporaryDirectory() as raw_home:

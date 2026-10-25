@@ -571,3 +571,28 @@ def test_decision_schema_has_disjoint_single_and_retainer_shapes() -> None:
     assert list(validator.iter_errors({"decisions": [{
         key: value for key, value in retainer.items() if key != "weekly_hours_max"
     }]}))
+
+
+def test_direct_apply_searches_high_fit_sources_before_newest() -> None:
+    # 2026-10-25: 98 applications in 7 days came from single:new across チラシ/ロゴ/楽譜;
+    # all 6 lifetime wins sit in IT/automation/EC/video. Fit sources go first, the
+    # newest-first firehose stays as the fallback that keeps the 19-slot quantity.
+    prep = direct._official_open_scan_prep({
+        "apply_skip_thresholds": {"min_budget_jpy": 0}, "max_apply_per_pass": 20,
+    })
+    context = gate.build_context(prep, Path("/nonexistent-applied.jsonl"))
+    required = context["required_search_source_ids"]
+    assert required[0] == "single:keyword"
+    assert "single:category:システム開発" in required
+    newest = required.index("single:new")
+    assert all(
+        source == "single:keyword" or source.startswith("single:category:")
+        for source in required[:newest]
+    ) and newest > 1
+    assert "retainer:new" in required
+    for source in required:
+        assert parent.CdpSnapshotCollector._source_url(source)
+    plan = parent._source_capacity_plan(required, batch=context["max_applications"])
+    assert plan["single:new"] > 0 and plan["retainer:new"] == 1
+    assert all(plan[source] >= 1 for source in required[:newest])
+    assert sum(plan.values()) == context["max_applications"]

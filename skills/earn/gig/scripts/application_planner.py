@@ -20,6 +20,7 @@ from pathlib import Path
 from application_snapshot import stable_request_text, validate_snapshot
 from buyer_voice import PERSONA, check_style
 from proposal_feedback import fragment as proposal_feedback_fragment
+import requested_estimate
 
 
 MAX_BATCH = 40
@@ -489,6 +490,15 @@ def validate_decisions(
     return errors
 
 
+
+def verified_facts_fragment() -> str:
+    """The verified-facts fragment the prompt has always pointed at but never carried."""
+    facts = requested_estimate.verified_seller_facts(requested_estimate.SELLER_PROFILE_PATH)
+    if not facts:
+        return ""
+    return ("\nVerified seller facts (use only these as our track record; cite the most relevant one or two):\n"
+            + json.dumps(facts, ensure_ascii=False, sort_keys=True) + "\n")
+
 def planner_prompt(envelope: dict) -> str:
     """Right-altitude instructions plus small canonical examples; no browser guidance."""
     hard_prohibition_section = "\n".join(
@@ -575,6 +585,7 @@ def planner_prompt(envelope: dict) -> str:
         "納品日、buyer固有の実行方法、契約後の情報整理の順にし、購入前の質問・疑問文を0件にする。deliver_dateも見積の規模に見合った現実的な\n"
         "日数にする（小規模なら短く、大規模なら長く）。\n"
         f"{proposal_feedback_fragment()}"
+        f"{verified_facts_fragment()}"
         "\n"
         "Snapshot envelope (the only marketplace input):\n"
     )

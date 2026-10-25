@@ -84,32 +84,12 @@ trap cleanup EXIT INT TERM HUP
 
 prune_releases_after() {
   local keep="$1"
-  LIFE_MANAGER_RELEASE_KEEP="$keep" \
-    python3 "$SCRIPT_ROOT/runtime/loop/central_cleanup.py" --release-gc-only >/dev/null || \
+  local pruning_receipt
+  if ! pruning_receipt=$(LIFE_MANAGER_RELEASE_KEEP="$keep" \
+    "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/loop/central_cleanup.py" --release-gc-only); then
+    printf '%s\n' "$pruning_receipt" >&2
     die "safe release pruning failed"
-}
-
-prune_dependency_bundles() {
-  local bundle release relative link referenced
-  [ -d "$DEPENDENCY_BUNDLES" ] || return 0
-  for bundle in "$DEPENDENCY_BUNDLES"/npm-*; do
-    [ -d "$bundle" ] || continue
-    referenced=0
-    for release in "$RELEASES"/*; do
-      [ -d "$release" ] || continue
-      for relative in "${DEPENDENCY_RELATIVES[@]}"; do
-        link="$release/${relative:+$relative/}node_modules"
-        if [ -L "$link" ] && [ "$(readlink "$link")" = "$bundle/node_modules" ]; then
-          referenced=1
-          break 2
-        fi
-      done
-    done
-    if [ "$referenced" -eq 0 ]; then
-      find "$bundle" -type d -exec chmod u+w {} + || return 1
-      find "$bundle" -depth -delete || return 1
-    fi
-  done
+  fi
 }
 
 # A release nobody else can fetch is not reproducible, and the acceptance bar this house already
@@ -140,7 +120,6 @@ DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 # Keep current plus rollback capacity; the new export becomes the next retained generation.
 PRE_KEEP=$((KEEP > 1 ? KEEP - 1 : 1))
 prune_releases_after "$PRE_KEEP"
-prune_dependency_bundles || die "safe dependency bundle pruning failed"
 # Recovery must run before export admission, including while capacity is low.
 if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
   if [ -n "$NPM_NODE_BIN" ]; then
@@ -189,16 +168,29 @@ if [ -n "${ARCHIVE_PATHS[*]:-}" ]; then
     ARCHIVE_PATHS+=("runtime/browser")
   fi
 fi
+# tar may stop at its end marker before git finishes writing trailing padding.
+# Keep the pipe open through EOF without hiding extraction or producer failures.
+extract_archive() {
+  tar -x -C "$DEST"
+  local tar_status=$?
+  cat - >/dev/null
+  local drain_status=$?
+  if [ "$drain_status" -ne 0 ]; then
+    echo "cut-loop-release: archive drain failed (drain=$drain_status)" >&2
+  fi
+  [ "$tar_status" -eq 0 ] || return "$tar_status"
+  return "$drain_status"
+}
 if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
-  git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
-  ARCHIVE_RC=$?
+  git -C "$REPO_ROOT" archive --format=tar "$SHA" | extract_archive
+  ARCHIVE_RC=$? ARCHIVE_PIPESTATUS=("${PIPESTATUS[@]}")
 else
-  git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | tar -x -C "$DEST"
-  ARCHIVE_RC=$?
+  git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | extract_archive
+  ARCHIVE_RC=$? ARCHIVE_PIPESTATUS=("${PIPESTATUS[@]}")
 fi
 if [ "$ARCHIVE_RC" -ne 0 ]; then
   rm -rf "$DEST"
-  die "export of $SHORT failed"
+  die "export of $SHORT failed (archive=${ARCHIVE_PIPESTATUS[0]}, tar=${ARCHIVE_PIPESTATUS[1]})"
 fi
 
 # Git defines the new tree; native clones only reuse identical exported bytes.
@@ -249,7 +241,7 @@ matching_locked_dependencies() {
   for donor in "$RELEASES"/*; do
     [ "$donor" != "$DEST" ] || continue
     [ -f "$donor/RELEASE.json" ] || continue
-    PYTHONPATH="$SCRIPT_ROOT" python3 -c \
+    PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -c \
       'import sys; from pathlib import Path; from runtime.loop.loop_cleanup import release_is_reclaimed; sys.exit(release_is_reclaimed(Path(sys.argv[1])))' \
       "$donor" || continue
     donor_package="$donor$relative"
@@ -386,7 +378,7 @@ if [ "$ACTIVATE_CURRENT" = "1" ]; then
   # Never let that late, older ancestor move the shared pointer backwards.
   CURRENT_SHA=""
   if [ -f "$CURRENT/RELEASE.json" ]; then
-    CURRENT_SHA="$(python3 - "$CURRENT/RELEASE.json" <<'PY'
+    CURRENT_SHA="$("$RUNTIME_PYTHON" - "$CURRENT/RELEASE.json" <<'PY'
 import json, sys
 try:
     value = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -406,12 +398,11 @@ PY
 
   # Use the same host-wide owner lock as `lm-loop apply` while replacing `current` atomically.
   PYTHONPATH="$SCRIPT_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -c 'import sys; from pathlib import Path; from runtime.host.resource_admission import durable_protocol_version; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), protocol_reader=durable_protocol_version)' \
+    "$RUNTIME_PYTHON" -c 'import sys; from pathlib import Path; from runtime.host.resource_admission import durable_protocol_version; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), protocol_reader=durable_protocol_version)' \
     "$CURRENT" "$DEST" "$LOOPS_ROOT/.apply.lock" || die "could not activate current release"
 
   # Keep a few older releases so rollback is a symlink move rather than a rebuild.
   prune_releases_after "$KEEP"
-  prune_dependency_bundles || die "safe dependency bundle pruning failed"
   echo "current -> $(readlink "$CURRENT")  ($PROVENANCE)"
 else
   echo "release -> $DEST  ($PROVENANCE; current unchanged)"

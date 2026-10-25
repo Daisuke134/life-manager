@@ -4,11 +4,12 @@ import stat
 import plistlib
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from runtime.host.local_profile import prepare_host, load_host_profile, host_environment
+from runtime.host.local_profile import prepare_host, load_host_profile, host_environment, _browser_registry
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -65,6 +66,34 @@ class LocalProfileTest(unittest.TestCase):
         self.assertEqual(self.prepare(), first)
         self.assertEqual(registry.read_text(), "# owner configuration\n")
 
+    def test_generated_browser_bindings_reach_existing_idle_recycler(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "local_profile_recycler", ROOT / "skills/browser/recycle_idle_browsers.py")
+        recycler = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(recycler)
+        profile = self.prepare()
+        bindings = tomllib.loads(Path(profile["browser_registry"]).read_text())
+        targets = {row["id"]: row for row in recycler.recycle_targets(bindings)}
+        for identity, label in (
+                ("lancers:dais", "ai.anicca.lancers-revenue-browser"),
+                ("coconala:kosuke", "ai.anicca.hf-gig-browser"),
+                ("mercor:dais", "ai.anicca.job-search-mercor-browser")):
+            with self.subTest(identity=identity):
+                self.assertIn(identity, targets)
+                self.assertEqual(targets[identity]["launched_by"], label)
+                self.assertTrue(Path(targets[identity]["profile"]).is_relative_to(self.home))
+        self.assertNotIn("interactive:dais", targets)
+        self.assertNotIn("promptbase:dais", targets)
+
+    def test_external_browser_binding_requires_declared_launcher(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        registry["external_labels"].remove("ai.anicca.job-search-mercor-browser")
+        bindings = tomllib.loads(_browser_registry(registry, self.home))
+        mercor = next(row for row in bindings["identity"] if row["id"] == "mercor:dais")
+        self.assertNotIn("launched_by", mercor)
+
     def test_explicit_profile_path_survives_into_child_environment(self):
         self.prepare()
         original = self.home / ".config/life-manager/host.json"
@@ -119,7 +148,9 @@ class LocalProfileTest(unittest.TestCase):
         from runtime.loop.lm_loop_apply import _plist
         profile = self.prepare()
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        with patch.dict(os.environ, {"HOME": str(self.home)}, clear=False):
+        with patch.dict(os.environ, {"HOME": str(self.home)}, clear=False), \
+                patch("skills.earn.gig.scripts.gig_release.OVERRIDES",
+                      self.home / "missing-coconala-overrides.json"):
             for owner, row in registry["loops"].items():
                 with self.subTest(owner=owner):
                     env = plistlib.loads(_plist(owner, row, ROOT, "a" * 40))["EnvironmentVariables"]
@@ -149,7 +180,9 @@ class LocalProfileTest(unittest.TestCase):
     def test_individual_coconala_install_passes_venv_to_shell_owners(self):
         from runtime.loop.lm_loop_apply import _plist
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        with patch.dict(os.environ, {"HOME": str(self.home)}):
+        with patch.dict(os.environ, {"HOME": str(self.home)}), \
+                patch("skills.earn.gig.scripts.gig_release.OVERRIDES",
+                      self.home / "missing-coconala-overrides.json"):
             for owner in ("hf-gig-paid-direct", "hf-gig-reply-detector"):
                 row = plistlib.loads(_plist(owner, registry["loops"][owner], ROOT, "a" * 40,
                                            runtime_python=self.python))

@@ -249,3 +249,20 @@ def test_coconala_prompt_scopes_music_boundary_and_preserves_other_prohibitions(
     assert "generated or prompted music/audio" in prompt
     assert "music software, music research, or writing about music is not music_or_audio_production" in prompt
     assert "only when no other hard-prohibition class applies" in prompt
+
+
+def test_planner_prompt_carries_the_verified_seller_facts(tmp_path, monkeypatch):
+    import json
+    planner = load_planner()
+    # The prompt has told the model since 2026-08-16 to use "the verified-facts fragment below",
+    # but no fragment was ever appended, so every proposal ran without our real proof of work.
+    import requested_estimate
+    profile = tmp_path / "profile.json"
+    profile.write_text(json.dumps({"facts": [
+        {"id": "muit_agent_crm", "claim": "Built an agent CRM", "evidence": "repo link"},
+        {"id": "not_whitelisted", "claim": "secret", "evidence": "x"},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(requested_estimate, "SELLER_PROFILE_PATH", profile)
+    prompt = planner.planner_prompt({"request_details": []})
+    assert "Built an agent CRM" in prompt
+    assert "secret" not in prompt

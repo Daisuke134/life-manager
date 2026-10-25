@@ -29,13 +29,18 @@ Run: python3 -m pytest skills/earn/lancers/tests/test_create_package.py
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import inspect
 import json
 import re
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+from skills.earn.lancers.tests.test_storefront_offer_reads_catalog import _private_catalog, _private_product
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = REPO_ROOT / "skills/earn/lancers/scripts/storefront_offer.py"
@@ -2185,7 +2190,7 @@ def test_apply_cli_flag_never_invokes_create_package(monkeypatch):
     module = _module()
     called: list[object] = []
     monkeypatch.setattr(module, "create_package", lambda *a, **k: called.append((a, k)))
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True})
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True})
 
     class _Delivery:
         attempted = 0
@@ -2210,7 +2215,7 @@ def test_apply_cli_flag_never_invokes_create_package(monkeypatch):
 def test_create_package_flag_invokes_run_create_only(monkeypatch):
     module = _module()
     calls: list[tuple] = []
-    monkeypatch.setattr(module, "run_create", lambda product_path, state_path: calls.append((product_path, state_path)) or {"ok": True})
+    monkeypatch.setattr(module, "run_create", lambda product_path, state_path, **kwargs: calls.append((product_path, state_path)) or {"ok": True})
     monkeypatch.setattr(module, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("run() must not be called for --create-package")))
 
     exit_code = module.main(["--create-package"])
@@ -2232,7 +2237,7 @@ def test_create_package_and_apply_are_mutually_exclusive():
 def test_real_catalog_mvp_web_app_build_passes_require_create_fields_with_description():
     module = _module()
     listing_catalog = module._reach_marketplace_core()
-    catalog = listing_catalog.load(module.DEFAULT_CATALOG)
+    catalog = listing_catalog.load(REPO_ROOT / "skills/gig-work/profile/listings/catalog.json")
 
     product = module._family_create_product(listing_catalog, catalog, "mvp_web_app_build")
 
@@ -2297,7 +2302,8 @@ def test_catalog_selection_and_receipt_share_account_lock(tmp_path, monkeypatch)
     monkeypatch.setattr(module, "select_catalog_family_to_create", select_locked)
     monkeypatch.setattr(module, "_write_catalog_listing", write_locked)
 
-    assert module.run_catalog_create(state_path, catalog_path)["ok"] is True
+    product_path = _private_product(tmp_path / "private")
+    assert module.run_catalog_create(state_path, catalog_path, product_path=product_path)["ok"] is True
 
 
 def test_invalid_catalog_receipt_refuses_creation(tmp_path, monkeypatch):
@@ -2383,6 +2389,7 @@ class _FakeTick:
         self.account_ready = account_ready
         self.opened_pages = 0
         self.closed_pages = 0
+        self._onboarding = SimpleNamespace(connected_account=lambda _home: "other-seller")
 
     def account_lock(self, _path):
         import contextlib
@@ -2474,8 +2481,9 @@ def test_two_consecutive_wakes_create_two_different_families(tmp_path, monkeypat
         ],
     )
 
-    first = module.run_catalog_create(state_path, catalog_path)
-    second = module.run_catalog_create(state_path, catalog_path)
+    product_path = _private_product(tmp_path / "private")
+    first = module.run_catalog_create(state_path, catalog_path, product_path=product_path)
+    second = module.run_catalog_create(state_path, catalog_path, product_path=product_path)
 
     assert first["ok"] is True and first["family"] == "alpha" and first["listing_external_id"] == "100001"
     assert second["ok"] is True and second["family"] == "beta" and second["listing_external_id"] == "100002"
@@ -2486,7 +2494,7 @@ def test_two_consecutive_wakes_create_two_different_families(tmp_path, monkeypat
     assert listings["beta"]["listing_external_id"] == "100002"
 
     # A third wake, with nothing left pending, must not touch the browser layer at all.
-    third = module.run_catalog_create(state_path, catalog_path)
+    third = module.run_catalog_create(state_path, catalog_path, product_path=product_path)
     assert third == {"action": "all_published", "skipped": []}
     assert len(calls) == 2
 
@@ -2568,7 +2576,7 @@ def test_real_catalog_now_selects_a_real_candidate_family_to_create(tmp_path):
     module = _module()
     state_path = tmp_path / "application.json"
 
-    selection = module.select_catalog_family_to_create(module.DEFAULT_CATALOG, state_path)
+    selection = module.select_catalog_family_to_create(REPO_ROOT / "skills/gig-work/profile/listings/catalog.json", state_path)
 
     assert selection["action"] == "candidate_selected"
     assert isinstance(selection["family"], str) and selection["family"]
@@ -2609,9 +2617,10 @@ def test_run_catalog_create_never_touches_the_browser_layer_when_all_published(t
 
 def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monkeypatch, tmp_path):
     module = _module()
+    private_catalog = _private_catalog(tmp_path / "catalog")
     calls: list[Path] = []
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "action": "unchanged"})
-    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: calls.append(state_path) or {"action": "all_published", "skipped": []})
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: calls.append(state_path) or {"action": "all_published", "skipped": []})
 
     class _Delivery:
         attempted = 0
@@ -2627,7 +2636,7 @@ def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monk
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     assert exit_code == 0
     assert len(calls) == 1
@@ -2640,15 +2649,16 @@ def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monk
     ({"ok": False, "logged_in": False, "error": "account_unavailable"}, False),
     ({"action": "all_published", "skipped": []}, False),
 ])
-def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatch, catalog, uncertain):
+def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatch, tmp_path, catalog, uncertain):
     """A create attempted after login that did not persist its listing id is an unknown effect.
 
     Leaving the wake ok=True exits 0, so the host never fences it and the next wake creates the
     same family again; it must exit non-zero without any pre-effect claim instead.
     """
     module = _module()
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "logged_in": True, "action": "unchanged"})
-    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: dict(catalog))
+    private_catalog = _private_catalog(tmp_path / "catalog")
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True, "logged_in": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: dict(catalog))
     reported = []
 
     class _Delivery:
@@ -2666,7 +2676,7 @@ def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatc
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     if uncertain:
         assert exit_code == 1
@@ -2678,12 +2688,13 @@ def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatc
         assert reported[0]["ok"] is True
 
 
-def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effect(monkeypatch):
+def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effect(monkeypatch, tmp_path):
     module = _module()
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "action": "updated"})
+    private_catalog = _private_catalog(tmp_path / "catalog")
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: {"ok": True, "action": "updated"})
     monkeypatch.setattr(
         module, "run_catalog_create",
-        lambda state_path: (_ for _ in ()).throw(AssertionError("run_catalog_create must not run when run() already had an effect")),
+        lambda state_path, catalog_path, **kwargs: (_ for _ in ()).throw(AssertionError("run_catalog_create must not run when run() already had an effect")),
     )
 
     class _Delivery:
@@ -2700,18 +2711,19 @@ def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effec
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     assert exit_code == 0
 
 
-def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catalog_creation(monkeypatch):
+def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catalog_creation(monkeypatch, tmp_path):
     """--apply's own result dict for the existing single-offer listing keeps every field it had
     before; catalog_creation is purely additive, not a replacement of any existing key."""
     module = _module()
+    private_catalog = _private_catalog(tmp_path / "catalog")
     existing_result = {"ok": True, "action": "unchanged", "aligned": True, "canonical_url": "https://www.lancers.jp/menu/detail/1338228"}
-    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: dict(existing_result))
-    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: {"action": "all_published", "skipped": []})
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: dict(existing_result))
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: {"action": "all_published", "skipped": []})
 
     class _Delivery:
         attempted = 0
@@ -2731,6 +2743,967 @@ def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catal
 
     monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
 
-    exit_code = module.main(["--apply"])
+    exit_code = module.main(["--apply", "--catalog", str(private_catalog)])
 
     assert exit_code == 0
+
+
+def _private_reporter(reported):
+    from types import SimpleNamespace
+    return SimpleNamespace(notify_storefront_wake=lambda result: (
+        reported.append(dict(result)) or SimpleNamespace(
+            attempted=0, delivered=0, delivery_uncertain=False, pre_send_failed=False, provider_rejected=0)))
+
+
+@pytest.mark.parametrize("mode", ["--apply", "--create-package", "--roster-readback"])
+@pytest.mark.parametrize("broken", ["missing", "json", "avatar_hash", "tags", "version"])
+def test_private_product_setup_stops_before_browser_create_or_notify(tmp_path, monkeypatch, capsys, mode, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = tmp_path / ".config/anicca/lancers/storefront-product.json"
+    if broken != "missing":
+        _private_product(path.parent)
+        if broken == "json":
+            path.write_text("PRIVATE-BROKEN-INPUT")
+        else:
+            value = json.loads(path.read_text())
+            if broken == "avatar_hash":
+                value["profile_avatar_sha256"] = "0" * 64
+            elif broken == "tags":
+                value["tags"] = [{}]
+            else:
+                del value["product_version"]
+            path.write_text(json.dumps(value))
+    module = _module()
+    callbacks = []
+
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("external callback reached without private setup")
+
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    code = module.main([mode])
+    result = json.loads(capsys.readouterr().out)
+    assert code != 0
+    assert result.get("error") == "setup_required"
+    assert result["logged_in"] is False
+    assert callbacks == []
+    assert "PRIVATE-" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("mode", ["--apply", "--create-package", "--roster-readback"])
+@pytest.mark.parametrize("broken", ["short_title", "missing_mapping", "mapping_type", "encoding"])
+def test_private_invalid_catalog_projection_stops_before_external_callbacks(tmp_path, monkeypatch, capsys, mode, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    product = _private_product(tmp_path / "owner", catalog_family="other")
+    catalog = _private_catalog(tmp_path / "catalog")
+    value = json.loads(catalog.read_text())
+    if broken == "short_title":
+        value["listings"][0]["title_ja"] = "短い"
+    elif broken == "missing_mapping":
+        value["listings"][0]["platform_overrides"] = {}
+    elif broken == "mapping_type":
+        value["listings"][0]["platform_overrides"]["lancers"] = 7
+    if broken == "encoding":
+        catalog.write_bytes(bytes([255]))
+    else:
+        catalog.write_text(json.dumps(value))
+    module = _module()
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("external callback reached without valid private catalog")
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    code = module.main([mode, "--product", str(product), "--catalog", str(catalog)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 78
+    assert result["error"] == "setup_required"
+    assert result["logged_in"] is False
+    assert callbacks == []
+
+
+@pytest.mark.parametrize("broken", ["short_title", "missing_mapping", "mapping_type", "encoding"])
+def test_private_invalid_auto_catalog_stops_wake_before_create_and_notify(tmp_path, monkeypatch, capsys, broken):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    value = json.loads(catalog.read_text())
+    if broken == "short_title":
+        value["listings"][0]["title_ja"] = "短い"
+    elif broken == "missing_mapping":
+        value["listings"][0]["platform_overrides"] = {}
+    elif broken == "mapping_type":
+        value["listings"][0]["platform_overrides"]["lancers"] = 7
+    if broken == "encoding":
+        catalog.write_bytes(bytes([255]))
+    else:
+        catalog.write_text(json.dumps(value))
+    module = _module()
+    tick = _FakeTick()
+    callbacks, reported = [], []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("invalid catalog reached external callback")
+    monkeypatch.setattr(tick, "_default_browser_factory", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    monkeypatch.setattr(module, "run", lambda *_args, **_kwargs: {
+        "ok": True, "logged_in": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "_load", lambda _name, path: (
+        _private_reporter(reported) if Path(path).name == "telegram_report.py" else tick))
+    code = module.main(["--apply", "--product", str(product), "--catalog", str(catalog)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 78
+    assert result["ok"] is False
+    assert result["error"] == "setup_required"
+    direct = module.run_catalog_create(tmp_path / "state/application.json", catalog, product_path=product)
+    assert direct["error"] == "setup_required"
+    assert direct["logged_in"] is False
+    assert callbacks == []
+    assert reported == []
+
+
+def test_private_run_profile_receives_validated_avatar(tmp_path, monkeypatch):
+    path = _private_product(tmp_path / "owner")
+    module = _module()
+    tick = _FakeTick()
+    monkeypatch.setattr(module, "_load", lambda *_: tick)
+    monkeypatch.setattr(module, "_apply", lambda *_: {"ok": True, "aligned": False, "action": "unchanged"})
+    monkeypatch.setattr(module, "_ensure_portfolio", lambda _page, product, _image, key: {
+        "portfolio_external_id": product[key]["external_id"], "portfolio_effect_count": 0,
+        "portfolio_url": f"https://www.lancers.jp/profile/other-seller/portfolio_popup/{product[key]['external_id']}"})
+    avatars = []
+    monkeypatch.setattr(module, "_profile", lambda _page, _product, avatar, _apply: (
+        avatars.append(avatar) or {"profile_effect_count": 0}))
+    result = module.run(True, path, tmp_path / "state/application.json")
+    assert result["ok"] is True
+    assert avatars == [path.parent / "other-avatar.png"]
+
+
+def test_private_catalog_create_receives_validated_product_image(tmp_path, monkeypatch):
+    path = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(path.parent)
+    module = _module()
+    tick = _FakeTick()
+    monkeypatch.setattr(module, "_load", lambda *_: tick)
+    images = []
+    monkeypatch.setattr(module, "create_package", lambda _page, _product, image: (
+        images.append(image) or {"ok": True, "listing_external_id": "92001",
+                                 "canonical_url": "https://www.lancers.jp/menu/detail/92001"}))
+    result = module.run_catalog_create(tmp_path / "state/application.json", catalog, product_path=path)
+    assert result["ok"] is True
+    assert images == [path.parent / "other-image.png"]
+
+
+def test_private_main_propagates_explicit_product_and_catalog(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = _private_product(tmp_path / "chosen")
+    catalog = _private_catalog(tmp_path / "catalog")
+    module = _module()
+    calls, reported = [], []
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path, **kwargs: (
+        calls.append(("run", product_path, kwargs)) or {"ok": True, "action": "unchanged"}))
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path, catalog_path, **kwargs: (
+        calls.append(("catalog", catalog_path, kwargs)) or {"action": "all_published", "skipped": []}))
+    monkeypatch.setattr(module, "_load", lambda *_: _private_reporter(reported))
+    assert module.main(["--apply", "--product", str(path), "--catalog", str(catalog)]) == 0
+    assert calls == [("run", path, {"catalog_path": catalog}),
+                     ("catalog", catalog, {"product_path": path})]
+
+
+def test_private_main_without_catalog_keeps_single_product_lane(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = _private_product(tmp_path / ".config/anicca/lancers")
+    module = _module()
+    calls, reported = [], []
+    monkeypatch.setattr(module, "run", lambda *_args, **_kwargs: {"ok": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda *_args, **_kwargs: calls.append("catalog"))
+    monkeypatch.setattr(module, "_load", lambda *_: _private_reporter(reported))
+    assert module.main(["--apply", "--product", str(path)]) == 0
+    assert calls == []
+    assert "catalog_creation" not in reported[0]
+
+
+def _first_listing_product(tmp_path, *, absent=False, catalog=False):
+    path = _private_product(tmp_path / "owner", **({"catalog_family": "other"} if catalog else {}))
+    raw = json.loads(path.read_text())
+    raw["owner_note"] = "preserve this input"
+    for row, key in ((raw, "listing_external_id"), (raw["portfolio"], "external_id"),
+                     (raw["software_portfolio"], "external_id")):
+        if absent:
+            del row[key]
+        else:
+            row[key] = ""
+    path.write_text(json.dumps(raw))
+    return path
+
+
+def _created_listing():
+    return {"ok": True, "logged_in": True, "action": "created", "aligned": True,
+            "mismatched_fields": [], "listing_external_id": "92001",
+            "canonical_url": "https://www.lancers.jp/menu/detail/92001"}
+
+
+@pytest.mark.parametrize("absent", [False, True])
+def test_first_listing_saves_only_real_id_and_rerun_never_creates(tmp_path, monkeypatch, absent):
+    module = _module()
+    path = _first_listing_product(tmp_path, absent=absent, catalog=True)
+    before = json.loads(path.read_text())
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    module._write_catalog_listing(state, "existing-family", {"listing_external_id": "93001"})
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+
+    result = module.run_create(path, state, catalog_path=catalog)
+
+    assert result["ok"] is True
+    assert json.loads(path.read_text()) == before | {"listing_external_id": "92001"}
+    ledger = json.loads(state.with_name("listing.json").read_text())
+    assert ledger["listing_external_id"] == "92001" and ledger["demand"] == {}
+    assert ledger["catalog_listings"]["other"]["listing_external_id"] == "92001"
+    assert ledger["catalog_listings"]["existing-family"] == {"listing_external_id": "93001"}
+    assert "pending_create" not in ledger
+    module.run_create(path, state, catalog_path=catalog)
+    assert len(calls) == 1 and tick.opened_pages == tick.closed_pages == 1
+
+
+def test_first_listing_pending_write_failure_prevents_create(tmp_path, monkeypatch):
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    def no_space(*_args, **_kwargs):
+        raise OSError(28, "fixture full")
+    monkeypatch.setattr(module, "_write_private", no_space, raising=False)
+
+    result = module.run_create(path, tmp_path / "state/application.json")
+
+    assert result["ok"] is False and result["error"] == "private_storage"
+    assert calls == []
+
+
+@pytest.mark.parametrize("receipt_fails", [False, True])
+def test_first_listing_storage_failure_keeps_pending_and_does_not_recreate(tmp_path, monkeypatch, receipt_fails):
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "skills/earn/gig/scripts"))
+    from skills.earn.gig.scripts.money_loop_onboarding import _write_private
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    state = tmp_path / "state/application.json"
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    def product_full(target, value):
+        if Path(target) == path:
+            raise OSError(28, "fixture full")
+        _write_private(target, value)
+    monkeypatch.setattr(module, "_write_private", product_full, raising=False)
+    if receipt_fails:
+        def receipt_full(*_args):
+            raise OSError(28, "fixture full")
+        monkeypatch.setattr(module, "_write_receipt", receipt_full)
+
+    first = module.run_create(path, state)
+    assert first["ok"] is False and first["logged_in"] is True
+    assert first["listing_external_id"] == "92001"
+    assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
+    if not receipt_fails:
+        ledger = json.loads(state.with_name("listing.json").read_text())
+        ledger["observed_at"] = "2026-01-02T03:04:05Z"
+        state.with_name("listing.json").write_text(json.dumps(ledger))
+    monkeypatch.setattr(module, "_write_private", _write_private)
+    second = module.run_create(path, state)
+    assert len(calls) == 1 and tick.opened_pages == tick.closed_pages == (2 if receipt_fails else 1)
+    if receipt_fails:
+        assert second["ok"] is False and second["logged_in"] is not False
+        assert second["next_action"] == "official_readback_required"
+    else:
+        assert second["ok"] is True and second["action"] == "creation_restored"
+        assert json.loads(path.read_text())["listing_external_id"] == "92001"
+        assert "pending_create" not in json.loads(state.with_name("listing.json").read_text())
+        assert json.loads(state.with_name("listing.json").read_text())["observed_at"] == "2026-01-02T03:04:05Z"
+
+
+def test_first_listing_changed_input_cannot_adopt_old_success(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "skills/earn/gig/scripts"))
+    from skills.earn.gig.scripts.money_loop_onboarding import _write_private
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    state = tmp_path / "state/application.json"
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    def product_full(target, value):
+        if Path(target) == path:
+            raise OSError(28, "fixture full")
+        _write_private(target, value)
+    monkeypatch.setattr(module, "_write_private", product_full, raising=False)
+    module.run_create(path, state)
+    raw = json.loads(path.read_text())
+    raw["description"] += " changed owner input"
+    path.write_text(json.dumps(raw))
+    monkeypatch.setattr(module, "_write_private", _write_private)
+
+    result = module.run_create(path, state)
+
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert json.loads(path.read_text()) == raw
+    assert len(calls) == 1
+
+
+def test_first_listing_existing_id_never_creates_from_file_alone(tmp_path, monkeypatch):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    result = module.run_create(path, tmp_path / "state/application.json")
+    assert result["ok"] is False and result["error"] == "listing_already_bound"
+    assert calls == [] and tick.opened_pages == 0
+
+
+def test_first_listing_normal_writers_preserve_pending(tmp_path):
+    module = _module()
+    state = tmp_path / "application.json"
+    pending = {"product_id": "pending-owner", "content_sha256": "abc"}
+    state.with_name("listing.json").write_text(json.dumps({"pending_create": pending}))
+    module._write_receipt(state, {"product_id": "other", "product_version": 1,
+                                  "listing_external_id": "94001"}, {})
+    module._write_catalog_listing(state, "other-family", {"listing_external_id": "95001"})
+    assert json.loads(state.with_name("listing.json").read_text())["pending_create"] == pending
+
+
+def test_first_listing_pending_blocks_automatic_catalog_create(tmp_path, monkeypatch):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    state.with_name("listing.json").write_text(json.dumps({"pending_create": {"product_id": "unconfirmed"}}))
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    result = module.run_catalog_create(state, catalog, product_path=path)
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert calls == [] and tick.opened_pages == 0
+
+
+def test_first_listing_reloads_product_inside_account_lock(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    @contextmanager
+    def lock(_path):
+        raw = json.loads(path.read_text())
+        raw["listing_external_id"] = "92001"
+        path.write_text(json.dumps(raw))
+        yield
+    tick.account_lock = lock
+    result = module.run_create(path, tmp_path / "state/application.json")
+    assert result["ok"] is False and result["error"] == "listing_already_bound"
+    assert calls == [] and tick.opened_pages == 0
+
+
+def test_first_listing_pending_blocks_apply_before_provider_step(tmp_path, monkeypatch):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    state.with_name("listing.json").write_text(json.dumps({"pending_create": {"product_id": "unconfirmed"}}))
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    monkeypatch.setattr(module, "_apply", lambda *_args: calls.append("apply") or {"ok": True, "action": "updated"})
+    result = module.run(True, path, state)
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert result["logged_in"] is not False and calls == []
+
+
+def test_first_listing_catalog_storage_failure_keeps_pending_and_real_id(tmp_path, monkeypatch):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    def no_space(*_args):
+        raise OSError(28, "fixture full")
+    monkeypatch.setattr(module, "_write_catalog_listing", no_space)
+
+    first = module.run_catalog_create(state, catalog, product_path=path)
+
+    assert first["ok"] is False and first["logged_in"] is True
+    assert first.get("listing_external_id") == "92001"
+    assert state.with_name("listing.json").is_file()
+    assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
+    second = module.run_catalog_create(state, catalog, product_path=path)
+    assert second["next_action"] == "official_readback_required"
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("create", [False, True])
+def test_first_listing_invalid_product_cannot_turn_pending_effect_into_pre_effect(tmp_path, monkeypatch, create):
+    module = _module()
+    path = _private_product(tmp_path / "owner")
+    path.write_text("{broken")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    state.with_name("listing.json").write_text(json.dumps({"pending_create": {"product_id": "unconfirmed"}}))
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    result = module.run_create(path, state) if create else module.run(True, path, state)
+    assert result["error"] == "setup_required"
+    assert result["logged_in"] is not False
+    assert calls == [] and tick.opened_pages == 0
+
+
+def test_first_listing_changed_during_create_keeps_new_owner_input_unbound(tmp_path, monkeypatch):
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    state = tmp_path / "state/application.json"
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    create = module.create_package
+    changed = json.loads(path.read_text())
+    changed["description"] += " new owner input during create"
+    def changed_during_create(*args):
+        path.write_text(json.dumps(changed))
+        return create(*args)
+    monkeypatch.setattr(module, "create_package", changed_during_create)
+
+    result = module.run_create(path, state)
+
+    assert result["ok"] is False and result["logged_in"] is True
+    assert result["listing_external_id"] == "92001"
+    assert json.loads(path.read_text()) == changed
+    assert "pending_create" in json.loads(state.with_name("listing.json").read_text())
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("ledger", ["pending", "broken"])
+@pytest.mark.parametrize("catalog", ["missing", "broken"])
+def test_catalog_setup_failure_preserves_unknown_effect(tmp_path, monkeypatch, capsys, ledger, catalog):
+    module = _module()
+    product = _private_product(tmp_path / "owner")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    state.with_name("listing.json").write_text(
+        json.dumps({"pending_create": {"product_id": "unconfirmed"}}) if ledger == "pending" else "{broken")
+    catalog_path = tmp_path / "catalog.json"
+    if catalog == "broken":
+        catalog_path.write_text("{broken")
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("catalog setup failure reached external callback")
+    monkeypatch.setattr(module, "_load", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+
+    code = module.main(["--apply", "--product", str(product), "--catalog", str(catalog_path),
+                        "--state-path", str(state)])
+    result = json.loads(capsys.readouterr().out)
+
+    assert code == 78 and result["error"] == "setup_required"
+    assert result["missing"] == ["listing_catalog"]
+    assert result["logged_in"] is None and result["next_action"] == "official_readback_required"
+    assert callbacks == []
+
+
+@pytest.mark.parametrize("mode", ["apply", "create", "catalog"])
+@pytest.mark.parametrize("ledger", ["pending", "broken", "absent"])
+@pytest.mark.parametrize("boundary", ["import", "lock"])
+def test_startup_failure_preserves_unknown_effect(tmp_path, monkeypatch, mode, ledger, boundary):
+    module = _module()
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    ledger_path = state.with_name("listing.json")
+    if ledger != "absent":
+        ledger_path.write_text(json.dumps({"pending_create": {"product_id": "unconfirmed"}})
+                               if ledger == "pending" else "{broken")
+    before = ledger_path.read_bytes() if ledger_path.exists() else None
+    tick = _FakeTick()
+    callbacks = []
+    def forbidden(*_args, **_kwargs):
+        callbacks.append("external")
+        raise AssertionError("failed startup reached browser/provider callback")
+    monkeypatch.setattr(tick, "_default_browser_factory", forbidden)
+    monkeypatch.setattr(module, "create_package", forbidden)
+    if boundary == "import":
+        def failed_import(*_args):
+            raise ImportError("fixture tick unavailable")
+        monkeypatch.setattr(module, "_load", failed_import)
+    else:
+        class FixtureLockBusy(RuntimeError):
+            pass
+        def failed_lock(*_args):
+            raise FixtureLockBusy("fixture lock unavailable")
+        monkeypatch.setattr(tick, "account_lock", failed_lock)
+        monkeypatch.setattr(module, "_load", lambda *_args: tick)
+
+    if mode == "apply":
+        result = module.run(True, product, state)
+    elif mode == "create":
+        result = module.run_create(product, state)
+    else:
+        result = module.run_catalog_create(state, catalog, product_path=product)
+
+    assert result["ok"] is False
+    if ledger == "absent":
+        assert result["logged_in"] is False
+        assert "next_action" not in result
+    else:
+        assert result["logged_in"] is None
+        assert result["next_action"] == "official_readback_required"
+    assert callbacks == []
+    assert (ledger_path.read_bytes() if ledger_path.exists() else None) == before
+
+
+@pytest.mark.parametrize("mode", ["apply", "create", "catalog"])
+def test_startup_failure_reads_pending_written_during_import(tmp_path, monkeypatch, mode):
+    module = _module()
+    product = _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    pending = {"pending_create": {"product_id": "other-owner-pending"}}
+    def failed_import(*_args):
+        state.with_name("listing.json").write_text(json.dumps(pending))
+        raise ImportError("fixture tick unavailable")
+    monkeypatch.setattr(module, "_load", failed_import)
+
+    if mode == "apply":
+        result = module.run(True, product, state)
+    elif mode == "create":
+        result = module.run_create(product, state)
+    else:
+        result = module.run_catalog_create(state, catalog, product_path=product)
+
+    assert result["ok"] is False and result["logged_in"] is None
+    assert result["next_action"] == "official_readback_required"
+    assert json.loads(state.with_name("listing.json").read_text()) == pending
+
+
+@pytest.mark.parametrize("mode", ["apply", "create", "catalog"])
+@pytest.mark.parametrize("account_ready", [False, True])
+def test_cleanup_failure_reads_late_pending_without_losing_observed_login(tmp_path, monkeypatch, mode, account_ready):
+    module = _module()
+    product = _first_listing_product(tmp_path) if mode == "create" else _private_product(tmp_path / "owner")
+    catalog = _private_catalog(tmp_path / "catalog")
+    state = tmp_path / "state/application.json"
+    state.parent.mkdir()
+    tick = _FakeTick(account_ready=account_ready)
+    _patch_browser_layer(module, monkeypatch, tick=tick, create_results=_created_listing())
+    monkeypatch.setattr(module, "_apply", lambda *_args: {"ok": True, "action": "updated"})
+    pending = {"pending_create": {"product_id": "other-owner-pending"}}
+    def close_failed(_page):
+        state.with_name("listing.json").write_text(json.dumps(pending))
+        return False
+    monkeypatch.setattr(tick, "_close_owned_page", close_failed)
+
+    if mode == "apply":
+        result = module.run(True, product, state)
+    elif mode == "create":
+        result = module.run_create(product, state)
+    else:
+        result = module.run_catalog_create(state, catalog, product_path=product)
+
+    assert result["ok"] is False and result["error"] == "cleanup_failed"
+    if account_ready:
+        assert result["logged_in"] is True
+    else:
+        assert result["logged_in"] is None
+        assert result["next_action"] == "official_readback_required"
+    assert json.loads(state.with_name("listing.json").read_text()) == pending
+
+
+B3_OWNER = "lancers-revenue-storefront"
+B3_OCCURRENCE = B3_OWNER + ":fixture-create-unknown"
+B3_CONTEXT = {"owner_id": B3_OWNER, "occurrence_id": B3_OCCURRENCE, "release_sha": "a" * 40}
+
+
+def _b3_digest(value):
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                     separators=(",", ":")).encode()).hexdigest()
+
+
+def _b3_runtime(monkeypatch, **updates):
+    values = {"LIFE_MANAGER_LOOP_ID": B3_OWNER, "LIFE_MANAGER_OCCURRENCE_ID": B3_OCCURRENCE,
+              "LIFE_MANAGER_RELEASE_SHA": B3_CONTEXT["release_sha"], **updates}
+    for name, value in values.items():
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+
+
+def _b3_pending_case(tmp_path, *, module=None, kind="listing", scoped=True):
+    module = module or _module()
+    path = (_first_listing_product(tmp_path) if kind == "listing"
+            else _private_product(tmp_path / "owner"))
+    raw = json.loads(path.read_text())
+    raw["portfolio"]["external_id"] = raw["software_portfolio"]["external_id"] = ""
+    path.write_text(json.dumps(raw, ensure_ascii=False))
+    catalog = _private_catalog(tmp_path / "catalog") if kind == "catalog_listing" else None
+    product, _, _ = module._product(path, catalog, creating=kind == "listing", applying=kind != "listing")
+    state = tmp_path / "state/application.json"
+    if kind != "listing":
+        module._write_receipt(state, product, {"detail_views": 7})
+    ledger = module._listing_state(state)
+    ledger["catalog_listings"] = {"keep-family": {"listing_external_id": "93001"}}
+    module._write_private(state.with_name("listing.json"), ledger)
+    family = None
+    target = product
+    if catalog is not None:
+        selection = module.select_catalog_family_to_create(catalog, state)
+        assert selection["action"] == "candidate_selected"
+        family, target = selection["family"], product | selection["product"]
+    intent = module._creation_intent(target, family, kind=kind)
+    if kind == "catalog_listing":
+        target = target | {"public_title": target["title_stem"] + "ます"}
+    ledger["pending_create"] = intent
+    if scoped:
+        ledger["pending_create_context"] = dict(B3_CONTEXT)
+    module._write_private(state.with_name("listing.json"), ledger)
+    return SimpleNamespace(module=module, path=path, state=state,
+                           ledger=state.with_name("listing.json"), product=target,
+                           intent=intent, context=dict(B3_CONTEXT), kind=kind, catalog=catalog)
+
+
+def _b3_readback_browser(case, monkeypatch, *, ids=("92001",), account="other-seller",
+                         aligned=True, cleanup=True, change_input=False, incomplete=False, page=None):
+    module = case.module
+    home = case.path.parent / "isolated-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    snapshot = {"url": "https://www.lancers.jp/mypage", "ready": "complete", "login_form": False,
+                "human_verification": False, "profile_links": [f"https://www.lancers.jp/profile/{account}"]}
+    onboarding = module._load("b3_account_fixture", SCRIPT.with_name("lancers_onboarding.py"))
+    assert onboarding.connect(home, snapshot)["ok"] is True
+    page = page or SimpleNamespace()
+    page.url = snapshot["url"]
+    page.evaluate = lambda _expression: snapshot
+    tick = _FakeTick()
+    tick._onboarding = onboarding
+    calls = SimpleNamespace(inventory=[], public=[], forbidden=[], locks=0)
+
+    @contextmanager
+    def lock(path):
+        assert Path(path) == case.state.with_name("work-sync.json")
+        assert calls.locks == 0, "creation readback reacquired the same account lock"
+        calls.locks += 1
+        try:
+            yield
+        finally:
+            calls.locks -= 1
+
+    def forbidden(*_args, **_kwargs):
+        calls.forbidden.append("mutation-or-nested-inventory")
+        raise AssertionError("creation recovery must only read the official target")
+
+    def inventory(observed_page):
+        assert observed_page is page and calls.locks == 1
+        calls.inventory.append(True)
+        if incomplete:
+            raise RuntimeError("PRIVATE-INVENTORY-PAGINATION")
+        return ({"published": len(ids), "paused": 0, "hidden": 0, "draft": 0}, [
+            {"listing_external_id": value, "state": "published", "management_title": case.product["public_title"],
+             "public_url": f"https://www.lancers.jp/menu/detail/{value}"} for value in ids])
+
+    reporter = SimpleNamespace(_inventory_management=inventory, run_inventory=forbidden,
+                               notify_storefront_wake=forbidden)
+
+    def load(_name, path):
+        if Path(path).name == "application_tick.py":
+            return tick
+        assert Path(path).name == "telegram_report.py"
+        return reporter
+
+    def public(observed_page, product, **kwargs):
+        assert observed_page is page and calls.locks == 1
+        calls.public.append((dict(product), kwargs))
+        if change_input:
+            raw = json.loads(case.path.read_text())
+            raw["description"] += " 本人の新しい入力"
+            case.path.write_text(json.dumps(raw, ensure_ascii=False))
+        return _created_listing() | {"listing_external_id": product["listing_external_id"],
+                                     "aligned": aligned, "mismatched_fields": [] if aligned else ["plans"],
+                                     "has_image": False}
+
+    monkeypatch.setattr(tick, "account_lock", lock)
+    opened, closed = tick._new_owned_page, tick._close_owned_page
+    monkeypatch.setattr(tick, "_new_owned_page", lambda browser: (opened(browser), page)[1])
+    monkeypatch.setattr(tick, "_close_owned_page", lambda target: (closed(target), cleanup)[1])
+    monkeypatch.setattr(module, "_load", load)
+    monkeypatch.setattr(module, "_public", public)
+    for name in ("create_package", "_apply", "_profile", "_ensure_portfolio"):
+        monkeypatch.setattr(module, name, forbidden)
+    return tick, calls
+
+
+@pytest.mark.parametrize("kind", ["listing", "catalog_listing"])
+def test_b3_pending_context_is_saved_atomically_before_create(tmp_path, monkeypatch, kind):
+    _b3_runtime(monkeypatch)
+    module = _module()
+    path = _first_listing_product(tmp_path) if kind == "listing" else _private_product(tmp_path / "owner")
+    state = tmp_path / "state/application.json"
+    catalog = _private_catalog(tmp_path / "catalog") if kind == "catalog_listing" else None
+    observed = []
+    _patch_browser_layer(module, monkeypatch, create_results={"ok": False, "logged_in": True,
+                                                            "error": "publication_uncertain"})
+    create = module.create_package
+
+    def inspect_pending(*args):
+        observed.append(json.loads(state.with_name("listing.json").read_text()))
+        return create(*args)
+
+    monkeypatch.setattr(module, "create_package", inspect_pending)
+    result = (module.run_create(path, state) if kind == "listing"
+              else module.run_catalog_create(state, catalog, product_path=path))
+
+    assert result["ok"] is False and len(observed) == 1
+    assert observed[0].get("pending_create_context") == B3_CONTEXT
+    assert set(observed[0]["pending_create"]) == {
+        "kind", "product_id", "product_version", "content_sha256", "seller_path", "catalog_family"}
+    assert json.loads(state.with_name("listing.json").read_text()) == observed[0]
+
+
+@pytest.mark.parametrize("updates", [
+    {"LIFE_MANAGER_RELEASE_SHA": None},
+    {"LIFE_MANAGER_LOOP_ID": "other-owner"},
+    {"LIFE_MANAGER_RELEASE_SHA": "PRIVATE-NOT-A-SHA"},
+], ids=["partial", "other-owner", "invalid-sha"])
+def test_b3_incomplete_runtime_identity_stops_before_browser_or_create(tmp_path, monkeypatch, updates):
+    _b3_runtime(monkeypatch, **updates)
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+
+    result = module.run_create(path, tmp_path / "state/application.json")
+
+    assert result["ok"] is False and result["error"] == "setup_required"
+    assert calls == [] and tick.opened_pages == tick.closed_pages == 0
+    assert json.loads(path.read_text())["listing_external_id"] == ""
+    assert "PRIVATE" not in json.dumps(result)
+
+
+def test_b3_success_keeps_one_last_creation_and_receipt_refresh_preserves_it(tmp_path, monkeypatch):
+    _b3_runtime(monkeypatch)
+    module = _module()
+    path = _first_listing_product(tmp_path)
+    product, _, _ = module._product(path, creating=True)
+    intent = module._creation_intent(product, None)
+    state = tmp_path / "state/application.json"
+    _, calls = _patch_browser_layer(module, monkeypatch, create_results=_created_listing())
+    writes = []
+    write = module._write_private
+
+    def capture(target, value):
+        if Path(target) == state.with_name("listing.json"):
+            writes.append(json.loads(json.dumps(value)))
+        write(target, value)
+
+    monkeypatch.setattr(module, "_write_private", capture)
+    assert module.run_create(path, state)["ok"] is True
+    ledger = json.loads(state.with_name("listing.json").read_text())
+    last = ledger.get("last_creation")
+    assert isinstance(last, dict) and last.get("intent") == intent
+    assert last.get("context") == B3_CONTEXT and last.get("external_id") == "92001"
+    assert "pending_create" not in ledger and "pending_create_context" not in ledger
+    assert any(value.get("last_creation") == last and "pending_create" not in value
+               and "pending_create_context" not in value for value in writes)
+    saved, _, _ = module._product(path, applying=True)
+    module._write_receipt(state, saved, {"detail_views": 9})
+    assert json.loads(state.with_name("listing.json").read_text())["last_creation"] == last
+    module.run_create(path, state)
+    assert len(calls) == 1
+
+
+def test_b3_receipt_writers_preserve_pending_context_and_last_creation(tmp_path):
+    module = _module()
+    state = tmp_path / "application.json"
+    context = dict(B3_CONTEXT)
+    last = {"intent": {"kind": "portfolio"}, "context": context, "external_id": "81001"}
+    module._write_private(state.with_name("listing.json"), {
+        "pending_create": {"kind": "listing"}, "pending_create_context": context, "last_creation": last})
+    module._write_receipt(state, {"product_id": "fixture", "product_version": 1,
+                                  "listing_external_id": "91001"}, {})
+    module._write_catalog_listing(state, "keep", {"listing_external_id": "93001"})
+    ledger = json.loads(state.with_name("listing.json").read_text())
+    assert ledger.get("pending_create_context") == context
+    assert ledger.get("last_creation") == last
+    assert ledger["pending_create"] == {"kind": "listing"}
+
+
+@pytest.mark.parametrize("scoped", [True, False], ids=["runtime-context", "legacy-standalone"])
+def test_b3_unknown_listing_restores_only_one_official_target_without_create(tmp_path, monkeypatch, scoped):
+    case = _b3_pending_case(tmp_path, scoped=scoped)
+    tick, calls = _b3_readback_browser(case, monkeypatch)
+    before = json.loads(case.path.read_text())
+
+    result = case.module.run_create(case.path, case.state)
+
+    assert result["ok"] is True and result["action"] == "creation_restored"
+    assert json.loads(case.path.read_text()) == before | {"listing_external_id": "92001"}
+    ledger = json.loads(case.ledger.read_text())
+    assert ledger.get("last_creation", {}).get("external_id") == "92001"
+    assert "pending_create" not in ledger and "pending_create_context" not in ledger
+    assert len(calls.inventory) == len(calls.public) == 1
+    assert calls.public[0][1].get("require_image") is False
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+@pytest.mark.parametrize("failure", ["zero", "multiple", "misaligned", "other-seller",
+                                     "pagination", "input-changed", "cleanup"])
+def test_b3_unknown_listing_refuses_unsafe_target_and_never_creates(tmp_path, monkeypatch, failure):
+    case = _b3_pending_case(tmp_path)
+    tick, calls = _b3_readback_browser(
+        case, monkeypatch, ids=() if failure == "zero" else ("92001", "92002") if failure == "multiple" else ("92001",),
+        aligned=failure != "misaligned", account="different-seller" if failure == "other-seller" else "other-seller",
+        incomplete=failure == "pagination", change_input=failure == "input-changed", cleanup=failure != "cleanup")
+    before, ledger = case.path.read_bytes(), case.ledger.read_bytes()
+
+    result = case.module.run_create(case.path, case.state)
+
+    assert result["ok"] is False and result.get("next_action") == "official_readback_required"
+    if failure == "cleanup":
+        assert result.get("verified") is not True and result.get("listing_external_id") == "92001"
+        saved_id = json.loads(case.path.read_text())["listing_external_id"]
+        assert saved_id in {"", "92001"}
+        current = json.loads(case.ledger.read_text())
+        pending = (current.get("pending_create") == case.intent
+                   and current.get("pending_create_context") == case.context)
+        last = current.get("last_creation", {})
+        assert pending or (isinstance(last, dict) and last.get("intent") == case.intent
+                           and last.get("context") == case.context and last.get("external_id") == "92001")
+        if not saved_id:
+            assert pending
+    else:
+        assert json.loads(case.path.read_text())["listing_external_id"] == ""
+        if failure != "input-changed":
+            assert case.path.read_bytes() == before
+        assert case.ledger.read_bytes() == ledger
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages
+    if failure == "other-seller":
+        assert tick.opened_pages <= 1 and calls.inventory == calls.public == []
+    else:
+        assert tick.opened_pages == 1
+    assert "PRIVATE" not in json.dumps(result)
+
+
+def test_b3_catalog_recovery_saves_only_the_target_family(tmp_path, monkeypatch):
+    case = _b3_pending_case(tmp_path, kind="catalog_listing")
+    tick, calls = _b3_readback_browser(case, monkeypatch)
+    before = case.path.read_bytes()
+    ledger = json.loads(case.ledger.read_text())
+
+    result = case.module.run_catalog_create(case.state, case.catalog, product_path=case.path)
+
+    assert result["ok"] is True
+    after = json.loads(case.ledger.read_text())
+    assert case.path.read_bytes() == before
+    assert after["listing_external_id"] == ledger["listing_external_id"] == "91001"
+    assert after["catalog_listings"]["keep-family"] == ledger["catalog_listings"]["keep-family"]
+    assert after["catalog_listings"]["other"]["listing_external_id"] == "92001"
+    assert calls.public[0][0]["public_title"] == case.product["public_title"]
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+def test_b3_creation_readback_does_not_expose_private_offer_error(tmp_path, monkeypatch):
+    case = _b3_pending_case(tmp_path)
+    tick, calls = _b3_readback_browser(case, monkeypatch)
+    before = case.path.read_bytes(), case.ledger.read_bytes()
+
+    def private_error(*_args, **_kwargs):
+        raise case.module.OfferError("PRIVATE-INPUT-OR-DOM-DETAIL")
+
+    monkeypatch.setattr(case.module, "_public", private_error)
+    result = case.module.run_create(case.path, case.state)
+
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert "PRIVATE" not in json.dumps(result)
+    assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+def test_b3_creation_rechecks_catalog_after_target_readback(tmp_path, monkeypatch):
+    case = _b3_pending_case(tmp_path, kind="catalog_listing")
+    tick, calls = _b3_readback_browser(case, monkeypatch)
+    before = case.path.read_bytes(), case.ledger.read_bytes()
+    public = case.module._public
+
+    def replace_catalog(*args, **kwargs):
+        found = public(*args, **kwargs)
+        catalog = json.loads(case.catalog.read_text())
+        catalog["listings"][0]["tiers"][0]["price_jpy"] += 1000
+        case.catalog.write_text(json.dumps(catalog, ensure_ascii=False))
+        return found
+
+    monkeypatch.setattr(case.module, "_public", replace_catalog)
+    result = case.module.run_catalog_create(case.state, case.catalog, product_path=case.path)
+
+    assert result["ok"] is False and result["next_action"] == "official_readback_required"
+    assert (case.path.read_bytes(), case.ledger.read_bytes()) == before
+    assert calls.forbidden == [] and tick.opened_pages == tick.closed_pages == 1
+
+
+def _owner_cli(module, args, capsys):
+    try:
+        code = module.main(args)
+    except SystemExit as error:
+        code = error.code
+    return code, capsys.readouterr()
+
+
+@pytest.mark.parametrize("listing_id", ["", "91001"], ids=["first-create", "existing-apply"])
+def test_owner_run_uses_validated_input_to_choose_create_or_apply(tmp_path, monkeypatch, capsys, listing_id):
+    module = _module()
+    path = _private_product(tmp_path / "owner", listing_external_id=listing_id)
+    state = tmp_path / "state/application.json"
+    _b3_runtime(monkeypatch)
+    calls = []
+
+    def create(product, output, **_kwargs):
+        assert (product, output) == (path, state)
+        assert {key: module.os.environ[name] for key, name in (
+            ("owner_id", "LIFE_MANAGER_LOOP_ID"), ("occurrence_id", "LIFE_MANAGER_OCCURRENCE_ID"),
+            ("release_sha", "LIFE_MANAGER_RELEASE_SHA"))} == B3_CONTEXT
+        calls.append("create")
+        return {"ok": True, "action": "created", "listing_external_id": "99001"}
+
+    def apply(enabled, product, output, **_kwargs):
+        assert enabled is True and (product, output) == (path, state)
+        calls.append("apply")
+        return {"ok": True, "action": "aligned", "listing_external_id": listing_id}
+
+    delivery = SimpleNamespace(attempted=False, delivered=True, delivery_uncertain=False,
+                               pre_send_failed=False, provider_rejected=False)
+    monkeypatch.setattr(module, "run_create", create)
+    monkeypatch.setattr(module, "run", apply)
+    monkeypatch.setattr(module, "_load", lambda *_args: SimpleNamespace(notify_storefront_wake=lambda _result: delivery))
+    code, output = _owner_cli(module, ["--owner-run", "--product", str(path), "--state-path", str(state)], capsys)
+
+    assert code == 0, output.err
+    assert json.loads(output.out)["ok"] is True
+    assert calls == ["create" if not listing_id else "apply"]
+
+
+@pytest.mark.parametrize("invalid", ["json", "listing-id"])
+def test_owner_run_rejects_invalid_product_before_provider_dispatch(tmp_path, monkeypatch, capsys, invalid):
+    module = _module()
+    path = _private_product(tmp_path / "owner", listing_external_id="PRIVATE-INVALID-ID")
+    if invalid == "json":
+        path.write_text('{"PRIVATE-INVALID-PRODUCT":')
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("invalid owner input reached the provider dispatch")
+
+    monkeypatch.setattr(module, "run_create", forbidden)
+    monkeypatch.setattr(module, "run", forbidden)
+    code, output = _owner_cli(module, ["--owner-run", "--product", str(path)], capsys)
+
+    assert code == 78, output.err
+    result = json.loads(output.out)
+    assert result["ok"] is False and result["error"] == "setup_required"
+    assert "PRIVATE" not in output.out
+
+
+def test_apply_still_refuses_an_empty_id_and_owner_mode_is_exclusive(tmp_path, monkeypatch, capsys):
+    module = _module()
+    path = _private_product(tmp_path / "owner", listing_external_id="")
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("explicit --apply must never create a first listing")
+
+    monkeypatch.setattr(module, "run_create", forbidden)
+    code, output = _owner_cli(module, ["--apply", "--product", str(path)], capsys)
+    assert code == 78 and json.loads(output.out)["error"] == "setup_required"
+    code, _output = _owner_cli(module, ["--owner-run", "--apply", "--product", str(path)], capsys)
+    assert code == 2

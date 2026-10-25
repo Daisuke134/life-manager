@@ -1,5 +1,8 @@
 # Life Manager 初週配布プラン
 
+> Historical snapshot from 2026-10-21. Its dated counts, URLs, and statuses are not the current readback. Current status and cursor: [integrated SSOT](../../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md); current evidence: [2026-10-24 readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
+
+
 **最終readback:** 2026-10-21 10:49 UTC。Article source/packageはLife Manager mainへPR #8492でmerge済み。Anicca Products PR #537はdraftでLanding CI/CodeRabbit PASSだが、candidate URLは404。GSC settled through 2026-10-18は0 clicks / 7 impressions。Postiz connectorはgroups=0 / integrations=0。RailwayはDashboard/APIとbuildが停止中で、production life-call/workerは06:23Zのdeploymentのまま。公開EN/JA pilot pageはHTTP 200だが旧daily-email claim。T26.5bのlive readback前はarticleやDMを公開しない。Life Manager X投稿・verified signup・attributed revenueは未確認。新規Instagram/X accountは作らない。
 
 ## 成功事例から移す仕組み

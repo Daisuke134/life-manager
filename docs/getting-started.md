@@ -7,8 +7,9 @@ service accounts. Docker is not required. This is early software; some agents ne
 
 ## What you need
 
-- A Mac or Mac mini that stays awake, with internet access. The installer accepts Apple Silicon
-  and Intel; Coconala's public beta targets macOS 14 or newer.
+- A Mac or Mac mini that stays awake, with internet access and at least 12 GiB of free disk
+  space. The installer accepts Apple Silicon and Intel; Coconala's public beta targets macOS 14
+  or newer.
 - ChatGPT Plus or higher. Sign in through the official `codex login` flow; no separate OpenAI
   API key is required for this subscription path.
 - Your own accounts for the agents you select. Some services require email, SMS, KYC, a payout
@@ -103,6 +104,9 @@ From the checkout, these guided setup paths remain available:
 | Agent | Command | Setup details |
 |---|---|---|
 | Coconala | `./install.sh coconala` | [Official account setup, seller identity, email, and activation](../skills/earn/gig/README.md) |
+| Lancers | `./install.sh lancers` | [Your work profile, Lancers login, and optional storefront](lancers.md) |
+| CrowdWorks | `./install.sh crowdworks` | [Your work profile, account login, and requirements for each workflow](crowdworks.md) |
+| Mercor | `./install.sh mercor` | [Your work profile, resume, account login, and workflow requirements](mercor.md) |
 | Connector | `./install.sh connector` | [Calendar, Telegram, browser, and event-provider setup](../skills/connector/README.md) |
 | Fundraiser | `./install.sh fundraiser` | Applicant profile, Telegram, and provider login when required |
 | Job Hunter | `./install.sh job-hunter` | Finalized resume, preferences, Gmail OAuth, Telegram, and official site login |

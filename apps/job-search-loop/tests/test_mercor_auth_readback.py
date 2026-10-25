@@ -1,5 +1,11 @@
 import inspect
 import unittest
+import asyncio
+import json
+
+import pytest
+
+from job_search_loop import mercor_auth_readback as auth
 
 from job_search_loop.mercor_auth_readback import (
     auth_snapshot_expression,
@@ -131,3 +137,95 @@ class MercorAuthReadbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.parametrize("matched,status", [(True, "authenticated"), (False, "indeterminate"), (None, "indeterminate")])
+def test_observe_binds_the_session_to_the_expected_email(monkeypatch, matched, status):
+    expressions = []
+
+    class Connection:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            pass
+
+    async def call(_ws, _request_id, method, params):
+        assert method == "Runtime.evaluate"
+        expressions.append(params["expression"])
+        return {"result": {"value": json.dumps({
+            "url": "https://work.mercor.com/explore", "text": "Explore Applications Profile",
+            "authenticated_api_status": 200, "firebase_identity_matched": matched,
+        })}}
+
+    monkeypatch.setattr(auth.websockets, "connect", lambda *_args, **_kwargs: Connection())
+    monkeypatch.setattr(auth, "_call", call)
+
+    result = asyncio.run(observe("ws://127.0.0.1/devtools/page/fixture", expected_email="owner@fixture.invalid"))
+
+    assert result["status"] == status
+    assert result["firebase_identity_matched"] is matched
+    assert 'const expectedEmail="owner@fixture.invalid"' in expressions[0]
+
+
+def test_missing_expected_identity_does_not_open_a_browser(monkeypatch):
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("unbound browser observation is forbidden")
+
+    monkeypatch.setattr(auth.websockets, "connect", forbidden)
+    assert asyncio.run(observe("ws://127.0.0.1/devtools/page/fixture"))["status"] == "indeterminate"
+
+
+@pytest.mark.parametrize("override", [None, "JOB_SEARCH_PROFILE", "MERCOR_PROFILE"])
+def test_cli_reads_the_existing_private_profile_override(tmp_path, monkeypatch, capsys, override):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    for key in ("MERCOR_PROFILE", "JOB_SEARCH_PROFILE"):
+        monkeypatch.delenv(key, raising=False)
+    profile = tmp_path / ("private-profile.json" if override else ".config/anicca/job-search/profile.json")
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(json.dumps({"version": 1, "candidate": {
+        "name": "Fixture owner", "application_email": "other-owner@fixture.invalid"},
+        "facts": [{"id": "one", "claim": "fixture", "evidence": "fixture"}]}))
+    if override:
+        monkeypatch.setenv(override, str(profile))
+    observed = []
+
+    async def observe_bound(ws_url, *, expected_email=None):
+        observed.append((ws_url, expected_email))
+        return {"status": "authenticated", "firebase_identity_matched": True}
+
+    monkeypatch.setattr(auth, "observe", observe_bound)
+    output = tmp_path / "result.json"
+    assert auth.main(["--ws", "ws://localhost/fixture", "--output", str(output)]) == 0
+    assert observed == [("ws://localhost/fixture", "other-owner@fixture.invalid")]
+    assert "other-owner@fixture.invalid" not in capsys.readouterr().out
+
+
+def test_cli_missing_private_profile_is_indeterminate_without_observation(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "missing"))
+    for key in ("MERCOR_PROFILE", "JOB_SEARCH_PROFILE"):
+        monkeypatch.delenv(key, raising=False)
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("missing identity must not trigger login or observation")
+
+    monkeypatch.setattr(auth, "observe", forbidden)
+    output = tmp_path / "result.json"
+    assert auth.main(["--ws", "ws://localhost/fixture", "--output", str(output)]) == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "indeterminate"
+
+
+def test_cli_explicit_email_passes_to_observation_without_printing_identity(tmp_path, monkeypatch, capsys):
+    observed = []
+
+    async def observe_bound(ws, *, expected_email):
+        observed.append(expected_email)
+        return {"status": "authenticated", "firebase_identity_matched": True}
+
+    monkeypatch.setattr(auth, "observe", observe_bound)
+    assert auth.main(["--ws", "ws://localhost/fixture", "--expected-email", "owner@fixture.invalid",
+                      "--output", str(tmp_path / "output.json")]) == 0
+    assert observed == ["owner@fixture.invalid"]
+    assert "owner@fixture.invalid" not in capsys.readouterr().out

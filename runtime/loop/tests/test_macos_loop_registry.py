@@ -206,8 +206,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row.get("resource_class"),
                                  "browser" if loop_id == "writer-sales-measure" else "agent")
-                self.assertEqual(row.get("admission_class"), "borrow")
-                self.assertEqual(row.get("priority"), "support")
+                # The claim loop is article-daily's only topic authority (required-demand queue):
+                # held at the 12 GiB producer floor it left the critical_paid lane with no topic
+                # all of 2026-10-24, so it shares the revenue floor.
+                expected = (("revenue", "revenue") if loop_id == "writer-claim-loop"
+                            else ("borrow", "support"))
+                self.assertEqual((row.get("admission_class"), row.get("priority")), expected)
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
@@ -582,6 +586,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_boot_panic_evidence_runs_once_when_the_aqua_session_loads(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertEqual(registry["loops"]["boot-panic-evidence"], {
+            # borrow/deterministic/support: without a typed admission contract a queued row
+            # kept the label fenced on a deleted release (2026-10-24).
+            "admission_class": "borrow",
             "cadence": {"run_at_load": True},
             "cleanup": {"max_age_days": 30, "max_runs": 20},
             "domain": "system",
@@ -589,7 +596,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "entrypoint": "runtime/host/boot_panic_collector.py",
             "label": "ai.anicca.boot-panic-evidence",
             "log_root": "~/.local/state/life-manager/boot-panic-evidence/logs",
+            "priority": "support",
             "provider_route": "deterministic",
+            "resource_class": "deterministic",
             "state_root": "~/.local/state/life-manager/boot-panic-evidence",
             "system_role": "control",
         })

@@ -433,6 +433,65 @@ test("delayed Postiz photo metrics persist an exact permalink without a per-post
   }
 });
 
+test("daily metrics catch up the latest elapsed 22 JST report day across midnight without replay effects", async (t) => {
+  const originalFetch = global.fetch;
+  let notifications = 0;
+  global.fetch = async (url) => {
+    if (!String(url).startsWith("https://api.telegram.org/")) throw new Error(`unexpected network request in isolated metrics test: ${url}`);
+    return { ok: true, json: async () => ({ ok: true, result: { message_id: ++notifications } }) };
+  };
+  t.after(() => { global.fetch = originalFetch; });
+  for (const [observedAt, reportDay] of [
+    ["2026-10-23T12:59:59.000Z", "2026-10-22"],
+    ["2026-10-23T13:00:00.000Z", "2026-10-23"],
+    ["2026-10-23T15:14:00.000Z", "2026-10-23"],
+    ["2026-10-24T12:59:59.000Z", "2026-10-23"],
+    ["2026-10-24T13:00:00.000Z", "2026-10-24"],
+  ]) {
+    await t.test(observedAt, async (t) => {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-metrics-midnight-"));
+      t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+      const attributionRoot = path.join(dataDir, "tenants/dais-local/marketing/attribution");
+      const pointers = new Map();
+      for (const day of ["2026-10-22", "2026-10-23", "2026-10-24"]) {
+        for (const [relative, value] of [
+          [`asc/${day}/acquisition.json`, { report_day: day, products: [], rows: [], snapshot_ref: `asc-${day}` }],
+          [`revenuecat/${day}/subscriptions.json`, { report_day: day, products: [], snapshot_ref: `revenuecat-${day}` }],
+          [`coverage/${day}/summary.json`, { kind: "marketing_product_metric_summary", product_id: "mobile-marketing", period: "daily", observed_at: `${day}T13:00:00.000Z`, report_key: `attribution-${day}`, source_refs: [], products: [], message: "Life Manager：fixture coverage unavailable" }],
+        ]) {
+          const file = path.join(attributionRoot, relative);
+          fs.mkdirSync(path.dirname(file), { recursive: true });
+          fs.writeFileSync(file, JSON.stringify(value));
+          pointers.set(file, fs.readFileSync(file, "utf8"));
+        }
+      }
+      const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
+      const nowMs = Date.parse(observedAt);
+      const api = await runDue(nowMs, env, null, "api");
+      assert.equal(api.find((row) => row.window === "asc-daily")?.snapshot_ref, `asc-${reportDay}`);
+      assert.equal(api.find((row) => row.window === "revenuecat-daily")?.snapshot_ref, `revenuecat-${reportDay}`);
+      assert.equal(api.some((row) => row.window === "daily-product"), false);
+      const final = await runDue(nowMs, env, null, "finalize");
+      assert.deepEqual(final.filter((row) => row.window === "daily-product").map((row) => row.product_id), ["honne-ai", "anicca-ios"]);
+      assert.equal(final.some((row) => row.window === "asc-daily"), false);
+      for (const productId of ["honne-ai", "anicca-ios"]) {
+        const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries", productId, "daily");
+        assert.deepEqual(fs.readdirSync(directory), [`${reportDay}.json`]);
+        const file = path.join(directory, `${reportDay}.json`);
+        assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).observed_at, observedAt);
+        pointers.set(file, fs.readFileSync(file, "utf8"));
+      }
+      const notificationsBeforeReplay = notifications;
+      const replay = await runDue(nowMs, env, null, "api");
+      assert.equal(replay.find((row) => row.window === "asc-daily").state, "complete");
+      assert.equal(replay.find((row) => row.window === "revenuecat-daily").state, "complete");
+      await runDue(nowMs, env, null, "finalize");
+      assert.equal(notifications, notificationsBeforeReplay);
+      for (const [file, bytes] of pointers) assert.equal(fs.readFileSync(file, "utf8"), bytes);
+    });
+  }
+});
+
 test("missing Honne weekly data stays unavailable and does not stop Anicca metrics", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-metrics-product-isolation-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
@@ -441,7 +500,7 @@ test("missing Honne weekly data stays unavailable and does not stop Anicca metri
   for (const [relative, value] of [
     [`asc/${reportDay}/acquisition.json`, { report_day: reportDay, products: [], rows: [] }],
     [`revenuecat/${reportDay}/subscriptions.json`, { report_day: reportDay, products: [] }],
-    [`coverage/${reportDay}/summary.json`, { report_key: `attribution-${reportDay}`, products: [], message: "fixture coverage unavailable" }],
+    [`coverage/${reportDay}/summary.json`, { kind: "marketing_product_metric_summary", product_id: "mobile-marketing", period: "daily", observed_at: `${reportDay}T13:00:00.000Z`, report_key: `attribution-${reportDay}`, source_refs: [], products: [], message: "Life Manager：fixture coverage unavailable" }],
   ]) {
     const file = path.join(attributionRoot, relative);
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -542,5 +601,20 @@ test("missing Honne weekly data stays unavailable and does not stop Anicca metri
     assert.match(honne.message, /取得不可/);
   } finally {
     global.fetch = originalFetch;
+  }
+});
+
+
+test("unpublished photo target ignores unrelated receipts while malformed exact receipts still fail", (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-photo-unpublished-receipts-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const target = TARGETS.find((row) => row.postiz_photo_only);
+  const file = path.join(dataDir, "marketing/receipts.jsonl");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ job_id: "marketing-liveness:other-summary", receipt: { message_id: 708 } }) + "\n");
+  assert.deepEqual(discoverTarget(dataDir, target), []);
+  for (const row of [{ job_id: target.receipt_job_id }, { job_id: target.receipt_job_id, receipt: { status: "failed" } }]) {
+    fs.writeFileSync(file, JSON.stringify(row) + "\n");
+    assert.throws(() => discoverTarget(dataDir, target), /Postiz photo receipt invalid/);
   }
 });

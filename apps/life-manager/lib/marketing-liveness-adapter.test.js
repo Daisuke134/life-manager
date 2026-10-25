@@ -209,3 +209,45 @@ test("immutable product summary renders through the durable Telegram adapter", a
   const result = await executeMarketingLivenessJob(job, { secretProvider: { get: async () => "fake-token" }, chatProvider: { get: async () => "fake-chat" }, snapshotProvider: { get: async () => ({ kind: "marketing_product_metric_summary", period: "daily", report_key: "2026-08-22", source_refs: [`object://sha256/${HASH}`], message: "Life Manager::: Honne AIの日次プロダクトメトリクスです。" }) }, sendTelegram: async (_token, _chat, message) => { sent.push(message); return { ok: true, result: { message_id: 706 } }; } });
   assert.equal(sent[0], "Life Manager::: Honne AIの日次プロダクトメトリクスです。"); assert.equal(result.receipt.report_key, "2026-08-22"); assert.equal(verifyMarketingLivenessReceipt(result.receipt), true);
 });
+
+
+test("generated Japanese product summaries pass the real adapter and invalid headings never send", async (t) => {
+  const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path");
+  const { persistHonneDaily } = require("../scripts/marketing-product-summary.js");
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-summary-heading-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const snapshot = persistHonneDaily(dataDir, "2026-10-23", "2026-10-23T13:00:00.000Z").snapshot;
+  assert.ok(snapshot.message.startsWith("Life Manager："));
+  const payload = { lane: "marketing-product-summary-honne", product: "honne-ai", locale: "en", platform: "multi", status: "summary", period: "daily", observed_at: "2026-10-23T13:00:00.000Z", summary_ref: `object://sha256/${HASH}` };
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload });
+  const sent = [];
+  const deps = {
+    secretProvider: { get: async () => "fake-token" }, chatProvider: { get: async () => "fake-chat" },
+    snapshotProvider: { get: async () => snapshot },
+    sendTelegram: async (_token, _chat, message) => { sent.push(message); return { ok: true, result: { message_id: 707 } }; },
+  };
+  const result = await executeMarketingLivenessJob(job, deps);
+  assert.deepEqual(sent, [snapshot.message]);
+  assert.equal(result.receipt.report_key, "2026-10-23");
+  assert.equal(verifyMarketingLivenessReceipt(result.receipt), true);
+  sent.length = 0;
+  await assert.rejects(executeMarketingLivenessJob(job, {
+    ...deps, snapshotProvider: { get: async () => ({ ...snapshot, message: "Other sender：" + snapshot.message.slice("Life Manager：".length) }) },
+  }), /marketing summary snapshot mismatch/);
+  assert.deepEqual(sent, []);
+});
+
+test("Japanese summaries use the 4096 character limit rather than UTF-8 bytes", async () => {
+  const payload = { lane: "marketing-product-summary-anicca", product: "anicca-ios", locale: "ja", platform: "multi", status: "summary", period: "daily", observed_at: "2026-10-23T19:19:22.638Z", summary_ref: `object://sha256/${HASH}` };
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload });
+  const snapshot = { kind: "marketing_product_metric_summary", period: "daily", report_key: "2026-10-23", source_refs: [], message: "Life Manager：" + "日".repeat(4083) };
+  const sent = [];
+  const deps = { secretProvider: { get: async () => "fixture-token" }, chatProvider: { get: async () => "fixture-chat" }, snapshotProvider: { get: async () => snapshot }, sendTelegram: async (_token, _chat, text) => { sent.push(text); return { ok: true, result: { message_id: 708 } }; } };
+  assert.equal(snapshot.message.length, 4096);
+  const result = await executeMarketingLivenessJob(job, deps);
+  assert.equal(result.receipt.message_id, 708);
+  assert.deepEqual(sent, [snapshot.message]);
+  snapshot.message += "日";
+  await assert.rejects(executeMarketingLivenessJob(job, deps), /marketing summary snapshot mismatch/);
+  assert.equal(sent.length, 1);
+});

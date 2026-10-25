@@ -18,8 +18,7 @@ fi
 
 set +e
 OUTPUT="$("$PYTHON" "$ROOT/skills/earn/lancers/scripts/storefront_offer.py" \
-  --apply \
-  --product "$ROOT/skills/earn/lancers/products/monthly-sns-content-ops-v1.json" \
+  --owner-run \
   --state-path "$STATE_ROOT/application.json" \
   "$@")"
 STATUS=$?

@@ -1,12 +1,12 @@
-# 求人応募文5件の下書き
+# 求人応募文の下書き
 
-目的: 参謀が公式フォームへ提出できる、求人別の回答案とカバーレターを5件作成する。
+初回5件の目的: 参謀が公式フォームへ提出できる、求人別の回答案とカバーレターを5件作成する。
 
-範囲: 公式求人本文とフォームを読み、既存の経歴・私的プロフィール・取得できたDots資料だけを事実根拠に使う。原稿は `docs/team/jobs/drafts/<company-role>.md` に保存する。公開repoへ連絡先・住所・生年月日・資格情報を複製せず、提出担当が私的正本から入力する。経歴や回答の不明点は明記する。応募送信・ledger・Thankful/build 10・他担当の作業領域は変更しない。
+初回5件の範囲: 公式求人本文とフォームを読み、既存の経歴・私的プロフィール・取得できたDots資料だけを事実根拠に使う。原稿は `docs/team/jobs/drafts/<company-role>.md` に保存する。公開repoへ連絡先・住所・生年月日・資格情報を複製せず、提出担当が私的正本から入力する。経歴や回答の不明点は明記する。応募送信・ledger・Thankful/build 10・他担当の作業領域は変更しない。
 
-完了条件: 各求人の確認状態、実際の質問と必須/任意、回答案、根拠、未確認事項、カバーレターを5ファイルへ保存する。専用branch/PRをmainへ統合し、公式readback後にReasonで `daisuke/cursor` へPR URLを送る。閉鎖・取得不能の求人では、その状態と未取得の質問を明示し、架空のフォームを実在扱いしない。
+初回5件の完了条件: 各求人の確認状態、実際の質問と必須/任意、回答案、根拠、未確認事項、カバーレターを5ファイルへ保存する。専用branch/PRをmainへ統合し、公式readback後にReasonで `daisuke/cursor` へPR URLを送る。閉鎖・取得不能の求人では、その状態と未取得の質問を明示し、架空のフォームを実在扱いしない。
 
-## 対象と現在cursor
+## 初回5件の対象と状態
 
 1. [Cursor FDE Japan](../jobs/drafts/cursor-forward-deployed-engineer-japan.md) — 原稿あり。公式フォーム8項目。求人本文のブランド混在と5年以上の経験要件、説得事例の不足を明記する。
 2. [NICE Sr FDE Japan](../jobs/drafts/nice-senior-forward-deployed-engineer-japan.md) — 原稿あり。公式フォーム16項目。親族/子会社在籍など未確認回答を保留する。
@@ -14,11 +14,11 @@
 4. [OpenAI Applied AI Engineer Tokyo](../jobs/drafts/openai-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム10項目。Codex職と異なる質問構成を保持する。
 5. [BJAK Applied AI Engineer Tokyo](../jobs/drafts/bjak-applied-ai-engineer-tokyo.md) — 原稿あり。公式フォーム17項目。3年以上の職業経験を裏付けず、言語別の職務使用と採用マーケティング同意を未確認として扱う。
 
-現在cursor: 下書き5件・全63項目の公式schema対応と事実根拠の照合を完了する。必須/任意の内訳と非公開連絡先の非掲載を確認する。ソース受入後の提出判断・未確認回答は各原稿を参照し、応募送信は参謀が所有する。PRのCI/統合状態はGitHubの当該branch/PRを正本とする。初回取得時に存在しない `docs/team/dots/` は、参謀のPR #8732で新設される。追加されたREADMEを読み、経歴・応募文メモはまだ未記入であることを確認する。参照先の既存応募履歴は読み取りのみ確認し、応募状況を職務経験の根拠へ転用しない。原稿の経歴根拠は私的プロフィールと既存英語技術職用resumeに限定する。具体的な回答を裏付けない包括的な経験attestationは、年数・言語・provider利用の根拠にしない。
+初回の状態（完了）: PR #8730をmainへ統合済み。下書き5件・全63項目の公式schema対応と事実根拠の照合を完了する。必須/任意の内訳と非公開連絡先の非掲載を確認する。ソース受入後の提出判断・未確認回答は各原稿を参照し、応募送信は参謀が所有する。PRのCI/統合状態はGitHubの当該branch/PRを正本とする。初回取得時に存在しない `docs/team/dots/` は、参謀のPR #8732で新設される。追加されたREADMEを読み、経歴・応募文メモはまだ未記入であることを確認する。参照先の既存応募履歴は読み取りのみ確認し、応募状況を職務経験の根拠へ転用しない。原稿の経歴根拠は私的プロフィールと既存英語技術職用resumeに限定する。具体的な回答を裏付けない包括的な経験attestationは、年数・言語・provider利用の根拠にしない。
 
 ## 経歴根拠
 
-- **DOTS:** [共有メモREADME](../dots/README.md) と既存台帳のhistorical job application reconciliation節。READMEは今後のメモ置き場で、本文の経歴・応募文実例は未記入。過去のCursor AI Deployment Managerは今回のFDEとは別職であり、過去応募を今回の提出実績へ置換しない。台帳の編集・応募・個人メールの本文取得は行わない。原稿の正本pathは当初指定の `docs/team/jobs/drafts/` とし、別のdrafts directoryへ複製しない。
+- **DOTS:** [共有メモREADME](../dots/README.md) と既存台帳のhistorical job application reconciliation節。READMEは今後のメモ置き場で、本文の経歴・応募文実例は未記入。過去のCursor AI Deployment Managerは今回のFDEとは別職であり、過去応募を今回の提出実績へ置換しない。経歴根拠の取得では台帳の編集・応募・個人メールの本文取得は行わない。原稿の正本pathは当初指定の `docs/team/jobs/drafts/` とし、別のdrafts directoryへ複製しない。
 
 公開可能な職務・成果の要旨だけを原稿へ使う。メール・電話・住所・生年月日・私的属性の値はここへ複製しない。
 
@@ -41,3 +41,64 @@
 公式フォームはAshbyの公開 `ApiJobPosting` queryとNICE/Greenhouseの埋め込み定義から読み取る。mutationや応募APIは使わない。求人URLと現行フォームの状態は各原稿に記録する。入力方式・必須/任意は取得したschemaに基づき、同意や個人情報の未確認を任意・falseへ置換しない。
 
 検証: 質問一覧との対応、事実の出典、未確認事項の明示、連絡先/secret非掲載、変更path、diffチェック、公式CI、main上の5ファイルを確認する。アプリのビルド・追加テスト・応募提出は行わない。
+
+## 追加5件のclaimと応募素材
+
+目的: 前回5件と既存応募を除外し、未claim求人から適合度の高い新規5件を確保して参謀へ渡す。
+
+範囲: `origin/main:ledger/APPLICATIONS.md` を唯一の共通台帳として読む。未claim行の既成リストは存在しないため、公式求人から新しい候補を調べ、勤務地、AI導入・実装との関連、既存経歴との一致、経験年数の不足を比較する。過去の応募・不明な送信結果・同一職種の再掲は新規候補にしない。候補ごとに `scripts/ledger-check.sh <key>` を実行し、`owner=codex`、`status=claimed` の5行をPRへ追加する。原稿はclaim PRの公開後にCIと並行して作成でき、応募送信の前には必ずclaimをmainへ統合する。台帳の旧main直push手順より、最新のPR指示を優先する。
+
+成果物: 求人別の実際のフォーム項目への回答案とカバーレターを既存 `docs/team/jobs/drafts/` に追加する。経歴の出典は上記PROFILE/RESUME等を再利用し、回答不能・本人意思・経験要件の不足は明示する。提出用メールは参謀指定の値と私的正本の一致を確認し、公開原稿には連絡先の値を複製しない。
+
+完了条件: claim PRと追加5件のドラフトPRがmainへ統合され、main上の5キーと5ファイルを公式readbackで確認する。Reasonで `daisuke/cursor` へ両PR URLと5キーを返信する。応募送信、応募済みへのstatus更新、Thankful/build 10、他のCodex作業、runtimeやcronは範囲外。
+
+選定基準: 調査した公式求人の中で、東京勤務、既存のAI導入・実装・指導との接点、固定年数の制約、報酬帯を比較する。下表はその候補内の優先順であり、全市場の網羅順位や採用可能性の予測ではない。5年以上を要求するNotion FDE/Architect、4年以上のCognition Support、3〜5年のGenspark CSMを下げる。Algomatic AI Builder（組織変革本部）は既存履歴でchecker exit 1となるため除外する。雇用先除外リストも確認する。
+
+| 順位 | 求人・公式情報 | key | 根拠と不足 |
+|---|---|---|---|
+| 1 | [LayerX — 【バクラク】AI Builder](https://open.talentio.com/r/1/c/layerx/pages/122552) | `job:open.talentio.com/r/1/c/layerx/pages/122552` | Agent活用・実装・業務変革が直接関連。固定経験年数なし。生産性改善の数値、特定言語の職務使用は未確認。 |
+| 2 | [Algomatic — AIエンジニア](https://herp.careers/v1/algomatic/3b_GpdNQjy8N) | `job:herp.careers/v1/algomatic/3b_gpdnqjy8n` | 実務・研究・個人開発を評価。LLM実装/研究と接点。個別言語・RAG等の経験は補完しない。 |
+| 3 | [Cognition — Forward Deployed Engineer - Japan](https://jobs.ashbyhq.com/cognition/9ebb0dff-2cbf-42ba-bb4a-0256812a06e0) | `job:cognition:9ebb0dff-2cbf-42ba-bb4a-0256812a06e0` | 企業AI導入支援・ツール指導と接点。STEM学位授与は未確認。過去のPartner Deployed Engineerとは別職種。 |
+| 4 | [Databricks — Scale Solution Engineer (Japanese-speaking; English required)](https://databricks.com/company/careers/open-positions/job?gh_jid=8779016002) | `job:databricks:8779016002` | Databricks応答品質分析とML研究が直接関連。technical role 2年以上を要求、MUIT職務は2025年4月開始。cloud/言語/ETLの要件充足は未確認。過去FDEとは別職種。 |
+| 5 | [エクスプラザ — 【正社員】フルスタックエンジニア](https://herp.careers/v1/explaza/4GzgM8DDKYId) | `job:herp.careers/v1/explaza/4gzgm8ddkyid` | AI活用・agent運用設計と接点、固定年数なし。cloud設計構築と職務上のfull-stack経験は未確認。年収500〜800万円は希望下限800万円と上限のみ重なる。 |
+
+5キーはすべて `scripts/ledger-check.sh` がexit 0（FREE）であることを最終確認してから台帳へ追加する。既存のCognition Partner Deployed Engineer、Databricks FDEのstatusは変更しない。
+
+実行順の更新: 旧順序はclaimのmain統合→原稿作成→ドラフトPR。新順序はclaim PR公開→CIと原稿作成を並行→claim main統合→ドラフトPR統合。原稿作成は応募送信を伴わないため、CI中の独立作業を待機させる理由がない。5キーの予約と応募送信の所有者は維持する。
+
+claim受入: [PR #8780](https://github.com/Daisuke134/life-manager/pull/8780)をmain `7d8e066e61b36de6dbdaf8d04aa0c058360bf714` へ統合し、GitHub contents APIのmain台帳で5行の `codex / claimed` を確認する。旧行・履歴本文は保持する。
+
+追加原稿とフォーム対応:
+
+- [LayerX AI Builder](../jobs/drafts/layerx-bakuraku-ai-builder.md): 12入力グループ＋同意、必須8/全13。SNSの4入力は1グループと数える。応募背景と認知メディアの必須質問を区別する。
+- [Algomatic AIエンジニア](../jobs/drafts/algomatic-ai-engineer.md): 11入力＋同意、必須7/全12。必須よみがな・電話・2書類と、非表示の年齢/年収等を区別する。
+- [Cognition FDE Japan](../jobs/drafts/cognition-forward-deployed-engineer-japan.md): 必須4/全5、追加surveyなし。任意の成果欄と専用欄のないカバーレターを別原稿にする。
+- [Databricks Scale Solution Engineer](../jobs/drafts/databricks-scale-solution-engineer-japan.md): 必須9/全12。就労資格・sponsorship・日本語の選択肢を取得schemaと照合する。
+- [Explaza full-stack](../jobs/drafts/explaza-full-stack-engineer.md): 13入力＋同意、必須9/全14。年齢/最終学歴/メッセージ/2書類は必須、メッセージは改行込み657文字で上限1,000文字内。
+
+内容受入: 全56項目グループの質問・必須区分・source keyと回答案/入力元/未確認事項、カバーレター5件を照合する。連絡先・住所・生年月日・年齢値・secretは非掲載。個別言語やcloud、学位授与、経験年数、改善率を補完しない。和文履歴書/職務経歴書の生成は今回の回答案・カバーレター作成に含まれず、既存英語PDFで2必須欄を満たせるとは断定しない。
+
+検証・統合: source-boundary、diff --check、公式フォームとの対応、私的値の非掲載、5ファイル以外にruntime/ledger変更がないことを確認する。GitHub mainのrequired status checksは未設定で、rules APIは空配列。claim PRは関連チェックを含む12件成功時に統合し、範囲外Monk動画環境準備の1件を追加gateにしない。CI/統合の実際の結果は各PRのGitHub readbackを正本とし、未完の検証を成功と報告しない。
+
+現在cursor: 追加5原稿の作成と内容受入を完了する。ドラフトbranch `docs/job-drafts-next-five-20261024` のPR/main統合結果をGitHubで確認し、参謀へ両PR URLと5キーをReason返信する。原稿作成後の業務は参謀による不足事実・添付・現行フォームの照合と応募提出。台帳はclaimedを維持し、原稿の存在を応募済み/全欄提出可能へ置換しない。前回5原稿はPR #8730で完了済みとして保持する。
+
+## found 10件の応募素材（claude-8、Codex 利用上限による引継ぎ 2026-10-24）
+
+目的: claude-3 が `found` で登録した10件に、公式フォームの実際の設問への回答案とカバーレターを作る。提出は参謀。根拠は上の経歴根拠と aniccaai.com/about に限り、不足は不足と書く。claim は PR #8843。
+
+| 求人 | key | 原稿 | 状態と最大の注意 |
+|---|---|---|---|
+| Canonical Python/K8s Engineer | `job:canonical:5703396` | [canonical-python-kubernetes-engineer-data-ai.md](../jobs/drafts/canonical-python-kubernetes-engineer-data-ai.md) | drafted。Worldwide remote、日本から勤務ならsponsorship不要。必須設問に「AI生成文を使えば失格」への同意があるため、記述回答は本人が書く事実アウトライン。Kubernetes/Python職務経験の根拠なし |
+| Canonical MLOps Field Engineer | `job:canonical:6783943` | [canonical-mlops-field-engineer.md](../jobs/drafts/canonical-mlops-field-engineer.md) | drafted。同じAI生成禁止の同意あり。Kubernetes・顧客向け技術職の根拠なし |
+| Supabase AI Platform Engineer | `job:supabase:3b5d54ca-741b-45ac-bd3f-31605a0d3541` | [supabase-ai-platform-engineer.md](../jobs/drafts/supabase-ai-platform-engineer.md) | drafted。Remote Global、sponsorship不要。MCP server作成・GCP/IaC運用の根拠なし |
+| Binance Accelerator Applied AI Application Engineer | `job:binance:5002569101` | [binance-accelerator-applied-ai-application-engineer.md](../jobs/drafts/binance-accelerator-applied-ai-application-engineer.md) | drafted。学生/新卒向け6か月インターン、2026/27卒の在学生が必須で満たせない可能性が高い。日本から勤務ならsponsorship不要 |
+| Binance Accelerator Full Stack Engineer (AI) | `job:binance:5002443101` | [binance-accelerator-full-stack-engineer-ai.md](../jobs/drafts/binance-accelerator-full-stack-engineer-ai.md) | drafted。同インターン枠。必須の言語・DB設計の根拠なし |
+| Binance Accelerator iOS Architect | `job:binance:5002685101` | [binance-accelerator-ios-architect.md](../jobs/drafts/binance-accelerator-ios-architect.md) | drafted。同インターン枠（6か月）。在学/卒業2年以内の可否はNAIST学位授与次第 |
+| Agoda Staff/Lead LLM Data Scientist (SG) | `job:agoda:7916603` | [agoda-staff-lead-llm-data-scientist-singapore.md](../jobs/drafts/agoda-staff-lead-llm-data-scientist-singapore.md) | drafted。SG移住前提・"Full visa sponsorship and relocation assistance"。senior DS職歴なし、移住意思は本人未確認 |
+| Agoda Staff SWE Full Stack AI (BKK) | `job:agoda:7543802` | [agoda-staff-software-engineer-full-stack-ai-bangkok.md](../jobs/drafts/agoda-staff-software-engineer-full-stack-ai-bangkok.md) | drafted。BKK移住・"Visa sponsorship for you and your family"。8+年必須に対し不足 |
+| Agoda Staff SWE Front End AI (BKK) | `job:agoda:7543795` | [agoda-staff-software-engineer-front-end-ai-bangkok.md](../jobs/drafts/agoda-staff-software-engineer-front-end-ai-bangkok.md) | drafted。BKK移住・"Visa, flight & moving package"。8+年・Webフロント経験なしで最も不適合 |
+| Agoda Principal SWE Back End (BKK) | `job:agoda:7777498` | なし | skipped: needs sponsorship, skip（ビザ支援の記載なし） |
+
+参謀判断（2026-10-24）: Canonical 2件・Binance 3件・Agoda 3件は見送り（ledger skipped）。提出対象は Supabase 1件。
+
+資料間の食い違い（aniccaai.com/about を正本とし、public-resume.pdf を about に合わせる）: A10 Lab の在籍期間（about: 2020-11〜2022-01 / resume・profile: 2020-01〜2021-01）、Life Manager の売上記述（about: 2026-09に20万円 / profile: 2026-08にUSD 1,000）。どちらも回答には使っていない。

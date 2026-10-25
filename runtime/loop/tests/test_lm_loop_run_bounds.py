@@ -125,6 +125,90 @@ def test_continuous_owner_has_no_scheduled_wake_deadline():
     assert _runtime_limit({"cadence": {"keep_alive": True}}) is None
 
 
+def test_metrics_owner_passes_only_local_ssot_credentials_to_child(tmp_path):
+    private = tmp_path / ".local/share/anicca"
+    private.mkdir(parents=True, mode=0o700)
+    credentials = private / "credentials.json"
+    credentials.write_text(json.dumps({"credentials": [
+        {"service": "postiz", "api_key": "unit"},
+        {"service": "telegram-life-manager", "bot_token": "local", "chat_id": "42"},
+        {"service": "telegram-cloud-life-manager", "bot_token": "cloud", "chat_id": "99"},
+    ]}))
+    credentials.chmod(0o600)
+    base = {"LM_POSTIZ_API_KEY": "inherited", "LM_TELEGRAM_BOT_TOKEN": "inherited",
+            "LM_TELEGRAM_ALERT_CHAT_ID": "99", "KEEP": "value", "PATH": "/usr/bin:/bin"}
+    before = dict(base)
+    captured = {}
+
+    def run_child(command, *, env=None, **_kwargs):
+        captured.update(env or {})
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.Path.home", return_value=tmp_path),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        result = _run_admitted(
+            ["/bin/true"], {"cadence": {"keep_alive": True}, "effect_class": "message"},
+            "life-manager-tiktok-metrics", base, tmp_path / "receipt",
+        )
+    assert result == 0
+    assert captured["LM_POSTIZ_API_KEY"] == "unit"
+    assert captured["LM_TELEGRAM_BOT_TOKEN"] == "local"
+    assert captured["LM_TELEGRAM_ALERT_CHAT_ID"] == "42"
+    assert captured["KEEP"] == "value"
+    assert captured["PATH"] == base["PATH"]
+    assert "LM_EBOOK_PUBLISHING_ENABLED" not in captured
+    assert "HEYGEN_NO_ANALYTICS" not in captured
+    assert base == before
+    assert loop_runner._child_environment_for_owner("article-daily", base, home=tmp_path) == base
+
+
+@pytest.mark.parametrize("case", [
+    "missing_file", "broad_directory", "broad_file", "symlink_file", "symlink_directory",
+    "duplicate_postiz", "duplicate_telegram", "cloud_only", "missing_bot_token",
+    "missing_chat_id", "invalid_postiz", "invalid_bot_token", "invalid_chat_id",
+])
+def test_metrics_child_environment_fails_closed_without_complete_private_ssot(tmp_path, case):
+    private = tmp_path / ".local/share/anicca"
+    private.mkdir(parents=True, mode=0o700)
+    credentials = private / "credentials.json"
+    rows = [{"service": "postiz", "api_key": "unit"},
+            {"service": "telegram-life-manager", "bot_token": "local", "chat_id": "42"}]
+    if case == "duplicate_postiz":
+        rows.append(dict(rows[0]))
+    elif case == "duplicate_telegram":
+        rows.append(dict(rows[1]))
+    elif case == "cloud_only":
+        rows[1]["service"] = "telegram-cloud-life-manager"
+    elif case in {"missing_bot_token", "missing_chat_id"}:
+        rows[1].pop(case.removeprefix("missing_"))
+    elif case == "invalid_postiz":
+        rows[0]["api_key"] = "unit\ninvalid"
+    elif case in {"invalid_bot_token", "invalid_chat_id"}:
+        rows[1][case.removeprefix("invalid_")] = "unit\ninvalid"
+    credentials.write_text(json.dumps({"credentials": rows}))
+    credentials.chmod(0o600)
+    if case == "missing_file":
+        credentials.unlink()
+    elif case == "broad_directory":
+        private.chmod(0o755)
+    elif case == "broad_file":
+        credentials.chmod(0o644)
+    elif case == "symlink_file":
+        target = private / "target.json"
+        credentials.rename(target)
+        credentials.symlink_to(target)
+    elif case == "symlink_directory":
+        target = private.with_name("other-private")
+        private.rename(target)
+        private.symlink_to(target, target_is_directory=True)
+    base = {"LM_POSTIZ_API_KEY": "inherited", "LM_TELEGRAM_BOT_TOKEN": "inherited",
+            "LM_TELEGRAM_ALERT_CHAT_ID": "99", "KEEP": "value"}
+    child = loop_runner._child_environment_for_owner("life-manager-tiktok-metrics", base, home=tmp_path)
+    assert all(key not in child for key in ("LM_POSTIZ_API_KEY", "LM_TELEGRAM_BOT_TOKEN", "LM_TELEGRAM_ALERT_CHAT_ID"))
+    assert child["KEEP"] == "value"
+    assert base["LM_POSTIZ_API_KEY"] == "inherited"
+
+
 def test_ebook_child_environment_loads_postiz_key_from_private_ssot(tmp_path):
     private = tmp_path / ".local/share/anicca"
     private.mkdir(parents=True)
@@ -4632,16 +4716,16 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
 
 
 def test_swap_pressure_defers_before_child_even_with_free_percent(tmp_path, monkeypatch):
-    # 2026-10-23: free% read 29-31 while swap was 15.7-18.1 GB of a 16 GB Mac; wakes must not queue.
-    monkeypatch.setenv("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75")  # conftest pins 1000 for the rest
+    # free% can read 29-31 while the host thrashes; fast swap-ins must still stop new wakes.
+    monkeypatch.delenv("LIFE_MANAGER_SWAPIN_GATE")  # conftest turns the gate off for the rest
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "capacity_busy")),
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=30),
-          patch("runtime.loop.lm_loop_run.swap_used_mb", return_value=15700.0),
-          patch("runtime.loop.lm_loop_run.physical_memory_mb", return_value=16384.0),
+          patch("runtime.host.memory_admission.swapin_pages_per_second", return_value=2500.0),
+          patch("runtime.host.memory_admission.swap_used_mb", return_value=17298.0),
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
@@ -4649,7 +4733,8 @@ def test_swap_pressure_defers_before_child_even_with_free_percent(tmp_path, monk
     claim.assert_not_called()
     row = json.loads(receipt.read_text())
     assert row["reason"] == "swap_pressure_high"
-    assert row["swap_used_mb"] == 15700.0
+    assert row["swapin_pages_per_second"] == 2500.0
+    assert row["free_percent"] == 30
 
 
 @pytest.mark.parametrize("reason", ("disk_headroom_low", "disk_headroom_unknown"))
@@ -4729,7 +4814,7 @@ def test_disk_floor_defers_before_queue_and_provider_child(tmp_path):
 
 @pytest.mark.parametrize(("free_gib", "expected_kicks"), (
     (11, ["support-1", "support-2", "daily-revenue"]),
-    (9, []),
+    (3, []),  # below the 4 GiB revenue floor (was 6 against the 7 GiB floor)
 ))
 def test_disk_floor_deferral_hands_slot_to_runnable_revenue_owner(
         tmp_path, monkeypatch, free_gib, expected_kicks):

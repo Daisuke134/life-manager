@@ -17,6 +17,7 @@ Run: python3 -m pytest skills/earn/lancers/tests/test_storefront_offer_reads_cat
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -112,6 +113,80 @@ def _write(tmp_path: Path, payload: dict) -> Path:
     return path
 
 
+def _private_product(directory: Path, **overrides) -> Path:
+    """Synthetic owner input; neither images nor identity come from the author fixture."""
+    directory.mkdir(parents=True, exist_ok=True)
+    avatar = directory / "other-avatar.png"
+    image = directory / "other-image.png"
+    avatar.write_bytes(b"synthetic owner avatar")
+    image.write_bytes(b"synthetic owner product image")
+    value = _base_overlay(
+        product_id="other-user-product", listing_external_id="91001",
+        title_stem="別の利用者の業務を整理して自動化する仕組みを設計し",
+        subtitle="本人の業務を支援します", category="IT・プログラミング・開発",
+        description="本人の入力に基づくサービス説明です。",
+        plans=[{"description": "本人プラン", "price_jpy": price, "delivery_days": days}
+               for price, days in ((10000, 14), (20000, 21), (30000, 30))],
+        seller_profile={"public_path": "/profile/other-seller", "subtitle": "本人の紹介",
+                        "description": "本人の検証済みプロフィールです。"},
+        profile_avatar_path=avatar.name,
+        profile_avatar_sha256=hashlib.sha256(avatar.read_bytes()).hexdigest(),
+        image_path=image.name, image_sha256=hashlib.sha256(image.read_bytes()).hexdigest(),
+    )
+    value["portfolio"]["external_id"] = "81001"
+    value["software_portfolio"]["external_id"] = "81002"
+    value.update(overrides)
+    path = directory / "storefront-product.json"
+    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def _private_catalog(directory: Path) -> Path:
+    value = {"version": 1, "listings": [{
+        "id": "other", "family": "other", "title_ja": "別の利用者の業務を整理して自動化する仕組みを設計します",
+        "value_prop": "本人のcatalogからの価値提案です。", "deliverables": ["本人の納品物"],
+        "required_inputs": ["本人の入力"], "faq": [],
+        "tiers": [{"name": "本人プラン", "price_jpy": price, "scope": "本人の作業範囲", "delivery_days": days}
+                  for price, days in ((10000, 14), (20000, 21), (30000, 30))],
+        "platform_overrides": {"coconala": {"category": "IT相談・システム開発"},
+            "crowdworks": {"category": "システム開発・運用"},
+            "lancers": {"category": "IT・プログラミング・開発", "subcategory": "システム開発（オーダーメイド）",
+                        "service_type": "Webアプリケーション構築", "industry": "IT・通信・インターネット",
+                        "tags": ["本人業務"], "notice": "本人の確認事項です。"}},
+    }]}
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "listing-catalog.json"
+    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_private_defaults_and_catalog_overlay_belong_to_current_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    directory = tmp_path / ".config/anicca/lancers"
+    product_path = _private_product(directory, catalog_family="other")
+    catalog_path = _private_catalog(directory)
+    module = _module()
+
+    assert module.DEFAULT_PRODUCT == product_path
+    assert module.DEFAULT_CATALOG == catalog_path
+    product, image, avatar = module._product(product_path)
+    assert product["description"].startswith("本人のcatalogからの価値提案")
+    assert product["seller_profile"]["public_path"] == "/profile/other-seller"
+    assert image == directory / "other-image.png"
+    assert avatar == directory / "other-avatar.png"
+
+
+def test_explicit_private_catalog_reaches_overlay_and_catalog_is_optional(tmp_path):
+    module = _module()
+    product_path = _private_product(tmp_path / "private", catalog_family="other")
+    catalog_path = _private_catalog(tmp_path / "selected-catalog")
+    product, _, _ = module._product(product_path, catalog_path=catalog_path)
+    assert product["description"].startswith("本人のcatalogからの価値提案")
+    product_path = _private_product(tmp_path / "without-catalog")
+    product, _, _ = module._product(product_path)
+    assert product["product_id"] == "other-user-product"
+
+
 # 1. Inertness: no catalog_family key -> byte-identical to today's product dict -------------
 
 
@@ -137,7 +212,7 @@ def test_catalog_family_supplies_catalog_owned_fields_and_overlay_fields_survive
     overlay = _base_overlay(catalog_family=REAL_FAMILY)
     path = _write(tmp_path, overlay)
 
-    product, _image, _avatar = module._product(path)
+    product, _image, _avatar = module._product(path, catalog_path=REAL_CATALOG)
 
     listing_catalog = module._reach_marketplace_core()
     catalog = listing_catalog.load(REAL_CATALOG)
@@ -168,7 +243,7 @@ def test_overlay_missing_a_catalog_unmapped_field_names_it(tmp_path):
     path = _write(tmp_path, overlay)
 
     with pytest.raises(module.OfferError) as excinfo:
-        module._product(path)
+        module._product(path, catalog_path=REAL_CATALOG)
 
     message = str(excinfo.value)
     assert "catalog_overlay_incomplete" in message
@@ -184,7 +259,7 @@ def test_unknown_catalog_family_names_the_family(tmp_path):
     path = _write(tmp_path, overlay)
 
     with pytest.raises(module.OfferError) as excinfo:
-        module._product(path)
+        module._product(path, catalog_path=REAL_CATALOG)
 
     message = str(excinfo.value)
     assert "catalog_family_unknown" in message
@@ -226,7 +301,7 @@ def test_catalog_projection_that_fails_product_validation_names_the_catalog(tmp_
 
 def test_reporting_names_required_fields_for_a_real_family():
     module = _module()
-    report = module.catalog_lancers_requirements(REAL_FAMILY)
+    report = module.catalog_lancers_requirements(REAL_FAMILY, REAL_CATALOG)
 
     assert report["family"] == REAL_FAMILY
     required = set(report["overlay_required_fields"])

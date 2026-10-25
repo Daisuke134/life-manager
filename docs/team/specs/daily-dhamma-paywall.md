@@ -1,4 +1,6 @@
 # デイリー・ダンマ (Daily Dhamma) 課金改修スペック #1：年額3日無料トライアル＋閉じにくい課金画面（勝ち組のコピー）
+
+現在の進捗・残TODO正本 → [統合SSOT「Dhammaの無料体験資格と再提出契約」](../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md#anicca旗艦公開6アプリの配信と継続課金)。実装契約 → [publisherのペイウォール仕様](https://github.com/Daisuke134/anicca-products/blob/main/web-apps/daily-dhamma-app/docs/onboarding-paywall-implementation-spec.md)。
 2026-10-23 22:0x JST / 作成: 参謀（チーム収益ループ、自社プロダクト担当）
 前回メモ: docs/team/specs/dhamma.md（17:57、ハードペイウォール＋週額案）。今回は勝ち組の調査結果を反映して、優先順位を入れ替えた。
 
@@ -6,7 +8,7 @@
 - RevenueCat project: proj86624956 (dhamma) / iOS app appbe1e2ee955 (bundle com.dailydhamma.app) / Test Store app9fb064ef44
 - Offering: `default` (ofrng18fe5c8f69, is_current)。RCペイウォールなし（paywall_id=null、list-paywalls=0件）。アプリ側の自作 `app/paywall.tsx` を使用
   - `monthly` → com.dailydhamma.app.premium.monthly ¥800 / $4.99（トライアルなし）
-  - `annual`  → com.dailydhamma.app.premium.yearly ¥3,000 / $19.99（トライアルなし）
+  - `annual`  → com.dailydhamma.app.premium.yearly ¥3,000 / $19.99（無料体験はストア設定と顧客資格の両方で判定）
   - Entitlement: `premium`
 - ソース: Mac mini `~/Projects/anicca-products/web-apps/daily-dhamma-app/`（Expo/React Native, react-native-purchases ^9.6）
   - `app/paywall.tsx`、`app/onboarding.tsx:71`（オンボーディング後に1回だけ遷移）、`app/index.tsx:37,48`（無料は10句・ブックマークでpaywall）、`providers/AppProvider.tsx`（無料は通知1日3回まで）
@@ -29,7 +31,7 @@
 - 年額にも月額にも無料トライアルがない。初回起動の直後に、まだ1句も読んでいない人へ「¥3,000/年 か ¥800/月を今払う」を出している。
 - しかも右上の ✕ と「無料で続ける」(`paywall_skip`) の2つの逃げ道がある。オンボーディング後に1回出たら、その後はブックマークを押したときと設定画面の奥にしか出ない。
 - 無料枠（10句・通知3回/日）は「1日1句を読む」アプリとしては十分なので、閉じた人が払う理由がない。
-→ 139人中0人。価格の高さではなく「試す入口がない」ことが原因（勝ち組は全員ここを無料トライアルにしている）。
+→ 139人中0人。無料体験の入口不足を改善仮説とする。0/139だけでは価格や入口の因果関係を確定できず、提出後の実trial・課金で評価する。
 
 ## 勝ち組の型（2026-10 調査、App Store / appslupa / apppricer）
 | アプリ | 規模 | 無料範囲 | 有料で解放 | 価格・トライアル |
@@ -45,7 +47,7 @@
    - RevenueCat の offering / package は変更不要（annual パッケージのまま、SDK が intro offer を自動で返す）。
 2. **ペイウォールをトライアル前提に書き換える（`app/paywall.tsx`）**
    - 年額をデフォルト選択（今も 'yearly'）にして、年額カードの上に「3日間無料」「BEST VALUE」バッジ、月換算「¥250/月」と「月額より69%お得」を表示する。
-   - トライアル表記は `pkg.product.introPrice`（free trial）があるときだけ出す。CTA は「3日間無料で始める」、下に「3日後に¥3,000/年。いつでもキャンセルできます」。
+   - 無料体験のバッジ・CTA・trial後の請求時期は、無料の `pkg.product.introPrice` と現在の顧客の `INTRO_ELIGIBILITY_STATUS_ELIGIBLE` が両方確認できる場合だけ表示する。確認中・不明・対象外・欠測・API失敗では通常価格と通常CTAにし、顧客/商品変更や画面再表示時に以前の資格を使わない。期間・請求価格は取得した商品値を使う。
    - 月額を選んだときは CTA を「今すぐ始める」に切り替え、トライアル文言を出さない。
 3. **閉じにくくする（Monkey Taps 型）**
    - 「無料で続ける」(`paywall_skip`) ボタンを削除する。
@@ -62,5 +64,5 @@
 
 ## 担当と次の一手
 - ASC の導入オファー作成: ASC API（/workspace/.secrets/asc.env）で可能。審査は新バージョンと一緒に提出する。
-- アプリ改修: Local Life Manager / Codex（Mac mini、Expo）。対象 `app/paywall.tsx`、`app/index.tsx`、`app/settings.tsx`、`utils/paywallUtils.ts`、i18n の文言。EAS build → TestFlight → 1.1.1（ASC で PREPARE_FOR_SUBMISSION のまま放置中）として審査提出。審査提出の前に参謀が確認する。
+- アプリ改修: Local Life Manager / Codex（Mac mini、Expo）。対象 `app/paywall.tsx`、`app/index.tsx`、`app/settings.tsx`、`utils/paywallUtils.ts`、i18n の文言。EAS build → TestFlight → 1.1.1（ASC で PREPARE_FOR_SUBMISSION のまま放置中）として審査提出。source受入れ・独立検証を完了し、確定mainから作るbuildを照合して提出する。
 - 注意: リポジトリの `package.json` / `app.json` は version 1.0.0 だが、ASC は 1.1.0 が販売中。ビルド前に、販売中の 1.1.0 と同じソースかどうかを確認すること。

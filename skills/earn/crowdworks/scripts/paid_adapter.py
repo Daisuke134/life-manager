@@ -27,7 +27,6 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_pla
 HERE = Path(__file__).resolve().parent
 SHARED = HERE.parents[2] / "_shared/marketplace-core/scripts"
 ACTIVE_CONTRACTS_URL = "https://crowdworks.jp/e/contracts?status=active"
-ACCOUNT_ID = "7145638"
 DEFAULT_APPLICATION_RECEIPTS = Path.home() / ".local/state/anicca/crowdworks/application-receipts.jsonl"
 FORM_SELECTION_COMPLETE = "__no_additional_form_required__"
 PERMISSION_REQUEST_BODY = "リンク先の閲覧権限を付与いただくか、本文を貼り付けてください。"
@@ -345,7 +344,10 @@ class CrowdWorksPaidAdapter:
         self.inventory_reader = inventory_reader
         self.state_path = Path(state_path) if state_path is not None else None
         self.candidate_profile = Path(candidate_profile) if candidate_profile is not None else None
-        self.provider_profile = dict(provider_profile) if provider_profile is not None else None
+        try:
+            self.provider_profile = profile_module.validate_config(provider_profile) if provider_profile is not None else None
+        except profile_module.ProfileError:
+            raise profile_module.SetupRequired(["provider_profile"]) from None
         self.connection_factory = connection_factory or _connect_existing_cdp
         self._requires_isolation = context_factory is None
         self.context_factory = context_factory or self._isolated_context
@@ -405,6 +407,16 @@ class CrowdWorksPaidAdapter:
         self._local.owns_context = bool(value)
 
     def _open(self) -> None:
+        missing = (["candidate_profile"] if self.candidate_profile is None else []) + (
+            ["provider_profile"] if self.provider_profile is None else [])
+        if missing:
+            raise profile_module.SetupRequired(missing)
+        try:
+            profile_module.validate_profile(json.loads(self.candidate_profile.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            raise profile_module.SetupRequired(["candidate_profile"]) from None
+        if self.account_id != self.provider_profile["provider_employee_id"]:
+            raise profile_module.SetupRequired(["provider_account_binding"])
         if self.page is not None:
             return
         self.runtime, self.browser = self.connection_factory()
@@ -423,25 +435,29 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page = self.owned_context.new_page()
             self.page.set_default_timeout(15_000)
+            profile_module.assert_account(self.page, self.account_id)
         except Exception as error:
             if (self.source_context is not None
-                    and str(error) != "crowdworks_paid_browser_state_invalid"):
+                    and str(error) != "crowdworks_paid_browser_state_invalid"
+                    and not isinstance(error, profile_module.ProfileError)):
                 try:
+                    if self.page is not None:
+                        self.page.close()
+                        self.page = None
                     if self.owns_context and self.owned_context is not None:
                         self.owned_context.close()
                     self.owned_context = self.source_context
                     self.owns_context = False
                     self.page = self.source_context.new_page()
                     self.page.set_default_timeout(15_000)
+                    profile_module.assert_account(self.page, self.account_id)
                     return
+                except profile_module.ProfileError:
+                    self.close()
+                    raise
                 except Exception:
                     pass
-            if self.owned_context is not None and self.owns_context:
-                try: self.owned_context.close()
-                except Exception: pass
-            self.owned_context = None
-            self.runtime.stop()
-            self.runtime = self.browser = None
+            self.close()
             raise
 
     def _fallback_to_source_context(self) -> bool:
@@ -462,6 +478,11 @@ class CrowdWorksPaidAdapter:
         self.owns_context = False
         self.page = source.new_page()
         self.page.set_default_timeout(15_000)
+        try:
+            profile_module.assert_account(self.page, self.account_id)
+        except Exception:
+            self.close()
+            raise
         return True
 
     @staticmethod
@@ -525,6 +546,11 @@ class CrowdWorksPaidAdapter:
             self.page.close()
             self.page = context.new_page()
             self.page.set_default_timeout(15_000)
+            try:
+                profile_module.assert_account(self.page, self.account_id)
+            except Exception:
+                self.close()
+                raise
             self._goto(self.page, url, "contract")
         parsed = urlsplit(str(self.page.url))
         if (parsed.scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment) != (
@@ -558,6 +584,7 @@ class CrowdWorksPaidAdapter:
                                              "secure": True, "sameSite": "None"}])
             mobile_page = mobile_context.new_page()
             mobile_page.set_default_timeout(15_000)
+            profile_module.assert_account(mobile_page, self.account_id)
         except Exception:
             mobile_context.close()
             raise
@@ -687,6 +714,11 @@ class CrowdWorksPaidAdapter:
             self.page.close()
             self.page = context.new_page()
             self.page.set_default_timeout(15_000)
+            try:
+                profile_module.assert_account(self.page, self.account_id)
+            except Exception:
+                self.close()
+                raise
             try:
                 return self._detail_once(basic)
             except PlaywrightTimeoutError:
@@ -974,6 +1006,7 @@ class CrowdWorksPaidAdapter:
             raise RuntimeError("crowdworks_paid_browser_state_invalid")
         proposal = self.owned_context.new_page()
         try:
+            profile_module.assert_account(proposal, self.account_id)
             try:
                 self._goto(proposal, f"https://crowdworks.jp/proposals/{proposal_id}", "proposal")
             except CrowdWorksPaidProposalTimeout:
@@ -1948,7 +1981,11 @@ class CrowdWorksPaidAdapter:
 
 
 def read_only_inventory() -> dict[str, Any]:
-    adapter = CrowdWorksPaidAdapter(account_id=ACCOUNT_ID, prune_blank_source_pages=False)
+    identity = profile_module.load_identity()
+    adapter = CrowdWorksPaidAdapter(
+        account_id=identity["account_id"],
+        candidate_profile=Path.home() / ".config/anicca/job-search/profile.json",
+        provider_profile=identity["provider"], prune_blank_source_pages=False)
     try:
         rows = adapter.observe_active()
         candidates = []
@@ -2169,8 +2206,11 @@ def build(argv: list[str]):
     parser.add_argument("--candidate-profile", type=Path, default=Path.home() / ".config/anicca/job-search/profile.json")
     parser.add_argument("--provider-profile", type=Path, default=Path.home() / ".config/anicca/crowdworks/public-profile.json")
     parser.add_argument("--application-receipts-path", type=Path, default=DEFAULT_APPLICATION_RECEIPTS)
-    args = parser.parse_args(argv); provider = profile_module.load_config(args.provider_profile)
-    adapter = CrowdWorksPaidAdapter(account_id=args.account_id, state_path=args.state_path.expanduser().resolve(), candidate_profile=args.candidate_profile.expanduser().resolve(), provider_profile=provider,
+    args = parser.parse_args(argv)
+    identity = profile_module.load_identity(args.candidate_profile, args.provider_profile)
+    if args.account_id != identity["account_id"]:
+        raise profile_module.SetupRequired(["provider_account_binding"])
+    adapter = CrowdWorksPaidAdapter(account_id=identity["account_id"], state_path=args.state_path.expanduser().resolve(), candidate_profile=args.candidate_profile.expanduser().resolve(), provider_profile=identity["provider"],
                                     application_receipts_path=args.application_receipts_path)
     return adapter, lambda row: decide(row, form_selector=adapter._select_form_url,
                                         answer_selector=adapter._compose_answer,

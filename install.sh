@@ -32,6 +32,18 @@ if [ "$#" -gt 0 ]; then
       shift
       exec bash "$REPO_ROOT/skills/earn/gig/install.sh" "$@"
       ;;
+    lancers)
+      shift
+      exec bash "$REPO_ROOT/skills/earn/lancers/install.sh" "$@"
+      ;;
+    crowdworks)
+      shift
+      exec bash "$REPO_ROOT/skills/earn/crowdworks/install.sh" "$@"
+      ;;
+    mercor)
+      shift
+      exec bash "$REPO_ROOT/skills/earn/mercor/install.sh" "$@"
+      ;;
     job-hunter)
       shift
       exec zsh "$REPO_ROOT/apps/job-search-loop/scripts/install-oss.sh" "$@"
@@ -53,7 +65,7 @@ if [ "$#" -gt 0 ]; then
       exec node "$REPO_ROOT/apps/life-manager/scripts/product-onboarding-plan.js" --host local "$@"
       ;;
     *)
-      echo "[install] unknown product '$1'; supported: local, list, plan, coconala, connector, fundraiser, job-hunter" >&2
+      echo "[install] unknown product '$1'; supported: local, list, plan, coconala, lancers, crowdworks, mercor, connector, fundraiser, job-hunter" >&2
       exit 2
       ;;
   esac
@@ -259,6 +271,7 @@ cat <<EOM
   Other product loops need their own provider account, credentials, KYC or browser login.
   Supported guided installers today:
     ./install.sh coconala
+    ./install.sh mercor
     ./install.sh connector
     ./install.sh fundraiser
     ./install.sh job-hunter

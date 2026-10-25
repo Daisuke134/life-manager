@@ -1,5 +1,8 @@
 # Maritime 初週の現状と残TODO
 
+> Historical snapshot from 2026-10-21. Its dated counts, URLs, and statuses are not the current readback. Current status and cursor: [integrated SSOT](../../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md); current evidence: [2026-10-24 readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
+
+
 **更新:** 2026-10-21 11:29 UTC。競技home/Terms、Railway status/API readback、英日pilot page、Stripe、Postiz、Gmail、Life Manager/Anicca Products PRをreadback。
 
 ## As-Is

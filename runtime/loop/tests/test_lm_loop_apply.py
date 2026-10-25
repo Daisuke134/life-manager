@@ -198,6 +198,88 @@ class LmLoopApplyTest(unittest.TestCase):
             self.assertEqual(lm_loop.main(["apply"]), 0)
         self.assertIs(apply.call_args.kwargs["require_current"], True)
 
+    def test_automatic_apply_checks_installed_ancestry_before_admission_mutation(self):
+        release = self._release("automatic-release")
+        current = self.root / "current"
+        current.symlink_to(release)
+        values = self._apply_kwargs(current, self.root / "apply.lock")
+        target = values["agents_dir"] / "ai.anicca.example.plist"
+        previous = plistlib.dumps({"EnvironmentVariables": {
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40}})
+        target.write_bytes(plistlib.dumps({"EnvironmentVariables": {
+            "LIFE_MANAGER_RELEASE_SHA": "c" * 40}}))
+        native_call = lm_loop._safe_launchctl
+
+        def promoted_after_plan(executable, args):
+            if args == ["preflight"]:
+                target.write_bytes(previous)
+            return native_call(executable, args)
+
+        with patch.object(lm_loop, "_safe_launchctl", side_effect=promoted_after_plan), \
+                patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=False) as ancestry, \
+                patch.object(lm_loop, "_owner_has_pending_admission",
+                             side_effect=AssertionError("admission inspected before ancestry")):
+            result = apply_live(release, values["agents_dir"], values["launchctl_safe"],
+                                target="example", current=current, require_current=True,
+                                protocol_reader=lambda: 1, event_writer=lambda *_: None)
+        self.assertEqual(result[0]["skipped"], "ancestry-unverified")
+        self.assertFalse(result[0]["changed"])
+        ancestry.assert_called_once_with("b" * 40, SHA)
+        self.assertEqual(target.read_bytes(), previous)
+        self.assertEqual(values["calls"].read_text().splitlines(),
+                         ["preflight", f"print-disabled gui/{os.getuid()}"])
+
+    def test_automatic_apply_preserves_an_existing_owner_without_readable_sha(self):
+        for index, previous in enumerate((plistlib.dumps({"Label": "ai.anicca.example"}),
+                                          b"unreadable-plist", plistlib.dumps(["invalid-root"]),
+                                          plistlib.dumps({"EnvironmentVariables": ["invalid-env"]}))):
+            with self.subTest(index=index):
+                release = self._release(f"unknown-release-{index}")
+                current = self.root / f"unknown-current-{index}"
+                current.symlink_to(release)
+                values = self._apply_kwargs(current, self.root / f"unknown-{index}.lock",
+                                            agents_dir_name=f"unknown-agents-{index}")
+                target = values["agents_dir"] / "ai.anicca.example.plist"
+                target.write_bytes(previous)
+                with patch.object(lm_loop, "_loaded_sha_is_ancestor") as ancestry, \
+                        patch.object(lm_loop, "_owner_has_pending_admission",
+                                     side_effect=AssertionError("admission inspected without ancestry")):
+                    result = apply_live(
+                        release, values["agents_dir"], values["launchctl_safe"],
+                        target="example", current=current, require_current=True,
+                        protocol_reader=lambda: 1, event_writer=lambda *_: None)
+                self.assertEqual(result[0]["skipped"], "ancestry-unverified")
+                self.assertFalse(result[0]["changed"])
+                self.assertEqual(target.read_bytes(), previous)
+                ancestry.assert_not_called()
+
+    def test_automatic_ancestor_and_explicit_rollback_still_apply(self):
+        for automatic in (True, False):
+            with self.subTest(automatic=automatic):
+                release = self._release(f"allowed-release-{automatic}").resolve()
+                current = self.root / f"allowed-current-{automatic}"
+                current.symlink_to(release)
+                values = self._apply_kwargs(
+                    current, self.root / f"allowed-{automatic}.lock",
+                    [str(release / "bin/lm-loop-run"), "example", str(release)],
+                    agents_dir_name=f"allowed-agents-{automatic}")
+                target = values["agents_dir"] / "ai.anicca.example.plist"
+                target.write_bytes(plistlib.dumps({"EnvironmentVariables": {
+                    "LIFE_MANAGER_RELEASE_SHA": "b" * 40}}))
+                with patch.object(lm_loop, "_loaded_sha_is_ancestor",
+                                  return_value=automatic) as ancestry:
+                    result = apply_live(
+                        release, values["agents_dir"], values["launchctl_safe"],
+                        target="example", current=current, require_current=automatic,
+                        protocol_reader=lambda: 1, event_writer=lambda *_: None)
+                self.assertTrue(result[0]["changed"])
+                self.assertEqual(plistlib.loads(target.read_bytes())[
+                    "EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)
+                if automatic:
+                    ancestry.assert_called_once_with("b" * 40, SHA)
+                else:
+                    ancestry.assert_not_called()
+
     def test_admission_rebind_guard_promotes_explicit_revenue_owner(self):
         from runtime.host import resource_admission
 

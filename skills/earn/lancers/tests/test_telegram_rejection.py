@@ -107,7 +107,7 @@ def test_storefront_apply_emits_provider_rejection_and_nonzero(monkeypatch, tmp_
     monkeypatch.setattr(
         storefront,
         "run",
-        lambda *_args: {"ok": True, "action": "updated"},
+        lambda *_args, **_kwargs: {"ok": True, "action": "updated"},
     )
     monkeypatch.setattr(storefront, "_load", lambda *_args: SimpleNamespace(
         notify_storefront_wake=lambda _result: delivery

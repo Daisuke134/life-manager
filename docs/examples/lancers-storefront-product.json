@@ -1,0 +1,57 @@
+{
+  "product_id": "your-service-v1",
+  "product_version": 1,
+  "listing_external_id": "",
+  "superseded_listing_ids": [],
+  "title_stem": "REPLACE_WITH_YOUR_JAPANESE_TITLE_WITHOUT_THE_FINAL_ます",
+  "subtitle": "REPLACE_WITH_YOUR_SERVICE_SUBTITLE",
+  "category": "REPLACE_WITH_YOUR_LANCERS_CATEGORY",
+  "subcategory": "REPLACE_WITH_YOUR_LANCERS_SUBCATEGORY",
+  "service_type": "REPLACE_WITH_YOUR_LANCERS_SERVICE_TYPE",
+  "industry": "REPLACE_WITH_YOUR_LANCERS_INDUSTRY",
+  "tags": ["REPLACE_WITH_YOUR_TAG"],
+  "description": "REPLACE_WITH_YOUR_SERVICE_DESCRIPTION",
+  "notice": "REPLACE_WITH_YOUR_REQUIREMENTS_AND_NOTICES",
+  "sells_monthly_contract": false,
+  "plans": [
+    {"description": "REPLACE_WITH_YOUR_BASIC_SCOPE", "price_jpy": 0, "delivery_days": 14},
+    {"description": "REPLACE_WITH_YOUR_STANDARD_SCOPE", "price_jpy": 0, "delivery_days": 21},
+    {"description": "REPLACE_WITH_YOUR_PREMIUM_SCOPE", "price_jpy": 0, "delivery_days": 30}
+  ],
+  "portfolio": {
+    "external_id": "",
+    "title_stem": "REPLACE_WITH_YOUR_VERIFIED_PROJECT_TITLE",
+    "subtitle": "REPLACE_WITH_YOUR_PROJECT_SUBTITLE",
+    "category": "REPLACE_WITH_YOUR_LANCERS_CATEGORY",
+    "subcategory": "REPLACE_WITH_YOUR_LANCERS_SUBCATEGORY",
+    "description": "REPLACE_WITH_A_TRUTHFUL_DESCRIPTION_OF_YOUR_WORK",
+    "duration_value": "REPLACE_WITH_A_POSITIVE_INTEGER",
+    "duration_unit": "週",
+    "order_index": 10,
+    "generated_ai": "REPLACE_WITH_TRUE_OR_FALSE"
+  },
+  "software_portfolio": {
+    "external_id": "",
+    "title_stem": "REPLACE_WITH_YOUR_VERIFIED_PROJECT_TITLE",
+    "subtitle": "REPLACE_WITH_YOUR_PROJECT_SUBTITLE",
+    "category": "REPLACE_WITH_YOUR_LANCERS_CATEGORY",
+    "subcategory": "REPLACE_WITH_YOUR_LANCERS_SUBCATEGORY",
+    "industry": "REPLACE_WITH_YOUR_LANCERS_INDUSTRY",
+    "description": "REPLACE_WITH_A_TRUTHFUL_DESCRIPTION_OF_YOUR_WORK",
+    "duration_value": "REPLACE_WITH_A_POSITIVE_INTEGER",
+    "duration_unit": "ヶ月",
+    "reference_price_jpy": 0,
+    "listing_external_id": "",
+    "order_index": 20,
+    "generated_ai": "REPLACE_WITH_TRUE_OR_FALSE"
+  },
+  "seller_profile": {
+    "public_path": "/profile/YOUR_LANCERS_ACCOUNT",
+    "subtitle": "REPLACE_WITH_YOUR_PROFILE_SUBTITLE",
+    "description": "REPLACE_WITH_YOUR_PROFILE_DESCRIPTION"
+  },
+  "profile_avatar_path": "avatar.png",
+  "profile_avatar_sha256": "REPLACE_WITH_THE_SHA256_OF_YOUR_AVATAR",
+  "image_path": "service.png",
+  "image_sha256": "REPLACE_WITH_THE_SHA256_OF_YOUR_SERVICE_IMAGE"
+}

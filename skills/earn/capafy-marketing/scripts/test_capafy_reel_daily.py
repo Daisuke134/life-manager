@@ -255,3 +255,48 @@ def test_generate_text_failure_reports_rc_and_evidence_without_transcript(tmp_pa
 def test_generate_text_accepts_runner_supported_preamble_and_fences(tmp_path, monkeypatch, wrapper):
     m, calls = _text_runner_fixture(tmp_path, monkeypatch, {"text": "usable answer"}, wrapper=wrapper)
     assert m._generate_text("A concrete bounded text task.") == "usable answer"
+
+
+# --- Postiz upload retry (2026-10-25 09:50 JST: HTTP 502 on /upload killed the whole daily run) ---
+
+def _http_error(code):
+    import urllib.error
+    return urllib.error.HTTPError("https://api.postiz.com/public/v1/upload", code, "x", {}, None)
+
+
+def test_upload_retries_a_transient_502_then_succeeds(monkeypatch):
+    import capafy_reel_daily as m
+    calls = []
+
+    def flaky(key, url, *a, **k):
+        calls.append(url)
+        if len(calls) < 3:
+            raise _http_error(502)
+        return {"id": "u1", "path": "p"}
+
+    monkeypatch.setattr(m, "_req", flaky)
+    monkeypatch.setattr(m.time, "sleep", lambda s: None)
+    assert m._upload("k", b"data", "boundary") == {"id": "u1", "path": "p"}
+    assert len(calls) == 3
+
+
+def test_upload_gives_up_after_three_attempts(monkeypatch):
+    import urllib.error
+    import capafy_reel_daily as m
+    calls = []
+    monkeypatch.setattr(m, "_req", lambda *a, **k: calls.append(1) or (_ for _ in ()).throw(_http_error(502)))
+    monkeypatch.setattr(m.time, "sleep", lambda s: None)
+    with pytest.raises(urllib.error.HTTPError):
+        m._upload("k", b"data", "boundary")
+    assert len(calls) == 3
+
+
+def test_upload_does_not_retry_a_client_error(monkeypatch):
+    import urllib.error
+    import capafy_reel_daily as m
+    calls = []
+    monkeypatch.setattr(m, "_req", lambda *a, **k: calls.append(1) or (_ for _ in ()).throw(_http_error(401)))
+    monkeypatch.setattr(m.time, "sleep", lambda s: None)
+    with pytest.raises(urllib.error.HTTPError):
+        m._upload("k", b"data", "boundary")
+    assert len(calls) == 1

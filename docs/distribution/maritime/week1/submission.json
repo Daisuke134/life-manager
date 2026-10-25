@@ -1,16 +1,19 @@
 {
   "schema_version": 1,
-  "packet_status": "draft",
-  "generated_at": "2026-10-21T08:34:34.541Z",
+  "packet_status": "draft_not_submitted",
+  "generated_at": "2026-10-24T11:10:40Z",
   "product_url": "https://life-call-production.up.railway.app/maritime?lang=en",
   "demo_url": null,
-  "release_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+  "release_sha": null,
   "official_required_fields": null,
   "user_counts": {
-    "verified_external_manager_users": 0,
-    "external_work_events": 0,
-    "completed_external_work_users": 0,
-    "readback_at": "2026-10-21T08:00:19Z"
+    "verified_external_manager_users": null,
+    "external_work_events": null,
+    "completed_external_work_users": null,
+    "official_keiki_or_maritime_users": null,
+    "readback_at": "2026-10-24T10:57:29Z",
+    "status": "unknown",
+    "reason": "No fresh authoritative application database or Keiki/Maritime project-usage count was read back."
   },
   "work_receipts": [],
   "costs": null,
@@ -21,10 +24,40 @@
   },
   "submission_receipt": null,
   "limitations": [
-    "Official form fields are unpublished in the supplied requirements readback.",
-    "The supplied Runtime PG readback shows zero verified external Manager users.",
-    "No completed hosted work receipt is verified.",
-    "Costs are unmeasured; the packet does not report USD 0.",
-    "Formal submission receipt is unconfirmed; a channel entry is not a formal receipt."
-  ]
+    "The official project submission form, cutoff, rubric, and required fields remain unconfirmed.",
+    "The public page is an early pilot; the complete hosted work-to-report cycle is unverified.",
+    "No fresh authoritative count of users or completed work was obtained; unknown is not zero.",
+    "No demo recording or official project-usage readback is available.",
+    "Costs are unknown, not USD 0.",
+    "The existing Slack channel entry is not a confirmed formal submission receipt."
+  ],
+  "current_readback_at": "2026-10-24T11:10:40Z",
+  "historical_readback_20261021": {
+    "source": "Earlier internal runtime-PG aggregate readback; not a current official competition count.",
+    "user_counts": {
+      "verified_external_manager_users": 0,
+      "external_work_events": 0,
+      "completed_external_work_users": 0,
+      "readback_at": "2026-10-21T08:00:19Z"
+    },
+    "release_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce"
+  },
+  "current_app_deployment_source_sha": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+  "maritime_runtime_image_sha": null,
+  "maritime_runtime_image_status": "unknown; no separate trusted Maritime image/runtime readback",
+  "demo_status": "not recorded or independently read back",
+  "costs_status": "unknown; no fresh billing readback",
+  "formal_submission_status": "unconfirmed; no formal route/receipt; English packet remains draft",
+  "draft_answers_en": {
+    "project_name": "Life Manager Cloud",
+    "one_line": "Life Manager is building a cloud personal manager designed to choose a bounded next task, carry it through an authorized workflow, check the result, and report verified outcomes by email—without requiring a goal or budget setup first.",
+    "current_status": "Early pilot. The English pilot page is public. The complete authenticated hosted work-to-report cycle has not been verified.",
+    "product_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+    "article_url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
+    "demo": "No verified end-to-end recording is available yet; do not present a mock flow as live proof.",
+    "measured_results": "Verified official user count, completed external work, repeat use, and costs are unknown.",
+    "next_milestone": "Complete one owner-authorized, tenant-bound task with an official provider receipt, accepted result-email receipt, and stop/replay-zero readback; then record a truthful demo."
+  },
+  "current_source_of_truth": "docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md",
+  "current_source_main_sha": "edf5c206c1e4abb69f1664d4635376eff5307736"
 }

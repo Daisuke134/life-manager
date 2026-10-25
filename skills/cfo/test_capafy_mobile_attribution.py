@@ -12,6 +12,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
+from contextlib import contextmanager
 
 from skills.cfo import economic_attribution as contract
 
@@ -64,6 +65,26 @@ def bind_capafy_account_inventory(payload, owner_buyer_ids):
     )
     payload["account_inventory"] = inventory
     bind_capafy_content(payload)
+
+
+@contextmanager
+def synthetic_mobile_portfolio():
+    """Exercise complete-portfolio math with an explicitly fictional Studio RC app.
+
+    Real public bindings, four-project routing and Studio rejection are tested
+    without this override in test_public_mobile_portfolio.py.
+    """
+    rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+    bindings = {}
+    for row in rows:
+        product = row["product_id"]
+        binding = dict(adapter.MOBILE_PRODUCT_BINDINGS[product])
+        binding["revenuecat_app_id"] = row["sources"]["revenuecat"]["data"]["app_id"]
+        binding.pop("revenuecat_project_id", None)
+        binding.pop("revenuecat_credential_service", None)
+        bindings[product] = binding
+    with mock.patch.dict(adapter.MOBILE_PRODUCT_BINDINGS, bindings, clear=True):
+        yield bindings
 
 
 def bind_revenuecat_hash(row):
@@ -132,6 +153,9 @@ def capafy_refund_row_sha(order, currency):
 
 
 class CapafyMobileAttributionTest(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(synthetic_mobile_portfolio())
+
     def require_adapter(self):
         self.assertIsNotNone(adapter, "skills.cfo.adapters.capafy_mobile is not implemented")
         return adapter
@@ -442,7 +466,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             packet = self.make_mobile_financial_packet(
                 temp_dir,
                 additional_receipts=additional_receipts,
-                empty_relation_app_ids=("6760253231",),
+                empty_relation_app_ids=("6757726663",),
             )
             records = module.adapt_mobile_financial_packet(
                 packet, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -1061,11 +1085,11 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertEqual([(row["subscription_id"], row["status"], row["normalized_monthly_amount"])
                           for row in snapshots], [
             ("revenuecat:anicca-ios:mrr", "active", "3000"),
-            ("revenuecat:breath-reset:mrr", "inactive", "0"),
-            ("revenuecat:desk-stretch-timer:mrr", "inactive", "0"),
+            ("revenuecat:dhamma-quotes:mrr", "inactive", "0"),
             ("revenuecat:honne-ai:mrr", "inactive", "0"),
-            ("revenuecat:micro-mood:mrr", "inactive", "0"),
-            ("revenuecat:sleep-ritual:mrr", "inactive", "0"),
+            ("revenuecat:sleep-reset:mrr", "inactive", "0"),
+            ("revenuecat:studio-cherie:mrr", "inactive", "0"),
+            ("revenuecat:thankful:mrr", "inactive", "0"),
         ])
         projected = contract.project(
             records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -1687,6 +1711,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             }
             with (
                 mock.patch.object(producer, "RC_CHARTS", ("mrr",)),
+                mock.patch.dict(producer.PRODUCTS, module.MOBILE_PRODUCT_BINDINGS),
                 mock.patch.object(producer, "http_json", side_effect=[options, body]),
                 mock.patch.object(producer, "revenuecat_products", return_value={}),
                 mock.patch.object(producer, "collect_asc", return_value={}),

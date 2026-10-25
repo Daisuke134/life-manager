@@ -67,6 +67,10 @@ class AIService {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let toolkitToken = Config.HONNE_TOOLKIT_TOKEN
+            if !toolkitToken.isEmpty {
+                request.setValue(toolkitToken, forHTTPHeaderField: "x-honne-token")
+            }
             request.timeoutInterval = 60
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 

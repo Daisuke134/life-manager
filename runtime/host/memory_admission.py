@@ -64,24 +64,92 @@ def swap_used_mb() -> float | None:
     return parse_swap_used_mb(result.stdout)
 
 
-def physical_memory_mb() -> float | None:
+_SWAPINS = re.compile(r"Swapins:\s*(\d+)")
+
+
+def parse_swapins(output: str) -> int | None:
+    match = _SWAPINS.search(output)
+    return int(match.group(1)) if match else None
+
+
+def swapins() -> int | None:
+    """Cumulative pages read back from swap since boot (vm_stat)."""
     try:
-        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024 * 1024)
-    except (ValueError, OSError, AttributeError):
+        result = subprocess.run(["/usr/bin/vm_stat"], capture_output=True, text=True, timeout=5,
+                                check=False)
+    except (OSError, subprocess.TimeoutExpired):
         return None
+    if result.returncode != 0:
+        return None
+    return parse_swapins(result.stdout)
 
 
-def swap_pressure(max_percent_of_ram: int) -> dict | None:
-    """None when swap is within budget or unmeasurable; else the receipt fields for a deferral."""
-    used = swap_used_mb()
-    ram = physical_memory_mb()
-    if used is None or not ram:
+SWAP_WINDOW_SECONDS = 900   # the rate is judged over the last 15 minutes
+SWAP_MIN_HISTORY_SECONDS = 300  # less history than this proves no rate
+# 2026-10-24 14:1x JST, 16 KB pages: an idle-but-busy host at 28-31% free read 159-618 pages/s over
+# 10 s windows and 880 over 30 s while swap sat at 17.1/18.4 GB. 2000 pages/s (~31 MB/s sustained
+# for 5-15 minutes) is above that working band, so only real thrashing closes the gate.
+MAX_SWAPIN_PAGES_PER_SECOND = 2000
+
+
+def _swap_samples_path() -> Path:
+    configured = os.environ.get("LIFE_MANAGER_SWAP_SAMPLES")
+    if configured:
+        return Path(configured).expanduser()
+    home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    return home / ".local/state/life-manager/host-admission/swapin-samples.json"
+
+
+def swapin_rate(count: int, now: float | None = None) -> float | None:
+    """Record this Swapins reading and return pages/s over the window, or None without proof.
+
+    Swap size is not the signal: macOS keeps swapped pages for hours, and the total swings by
+    hundreds of MB in minutes. On 2026-10-24 the 15-minute growth rule (#8823) still deferred every
+    producer at 15.5-16.5 GB. Pages being read back from swap is what slows the host.
+    """
+    now = time.time() if now is None else now
+    path = _swap_samples_path()
+    try:
+        rows = json.loads(path.read_text())
+        samples = [(float(t), float(c)) for t, c in rows if now - float(t) <= SWAP_WINDOW_SECONDS]
+    except (OSError, ValueError, TypeError):
+        samples = []
+    oldest = min(samples, default=None)
+    samples.append((now, float(count)))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd, temporary = tempfile.mkstemp(prefix=".swap.", dir=path.parent)
+        with os.fdopen(fd, "w") as handle:
+            json.dump(samples, handle)
+        os.replace(temporary, path)
+    except OSError:
         return None
-    limit = ram * max_percent_of_ram / 100
-    if used < limit:
+    if oldest is None or now - oldest[0] < SWAP_MIN_HISTORY_SECONDS or count < oldest[1]:
+        return None  # count < oldest means a reboot reset the counter
+    return (count - oldest[1]) / (now - oldest[0])
+
+
+def swapin_pages_per_second() -> float | None:
+    count = swapins()
+    return None if count is None else swapin_rate(count)
+
+
+def swap_pressure() -> dict | None:
+    """None while pages come back from swap slower than the limit; else the deferral receipt fields.
+
+    No rate (under 5 minutes of shared history, unwritable history, vm_stat failure) defers, the
+    same fail-closed rule as before; the fleet wakes every few minutes, so history stays fresh.
+    LIFE_MANAGER_SWAPIN_GATE=off exists only for test subprocesses.
+    """
+    if os.environ.get("LIFE_MANAGER_SWAPIN_GATE") == "off":
         return None
-    return {"reason": "swap_pressure_high", "swap_used_mb": used, "swap_limit_mb": limit,
-            "max_swap_percent_of_ram": max_percent_of_ram}
+    rate = swapin_pages_per_second()
+    if rate is not None and rate < MAX_SWAPIN_PAGES_PER_SECOND:
+        return None
+    return {"reason": "swap_pressure_high" if rate is not None else "swap_rate_unproven",
+            "swapin_pages_per_second": rate,
+            "max_swapin_pages_per_second": MAX_SWAPIN_PAGES_PER_SECOND,
+            "swap_used_mb": swap_used_mb()}
 
 
 def _receipt_path() -> Path:
@@ -135,15 +203,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 64
     if not 1 <= minimum <= 100:
         return 64
-    try:
-        max_swap = int(os.environ.get("LIFE_MANAGER_MAX_SWAP_PERCENT_OF_RAM", "75"))
-    except ValueError:
-        return 64
-    if not 1 <= max_swap <= 1000:
-        return 64
     while True:
         available = memory_free_percent()
-        swap = swap_pressure(max_swap) if available is not None and available >= minimum else None
+        swap = swap_pressure() if available is not None and available >= minimum else None
         if available is None:
             _write_receipt({
                 "status": "deferred", "effect": 0,

@@ -246,3 +246,21 @@ Only these two exact commit/path/rule/line fingerprints are added to
 `.gitleaksignore`; current-tree scanning and detection at new locations remain
 enabled. The introducing commit is on another fetched branch, so changing
 only this PR's current tree cannot remove the historical findings.
+
+## Fresh Mac installer CI: historical authority-control prose
+
+PR #8776's workflow `40018436759` passes the current-tree scan and TruffleHog,
+but the full-history scan reports one `generic-api-key` finding at commit
+`a6f8deaf743033dae21132be54d27223293b09f7`,
+`products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:22`.
+An independent read-only review reproduces the finding from that line alone.
+The candidate consists of four ordinary lowercase words separated by slashes,
+describing authority controls; it is not authentication material. Adding spaces
+around those separators in memory removes the finding. No credential is read,
+used, or rotated for this adjudication.
+
+The commit exists only on another fetched research branch. Its document is
+absent from this PR's current tree, so rewriting the current tree cannot remove
+the historical finding. Only this exact commit/path/rule/line fingerprint is
+recorded in `.gitleaksignore`. Scanner rules, path allowlists, current-tree
+scanning, and detection of findings at new locations remain unchanged.

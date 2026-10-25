@@ -21,10 +21,22 @@ jobs:
         run: bash scripts/verify-agent-contract.sh "$GITHUB_WORKSPACE"
 
   loop-control:
-    name: Loop control contracts
-    runs-on: macos-15
+    name: Loop control contracts (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify macOS runner architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: test "$(uname -m)" = "$EXPECTED_ARCH"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
@@ -39,22 +51,66 @@ jobs:
         run: >-
           python3 -m pytest -q
           skills/earn/lancers/tests/test_local_identity.py
+          skills/earn/lancers/tests/test_pre_effect_hint_reconcile.py
+          skills/earn/lancers/tests/test_application_pre_effect_hint.py
+          skills/_shared/marketplace-core/tests/test_reply_kernel.py
           skills/earn/lancers/tests/test_lancers_onboarding.py
           skills/earn/lancers/tests/test_application_prompt_handoff.py
           skills/earn/lancers/tests/test_discovery_reads_through_browser.py
           skills/earn/lancers/tests/test_owner_browser_attach_busy_exit_75.py
           skills/earn/lancers/tests/test_paid_owner_reconcile.py
           skills/earn/lancers/tests/test_reply_adapter.py
+          skills/earn/lancers/tests/test_storefront_owner_pre_effect.py
+          skills/earn/lancers/tests/test_storefront_effect_reconcile.py
+          skills/earn/lancers/tests/test_create_package.py
+          skills/earn/lancers/tests/test_install_local.py
+          skills/earn/lancers/tests/test_profile_readback.py
+          skills/earn/lancers/tests/test_storefront_offer_reads_catalog.py
           apps/lancers-revenue/tests/test_application_attribution.py
           apps/lancers-revenue/tests/test_persona_facts_in_planner.py
           apps/lancers-revenue/tests/test_form_failures_name_themselves.py
           apps/lancers-revenue/tests/test_telegram_report.py
+      - name: Install CrowdWorks contract dependencies from runtime pins
+        run: python3 -m pip install --disable-pip-version-check -r <(grep -E '^(playwright|beautifulsoup4)==' requirements-runtime.txt)
+      - name: Verify CrowdWorks private identity and caller contracts
+        run: >-
+          python3 -m pytest -q
+          skills/earn/crowdworks/tests/test_account_identity.py
+          skills/earn/crowdworks/tests/test_profile_avatar.py
+          skills/earn/crowdworks/tests/test_profile_private_identity.py
+          skills/earn/crowdworks/tests/test_adapter_private_identity.py
+          skills/earn/crowdworks/tests/test_owner_private_identity.py
+          skills/earn/crowdworks/tests/test_install_local.py
+          skills/earn/crowdworks/tests/test_telegram_report_occurrence.py
+          skills/earn/crowdworks/tests/test_reply_adapter.py
+          skills/earn/crowdworks/tests/test_paid_adapter.py
+          skills/earn/crowdworks/tests/test_application_owner_hourly.py
+          skills/earn/crowdworks/tests/test_reconcile_application_no_submit.py
+          skills/earn/crowdworks/tests/test_reconcile_reply_accept_contract.py
+          skills/earn/crowdworks/tests/test_reconcile_reply_no_send.py
+          skills/earn/crowdworks/tests/test_paid_owner_pre_effect_hint.py
+          apps/crowdworks-revenue/tests/test_paid_owner_observation_boundary.py
+      - name: Install Mercor contract dependency from runtime pin
+        run: python3 -m pip install --disable-pip-version-check -r <(grep -E '^websockets==' requirements-runtime.txt)
+      - name: Verify Mercor public setup and account isolation
+        run: >-
+          env PYTHONPATH=apps/job-search-loop python3 -m pytest -q
+          skills/earn/mercor/tests/test_install_local.py
+          skills/earn/mercor/tests/test_application_owner.py
+          apps/job-search-loop/tests/test_mercor_auth_readback.py
+          apps/job-search-loop/tests/test_mercor_email_auth.py
+          apps/job-search-loop/tests/test_profile_setup.py
+          apps/job-search-loop/tests/test_local_setup.py
       - name: Verify browser lease ownership and tab preservation
         run: >-
           python3 -m pytest -q
           skills/browser/tests/test_guard_legacy_lease.py
           skills/browser/scripts/test_browser_guard_empty_lease.py
       - name: Verify registry, releases, apply fencing, and clean install
+        # unittest does not load conftest.py; a fresh runner has no swap-in history, and the
+        # admission gate defers without one (fail-closed by design), so turn it off here too.
+        env:
+          LIFE_MANAGER_SWAPIN_GATE: "off"
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py' --durations 15
       - name: Verify bounded storage, real syscall failures, and recurrence
         run: >-
@@ -62,6 +118,8 @@ jobs:
           runtime/loop/tests/test_lm_loop_run_bounds.py
           runtime/loop/tests/test_storage_failure.py
           runtime/loop/tests/test_release_source_reclaim.py
+          runtime/loop/tests/test_release_gc_fail_closed.py
+          runtime/host/tests/test_disk_admission.py
           runtime/host/tests/test_storage_policy.py
           runtime/host/tests/test_bounded_output.py
           runtime/host/tests/test_storage_recurrence.py
@@ -160,6 +218,10 @@ jobs:
       - name: Ensure native video frame tools are available
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            if [ -f /etc/apt/apt-mirrors.txt ] &&
+               grep -Eq '^[[:space:]]*https?://archive[.]ubuntu[.]com/ubuntu/?([[:space:]]|$)' /etc/apt/apt-mirrors.txt; then
+              sudo sed -i -E '/^[[:space:]]*https?:\/\/azure[.]archive[.]ubuntu[.]com\/ubuntu\/?([[:space:]]|$)/d' /etc/apt/apt-mirrors.txt
+            fi
             sudo apt-get update -qq
             sudo apt-get install -y ffmpeg
           fi

@@ -493,6 +493,9 @@
       "state_root": "~/.local/state/life-manager/agent-economy"
     },
     "agentmail-nudge": {
+      "admission_class": "borrow",
+      "resource_class": "agent",
+      "priority": "support",
       "cadence": {
         "calendar_interval": {
           "Hour": 9,
@@ -513,6 +516,9 @@
       "state_root": "~/.local/state/life-manager/agentmail"
     },
     "agentmail-replier": {
+      "admission_class": "borrow",
+      "resource_class": "agent",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 21600
       },
@@ -780,6 +786,9 @@
       "state_root": "~/.local/state/life-manager/writer"
     },
     "boot-panic-evidence": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "run_at_load": true
       },
@@ -1389,6 +1398,9 @@
       "state_root": "~/.local/state/life-manager/daily-nl-report"
     },
     "earn-watch": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -3084,6 +3096,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-daily": {
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": {
@@ -3660,6 +3673,9 @@
       "state_root": "~/.local/state/life-manager/marketing-metrics-daily"
     },
     "marketing-mine-daily": {
+      "admission_class": "revenue",
+      "resource_class": "agent",
+      "priority": "distribution",
       "cadence": {
         "calendar_interval": {
           "Hour": 5,
@@ -3733,6 +3749,9 @@
       "state_root": "~/.local/state/life-manager/marketing-score-daily"
     },
     "marketing-treg-lead-signals-weekly": {
+      "admission_class": "borrow",
+      "resource_class": "agent",
+      "priority": "support",
       "adapter": "exec",
       "cadence": {
         "calendar_interval": {
@@ -3962,6 +3981,9 @@
       "state_root": "~/.local/state/life-manager/pm-decision-loop"
     },
     "pm-live-trade": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -4033,6 +4055,9 @@
       "state_root": "~/.local/state/life-manager/realtime-guide"
     },
     "reinvest": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 21600
       },
@@ -4133,6 +4158,9 @@
       "priority": "support"
     },
     "ubi-watcher": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 60
@@ -4281,7 +4309,7 @@
     },
     "writer-claim-loop": {
       "adapter": "exec",
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 900
       },
@@ -4297,7 +4325,7 @@
       "entrypoint": "skills/writer-agent/scripts/claim-loop-owner",
       "label": "ai.anicca.writer-claim-loop",
       "log_root": "~/.local/state/life-manager/writer/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
@@ -4479,6 +4507,9 @@
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
     },
     "x-repost-digest": {
+      "admission_class": "revenue",
+      "resource_class": "deterministic",
+      "priority": "distribution",
       "cadence": {
         "calendar_interval": {
           "Hour": 9,
@@ -4499,6 +4530,9 @@
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
     },
     "x-repost-healthcheck": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -4516,6 +4550,9 @@
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
     },
     "x-repost-ja-healthcheck": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -4533,6 +4570,9 @@
       "state_root": "~/.local/state/life-manager/social-x/x-repost/ja"
     },
     "x-repost-ja-pass": {
+      "admission_class": "revenue",
+      "resource_class": "agent",
+      "priority": "distribution",
       "cadence": {
         "calendar_interval": [
           {
@@ -4557,6 +4597,9 @@
       "state_root": "~/.local/state/life-manager/social-x/x-repost/ja"
     },
     "x-tweeter": {
+      "admission_class": "revenue",
+      "resource_class": "agent",
+      "priority": "distribution",
       "cadence": {
         "calendar_interval": {
           "Minute": 15
@@ -4576,6 +4619,9 @@
       "state_root": "~/.local/state/life-manager/social-x/x-tweeter"
     },
     "x-tweeter-healthcheck": {
+      "admission_class": "borrow",
+      "resource_class": "deterministic",
+      "priority": "support",
       "cadence": {
         "start_interval_seconds": 300
       },

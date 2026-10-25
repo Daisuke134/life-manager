@@ -350,6 +350,13 @@ def _write_status(payload):
 def main():
     now=datetime.now(timezone.utc)
     group_cursor = _group_cursor()
+    try:
+        identity=profile.load_identity()
+        profile.require_apply_config(identity["provider"])
+    except profile.SetupRequired as error:
+        result={"ok":False,"status":"setup_required","error":"setup_required","missing":error.missing,"effect_delta":0,"next_group_index":group_cursor,"observed_at":now.isoformat()}
+        result=_bind_runtime_occurrence(result,os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
+        _write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 78
     if not account._owner():result={"ok":False,"status":"browser_unavailable","effect_delta":0}
     else:
         # Account setup may itself cross the provider boundary. Clear the host's
@@ -358,6 +365,7 @@ def main():
         _clear_pre_effect_hint()
         ensured=account.run_ensure(state_path=account.DEFAULT_STATE_PATH,allow_signup=False,ownership_checker=account._owner,browser_factory=account._browser,vault_restorer=account._restore,vault_dumper=account._dump,credential_loader=account._credentials,notifier=account._notify,now=lambda:datetime.now(timezone.utc).isoformat())
         if not ensured.authenticated:result={"ok":False,"status":ensured.error or ensured.status,"effect_delta":0}
+        elif getattr(ensured,"account_id",None)!=identity["account_id"]:result={"ok":False,"status":"setup_required","error":"setup_required","missing":["provider_account_binding"],"effect_delta":0}
         else:
             browser=account._browser(account.CDP_URL);page=browser.contexts[0].new_page()
             try:
@@ -365,6 +373,7 @@ def main():
                 imported=_reconcile(page) if configured.get("ok") else 0
                 if not configured.get("ok"):
                     result={"ok":False,"status":configured.get("error","profile_incomplete"),"effect_delta":0}
+                    if "missing" in configured: result["missing"]=configured["missing"]
                 elif (candidate_result:=_candidate(page,_listings(),_groups(now, group_cursor)))[0] is None:
                     result={"ok":True,"status":"profile_complete_no_eligible_open_job","imported_applications":imported,"inspected_jobs":candidate_result[3],"effect_delta":0}
                 else:
@@ -381,6 +390,6 @@ def main():
     # failed or slow report can never hold up an application, and vice versa.
     result["next_group_index"] = (group_cursor + GROUPS_READ_PER_WAKE) % len(JOB_GROUPS) if result.get("ok") else group_cursor
     result = _bind_runtime_occurrence(result, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
-    result["observed_at"]=now.isoformat();_write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 0 if result.get("ok") else 1
+    result["observed_at"]=now.isoformat();_write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 0 if result.get("ok") else 78 if result.get("status")=="setup_required" else 1
 
 if __name__=="__main__":raise SystemExit(main())

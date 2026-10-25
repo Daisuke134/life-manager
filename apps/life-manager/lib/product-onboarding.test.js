@@ -135,6 +135,39 @@ test("Local plans only selected loops and makes missing setup explicit", () => {
   assert.deepEqual(connector.loops[0].command, ["./install.sh", "connector"]);
 });
 
+test("CrowdWorks guided setup exposes the local command and keeps account requirements", () => {
+  const pending = planProductOnboarding({ host: "local", selected_loop_ids: ["gig-crowdworks"],
+    verified_requirements: ["telegram_credentials"] });
+  assert.equal(pending.loops[0].state, "setup_required");
+  assert.deepEqual(pending.loops[0].missing, ["crowdworks_account", "work_profile"]);
+  assert.deepEqual(pending.loops[0].command, ["./install.sh", "crowdworks"]);
+
+  const configured = planProductOnboarding({ host: "local", selected_loop_ids: ["gig-crowdworks"],
+    verified_requirements: ["telegram_credentials", "crowdworks_account", "work_profile"] });
+  assert.equal(configured.loops[0].state, "ready_to_start");
+  assert.equal(configured.starts_automatically, false);
+  assert.deepEqual(configured.external_effects, []);
+
+  const cloud = planProductOnboarding({ host: "cloud", selected_loop_ids: ["gig-crowdworks"],
+    verified_requirements: ["crowdworks_account", "work_profile"] });
+  assert.deepEqual(cloud.loops[0].missing, ["host_adapter"]);
+  assert.equal(cloud.loops[0].command, null);
+});
+
+test("Mercor guided setup exposes its own installer while provider accounts remain required", () => {
+  const pending = planProductOnboarding({ host: "local", selected_loop_ids: ["gig-mercor"],
+    verified_requirements: ["telegram_credentials"] });
+  assert.equal(pending.loops[0].state, "setup_required");
+  assert.deepEqual(pending.loops[0].missing, ["mercor_account", "work_profile"]);
+  assert.deepEqual(pending.loops[0].command, ["./install.sh", "mercor"]);
+  assert.equal(pending.starts_automatically, false);
+  assert.deepEqual(pending.external_effects, []);
+  const cloud = planProductOnboarding({ host: "cloud", selected_loop_ids: ["gig-mercor"],
+    verified_requirements: ["mercor_account", "work_profile"] });
+  assert.equal(cloud.loops[0].command, null);
+  assert.equal(cloud.loops[0].state, "setup_required");
+});
+
 test("Cloud /start uses the same catalog while unsupported host adapters stay setup_required", () => {
   const economy = planProductOnboarding({ host: "cloud", selected_loop_ids: ["agent-economy"] });
   assert.equal(economy.loops[0].state, "ready_to_start");
@@ -229,8 +262,10 @@ test("default product observations make unsupported hosts explicit and never inv
   assert.equal(new Set(observations.map((observation) => observation.id)).size, 18);
   assert.equal(observations.every((observation) => observation.official_receipt !== true), true);
   assert.equal(observations.every((observation) => observation.replay_zero !== true), true);
-  assert.equal(observations.find((observation) => observation.id === "gig-lancers").state,
-    "setup_required");
+  assert.equal(observations.find((observation) => observation.id === "gig-crowdworks").state,
+    "blocked");
+  assert.equal(observations.find((observation) => observation.id === "gig-crowdworks").reason,
+    "runtime_evidence_missing");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").state,
     "blocked");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").reason,
@@ -1275,7 +1310,7 @@ test("completion manifest CLI builds a safe baseline when only runtime status is
   const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   assert.equal(manifest.loops.length, 18);
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "blocked");
-  assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "setup_required");
+  assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "blocked");
   assert.equal(manifest.completion, false);
   fs.rmSync(root, { recursive: true, force: true });
 });

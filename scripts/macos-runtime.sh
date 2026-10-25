@@ -3,7 +3,7 @@
 
 lm_node_ready() {
   command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 \
-    && node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 20 || (major === 20 && minor >= 19) ? 0 : 1)' >/dev/null 2>&1
+    && node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)' >/dev/null 2>&1
 }
 
 lm_ensure_node() {
@@ -12,7 +12,7 @@ lm_ensure_node() {
   "$LM_BREW" install node >&2 || return
   export PATH="$(dirname "$LM_BREW"):$PATH"
   hash -r
-  lm_node_ready || { echo '[life-manager] Node >=20.19 and npm are required' >&2; return 2; }
+  lm_node_ready || { echo '[life-manager] Node >=22.19 and npm are required' >&2; return 2; }
 }
 
 _lm_executable() {

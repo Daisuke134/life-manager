@@ -19,9 +19,9 @@ are proven. The table describes the intended work and the current onboarding bou
 | # | Agent | Work | Prerequisites and current setup |
 |---:|---|---|---|
 | 1 | Gig — Coconala | Find suitable jobs, apply, negotiate, support delivery, and reconcile provider results | Own Coconala account and official seller/SMS/eKYC/payout setup. `./install.sh coconala`; [public beta guide](../skills/earn/gig/README.md). Clean-Mac full acceptance remains open. |
-| 2 | Gig — Lancers | Run the shared application, negotiation, paid-work, and reporting lifecycle | Own Lancers login and work profile. Managed host jobs exist; complete public guided provider setup is pending. |
-| 3 | Gig — CrowdWorks | Find suitable projects, apply, and report verified outcomes | Own CrowdWorks login and work profile. Managed host jobs exist; complete public guided provider setup is pending. |
-| 4 | Gig — Mercor | Apply for suitable contracts, handle replies, and reconcile outcomes | Own Mercor account and truthful work profile. Complete public guided provider setup is pending. |
+| 2 | Gig — Lancers | Run the shared application, negotiation, paid-work, and reporting lifecycle | Own Lancers login and work profile. `./install.sh lancers`; [setup guide](lancers.md). Storefront and reporting need their own settings. Clean-Mac full acceptance remains open. |
+| 3 | Gig — CrowdWorks | Find suitable projects, apply, handle replies and paid work, and report outcomes | Own CrowdWorks login and work profile. `./install.sh crowdworks`; [setup guide](crowdworks.md). Application and reporting have separate requirements. Clean-Mac full acceptance remains open. |
+| 4 | Gig — Mercor | Apply for suitable contracts, handle replies, and reconcile outcomes | [Guided setup](mercor.md) with your account, work profile, resume, and Gmail. Paid-work account binding remains pending. |
 | 5 | PromptBase | Create and publish prompt listings with examples; read sales back | Own seller account and publication profile. Complete public guided provider setup is pending. |
 | 6 | Writer | Create and sell paid writing, respond to opportunities, and reconcile payments | Own publisher accounts and required browser/API credentials. Complete public guided provider setup is pending. |
 | 7 | Affiliate | Find and publish attributable affiliate opportunities | Own affiliate-provider accounts, credentials, and publication channels. Complete public guided provider setup is pending. |
@@ -44,7 +44,7 @@ The four gig capabilities share an earning lifecycle. A person still completes o
 identity, interview, consent, or physical-participation requirements when a marketplace requires
 them. An account setup gate is not completed paid work.
 
-Ten product entries still lack a complete guided provider installer. The fleet installer can
+Eight product entries still lack a complete guided provider installer. The fleet installer can
 prepare their host jobs, while the provider workflow remains `setup_required`. Check the
 current catalog and `./install.sh list` instead of treating registration as readiness.
 

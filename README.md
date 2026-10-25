@@ -1,22 +1,33 @@
 <!-- startup-context-version: 2026-10-20.1 -->
 <!-- startup-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea -->
-# Life Manager
+# Local Life Manager
 
-**An open-source AI manager that keeps working on your Mac.**
-Find work, create and sell digital products, and take care of recurring tasks through your own accounts.
+**An open-source, no-human-in-the-loop money printer: AI agents build businesses from scratch and run them on your Mac.**
+
+Connect the accounts your chosen businesses need. Life Manager's agents are designed to find opportunities, build businesses from scratch, sell products and services, and run them day to day to generate revenue—without ongoing human input.
+
+> **Early development:** Autonomous operation and verified profit are goals, not proven results yet. Check the [agent catalog](docs/agents.md) for current capabilities.
 
 [日本語](README.ja.md) · [Setup guide](docs/getting-started.md) · [Agent catalog](docs/agents.md)
 
-> Early development. Available features and setup requirements vary by agent;
-> the entire catalog is not yet a finished, plug-and-play product.
+## Businesses
 
-## What you need
+| Business | Revenue model |
+|---|---|
+| Contract work | Paid projects on Coconala, Lancers, CrowdWorks, and Mercor. |
+| Mobile apps | App sales and subscriptions. |
+| Affiliate & CPA | Referral commissions and campaigns paid per customer action. |
+| Writing | Paid articles, newsletters, and commissioned writing. |
+| Digital products | Prompts, eBooks, and LINE stickers. |
+| AI services | Paid AI skills, subscriptions, and APIs. |
+| Investing | Configured stock-trading strategies. |
 
-- **ChatGPT Plus (or higher).** Sign in with ChatGPT; no separate OpenAI API key is required.
-- **A Mac or Mac mini that stays awake**, with an internet connection.
-- **Your own service accounts** for the work you want to enable.
+## Core requirements
 
-Some agents also use paid services. Their requirements are listed in the [agent catalog](docs/agents.md).
+- **ChatGPT Plus or higher.** Sign in with ChatGPT; no separate OpenAI API key is required.
+- **A Mac that stays awake**, with internet and at least 12 GiB of free disk space. A Mac mini works well for always-on use.
+
+For each business you enable, connect your own service accounts. Some services may cost extra.
 
 ## Install
 
@@ -26,29 +37,9 @@ Run this in Terminal:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)" life-manager local
 ```
 
-Sign in with your ChatGPT account when prompted, then connect the services you want to use.
-The installer prepares the dependencies. No Docker is required.
+Follow the prompts to sign in to ChatGPT and connect the services you want to use. Docker is not required.
 
-[Full setup, keeping your Mac awake, checking progress, and stopping agents →](docs/getting-started.md)
+See the [setup guide](docs/getting-started.md) for full installation, keeping your Mac awake, and checking agent status.
 
-Using another agent? [See compatibility and setup](docs/getting-started.md#other-agents).
-
-## What can you use it for?
-
-- **Work:** freelance opportunities, proposals, and job applications.
-- **Digital products:** prompts, articles, eBooks, stickers, and product marketing.
-- **Opportunities:** events, accelerators, fellowships, and grants.
-- **Money:** revenue, expenses, payouts, and configured investment workflows.
-- **Follow-through:** scheduled tasks and reports of verified outcomes.
-
-See [each agent's availability and prerequisites](docs/agents.md) before connecting it.
-
-## Learn more
-
-- [Get started](docs/getting-started.md)
-- [Explore the agents](docs/agents.md)
 - [Report an issue](https://github.com/Daisuke134/life-manager/issues)
-
-Prefer hosted? [Explore the cloud service](https://aniccaai.com/lm).
-
 - **License:** [MIT](LICENSE)

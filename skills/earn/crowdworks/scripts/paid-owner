@@ -11,6 +11,26 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 
+IDENTITY_ARGS=(account-id)
+IDENTITY_VALUE=""
+for ARG in "$@"; do
+  if [[ -n "$IDENTITY_VALUE" ]]; then
+    IDENTITY_ARGS+=("$IDENTITY_VALUE" "$ARG")
+    IDENTITY_VALUE=""
+  else
+    case "$ARG" in
+      --candidate-profile|--provider-profile) IDENTITY_VALUE="$ARG" ;;
+      --candidate-profile=*|--provider-profile=*) IDENTITY_ARGS+=("$ARG") ;;
+    esac
+  fi
+done
+if [[ -n "$IDENTITY_VALUE" ]]; then IDENTITY_ARGS+=("$IDENTITY_VALUE"); fi
+ACCOUNT_ID="$("$PYTHON" "$ROOT/skills/earn/crowdworks/scripts/profile.py" "${IDENTITY_ARGS[@]}")" || {
+  IDENTITY_RC=$?
+  printf '%s\n' "$ACCOUNT_ID"
+  exit "$IDENTITY_RC"
+}
+
 set +e
 "$LOCK_PYTHON" "$ROOT/skills/browser/scripts/run_with_file_lock.py" \
   --non-blocking \
@@ -22,8 +42,9 @@ set +e
   --output "$STATE_ROOT/paid-latest.json" \
   --max-workers 1 \
   -- \
-  --account-id 7145638 \
-  --state-path "$STATE_ROOT/paid"
+  --account-id "$ACCOUNT_ID" \
+  --state-path "$STATE_ROOT/paid" \
+  "$@"
 RC=$?
 set -e
 

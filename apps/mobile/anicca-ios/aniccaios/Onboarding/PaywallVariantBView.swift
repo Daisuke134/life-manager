@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import StoreKit
 
 /// Variant B paywall — CRO optimized design for RevenueCat Experiments A/B
 /// Offering swap is handled server-side by RevenueCat; this view always renders the `current` offering.
@@ -18,20 +19,19 @@ struct PaywallVariantBView: View {
     @State private var showReloadAfterTimeout = false
 
     private var offering: Offering? { appState.cachedOffering }
-    private var packages: [Package] { offering?.availablePackages ?? [] }
+    private var packages: [Package] {
+        let available = offering?.availablePackages ?? []
+        guard PaywallStorefrontEligibility.includesLifetime(
+            countryCode: appState.currentStorefrontCountryCode,
+            offeringCountryCode: appState.cachedOfferingStorefrontCountryCode
+        ) else {
+            return available.filter { $0.packageType != .lifetime }
+        }
+        return available
+    }
     private var yearlyPackage: Package? { packages.first { $0.packageType == .annual } }
     private var monthlyPackage: Package? { packages.first { $0.packageType == .monthly } }
-    // 2026-07-03 Dais: 買い切り(lifetime)は日本語話者にのみ表示する。
-    // 旧実装は StoreKit の storefront 国(JPN)で判定していたが、
-    // storefront は async 取得で初期値が空 → レースで非表示になるバグがあった。
-    // 端末の優先言語で判定し (UserProfile / QuoteProvider と同一パターン)、非同期依存を撤廃する。
-    private var isJapanese: Bool {
-        (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("ja")
-    }
-    private var lifetimePackage: Package? {
-        guard isJapanese else { return nil }
-        return packages.first { $0.packageType == .lifetime }
-    }
+    private var lifetimePackage: Package? { packages.first { $0.packageType == .lifetime } }
 
     private var savePct: Int? {
         guard let yearly = yearlyPackage, let monthly = monthlyPackage else { return nil }
@@ -70,7 +70,7 @@ struct PaywallVariantBView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                         Button(String(localized: "paywall_b_retry")) {
-                            Task { await SubscriptionManager.shared.refreshOfferings() }
+                            Task { await refreshStorefrontEligibility() }
                         }
                         .font(.system(size: 16, weight: .semibold))
                         Button(String(localized: "paywall_plan_restore")) { restorePurchases() }
@@ -98,11 +98,51 @@ struct PaywallVariantBView: View {
         .onChange(of: packages.map { ObjectIdentifier($0) }) { _ in
             synchronizePackageSelection()
         }
+        .task {
+            let storefrontUpdates = AsyncStream<Void> { continuation in
+                let updatesTask = Task { @MainActor in
+                    for await storefront in Storefront.updates {
+                        AppState.shared.recordStorefrontCountryCode(storefront.countryCode)
+                        continuation.yield(())
+                    }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in updatesTask.cancel() }
+            }
+            var updatesIterator = storefrontUpdates.makeAsyncIterator()
+            await Task.yield()
+            await refreshStorefrontEligibility()
+            while await updatesIterator.next() != nil {
+                await refreshStorefrontEligibility()
+            }
+        }
         .sheet(isPresented: $showRetention) {
             RetentionOfferSheet { customerInfo in
                 showRetention = false
                 onPurchaseSuccess(customerInfo)
             }
+        }
+    }
+
+    @MainActor
+    private func refreshStorefrontEligibility() async {
+        while !Task.isCancelled {
+            let currentStorefront = await Storefront.current
+            let countryCode = currentStorefront?.countryCode
+            appState.recordStorefrontCountryCode(countryCode)
+            let revision = appState.storefrontRevision
+
+            _ = await SubscriptionManager.shared.refreshOfferings()
+            let latestStorefront = await Storefront.current
+            appState.recordStorefrontCountryCode(latestStorefront?.countryCode)
+            guard PaywallOfferingSelection.isUnchangedStorefrontRevision(
+                startingRevision: revision,
+                currentRevision: appState.storefrontRevision
+            ) else { continue }
+            guard latestStorefront?.countryCode.uppercased() == countryCode?.uppercased() else {
+                continue
+            }
+            return
         }
     }
 
@@ -339,45 +379,68 @@ struct PaywallVariantBView: View {
     private func scheduleReloadTimeout() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             if packages.isEmpty { showReloadAfterTimeout = true }
-            Task { await SubscriptionManager.shared.refreshOfferings() }
+            Task { await refreshStorefrontEligibility() }
         }
     }
 
     private func purchase() {
         guard let package = selectedPackage else { return }
+        let isLifetimePackage = package.packageType == .lifetime
+        let purchaseStorefrontRevision = appState.storefrontRevision
         isPurchasing = true
         errorMessage = nil
 
-        Task {
+        Task { @MainActor in
+            let currentStorefront = isLifetimePackage ? await Storefront.current : nil
+            let currentPackages = appState.cachedOffering?.availablePackages ?? []
+            let storefrontIsCurrent = !isLifetimePackage || (
+                PaywallOfferingSelection.isUnchangedStorefrontRevision(
+                    startingRevision: purchaseStorefrontRevision,
+                    currentRevision: appState.storefrontRevision
+                ) && PaywallStorefrontEligibility.sameStorefront(
+                    first: currentStorefront?.countryCode,
+                    second: appState.currentStorefrontCountryCode
+                )
+            )
+            let canPurchase = storefrontIsCurrent && PaywallStorefrontEligibility.allowsPurchase(
+                packageIsLifetime: isLifetimePackage,
+                packageIsCurrent: PaywallPackageSelection.containsCurrentInstance(package, in: currentPackages),
+                countryCode: currentStorefront?.countryCode,
+                offeringCountryCode: appState.cachedOfferingStorefrontCountryCode
+            )
+            guard canPurchase else {
+                isPurchasing = false
+                if isLifetimePackage {
+                    appState.recordStorefrontCountryCode(currentStorefront?.countryCode)
+                }
+                synchronizePackageSelection()
+                await refreshStorefrontEligibility()
+                return
+            }
+
             do {
                 let result = try await Purchases.shared.purchase(package: package)
                 if !result.userCancelled {
                     AnalyticsManager.shared.track(.onboardingPaywallPurchased)
-                    await MainActor.run {
-                        isPurchasing = false
-                        onPurchaseSuccess(result.customerInfo)
-                    }
+                    isPurchasing = false
+                    onPurchaseSuccess(result.customerInfo)
                 } else {
-                    await MainActor.run {
-                        isPurchasing = false
-                        if !hasShownRetention {
-                            hasShownRetention = true
-                            showRetention = true
-                        }
+                    isPurchasing = false
+                    if !hasShownRetention {
+                        hasShownRetention = true
+                        showRetention = true
                     }
                 }
             } catch {
-                await MainActor.run {
-                    isPurchasing = false
-                    if let rcError = error as? RevenueCat.ErrorCode,
-                       rcError == .purchaseCancelledError {
-                        if !hasShownRetention {
-                            hasShownRetention = true
-                            showRetention = true
-                        }
-                    } else {
-                        errorMessage = error.localizedDescription
+                isPurchasing = false
+                if let rcError = error as? RevenueCat.ErrorCode,
+                   rcError == .purchaseCancelledError {
+                    if !hasShownRetention {
+                        hasShownRetention = true
+                        showRetention = true
                     }
+                } else {
+                    errorMessage = error.localizedDescription
                 }
             }
         }

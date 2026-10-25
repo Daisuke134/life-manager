@@ -29,6 +29,7 @@ DELIVERY_SCHEMA_VERSION = "marketing.owner-delivery.v1"
 PRODUCTS = (
     "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
     "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en",
+    "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful",
 )
 _PRODUCT_DISPLAY_NAMES = {
     "anicca-ios": "Anicca iOS",
@@ -39,6 +40,10 @@ _PRODUCT_DISPLAY_NAMES = {
     "micro-mood": "Micro-Mood",
     "ebook-ja": "日本語電子書籍",
     "ebook-en": "英語電子書籍",
+    "dhamma-quotes": "Daily Dhamma",
+    "sleep-reset": "Sleep Reset",
+    "studio-cherie": "STUDIO CHERIE",
+    "thankful": "Thankful",
 }
 _PLATFORM_DISPLAY_NAMES = {
     "instagram": "Instagram",
@@ -50,6 +55,7 @@ _PLATFORM_DISPLAY_NAMES = {
 _SOURCE_DISPLAY_NAMES = {
     "app_store_connect": "App Store Connect",
     "app_store_sales": "Appleの売上データ",
+    "app_store_subscriptions": "Appleの購読データ",
     "revenuecat": "RevenueCat",
     "product_analytics": "アプリ内分析",
     "posthog": "PostHog",
@@ -781,6 +787,8 @@ def _business_facts(row: dict) -> dict:
         "mrr_source": "revenuecat" if revenuecat.get("status") == "available" and mrr is not None else None,
         "mrr_reason": None,
         "active_subscriptions": active,
+        "apple_active_standard_price_subscriptions": None,
+        "apple_subscriptions_business_date": None,
         "active_trials": active_trials,
         "revenue_28d": revenue_28d if revenuecat.get("status") == "available" else None,
         "sources": {},
@@ -790,6 +798,14 @@ def _business_facts(row: dict) -> dict:
         "money_minor": None,
         "money_metric": None,
     }
+    subscriptions = sources.get("app_store_subscriptions")
+    if isinstance(subscriptions, dict) and subscriptions.get("status") == "available":
+        data = subscriptions.get("data")
+        facts["apple_active_standard_price_subscriptions"] = _first_number(
+            data, ("active_standard_price_subscriptions",)
+        )
+        if isinstance(data, dict):
+            facts["apple_subscriptions_business_date"] = data.get("business_date")
     if revenuecat.get("status") == "available" and mrr is None:
         facts["mrr_reason"] = "revenuecat_mrr_missing"
     elif revenuecat.get("status") != "available":
@@ -891,6 +907,8 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
                 "mrr_source": None,
                 "mrr_reason": "no_business_snapshot",
                 "active_subscriptions": None,
+                "apple_active_standard_price_subscriptions": None,
+                "apple_subscriptions_business_date": None,
                 "active_trials": None,
                 "revenue_28d": None,
                 "paid_orders": None,
@@ -1393,6 +1411,11 @@ def render_japanese(event: dict) -> str:
                 )
             else:
                 lines.append(f"売上は{_reason_text(reason)}。")
+        apple_active = facts.get("apple_active_standard_price_subscriptions")
+        if apple_active is not None:
+            source_date = facts.get("apple_subscriptions_business_date")
+            date_label = f"{source_date}時点" if source_date else "対象日不明"
+            lines.append(f"Appleの通常価格での有効購読数は{apple_active}件（{date_label}）。")
         installs_7d = facts.get("installs_7d")
         if installs_7d is not None:
             lines.append(f"直近7日の新規ダウンロード数は{installs_7d}件（App Store Connect）。")

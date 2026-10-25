@@ -1,0 +1,231 @@
+{
+  "schema_version": 2,
+  "project": "Keiki x Maritime — The First 1000 / Life Manager Cloud",
+  "observed_at": "2026-10-24T09:53:45Z",
+  "source_repository": "Daisuke134/life-manager",
+  "source_main_sha": "af2967f2768e0aa7cecd05bd0b8404b1fbb48219",
+  "as_is": {
+    "competition": {
+      "accepted": true,
+      "accepted_evidence": "Gmail acceptance email 1a14789283086cfc, received 2026-10-17T01:45:30Z",
+      "program_start": "2026-10-20",
+      "program_end": "2026-12-01T23:59:00-08:00",
+      "official_terms": "https://competition.maritime.sh/terms",
+      "final_qualifier": "first three projects to reach 1,000 distinct real users, subject to verification",
+      "usage_verification": "project-level usage on Keiki or Maritime; fake, duplicate, bot and fabricated activity do not qualify",
+      "round_one_announcement": "https://x.com/onkeiki/status/2112658078797791251",
+      "round_one_announcement_text": "2026-10-20: seven days to build an agent people actually text; top 30 teams move on",
+      "exact_round_one_cutoff": null,
+      "top_30_rubric": null,
+      "formal_project_form": null,
+      "top_30_result": null,
+      "notes": "Official public terms, announcements and accessible competition Slack do not disclose the exact round-one cutoff, selection rubric or project form. Approximate October 27 from the seven-day announcement is not an official exact cutoff.",
+      "slack": {
+        "workspace": "Keiki X Maritime",
+        "channels": {
+          "announcements": "https://keikixmaritime.slack.com/archives/C0C99TP2GBZ",
+          "help": "https://keikixmaritime.slack.com/archives/C0CAKQ6QNAU",
+          "submissions": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA"
+        },
+        "existing_project_post": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
+        "existing_project_post_time": "2026-10-21T05:09:07Z",
+        "help_question": "https://keikixmaritime.slack.com/archives/C0CAKQ6QNAU/p1792559573072309",
+        "help_question_time": "2026-10-21T05:12:53Z",
+        "reply_as_of": "2026-10-24T09:29:25Z",
+        "organizer_reply_found": false,
+        "channel_notice": "Posting in competition-submissions does not replace a required submission form."
+      },
+      "office_hours": {
+        "time": "2026-10-25T10:00:00+09:00",
+        "duration_minutes": 15,
+        "invitee": "Dais",
+        "organizer": "Darshan Golchha",
+        "dais_invited": true,
+        "dais_rsvp": "needsAction",
+        "requested_host": "Nizzy",
+        "requested_host_invited": false,
+        "requested_host_status": "pending_availability_confirmation",
+        "evidence_message_id": "1a16c2c03fa52510",
+        "subject": "Office hours: Dais — Nizzy requested (Keiki x Maritime)"
+      }
+    },
+    "product": {
+      "current_product": "Life Manager Cloud, an early pilot for a personal manager that selects bounded work, executes it and reports verified outcomes by email.",
+      "pilot_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+      "pilot_and_article_last_direct_readback": "2026-10-24T09:39Z",
+      "pilot_http_status": 200,
+      "article_url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
+      "article_http_status": 200,
+      "last_source_pr_readback": {
+        "observed_at": "2026-10-24T09:53:45Z",
+        "url": "https://github.com/Daisuke134/life-manager/pull/8745",
+        "state": "OPEN_DRAFT",
+        "head_sha": "764be4c2b15b297134c79e3b147d4e49e74aed7f",
+        "scope": "bounded trusted Capafy prepare/publish job chain and report slice",
+        "production_applied": false,
+        "trusted_tenant_binding_and_host_executor_complete": false,
+        "automatic_enqueue_caller_complete": false,
+        "base_sha": "5904b05b624a9b5216ac9f53d2a33d24a060cf5c",
+        "current_main_sha": "af2967f2768e0aa7cecd05bd0b8404b1fbb48219",
+        "base_is_current_main": false
+      },
+      "end_to_end": {
+        "owner_email_pkce": "pending_owner",
+        "explicit_maritime_retention_consent": "pending_owner",
+        "tenant_bound_provider_account": "unverified",
+        "hosted_business_action": "unverified",
+        "official_external_action_receipt": "unverified",
+        "daily_result_email_receipt": "unverified",
+        "stop_and_replay_zero": "unverified"
+      },
+      "current_enrollments": null,
+      "current_completed_work_users": null,
+      "current_official_usage_users": null,
+      "current_costs": null,
+      "unknown_reason": "No fresh authoritative live application database, business usage, official platform usage or billing readback was obtained on 2026-10-24. Null is unknown, not zero.",
+      "previous_deployment_readback_20261023": {
+        "observed_at": "2026-10-23T14:11:12Z",
+        "app_source_sha": "3c07308015c41de9399f08c40b17ba9e5df135e7",
+        "life_call_deployment_id": "7a2defb2-594d-410f-83c3-e8fd2743c073",
+        "worker_deployment_id": "367179b2-ab34-455b-af77-6ab6faccfd23",
+        "status": "SUCCESS",
+        "replicas": "1/1"
+      },
+      "current_railway_readback": {
+        "observed_at": "2026-10-24T09:43:20Z",
+        "project": "Anicca",
+        "project_id": "f9c524cb-ba4a-43bb-9639-ff736afd9ec1",
+        "environment": "production",
+        "environment_id": "039eb0fd-b017-458f-947d-f3f55a0b3c04",
+        "main_sha": "b0e05bfde59264eb4dc99deb0d197fb35fcc4f99",
+        "life_call": {
+          "service_id": "ca978c74-639a-4fa1-af22-9cdd53c3f615",
+          "deployment_id": "775fcbc4-ab56-4f37-8e38-f8c5665fb5ea",
+          "deployment_commit": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+          "deployment_created_at": "2026-10-24T08:38:40.406Z",
+          "status": "SUCCESS",
+          "state": "online",
+          "replicas": "1/1",
+          "health_http_status": 200,
+          "health_build": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+          "recent_failures": 1,
+          "last_recent_failure_id": "b8914e73-9666-40c2-8f17-1856a58238f7",
+          "last_recent_failure_created_at": "2026-10-24T07:00:46.958Z",
+          "active_warning_count": 0,
+          "active_critical_count": 0
+        },
+        "worker": {
+          "service_id": "7568c101-558a-4704-9956-dd523c5bb3d4",
+          "deployment_id": "0e4e6664-3a90-4f02-899c-c483b6ae1a9a",
+          "deployment_commit": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+          "deployment_created_at": "2026-10-24T08:38:40.406Z",
+          "status": "SUCCESS",
+          "state": "online",
+          "replicas": "1/1",
+          "recent_failures": 0
+        },
+        "app_directory_diff_between_deployed_sha_and_main": [],
+        "maritime_runtime_image_sha": null,
+        "maritime_runtime_image_sha_unknown_reason": "Railway status/config confirms app deployment only; no separate trusted Maritime image/runtime readback was obtained in this pass.",
+        "last_main_deploy_attempt_observed": {
+          "deployment_id": "0dda296b-ad09-423f-afa4-1ef19f605cb6",
+          "commit": "b0e05bfde59264eb4dc99deb0d197fb35fcc4f99",
+          "status": "SKIPPED",
+          "created_at": "2026-10-24T09:25:39.043Z"
+        },
+        "note_after_newer_main_readback": "origin/main af2967f was read at 09:53Z; no newer Railway status was read after that docs-only main commit. The deployed apps/life-manager tree remains identical to this current main."
+      }
+    },
+    "distribution": {
+      "language_policy": "English primary for global product, submissions, demos and new launch assets.",
+      "x_posts": [
+        {
+          "account": "@selawmqt",
+          "language": "English",
+          "status": "PUBLISHED_READ_BACK",
+          "url": "https://x.com/selawmqt/status/2113662565427691959",
+          "destination": "https://life-call-production.up.railway.app/maritime?lang=en&source=x&utm_source=x&utm_medium=social&utm_campaign=maritime-week1&utm_content=selawmqt",
+          "destination_http_status": 200,
+          "verified_at": "2026-10-23T16:16:28Z",
+          "copy_discloses_early_pilot_and_unverified_hosted_work_to_email": true
+        },
+        {
+          "account": "@diceai0",
+          "language": "Japanese awareness post linking to English post",
+          "status": "PUBLISHED_READ_BACK",
+          "url": "https://x.com/diceai0/status/2113665171407437975",
+          "published_at": "2026-10-23T16:13:51Z",
+          "independent_language_attribution": false,
+          "verified_at": "2026-10-23T16:19:51Z"
+        }
+      ],
+      "blog_article": {
+        "status": "LIVE_READ_BACK",
+        "url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
+        "http_status": 200,
+        "last_verified_at": "2026-10-23T15:54:00Z"
+      },
+      "instagram": {
+        "status": "BLOCKED",
+        "account": "anicca.en",
+        "blocker": "account reconnection requires owner SMS action",
+        "prepared_asset": "English early-pilot reel/caption",
+        "published_receipt": null
+      },
+      "threads": {
+        "status": "PENDING_RECEIPT",
+        "owner": "Muse",
+        "action": "Muse was instructed to publish one English introduction only after confirming existing-account access and no duplicate; publish receipt remains unverified",
+        "permalink": null,
+        "published_post_verified": false
+      },
+      "acquisition_and_usage_metrics": {
+        "impressions": null,
+        "tracked_visits": null,
+        "verified_signups": null,
+        "distinct_real_users": null,
+        "completed_work_users": null,
+        "repeat_users": null,
+        "official_keiki_or_maritime_usage": null,
+        "costs": null,
+        "unknown_reason": "No fresh analytics or platform usage readback was available."
+      }
+    },
+    "submission": {
+      "existing_slack_entry": true,
+      "formal_required_form": null,
+      "formal_receipt": null,
+      "submission_status": "UNCONFIRMED",
+      "duplicate_project_post_sent": false
+    }
+  },
+  "tracker_rules": {
+    "status_values": [
+      "DONE",
+      "IN_PROGRESS",
+      "BLOCKED_OWNER_ACTION",
+      "UNKNOWN",
+      "NOT_STARTED"
+    ],
+    "null_means": "not authoritatively read; never silently convert to zero",
+    "official_user_count": "only distinct real users supported by Keiki or Maritime project usage; signup, impressions, agent count and subagents are not qualifying users",
+    "source_of_truth": "canonical integrated spec section Keiki x Maritime — The First 1000",
+    "implementation_steps": "docs/superpowers/plans/2026-10-24-maritime-finish-plan.md",
+    "immutable_observations": "this dated readback"
+  },
+  "next_gate": "Confirm round-one cutoff, Top 30 rubric, official submission route and whether the existing Slack post is sufficient at the organizer office-hours slot booked for 2026-10-25 10:00 JST; in parallel get a truthful first hosted work-to-email cycle and measured first-user funnel.",
+  "changes_in_this_readback": {
+    "posts_created": 0,
+    "submissions_created": 0,
+    "production_changes": 0,
+    "user_auth_or_consent_changes": 0,
+    "paid_spend": 0
+  },
+  "source_main_sha_observed_at": "2026-10-24T09:53:45Z",
+  "latest_main_app_tree_readback": {
+    "observed_at": "2026-10-24T09:53:45Z",
+    "main_sha": "af2967f2768e0aa7cecd05bd0b8404b1fbb48219",
+    "deployed_app_sha": "8e0e6f2ecfee7b196edb36f7f4626f47e1e25ddf",
+    "diff_paths_under_apps_life_manager": []
+  }
+}

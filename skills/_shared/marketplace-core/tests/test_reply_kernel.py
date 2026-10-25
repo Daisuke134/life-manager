@@ -2,6 +2,8 @@ import importlib.util
 from contextlib import contextmanager
 import json
 from pathlib import Path
+import subprocess
+import sys
 import threading
 
 import pytest
@@ -1382,6 +1384,35 @@ def test_chat_id_reads_declared_provider_config_without_repo_literal(tmp_path):
     config.write_text("CROWDWORKS_REPORT_CHAT=operator-chat\n", encoding="utf-8")
     assert reply_kernel._chat_id("", config) == "operator-chat"
     assert reply_kernel._chat_id("explicit", config) == "explicit"
+
+
+@pytest.mark.parametrize("key", ["CROWDWORKS_REPORT_CHAT", "LANCERS_REPORT_CHAT", "GIG_REPORT_CHAT", "JOB_SEARCH_TELEGRAM_CHAT_ID"])
+@pytest.mark.parametrize("assignment", ["{key}=-123", '{key}="-123"', "export {key}='-123'"])
+def test_chat_id_uses_the_shared_env_quote_and_export_contract(tmp_path, key, assignment):
+    config = tmp_path / "telegram.env"
+    config.write_text(assignment.format(key=key) + "\n")
+    assert reply_kernel._chat_id("", config) == "-123"
+    assert reply_kernel._chat_id(" explicit ", config) == "explicit"
+
+
+def test_chat_id_parser_works_without_the_repository_on_python_path(tmp_path):
+    config = tmp_path / "telegram.env"
+    config.write_text('export JOB_SEARCH_TELEGRAM_CHAT_ID="123"\n')
+    code = ("import importlib.util,pathlib; "
+            f"s=importlib.util.spec_from_file_location('kernel', {str(MODULE.resolve())!r}); "
+            "m=importlib.util.module_from_spec(s); s.loader.exec_module(m); "
+            f"print(m._chat_id('',pathlib.Path({str(config)!r})))")
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", code], cwd=tmp_path,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "123"
+
+
+def test_chat_id_missing_file_and_missing_provider_key_remain_empty(tmp_path):
+    config = tmp_path / "telegram.env"
+    assert reply_kernel._chat_id("", config) == ""
+    config.write_text("OTHER_CHAT=123\n")
+    assert reply_kernel._chat_id("", config) == ""
 
 
 def test_pre_effect_readback_must_prove_authoritative_absence(tmp_path):

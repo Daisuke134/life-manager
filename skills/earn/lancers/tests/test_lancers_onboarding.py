@@ -9,6 +9,7 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+from types import SimpleNamespace
 import urllib.request
 
 import pytest
@@ -123,7 +124,7 @@ def _browser(module, monkeypatch, *, snapshot=None, snapshots=None, failure=None
     monkeypatch.setattr(cdp, "_browser_call", call)
     monkeypatch.setattr(cdp, "evaluate", evaluate)
     monkeypatch.setattr(module, "_load_cdp", lambda: cdp)
-    monkeypatch.setattr(module.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(module, "time", SimpleNamespace(sleep=lambda *_: None))
     return cdp, events
 
 
@@ -223,7 +224,8 @@ def test_same_account_preserves_existing_private_profile_keys(isolated_home):
     assert "private-existing-proof" not in json.dumps(module.ready(isolated_home))
 
 
-@pytest.mark.parametrize("corruption", ["account", "binding", "snapshot", "digest", "missing", "broken"])
+@pytest.mark.parametrize("corruption", ["account", "binding", "binding_missing", "binding_malformed",
+                                     "snapshot", "digest", "missing", "broken"])
 def test_ready_requires_current_same_account_and_matching_digest(isolated_home, corruption):
     module = _load()
     assert module.ready(isolated_home)["error"] == "setup_required"
@@ -235,6 +237,10 @@ def test_ready_requires_current_same_account_and_matching_digest(isolated_home, 
         profile["account_id"] = "someone-else"
     elif corruption == "binding":
         profile["account_binding"]["observation_sha256"] = "b" * 64
+    elif corruption == "binding_missing":
+        profile.pop("account_binding")
+    elif corruption == "binding_malformed":
+        profile["account_binding"] = []
     elif corruption == "snapshot":
         latest["snapshot"]["ready"] = "loading"
     elif corruption == "digest":
@@ -247,6 +253,33 @@ def test_ready_requires_current_same_account_and_matching_digest(isolated_home, 
     if corruption not in {"missing", "broken"}:
         _observation(isolated_home).write_text(json.dumps(latest))
     assert module.ready(isolated_home)["error"] == "setup_required"
+
+
+def test_ready_reads_each_binding_input_once_without_writing_or_exposing_account(isolated_home, monkeypatch):
+    module = _load()
+    module.connect(isolated_home, _snapshot())
+    paths = {_profile(isolated_home), _observation(isolated_home)}
+    previous = {path: path.read_bytes() for path in paths}
+    reads = []
+    original_read = Path.read_text
+
+    def read(path, *args, **kwargs):
+        assert path in paths, "ready read an unrelated private input"
+        reads.append(path)
+        return original_read(path, *args, **kwargs)
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("ready must not write binding or invoke browser")
+
+    monkeypatch.setattr(Path, "read_text", read)
+    monkeypatch.setattr(module, "_write_private", forbidden)
+    monkeypatch.setattr(module, "_load_cdp", forbidden)
+    monkeypatch.setattr(module.subprocess, "run", forbidden)
+
+    assert module.ready(isolated_home) == {"ok": True, "status": "account_connected"}
+    assert len(reads) == 2
+    assert set(reads) == paths
+    assert {path: path.read_bytes() for path in paths} == previous
 
 
 def test_unleased_observe_invalidates_old_success_before_any_guard_or_cdp(isolated_home, monkeypatch):
@@ -497,22 +530,27 @@ def test_import_does_not_read_private_input_or_invoke_browser(isolated_home, mon
     assert list(isolated_home.iterdir()) == []
 
 
-@pytest.mark.parametrize("summary_links,challenge,want", [
-    (["https://www.lancers.jp/profile/other-seller"], False, "other-seller"),
+@pytest.mark.parametrize("summary_links,title,body,want", [
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "PRIVATE-DOM", "other-seller"),
     (["https://www.lancers.jp/profile/other-seller"] * 4 + [
         "https://www.lancers.jp/profile/other-seller/feedback/0/win",
         "https://www.lancers.jp/profile/other-seller/proposal",
         "https://www.lancers.jp/profile/other-seller/feedback/0/feedback",
-    ] * 2, False, "other-seller"),
-    ([], False, None),
-    (["https://www.lancers.jp/profile/other-seller"], True, None),
+    ] * 2, "Mypage", "PRIVATE-DOM", "other-seller"),
+    ([], "Mypage", "PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Human Verification", "PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "This site uses reCAPTCHA. PRIVATE-DOM", "other-seller"),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "captcha PRIVATE-DOM", "other-seller"),
+    (["https://www.lancers.jp/profile/other-seller"], "CAPTCHA verification", "PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "Verify that you are human. PRIVATE-DOM", None),
+    (["https://www.lancers.jp/profile/other-seller"], "Mypage", "ユーザーが人間であることを確認する PRIVATE-DOM", None),
 ])
-def test_dom_snapshot_reads_summary_links_without_page_text(isolated_home, summary_links, challenge, want):
+def test_dom_snapshot_reads_summary_links_without_page_text(isolated_home, summary_links, title, body, want):
     module = _load()
     script = r'''
 const vm = require('node:vm'), input = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
-const document = {readyState:'complete', title:input.challenge ? 'Human Verification' : 'Mypage',
-  body:{innerText:'PRIVATE-DOM'},
+const document = {readyState:'complete', title:input.title,
+  body:{innerText:input.body},
   querySelector: () => null,
   querySelectorAll: selector => selector === '.mypage.result-summary a[href*="/profile/"]'
     ? input.links.map(href => ({href})) : [{href:'https://www.lancers.jp/profile/someone-else'}],
@@ -521,7 +559,7 @@ const location = {origin:'https://www.lancers.jp', pathname:'/mypage', href:'htt
 process.stdout.write(JSON.stringify(vm.runInNewContext(input.expression, {document, location, URL, JSON})));
 '''
     completed = subprocess.run(["node", "-e", script], input=json.dumps({
-        "expression": module.EXPRESSION, "links": summary_links, "challenge": challenge}),
+        "expression": module.EXPRESSION, "links": summary_links, "title": title, "body": body}),
         capture_output=True, text=True, timeout=10, check=True)
     snapshot = json.loads(completed.stdout)
     assert module.observed_account(snapshot) == want

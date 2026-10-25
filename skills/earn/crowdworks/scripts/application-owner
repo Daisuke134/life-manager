@@ -10,6 +10,12 @@ if [[ ! -x "$PYTHON" ]]; then
   echo "Life Manager runtime Python is missing; run scripts/bootstrap.sh first" >&2
   exit 69
 fi
+ACCOUNT_ID="$("$PYTHON" "$ROOT/skills/earn/crowdworks/scripts/profile.py" account-id)" || {
+  IDENTITY_RC=$?
+  printf '%s\n' "$ACCOUNT_ID"
+  exit "$IDENTITY_RC"
+}
+
 exec "$LOCK_PYTHON" "$ROOT/skills/browser/scripts/run_with_file_lock.py" \
   --non-blocking \
   "$STATE_ROOT/provider-browser.lock" -- \

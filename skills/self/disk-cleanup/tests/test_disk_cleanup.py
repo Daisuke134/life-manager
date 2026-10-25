@@ -748,7 +748,7 @@ def test_stale_pytest_final_open_probe_is_fresh(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
     opened = [False]
     calls = []
-    def snapshot():
+    def snapshot(**_kwargs):
         calls.append(opened[0])
         return frozenset({str(payload)}) if opened[0] else frozenset()
     cached_snapshot = disk_cleanup.lru_cache(maxsize=1)(snapshot)
@@ -2382,6 +2382,60 @@ def test_exact_cache_probe_reports_closed_from_global_lsof_snapshot(tmp_path: Pa
     assert disk_cleanup._default_lsof(cache) == "confirmed-closed"
     assert calls == [["/usr/sbin/lsof", "-nP", "-Fn"]]
     disk_cleanup._open_paths.cache_clear()
+
+
+@pytest.mark.parametrize("condition", ["closed", "no-time", "initial-timeout", "final-timeout", "reserve-spent"])
+def test_native_cache_probes_use_remaining_deadline_without_weakening_closed_proof(
+    tmp_path: Path, monkeypatch, condition: str,
+) -> None:
+    cache = tmp_path / ".npm/_cacache"
+    cache.mkdir(parents=True)
+    (cache / "artifact").write_bytes(b"generated package cache")
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: tmp_path)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (tmp_path,))
+    clock = [0.0]
+    timeouts = []
+
+    def native_probe(argv, **kwargs):
+        assert argv == ["/usr/sbin/lsof", "-nP", "-Fn"]
+        timeouts.append(kwargs["timeout"])
+        clock[0] += 0.1
+        phase = len(timeouts)
+        if ((condition == "initial-timeout" and phase == 1)
+                or (condition == "final-timeout" and phase == 2)):
+            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+        if condition == "reserve-spent" and phase == 2:
+            clock[0] = 5.1
+        return SimpleNamespace(returncode=0, stdout="p123\nn/tmp/unrelated\n", stderr="")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", native_probe)
+    disk_cleanup._open_paths.cache_clear()
+    governor = HostDiskGovernor(
+        home=tmp_path, state_dir=tmp_path / "state",
+        usage=lambda: (0, 1), clock=lambda: clock[0],
+    )
+    try:
+        result = governor.sweep([{
+            "path": cache, "class": "regenerable_output", "owner": "npm-cache",
+            "discovery": "allowlisted",
+        }], deadline=5.0 if condition == "no-time" else 10.0,
+            post_sweep_reserve_seconds=5.0, write_receipt=False)
+    finally:
+        disk_cleanup._open_paths.cache_clear()
+
+    assert len(timeouts) == (0 if condition == "no-time" else 1 if condition == "initial-timeout" else 2)
+    assert all(0 < timeout <= 5 for timeout in timeouts)
+    assert timeouts == pytest.approx([5.0, 4.9][:len(timeouts)])
+    if condition == "closed":
+        assert not cache.exists()
+        assert result["reclaimed"] > 0
+        assert result["errors"] == result["protected_deletions"] == 0
+    else:
+        assert cache.is_dir()
+        assert result["reclaimed"] == result["protected_deletions"] == 0
+        assert result["errors"] == int(condition.endswith("timeout"))
+        reason = "probe-error" if condition.endswith("timeout") else "probe-budget-exhausted"
+        assert result["preserved_reasons"] == {reason: 1}
 
 
 def test_exact_cache_probe_fails_closed_when_global_lsof_reports_stderr(tmp_path: Path, monkeypatch) -> None:
@@ -4675,3 +4729,51 @@ def test_low_disk_alert_failure_never_raises(tmp_path: Path) -> None:
     def broken(_text: str) -> None:
         raise OSError("network down")
     assert disk_cleanup._low_disk_alert(_alert_result(5.0), tmp_path, send=broken, now=1.0)["status"] == "failed"
+
+
+def test_sweep_retires_anicca_products_sibling_root_worktree(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    repo = home / "Projects" / "anicca-products"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(cwd), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / "README.md").write_text("base\n")
+    git(repo, "add", "README.md")
+    git(repo, "commit", "-m", "base")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", head)
+    git(repo, "remote", "add", "origin", str(repo))
+    root = home / "Projects" / "anicca-products-worktrees"
+    root.mkdir()
+
+    def add(name: str) -> Path:
+        path = root / name
+        git(repo, "worktree", "add", "--detach", str(path), head)
+        return path
+
+    safe = add("safe")
+    dirty = add("dirty")
+    (dirty / "README.md").write_text("uncommitted\n")
+    untracked = add("untracked")
+    (untracked / "progress.txt").write_text("uncommitted\n")
+    locked = add("locked")
+    git(repo, "worktree", "lock", "--reason", "active owner", str(locked))
+
+    governor = HostDiskGovernor(home=home, state_dir=home / "state",
+                                lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "zombie-worktree"]
+    assert [Path(item["path"]) for item in candidates] == [safe]
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert result["worktrees_retired"] == 1, result
+    assert not safe.exists()
+    assert str(safe) not in git(repo, "worktree", "list", "--porcelain")
+    assert dirty.exists() and untracked.exists() and locked.exists()

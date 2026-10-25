@@ -603,7 +603,7 @@ def build(argv: list[str]):
     )
     parser.add_argument(
         "--provider-profile", type=Path,
-        default=Path.home() / ".config/anicca/crowdworks/public-profile.json",
+        default=Path.home() / ".config/anicca/lancers/public-profile.json",
     )
     args = parser.parse_args(argv)
     state_path = args.state_path.expanduser().resolve()

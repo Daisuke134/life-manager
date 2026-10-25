@@ -1012,12 +1012,17 @@ def _chat_id(value: str, config: Path | None) -> str:
     if config is None:
         return ""
     try:
-        lines = config.expanduser().read_text(encoding="utf-8").splitlines()
+        import sys
+        path = Path(__file__).resolve().parents[2] / "telegram.py"
+        spec = importlib.util.spec_from_file_location("marketplace_reply_telegram_config", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        values = module._parse_env_file(config.expanduser())
     except OSError:
         return ""
-    for raw in lines:
-        name, separator, candidate = raw.partition("=")
-        if separator and name.strip() in {"CROWDWORKS_REPORT_CHAT", "LANCERS_REPORT_CHAT", "GIG_REPORT_CHAT", "JOB_SEARCH_TELEGRAM_CHAT_ID"}:
+    for name, candidate in values.items():
+        if name in {"CROWDWORKS_REPORT_CHAT", "LANCERS_REPORT_CHAT", "GIG_REPORT_CHAT", "JOB_SEARCH_TELEGRAM_CHAT_ID"}:
             if candidate.strip():
                 return candidate.strip()
     return ""

@@ -28,9 +28,12 @@ from typing import Any, Iterable
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT.parents[2]))
+from skills._shared.mobile_products import PUBLIC_MOBILE_PRODUCT_BINDINGS  # noqa: E402
 sys.path.insert(0, str(ROOT / "gates"))
 from product_router import canonical_product_id  # noqa: E402
 DEFAULT_ENV = Path.home() / ".local" / "state" / "life-manager" / ".env"
+CREDENTIALS_FILE = Path.home() / ".local" / "share" / "anicca" / "credentials.json"
 
 
 def default_storage_paths(environment: dict[str, str] | None = None) -> tuple[Path, Path]:
@@ -46,18 +49,8 @@ DEFAULT_STATE, DEFAULT_EVIDENCE = default_storage_paths()
 
 PRODUCTS = {
     "life-manager-cloud": {"web_funnel": True},
-    "anicca-ios": {
-        "asc_app_id": "6755129214",
-        "asc_sku": "anicca-ios-001",
-        "revenuecat_app_id": "app511ef26659",
-        "analytics": "mixpanel",
-    },
-    "honne-ai": {
-        "asc_app_id": "6759667221",
-        "asc_sku": "app.rork.hon-ne-honyaku-ai",
-        "revenuecat_app_id": "app3bbd298d22",
-        "analytics": None,
-    },
+    "anicca-ios": PUBLIC_MOBILE_PRODUCT_BINDINGS["anicca-ios"],
+    "honne-ai": PUBLIC_MOBILE_PRODUCT_BINDINGS["honne-ai"],
     "breath-reset": {
         "asc_app_id": "6760253231",
         "asc_sku": "breathcalm-test-001",
@@ -82,28 +75,12 @@ PRODUCTS = {
         "revenuecat_app_id": "appdda58236fa",
         "analytics": None,
     },
-    # Vendor apps with Sales report rows but no app in the RevenueCat project
-    # (RevenueCat is recorded unavailable for them, never zero).
-    "dhamma-quotes": {
-        "asc_app_id": "6757726663",
-        "asc_sku": "dailydhamma",
-        "analytics": None,
-    },
-    "sleep-reset": {
-        "asc_app_id": "6762143790",
-        "asc_sku": "app.rork.vcinrjbl3ke00f07gtlzf",
-        "analytics": None,
-    },
-    "studio-cherie": {
-        "asc_app_id": "6766485903",
-        "asc_sku": "app.rork.xhozd938ie79zdqd5plem",
-        "analytics": None,
-    },
-    "thankful": {
-        "asc_app_id": "6759514159",
-        "asc_sku": "app.rork.thankful-gratitude-app",
-        "analytics": None,
-    },
+    # Public vendor apps use separate RevenueCat projects when verified.
+    # Studio remains ASC-only; missing sources are unavailable, never zero.
+    "dhamma-quotes": PUBLIC_MOBILE_PRODUCT_BINDINGS["dhamma-quotes"],
+    "sleep-reset": PUBLIC_MOBILE_PRODUCT_BINDINGS["sleep-reset"],
+    "studio-cherie": PUBLIC_MOBILE_PRODUCT_BINDINGS["studio-cherie"],
+    "thankful": PUBLIC_MOBILE_PRODUCT_BINDINGS["thankful"],
     "ebook-en": {"stripe_product_ids": ["prod_UQ2LTH66Rwict4"]},
     "ebook-ja": {"stripe_product_ids": ["prod_UQ2LrpVy4b1bAY"]},
 }
@@ -595,6 +572,39 @@ def load_env(path: Path = DEFAULT_ENV) -> dict[str, str]:
     return env
 
 
+class RevenueCatCredentialUnavailable(ValueError):
+    """The exact product credential is missing or does not match its scope."""
+
+
+def revenuecat_env(
+    env: dict[str, str], product_id: str, config: dict, *, credentials_path: Path | None = None,
+) -> dict[str, str]:
+    service = config.get("revenuecat_credential_service")
+    if not service:
+        return env
+    try:
+        path = CREDENTIALS_FILE if credentials_path is None else credentials_path
+        data = json.loads(path.read_text(encoding="utf-8"))
+        credentials = data.get("credentials") if isinstance(data, dict) else None
+        matches = [row for row in credentials
+                   if isinstance(row, dict) and row.get("service") == service
+                   ] if isinstance(credentials, list) else []
+        if len(matches) != 1:
+            raise ValueError("credential_not_unique")
+        row = matches[0]
+        key = row.get("api_key")
+        if (row.get("product_id") != product_id
+                or row.get("project_id") != config["revenuecat_project_id"]
+                or row.get("app_id") != config["revenuecat_app_id"]
+                or not isinstance(key, str) or not key.strip()
+                or not key.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in key)):
+            raise ValueError("credential_scope_invalid")
+    except (OSError, ValueError, KeyError):
+        raise RevenueCatCredentialUnavailable("revenuecat_credential_unavailable") from None
+    return {**env, "REVENUECAT_PROJECT_ID": config["revenuecat_project_id"],
+            "REVENUECAT_V2_SECRET_KEY": key}
+
+
 def http_json(
     url: str,
     headers: dict[str, str],
@@ -817,16 +827,19 @@ class AscSalesReportMissing(Exception):
         self.reason = reason
 
 
-def fetch_asc_sales_rows(env: dict[str, str], report_date: str) -> list[dict[str, str]]:
-    """Fetch one day's account-wide ASC Sales Report (every app of the vendor)."""
+def fetch_asc_sales_rows(
+    env: dict[str, str], report_date: str, *, report_type: str = "SALES"
+) -> list[dict[str, str]]:
+    """Fetch one day's account-wide Sales or Subscription Summary report."""
+    version = {"SALES": "1_1", "SUBSCRIPTION": "1_3"}[report_type]
     headers = {**_asc_headers(env), "Accept": "application/a-gzip"}
     query = urllib.parse.urlencode({
         "filter[frequency]": "DAILY",
         "filter[reportDate]": report_date,
         "filter[reportSubType]": "SUMMARY",
-        "filter[reportType]": "SALES",
+        "filter[reportType]": report_type,
         "filter[vendorNumber]": env["ASC_VENDOR_NUMBER"],
-        "filter[version]": "1_1",
+        "filter[version]": version,
     })
     try:
         payload = _http_bytes(
@@ -897,6 +910,48 @@ def collect_asc_sales(
     """
     rows, provenance = read_asc_sales_report(env, business_date)
     return asc_sales_source(rows, app_id, business_date, evidence_dir, provenance)
+
+
+def collect_asc_subscriptions(
+    env: dict[str, str], app_id: str, business_date: str, evidence_dir: Path,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Keep Apple's standard-price active counts; no report/app rows is unknown."""
+    requested_business_date = business_date
+    try:
+        report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
+    except AscSalesReportMissing as error:
+        if error.reason != "report_not_available_yet":
+            raise
+        business_date = (dt.date.fromisoformat(business_date) - dt.timedelta(days=1)).isoformat()
+        report = fetch_asc_sales_rows(env, business_date, report_type="SUBSCRIPTION")
+    fields = {
+        "subscription_id": "Subscription Apple ID",
+        "standard_subscription_duration": "Standard Subscription Duration",
+        "customer_price": "Customer Price",
+        "customer_currency": "Customer Currency",
+        "active_standard_price_subscriptions": "Active Standard Price Subscriptions",
+    }
+    rows = [{key: row.get(column) for key, column in fields.items()}
+            for row in report if row.get("App Apple ID") == app_id]
+    evidence = {"app_id": app_id, "business_date": business_date,
+                "requested_business_date": requested_business_date, "rows": rows}
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"{app_id}-subscriptions-{business_date}.json"
+    evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
+    if not rows:
+        return None, evidence
+    compact = []
+    for row in rows:
+        value = row["active_standard_price_subscriptions"]
+        raw = str(value).strip() if value is not None else ""
+        if not raw.isascii() or not raw.isdecimal():
+            raise ValueError("invalid Active Standard Price Subscriptions")
+        compact.append({**row, "active_standard_price_subscriptions": int(raw)})
+    return {"app_id": app_id, "business_date": business_date,
+            "requested_business_date": requested_business_date, "rows": compact,
+            "active_standard_price_subscriptions": sum(
+                row["active_standard_price_subscriptions"] for row in compact),
+            "evidence_path": str(evidence_path)}, evidence
 
 
 def backfill_asc_sales(
@@ -1006,36 +1061,43 @@ def collect_revenuecat(
             # complete daily point gives the window total, not RevenueCat's
             # single latest per-day value.
             result["charts"][chart]["window_sum"] = sum_complete_chart_points(body, "Revenue")
-    products = revenuecat_products(env).get(app_id, [])
-    if products:
-        chart = "conversion_to_paying"
-        options = http_json(f"{base}/{chart}/options", headers)
-        product_option = next(
-            (item for item in options.get("filters", []) if item.get("id") == "product_id"),
-            None,
-        )
-        allowed = {item.get("id") for item in (product_option or {}).get("options", [])}
-        safe_products = [item for item in products if item in allowed]
-        if safe_products:
-            query = urllib.parse.urlencode({
-                "start_date": start_date,
-                "end_date": end_date,
-                "resolution": "0",
-                "filters": json.dumps(
-                    [{"name": "product_id", "values": safe_products}],
-                    separators=(",", ":"),
-                ),
-            })
-            body = http_json(f"{base}/{chart}?{query}", headers)
-            result["charts"][chart] = {
-                "latest_complete": latest_complete_chart_points(body),
-                "product_ids": safe_products,
-                "evidence_sha256": _json_hash(body),
-            }
+    try:
+        products = revenuecat_products(env).get(app_id, [])
+    except Exception:
+        result["charts"]["conversion_to_paying"] = unavailable_source("product_query_failed")
+        return result
+    try:
+        if products:
+            chart = "conversion_to_paying"
+            options = http_json(f"{base}/{chart}/options", headers)
+            product_option = next(
+                (item for item in options.get("filters", []) if item.get("id") == "product_id"),
+                None,
+            )
+            allowed = {item.get("id") for item in (product_option or {}).get("options", [])}
+            safe_products = [item for item in products if item in allowed]
+            if safe_products:
+                query = urllib.parse.urlencode({
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "resolution": "0",
+                    "filters": json.dumps(
+                        [{"name": "product_id", "values": safe_products}],
+                        separators=(",", ":"),
+                    ),
+                })
+                body = http_json(f"{base}/{chart}?{query}", headers)
+                result["charts"][chart] = {
+                    "latest_complete": latest_complete_chart_points(body),
+                    "product_ids": safe_products,
+                    "evidence_sha256": _json_hash(body),
+                }
+            else:
+                result["charts"][chart] = unavailable_source("products_not_offered_by_chart")
         else:
-            result["charts"][chart] = unavailable_source("products_not_offered_by_chart")
-    else:
-        result["charts"]["conversion_to_paying"] = unavailable_source("no_app_products")
+            result["charts"]["conversion_to_paying"] = unavailable_source("no_app_products")
+    except Exception:
+        result["charts"]["conversion_to_paying"] = unavailable_source("conversion_query_failed")
     return result
 
 
@@ -1116,7 +1178,8 @@ def collect_snapshot(
         else:
             try:
                 data = collect_revenuecat(
-                    env, config["revenuecat_app_id"], start, business_date
+                    revenuecat_env(env, product_id, config),
+                    config["revenuecat_app_id"], start, business_date
                 )
                 source = available_source(data)
                 source["evidence_sha256"] = _json_hash({
@@ -1125,9 +1188,11 @@ def collect_snapshot(
                     "data": source["data"],
                 })
                 sources["revenuecat"] = source
+            except RevenueCatCredentialUnavailable:
+                sources["revenuecat"] = unavailable_source("credential_unavailable")
             except Exception as error:
                 sources["revenuecat"] = unavailable_source(
-                    "provider_query_failed", error=f"{type(error).__name__}: {error}"
+                    "provider_query_failed", error=type(error).__name__
                 )
         try:
             asc = collect_asc(
@@ -1157,6 +1222,21 @@ def collect_snapshot(
             sources["app_store_sales"] = unavailable_source(error.reason, error=str(error))
         except Exception as error:
             sources["app_store_sales"] = unavailable_source(
+                "provider_query_failed", error=f"{type(error).__name__}: {error}"
+            )
+        try:
+            subscriptions, subscription_evidence = collect_asc_subscriptions(
+                env, config["asc_app_id"], business_date,
+                DEFAULT_EVIDENCE / business_date / product_id,
+            )
+            source = (available_source(subscriptions) if subscriptions is not None
+                      else unavailable_source("no_app_rows"))
+            source["evidence_sha256"] = _json_hash(subscription_evidence)
+            sources["app_store_subscriptions"] = source
+        except AscSalesReportMissing as error:
+            sources["app_store_subscriptions"] = unavailable_source(error.reason, error=str(error))
+        except Exception as error:
+            sources["app_store_subscriptions"] = unavailable_source(
                 "provider_query_failed", error=f"{type(error).__name__}: {error}"
             )
         if config.get("analytics") == "mixpanel":

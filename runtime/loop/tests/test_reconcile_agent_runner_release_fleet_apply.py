@@ -286,6 +286,67 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             noop_cutter.chmod(noop_cutter.stat().st_mode | stat.S_IEXEC)
         return release_dir
 
+    def test_fleet_preserves_an_installed_release_without_ancestor_proof(self):
+        for relation in ("newer", "fork", "unavailable", "missing", "malformed"):
+            with self.subTest(relation=relation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, first = self._make_repo(root)
+                target_sha = self._advance_repo(repo)
+                if relation == "fork":
+                    subprocess.run(["git", "checkout", "-b", "separate", first],
+                                   cwd=repo, check=True, capture_output=True)
+                installed_sha = ("f" * 40 if relation == "unavailable" else
+                                 self._advance_repo(repo))
+                release = self._make_release(
+                    root, target_sha, loop_ids=("loop-a", "loop-b"),
+                    labels={"loop-a": "ai.anicca.loop-a"})
+                self._activate(root, release)
+                agents = root / "Library/LaunchAgents"
+                agents.mkdir(parents=True)
+                installed = agents / "ai.anicca.loop-a.plist"
+                previous = plistlib.dumps({"EnvironmentVariables": {
+                    "LIFE_MANAGER_RELEASE_SHA": installed_sha}})
+                if relation == "missing":
+                    previous = plistlib.dumps({"Label": "ai.anicca.loop-a"})
+                elif relation == "malformed":
+                    previous = b"unreadable-plist"
+                installed.write_bytes(previous)
+                calls = root / "calls.log"
+                env = self._base_env(root, repo, calls_log=calls)
+                env["LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS"] = "1800"
+
+                result = self._run(env)
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                applied = [line for line in calls.read_text().splitlines()
+                           if line.startswith("apply ")]
+                self.assertEqual(applied, ["apply --loaded-idle-only target=loop-b"])
+                self.assertEqual(installed.read_bytes(), previous)
+                receipts = [json.loads(line) for line in
+                            (root / "reconciler-state/fleet-apply-owners.jsonl").read_text().splitlines()]
+                kept = next(row for row in receipts if row["loop_id"] == "loop-a")
+                self.assertEqual(kept["reason"], "ancestry-unverified")
+                self.assertEqual(kept["changed"], 0)
+
+    def test_fleet_still_applies_an_installed_ancestor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, old_sha = self._make_repo(root)
+            target_sha = self._advance_repo(repo)
+            release = self._make_release(root, target_sha,
+                                         labels={"loop-a": "ai.anicca.loop-a"})
+            self._activate(root, release)
+            agents = root / "Library/LaunchAgents"
+            agents.mkdir(parents=True)
+            (agents / "ai.anicca.loop-a.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": old_sha}}))
+            calls = root / "calls.log"
+
+            result = self._run(self._base_env(root, repo, calls_log=calls))
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls), 1)
+
     def _activate(self, root, release_dir):
         current = root / "loops" / "current"
         current.unlink(missing_ok=True)

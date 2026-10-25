@@ -1,3 +1,6 @@
+require "json"
+require "shellwords"
+
 default_platform(:ios)
 
 platform :ios do
@@ -15,8 +18,25 @@ platform :ios do
     )
   end
 
+  # Runtime values for Config/HonneRuntime-Info.plist. Each comes from ENV[name] or the file at ENV["#{name}_FILE"].
+  # Never commit the values.
+  RUNTIME_SETTINGS = %w[HONNE_REVENUECAT_IOS_API_KEY HONNE_TOOLKIT_URL HONNE_TOOLKIT_TOKEN].freeze
+
+  def runtime_settings
+    RUNTIME_SETTINGS.to_h do |name|
+      value = ENV[name].to_s
+      file = ENV["#{name}_FILE"].to_s
+      value = File.read(File.expand_path(file)).strip if value.empty? && !file.empty?
+      UI.user_error!("#{name} (or #{name}_FILE) is required for a release build") if value.empty?
+      [name, value]
+    end
+  end
+
   desc "Build and upload to TestFlight"
   lane :beta do
+    # Passed through the environment (xcodebuild expands $(VAR) from it), so the values never
+    # appear on the xcodebuild command line or in build/logs.
+    runtime_settings.each { |name, value| ENV[name] = value }
     api_key = app_store_connect_api_key(
       key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID", ""),
       issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID", ""),
@@ -38,6 +58,14 @@ platform :ios do
       output_directory: "build/ipa",
       buildlog_path: "build/logs"
     )
+
+    # Refuse to upload an IPA whose Info.plist did not receive the runtime values.
+    plist = sh("unzip -p #{lane_context[SharedValues::IPA_OUTPUT_PATH].shellescape} 'Payload/*.app/Info.plist' | plutil -convert json -o - -", log: false)
+    info = JSON.parse(plist)
+    %w[EXPO_PUBLIC_REVENUECAT_IOS_API_KEY EXPO_PUBLIC_TOOLKIT_URL HONNE_TOOLKIT_TOKEN].each do |key|
+      value = info[key].to_s
+      UI.user_error!("#{key} missing from the built Info.plist") if value.empty? || value.include?("$(")
+    end
 
     upload_to_testflight(
       api_key: api_key,

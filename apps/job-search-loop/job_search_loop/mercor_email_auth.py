@@ -31,12 +31,13 @@ def extract_action_url(message: object) -> str:
     return match.group(0)
 
 
-def newest_action_url(after_epoch: int, *, timeout_seconds: int = 30) -> str:
+def newest_action_url(after_epoch: int, *, account: str, timeout_seconds: int = 30) -> str:
+    executable = os.environ.get("JOB_SEARCH_GOG") or "gog"
     deadline = time.monotonic() + timeout_seconds
     query = f'from:auth@mercor.com subject:"Sign in to Mercor" after:{after_epoch}'
     while True:
         raw = subprocess.check_output(
-            ["gog", "gmail", "messages", "search", query, "--max", "5", "--json"],
+            [executable, "gmail", "messages", "search", query, "--max", "5", "--json", "--account", account],
             text=True,
         )
         result = json.loads(raw)
@@ -46,7 +47,7 @@ def newest_action_url(after_epoch: int, *, timeout_seconds: int = 30) -> str:
             if not isinstance(message_id, str) or not message_id:
                 continue
             detail = json.loads(subprocess.check_output(
-                ["gog", "gmail", "get", message_id, "--json"], text=True
+                [executable, "gmail", "get", message_id, "--json", "--account", account], text=True
             ))
             internal_ms = detail.get("message", {}).get("internalDate", "0")
             if str(internal_ms).isdigit() and int(internal_ms) >= after_epoch * 1000:
@@ -161,7 +162,7 @@ def main(argv=None) -> int:
     try:
         email = application_email(args.profile)
         asyncio.run(request_email_login(args.ws, email))
-        action_url = newest_action_url(args.after_epoch)
+        action_url = newest_action_url(args.after_epoch, account=email)
         result = asyncio.run(authenticate(args.ws, action_url))
     except Exception as exc:
         safe_reasons = {

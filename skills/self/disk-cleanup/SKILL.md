@@ -22,6 +22,7 @@ allow-listed regenerable artifact after an open-path probe confirms
   closed; a cache directory name does not authorize deleting an installation.
 - worktreeの候補判定・identity再検証・期限切れleaseの扱い・通常remove
   → `disk_cleanup.py` の `HostDiskGovernor._worktree_identity()` と `sweep()` を参照する。
+  対象は `WORKTREE_REPOSITORIES`（life-manager-main/.worktrees と anicca-products → anicca-products-worktrees）。
   active lease・保護対象・不明な状態は保持し、force-remove/pruneを行わない。
 - iOS Simulator runtimes, images, device data, and dyld caches remain outside
   the cleanup allow-list, including when no device is booted.

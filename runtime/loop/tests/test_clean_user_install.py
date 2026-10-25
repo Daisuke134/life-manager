@@ -478,8 +478,7 @@ class CleanUserInstallTest(unittest.TestCase):
         )
         self.assertEqual(
             result.stdout.strip(),
-            f"{ROOT}/skills/earn/lancers/scripts/storefront_offer.py --apply "
-            f"--product {ROOT}/skills/earn/lancers/products/monthly-sns-content-ops-v1.json "
+            f"{ROOT}/skills/earn/lancers/scripts/storefront_offer.py --owner-run "
             f"--state-path {state_root}/application.json",
         )
 

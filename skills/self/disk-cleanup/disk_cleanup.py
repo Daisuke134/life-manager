@@ -60,6 +60,11 @@ PRESERVED_CANDIDATE_DETAIL_LIMIT = 64
 PRESERVED_CANDIDATE_DETAIL_MAX_BYTES = 16 * 1024
 TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
 WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
+# (repository, worktree root) pairs whose redundant checkouts may be retired.
+WORKTREE_REPOSITORIES = (
+    (WORKTREE_REPOSITORY_RELATIVE, WORKTREE_REPOSITORY_RELATIVE / ".worktrees"),
+    (Path("Projects/anicca-products"), Path("Projects/anicca-products-worktrees")),
+)
 SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
     r"slide-pack-(?:(?:objects|image-cache|workspace)(?:-cta)?|tiktok-(?:workspace|cta|cache))-[A-Za-z0-9]{6}"
 )
@@ -406,7 +411,7 @@ def _bytes(
 
 
 @lru_cache(maxsize=1)
-def _open_paths() -> frozenset[str] | None:
+def _open_paths(*, timeout: float = LSOF_TIMEOUT_SECONDS) -> frozenset[str] | None:
     """Every open path once, because `+D` walks the tree it is asked about.
 
     A release is ~1.2GiB, so probing six of them with `+D` spends the whole
@@ -417,7 +422,7 @@ def _open_paths() -> frozenset[str] | None:
             ["/usr/sbin/lsof", "-nP", "-Fn"],
             capture_output=True,
             text=True,
-            timeout=LSOF_TIMEOUT_SECONDS,
+            timeout=timeout,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -653,18 +658,19 @@ def _browser_clone_roots(temporary: Path) -> tuple[Path, ...]:
     return tuple(sorted(roots, key=str))
 
 
-def _default_lsof(path: Path) -> str:
+def _default_lsof(path: Path, *, timeout: float = LSOF_TIMEOUT_SECONDS) -> str:
     if (
         path.is_file()  # lsof +D only accepts directories, including for generated ASTs.
         or RELEASE_NAME_PATTERN.fullmatch(path.name)
         or _is_code_sign_clone(path)
         or path.name in GLOBAL_OPEN_PROBE_NAMES
         or ".worktrees" in path.parts
+        or any(root.name in path.parts for _repository, root in WORKTREE_REPOSITORIES)
         or SLIDE_PACK_DIRECTORY_PATTERN.fullmatch(path.name) is not None
         or SLIDE_PACK_FIXTURE_PATTERN.fullmatch(path.name) is not None
         or PYTEST_RUN_PATTERN.fullmatch(path.name) is not None
     ):
-        opened = _open_paths()
+        opened = _open_paths(timeout=timeout)
         if opened is None:
             return "probe-error"
         root = str(path.resolve())
@@ -676,7 +682,7 @@ def _default_lsof(path: Path) -> str:
             ["/usr/sbin/lsof", "-nP", "+D", str(path)],
             capture_output=True,
             text=True,
-            timeout=15,
+            timeout=timeout,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -1275,6 +1281,13 @@ class HostDiskGovernor:
                     return "descendant_probe_error"
         return "descendant_probe_error" if errors else None
 
+    def _worktree_repository(self, path: Path) -> tuple[Path, Path] | None:
+        """Return the (repository, worktree root) owning a direct child checkout."""
+        for repository, root in WORKTREE_REPOSITORIES:
+            if Path(os.path.abspath(path)).parent == Path(os.path.abspath(self.home / root)):
+                return self.home / repository, self.home / root
+        return None
+
     def _worktree_identity(
         self,
         path: Path,
@@ -1286,11 +1299,11 @@ class HostDiskGovernor:
         """Prove one clean, unleased checkout is a redundant registered worktree."""
         if deadline is not None and self.clock() >= deadline:
             return None
-        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
-        worktree_root = repository / ".worktrees"
         lexical = Path(os.path.abspath(path))
-        if lexical.parent != Path(os.path.abspath(worktree_root)):
+        pair = self._worktree_repository(lexical)
+        if pair is None:
             return None
+        repository, worktree_root = pair
         repository_fingerprint = _real_directory_fingerprint(self.home, repository)
         root_fingerprint = _real_directory_fingerprint(self.home, worktree_root)
         path_fingerprint = _real_directory_fingerprint(self.home, lexical)
@@ -1948,6 +1961,18 @@ class HostDiskGovernor:
                 **({"operation": operation} if operation is not None else {}),
             })
 
+        def fresh_open_probe(candidate: Path) -> str:
+            timeout = LSOF_TIMEOUT_SECONDS
+            if deadline is not None:
+                remaining = deadline - self.clock() - post_sweep_reserve_seconds
+                if remaining <= 0 or (self.lsof is not _default_lsof and remaining <= timeout):
+                    return "probe-budget-exhausted"
+                timeout = min(timeout, remaining)
+            if self.lsof is _default_lsof:
+                _open_paths.cache_clear()
+                return _default_lsof(candidate, timeout=timeout)
+            return self.lsof(candidate)
+
         for item in candidates:
             path = Path(item["path"]).expanduser()
             if deadline is not None and self.clock() >= deadline:
@@ -1983,13 +2008,11 @@ class HostDiskGovernor:
                     result["errors"] += store_state == "descendant_probe_error"
                     preserve(store_state, stage="immutable_store_probe")
                     continue
-            if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + post_sweep_reserve_seconds >= deadline:
+            state = fresh_open_probe(path)
+            if state == "probe-budget-exhausted":
                 preserve("probe-budget-exhausted", stage="before_initial_open_probe")
                 continue
-            if self.lsof is _default_lsof:
-                _open_paths.cache_clear()
-            state = self.lsof(path)
-            if deadline is not None and self.clock() >= deadline:
+            if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                 preserve("probe-budget-exhausted", stage="after_initial_open_probe")
                 continue
             if state != "confirmed-closed":
@@ -2064,13 +2087,11 @@ class HostDiskGovernor:
                 result["errors"] += descendant_state == "descendant_probe_error"
                 preserve(descendant_state, stage="final_descendant_probe")
                 continue
-            if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + post_sweep_reserve_seconds >= deadline:
+            state = fresh_open_probe(path)
+            if state == "probe-budget-exhausted":
                 preserve("probe-budget-exhausted", stage="before_final_open_probe")
                 continue
-            if self.lsof is _default_lsof:
-                _open_paths.cache_clear()
-            state = self.lsof(path)
-            if deadline is not None and self.clock() >= deadline:
+            if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                 preserve("probe-budget-exhausted", stage="after_final_open_probe")
                 continue
             if state != "confirmed-closed":
@@ -2086,6 +2107,9 @@ class HostDiskGovernor:
             ):
                 result["errors"] += 1
                 preserve("path_identity_changed")
+                continue
+            if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
+                preserve("probe-budget-exhausted", stage="before_remove")
                 continue
             try:
                 if item.get("owner") == "codex-app-updater":
@@ -2127,7 +2151,7 @@ class HostDiskGovernor:
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted", stage="after_worktree_identity_recheck")
                         continue
-                    repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+                    repository = self._worktree_repository(path)[0]
                     records = _worktree_records(repository, deadline=deadline, clock=self.clock) or []
                     if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted", stage="after_worktree_record_probe")
@@ -2160,13 +2184,12 @@ class HostDiskGovernor:
                     if self._worktree_dependency_identity(path, deadline=deadline) != identity:
                         preserve("path_identity_changed")
                         continue
-                    if self.lsof is _default_lsof:
-                        _open_paths.cache_clear()
-                    states = (self.lsof(path.parents[2]), self.lsof(path))
+                    states = (fresh_open_probe(path.parents[2]), fresh_open_probe(path))
                     if any(state != "confirmed-closed" for state in states):
                         state = next(state for state in states if state != "confirmed-closed")
                         result["errors"] += state == "probe-error"
-                        preserve(state)
+                        preserve(state, stage="before_dependency_open_probe"
+                            if state == "probe-budget-exhausted" else None)
                         continue
                     if self._worktree_dependency_identity(path, deadline=deadline) != identity:
                         preserve("path_identity_changed")
@@ -2209,7 +2232,7 @@ class HostDiskGovernor:
                 preserve("path_still_present")
                 continue
             if item.get("owner") == "zombie-worktree":
-                records = _worktree_records(self.home / WORKTREE_REPOSITORY_RELATIVE, deadline=deadline, clock=self.clock)
+                records = _worktree_records(self._worktree_repository(path)[0], deadline=deadline, clock=self.clock)
                 if records is None or any(
                     record.get("worktree") == str(Path(os.path.abspath(path)))
                     for record in records
@@ -2460,12 +2483,14 @@ class HostDiskGovernor:
         # exhausted worktree proof cannot hide browser/temporary candidates.
         if expired():
             return candidates
-        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
-        records = (
-            _worktree_records(repository, deadline=deadline, clock=self.clock)
-            if _real_directory_fingerprint(self.home, repository) is not None else None
-        )
-        if records is not None:
+        for repository_relative, _root in WORKTREE_REPOSITORIES:
+            repository = self.home / repository_relative
+            records = (
+                _worktree_records(repository, deadline=deadline, clock=self.clock)
+                if _real_directory_fingerprint(self.home, repository) is not None else None
+            )
+            if records is None:
+                continue
             for record in records:
                 if deadline is not None and self.clock() >= deadline:
                     break

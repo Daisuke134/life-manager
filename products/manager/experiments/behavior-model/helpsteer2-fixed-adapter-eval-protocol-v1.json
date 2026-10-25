@@ -1,0 +1,249 @@
+{
+  "schema": "manager.helpsteer2-fixed-adapter-eval-protocol.v1",
+  "version": 1,
+  "status": "PROSPECTIVE_SCIENTIFIC_SOURCE_FREEZE_PENDING_CONDITIONAL_EVALUATION_PURPOSE_RECORDED",
+  "purpose": "PRIVATE_FINITE_FIXED_ADAPTER_ORIGINAL_CANDIDATE_COMPARISON",
+  "can_execute": false,
+  "proof_level": "P0_FINITE_ORIGINAL_CANDIDATES_ONLY",
+  "frozen_training_protocol": {
+    "path": "products/manager/experiments/behavior-model/helpsteer2-private-sft-protocol-v1.json",
+    "bytes": 31365,
+    "sha256": "eb2e585321d954d507af52b1bf71db9eb3b7ae3150273484909b6aeeae48a53d"
+  },
+  "shared_manifest": {
+    "path": "products/manager/experiments/behavior-model/helpsteer2-train27-manifest-v1.json",
+    "bytes": 59611,
+    "sha256": "7547ff63f7c06f8196689b3890288417154012d71e9609d0a3db232eeb0f182e"
+  },
+  "inherited_contract": {
+    "from": "frozen_training_protocol",
+    "source_artifacts": "/source_artifacts (all4)",
+    "base_tokenizer": "/model_id, /model_revision, /model_files (all8)",
+    "packages": "/packages (all6; native PEFT0.17.1)",
+    "native_rendering_and_mask": "/native_contract/native_rendering and /native_contract/mask",
+    "runtime_stage_expectations": "/runtime_stages and /stage_unknown_policy; evaluation stages below specialize without requiring future measurements before their stage",
+    "scope": "/scope/path and /evaluation; G7 is separately accepted, G8 remains outside route",
+    "no_new_registry": true
+  },
+  "rights": {
+    "path": "products/manager/docs/research/source-rights.json",
+    "schema": "manager.source-rights.v1",
+    "record_id": "helpsteer2-private-fixed-adapter-eval24-v1",
+    "record_canonicalization": "json.dumps(record, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')",
+    "record_canonical_sha256": "088f6cc5a17f8ff3c83dfc10b44bca70dbd0855d3dd0c8b1063727ff2271225d",
+    "preparation_snapshot": "CONDITIONALLY_ACCEPTED_PRIVATE_PURPOSE_PENDING_EXACT_SOURCE_INTEGRATION",
+    "freeze_order": "Actual conditional evaluation-purpose decision recorded. Finalize this rights canonical reference and independently review/freeze exact scientific source BEFORE actual training/adapter selection/scoring. Exact source/code/CI/adapter/G7 acceptance remains pending and later bindings stay external one-way. No rights reverse-pin to this evaluation protocol.",
+    "acceptance": "ACTUAL_CONDITIONAL_PRIVATE_EVALUATION_PURPOSE_RECORDED_EXACT_SOURCE_FREEZE_AND_G7_PENDING",
+    "decision_receipt": {
+      "private_evidence_name": "root-purpose-rights-decision.md",
+      "sha256": "d3e24df1088b389788e05a09440c2fb485d53b14392d3a2a1bfbb920beaf156a"
+    }
+  },
+  "slices": {
+    "development8": {
+      "manifest_pointer": "/development8",
+      "assigned_pairs": 8,
+      "order": "EXACT_SHARED_MANIFEST_ORDER",
+      "role": "EXPOSED_DEVELOPMENT_COMPARISON",
+      "known_prior_base_correct": 4,
+      "known_prior_shorter_rule_correct": 4,
+      "base_candidate_forwards": 16,
+      "adapter_candidate_forwards": 16
+    },
+    "final16": {
+      "manifest_pointer": "/final16",
+      "assigned_pairs": 16,
+      "order": "EXACT_SHARED_MANIFEST_ORDER",
+      "role": "PROSPECTIVE_FINITE_ORIGINAL_CANDIDATE_COMPARISON",
+      "content_qc_exposed": true,
+      "model_unscored": "PER_RECORDED_METADATA_REAFFIRM_BEFORE_G7",
+      "optimizer_unused": "PER_RECORDED_METADATA_REAFFIRM_BEFORE_G7",
+      "configuration_selection_unused": "PER_RECORDED_METADATA_REAFFIRM_BEFORE_G7",
+      "pristine_or_humanblind": false,
+      "person_study_time_semantic_family_independence": "NOT_ESTABLISHED",
+      "base_candidate_forwards": 32,
+      "adapter_candidate_forwards": 32
+    }
+  },
+  "exposure": {
+    "manifest_pointer": "/exposure",
+    "limits": "All56 prompts/112 responses AI-QC exposed before dev scoring; preference/quality thresholds used for preselection. QC reviewer UNKNOWN; post-QC exact actor/time history incomplete. No new whole-workspace audit, humanblind, pristine or generalization claim. Keep later design/exposure changes and reaffirm no target-model scoring/selection before fixed adapter freeze.",
+    "paraphrase_pretraining_contamination": "UNKNOWN"
+  },
+  "policies": [
+    "NO_ACTION",
+    "SHORTER_CANDIDATE_RULE",
+    "NATIVE_BASE_QWEN",
+    "FIXED_LORA_ADAPTER"
+  ],
+  "scoring": {
+    "target": "PUBLISHED_HUMAN_PREFERENCE_AGREEMENT_ONLY_FOR_EXACT_ORIGINAL_TWO_RESPONSES",
+    "gold": "Authorized host scoring reconstructs pinned original preference row and exact source/hash/quality joins; negative strength chooses candidate1, positive candidate2; never caller gold or generation labels. Manifest has no final chosen values.",
+    "score": "MEAN_CAUSAL_COMPLETION_TOKEN_NLL_LOWER_IS_PREFERRED",
+    "native_mask": {
+      "helper": "completion_mask(prompt_ids,full_ids)",
+      "same_prefix_for_both_candidates_and_policies": true,
+      "full_sequence_max_tokens": 256,
+      "truncate": false,
+      "assistant_eos_token_id": 151645,
+      "completion_eos_count": 1,
+      "eos_inclusive": true,
+      "prompt_post_eos_pad_labels": -100,
+      "token_count": "sum(label != -100 for label in labels[1:])",
+      "summed_nll": "mean_nll * scored_tokens; mean per candidate, not unnormalized sum",
+      "nonfinite_missing_mask_mismatch": "FAIL_CLOSED_KEEP_PARTIAL"
+    },
+    "rendering": "Unedited original user1/systemNone, native template tokenize=True/truncation=False/enable_thinking=False; prefix add_generation_prompt=True; full user+original assistant add_generation_prompt=False. Shared existing native helper only.",
+    "tie": "Exact equality values[0] == values[1]; _choose chooses min((value,response_exact_sha256)) then 1-based index. No tolerance, rounding or preference-based tie break.",
+    "shorter_rule": "_choose on actual completion_mask.scored_tokens, same response exact hashes; not character/full-sequence length. No model forwards.",
+    "no_action": {
+      "status": "ABSTAIN",
+      "coverage": 0,
+      "accuracy": null,
+      "nll": null,
+      "model_forwards": 0
+    },
+    "rule_nll": null,
+    "model_generation": false
+  },
+  "paired_analysis": {
+    "separate_slices": true,
+    "pooling": "No combined24 primary accuracy or selection; describe dev8 and final16 separately.",
+    "same_ids": "Base/adapter/rule/NO_ACTION assigned same slice IDs and original candidate order. Pair comparisons use intersection of valid completed same IDs; no substitution.",
+    "per_policy_slice_fields": [
+      "assigned",
+      "attempted",
+      "valid_completed",
+      "failed",
+      "unknown",
+      "not_run",
+      "abstained",
+      "correct",
+      "covered",
+      "coverage",
+      "conditional_accuracy",
+      "ties"
+    ],
+    "denominators": "Report assigned8/16 for every policy, valid completed as covered, conditional_accuracy=correct/covered or null at zero, coverage=covered/assigned. NO_ACTION all abstain and accuracy null. Unattempted=not_run, attempted includes completed/failed/unknown/abstain; distinguish forward counts from pair counts.",
+    "paired_fields": [
+      "paired_valid_count",
+      "paired_missing_or_failed_count",
+      "base_correct_adapter_correct",
+      "base_correct_adapter_wrong",
+      "base_wrong_adapter_correct",
+      "base_wrong_adapter_wrong",
+      "adapter_minus_base_accuracy",
+      "adapter_minus_rule_accuracy"
+    ],
+    "paired_difference": "For each comparator on common valid IDs, mean(adapter_correct - comparator_correct); zero common denominator => null. Report common IDs privately, count and assigned coverage in aggregate.",
+    "ties": "Per policy and slice exact-score ties, never evidence of human quality; tie-resolved choices retain tie=True.",
+    "failure": "Durably mark attempted before forward; on resource failure/kill, in-flight UNKNOWN, untouched NOT_RUN, completed only with two finite losses. Preserve completed rules and partial observations; never missing/UNKNOWN/NOT_RUN to0 or correct. Exact budget is assigned96, not a promise all96 complete.",
+    "uncertainty": "Finite descriptive counts only. No significance, population equivalence, superiority, safety, transfer or generalization conclusion from8/16."
+  },
+  "candidate_forward_requests": {
+    "base": 48,
+    "adapter": 48,
+    "total": 96,
+    "per_pair": {
+      "base": 2,
+      "adapter": 2
+    },
+    "fixed_order": "development8 then final16; each manifest row candidate1 then2, base both then adapter both, same masks; stop model lane on first failure, no retry."
+  },
+  "native_inference": {
+    "device": "cpu",
+    "threads": 2,
+    "base_dtype": "bfloat16",
+    "attention": "eager",
+    "seed": 42,
+    "local_files_only": true,
+    "trust_remote_code": false,
+    "use_safetensors": true,
+    "use_cache": false,
+    "model_eval": true,
+    "adapter_eval": true,
+    "inference_mode": true,
+    "gradients": false,
+    "generation": false,
+    "network": false,
+    "training_or_optimizer_or_save": false,
+    "load": "Standard pinned native Qwen plus PeftModel.from_pretrained(base_model, fixed_adapter_dir, is_trainable=False, local_files_only=True); preserve native PEFT adapter dtype semantics, never blanket recast wrapped model. Prefer standard disable_adapter() context for base; if installed API/source review requires, use a separate unchanged native base object within same budget, fixed before run. No merge/unload/retraining/custom engine.",
+    "api_source_audit": {
+      "package": "peft",
+      "version": "0.17.1",
+      "package_relative_path": "peft/peft_model.py",
+      "bytes": 156704,
+      "sha256": "2307ebeb101baff53b19ce5a0f109885d99b64ab147d67cba19719b6097c3e10",
+      "from_pretrained": "lines377-392: (model, model_id, adapter_name=default, is_trainable=False, config=None, autocast_adapter_dtype=True, ephemeral_gpu_offload=False, low_cpu_mem_usage=False, key_mapping=None, **kwargs); may modify passed model inplace.",
+      "disable_adapter": "lines896-945: @contextmanager disable_adapter(self); LoRA branch disables base adapter layers and restores enabled state in finally.",
+      "limits": "Text-only source audit, no import or runtime parity proof. Validate local fixed directory/config/inventory before loader; local_files_only passes through **kwargs, but _get_peft_type does not forward that flag at lines439-447. Offline/no-network environment and validated local files are required independently. Reject irregular adapter-enabled state; confirm enabled/restored eval semantics in implementation. No wrapped-model blanket dtype cast. Verify this library source pin and reviewed implementation before ML import; actual native parity remains within authorized run."
+    },
+    "base_integrity": "Frozen disk hashes and disabled training do not prove all in-memory base values unchanged. Do not claim that proof from disk hashes; native disable_adapter compares same frozen loaded base under standard semantics."
+  },
+  "selection": {
+    "scientific_definition": "Actual evaluation-purpose decision recorded; finalize this exact rights reference and independently review/freeze scientific bytes BEFORE actual training/adapter selection/model scoring. Source adoption and G7 execution are not granted by purpose ruling.",
+    "adapter": "Only one parent frozen recipe/actual train attempt and one saved adapter. AFTER actual train/save/fsync/complete native inventory/hash freeze, fix that exact artifact BEFORE ANY target-model dev/final comparison score. No artifact exists in this proposal.",
+    "no_retuning": [
+      "No best-run/best-checkpoint selection",
+      "No dev/final-based recipe, threshold, candidate, tie, budget or adapter selection",
+      "No retry/resume/budget extension",
+      "Changed experiment needs new version and distinct purpose-appropriate holdout"
+    ],
+    "failure_or_no_change": "Preserve honest training failure/no-change; do not select another run. Incomplete artifact cannot enter evaluation."
+  },
+  "resources": {
+    "wall_limit_seconds": 900,
+    "observed_own_process_group_rss_limit_bytes": 6442450944,
+    "threads": 2,
+    "one_attempt": true,
+    "retry": false,
+    "resume": false,
+    "automatic_budget_extension": false,
+    "watchdog": "Existing external own-process-group watchdog starts BEFORE hashing/native load/scoring; cumulative900s/6GiB RSS polling, TERM/KILL/reap and cleanup. RSS polling is not a kernel hard cap. No parallel ML/new paid resources/network.",
+    "preimport_evidence": "Actual available host/memory/disk headroom and private ACL, root-owned watchdog/config/source/code/CI acceptance. No mandatory disk quota.",
+    "fit_time_peak_infrastructure_cost": "UNMEASURED_UNTIL_ACTUAL_RUN_NOT_ZERO"
+  },
+  "runtime_stages": [
+    {
+      "id": "PREIMPORT",
+      "required": "Exact built-in scientific protocol SHA plus actual independent root0400 G7 config/decision; actual evaluation rights, frozen source+manifest+base/tokenizer/packages, exact code/final-source/CI/review pins, complete actual adapter inventory/fsync/hash manifest and training receipts, exposure reaffirmation, private ACL/resources/watchdog. Validate inventory and all bindings before optional ML import.",
+      "missing_unknown_mismatch": "STOP_BEFORE_IMPORT",
+      "actual_masks_required": false
+    },
+    {
+      "id": "POST_LOAD_BEFORE_ANY_SCORE",
+      "required": "Actual native masks for all24 pairs and both original responses match shared token/mask counts, prefix/EOS/max256; standard adapter loaded nontrainable, native base+adapter eval mode/dtypes and standard disable_adapter semantics or pre-fixed separate base verified. No gradients or inference before required predicates.",
+      "missing_unknown_mismatch": "STOP_NO_SCORE_KEEP_FAILURE_RECEIPT"
+    },
+    {
+      "id": "SCORING",
+      "required": "Standard inference_mode, finite two losses per policy/pair; fixed96 assignments/order, durable per-forward reachability and per-slice coverage; no changed rule/adapter/config selection.",
+      "missing_unknown_mismatch": "FAIL_STOP_KEEP_COMPLETED_AND_UNKNOWN_NOT_RUN"
+    },
+    {
+      "id": "RESULT_VERIFICATION",
+      "required": "Independent root verifies actual watchdog exit/peak/time, exact coverage/pairing/ties/NLL calculations and artifact/code/protocol bindings before reporting. No fake completed status for timeout/partial run."
+    }
+  ],
+  "authority_binding": {
+    "snapshot": "Conditional private evaluation-purpose decision is actually recorded in bound rights record; historical PENDING proposal is preserved privately. Exact scientific source freeze and actual G7/code/CI/artifact/resource acceptance remain pending. Protocol status is a preparation/freeze-time snapshot, neither current ML authority nor permanent denial after genuine external acceptance.",
+    "external_only": "Later independent root-owned0400 execution config/receipt pins exact scientific protocol SHA, actual adapter inventory/training receipts, concrete core/CLI/helper/watchdog code hashes, final source commit, focused tests/review/official CI, G7 purpose/start/resource and prior study acceptance evidence one-way. None of those future hashes is put here or in rights.",
+    "consumer": "Future consumer includes exact built-in scientific SHA and rejects altered bytes even with caller-supplied expected hash/reapproval; require concrete external root bindings as well. No protocol self-hash, placeholder futurehash slots or consumer-codehash cycle.",
+    "staged_unknowns": "Reject missing/UNKNOWN required current-stage pins and acceptance; residual provenance/contamination limits may be accepted with recorded risk, actual masks/fit/losses remain NOT_RUN/UNMEASURED until their stage and are never waived.",
+    "no_execution_config_created": true
+  },
+  "privacy_and_claims": {
+    "directory_mode": "0700",
+    "file_mode": "0600",
+    "umask": "077",
+    "receipt": "Atomic metadata-only temporary flush/fsync/replace/directory fsync; raw text/exception/tensor values never exports. Per-ID labels/scalars/hashes remain private; stdout/source/public report aggregate only.",
+    "human_benefit": "NOT_MEASURED",
+    "behavior_change": null,
+    "pressure": null,
+    "dependency": null,
+    "harms": null,
+    "suffering_reduction": "NOT_MEASURED",
+    "safety_generalization_AGI_live": "NO_CLAIM_HOLD",
+    "adoption": "HOLD_REGARDLESS_POINT_ESTIMATE; G8/V002/V003/V004/D016 remain separate; canonical task counts unchanged by this metadata."
+  }
+}
