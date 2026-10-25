@@ -602,3 +602,13 @@ def test_cp1_agent_timeout_default_leaves_room_for_the_price_tab_and_cp2_cp3():
     source = CHILD.read_text(encoding="utf-8")
     assert "CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-2400" in source
     assert "CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800" not in source
+
+
+def test_drainer_prompts_tell_the_agent_to_check_every_plan_trial_choice():
+    """2026-10-25: MLB Pitcher Workload Brief had PRICES_MATCH 3 but one plan card had neither trial option
+    selected, so 価格設定 stayed red and 提出を確認 stayed disabled; the prices tool cannot see an unselected radio."""
+    source = CHILD.read_text(encoding="utf-8")
+    sentence = "PRICES_MATCH does not prove the trial choice: scroll every plan card and confirm its trial option is actually selected"
+    assert source.count(sentence) == 2
+    for line in (l for l in source.splitlines() if sentence in l):
+        assert "`" not in line and "$(" not in line and "<ID>" not in line
