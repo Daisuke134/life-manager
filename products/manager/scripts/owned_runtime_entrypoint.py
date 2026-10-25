@@ -32,11 +32,13 @@ def main():
             expected_volume_name=env.get("MANAGER_EXPECTED_RAILWAY_VOLUME_NAME"),
             source_root=SOURCE_ROOT,
             state_root=STATE_ROOT,
+            allow_read_only_recovery=True,
         )
         manager = pwd.getpwnam("manager")
-        # The volume root may initially be root-owned. Change only that inode;
-        # the worker runs without root and owns every file it creates itself.
-        os.chown(STATE_ROOT, manager.pw_uid, manager.pw_gid)
+        # Initialize ownership only for an enabled writer. Disabled recovery
+        # drops privileges without changing the persistent volume metadata.
+        if identity.owner_enabled and identity.dispatch_token_available:
+            os.chown(STATE_ROOT, manager.pw_uid, manager.pw_gid)
         os.setgroups([])
         os.setgid(manager.pw_gid)
         os.setuid(manager.pw_uid)

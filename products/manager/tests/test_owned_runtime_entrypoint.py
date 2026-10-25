@@ -63,7 +63,9 @@ class OwnedRuntimeEntrypointTests(unittest.TestCase):
         with TemporaryDirectory() as tmp, \
              patch.object(entrypoint, "STATE_ROOT", Path(tmp)), \
              patch.dict(os.environ, self.env(), clear=True), \
-             patch.object(entrypoint, "read_railway_runtime_identity", return_value=object()) as preflight, \
+             patch.object(entrypoint, "read_railway_runtime_identity",
+                          return_value=SimpleNamespace(owner_enabled=True,
+                                                       dispatch_token_available=True)) as preflight, \
              patch.object(entrypoint.os, "geteuid", return_value=0), \
              patch.object(entrypoint.pwd, "getpwnam", return_value=account), \
              patch.object(entrypoint.os, "chown", side_effect=record("chown")), \
@@ -82,6 +84,36 @@ class OwnedRuntimeEntrypointTests(unittest.TestCase):
         self.assertEqual(execve.call_args.args[0], argv[0])
         self.assertEqual(execve.call_args.args[2]["MANAGER_WORKFLOW_DISPATCH_TOKEN"],
                          "private-test-token")
+
+    def test_disabled_owner_drops_privileges_without_chown_then_runs_read_only_worker(self):
+        calls = []
+        account = SimpleNamespace(pw_uid=10001, pw_gid=10001)
+        env = self.env()
+        env["MANAGER_OWNER_ENABLED"] = "false"
+        env.pop("MANAGER_WORKFLOW_DISPATCH_TOKEN")
+
+        def record(name):
+            return lambda *args: calls.append((name, *args))
+
+        identity = SimpleNamespace(owner_enabled=False, dispatch_token_available=False)
+        with TemporaryDirectory() as tmp, \
+             patch.object(entrypoint, "STATE_ROOT", Path(tmp)), \
+             patch.dict(os.environ, env, clear=True), \
+             patch.object(entrypoint, "read_railway_runtime_identity", return_value=identity) as preflight, \
+             patch.object(entrypoint.os, "geteuid", return_value=0), \
+             patch.object(entrypoint.pwd, "getpwnam", return_value=account), \
+             patch.object(entrypoint.os, "chown", side_effect=record("chown")) as chown, \
+             patch.object(entrypoint.os, "setgroups", side_effect=record("setgroups")), \
+             patch.object(entrypoint.os, "setgid", side_effect=record("setgid")), \
+             patch.object(entrypoint.os, "setuid", side_effect=record("setuid")), \
+             patch.object(entrypoint.os, "execve", side_effect=RuntimeError("exec boundary")) as execve:
+            with self.assertRaisesRegex(RuntimeError, "exec boundary"):
+                entrypoint.main()
+
+        self.assertTrue(preflight.call_args.kwargs["allow_read_only_recovery"])
+        chown.assert_not_called()
+        self.assertEqual([call[0] for call in calls], ["setgroups", "setgid", "setuid"])
+        self.assertNotIn("MANAGER_WORKFLOW_DISPATCH_TOKEN", execve.call_args.args[2])
 
 
 if __name__ == "__main__":

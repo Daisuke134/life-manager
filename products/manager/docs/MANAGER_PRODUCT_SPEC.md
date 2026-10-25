@@ -2,6 +2,10 @@
 
 **仕様更新:** 2026-10-25 UTC。使命・entity表現とE16 source実装状態を更新。**比較調査の最終一次資料取得:** 2026-10-22 UTC。調査日と実装更新日を混同しない。
 
+**2026-10-25 final-review修正:** E16の期限切れrequest再送、read-only recovery停止、公開readback receiptの例外を修正。request v2で元の作成・期限時刻を固定し、送信側とpublisher側で元の6時間leaseを検証する。owner無効時は新規write/planningを止めて、保存済みeffect/deliveryの照合だけを行う。`PYTHONPATH=tests python3 -m unittest discover -s tests -q` は730件成功・5件skip（canonical worktree上のlocal結果）。この追補は未pushで、GitHub CI・main・Railway配備の証拠ではない。
+
+**Web掲載状況:** `apps/landing/marketing/pages/en.html` と `ja.html` のトップ候補を2026-10-25に更新し、Managerの方向性、65本の英日研究記事、人口合成、EBA提案、Ampersand合成実験とE16の未配備状態を記載した。`route-manifest.json` のhashも更新済み。公開済みの `/blog/manager` には研究記事collectionがある一方、実際の `/en` トップは旧説明のまま。候補ページは別repo `Daisuke134/anicca-products` の固定workflow pin更新・CI・Netlify deployへ未統合で、本番反映はしていない。細部は [`apps/landing/marketing/README.md`](../../../apps/landing/marketing/README.md) を参照。
+
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
@@ -17,7 +21,7 @@
 
 **開始から最後まで:** [Phase00〜12・残41件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
 
-**2026-10-25 E16 source implementation:** 過去intent回収・checkpoint再送防止・typed deliveryに加えて、main専用のRailway→GitHub protected-publisher bridge、durable one-shot request、bounded run照合、固定catalogからのcandidate生成、Docker runtime preflightを実装。Python 723件（5 skip）とPlaywright/axe 16ケース、GitHub Actions verify runを通過。DBOS実install比較は過去の研究証拠として保持し、本番runtime採用は未決。専用Railway service/volume/secret・実canary・live readback・復旧receiptは未成立で、E16/原41件の受入状態は据え置く。詳細は [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md) と [E16 deployment gate](verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md)。
+**2026-10-25 E16 source implementation:** 過去intent回収・checkpoint再送防止・typed deliveryに加えて、main専用のRailway→GitHub protected-publisher bridge、durable one-shot request、bounded run照合、固定catalogからのcandidate生成、Docker runtime preflightを実装。先行時点のCIはPython 723件（5 skip）とPlaywright/axe 16ケースを通過。最終source reviewで修正した3件を含むlocal全Python suiteは730件成功（5 skip）だが、修正後GitHub Actionsは未実行。DBOS実install比較は過去の研究証拠として保持し、本番runtime採用は未決。専用Railway service/volume/secret・実canary・live readback・復旧receiptは未成立で、E16/原41件の受入状態は据え置く。詳細は [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md)、[E16 deployment gate](verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md) と[配備handoff](handoffs/2026-10-22-manager-e16-deployment-handoff.md)。
 
 ## 1. Managerとは何か、使命と最初の有限な能力
 

@@ -6,7 +6,7 @@ the total reserved budget across them. Crash between DISPATCHING and send remain
 uncertain and requires reconciliation, not retry.
 """
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import sqlite3
@@ -235,10 +235,20 @@ class OwnedEffectJournal:
         with sqlite3.connect(self.path,timeout=15) as db:
             rows=db.execute('''SELECT request_id,effect_key,request_json,status,http_status,
                 run_id,run_status,conclusion,provider_commit FROM owned_workflow_dispatches
-                WHERE status!='PRESENT' AND status!='REJECTED' ORDER BY request_id LIMIT ?''',
+                WHERE status NOT IN ('PRESENT','REJECTED','EXPIRED','REVOKED') ORDER BY request_id LIMIT ?''',
                 (limit,)).fetchall()
         return tuple(self._workflow_record(row) for row in rows)
-    def claim_workflow_dispatch(self,request_id):
+    def revoke_ready_workflow_dispatches(self):
+        """Permanently fence unsent requests when the owner switch is off."""
+        with sqlite3.connect(self.path,timeout=15,isolation_level=None) as db:
+            db.execute('BEGIN IMMEDIATE')
+            cursor=db.execute("UPDATE owned_workflow_dispatches SET status='REVOKED' WHERE status='READY'")
+            db.execute('COMMIT')
+        return cursor.rowcount
+    def claim_workflow_dispatch(self,request_id,*,now=None):
+        now=now or datetime.now(timezone.utc)
+        if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError('timezone-aware workflow claim time required')
         with sqlite3.connect(self.path,timeout=15,isolation_level=None) as db:
             db.execute('BEGIN IMMEDIATE')
             row=db.execute('''SELECT request_id,effect_key,request_json,status,http_status,
@@ -248,12 +258,23 @@ class OwnedEffectJournal:
                 db.execute('ROLLBACK');raise ValueError('workflow request was not durably reserved')
             claimed=row[3]=='READY'
             if claimed:
-                db.execute("UPDATE owned_workflow_dispatches SET status='SENDING' WHERE request_id=?",
-                           (request_id,))
-                effect = db.execute('''UPDATE owned_effects SET status='DISPATCHING'
-                    WHERE key=? AND status='RESERVED' ''',(row[1],))
-                if effect.rowcount != 1:
-                    raise ValueError('workflow claim has no reserved owned effect')
+                from .owned_platform_host import parse_owned_workflow_request
+                request=parse_owned_workflow_request(row[2])
+                if request.request_id!=request_id or request.effect_key!=row[1]:
+                    raise ValueError('workflow claim request binding is corrupt')
+                if now < datetime.fromisoformat(request.created_at):
+                    claimed=False
+                elif now >= datetime.fromisoformat(request.expires_at):
+                    db.execute("UPDATE owned_workflow_dispatches SET status='EXPIRED' WHERE request_id=?",
+                               (request_id,))
+                    claimed=False
+                else:
+                    db.execute("UPDATE owned_workflow_dispatches SET status='SENDING' WHERE request_id=?",
+                               (request_id,))
+                    effect = db.execute('''UPDATE owned_effects SET status='DISPATCHING'
+                        WHERE key=? AND status='RESERVED' ''',(row[1],))
+                    if effect.rowcount != 1:
+                        raise ValueError('workflow claim has no reserved owned effect')
                 row=db.execute('''SELECT request_id,effect_key,request_json,status,http_status,
                     run_id,run_status,conclusion,provider_commit FROM owned_workflow_dispatches
                     WHERE request_id=?''',(request_id,)).fetchone()

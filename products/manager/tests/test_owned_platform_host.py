@@ -38,13 +38,14 @@ class OwnedPlatformRequestTests(unittest.TestCase):
                                    NOW + timedelta(seconds=30), source_ref=MAIN_SOURCE_REF)
             rebuilt_request = create_owned_workflow_request(rebuilt, "manager-owner-1", "a" * 40)
             self.assertEqual(first, second)
-            self.assertEqual(first, rebuilt_request)
+            self.assertNotEqual(first, rebuilt_request)
             parsed = parse_owned_workflow_request(first.to_json())
             self.assertEqual(parsed, first)
             self.assertEqual(
                 set(first.to_dict()),
                 {"schema_version", "owner_id", "effect_key", "packet_sha256",
-                 "source_commit", "expected_parent", "request_id"},
+                 "source_commit", "expected_parent", "created_at", "expires_at",
+                 "request_id"},
             )
             self.assertFalse(hasattr(first, "token"))
             self.assertFalse(hasattr(first, "authorized_execution"))
@@ -55,6 +56,11 @@ class OwnedPlatformRequestTests(unittest.TestCase):
                 ),
                 first,
             )
+            with self.assertRaises(PermissionError):
+                validate_owned_workflow_request(
+                    first, packet=rebuilt, expected_owner_id="manager-owner-1",
+                    current_parent="a" * 40,
+                )
 
     def test_request_rejects_wrong_owner_packet_or_current_parent(self):
         with TemporaryDirectory() as tmp:
@@ -373,6 +379,30 @@ class OwnedPlatformRequestTests(unittest.TestCase):
             env = self.runtime_environment(mount)
             with self.assertRaises(RuntimeConfigurationError):
                 read_railway_runtime_identity(env, **{**expected, "mount_check": lambda _: False})
+
+    def test_railway_runtime_allows_disabled_read_only_recovery_without_dispatch_token(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            mount = root / "volume"
+            source.mkdir(); mount.mkdir()
+            env = self.runtime_environment(mount)
+            env["MANAGER_OWNER_ENABLED"] = "false"
+            env.pop("MANAGER_WORKFLOW_DISPATCH_TOKEN")
+            expected = dict(
+                expected_project_id="project-123", expected_environment_id="environment-123",
+                expected_service_id="service-123", expected_volume_name="manager-owner-state",
+                source_root=source, state_root=mount, mount_check=lambda path: path == mount,
+            )
+
+            with self.assertRaises(RuntimeConfigurationError):
+                read_railway_runtime_identity(env, **expected)
+            identity = read_railway_runtime_identity(
+                env, **expected, allow_read_only_recovery=True)
+
+            self.assertFalse(identity.owner_enabled)
+            self.assertFalse(identity.dispatch_token_available)
+            self.assertNotIn("secret", repr(identity))
 
 
 if __name__ == "__main__":

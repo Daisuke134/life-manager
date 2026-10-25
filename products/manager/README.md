@@ -152,7 +152,7 @@ python3 scripts/check_boundaries.py
 python3 tools/imozuru/report.py research/imozuru/manager-foundations --check
 ```
 
-この4コマンドはlocal coreのoffline checkです。E16の実装branchではこれに加えてPython 723 tests、Playwright desktop/mobile 16ケース、source-boundary gate、pinned Docker buildとGitHub Actions検証runを実施済みです。[E16 Actions run](https://github.com/Daisuke134/life-manager/actions/runs/40155688159)のverify jobはsuccess、publisherとlive-readback jobは研究branch gateによりskipです。GitHub上のsourceやCI successだけでRailway deploymentや人への効果を証明したことにはなりません。Manager sourceはこのrepository内の `products/manager/` にあり、Life Manager runtimeとは独立させています。
+この4コマンドはlocal coreのoffline checkです。E16初期実装branchではPython 723 tests、Playwright desktop/mobile 16ケース、source-boundary gate、pinned Docker buildと[GitHub Actions検証run](https://github.com/Daisuke134/life-manager/actions/runs/40155688159)を実施済みです。verify jobはsuccess、publisherとlive-readback jobは研究branch gateによりskipでした。最終reviewで見つかった3件を修正したlocal worktreeではPython全730 testsが成功（5 skip）しましたが、この追補は未pushでGitHub CIは未実行です。どちらのCIもRailway deploymentや人への効果を証明しません。E16はmain promotion、専用Railway service/volume、実workflow/readback、restart/restore evidenceが揃うまでBLOCKEDです。Manager sourceはこのrepository内の `products/manager/` にあり、Life Manager runtimeとは独立させています。
 
 以下のOctober 20–22およびPhase03–05の進捗記述は、当時の研究・実装履歴として保存しています。件数や状態は過去時点のsnapshotであり、最新の完了状態は先頭のE16引継ぎ/specと唯一のstate正本 `docs/roadmap/tasks.json` を参照してください。
 

@@ -198,8 +198,8 @@ class LocalGitCycleSandbox:
         return self.readback(packet['baseline'])
 
 
-def _cycle_result(status,writes=0,**extra):
-    return dict(status=status,writes=writes,deployed=False,proof_level='P0',
+def _cycle_result(status,writes=0,proof_level='P0',**extra):
+    return dict(status=status,writes=writes,deployed=False,proof_level=proof_level,
                 human_outcome='NOT_MEASURED',causal_support=False,**extra)
 
 
@@ -323,6 +323,7 @@ def run_owned_workflow_bridge_once(state_root,*,env=None,now=None,get=None,post=
             source_root=Path(__file__).resolve().parents[1],
             state_root=state_root,
             mount_check=mount_check,
+            allow_read_only_recovery=True,
         )
     except (RuntimeConfigurationError, OSError, TypeError, ValueError):
         return _cycle_result('DEPLOYMENT_HOST_REQUIRED',reason='RAILWAY_OWNER_PREFLIGHT_FAILED')
@@ -343,13 +344,42 @@ def run_owned_workflow_bridge_once(state_root,*,env=None,now=None,get=None,post=
 
     with store.owner_lock() as acquired:
         if not acquired:return _cycle_result('OWNER_BUSY')
+
+        def read_occurrence(key):
+            return collect_owned_occurrence(key,store.journal,now,get=public_reader)
+
+        if not identity.owner_enabled or not identity.dispatch_token_available:
+            # Turning the owner switch off, or losing the publisher credential,
+            # revokes every unsent request before recovery. Existing occurrences
+            # and served bytes remain publicly readable and are reconciled below.
+            store.journal.revoke_ready_workflow_dispatches()
+            occurrence_batch=store.journal.recovery_batch('occurrence')
+            for record in occurrence_batch:
+                reconcile_owned(store.journal,record.key,read_occurrence,now)
+            store.journal.complete_recovery_batch('occurrence',occurrence_batch)
+            if store.journal.pending_records(limit=1):
+                return _cycle_result('RECONCILIATION_REQUIRED',writes=0,
+                                     reason='READ_ONLY_OCCURRENCE_REMAINS_UNKNOWN')
+
+            delivery_batch=store.journal.recovery_batch('delivery')
+            for record in delivery_batch:
+                evidence=collect_owned_delivery(
+                    record.key,store.journal,now,get=public_reader)
+                store.journal.save_delivery(record.key,evidence)
+            store.journal.complete_recovery_batch('delivery',delivery_batch)
+            if store.journal.pending_deliveries(limit=1):
+                return _cycle_result('DELIVERY_RECONCILIATION_REQUIRED',writes=0,
+                                     reason='READ_ONLY_DELIVERY_REMAINS_UNVERIFIED')
+            status=('OWNER_DISABLED_READ_ONLY' if not identity.owner_enabled
+                    else 'DISPATCH_CREDENTIAL_MISSING_READ_ONLY')
+            return _cycle_result(status,writes=0,
+                                 reconciled_occurrences=len(occurrence_batch),
+                                 reconciled_deliveries=len(delivery_batch))
+
         requests=store.journal.pending_workflow_dispatches(limit=2)
         if len(requests)>1:
             return _cycle_result('RECONCILIATION_REQUIRED',
                                  reason='MULTIPLE_PENDING_WORKFLOW_REQUESTS')
-
-        def read_occurrence(key):
-            return collect_owned_occurrence(key,store.journal,now,get=public_reader)
 
         if requests:
             request_record=requests[0]
@@ -416,7 +446,7 @@ def run_owned_workflow_bridge_once(state_root,*,env=None,now=None,get=None,post=
                         reason=evidence['reason'],published=False)
             bridge=reconcile_reserved_owned_workflow(
                 store.journal,request_record.request_id,
-                token=env['MANAGER_WORKFLOW_DISPATCH_TOKEN'],get=get,post=post)
+                token=env['MANAGER_WORKFLOW_DISPATCH_TOKEN'],get=get,post=post,now=now)
             return _cycle_result(
                 bridge.status,
                 request_id=bridge.request_id,
@@ -497,7 +527,7 @@ def run_owned_workflow_bridge_once(state_root,*,env=None,now=None,get=None,post=
             return _cycle_result(reserved.status,effect_key=reserved.key,
                                  reason='REQUEST_ALREADY_RESERVED')
         bridge=reconcile_reserved_owned_workflow(
-            store.journal,request.request_id,token=token,get=get,post=post)
+            store.journal,request.request_id,token=token,get=get,post=post,now=now)
         return _cycle_result(
             bridge.status,request_id=bridge.request_id,sent=bridge.sent,
             workflow_run_id=bridge.run_id,workflow_run_status=bridge.run_status,

@@ -136,12 +136,26 @@ def admit(site,checkout,audit_path,intent_path,output,now,*,owned_request=None):
         if (os.environ.get('GITHUB_EVENT_NAME')!='workflow_dispatch' or owned_request is None
                 or not os.environ.get('MANAGER_OWNER_ID')):
             raise PermissionError('main publisher requires the owner-bound workflow request')
-        from manager_core.owned_platform_host import validate_owned_workflow_request
+        from manager_core.digital_handoff import plan_release
+        from manager_core.owned_platform_host import (
+            OwnedWorkflowRequest, parse_owned_workflow_request,
+            validate_owned_workflow_request,
+        )
+        parsed_request = (owned_request if type(owned_request) is OwnedWorkflowRequest
+                          else parse_owned_workflow_request(owned_request))
+        original_packet = plan_release(
+            packet['baseline'], packet['candidate'],
+            datetime.fromisoformat(parsed_request.created_at),
+            source_ref=MAIN_SOURCE_REF)
         bound_request=validate_owned_workflow_request(
-            owned_request,packet=packet,expected_owner_id=os.environ['MANAGER_OWNER_ID'],
+            parsed_request,packet=original_packet,
+            expected_owner_id=os.environ['MANAGER_OWNER_ID'],
             current_parent=_checkout_parent(checkout))
         if os.environ.get('MANAGER_REQUEST_ID')!=bound_request.request_id:
             raise PermissionError('workflow run does not match the stable owner request ID')
+        # Run the original six-hour lease through the publisher admission gate.
+        # A retry cannot mint a fresh packet timestamp to renew an old request.
+        packet=original_packet
     elif owned_request is not None:
         raise PermissionError('owned workflow requests are accepted only by the versioned main publisher')
     context=PublisherContext(os.environ.get('GITHUB_REPOSITORY'),os.environ.get('GITHUB_REF'),

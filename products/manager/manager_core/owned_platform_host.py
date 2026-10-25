@@ -5,6 +5,7 @@ does not carry credentials, and must be revalidated by the GitHub workflow
 against its own immutable source, current target and protected owner scope.
 """
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from hashlib import sha256
 import json
 import os
@@ -14,10 +15,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from .digital_handoff import MAIN_SOURCE_REF, canonical_bytes, validate_intent
+from .digital_handoff import LEASE, MAIN_SOURCE_REF, canonical_bytes, validate_intent
+from .models.source import _aware
 
 
-SCHEMA_VERSION = "manager.owned-workflow-request.v1"
+SCHEMA_VERSION = "manager.owned-workflow-request.v2"
 _OWNER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _SHA1 = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
@@ -28,7 +30,7 @@ _WORKFLOW_DISPATCH_URL = (
 )
 _FIELDS = frozenset({
     "schema_version", "owner_id", "effect_key", "packet_sha256",
-    "source_commit", "expected_parent", "request_id",
+    "source_commit", "expected_parent", "created_at", "expires_at", "request_id",
 })
 
 
@@ -53,6 +55,8 @@ class RailwayRuntimeIdentity:
     source_commit: str
     owner_id: str
     interval_seconds: int
+    owner_enabled: bool
+    dispatch_token_available: bool
 
 
 @dataclass(frozen=True)
@@ -203,7 +207,7 @@ def dispatch_owned_workflow(request, *, token, post=None):
     return WorkflowDispatchResult(outcome, request.request_id, status)
 
 
-def submit_reserved_owned_workflow(journal, request, *, token, post=None):
+def submit_reserved_owned_workflow(journal, request, *, token, post=None, now=None):
     """Claim and send one previously durable request, with no automatic retry."""
     from .outbox import OwnedEffectJournal
     if type(journal) is not OwnedEffectJournal or type(request) is not OwnedWorkflowRequest:
@@ -213,7 +217,7 @@ def submit_reserved_owned_workflow(journal, request, *, token, post=None):
     stored = journal.workflow_dispatch_record(request.request_id)
     if stored is None or stored.request_json != request.to_json():
         raise PermissionError("workflow request was not durably reserved with these exact bytes")
-    current, claimed = journal.claim_workflow_dispatch(request.request_id)
+    current, claimed = journal.claim_workflow_dispatch(request.request_id, now=now)
     if not claimed:
         status = current.status
         if status == "SENDING":
@@ -289,7 +293,8 @@ def observe_owned_workflow_run(request, *, token, get=None, max_pages=10):
                                   conclusion, expected_url, 1)
 
 
-def reconcile_reserved_owned_workflow(journal, request_id, *, token, post=None, get=None):
+def reconcile_reserved_owned_workflow(journal, request_id, *, token, post=None, get=None,
+                                      now=None):
     """Reconcile first, then submit only a never-claimed durable request once.
 
     An UNKNOWN lookup is not proof that GitHub has no run. It permits a send
@@ -330,7 +335,7 @@ def reconcile_reserved_owned_workflow(journal, request_id, *, token, post=None, 
     sent = False
     if record.status == "READY":
         submission = submit_reserved_owned_workflow(
-            journal, request, token=token, post=post)
+            journal, request, token=token, post=post, now=now)
         sent = submission.sent
         record = journal.workflow_dispatch_record(request_id)
         # A run may appear between the first lookup and our POST response.
@@ -352,6 +357,7 @@ def read_railway_runtime_identity(
     source_root,
     state_root,
     mount_check=os.path.ismount,
+    allow_read_only_recovery=False,
 ):
     """Fail closed unless Railway identity, immutable source and state mount match.
 
@@ -361,6 +367,8 @@ def read_railway_runtime_identity(
     This preflight performs no network requests and grants no publish authority.
     """
     env = os.environ if env is None else env
+    if type(allow_read_only_recovery) is not bool:
+        raise RuntimeConfigurationError("read-only recovery mode must be explicit")
 
     def required(name):
         value = env.get(name)
@@ -387,7 +395,7 @@ def read_railway_runtime_identity(
     repository_name = required("RAILWAY_GIT_REPO_NAME")
     source_branch = required("RAILWAY_GIT_BRANCH")
     source_commit = required("RAILWAY_GIT_COMMIT_SHA")
-    owner_enabled = required("MANAGER_OWNER_ENABLED")
+    owner_enabled_setting = required("MANAGER_OWNER_ENABLED")
     owner_id = required("MANAGER_OWNER_ID")
     interval_text = required("MANAGER_INTERVAL_SECONDS")
     dispatch_token = env.get("MANAGER_WORKFLOW_DISPATCH_TOKEN")
@@ -396,7 +404,11 @@ def read_railway_runtime_identity(
         raise RuntimeConfigurationError("worker must run from the approved repository main release")
     if type(source_commit) is not str or not _SHA1.fullmatch(source_commit):
         raise RuntimeConfigurationError("immutable source commit is required")
-    if owner_enabled != "true":
+    if owner_enabled_setting not in {"true", "false"}:
+        raise RuntimeConfigurationError("the single configured owner switch must be true or false")
+    owner_enabled = owner_enabled_setting == "true"
+    dispatch_token_available = type(dispatch_token) is str and bool(dispatch_token.strip())
+    if not allow_read_only_recovery and not owner_enabled:
         raise RuntimeConfigurationError("the single configured owner must be explicitly enabled")
     try:
         _owner_id(owner_id)
@@ -405,7 +417,7 @@ def read_railway_runtime_identity(
         raise RuntimeConfigurationError("valid owner identity and bounded cadence are required") from exc
     if str(interval_seconds) != interval_text or not 1 <= interval_seconds <= 86400:
         raise RuntimeConfigurationError("valid owner identity and bounded cadence are required")
-    if type(dispatch_token) is not str or not dispatch_token.strip():
+    if not allow_read_only_recovery and not dispatch_token_available:
         raise RuntimeConfigurationError("privileged publisher credential is not configured")
 
     try:
@@ -439,6 +451,8 @@ def read_railway_runtime_identity(
         source_commit=source_commit,
         owner_id=owner_id,
         interval_seconds=interval_seconds,
+        owner_enabled=owner_enabled,
+        dispatch_token_available=dispatch_token_available,
     )
 
 
@@ -453,10 +467,10 @@ def _request_id(fields):
 
 
 def _stable_packet_digest(packet):
-    """Bind the full validated intent except its short-lived lease timestamps."""
+    """Bind the full validated intent, including its original lease timestamps."""
     validate_intent(packet)
     stable = {key: value for key, value in packet.items()
-              if key not in {"created_at", "expires_at", "packet_sha256"}}
+              if key != "packet_sha256"}
     return sha256(canonical_bytes(stable)).hexdigest()
 
 
@@ -468,6 +482,8 @@ class OwnedWorkflowRequest:
     packet_sha256: str
     source_commit: str
     expected_parent: str
+    created_at: str
+    expires_at: str
     request_id: str
 
     def __post_init__(self):
@@ -478,8 +494,17 @@ class OwnedWorkflowRequest:
                 or type(self.packet_sha256) is not str or not _SHA256.fullmatch(self.packet_sha256)
                 or type(self.source_commit) is not str or not _SHA1.fullmatch(self.source_commit)
                 or type(self.expected_parent) is not str or not _SHA1.fullmatch(self.expected_parent)
+                or type(self.created_at) is not str or type(self.expires_at) is not str
                 or type(self.request_id) is not str or not _SHA256.fullmatch(self.request_id)):
             raise ValueError("immutable effect, packet, source and parent digests required")
+        try:
+            created = _aware(datetime.fromisoformat(self.created_at))
+            expires = _aware(datetime.fromisoformat(self.expires_at))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("original owned intent lease timestamps required") from exc
+        if (created.isoformat() != self.created_at or expires.isoformat() != self.expires_at
+                or expires != created + LEASE):
+            raise ValueError("owned workflow request must preserve the exact six-hour lease")
         if self.request_id != _request_id(self.to_dict(include_request_id=False)):
             raise ValueError("owned workflow request digest mismatch")
 
@@ -491,6 +516,8 @@ class OwnedWorkflowRequest:
             "packet_sha256": self.packet_sha256,
             "source_commit": self.source_commit,
             "expected_parent": self.expected_parent,
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
         }
         if include_request_id:
             value["request_id"] = self.request_id
@@ -515,6 +542,8 @@ def create_owned_workflow_request(packet, owner_id, expected_parent):
         "packet_sha256": _stable_packet_digest(packet),
         "source_commit": packet["candidate"]["source_commit"],
         "expected_parent": expected_parent,
+        "created_at": packet["created_at"],
+        "expires_at": packet["expires_at"],
     }
     return OwnedWorkflowRequest(**fields, request_id=_request_id(fields))
 

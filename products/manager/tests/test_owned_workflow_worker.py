@@ -1,5 +1,5 @@
 """The Railway tick is bounded, mounted-state-only, and request-once."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import json
@@ -11,11 +11,21 @@ from manager_core.digital_handoff import (
 from manager_core.digital_environment import build_site, PAGES
 from manager_core.owned_platform_host import create_owned_workflow_request
 from manager_core.outbox import OwnedEffectJournal
-from manager_core.owned_cycle import CycleStore, run_owned_workflow_bridge_once
+from manager_core.owned_cycle import (
+    CycleStore, _cycle_result, run_owned_workflow_bridge_once,
+)
 from test_candidate_verification import NOW
 
 
 class OwnedWorkflowWorkerTests(unittest.TestCase):
+    def test_cycle_result_accepts_observed_public_proof_level(self):
+        result = _cycle_result(
+            "VERIFIED_PUBLIC_ARTIFACT_ONLY", proof_level="P2")
+
+        self.assertEqual(result["proof_level"], "P2")
+        self.assertFalse(result["causal_support"])
+        self.assertEqual(result["human_outcome"], "NOT_MEASURED")
+
     def runtime_env(self, state_root):
         ids = {
             "PROJECT": "project-123",
@@ -76,6 +86,35 @@ class OwnedWorkflowWorkerTests(unittest.TestCase):
             self.assertEqual(calls, [])
             self.assertFalse((state / "cycle.sqlite").exists())
 
+    def test_disabled_owner_still_reconciles_saved_effects_without_github_api_or_send(self):
+        with TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state"
+            state.mkdir()
+            request = self.reserve_request(state)
+            env = self.runtime_env(state)
+            env["MANAGER_OWNER_ENABLED"] = "false"
+            env.pop("MANAGER_WORKFLOW_DISPATCH_TOKEN")
+            api_calls, public_reads, posts = [], [], []
+
+            def public_get(url):
+                public_reads.append(url)
+                raise OSError("old public occurrence unavailable")
+
+            result = run_owned_workflow_bridge_once(
+                state, env=env, now=NOW + timedelta(hours=1),
+                get=lambda *args: api_calls.append(args),
+                post=lambda *args: posts.append(args), public_get=public_get,
+                mount_check=lambda path: True)
+
+            journal = OwnedEffectJournal(state / "cycle.sqlite")
+            self.assertEqual(result["status"], "RECONCILIATION_REQUIRED")
+            self.assertEqual(journal.workflow_dispatch_record(request.request_id).status, "REVOKED")
+            self.assertEqual(journal.record(request.effect_key).status, "RESERVED")
+            self.assertEqual(journal.pending_workflow_dispatches(), ())
+            self.assertEqual(api_calls, [])
+            self.assertEqual(posts, [])
+            self.assertTrue(public_reads)
+
     def test_worker_processes_one_durable_request_then_never_retries_unknown_send(self):
         with TemporaryDirectory() as tmp:
             state = Path(tmp) / "state"
@@ -93,10 +132,10 @@ class OwnedWorkflowWorkerTests(unittest.TestCase):
                 raise TimeoutError("fixture lost response")
 
             first = run_owned_workflow_bridge_once(
-                state, env=env, now=datetime.now(timezone.utc), get=get, post=post,
+                state, env=env, now=NOW + timedelta(hours=1), get=get, post=post,
                 mount_check=lambda path: True)
             second = run_owned_workflow_bridge_once(
-                state, env=env, now=datetime.now(timezone.utc), get=get, post=post,
+                state, env=env, now=NOW + timedelta(hours=1), get=get, post=post,
                 mount_check=lambda path: True)
 
             self.assertEqual(first["status"], "UNKNOWN")
@@ -107,6 +146,39 @@ class OwnedWorkflowWorkerTests(unittest.TestCase):
             self.assertEqual(len(posts), 1)
             self.assertEqual(len(gets), 3)
             self.assertNotIn("fixture-token", json.dumps(first))
+
+    def test_expired_ready_request_is_never_sent_and_next_tick_only_reconciles(self):
+        with TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state"
+            state.mkdir()
+            request = self.reserve_request(state)
+            env = self.runtime_env(state)
+            posts, api_reads = [], []
+
+            def get(url, headers, timeout):
+                api_reads.append(url)
+                return 200, b'{"workflow_runs": []}'
+
+            def post(*args):
+                posts.append(args)
+                return 204
+
+            expired_at = NOW + timedelta(hours=7)
+            first = run_owned_workflow_bridge_once(
+                state, env=env, now=expired_at, get=get, post=post,
+                mount_check=lambda path: True)
+            second = run_owned_workflow_bridge_once(
+                state, env=env, now=expired_at, get=get, post=post,
+                public_get=lambda url: (_ for _ in ()).throw(OSError("old occurrence unavailable")),
+                mount_check=lambda path: True)
+
+            journal = OwnedEffectJournal(state / "cycle.sqlite")
+            self.assertEqual(first["status"], "EXPIRED")
+            self.assertEqual(second["status"], "RECONCILIATION_REQUIRED")
+            self.assertEqual(journal.workflow_dispatch_record(request.request_id).status, "EXPIRED")
+            self.assertEqual(journal.record(request.effect_key).status, "RESERVED")
+            self.assertEqual(posts, [])
+            self.assertEqual(len(api_reads), 2)
 
     def test_idle_worker_builds_request_only_for_current_source_and_exact_served_parent(self):
         with TemporaryDirectory() as tmp:
@@ -192,7 +264,7 @@ class OwnedWorkflowWorkerTests(unittest.TestCase):
                 raise OSError("fixture has no old occurrence")
 
             result = run_owned_workflow_bridge_once(
-                state, env=self.runtime_env(state), now=datetime.now(timezone.utc),
+                state, env=self.runtime_env(state), now=NOW + timedelta(hours=1),
                 get=lambda *args: (200, b'{"workflow_runs": []}'),
                 post=lambda *args: posts.append(args) or 204,
                 public_get=public_get,mount_check=lambda path: True)
@@ -234,7 +306,7 @@ class OwnedWorkflowWorkerTests(unittest.TestCase):
 
             posts = []
             result = run_owned_workflow_bridge_once(
-                state, env=self.runtime_env(state), now=datetime.now(timezone.utc),
+                state, env=self.runtime_env(state), now=NOW + timedelta(hours=1),
                 get=lambda *args: (200, b'{"workflow_runs": []}'),
                 post=lambda *args: posts.append(args) or 204,
                 public_get=lambda url: (_ for _ in ()).throw(OSError("read unavailable")),

@@ -1,6 +1,7 @@
 """Workflow dispatch intents are durably fenced before the HTTP side effect."""
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from datetime import timedelta
 import json
 import sqlite3
 import unittest
@@ -54,9 +55,28 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             journal.reserve(packet, context, packet['baseline'], packet['candidate'], parent, NOW,
                             workflow_request=request, owner_id=owner_id)
             self.assertEqual(journal.record(packet['effect_key']).status, 'RESERVED')
-            _, claimed = journal.claim_workflow_dispatch(request.request_id)
+            _, claimed = journal.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=1))
             self.assertTrue(claimed)
             self.assertEqual(journal.record(packet['effect_key']).status, 'DISPATCHING')
+
+    def test_expired_ready_request_is_atomically_fenced_for_read_only_recovery(self):
+        with TemporaryDirectory() as tmp:
+            host, packet, context, parent, owner_id, request, journal = self.prepare(Path(tmp))
+            journal.reserve(packet, context, packet['baseline'], packet['candidate'], parent, NOW,
+                            workflow_request=request, owner_id=owner_id)
+
+            expired, claimed = journal.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=6))
+
+            self.assertFalse(claimed)
+            self.assertEqual(expired.status, 'EXPIRED')
+            self.assertEqual(journal.record(packet['effect_key']).status, 'RESERVED')
+            self.assertEqual(journal.pending_workflow_dispatches(), ())
+            self.assertEqual(
+                tuple(row.key for row in journal.pending_records(limit=10)),
+                (packet['effect_key'],),
+            )
 
     def test_main_effect_cannot_be_reserved_for_dispatch_without_request(self):
         with TemporaryDirectory() as tmp:
@@ -71,11 +91,13 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             host, packet, context, parent, owner_id, request, journal = self.prepare(Path(tmp))
             journal.reserve(packet, context, packet['baseline'], packet['candidate'], parent, NOW,
                             workflow_request=request, owner_id=owner_id)
-            first, claimed = journal.claim_workflow_dispatch(request.request_id)
+            first, claimed = journal.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=1))
             self.assertTrue(claimed)
             self.assertEqual(first.status, 'SENDING')
             restarted = OwnedEffectJournal(journal.path)
-            second, claimed_again = restarted.claim_workflow_dispatch(request.request_id)
+            second, claimed_again = restarted.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=1))
             self.assertFalse(claimed_again)
             self.assertEqual(second.status, 'SENDING')
 
@@ -84,7 +106,8 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             observation = WorkflowRunObservation('UNKNOWN', request.request_id)
             saved = restarted.save_workflow_run_observation(observation)
             self.assertEqual(saved.status, 'UNKNOWN')
-            _, claimed_after_unknown = restarted.claim_workflow_dispatch(request.request_id)
+            _, claimed_after_unknown = restarted.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=1))
             self.assertFalse(claimed_after_unknown)
 
     def test_run_readback_and_validated_occurrence_advance_without_resending(self):
@@ -92,7 +115,8 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             host, packet, context, parent, owner_id, request, journal = self.prepare(Path(tmp))
             journal.reserve(packet, context, packet['baseline'], packet['candidate'], parent, NOW,
                             workflow_request=request, owner_id=owner_id)
-            journal.claim_workflow_dispatch(request.request_id)
+            journal.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=1))
             journal.save_workflow_dispatch_result(
                 WorkflowDispatchResult('ACCEPTED', request.request_id, 204))
             found = WorkflowRunObservation('FOUND', request.request_id, 12345,
@@ -112,7 +136,8 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             host, packet, context, parent, owner_id, request, journal = self.prepare(Path(tmp))
             journal.reserve(packet, context, packet['baseline'], packet['candidate'], parent, NOW,
                             workflow_request=request, owner_id=owner_id)
-            journal.claim_workflow_dispatch(request.request_id)
+            journal.claim_workflow_dispatch(
+                request.request_id, now=NOW + timedelta(hours=1))
             journal.save_workflow_dispatch_result(
                 WorkflowDispatchResult('ACCEPTED', request.request_id, 204))
             duplicate = WorkflowRunObservation('DUPLICATE', request.request_id, matching_runs=2)
@@ -131,8 +156,8 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
                             workflow_request=request, owner_id=owner_id)
             real_claim = journal.claim_workflow_dispatch
 
-            def concurrent_worker_won(request_id):
-                claimed, did_claim = real_claim(request_id)
+            def concurrent_worker_won(request_id, *, now=None):
+                claimed, did_claim = real_claim(request_id, now=now)
                 self.assertTrue(did_claim)
                 accepted = journal.save_workflow_dispatch_result(
                     WorkflowDispatchResult('ACCEPTED', request_id, 204))
@@ -143,6 +168,7 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             calls = []
             result = submit_reserved_owned_workflow(
                 journal, request, token='fixture-token',
+                now=NOW + timedelta(hours=1),
                 post=lambda *args: calls.append(args) or 204)
             self.assertEqual(result.status, 'ACCEPTED')
             self.assertFalse(result.sent)
@@ -166,6 +192,7 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
             posts = []
             result = reconcile_reserved_owned_workflow(
                 journal, request.request_id, token='fixture-token',
+                now=NOW + timedelta(hours=1),
                 get=lambda *args: (200, json.dumps({'workflow_runs': [run]}).encode()),
                 post=lambda *args: posts.append(args) or 204)
             self.assertEqual(result.status, 'RUN_FOUND')
@@ -191,9 +218,11 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
                 raise TimeoutError('fixture response lost')
 
             first = reconcile_reserved_owned_workflow(
-                journal, request.request_id, token='fixture-token', get=get, post=post)
+                journal, request.request_id, token='fixture-token', now=NOW + timedelta(hours=1),
+                get=get, post=post)
             second = reconcile_reserved_owned_workflow(
-                journal, request.request_id, token='fixture-token', get=get, post=post)
+                journal, request.request_id, token='fixture-token', now=NOW + timedelta(hours=1),
+                get=get, post=post)
             self.assertEqual(first.status, 'UNKNOWN')
             self.assertTrue(first.sent)
             self.assertEqual(second.status, 'UNKNOWN')
@@ -226,6 +255,7 @@ class OwnedWorkflowJournalTests(unittest.TestCase):
 
             result = reconcile_reserved_owned_workflow(
                 journal, request.request_id, token='fixture-token', get=get,
+                now=NOW + timedelta(hours=1),
                 post=lambda *args: posts.append(args) or 204)
             self.assertEqual(result.status, 'RUN_FOUND')
             self.assertEqual(result.run_id, 98765)

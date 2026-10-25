@@ -145,5 +145,42 @@ class PublisherIntegrationTests(unittest.TestCase):
                         owned_request=bad_request)
             self.assertEqual(snapshot,{p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()})
 
+    def test_main_admission_rejects_expired_original_request_even_with_fresh_packet(self):
+        from manager_core.digital_handoff import MAIN_SOURCE_REF, plan_release
+        from manager_core.owned_platform_host import create_owned_workflow_request
+        m=self.load()
+        with TemporaryDirectory() as t,patch('manager_core.digital_environment.datetime',FixedReviewDate):
+            old,new,pages,intent,audit=self.setup_files(Path(t))
+            subprocess.run(['git','-C',str(pages),'init','-q'],check=True)
+            subprocess.run(['git','-C',str(pages),'config','user.name','Manager fixture'],check=True)
+            subprocess.run(['git','-C',str(pages),'config','user.email','manager-fixture@example.invalid'],check=True)
+            subprocess.run(['git','-C',str(pages),'add','.'],check=True)
+            subprocess.run(['git','-C',str(pages),'commit','-qm','fixture baseline'],check=True)
+            parent=subprocess.check_output(['git','-C',str(pages),'rev-parse','HEAD'],text=True).strip()
+            before=json.loads((old/'manifest.json').read_text())
+            candidate=json.loads((new/'manifest.json').read_text())
+            original_packet=plan_release(before,candidate,NOW,source_ref=MAIN_SOURCE_REF)
+            request=create_owned_workflow_request(original_packet,'manager-owner-1',parent)
+            late=NOW+timedelta(hours=7)
+            refreshed_packet=plan_release(before,candidate,late,source_ref=MAIN_SOURCE_REF)
+            intent.write_text(json.dumps(refreshed_packet))
+            audit_data=json.loads(audit.read_text())
+            for source in audit_data['sources']:
+                source['observed_at']=late.isoformat()
+            audit.write_text(json.dumps(audit_data))
+            env={'GITHUB_REPOSITORY':'Daisuke134/life-manager','GITHUB_REF':MAIN_SOURCE_REF,
+                 'GITHUB_WORKFLOW_REF':f'Daisuke134/life-manager/.github/workflows/manager-phase06-service.yml@{MAIN_SOURCE_REF}',
+                 'GITHUB_SHA':'b'*40,'GITHUB_RUN_ID':'12345','GITHUB_EVENT_NAME':'workflow_dispatch',
+                 'MANAGER_RELEASE_ENABLED':'true','MANAGER_OWNER_ID':'manager-owner-1',
+                 'MANAGER_REQUEST_ID':request.request_id}
+            original={p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()}
+
+            with patch.dict(os.environ,env),self.assertRaisesRegex(PermissionError,'expired'):
+                m.admit(new,pages,audit,intent,Path(t)/'expired-admission.json',late,
+                        owned_request=request)
+
+            self.assertEqual(original,{p.name:p.read_bytes() for p in (pages/'manager-support').iterdir()})
+            self.assertFalse((Path(t)/'expired-admission.json').exists())
+
 
 if __name__=='__main__':unittest.main()
