@@ -3078,6 +3078,61 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     enqueue.assert_not_called()
 
 
+def test_successful_unknown_run_preserves_effect_identity_before_cleanup(tmp_path):
+    release = _write_prestart_lock_release(tmp_path, effect_class="publish")
+    state_root = tmp_path / "state"
+    events = []
+    identity = {
+        "schema_version": 1,
+        "kind": "life_manager_effect_identity",
+        "runtime_run_id": "run-1",
+        "occurrence_id": "example-publisher:run-1",
+        "loop_id": "example-publisher",
+        "job_id": "example-publisher",
+        "effect_key": "marketing:video:honne-ai:tiktok:creative:" + "a" * 64 + ":" + "b" * 64,
+        "product_id": "honne-ai",
+        "format_id": "reelclaw",
+        "form": "relationship-confession",
+        "locale": "ja",
+        "platform": "tiktok",
+        "creative_id": "creative",
+        "slot": "2026-07-30T12:30:00.000Z",
+        "integration_ref": "integration://postiz/tiktok/honne-ai-ja",
+        "account_id": "@honnevideo",
+        "video_sha256": "a" * 64,
+        "caption_sha256": "b" * 64,
+    }
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, *,
+                     occurrence_id, on_claimed, **_kwargs):
+        on_claimed(occurrence_id)
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        sidecar = receipt.parent / "effect-identity.jsonl"
+        sidecar.write_text(json.dumps(identity) + "\n", encoding="utf-8")
+        sidecar.chmod(0o600)
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event))):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    assert events[-1]["effect_status"] == "unknown"
+    assert events[-1]["effect_identity_status"] == "persisted"
+    assert "lm-effect://example-publisher/run-1/identity.jsonl" in events[-1]["evidence_refs"]
+    persisted = state_root / "effect-identities" / "run-1.jsonl"
+    assert json.loads(persisted.read_text(encoding="utf-8"))["occurrence_id"] == "example-publisher:run-1"
+
+
 def test_main_fences_heartbeat_failure_until_official_readback(tmp_path):
     release = _write_prestart_lock_release(tmp_path, effect_class="publish")
     state_root = tmp_path / "state"
