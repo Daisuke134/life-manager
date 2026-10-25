@@ -17,6 +17,7 @@ import runpy
 import subprocess
 import sys
 import urllib.request
+import time
 import uuid
 from pathlib import Path
 
@@ -240,6 +241,29 @@ def _req(key: str, url: str, data=None, headers=None, method=None):
     return json.loads(body) if body else {}
 
 
+UPLOAD_ATTEMPTS = 3
+UPLOAD_RETRY_STATUS = {502, 503, 504}
+
+
+def _upload(key: str, data: bytes, boundary: str) -> dict:
+    """POST /upload, retrying only transient gateway errors.
+
+    An upload only returns a media id, so repeating it creates no post; /posts is never retried.
+    """
+    last = None
+    for attempt in range(UPLOAD_ATTEMPTS):
+        try:
+            return _req(key, f"{API}/upload", data,
+                        {"Content-Type": f"multipart/form-data; boundary={boundary}"}, "POST")
+        except urllib.error.HTTPError as exc:
+            if exc.code not in UPLOAD_RETRY_STATUS:
+                raise
+            last = exc
+            if attempt + 1 < UPLOAD_ATTEMPTS:
+                time.sleep(5 * (attempt + 1))
+    raise last
+
+
 def _durable_write(path: Path, text: str) -> None:
     with open(path, "w") as fh:
         fh.write(text)
@@ -277,7 +301,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
             kind = "image/jpeg" if asset.suffix == ".jpg" else "video/mp4"
             data = (f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{slug}-{asset.name}\"\r\n"
                     f"Content-Type: {kind}\r\n\r\n").encode() + asset.read_bytes() + f"\r\n--{bnd}--\r\n".encode()
-            uploads.append(_req(key, f"{API}/upload", data, {"Content-Type": f"multipart/form-data; boundary={bnd}"}, "POST"))
+            uploads.append(_upload(key, data, bnd))
         up = uploads[0]
         settings = ({**SETTINGS["tt"], "title": spec["hook_a"]} if net in ("tt", "tc") else SETTINGS[net])
         payload = {"type": "schedule", "date": slots(day, slot)[net], "shortLink": False, "tags": [],
