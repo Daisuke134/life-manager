@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -25,6 +26,9 @@ ALLOWED_HOSTS = frozenset({
 })
 MAX_TOOL_CALLS = 80
 MAX_RECEIPT_BYTES = 1_048_576
+MAX_SAFE_LINKS = 25
+MAX_URL_DECODE_PASSES = 12
+PERCENT_ESCAPED_BYTE_PATTERN = re.compile(r'%[0-9a-f]{2}', re.I)
 EMAIL_PATTERN = re.compile(r'\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b')
 PHONE_PATTERN = re.compile(r'(?<!\w)(?:\+?\d[\d ()-]{8,}\d)(?!\w)')
 CODE_PATTERN = re.compile(r'(?<!\d)\d{6}(?!\d)')
@@ -86,6 +90,12 @@ class BrowserToolError(RuntimeError):
 
 
 def _redact_text(value: str) -> str:
+    if '\n' in value:
+        return '\n'.join(_redact_text(line) for line in value.split('\n'))
+    if PERCENT_ESCAPED_BYTE_PATTERN.search(value):
+        decoded = _decode_url_component(value)
+        if decoded is None or (decoded != value and _contains_sensitive_url_data(decoded)):
+            return '[encoded sensitive text redacted]'
     value = EMAIL_PATTERN.sub('[email redacted]', value)
     value = PHONE_PATTERN.sub('[phone redacted]', value)
     value = AUTH_SCHEME_PATTERN.sub('[credential redacted]', value)
@@ -113,28 +123,37 @@ def _allowed_url(value: str) -> bool:
     return host in ALLOWED_HOSTS or host.endswith('.capafy.ai')
 
 
+def _decode_url_component(value: str) -> str | None:
+    decoded = value
+    for _ in range(MAX_URL_DECODE_PASSES):
+        next_value = unquote(decoded)
+        if next_value == decoded:
+            return decoded
+        decoded = next_value
+    return None if PERCENT_ESCAPED_BYTE_PATTERN.search(decoded) else decoded
+
+
+def _contains_sensitive_url_data(value: str) -> bool:
+    return bool(
+        EMAIL_PATTERN.search(value) or PHONE_PATTERN.search(value)
+        or CODE_PATTERN.search(value) or CONTEXT_CODE_PATTERN.search(value)
+        or REVERSE_CODE_PATTERN.search(value) or CREDENTIAL_PATTERN.search(value)
+        or BEARER_PATTERN.search(value) or JWT_PATTERN.search(value)
+        or PREFIXED_TOKEN_PATTERN.search(value)
+    )
+
+
 def _readonly_url(value: str) -> bool:
     if not _allowed_url(value):
         return False
     try:
         parsed = urlsplit(value)
         host = (parsed.hostname or '').lower().rstrip('.')
-        path = parsed.path.replace('\\', '/')
-        for _ in range(3):
-            decoded = unquote(path).replace('\\', '/')
-            if decoded == path:
-                break
-            path = decoded
-        if READONLY_ACTION_PATH.search(path):
+        path = _decode_url_component(parsed.path.replace('\\', '/'))
+        if path is None:
             return False
-        decoded_path = path
-        for _ in range(3):
-            decoded_path = unquote(decoded_path)
-        if (EMAIL_PATTERN.search(decoded_path) or PHONE_PATTERN.search(decoded_path)
-                or CODE_PATTERN.search(decoded_path) or CONTEXT_CODE_PATTERN.search(decoded_path)
-                or REVERSE_CODE_PATTERN.search(decoded_path) or CREDENTIAL_PATTERN.search(decoded_path)
-                or BEARER_PATTERN.search(decoded_path) or JWT_PATTERN.search(decoded_path)
-                or PREFIXED_TOKEN_PATTERN.search(decoded_path)):
+        path = path.replace('\\', '/')
+        if READONLY_ACTION_PATH.search(path) or _contains_sensitive_url_data(path):
             return False
         if host in {'capafy.ai', 'www.capafy.ai', 'docs.capafy.ai'}:
             if not CAPAFY_PUBLIC_PATH.fullmatch(path):
@@ -143,20 +162,19 @@ def _readonly_url(value: str) -> bool:
             return False
         elif path not in SEARCH_PUBLIC_PATHS:
             return False
-        query_text = parsed.query
-        for _ in range(3):
-            query_text = unquote(query_text)
-        if (EMAIL_PATTERN.search(query_text) or PHONE_PATTERN.search(query_text)
-                or CODE_PATTERN.search(query_text) or CONTEXT_CODE_PATTERN.search(query_text)
-                or REVERSE_CODE_PATTERN.search(query_text) or CREDENTIAL_PATTERN.search(query_text)
-                or BEARER_PATTERN.search(query_text) or JWT_PATTERN.search(query_text)
-                or PREFIXED_TOKEN_PATTERN.search(query_text)):
+        query_text = _decode_url_component(parsed.query)
+        if query_text is None or _contains_sensitive_url_data(query_text):
             return False
         for key, query_value in parse_qsl(query_text, keep_blank_values=True):
-            if (_sensitive_query_key(key)
-                    or re.sub(r'[^a-z0-9]', '', key.lower()) not in PUBLIC_QUERY_KEYS
-                    or (key.lower() in {'action', 'intent', 'op', 'operation', 'method', 'cmd', 'do'}
-                        and READONLY_ACTION_QUERY.search(query_value))):
+            decoded_key = _decode_url_component(key)
+            decoded_value = _decode_url_component(query_value)
+            if (decoded_key is None or decoded_value is None
+                    or _contains_sensitive_url_data(decoded_key)
+                    or _contains_sensitive_url_data(decoded_value)
+                    or _sensitive_query_key(decoded_key)
+                    or re.sub(r'[^a-z0-9]', '', decoded_key.lower()) not in PUBLIC_QUERY_KEYS
+                    or (decoded_key.lower() in {'action', 'intent', 'op', 'operation', 'method', 'cmd', 'do'}
+                        and READONLY_ACTION_QUERY.search(decoded_value))):
                 return False
         return True
     except ValueError:
@@ -211,6 +229,18 @@ TOOLS = [
         },
     },
     {
+        'name': 'browser_follow_link',
+        'description': 'Follow one safe public link from the most recent browser_observe result. The observation expires if the page changes.',
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'observation_id': {'type': 'string', 'minLength': 32, 'maxLength': 32},
+                'link_id': {'type': 'string', 'minLength': 1, 'maxLength': 2},
+            },
+            'required': ['observation_id', 'link_id'], 'additionalProperties': False,
+        },
+    },
+    {
         'name': 'browser_search',
         'description': 'Search a same-origin public GET search form. Other form methods, origins, and write requests are blocked.',
         'inputSchema': {
@@ -232,6 +262,7 @@ class BrowserMcpSession:
         self.clock = clock or (lambda: datetime.now(timezone.utc).isoformat())
         self.calls = 0
         self.effect_unknown = False
+        self._last_observation = None
         self._unexpected_page = False
         self._service_worker_guard_failed = False
         self._cdp_sessions = []
@@ -342,12 +373,32 @@ class BrowserMcpSession:
     def list_tools(self) -> dict[str, Any]:
         return {'tools': TOOLS}
 
-    def _record(self, tool: str, outcome: str, action_id: str) -> None:
-        origin = _origin(str(getattr(self.page, 'url', '')))
-        payload = (json.dumps({
+    def _record(self, tool: str, outcome: str, action_id: str, *, state_hash: str | None = None,
+                observation_id: str | None = None, link_id: str | None = None,
+                link_count: int | None = None) -> None:
+        record = {
             'at': self.clock(), 'actionId': action_id, 'tool': tool,
-            'outcome': outcome, 'origin': origin,
-        }, ensure_ascii=False, separators=(',', ':')) + '\n').encode()
+            'outcome': outcome, 'origin': _origin(str(getattr(self.page, 'url', ''))),
+        }
+        if state_hash is not None:
+            if not re.fullmatch(r'[a-f0-9]{64}', state_hash):
+                raise BrowserToolError('browser_receipt_evidence_invalid', record=False)
+            record['stateHash'] = state_hash
+        if observation_id is not None:
+            if not re.fullmatch(r'[a-f0-9]{32}', observation_id):
+                raise BrowserToolError('browser_receipt_evidence_invalid', record=False)
+            record['observationId'] = observation_id
+        if link_id is not None:
+            if not re.fullmatch(r'[1-9][0-9]?', link_id):
+                raise BrowserToolError('browser_receipt_evidence_invalid', record=False)
+            record['linkId'] = link_id
+        if link_count is not None:
+            if (isinstance(link_count, bool) or not isinstance(link_count, int)
+                    or not 0 <= link_count <= MAX_SAFE_LINKS
+                    or tool != 'browser_observe' or outcome != 'read'):
+                raise BrowserToolError('browser_receipt_evidence_invalid', record=False)
+            record['linkCount'] = link_count
+        payload = (json.dumps(record, ensure_ascii=False, separators=(',', ':')) + '\n').encode()
         flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0)
         parent_fd = None
         try:
@@ -387,14 +438,20 @@ class BrowserMcpSession:
             if parent_fd is not None:
                 os.close(parent_fd)
 
-    def _record_after_dispatch(self, tool: str, outcome: str, action_id: str) -> None:
+    def _record_after_dispatch(self, tool: str, outcome: str, action_id: str, *,
+                               state_hash: str | None = None,
+                               observation_id: str | None = None,
+                               link_id: str | None = None) -> None:
+        evidence = {key: value for key, value in {
+            'state_hash': state_hash, 'observation_id': observation_id, 'link_id': link_id,
+        }.items() if value is not None}
         try:
-            self._record(tool, outcome, action_id)
+            self._record(tool, outcome, action_id, **evidence)
         except BrowserToolError:
             try:
                 # If the success row was partially appended but could not be
                 # fsynced, a duplicate terminal ID makes the cycle fail closed.
-                self._record(tool, 'effect_unknown', action_id)
+                self._record(tool, 'effect_unknown', action_id, **evidence)
             except BrowserToolError:
                 pass
             raise BrowserToolError(
@@ -402,7 +459,7 @@ class BrowserMcpSession:
                 outcome='effect_unknown', record=False,
             ) from None
 
-    def _observe(self, action_id: str) -> dict[str, Any]:
+    def _read_page_state(self) -> dict[str, Any]:
         try:
             current_url = str(getattr(self.page, 'url', ''))
             if current_url != 'about:blank' and not _readonly_url(current_url):
@@ -418,14 +475,61 @@ class BrowserMcpSession:
                     or (final_url != 'about:blank' and not _readonly_url(final_url))):
                 raise BrowserToolError('navigation_blocked')
             visible = _redact_text(visible)
+            raw_links = self.page.locator('a[href]').evaluate_all(
+                '(anchors) => { const links = []; let visited = 0; '
+                'for (const anchor of anchors) { if (++visited > 250) break; '
+                'const text = (anchor.innerText || anchor.getAttribute("aria-label") || anchor.title || "").trim(); '
+                'if (text) links.push({ text: text.slice(0, 240), href: anchor.href }); } return links; }'
+            )
+            links = []
+            if not isinstance(raw_links, list):
+                raise BrowserToolError('browser_observation_failed')
+            for item in raw_links:
+                if not isinstance(item, dict):
+                    continue
+                href = item.get('href')
+                label = re.sub(r'\s+', ' ', _redact_text(str(item.get('text') or '')).strip())[:160]
+                if not label or not _readonly_url(href):
+                    continue
+                links.append({'linkId': str(len(links) + 1), 'label': label, 'href': href})
+                if len(links) >= MAX_SAFE_LINKS:
+                    break
+            links_url = str(getattr(self.page, 'url', ''))
+            if (links_url != final_url
+                    or (links_url != 'about:blank' and not _readonly_url(links_url))):
+                raise BrowserToolError('navigation_blocked')
         except BrowserToolError:
             raise
         except Exception:
             raise BrowserToolError('browser_observation_failed') from None
-        self._record('browser_observe', 'read', action_id)
+        state = {
+            'url': final_url, 'title': title, 'visible': visible,
+            'links': [{'linkId': item['linkId'], 'label': item['label'],
+                       'href': item['href']} for item in links],
+        }
+        canonical = json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        return {'url': final_url, 'title': title, 'visible': visible, 'links': links,
+                'stateHash': hashlib.sha256(canonical.encode()).hexdigest()}
+
+    def _observe(self, action_id: str) -> dict[str, Any]:
+        state = self._read_page_state()
+        observation_id = uuid.uuid4().hex
+        self._last_observation = {
+            'observationId': observation_id,
+            'stateHash': state['stateHash'],
+            'links': {item['linkId']: item for item in state['links']},
+        }
+        self._record('browser_observe', 'read', action_id, state_hash=state['stateHash'],
+                     observation_id=observation_id, link_count=len(state['links']))
+        link_lines = [f"[{item['linkId']}] {item['label']} ({_origin(item['href'])})"
+                      for item in state['links']]
+        links_text = ('\nSafe public links (choose by link ID):\n' + '\n'.join(link_lines)
+                      if link_lines else '\nSafe public links: none observed')
         return {'content': [{
             'type': 'text',
-            'text': f'Title: {title}\nPage: {_origin(current_url)}\nVisible text (redacted, capped):\n{visible}',
+            'text': (f"Title: {state['title']}\nPage: {_origin(state['url'])}"
+                     f"\nObservation ID: {observation_id}\nPage state hash: {state['stateHash']}"
+                     f"\nVisible text (redacted, capped):\n{state['visible']}{links_text}"),
         }]}
 
     def _navigate(self, arguments: dict[str, Any], action_id: str) -> dict[str, Any]:
@@ -433,6 +537,7 @@ class BrowserMcpSession:
         if not _readonly_url(target):
             raise BrowserToolError('browser_navigation_blocked')
         self._record('browser_navigate', 'started', action_id)
+        self._last_observation = None
         try:
             self.page.goto(target, wait_until='domcontentloaded', timeout=20_000)
             if not _readonly_url(str(getattr(self.page, 'url', ''))):
@@ -442,14 +547,51 @@ class BrowserMcpSession:
         self._record_after_dispatch('browser_navigate', 'opened', action_id)
         return {'content': [{'type': 'text', 'text': f'Opened {_origin(str(self.page.url))}'}]}
 
+    def _follow_link(self, arguments: dict[str, Any], action_id: str) -> dict[str, Any]:
+        observation_id = arguments.get('observation_id')
+        link_id = arguments.get('link_id')
+        if (not isinstance(observation_id, str) or not re.fullmatch(r'[a-f0-9]{32}', observation_id)
+                or not isinstance(link_id, str) or not re.fullmatch(r'[1-9][0-9]?', link_id)):
+            raise BrowserToolError('browser_link_input_invalid')
+        observed = self._last_observation
+        if not isinstance(observed, dict) or observed.get('observationId') != observation_id:
+            raise BrowserToolError('browser_link_observation_stale')
+        link = observed.get('links', {}).get(link_id)
+        if not isinstance(link, dict):
+            raise BrowserToolError('browser_link_not_observed')
+        state = self._read_page_state()
+        if state['stateHash'] != observed.get('stateHash'):
+            self._last_observation = None
+            raise BrowserToolError('browser_link_observation_stale')
+        target = link.get('href')
+        if not _readonly_url(target):
+            self._last_observation = None
+            raise BrowserToolError('browser_link_not_observed')
+        self._record('browser_follow_link', 'started', action_id,
+                     state_hash=state['stateHash'], observation_id=observation_id,
+                     link_id=link_id)
+        self._last_observation = None
+        try:
+            self.page.goto(target, wait_until='domcontentloaded', timeout=20_000)
+            if not _readonly_url(str(getattr(self.page, 'url', ''))):
+                raise BrowserToolError('browser_link_effect_unknown', outcome='effect_unknown')
+        except Exception:
+            raise BrowserToolError('browser_link_effect_unknown', outcome='effect_unknown') from None
+        self._record_after_dispatch('browser_follow_link', 'opened', action_id,
+                                    state_hash=state['stateHash'], observation_id=observation_id,
+                                    link_id=link_id)
+        return {'content': [{'type': 'text', 'text': f'Opened {_origin(str(self.page.url))}'}]}
+
     def _search(self, arguments: dict[str, Any], action_id: str) -> dict[str, Any]:
         query = arguments.get('query')
+        decoded_query = _decode_url_component(query) if isinstance(query, str) else None
         if (not isinstance(query, str) or not query.strip() or len(query) > 200
                 or EMAIL_PATTERN.search(query) or PHONE_PATTERN.search(query)
                 or CONTEXT_CODE_PATTERN.search(query) or REVERSE_CODE_PATTERN.search(query)
                 or CODE_PATTERN.search(query) or CREDENTIAL_PATTERN.search(query)
                 or BEARER_PATTERN.search(query) or JWT_PATTERN.search(query)
-                or PREFIXED_TOKEN_PATTERN.search(query)):
+                or PREFIXED_TOKEN_PATTERN.search(query)
+                or decoded_query is None or _contains_sensitive_url_data(decoded_query)):
             raise BrowserToolError('browser_search_query_invalid')
         try:
             locator = self.page.get_by_role('searchbox')
@@ -477,6 +619,7 @@ class BrowserMcpSession:
         except Exception:
             raise BrowserToolError('browser_search_blocked') from None
         self._record('browser_search', 'started', action_id)
+        self._last_observation = None
         try:
             locator.fill(query, timeout=5_000)
             locator.press('Enter', timeout=5_000)
@@ -502,6 +645,8 @@ class BrowserMcpSession:
                 return self._observe(action_id)
             if name == 'browser_navigate':
                 return self._navigate(arguments, action_id)
+            if name == 'browser_follow_link':
+                return self._follow_link(arguments, action_id)
             if name == 'browser_search':
                 return self._search(arguments, action_id)
         except BrowserToolError as error:

@@ -64,7 +64,7 @@ class MaritimeBrowserCommandTests(unittest.TestCase):
         enabled_tools = next(value.split('=', 1)[1] for value in overrides
                              if value.startswith('mcp_servers.maritime_browser.enabled_tools='))
         self.assertEqual(json.loads(enabled_tools), [
-            'browser_observe', 'browser_navigate', 'browser_search',
+            'browser_observe', 'browser_navigate', 'browser_follow_link', 'browser_search',
         ])
         args_value = next(value.split('=', 1)[1] for value in overrides
                           if value.startswith('mcp_servers.maritime_browser.args='))

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from urllib.parse import quote
 from unittest.mock import patch
 
 
@@ -53,6 +54,7 @@ class FakePage:
         self.url = 'https://capafy.ai/market'
         self.goto_calls = []
         self.locators = {}
+        self.links = []
         self.screenshot_calls = 0
         self.title_calls = 0
         self.body_reads = 0
@@ -67,7 +69,9 @@ class FakePage:
             'authToken=auth-secret; Authorization: Basic dXNlcjpwYXNzd29yZA==; '
             '"Authorization": "Basic cHJveHk6c2VjcmV0=="; '
             'Proxy-Authorization: Digest digest-secret-value; sk-live-abcdefghijklmnop; '
-            'eyJabcdefghijk.abcdefghijklmnop.abcdefghijklmnop'
+            'eyJabcdefghijk.abcdefghijklmnop.abcdefghijklmnop;\n'
+            'encoded email alice%40example.com; nested email nested%2540example.com; '
+            'encoded token token%3Dopaque-secret; nested token nested%253Dopaque-secret'
         )
 
     def title(self):
@@ -75,6 +79,10 @@ class FakePage:
         return 'Capafy market'
 
     def locator(self, selector):
+        if selector == 'a[href]':
+            return type('Links', (), {
+                'evaluate_all': lambda _self, _expression: list(self.links),
+            })()
         return type('Body', (), {'inner_text': lambda _self, **_kwargs: self._read_body()})()
 
     def _read_body(self):
@@ -151,10 +159,16 @@ class BrowserMcpTest(unittest.TestCase):
             tenant_root=self.tenant_root, receipt_path=self.receipt,
         )
 
-    def test_lists_only_observe_navigate_click_and_search_tools(self):
+    @staticmethod
+    def observation_id(text):
+        prefix = 'Observation ID: '
+        return (text.split(prefix, 1)[1].splitlines()[0]
+                if prefix in text else '0' * 32)
+
+    def test_lists_only_observe_navigate_follow_link_and_search_tools(self):
         tools = self.session.list_tools()['tools']
         self.assertEqual([tool['name'] for tool in tools], [
-            'browser_observe', 'browser_navigate', 'browser_search',
+            'browser_observe', 'browser_navigate', 'browser_follow_link', 'browser_search',
         ])
         self.assertTrue(all('inputSchema' in tool for tool in tools))
 
@@ -169,10 +183,110 @@ class BrowserMcpTest(unittest.TestCase):
                        'csrf-secret', 'auth-secret', 'dXNlcjpwYXNzd29yZA==',
                        'cHJveHk6c2VjcmV0==',
                        'digest-secret-value', 'sk-live-abcdefghijklmnop',
-                       'eyJabcdefghijk.abcdefghijklmnop.abcdefghijklmnop'):
+                       'eyJabcdefghijk.abcdefghijklmnop.abcdefghijklmnop',
+                       'alice', 'token%3Dopaque-secret'):
             self.assertNotIn(secret, result['content'][0]['text'])
         self.assertEqual(len(result['content']), 1)
         self.assertEqual(self.page.screenshot_calls, 0)
+
+    def test_observe_exposes_only_redacted_public_links_with_a_fresh_observation_id(self):
+        self.page.links = [
+            {'text': 'Browse market', 'href': 'https://capafy.ai/marketplace?category=featured'},
+            {'text': 'Create a publisher account', 'href': 'https://capafy.ai/register'},
+            {'text': 'Private account', 'href': 'https://capafy.ai/account'},
+            {'text': 'External page', 'href': 'https://example.com/market'},
+            {'text': 'Search private email',
+             'href': 'https://www.google.com/search?q=alice%25252540example.com'},
+            {'text': 'Contact hello@example.com code 123456',
+             'href': 'https://capafy.ai/developer/doc/4.2'},
+            {'text': 'Encoded identity alice%40example.com nested%253Dopaque-secret',
+             'href': 'https://capafy.ai/developer/doc/4.3'},
+        ]
+
+        result = self.session.call('browser_observe', {})
+        text = result['content'][0]['text']
+
+        self.assertRegex(text, r'Observation ID: [a-f0-9]{32}')
+        self.assertIn('[1] Browse market (https://capafy.ai)', text)
+        self.assertIn('[2] Contact [email redacted] [code redacted] (https://capafy.ai)', text)
+        self.assertIn('[3] [encoded sensitive text redacted] (https://capafy.ai)', text)
+        for hidden in ('Create a publisher account', 'Private account', 'External page',
+                       'Search private email', 'hello@example.com', 'alice', 'opaque-secret', '123456',
+                       '/register', '/account'):
+            self.assertNotIn(hidden, text)
+
+    def test_follow_link_requires_latest_page_state_and_records_receipt_evidence(self):
+        target = 'https://capafy.ai/developer/doc/4.2'
+        self.page.links = [{'text': 'Developer guide', 'href': target}]
+        observation = self.session.call('browser_observe', {})['content'][0]['text']
+        observation_id = self.observation_id(observation)
+
+        try:
+            result = self.session.call('browser_follow_link', {
+                'observation_id': observation_id, 'link_id': '1',
+            })
+        except browser_mcp.BrowserToolError as error:
+            self.fail(f'expected a safe observed link to open, got {error}')
+
+        self.assertEqual(self.page.goto_calls, [target])
+        self.assertIn('https://capafy.ai', result['content'][0]['text'])
+        rows = [json.loads(line) for line in self.receipt.read_text().splitlines()]
+        self.assertEqual([row['tool'] for row in rows], [
+            'browser_observe', 'browser_follow_link', 'browser_follow_link',
+        ])
+        self.assertEqual([row['outcome'] for row in rows], ['read', 'started', 'opened'])
+        self.assertRegex(rows[0]['stateHash'], r'^[a-f0-9]{64}$')
+        self.assertEqual(rows[0]['linkCount'], 1)
+        self.assertEqual(rows[1]['observationId'], observation_id)
+        self.assertEqual(rows[1]['linkId'], '1')
+        self.assertEqual(rows[1]['actionId'], rows[2]['actionId'])
+        self.assertNotIn(target, self.receipt.read_text())
+
+    def test_follow_link_rejects_changed_page_before_navigation(self):
+        self.page.links = [{'text': 'Developer guide', 'href': 'https://capafy.ai/developer/doc/4.2'}]
+        observation = self.session.call('browser_observe', {})['content'][0]['text']
+        observation_id = self.observation_id(observation)
+        self.page.body_text = 'The page changed after observation.'
+
+        with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'link_observation_stale'):
+            self.session.call('browser_follow_link', {
+                'observation_id': observation_id, 'link_id': '1',
+            })
+
+        self.assertEqual(self.page.goto_calls, [])
+        rows = [json.loads(line) for line in self.receipt.read_text().splitlines()]
+        self.assertEqual(rows[-1]['outcome'], 'blocked')
+
+    def test_follow_link_unknown_outcome_fences_replay(self):
+        self.page.links = [{'text': 'Developer guide', 'href': 'https://capafy.ai/developer/doc/4.2'}]
+        observation = self.session.call('browser_observe', {})['content'][0]['text']
+        observation_id = self.observation_id(observation)
+        arguments = {'observation_id': observation_id, 'link_id': '1'}
+
+        with patch.object(self.page, 'goto', side_effect=TimeoutError('simulated timeout')):
+            with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'link_effect_unknown'):
+                self.session.call('browser_follow_link', arguments)
+
+        rows = [json.loads(line) for line in self.receipt.read_text().splitlines()]
+        self.assertEqual([row['outcome'] for row in rows], ['read', 'started', 'effect_unknown'])
+        with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'effect_unknown_fence'):
+            self.session.call('browser_observe', {})
+
+    def test_follow_link_cannot_select_unobserved_signup_or_private_links(self):
+        self.page.links = [
+            {'text': 'Safe market', 'href': 'https://capafy.ai/marketplace'},
+            {'text': 'Create account', 'href': 'https://capafy.ai/register'},
+            {'text': 'Account', 'href': 'https://capafy.ai/account'},
+        ]
+        observation = self.session.call('browser_observe', {})['content'][0]['text']
+        observation_id = self.observation_id(observation)
+
+        with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'link_not_observed'):
+            self.session.call('browser_follow_link', {
+                'observation_id': observation_id, 'link_id': '2',
+            })
+
+        self.assertEqual(self.page.goto_calls, [])
 
     def test_observe_rejects_private_capafy_page_before_reading_page_data(self):
         self.page.url = 'https://capafy.ai/account'
@@ -213,7 +327,9 @@ class BrowserMcpTest(unittest.TestCase):
                     'https://capafy.ai/search?session_id=session-secret',
                     'https://capafy.ai/search?csrf=csrf-secret',
                     'https://capafy.ai/search?authToken=auth-secret',
-                    'https://capafy.ai/search?code=1234']:
+                    'https://capafy.ai/search?code=1234',
+                    'https://www.google.com/search?q=alice%25252540example.com',
+                    'https://www.google.com/search?q=token%2525253Dopaque-secret']:
             with self.subTest(url=url), self.assertRaisesRegex(browser_mcp.BrowserToolError, 'navigation_blocked'):
                 self.session.call('browser_navigate', {'url': url})
         self.assertEqual(self.page.goto_calls, [])
@@ -226,6 +342,15 @@ class BrowserMcpTest(unittest.TestCase):
                                    'continue_': lambda self: setattr(self, 'continued', True)})()
         route_handler(route)
         self.assertTrue(route.aborted)
+
+    def test_readonly_url_rejects_sensitive_values_beyond_decode_limit(self):
+        encoded_email = 'alice@example.com'
+        for _ in range(browser_mcp.MAX_URL_DECODE_PASSES + 2):
+            encoded_email = quote(encoded_email, safe='')
+
+        self.assertFalse(browser_mcp._readonly_url(
+            'https://www.google.com/search?q=' + encoded_email
+        ))
 
     def test_route_aborts_provider_write_methods_even_on_allowlisted_hosts(self):
         route_handler = self.page.context.routes[0][1]
@@ -299,7 +424,8 @@ class BrowserMcpTest(unittest.TestCase):
 
     def test_search_refuses_credential_like_queries_before_filling(self):
         for query in ('token=opaque-secret', 'session_id=session-secret',
-                      'csrf=csrf-secret', 'authToken=auth-secret'):
+                      'csrf=csrf-secret', 'authToken=auth-secret',
+                      'alice%25252540example.com', 'token%2525253Dopaque-secret'):
             search = Locator()
             self.page.locators[('searchbox', None)] = search
             with self.subTest(query=query), self.assertRaisesRegex(

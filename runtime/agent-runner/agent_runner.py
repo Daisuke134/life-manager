@@ -67,7 +67,7 @@ TREG_SIGNAL_TASK_CLASS = "treg-lead-signals-agent"
 TREG_MCP_TOOLS = ("catalog_search", "catalog_get", "call", "balance")
 TREG_SKILL_NAMES = ("treg", "lead-signals")
 MARITIME_BROWSER_TASK_CLASS = "application-lane-agent"
-MARITIME_BROWSER_TOOLS = ("browser_observe", "browser_navigate", "browser_search")
+MARITIME_BROWSER_TOOLS = ("browser_observe", "browser_navigate", "browser_follow_link", "browser_search")
 MARITIME_TENANT_RE = re.compile(r"lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 # OpenAI Standard tier, short context, USD per 1M tokens: (input, cached_input, output).

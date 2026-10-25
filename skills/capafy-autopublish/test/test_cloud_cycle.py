@@ -171,6 +171,84 @@ class CloudCycleTest(unittest.TestCase):
         self.assertEqual(result['status'], 'completed')
         self.assertFalse(self.module._browser_action_effect_unknown(action_receipt, os.geteuid()))
 
+    def test_cycle_accepts_observed_safe_link_receipt_with_page_state_evidence(self):
+        def followed_link(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            observation_id = 'c' * 32
+            state_hash = 'd' * 64
+            rows = [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:03Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '1'},
+                {'at': '2026-10-20T00:00:04Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '1'},
+            ]
+            with receipt.open('a') as stream:
+                stream.write('\n'.join(json.dumps(row) for row in rows) + '\n')
+            return result
+
+        result = self.run_cycle(followed_link)
+        action_receipt = self.home / 'receipts/cycle-1/browser-actions.jsonl'
+        self.assertEqual(result['status'], 'completed')
+        self.assertFalse(self.module._browser_action_effect_unknown(action_receipt, os.geteuid()))
+
+    def test_cycle_rejects_link_receipt_from_a_superseded_observation(self):
+        def stale_follow(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            old_observation, old_hash = 'c' * 32, 'd' * 64
+            current_observation, current_hash = '9' * 32, '8' * 64
+            rows = [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': old_hash, 'observationId': old_observation, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:03Z', 'actionId': '1' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': current_hash, 'observationId': current_observation, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:04Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': old_hash, 'observationId': old_observation, 'linkId': '1'},
+                {'at': '2026-10-20T00:00:05Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': old_hash, 'observationId': old_observation, 'linkId': '1'},
+            ]
+            with receipt.open('a') as stream:
+                stream.write('\n'.join(json.dumps(row) for row in rows) + '\n')
+            return result
+
+        result = self.run_cycle(stale_follow)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
+    def test_cycle_rejects_link_id_outside_the_observed_safe_link_count(self):
+        def unobserved_link(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            observation_id, state_hash, action_id = 'c' * 32, 'd' * 64, 'f' * 32
+            rows = [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:03Z', 'actionId': action_id,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '2'},
+                {'at': '2026-10-20T00:00:04Z', 'actionId': action_id,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '2'},
+            ]
+            with receipt.open('a') as stream:
+                stream.write('\n'.join(json.dumps(row) for row in rows) + '\n')
+            return result
+
+        result = self.run_cycle(unobserved_link)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
     def test_unclosed_browser_action_stays_unknown_even_if_runner_reports_success(self):
         def interrupted_after_dispatch(command, **options):
             self.calls.append((command, options))

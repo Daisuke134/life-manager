@@ -96,31 +96,87 @@ def _browser_action_effect_unknown(path, owner):
             return True
         seen = set()
         pending = {}
+        observations = set()
+        latest_observation = None
         effect_unknown = False
         for line in lines:
             row = json.loads(line)
-            if (not isinstance(row, dict) or set(row) != {'at', 'actionId', 'tool', 'outcome', 'origin'}
+            required = {'at', 'actionId', 'tool', 'outcome', 'origin'}
+            optional = {'stateHash', 'observationId', 'linkId', 'linkCount'}
+            if (not isinstance(row, dict) or not required.issubset(row)
+                    or set(row) - required - optional
                     or not isinstance(row['at'], str) or not isinstance(row['origin'], str)
-                    or row['tool'] not in {'browser_observe', 'browser_navigate', 'browser_search'}
+                    or row['tool'] not in {'browser_observe', 'browser_navigate', 'browser_follow_link', 'browser_search'}
                     or not isinstance(row['actionId'], str)
                     or not re.fullmatch(r'[0-9a-f]{32}', row['actionId'])
                     or row['outcome'] not in {'read', 'started', 'opened', 'searched', 'blocked', 'effect_unknown'}):
                 return True
+            state_hash = row.get('stateHash')
+            observation_id = row.get('observationId')
+            link_id = row.get('linkId')
+            link_count = row.get('linkCount')
+            if (('stateHash' in row and (not isinstance(state_hash, str)
+                                         or not re.fullmatch(r'[0-9a-f]{64}', state_hash)))
+                    or ('observationId' in row and (not isinstance(observation_id, str)
+                                                    or not re.fullmatch(r'[0-9a-f]{32}', observation_id)))
+                    or ('linkId' in row and (not isinstance(link_id, str)
+                                             or not re.fullmatch(r'[1-9][0-9]?', link_id)))
+                    or ('linkId' in row and row['tool'] != 'browser_follow_link')
+                    or ('linkCount' in row and (isinstance(link_count, bool)
+                                                or not isinstance(link_count, int)
+                                                or not 0 <= link_count <= 25
+                                                or row['tool'] != 'browser_observe'
+                                                or row['outcome'] != 'read'))):
+                return True
             action_id, tool, outcome = row['actionId'], row['tool'], row['outcome']
             if outcome == 'started':
-                if action_id in seen or tool not in {'browser_navigate', 'browser_search'}:
+                if action_id in seen or tool not in {'browser_navigate', 'browser_follow_link', 'browser_search'}:
                     return True
+                evidence = None
+                if tool == 'browser_follow_link':
+                    if (state_hash is None or observation_id is None or link_id is None
+                            or not isinstance(latest_observation, tuple)
+                            or latest_observation[0] != observation_id
+                            or latest_observation[1] != state_hash
+                            or not isinstance(latest_observation[2], int)
+                            or isinstance(latest_observation[2], bool)
+                            or int(link_id) > latest_observation[2]):
+                        return True
+                    evidence = {'stateHash': state_hash, 'observationId': observation_id,
+                                'linkId': link_id}
                 seen.add(action_id)
-                pending[action_id] = tool
+                pending[action_id] = {'tool': tool, 'evidence': evidence}
+                latest_observation = None
                 continue
             if outcome in {'opened', 'searched', 'effect_unknown'}:
-                if pending.get(action_id) != tool:
+                started = pending.get(action_id)
+                if not isinstance(started, dict) or started.get('tool') != tool:
                     return True
+                if (outcome == 'opened' and tool not in {'browser_navigate', 'browser_follow_link'}
+                        or outcome == 'searched' and tool != 'browser_search'):
+                    return True
+                expected_evidence = started.get('evidence')
+                if expected_evidence is not None and outcome != 'effect_unknown':
+                    actual_evidence = {'stateHash': state_hash, 'observationId': observation_id,
+                                       'linkId': link_id}
+                    if actual_evidence != expected_evidence:
+                        return True
                 del pending[action_id]
                 effect_unknown = effect_unknown or outcome == 'effect_unknown'
                 continue
             if action_id in seen or (outcome == 'read' and tool != 'browser_observe'):
                 return True
+            if outcome == 'read':
+                if (('stateHash' in row) != ('observationId' in row)
+                        or ('linkId' in row)
+                        or ('linkCount' in row and (state_hash is None or observation_id is None))
+                        or (observation_id is not None and observation_id in observations)):
+                    return True
+                if observation_id is not None:
+                    observations.add(observation_id)
+                    latest_observation = (observation_id, state_hash, link_count)
+                else:
+                    latest_observation = None
             seen.add(action_id)
         return bool(pending) or effect_unknown
     except (OSError, ValueError, TypeError, UnicodeDecodeError):
