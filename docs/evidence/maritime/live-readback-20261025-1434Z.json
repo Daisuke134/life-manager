@@ -1,0 +1,236 @@
+{
+  "observed_at": "2026-10-25T14:34:00Z",
+  "product": {
+    "public_page": "https://aniccaai.com/lm",
+    "published_source_revision": "973d3f6e7ae02562fcbfd9c1c0cccca5011a98bd",
+    "published_product_catalog_revision": "973d3f6e7ae02562fcbfd9c1c0cccca5011a98bd",
+    "http_readback_at": "2026-10-25T14:22Z",
+    "routes": {
+      "/lm": 200,
+      "/lm/ja": 200,
+      "/maritime": 404
+    },
+    "current_copy": "The published page describes Life Manager broadly across work, money/income, everyday responsibilities, body, and mind. It says the full Cloud runtime is in development and Google Calendar travel-time planning is one current workflow.",
+    "candidate_changes_live": false,
+    "cloud_source_pr": {
+      "number": 8986,
+      "code_candidate_revision": "af20700f7deb1c342094bf7c334059feefebc2ff",
+      "branch_head": "6ce325b384aed9ce4020a324e81d7b6f339ac9a7",
+      "merged": false,
+      "deployed": false,
+      "local_auth_distribution_manager_tests": "71/71 PASS",
+      "local_marketing_positioning_manifest_tests": "3/3 PASS",
+      "exact_head_ci": "in progress",
+      "manual_review_recorded": false
+    },
+    "netlify_pr": {
+      "number": 743,
+      "head": "70ed23fffa40861a0c10a4d4e04da1764d99e3d8",
+      "marketing_source_pin": "af20700f7deb1c342094bf7c334059feefebc2ff",
+      "catalog_source_pin": "973d3f6e7ae02562fcbfd9c1c0cccca5011a98bd",
+      "focused_routing_cloud_proxy_tests": "3/3 PASS",
+      "exact_head_ci": "in progress",
+      "draft": true,
+      "deployed": false
+    },
+    "provider_pr": {
+      "number": 8745,
+      "head": "3703b161205180555f0dd96af63131720bcc0e3e",
+      "latest_main": "d6a9ece12ed08996276641972aadd54efdf966df",
+      "conflicts_with_latest_main": true,
+      "production_host_executor_injection": false,
+      "production_provider_flags": "off"
+    },
+    "verified_google_login": false,
+    "cloud_tenant_vm": false,
+    "capafy_work_receipt": null,
+    "result_email_receipt": null,
+    "stop_replay_zero": null,
+    "official_user_count": null,
+    "conversion": null,
+    "settled_mrr": null
+  },
+  "competition": {
+    "official_home": "https://competition.maritime.sh/",
+    "official_terms": {
+      "program_start": "2026-10-20",
+      "program_end": "2026-12-01T23:59:00-08:00",
+      "timezone": "America/Los_Angeles",
+      "duration": "six weeks",
+      "goal": "1,000 distinct users with real agent usage",
+      "winner_rule": "The first three projects to reach the target, subject to verification.",
+      "usage_check_platforms": [
+        "Keiki",
+        "Maritime"
+      ],
+      "explicit_per_user_retention_minimum": null,
+      "week_one_cutoff": null,
+      "top_30_rubric": null,
+      "week_two_milestone": null,
+      "project_submission_route": null,
+      "formal_submission_fields": null
+    },
+    "terms_last_updated": "2026-10-15",
+    "applications_opened": "2026-10-13",
+    "general_application_form_status": "open; public Apply button reveals a general program application form",
+    "visible_general_application_fields": {
+      "main": [
+        "name",
+        "email",
+        "personal_or_business",
+        "what_to_build"
+      ],
+      "optional": [
+        "phone",
+        "social_or_project_links",
+        "website"
+      ]
+    },
+    "organizer_kickoff_email": {
+      "received_at": "2026-10-19T05:00:08Z",
+      "acceptance": "The organizer says the project is already in the program.",
+      "week_one": "Have the product built by the end of week one; users earn brownie points; only the top 30 teams advance to week two.",
+      "exact_cutoff_and_rubric": null
+    },
+    "date_discrepancy": "The organizer kickoff email and current Terms differ by one day on program start; the Terms state October 20 and the kickoff message says October 19. The exact Week 1 cutoff remains unknown.",
+    "duplicate_application_sent": false,
+    "formal_week_one_submission_receipt": null,
+    "organizer_route_followup_reply_found": false,
+    "application_decision": "Do not resubmit the general application: the organizer's kickoff email confirms entry. The public form is not identified as the Week 1 project-submission route."
+  },
+  "capafy": {
+    "existing_publisher_account_evidenced_by_email": true,
+    "new_publisher_account_created": false,
+    "new_account_blocker": "Publisher Agreement \u00a72.9 allows one Publisher Account per publisher absent a written exception.",
+    "cloud_tenant_binding_verified": false,
+    "publisher_terms_and_privacy_accepted_for_this_session": false,
+    "otp_login_started_this_readback": false
+  },
+  "distribution": {
+    "postiz_accounts": [
+      {
+        "name": "Personal",
+        "connected_channel_count": 25
+      },
+      {
+        "name": "Primary",
+        "connected_channel_count": 0
+      }
+    ],
+    "personal_postiz_past_30_days": {
+      "total_posts": 934,
+      "published": 914,
+      "errors": 20
+    },
+    "life_manager_posts_observed": [
+      {
+        "published_at": "2026-10-23T16:13:11Z",
+        "platform": "X",
+        "language": "Japanese",
+        "state": "PUBLISHED",
+        "copy_status": "Calls the Cloud early-pilot and says the hosted work-to-report path is unverified."
+      },
+      {
+        "published_at": "2026-10-25T03:03:00Z",
+        "platform": "X",
+        "language": "English",
+        "state": "PUBLISHED",
+        "copy_status": "Broad Life Manager Cloud positioning; says current hosted service focuses on Calendar travel-time and broader Cloud execution is in development."
+      },
+      {
+        "published_at": "2026-10-25T03:06:00Z",
+        "platform": "X",
+        "language": "English",
+        "state": "PUBLISHED",
+        "copy_status": "Broad Life Manager Cloud positioning; says current hosted service handles Calendar travel-time and broader Cloud execution is in development."
+      }
+    ],
+    "life_manager_posts_scheduled_next_30_days": 0,
+    "postiz_reach_click_install_conversion_data": null,
+    "new_posts_created_this_readback": 0
+  },
+  "sources": [
+    "https://aniccaai.com/lm",
+    "https://aniccaai.com/lm/ja",
+    "https://aniccaai.com/manager-release.json",
+    "https://competition.maritime.sh/",
+    "https://competition.maritime.sh/terms",
+    "https://capafy.ai/publisher-agreement/"
+  ],
+  "latest_readback": {
+    "observed_at": "2026-10-25T14:42:41Z",
+    "public_http": {
+      "read_at": "2026-10-25T14:42:41Z",
+      "routes": {
+        "/lm": 200,
+        "/lm/ja": 200,
+        "/maritime": 404,
+        "/manager-release.json": 200
+      },
+      "published_revision": "973d3f6e7ae02562fcbfd9c1c0cccca5011a98bd",
+      "candidate_changes_live": false
+    },
+    "github": {
+      "source_pr_8986": {
+        "head": "6ce325b384aed9ce4020a324e81d7b6f339ac9a7",
+        "code_candidate": "af20700f7deb1c342094bf7c334059feefebc2ff",
+        "ci": "all exact-head checks passed",
+        "merge_state": "CLEAN / MERGEABLE",
+        "review_decision": null,
+        "review_note": "CodeRabbit says manual review is required and skipped review",
+        "merged": false
+      },
+      "netlify_pr_743": {
+        "head": "70ed23fffa40861a0c10a4d4e04da1764d99e3d8",
+        "ci": "landing build passed",
+        "state": "Draft; not merged/deployed"
+      },
+      "provider_pr_8745": {
+        "head": "3703b161205180555f0dd96af63131720bcc0e3e",
+        "state": "Draft; based on older main; production executor absent"
+      }
+    },
+    "railway": {
+      "project": "Anicca",
+      "service": "life-call",
+      "environment": "production",
+      "domain": "life-call-production.up.railway.app",
+      "deployment": {
+        "id": "6245dca9-f030-4633-8100-35c5ec62a602",
+        "status": "SUCCESS",
+        "created_at": "2026-10-25T12:12:40.477Z",
+        "replicas": "1/1 healthy",
+        "pending_work": false
+      },
+      "missing_variable_names": [
+        "LM_MARITIME_WEB_ORIGIN",
+        "LM_MARITIME_CAPAFY_CONNECTION_ENABLED",
+        "LM_MARITIME_CAPAFY_PROVIDER_ENABLED",
+        "LM_MARITIME_CAPAFY_ENCRYPTION_KEY",
+        "LM_MARITIME_MANAGER_SOURCE_S3_KEY",
+        "LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256"
+      ],
+      "note": "Read through connected Railway OAuth; values were not exposed. This is backend/control plane, not the public site."
+    },
+    "supabase": {
+      "Manager_link_project": {
+        "name": "anicca.ai",
+        "status": "INACTIVE"
+      },
+      "Primary_link_projects": [
+        {
+          "name": "Anicca",
+          "status": "ACTIVE_HEALTHY",
+          "ref": "cycgdwndgfgdbnndithc"
+        },
+        {
+          "name": "life-manager-staging-20260808",
+          "status": "ACTIVE_HEALTHY",
+          "ref": "ulhsqqkyejzvqgoyjwte"
+        }
+      ],
+      "production_supabase_url_mapping": "unknown; Railway values are masked",
+      "google_callback_allowlist": "unknown"
+    }
+  }
+}

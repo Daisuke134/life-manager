@@ -1,35 +1,41 @@
-# Life Manager Cloud — Keiki × Maritime Week 1 submission draft
+# Life Manager Cloud — Keiki × Maritime Week 1 packet
 
-**Status:** Draft only; no formal project submission has been sent. The official form, exact cutoff, Top 30 rubric, and required fields remain unconfirmed. The source of truth is the integrated SSOT and the dated evidence linked below.
+**Status:** Draft; no formal Week 1 project-submission receipt is verified. The organizer kickoff email says Life Manager is already in the program. The public application form is open, but it is a general application and has not been identified as the Week 1 project-submission route. Do not submit a duplicate application or project entry.
 
 ## Project
 
-**One-line description:** Life Manager is building a cloud personal manager designed to choose a bounded next task, carry it through an authorized workflow, check the result, and report verified outcomes by email—without requiring a goal or budget setup first.
+**One-line description:** Life Manager is one proactive personal manager for work, money, everyday responsibilities, body, and mind. Its Cloud mode is being built to run continuously for each customer on a dedicated Maritime VM, choose useful work without a daily prompt, verify outcomes, and report them by email. Capafy is the first income-generating workflow.
 
-**Problem:** People lose time deciding what to handle next and following through across routine work. Life Manager aims to reduce that coordination burden by selecting a bounded task and returning a verifiable outcome.
+**Problem:** People coordinate work, money, and everyday responsibilities across disconnected tools and reminders. Life Manager aims to take initiative on bounded work and return verifiable outcomes.
 
-**Current product status:** Early pilot. The English pilot page is public. The complete authenticated hosted work-to-report cycle has not yet been verified, so this draft makes no completed-work, revenue, or user-count claim.
+## Current product state
 
-## Public links
+- Public product page: https://aniccaai.com/lm. The English and Japanese pages return HTTP 200 and describe the broader Life Manager product.
+- Same-origin Cloud route: https://aniccaai.com/maritime currently returns HTTP 404. The live marketing page says the full Cloud runtime is in development and lists Calendar travel-time planning as one current hosted workflow.
+- Google identity-only Cloud onboarding, per-customer Maritime VM, and the real Capafy work-to-receipt-to-email cycle are not live-verified.
+- No mock, illustrative dashboard, or unverified earning result is included as product evidence.
 
-- English pilot: https://life-call-production.up.railway.app/maritime?lang=en
-- English article: https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en
-- English X launch post: https://x.com/selawmqt/status/2113662565427691959
-- Existing project entry in #competition-submissions: https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839
+## Official program requirements
 
-## Evidence and measurements
+- Current Terms were last updated October 15, 2026. The common program window ends December 1, 2026 at 11:59 p.m. Pacific.
+- The public target is 1,000 distinct people with real agent usage. The first three projects to reach the target, subject to verification, are the winning projects. Agents, VMs, and subagents are not separate people; fake or duplicate activity does not qualify.
+- The organizer's kickoff email says the product is expected by the end of Week 1, real users earn brownie points, and only the Top 30 advance to Week 2. The email and current Terms differ by one day on the start date. The exact Week 1 cutoff, timezone, Top 30 rubric, and Week 2 milestone are not published in the current Terms.
+- The public Apply form is open and shows general application fields. It is not identified as the Week 1 project-submission form. The owner has a prior organizer kickoff email confirming entry.
 
-- Public pilot and article returned HTTP 200 in the 2026-10-24 09:39Z readback; current evidence: [2026-10-24 11:10Z readback](../../../evidence/maritime/live-readback-20261024-1110Z.json).
-- At the 10:49Z Railway readback, Life Manager app and worker deployments were SUCCESS/online at 1/1 replicas with no staged or pending changes. A separate trusted Maritime runtime/image SHA has not been verified.
+## Distribution and measurements
+
+- Postiz shows 25 connected channels on the Personal account and none on Primary.
+- Three Life Manager posts are visible in the last 30-day window: one Japanese X post on October 23 and two English X posts on October 25. The English posts describe the broader product while acknowledging that full Cloud execution is still in development.
+- No Life Manager post is scheduled in the next 30 days. Postiz state does not provide reach, clicks, signups, verified work, repeat use, or revenue; those metrics remain unknown.
+- The public English page and the existing English article are available, but no visit-to-use or MRR baseline is verified.
+
+## Measured results
+
 - Official Keiki/Maritime user count: **unknown**.
-- Completed external-work users, repeat users, report receipts, and costs: **unknown**.
-- Demo recording: **not available**.
-- The X post and article establish public distribution only; they do not establish product usage or official competition users. No duplicate post or schedule was created in the 11:02Z readback.
+- Completed external work, accepted result-email receipts, repeat users, and costs: **unknown**.
+- Verified end-to-end demo recording: **not available**.
+- Settled MRR: **unknown**. The $10K MRR figure is a goal, not a result.
 
-## Limits and next proof
+## Next proof
 
-The live service must not be described as a completed autonomous work-to-email product until one owner-authorized tenant cycle has an authoritative provider receipt, an accepted result-email receipt, and a verified stop with no replay. After that readback, record a truthful demo and replace only the fields the organizer requires. Keep the public data-retention notice visible before a user starts.
-
-## Submission gate
-
-Do not submit this draft to an inferred route. First confirm the official form, required fields, and cutoff. For the complete Week 1 packet, also wait for one owner-authorized end-to-end tenant cycle and a truthful demo backed by an authoritative provider receipt, an accepted result-email receipt, and a verified stop with no replay. If the organizer sets an earlier cutoff, request written approval for a clearly labeled early-pilot packet and submit it only after the organizer explicitly accepts that exception; otherwise do not submit before the end-to-end proof and demo are ready. Never imply unverified completion. Save the formal receipt separately from the existing Slack entry.
+Complete the accepted Cloud onboarding and production provider wiring, then verify one owner-authorized tenant run from Google identity and explicit consent through a dedicated VM, actual Capafy work, official Capafy receipt, matching Life Manager receipt, accepted verified-address result email, and Stop/replay-zero. Record a truthful demo only after those receipts are available. Keep the Week 1 formal submission route and receipt marked unknown until the organizer confirms them or an official form is identified.

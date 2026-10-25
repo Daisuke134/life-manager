@@ -1,15 +1,15 @@
 {
-  "observed_at": "2026-10-24T11:47:00Z",
+  "observed_at": "2026-10-25T14:34:00Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
   "competition_timezone": "America/Los_Angeles",
   "first_week_deadline": null,
-  "first_week_deadline_reason": "Terms last read at 2026-10-24T10:57Z; Slack and the organizer follow-up were read through 2026-10-24T11:47Z. No exact Week 1 cutoff/timezone or Top 30 rubric is published or confirmed. October 27 remains only a seven-day estimate from the October 20 kickoff, not an official deadline.",
+  "first_week_deadline_reason": "The organizer kickoff email dated 2026-10-19 says the product is expected by the end of Week 1, real users earn brownie points, and only the Top 30 advance. It gives no exact cutoff, timezone, or scoring rubric. The current Terms list an October 20 start while the kickoff email says October 19; October 27 is only an estimate, not an official Week 1 deadline.",
   "submission_url": null,
-  "submission_url_reason": "The existing Life Manager English entry remains in #competition-submissions. The channel says a post does not replace any required form. The 2026-10-24T10:56:44Z organizer follow-up asked whether the entry is sufficient and what the formal route/fields are; no reply was found as of 2026-10-24T11:47:00Z. No formal form, submission receipt, or confirmed route was observed; do not duplicate the entry.",
+  "submission_url_reason": "The public Apply form at https://competition.maritime.sh/ is a general program application, not an identified Week 1 project-submission form. The organizer kickoff email says the project is already in the program. The owner previously reported one entry shared in the competition channel and asked the organizer whether that is sufficient; no reply or formal Week 1 receipt was found through 2026-10-25T14:34:00Z. Do not duplicate the general application or project entry.",
   "required_fields": null,
-  "required_fields_reason": "No official form or required-field list was published in Terms, the checked Slack channels, or the organizer reply readback through 2026-10-24T11:47:00Z.",
+  "required_fields_reason": "The public page exposes general application fields (name, email, personal/business, build description; optional phone, links, website). These are not confirmed Week 1 project-submission fields. No official Week 1 form/required-field list is published in the current page or Terms.",
   "first_week_requirements": [
     "Product built by end of week one",
     "Real users earn brownie points",
@@ -33,8 +33,9 @@
     "per_user_retention_or_activity_minimum": null
   },
   "source_urls": [
+    "https://competition.maritime.sh/",
     "https://competition.maritime.sh/terms",
-    "https://keikixmaritime.slack.com"
+    "https://capafy.ai/publisher-agreement/"
   ],
   "mail_source": {
     "subject": "Keiki x Maritime kicks off tomorrow",
@@ -96,37 +97,66 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-24T11:47:00Z",
+    "observed_at": "2026-10-25T14:34:00Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
     ],
     "terms_last_updated": "2026-10-15",
-    "official_goal": "1,000 distinct real users with real project usage on Keiki or Maritime; the first three projects to reach the target, subject to verification.",
-    "award": "Not re-verified in this refresh; the previous value is historical from the 2026-10-21 snapshot.",
-    "travel": "Not re-verified in this refresh; the previous value is historical from the 2026-10-21 snapshot.",
+    "official_start_date": "2026-10-20",
+    "program_end": "2026-12-01T23:59:00-08:00",
+    "competition_timezone": "America/Los_Angeles",
+    "official_goal": "1,000 distinct users with real agent usage; the first three projects to reach the target, subject to verification.",
+    "qualifying_user_count": "People using the agent; deployed agents, VMs, and subagents do not count as people.",
+    "review_platforms": [
+      "Keiki",
+      "Maritime"
+    ],
+    "per_user_retention_minimum": null,
     "week1_deadline_time": null,
-    "week1_deadline_reason": "No exact cutoff/timezone or Top 30 rubric confirmed as of 2026-10-24T11:47:00Z; October 27 is only an estimate.",
-    "project_submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
-    "refresh_scope": "Official Terms, current Slack channel readback, organizer follow-up email, public pilot, product/runtime and distribution status read back through 2026-10-24T11:47:00Z. Exact organizer replies and metrics not available remain unknown. Award/travel details were not re-read and are not asserted as current.",
-    "submission_url_reason": "The existing Life Manager English entry remains in #competition-submissions. The channel says a post does not replace any required form. The 2026-10-24T10:56:44Z organizer follow-up asked whether the entry is sufficient and what the formal route/fields are; no reply was found as of 2026-10-24T11:47:00Z. No formal form, submission receipt, or confirmed route was observed; do not duplicate the entry.",
-    "official_terms_read_at": "2026-10-24T10:57Z"
+    "week1_deadline_reason": "The organizer kickoff email dated 2026-10-19 says the product is expected by the end of Week 1, real users earn brownie points, and only the Top 30 advance. It gives no exact cutoff, timezone, or scoring rubric. The current Terms list an October 20 start while the kickoff email says October 19; October 27 is only an estimate, not an official Week 1 deadline.",
+    "week1_top30": "Organizer kickoff email says only the top 30 teams advance; exact cutoff, rubric, and minimum user count are not published in Terms.",
+    "program_application_status": "accepted per the organizer kickoff email dated 2026-10-19; no duplicate application submitted",
+    "general_application_form_open": true,
+    "formal_week1_project_submission_route": null,
+    "formal_week1_submission_receipt": null,
+    "organizer_route_followup_reply_found": false,
+    "refresh_scope": "Public competition page and Terms, organizer emails, published product routes, and read-only Postiz status; Slack was not read in this refresh.",
+    "manager_public_routes": {
+      "/lm": 200,
+      "/lm/ja": 200,
+      "/maritime": 404
+    },
+    "published_marketing_revision": "973d3f6e7ae02562fcbfd9c1c0cccca5011a98bd"
   },
   "official_instruction_email_unchanged_reason": "The existing inquiry thread was read again at 2026-10-21T08:26:15Z. It contains the original inquiry and the 08:13:26Z follow-up, both sent by Dais; no organizer reply is present.",
   "last_official_sources": {
-    "observed_at": "2026-10-24T11:47:00Z",
+    "observed_at": "2026-10-25T14:34:00Z",
     "urls": [
       "https://competition.maritime.sh/",
-      "https://competition.maritime.sh/terms",
-      "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839"
+      "https://competition.maritime.sh/terms"
+    ],
+    "mail_sources": [
+      {
+        "subject": "Keiki x Maritime kicks off tomorrow",
+        "received_at": "2026-10-19T05:00:08Z",
+        "classification": "organizer says project is already in; Week 1 product/Top 30 note"
+      },
+      {
+        "subject": "Keiki × Maritime Week 1 project submission route",
+        "latest_followup_at": "2026-10-24T10:56:44Z",
+        "organizer_reply_found": false
+      }
     ],
     "verified": [
-      "Terms updated 2026-10-15; final deadline 2026-12-01 23:59 America/Los_Angeles.",
-      "Target is the first three projects to reach 1,000 distinct real users with real project usage on Keiki or Maritime, subject to verification; bot, duplicate, and fabricated activity is excluded.",
-      "No per-user retention minimum is stated in the checked Terms.",
-      "No exact Week 1 cutoff, timezone, Top 30 rubric, formal project form, required fields, or Week 2 milestone was found in checked official sources.",
-      "Existing English Life Manager entry remains present; Slack channel notice says a channel post does not replace any required form."
-    ]
+      "Applications opened October 13; the organizer kickoff email says this project is already in the program.",
+      "Current Terms: program October 20 through December 1, 2026 at 11:59 p.m. Pacific.",
+      "Target: 1,000 distinct people with real agent usage; first three projects to reach target, subject to verification.",
+      "The kickoff email says a product is expected by end of Week 1, users earn brownie points, and only the Top 30 advance; no exact cutoff or rubric is published.",
+      "The public general application form is open, but is not identified as the Week 1 project-submission route.",
+      "No formal Week 1 project-submission receipt, exact cutoff, Top 30 scoring rubric, or Week 2 milestone is verified."
+    ],
+    "slack_read_this_refresh": false
   },
   "latest_announcement_channel_readback": {
     "checked_at": "2026-10-24T11:47:00Z",
@@ -153,7 +183,7 @@
     "reply_found_by": "2026-10-21T06:43Z",
     "reply_found": false
   },
-  "formal_project_submission_status": "unconfirmed",
+  "formal_project_submission_status": "unknown; application accepted per kickoff email, but Week 1 project-submission route/receipt remains unconfirmed",
   "latest_community_refresh": {
     "observed_at": "2026-10-24T11:47:00Z",
     "channels_read": [
@@ -170,33 +200,21 @@
     "submission_channel_warns_post_does_not_replace_form": true
   },
   "latest_organizer_email_search": {
-    "observed_at": "2026-10-24T11:47:00Z",
-    "search_scope": "Existing organizer thread and follow-up readback.",
-    "matching_messages": 1,
-    "reply_to_submission_route_inquiry_found": false,
+    "observed_at": "2026-10-25T14:34:00Z",
+    "search_scope": "Existing organizer application, kickoff, and Week 1 route email threads.",
+    "application_acceptance": "Organizer kickoff email says the project is already in the program.",
+    "reply_to_week1_route_followup_found": false,
     "followup_sent_at": "2026-10-24T10:56:44Z",
-    "followup_message_id": "1a16d8e4ccf6ad69",
-    "thread_id": "1a15d3141c56ee22",
-    "reply_readback_after_followup": false,
-    "questions": [
-      "Exact Week 1 cutoff and Top 30 criteria",
-      "Formal submission route and required fields/demo; whether existing channel entry is sufficient",
-      "What qualifies toward 1,000 users, including founder/team treatment",
-      "Week 2 milestone and deadline"
-    ],
-    "reply_found_as_of": "2026-10-24T11:47:00Z"
+    "formal_week1_receipt_found": false,
+    "first_week_cutoff_or_rubric_reply_found": false
   },
   "latest_organizer_thread_readback": {
-    "observed_at": "2026-10-24T11:47:00Z",
+    "observed_at": "2026-10-25T14:34:00Z",
     "thread_id": "1a15d3141c56ee22",
-    "message_ids": [
-      "1a15d3141c56ee22",
-      "1a15d85b491c9450",
-      "1a16d8e4ccf6ad69"
-    ],
     "message_count": 3,
+    "all_messages_sent_by_owner": true,
     "organizer_reply_found": false,
-    "formal_project_submission_status": "unconfirmed"
+    "formal_project_submission_status": "unknown; no receipt"
   },
   "latest_official_refresh_20261024T1057Z": {
     "observed_at": "2026-10-24T10:57:29Z",
@@ -415,5 +433,74 @@
       "https://x.com/diceai0/status/2113665171407437975",
       "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en"
     ]
-  }
+  },
+  "application_url": "https://competition.maritime.sh/",
+  "application_status": "accepted per the organizer kickoff email dated 2026-10-19; no duplicate application submitted",
+  "application_form_fields": {
+    "status": "open general program application form; not identified as Week 1 project submission",
+    "main_fields_visible": [
+      "name",
+      "email",
+      "personal_or_business",
+      "what_to_build"
+    ],
+    "optional_fields_visible": [
+      "phone",
+      "social_or_project_links",
+      "website"
+    ],
+    "checked_at": "2026-10-25T14:34:00Z"
+  },
+  "official_start_date_discrepancy": "Current Terms say 2026-10-20; the organizer kickoff email body says the competition kicks off 2026-10-19. Exact Week 1 cutoff remains unknown.",
+  "distribution_postiz_readback": {
+    "observed_at": "2026-10-25T14:34:00Z",
+    "accounts": [
+      {
+        "name": "Personal",
+        "connected_channels": 25
+      },
+      {
+        "name": "Primary",
+        "connected_channels": 0
+      }
+    ],
+    "past_30_days_all_channels": {
+      "posts": 934,
+      "published": 914,
+      "errors": 20
+    },
+    "life_manager_posts": [
+      {
+        "published_at": "2026-10-23T16:13:11Z",
+        "platform": "X",
+        "language": "Japanese",
+        "state": "PUBLISHED"
+      },
+      {
+        "published_at": "2026-10-25T03:03:00Z",
+        "platform": "X",
+        "language": "English",
+        "state": "PUBLISHED"
+      },
+      {
+        "published_at": "2026-10-25T03:06:00Z",
+        "platform": "X",
+        "language": "English",
+        "state": "PUBLISHED"
+      }
+    ],
+    "life_manager_posts_scheduled_next_30_days": 0,
+    "reach_click_signup_conversion_metrics": null,
+    "new_posts_created": 0
+  },
+  "capafy_account_status": {
+    "existing_publisher_account_evidenced_by_capafy_email": true,
+    "new_publisher_account_created": false,
+    "duplicate_account_allowed": false,
+    "reason": "Publisher Agreement §2.9 limits each Publisher to one Publisher Account absent written approval.",
+    "cloud_tenant_binding_verified": false,
+    "terms_and_privacy_accepted_for_current_session": false,
+    "otp_login_started": false
+  },
+  "current_readback_evidence": "docs/evidence/maritime/live-readback-20261025-1434Z.json"
 }
