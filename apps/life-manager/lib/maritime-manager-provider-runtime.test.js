@@ -22,7 +22,11 @@ function fixture() {
   let prepares=0,publishes=0;
   const proof = r => ({state:"present",receipt:r});
   const provider={
-    readAccountBinding:async ({tenantId,accountRef})=>({tenantId,accountRef,provider:"capafy"}),
+    readAccountBinding:async ({tenantId,accountRef})=>({provider:"capafy",tenantId,accountRef,
+      providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+    withAccessToken:async ({tenantId,accountRef},operation)=>operation("am_sk_"+"t".repeat(32),
+      {provider:"capafy",tenantId,accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
+        autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
     guardArtifact:async ()=>({original:true,frozen:false,duplicate:false}),
     prepare:async ()=>{prepares++;},publish:async ()=>{publishes++;},
     readPrepare:async ()=>proof(prepareReceipt),readPublish:async ()=>proof(publishReceipt),
@@ -98,6 +102,34 @@ test("unknown prepare readback keeps the effect uncertain and reconciliation nev
   for(let n=0;n<3;n++)assert.equal((await adapter.reconcile({...f.prepare,status:"reconciling"})).state,"unknown");
   assert.deepEqual(f.counts(),{prepares:1,publishes:0});
 });
+test("Capafy host actions receive only the matching tenant token from the encrypted binding",async()=>{
+ const f=fixture(),calls=[],token="am_sk_"+"t".repeat(32);
+ f.provider.withAccessToken=async(identity,operation,options)=>{
+  calls.push(["token",options?.mode]);
+  return operation(token,{provider:"capafy",tenantId:UID,accountRef:f.args.accountRef,
+    providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1"});
+ };
+ const assertBound=input=>{
+  assert.equal(input.accessToken,token);
+  assert.equal(input.identity.tenantId,UID);
+  assert.equal(input.identity.accountRef,f.args.accountRef);
+ };
+ f.provider.guardArtifact=async input=>{assertBound(input);calls.push(["guard"]);return {original:true,frozen:false,duplicate:false};};
+ f.provider.prepare=async input=>{assertBound(input);calls.push(["prepare"]);};
+ f.provider.readPrepare=async input=>{assertBound(input);calls.push(["read"]);return {state:"present",receipt:f.prepareReceipt};};
+ await runtime().createMaritimeManagerCapafyPrepareAdapter(f.services).execute(f.prepare);
+ assert.deepEqual(calls,[ ["token","action"],["guard"],["token","action"],["prepare"],["token","readback"],["read"] ]);
+});
+test("Capafy host action refuses a token callback whose resolved identity crosses tenants",async()=>{
+ const f=fixture();let externalCalls=0;
+ f.provider.withAccessToken=async(_identity,operation)=>operation("am_sk_"+"t".repeat(32),{
+  provider:"capafy",tenantId:"lm_22222222-2222-4222-8222-222222222222",accountRef:f.args.accountRef,
+  providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1"});
+ f.provider.guardArtifact=async()=>{externalCalls++;return {original:true,frozen:false,duplicate:false};};
+ f.provider.prepare=async()=>{externalCalls++;};
+ await assert.rejects(runtime().createMaritimeManagerCapafyPrepareAdapter(f.services).execute(f.prepare),/identity|binding|tenant/i);
+ assert.equal(externalCalls,0);
+});
 test("read-only reconcile preserves present, authoritative absent and invalid/unknown states",async()=>{
   for(const phase of ["prepare","publish"]){
     const f=fixture(),adapter=runtime()[phase==="prepare"?"createMaritimeManagerCapafyPrepareAdapter":"createMaritimeManagerCapafyPublishAdapter"](f.services);
@@ -128,7 +160,9 @@ module.exports={fixture,receipt};
 
 test("completed central cycle selects one guarded original artifact and idempotently queues prepare",async()=>{
   const f=fixture(),saved=new Map();
-  const services={...f.services,provider:{...f.provider,readAccountBinding:async()=>({tenantId:UID,provider:"capafy",accountRef:f.args.accountRef})},
+  const services={...f.services,provider:{...f.provider,readAccountBinding:async()=>({provider:"capafy",tenantId:UID,
+      accountRef:f.args.accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
+      autonomyConsentVersion:"maritime-capafy-autonomy-v1"})},
     enqueueJob:async job=>{const prior=saved.get(job.job_id);if(!prior)saved.set(job.job_id,job);return {created:!prior,job:prior||job};}};
   const input={job:f.cycle,receipt:f.cycleReceipt};
   const first=await runtime().enqueueMaritimeCapafyPrepareFromCycle(input,services);

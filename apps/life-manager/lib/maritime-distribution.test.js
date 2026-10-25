@@ -216,8 +216,23 @@ test("full cohort cap does not create a consent record or a provider milestone",
 test("landing_primary_cta_is_email_and_never_requires_telegram",()=>{
   const html=renderMaritimeLanding({source:"referral",language:"en"});
   assert.match(html,/action="\/auth\/maritime\/email"/);assert.match(html,/type="email"/);
+  assert.match(html,/Life Manager Cloud/);assert.match(html,/work, money, everyday tasks, body, and mind/i);
+  assert.doesNotMatch(html,/\bpilot\b/i);
   assert.doesNotMatch(html,/<input[^>]+name="(?:goal|budget|telegram)"/);
   assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram is optional/);
+});
+test("active Life Manager Cloud shows a transparent, tenant-owned Capafy connection flow",()=>{
+  const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state:"active",capafyStatus:"not_connected"});
+  assert.match(html,/Capafy developer account/);assert.match(html,/future product preparation and publication/);
+  assert.match(html,/data-action="capafy-connect"/);assert.match(html,/maritime-capafy-autonomy-v1/);
+  assert.match(html,/does not publish anything or guarantee sales/i);
+  assert.match(html,/\/maritime\/capafy\/connect\/start/);assert.match(html,/\/maritime\/capafy\/connect\/verify/);
+  assert.doesNotMatch(html,/\bpilot\b/i);assert.doesNotMatch(html,/CAPAFY_ACCESS_TOKEN|am_sk_/i);
+});
+test("connected Capafy account is shown without its identifier and can be unlinked",()=>{
+ const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state:"active",capafyStatus:"connected"});
+ assert.match(html,/Capafy developer account connected/);assert.match(html,/data-action="capafy-disconnect"/);
+ assert.match(html,/\/maritime\/capafy\/connect\/disconnect/);assert.doesNotMatch(html,/account:\/\/capafy\/|019d3c7f|am_sk_/i);
 });
 test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   const html=renderMaritimeLanding({source:"x",language:"ja",user:{email:'person<bad>@example.invalid',csrf:"a".repeat(64)},state:null});
@@ -233,8 +248,12 @@ test("paused_or_uncertain_landing_does_not_offer_activation",()=>{
 });
 
 test("landing_inline_script_is_valid_javascript",()=>{
-  const {Script}=require("node:vm");const html=renderMaritimeLanding({source:"x",language:"ja"});
-  const script=html.match(/<script>([\s\S]*?)<\/script>/);assert.ok(script);assert.doesNotThrow(()=>new Script(script[1]));
+  const {Script}=require("node:vm");
+  for(const html of [renderMaritimeLanding({source:"x",language:"ja"}),
+    renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state:"active",capafyStatus:"not_connected"}),
+    renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state:"active",capafyStatus:"connected"})]){
+    const script=html.match(/<script>([\s\S]*?)<\/script>/);assert.ok(script);assert.doesNotThrow(()=>new Script(script[1]));
+  }
 });
 
 

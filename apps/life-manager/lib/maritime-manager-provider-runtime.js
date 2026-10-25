@@ -86,6 +86,17 @@ function verifyMaritimeCapafyPublishReceipt(receipt,job,prepareJob,prepareReceip
       && verifyReceipt(receipt,job,["under_review","published"]);
   } catch {return false;}
 }
+async function withProviderAccess(provider,expectedIdentity,operation,mode="action") {
+  if(typeof provider?.withAccessToken!=="function")throw new ProviderError("maritime_capafy_unconfigured");
+  return provider.withAccessToken({tenantId:expectedIdentity.tenantId,accountRef:expectedIdentity.accountRef},async(accessToken,identity)=>{
+    if(typeof accessToken!=="string" || identity?.provider!=="capafy"
+      || identity.tenantId!==expectedIdentity.tenantId || identity.accountRef!==expectedIdentity.accountRef
+      || identity.providerSubject!==expectedIdentity.providerSubject
+      || identity.autonomyConsentVersion!==expectedIdentity.autonomyConsentVersion)
+      throw new ProviderError("maritime_capafy_identity_mismatch");
+    return operation({accessToken,identity});
+  },{mode});
+}
 function createAdapter(phase,services={}) {
   const provider=services.provider;
   async function context(job,{active=false,guard=false}={}) {
@@ -114,11 +125,12 @@ function createAdapter(phase,services={}) {
     }
     if(guard) {
       if(typeof provider.guardArtifact!=="function")throw new ProviderError("maritime_capafy_unconfigured");
-      const gate=await provider.guardArtifact(c);
+      const gate=await withProviderAccess(provider,account,({accessToken,identity})=>
+        provider.guardArtifact({identity,...c,accessToken}));
       if(gate?.original!==true || gate.frozen!==false || gate.duplicate!==false)
         throw new ProviderError("maritime_capafy_artifact_rejected");
     }
-    return {c,cycle,prepared};
+    return {c,cycle,prepared,account};
   }
   function verifyWithContext(receipt,job,bound) {
     return phase==="prepare"
@@ -130,7 +142,8 @@ function createAdapter(phase,services={}) {
     if(typeof read!=="function")throw new ProviderError("maritime_capafy_unconfigured");
     // This trusted host service must read official target and action evidence.
     // VM stdout and model output never supply a provider receipt.
-    const proof=await read({job,identity:bound.c});
+    const proof=await withProviderAccess(provider,bound.account,({accessToken,identity})=>
+      read({job,identity,accessToken}),"readback");
     if(proof?.state==="present" && verifyWithContext(proof.receipt,job,bound))return proof;
     if(proof?.state==="absent" && verifyWithContext({...proof.receipt,status:phase==="prepare"?"prepared":"under_review"},job,bound)
       && proof.receipt.status==="absent")return proof;
@@ -144,7 +157,8 @@ function createAdapter(phase,services={}) {
       const dispatch=provider[phase];
       if(typeof dispatch!=="function")throw new ProviderError("maritime_capafy_unconfigured");
       try {
-        await dispatch({job,identity:bound.c});
+        await withProviderAccess(provider,bound.account,({accessToken,identity})=>
+          dispatch({job,identity,accessToken}));
         const proof=await inspect(job,bound);
         if(proof.state==="present")return {receipt:proof.receipt};
         throw new ProviderError("maritime_capafy_effect_unknown",true);
@@ -186,11 +200,13 @@ async function enqueueMaritimeCapafyPrepareFromCycle({job,receipt}={},services={
   const enrollment=await services.managerStore?.read(c.tenantId);
   if(enrollment?.uid!==c.tenantId || enrollment.status!=="active" || enrollment.paused_at
     || enrollment.release_sha!==c.releaseSha)throw new ProviderError("maritime_capafy_inactive");
+  if(typeof provider.withAccessToken!=="function")throw new ProviderError("maritime_capafy_unconfigured");
   for(const artifactRef of receipt?.artifact_refs||[]) {
     const identity={...c,sourceCycleJobId:job.job_id,artifactRef,accountRef:account.accountRef};
     if(!verifyCycle(identity,job,receipt))invalid();
     const next=buildMaritimeCapafyPrepareJob(identity);
-    const gate=await provider.guardArtifact(identity);
+    const gate=await withProviderAccess(provider,account,({accessToken,identity:bound})=>
+      provider.guardArtifact({identity:bound,...identity,accessToken}));
     if(gate?.original===true && gate.frozen===false && gate.duplicate===false)return services.enqueueJob(next);
   }
   throw new ProviderError("maritime_capafy_artifact_rejected");

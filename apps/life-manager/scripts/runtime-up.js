@@ -250,6 +250,88 @@ async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJ
   return paused.length === 20 ? paused.at(-1).uid : null;
 }
 
+function maritimeCapafyHostProviderConfigured(provider) {
+  return Boolean(provider && typeof provider.readAccountBinding === "function"
+    && typeof provider.withAccessToken === "function" && typeof provider.guardArtifact === "function"
+    && typeof provider.prepare === "function" && typeof provider.readPrepare === "function"
+    && typeof provider.publish === "function" && typeof provider.readPublish === "function");
+}
+
+async function enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, dependencies = {}) {
+  if (job?.capability !== "maritime.manager.cycle" || job.status !== "completed"
+    || receipt?.kind !== "maritime_manager_cycle" || receipt.status !== "completed"
+    || receipt.job_id !== job.job_id || receipt.tenant_id !== job.tenant_id) return { status: "skipped" };
+  const { provider, managerStore, enqueueJob, storeOptions = {} } = dependencies;
+  if (!maritimeCapafyHostProviderConfigured(provider) || !managerStore || typeof enqueueJob !== "function") {
+    return { status: "skipped", reason: "host_executor_unavailable" };
+  }
+  try {
+    const result = await require("../lib/maritime-manager-provider-runtime.js").enqueueMaritimeCapafyPrepareFromCycle(
+      { job, receipt }, { provider, managerStore, enqueueJob: next => enqueueJob(next, storeOptions) });
+    return { status: "queued", created: result?.created === true,
+      job_id: result?.job?.job_id || null, tenant_id: job.tenant_id };
+  } catch (error) {
+    const errorClass = /^[a-z0-9_]{1,120}$/i.test(String(error?.code || error?.message || ""))
+      ? String(error.code || error.message).toLowerCase() : "maritime_capafy_admission_unconfirmed";
+    dependencies.observe?.({ kind: "maritime_capafy_admission", job_id: job.job_id,
+      tenant_id: job.tenant_id, status: "deferred", error_class: errorClass });
+    return { status: "deferred", error_class: errorClass };
+  }
+}
+
+function createMaritimeCapafyCompletionObserver({ onJobCompleted, provider, managerStore, enqueueJob,
+  storeOptions = {}, observe } = {}) {
+  return async (job, receipt, telemetry = {}) => {
+    if (job?.capability === "maritime.manager.cycle") {
+      await enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, { provider, managerStore,
+        enqueueJob, storeOptions, observe });
+    }
+    return onJobCompleted?.(job, receipt, telemetry);
+  };
+}
+
+async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = false, provider,
+  managerStore, enqueueJob, query, storeOptions = {}, observe } = {}) {
+  if (enabled !== true || !capabilities.includes("maritime.manager.capafy.prepare")
+    || !maritimeCapafyHostProviderConfigured(provider) || !managerStore
+    || typeof enqueueJob !== "function" || typeof query !== "function") return { status: "disabled", queued: 0 };
+  const rows = (await query(`
+    WITH candidates AS (
+      SELECT DISTINCT ON (jobs.tenant_id) jobs.tenant_id, jobs.completed_at,
+        row_to_json(jobs) AS job, receipts.receipt
+      FROM public.lm_runtime_jobs AS jobs
+      JOIN public.lm_runtime_job_receipts AS receipts
+        ON receipts.job_id=jobs.job_id AND receipts.tenant_id=jobs.tenant_id
+         AND receipts.attempt=jobs.attempt
+      JOIN public.lm_maritime_manager_enrollments AS managers
+        ON managers.uid=jobs.tenant_id AND jobs.input_refs->>'release_ref'=('release://git/' || managers.release_sha)
+      JOIN private.lm_maritime_manager_capafy_bindings AS bindings
+        ON bindings.uid=managers.uid AND bindings.auth_subject=managers.auth_subject
+      WHERE jobs.capability='maritime.manager.cycle' AND jobs.status='completed'
+        AND jobs.completed_at >= clock_timestamp() - interval '24 hours'
+        AND receipts.outcome IN ('completed','reconciled_present')
+        AND receipts.receipt->>'kind'='maritime_manager_cycle'
+        AND receipts.receipt->>'status'='completed'
+        AND managers.status='active' AND managers.paused_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM public.lm_runtime_jobs AS prepares
+          WHERE prepares.tenant_id=jobs.tenant_id AND prepares.capability='maritime.manager.capafy.prepare'
+            AND prepares.input_refs->>'source_cycle_job_id'=jobs.job_id
+        )
+      ORDER BY jobs.tenant_id, jobs.completed_at DESC, jobs.job_id DESC
+    )
+    SELECT job, receipt FROM candidates ORDER BY completed_at DESC LIMIT 20
+  `, [])).rows;
+  if (!Array.isArray(rows)) throw new Error("maritime_capafy_admission_read_invalid");
+  let queued = 0;
+  for (const row of rows) {
+    const result = await enqueueMaritimeCapafyPrepareAfterCompletion(row?.job, row?.receipt,
+      { provider, managerStore, enqueueJob, storeOptions, observe });
+    if (result.status === "queued") queued += Number(result.created === true);
+  }
+  return { status: "checked", queued, candidates: rows.length };
+}
+
 function createMaritimeManagerWorkerDependencies({ pgPool, env = process.env, recordMaritimeManagerCompletion } = {}) {
   const managerDependencies = require("../lib/maritime-manager-dependencies.js").createMaritimeManagerDependencies({ pgPool, env });
   const recordCompletion = recordMaritimeManagerCompletion
@@ -259,6 +341,15 @@ function createMaritimeManagerWorkerDependencies({ pgPool, env = process.env, re
     onJobCompleted: (job, receipt, telemetry = {}) => recordCompletion(job, receipt,
       { env, ...telemetry, ...managerDependencies }),
   });
+}
+
+function createMaritimeCapafyAccountBinding({ query, managerStore, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+  if (typeof query !== "function" || !managerStore) throw new Error("maritime_capafy_binding_unavailable");
+  const binding = require("../lib/maritime-manager-capafy-binding.js");
+  const bindingStore = binding.createMaritimeCapafyBindingStore({ query,
+    encryptionKey: requiredEnv(env, "LM_MARITIME_CAPAFY_ENCRYPTION_KEY") });
+  const connector = binding.createCapafyAccountConnector({ fetchImpl });
+  return binding.createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connector });
 }
 
 function createWorkerHandlers(env, capabilities, dependencies = {}) {
@@ -306,6 +397,12 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
     if (capabilities.some(value => /^maritime\.manager\.capafy\.(prepare|publish)$/.test(value))) {
       if (typeof dependencies.query !== "function") throw new Error("maritime provider database unavailable");
+      const accountBinding = dependencies.maritimeCapafyAccountBinding;
+      const provider = dependencies.maritimeCapafyProvider
+        ? Object.freeze({ ...dependencies.maritimeCapafyProvider,
+          ...(accountBinding ? { readAccountBinding: accountBinding.readAccountBinding,
+            withAccessToken: accountBinding.withAccessToken } : {}) })
+        : accountBinding;
       const readPredecessor = async ({ tenantId, jobId }) => {
         const rows = (await dependencies.query(`
           SELECT row_to_json(jobs) AS job, receipts.receipt
@@ -320,7 +417,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
       };
       // Host provider binding is explicit. Never fall back to founder credentials
       // or model-controlled VM state when T08/T16 setup is still unavailable.
-      const services = { managerStore, provider: dependencies.maritimeCapafyProvider,
+      const services = { managerStore, provider,
         readCompletedCycle: readPredecessor, readPrepareReceipt: readPredecessor, now: dependencies.now };
       servicesByAdapter["maritime-manager-capafy-prepare"] = services;
       servicesByAdapter["maritime-manager-capafy-publish"] = services;
@@ -821,7 +918,7 @@ function observeWorkerPoll(state, active, now = () => new Date().toISOString()) 
   return active !== true;
 }
 
-async function runCapabilityWorker(env = process.env) {
+async function runCapabilityWorker(env = process.env, runtimeDependencies = {}) {
   const { Pool } = require("pg");
   const runtimeStore = require("../lib/runtime-job-store.js");
   const {
@@ -844,12 +941,35 @@ async function runCapabilityWorker(env = process.env) {
   const maritimeManagerDependencies = capabilities.some(value => value.startsWith("maritime.manager."))
     ? createMaritimeManagerWorkerDependencies({ pgPool: pool, env }) : null;
   const maritimeManagerStore = maritimeManagerDependencies?.managerStore || null;
-  const onJobCompleted = maritimeManagerDependencies?.onJobCompleted || null;
+  const capafyCapabilitiesPresent = capabilities.some(value => /^maritime\.manager\.capafy\.(prepare|publish)$/.test(value));
+  const capafyConnectionEnabled = env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED === "1";
+  const capafyProviderEnabled = env.LM_MARITIME_CAPAFY_PROVIDER_ENABLED === "1";
+  if (capafyProviderEnabled && !capafyConnectionEnabled) throw new Error("maritime_capafy_connection_must_be_enabled");
+  const maritimeCapafyAccountBinding = capafyCapabilitiesPresent && capafyConnectionEnabled
+    ? createMaritimeCapafyAccountBinding({ query: pool.query.bind(pool), managerStore: maritimeManagerStore, env }) : null;
+  const maritimeCapafyProvider = capafyProviderEnabled ? Object.freeze({
+    ...runtimeDependencies.maritimeCapafyProvider,
+    readAccountBinding: maritimeCapafyAccountBinding?.readAccountBinding,
+    withAccessToken: maritimeCapafyAccountBinding?.withAccessToken,
+  }) : null;
+  if (capafyProviderEnabled && !maritimeCapafyHostProviderConfigured(maritimeCapafyProvider)) {
+    throw new Error("maritime_capafy_host_executor_unavailable");
+  }
+  const onJobCompleted = createMaritimeCapafyCompletionObserver({
+    onJobCompleted: maritimeManagerDependencies?.onJobCompleted,
+    provider: capafyProviderEnabled ? maritimeCapafyProvider : null,
+    managerStore: maritimeManagerStore,
+    enqueueJob: runtimeStore.enqueueJob,
+    storeOptions: opts,
+    observe: event => process.stderr.write(JSON.stringify(event) + "\n"),
+  });
   let nextMaritimeRecoveryMs = 0;
   let maritimePausedCursor = null;
   const handlers = createWorkerHandlers(env, capabilities, {
     maritimeManagerDependencies,
     maritimeManagerStore,
+    maritimeCapafyAccountBinding,
+    maritimeCapafyProvider,
     onRegistry: value => { registry = value; },
     query: opts.query,
     connect: pool.connect.bind(pool),
@@ -887,6 +1007,10 @@ async function runCapabilityWorker(env = process.env) {
       if (maritimeManagerStore && Date.now() >= nextMaritimeRecoveryMs) {
         maritimePausedCursor = await recoverMaritimeEnrollments(capabilities, { managerStore: maritimeManagerStore,
           enqueueJob: runtimeStore.enqueueJob, storeOptions: opts, pausedCursor: maritimePausedCursor });
+        await recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled: capafyProviderEnabled,
+          provider: maritimeCapafyProvider, managerStore: maritimeManagerStore, enqueueJob: runtimeStore.enqueueJob,
+          query: opts.query, storeOptions: opts,
+          observe: event => process.stderr.write(JSON.stringify(event) + "\n") });
         nextMaritimeRecoveryMs = Date.now() + 30000;
       }
       await reconcileMaritimeCapabilityJobs(capabilities, { registry, store: runtimeStore, storeOptions: opts, onJobCompleted,
@@ -948,6 +1072,10 @@ if (require.main === module) {
 module.exports = {
   createScopedEnvironmentSecretProvider,
   createMaritimeManagerWorkerDependencies,
+  createMaritimeCapafyAccountBinding,
+  enqueueMaritimeCapafyPrepareAfterCompletion,
+  createMaritimeCapafyCompletionObserver,
+  recoverMaritimeCapafyCycleAdmissions,
   createWorkerHandlers,
   observeWorkerPoll,
   executeCapabilityJob,

@@ -54,7 +54,8 @@ const {
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
 const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
-const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop } = require("./lib/maritime-manager-auth.js");
+const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop,
+  handleMaritimeManagerCapafyConnection } = require("./lib/maritime-manager-auth.js");
 const { handleMaritimeManagerArtifact } = require("./lib/maritime-manager-artifacts.js");
 const { handleMaritimeManagerWake } = require("./lib/maritime-manager-wake.js");
 const { createMaritimeManagerDependencies } = require("./lib/maritime-manager-dependencies.js");
@@ -260,7 +261,8 @@ function getMaritimeManagerDependencies() {
 function maritimeManagerHttpOptions() {
   const options = { publicOrigin: LM_PANEL_BASE };
   if (process.env.LM_MARITIME_MANAGER_EMAIL_ENABLED !== "1") return options;
-  return { ...options, ...getMaritimeManagerDependencies() };
+  return { ...options, ...getMaritimeManagerDependencies(), env: process.env,
+    query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) };
 }
 function getInvestmentStateStore() {
   getMoneyPrinterRuntimeStore();
@@ -747,6 +749,14 @@ const server = http.createServer(async (req, res) => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "stop_unavailable" }));
+    });
+    return;
+  }
+  if (["/maritime/capafy/connect/start", "/maritime/capafy/connect/verify", "/maritime/capafy/connect/disconnect"].includes(path)) {
+    Promise.resolve().then(() => handleMaritimeManagerCapafyConnection(req, res, maritimeManagerHttpOptions())).catch(() => {
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "capafy_connection_unavailable" }));
     });
     return;
   }

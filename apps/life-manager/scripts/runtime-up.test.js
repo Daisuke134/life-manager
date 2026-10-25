@@ -11,6 +11,7 @@ const {
   executeCapabilityJob,
   createScopedEnvironmentSecretProvider,
   createMaritimeManagerWorkerDependencies,
+  createMaritimeCapafyAccountBinding,
   createWorkerHandlers,
   observeWorkerPoll,
   reconcileMaritimeCapabilityJobs,
@@ -1395,6 +1396,119 @@ test("Maritime provider capabilities are registered with tenant-scoped central p
     cycleJobId:"maritime-cycle:"+"b".repeat(64),artifactRef:"artifact://original/listing.md",accountRef:`account://capafy/${uid}/seller-1`}),
     attempt:1,status:"running"};
   await assert.rejects(handlers[caps[0]](job),/unconfigured/);
+});
+test("only a durable completed cycle auto-enqueues its tenant-bound Capafy prepare job",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",releaseSha="a".repeat(40),providerSubject="019d3c7f-fe51-7c57-aa2e-8e1055bb36a5";
+ const cycle={...require("../lib/maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,
+   releaseSha,occurrenceId:"first",dateKey:"2026-10-23"}),status:"completed"};
+ const externalRef="maritime-execution://vm-1/exec-1";
+ const receipt={schema_version:1,kind:"maritime_manager_cycle",tenant_id:uid,job_id:cycle.job_id,
+   agent_id:"vm-1",execution_id:"exec-1",occurrence_id:"first",date_key:"2026-10-23",release_sha:releaseSha,
+   status:"completed",artifact_refs:["artifact://original/listing.md"],error_class:null,provider:"maritime",
+   external_ref:externalRef,evidence_refs:[externalRef]};
+ const accountRef=`account://capafy/${uid}/${providerSubject}`,queued=[];
+ const provider={readAccountBinding:async({tenantId})=>({provider:"capafy",tenantId,accountRef,providerSubject,
+   autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
+     accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   guardArtifact:async({identity})=>{assert.equal(identity.tenantId,uid);return {original:true,frozen:false,duplicate:false};},
+   prepare:async()=>{},readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+ const result=await require("./runtime-up.js").enqueueMaritimeCapafyPrepareAfterCompletion(cycle,receipt,{
+   provider,managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
+   enqueueJob:async job=>{queued.push(job);return {created:true,job};}});
+ assert.equal(result.status,"queued");
+ assert.equal(queued.length,1);assert.equal(queued[0].tenant_id,uid);
+ assert.equal(queued[0].capability,"maritime.manager.capafy.prepare");
+ assert.equal(queued[0].input_refs.source_cycle_job_id,cycle.job_id);
+ assert.equal(queued[0].input_refs.artifact_ref,"artifact://original/listing.md");
+});
+test("Capafy admission ignores unfinished cycles and stays inert without a host executor",async()=>{
+ const queued=[];let reads=0;
+ const result=await require("./runtime-up.js").enqueueMaritimeCapafyPrepareAfterCompletion({
+   tenant_id:"lm_11111111-1111-4111-8111-111111111111",job_id:"cycle",status:"running",
+   capability:"maritime.manager.cycle"},{status:"completed"},{provider:{readAccountBinding:async()=>{reads++;}},
+   managerStore:{read:async()=>null},enqueueJob:async job=>queued.push(job)});
+ assert.equal(result.status,"skipped");assert.equal(reads,0);assert.equal(queued.length,0);
+ const completed=await require("./runtime-up.js").enqueueMaritimeCapafyPrepareAfterCompletion({
+   tenant_id:"lm_11111111-1111-4111-8111-111111111111",job_id:"cycle",status:"completed",
+   capability:"maritime.manager.cycle"},{status:"completed"},{managerStore:{read:async()=>null},enqueueJob:async job=>queued.push(job)});
+ assert.equal(completed.status,"skipped");assert.equal(queued.length,0);
+});
+test("Capafy auto-enqueue runs from the durable completion observer before usage telemetry",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",releaseSha="a".repeat(40),providerSubject="019d3c7f-fe51-7c57-aa2e-8e1055bb36a5";
+ const cycle={...require("../lib/maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,
+   releaseSha,occurrenceId:"first",dateKey:"2026-10-23"}),status:"completed"};
+ const externalRef="maritime-execution://vm-1/exec-1";
+ const receipt={schema_version:1,kind:"maritime_manager_cycle",tenant_id:uid,job_id:cycle.job_id,
+   agent_id:"vm-1",execution_id:"exec-1",occurrence_id:"first",date_key:"2026-10-23",release_sha:releaseSha,
+   status:"completed",artifact_refs:["artifact://original/listing.md"],error_class:null,provider:"maritime",
+   external_ref:externalRef,evidence_refs:[externalRef]};
+ const accountRef=`account://capafy/${uid}/${providerSubject}`,events=[];
+ const provider={readAccountBinding:async({tenantId})=>({provider:"capafy",tenantId,accountRef,providerSubject,
+   autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
+     accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   guardArtifact:async()=>({original:true,frozen:false,duplicate:false}),prepare:async()=>{},
+   readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+ const observer=require("./runtime-up.js").createMaritimeCapafyCompletionObserver({provider,
+   managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
+   enqueueJob:async job=>{events.push(["enqueue",job.capability]);return {created:true,job};},
+   onJobCompleted:async()=>events.push(["usage"])});
+ await observer(cycle,receipt);
+ assert.deepEqual(events,[["enqueue","maritime.manager.capafy.prepare"],["usage"]]);
+});
+test("worker recovery finds only recent active bound cycles without a prepare job",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",releaseSha="a".repeat(40),providerSubject="019d3c7f-fe51-7c57-aa2e-8e1055bb36a5";
+ const cycle={...require("../lib/maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,
+   releaseSha,occurrenceId:"first",dateKey:"2026-10-23"}),status:"completed"};
+ const externalRef="maritime-execution://vm-1/exec-1";
+ const receipt={schema_version:1,kind:"maritime_manager_cycle",tenant_id:uid,job_id:cycle.job_id,
+   agent_id:"vm-1",execution_id:"exec-1",occurrence_id:"first",date_key:"2026-10-23",release_sha:releaseSha,
+   status:"completed",artifact_refs:["artifact://original/listing.md"],error_class:null,provider:"maritime",
+   external_ref:externalRef,evidence_refs:[externalRef]};
+ const accountRef=`account://capafy/${uid}/${providerSubject}`,queued=[];let sql="";
+ const provider={readAccountBinding:async({tenantId})=>({provider:"capafy",tenantId,accountRef,providerSubject,
+   autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
+     accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   guardArtifact:async()=>({original:true,frozen:false,duplicate:false}),prepare:async()=>{},
+   readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+ const result=await require("./runtime-up.js").recoverMaritimeCapafyCycleAdmissions(
+   ["maritime.manager.capafy.prepare"],{enabled:true,provider,
+     managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
+     enqueueJob:async(job,options)=>{assert.equal(options.query,"store-query");queued.push(job);return {created:true,job};},
+     query:async(statement,values)=>{sql=statement;assert.deepEqual(values,[]);return {rows:[{job:cycle,receipt}]};},
+     storeOptions:{query:"store-query"}});
+ assert.equal(result.status,"checked");assert.equal(result.candidates,1);assert.equal(result.queued,1);
+ assert.equal(queued.length,1);assert.equal(queued[0].tenant_id,uid);
+ assert.match(sql,/lm_maritime_manager_capafy_bindings/);assert.match(sql,/managers\.status='active'/);
+ assert.match(sql,/source_cycle_job_id/);assert.match(sql,/interval '24 hours'/);
+});
+test("Capafy provider adapters take tenant identity from encrypted owner binding before any external effect",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",caps=["maritime.manager.capafy.prepare","maritime.manager.capafy.publish"],calls=[];
+ const accountBinding={readAccountBinding:async identity=>{calls.push(["binding",identity]);return {provider:"capafy",tenantId:uid,
+   accountRef:identity.accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5"};},
+   withAccessToken:async(_identity,operation)=>operation("am_sk_"+"x".repeat(32),{tenantId:uid})};
+ const provider={readAccountBinding:async()=>assert.fail("provider supplied identity must never override owner binding"),
+   guardArtifact:async()=>{calls.push(["guard"]);return {original:true,frozen:false,duplicate:false};},
+   prepare:async()=>{calls.push(["prepare"]);}};
+ const handlers=createWorkerHandlers({},caps,{maritimeManagerStore:{read:async()=>({uid,release_sha:"a".repeat(40),status:"active",paused_at:null})},maritimeTransport:{},maritimeCapafyProvider:provider,
+   maritimeCapafyAccountBinding:accountBinding,query:async()=>({rows:[]}),
+   createRegistry:({servicesByAdapter})=>require("../lib/loop-adapter-registry.js").createConfiguredLoopAdapterRegistry({servicesByAdapter})});
+ const job={...require("../lib/maritime-manager-provider-runtime.js").buildMaritimeCapafyPrepareJob({tenantId:uid,
+   releaseSha:"a".repeat(40),occurrenceId:"one",cycleJobId:"maritime-cycle:"+"b".repeat(64),
+   artifactRef:"artifact://original/listing.md",accountRef:`account://capafy/${uid}/seller-1`}),attempt:1,status:"running"};
+ await assert.rejects(handlers[caps[0]](job),/invalid/);
+ assert.deepEqual(calls,[["binding",{tenantId:uid,accountRef:job.input_refs.account_ref}]]);
+});
+
+test("production Capafy account binding requires a tenant-scoped encrypted credential key",()=>{
+ const managerStore={read:async()=>null};
+ assert.throws(()=>createMaritimeCapafyAccountBinding({query:async()=>({rows:[]}),managerStore,env:{}}),/encryption/i);
+ const binding=createMaritimeCapafyAccountBinding({query:async()=>({rows:[]}),managerStore,
+   env:{LM_MARITIME_CAPAFY_ENCRYPTION_KEY:"a".repeat(64)},fetchImpl:async()=>new Response("{}")});
+ assert.equal(typeof binding.readAccountBinding,"function");
+ assert.equal(typeof binding.withAccessToken,"function");
 });
 test("Maritime provider reconcile allowlist commits present successor atomically, resolves absent, and retains unknown",async()=>{
   for(const phase of ["prepare","publish"])for(const state of ["present","absent","unknown"]){

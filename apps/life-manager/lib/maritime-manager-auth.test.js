@@ -2,8 +2,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop;
-try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop } = require("./maritime-manager-auth.js")); }
+let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop, handleMaritimeManagerCapafyConnection;
+try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop,
+  handleMaritimeManagerCapafyConnection } = require("./maritime-manager-auth.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 let createMaritimeManagerDependencies;
 try { ({ createMaritimeManagerDependencies } = require("./maritime-manager-dependencies.js")); }
@@ -189,6 +190,23 @@ test("verified_campaign_page_displays_activation_or_persisted_state_without_disp
   deps.managerStore.read=async()=>({status:"effect_unknown"});res=response();await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);
   assert.doesNotMatch(res.body,/<button[^>]+data-action="activate"/);assert.match(res.body,/実行結果を確認中/);
 });
+test("active Life Manager page reads only safe Capafy connection metadata for its signed-in tenant",async()=>{
+ const {deps}=fixture(),uid=`lm_${SUBJECT}`,calls=[];
+ deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED="1";
+ deps.managerStore={read:async()=>({uid,auth_subject:SUBJECT,status:"active",agent_id:"agent-a",release_sha:"a".repeat(40)})};
+ deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",
+   external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
+ deps.capafyBindingStore={readStatus:async identity=>{calls.push(identity);return {connected:true,provider:"capafy",tenantId:uid,
+   accountRef:`account://capafy/${uid}/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5`,autonomyConsentVersion:"maritime-capafy-autonomy-v1"};}};
+ deps.distributionStore={recordAnonymousEvent:async()=>true};
+ const res=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),res,deps);
+ assert.equal(res.statusCode,200);assert.match(res.body,/Capafy developer account connected/);
+ assert.doesNotMatch(res.body,/account:\/\/capafy\/|019d3c7f|am_sk_/i);
+ assert.deepEqual(calls,[{tenantId:uid,authSubject:SUBJECT}]);
+ delete deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED;
+ const disabled=response();await handleMaritimeManagerPage(request("/maritime?lang=en"),disabled,deps);
+ assert.match(disabled.body,/Capafy account connection is not enabled/);assert.equal(calls.length,1);
+});
 
 test('manager activation pins the VM image release independently of the central app release',async()=>{
   const {deps,rows}=activationFixture();deps.env.LM_RELEASE_SHA='b'.repeat(40);deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA='c'.repeat(40);
@@ -283,6 +301,127 @@ test('authenticated return failure records an unconfirmed observation without ch
  await handleMaritimeManagerPage(request('/maritime'),res,deps);await new Promise(resolve=>setImmediate(resolve));
  assert.equal(res.statusCode,200);assert.equal(logs[0].event,'returned');assert.equal(logs[0].error_class,'usage_store_unconfirmed');
  assert.doesNotMatch(JSON.stringify(logs),/person@|lm_11111111/);
+});
+
+function capafyConnectionFixture() {
+  const f = fixture();
+  const uid = `lm_${SUBJECT}`;
+  f.deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED = "1";
+  const bindingWrites = [], calls = [];
+  f.deps.now = () => "2026-10-25T12:00:00.000Z";
+  f.deps.managerStore = { read: async tenantId => tenantId === uid
+    ? { uid, auth_subject: SUBJECT, status: "active", paused_at: null } : null };
+  f.deps.capafyBindingStore = {
+    save: async input => { bindingWrites.push(input); return { provider: "capafy", tenantId: uid,
+      providerSubject: "019d3c7f-fe51-7c57-aa2e-8e1055bb36a5", accountRef: `account://capafy/${uid}/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5`,
+      autonomyConsentVersion: "maritime-capafy-autonomy-v1" }; },
+    disconnect: async input => { calls.push(["disconnect", input]); return true; },
+  };
+  f.deps.capafyConnector = {
+    startLogin: async email => { calls.push(["start", email]); return { challengeId: "challenge-1", expiresInSec: 300 }; },
+    verifyLogin: async input => { calls.push(["verify", input]); return { provider: "capafy",
+      providerSubject: "019d3c7f-fe51-7c57-aa2e-8e1055bb36a5", accountEmail: "seller@example.com",
+      developerVerified: true, accessToken: "am_sk_" + "x".repeat(32) }; },
+  };
+  return { ...f, uid, bindingWrites, calls, csrf: require("./web-auth.js").createWebCsrfToken(uid, f.deps.env.LM_UID_SECRET) };
+}
+
+test("Capafy connection routes stay disabled until the explicit Cloud provider flag is enabled", async () => {
+  const f = capafyConnectionFixture();
+  delete f.deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED;
+  const res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { email: "seller@example.com" }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 503);
+  assert.equal(JSON.parse(res.body).error, "capafy_connection_unavailable");
+  assert.deepEqual(f.calls, []);
+  assert.deepEqual(f.bindingWrites, []);
+});
+
+test("Capafy OTP connect is authenticated, CSRF protected, and returns only a tenant-bound short-lived challenge", async () => {
+  assert.equal(typeof handleMaritimeManagerCapafyConnection, "function");
+  const f = capafyConnectionFixture(), res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { email: "Seller@Example.com" }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 202);
+  const result = JSON.parse(res.body);
+  assert.equal(result.status, "check_email");
+  assert.equal(result.expiresInSec, 300);
+  assert.equal(typeof result.challengeRef, "string");
+  assert.doesNotMatch(res.body, /seller@example.com|accessToken|am_sk_/i);
+  assert.deepEqual(f.calls, [["start", "Seller@Example.com"]]);
+  const opened = require("./maritime-manager-capafy-binding.js").openChallenge(result.challengeRef, {
+    tenantId: f.uid, authSubject: SUBJECT, secret: require("./web-auth.js").csrfSecret(f.deps), now: f.deps.now(),
+  });
+  assert.deepEqual(opened, { challengeId: "challenge-1", expiresAt: "2026-10-25T12:05:00.000Z" });
+  const rejected = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { email: "Seller@Example.com" }, { origin: "https://foreign.invalid", "x-lm-web-csrf": f.csrf }), rejected, f.deps);
+  assert.equal(rejected.statusCode, 403);
+  assert.equal(f.calls.length, 1);
+});
+
+test("Capafy OTP verify binds the official verified seller to the signed Life Manager tenant and keeps token private", async () => {
+  const f = capafyConnectionFixture();
+  const started = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { email: "seller@example.com" }, { "x-lm-web-csrf": f.csrf }), started, f.deps);
+  const challengeRef = JSON.parse(started.body).challengeRef;
+  const done = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/verify", "POST", {
+    challengeRef, code: "004219", autonomyConsentVersion: "maritime-capafy-autonomy-v1",
+  }, { "x-lm-web-csrf": f.csrf }), done, f.deps);
+  assert.equal(done.statusCode, 200);
+  assert.equal(JSON.parse(done.body).status, "connected");
+  assert.doesNotMatch(done.body, /am_sk_|seller@example.com|accessToken/i);
+  assert.deepEqual(f.calls, [["start", "seller@example.com"], ["verify", { challengeId: "challenge-1", code: "004219" }]]);
+  assert.equal(f.bindingWrites.length, 1);
+  assert.equal(f.bindingWrites[0].tenantId, f.uid);
+  assert.equal(f.bindingWrites[0].authSubject, SUBJECT);
+  assert.equal(f.bindingWrites[0].autonomyConsentVersion, "maritime-capafy-autonomy-v1");
+  assert.equal(f.bindingWrites[0].accessToken.startsWith("am_sk_"), true);
+});
+
+test("Capafy connection rejects foreign challenges, missing autonomy consent, and unready tenants before verification", async () => {
+  const f = capafyConnectionFixture();
+  const foreign = require("./maritime-manager-capafy-binding.js").sealChallenge({ tenantId: "lm_22222222-2222-4222-8222-222222222222",
+    authSubject: SUBJECT, challengeId: "challenge-1", expiresInSec: 300, now: f.deps.now() }, require("./web-auth.js").csrfSecret(f.deps));
+  let res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/verify", "POST",
+    { challengeRef: foreign, code: "004219", autonomyConsentVersion: "maritime-capafy-autonomy-v1" },
+    { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 400);
+  res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/verify", "POST",
+    { challengeRef: "x", code: "004219" }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 400);
+  f.deps.managerStore.read = async uid => ({ uid, auth_subject: SUBJECT, status: "paused", paused_at: "2026-10-25T11:00:00Z" });
+  res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { email: "seller@example.com" }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 409);
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.bindingWrites.length, 0);
+});
+
+test("Capafy OTP is not sent until the cloud encryption key is configured", async () => {
+  const f = capafyConnectionFixture();
+  f.deps.capafyBindingStore.assertConfigured = () => { throw new Error("maritime_capafy_encryption_unavailable"); };
+  const res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { email: "seller@example.com" }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 503);
+  assert.equal(JSON.parse(res.body).error, "capafy_login_unavailable");
+  assert.equal(f.calls.length, 0);
+});
+
+test("Capafy unlink only deletes the signed-in tenant's binding", async () => {
+  const f = capafyConnectionFixture(), res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/disconnect", "POST", {},
+    { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(JSON.parse(res.body), { status: "disconnected", disconnected: true });
+  assert.deepEqual(f.calls, [["disconnect", { tenantId: f.uid, authSubject: SUBJECT }]]);
 });
 
 test("server manager dependencies share the supplied Runtime PG pool", async () => {
