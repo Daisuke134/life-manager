@@ -30,6 +30,8 @@ function fixture() {
     guardArtifact:async ()=>({original:true,frozen:false,duplicate:false}),
     prepare:async ()=>{prepares++;},publish:async ()=>{publishes++;},
     readPrepare:async ()=>proof(prepareReceipt),readPublish:async ()=>proof(publishReceipt),
+    readPublisherConfirmation:async ({agentId,agentVersionId})=>({agentId,agentVersionId,
+      isConfirmedSkills:true,isConfirmedConfigKeys:true,platformStatus:"under_review"}),
   };
   const services={managerStore:{read:async()=>({uid:UID,release_sha:SHA,status:"active",paused_at:null})},
     readCompletedCycle:async()=>({job:cycle,receipt:cycleReceipt}),
@@ -74,6 +76,45 @@ test("prepare continuation accepts only its immutable official receipt and enque
   assert.equal(next.availableAt,"2026-10-23T12:00:00.000Z");
   await assert.rejects(adapter.continuation(f.prepare,{...f.prepareReceipt,account_ref:"other"}),/invalid/);
 });
+test("prepare continuation keeps a readback job alive until the owner confirms and submits the exact version",async()=>{
+ for(const result of [
+  null,
+  {agentId:"123",agentVersionId:"456",isConfirmedSkills:false,isConfirmedConfigKeys:true},
+  {agentId:"123",agentVersionId:"456",isConfirmedSkills:true,isConfirmedConfigKeys:false},
+  {agentId:"123",agentVersionId:"other",isConfirmedSkills:true,isConfirmedConfigKeys:true},
+ ]){
+  const f=fixture();f.provider.readPublisherConfirmation=async()=>result;
+  const prepareAdapter=runtime().createMaritimeManagerCapafyPrepareAdapter(f.services);
+  const continuation=await prepareAdapter.continuation(f.prepare,f.prepareReceipt);
+  assert.ok(continuation,"prepare completion must preserve a durable confirmation readback job");
+  assert.equal(continuation.job.capability,"maritime.manager.capafy.publish");
+  const publishAdapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
+  await assert.rejects(publishAdapter.execute({...continuation.job,attempt:1,status:"running"}),error=>
+    error.unknownEffect===true && error.code==="MARITIME_CAPAFY_PUBLISHER_CONFIRMATION_REQUIRED");
+  assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+ }
+});
+test("publisher executor refuses an unconfirmed version even when a publish job is supplied",async()=>{
+ const f=fixture();f.provider.readPublisherConfirmation=async()=>({agentId:"123",agentVersionId:"456",
+  isConfirmedSkills:true,isConfirmedConfigKeys:false});
+ const adapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
+ await assert.rejects(adapter.execute(f.publish),/publisher_confirmation_required/);
+ assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+});
+test("publish worker reads a publisher-submitted version and never submits it itself",async()=>{
+ const f=fixture();
+ const adapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
+ assert.deepEqual(await adapter.execute(f.publish),{receipt:f.publishReceipt});
+ assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+});
+test("publisher-confirmed draft remains fenced until official submission readback exists",async()=>{
+ const f=fixture();f.provider.readPublisherConfirmation=async()=>({agentId:"123",agentVersionId:"456",
+  isConfirmedSkills:true,isConfirmedConfigKeys:true,platformStatus:"draft"});
+ f.provider.readPublish=async()=>({state:"absent",receipt:{...f.publishReceipt,status:"absent"}});
+ const adapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
+ await assert.rejects(adapter.execute(f.publish),error=>error.unknownEffect===true);
+ assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+});
 test("missing account binding, inactive tenant, non-original, frozen or duplicate artifacts never dispatch",async()=>{
   for(const kind of ["unconfigured","foreign","paused","frozen","duplicate","not-original","cycle"]){
     const f=fixture();
@@ -86,13 +127,13 @@ test("missing account binding, inactive tenant, non-original, frozen or duplicat
     assert.deepEqual(f.counts(),{prepares:0,publishes:0},kind);
   }
 });
-test("unknown publish readback keeps the effect uncertain and reconciliation never dispatches",async()=>{
+test("unknown publish readback keeps the owner submission fenced and reconciliation never submits",async()=>{
   const f=fixture();f.provider.readPublish=async()=>({state:"unknown"});
   const adapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
   await assert.rejects(adapter.execute(f.publish),error=>error.unknownEffect===true);
-  assert.deepEqual(f.counts(),{prepares:0,publishes:1});
+  assert.deepEqual(f.counts(),{prepares:0,publishes:0});
   for(let n=0;n<3;n++)assert.equal((await adapter.reconcile({...f.publish,status:"reconciling"})).state,"unknown");
-  assert.deepEqual(f.counts(),{prepares:0,publishes:1});
+  assert.deepEqual(f.counts(),{prepares:0,publishes:0});
 });
 test("unknown prepare readback keeps the effect uncertain and reconciliation never dispatches again",async()=>{
   const f=fixture();f.provider.readPrepare=async()=>({state:"unknown"});
@@ -136,7 +177,7 @@ test("read-only reconcile preserves present, authoritative absent and invalid/un
     const job=f[phase],saved=f[phase+"Receipt"],method=phase==="prepare"?"readPrepare":"readPublish";
     assert.equal((await adapter.reconcile(job)).state,"present");
     f.provider[method]=async()=>({state:"absent",receipt:{...saved,status:"absent"}});
-    assert.equal((await adapter.reconcile(job)).state,"absent");
+    assert.equal((await adapter.reconcile(job)).state,phase==="publish"?"unknown":"absent");
     f.provider[method]=async()=>({state:"absent",receipt:{...saved,status:"absent",account_ref:"foreign"}});
     assert.equal((await adapter.reconcile(job)).state,"unknown");
     f.provider[method]=async()=>({state:"present",receipt:{...saved,agent_version_id:"other"}});

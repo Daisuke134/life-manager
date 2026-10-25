@@ -99,6 +99,13 @@ async function withProviderAccess(provider,expectedIdentity,operation,mode="acti
 }
 function createAdapter(phase,services={}) {
   const provider=services.provider;
+  async function publisherConfirmed(bound,agentId,agentVersionId) {
+    if(typeof provider?.readPublisherConfirmation!=="function")return false;
+    const proof=await withProviderAccess(provider,bound.account,({accessToken,identity})=>
+      provider.readPublisherConfirmation({identity,agentId,agentVersionId,accessToken}),"readback");
+    return proof?.agentId===agentId && proof.agentVersionId===agentVersionId
+      && proof.isConfirmedSkills===true && proof.isConfirmedConfigKeys===true;
+  }
   async function context(job,{active=false,guard=false}={}) {
     const c=readMaritimeCapafyJobContract(job);
     if(c.phase!==phase || job.attempt!==1)invalid();
@@ -138,6 +145,9 @@ function createAdapter(phase,services={}) {
       :verifyMaritimeCapafyPublishReceipt(receipt,job,bound.prepared.job,bound.prepared.receipt,bound.cycle.job,bound.cycle.receipt);
   }
   async function inspect(job,bound) {
+    if(phase==="publish" && !await publisherConfirmed(bound,bound.c.agentId,bound.c.agentVersionId))
+      return {state:"unknown",errorClass:"maritime_capafy_publisher_confirmation_required",
+        nextAction:"confirm_in_capafy",retryable:false};
     const read=provider[phase==="prepare"?"readPrepare":"readPublish"];
     if(typeof read!=="function")throw new ProviderError("maritime_capafy_unconfigured");
     // This trusted host service must read official target and action evidence.
@@ -146,7 +156,9 @@ function createAdapter(phase,services={}) {
       read({job,identity,accessToken}),"readback");
     if(proof?.state==="present" && verifyWithContext(proof.receipt,job,bound))return proof;
     if(proof?.state==="absent" && verifyWithContext({...proof.receipt,status:phase==="prepare"?"prepared":"under_review"},job,bound)
-      && proof.receipt.status==="absent")return proof;
+      && proof.receipt.status==="absent")return phase==="publish"
+        ?{state:"unknown",errorClass:"maritime_capafy_submission_required",nextAction:"submit_for_review_in_capafy",retryable:false}
+        :proof;
     return {state:"unknown",errorClass:"maritime_capafy_readback_unknown",nextAction:"inspect_provider_action",retryable:false};
   }
   return Object.freeze({
@@ -154,6 +166,13 @@ function createAdapter(phase,services={}) {
     async execute(job) {
       const bound=await context(job,{active:true,guard:phase==="prepare"});
       if(job.status!=="running")invalid();
+      if(phase==="publish") {
+        // Capafy requires the publisher to submit each Agent version through its website.
+        // Keep a durable readback fence while the publisher completes those website steps.
+        const proof=await inspect(job,bound);
+        if(proof.state==="present")return {receipt:proof.receipt};
+        throw new ProviderError(proof.errorClass||"maritime_capafy_publish_readback_unknown",true);
+      }
       const dispatch=provider[phase];
       if(typeof dispatch!=="function")throw new ProviderError("maritime_capafy_unconfigured");
       try {

@@ -1412,7 +1412,7 @@ test("only a durable completed cycle auto-enqueues its tenant-bound Capafy prepa
    withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
      accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
    guardArtifact:async({identity})=>{assert.equal(identity.tenantId,uid);return {original:true,frozen:false,duplicate:false};},
-   prepare:async()=>{},readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+   prepare:async()=>{},readPrepare:async()=>({state:"absent"}),readPublisherConfirmation:async()=>({}),readPublish:async()=>({state:"absent"})};
  const result=await require("./runtime-up.js").enqueueMaritimeCapafyPrepareAfterCompletion(cycle,receipt,{
    provider,managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
    enqueueJob:async job=>{queued.push(job);return {created:true,job};}});
@@ -1434,6 +1434,27 @@ test("Capafy admission ignores unfinished cycles and stays inert without a host 
    capability:"maritime.manager.cycle"},{status:"completed"},{managerStore:{read:async()=>null},enqueueJob:async job=>queued.push(job)});
  assert.equal(completed.status,"skipped");assert.equal(queued.length,0);
 });
+test("Capafy host configuration fails closed without official Publisher confirmation readback",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",calls=[],releaseSha="a".repeat(40);
+ const providerSubject="019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",accountRef=`account://capafy/${uid}/${providerSubject}`;
+ const job={...require("../lib/maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,
+   releaseSha,occurrenceId:"first",dateKey:"2026-10-25"}),status:"completed"};
+ const externalRef="maritime-execution://vm-1/exec-1";
+ const receipt={schema_version:1,kind:"maritime_manager_cycle",tenant_id:uid,job_id:job.job_id,agent_id:"vm-1",
+   execution_id:"exec-1",occurrence_id:"first",date_key:"2026-10-25",release_sha:releaseSha,status:"completed",
+   artifact_refs:["artifact://original/listing.md"],error_class:null,provider:"maritime",external_ref:externalRef,evidence_refs:[externalRef]};
+ const provider={readAccountBinding:async({tenantId})=>{calls.push("binding");return {provider:"capafy",tenantId,accountRef,
+     providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"};},
+   withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
+     accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   guardArtifact:async()=>{calls.push("guard");return {original:true,frozen:false,duplicate:false};},
+   prepare:async()=>{},readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+ const result=await require("./runtime-up.js").enqueueMaritimeCapafyPrepareAfterCompletion(job,receipt,{
+   provider,managerStore:{read:async()=>({uid,status:"active",release_sha:releaseSha})},
+   enqueueJob:async()=>{calls.push("enqueue");return {created:true};}});
+ assert.deepEqual(result,{status:"skipped",reason:"host_executor_unavailable"});
+ assert.deepEqual(calls,[]);
+});
 test("Capafy auto-enqueue runs from the durable completion observer before usage telemetry",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",releaseSha="a".repeat(40),providerSubject="019d3c7f-fe51-7c57-aa2e-8e1055bb36a5";
  const cycle={...require("../lib/maritime-manager-runtime.js").buildMaritimeManagerCycleJob({tenantId:uid,
@@ -1449,7 +1470,7 @@ test("Capafy auto-enqueue runs from the durable completion observer before usage
    withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
      accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
    guardArtifact:async()=>({original:true,frozen:false,duplicate:false}),prepare:async()=>{},
-   readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+   readPrepare:async()=>({state:"absent"}),readPublisherConfirmation:async()=>({}),readPublish:async()=>({state:"absent"})};
  const observer=require("./runtime-up.js").createMaritimeCapafyCompletionObserver({provider,
    managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
    enqueueJob:async job=>{events.push(["enqueue",job.capability]);return {created:true,job};},
@@ -1472,7 +1493,7 @@ test("worker recovery finds only recent active bound cycles without a prepare jo
    withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
      accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
    guardArtifact:async()=>({original:true,frozen:false,duplicate:false}),prepare:async()=>{},
-   readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"})};
+   readPrepare:async()=>({state:"absent"}),readPublisherConfirmation:async()=>({}),readPublish:async()=>({state:"absent"})};
  const result=await require("./runtime-up.js").recoverMaritimeCapafyCycleAdmissions(
    ["maritime.manager.capafy.prepare"],{enabled:true,provider,
      managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
@@ -1540,7 +1561,7 @@ test("bounded Capafy recovery advances a durable keyset past refused tenants", a
     autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
   guardArtifact:async({artifactRef})=>{providerCalls++;return artifactRef.endsWith("valid.md")
     ?{original:true,frozen:false,duplicate:false}:{original:true,frozen:false,duplicate:true};},
-  prepare:async()=>{},readPrepare:async()=>({state:"absent"}),publish:async()=>{},readPublish:async()=>({state:"absent"}),
+  prepare:async()=>{},readPrepare:async()=>({state:"absent"}),readPublisherConfirmation:async()=>({}),readPublish:async()=>({state:"absent"}),
  };
  const managerStore={read:async tenantId=>({uid:tenantId,status:"active",paused_at:null,release_sha:"a".repeat(40)})};
  const recover=require("./runtime-up.js").recoverMaritimeCapafyCycleAdmissions;

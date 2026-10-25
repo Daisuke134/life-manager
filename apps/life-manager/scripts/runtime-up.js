@@ -254,7 +254,7 @@ function maritimeCapafyHostProviderConfigured(provider) {
   return Boolean(provider && typeof provider.readAccountBinding === "function"
     && typeof provider.withAccessToken === "function" && typeof provider.guardArtifact === "function"
     && typeof provider.prepare === "function" && typeof provider.readPrepare === "function"
-    && typeof provider.publish === "function" && typeof provider.readPublish === "function");
+    && typeof provider.readPublisherConfirmation === "function" && typeof provider.readPublish === "function");
 }
 
 async function enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, dependencies = {}) {
