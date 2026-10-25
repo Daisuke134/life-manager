@@ -5,9 +5,15 @@ Telegram transport. That is one capability within the broader Life Manager
 product, which is being built around one shared core for Local and phone-first
 Cloud use. Life Manager Cloud targets one isolated, always-on VM per customer.
 Its first earning workflow is Capafy; the complete work-to-verified-result and
-email-report path still needs end-to-end proof. Cloud sign-in uses Google, and
-Google Calendar is optional rather than an onboarding requirement. Grok Bot,
-Muse, and Dots still need verified adapters to that same manager.
+email-report path still needs end-to-end proof. Google sign-in confirms identity
+only. Signup does not ask for Calendar or Gmail inbox access, a task prompt,
+goals, a budget, or payout details. After the user accepts the disclosed data
+retention and autonomous-work terms, the intended Cloud flow starts earning work
+without requiring a daily prompt and reports verified results to the sign-in email.
+Calendar is connected later only if a task needs it. Capafy requires Publisher
+Certification before the first Skill can publish; payout details can be added
+after certification. Earnings are not guaranteed. Grok Bot, Muse, and Dots still
+need verified adapters to that same manager.
 
 This package's current workflow calls when it is time to leave, sends the route
 once the user is out the door, and asks before telling anyone the user is late.

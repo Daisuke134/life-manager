@@ -50,7 +50,7 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const copy = ja ? {
     title: "暮らしの仕事を進める、Life Manager Cloud。",
-    intro: "Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません。仕事の概要は確認済みのメールアドレスへ送る設計です。Calendarは必要な仕事が出た時に接続できます。目標・予算の入力は不要で、Telegramは任意です。",
+    intro: "Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません。仕事の概要は確認済みのメールアドレスへ送る設計です。初回にタスク、目標、予算を入力する必要はありません。Calendarは必要な仕事が出た時に接続できます。Telegramは任意です。",
     scope: "まずCapafyの制作・配布・収益化ワークフローをCloudへ接続しています。最初のSkill公開前にPublisher Certificationが必要で、本人確認と返金不可のUS$0.99申請料がかかります。必要書類は地域・Publisher種別で異なります。Capafyによると、振込先情報は認証後に追加でき、公開前には不要です。仕事の完了から確認済みの結果、メール報告までの全経路はまだ検証中です。収益は保証されません。",
     notice: "開始後、業務に必要な入力と結果をMaritimeへ送信します。Maritime AI credits経由のmodel callは、MaritimeのPrivacy Policy上、アカウント削除後も無期限保持の対象です。停止しても送信済みデータは削除されません。",
     googleSignin: "Googleアカウントで続ける",
@@ -62,7 +62,7 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
     states: { pending: "開始準備中", provisioning: "開始準備中", active: "稼働中", paused: "停止中", effect_unknown: "実行結果を確認中" },
   } : {
     title: "Life Manager Cloud gets your work moving.",
-    intro: "Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access. Life Manager Cloud is designed to email work summaries to that verified address. Calendar can be connected later if a task needs it. Goals, budgets, and Telegram setup are not required to get started.",
+    intro: "Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access. Life Manager Cloud is designed to email work summaries to that verified address. No task prompt is needed to start. Calendar can be connected later if a task needs it. Goals, budgets, and Telegram setup are not required to get started.",
     scope: "We are connecting the first Capafy creation-and-distribution workflow to the Cloud runtime. Capafy requires Publisher Certification before your first Skill can publish, including an identity review and a non-refundable US$0.99 application fee; required documents depend on region and publisher type. Capafy says payout details can be added after certification and are not required to publish. The complete path from work through verified result and email report has not yet been verified. Earnings are not guaranteed.",
     notice: "Starting Life Manager Cloud sends necessary work inputs and results to Maritime. Maritime’s Privacy Policy says model calls through Maritime AI credits can be retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
     googleSignin: "Continue with Google",

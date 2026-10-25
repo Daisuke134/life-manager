@@ -222,16 +222,18 @@ test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_tele
   assert.match(html,/Publisher Certification/);assert.match(html,/US\$0\.99/);
   assert.match(html,/payout details can be added after certification and are not required to publish/i);
   assert.match(html,/Google sign-in confirms your identity only; it does not connect Calendar or grant inbox access/i);
+  assert.match(html,/No task prompt is needed to start/i);
   assert.match(html,/email work summaries to that verified address/i);
-  assert.doesNotMatch(html,/<input[^>]+name="(?:goal|budget|telegram)"/);
+  assert.doesNotMatch(html,/<input[^>]+name="(?:task|goal|budget|telegram)"/);
   assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram setup are not required/);
 });
 test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   const html=renderMaritimeLanding({source:"x",language:"ja",user:{email:'person<bad>@example.invalid',csrf:"a".repeat(64)},state:null});
   assert.match(html,/data-action="activate"/);assert.match(html,/data-csrf="a{64}"/);
   assert.match(html,/person&lt;bad&gt;@example.invalid/);assert.doesNotMatch(html,/person<bad>/);
+  assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
   assert.match(html,/確認済みメールへの状況・結果レポートに同意します/);
-  assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/目標・予算の入力は不要で、Telegramは任意です/);
+  assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
   assert.match(html,/返金不可のUS\$0\.99/);assert.match(html,/振込先情報は認証後に追加でき、公開前には不要です/);
   assert.match(html,/Googleログインは本人確認だけに使用し、Calendar接続やGmail受信箱の読み取り権限は求めません/);
   assert.match(html,/確認済みのメールアドレスへ送る設計です/);
