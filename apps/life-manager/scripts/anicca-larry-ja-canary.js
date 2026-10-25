@@ -352,7 +352,26 @@ async function runAniccaCarouselCanary(argv = [], deps = {}) {
     error.unknownEffect = true;
     throw error;
   }
-  const publicationResult = { created: queued.created && publicationRun.created, ...(typeof publication.provider_effect_created === "boolean" ? { provider_effect_created: publication.provider_effect_created, ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}) } : {}), public_url: publication.public_url, provider_post_id: publication.provider_post_id };
+  const currentOccurrenceId = typeof env.LIFE_MANAGER_OCCURRENCE_ID === "string"
+    ? env.LIFE_MANAGER_OCCURRENCE_ID
+    : process.env.LIFE_MANAGER_OCCURRENCE_ID;
+  const providerEffectCreated = publication.provider_effect_created === false
+    ? false
+    : (typeof currentOccurrenceId === "string" && typeof publication.origin_occurrence_id === "string"
+      ? publication.origin_occurrence_id === currentOccurrenceId
+      : queued.created && publicationRun.created);
+  const publicationResult = {
+    created: providerEffectCreated,
+    ...(typeof publication.provider_effect_created === "boolean" ? {
+      provider_effect_created: providerEffectCreated,
+      ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}),
+      ...(!providerEffectCreated && typeof currentOccurrenceId === "string"
+        ? { result_occurrence_id: currentOccurrenceId }
+        : {}),
+    } : {}),
+    public_url: publication.public_url,
+    provider_post_id: publication.provider_post_id,
+  };
   const postizPhotoVerified = isVerifiedPostizPhotoPublication(lane, publication);
   const postizProductionVerified = production && publication.status === "published" && publication.provider_reconciled === true;
   if (!postizPhotoVerified && !postizProductionVerified && !verifyNativeObject(config.verificationRef, objectStore, publication, trustedNow, lane)) {
