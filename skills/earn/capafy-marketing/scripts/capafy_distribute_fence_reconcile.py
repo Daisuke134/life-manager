@@ -155,6 +155,31 @@ def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -
     return starts[0]
 
 
+def occurrence_run_finished(occurrence_id: str, events_path: Path | None = None) -> bool:
+    """True once this exact occurrence has a report event: its wrapper has exited and cannot publish later."""
+    prefix = f"{OWNER_ID}:"
+    if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
+        return False
+    run_id = occurrence_id[len(prefix):]
+    try:
+        with (events_path or EVENTS_PATH).open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                except (TypeError, ValueError):
+                    return False
+                if (isinstance(event, dict) and event.get("owner_id") == OWNER_ID
+                        and event.get("run_id") == run_id
+                        and event.get("occurrence_id") == occurrence_id
+                        and event.get("phase") == "report"):
+                    return True
+    except OSError:
+        return False
+    return False
+
+
 def _run_id_for_occurrence(occurrence_id: str) -> str:
     prefix = f"{OWNER_ID}:"
     if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
@@ -631,7 +656,8 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
                 page_status_fn: Callable[[str], int] = page_status,
                 pre_effect: dict[str, Any] | None = None,
                 pre_provider_failure: dict[str, Any] | None = None,
-                model_no_response: dict[str, Any] | None = None) -> dict[str, Any]:
+                model_no_response: dict[str, Any] | None = None,
+                run_finished: bool = False) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat(),
                              "occurrence_started_at": started_at.isoformat(),
@@ -744,7 +770,8 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
         proof["reason"] = "landing_commit_in_window_during_pre_provider_failure"
         return proof
     age = (now - started_at).total_seconds()
-    if age <= NO_EFFECT_MIN_AGE_SECONDS:
+    # A finished run (report event) cannot publish later, so exact model-no-response evidence needs no wait.
+    if age <= NO_EFFECT_MIN_AGE_SECONDS and not (model_no_response is not None and run_finished):
         proof["reason"] = f"too_recent:{int(age)}s<={NO_EFFECT_MIN_AGE_SECONDS}s"
         return proof
     if model_no_response is not None and pre_provider_failure is not None:
@@ -1068,7 +1095,7 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
               fenced_row_fn=fenced_row, commits_fn=read_landing_commits,
               x_fn=read_x_posts, page_status_fn=page_status, resolve_fn=None,
               started_at_fn=None, expected_slug_fn=None,
-              model_no_response_fn=None) -> dict[str, Any]:
+              model_no_response_fn=None, run_finished_fn=None) -> dict[str, Any]:
     now = now or dt.datetime.now(dt.timezone.utc)
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     started_at = (started_at_fn or occurrence_started_at)(occurrence_id)
@@ -1112,6 +1139,7 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
         x_posts=postiz_readback, page_status_fn=page_status_fn,
         pre_effect=pre_effect, pre_provider_failure=pre_provider_failure,
         model_no_response=model_no_response,
+        run_finished=(run_finished_fn or occurrence_run_finished)(occurrence_id),
     )
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
