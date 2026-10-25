@@ -18,6 +18,7 @@ import pytest
 from runtime.host.browser_port_owner import (
     _port_answers,
     _process_group_exists,
+    _linux_process_group_has_live_member,
     _forward_process_group_signal,
     _terminate_process_group,
     _wait_for_browser,
@@ -102,6 +103,18 @@ class BrowserPortOwnerTests(unittest.TestCase):
         with patch("runtime.host.browser_port_owner.os.killpg", side_effect=PermissionError):
             self.assertTrue(_process_group_exists(43210))
 
+    def test_linux_process_group_probe_ignores_zombies_but_detects_live_members(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            proc = Path(temporary)
+            (proc / "101").mkdir()
+            (proc / "101" / "stat").write_text("101 (worker (nested)) Z 1 77 0 0\n")
+            self.assertFalse(_linux_process_group_has_live_member(77, proc_root=proc))
+
+            (proc / "102").mkdir()
+            (proc / "102" / "stat").write_text("102 (worker) S 1 77 0 0\n")
+            self.assertTrue(_linux_process_group_has_live_member(77, proc_root=proc))
+            self.assertIsNone(_linux_process_group_has_live_member(78, proc_root=proc))
+
     def test_permission_denied_signal_forward_is_treated_as_already_exited(self):
         with patch("runtime.host.browser_port_owner.os.killpg", side_effect=PermissionError):
             _forward_process_group_signal(43210, signal.SIGTERM)
@@ -178,11 +191,41 @@ class BrowserPortOwnerTests(unittest.TestCase):
             with (
                 patch.object(owner, "_pid_alive", return_value=True),
                 patch.object(owner, "_command_line", return_value=command),
+                patch.object(owner, "_pid_owns_loopback_listener", return_value=True),
             ):
                 self.assertEqual(
                     owner._live_profile_owner(profile, 9228),
                     4242,
                 )
+
+    def test_matching_profile_is_not_adopted_when_pid_does_not_own_listener(self):
+        from runtime.host import browser_port_owner as owner
+
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / "owned-profile"
+            profile.mkdir()
+            os.symlink("host-4242", profile / "SingletonLock")
+            command = (
+                f"Chromium --user-data-dir={profile.resolve()} "
+                "--remote-debugging-port=9228"
+            )
+            with (
+                patch.object(owner, "_pid_alive", return_value=True),
+                patch.object(owner, "_command_line", return_value=command),
+                patch.object(owner, "_pid_owns_loopback_listener", return_value=False),
+            ):
+                self.assertIsNone(owner._live_profile_owner(profile, 9228))
+
+    @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux /proc socket ownership check")
+    def test_loopback_listener_ownership_is_proven_from_proc_fd(self):
+        from runtime.host import browser_port_owner as owner
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            port = listener.getsockname()[1]
+            self.assertTrue(owner._pid_owns_loopback_listener(os.getpid(), port))
+            self.assertFalse(owner._pid_owns_loopback_listener(os.getpid() + 100000, port))
 
     def test_live_profile_process_on_wrong_port_is_not_adoptable(self):
         from runtime.host import browser_port_owner as owner
@@ -226,6 +269,103 @@ class BrowserPortOwnerTests(unittest.TestCase):
         popen.assert_not_called()
         wait.assert_called_once_with(4242, 9224)
 
+    def test_receipt_write_failure_terminates_the_exact_spawned_browser_group(self):
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-test-state"),
+            "profile": "/profiles/owned", "port": 9224, "owner": "owned",
+            "command": ["--", "/usr/bin/true"],
+        })()
+        child = MagicMock(pid=43210)
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=False),
+            patch("runtime.host.browser_port_owner.subprocess.Popen", return_value=child),
+            patch("runtime.host.browser_port_owner._write_receipt", side_effect=OSError("disk full")),
+            patch("runtime.host.browser_port_owner._terminate_process_group") as terminate,
+            pytest.raises(OSError, match="disk full"),
+        ):
+            from runtime.host.browser_port_owner import run
+            run(args)
+        terminate.assert_called_once_with(43210)
+        child.wait.assert_called_once_with(timeout=2)
+
+    def test_adopted_receipt_write_failure_terminates_only_adopted_group(self):
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-test-state"),
+            "profile": "/profiles/owned", "port": 9224, "owner": "owned",
+            "terminate_adopted_on_exit": True, "command": ["--", "/usr/bin/true"],
+        })()
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=True),
+            patch("runtime.host.browser_port_owner._live_profile_owner", return_value=4242),
+            patch("runtime.host.browser_port_owner._browser_uuid", return_value="browser-generation"),
+            patch("runtime.host.browser_port_owner._write_receipt", side_effect=OSError("disk full")),
+            patch("runtime.host.browser_port_owner._terminate_process_group") as terminate,
+            patch("runtime.host.browser_port_owner.subprocess.Popen") as popen,
+            pytest.raises(OSError, match="disk full"),
+        ):
+            from runtime.host.browser_port_owner import run
+            run(args)
+        terminate.assert_called_once_with(4242)
+        popen.assert_not_called()
+
+    def test_sigterm_during_adopted_receipt_setup_is_forwarded_and_reaped(self):
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-test-state"),
+            "profile": "/profiles/owned", "port": 9224, "owner": "owned",
+            "terminate_adopted_on_exit": True, "command": ["--", "/usr/bin/true"],
+        })()
+
+        def write_then_queue_term(*_args, **_kwargs):
+            signal.raise_signal(signal.SIGTERM)
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=True),
+            patch("runtime.host.browser_port_owner._live_profile_owner", return_value=4242),
+            patch("runtime.host.browser_port_owner._browser_uuid", return_value="browser-generation"),
+            patch("runtime.host.browser_port_owner._write_receipt", side_effect=write_then_queue_term),
+            patch("runtime.host.browser_port_owner._forward_process_group_signal") as forward,
+            patch("runtime.host.browser_port_owner._terminate_process_group") as terminate,
+            patch("runtime.host.browser_port_owner.subprocess.Popen") as popen,
+        ):
+            from runtime.host.browser_port_owner import run
+            self.assertEqual(run(args), 75)
+        forward.assert_called_once_with(4242, signal.SIGTERM)
+        terminate.assert_called_once_with(4242)
+        popen.assert_not_called()
+
+    def test_sigterm_during_spawn_is_forwarded_after_child_pid_is_bound(self):
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-test-state"),
+            "profile": "/profiles/owned", "port": 9224, "owner": "owned",
+            "command": ["--", "/usr/bin/true"],
+        })()
+        child = MagicMock(pid=43210)
+
+        def send_sigterm_while_blocked(*_args, **_kwargs):
+            signal.raise_signal(signal.SIGTERM)
+            return child
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=False),
+            patch("runtime.host.browser_port_owner.subprocess.Popen", side_effect=send_sigterm_while_blocked),
+            patch("runtime.host.browser_port_owner._forward_process_group_signal") as forward,
+            patch("runtime.host.browser_port_owner._terminate_process_group") as terminate,
+            patch("runtime.host.browser_port_owner._write_receipt"),
+        ):
+            from runtime.host.browser_port_owner import run
+            self.assertEqual(run(args), 75)
+        forward.assert_called_once_with(43210, signal.SIGTERM)
+        terminate.assert_called_once_with(43210)
+        child.wait.assert_called_once_with(timeout=2)
+
     def test_descendant_cannot_survive_after_browser_root_exits(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -245,14 +385,56 @@ class BrowserPortOwnerTests(unittest.TestCase):
             pgid = int(root_pid_path.read_text())
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
-                try:
-                    os.killpg(pgid, 0)
-                except ProcessLookupError:
+                live_member = _linux_process_group_has_live_member(pgid)
+                if live_member is False:
                     break
+                if live_member is None:
+                    try:
+                        os.killpg(pgid, 0)
+                    except ProcessLookupError:
+                        break
                 time.sleep(0.02)
             else:
                 self.fail("browser descendant process group survived lease release")
             self.assertFalse((state / "9225.json").exists())
+
+    def test_sigterm_bounds_shutdown_and_kills_a_browser_that_ignores_term(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / "state"
+            root_pid_path = root / "browser-pid"
+            child_code = (
+                "import pathlib,signal,time,os;"
+                "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                f"pathlib.Path({str(root_pid_path)!r}).write_text(str(os.getpid()));"
+                "time.sleep(60)"
+            )
+            owner = subprocess.Popen([
+                sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
+                "--port", "9226", "--profile", "/profiles/ignores-term",
+                "--owner", "ignores-term", "--", sys.executable, "-c", child_code,
+            ])
+            try:
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline and not root_pid_path.exists():
+                    time.sleep(0.01)
+                self.assertTrue(root_pid_path.exists())
+                pgid = int(root_pid_path.read_text())
+                owner.terminate()
+                self.assertEqual(owner.wait(timeout=7), 75)
+                live_member = _linux_process_group_has_live_member(pgid)
+                if live_member is None:
+                    with self.assertRaises(ProcessLookupError):
+                        os.killpg(pgid, 0)
+                else:
+                    self.assertFalse(live_member)
+                self.assertFalse((state / "9226.json").exists())
+            finally:
+                if owner.poll() is None:
+                    owner.kill()
+                    owner.wait(timeout=3)
+                if root_pid_path.exists():
+                    _forward_process_group_signal(int(root_pid_path.read_text()), signal.SIGKILL)
 
     def test_lancers_launcher_reexecutes_through_shared_owner(self):
         launcher = LANCERS_LAUNCHER.read_text(encoding="utf-8")

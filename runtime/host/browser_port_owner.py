@@ -23,6 +23,10 @@ from typing import Callable
 _OWNER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 
 
+class _OwnerShutdownRequested(BaseException):
+    """Interrupt the owner's wait loop so its finally block can reap the tree."""
+
+
 def _process_group_exists(pgid: int) -> bool:
     try:
         os.killpg(pgid, 0)
@@ -31,6 +35,47 @@ def _process_group_exists(pgid: int) -> bool:
         return False
     except PermissionError:
         return True
+
+
+def _linux_process_group_has_live_member(
+    pgid: int, proc_root: Path = Path("/proc"),
+) -> bool | None:
+    """Return whether a Linux process group has a runnable/non-zombie member.
+
+    ``killpg(pgid, 0)`` still succeeds for a group containing only zombies.
+    Container PID 1 implementations do not always reap adopted zombies
+    promptly, so those dead processes must not keep a browser lease alive.
+    ``None`` means /proc could not establish the group state; callers should
+    fall back to the portable killpg probe in that case.
+    """
+    try:
+        entries = list(proc_root.iterdir())
+    except OSError:
+        return None
+    found_member = False
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        try:
+            stat = (entry / "stat").read_text(encoding="utf-8")
+        except OSError:
+            continue
+        closing_paren = stat.rfind(")")
+        if closing_paren < 0:
+            continue
+        fields = stat[closing_paren + 2 :].split()
+        if len(fields) < 3:
+            continue
+        try:
+            member_pgid = int(fields[2])
+        except ValueError:
+            continue
+        if member_pgid != pgid:
+            continue
+        found_member = True
+        if fields[0] not in {"Z", "X", "x"}:
+            return True
+    return False if found_member else None
 
 
 def _forward_process_group_signal(pgid: int, signum: int) -> None:
@@ -58,7 +103,10 @@ def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
         return
     deadline = time.monotonic() + grace_seconds
     while time.monotonic() < deadline:
-        if not _process_group_exists(pgid):
+        live_member = _linux_process_group_has_live_member(pgid)
+        if live_member is False or (
+            live_member is None and not _process_group_exists(pgid)
+        ):
             return
         time.sleep(0.02)
     try:
@@ -67,7 +115,10 @@ def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
         return
     deadline = time.monotonic() + grace_seconds
     while time.monotonic() < deadline:
-        if not _process_group_exists(pgid):
+        live_member = _linux_process_group_has_live_member(pgid)
+        if live_member is False or (
+            live_member is None and not _process_group_exists(pgid)
+        ):
             return
         time.sleep(0.02)
     raise RuntimeError(f"owned process group {pgid} survived SIGKILL")
@@ -112,6 +163,60 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
+def _pid_owns_loopback_listener(pid: int, port: int) -> bool:
+    """Prove the process behind a profile lock owns this loopback CDP socket."""
+    if pid <= 1 or not 1 <= port <= 65_535:
+        return False
+    if sys.platform.startswith("linux"):
+        inodes: set[str] = set()
+        loopback_addresses = {
+            "tcp": {"0100007F"},
+            "tcp6": {"00000000000000000000000001000000"},
+        }
+        for table, addresses in loopback_addresses.items():
+            try:
+                rows = (Path("/proc/net") / table).read_text(encoding="ascii").splitlines()[1:]
+            except OSError:
+                return False
+            for row in rows:
+                fields = row.split()
+                if len(fields) < 10:
+                    continue
+                address, separator, raw_port = fields[1].rpartition(":")
+                if (not separator or address.upper() not in addresses
+                        or fields[3] != "0A" or raw_port.upper() != f"{port:04X}"):
+                    continue
+                if fields[9].isdigit():
+                    inodes.add(fields[9])
+        if not inodes:
+            return False
+        fd_dir = Path("/proc") / str(pid) / "fd"
+        try:
+            descriptors = list(fd_dir.iterdir())
+        except OSError:
+            return False
+        for descriptor in descriptors:
+            try:
+                target = os.readlink(descriptor)
+            except OSError:
+                continue
+            if target.startswith("socket:[") and target.endswith("]"):
+                if target[8:-1] in inodes:
+                    return True
+        return False
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["/usr/sbin/lsof", "-nP", "-a", "-p", str(pid),
+                 f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                capture_output=True, text=True, timeout=3, check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return result.returncode == 0 and str(pid) in result.stdout.split()
+    return False
+
+
 def _command_line(pid: int) -> str:
     try:
         result = subprocess.run(
@@ -141,7 +246,10 @@ def _live_profile_owner(profile: Path, port: int) -> int | None:
     command = _command_line(pid)
     profile_marker = f"--user-data-dir={profile.resolve()}"
     port_marker = f"--remote-debugging-port={port}"
-    return pid if profile_marker in command and port_marker in command else None
+    if (profile_marker not in command or port_marker not in command
+            or not _pid_owns_loopback_listener(pid, port)):
+        return None
+    return pid
 
 
 def _wait_for_adopted_browser(pid: int, port: int, poll_interval: float = 10.0) -> int:
@@ -371,19 +479,56 @@ def run(args: argparse.Namespace) -> int:
                         "profile_name": Path(args.profile).name,
                         "adopted": True,
                     }
-                    _write_receipt(receipt_path, payload)
-                    _write_receipt(profile_receipt_path, payload)
+                    terminate_adopted = bool(getattr(args, "terminate_adopted_on_exit", False))
+                    adopted_cleanup_ok = not terminate_adopted
+                    shutting_down = False
+                    previous = {}
+
+                    def forward_adopted(signum: int, _frame: object) -> None:
+                        nonlocal shutting_down
+                        if shutting_down:
+                            return
+                        shutting_down = True
+                        _forward_process_group_signal(adopted_pid, signum)
+                        raise _OwnerShutdownRequested()
+
+                    previous_mask = None
                     try:
+                        if terminate_adopted:
+                            previous_mask = signal.pthread_sigmask(
+                                signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT},
+                            )
+                            for signum in (signal.SIGTERM, signal.SIGINT):
+                                previous[signum] = signal.signal(signum, forward_adopted)
+                        _write_receipt(receipt_path, payload)
+                        _write_receipt(profile_receipt_path, payload)
+                        if previous_mask is not None:
+                            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+                        if terminate_adopted:
+                            return _wait_for_adopted_browser(adopted_pid, args.port, poll_interval=0.1)
                         return _wait_for_adopted_browser(adopted_pid, args.port)
+                    except _OwnerShutdownRequested:
+                        return 75
                     finally:
-                        for owned_receipt in (receipt_path, profile_receipt_path):
-                            try:
-                                current = json.loads(owned_receipt.read_text(encoding="utf-8"))
-                            except (OSError, ValueError, TypeError):
-                                current = {}
-                            if (current.get("supervisor_pid") == os.getpid()
-                                    and current.get("owner") == args.owner):
-                                owned_receipt.unlink(missing_ok=True)
+                        shutting_down = True
+                        try:
+                            if terminate_adopted:
+                                _terminate_process_group(adopted_pid)
+                                adopted_cleanup_ok = True
+                        finally:
+                            for signum, handler in previous.items():
+                                signal.signal(signum, handler)
+                            if previous_mask is not None:
+                                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+                        if adopted_cleanup_ok:
+                            for owned_receipt in (receipt_path, profile_receipt_path):
+                                try:
+                                    current = json.loads(owned_receipt.read_text(encoding="utf-8"))
+                                except (OSError, ValueError, TypeError):
+                                    current = {}
+                                if (current.get("supervisor_pid") == os.getpid()
+                                        and current.get("owner") == args.owner):
+                                    owned_receipt.unlink(missing_ok=True)
                 print(json.dumps({
                     "ok": False,
                     "reason": "browser_port_already_served",
@@ -392,46 +537,71 @@ def run(args: argparse.Namespace) -> int:
                 return 75
 
             _clear_stale_singleton_lock(Path(args.profile))
-            child = subprocess.Popen(command, start_new_session=True)
-            payload = {
-                "owner": args.owner,
-                "pid": os.getpid(),
-                "supervisor_pid": os.getpid(),
-                "browser_root_pid": child.pid,
-                "port": args.port,
-                "profile_name": Path(args.profile).name,
-            }
-            _write_receipt(receipt_path, payload)
-            _write_receipt(profile_receipt_path, payload)
-
-            def record_listener() -> bool:
-                listener_pid = _live_profile_owner(Path(args.profile), args.port)
-                browser_uuid = _browser_uuid(args.port)
-                if listener_pid is None or browser_uuid is None:
-                    return False
-                current = {
-                    **payload,
-                    "listener_pid": listener_pid,
-                    "browser_uuid": browser_uuid,
-                }
-                _write_receipt(receipt_path, current)
-                _write_receipt(profile_receipt_path, current)
-                return True
+            child = None
+            previous = {}
+            shutdown_requested = False
 
             def forward(signum: int, _frame: object) -> None:
-                _forward_process_group_signal(child.pid, signum)
+                nonlocal shutdown_requested
+                if shutdown_requested:
+                    return
+                shutdown_requested = True
+                if child is not None:
+                    _forward_process_group_signal(child.pid, signum)
+                raise _OwnerShutdownRequested()
 
-            previous = {}
-            for signum in (signal.SIGTERM, signal.SIGINT):
-                previous[signum] = signal.signal(signum, forward)
+            termination_signals = {signal.SIGTERM, signal.SIGINT}
+            previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, termination_signals)
             try:
+                for signum in termination_signals:
+                    previous[signum] = signal.signal(signum, forward)
+                child = subprocess.Popen(command, start_new_session=True)
+                payload = {
+                    "owner": args.owner,
+                    "pid": os.getpid(),
+                    "supervisor_pid": os.getpid(),
+                    "browser_root_pid": child.pid,
+                    "port": args.port,
+                    "profile_name": Path(args.profile).name,
+                }
+
+                def record_listener() -> bool:
+                    listener_pid = _live_profile_owner(Path(args.profile), args.port)
+                    browser_uuid = _browser_uuid(args.port)
+                    if listener_pid is None or browser_uuid is None:
+                        return False
+                    current = {
+                        **payload,
+                        "listener_pid": listener_pid,
+                        "browser_uuid": browser_uuid,
+                    }
+                    _write_receipt(receipt_path, current)
+                    _write_receipt(profile_receipt_path, current)
+                    return True
+
+                # Signals received during Popen remain pending until the exact
+                # child PID is stored and its cleanup handler is active.
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+                _write_receipt(receipt_path, payload)
+                _write_receipt(profile_receipt_path, payload)
                 return _wait_for_browser(
                     child, port=args.port, on_ready=record_listener,
                 )
+            except _OwnerShutdownRequested:
+                return 75
             finally:
-                _terminate_process_group(child.pid)
-                for signum, handler in previous.items():
-                    signal.signal(signum, handler)
+                shutdown_requested = True
+                try:
+                    if child is not None:
+                        _terminate_process_group(child.pid)
+                        try:
+                            child.wait(timeout=2)
+                        except subprocess.TimeoutExpired:
+                            raise RuntimeError(f"owned browser root {child.pid} survived cleanup") from None
+                finally:
+                    for signum, handler in previous.items():
+                        signal.signal(signum, handler)
+                    signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
                 for owned_receipt in (receipt_path, profile_receipt_path):
                     try:
                         current = json.loads(owned_receipt.read_text(encoding="utf-8"))
@@ -450,6 +620,7 @@ def main(argv: list[str] | None = None) -> int:
     command.add_argument("--port", type=int, required=True)
     command.add_argument("--profile", required=True)
     command.add_argument("--owner", required=True)
+    command.add_argument("--terminate-adopted-on-exit", action="store_true")
     command.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     return run(args)

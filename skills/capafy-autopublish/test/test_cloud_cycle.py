@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import re
 from pathlib import Path
 import subprocess
@@ -13,15 +14,39 @@ TENANT = 'lm_11111111-1111-4111-8111-111111111111'
 
 
 class CloudCycleTest(unittest.TestCase):
-    def test_cloud_binary_is_image_owned_and_parent_profile_is_not_inherited(self):
-        from unittest.mock import patch
-        self.env.update(CAPAFY_CHROMIUM='/parent/browser', CLOAKBROWSER_BINARY_PATH='/parent/browser', CAPAFY_BROWSER_PROFILE='/parent/profile')
-        with patch.object(self.module.os, 'access', return_value=True):
-            self.run_cycle()
+    def test_cycle_owns_tenant_browser_and_passes_only_its_loopback_endpoint(self):
+        self.env.update(CAPAFY_CHROMIUM='/parent/browser', CLOAKBROWSER_BINARY_PATH='/parent/browser',
+                        CAPAFY_BROWSER_PROFILE='/parent/profile',
+                        LM_MARITIME_BROWSER_CDP_URL='http://attacker.invalid:9999')
+        result = self.run_cycle()
+        self.assertEqual(result['status'], 'completed')
         child = self.calls[0][1]['env']
-        self.assertEqual(child['CAPAFY_CHROMIUM'], '/usr/local/bin/lm-cloud-chromium')
-        self.assertEqual(child['CLOAKBROWSER_BINARY_PATH'], '/usr/local/bin/lm-cloud-chromium')
-        self.assertNotIn('CAPAFY_BROWSER_PROFILE', child)
+        self.assertEqual(child['LM_MARITIME_BROWSER_CDP_URL'], 'http://127.0.0.1:9229')
+        self.assertEqual(self.browser_sessions[0]['tenant_id'], TENANT)
+        self.assertEqual(self.browser_sessions[0]['data_root'], self.root)
+        self.assertEqual(self.browser_sessions[0]['profile'], self.home / 'browser' / 'profile')
+        for key in ['CAPAFY_CHROMIUM', 'CLOAKBROWSER_BINARY_PATH', 'CAPAFY_BROWSER_PROFILE']:
+            self.assertNotIn(key, child)
+        self.assertTrue(self.browser_sessions[0]['closed'])
+
+    def test_browser_start_failure_defers_before_runner_and_is_replay_safe(self):
+        class BrokenBrowserSession:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                raise self.module.BrowserSessionError('browser_session_startup_failed')
+
+            def __exit__(self, *_args):
+                return False
+
+        BrokenBrowserSession.module = self.module
+        self.module.BrowserSession = BrokenBrowserSession
+        result = self.run_cycle()
+        self.assertEqual(result['status'], 'deferred')
+        self.assertEqual(result['errorClass'], 'browser_session_startup_failed')
+        self.assertEqual(self.run_cycle(), result)
+        self.assertEqual(self.calls, [])
 
     def test_linux_browser_owner_uses_existing_binary_headlessly(self):
         import os
@@ -78,11 +103,40 @@ class CloudCycleTest(unittest.TestCase):
                     'LIFE_MANAGER_BUILD_WORKSPACE': str(self.work),
                     'AGENT_RUNNER_CONFIG': str(self.config), 'LM_RELEASE_SHA': 'a' * 40}
         self.calls = []
+        self.browser_sessions = []
+        module = self.module
+        browser_sessions = self.browser_sessions
+
+        class FakeBrowserSession:
+            def __init__(self, *, tenant_id, data_root, release_root, **_kwargs):
+                self.cdp_url = 'http://127.0.0.1:9229'
+                self.record = {'tenant_id': tenant_id, 'data_root': Path(data_root),
+                               'release_root': Path(release_root),
+                               'profile': Path(data_root) / tenant_id / 'browser' / 'profile',
+                               'closed': False}
+                browser_sessions.append(self.record)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                self.record['closed'] = True
+                return False
+
+        module.BrowserSession = FakeBrowserSession
 
     def runner(self, command, **options):
         self.calls.append((command, options))
         artifact = Path(command[command.index('--workdir') + 1]) / 'original-product.md'
         artifact.write_text('Original skill and listing prepared for this tenant.')
+        receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+        receipt.write_text('\n'.join(json.dumps(row) for row in [
+            {'at': '2026-10-20T00:00:00Z', 'actionId': 'a' * 32, 'tool': 'browser_navigate',
+             'outcome': 'started', 'origin': 'https://capafy.ai'},
+            {'at': '2026-10-20T00:00:01Z', 'actionId': 'a' * 32, 'tool': 'browser_navigate',
+             'outcome': 'opened', 'origin': 'https://capafy.ai'},
+        ]) + '\n')
+        receipt.chmod(0o600)
         return types.SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'success', 'evidence': [str(artifact)]}), stderr='')
 
     def run_cycle(self, runner=None, occurrence='cycle-1'):
@@ -104,10 +158,38 @@ class CloudCycleTest(unittest.TestCase):
         self.assertEqual(opts['env']['AGENT_RUNNER_CONFIG'], str(self.config))
         self.assertEqual(opts['env']['AGENT_RUNNER_WORKDIR'], str(occurrence_work))
         self.assertEqual(opts['env']['LIFE_MANAGER_BUILD_WORKSPACE'], str(self.work))
-        self.assertIn('No provider account is connected', opts['input'])
+        self.assertIn('No authorized Publisher identity is connected', opts['input'])
+        self.assertIn('maritime_browser MCP tools', opts['input'])
+        self.assertNotIn('Reuse the existing Capafy factory', opts['input'])
         self.assertNotIn('goal', command)
         self.assertEqual(result['providerReceiptRefs'], [])
         self.assertEqual(len(result['artifactRefs']), 1)
+
+    def test_success_receipt_closes_started_browser_action(self):
+        result = self.run_cycle()
+        action_receipt = self.home / 'receipts/cycle-1/browser-actions.jsonl'
+        self.assertEqual(result['status'], 'completed')
+        self.assertFalse(self.module._browser_action_effect_unknown(action_receipt, os.geteuid()))
+
+    def test_unclosed_browser_action_stays_unknown_even_if_runner_reports_success(self):
+        def interrupted_after_dispatch(command, **options):
+            self.calls.append((command, options))
+            artifact = Path(command[command.index('--workdir') + 1]) / 'draft.md'
+            artifact.write_text('draft')
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            receipt.write_text(json.dumps({
+                'at': '2026-10-20T00:00:00Z', 'actionId': 'b' * 32,
+                'tool': 'browser_search', 'outcome': 'started', 'origin': 'https://capafy.ai',
+            }) + '\n')
+            receipt.chmod(0o600)
+            return types.SimpleNamespace(returncode=0,
+                stdout=json.dumps({'status': 'success', 'evidence': [str(artifact)]}), stderr='')
+
+        result = self.run_cycle(interrupted_after_dispatch)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+        self.assertEqual(self.run_cycle(interrupted_after_dispatch), result)
+        self.assertEqual(len(self.calls), 1)
 
     def test_cloud_output_schema_requires_literal_owned_file_paths(self):
         def checked(command, **options):

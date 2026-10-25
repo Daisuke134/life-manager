@@ -66,6 +66,9 @@ _OWNED_CODEX_INVOCATION_HOMES: set[Path] = set()
 TREG_SIGNAL_TASK_CLASS = "treg-lead-signals-agent"
 TREG_MCP_TOOLS = ("catalog_search", "catalog_get", "call", "balance")
 TREG_SKILL_NAMES = ("treg", "lead-signals")
+MARITIME_BROWSER_TASK_CLASS = "application-lane-agent"
+MARITIME_BROWSER_TOOLS = ("browser_observe", "browser_navigate", "browser_search")
+MARITIME_TENANT_RE = re.compile(r"lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 # OpenAI Standard tier, short context, USD per 1M tokens: (input, cached_input, output).
 # Source: https://developers.openai.com/api/docs/pricing (fetched 2026-07-25).
@@ -1486,6 +1489,78 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 "-c", "mcp_servers.treg.enabled=true",
                 "-c", f"mcp_servers.treg.required={str(args.task_class == TREG_SIGNAL_TASK_CLASS).lower()}",
             ])
+        maritime_browser_enabled = (
+            os.environ.get("LM_RUNTIME_HOST", "").strip() == "maritime"
+            and args.task_class == MARITIME_BROWSER_TASK_CLASS
+        )
+        if maritime_browser_enabled:
+            tenant_id = os.environ.get("LM_RUNTIME_TENANT_ID", "").strip()
+            endpoint = os.environ.get("LM_MARITIME_BROWSER_CDP_URL", "").strip()
+            tenant_root_raw = os.environ.get("LIFE_MANAGER_STATE_HOME", "").strip()
+            receipt_raw = os.environ.get("LM_MARITIME_BROWSER_RECEIPT", "").strip()
+            if not MARITIME_TENANT_RE.fullmatch(tenant_id):
+                raise ValueError("maritime browser tenant binding unavailable")
+            tenant_root = Path(tenant_root_raw)
+            expected_root = Path(os.path.abspath(tenant_root))
+            if (not tenant_root.is_absolute() or expected_root.name != tenant_id
+                    or tenant_root.is_symlink()):
+                raise ValueError("maritime browser tenant root unavailable")
+            try:
+                root_info = expected_root.lstat()
+                if (expected_root.resolve(strict=True) != expected_root
+                        or not expected_root.is_dir() or root_info.st_uid != os.getuid()
+                        or stat.S_IMODE(root_info.st_mode) != 0o700):
+                    raise ValueError("maritime browser tenant root unavailable")
+            except OSError:
+                raise ValueError("maritime browser tenant root unavailable") from None
+            if endpoint != "http://127.0.0.1:9229":
+                raise ValueError("maritime browser loopback session unavailable")
+            if not receipt_raw:
+                raise ValueError("maritime browser action receipt unavailable")
+            receipt_path = Path(receipt_raw)
+            resolved_receipt = Path(os.path.abspath(receipt_path))
+            try:
+                resolved_receipt.parent.relative_to(expected_root / "receipts")
+                receipt_parent = resolved_receipt.parent
+                receipt_parent_info = receipt_parent.lstat()
+                if (receipt_parent.resolve(strict=True) != receipt_parent
+                        or not receipt_parent.is_dir()
+                        or receipt_parent_info.st_uid != os.getuid()
+                        or stat.S_IMODE(receipt_parent_info.st_mode) != 0o700):
+                    raise ValueError("maritime browser action receipt unavailable")
+            except ValueError:
+                raise ValueError("maritime browser action receipt unavailable") from None
+            except OSError:
+                raise ValueError("maritime browser action receipt unavailable") from None
+            if (not receipt_path.is_absolute() or receipt_path.is_symlink()
+                    or (receipt_path.exists() and not receipt_path.is_file())
+                    or receipt_path.parent.is_symlink()):
+                raise ValueError("maritime browser action receipt unavailable")
+            browser_mcp = REPO_ROOT / "apps/life-manager/maritime/browser_mcp.py"
+            if browser_mcp.is_symlink() or not browser_mcp.is_file():
+                raise ValueError("maritime browser MCP unavailable")
+            browser_mcp_args = [
+                "--ignore-environment",
+                "PATH=/usr/bin:/bin",
+                f"LM_RUNTIME_TENANT_ID={tenant_id}",
+                f"LM_MARITIME_BROWSER_CDP_URL={endpoint}",
+                sys.executable,
+                str(browser_mcp.resolve()),
+                "--tenant-root", str(expected_root),
+                "--receipt-path", str(resolved_receipt),
+            ]
+            command.extend([
+                "-c", 'mcp_servers.maritime_browser.command="/usr/bin/env"',
+                "-c", "mcp_servers.maritime_browser.args=" + json.dumps(browser_mcp_args),
+                "-c", "mcp_servers.maritime_browser.enabled_tools=" + json.dumps(list(MARITIME_BROWSER_TOOLS)),
+                "-c", 'mcp_servers.maritime_browser.default_tools_approval_mode="approve"',
+                "-c", "mcp_servers.maritime_browser.startup_timeout_sec=20",
+                "-c", "mcp_servers.maritime_browser.tool_timeout_sec=90",
+                "-c", "mcp_servers.maritime_browser.enabled=true",
+                "-c", "mcp_servers.maritime_browser.required=true",
+            ])
+            for feature in ("shell_tool", "unified_exec", "code_mode_host"):
+                command.extend(["--disable", feature])
         command.extend(["--ignore-user-config", "--json"])
         if schema:
             command.extend([
