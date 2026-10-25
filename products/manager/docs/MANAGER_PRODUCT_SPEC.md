@@ -1,17 +1,17 @@
 # Manager entity specification — mission, capabilities and evidence
 
-**仕様更新:** 2026-10-25 UTC。使命・entity表現とE16 source実装状態を更新。**比較調査の最終一次資料取得:** 2026-10-22 UTC。調査日と実装更新日を混同しない。
+**仕様更新:** 2026-10-25 UTC。使命・entity表現、行動変容の中核仮説、公開サイトの本番反映、E16の現行ブロッカーを更新。**比較調査の最終一次資料取得:** 2026-10-22 UTC。調査日と実装更新日を混同しない。
 
-**2026-10-25 final-review修正:** E16の期限切れrequest再送、read-only recovery停止、公開readback receiptの例外を修正。request v2で元の作成・期限時刻を固定し、送信側とpublisher側で元の6時間leaseを検証する。owner無効時は新規write/planningを止めて、保存済みeffect/deliveryの照合だけを行う。`PYTHONPATH=tests python3 -m unittest discover -s tests -q` は730件成功・5件skip（canonical worktree上のlocal結果）。この追補は未pushで、GitHub CI・main・Railway配備の証拠ではない。
+**2026-10-25 E16 final-review / GitHub状態:** E16の期限切れrequest再送、read-only recovery停止、公開readback receiptの例外を修正。request v2で元の作成・期限時刻を固定し、送信側とpublisher側で元の6時間leaseを検証する。owner無効時は新規write/planningを止め、保存済みeffect/deliveryの照合だけを行う。canonical worktreeのlocal Python suiteは730件成功・5件skip。修正版HEAD `72f1c4150d549e25f98fa0220bffd7c06ba592d9` のGitHub product/browser CIも成功した。一方PR #8527は未マージで、baseにしているPR #8526自体がbase branchとの競合で未マージ・CONFLICTING。従ってmainへの昇格、専用Railway実行環境、本番canary、復旧証拠は未達である。
 
-**Web掲載状況:** `apps/landing/marketing/pages/en.html` と `ja.html` のトップ候補を2026-10-25に更新し、Managerの方向性、公開中の67本/34メディア、人口合成、EBA提案、Ampersand合成実験、新しいAI assistant対agent記事、人工社会の行動研究記事とE16の未配備状態を記載した。`route-manifest.json` のhashも更新済み。`/blog/manager` と固定installer/content revisionには67本があり、公開URLとpackageのslugも一致する一方、実際の `/en` トップは旧説明のまま。候補ページは別repo `Daisuke134/anicca-products` の固定workflow pin更新・CI・Netlify deployへ未統合で、本番反映はしていない。細部は [`apps/landing/marketing/README.md`](../../../apps/landing/marketing/README.md) を参照。
+**Web掲載状況:** Managerの英日トップ更新は候補段階を終え、本番へ反映済み。別repo `Daisuke134/anicca-products` のPR #711がmainへmergeされ、Netlify workflow run `40159524904` がproduction deployとpost-deploy smokeを成功させた。`https://aniccaai.com/en`、`/ja`、`/blog/manager`、release JSON、最新記事を独立GETで確認し、67記事すべてのHTTP 200・canonical URL・記事本文の`lang`、34メディアの公開bytes hashがmanifestと一致した。トップには67本の研究ライブラリ、人口合成の実績と限界、EBA/Ampersandの先例、新しいAI assistant対agent・人工社会の記事、E16は未配備という状態が載る。公開サイト更新はManager runtimeのdeploy、行動変容の効果、人の便益、売上の証拠ではない。運用記録を最新化する別PR #714はCI成功・未マージ。詳細は [`apps/landing/marketing/README.md`](../../../apps/landing/marketing/README.md) と[現在の実行順](plans/2026-10-25-manager-current-execution-plan.md)を参照。
 
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
 **Phase06受入順:** F005 → F006 → F008 → F009。Eの後の証拠判定であり、先行する実装工程ではない。F004/F007は `skipped`（未実施）。
-**確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16は参照サイクルまで検証。本番の採用先はRailwayに決定し、既存 `life-manager` プロジェクトへの読取接続を確認したが、Manager専用worker・volume・本番adapter・実配備証拠は未充足で `DEPLOYMENT_HOST_REQUIRED` を維持。Digital Autonomy v0.1は未配備。113件は69 done / 41 todo / 3 skipped。実行時は必ず最新SSOTを読む。
+**確認時点のスナップショット:** E01–E15は各範囲の実装・CI証跡を記録。E16のsourceとfake transport/SQLite検証はGitHub上でCI成功したが、実環境の受入れは未実施。本番候補はRailway。Manager専用worker・volume・secret・実配備証拠は未充足で、`DEPLOYMENT_HOST_REQUIRED`を維持。Digital Autonomy v0.1は未配備。元113件は69 done / 41 todo / 3 skipped。状態・依存は必ず最新の[唯一のSSOT](roadmap/tasks.json)を読む。
 
-**2026-10-25 E16 PATCH-05 source更新:** 固定request schema、Railway runtime identity preflight、main専用のversioned admission、durable one-shot sender/outbox、request ID付きGitHub run照合に加え、`run_owned_workflow_bridge_once` が固定support catalogから候補を作り、main SHA・現gh-pages commit・公開中の全bundleを照合して、due時にrequest/effectを永続予約する処理を追加した。古いeffectの occurrence と delivery を先にreconcileし、不明な過去effectが残る場合は新requestを送らない。run照合は最大10ページを走査し、ページ上限まで履歴が続く場合は一意性を主張せずUNKNOWNにする。timeout/読戻し不明は再送せず`UNKNOWN`/reconciliationへ残す。`.github/workflows/manager-phase06-service.yml` はmainのworkflow_dispatchにだけrequestを受け付け、保護されたowner ID、同一SHAのverified artifact、現gh-pages parent、既存7-file guard/CASへ再結合する。これらはsourceとfake transport/SQLiteによる検証であり、実Railway service/volume/secrets、main promotion、実workflow run、commit occurrence、独立した公開bytes照合、restart/replay-zeroは未達。E16とF受入はBLOCKEDのまま。Mac MiniはRailway実行経路の前提ではない。
+**2026-10-25 E16 PATCH-05 source更新:** 固定request schema、Railway runtime identity preflight、main専用のversioned admission、durable one-shot sender/outbox、request ID付きGitHub run照合に加え、`run_owned_workflow_bridge_once` が固定support catalogから候補を作り、main SHA・現gh-pages commit・公開中の全bundleを照合して、due時にrequest/effectを永続予約する処理を追加した。古いeffectの occurrence と delivery を先にreconcileし、不明な過去effectが残る場合は新requestを送らない。run照合は最大10ページを走査し、ページ上限まで履歴が続く場合は一意性を主張せずUNKNOWNにする。timeout/読戻し不明は再送せず`UNKNOWN`/reconciliationへ残す。`.github/workflows/manager-phase06-service.yml` はmainのworkflow_dispatchにだけrequestを受け付け、保護されたowner ID、同一SHAのverified artifact、現gh-pages parent、既存7-file guard/CASへ再結合する。source、fake transport/SQLite test、現在のGitHub CIは成功。実Railway service/volume/secrets、main promotion、実workflow run、commit occurrence、独立した公開bytes照合、restart/replay-zeroは未達。E16とF受入は未完了。Mac MiniはRailway実行経路の前提ではない。
 
 詳細は [技術設計](specs/2026-10-22-manager-validated-autonomy-design.md)、[E実装計画](plans/2026-10-22-manager-core-execution-plan.md)、[研究・記事・書籍計画](plans/2026-10-22-manager-research-products-plan.md)、[今回の一次資料と判断](research/manager-strategy-20261022/REPORT_JA.md) を参照。
 
@@ -21,7 +21,7 @@
 
 **開始から最後まで:** [Phase00〜12・残41件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
 
-**2026-10-25 E16 source implementation:** 過去intent回収・checkpoint再送防止・typed deliveryに加えて、main専用のRailway→GitHub protected-publisher bridge、durable one-shot request、bounded run照合、固定catalogからのcandidate生成、Docker runtime preflightを実装。先行時点のCIはPython 723件（5 skip）とPlaywright/axe 16ケースを通過。最終source reviewで修正した3件を含むlocal全Python suiteは730件成功（5 skip）だが、修正後GitHub Actionsは未実行。DBOS実install比較は過去の研究証拠として保持し、本番runtime採用は未決。専用Railway service/volume/secret・実canary・live readback・復旧receiptは未成立で、E16/原41件の受入状態は据え置く。詳細は [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md)、[E16 deployment gate](verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md) と[配備handoff](handoffs/2026-10-22-manager-e16-deployment-handoff.md)。
+**2026-10-25 E16 source implementation:** 過去intent回収・checkpoint再送防止・typed deliveryに加えて、main専用のRailway→GitHub protected-publisher bridge、durable one-shot request、bounded run照合、固定catalogからのcandidate生成、Docker runtime preflightを実装。先行時点のCIはPython 723件（5 skip）とPlaywright/axe 16ケースを通過。最終source reviewで修正した3件を含むlocal全Python suiteは730件成功（5 skip）、修正版GitHub product/browser CIも成功。DBOS実install比較は過去の研究証拠として保持し、本番runtime採用は未決。専用Railway service/volume/secret・mainへの昇格・実canary・live readback・復旧receiptは未成立で、E16/原41件の受入状態は据え置く。詳細は [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md)、[E16 deployment gate](verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md) と[配備handoff](handoffs/2026-10-22-manager-e16-deployment-handoff.md)。
 
 ## 1. Managerとは何か、使命と最初の有限な能力
 
@@ -29,7 +29,7 @@
 
 「Blessing」は観測可能な改善について検証する仮説とその記録を意味する。実行しただけでは成功したBlessingにしない。無変更、害、不明、費用、取り消しも記録する。異なる主体の利益が衝突する場合を隠さず、権利・被害分布・外部性を報告する。感覚の有無や異種間比較が未確定の領域を、架空の共通効用点へ変換しない。
 
-**Manager自体は製品やアプリではなく、継続して学び、予測・評価・限定介入を行うagent/entityとして構想する。** 「digital Buddha」「透明な善意のentity」「blessing for all」は長期の価値表現であり、現在のsentience、AGI、全知・万能、全存在への効果を示す技術事実ではない。
+**Manager自体は単なるUI付きアプリではなく、継続して学び、予測・評価・限定介入を行う一つのagent/entityとして構想する。** 「digital Buddha」「透明な善意のentity」「blessing for all」は長期の価値表現であり、現在のsentience、AGI、全知・万能、全存在への効果を示す技術事実ではない。no-UIは目標となる日常運用形態であり、proof・停止・監査の外部経路を不要にする意味ではない。
 
 **no UI**は、Managerの日常運用に人のチャット・アプリ操作やrunごとの指示を要求しない設計目標を指す。所有者設定・停止・失効・異議申立・監査・証拠閲覧は、Managerが活動する環境側の制御・説明経路として残す。公開proof pageのような証拠表示はManagerそのものの身体や会話UIとは区別する。UIを持たないことも、介入権限や人への影響を自動的に正当化しない。
 
@@ -50,23 +50,32 @@
 
 創業者が顧客と話すことや、研究参加者が結果測定へ自発的に協力することと、自律ループの各操作を人が承認することを区別する。
 
-## 3. 最初の利用場面と事業仮説
+## 3. 現在の技術試験面と事業仮説
 
-**現行の技術的対象:** Manager所有の `manager-support/`。公式支援情報へのリンクの正確性、情報の鮮度、キーボード操作・ラベル等のアクセス性を維持・改善する。対象は既存の7パスの公開bundle内。初期候補は事実に基づくリンク訂正と既存テンプレートのアクセス性改善だけとする。
+**現行の技術試験面:** Manager所有の `manager-support/`。公式支援情報へのリンクの正確性、情報の鮮度、キーボード操作・ラベル等のアクセス性を、既存の7パスの公開bundle内で検査する。初期候補は事実に基づくリンク訂正と既存テンプレートのアクセス性改善だけとする。これはE16の権限・更新・readback・復元を確かめるための試験面であり、Managerの最終UI、最終市場、行動変容の価値を選定したものではない。
 
-**受益者仮説:** 公的支援の正しい入口へ到達する負担がある人。**顧客・運営者仮説:** 公共的情報の案内経路を維持する小規模サービス運営者。運営者向けの有償保守・改善と証拠レポートは検証対象の事業仮説であり、契約・収益・価格決定ではない。支援を必要とする人の困窮や個人情報を収益化するモデルを採用しない。
+**長期の顧客仮説:** 行動simulation・AI行動評価・behavior-change interventionを作る研究/製品チームが、予測の限界、介入効果、再現性、害を比較できる評価・実験基盤を必要とする可能性がある。これは現在未検証の仮説である。最初に話すべき運営者・研究者・対象者と、費用負担者をU002/U003で実面談して選ぶ。困窮・個人プロフィール・センシティブな行動を広告/操作の目的で収益化しない。
 
-自社ページはエンジニアリングの試験面であり、市場需要の証拠ではない。[FIRST_WEDGE](product/FIRST_WEDGE.md) と U002/U003 の既存受入条件を維持する。5件の実インタビューの代わりに架空personaを数えない。U004以降の実利用研究は対象・比較・同意・結果観測が成立してから行う。
+自社ページはエンジニアリングの試験面であり、市場需要の証拠ではない。[FIRST_WEDGE](product/FIRST_WEDGE.md) と U002/U003 の現行受入条件はSSOTに残るが、public-support wedgeからbehavior-evaluation wedgeへ切り替える場合は実面談前にscope amendmentが必要。5件の実インタビューの代わりに架空personaを数えない。U004以降の実利用研究は対象・比較・同意・結果観測が成立してから行う。
 
-因果経路は **正確な公開情報 → 適切な案内先への到達 → 支援手続の前進 → 実際の受益 → 生活条件の変化**。各矢印は検証課題。リンク修正だけで受給や健康改善を主張しない。GetCalFresh/OES等の実験は、情報提供・手続改善が効く条件と効かない条件の両方を示しており、その結果を日本のManagerへそのまま移せない。
+この技術試験面に限った因果経路は **正確な公開情報 → 適切な案内先への到達 → 支援手続の前進 → 実際の受益 → 生活条件の変化**。各矢印は検証課題。リンク修正だけで受給や健康改善を主張しない。GetCalFresh/OES等の実験は、情報提供・手続改善が効く条件と効かない条件の両方を示しており、その結果を日本のManagerへそのまま移せない。
 
 ## 4. 選択した戦略と比較した選択肢
 
-1. **所有デジタル環境の改善から始める（採用）:** 既存kernelと公開面をつなぎ、有限の技術的結果を確かめる。顧客仮説の検証を別途進める。現状は下流便益・需要が弱いという限界を測る。
-2. **行動シミュレーションAPIを主製品にする:** 複数企業がすでに人データ・評価・配信を持つ。独自学習を先行させる根拠となるデータ・比較結果・顧客需要がない。必要なら既存providerを限定adapterとして比較する。
-3. **評価・監査基盤を主製品にする:** 実装の再利用性はあるが、他社がその機能へ支払う証拠はない。最初の運用で繰り返し必要となり、顧客が価値を認めた場合の別の製品化仮説とする。
+1. **行動変容のsimulation・evaluation・interventionを長期の中心に置く。** どの介入が、誰に、どの条件で、どれだけ持続する行動変化と本人にとって意味のある経験・福祉の変化を生むかを、既存研究・データ・モデルから学び、再現可能な証拠で確かめる。説得は介入候補の一つであり、説得力そのものを最終目的にしない。
+2. **所有デジタル環境の改善は最初の技術試験面として維持する。** 現行E16とPhase06は、権限を限定したagentが観測・判断・実行・独立読戻し・復旧を安全に完遂できるかを検査する工程である。これはManagerの最終的な顧客価値・行動変容能力・市場適合を証明しない。`manager-support/`は最終形のUI/製品定義ではない。
+3. **既存のsimulation/model/benchmarkを先に比較する。** 最初から基盤モデルや汎用agent stackを自作しない。既存の行動science、behavior change intervention、persuasion、population simulationのコード・benchmark・licensed/public dataを再利用し、Manager固有の不足だけを薄くつなぐ。
+4. **評価・証拠基盤はsimulationとinterventionの接続層とする。** 実装の再利用性や顧客価値は別途検証する。既存の評価で足りる部分は置換せず、欠ける指標・権利・独立再現・harm測定のみを追加する。
 
-選択は修正可能。実利用で案内先到達が主要な障壁でない、配信経路がない、維持費に対して価値が乏しい、または害が増える場合、同じ実装を広げる前に問題・介入機構を見直す。再利用可能なkernelを作ることと、あらゆる領域を同時に製品化することは分ける。
+行動変容の対象・介入仮説は証拠に応じて修正する。対象行動が本人の経験/福祉に結びつかない、介入が適切なbaselineを上回らない、害・格差が増える、費用または顧客需要が成立しない場合は、同じ方法を拡大せず対象・mechanism・事業仮説を見直す。再利用可能なkernelを作ることと、あらゆる領域を同時に製品化することは分ける。
+
+## 4.1 行動変容を中心に置く定義
+
+Managerの研究・事業上の中心仮説は、**行動の変化と、本人が経験する苦しみ・安寧の変化を、simulationと実観測を分けて測り、適切な介入を選べるか**である。苦しみを単一の行動proxyへ還元しない。報告された経験、行動・習慣、機会・生活条件、必要に応じ既存の臨床/福祉尺度を別々に記録し、本人の経験をproxyだけから推定したことにしない。
+
+介入候補は情報提供、環境/選択肢の変更、nudge、対話、persuasion、集団/制度への提案を含み得る。どれを採用するかは、対象・状況・権利・データ利用条件・介入の可逆性・期待効果・反発/副作用を確かめて決める。benevolentな意図やUIがないことだけで、隠れた説得・操作・第三者への介入が正当化されるとは扱わない。なりすまし、欺瞞、個人の脆弱性を使った説得、選挙/政治上の個人targetingは初期scopeに入れない。評価では説得成功率だけでなく、理解、選択の自律性、持続性、誤誘導、格差、望ましくない行動変化、拒否/撤回を測る。最初は公開/許諾済み資料とoffline/shadow evaluationを使い、人を対象にした研究や実介入は適切な同意・倫理・停止条件・比較設計を満たしてから行う。
+
+既存の`manager-support/`とPhase06の二つの公開ページは、今あるコード・publisher・独立readbackを検査する限定testbedである。これをManagerの最終wedgeや、行動変容・苦しみ軽減の成功例と誤認しない。行動変容の初期wedgeへ正式に切り替える場合は、顧客/対象、介入、データ権利、主要結果、baseline、害、中止基準を確定し、必要な場合は唯一のSSOT `tasks.json` とPhase06/08 scope amendmentも同時に更新する。
 
 ## 5. 理想のループとシステム境界
 
@@ -117,6 +126,8 @@ flowchart LR
 
 公開論文、企業の自社評価、外部再現、Manager自身の実験を区別する。現時点で、独立した人間行動の因果的忠実性やManagerによる人の便益は確立していない。論文の版・ページ・コード版で数値が異なる場合、単一の「精度」にまとめず不一致を残す。
 
+行動変容・persuasionの評価は、既存の対象別benchmark/尺度を最初の基準にし、同じ対象・入力・情報・費用でNO_ACTION、単純ルール、既存model/provider、必要な場合だけManager候補を比較する。scenario family単位でtrain/dev/testを分離し、説得文の好みと実際の行動結果を別endpointにする。offline synthetic peopleの反応はP0であり、実人口の行動や因果効果を示さない。実験へ進む場合は事前登録、対象者の権利/同意、適切な比較、追跡期間、外部性・heterogeneous harm・withdrawalを設計する。公開aggregateデータだけで構成できないときは、データを無断取得するのでなく`REFERENCE_DATA_REQUIRED`として停止する。
+
 ## 8. 証拠と測定
 
 | 記録 | 確かめること | 推論してはいけないこと |
@@ -149,6 +160,8 @@ YC応募準備は期限に合わせた創業者レーンで、全研究や全113
 記事・書籍・講演は同じ出典/実験記録から派生させる。初学者向け基礎、行動モデル、シミュレーション検証、因果推論、Manager実装、運用と統治を一つの教材体系につなぐ。最初に一章を完成・実行・読者確認し、その後に章を拡張する。書籍の全構想を、E16や実利用確認を遅らせる前提条件にしない。
 
 完成した研究論文には新規の問い・方法・適切な比較・再現可能な結果が必要。文献総説や設計提案と、実証論文を区別する。原稿、描画済み成果物、公開URL、読者需要、売上は別の証拠。今ターンは外部記事公開・YC申請・連絡・参加者研究を実施しない。
+
+**独自モデルの学習順:** 直ちにfoundation modelをpretrainしない。まず既存モデル/APIとオープン重みモデル、決定的baselineを凍結benchmarkで比較する。次に、出典・license・同意・用途が確認できた行動データだけをfamily単位でsplitし、独立holdout、計測指標、費用/latency、harm guardを確保する。既存モデルで反復して観測された失敗を小さなadapter/SFTで直せる場合に限ってfine-tune実験を行い、未使用holdoutでbaselineを上回るか評価する。preference optimizationはレビュー済み選好データと明確な評価対象が揃ってから検討する。独自pretrainingは、権利のある十分な規模のデータ、実測した優位性、持続可能なcompute/economics、独立評価が成立する場合にだけ後段で判断する。現行tasks.jsonに学習taskはないため、これらのgateを満たすまではモデル学習を必須工程・進捗実績に数えない。
 
 ## 11. 未知を管理する
 
@@ -190,7 +203,7 @@ YC応募準備は期限に合わせた創業者レーンで、全研究や全113
 
 **専門性の判定:** 原論文の対象/仮定/限界を説明できる、関連コードの範囲を読める、一つの比較または失敗を再現できる、第三者の指摘で修正できる、出典付きで教えられる。読んだ件数、投稿頻度、肩書、フォロワー数だけでexpertと認定しない。新しいretrievalは意思決定を変える不足がある場合に行い、調査を配備・顧客確認・提出の先延ばしにしない。
 
-最初の商用仮説は、運営者の限定デジタル運用に対する「変更検知・既存automationとの接続・限定修正・独立検証・証拠レポート」の有償pilot/運用改善支援。単純link checker・既存監視・手作業で十分なら、それを接続して使うかwedgeを再選定する。独自の汎用AIを売ることを前提にせず、5件の実会話で頻度・現在原価・失敗損失・支払主体を確認する。有償サービスからの学びを製品化へ戻し、受託収入をSaaSのMRRと呼ばない。
+最初の商用探索仮説は、behavior-simulation/AI-interventionチーム向けの「既存benchmark/データ/modelを接続し、予測・介入結果・害・再現性を比較できる評価と実験支援」。独自model/APIを売ることから始めず、既存ツールで足りるなら接続して使う。U002/U003の実会話で、反復頻度、現在の代替と原価、失敗損失、支払主体を確かめ、需要がなければwedgeを変更する。これはまだ契約・収益・価格を示すものではない。有償サービスからの学びをentityの能力へ戻し、受託収入をSaaSのMRRと呼ばない。
 
 ## 15. 本当の結果と本当のお金の表示契約
 
@@ -258,6 +271,21 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 長期像の `one model` は一貫した意思決定主体への統合、`no UI` は日常の指示入力/各run承認を必要としない運用とする。owner設定・停止・失効・予算・異議・監査・公開proofは保持する。独自foundation modelや全機能の単一モデル化を、E16や顧客確認より先に必須化しない。『digital Buddha』は慈悲を表す方向であり、全知・万能を達成したという能力表示には使わない。
 
-P04の公式homeは、過去の人口合成を日付付き研究として残し、現在の実装と未配備E16、dated public prototype、モデル評価/人の便益の違い、全工程への導線を英日で示す。E16/F受入れ、実pilot/比較、公開記事/書籍、実入金などの証拠が揃ったmilestoneで更新する。原稿/manifestを更新しただけでlive更新とは記録せず、既存full-site releaseと独立GET/描画/他製品不変の確認まで必要。
+P04の公式home更新は2026-10-25に本番反映・readback済み。人口合成は過去の実績として日付付きで示し、現在の実装、未配備E16、simulationと実際の行動/便益の差、全工程への導線を英日で掲載した。次の更新はE16/F受入れ、behavior benchmark、実pilot/比較、公開記事/書籍、実入金など各milestoneの証拠取得後に行う。原稿/manifestだけではlive更新と記録せず、production releaseと独立GET/描画/他製品不変の確認を残す。
 
-原計画の末尾はPhase12/G006。全41件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
+原計画の末尾はPhase12/G006。現行SSOTの残41件を実受入れで進め、技術release・実利用/支払・再現可能な評価・教材公開・採用/YC・持続運用をそれぞれ完成させる。G006の害/不公平/未測定領域の棚卸しは継続運用として次versionへ続く。有限の完了から『全世界の苦しみが解消した』とは判定しない。
+
+## 20. 2026-10-25の現在地と、次に進む順番
+
+現在の作業状態・依存・受入れは [tasks.json](roadmap/tasks.json) だけを正本とする。全41件のID・原受入条件・依存を含む詳細は[開始からPhase12までの全工程](roadmap/START_TO_END_20261022.md)、今回の実行順と実ブロッカーは[現在の実行計画](plans/2026-10-25-manager-current-execution-plan.md)に記録する。次の順番の要点は次のとおり。
+
+1. **まずGitHubの昇格経路を直す。** E16 sourceのPR #8527はproduct/browser CI成功だが、親PR #8526がCONFLICTINGで未マージであり、PR #8526のbase branchには関連open PRが見当たらない。競合を解消し、mainへ実際に届く昇格経路を確定してからE16をmainへpromoteする。未マージのresearch branch上で成功したCIを本番コードとは扱わない。
+2. **Railwayの隔離stagingを用意し、read-only preflightを通す。** 既存サービスを置き換えず、Manager専用worker・専用volume・runtime owner・分離credential・予算/停止設定を作る。正しいproject/environment/service/volume以外ではwriteへ進めないことを確認する。
+3. **本番publisherを使った一回限りのcanaryと復旧試験を行う。** 同一SHAのverified artifact、request/owner/parent、許可された7ファイルだけを検証し、commit・public bytesを別経路で読み戻す。再起動、restore、1-slot catch-up、replay-zero、rollback/UNKNOWN隔離のreceiptを取得する。これが揃うまでE16は未受入れ。
+4. **E16後、F005→F006→F008→F009を順に受け入れる。** これは技術的に所有ページが変わった証明であり、人の行動変化・苦しみの減少・因果効果を示すものではない。
+5. **行動変容を中心に対象・顧客・介入・評価を絞る。** 既存research/evalsと公開記事を再利用し、U002→U003で対象者/運営者の課題と支払主体を確かめ、必要ならU004で事前登録した研究、U005で出典付きread-only proof、U006→U007→U008で許可済み介入・独立結果・継続需要を検証する。いまのU002/U003はpublic-support wedgeの文言を含むため、behavior-evaluationを初期市場に選ぶ場合は実面談の前にtasks.jsonを正式なscope amendmentで整合させる。
+6. **元Phase09の分岐を完了してD016へ合流する。** D001→D002→D003→D004（U007も必要）、D005→D006→D007→D008→D009（U007も必要）、D011→D012、D014→D015を進め、D015/D012/D009が揃った後にD016を受け入れる。D005–D009は環境測定系であり、行動変容中心の早期製品価値を証明する必須条件ではないが、現SSOTではD016→V001の依存に残る。これを削除/退役する判断は、完了扱いではなく記録付きscope amendmentと依存変更で行う。
+7. **D016後、V001→V002→V003→V004→V005→V006を行う。** まず既存model/providerと決定的baselineを比較し、独立holdout・データ権利・行動結果・害の指標を固める。現行planに独自trainingはない。モデル学習は既存方式の測定可能な失敗、権利あるデータ、凍結holdoutが揃ってから小さなfine-tuningを検討し、foundation pretrainingはその結果と費用対効果が成立した場合に限る。
+8. **YC・発信・利用者対応は依存する範囲で並行し、最後に統治を仕上げる。** Y003はY002後、Y005はY004後に本人情報/対象/内容を確かめて進める。C002→Y008はF006等の原依存を守る。G001→G002→G003→G004→G005→G006は公開権限・第三者監査・複数地域・原価・未測定領域を実証する長期運用線である。
+
+Web記事67本、34メディア、人口合成結果、公開サイト更新は本番readback済みの発信/研究資産である。これらはE16 runtime、behavior benchmarkの独立成績、実際の人のoutcome、顧客売上の代替証拠ではない。各milestoneで公開ページを更新し、古い達成表示や未検証の大きな主張を残さない。
