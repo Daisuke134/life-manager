@@ -62,7 +62,7 @@ class FakePage:
         self.body_text = (
             'Top seller hello@example.com, code 123456; verification code 1234; '
             'one-time passcode 87654321; code is 4321; 4321 is your code; '
-            'Bearer secret-token-abcdefghijkl; api_key=secret-api-key-1234; '
+            'Bearer secret-token-abcdefghijkl; api_key=demo; '
             'token=opaque-secret; session_id=session-secret; csrf=csrf-secret; '
             'authToken=auth-secret; Authorization: Basic dXNlcjpwYXNzd29yZA==; '
             '"Authorization": "Basic cHJveHk6c2VjcmV0=="; '
@@ -165,7 +165,7 @@ class BrowserMcpTest(unittest.TestCase):
         self.assertIn('[email redacted]', result['content'][0]['text'])
         self.assertIn('[code redacted]', result['content'][0]['text'])
         for secret in ('123456', '1234', '87654321', '4321', 'secret-token-abcdefghijkl',
-                       'secret-api-key-1234', 'opaque-secret', 'session-secret',
+                       'demo', 'opaque-secret', 'session-secret',
                        'csrf-secret', 'auth-secret', 'dXNlcjpwYXNzd29yZA==',
                        'cHJveHk6c2VjcmV0==',
                        'digest-secret-value', 'sk-live-abcdefghijklmnop',
