@@ -214,3 +214,33 @@ def test_result_hint_cli_reads_back_a_claimed_unfenced_occurrence(tmp_path, monk
     assert reconcile.main(["--occurrence", OCC, "--result-hint", str(hint)]) == 0
     assert d.exists() and _verified_terminal_effect_result(hint, OWNER_ID, OCC, ENTRYPOINT) == (
         "reconciled", "postiz://posts/igpost9")
+
+
+def test_postiz_key_falls_back_to_the_credential_ssot_when_the_reconciler_has_no_env(tmp_path, monkeypatch):
+    import capafy_reel_fence_reconcile as reconcile
+
+    for name in ("LM_POSTIZ_API_KEY", "POSTIZ_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    store = tmp_path / ".local/share/anicca"
+    store.mkdir(parents=True)
+    (store / "credentials.json").write_text(json.dumps({"credentials": [{"service": "postiz", "api_key": "k-ssot"}]}))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    seen = {}
+
+    class _Resp:
+        def read(self):
+            return b'{"posts": []}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=0):
+        seen["auth"] = req.get_header("Authorization")
+        return _Resp()
+
+    monkeypatch.setattr(reconcile.urllib.request, "urlopen", fake_urlopen)
+    assert reconcile.postiz_posts_at("ig", "2026-11-01T13:00:00Z") == []
+    assert seen["auth"] == "k-ssot"
