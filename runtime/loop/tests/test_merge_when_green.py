@@ -22,15 +22,26 @@ class MergeWhenGreenTests(unittest.TestCase):
 import json, os, pathlib, sys
 args = sys.argv[1:]
 if args[:2] == ["pr", "view"]:
-    print(os.environ["FIXTURE_HEAD"])
+    query = args[args.index("--json") + 1]
+    if query == "headRefOid,statusCheckRollup":
+        checks = os.environ["FIXTURE_CHECKS"].splitlines()
+        if not checks:
+            state = "none"
+        elif any(check not in {"pass", "pending"} for check in checks):
+            state = "fail"
+        elif "pending" in checks:
+            state = "pending"
+        else:
+            state = "green"
+        print(os.environ["FIXTURE_HEAD"] + "\\t" + state)
+    else:
+        print(os.environ["FIXTURE_HEAD"])
 elif args[:2] == ["run", "list"]:
     assert args[args.index("--commit") + 1] == os.environ["FIXTURE_HEAD"]
     assert args[args.index("--workflow") + 1] == "sec-scan.yml"
     assert args[args.index("--event") + 1] == "pull_request"
     print(os.environ["FIXTURE_WORKFLOW"])
     sys.exit(int(os.environ["FIXTURE_WORKFLOW_EXIT"]))
-elif args[:2] == ["pr", "checks"]:
-    print(os.environ["FIXTURE_CHECKS"])
 elif args[:2] == ["pr", "merge"]:
     pathlib.Path(os.environ["FIXTURE_MERGE"]).write_text(json.dumps(args))
 else:
