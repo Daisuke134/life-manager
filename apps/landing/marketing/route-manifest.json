@@ -8,13 +8,13 @@
       "source": "pages/en.html",
       "public_route": "/",
       "export_path": "index.html",
-      "sha256": "fab6b28c5d6e892a31914b08f2952740070ddde13053f1923a632b78c875fba9"
+      "sha256": "51b6e73663a83320d3abe1a5e4008950a56b995b3f310640a9040bda06476a88"
     },
     {
       "source": "pages/en.html",
       "public_route": "/en",
       "export_path": "en.html",
-      "sha256": "fab6b28c5d6e892a31914b08f2952740070ddde13053f1923a632b78c875fba9"
+      "sha256": "51b6e73663a83320d3abe1a5e4008950a56b995b3f310640a9040bda06476a88"
     },
     {
       "source": "pages/ja.html",
