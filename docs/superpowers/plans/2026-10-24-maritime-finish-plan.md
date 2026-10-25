@@ -23,7 +23,7 @@
 - 英語をglobal product、submission、demo、今後のlaunch assetの主言語にする。過去の日本語投稿は削除・再投稿せず、独立したconversionとして数えない。
 - Distributionは既存アカウントと無料の所有チャネルを使う。広告・新規アカウント・複数回の不確かな投稿は行わない。
 - 成功を主張する前に、native/provider receiptと公開先を再読する。記録のnullはunknownであってzeroではない。
-- 正式提出は公式routeと必須fieldを確定して一度だけ行い、受付receiptを読む。既存Slack entryの再投稿はしない。
+- 正式提出は公式routeと必須fieldを確定して一度だけ行い、受付receiptを読む。既存project entryを重複登録しない。
 
 ## Review Focus
 
@@ -57,7 +57,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ### P0 — Resolve Round 1 unknowns through written organizer channels
 
-**Owner:** Codex reads and records replies. The owner clarified that the Oct 25 10:00–10:15 JST office-hours conversation is about the future of the company, not Maritime rules or submission. Keep it separate and out of P0. The existing #competition-help question and 10/24 10:56:44Z organizer email follow-up already ask for the Round 1 cutoff, Top 30 criteria, official form/fields, counting rule, and Week 2. Do not duplicate them. Record an organizer reply or a dated no-reply readback for each field.
+**Owner:** Codex reads public official updates and the existing organizer email thread. The owner clarified that the Oct 25 10:00–10:15 JST office-hours conversation is about the future of the company, not Maritime rules or submission. Keep it separate and out of P0. The 10/24 10:56:44Z organizer email follow-up already asks for the Round 1 cutoff, Top 30 criteria, official form/fields, counting rule, and Week 2. Do not send a duplicate inquiry. Record an organizer reply or a dated no-reply readback for each field.
 
 - [x] P0.1 Asked in the 10/24 10:56:44Z organizer follow-up; reply not found as of 11:47Z. Exact cutoff/timezone and Top 30 rubric remain UNKNOWN.
 - [x] P0.2 Asked in the same follow-up; reply not found as of 11:47Z. Formal route, fields, and whether the Oct 21 channel entry is sufficient remain UNKNOWN.
@@ -65,6 +65,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 - [x] P0.4 Asked in the same follow-up; reply not found as of 11:47Z. Week 2 milestone and deadline remain UNKNOWN.
 - [x] P0.5 Recorded the follow-up questions and dated no-reply status in requirements.json, the live readback, and the current tracker. Unknown fields remain UNKNOWN; do not duplicate the existing posts.
 - [x] P0.6 Recalculated the planning estimate: seven calendar days after the Oct 20 kickoff is Oct 27. Exact official cutoff and timezone remain UNKNOWN.
+- [ ] P0.7 Refresh the official competition page and existing organizer email thread before submission. Confirm the current cutoff/timezone, Top 30 rubric, Week 2 milestone, official counting rule, and form/required fields. If still unanswered, preserve UNKNOWN and prepare no unsupported submission claim.
 
 **DONE when:** written organizer answer or a dated “no answer yet” readback exists for each field. This task does not block independent product/source work.
 
@@ -88,11 +89,11 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ### P2 — Convert the working cycle into Top 30 proof
 
-- [ ] P2.1 Update the existing English Life Manager product page to describe one manager across work, money, and everyday life; distinguish the current hosted Calendar workflow from the full Cloud target. Do not create or advertise a separate public pilot page. State availability and retention accurately until the corresponding readbacks pass.
+- [ ] P2.1 Publish the existing English/Japanese Life Manager page update in PR #8934, then set `MANAGER_MARKETING_REVISION` in `Daisuke134/anicca-products/.github/workflows/netlify-deploy.yml` to the merged source revision. Verify the workflow's production build, overlay, money-path smoke/rollback, and live `/lm` response. Describe Calendar travel-time as one current workflow and the full paid, phone-first Maritime Cloud as in development until the runtime and tenant readbacks pass. Keep the existing `/lm` page; do not create a separate public pilot page.
 - [ ] P2.2 Create an English 2–3 minute screen recording from the actual flow: signup/consent → manager selects work → visible action → provider receipt/result → email receipt → stop. No simulated result represented as production.
 - [ ] P2.3 Make a one-page English submission packet using only confirmed data: user problem, what the agent does, live URL, actual demo, proof links, limits, measured counts with date, and next milestone. Keep all unknowns labeled.
-- [ ] P2.4 Submit once via the organizer-confirmed route, verify receipt, and link it from the existing Slack entry if that is requested. Do not duplicate the project entry.
-- [ ] P2.5 Read the organizer's Top 30 decision. Record selected/not selected/unknown and evidence; do not infer advancement from continued Slack access or social engagement.
+- [ ] P2.4 Submit once via the organizer-confirmed route, verify receipt, and update the existing project listing only if requested. Do not duplicate the project entry.
+- [ ] P2.5 Read the organizer's Top 30 decision. Record selected/not selected/unknown and evidence; do not infer advancement from social engagement or continued platform access.
 
 **DONE when:** the official submission receipt and an explicit Top 30 status are recorded separately.
 
