@@ -1130,6 +1130,8 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
             return None
         allowed_reasons = {"publication_paused", "lock_held", "daily_schedule_not_due",
                            "no_pending_publication"}
+    elif entrypoint == "apps/life-manager/scripts/mobile-app":
+        allowed_reasons = {"no_due_slot", "daily_limit_reached", "slot_already_attempted"}
     else:
         allowed_reasons = {"no_due_slot", "daily_limit_reached"}
     value = _read_private_result_hint(path)

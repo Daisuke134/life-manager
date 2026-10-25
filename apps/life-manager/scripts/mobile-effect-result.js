@@ -82,11 +82,46 @@ function writePrivateJson(target, value) {
   if (!parentInfo.isDirectory() || parentInfo.isSymbolicLink()) {
     throw new Error("mobile result hint parent is invalid");
   }
+  let existing;
   try {
-    fs.lstatSync(target);
-    throw new Error("mobile result hint already exists");
+    existing = fs.lstatSync(target);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
+  }
+  if (existing) {
+    if ((value.kind !== "life_manager_effect_result"
+        && value.kind !== "life_manager_no_effect_result") || !existing.isFile()) {
+      throw new Error("mobile result hint already exists");
+    }
+    const descriptor = fs.openSync(
+      target,
+      fs.constants.O_RDWR | (fs.constants.O_NOFOLLOW || 0),
+    );
+    try {
+      const info = fs.fstatSync(descriptor);
+      if (!info.isFile() || info.uid !== process.getuid()
+          || info.nlink !== 1 || (info.mode & 0o777) !== 0o600
+          || info.size > 4096 || info.dev !== existing.dev || info.ino !== existing.ino) {
+        throw new Error("mobile result hint already exists");
+      }
+      const marker = JSON.parse(fs.readFileSync(descriptor, "utf8"));
+      if (!marker || typeof marker !== "object" || Array.isArray(marker)
+          || Object.keys(marker).sort().join(",") !== "effect,status"
+          || marker.status !== "pre_effect_failure"
+          || typeof marker.effect !== "number" || marker.effect !== 0) {
+        throw new Error("mobile result hint already exists");
+      }
+      const content = Buffer.from(`${JSON.stringify(value)}\n`, "utf8");
+      fs.ftruncateSync(descriptor, 0);
+      let offset = 0;
+      while (offset < content.length) {
+        offset += fs.writeSync(descriptor, content, offset, content.length - offset, offset);
+      }
+      fs.fsyncSync(descriptor);
+    } finally {
+      fs.closeSync(descriptor);
+    }
+    return;
   }
   const temporary = path.join(
     parent,
