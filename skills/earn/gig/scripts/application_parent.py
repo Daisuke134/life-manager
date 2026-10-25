@@ -3505,6 +3505,36 @@ class CdpSnapshotCollector:
         return snapshot_contract.build_envelope(collector)
 
 
+def _stale_fields(snapshot: dict[str, object], fresh: dict[str, object]) -> list[str]:
+    """Name each content-fence field that changed; for text, the first differing line."""
+    changed = []
+    for field in sorted(set(snapshot) | set(fresh)):
+        before, after = snapshot.get(field), fresh.get(field)
+        if before == after:
+            continue
+        if isinstance(before, str) and isinstance(after, str):
+            old, new = before.splitlines(), after.splitlines()
+            line = next((i for i, pair in enumerate(zip(old, new)) if pair[0] != pair[1]),
+                        min(len(old), len(new)))
+            changed.append(f"{field}@{line + 1}:"
+                           f"{(old[line] if line < len(old) else '')[:80]}|"
+                           f"{(new[line] if line < len(new) else '')[:80]}")
+        else:
+            changed.append(field)
+    return changed
+
+
+def _stale_snapshot_diagnostic(snapshot_detail: dict[str, object], fresh: object) -> list[str]:
+    try:
+        reextracted = snapshot_contract._normalise_detail(fresh)
+        changed = _stale_fields(snapshot_contract.detail_content_payload(snapshot_detail),
+                                snapshot_contract.detail_content_payload(reextracted))
+    except Exception as error:
+        return [f"normalise:{type(error).__name__}:{str(error)[:80]}"]
+    lifecycle_status, _ = _lifecycle_disposition(fresh)
+    return changed + ([] if lifecycle_status == "open" else [f"lifecycle:{lifecycle_status}"])
+
+
 def _fresh_detail(snapshot_detail: dict[str, object], fresh: object) -> bool:
     """Freshness is identity/hash/open-state only; it never rejudges eligibility."""
     try:
@@ -3845,7 +3875,10 @@ def commit_decisions(
                 if fresh_detail is None:
                     fresh_detail = effects.reextract_detail(request_id)
                 if not _fresh_detail(detail, fresh_detail):
-                    results.append({"request_id": request_id, "status": "stale_snapshot"})
+                    results.append({
+                        "request_id": request_id, "status": "stale_snapshot",
+                        "stale_fields": _stale_snapshot_diagnostic(detail, fresh_detail),
+                    })
                     continue
                 if attempt_budget_path is not None:
                     if not attempt_budget_pass_id:
