@@ -56,7 +56,8 @@ async function readMaritimeManagerWorkbench({ uid, limit = 10 } = {}, { query } 
       if (cyclesSeen > limit) throw new Error("maritime_workbench_invalid");
       let status = "confirming";
       let artifactCount = 0;
-      if (job.status === "completed" && cycleAdapter.verify(row.receipt, job)) {
+      if (job.status === "dead_letter") status = "failed";
+      else if (job.status === "completed" && cycleAdapter.verify(row.receipt, job)) {
         status = row.receipt.status === "completed" ? "verified_work" : "no_work";
         artifactCount = row.receipt.artifact_refs.length;
       }
@@ -67,7 +68,9 @@ async function readMaritimeManagerWorkbench({ uid, limit = 10 } = {}, { query } 
     reportsSeen++;
     if (reportsSeen > 1) throw new Error("maritime_workbench_invalid");
     if (latestEmailReport === null) {
-      latestEmailReport = job.status === "completed" && reportAdapter.verify(row.receipt, job)
+      latestEmailReport = job.status === "dead_letter"
+        ? { status: "failed", observedAt }
+        : job.status === "completed" && reportAdapter.verify(row.receipt, job)
         ? { status: "sent", sentAt: observationTime(row.receipt.sent_at), periodKey: row.receipt.period_key }
         : { status: "confirming", observedAt };
     }

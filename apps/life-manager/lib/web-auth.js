@@ -686,6 +686,7 @@ module.exports = {
   publicOrigin,
   configuredCloudOrigin,
   cloudPublicOrigin,
+  hasVerifiedGoogleIdentity,
   hasPkceVerifier,
   csrfSecret,
   createWebAuthClient,
