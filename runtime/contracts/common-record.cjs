@@ -34,6 +34,13 @@ function codePointLength(value) {
   return [...value].length;
 }
 
+function maritimeCapafyJobId(phase, tenantId, occurrenceId) {
+  const digest = crypto.createHash("sha256")
+    .update(`maritime-capafy-${phase}:v1:${tenantId}:${occurrenceId}`)
+    .digest("hex");
+  return `maritime-capafy-${phase}:${digest}`;
+}
+
 // The approved provider jobs carry literal queue identities, rather than URI refs.
 // Keep this exception exact and shared by construction and common-record reads.
 function validateMaritimeCapafyInputRefs(value) {
@@ -48,7 +55,7 @@ function validateMaritimeCapafyInputRefs(value) {
     || JSON.stringify(Object.keys(refs).sort()) !== JSON.stringify(keys)
     || Object.values(refs).some(ref => typeof ref !== "string" || !ref || ref.length > 1000)
     || value.loop_id !== value.capability || value.effect_class !== "publish" || value.max_attempts !== 1
-    || !new RegExp(`^maritime-capafy-${phase}:[0-9a-f]{64}$`).test(value.job_id || "")
+    || value.job_id !== maritimeCapafyJobId(phase, tenant, refs.occurrence_id)
     || !/^maritime-cycle:[0-9a-f]{64}$/.test(refs.source_cycle_job_id)
     || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(refs.occurrence_id)
     || value.effect_key !== `maritime-capafy-${phase}://${tenant}/${encodeURIComponent(refs.occurrence_id)}`
@@ -57,7 +64,7 @@ function validateMaritimeCapafyInputRefs(value) {
     || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(refs.account_ref.slice(`account://capafy/${tenant}/`.length))
     || !refs.artifact_ref.startsWith("artifact://") || refs.artifact_ref.includes("\0")
     || refs.artifact_ref.slice(11).split("/").some(part => !part || part === "." || part === "..")
-    || (phase === "publish" && (!/^maritime-capafy-prepare:[0-9a-f]{64}$/.test(refs.prepare_job_id)
+    || (phase === "publish" && (refs.prepare_job_id !== maritimeCapafyJobId("prepare", tenant, refs.occurrence_id)
       || !ID.test(refs.agent_id) || !ID.test(refs.agent_version_id)))) invalid("Maritime Capafy input_refs");
   return true;
 }

@@ -39,10 +39,16 @@ class CommonContractTests(unittest.TestCase):
             "const a=p.buildMaritimeCapafyPrepareJob(shared);"
             "const b=p.buildMaritimeCapafyPublishJob({...shared,sourceCycleJobId:shared.cycleJobId,"
             "prepareJobId:a.job_id,agentId:'123',agentVersionId:'456'});"
-            "process.stdout.write(JSON.stringify([a,b].map(projectJob)));"
+            "const jobs=[a,b].map(projectJob);"
+            "const identityMismatchRejected=[a,b].every(job=>{"
+            "const bad={...job,job_id:job.job_id.split(':')[0]+':'+'d'.repeat(64)};"
+            "try{projectJob(bad);return false;}catch{return true;}});"
+            "process.stdout.write(JSON.stringify({jobs,identityMismatchRejected}));"
         )
         result = subprocess.run(["node", "-e", script], cwd=ROOT, text=True, capture_output=True, check=True)
-        for job in json.loads(result.stdout):
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["identityMismatchRejected"])
+        for job in payload["jobs"]:
             validate(job)
             for patch in [
                 {"capability": "unrelated.publish"},

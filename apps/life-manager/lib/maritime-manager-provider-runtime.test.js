@@ -90,6 +90,14 @@ test("unknown publish readback keeps the effect uncertain and reconciliation nev
   for(let n=0;n<3;n++)assert.equal((await adapter.reconcile({...f.publish,status:"reconciling"})).state,"unknown");
   assert.deepEqual(f.counts(),{prepares:0,publishes:1});
 });
+test("unknown prepare readback keeps the effect uncertain and reconciliation never dispatches again",async()=>{
+  const f=fixture();f.provider.readPrepare=async()=>({state:"unknown"});
+  const adapter=runtime().createMaritimeManagerCapafyPrepareAdapter(f.services);
+  await assert.rejects(adapter.execute(f.prepare),error=>error.unknownEffect===true);
+  assert.deepEqual(f.counts(),{prepares:1,publishes:0});
+  for(let n=0;n<3;n++)assert.equal((await adapter.reconcile({...f.prepare,status:"reconciling"})).state,"unknown");
+  assert.deepEqual(f.counts(),{prepares:1,publishes:0});
+});
 test("read-only reconcile preserves present, authoritative absent and invalid/unknown states",async()=>{
   for(const phase of ["prepare","publish"]){
     const f=fixture(),adapter=runtime()[phase==="prepare"?"createMaritimeManagerCapafyPrepareAdapter":"createMaritimeManagerCapafyPublishAdapter"](f.services);
