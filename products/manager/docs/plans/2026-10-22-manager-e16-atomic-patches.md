@@ -7,7 +7,7 @@
 **Tech Stack:** 現core Python>=3.11、SQLite、GitHub既存publisher、Playwright/axe、既存python-pptx/FFmpeg/記事installer。追加runtimeは比較後に固定版とlicenseを確認。
 **Spec:** [製品仕様](../MANAGER_PRODUCT_SPEC.md)、[追加選択肢調査](../research/manager-options-additional-20261022/REPORT_JA.md)。
 
-**実行再開の記録:** 後続の継続指示でsource実装へ進んだ。PATCH-01、PATCH-02の送信境界と隔離比較、PATCH-04のcollector/typed deliveryを実装・P0検証した。実結果と残る本番条件は [recovery receipt](../verification/E16_RECOVERY_HARDENING_20261022.md) を参照。以下の未チェックを本番完了と読み替えず、既実装部分を再作成しない。PATCH-05/06とE16実配備の受入れは未達。
+**実行再開の記録:** 後続の継続指示でsource実装へ進んだ。PATCH-01、PATCH-02の送信境界と隔離比較、PATCH-04のcollector/typed delivery、PATCH-06のローカルSQLite backup/isolated restore＋quarantineを実装・P0検証した。実結果と残る本番条件は [recovery receipt](../verification/E16_RECOVERY_HARDENING_20261022.md) を参照。以下の未チェックを本番完了と読み替えず、既実装部分を再作成しない。PATCH-05、PATCH-06のhost/volume試験とE16実配備受入れは未達。
 
 ## Global constraints
 
@@ -93,9 +93,10 @@
 **Files:** Create `deploy/owned-digital/Dockerfile`, `deploy/owned-digital/railway.json`, `scripts/backup_owned_cycle.py`, `tests/test_owned_state_recovery.py`; Modify CLIのpreflight/loop入口。Render/Flyのconfigを同時に量産しない。
 **Produces:** immutable source binding、private `/data/manager`、単一owner、SIGTERM graceful stop、budget/stop/health metadata。backupはstdlib `sqlite3.Connection.backup`を使う。
 
-- [ ] RED tmp/ephemeral/source配下state、同時owner、backup corruption、reservation前/後のstale restore、許可外sourceからの起動。
-- [ ] `python -m unittest discover -s tests -p 'test_owned_state_recovery.py' -v`。
-- [ ] DB backup→integrity/hash→isolated restore→起動時read-only external reconcile。backup取得後に予約/外部commitが進み、古いbackupのrestoreで予約が失われた場合、保存済み元parent/packetを回復できなければdispatch禁止。新しい現在parentで古いeffectを予約し直さない。
+- [ ] RED tmp/ephemeral/source配下state、reservation前/後のstale restore、許可外sourceからのproduction起動。**一部済み:** 同時owner/backup corruption/source内state/non-overwriting restoreは追加testでRED→GREEN。
+- [x] `python -m unittest discover -s tests -p 'test_owned_state_recovery.py' -v` — 3 test pass (2026-10-25; local fixture only)。
+- [x] Local DB online-backup API→integrity/hash→新規隔離先restore。古いsnapshotを起動cycle/direct dispatch両方で拒否。
+- [ ] Production起動時に元parent/packetのofficial occurrenceを読み取り回復し、回復不能なら隔離を維持する。restored markerを解除する手順は実hostとofficial collectorでのみ設計/検証する。backup取得後の外部commit欠落を新しいparentで再予約しない。
 - [ ] Railwayの専用staging service/volumeでlock・kill/restart・restore・単一catch-up・停止時間・費用を観測。現在の既存serviceは用途確認まで保全。productionはnormal promotion後のみ。
 - [ ] E16/F受入を実receiptで判定し、それ以前はBLOCKEDを維持。
 

@@ -221,6 +221,8 @@ Digital Autonomy v0.1は、限定scopeでの実運用、独立した技術結果
 
 `OwnedEffectRecord.dispatch=True` をcheckpointして後のretryable sendへ渡すことは禁止。fresh lookup/admission/reserve/guarded dispatchを同じhost-owned helperで行い、再開時はjournalを読み直す。候補/期限/providerが変わっても過去intentを先に照合する。外部commit後の応答消失は既存testを再利用し、engine checkpoint消失/古いbackup等の差分だけ追加する。
 
+E16のローカル障害復旧補助として `scripts/backup_owned_cycle.py` を用意する。backupはowner `flock` が空いている間だけSQLite online-backup APIで取得し、integrity・byte数・SHA-256を検査する。restoreは既存stateを上書きせず新しい隔離ディレクトリだけに行い、`RESTORE_RECONCILIATION_REQUIRED.json` を置く。起動cycleと直接dispatchの両方がこの印を見てwriteを拒否する。backup後に外部commitが進んだ可能性を保存DBだけでは除外できないため、照合前のrestored stateを現行stateとして運用してはならない。SHA-256は破損検出であり署名/真正性証明ではない。これはコードとローカルfixtureの検証であり、Railway volume上のbackup/restore、host restart、production adapterの受入れではない。
+
 ### 本番の未接続部分をファイルで特定する
 
 現 `run_owned_cycle` はsandbox限定、現workflowはCLI `admit` を呼び `admit_owned` は未接続。workflow_dispatchにowned-intent入力もない。Railwayへ置くだけでは本番cycleにならず、ChatGPT pluginの接続が常駐workerのcredentialになるとも扱わない。worker proposal→固定source/artifact再検証→特権publisher→exact occurrence→独立deliveryというbridgeを作る。元のSOURCE_REFを研究branchへ差し替えて通さず、正規main promotionと契約移行が必要ならversioned admissionの別review/検査にする。
@@ -237,7 +239,7 @@ Render Background Worker＋Disk、Fly Machines＋Volumes、Modal、Cloudflare、
 
 教材は既存P01 evidence indexとP06 storyboardを唯一の予定入力として使う。MySTのDOCX/JATS、SlidevのPPTX、Remotionを比較したが、最初は既存python-pptx/Pillow/FFmpegを接続する。新CMS/動画runtimeは増やさない。blogのimage-only mediaにPDF/EPUB/MP4を混ぜず、明示artifact契約でinstallerへ追加する。6枚/Anicca専用CTAの既存carousel laneへ8枚のManager教材をそのまま送らない。Made With ML/askFSDLのcode→test→教材対応を再利用し、本人の就職記事や無料archiveから売上を推計しない。[出版の実interfaceとpatch](research/manager-options-additional-20261022/PUBLISHING_JA.md)。
 
-今回変更したのは調査・仕様・派生plan。E16、本番配備、engine比較、公開、入金、応募/採択/人の便益を完了したとは記録しない。元113件の状態/依存/Eカーソルは不変。
+今回追加したのはローカルstate backup/restore helperとそのquarantine検査であり、E16のproduction deploy、Railway volume drill、engine比較、公開、入金、応募/採択/人の便益を完了したとは記録しない。元113件の状態/依存/Eカーソルは不変。
 
 
 ## 19. 全工程の終点と公開サイトの追従

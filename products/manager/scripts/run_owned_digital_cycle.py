@@ -23,7 +23,7 @@ def main():
         'standing owner scope, original platform/artifact admission and source/browser checks',
         'one target-CAS canary, exact official occurrence, independent served-byte readback and replay-zero']
     print(json.dumps(report,ensure_ascii=False,indent=2))
-    return 2 if report['status']=='DEPLOYMENT_HOST_REQUIRED' else 0
+    return 2 if report['status'] in ('DEPLOYMENT_HOST_REQUIRED','RESTORE_RECONCILIATION_REQUIRED') else 0
 
 
 if __name__=='__main__':raise SystemExit(main())

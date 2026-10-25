@@ -40,13 +40,19 @@ class CycleStore:
     """
     def __init__(self,root):
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True);self.db=self.root/'cycle.sqlite'
-        with sqlite3.connect(self.db) as db:
-            db.execute('CREATE TABLE IF NOT EXISTS schedule(owner TEXT PRIMARY KEY,slot INTEGER NOT NULL)')
-            db.execute('CREATE TABLE IF NOT EXISTS control(id INTEGER PRIMARY KEY CHECK(id=1),stopped INTEGER NOT NULL)')
-            db.execute('INSERT OR IGNORE INTO control VALUES(1,0)')
-        self.journal=OwnedEffectJournal(self.db)
-        from .learning import PolicyLearner
-        self.learning=PolicyLearner(self.db)
+        from .state_recovery import restore_requires_reconciliation
+        self._restore_quarantined=restore_requires_reconciliation(self.root)
+        if self._restore_quarantined:
+            # Do not even run schema initialization against a stale snapshot.
+            self.journal=None;self.learning=None
+        else:
+            with sqlite3.connect(self.db) as db:
+                db.execute('CREATE TABLE IF NOT EXISTS schedule(owner TEXT PRIMARY KEY,slot INTEGER NOT NULL)')
+                db.execute('CREATE TABLE IF NOT EXISTS control(id INTEGER PRIMARY KEY CHECK(id=1),stopped INTEGER NOT NULL)')
+                db.execute('INSERT OR IGNORE INTO control VALUES(1,0)')
+            self.journal=OwnedEffectJournal(self.db)
+            from .learning import PolicyLearner
+            self.learning=PolicyLearner(self.db)
     @contextmanager
     def owner_lock(self):
         with (self.root/'owner.lock').open('a+b') as lock:
@@ -55,6 +61,7 @@ class CycleStore:
             try:yield True
             finally:fcntl.flock(lock,fcntl.LOCK_UN)
     def due(self,config,now):
+        if self.restore_requires_reconciliation():raise PermissionError('restored state requires external reconciliation')
         slot=int(now.timestamp())//config.interval_seconds
         with sqlite3.connect(self.db,isolation_level=None) as db:
             db.execute('BEGIN IMMEDIATE')
@@ -63,13 +70,20 @@ class CycleStore:
             db.execute('INSERT OR REPLACE INTO schedule VALUES(?,?)',(config.owner_id,slot));db.execute('COMMIT')
         return True  # one current slot, never a burst of missed historical effects
     def stopped(self):
+        if self.restore_requires_reconciliation():return True
         with sqlite3.connect(self.db) as db:return bool(db.execute('SELECT stopped FROM control WHERE id=1').fetchone()[0])
     def stop(self):
+        if self.restore_requires_reconciliation():raise PermissionError('restored state requires external reconciliation')
         with sqlite3.connect(self.db) as db:db.execute('UPDATE control SET stopped=1 WHERE id=1')
     def append(self,event):
+        if self.restore_requires_reconciliation():raise PermissionError('restored state requires external reconciliation')
         self.learning.record_sandbox_technical(event)
     def cycle_count(self):
+        if self.restore_requires_reconciliation():raise PermissionError('restored state requires external reconciliation')
         return len(self.learning.sandbox_technical_observations())
+    def restore_requires_reconciliation(self):
+        from .state_recovery import restore_requires_reconciliation
+        return self._restore_quarantined or restore_requires_reconciliation(self.root)
 
 
 class LocalGitCycleSandbox:
@@ -260,6 +274,8 @@ def dispatch_owned_once(state_store,host,packet,now):
     This public entry also preserves pending recovery, stop and scope gates.
     """
     _aware(now)
+    if state_store.restore_requires_reconciliation():
+        return dict(status='RESTORE_RECONCILIATION_REQUIRED',writes=0)
     if type(host) is not LocalGitCycleSandbox:
         return dict(status='DEPLOYMENT_HOST_REQUIRED',writes=0)
     with state_store.owner_lock() as acquired:
@@ -277,6 +293,8 @@ def dispatch_owned_once(state_store,host,packet,now):
 def run_owned_cycle(config,state_store,*,host=None,now=None):
     now=now or datetime.now(timezone.utc);_aware(now)
     result=_cycle_result
+    if state_store.restore_requires_reconciliation():
+        return result('RESTORE_RECONCILIATION_REQUIRED')
     # There is no production host adapter until the real owner, persistent
     # volume and promotion path have been observed. A caller flag cannot mint it.
     if type(host) is not LocalGitCycleSandbox:return result('DEPLOYMENT_HOST_REQUIRED')

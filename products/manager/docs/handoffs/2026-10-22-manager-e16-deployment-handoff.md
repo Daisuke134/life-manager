@@ -16,6 +16,8 @@
 
 証跡は `docs/verification/E06_*`〜`E16_*` とSSOTの各source commit/CI。現行ブランチは `research/manager-e01-e16-execution-20261022`、PRは [#8527](https://github.com/Daisuke134/life-manager/pull/8527)、baseは `research/manager-phase06-owned-public-good-20261022`。draft/unmergedの研究PRで、本番mainではない。クラウドでMac専用source guardは未合格、代替合格とは扱わない。
 
+**2026-10-25訂正:** 上記source-guard記述は初回cloud worktreeの履歴です。正規origin clone配下の許可された`.worktrees`へ移動し、`bash scripts/verify-source-boundary.sh`はPASSしました。Mac Miniには接続されていません（Remote Desktop Commander上Offline）し、Railwayで進めるE16にMac接続は不要です。最新のローカルstate backup/restore実装と687件の検証結果は[recovery receipt](../verification/E16_RECOVERY_HARDENING_20261022.md)に追記しました。
+
 ## 2026-10-22 cloud-first選定更新
 
 実行先はRailwayの専用Python worker＋永続volumeに決定。既存life-manager projectへのread accessを確認した。Macのホスト情報待ちを再開条件にしない。既存production serviceの用途/ownerを調べて保全し、専用isolated stagingから始める。新worker/volume、本番adapter、費用/停止設定、main/immutable-release promotionと実機証拠は未完了なのでE16はBLOCKEDのまま。新しいfounder/収益/出版/採用/W27の依存付き作業は [実行マップ](../plans/2026-10-22-manager-founder-execution-map.md) を参照。

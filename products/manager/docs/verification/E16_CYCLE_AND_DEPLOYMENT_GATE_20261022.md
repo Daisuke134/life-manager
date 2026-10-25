@@ -10,7 +10,7 @@ Single-host flock is held for the whole cycle; no expiry takeover can admit an o
 
 ## Actual preflight evidence
 
-Managed cloud environment spec revision 8 was read again: running/connected, unrestricted network; capabilities=[], secrets=[], runtime_variables=[], outbound_identities=[]. This establishes source/test connectivity, not a verified persistent production owner/volume or publisher identity. The repository registry contains other existing Life Manager loops; a name/registry row is not loaded runtime identity. No production loop/registry/cadence was modified. The Mac source-boundary guard could not run successfully in this cloud worktree; it was not bypassed.
+Historical preflight: managed cloud environment spec revision 8 was running/connected, unrestricted network, and had no runtime secrets or outbound identities. This established source/test connectivity, not a verified persistent production owner/volume or publisher identity. A repository registry row is not proof of a loaded runtime identity. No production loop/registry/cadence was modified. The first cloud checkout could not satisfy the source-boundary guard; that workspace issue is now resolved by using the canonical-origin clone and its permitted `.worktrees` directory. The current run of `bash scripts/verify-source-boundary.sh` passes there. Mac access is not required and the Desktop Commander currently reports the Mac Mini offline.
 
 `python scripts/run_owned_digital_cycle.py --state-store <private-state>` returns exit 2 and DEPLOYMENT_HOST_REQUIRED, deployed=false, proof=P0, human_outcome=NOT_MEASURED. This fail-closed result was actually run. GitHub CI is intentionally not a replacement persistent scheduler.
 
@@ -32,3 +32,7 @@ A read-only check of the existing public service at 11:30 UTC retrieved its mani
 ## Later same-day selection update
 
 The user selected cloud execution; authenticated Railway plugin access to the existing life-manager project is now verified. That access is separate from this task environment's direct cloud identity bindings. A fresh inventory still shows one existing service and no volumes; its SUCCESS deployment is not identified as Manager E16. Adopt a dedicated single Python worker and volume, preserving existing services. Actual owner/volume/runtime adapter/deployment proof remain absent, so DEPLOYMENT_HOST_REQUIRED stays correct for the acceptance gate. Mac access is no longer a requested prerequisite. See the [founder execution map](../plans/2026-10-22-manager-founder-execution-map.md) for the current order and extra pending-intent/crash-point tests. The earlier rev8 observation above remains historical, not proof that no connector can access cloud platforms.
+
+## 2026-10-25 implementation update
+
+Local state snapshot/verification/isolated-restore code and fail-closed restore quarantine are now implemented; focused tests pass and the full suite is 687 tests OK (5 skipped). This advances recovery code only. The authorized source worktree and source-boundary guard are usable; production host identity, adapter, privileged-publisher bridge, dedicated Railway volume and actual canary/readback/restart evidence remain the E16 gate.
