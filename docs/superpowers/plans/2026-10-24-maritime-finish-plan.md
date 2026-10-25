@@ -6,7 +6,7 @@
 
 **Architecture:** Life Managerは一つの製品で、LocalとCloudは実行モード。`aniccaai.com/lm`が唯一の公開製品ページで、同じoriginの`/maritime`は認証・開始・状態確認の経路であり、別製品やpilot pageではない。Netlify rewrite経由で既存Railway `life-call` control planeへ接続し、各顧客の実行は専用Maritime VMに分離する。`/auth/google`と`/auth/google/callback`も同じoriginでproxyし、PKCE cookieとcallbackを同一hostに保つ。Railwayはcontrol plane/workerであり、公開Webサイトや各顧客のVMを置く場所ではない。Google sign-inがWebの入口。Calendar/Gmail inbox権限、task/goal/budget入力、payout情報はsignupで求めない。Capafyは最初のCloud収益workflow。既存queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resend日報をつなぐ。新しい製品、別のpublic pilot page、fake/demo stateは作らない。
 
-**利用体験:** Googleログインは本人確認だけでCalendar/Gmail inbox権限を要求しない。保持条件と自律実行への同意後、Managerはtask/goal/budgetを聞かずにCapafy収益workflowを開始し、確認済みの仕事・結果をログインメールへ送る。Webは入口と実際の状態確認に使う。最初の検証済みwork-to-email loopに会話UIは必須ではなく、会話は実APIとtenant-bound durable stateにつながり、測定した利用者ニーズを解く場合に限って追加する。Calendarは必要な仕事が出た後にのみ接続する。Capafyのpayout/bank detailsはsignupで要求せず、Publisher Certification後に追加できる。実際のjob/receiptに結びつかないchatやdashboardを公開しない。
+**利用体験:** Googleログインは本人確認だけに使用する。Calendar/Gmail inbox、タスク・目標・予算の入力、Telegram、銀行情報はsignupで要求しない。ログイン後に、データ保持・自律実行・確認済みメールへの状況報告を一度だけ明示確認し、その後は追加の目標入力なしで最初のCapafy収益workflowを開始する。Webは単一Life Manager Cloudのphone-first workspace。確認済みの実行状態・成果と、実ジョブへ送られる会話入力を同じ画面に置く。ユーザーの入力は認証済みtenantのdurable jobへ結び付け、受付・実行・結果の各状態を実データから表示する。実ジョブへつながらないcanned chatやmock activityは出さない。会話入力は開始条件にせず、初回の自律実行はユーザーが何も入力しなくても始まる。Calendarは実タスクに必要な時だけ後から接続する。確認済みの仕事・結果はGoogle inbox権限を使わず、確認済みlogin emailへ送る。Payout情報はsignupで要求せず、Capafyが実際の出金時に求める場合だけその時点で案内する。
 
 **Tech Stack:** 既存Node/CommonJS、Railway life-call/worker、Supabase Auth/Manager state、Maritime custom image/runtime、Capafy official API/receipt、既存Resend/CFO日報、既存UTM/funnel observer。
 
@@ -82,15 +82,16 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 - [ ] P1.3 After #8986 is accepted, sync provider PR #8745 (head `7c23f58246fc75560d24f78d972868785a664801`) to accepted main and resolve onboarding conflicts without losing Google-first copy or the Capafy account UI. Its focused provider source tests, runtime tests, and real Postgres RLS integration pass; exact-head review found zero blockers. The PR is Draft and the production host executor is absent.
 - [ ] P1.4 Complete the production Capafy host executor, migrations, and deploy-safe secret wiring. Resolve tokens only inside authenticated tenant bindings; never expose them to a model, VM prompt, artifact, log, UI, or email. Keep provider flags OFF until real receipt/reconciliation checks pass. Respect Publisher Certification and the creator confirmation pages; fully human-free publication is not currently supported.
 - [ ] P1.5 Configure and deploy the accepted backend/runtime through Maritime. Match the active Supabase project and exact Google redirect URL; configure the first-party Cloud origin, tenant VM image/source archive, and provider secrets. Verify identity-only PKCE, tenant isolation, VM readiness, start/state/stop, and rollback.
-- [ ] P1.6 Use the already evidenced Capafy Publisher Account; do not create a second account. Publisher Agreement §2.9 allows one account per publisher absent written exception. Before `login-init`, the owner must explicitly accept both Terms of Service and Privacy Policy. Complete Certification and each required publisher confirmation. Do not collect payout details at signup; Capafy may require payout setup before withdrawal.
-- [ ] P1.7 After production config and owner-controlled Capafy consent, run one bounded real test: Google identity → product/data consent → one tenant VM → one real Capafy action → official provider receipt → matching Life Manager receipt → verified-address report email → Stop and replay-zero. Preserve cost evidence; signup and VM provisioning alone are not a completed earning result.
-- [x] P1.8 Implement the phone-first source workbench backed by tenant job and report receipts. It displays real records only and does not invent activity or revenue. This code is in source PR #8986 and is not live until its integration/deployment; a chat UI is optional to the first earning path.
+- [ ] P1.6 E2Eでは新しいLife Manager Cloud tenantを作り、既存のCapafy Publisher Accountへ本人同意後に接続する。Capafy Publisher Agreement §2.9に従い、同じPublisherの二つ目のCapafy accountは作らない。書面の例外が確認できる場合だけ新規Capafy accountを検討する。`login-init`より前にowner本人がTerms of ServiceとPrivacy Policyの両方へ明示同意し、Publisher CertificationとCapafy必須確認を完了する。銀行/payout情報はsignupで求めず、Capafyが出金時に要求する場合にだけ扱う。
+- [ ] P1.7 After production config and owner-controlled Capafy consent, run one bounded real test using a new Life Manager Cloud tenant: Google identity → one retention/autonomy/report consent → dedicated tenant VM → one real Capafy action → official provider receipt → matching Life Manager receipt → verified-address report email → Stop and replay-zero. Signup, chat text, draft creation, and VM provisioning alone are not a completed earning result; preserve cost evidence.
+- [x] P1.8 Implement the phone-first source workbench backed by tenant job and report receipts. It displays real records only and does not invent activity or revenue. This code is in source PR #8986 and is not live until its integration/deployment.
+- [ ] P1.9 Implement the ChatGPT-style request surface only when it writes to an authenticated tenant request record, dispatches the matching real manager job, and displays the real receipt/result. First Capafy work must not depend on a user prompt. If an assistant response is not backed by the tenant job/result, do not show it.
 
-**P1 DONE when:** the phone-first web interface completes real work in an isolated customer VM, reports matching Capafy/Life Manager/email receipts, and verifies Stop/replay-zero. Source checks or a login alone do not close this gate.
+**P1 DONE when:** the one-product phone-first workspace completes real work in an isolated customer VM, reports matching Capafy/Life Manager/email receipts, and verifies Stop/replay-zero. Any chat surface that is shown as working also writes and reads tenant-scoped request/job/result state; no canned replies or mock history. Source checks or a login alone do not close this gate.
 
 ### P2 — Ship one real public Cloud route and turn verified use into contest proof
 
-- [ ] P2.1 Netlify PR #743 is Draft at head `c068f83c83a360595eeb573cc39254c1c3490b5e`. It pins the Cloud-first Life Manager source at `e18237c795326e3a7a1f3467a9d7b5a44cbfa1f6`, preserves the product catalog pin, routes `/maritime` and Google OAuth through Netlify, and removes Calendar-first signup copy. Exact-head calendar eval passes; Landing build is still running. Live `/maritime` remains 404, so it is not deployed.
+- [ ] P2.1 Netlify PR #743 is Draft at head `c068f83c83a360595eeb573cc39254c1c3490b5e`. It pins the reviewed Cloud-first Life Manager source at `e18237c795326e3a7a1f3467a9d7b5a44cbfa1f6`, preserves the product catalog pin, routes `/maritime` and Google OAuth through Netlify, and removes Calendar-first signup copy. Landing build and calendar eval passed at 15:36Z; PR is still unmerged and live `/maritime` remains 404.
 - [ ] P2.2 After the source/provider paths and production configuration are accepted, merge/deploy Netlify PR #743; verify English/Japanese `/lm`, same-origin `/maritime`, OAuth callback/PKCE, real tenant state, Capafy receipt/email, Stop, replay-zero, and rollback. Do not route acquisition to a 404 or publish a mock/pilot page.
 - [x] P2.3 Refresh official Maritime sources and the existing organizer thread. The public form is a general application and not confirmed as Week 1 submission; organizer kickoff confirms accepted participation. Exact Week 1 deadline/rubric/Week 2 milestone and formal submission route remain UNKNOWN. Preserve these unknowns and do not duplicate-submit.
 - [ ] P2.4 Keep the truthful English competition packet ready, based on the one public product URL and dated receipts. Submit once only through a confirmed Week 1 route and save the official receipt; do not use the general program application or infer advancement from social metrics.
@@ -134,15 +135,16 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ## Dependency Order and Parallel Lanes
 
-1. Finish exact-head review and integrate source PR #8986; then sync and integrate the trusted provider chain #8745.
-2. Complete the real Capafy worker/executor and production migration/secret wiring with provider effects disabled until receipts are proven.
-3. Configure the active Supabase identity path and Maritime tenant VM runtime; validate isolated start, state, stop, and rollback.
-4. Integrate and deploy Netlify PR #743 so `/lm` reaches `/maritime` on the first-party origin. Confirm the public route returns a real app response before acquisition.
-5. Use the existing Capafy Publisher Account only after its owner explicitly accepts Terms and Privacy; complete official certification and confirmation steps.
-6. Run the single bounded end-to-end earning test and preserve provider, Life Manager, email, cost, stop, and replay-zero receipts.
-7. Confirm the official competition submission route and counting rules; submit the real English product evidence once. Then run measured English distribution and iterate from source-attributed use and settled revenue.
+1. Resolve the current `main` sync and exact-head review for source PR #8986.
+2. Sync provider PR #8745 to accepted main; finish the Capafy host executor, tenant secret path, migration, and receipt/reconciliation tests with external effects OFF.
+3. Configure the correct Supabase identity, first-party OAuth origin, Maritime image/source archive, tenant VM lifecycle, and rollback.
+4. Integrate/deploy Netlify PR #743 and read back `/lm`, `/lm/ja`, `/maritime`, and Google callback on the first-party origin. Do not acquire traffic through a 404.
+5. Owner accepts current Capafy Terms and Privacy, connects the existing Publisher Account, completes Certification and required publisher confirmations. A test needs a new Life Manager tenant, not a duplicate Capafy account.
+6. Run one bounded E2E: new Life Manager tenant → identity + one consent → real Capafy work → official receipt → Life Manager state → accepted result email → Stop/replay-zero and cost readback.
+7. Ship a ChatGPT-style web request interface only when its request-to-job-to-result chain is live and tenant-bound; it is not a signup requirement or a substitute for the automatic first earning cycle.
+8. Confirm the official competition route/cutoff/counting rules, submit truthful English product evidence once, then run tracked English distribution and iterate on verified use and settled MRR.
 
-P0 organizer unknowns and source implementation can proceed in parallel. Do not claim MRR, qualifying competition users, or a successful earning path without their authoritative receipts.
+P0 organizer unknowns and source implementation can proceed in parallel. Do not claim MRR, qualifying competition users, or a successful earning path without authoritative receipts.
 
 ## State Ownership
 
