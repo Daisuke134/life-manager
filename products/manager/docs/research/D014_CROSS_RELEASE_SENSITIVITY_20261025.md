@@ -28,3 +28,14 @@ These sources support caution and review; the specific flag-consistency rule is 
 - **D014 remains todo:** externally authenticated public aggregates, applicable publisher rights, ethically approved collaboration/consent where required, and independent disclosure review are missing. **H005 remains blocked**: the original HeartSteps trial-day mapping required for exact replication is unavailable; no paper numbers are fitted or imputed. This atom neither changes Life Manager runtime nor `main`.
 
 **Product philosophy:** End suffering by improving public non-personal macro environments, without a human in the routine permitted execution loop; avoid reliance on others' credentials/equipment and never conflate technical tests with relief from suffering.
+
+## Hosted CI and external readback (verified 2026-10-25)
+
+- Implementation commit: https://github.com/Daisuke134/life-manager/commit/9ee5f207a0ee4f36adc6c83066cac7d37483dc22
+- Follow-up regression fixture fix: https://github.com/Daisuke134/life-manager/commit/badf014dbad669634c38e93bda4965f69bf00df2 — initially two existing tests failed because their fictional categories changed sensitivity whenever counts changed. We corrected these fixtures so that count-conflict and total-conflict tests do not inadvertently test sensitivity mismatches.
+- Hosted [Manager Independent Offline Research](https://github.com/Daisuke134/life-manager/actions/runs/40145649801): **success**, 525 unit tests, 5 skipped; canonical 113-task registry consistency **PASS**. The new conflicting-sensitivity test passed.
+- Hosted [Manager Phase06 Digital Environment](https://github.com/Daisuke134/life-manager/actions/runs/40145649797): **success**; no assertion of a human-impact field trial.
+- Hosted [Manager EBA v0 Open Benchmark](https://github.com/Daisuke134/life-manager/actions/runs/40145649791): **success**; this is not evidence of real beneficiary impact.
+- We read the four changed blobs back through the independent GitHub connector, including the new reason code, tests, source note and canonical states (69 done, 41 todo, 3 blocked). The final follow-up is docs/registry metadata only, not a new behavior claim.
+
+Do not interpret a passing test suite as a completed D014 collaboration, a valid disclosure certificate, actual cohort identity, or a causal reduction in suffering.
