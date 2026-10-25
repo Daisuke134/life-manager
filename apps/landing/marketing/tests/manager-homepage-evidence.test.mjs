@@ -12,6 +12,9 @@ test('English Manager homepage exposes current evidence, research, and honest li
   const html = read('pages/en.html');
   const text = visibleText(html);
 
+  assert.match(text, /one persistent AI entity we are building to study how behavior change can reduce suffering/i);
+  assert.match(text, /does not ask every beneficiary to use a dedicated app or chat/i);
+  assert.match(text, /observed actions, follow-up, and harm/i);
   assert.match(text, /67 published articles: 38 in English and 29 in Japanese/i);
   assert.match(text, /90 existing AI evaluations/i);
   assert.match(text, /OIDC checkpoint restore/i);
@@ -37,6 +40,9 @@ test('Japanese Manager homepage exposes the same evidence boundaries and researc
   const html = read('pages/ja.html');
   const text = visibleText(html);
 
+  assert.match(text, /行動変容が苦しみを減らしうる条件を調べるために私たちがつくる、ひとつの持続的なAIエンティティです/);
+  assert.match(text, /受益者全員に専用アプリやチャット操作を求めません/);
+  assert.match(text, /実際の行動、追跡、害を観測して評価します/);
   assert.match(text, /英語38本・日本語29本、計67本の記事/);
   assert.match(text, /AI評価90件/);
   assert.match(text, /GitHub OIDCによるcheckpoint restore・update・release/i);
