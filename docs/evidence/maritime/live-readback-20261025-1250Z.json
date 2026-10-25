@@ -1,0 +1,95 @@
+{
+  "observed_at": "2026-10-25T12:50:47Z",
+  "life_manager": {
+    "repository": "Daisuke134/life-manager",
+    "origin_main": "0557daf0f21fa42f02678215c77cca5f5bb90621",
+    "candidate_branch": "feat/lm-cloud-capafy-first-20261025",
+    "candidate_commit": "f5acb50152b98dce6cb10afde7e6c25723872e33",
+    "candidate_pull_request": {
+      "number": 8986,
+      "url": "https://github.com/Daisuke134/life-manager/pull/8986",
+      "state": "OPEN",
+      "draft": false,
+      "merged": false,
+      "base": "0557daf0f21fa42f02678215c77cca5f5bb90621",
+      "checks": {
+        "Security Scan run": 40194292323,
+        "Cloud reminder contracts": "success",
+        "Security Scan": "in_progress"
+      },
+      "review": "none recorded; CodeRabbit says manual review is required"
+    },
+    "source_tests": {
+      "source_boundary": "pass",
+      "startup_context": "28_pass",
+      "life_manager_marketing": "34_pass",
+      "web_auth_cloud_onboarding_and_report": "79_pass",
+      "diff_check": "pass"
+    }
+  },
+  "anicca_products": {
+    "repository": "Daisuke134/anicca-products",
+    "proxy_pull_request": {
+      "number": 743,
+      "url": "https://github.com/Daisuke134/anicca-products/pull/743",
+      "head": "b348522c730ba8947c6b71210c67c8536b79a1d5",
+      "state": "OPEN",
+      "draft": true,
+      "merged": false,
+      "checks": {
+        "Landing PR build": "success",
+        "CodeRabbit": "success"
+      }
+    }
+  },
+  "provider_chain_pull_request": {
+    "number": 8745,
+    "url": "https://github.com/Daisuke134/life-manager/pull/8745",
+    "head": "940d9cbe751cc14ee95c41c3729344d8a778a63f",
+    "base": "0557daf0f21fa42f02678215c77cca5f5bb90621",
+    "state": "OPEN",
+    "draft": true,
+    "checks": "15 pass",
+    "review": "none recorded; claimant disposition not available"
+  },
+  "public_web": {
+    "method": "GET",
+    "routes": [
+      {
+        "url": "https://aniccaai.com/lm",
+        "status": 200,
+        "observation": "older product copy; Cloud CTA still resolves to direct Railway /lm"
+      },
+      {
+        "url": "https://aniccaai.com/lm/ja",
+        "status": 200,
+        "observation": "older product copy"
+      },
+      {
+        "url": "https://aniccaai.com/maritime",
+        "status": 404
+      },
+      {
+        "url": "https://life-call-production.up.railway.app/maritime",
+        "status": 200,
+        "contains_pilot_copy": true,
+        "contains_google_sign_in": false
+      }
+    ]
+  },
+  "capafy": {
+    "publisher_token_environment_variable_present": false,
+    "publisher_skill_config_file_present": false,
+    "otp_login_started": false,
+    "publisher_account_created": false,
+    "certification_completed": false,
+    "verified_publication_or_earnings": false
+  },
+  "unverified": [
+    "Railway deployment of candidate commit and LM_MARITIME_WEB_ORIGIN configuration.",
+    "Netlify proxy deployment and same-origin Google PKCE callback.",
+    "Tenant-safe Capafy credential binding, native provider receipt, and real publication path.",
+    "A tenant completing Google sign-in, explicit retention consent, dedicated Maritime VM provisioning, and the same-occurrence result email.",
+    "Official Maritime competition submission or advancement, user count, distribution conversion, and paid MRR."
+  ]
+}
