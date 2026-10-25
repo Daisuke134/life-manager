@@ -21,7 +21,7 @@ function nowIso(value) {
 }
 
 function sealChallenge({ tenantId, authSubject, challengeId, expiresInSec, now = new Date().toISOString(),
-  policyConsentVersion, termsAcceptedAt, termsUrl, privacyUrl } = {}, secret) {
+  policyConsentVersion, termsAcceptedAt, termsUrl, privacyUrl, mailboxVerification = false } = {}, secret) {
   const uid = validTenant(tenantId), subject = validSubject(authSubject);
   if (typeof secret !== "string" || secret.length < 16
     || typeof challengeId !== "string" || !/^[A-Za-z0-9_-]{8,512}$/.test(challengeId)
@@ -29,14 +29,15 @@ function sealChallenge({ tenantId, authSubject, challengeId, expiresInSec, now =
   const issuedAt = nowIso(now);
   const acceptedAt = nowIso(termsAcceptedAt);
   if (policyConsentVersion !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
-    || acceptedAt !== issuedAt || termsUrl !== CAPAFY_TERMS_URL || privacyUrl !== CAPAFY_PRIVACY_URL) {
+    || acceptedAt !== issuedAt || termsUrl !== CAPAFY_TERMS_URL || privacyUrl !== CAPAFY_PRIVACY_URL
+    || typeof mailboxVerification !== "boolean") {
     fail("maritime_capafy_policy_consent_required");
   }
   const issued = Date.parse(issuedAt);
-  const payload = Buffer.from(JSON.stringify({ v: 1, uid, subject,
+  const payload = Buffer.from(JSON.stringify({ v: 2, uid, subject,
     challengeId, expiresAt: new Date(issued + expiresInSec * 1000).toISOString(),
-    policyConsentVersion, termsAcceptedAt: acceptedAt, termsUrl, privacyUrl })).toString("base64url");
-  const signature = createHmac("sha256", secret).update(`maritime-capafy-otp:v1\0${payload}`).digest("base64url");
+    policyConsentVersion, termsAcceptedAt: acceptedAt, termsUrl, privacyUrl, mailboxVerification })).toString("base64url");
+  const signature = createHmac("sha256", secret).update(`maritime-capafy-otp:v2\0${payload}`).digest("base64url");
   return `${payload}.${signature}`;
 }
 
@@ -46,23 +47,32 @@ function openChallenge(value, { tenantId, authSubject, secret, now = new Date().
     if (typeof secret !== "string" || secret.length < 16 || typeof value !== "string" || value.length > 2048) fail("invalid");
     const parts = value.split(".");
     if (parts.length !== 2 || parts.some(part => !/^[A-Za-z0-9_-]+$/.test(part))) fail("invalid");
-    const expected = createHmac("sha256", secret).update(`maritime-capafy-otp:v1\0${parts[0]}`).digest();
     const supplied = Buffer.from(parts[1], "base64url");
-    if (supplied.length !== expected.length || !timingSafeEqual(expected, supplied)) fail("invalid");
+    const expectedV1 = createHmac("sha256", secret).update(`maritime-capafy-otp:v1\0${parts[0]}`).digest();
+    const expectedV2 = createHmac("sha256", secret).update(`maritime-capafy-otp:v2\0${parts[0]}`).digest();
+    const signedV1 = supplied.length === expectedV1.length && timingSafeEqual(expectedV1, supplied);
+    const signedV2 = supplied.length === expectedV2.length && timingSafeEqual(expectedV2, supplied);
+    if (!signedV1 && !signedV2) fail("invalid");
     const payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
-    if (!payload || payload.v !== 1 || payload.uid !== uid || payload.subject !== subject
+    const legacyKeys = "challengeId,expiresAt,policyConsentVersion,privacyUrl,subject,termsAcceptedAt,termsUrl,uid,v";
+    const currentKeys = "challengeId,expiresAt,mailboxVerification,policyConsentVersion,privacyUrl,subject,termsAcceptedAt,termsUrl,uid,v";
+    if (!payload || !((payload.v === 1 && signedV1) || (payload.v === 2 && signedV2))
+      || payload.uid !== uid || payload.subject !== subject
       || !/^[A-Za-z0-9_-]{8,512}$/.test(payload.challengeId || "")
       || payload.policyConsentVersion !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
       || nowIso(payload.termsAcceptedAt) !== payload.termsAcceptedAt
       || payload.termsUrl !== CAPAFY_TERMS_URL || payload.privacyUrl !== CAPAFY_PRIVACY_URL
-      || Object.keys(payload).sort().join(",") !== "challengeId,expiresAt,policyConsentVersion,privacyUrl,subject,termsAcceptedAt,termsUrl,uid,v") fail("invalid");
+      || (payload.v === 1 && Object.keys(payload).sort().join(",") !== legacyKeys)
+      || (payload.v === 2 && (Object.keys(payload).sort().join(",") !== currentKeys
+        || typeof payload.mailboxVerification !== "boolean"))) fail("invalid");
     const expiresAt = nowIso(payload.expiresAt);
     const current = Date.parse(nowIso(now));
     if (current >= Date.parse(expiresAt)) fail("maritime_capafy_challenge_expired");
     if (Date.parse(payload.termsAcceptedAt) > current) fail("invalid");
     return Object.freeze({ challengeId: payload.challengeId, expiresAt,
       policyConsentVersion: payload.policyConsentVersion, termsAcceptedAt: payload.termsAcceptedAt,
-      termsUrl: payload.termsUrl, privacyUrl: payload.privacyUrl });
+      termsUrl: payload.termsUrl, privacyUrl: payload.privacyUrl,
+      mailboxVerification: payload.v === 2 ? payload.mailboxVerification : false });
   } catch (error) {
     if (error?.message === "maritime_capafy_challenge_expired") throw error;
     fail("maritime_capafy_challenge_invalid");

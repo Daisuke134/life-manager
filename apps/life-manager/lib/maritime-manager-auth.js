@@ -350,26 +350,66 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   const bindingStore = (() => { try { return capafyBindingStore(options); } catch { return null; } })();
   if (!bindingStore) { send(res, 503, { error: "capafy_connection_unavailable" }); return true; }
   if (pathname === CAPAFY_CONNECT_PATH) {
-    if (Object.keys(body).some(key => !["email", "termsAccepted", "privacyAccepted"].includes(key))
-      || typeof body.email !== "string") {
+    const useTenantMailbox = body.useTenantMailbox === true;
+    if (Object.keys(body).some(key => !["email", "termsAccepted", "privacyAccepted", "useTenantMailbox", "tenantMailboxConsent"].includes(key))
+      || (body.useTenantMailbox !== undefined && typeof body.useTenantMailbox !== "boolean")
+      || (body.tenantMailboxConsent !== undefined && typeof body.tenantMailboxConsent !== "boolean")
+      || (useTenantMailbox ? body.email !== undefined : typeof body.email !== "string")
+      || (!useTenantMailbox && body.tenantMailboxConsent === true)) {
       send(res, 400, { error: "invalid_request" }); return true;
     }
     if (body.termsAccepted !== true || body.privacyAccepted !== true) {
       send(res, 400, { error: "capafy_policy_consent_required" }); return true;
     }
+    if (useTenantMailbox && body.tenantMailboxConsent !== true) {
+      send(res, 400, { error: "tenant_mailbox_consent_required" }); return true;
+    }
     try {
       bindingStore.assertConfigured?.();
       const { CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION, CAPAFY_TERMS_URL, CAPAFY_PRIVACY_URL } = require("./maritime-manager-capafy-binding.js");
+      if (!useTenantMailbox && typeof options.managerMailboxStore?.read === "function") {
+        const ownedMailbox = await options.managerMailboxStore.read({ tenantId: user.uid, authSubject: user.subject });
+        if (ownedMailbox?.email?.toLowerCase().endsWith("@agentmail.to")
+          && body.email.trim().toLowerCase().endsWith("@agentmail.to")) {
+          send(res, 400, { error: "tenant_mailbox_consent_required" });
+          return true;
+        }
+      }
       const acceptedAt = options.now?.() || new Date().toISOString();
+      const mailbox = useTenantMailbox
+        ? await options.managerMailboxStore?.ensure({ tenantId: user.uid, authSubject: user.subject })
+        : null;
+      const email = useTenantMailbox ? mailbox?.email : body.email;
+      if (typeof email !== "string" || (useTenantMailbox && !/^[^\s@]+@agentmail\.to$/i.test(email))) {
+        throw new Error("maritime_mailbox_unavailable");
+      }
+      const attemptId = useTenantMailbox ? require("node:crypto").randomUUID() : null;
+      const startedAt = new Date(acceptedAt).toISOString();
+      if (useTenantMailbox) {
+        const leaseExpiresAt = new Date(Date.parse(startedAt) + 600_000).toISOString();
+        const reserved = await options.managerMailboxStore?.reserveCapafyChallenge({ tenantId: user.uid,
+          authSubject: user.subject, attemptId, startedAt, leaseExpiresAt });
+        if (reserved !== true) {
+          send(res, 409, { error: "capafy_challenge_in_progress" });
+          return true;
+        }
+      }
       const connector = options.capafyConnector || require("./maritime-manager-capafy-binding.js").createCapafyAccountConnector({ fetchImpl: options.fetchImpl });
-      const challenge = await connector.startLogin(body.email);
+      const challenge = await connector.startLogin(email);
+      if (useTenantMailbox) {
+        const expiresAt = new Date(Date.parse(startedAt) + challenge.expiresInSec * 1000).toISOString();
+        const bound = await options.managerMailboxStore?.bindCapafyChallenge({ tenantId: user.uid,
+          authSubject: user.subject, attemptId, challengeId: challenge.challengeId, expiresAt });
+        if (bound !== true) throw new Error("maritime_mailbox_challenge_bind_unconfirmed");
+      }
       const challengeRef = require("./maritime-manager-capafy-binding.js").sealChallenge({
         tenantId: user.uid, authSubject: user.subject, challengeId: challenge.challengeId,
-        expiresInSec: challenge.expiresInSec, now: acceptedAt,
-        policyConsentVersion: CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION, termsAcceptedAt: acceptedAt,
-        termsUrl: CAPAFY_TERMS_URL, privacyUrl: CAPAFY_PRIVACY_URL,
+        expiresInSec: challenge.expiresInSec, now: startedAt,
+        policyConsentVersion: CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION, termsAcceptedAt: startedAt,
+        termsUrl: CAPAFY_TERMS_URL, privacyUrl: CAPAFY_PRIVACY_URL, mailboxVerification: useTenantMailbox,
       }, require("./web-auth.js").csrfSecret(options));
-      send(res, 202, { status: "check_email", challengeRef, expiresInSec: challenge.expiresInSec });
+      send(res, 202, { status: "check_email", challengeRef, expiresInSec: challenge.expiresInSec,
+        ...(useTenantMailbox ? { mailboxEmail: email } : {}) });
     } catch (error) {
       send(res, error?.message === "maritime_capafy_email_invalid" ? 400 : 503,
         { error: error?.message === "maritime_capafy_email_invalid" ? "invalid_email" : "capafy_login_unavailable" });
@@ -378,7 +418,8 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   }
   if (pathname === CAPAFY_VERIFY_PATH) {
     if (Object.keys(body).some(key => !["challengeRef", "code", "autonomyConsentVersion"].includes(key))
-      || typeof body.challengeRef !== "string" || typeof body.code !== "string"
+      || typeof body.challengeRef !== "string" || (body.code !== undefined && typeof body.code !== "string")
+      || (body.code !== undefined && !/^\d{4,8}$/.test(body.code))
       || body.autonomyConsentVersion !== require("./maritime-manager-capafy-binding.js").CAPAFY_AUTONOMY_CONSENT_VERSION) {
       send(res, 400, { error: "invalid_request" }); return true;
     }
@@ -392,14 +433,75 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
       send(res, 400, { error: error?.message === "maritime_capafy_challenge_expired" ? "challenge_expired" : "challenge_invalid" });
       return true;
     }
+    if (challenge.mailboxVerification === true) {
+      let claimed = false;
+      try {
+        claimed = await options.managerMailboxStore?.claimCapafyChallengeVerification({ tenantId: user.uid,
+          authSubject: user.subject, challengeId: challenge.challengeId, now: options.now?.() || new Date().toISOString() });
+      } catch {
+        send(res, 503, { error: "capafy_verification_unavailable" }); return true;
+      }
+      if (claimed !== true) { send(res, 409, { error: "capafy_challenge_in_progress" }); return true; }
+    }
+    const releaseMailboxChallenge = async () => {
+      if (challenge.mailboxVerification !== true) return true;
+      try {
+        return await options.managerMailboxStore?.releaseCapafyChallengeVerification({ tenantId: user.uid,
+          authSubject: user.subject, challengeId: challenge.challengeId }) === true;
+      } catch { return false; }
+    };
+    let code = body.code;
+    if (code === undefined) {
+      if (challenge.mailboxVerification !== true) {
+        send(res, 400, { error: "verification_code_required" }); return true;
+      }
+      let result;
+      try {
+        result = await options.managerMailboxStore?.readCapafyVerificationCode({ tenantId: user.uid,
+          authSubject: user.subject, afterMs: Date.parse(challenge.termsAcceptedAt) });
+      } catch {
+        await releaseMailboxChallenge();
+        send(res, 503, { error: "capafy_verification_unavailable" }); return true;
+      }
+      if (result?.status === "not_found") {
+        await releaseMailboxChallenge();
+        send(res, 202, { status: "waiting_for_email" }); return true;
+      }
+      if (result?.status !== "code" || typeof result.code !== "string" || !/^\d{4,8}$/.test(result.code)) {
+        await releaseMailboxChallenge();
+        send(res, 503, { error: "capafy_verification_unavailable" }); return true;
+      }
+      code = result.code;
+    }
+    if (!/^\d{4,8}$/.test(code)) {
+      await releaseMailboxChallenge();
+      send(res, 400, { error: "invalid_request" }); return true;
+    }
+    if (challenge.mailboxVerification === true) {
+      const now = options.now?.() || new Date().toISOString();
+      let renewed = false;
+      try {
+        renewed = await options.managerMailboxStore?.renewCapafyChallengeVerification({ tenantId: user.uid,
+          authSubject: user.subject, challengeId: challenge.challengeId, now,
+          leaseExpiresAt: new Date(Date.parse(now) + 120_000).toISOString() });
+      } catch {
+        send(res, 503, { error: "capafy_verification_unavailable" }); return true;
+      }
+      if (renewed !== true) { send(res, 409, { error: "capafy_challenge_in_progress" }); return true; }
+    }
     try {
       const connector = options.capafyConnector || require("./maritime-manager-capafy-binding.js").createCapafyAccountConnector({ fetchImpl: options.fetchImpl });
-      const identity = await connector.verifyLogin({ challengeId: challenge.challengeId, code: body.code });
+      const identity = await connector.verifyLogin({ challengeId: challenge.challengeId, code });
       const saved = await bindingStore.save({ tenantId: user.uid, authSubject: user.subject,
         providerSubject: identity.providerSubject, accessToken: identity.accessToken,
         autonomyConsentVersion: body.autonomyConsentVersion,
         policyConsentVersion: challenge.policyConsentVersion, termsAcceptedAt: challenge.termsAcceptedAt,
         termsUrl: challenge.termsUrl, privacyUrl: challenge.privacyUrl });
+      if (challenge.mailboxVerification === true) {
+        const completed = await options.managerMailboxStore?.completeCapafyChallenge({ tenantId: user.uid,
+          authSubject: user.subject, challengeId: challenge.challengeId });
+        if (completed !== true) throw new Error("maritime_mailbox_challenge_completion_unconfirmed");
+      }
       send(res, 200, { status: "connected", provider: saved.provider, accountRef: saved.accountRef,
         developerVerified: true, autonomyConsentVersion: saved.autonomyConsentVersion });
     } catch (error) {

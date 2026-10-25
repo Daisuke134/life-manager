@@ -22,7 +22,8 @@ test("Capafy OTP challenge is signed, time limited, and bound to the authenticat
   assert.deepEqual(openChallenge(challenge, { tenantId: UID, authSubject: SUBJECT,
     secret: "csrf-secret-longer", now: NOW }), { challengeId: "challenge-1", expiresAt: "2026-10-25T12:05:00.000Z",
     policyConsentVersion: "capafy-publisher-terms-privacy-v1", termsAcceptedAt: NOW,
-    termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy" });
+    termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy",
+    mailboxVerification: false });
   assert.throws(() => openChallenge(challenge, { tenantId: "lm_22222222-2222-4222-8222-222222222222",
     authSubject: SUBJECT, secret: "csrf-secret-longer", now: NOW }), /invalid/i);
   assert.throws(() => openChallenge(challenge, { tenantId: UID, authSubject: "22222222-2222-4222-8222-222222222222",
@@ -31,6 +32,15 @@ test("Capafy OTP challenge is signed, time limited, and bound to the authenticat
     secret: "csrf-secret-longer", now: "2026-10-25T12:05:01.000Z" }), /expired/i);
   assert.throws(() => openChallenge(`${challenge.slice(0, -1)}x`, { tenantId: UID, authSubject: SUBJECT,
     secret: "csrf-secret-longer", now: NOW }), /invalid/i);
+});
+
+test("Capafy challenge records whether verification may use the tenant-owned mailbox", () => {
+  const challenge = sealChallenge({ tenantId: UID, authSubject: SUBJECT, challengeId: "challenge-1",
+    expiresInSec: 300, now: NOW, policyConsentVersion: "capafy-publisher-terms-privacy-v1",
+    termsAcceptedAt: NOW, termsUrl: "https://api.capafy.ai/terms-of-service",
+    privacyUrl: "https://api.capafy.ai/privacy-policy", mailboxVerification: true }, "csrf-secret-longer");
+  assert.equal(openChallenge(challenge, { tenantId: UID, authSubject: SUBJECT,
+    secret: "csrf-secret-longer", now: NOW }).mailboxVerification, true);
 });
 
 test("Capafy login sends OTP only to requested account and binds verified API subject to the challenge account", async () => {
