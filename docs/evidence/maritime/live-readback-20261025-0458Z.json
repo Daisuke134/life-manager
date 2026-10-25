@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-25T04:58:32Z",
+  "scope": "Current Life Manager Cloud landing/deployment, public competition Terms, existing Postiz distribution, and Maritime provider-source status. Slack was not read. Null means unknown or unavailable, not zero.",
+  "product": {
+    "life_manager_main_sha": "f8e2fe5010953c69548e4a966f5acad2588225b9",
+    "source_pr_8943": {
+      "url": "https://github.com/Daisuke134/life-manager/pull/8943",
+      "merged": true,
+      "merge_sha": "f8e2fe5010953c69548e4a966f5acad2588225b9"
+    },
+    "netlify_overlay_pr_719": {
+      "url": "https://github.com/Daisuke134/anicca-products/pull/719",
+      "merged": true,
+      "merge_sha": "242865d165f9d46c4281fb6db27e1cf2516f0c61",
+      "workflow_run": "40163463100",
+      "workflow_url": "https://github.com/Daisuke134/anicca-products/actions/runs/40163463100",
+      "workflow_status": "success",
+      "netlify_deploy": "success",
+      "post_deploy_smoke_and_rollback": "success"
+    },
+    "overlay_script_sha256": "ea2a20b9326138052409b18ef303d90f33575537f86807b8553f9c365e794a42",
+    "local_validation": {
+      "marketing_tests": "29/29 pass",
+      "oss_tests": "12/12 pass",
+      "source_boundary": "pass",
+      "diff_check": "pass"
+    },
+    "public_routes": {
+      "/lm": {
+        "url": "https://aniccaai.com/lm",
+        "read_at": "2026-10-25T04:57:54Z",
+        "http_status": 200,
+        "bytes": 8239,
+        "sha256": "4b9e8c7d4a7abeb33b39efd706c22082f3159e7a83040cfb86e8a8a5ac7025cb",
+        "matches_source_and_manifest": true,
+        "static_dashboard_present": false,
+        "illustrative_activity_disclaimer_present": false
+      },
+      "/lm/ja": {
+        "url": "https://aniccaai.com/lm/ja",
+        "read_at": "2026-10-25T04:57:54Z",
+        "http_status": 200,
+        "bytes": 9104,
+        "sha256": "f799198122c98cd770959656982a69b8dc6599951be3e5ad58a39e478afec45c",
+        "matches_source_and_manifest": true,
+        "static_dashboard_present": false,
+        "illustrative_activity_disclaimer_present": false
+      }
+    },
+    "hosting_boundary": {
+      "website": "aniccaai.com/lm is built from GitHub and published through the Netlify workflow.",
+      "existing_calendar_backend": "The calendar-connect action currently points to life-call-production.up.railway.app/lm. This is the existing calendar backend workflow, not the website or a separate product.",
+      "target_cloud": "One phone-first Life Manager web experience, an account/billing/tenant control plane, and the same core running continuously on one isolated persistent Maritime VM per customer. Production signup-to-VM-to-work is not yet verified."
+    }
+  },
+  "competition": {
+    "official_terms": {
+      "url": "https://competition.maritime.sh/terms",
+      "read_at": "2026-10-25T04:23:54Z",
+      "http_status": 200,
+      "sha256": "f2cdec1163255190b28db2a17b87d0021251c18f2b67cc962d981a45e311dc18",
+      "last_updated": "2026-10-15",
+      "program_end": "2026-12-01T23:59:00-08:00",
+      "target_distinct_real_users": 1000,
+      "winner_rule": "First three projects to reach the target, subject to verification.",
+      "qualifying_usage_review": "Keiki or Maritime project usage.",
+      "excluded_activity": ["bots", "duplicate users", "fabricated activity"],
+      "per_user_retention_minimum": null
+    },
+    "round_one": {
+      "exact_cutoff": null,
+      "timezone": null,
+      "top_30_rubric": null,
+      "week_two_milestone": null,
+      "official_form_and_required_fields": null,
+      "owner_reported_form_open_date": "2026-10-26",
+      "owner_report_independently_verified": false,
+      "formal_submission_receipt": null,
+      "official_qualifying_user_count": null
+    }
+  },
+  "maritime_runtime": {
+    "source_pr_8745": {
+      "url": "https://github.com/Daisuke134/life-manager/pull/8745",
+      "state": "OPEN_DRAFT",
+      "head": "2e280aa0786b9a85801c7b1bded96fcdda08ff50",
+      "base": "05284b7761d1a6a2b83f6b8a0883f0303f541246",
+      "current_main": "f8e2fe5010953c69548e4a966f5acad2588225b9",
+      "mergeable": false,
+      "last_updated": "2026-10-25T02:40:02Z",
+      "remaining": [
+        "reconcile the branch with current main and rerun exact-head validation",
+        "trusted Capafy account, provider subject, credential, and tenant binding",
+        "production prepare/publish/readback executor and caller",
+        "owner PKCE authentication and explicit retention/work consent",
+        "deploy and verify one authorized tenant-bound task and report"
+      ]
+    },
+    "verified_customer_vm_cycle": null,
+    "verified_customer_count": null,
+    "verified_business_action_or_payment": null
+  },
+  "distribution": {
+    "postiz_published_posts": [
+      {
+        "post_id": "cmvl65omk011osz1co91dgv0h",
+        "channel": "アニッチャ / X",
+        "state": "PUBLISHED",
+        "publish_date": "2026-10-23T16:13:11Z",
+        "language": "ja"
+      },
+      {
+        "post_id": "cmvn8tuzp0bvmn31cdw2dnzfa",
+        "channel": "sela | AI Tools / X",
+        "state": "PUBLISHED",
+        "publish_date": "2026-10-25T03:03:00Z",
+        "language": "en"
+      },
+      {
+        "post_id": "cmvn8xs1y0c3ln31c8u39u84a",
+        "channel": "sela | AI Tools / X",
+        "state": "PUBLISHED",
+        "publish_date": "2026-10-25T03:06:00Z",
+        "language": "en"
+      }
+    ],
+    "similar_english_posts_only_three_minutes_apart": true,
+    "scheduled_life_manager_posts_through_2026_11_25": 0,
+    "native_impressions_clicks_signups_activation_repeat_or_revenue": null,
+    "new_posts_created_in_this_readback": 0
+  },
+  "business_targets": {
+    "owner_goal_mrr_usd": 10000,
+    "current_mrr_usd": null,
+    "full_cloud_subscription_price": null,
+    "gross_margin_per_customer": null,
+    "existing_calendar_offer": "$29/month after a 7-day trial applies to the current Calendar workflow only."
+  }
+}
