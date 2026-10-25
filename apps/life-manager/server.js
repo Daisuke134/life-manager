@@ -53,7 +53,7 @@ const {
   handleLateApprovalCallback,
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
-const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
+const { configuredCloudOrigin, handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
 const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop } = require("./lib/maritime-manager-auth.js");
 const { handleMaritimeManagerArtifact } = require("./lib/maritime-manager-artifacts.js");
 const { handleMaritimeManagerWake } = require("./lib/maritime-manager-wake.js");
@@ -440,7 +440,7 @@ function browserCastPublicUrl(ticket, env = process.env) {
 // Railway supplies RAILWAY_PUBLIC_DOMAIN; LM_PANEL_BASE_URL is the explicit override for custom domains.
 const LM_PANEL_BASE = process.env.LM_PANEL_BASE_URL ||
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
-const LM_MARITIME_WEB_ORIGIN = process.env.LM_MARITIME_WEB_ORIGIN || LM_PANEL_BASE;
+const LM_MARITIME_WEB_ORIGIN = configuredCloudOrigin(process.env);
 
 function panelOriginForPath(path) {
   return String(path).startsWith("/api/panel/money-printer") ? PUBLIC_BASE : LM_PANEL_BASE;

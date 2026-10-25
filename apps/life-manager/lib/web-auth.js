@@ -426,9 +426,13 @@ function publicOrigin(req, opts = {}) {
   throw new Error("public Web origin unavailable");
 }
 
+function configuredCloudOrigin(env = process.env) {
+  return String(env && env.LM_MARITIME_WEB_ORIGIN || "").trim();
+}
+
 function cloudPublicOrigin(req, opts = {}) {
   const env = envFor(opts);
-  const configured = String(opts.cloudPublicOrigin || env.LM_MARITIME_WEB_ORIGIN || "").trim();
+  const configured = String(opts.cloudPublicOrigin || configuredCloudOrigin(env)).trim();
   if (!configured) throw new Error("Life Manager Cloud public origin is required");
   return publicOrigin(req, { ...opts, publicOrigin: configured });
 }
@@ -680,6 +684,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
 
 module.exports = {
   publicOrigin,
+  configuredCloudOrigin,
   cloudPublicOrigin,
   hasPkceVerifier,
   csrfSecret,

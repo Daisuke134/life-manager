@@ -5,6 +5,7 @@ const { test } = require("node:test");
 const {
   createWebAuthClient,
   createWebCsrfToken,
+  configuredCloudOrigin,
   ensureWebUser,
   handleWebAuthRequest,
   resolveWebUser,
@@ -352,6 +353,14 @@ test("Cloud sign-in fails closed until its first-party callback origin is config
   assert.equal(res.statusCode, 302);
   assert.equal(res.getHeader("location"), "/maritime?auth_error=connection&lang=en");
   assert.deepEqual(events, []);
+});
+
+test("Cloud origin never falls back to the backend panel domain", () => {
+  assert.equal(configuredCloudOrigin({ LM_PANEL_BASE_URL: "https://life-call-production.up.railway.app" }), "");
+  assert.equal(configuredCloudOrigin({
+    LM_PANEL_BASE_URL: "https://life-call-production.up.railway.app",
+    LM_MARITIME_WEB_ORIGIN: "https://aniccaai.com",
+  }), "https://aniccaai.com");
 });
 
 test("Cloud OAuth callback failures return to the same localized Cloud page", async () => {
