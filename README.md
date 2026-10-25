@@ -1,14 +1,22 @@
 <!-- startup-context-version: 2026-10-20.1 -->
 <!-- startup-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea -->
-# Local Life Manager
+# Life Manager
 
-**An open-source, no-human-in-the-loop money printer: AI agents build businesses from scratch and run them on your Mac.**
+**One proactive manager for work, money, everyday responsibilities, body, and mind.**
 
-Connect the accounts your chosen businesses need. Life Manager's agents are designed to find opportunities, build businesses from scratch, sell products and services, and run them day to day to generate revenue—without ongoing human input.
+Life Manager is being built as one product with one shared core. It chooses priorities, carries recurring work forward, and verifies outcomes, including income-generating workflows. Local and Cloud are ways to run it; Grok Bot, Muse, and Dots are intended ways to access the same manager, not separate products.
 
-> **Early development:** Autonomous operation and verified profit are goals, not proven results yet. Check the [agent catalog](docs/agents.md) for current capabilities.
+> **Current state:** The open-source Local setup is documented here. The paid, phone-first Life Manager Cloud is being built to run continuously on an isolated Maritime VM for each customer. Google Calendar travel-time planning is one current hosted workflow, not the whole product. Grok Bot, Muse, and Dots integrations are targets; end-to-end support for them and the full Cloud service has not been verified. Autonomous profit is not proven. See the [agent catalog](docs/agents.md) for current capabilities.
 
 [日本語](README.ja.md) · [Setup guide](docs/getting-started.md) · [Agent catalog](docs/agents.md)
+
+## One Life Manager, multiple ways to run and access it
+
+| Mode or interface | Purpose | Current status |
+|---|---|---|
+| Local | Run the open-source Life Manager in your own environment. | Setup is documented below. |
+| Cloud | Use the paid manager from a phone while its isolated Maritime VM stays online. | Full tenant provisioning and end-to-end use are still in development. |
+| Grok Bot, Muse, Dots | Reach the same manager through service-specific adapters. | Integration targets; no end-to-end Life Manager connection is verified yet. |
 
 ## Businesses
 
@@ -22,10 +30,10 @@ Connect the accounts your chosen businesses need. Life Manager's agents are desi
 | AI services | Paid AI skills, subscriptions, and APIs. |
 | Investing | Configured stock-trading strategies. |
 
-## Core requirements
+## Local setup requirements
 
 - **ChatGPT Plus or higher.** Sign in with ChatGPT; no separate OpenAI API key is required.
-- **A Mac that stays awake**, with internet and at least 12 GiB of free disk space. A Mac mini works well for always-on use.
+- **A supported local environment** with internet and at least 12 GiB of free disk space.
 
 For each business you enable, connect your own service accounts. Some services may cost extra.
 
@@ -39,7 +47,7 @@ Run this in Terminal:
 
 Follow the prompts to sign in to ChatGPT and connect the services you want to use. Docker is not required.
 
-See the [setup guide](docs/getting-started.md) for full installation, keeping your Mac awake, and checking agent status.
+See the [setup guide](docs/getting-started.md) for the supported local setup and checking agent status.
 
 - [Report an issue](https://github.com/Daisuke134/life-manager/issues)
 - **License:** [MIT](LICENSE)

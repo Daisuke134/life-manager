@@ -1,7 +1,15 @@
 # apps/life-manager
 
-Telegram-based commute agent: it calls you when it is time to leave, sends the
-route once you are out the door, and asks before telling anyone you are late.
+This package contains Life Manager's current calendar-and-commute workflow and
+Telegram transport. That is one capability within the broader Life Manager
+product, which is being built around one shared core for Local and phone-first
+Cloud use. The Cloud target is an isolated, always-on Maritime VM per customer;
+Grok Bot, Muse, and Dots still need verified adapters to that same manager.
+
+This package's current workflow calls when it is time to leave, sends the route
+once the user is out the door, and asks before telling anyone the user is late.
+It does not by itself represent the complete Life Manager product or its Cloud
+runtime.
 
 ## Read this before you change anything
 

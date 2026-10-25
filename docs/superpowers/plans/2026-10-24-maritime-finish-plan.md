@@ -4,7 +4,7 @@
 
 **Goal:** 既に開発中のLife Manager Cloudを、Top 30選出に必要な動く証拠、実際に使う人、英語中心の配布につなぎ、公式の実利用者1,000人へ進める。
 
-**Architecture:** 現在のLife Managerを同一repoのMaritime custom runtimeで実行する。既存Railway queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resendの日報をつなぐ。新しいプロダクト、scheduler、publisherは作らない。公開pilot routeと既存記事、既存Xアカウントを利用する。
+**Architecture:** 現在のLife Managerを同一repoのMaritime custom runtimeで実行する。既存Railway queue・tenant store・Capafy factory・Maritime receipt/reconciliation・Resendの日報をつなぐ。新しいプロダクト、scheduler、publisherは作らない。既存のLife Manager product page `/lm`、記事、既存Xアカウントを利用する。別のpublic pilot pageは作らない。
 
 **Tech Stack:** 既存Node/CommonJS、Railway life-call/worker、Supabase Auth/Manager state、Maritime custom image/runtime、Capafy official API/receipt、既存Resend/CFO日報、既存UTM/funnel observer。
 
@@ -88,7 +88,7 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 ### P2 — Convert the working cycle into Top 30 proof
 
-- [ ] P2.1 Update the English pilot page only to match the current live capability. Keep early-pilot, retention, and unverified-work disclosures until the corresponding readbacks pass.
+- [ ] P2.1 Update the existing English Life Manager product page to describe one manager across work, money, and everyday life; distinguish the current hosted Calendar workflow from the full Cloud target. Do not create or advertise a separate public pilot page. State availability and retention accurately until the corresponding readbacks pass.
 - [ ] P2.2 Create an English 2–3 minute screen recording from the actual flow: signup/consent → manager selects work → visible action → provider receipt/result → email receipt → stop. No simulated result represented as production.
 - [ ] P2.3 Make a one-page English submission packet using only confirmed data: user problem, what the agent does, live URL, actual demo, proof links, limits, measured counts with date, and next milestone. Keep all unknowns labeled.
 - [ ] P2.4 Submit once via the organizer-confirmed route, verify receipt, and link it from the existing Slack entry if that is requested. Do not duplicate the project entry.
@@ -108,10 +108,10 @@ Do not present internal user cohort goals as organizer thresholds. Snapshot refr
 
 **Distribution strategy:** Use one verified Life Manager workflow as the English anchor story. The existing EN X post and article are already live; once P1 proves the hosted cycle, create one honest 2–3 minute product demo and one tracked CTA, then adapt it for verified existing X, Threads, and Instagram identities. No duplicate launch copy. The 10/23 X audit found @selawmqt at 7 followers, about 5 median impressions across its last 20 posts and roughly 23 posts/day, while sampled high-reach builder accounts had reply-heavy timelines. Treat that as a baseline to test reply-first participation, not evidence that posting more will grow reach. Start with 10 real people outside the team who match the supported workflow, offer direct onboarding, record first-use friction and repeat use, and fix the largest measured drop-off. Compare native post metrics and the first-party funnel at 24 hours and 7 days; separate impressions, visits, qualified use, and official Keiki/Maritime counts.
 
-- [ ] D1.1 Reuse the existing /maritime page, article, current X posts and tracked URL patterns. Assign one unique UTM content value per next authorized English post/account; confirm the actual expanded CTA after publishing.
+- [ ] D1.1 Reuse the existing /lm product page, article, current X posts and tracked URL patterns. Assign one unique UTM content value per next authorized English post/account; confirm the actual expanded CTA after publishing. Keep one Life Manager product page; do not create a separate pilot page.
 - [ ] D1.2 Add or use the existing funnel events for source → landing → confirmed signup → explicit consent → first actual use → completed work → report accepted → repeat use. Reuse T21's existing observer/cookie/store; do not build a second analytics framework.
 - [ ] D1.3 Verify source attribution survives email confirmation and later enrollment without placing email, work text, cookies, or credentials in public analytics.
-- [ ] D1.4 Run a first 10-person real pilot cohort as an internal target after the owner flow works. Record onboarding failures, first task, completed/failed/deferred state, repeat use, and support burden. Do not describe 10 as an official cutoff.
+- [ ] D1.4 Run a first 10-person real-user cohort as an internal target after the owner flow works. Record onboarding failures, first task, completed/failed/deferred state, repeat use, and support burden. Do not describe 10 as an official cutoff.
 - [ ] D1.5 Fix the largest measured conversion/use failure. Keep an experiment log with hypothesis, one change, dates, source, before/after counts, and uncertainty.
 - [ ] D1.6 Repeat with measured cohort targets (50/200/500/1,000). Compute needed traffic from actual visitor→first-use conversion; never assume conversion from X impressions.
 - [ ] D1.7 After P1 proof, run a measured reply-first English builder/hackathon participation experiment from the owner-authorized X identity; use the live demo/one tracked CTA only where relevant. Compare reach, profile visits, landing visits, and first qualifying uses against the 10/23 baseline. No paid promotion, repetitive solicitation, duplicate posts, fake users, or unverified outcomes.
