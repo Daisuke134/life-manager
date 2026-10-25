@@ -24870,3 +24870,42 @@ source head `a7f2d21851a03757eee493ce80401685d5b11a69`のGitHub CIは15/15 PASS�
 - **次の順序:** この記録を含むspec差分を同じ専用branchにcommit/pushする。新しいheadでCIを再取得し、PR #8935をmergeする。9件のローカルfailureはtest対象と環境の比較で分類し、今回の変更との関係を記録する。merge後はeffect identity fixを含むmain由来immutable releaseを、12 GiB floor・doctor・owner idle・effect fence条件が揃ってから昇格する。
 - **残TODO:** `(1)`spec commit/pushと新head CI readback、(2)ローカル9 failureの環境/base比較、(3)PR #8935 merge、(4)既存Instagram/TikTok unknown occurrenceの公式receipt単位readback、(5)容量7.2 GiBからproducer/release floor 12 GiB以上への回復、`lm-loop doctor`のunmanaged `ai.anicca.x402-seller-8414`分類、PR #8919の解決、(6)安全条件を満たしたmain-derived releaseと自然runでdurable identity/公式receipt/replay-zeroを確認、(7)TikTok予約と`@anicca.en`動画/Reelのprovider公開readback、(8)Anicca iOSの現行build/review・通知tap/paywall/Lifetime・拒否item再提出を確認、(9)6アプリ別baselineと成功slideshow例に基づく配信実験を実施し、残アカウント・5アプリ・website SEO/AEO/ASOへ展開。
 - **現在cursor:** `(1)`専用branchへspec更新をpushし、新headのCIを確認する。現時点の14/14 CIはsource head `cf3221d…`の結果であり、spec更新commitのCIには流用しない。TikTok予約1件の`PUBLISHED`は配信stateのみで、reach/install/paid conversion/MRRや目標達成を証明しない。Anicca.en動画/Reelと$10K/$60K目標は未確認。
+## Manager 現行定義・証拠・残TODO — 2026-10-25
+
+> この節をManagerの現在statusと実行順の正本とする。2026-10-23の「69 done / 41 todo / 3 skipped」は当時のE16台帳snapshotとして保持し、現在の完了件数には流用しない。現在のsource基準は `origin/main` `f8c3f2095982c346547a5c518092606ef80e2d4b`。以後の順序変更はこのSSOTだけで行い、製品配下のspec・planは個別技術scopeの参照とする。
+
+### 製品の定義と設計原則
+
+Managerは、苦しみを終わらせることを目指し、行動変容を通じて人々の経験を改善しようとする一つの持続的AIエンティティである。通常の受益者に専用アプリ、チャット、毎日の操作を必須にしない。これは「受益者向けUIが必須でない」という意味であり、運営者の監督・停止・監査・異議申立てまで不要という意味ではない。実行は所有者から委任された範囲と正当なシステム権限に限定する。
+
+心と行動を切り離さず、行動の変化を苦しみの変化へつながる主要な介入経路として研究する。資源、健康、制度、環境などは無関係として捨てず、人の選択可能性と行動を形づくる条件として扱う。説得は介入の一つだが、説得らしさ・同意・意図だけを成功指標にせず、実際の行動、継続、害、集団差を測る。個人情報を使った欺瞞、強制、脆弱性の悪用、同意のない標的型・政治的説得を許容しない。
+
+「Digital Buddha」「Transparent God」「世界初のAGI」は長期の比喩・願いとしてのみ扱う。意識、AGI、世界初、普遍的な恩恵、苦しみの終結を実証済みと主張しない。モデルの規模・系列・学習方法は固定せず、再現できる評価結果から選ぶ。
+
+### As-is — 現在確認できるもの
+
+- **実装・実行基盤:** [Manager README](../../../products/manager/README.md)に、既存GitHub Actionsとprivate checkpoint gatewayを使う単一のowned-cycle、短命GitHub OIDC、状態復元、公式readback、STOP / rollback / resume経路が記録されている。実OIDCのcheckpoint復元・更新・解放、別runnerでのNOT_DUE、公開bytes不変・replay-zeroは確認済み。正のcanary、停止・復旧、native観測のE16受入は継続中で、E16は未完了。
+- **人口構成:** Rhode Island公開統計とPUMSから441,570世帯・1,042,763人を生成し、世帯所属、重複ID、複製属性の監査で不一致0を記録した。これはこの入力に対するpopulation synthesisの完全性であり、行動予測・介入効果・苦しみの低減を証明しない。
+- **行動・介入評価:** 公開研究再利用、研究単位holdout、無効果baseline、較正、released-effect診断のsourceがある。EBAは90評価のlandscapeとsynthetic v0を公開済みだが、行動忠実度・因果的な人の便益指標は未検証。Ampersand v0.1は架空の10シナリオ・実参加者0人であり、実世界の説得・行動変化を測っていない。
+- **モデル評価・学習:** private finite-SFT sourceとfixed-adapter評価sourceはmainにあるが、source統合は学習許可・model採用を意味しない。[SFT scope](../../../products/manager/docs/specs/2026-10-23-finite-private-sft-research-start.md)のG0–G6を満たした実学習は未受入。Qwen3-0.6B SafetyBench実推論は10,800秒上限で停止し、別枠の保存journal再生だけを行った。6,425 valid / 1 unknown / 5,009 not-run、valid条件内42.5214%、全11,435割当を分母にした正答は23.8916%。source順に打ち切られた非代表prefixで、比較controlと分母が異なり、優位・安全性・行動変化を主張できない。証拠は[SafetyBench実行記録](../../../products/manager/docs/verification/SAFETYBENCH_LOCAL_QWEN3_CLP_CPU_20261023.md)。
+- **調査・出版:** [Manager記事collection](https://aniccaai.com/blog/manager)は67記事を掲載し、AI Economist、MiroFish、AgentSociety、Aaru、Simile、Humans&のBoba / Ampersand / Persimmon、Numerai、Goodfire、人口合成、behavior evaluation、EBAを扱う。2026-10-25のlive homepageにも人口成果、EBA、Ampersand、人工社会の研究が載っている。記事数・研究量は人への効果の証明ではない。
+- **公開copyの差分:** 現行homepageの進捗見出しは「E16 source work advanced; deployment is still blocked」で、E16旧feature branchのhandoff/roadmapへリンクしている。cloud実行とcheckpoint復旧の一部はすでに実証済みなので、この表現と旧branch linkは現状と一致しない。研究記事全体が未掲載という状態ではなく、進捗カードのreadbackとリンク更新が残る。
+
+### To-be — Manager v1の完了条件
+
+Manager v1は「大きなモデルを作った時」ではなく、(1)既存研究・公開データを権利と分割を保って再利用し、(2)行動予測と介入効果を研究単位holdoutでbaseline以上に再現し、(3)境界付き実行を外部の公式状態でreadbackし、(4)人の同意と適切な研究統治の下で行動・継続・害・費用を比較し、(5)その結果を公開できた時に技術的な限定版として受け入れる。技術実行の成功、文章の説得力、合成人口の規模、売上を人の便益と混同しない。「苦しみを終える」は長期missionであり、一つのbenchmarkやreleaseをもって完了と判定しない。
+
+### 残TODO — 依存関係順
+
+1. [ ] **公開進捗を現状に合わせる。** aniccaai.comの進捗カードを「cloud checkpoint / recovery は確認済み。positive canary・STOP / rollback・native observationのE16受入は継続中」に改め、旧feature-branch handoff/roadmap linkをmain上の[README](../../../products/manager/README.md)、[E16実行receipt](../../../products/manager/docs/verification/E16_CLOUD_EXECUTION_20261023.md)、このSSOTへ置換する。公開後、homepageと67記事collectionをGETし、新copy・リンク・HTTP 200を確認する。新しい研究主張や記事の水増しはしない。
+2. [ ] **E16 technical acceptanceを閉じる。** main由来workflowだけを使い、所有範囲の一件のpositive typed candidateを実行してprovider receiptと公開bytesを結合する。次にfresh runnerでSTOP持続、対象限定CAS rollback、readback後のresume、restart/catch-up/replay-zero、対象外不変を確認する。native technical observationを既存SQLiteからExplorer/shadowまで追跡し、欠測はnull/NOT_MEASUREDで保持する。以上の各receiptがそろうまでE16を完了扱いにしない。人の行動結果は別gate。
+3. [ ] **EBA / 行動効果評価v1を凍結する。** 既存source validator・study-holdout evaluatorを使い、source rights、研究単位分割、欠測・失敗、無効果baseline、original reported effect、訓練側だけの較正を固定する。評価指標と不確実性を事前記録し、独立再実行でdataset hash・分母・scoreが一致するaggregateを出す。公開予測の再採点を新しいManager推論や因果効果の実証と呼ばない。
+4. [ ] **説得を含む介入benchmarkを作る。** 既存の公開nudge / behavior-change / persuasion実験から権利を確認した一つの具体的行動領域を選ぶ。介入文だけでなく、対象集団、比較条件、観測された行動、追跡期間、研究・site単位holdout、継続、害、subgroup差を固定する。最初は公開aggregate / 既存研究で検証し、合成データだけの成功は実証に数えない。個人への標的化はopt-in研究の権限と安全審査を別に通す。
+5. [ ] **既存モデルbaselineを同条件で比べる。** 固定したbehavior taskとstudy holdoutに対し、最初に再利用可能なbase/APIモデルと小型open modelを同一入力・同一score・同一費用記録で比較する。校正、予測力、失敗、推論費用、subgroup成績を出し、モデル選択を結果から行う。SafetyBenchの部分resultは行動説得性能のbaselineに流用しない。
+6. [ ] **有限SFTを一回だけ検討・実行する。** 既存[scope](../../../products/manager/docs/specs/2026-10-23-finite-private-sft-research-start.md)に沿い、用途rights、manifest、recipe、固定source/hash、resource/watchdog、CI、独立review、実root判断のG0–G6がすべて満たされた後にだけ、指定Qwen3-0.6Bへの有限SFT一回を始める。失敗・無変化・悪化も保存し、別に凍結するG7固定adapter評価でbaseと比較する。SFT改善がなければbaseを採用し、評価条件を後から緩めない。
+7. [ ] **人の行動変化を一つの限定pilotで確かめる。** 研究参加者の同意・適切な倫理審査や運営者の権限を確認し、低リスクで測定可能な一つの介入を事前登録する。実行前baseline、対照、追跡期間、行動変化、負担・害、離脱、費用を独立readbackする。成功・null・悪化をすべて公開し、個人データを公開しない。政治的説得や大規模対象化を最初のpilotにしない。
+8. [ ] **YC Winter 2027向けの実績をまとめる。** 再現可能なdemo、baseline比較、少なくとも一つの正直な実験結果、実利用者または運営者の検証、費用・売上・支払意思を分けた記録をpacket化する。採択は保証しない。創業者への連絡、podcast、職務応募はこの証拠に沿う別の機会開拓laneであり、技術gateや提携実績に数えない。
+9. [ ] **記事・無料書籍を証拠の進みに合わせて仕上げる。** 既刊67記事を更新対象と突合し、上記各gateの結果・限界が出た時点で該当記事を修正する。無料書籍は調査まとめだけで早期に効果を断言せず、source・コード・benchmark・実験・失敗を一緒に辿れる公開教材として、Manager v1の複数gateが再現された後に編纂・公開する。
+10. [ ] **自前foundation modelは最後に判断する。** 既存モデルと有限adapterでも複数の未見study / populationで残る性能差があるときだけ、差を埋めるための必要データ権利・学習規模・compute・費用・safety evaluationを見積もる。条件を満たさなければ外部・open modelを継続利用する。モデルを作ること自体を使命や完成条件にしない。
+
+**現在cursor:** TODO 1の公開進捗カード / link整合と、TODO 2のE16 bounded acceptance。EBA source・記事群・population synthesisは土台として存在する。行動予測、説得介入、実参加者の行動変化、苦しみの低減、売上、YC採択、自前foundation modelは未実証または未実施。
