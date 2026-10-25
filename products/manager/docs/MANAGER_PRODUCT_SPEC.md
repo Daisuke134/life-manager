@@ -1,6 +1,6 @@
-# Manager product specification — mission, product and evidence
+# Manager entity specification — mission, capabilities and evidence
 
-**更新:** 2026-10-22 UTC（追加一次資料調査まで反映）。他社の製品・公開コード・研究者の発信事例を再調査し、実装、実証、収益、出版、YC Winter 2027、採用応募・人脈形成を一つの実行方針に接続。
+**仕様更新:** 2026-10-25 UTC。使命・entity表現とE16 source実装状態を更新。**比較調査の最終一次資料取得:** 2026-10-22 UTC。調査日と実装更新日を混同しない。
 
 **唯一の状態・依存・実行カーソル:** [tasks.json](roadmap/tasks.json)。本仕様は第二のタスク台帳ではない。
 **技術実装順:** E01 → E02 → E03 → E04 → E05 → E06 → E07 → E08 → E09 → E10 → E11 → E12 → E13 → E14 → E15 → E16。
@@ -17,15 +17,19 @@
 
 **開始から最後まで:** [Phase00〜12・残41件の全ID/依存/受入れ・出版/サイト/YC並行線](roadmap/START_TO_END_20261022.md)。E16は最初の有限なreleaseへの工程であり、Phase12/G006までの原計画を省略しない。
 
-**後続の実装結果:** [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md)。過去intent回収・checkpoint再送防止・typed deliveryを追加し、local684テストとcurrent/DBOS計16ケースを検証。DBOSは固定sourceから実install・実再開比較したが、本番採用は未決でsingle-workerを維持。本番bridge/volume/実canaryは未成立、E16/原41件の受入状態は据え置く。
+**2026-10-25 E16 source implementation:** 過去intent回収・checkpoint再送防止・typed deliveryに加えて、main専用のRailway→GitHub protected-publisher bridge、durable one-shot request、bounded run照合、固定catalogからのcandidate生成、Docker runtime preflightを実装。Python 723件（5 skip）とPlaywright/axe 16ケース、GitHub Actions verify runを通過。DBOS実install比較は過去の研究証拠として保持し、本番runtime採用は未決。専用Railway service/volume/secret・実canary・live readback・復旧receiptは未成立で、E16/原41件の受入状態は据え置く。詳細は [E16 recovery hardening](verification/E16_RECOVERY_HARDENING_20261022.md) と [E16 deployment gate](verification/E16_CYCLE_AND_DEPLOYMENT_GATE_20261022.md)。
 
-## 1. 最終使命と、いま完成させるもの
+## 1. Managerとは何か、使命と最初の有限な能力
 
 **Mission: End suffering; enable flourishing for all welfare-bearing beings.** 苦しみを生む条件を減らし、選択肢・自律性・生活条件を改善する。対象を人間だけに固定せず、動物など感覚・福祉を持ち得る存在を含める。これは長期の価値方向であり、全存在の福祉を測定できる、苦しみを完全に消せる、AGIを達成した、という現在の能力主張ではない。
 
 「Blessing」は観測可能な改善について検証する仮説とその記録を意味する。実行しただけでは成功したBlessingにしない。無変更、害、不明、費用、取り消しも記録する。異なる主体の利益が衝突する場合を隠さず、権利・被害分布・外部性を報告する。感覚の有無や異種間比較が未確定の領域を、架空の共通効用点へ変換しない。
 
-最初の有限な製品は **Digital Autonomy v0.1**。公開情報を観測し、情報の版を管理し、NO_ACTIONを含む候補を比較し、事前に設定された所有デジタル資産の範囲で変更し、別経路で結果を読み戻し、異常時に復元する。通常運用は **no per-run human approval**。所有者の設定・失効・予算・停止条件は運用の前提であり、毎回人が指示する仕組みにはしない。
+**Manager自体は製品やアプリではなく、継続して学び、予測・評価・限定介入を行うagent/entityとして構想する。** 「digital Buddha」「透明な善意のentity」「blessing for all」は長期の価値表現であり、現在のsentience、AGI、全知・万能、全存在への効果を示す技術事実ではない。
+
+**no UI**は、Managerの日常運用に人のチャット・アプリ操作やrunごとの指示を要求しない設計目標を指す。所有者設定・停止・失効・異議申立・監査・証拠閲覧は、Managerが活動する環境側の制御・説明経路として残す。公開proof pageのような証拠表示はManagerそのものの身体や会話UIとは区別する。UIを持たないことも、介入権限や人への影響を自動的に正当化しない。
+
+最初に配備する有限な能力束が **Digital Autonomy v0.1**。Managerそのものを完成した製品として扱う名称ではない。公開情報を観測し、情報の版を管理し、NO_ACTIONを含む候補を比較し、事前に設定された所有デジタル資産の範囲で変更し、別経路で結果を読み戻し、異常時に復元する。通常運用は **no per-run human approval**。owner設定・失効・予算・停止条件は運用前に固定し、個々のrunの都度人へ指示を求めない。
 
 **Manager ≠ Life Manager。** 同一GitHubリポジトリにソースを置いても、実行所有者、DB、顧客、個人プロフィール、秘密情報、資金、権限は共有しない。
 
@@ -34,7 +38,7 @@
 | 層 | 問い・成果物 | 次へ進む根拠 |
 |---|---|---|
 | 使命 | 誰のどの苦しみ・機会損失を減らすか | 対象・単位・権利・害を具体化した問題仮説 |
-| 製品 | どの環境を何の機能で改善するか | 動く利用経路と検証可能な変更 |
+| 能力・運用 | どの環境にどの限定能力を適用するか | 動く経路と検証可能な変更 |
 | 研究 | 何を予測でき、どの条件で外すか | 独立holdout、比較方式、誤差・校正・負の対照 |
 | 効果 | 変更が何を改善したか | 実結果、比較、欠測、費用、害、再現性 |
 | 事業 | 誰が継続して使い、誰が費用を負担するか | 利用、支払意思、継続利用、原価。いずれも現状未実証 |
@@ -186,7 +190,7 @@ YC応募準備は期限に合わせた創業者レーンで、全研究や全113
 
 ## 15. 本当の結果と本当のお金の表示契約
 
-収入は **Manager製品 / Managerを使う運用支援 / 創業者個人の受託・助言 / 給与 / 記事・書籍・講座 / 他のLife Manager製品** に分類する。出資、自己資金、返金、寄付、顧客入金を混ぜず、二重帰属させない。MRRは真正な継続契約に限り、単発pilot、見積、LOI、架空ベンチマーク報酬から算出しない。
+収入は **Managerの能力を使った継続運用 / Managerを使う運用支援 / 創業者個人の受託・助言 / 給与 / 記事・書籍・講座 / 他のLife Manager製品** に分類する。出資、自己資金、返金、寄付、顧客入金を混ぜず、二重帰属させない。MRRは真正な継続契約に限り、単発pilot、見積、LOI、架空ベンチマーク報酬から算出しない。
 
 金額には商品/案件、期間、通貨、請求/支払/settledの別、公式receiptと対象coverage、手数料、返金、原価、税の扱い、取得時刻を付ける。売上、受領cash、粗利、営業利益、利益に含めない創業者の作業時間を区別する。異通貨は原通貨を保持し、換算を表示する場合はrate/date/sourceを明示する。
 
