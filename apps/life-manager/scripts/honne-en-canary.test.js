@@ -252,6 +252,7 @@ test("controlled canary promotes one job, publishes one receipt, sends one URL r
       LM_HONNE_EN_CANARY_CONFIRM: PROMOTION_CONFIRMATION,
       LM_RUNTIME_TENANT_ID: "dais-local",
       LM_HONNE_EN_CANARY_TRANSPORT: "fake",
+      LIFE_MANAGER_OCCURRENCE_ID: RECEIPT.origin_occurrence_id,
     },
     store,
     fakeTransport: true,
@@ -262,6 +263,7 @@ test("controlled canary promotes one job, publishes one receipt, sends one URL r
     ["run", "--tenant", "dais-local", "--job-id", "publication-job"],
     deps,
   );
+  deps.env.LIFE_MANAGER_OCCURRENCE_ID = "life-manager-honne-en:canary-run-2";
   const replayed = await runHonneEnCanary(
     ["run", "--tenant", "dais-local", "--job-id", "publication-job"],
     deps,
@@ -276,6 +278,10 @@ test("controlled canary promotes one job, publishes one receipt, sends one URL r
   assert.equal(result.telegram.message_id, 42);
   assert.equal(result.telegram.replay_created, false);
   assert.equal(replayed.publication.replay_created, false);
+  assert.equal(replayed.publication.created, false);
+  assert.equal(replayed.publication.provider_effect_created, false);
+  assert.equal(replayed.publication.origin_occurrence_id, "life-manager-honne-en:canary-run-1");
+  assert.equal(replayed.publication.result_occurrence_id, "life-manager-honne-en:canary-run-2");
   assert.equal(replayed.telegram.created, false);
   assert.equal(replayed.telegram.replay_created, false);
   assert.equal((await store.readReceipt({ tenantId: "dais-local", jobId: result.telegram.job_id })).message_id, 42);

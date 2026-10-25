@@ -40,7 +40,10 @@ function readResult(file) {
 }
 
 function requireMatchingOriginOccurrence(publication, options) {
-  if (options.requireOriginOccurrence && publication.origin_occurrence_id !== options.occurrenceId) {
+  const occurrenceId = publication.provider_effect_created === false
+    ? publication.result_occurrence_id || publication.origin_occurrence_id
+    : publication.origin_occurrence_id;
+  if (options.requireOriginOccurrence && occurrenceId !== options.occurrenceId) {
     throw new Error("mobile publication result origin occurrence does not match");
   }
 }
