@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Women's soccer set-piece brief</title>
+  <desc id="desc">A stylized soccer ball over a tactical corner arc</desc>
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <path d="M88 408C134 288 248 210 410 178" fill="none" stroke="#f6c945" stroke-width="18" stroke-linecap="round"/>
+  <path d="M107 379C188 390 279 356 358 278" fill="none" stroke="#62d6c5" stroke-width="14" stroke-dasharray="18 18" stroke-linecap="round"/>
+  <circle cx="300" cy="218" r="105" fill="#f9fafb"/>
+  <path d="M300 155l38 28-15 45h-46l-15-45zM237 202l40 26 15 45-37 29-39-29 1-45zM363 202l-1 45-39 26-37-29 15-45zM255 302l37-29h46l37 29-15 43h-90z" fill="#102a43"/>
+  <path d="M184 114v108M144 154h80" stroke="#ff7a59" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="184" cy="114" r="18" fill="#ff7a59"/>
+</svg>
