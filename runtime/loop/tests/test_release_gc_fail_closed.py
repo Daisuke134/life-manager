@@ -109,7 +109,7 @@ def test_every_release_removal_appends_a_receipt(tmp_path, monkeypatch):
     records = [json.loads(line) for line in log.read_text().splitlines()]
     assert sorted(record["path"] for record in records) == sorted(str(path) for path in stale)
     for record in records:
-        assert set(record) == {"ts", "path", "pid", "argv", "keep", "protected_count"}
+        assert set(record) == {"ts", "path", "pid", "ppid", "argv", "keep", "protected_count"}
         assert record["pid"] == os.getpid() and record["keep"] == 0
         assert record["protected_count"] == 2  # loaded + current
     assert stat.S_IMODE(log.stat().st_mode) == 0o600
