@@ -1,8 +1,9 @@
-"""D011: metadata-only guard against reusing one payment claim in a portfolio.
+"""D011: metadata-only guard for duplicate and unbound payment declarations.
 
 This is a *necessary* preflight before any future cross-opportunity sum, not
-provider settlement verification. It reads typed public-source declarations
-only, never fetches data or returns receipt identifiers, values or source URLs.
+provider settlement verification. It checks each declared evidence chain as
+well as cross-opportunity reuse, never fetches data or returns receipt IDs,
+amounts, beneficiary names or source URLs.
 """
 from __future__ import annotations
 
@@ -41,6 +42,13 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
             reasons.add("OPPORTUNITY_SCOPE_REUSED")
         scopes.add(scope)
 
+        # A portfolio must not call a claim "preliminary" when its own
+        # posting -> delivery -> approval -> settlement chain is broken.
+        # This is declaration consistency only, NOT external verification.
+        if any(getattr(record, name).visibility != "public"
+               for name in ("posting", "delivery", "approval")):
+            reasons.add("PUBLIC_EVIDENCE_CHAIN_INCOMPLETE")
+
         receipt = record.receipt
         if receipt is None:
             reasons.add("RECEIPT_MISSING")
@@ -49,6 +57,28 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
             reasons.add("RECEIPT_NOT_SETTLED")
         if record.settlement.visibility != "public" or record.settlement.source != receipt.source:
             reasons.add("SETTLEMENT_SOURCE_NOT_BOUND")
+        if (receipt.opportunity_id != record.opportunity_id
+                or receipt.beneficiary_group != record.beneficiary_group):
+            reasons.add("RECEIPT_SCOPE_NOT_BOUND")
+        if receipt.currency != record.currency:
+            reasons.add("RECEIPT_CURRENCY_NOT_BOUND")
+        if (record.delivered_artifact_sha256 is None
+                or record.approved_artifact_sha256 is None
+                or record.delivered_artifact_sha256 != record.approved_artifact_sha256
+                or receipt.artifact_sha256 != record.approved_artifact_sha256):
+            reasons.add("RECEIPT_ARTIFACT_NOT_BOUND")
+
+        # Merely relabeling a posting, approval or delivery page as a
+        # settlement receipt cannot provide independent payment evidence.
+        if any(
+            stage.source is not None and (
+                stage.source.source_id == receipt.source.source_id
+                or stage.source.url == receipt.source.url
+                or stage.source.content_sha256.lower() == receipt.source.content_sha256.lower()
+            )
+            for stage in (record.posting, record.delivery, record.approval)
+        ):
+            reasons.add("RECEIPT_REUSES_EARLIER_STAGE_EVIDENCE")
         source = receipt.source
         for field, reason in reason_by_field.items():
             value = getattr(source, field)

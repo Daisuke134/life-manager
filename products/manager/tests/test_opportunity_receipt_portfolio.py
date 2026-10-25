@@ -117,6 +117,71 @@ class ReceiptPortfolioTests(unittest.TestCase):
         self.assertEqual(result["status"], "PRELIMINARY_ONLY")
         self.assertFalse(result["provider_transaction_identity_verified"])
 
+    def test_receipt_must_bind_to_its_own_opportunity_and_beneficiary_group(self):
+        item = record("job_a", "receipt_a")
+        for field, mismatch in (
+            ("opportunity_id", "job_b"),
+            ("beneficiary_group", "different_public_group"),
+        ):
+            with self.subTest(field=field):
+                changed = replace(item, receipt=replace(item.receipt, **{field: mismatch}))
+                result = preflight_receipt_portfolio([changed])
+                self.assertEqual(result["status"], "REVIEW_REQUIRED")
+                self.assertIn("RECEIPT_SCOPE_NOT_BOUND", result["reason_codes"])
+                self.assertIsNone(result["verified_income_minor"])
+
+    def test_receipt_currency_must_match_record(self):
+        item = record("job_a", "receipt_a")
+        changed = replace(item, receipt=replace(item.receipt, currency="JPY"))
+        result = preflight_receipt_portfolio([changed])
+        self.assertIn("RECEIPT_CURRENCY_NOT_BOUND", result["reason_codes"])
+        self.assertFalse(result["can_count_declared_receipts_as_income"])
+
+    def test_receipt_artifact_must_bind_to_delivery_and_approval(self):
+        item = record("job_a", "receipt_a")
+        candidates = (
+            replace(item, delivered_artifact_sha256=None),
+            replace(item, approved_artifact_sha256=None),
+            replace(item, approved_artifact_sha256="b" * 64),
+            replace(item, receipt=replace(item.receipt, artifact_sha256="c" * 64)),
+        )
+        for altered in candidates:
+            with self.subTest(delivered=altered.delivered_artifact_sha256,
+                              approved=altered.approved_artifact_sha256):
+                result = preflight_receipt_portfolio([altered])
+                self.assertEqual(result["status"], "REVIEW_REQUIRED")
+                self.assertIn("RECEIPT_ARTIFACT_NOT_BOUND", result["reason_codes"])
+
+    def test_posting_delivery_and_approval_must_be_public_for_chain_review(self):
+        item = record("job_a", "receipt_a")
+        for stage_name in ("posting", "delivery", "approval"):
+            with self.subTest(stage=stage_name):
+                changed = replace(
+                    item, **{stage_name: OpportunityStage(stage_name, "unknown")}
+                )
+                result = preflight_receipt_portfolio([changed])
+                self.assertIn("PUBLIC_EVIDENCE_CHAIN_INCOMPLETE", result["reason_codes"])
+                self.assertFalse(result["can_execute"])
+
+    def test_receipt_cannot_reuse_posting_delivery_or_approval_evidence(self):
+        item = record("job_a", "receipt_a")
+        for stage_name in ("posting", "delivery", "approval"):
+            with self.subTest(stage=stage_name):
+                changed = change_receipt_source(item, getattr(item, stage_name).source)
+                result = preflight_receipt_portfolio([changed])
+                self.assertIn(
+                    "RECEIPT_REUSES_EARLIER_STAGE_EVIDENCE", result["reason_codes"]
+                )
+                self.assertFalse(result["independent_payment_verified"])
+
+    def test_distinct_evidence_remains_preliminary_only_and_never_income(self):
+        result = preflight_receipt_portfolio([record("job_a", "receipt_a")])
+        self.assertEqual(result["reason_codes"], [])
+        self.assertEqual(result["status"], "PRELIMINARY_ONLY")
+        self.assertIsNone(result["verified_income_minor"])
+        self.assertFalse(result["can_publish"])
+        self.assertFalse(result["independent_payment_verified"])
+
     def test_bad_shape_or_type_rejected_without_echo(self):
         for value in ([], (), "not a portfolio", [{}],
                       [record("job_a", "receipt_a")] * 129):
