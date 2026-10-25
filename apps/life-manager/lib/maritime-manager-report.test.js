@@ -117,14 +117,15 @@ test('paused, foreign, malformed report scopes and invalid timestamps do not sen
 test('artifact emails require a configured real origin before claiming or sending',async()=>{
  const f=deliveryFixture();const job=buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'first',dateKey:'2026-10-21'});
  f.input.result.work=[{jobId:job.job_id,artifactRefs:['artifact://product.md'],evidenceRefs:[],status:'completed',errorClass:null}];
- f.deps.env={RAILWAY_PUBLIC_DOMAIN:'worker.example'};await assert.rejects(deliverMaritimeDailyResult(f.input,f.deps),/origin/);assert.equal(f.sends.length,0);
- f.deps.env.LM_PANEL_BASE_URL='https://manager.example';await deliverMaritimeDailyResult(f.input,f.deps);
- assert.ok(f.sends[0].text.includes('https://manager.example/maritime/artifacts/'));
+ f.deps.env={RAILWAY_PUBLIC_DOMAIN:'worker.example',LM_PANEL_BASE_URL:'https://life-call-production.up.railway.app'};
+ await assert.rejects(deliverMaritimeDailyResult(f.input,f.deps),/Cloud public origin/);assert.equal(f.sends.length,0);
 
  const cloud=deliveryFixture();cloud.input.result.work=[{jobId:job.job_id,artifactRefs:['artifact://product.md'],evidenceRefs:[],status:'completed',errorClass:null}];
  cloud.deps.env={LM_PANEL_BASE_URL:'https://life-call-production.up.railway.app',LM_MARITIME_WEB_ORIGIN:'https://aniccaai.com'};
+ cloud.deps.publicOrigin='https://life-call-production.up.railway.app';
  await deliverMaritimeDailyResult(cloud.input,cloud.deps);
  assert.ok(cloud.sends[0].text.includes('https://aniccaai.com/maritime/artifacts/'));
+ assert.ok(!cloud.sends[0].text.includes('life-call-production.up.railway.app'));
 });
 
 

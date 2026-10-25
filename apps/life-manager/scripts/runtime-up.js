@@ -304,7 +304,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
       if (typeof dependencies.query !== "function") throw new Error("maritime report database unavailable");
       const report = require("../lib/maritime-manager-report.js");
       const deliveryDeps = { env, managerStore, resendKey: env.RESEND_API_KEY,
-        fetchImpl: dependencies.fetchImpl, publicOrigin: env.LM_PANEL_BASE_URL };
+        fetchImpl: dependencies.fetchImpl };
       const io = dependencies.maritimeReportReceiptIO
         || managerDependencies?.cfoReceiptIO;
       if (!io) throw new Error("maritime_manager_postgres_cfo_receipt_io_unavailable");
