@@ -300,6 +300,20 @@ def _write_draft_attempts(attempts):
         return False
 
 
+def _all_prelaunch_home_busy(proof):
+    """Every recorded attempt was refused before launch because both Codex homes were busy, so no agent ran."""
+    try:
+        path = Path(proof["attempts_path"]).resolve()
+        if path.parent != Path(proof["evidence_dir"]).resolve() or path.is_symlink() or path.stat().st_size > 64 * 1024:
+            return False
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    return bool(rows) and len(rows) == proof["attempt_count"] and all(
+        isinstance(row, dict) and row.get("provider_started") is False
+        and row.get("error_class") == "codex_home_busy" for row in rows)
+
+
 def refund_draft_attempt(agent_id, evidence_dir=None):
     """Refund once only with this fresh run's explicit model-provider deferral proof."""
     if evidence_dir is None:
@@ -313,7 +327,8 @@ def refund_draft_attempt(agent_id, evidence_dir=None):
         if not (isinstance(proof, dict) and proof.get("version") == 1
                 and type(proof.get("attempt_count")) is int and proof["attempt_count"] >= 0
                 and (proof.get("status") in {"budget_blocked", "failed"}
-                     or proof.get("status") == "provider_deferred" and proof["attempt_count"] == 0)
+                     or proof.get("status") == "provider_deferred" and proof["attempt_count"] == 0
+                     or proof.get("status") == "provider_deferred" and _all_prelaunch_home_busy(proof))
                 and proof.get("provider_started") is False
                 and proof.get("loop") == "capafy" and proof.get("task_label") == "capafy-drainer"
                 and proof.get("evidence_dir") == str(evidence)):

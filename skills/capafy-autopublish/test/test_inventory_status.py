@@ -1178,3 +1178,35 @@ def test_rejected_agent_matching_a_ready_listing_is_retried_but_a_frozen_one_is_
 
     assert decision["action"] == "retry_existing"
     assert decision["item"]["agent_id"] == "rej-1"
+
+
+def _busy_deferral(tmp_path, rows):
+    evidence = tmp_path / "busy"
+    evidence.mkdir()
+    attempts = evidence / "attempts.jsonl"
+    attempts.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    summary = {"version": 1, "status": "provider_deferred", "attempt_count": len(rows),
+               "provider_started": False, "reason": "codex_home_busy", "loop": "capafy",
+               "task_label": "capafy-drainer", "evidence_dir": str(evidence.resolve()),
+               "attempts_path": str(attempts.resolve())}
+    (evidence / "summary.json").write_text(json.dumps(summary))
+    return evidence
+
+
+def test_refund_accepts_a_deferral_where_every_attempt_was_a_prelaunch_codex_home_busy(tmp_path):
+    """2026-10-25: both Codex homes busy -> attempt_count 2, provider_started False; the refund required 0
+    attempts, so three busy passes locked every draft out (CAP_FULL) with no agent ever running."""
+    module = load_module()
+    busy = {"provider_started": False, "rc": 75, "error_class": "codex_home_busy"}
+    module.record_draft_attempt("d", {})
+    assert module.refund_draft_attempt("d", _busy_deferral(tmp_path, [busy, busy])) is True
+    assert "d" not in module.load_draft_attempts()
+
+
+def test_refund_rejects_a_deferral_when_any_attempt_actually_ran(tmp_path):
+    module = load_module()
+    busy = {"provider_started": False, "rc": 75, "error_class": "codex_home_busy"}
+    ran = {"provider_started": True, "rc": 1, "error_class": None}
+    module.record_draft_attempt("d", {})
+    assert module.refund_draft_attempt("d", _busy_deferral(tmp_path, [busy, ran])) is False
+    assert module.load_draft_attempts()["d"] == 1
