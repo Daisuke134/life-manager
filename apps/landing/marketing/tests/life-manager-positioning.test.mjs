@@ -17,6 +17,7 @@ test('English Life Manager page presents one broad product and its Cloud target'
   assert.match(html, /Calendar travel-time planning is one workflow, not the product\./);
   assert.doesNotMatch(html, /Start with the hosted Calendar assistant/);
   assert.doesNotMatch(html, /CLOUD · CALENDAR ASSISTANT/);
+  assert.doesNotMatch(html, /Illustrative workflow|class="dashboard"/);
   const manifest = JSON.parse(read('route-manifest.json'));
   assert.equal(manifest.files.find((file) => file.public_route === '/lm').sha256, sha256('pages/life-manager-en.html'));
 });
@@ -31,6 +32,7 @@ test('Japanese Life Manager page keeps the same broad product position', () => {
   assert.match(html, /移動時間の計画は、Life Managerのひとつの機能です/);
   assert.doesNotMatch(html, /ホスト版はカレンダー管理から/);
   assert.doesNotMatch(html, /CLOUD · CALENDAR ASSISTANT/);
+  assert.doesNotMatch(html, /実際の活動記録ではありません|class="dashboard"/);
   const manifest = JSON.parse(read('route-manifest.json'));
   assert.equal(manifest.files.find((file) => file.public_route === '/lm/ja').sha256, sha256('pages/life-manager.html'));
 });
