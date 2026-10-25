@@ -6,6 +6,7 @@ const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { createHmac } = require("node:crypto");
 const {
+  MANAGER_CONSENT_VERSION,
   normalizeMaritimeSource,
   renderMaritimeLanding,
   parseMaritimeStartPayload,
@@ -213,23 +214,72 @@ test("full cohort cap does not create a consent record or a provider milestone",
   assert.deepEqual(events, []);
 });
 
-test("landing_primary_cta_is_email_and_never_requires_telegram",()=>{
+test("landing_primary_cta_is_google_signin_and_does_not_require_calendar_or_telegram",()=>{
   const html=renderMaritimeLanding({source:"referral",language:"en"});
-  assert.match(html,/action="\/auth\/maritime\/email"/);assert.match(html,/type="email"/);
-  assert.doesNotMatch(html,/<input[^>]+name="(?:goal|budget|telegram)"/);
-  assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram is optional/);
+  assert.equal(MANAGER_CONSENT_VERSION,"maritime-manager-v2");
+  assert.match(html,/href="\/auth\/google\?intent=maritime_cloud&lang=en"/);
+  assert.doesNotMatch(html,/action="\/auth\/maritime\/email"|<input[^>]+type="email"/);
+  assert.doesNotMatch(html,/start_calendar=1|Connect Google Calendar/);
+  assert.doesNotMatch(html,/pilot/i);
+  assert.match(html,/Publisher Certification/);assert.match(html,/US\$0\.99/);
+  assert.match(html,/confirm the selected Skills and configuration on Capafy's website for each new or updated version/i);
+  assert.match(html,/will not report a live listing or earnings until Capafy confirms them/i);
+  assert.match(html,/payout details can be added after certification and are not required to publish/i);
+  assert.match(html,/Google sign-in verifies your identity and supplies your verified email address; it does not connect Calendar or grant access to your personal Gmail inbox/i);
+  assert.match(html,/A tenant-isolated mailbox is the planned path if platform email verification needs inbox access, but automatic mailbox provisioning is not yet available/i);
+  assert.doesNotMatch(html,/Life Manager provisions an isolated mailbox for your tenant and uses it/i);
+  assert.match(html,/does not read your personal Gmail inbox/i);
+  assert.match(html,/No task prompt is needed to start/i);
+  assert.match(html,/uses that address for authorized platform contact and result reports/i);
+  assert.match(html,/using the Publisher account you authorize/i);
+  assert.doesNotMatch(html,/<input[^>]+name="(?:task|goal|budget|telegram)"/);
+  assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram setup are not required/);
+});
+test("google_signin_failures_show_a_localized_retry_message_on_the_cloud_page",()=>{
+  const en=renderMaritimeLanding({language:"en",authError:"connection"});
+  const ja=renderMaritimeLanding({language:"ja",authError:"connection"});
+  assert.match(en,/Google sign-in did not complete\. Please try again\./);
+  assert.match(ja,/Googleログインを完了できませんでした。もう一度お試しください。/);
 });
 test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   const html=renderMaritimeLanding({source:"x",language:"ja",user:{email:'person<bad>@example.invalid',csrf:"a".repeat(64)},state:null});
   assert.match(html,/data-action="activate"/);assert.match(html,/data-csrf="a{64}"/);
   assert.match(html,/person&lt;bad&gt;@example.invalid/);assert.doesNotMatch(html,/person<bad>/);
-  assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/目標・予算の入力は必須ではありません/);
+  assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
+  assert.match(html,/確認済みメールへの状況・結果レポートに同意します/);
+  assert.match(html,/Googleログインだけで個人Gmail受信箱にアクセスすることはなく、読み取りません/);
+  assert.match(html,/確認済みサインインメールを使った、承認済みPublisherアカウントの登録・利用/);
+  assert.match(html,/テナント専用メールボックス機能が利用可能になり、認証メール確認に必要な場合、Life Managerがそれを用意・利用することを許可します/);
+  assert.match(html,/承認済みPublisherアカウントの登録・利用/);
+  assert.match(html,/規約同意.*本人確認.*Publisher確認はご本人が行います/);
+  assert.match(html,/data-consent="maritime-manager-v2"/);
+  assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/初回にタスク、目標、予算を入力する必要はありません/);
+  assert.match(html,/返金不可のUS\$0\.99/);assert.match(html,/振込先情報は認証後に追加でき、公開前には不要です/);
+  assert.match(html,/新しいAgentやバージョン更新ごとに、Capafy上で選択したSkillと設定内容を確認・確定する必要があります/);
+  assert.match(html,/公開や収益を確認できるまで、公開済み・収益発生とは報告しません/);
+  assert.match(html,/Googleログインは本人確認とメールアドレスの取得に使用し、Calendar接続や個人Gmail受信箱の読み取り権限は求めません/);
+  assert.match(html,/確認済みメールは連絡先と結果報告に使います/);
+  assert.match(html,/テナント専用メールボックス機能が利用可能になり、認証メール確認に必要な場合、Life Managerがそれを用意・利用することを許可します/);
+  const en=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"b".repeat(64)},state:"consent_required"});
+  assert.match(en,/using my verified sign-in email to register or sign in to my authorized Publisher account/i);
+  assert.match(en,/If tenant-mailbox provisioning becomes available and platform email verification needs an inbox, I authorize Life Manager to provision and use a mailbox isolated to my tenant/i);
+  assert.match(en,/Google sign-in alone does not grant access to my personal Gmail inbox, and Life Manager will not read it/i);
+  assert.match(en,/register or sign in to my authorized Publisher account/i);
+  assert.match(en,/legal, identity, and Publisher confirmations remain mine/i);
 });
 test("paused_or_uncertain_landing_does_not_offer_activation",()=>{
   for(const state of ["paused","effect_unknown","provisioning","pending","active"]){
     const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state});
     assert.doesNotMatch(html,/<button[^>]+data-action="activate"/,state);
   }
+});
+
+test("active manager status does not imply a verified Capafy listing or earnings",()=>{
+  const user={email:"person@example.invalid",csrf:"a".repeat(64)};
+  const en=renderMaritimeLanding({language:"en",user,state:"active"});
+  assert.match(en,/Life Manager is active; Capafy listing and earnings are not verified yet\./);
+  const ja=renderMaritimeLanding({language:"ja",user,state:"active"});
+  assert.match(ja,/Life Managerは稼働中です。Capafyでの公開と収益はまだ確認できていません。/);
 });
 
 test("landing_inline_script_is_valid_javascript",()=>{

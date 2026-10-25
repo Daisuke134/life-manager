@@ -4,6 +4,7 @@ const path=require('node:path');
 const {buildMaritimeManagerCycleJob,buildMaritimeManagerReportJob}=require('./maritime-manager-runtime.js');
 const {projectMaritimeSchedules}=require('./maritime-manager-schedules.js');
 const {zoneOffsetHours,localDay}=require('./user-tz.js');
+const {MANAGER_CONSENT_VERSION}=require('./maritime-distribution.js');
 const UID=/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ID=/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const SHA=/^[0-9a-f]{40}$/;
@@ -38,6 +39,20 @@ function buildMaritimeInitialJobs(enrollment){
  const reportMs=Date.parse(reportAt);const day=localDay(reportMs,zoneOffsetHours(enrollment.timezone,reportMs));
  return {cycle:{job:cycle,availableAt:createdAt},report:{job:buildMaritimeManagerReportJob({tenantId,releaseSha,periodKey:`maritime:daily:${day}`}),availableAt:reportAt}};
 }
+function buildMaritimeReconsentJobs(enrollment){
+ const tenantId=check(enrollment?.uid,UID);const releaseSha=check(enrollment.release_sha,SHA);
+ if(enrollment.consent_version!==MANAGER_CONSENT_VERSION||typeof enrollment.consent_v2_at!=='string'
+  ||!Number.isFinite(Date.parse(enrollment.consent_v2_at)))throw new Error('maritime_wake_reconsent_invalid');
+ const consentAt=new Date(enrollment.consent_v2_at).toISOString();
+ const cycle=buildMaritimeManagerCycleJob({tenantId,releaseSha,occurrenceId:'consent-v2-resume',dateKey:consentAt.slice(0,10)});
+ const snapshot=projectMaritimeSchedules({tenantId,releaseSha,status:'active',pausedAt:null,nextEligibleAt:null,
+  timezone:enrollment.timezone,nowMs:Date.parse(consentAt)});
+ const reportAt=snapshot.schedules.find(entry=>entry.id===`lm-report:${tenantId}`)?.nextRunAt;
+ const reportMs=Date.parse(reportAt);if(!Number.isFinite(reportMs))throw new Error('maritime_wake_reconsent_invalid');
+ const day=localDay(reportMs,zoneOffsetHours(enrollment.timezone,reportMs));
+ return {cycle:{job:cycle,availableAt:consentAt},report:{job:buildMaritimeManagerReportJob({tenantId,releaseSha,
+  periodKey:`maritime:daily:${day}`}),availableAt:reportAt}};
+}
 function send(response,status,body){if(response.destroyed||response.writableEnded)return;response.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(body));}
 async function wakeBody(request){
  if(String(request.headers?.['content-type']||'').split(';')[0].trim().toLowerCase()!=='application/json')throw new Error('body_invalid');
@@ -66,7 +81,9 @@ async function handleMaritimeManagerWake(request,response,options={}){
   const enrollment=await store.read(identity.uid);
   if(!enrollment||enrollment.uid!==identity.uid||enrollment.agent_id!==identity.agentId||enrollment.release_sha!==identity.releaseSha){send(response,403,{accepted:false,error:'wake_binding_rejected'});return true;}
   if(enrollment.status!=='active'||enrollment.paused_at){send(response,409,{accepted:false,error:'manager_inactive'});return true;}
-  const plan=buildMaritimeInitialJobs(enrollment)[kind];
+  if(enrollment.consent_version!==MANAGER_CONSENT_VERSION){send(response,409,{accepted:false,error:'manager_consent_required'});return true;}
+  const plans=enrollment.consent_v2_at?buildMaritimeReconsentJobs(enrollment):buildMaritimeInitialJobs(enrollment);
+  const plan=plans[kind];
   if(!(options.isCapabilityRegistered||registered)(plan.job.capability)){send(response,503,{accepted:false,error:'worker_capability_unavailable'});return true;}
   const queued=await (options.enqueueJobAt||require('./runtime-job-store.js').enqueueJobAt)(plan.job,plan.availableAt,options.storeOptions||{});
   if(typeof queued?.created!=='boolean'||queued.job?.job_id!==plan.job.job_id||queued.job?.tenant_id!==identity.uid
@@ -76,4 +93,4 @@ async function handleMaritimeManagerWake(request,response,options={}){
  }catch{send(response,503,{accepted:false,error:'wake_unavailable'});}
  return true;
 }
-module.exports={createMaritimeWakeBinding,verifyMaritimeWakeToken,buildMaritimeInitialJobs,handleMaritimeManagerWake};
+module.exports={createMaritimeWakeBinding,verifyMaritimeWakeToken,buildMaritimeInitialJobs,buildMaritimeReconsentJobs,handleMaritimeManagerWake};

@@ -17,6 +17,7 @@ try { ({ createMaritimeManagerPersistence } = require("../../lib/maritime-manage
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 
 const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
+const CONSENT_ANCHOR_MIGRATION = path.join(__dirname, "../../migrations/20261025174214_lm_maritime_manager_consent_anchor.sql");
 const MANAGER_TABLES = [
   "lm_maritime_manager_identities",
   "lm_maritime_manager_enrollments",
@@ -25,6 +26,12 @@ const MANAGER_TABLES = [
   "lm_web_funnel_events",
   "lm_cfo_result_receipts",
 ];
+
+test("consent resume migration adds its durable anchor", () => {
+  const sql = fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8");
+  assert.match(sql, /ALTER\s+TABLE\s+public\.lm_maritime_manager_enrollments[\s\S]*ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+consent_v2_at\s+timestamptz/i);
+  assert.match(sql, /COMMENT\s+ON\s+COLUMN\s+public\.lm_maritime_manager_enrollments\.consent_v2_at/i);
+});
 
 test("fresh runtime PostgreSQL fails closed until all six Manager state tables exist", async (t) => {
   let bin;
@@ -84,6 +91,11 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(client.connectionParameters.host, socket, "fixture connects only over its private Unix socket");
     assert.equal(fs.existsSync(IDENTITY_MIGRATION), true, "runtime identity migration must exist");
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
+    assert.equal(fs.existsSync(CONSENT_ANCHOR_MIGRATION), true, "consent resume anchor migration must exist");
+    await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
+    assert.equal((await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_enrollments' AND column_name='consent_v2_at'",
+    )).rowCount, 1, "consent resume anchor column is present");
 
     const migrated = await client.query(
       "SELECT name, to_regclass(format('public.%I', name))::text AS relation FROM unnest($1::text[]) AS name ORDER BY name",
@@ -311,7 +323,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_enrollments'",
     );
     const enrollmentNames = new Set(enrollmentColumns.rows.map(row => row.column_name));
-    for (const column of ["uid", "auth_subject", "email", "timezone", "status", "source", "consent_version", "agent_id", "release_sha", "paused_at"]) {
+    for (const column of ["uid", "auth_subject", "email", "timezone", "status", "source", "consent_version", "consent_v2_at", "agent_id", "release_sha", "paused_at"]) {
       assert.ok(enrollmentNames.has(column), `enrollment schema includes ${column}`);
     }
     await client.query(`INSERT INTO public.lm_maritime_manager_enrollments(uid,auth_subject,email,status,source,consent_version,release_sha)
@@ -685,10 +697,14 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(cfoReceipt.sent_at, "2026-10-21T23:30:00.000Z");
 
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
+    await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
+    await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
     assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
     assert.equal((await client.query("SELECT event_id FROM public.lm_web_funnel_events WHERE event_id='work-1'")).rows[0].event_id, "work-1", "reapplying the migration preserves append-only events");
     assert.equal((await client.query("SELECT status FROM public.lm_cfo_result_receipts WHERE uid=$1 AND period_key=$2", [uidA, "maritime:daily:2026-10-22"])).rows[0].status, "sent", "reapplying the migration preserves CFO delivery receipts");
+    assert.equal((await client.query("SELECT consent_v2_at FROM public.lm_maritime_manager_enrollments WHERE uid=$1", [uidA])).rows[0].consent_v2_at,
+      null, "reapplying the migration does not invent an acceptance timestamp for existing tenants");
   } finally {
     if (racingClient) await racingClient.end();
     if (client) await client.end();

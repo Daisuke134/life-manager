@@ -246,6 +246,32 @@ async function readCommonJob(input, opts = {}) {
   return commonRecordContract().projectJob(rows[0]);
 }
 
+async function readRuntimeJobState(input, opts = {}) {
+  const tenantId = nonEmpty(input && input.tenantId, "runtime tenant id");
+  const job = buildRuntimeJob(input && input.job);
+  if (job.tenant_id !== tenantId) throw new Error("runtime state tenant mismatch");
+  const { query } = database(opts);
+  const rows = (await query(`
+    SELECT job_id, tenant_id, loop_id, capability, effect_class, effect_key,
+           input_refs, max_attempts, attempt, status, last_error_code
+    FROM public.lm_runtime_jobs
+    WHERE job_id = $1 AND tenant_id = $2
+    LIMIT 1
+  `, [job.job_id, tenantId])).rows;
+  if (rows.length === 0) return null;
+  if (rows.length !== 1) throw new Error("runtime state read returned multiple rows");
+  const row = rows[0];
+  assertSameJob(row, job);
+  if (!new Set(["queued", "running", "reconciling", "completed", "dead_letter"]).has(row.status)
+    || !Number.isInteger(row.attempt) || row.attempt < 0 || row.attempt > job.max_attempts
+    || (row.last_error_code != null && (typeof row.last_error_code !== "string"
+      || row.last_error_code.length < 1 || row.last_error_code.length > 200))) {
+    throw new Error("runtime state invalid");
+  }
+  return Object.freeze({ job_id: job.job_id, tenant_id: tenantId, status: row.status,
+    attempt: row.attempt, max_attempts: job.max_attempts, last_error_code: row.last_error_code || null });
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -549,6 +575,7 @@ module.exports = {
   enqueueJob,
   enqueueJobAt,
   readCommonJob,
+  readRuntimeJobState,
   readCommonReceipt,
   claimJobs,
   claimReconcilingJobs,

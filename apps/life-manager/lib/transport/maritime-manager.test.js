@@ -6,6 +6,7 @@ const { createMaritimeManagerTransport } = require('./maritime-manager.js');
 const { createMaritimeWakeBinding } = require('../maritime-manager-wake.js');
 const { projectMaritimeSchedules } = require('../maritime-manager-schedules.js');
 const { createMaritimeManagerLoopAdapter, buildMaritimeManagerCycleJob } = require('../maritime-manager-runtime.js');
+const { MANAGER_CONSENT_VERSION } = require('../maritime-distribution.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const ARCHIVE = 'b'.repeat(64);
@@ -13,7 +14,8 @@ const UPLOAD = 'uploads/fixture/source.zip';
 const env = { MARITIME_API_KEY: 'mk_fixture_key_only', LM_UID_SECRET: 'fixture-global-identity-is-different', LM_MARITIME_MANAGER_ID_SECRET: 'fixture-manager-identity-secret-32-bytes-long' };
 const externalId = 'lm-manager-' + createHmac('sha256', env.LM_MARITIME_MANAGER_ID_SECRET).update(`agent:v1:${UID}`).digest('hex').slice(0,32);
 function fixture() {
-  const row = { uid: UID, auth_subject: UID.slice(3), status: 'pending', paused_at: null, release_sha: SHA, agent_id: null };
+  const row = { uid: UID, auth_subject: UID.slice(3), status: 'pending', consent_version: MANAGER_CONSENT_VERSION,
+    paused_at: null, release_sha: SHA, agent_id: null };
   let agent = null; let failCreate = false; let missingExecution = false; let checkpoint = null;
   let download = new TextEncoder().encode('original product');
   let oversized = false; let cancelled = 0;
