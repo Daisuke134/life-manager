@@ -47,7 +47,7 @@ docker exec -i "$DOCKER_NAME" psql -X -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAM
 
 [[ "$(docker exec "$DOCKER_NAME" psql -X -Atqc "SELECT rolbypassrls FROM pg_roles WHERE rolname='service_role'" -U postgres -d "$DB_NAME")" == "f" ]]
 
-docker exec "$DOCKER_NAME" psql -X -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAME" >/dev/null <<'SQL'
+docker exec -i "$DOCKER_NAME" psql -X -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAME" >/dev/null <<'SQL'
 SET ROLE service_role;
 DO $$
 BEGIN

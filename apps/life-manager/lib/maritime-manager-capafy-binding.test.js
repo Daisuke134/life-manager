@@ -172,6 +172,11 @@ test("private binding migration denies public roles and keys credentials to the 
   assert.match(migration, /GRANT SELECT, UPDATE ON TABLE private\.lm_maritime_manager_capafy_recovery_cursor TO service_role/i);
 });
 
+test("Capafy Postgres integration test streams service_role assertions into psql", () => {
+  const integration = fs.readFileSync(path.join(__dirname, "../test/postgres/maritime-capafy-bindings.integration.sh"), "utf8");
+  assert.match(integration, /docker exec -i "\$DOCKER_NAME" psql[^\n]*<<'SQL'\nSET ROLE service_role;/);
+});
+
 test("Capafy unlink remains available when encryption-key configuration is unavailable", async () => {
   let deleted = false;
   const store = createMaritimeCapafyBindingStore({ query: async (sql, values) => {
