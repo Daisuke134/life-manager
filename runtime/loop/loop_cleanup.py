@@ -180,7 +180,7 @@ def _record_release_removal(path: Path, keep: int, protected_count: int) -> None
         pwd.getpwuid(os.getuid()).pw_dir) / ".local/state/life-manager/release-gc.jsonl")
     log.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     line = json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "path": str(path),
-                       "pid": os.getpid(), "argv": sys.argv, "keep": keep,
+                       "pid": os.getpid(), "ppid": os.getppid(), "argv": sys.argv, "keep": keep,
                        "protected_count": protected_count}, sort_keys=True).encode() + b"\n"
     descriptor = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
     try:
