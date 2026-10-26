@@ -25633,3 +25633,10 @@ Manager v1は「大きなモデルを作った時」ではなく、(1)既存研�
 - **Verification:** isolated PostgreSQL integration 2/2; store/runtime/transport 70/70; targeted signup/activation/reconsent auth 21/21; source-boundary and OSS verification pass. Full auth run has 54 pass and one server-load test blocked by missing `canonicalize` in this worktree. No provider calls, signup, deployment, or customer effect.
 - **Exact-head checks:** Security Scan run 40289608629 and Cloud reminder contracts run 40289608677 are queued for `98a21bb`; GitHub reports mergeable=true while checks are pending.
 - **Next:** await exact-head CI, then update BOARD and report the result to `daisuke/cursor`.
+
+### Maritime Step 2 CI green / Step 3 billing config cursor — 2026-10-26T08:33Z
+
+- **Step 2 code:** commit `f6abab3171696c4174e1704b1761149699adc1e1` requires current `maritime-manager-v2` consent before provisioning claim or agent binding. No signup, provider, deployment, or customer effect was performed.
+- **PR readback:** #8745 remains OPEN/DRAFT, base `db85e8b85958bb56889b1e07338f8ff633edcd31`, exact head `802fa0322effe22cc4712f8e591efbfddba51c77`, `CLEAN/MERGEABLE`.
+- **CI:** Security Scan run `40291616102` passes all 14 jobs; Cloud reminder contracts run `40291616047` passes. Step 2 focused tests: isolated PostgreSQL 2/2, store/runtime/transport 70/70, targeted signup/activation/reconsent auth 21/21, source-boundary and OSS checks pass. The full auth suite remains 54/55 because this worktree lacks the `canonicalize` import used by one server-load test.
+- **Step 3 first slice:** implemented a pure config resolver for dedicated `LM_CLOUD_STRIPE_PRICE_ID`; it fails closed when absent/malformed or equal to legacy `LM_STRIPE_PRICE_ID`. RED confirmed the module was absent; the focused test now passes 1/1, and source-boundary plus OSS checks pass. Cloud price is undecided, live billing stays off, and no Stripe/provider call occurred. Next: commit/push this code+test slice and read the exact-head CI.
