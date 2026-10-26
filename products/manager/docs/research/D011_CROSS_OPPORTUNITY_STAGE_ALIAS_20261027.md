@@ -29,3 +29,14 @@
 **残る原受入れ条件：** 正当な公開決済証拠の実在性、署名／発行者／取引ID、取消・返金・二重計上、真の受取の外部照合。外部個票や認証情報を取らない限り、この原タスクは `todo` のまま。
 
 **検証予定：** `cd products/manager && python3 -m unittest tests.test_opportunity_receipt_portfolio -v && python3 -m unittest discover -s tests -v && python3 scripts/check_boundaries.py && python3 scripts/make_roadmap.py --check`。 hosted CIの結論・コミットとsource readbackを別途照合する。
+
+## Hosted CI & independent readback (2026-10-27 JST)
+
+Implementation commit: https://github.com/Daisuke134/life-manager/commit/61b0d06ca945aeb55d09c6f6bd20f13454279fe8
+
+- [Manager Independent Offline Research](https://github.com/Daisuke134/life-manager/actions/runs/40422285572): **success**. Its hosted job logs show the two new tests passing, `Ran 541 tests`, `OK (skipped=5)`, and `PASS 113 tasks; task JSON untouched`.
+- [Manager EBA v0 Open Benchmark](https://github.com/Daisuke134/life-manager/actions/runs/40422285492): **success**. The offline benchmark job independently ran 541 tests with 5 skipped.
+- [Manager Phase06 Digital Environment](https://github.com/Daisuke134/life-manager/actions/runs/40422285602): **success**. Browser/environment checks are technical checks, not field welfare measurements.
+- Independently read back implementation, tests and this note through the GitHub connector at the implementation commit; confirmed new reason code and tests. Registry remains 113 original items: **69 done, 41 todo, 3 blocked**; D011 is `todo`, H005 is `blocked`.
+
+These results cover the synthetic P0 guard only, not verified transaction identity, independent received income, actual downstream effect or reduced suffering. Any subsequent registry-only commit must be verified separately.
