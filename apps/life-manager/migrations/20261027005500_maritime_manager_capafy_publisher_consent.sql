@@ -48,3 +48,29 @@ CREATE POLICY lm_maritime_manager_capafy_publisher_consents_service_role_access
 REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_publisher_consents FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA private TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE private.lm_maritime_manager_capafy_publisher_consents TO service_role;
+
+-- Record the customer's acceptance of the exact data disclosure shown for one
+-- Skill. The digest binds action admission to the version the customer saw.
+CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_skill_disclosures (
+  uid text NOT NULL,
+  auth_subject uuid NOT NULL,
+  agreement_version text NOT NULL CHECK (agreement_version = 'v1.2'),
+  skill_id text NOT NULL CHECK (skill_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
+  disclosure_sha256 text NOT NULL CHECK (disclosure_sha256 ~ '^[a-f0-9]{64}$'),
+  accepted_at timestamptz NOT NULL,
+  withdrawn_at timestamptz,
+  PRIMARY KEY (uid, auth_subject, agreement_version, skill_id, disclosure_sha256),
+  CHECK (uid ~ '^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  FOREIGN KEY (uid, auth_subject, agreement_version)
+    REFERENCES private.lm_maritime_manager_capafy_publisher_consents(uid, auth_subject, agreement_version)
+    ON DELETE CASCADE
+);
+
+ALTER TABLE private.lm_maritime_manager_capafy_skill_disclosures ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS lm_maritime_manager_capafy_skill_disclosures_service_role_access
+  ON private.lm_maritime_manager_capafy_skill_disclosures;
+CREATE POLICY lm_maritime_manager_capafy_skill_disclosures_service_role_access
+  ON private.lm_maritime_manager_capafy_skill_disclosures FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_skill_disclosures FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT ON TABLE private.lm_maritime_manager_capafy_skill_disclosures TO service_role;

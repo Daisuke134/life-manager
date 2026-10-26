@@ -48,7 +48,9 @@ function validateMaritimeCapafyInputRefs(value) {
   if (!phase) return false;
   const refs = value.input_refs;
   const tenant = value.tenant_id;
+  const hasSkillScope = refs?.skill_id !== undefined || refs?.skill_disclosure_sha256 !== undefined;
   const keys = ["source_cycle_job_id", "artifact_ref", "account_ref", "occurrence_id", "release_ref",
+    ...(hasSkillScope ? ["skill_id", "skill_disclosure_sha256"] : []),
     ...(phase === "publish" ? ["prepare_job_id", "agent_id", "agent_version_id"] : [])].sort();
   if (!/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tenant || "")
     || !refs || typeof refs !== "object" || Array.isArray(refs)
@@ -64,6 +66,7 @@ function validateMaritimeCapafyInputRefs(value) {
     || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(refs.account_ref.slice(`account://capafy/${tenant}/`.length))
     || !refs.artifact_ref.startsWith("artifact://") || refs.artifact_ref.includes("\0")
     || refs.artifact_ref.slice(11).split("/").some(part => !part || part === "." || part === "..")
+    || (hasSkillScope && (!ID.test(refs.skill_id || "") || !/^[a-f0-9]{64}$/.test(refs.skill_disclosure_sha256 || "")))
     || (phase === "publish" && (refs.prepare_job_id !== maritimeCapafyJobId("prepare", tenant, refs.occurrence_id)
       || !ID.test(refs.agent_id) || !ID.test(refs.agent_version_id)))) invalid("Maritime Capafy input_refs");
   return true;

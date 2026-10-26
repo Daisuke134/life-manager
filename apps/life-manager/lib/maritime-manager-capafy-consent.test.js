@@ -193,6 +193,54 @@ test("tenant consent readback is tenant-bound and the withdrawal migration is se
   assert.equal(visible.supportObligationSections, "v1.2:3.2,4.2-4.3,8.5");
 });
 
+test("Skill data disclosure is explicit, tenant-bound, versioned, and idempotent", async () => {
+  const disclosureSha256 = "a".repeat(64);
+  let disclosureRow = null, inserts = 0;
+  const store = createMaritimeCapafyPublisherConsentStore({ now: () => NOW, query: async (sql, values) => {
+    if (/FROM private\.lm_maritime_manager_capafy_publisher_consents/i.test(sql)) return { rows: [{
+      uid: TENANT, auth_subject: SUBJECT, agreement_version: "v1.2", effective_date: "2026-09-28",
+      agreement_url: "https://capafy.ai/publisher-agreement/", certification_fee_usd: "0.99", accepted_at: NOW,
+    }] };
+    if (/INSERT INTO private\.lm_maritime_manager_capafy_skill_disclosures/i.test(sql)) {
+      inserts++;
+      if (disclosureRow) return { rows: [] };
+      disclosureRow = { uid: values[0], auth_subject: values[1], agreement_version: values[2],
+        skill_id: values[3], disclosure_sha256: values[4], accepted_at: values[5], withdrawn_at: null };
+      return { rows: [{ ...disclosureRow }] };
+    }
+    if (/FROM private\.lm_maritime_manager_capafy_skill_disclosures/i.test(sql)) {
+      return disclosureRow && disclosureRow.uid === values[0] && disclosureRow.auth_subject === values[1]
+        && disclosureRow.agreement_version === values[2] && disclosureRow.skill_id === values[3]
+        && disclosureRow.disclosure_sha256 === values[4] && !disclosureRow.withdrawn_at
+        ? { rows: [{ ...disclosureRow }] } : { rows: [] };
+    }
+    throw new Error("unexpected query");
+  } });
+  const input = { tenantId: TENANT, authSubject: SUBJECT, skillId: "agent-1", disclosureSha256,
+    accepted: true };
+  const receipt = await store.recordSkillDisclosure(input);
+  const repeated = await store.recordSkillDisclosure(input);
+  assert.deepEqual(receipt, { skillId: "agent-1", disclosureSha256, agreementVersion: "v1.2", acceptedAt: NOW });
+  assert.deepEqual(repeated, receipt);
+  assert.equal(inserts, 2);
+  assert.deepEqual(await store.readSkillDisclosure(input), { tenantId: TENANT, authSubject: SUBJECT,
+    skillId: "agent-1", disclosureSha256, agreementVersion: "v1.2", acceptedAt: NOW, withdrawnAt: null });
+  assert.doesNotMatch(JSON.stringify([receipt, disclosureRow]), /Private Name|verified@example\.test|support@example\.test|am_sk_/i);
+  await assert.rejects(store.recordSkillDisclosure({ ...input, accepted: false }), /skill_data_disclosure_required/i);
+});
+
+test("a Skill disclosure cannot be recorded without current tenant Publisher consent", async () => {
+  let inserts = 0;
+  const store = createMaritimeCapafyPublisherConsentStore({ query: async sql => {
+    if (/FROM private\.lm_maritime_manager_capafy_publisher_consents/i.test(sql)) return { rows: [] };
+    if (/INSERT INTO private\.lm_maritime_manager_capafy_skill_disclosures/i.test(sql)) inserts++;
+    return { rows: [] };
+  } });
+  await assert.rejects(store.recordSkillDisclosure({ tenantId: TENANT, authSubject: SUBJECT,
+    skillId: "agent-1", disclosureSha256: "a".repeat(64), accepted: true }), /publisher_agreement_consent_required/i);
+  assert.equal(inserts, 0);
+});
+
 test("consent migration keeps legal facts tenant-bound and inaccessible to public roles", () => {
   const migration = fs.readFileSync(path.join(__dirname,
     "../migrations/20261027005500_maritime_manager_capafy_publisher_consent.sql"), "utf8");
@@ -205,4 +253,7 @@ test("consent migration keeps legal facts tenant-bound and inaccessible to publi
   assert.match(migration, /REVOKE ALL ON TABLE private\.lm_maritime_manager_capafy_publisher_consents FROM PUBLIC, anon, authenticated/i);
   assert.match(migration, /withdrawn_at timestamptz/i);
   assert.match(migration, /GRANT SELECT, INSERT, UPDATE ON TABLE private\.lm_maritime_manager_capafy_publisher_consents TO service_role/i);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS private\.lm_maritime_manager_capafy_skill_disclosures/i);
+  assert.match(migration, /PRIMARY KEY \(uid, auth_subject, agreement_version, skill_id, disclosure_sha256\)/i);
+  assert.match(migration, /GRANT SELECT, INSERT ON TABLE private\.lm_maritime_manager_capafy_skill_disclosures TO service_role/i);
 });

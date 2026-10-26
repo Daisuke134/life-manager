@@ -10,9 +10,14 @@ class ProviderError extends Error {
 }
 const invalid = () => {throw new ProviderError("maritime_capafy_chain_invalid");};
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const SHA256=/^[a-f0-9]{64}$/;
 function providerJob(phase,input={}) {
+  if((input.skillId===undefined)!==(input.disclosureSha256===undefined)
+    ||(input.skillId!==undefined&&(!ID.test(input.skillId)||!SHA256.test(input.disclosureSha256))))
+    throw new ProviderError(input.skillId===undefined?"maritime_capafy_skill_id_required":"maritime_capafy_skill_data_disclosure_required");
   const refs={source_cycle_job_id:input.sourceCycleJobId||input.cycleJobId,artifact_ref:input.artifactRef,
     account_ref:input.accountRef,occurrence_id:input.occurrenceId,release_ref:`release://git/${input.releaseSha}`,
+    ...(input.skillId===undefined?{}:{skill_id:input.skillId,skill_disclosure_sha256:input.disclosureSha256}),
     ...(phase==="publish"?{prepare_job_id:input.prepareJobId,agent_id:input.agentId,agent_version_id:input.agentVersionId}:{})};
   const digest=createHash("sha256").update(`maritime-capafy-${phase}:v1:${input.tenantId}:${input.occurrenceId}`).digest("hex");
   return buildRuntimeJob({jobId:`maritime-capafy-${phase}:${digest}`,tenantId:input.tenantId,
@@ -31,7 +36,10 @@ function readMaritimeCapafyJobContract(job) {
     const c={phase,tenantId:normalized.tenant_id,releaseSha:refs.release_ref.slice(14),
       occurrenceId:refs.occurrence_id,sourceCycleJobId:refs.source_cycle_job_id,
       artifactRef:refs.artifact_ref,accountRef:refs.account_ref,
+      ...(refs.skill_id===undefined?{}:{skillId:refs.skill_id,disclosureSha256:refs.skill_disclosure_sha256}),
       ...(phase==="publish"?{prepareJobId:refs.prepare_job_id,agentId:refs.agent_id,agentVersionId:refs.agent_version_id}:{})};
+    if((refs.skill_id===undefined)!==(refs.skill_disclosure_sha256===undefined)
+      ||(refs.skill_id!==undefined&&(!ID.test(refs.skill_id)||!SHA256.test(refs.skill_disclosure_sha256))))invalid();
     if(!isDeepStrictEqual(normalized,providerJob(phase,c)))invalid();
     return Object.freeze(c);
   } catch {invalid();}
@@ -110,7 +118,8 @@ function verifyMaritimeCapafyPublishReceipt(receipt,job,prepareJob,prepareReceip
 }
 async function withProviderAccess(provider,expectedIdentity,operation,mode="action") {
   if(typeof provider?.withAccessToken!=="function")throw new ProviderError("maritime_capafy_unconfigured");
-  return provider.withAccessToken({tenantId:expectedIdentity.tenantId,accountRef:expectedIdentity.accountRef},async(accessToken,identity)=>{
+  return provider.withAccessToken({tenantId:expectedIdentity.tenantId,accountRef:expectedIdentity.accountRef,
+    skillId:expectedIdentity.skillId,disclosureSha256:expectedIdentity.disclosureSha256},async(accessToken,identity)=>{
     if(typeof accessToken!=="string" || identity?.provider!=="capafy"
       || identity.tenantId!==expectedIdentity.tenantId || identity.accountRef!==expectedIdentity.accountRef
       || identity.providerSubject!==expectedIdentity.providerSubject
@@ -156,7 +165,7 @@ function createAdapter(phase,services={}) {
     }
     if(guard) {
       if(typeof provider.guardArtifact!=="function")throw new ProviderError("maritime_capafy_unconfigured");
-      const gate=await withProviderAccess(provider,account,({accessToken,identity})=>
+      const gate=await withProviderAccess(provider,{...account,skillId:c.skillId,disclosureSha256:c.disclosureSha256},({accessToken,identity})=>
         provider.guardArtifact({identity,...c,accessToken}));
       if(gate?.original!==true || gate.frozen!==false || gate.duplicate!==false)
         throw new ProviderError("maritime_capafy_artifact_rejected");
@@ -208,7 +217,8 @@ function createAdapter(phase,services={}) {
       const dispatch=provider[phase];
       if(typeof dispatch!=="function")throw new ProviderError("maritime_capafy_unconfigured");
       try {
-        await withProviderAccess(provider,bound.account,({accessToken,identity})=>
+        await withProviderAccess(provider,{...bound.account,skillId:bound.c.skillId,
+          disclosureSha256:bound.c.disclosureSha256},({accessToken,identity})=>
           dispatch({job,identity,accessToken}));
         const proof=await inspect(job,bound);
         if(proof.state==="present")return {receipt:proof.receipt};
@@ -239,7 +249,7 @@ function createAdapter(phase,services={}) {
 }
 // Called by a trusted host after durable central cycle completion. No account
 // is inferred from model output, a founder profile, or a VM environment variable.
-async function enqueueMaritimeCapafyPrepareFromCycle({job,receipt}={},services={}) {
+async function enqueueMaritimeCapafyPrepareFromCycle({job,receipt,skillId,disclosureSha256}={},services={}) {
   const c=readMaritimeCycleContract(job),provider=services.provider;
   if(!provider || typeof provider.readAccountBinding!=="function" || typeof provider.guardArtifact!=="function"
     || typeof services.enqueueJob!=="function")throw new ProviderError("maritime_capafy_unconfigured");
@@ -250,10 +260,12 @@ async function enqueueMaritimeCapafyPrepareFromCycle({job,receipt}={},services={
     || enrollment.release_sha!==c.releaseSha)throw new ProviderError("maritime_capafy_inactive");
   if(typeof provider.withAccessToken!=="function")throw new ProviderError("maritime_capafy_unconfigured");
   for(const artifactRef of receipt?.artifact_refs||[]) {
-    const identity={...c,sourceCycleJobId:job.job_id,artifactRef,accountRef:account.accountRef};
+    const identity={...c,sourceCycleJobId:job.job_id,artifactRef,accountRef:account.accountRef,
+      ...(skillId===undefined?{}:{skillId}),...(disclosureSha256===undefined?{}:{disclosureSha256})};
     if(!verifyCycle(identity,job,receipt))invalid();
     const next=buildMaritimeCapafyPrepareJob(identity);
-    const gate=await withProviderAccess(provider,account,({accessToken,identity:bound})=>
+    const gate=await withProviderAccess(provider,{...account,skillId:identity.skillId,
+      disclosureSha256:identity.disclosureSha256},({accessToken,identity:bound})=>
       provider.guardArtifact({identity:bound,...identity,accessToken}));
     if(gate?.original===true && gate.frozen===false && gate.duplicate===false)return services.enqueueJob(next);
   }

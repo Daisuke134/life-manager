@@ -5,6 +5,8 @@ const { buildMaritimeManagerCycleJob } = require("./maritime-manager-runtime.js"
 const runtime = () => require("./maritime-manager-provider-runtime.js");
 const UID = "lm_11111111-1111-4111-8111-111111111111";
 const SHA = "a".repeat(40);
+const SKILL_ID = "agent-1";
+const DISCLOSURE_SHA256 = "b".repeat(64);
 function fixture() {
   const cycle = {...buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:SHA,occurrenceId:"first",dateKey:"2026-10-23"}),status:"completed"};
   const cycleRef="maritime-execution://vm-1/exec-1";
@@ -13,7 +15,8 @@ function fixture() {
     status:"completed",artifact_refs:["artifact://original/listing.md"],error_class:null,provider:"maritime",
     external_ref:cycleRef,evidence_refs:[cycleRef]};
   const args={tenantId:UID,releaseSha:SHA,occurrenceId:"first",cycleJobId:cycle.job_id,
-    artifactRef:cycleReceipt.artifact_refs[0],accountRef:`account://capafy/${UID}/seller-1`};
+    artifactRef:cycleReceipt.artifact_refs[0],accountRef:`account://capafy/${UID}/seller-1`,
+    skillId:SKILL_ID,disclosureSha256:DISCLOSURE_SHA256};
   const prepare={...runtime().buildMaritimeCapafyPrepareJob(args),attempt:1,status:"running"};
   const prepareReceipt=receipt(prepare,"prepared",{agent_id:"123",agent_version_id:"456"});
   const publish={...runtime().buildMaritimeCapafyPublishJob({...args,sourceCycleJobId:cycle.job_id,
@@ -21,13 +24,21 @@ function fixture() {
   const publishReceipt=receipt(publish,"under_review");
   let prepares=0,publishes=0;
   const proof = r => ({state:"present",receipt:r});
+  const actionScopes=[];
   const provider={
     readAccountBinding:async ({tenantId,accountRef})=>({provider:"capafy",tenantId,accountRef,
       providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1",
       publisherAgreementVersion:"v1.2"}),
-    withAccessToken:async ({tenantId,accountRef},operation)=>operation("am_sk_"+"t".repeat(32),
-      {provider:"capafy",tenantId,accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
-        autonomyConsentVersion:"maritime-capafy-autonomy-v1",publisherAgreementVersion:"v1.2"}),
+    withAccessToken:async ({tenantId,accountRef,skillId,disclosureSha256},operation,{mode="action"}={})=>{
+      if(mode==="action"){
+        if(!skillId)throw new Error("maritime_capafy_skill_id_required");
+        if(!disclosureSha256)throw new Error("maritime_capafy_skill_data_disclosure_required");
+        actionScopes.push({skillId,disclosureSha256});
+      }
+      return operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,accountRef,
+        providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
+        autonomyConsentVersion:"maritime-capafy-autonomy-v1",publisherAgreementVersion:"v1.2"});
+    },
     guardArtifact:async ()=>({original:true,frozen:false,duplicate:false}),
     prepare:async ()=>{prepares++;},publish:async ()=>{publishes++;},
     readPrepare:async ()=>proof(prepareReceipt),readPublish:async ()=>proof(publishReceipt),
@@ -38,7 +49,7 @@ function fixture() {
     readCompletedCycle:async()=>({job:cycle,receipt:cycleReceipt}),
     readPrepareReceipt:async()=>({job:{...prepare,status:"completed"},receipt:prepareReceipt}),
     provider,now:()=>"2026-10-23T12:00:00.000Z"};
-  return {cycle,cycleReceipt,args,prepare,prepareReceipt,publish,publishReceipt,provider,services,
+  return {cycle,cycleReceipt,args,prepare,prepareReceipt,publish,publishReceipt,provider,services,actionScopes,
     counts:()=>({prepares,publishes})};
 }
 function receipt(job,status,extra={}) {
@@ -51,11 +62,25 @@ function receipt(job,status,extra={}) {
 test("provider jobs carry the exact immutable source chain and stable single-attempt effect",()=>{
   assert.doesNotThrow(()=>runtime());
   const f=fixture();
-  assert.deepEqual(Object.keys(f.prepare.input_refs).sort(),["account_ref","artifact_ref","occurrence_id","release_ref","source_cycle_job_id"]);
-  assert.deepEqual(Object.keys(f.publish.input_refs).sort(),["account_ref","agent_id","agent_version_id","artifact_ref","occurrence_id","prepare_job_id","release_ref","source_cycle_job_id"]);
+  assert.deepEqual(Object.keys(f.prepare.input_refs).sort(),["account_ref","artifact_ref","occurrence_id","release_ref","skill_disclosure_sha256","skill_id","source_cycle_job_id"]);
+  assert.deepEqual(Object.keys(f.publish.input_refs).sort(),["account_ref","agent_id","agent_version_id","artifact_ref","occurrence_id","prepare_job_id","release_ref","skill_disclosure_sha256","skill_id","source_cycle_job_id"]);
   assert.equal(f.publish.effect_key,`maritime-capafy-publish://${UID}/first`);
   assert.equal(f.publish.max_attempts,1);assert.equal(f.publish.effect_class,"publish");
   assert.equal(runtime().buildMaritimeCapafyPrepareJob({...f.args,releaseSha:"b".repeat(40)}).job_id,f.prepare.job_id);
+});
+test("Capafy create actions carry the exact tenant Skill disclosure scope",async()=>{
+  const f=fixture();
+  await runtime().createMaritimeManagerCapafyPrepareAdapter(f.services).execute(f.prepare);
+  assert.deepEqual(f.actionScopes,[{skillId:SKILL_ID,disclosureSha256:DISCLOSURE_SHA256},
+    {skillId:SKILL_ID,disclosureSha256:DISCLOSURE_SHA256}]);
+});
+test("Capafy prepare pauses before guard or create when the Skill identity is missing",async()=>{
+  const f=fixture(),job={...runtime().buildMaritimeCapafyPrepareJob({...f.args,skillId:undefined,
+    disclosureSha256:undefined}),attempt:1,status:"running"};
+  await assert.rejects(runtime().createMaritimeManagerCapafyPrepareAdapter(f.services).execute(job),
+    /skill_id_required/i);
+  assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+  assert.deepEqual(f.actionScopes,[]);
 });
 test("provider actions stop before guard or prepare when the Publisher Agreement version is stale",async()=>{
   const f=fixture();let guarded=0;
@@ -233,7 +258,7 @@ test("completed central cycle selects one guarded original artifact and idempote
       accountRef:f.args.accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
       autonomyConsentVersion:"maritime-capafy-autonomy-v1"})},
     enqueueJob:async job=>{const prior=saved.get(job.job_id);if(!prior)saved.set(job.job_id,job);return {created:!prior,job:prior||job};}};
-  const input={job:f.cycle,receipt:f.cycleReceipt};
+  const input={job:f.cycle,receipt:f.cycleReceipt,skillId:SKILL_ID,disclosureSha256:DISCLOSURE_SHA256};
   const first=await runtime().enqueueMaritimeCapafyPrepareFromCycle(input,services);
   assert.equal(first.created,true);assert.equal(first.job.capability,"maritime.manager.capafy.prepare");
   assert.equal((await runtime().enqueueMaritimeCapafyPrepareFromCycle(input,services)).created,false);

@@ -360,7 +360,9 @@ test("active_cloud_page_shows_only_verified_work_and_email_receipts",async()=>{
   job_id:report.job_id,period_key:"maritime:daily:2026-10-25",release_sha:sha,provider_message_id:"message-1",
   recipient_hash:"b".repeat(64),snapshot_hash:"c".repeat(64),sent_at:"2026-10-25T11:00:00.000Z",
   external_ref:"resend-email://message-1",evidence_refs:["resend-email://message-1"]};
- deps.query=async(sql,values)=>{assert.match(sql,/jobs\.tenant_id\s*=\s*\$1/);assert.match(sql,/PARTITION BY jobs\.capability/);assert.deepEqual(values,[uid,10]);return {rows:[
+ deps.query=async(sql,values)=>{
+  if(/FROM private\.lm_maritime_manager_capafy_publisher_consents/.test(sql)){assert.deepEqual(values,[uid,SUBJECT,"v1.2"]);return {rows:[]};}
+  assert.match(sql,/jobs\.tenant_id\s*=\s*\$1/);assert.match(sql,/PARTITION BY jobs\.capability/);assert.deepEqual(values,[uid,10]);return {rows:[
   {job:report,receipt:reportReceipt,observed_at:"2026-10-25T11:00:00.000Z"},
   {job:cycle,receipt:cycleReceipt,observed_at:"2026-10-25T10:00:00.000Z"},
  ]};};
@@ -679,6 +681,23 @@ test("a connected Publisher binding is reused without starting a new login or du
   assert.deepEqual(f.bindingWrites, []);
 });
 
+test("a second Publisher identity claim is returned as a generic conflict without exposing private values", async () => {
+  const f = capafyConnectionFixture(), started = response(), done = response();
+  const logs = [], receipts = [];
+  f.deps.log = value => logs.push(value);
+  f.deps.recordReceipt = value => receipts.push(value);
+  f.deps.capafyBindingStore.save = async () => { throw new Error("maritime_capafy_account_already_claimed"); };
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), started, f.deps);
+  const challengeRef = JSON.parse(started.body).challengeRef;
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/verify", "POST", {
+    challengeRef, code: "004219", autonomyConsentVersion: "maritime-capafy-autonomy-v1",
+  }, { "x-lm-web-csrf": f.csrf }), done, f.deps);
+  assert.equal(done.statusCode, 409);
+  assert.deepEqual(JSON.parse(done.body), { error: "account_already_connected" });
+  assert.doesNotMatch(JSON.stringify([started.body, done.body, logs, receipts]), /seller@example\.com|am_sk_|accessToken|private@example/i);
+});
+
 test("Capafy OTP connect is authenticated, CSRF protected, and returns only a tenant-bound short-lived challenge", async () => {
   assert.equal(typeof handleMaritimeManagerCapafyConnection, "function");
   const f = capafyConnectionFixture(), res = response();
@@ -962,6 +981,7 @@ test("Capafy OTP verify binds the official verified seller to the signed Life Ma
   assert.equal(f.bindingWrites.length, 1);
   assert.equal(f.bindingWrites[0].tenantId, f.uid);
   assert.equal(f.bindingWrites[0].authSubject, SUBJECT);
+  assert.equal(f.bindingWrites[0].publisherAgreementVersion, "v1.2");
   assert.equal(f.bindingWrites[0].autonomyConsentVersion, "maritime-capafy-autonomy-v1");
   assert.equal(f.bindingWrites[0].policyConsentVersion, "capafy-publisher-terms-privacy-v1");
   assert.equal(f.bindingWrites[0].termsAcceptedAt, "2026-10-25T12:00:00.000Z");

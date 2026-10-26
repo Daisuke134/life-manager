@@ -15,6 +15,8 @@ function row(key,kind,amount,currency='USD',occurredAt='2026-10-21T01:00:00Z'){
  verification:{status:'verified',observed_at:occurredAt,evidence_refs:['capafy://receipt/'+key]}};
 }
 function coverage(){return {tenantId:UID,periodKey,timezone:'Asia/Tokyo',complete:true,currencies:['USD'],evidenceRefs:['capafy://daily/2026-10-21']};}
+function payoutTaxReadback(){const accountRef='account://capafy/'+UID+'/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5';return {
+ provider:'capafy',tenantId:UID,accountRef,status:'verified',evidenceRef:'capafy://payout-tax/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',observedAt:'2026-10-21T03:00:00Z'};}
 test('daily result never turns missing sales, cost or payout observations into zero',()=>{
  const result=buildMaritimeDailyResult({enrollment,periodKey});
  assert.equal(result.financial.gross.status,'unknown');assert.equal(result.financial.costs.status,'unknown');
@@ -23,20 +25,39 @@ test('daily result never turns missing sales, cost or payout observations into z
  assert.match(text,/費用：未確認/);assert.match(text,/利益：未確認/);assert.doesNotMatch(text,/USD 0|¥0/);
 });
 test('verified observations remain subtotals until coverage is complete',()=>{
- const result=buildMaritimeDailyResult({enrollment,periodKey,financialRecords:[row('sale','business_revenue',1200)]});
+ const result=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialRecords:[row('sale','business_revenue',1200)]});
  assert.deepEqual(result.financial.gross,{status:'observed',amounts:[{currency:'USD',amountMinor:1200}]});
  assert.equal(result.financial.profit,null);assert.match(renderMaritimeDailyEmail(result),/確認済み小計/);
 });
 test('complete same-tenant coverage permits verified zero and separates payout from revenue',()=>{
- const result=buildMaritimeDailyResult({enrollment,periodKey,financialCoverage:coverage(),costs:{...coverage(),records:[]},
+ const result=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialCoverage:coverage(),costs:{...coverage(),records:[]},
  financialRecords:[row('sale','business_revenue',1200),row('capafy-financial:v1:2026-10-21:refund','business_cost',100),row('payout','payout',500)]});
  assert.deepEqual(result.financial.gross.amounts,[{currency:'USD',amountMinor:1200}]);
  assert.deepEqual(result.financial.payouts.amounts,[{currency:'USD',amountMinor:500}]);
  assert.deepEqual(result.financial.refunds.amounts,[{currency:'USD',amountMinor:100}]);
  assert.deepEqual(result.financial.profit,[{currency:'USD',amountMinor:1100}]);
- const zero=buildMaritimeDailyResult({enrollment,periodKey,financialCoverage:coverage()});
+ const zero=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialCoverage:coverage()});
  assert.deepEqual(zero.financial.gross,{status:'complete',amounts:[{currency:'USD',amountMinor:0}]});
  assert.equal(zero.financial.profit,null);
+});
+test('payout and tax stay deferrable and revenue stays unknown until official account readback',()=>{
+ const records=[row('sale','business_revenue',1200),row('payout','payout',500)];
+ const input={enrollment,periodKey,financialCoverage:coverage(),costs:{...coverage(),records:[]},financialRecords:records};
+ const blocked=buildMaritimeDailyResult(input);
+ assert.equal(blocked.payoutTaxStatus,'unverified_deferrable');
+ assert.equal(blocked.financial.gross.status,'unknown');assert.equal(blocked.financial.payouts.status,'unknown');
+ assert.equal(blocked.financial.profit,null);
+ const body=renderMaritimeDailyEmail(blocked);
+ assert.match(body,/payout\/tax：未確認/);assert.match(body,/売上：未確認/);
+ assert.match(body,/公式readback待ち/);assert.doesNotMatch(body,/revenue|settled|設定できます|後で設定/i);
+ const verified=buildMaritimeDailyResult({...input,payoutTaxReadback:{provider:'capafy',tenantId:UID,
+  accountRef:'account://capafy/'+UID+'/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',status:'verified',
+  evidenceRef:'capafy://payout-tax/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',observedAt:'2026-10-21T03:00:00Z'}});
+ assert.equal(verified.payoutTaxStatus,'verified');
+ assert.deepEqual(verified.financial.gross.amounts,[{currency:'USD',amountMinor:1200}]);
+ assert.throws(()=>buildMaritimeDailyResult({...input,payoutTaxReadback:{provider:'capafy',tenantId:UID,
+  accountRef:'account://capafy/'+UID+'/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',status:'verified',
+  evidenceRef:'capafy://payout-tax/019d3c7f-fe51-7c57-aa2e-8e1055bb36a6',observedAt:'2026-10-21T03:00:00Z'}}),/invalid/);
 });
 test('duplicate financial records and incomplete observations cannot become complete totals',()=>{
  const sale=row('sale','business_revenue',1200);
@@ -44,7 +65,7 @@ test('duplicate financial records and incomplete observations cannot become comp
  assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,financialCoverage:coverage(),financialRecords:[{...sale,verification:{...sale.verification,status:'unverified'}}]}),/invalid/);
 });
 test('currency and local calendar boundaries use existing Financial Manager aggregation',()=>{
- const result=buildMaritimeDailyResult({enrollment,periodKey,financialRecords:[
+ const result=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialRecords:[
  row('usd','business_revenue',250),row('jpy','business_revenue',900,'JPY'),
  row('previous','business_revenue',9999,'USD','2026-10-20T14:59:59Z')]});
  assert.deepEqual(result.financial.gross.amounts,[{currency:'JPY',amountMinor:900},{currency:'USD',amountMinor:250}]);

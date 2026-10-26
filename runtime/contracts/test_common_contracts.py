@@ -34,6 +34,7 @@ class CommonContractTests(unittest.TestCase):
             "const {projectJob}=require('./runtime/contracts/common-record.cjs');"
             "const tenantId='lm_11111111-1111-4111-8111-111111111111';"
             "const shared={tenantId,releaseSha:'a'.repeat(40),occurrenceId:'first',"
+            "skillId:'agent-1',disclosureSha256:'c'.repeat(64),"
             "cycleJobId:'maritime-cycle:'+ 'b'.repeat(64),artifactRef:'artifact://original/listing.md',"
             "accountRef:'account://capafy/'+tenantId+'/seller-1'};"
             "const a=p.buildMaritimeCapafyPrepareJob(shared);"

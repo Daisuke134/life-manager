@@ -387,6 +387,7 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
     && env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED !== "1") {
     send(res, 503, { error: "capafy_connection_unavailable" }); return true;
   }
+  let publisherAgreementVersion = null;
   if (pathname !== CAPAFY_DISCONNECT_PATH) {
     let currentConsent;
     try {
@@ -401,6 +402,7 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
       || currentConsent.effectiveDate !== currentAgreement.CAPAFY_PUBLISHER_AGREEMENT_EFFECTIVE_DATE) {
       send(res, 409, { error: "capafy_publisher_agreement_consent_required" }); return true;
     }
+    publisherAgreementVersion = currentConsent.agreementVersion;
   }
   const bindingStore = (() => { try { return capafyBindingStore(options); } catch { return null; } })();
   if (!bindingStore) { send(res, 503, { error: "capafy_connection_unavailable" }); return true; }
@@ -558,6 +560,7 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
       const identity = await connector.verifyLogin({ challengeId: challenge.challengeId, code });
       const saved = await bindingStore.save({ tenantId: user.uid, authSubject: user.subject,
         providerSubject: identity.providerSubject, accessToken: identity.accessToken,
+        publisherAgreementVersion,
         autonomyConsentVersion: body.autonomyConsentVersion,
         policyConsentVersion: challenge.policyConsentVersion, termsAcceptedAt: challenge.termsAcceptedAt,
         termsUrl: challenge.termsUrl, privacyUrl: challenge.privacyUrl });
@@ -572,7 +575,7 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
       const code = String(error?.message || "");
       const errorCode = code === "maritime_capafy_developer_verification_required" ? "developer_verification_required"
         : code === "maritime_capafy_subject_mismatch" ? "account_identity_mismatch"
-          : code === "maritime_capafy_binding_rejected" ? "account_already_connected"
+          : ["maritime_capafy_binding_rejected", "maritime_capafy_account_already_claimed"].includes(code) ? "account_already_connected"
             : "capafy_verification_unavailable";
       send(res, ["developer_verification_required", "account_identity_mismatch", "account_already_connected"].includes(errorCode) ? 409 : 503,
         { error: errorCode });

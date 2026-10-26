@@ -10,6 +10,8 @@ const CAPAFY_DATA_DISCLOSURE_SECTIONS = "v1.2:3.4,3.5,8.1-8.7";
 const CAPAFY_SUPPORT_OBLIGATION_SECTIONS = "v1.2:3.2,4.2-4.3,8.5";
 const TENANT = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUBJECT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SKILL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const SHA256 = /^[a-f0-9]{64}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEXT_FIELDS = new Set(["legalName", "jurisdiction", "publicSupportEmail"]);
 const ACKNOWLEDGEMENTS = ["supportedRegionAttested", "sanctionsEligibilityAttested",
@@ -81,6 +83,14 @@ function tenantRecord(row, uid, subject) {
     agreementAccepted: row.agreement_accepted,
     withdrawnAt: row.withdrawn_at == null ? null : timestamp(row.withdrawn_at) });
 }
+function skillDisclosureRecord(row, uid, subject, skillId, disclosureSha256) {
+  if (!row || row.uid !== uid || String(row.auth_subject).toLowerCase() !== subject
+    || row.agreement_version !== CAPAFY_PUBLISHER_AGREEMENT_VERSION || row.skill_id !== skillId
+    || row.disclosure_sha256 !== disclosureSha256) return null;
+  return Object.freeze({ tenantId: uid, authSubject: subject, skillId,
+    disclosureSha256, agreementVersion: CAPAFY_PUBLISHER_AGREEMENT_VERSION,
+    acceptedAt: timestamp(row.accepted_at), withdrawnAt: row.withdrawn_at == null ? null : timestamp(row.withdrawn_at) });
+}
 
 function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date().toISOString() } = {}) {
   if (typeof query !== "function") fail("maritime_capafy_consent_store_unavailable");
@@ -146,6 +156,57 @@ function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date
     return rows.length ? tenantRecord(rows[0], uid, subject) : null;
   }
 
+  async function recordSkillDisclosure(input = {}) {
+    const uid = validTenant(input.tenantId), subject = validSubject(input.authSubject);
+    if (Object.keys(input).some(key => !new Set(["tenantId", "authSubject", "skillId", "disclosureSha256", "accepted"]).has(key))
+      || typeof input.skillId !== "string" || !SKILL_ID.test(input.skillId)
+      || typeof input.disclosureSha256 !== "string" || !SHA256.test(input.disclosureSha256)
+      || input.accepted !== true) fail("maritime_capafy_skill_data_disclosure_required");
+    if (!await readCurrent({ tenantId: uid, authSubject: subject })) {
+      fail("maritime_capafy_publisher_agreement_consent_required");
+    }
+    const acceptedAt = timestamp(now());
+    const values = [uid, subject, CAPAFY_PUBLISHER_AGREEMENT_VERSION, input.skillId, input.disclosureSha256, acceptedAt];
+    const inserted = (await query(`INSERT INTO private.lm_maritime_manager_capafy_skill_disclosures
+      (uid,auth_subject,agreement_version,skill_id,disclosure_sha256,accepted_at)
+      VALUES ($1,$2,$3,$4,$5,$6::timestamptz)
+      ON CONFLICT (uid,auth_subject,agreement_version,skill_id,disclosure_sha256) DO NOTHING
+      RETURNING uid,auth_subject,agreement_version,skill_id,disclosure_sha256,accepted_at,withdrawn_at`, values)).rows;
+    if (!Array.isArray(inserted) || inserted.length > 1) fail("maritime_capafy_skill_data_disclosure_invalid");
+    if (inserted.length === 1) {
+      const record = skillDisclosureRecord(inserted[0], uid, subject, input.skillId, input.disclosureSha256);
+      if (!record || record.withdrawnAt) fail("maritime_capafy_skill_data_disclosure_invalid");
+      return Object.freeze({ skillId: record.skillId, disclosureSha256: record.disclosureSha256,
+        agreementVersion: record.agreementVersion, acceptedAt: record.acceptedAt });
+    }
+    const rows = (await query(`SELECT uid,auth_subject,agreement_version,skill_id,disclosure_sha256,accepted_at,withdrawn_at
+      FROM private.lm_maritime_manager_capafy_skill_disclosures
+      WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3 AND skill_id=$4 AND disclosure_sha256=$5 LIMIT 2`,
+    values.slice(0, 5))).rows;
+    if (!Array.isArray(rows) || rows.length !== 1) fail("maritime_capafy_skill_data_disclosure_invalid");
+    const record = skillDisclosureRecord(rows[0], uid, subject, input.skillId, input.disclosureSha256);
+    if (!record) fail("maritime_capafy_skill_data_disclosure_invalid");
+    if (record.withdrawnAt) fail("maritime_capafy_skill_data_disclosure_withdrawn");
+    return Object.freeze({ skillId: record.skillId, disclosureSha256: record.disclosureSha256,
+      agreementVersion: record.agreementVersion, acceptedAt: record.acceptedAt });
+  }
+
+  async function readSkillDisclosure({ tenantId, authSubject, skillId, disclosureSha256 } = {}) {
+    const uid = validTenant(tenantId), subject = validSubject(authSubject);
+    if (typeof skillId !== "string" || !SKILL_ID.test(skillId)
+      || typeof disclosureSha256 !== "string" || !SHA256.test(disclosureSha256)) {
+      fail("maritime_capafy_skill_data_disclosure_invalid");
+    }
+    const rows = (await query(`SELECT uid,auth_subject,agreement_version,skill_id,disclosure_sha256,accepted_at,withdrawn_at
+      FROM private.lm_maritime_manager_capafy_skill_disclosures
+      WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3 AND skill_id=$4 AND disclosure_sha256=$5
+      AND withdrawn_at IS NULL LIMIT 2`, [uid, subject, CAPAFY_PUBLISHER_AGREEMENT_VERSION,
+      skillId, disclosureSha256])).rows;
+    if (!Array.isArray(rows) || rows.length > 1) fail("maritime_capafy_skill_data_disclosure_invalid");
+    if (!rows.length) return null;
+    return skillDisclosureRecord(rows[0], uid, subject, skillId, disclosureSha256);
+  }
+
   async function withdraw({ tenantId, authSubject } = {}) {
     const uid = validTenant(tenantId), subject = validSubject(authSubject);
     const rows = (await query(`UPDATE private.lm_maritime_manager_capafy_publisher_consents
@@ -199,7 +260,7 @@ function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date
     return publicResult;
   }
 
-  return Object.freeze({ record, readCurrent, readForTenant, withdraw });
+  return Object.freeze({ record, readCurrent, readForTenant, recordSkillDisclosure, readSkillDisclosure, withdraw });
 }
 
 module.exports = { CAPAFY_PUBLISHER_AGREEMENT_VERSION, CAPAFY_PUBLISHER_AGREEMENT_EFFECTIVE_DATE,

@@ -61,6 +61,36 @@ REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_bindings FROM PUBLIC, ano
 GRANT USAGE ON SCHEMA private TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE private.lm_maritime_manager_capafy_bindings TO service_role;
 
+-- Keep the first verified Publisher identity after credential unlink so a later
+-- reconnect cannot silently bind a second account. The immutable claim is
+-- inserted before a token binding and is tenant-scoped by the authenticated
+-- enrollment identity.
+CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_publisher_account_claims (
+  uid text PRIMARY KEY,
+  auth_subject uuid NOT NULL,
+  provider_subject uuid NOT NULL UNIQUE,
+  account_ref text NOT NULL UNIQUE,
+  claimed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  CHECK (uid ~ '^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  CHECK (account_ref = 'account://capafy/' || uid || '/' || provider_subject::text),
+  FOREIGN KEY (uid, auth_subject)
+    REFERENCES public.lm_maritime_manager_enrollments(uid, auth_subject) ON DELETE CASCADE
+);
+INSERT INTO private.lm_maritime_manager_capafy_publisher_account_claims
+  (uid,auth_subject,provider_subject,account_ref,claimed_at)
+SELECT uid,auth_subject,provider_subject,account_ref,connected_at
+FROM private.lm_maritime_manager_capafy_bindings
+ON CONFLICT (uid) DO NOTHING;
+
+ALTER TABLE private.lm_maritime_manager_capafy_publisher_account_claims ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS lm_maritime_manager_capafy_publisher_account_claims_service_role_access
+  ON private.lm_maritime_manager_capafy_publisher_account_claims;
+CREATE POLICY lm_maritime_manager_capafy_publisher_account_claims_service_role_access
+  ON private.lm_maritime_manager_capafy_publisher_account_claims FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_publisher_account_claims FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT ON TABLE private.lm_maritime_manager_capafy_publisher_account_claims TO service_role;
+
 -- A durable keyset prevents a finite recovery batch from repeatedly selecting
 -- the same deferred cycles and starving older or other-tenant work.
 CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_recovery_cursor (

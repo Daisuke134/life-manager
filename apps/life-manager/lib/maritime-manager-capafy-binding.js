@@ -117,10 +117,42 @@ function createMaritimeCapafyBindingStore({ query, encryptionKey, now = () => ne
     deriveEncryptionKey(encryptionKey);
     return true;
   }
+  async function claimPublisherAccount({ tenantId, authSubject, providerSubject, accountRef }) {
+    let inserted;
+    try {
+      inserted = (await query(`INSERT INTO private.lm_maritime_manager_capafy_publisher_account_claims
+        (uid,auth_subject,provider_subject,account_ref)
+        VALUES ($1,$2,$3,$4) ON CONFLICT (uid) DO NOTHING
+        RETURNING uid,auth_subject,provider_subject,account_ref`,
+      [tenantId, authSubject, providerSubject, accountRef])).rows;
+    } catch (error) {
+      if (error?.code === "23505") fail("maritime_capafy_account_already_claimed");
+      fail("maritime_capafy_account_claim_unavailable");
+    }
+    if (!Array.isArray(inserted) || inserted.length > 1) fail("maritime_capafy_account_claim_invalid");
+    if (inserted.length === 1) {
+      const row = inserted[0];
+      if (row.uid !== tenantId || row.auth_subject !== authSubject
+        || row.provider_subject !== providerSubject || row.account_ref !== accountRef) {
+        fail("maritime_capafy_account_claim_invalid");
+      }
+      return;
+    }
+    const rows = (await query(`SELECT uid,auth_subject,provider_subject,account_ref
+      FROM private.lm_maritime_manager_capafy_publisher_account_claims
+      WHERE uid=$1 LIMIT 2`, [tenantId])).rows;
+    if (!Array.isArray(rows) || rows.length !== 1 || rows[0].uid !== tenantId
+      || rows[0].auth_subject !== authSubject || rows[0].provider_subject !== providerSubject
+      || rows[0].account_ref !== accountRef) fail("maritime_capafy_account_already_claimed");
+  }
   async function save({ tenantId, authSubject, providerSubject, accessToken, autonomyConsentVersion,
+    publisherAgreementVersion,
     policyConsentVersion, termsAcceptedAt, termsUrl, privacyUrl } = {}) {
     const uid = validTenant(tenantId), subject = validSubject(authSubject), external = validSubject(providerSubject);
     if (autonomyConsentVersion !== CAPAFY_AUTONOMY_CONSENT_VERSION) fail("maritime_capafy_autonomy_consent_required");
+    if (publisherAgreementVersion !== require("./maritime-manager-capafy-consent.js").CAPAFY_PUBLISHER_AGREEMENT_VERSION) {
+      fail("maritime_capafy_publisher_agreement_consent_required");
+    }
     if (policyConsentVersion !== CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION
       || termsUrl !== CAPAFY_TERMS_URL || privacyUrl !== CAPAFY_PRIVACY_URL) {
       fail("maritime_capafy_policy_consent_required");
@@ -129,6 +161,7 @@ function createMaritimeCapafyBindingStore({ query, encryptionKey, now = () => ne
     if (acceptedAt > nowIso(now())) fail("maritime_capafy_policy_consent_required");
     const accountRef = `account://capafy/${uid}/${external}`;
     const sealed = encryptToken({ tenantId: uid, authSubject: subject, providerSubject: external, accessToken }, encryptionKey);
+    await claimPublisherAccount({ tenantId: uid, authSubject: subject, providerSubject: external, accountRef });
     const rows = (await query(`
       INSERT INTO private.lm_maritime_manager_capafy_bindings
         (uid,auth_subject,provider_subject,account_ref,ciphertext,iv,tag,autonomy_consent_version,
@@ -280,10 +313,12 @@ function createCapafyAccountConnector({ fetchImpl = globalThis.fetch, baseUrl = 
 function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connector, publisherConsentStore } = {}) {
   if (!bindingStore || typeof bindingStore.read !== "function" || !managerStore || typeof managerStore.read !== "function"
     || !connector || typeof connector.readAccount !== "function") fail("maritime_capafy_binding_unavailable");
-  if (!publisherConsentStore || typeof publisherConsentStore.readCurrent !== "function") {
+  if (!publisherConsentStore || typeof publisherConsentStore.readCurrent !== "function"
+    || typeof publisherConsentStore.readForTenant !== "function"
+    || typeof publisherConsentStore.readSkillDisclosure !== "function") {
     fail("maritime_capafy_consent_store_unavailable");
   }
-  async function resolveBinding({ tenantId, accountRef, mode = "readback" } = {}) {
+  async function resolveBinding({ tenantId, accountRef, mode = "readback", skillId, disclosureSha256 } = {}) {
     const uid = validTenant(tenantId);
     const enrollment = await managerStore.read(uid);
     if (!enrollment || enrollment.uid !== uid || !SUBJECT.test(String(enrollment.auth_subject || ""))
@@ -296,6 +331,14 @@ function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connec
     const consentVersion = require("./maritime-manager-capafy-consent.js").CAPAFY_PUBLISHER_AGREEMENT_VERSION;
     if (consent?.tenantId !== uid || consent.authSubject !== String(enrollment.auth_subject).toLowerCase()
       || consent.agreementVersion !== consentVersion) fail("maritime_capafy_publisher_agreement_consent_required");
+    if (mode === "action") {
+      const authSubject = String(enrollment.auth_subject).toLowerCase();
+      const facts = await publisherConsentStore.readForTenant({ tenantId: uid, authSubject });
+      const skillDisclosure = skillId && disclosureSha256
+        ? await publisherConsentStore.readSkillDisclosure({ tenantId: uid, authSubject, skillId, disclosureSha256 }) : null;
+      require("./maritime-manager-capafy-action-gate.js").assertCapafyPublisherActionAllowed({
+        tenantId: uid, authSubject, skillId, disclosureSha256, consent: facts, skillDisclosure });
+    }
     const binding = await bindingStore.read({ tenantId: uid, authSubject: enrollment.auth_subject });
     if (binding.provider !== "capafy" || binding.tenantId !== uid
       || binding.autonomyConsentVersion !== CAPAFY_AUTONOMY_CONSENT_VERSION
@@ -312,7 +355,9 @@ function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connec
   async function withAccessToken(identity, operation, options = {}) {
     if (typeof operation !== "function") fail("maritime_capafy_operation_invalid");
     const mode = options?.mode || "action";
-    const verified = await resolveBinding({ tenantId: validTenant(identity?.tenantId), accountRef: identity?.accountRef, mode });
+    const verified = await resolveBinding({ tenantId: validTenant(identity?.tenantId), accountRef: identity?.accountRef, mode,
+      skillId: options?.skillId || identity?.skillId,
+      disclosureSha256: options?.disclosureSha256 || identity?.disclosureSha256 });
     return operation(verified.accessToken, verified.identity);
   }
   return Object.freeze({ readAccountBinding: resolve, withAccessToken });

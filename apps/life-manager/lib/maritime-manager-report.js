@@ -31,16 +31,30 @@ function readProviderObservation(item,uid){
   return identity;
  }catch{throw new Error('maritime_daily_provider_observation_invalid');}
 }
+function readPayoutTaxReadback(value,uid){
+ if(value==null)return false;
+ const keys=['provider','tenantId','accountRef','status','evidenceRef','observedAt'];
+ const accountPattern=new RegExp('^account://capafy/'+uid+'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$','i');
+ if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==keys.length
+  ||keys.some(key=>!Object.hasOwn(value,key))||value.provider!=='capafy'||value.tenantId!==uid
+  ||value.status!=='verified'||typeof value.accountRef!=='string'||!accountPattern.test(value.accountRef)
+  ||typeof value.evidenceRef!=='string'||!/^capafy:\/\/payout-tax\/[0-9a-f-]{36}$/i.test(value.evidenceRef)
+  ||value.evidenceRef!==`capafy://payout-tax/${value.accountRef.slice(`account://capafy/${uid}/`.length)}`
+  ||typeof value.observedAt!=='string'||!Number.isFinite(Date.parse(value.observedAt))
+  ||!/(Z|[+-]\d{2}:\d{2})$/.test(value.observedAt))throw new Error('maritime_daily_result_invalid');
+ return true;
+}
 
 // Inputs are central queue receipts and trusted collector observations, never VM
 // financial claims. Empty records do not establish complete provider coverage.
-function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financialRecords=[],financialCoverage=null,costs=null}={}){
+function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financialRecords=[],financialCoverage=null,costs=null,payoutTaxReadback=null}={}){
  const invalid=()=>{throw new Error('maritime_daily_result_invalid');};
  const uid=enrollment?.uid,timezone=enrollment?.timezone||'UTC';
  const day=typeof periodKey==='string'&&periodKey.startsWith('maritime:daily:')?periodKey.slice(15):'';
  if(!/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(uid||'')||!/^\d{4}-\d{2}-\d{2}$/.test(day)
   ||!Number.isFinite(Date.parse(day))||new Date(day).toISOString().slice(0,10)!==day
   ||!Array.isArray(actionReceipts)||!Array.isArray(financialRecords))invalid();
+ const payoutTaxVerified=readPayoutTaxReadback(payoutTaxReadback,uid);
  function coverage(value){
   if(value==null)return null;
   if(value.tenantId!==uid||value.periodKey!==periodKey||value.timezone!==timezone||typeof value.complete!=='boolean')invalid();
@@ -79,9 +93,10 @@ function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financ
   return {status:amounts.length?'observed':'unknown',amounts};
  }
  const allComplete=financialCurrencies&&costCurrencies&&JSON.stringify(financialCurrencies)===JSON.stringify(costCurrencies);
- const financial={gross:metric(summary.revenue,financialCurrencies),refunds:metric(refunds,financialCurrencies),payouts:metric(summary.payouts,financialCurrencies),
+ const financial={gross:payoutTaxVerified?metric(summary.revenue,financialCurrencies):metric([],null),
+  refunds:metric(refunds,financialCurrencies),payouts:payoutTaxVerified?metric(summary.payouts,financialCurrencies):metric([],null),
   costs:metric(summary.costs,allComplete?financialCurrencies:null),
-  profit:allComplete?metric(summary.profit,financialCurrencies).amounts:null};
+  profit:payoutTaxVerified&&allComplete?metric(summary.profit,financialCurrencies).amounts:null};
  const actions={completedCycles:0,artifactCount:0,deferredCycles:0,unconfirmedCycles:0,failedCycles:0};
  const work=[];const providerActions=[];
  const seen=new Set();const verify=createMaritimeManagerLoopAdapter().verify;
@@ -122,7 +137,8 @@ function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financ
   :providerActions.some(action=>action.status==='published')?'published'
   :providerActions.some(action=>action.status==='under_review')?'under_review'
   :providerActions.some(action=>action.status==='prepared')?'prepared':'unconfirmed';
- return {schemaVersion:1,tenantId:uid,periodKey,date:day,timezone,actions,work,providerActions,financial,publicationStatus};
+ return {schemaVersion:1,tenantId:uid,periodKey,date:day,timezone,actions,work,providerActions,financial,
+  payoutTaxStatus:payoutTaxVerified?'verified':'unverified_deferrable',publicationStatus};
 }
 function renderMaritimeDailyEmail(result,options={}){
  const origin=options.publicOrigin?require('./web-auth.js').publicOrigin(null,{publicOrigin:options.publicOrigin}):null;
@@ -137,7 +153,9 @@ function renderMaritimeDailyEmail(result,options={}){
    ...(origin?[origin+buildMaritimeArtifactPath({jobId:work.jobId,artifactRef:ref})]:[]),
   ])),
   '', '確認できた成果と売上',
-  '金額は接続先アカウントの確認済み明細です。Life Managerによる売上かは未確認です。',
+  result.payoutTaxStatus==='verified'
+   ?'金額は接続先アカウントの確認済み明細です。Life Managerによる売上かは未確認です。'
+   :'Capafyのpayout/tax readbackは未確認のため、売上・入金は未確認です。',
   '公開状況：'+({published:'公開済み',under_review:'審査待ち',prepared:'公開準備完了'}[result.publicationStatus]||'未確認')+'。',
   ...(result.providerActions||[]).flatMap(action=>[
    'Capafy：'+({prepared:'公開準備完了',under_review:'審査待ち',published:'公開済み',reconciling:'公開結果確認中',dead_letter:'公開失敗・要確認'}[action.status]||'未確認')+'。',
@@ -149,6 +167,7 @@ function renderMaritimeDailyEmail(result,options={}){
   '', '費用',
   `費用：${amount(result.financial.costs)}（返金を含む）`,
   `利益：${result.financial.profit===null?'未確認（費用または売上の確認が未完了）':result.financial.profit.map(formatFinancialAmount).join(' / ')}`,
+  ...(result.payoutTaxStatus==='unverified_deferrable'?['Capafyのpayout/tax：未確認（公式readback待ち）。']:[]),
   '', '未完・失敗',
   `確認済みの保留：${result.actions.deferredCycles}件。結果確認中：${result.actions.unconfirmedCycles}件。失敗・要確認：${result.actions.failedCycles}件。`,
   ...result.work.filter(work=>work.status==='deferred').map(work=>['cloud_model_config_missing','cloud_runtime_not_ready'].includes(work.errorClass)?'保留理由：実行環境の準備待ちです。':'保留理由：実行できる仕事を確認できなかったためです。'),
