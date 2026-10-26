@@ -25624,3 +25624,12 @@ Manager v1は「大きなモデルを作った時」ではなく、(1)既存研�
 - **Local verification:** browser MCP 29/29, agent-runner wiring 4/4, cloud-cycle receipt tests 32/32, source-boundary check, and `git diff --check` pass. No remote CI or review result exists yet for this local change.
 - **Step 2 plan:** after the action-layer slice and its exact-head checks, connect Google identity and verified contact to one explicit autonomy/data/report consent, then provision the isolated tenant, VM/browser profile, secrets, budget, and any separately disclosed verification mailbox. Customer-only Capafy eligibility and legal gates remain explicit.
 - **Next:** verify this source against the tracked plan and current remote head, push only to PR #8745, then read exact-head checks and any new review. Keep the PR Draft; this slice is not signup, private Capafy work, deployment, customer E2E, sale, earnings, or competition completion.
+
+### Maritime Step 2 consent/provisioning gate — 2026-10-26T08:03Z
+
+- **Order/cursor:** The prior cursor was to finish Step 1 / P1.4 action authorization, official readback, two-tenant isolation, Stop, and unknown-effect fencing before Step 2. The coordinator directs starting the first Step 2 consent/provisioning slice after syncing #8745 with current `origin/main` and obtaining exact-head checks. P1.4 remains open.
+- **PR sync:** #8745 remains OPEN/DRAFT. `origin/main` `db85e8b85958bb56889b1e07338f8ff633edcd31` is merged into the PR branch at `98a21bbd9d849110f63b1f6d293b6b5f89dddbd8`; PR base is `db85e8b`. No merge to main.
+- **Step 2 first commit:** `f6abab3171696c4174e1704b1761149699adc1e1` adds database gates requiring `maritime-manager-v2` before provisioning claim and agent binding. Legacy v1 remains pending until reconsent.
+- **Verification:** isolated PostgreSQL integration 2/2; store/runtime/transport 70/70; targeted signup/activation/reconsent auth 21/21; source-boundary and OSS verification pass. Full auth run has 54 pass and one server-load test blocked by missing `canonicalize` in this worktree. No provider calls, signup, deployment, or customer effect.
+- **Exact-head checks:** Security Scan run 40289608629 and Cloud reminder contracts run 40289608677 are queued for `98a21bb`; GitHub reports mergeable=true while checks are pending.
+- **Next:** await exact-head CI, then update BOARD and report the result to `daisuke/cursor`.
