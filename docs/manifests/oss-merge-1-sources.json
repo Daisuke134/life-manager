@@ -99,7 +99,7 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "71fa192908e364fbcaf805ec0891a15fffca4ecbe5d898025a4e92435757d4c8"
+          "sha256": "ba0cca3f212acf5286b8fb47c2281c2c5b27f5e048bb90efc3bcd38cfa59cb64"
         },
         {
           "source": "skills/agent-runner/config.json",
@@ -146,7 +146,7 @@
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
           "files": 257,
-          "inventory_sha256": "b862ccedd3be56b253f60b618308b202919f53054c1dd8c71438a5600d75ebe4"
+          "inventory_sha256": "588b44f8720f4a2d9e35ced43f8460014ad9ea043cd45b4666c21fb456ccbc93"
         },
         {
           "source": "skills/_shared",
