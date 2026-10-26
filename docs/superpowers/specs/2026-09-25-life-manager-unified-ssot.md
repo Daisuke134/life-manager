@@ -25610,6 +25610,13 @@ Manager v1は「大きなモデルを作った時」ではなく、(1)既存研�
 - **Verification:** browser MCP 29/29, agent-runner wiring 4/4, cloud-cycle receipt 32/32, source-boundary, diff check, and the two OSS mapping comparisons pass. The manifest repair and accompanying plan wording are local and not yet pushed; latest remote PR head is docs-only `7ccf842a19f7a3d1adc665f9c2b3fbb7c94db39c` atop code commit `655c3e9e`.
 - **Next:** push the provenance repair to PR #8745, then run/read exact-head Security Scan and Cloud reminder contracts again. Keep #8745 OPEN/DRAFT; this source slice adds no login, provider write, deployment, customer activity, or earnings evidence.
 
+### Maritime provenance inventory ordering correction — 2026-10-26T07:04Z
+
+- **CI readback:** Security Scan run `40283257980` on head `357ae6edb462ce9bf036d5b2059a769eec391c18` passes Python syntax + unittest and other completed checks, but the OSS boundary still reports one `manifest_inventory_mismatch` for `skills/capafy-autopublish`. Cloud reminder `40283258114` passes. Other Security Scan jobs were still running at this checkpoint.
+- **Root cause and correction:** The first inventory recomputation used Python's path ordering; the canonical verifier sorts with Node `localeCompare`. Recomputed the 257-file inventory using the exact Node algorithm; canonical SHA-256 is `2240347a2739065e04bb54263e8973d89fb3c6421acbf070da7f9ce22176c1a4`.
+- **Local verification:** The agent-runner file digest and 257-file Capafy inventory both match the manifest using the same Node calculation; source-boundary and `git diff --check` pass. The corrected inventory digest and this checkpoint are local and not yet pushed. No runtime code changed after commit `655c3e9e`.
+- **Next:** commit/push this digest correction to #8745 and run/read the exact new-head Security Scan; keep the PR OPEN/DRAFT and do not claim signup, provider action, deployment, customer outcome, or earnings.
+
 ### Maritime per-customer action receipt slice — 2026-10-26T06:53Z
 
 - **PR/source cursor:** PR #8745 starts from OPEN/Draft head `7cf06eac84738f756fee56e25aa48e3e6def71ad` on `feat/maritime-provider-chain-20261023`. The source change below is local and unpushed at this checkpoint; the previously observed successful CI belongs to the old head only.
