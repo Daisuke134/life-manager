@@ -4,6 +4,19 @@ Owner: 参謀 (routine "Copy-the-winners teardown", daily ~09:00 JST). One secti
 Rule: copy the structure of profitable devs to the detail, never invent. No free trials, free tools only, reuse existing assets.
 Watched: @ErnestoSOFTWARE, @maubaron, @blakeandersonw, @ChadAppDev, @jackfriks, @oliverhenry.
 
+## 2026-10-26
+
+### 3. Anicca iOS: store description line 2 as a question (winner: I am - Daily Affirmations)
+
+- Winner: I am - Daily Affirmations (the category's top affirmations app). Source: Anicca Marketer's 2026-10-26 09:50 JST teardown as relayed by 参謀; not re-verified here. Their pattern: line 1 = a concrete benefit, line 2 = a question, weekly theme updates, and a recurring complaint about too many notifications.
+- What we already do (read from the live ASC en-US/ja localizations of version 1.9.6, 2026-10-26): line 1 is a concrete moment ("When the same negative thought keeps looping, read one kinder line." / ja: 「頭の中で同じ否定的な言葉がくり返す日に。」); line 2 is empty; features start at line 3.
+- What we copy (one change only): fill line 2 with a one-sentence question that names the reader's moment, in the same voice as line 1. Draft en-US: "What would you say to a friend who thought this way?" Draft ja: 「同じ言葉に疲れた日、友だちにならどんな言葉をかけますか？」. Both are placeholders for Narita to confirm; public copy stays first person and does not mention AI.
+- Why this one: it is store-metadata only (no app code, no RevenueCat or price change), so it can ship without a new build. Paywall and onboarding changes need code and a new review, and 1.9.6 itself is still blocked (see below).
+- Ship plan: version 1.9.7 metadata, after 1.9.6 is accepted into review. Not shipped yet.
+- Not copied: weekly theme updates (needs content cadence and code) and the notification-volume fix (we send fewer notifications than the winner's reviews complain about, unmeasured; revisit with real data).
+- Measure: store page conversion (impressions to downloads) before and after in App Store Connect, same 14-day window.
+- Blocker for 1.9.6: ASC rejects the new submission with STATE_ERROR.ITEM_PART_OF_ANOTHER_SUBMISSION. Version 1.9.6 sits in the 2026-07-04 review submission (UNRESOLVED_ISSUES), whose items this API key cannot read (403). It needs someone to read Apple's review message and resolve or withdraw that submission.
+
 ## 2026-10-24
 
 ### 1. Six-slide TikTok slideshow, structure copied from niche winners (@ChadAppDev)
