@@ -175,6 +175,7 @@ Live Capafy search results still surface Anicca's TikTok Script Pro and an indep
 Use this shape for every new listing in this family — outcome headline, buyer identity, 3 concrete
 outcomes, one real example, then the plan table:
 ```
+
 ## Title
 <Outcome-first name — what the buyer gets, not the model or method>
 
@@ -210,3 +211,16 @@ Honesty: <what this does NOT do — no live data / no posting / no file export, 
 | month | $X.XX | N | No Free Trial |
 | year  | $X.XX | N | No Free Trial |
 ```
+
+## 14. MARKET SWEEP (2026-10-27, public Capafy homepage + authenticated search)
+
+Fresh, verifiable observations: Capafy's public homepage showed CloneCut (31.5k sold),
+HookAce (1,114 sold), Ocup Football Analysis (3,128 sold), and Serenity Stock Tracker
+(2,101 sold). The official authenticated search for `tiktok short video script` returned
+ViralShorts (133 sales) and TikTok Scripts (87 sales), confirming durable short-form
+script demand alongside the account's own positive TikTok Script Pro contribution signal.
+The high-volume video, market-tracking, and sports listings often rely on video generation
+or live-data access, so a pure-LLM run-online listing must only offer a paste-in analysis,
+script, or briefing workflow and explicitly state that it does not fetch live data, render
+video, post, or export files. This refresh supports the existing §13 priority (finance
+summaries or sports analysis) and does not authorize another Hook Lab variant.
