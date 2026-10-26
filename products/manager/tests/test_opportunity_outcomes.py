@@ -202,5 +202,32 @@ class OpportunityOutcomeTests(unittest.TestCase):
             m.reconcile_opportunity(opportunity(), costs(), snapshots={"receipt": b"different"})
 
 
+    def test_d011_fragment_alias_of_earlier_stage_is_not_a_declared_receipt(self):
+        # RFC 3986 §3.5: a fragment does not establish a separate payment
+        # resource. This is a fail-closed synthetic screen, not authentication.
+        m = module()
+        item = opportunity()
+        for stage_name in ("posting", "delivery", "approval"):
+            with self.subTest(stage=stage_name):
+                previous = getattr(item, stage_name).source
+                alias = replace(
+                    item.receipt.source,
+                    source_id="receipt_fragment_" + stage_name,
+                    url=previous.url + "#claimed-distinct-receipt",
+                    content_sha256="e" * 64,
+                )
+                changed = replace(
+                    item,
+                    settlement=m.OpportunityStage("settlement", "public", alias),
+                    receipt=replace(item.receipt, source=alias),
+                )
+                output = m.reconcile_opportunity(changed, costs())
+                self.assertEqual(output.evidence_status, "RECEIPT_EVIDENCE_REUSED")
+                self.assertIsNone(output.declared_received_minor)
+                self.assertIsNone(output.declared_economic_net_minor)
+                self.assertEqual(output.income_status, "NOT_VERIFIED")
+
+
+
 if __name__ == "__main__":
     unittest.main()
