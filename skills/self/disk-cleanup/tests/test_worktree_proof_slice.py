@@ -18,10 +18,12 @@ def _git(cwd: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True).stdout.strip()
 
 
-def _repo_with_three_worktrees(tmp_path: Path) -> tuple[Path, list[Path]]:
+def _repo_with_three_worktrees(tmp_path: Path, repo_relative: str = "Projects/life-manager-main",
+                               worktrees_relative: str = "Projects/life-manager-main/.worktrees",
+                               names=("a", "b", "c")) -> tuple[Path, list[Path]]:
     home = tmp_path / "home"
-    repo = home / "Projects" / "life-manager-main"
-    repo.mkdir(parents=True)
+    repo = home / repo_relative
+    repo.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True, text=True)
     _git(repo, "config", "user.name", "Disk Cleanup Test")
     _git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
@@ -30,10 +32,10 @@ def _repo_with_three_worktrees(tmp_path: Path) -> tuple[Path, list[Path]]:
     _git(repo, "commit", "-m", "base")
     _git(repo, "remote", "add", "origin", str(repo))
     _git(repo, "update-ref", "refs/remotes/origin/main", _git(repo, "rev-parse", "HEAD"))
-    (repo / ".worktrees").mkdir()
+    (home / worktrees_relative).mkdir(parents=True, exist_ok=True)
     paths = []
-    for name in ("a", "b", "c"):
-        path = repo / ".worktrees" / name
+    for name in names:
+        path = home / worktrees_relative / name
         _git(repo, "worktree", "add", "--detach", str(path), "HEAD")
         paths.append(path)
     return home, paths
@@ -46,7 +48,7 @@ def _governor_with_fake_proofs(home: Path, monkeypatch, clock: list[float], cost
     seen: list[str] = []
 
     def fake_identity(path, **_kwargs):
-        if Path(path).name not in {"a", "b", "c"}:
+        if Path(path).name not in {"a", "b", "c", "x", "y", "z"}:
             return None  # the main checkout is a record too; the real proof rejects it for free
         seen.append(Path(path).name)
         clock[0] += cost
@@ -60,7 +62,8 @@ def test_worktree_proofs_run_first_inside_the_discovery_budget(tmp_path, monkeyp
     home, paths = _repo_with_three_worktrees(tmp_path)
     clock = [0.0]
     governor, seen = _governor_with_fake_proofs(home, monkeypatch, clock, cost=1.0)
-    candidates = governor.discover_candidates(deadline=10.0)  # worktree slice = 4 s, three proofs cost 3 s
+    # worktree slice = 8 s, split over the two registered repositories = 4 s each; three proofs cost 3 s
+    candidates = governor.discover_candidates(deadline=20.0)
     zombies = [Path(item["path"]).name for item in candidates if item["owner"] == "zombie-worktree"]
     assert zombies == ["a", "b", "c"]
     assert seen == ["a", "b", "c"]
@@ -81,3 +84,13 @@ def test_cursor_resumes_where_the_slice_ran_out(tmp_path, monkeypatch):
     third = governor._worktree_candidates(deadline=10.0)  # finishes the ring: c, then wraps to a, b
     assert [Path(item["path"]).name for item in third] == ["c", "a", "b"]
     assert json.loads((home / "state" / "worktree-proof-cursor.json").read_text()) == {"Projects/life-manager-main": 0}
+
+
+def test_each_repository_gets_an_even_share_of_the_slice(tmp_path, monkeypatch):
+    home, _first = _repo_with_three_worktrees(tmp_path)
+    _repo_with_three_worktrees(tmp_path, "Projects/anicca-products", "Projects/anicca-products-worktrees", ("x", "y", "z"))
+    clock = [0.0]
+    governor, seen = _governor_with_fake_proofs(home, monkeypatch, clock, cost=1.0)
+    found = [Path(item["path"]).name for item in governor._worktree_candidates(deadline=4.0)]
+    # 4 s split evenly: life-manager-main gets 2 s (a, b), anicca-products the remaining 2 s (x, y).
+    assert found == ["a", "b", "x", "y"]

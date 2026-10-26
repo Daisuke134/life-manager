@@ -2572,13 +2572,18 @@ class HostDiskGovernor:
             cursor = {}
         if not isinstance(cursor, dict):
             cursor = {}
-        for repository_relative, _root in WORKTREE_REPOSITORIES:
-            if deadline is not None and self.clock() >= deadline:
+        repositories = list(WORKTREE_REPOSITORIES)
+        for index, (repository_relative, _root) in enumerate(repositories):
+            now = self.clock()
+            if deadline is not None and now >= deadline:
                 break
+            # Even share of what is left, so a repository full of locked checkouts (life-manager-main,
+            # 77 of them) cannot starve the one whose merged worktrees are waiting (anicca-products).
+            repo_deadline = None if deadline is None else now + (deadline - now) / (len(repositories) - index)
             key = str(repository_relative)
             repository = self.home / repository_relative
             records = (
-                _worktree_records(repository, deadline=deadline, clock=self.clock)
+                _worktree_records(repository, deadline=repo_deadline, clock=self.clock)
                 if _real_directory_fingerprint(self.home, repository) is not None else None
             )
             if records is None:
@@ -2588,7 +2593,7 @@ class HostDiskGovernor:
                 start = 0
             done = 0
             for record in records[start:] + records[:start]:
-                if deadline is not None and self.clock() >= deadline:
+                if repo_deadline is not None and self.clock() >= repo_deadline:
                     break
                 done += 1
                 raw_path = record.get("worktree")
@@ -2596,7 +2601,7 @@ class HostDiskGovernor:
                     continue
                 path = Path(raw_path)
                 proof = self._worktree_identity(
-                    path, records=records, deadline=deadline
+                    path, records=records, deadline=repo_deadline
                 )
                 if proof is not None:
                     candidates.append({
@@ -2609,7 +2614,7 @@ class HostDiskGovernor:
                 else:
                     dependencies = path / "apps/life-manager/node_modules"
                     dependency_proof = self._worktree_dependency_identity(
-                        dependencies, records=records, deadline=deadline,
+                        dependencies, records=records, deadline=repo_deadline,
                     )
                     if dependency_proof is not None:
                         candidates.append({
