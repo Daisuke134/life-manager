@@ -116,6 +116,7 @@ const { makeSteelCdpClient } = require("./lib/steel-cdp-client.js");
 const { claimEvent, unclaimEvent, applyBilling, parseStripeEvent } = require("./lib/billing.js");
 const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
+const { createMaritimeCloudBillingStore, handleMaritimeCloudStripeWebhook, resolveMaritimeCloudConfig } = require("./lib/maritime-cloud-billing.js");
 const { recordCost } = require("./lib/ledger.js");
 const { recordUsageEvent, runtimeTrace, usageRuntimeEnv } = require("./lib/usage-event.js");
 const { createCloudCitizenStore } = require("./lib/cloud-citizen-store.js");
@@ -2042,6 +2043,31 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     return inngestHandler(req, res);
+  }
+  // Cloud billing has its own TEST-mode Stripe client and tenant subscription table.
+  // This signature-only path never calls Stripe's API or writes Calendar/Capafy revenue state.
+  if (path === "/api/stripe/cloud/webhook") {
+    if (req.method !== "POST") { res.writeHead(405); res.end("method"); return; }
+    (async () => {
+      try {
+        const config = resolveMaritimeCloudConfig(process.env);
+        const cloudStripe = require("stripe")(config.secretKey, { apiVersion: "2026-09-30.endive" });
+        const rawBody = await readRawBody(req);
+        const result = await handleMaritimeCloudStripeWebhook({
+          rawBody,
+          signature: req.headers["stripe-signature"],
+          env: process.env,
+          stripe: cloudStripe,
+          store: createMaritimeCloudBillingStore({ supaUrl: SUPA_URL, supaKey: SUPA_KEY }),
+        });
+        res.writeHead(result.statusCode, { "content-type": "application/json" });
+        res.end(JSON.stringify(result.body));
+      } catch {
+        res.writeHead(503, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "billing_not_configured" }));
+      }
+    })();
+    return;
   }
   // POST /api/stripe/webhook — Stripe billing lifecycle = source of truth for lm_users.paid (HARD-3).
   // Verify the signature over the RAW body (REQ-35), dedup by event.id (REQ-36), then apply entitlement.
