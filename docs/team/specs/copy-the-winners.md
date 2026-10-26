@@ -4,6 +4,27 @@ Owner: 参謀 (routine "Copy-the-winners teardown", daily ~09:00 JST). One secti
 Rule: copy the structure of profitable devs to the detail, never invent. No free trials, free tools only, reuse existing assets.
 Watched: @ErnestoSOFTWARE, @maubaron, @blakeandersonw, @ChadAppDev, @jackfriks, @oliverhenry.
 
+## 2026-10-26 (17:00 JST run): monk e-book, AI Monk Factory, Life Manager Cloud
+
+### 4. Monk e-book: comment keyword → automatic DM with the checkout link (winner: Yang Mun)
+
+- Source: [Yang Mun site](https://yang-mun.com/) (3-ebook bundle $19.99, anchor $38.97, "includes free Inner Circle", "20,000+ readers ★4.9") and the funnel teardown [InstantDM, "Yang Mun Sold a $24 Ebook"](https://instantdm.com/blog/yang-mun-ai-influencer-digital-product-funnel).
+- What they do: Reels say "comment GUIDE". An official Instagram API tool DMs the checkout link within seconds, asks for an email in the same thread, and the account replies "sent" publicly under the comment. Three keywords only: GUIDE (first touch, ebook), HEAL (ebook plus a one-line course mention), COURSE (program). One follow-up after 24h, upsell 3–5 days after purchase. Link in bio leaks buyers.
+- What we do now: every monk caption ends "The Anicca Reset, link in bio" (`marketing/monk-factory/monk_daily.py`); no DM automation (gap first noted 2026-10-23 in MONK-BUSINESS.md, still not done).
+- What we change: (1) connect the monk Instagram account to a free comment-to-DM tool (ManyChat free tier or InstantDM free plan, 500 automations/month, official Meta API, no password sharing) with keyword RESET → DM "Here's the link you asked for" + https://aniccaai.com/monk?utm_source=ig&utm_medium=dm&utm_campaign=monk_daily&ct=dm_reset, and public reply "sent 🙏". (2) Only after a test comment from a second account receives the DM, switch the IG caption CTA in `monk_daily.py` to "Comment RESET and I'll send you the book." TikTok keeps "link in bio". (3) Product: when the second e-book exists, copy the bundle shape (bundle price with the crossed-out sum as the anchor).
+- Owner: 参謀 (Monk daily video routine) for the caption switch; browser step queued in BROWSER-QUEUE (needs the IG login, interactive session).
+
+### 5. AI Monk Factory: a hidden "how is this made" lane (winner: Yang Mun's operator lane)
+
+- Source: same [InstantDM teardown](https://instantdm.com/blog/yang-mun-ai-influencer-digital-product-funnel): a separate keyword (BUILD) for people asking how the AI character is made, routed to a waitlist or paid call, never mixed into the e-book DM.
+- What we change: add keyword BUILD in the same DM tool → https://aniccaai.com/ai-monk-factory?ct=dm_build (3 free videos, then $199/mo). Do not mention it in captions; reply only when a commenter asks how the monk is made.
+- Owner: 参謀 (same browser step as #4).
+
+### 6. Life Manager Cloud: copy the hosted-agent winners' offer and the "easy button" (winners: SimpleClaw, Claws.host, Rapid Claw)
+
+- Sources: [SimpleClaw case](https://aidevcases.com/en/cases/simpleclaw) ($30K MRR in 2 weeks: sign in with Google, pick a model, own agent live in under a minute, used from Telegram; revenue-milestone threads on X amplified by @levelsio/@marclou), [Claws.host on TrustMRR](https://trustmrr.com/startup/claws-host) ($1,606 MRR, 35 subs; $29/$69/$129 per month; "Run OpenClaw in 5 minutes, not 5 hours"), [Rapid Claw on Indie Hackers](https://www.indiehackers.com/post/we-hit-2k-mrr-letting-people-deploy-ai-agents-without-touching-a-terminal-45cfa83e06) ($2K MRR, 68 customers, $29/mo including $10 of AI tokens, one practical "10 automations you can set up today" blog post drives ~30% of signups; best users are small agency owners).
+- What we change: (1) Distribution: publish one practical use-case post for Life Manager Cloud ("10 things the manager does for you by email, set up today"), on Telegraph and dev.to via the Distribution loop, linking aniccaai.com/lm with ct=usecase10; every revenue milestone of LM Cloud gets an X post on @diceai0 in 成田さん's first person. (2) Product: hero line in the winners' shape ("Your own manager running in 1 minute, not 1 weekend"), three tiers starting at $29/mo with model usage included, Google sign-in, no terminal. Owner: life-manager-main-claude-2 (Maritime build) for the onboarding/pricing; 参謀 Distribution loop for the post.
+
 ## 2026-10-26
 
 ### 3. Anicca iOS: store description line 2 as a question (winner: I am - Daily Affirmations)
