@@ -351,10 +351,9 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   if (!bindingStore) { send(res, 503, { error: "capafy_connection_unavailable" }); return true; }
   if (pathname === CAPAFY_CONNECT_PATH) {
     const useTenantMailbox = body.useTenantMailbox === true;
-    if (Object.keys(body).some(key => !["email", "termsAccepted", "privacyAccepted", "useTenantMailbox", "tenantMailboxConsent"].includes(key))
+    if (Object.keys(body).some(key => !["termsAccepted", "privacyAccepted", "useTenantMailbox", "tenantMailboxConsent"].includes(key))
       || (body.useTenantMailbox !== undefined && typeof body.useTenantMailbox !== "boolean")
       || (body.tenantMailboxConsent !== undefined && typeof body.tenantMailboxConsent !== "boolean")
-      || (useTenantMailbox ? body.email !== undefined : typeof body.email !== "string")
       || (!useTenantMailbox && body.tenantMailboxConsent === true)) {
       send(res, 400, { error: "invalid_request" }); return true;
     }
@@ -367,20 +366,15 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
     try {
       bindingStore.assertConfigured?.();
       const { CAPAFY_PUBLISHER_POLICY_CONSENT_VERSION, CAPAFY_TERMS_URL, CAPAFY_PRIVACY_URL } = require("./maritime-manager-capafy-binding.js");
-      if (!useTenantMailbox && typeof options.managerMailboxStore?.read === "function") {
-        const ownedMailbox = await options.managerMailboxStore.read({ tenantId: user.uid, authSubject: user.subject });
-        if (ownedMailbox?.email?.toLowerCase().endsWith("@agentmail.to")
-          && body.email.trim().toLowerCase().endsWith("@agentmail.to")) {
-          send(res, 400, { error: "tenant_mailbox_consent_required" });
-          return true;
-        }
-      }
       const acceptedAt = options.now?.() || new Date().toISOString();
       const mailbox = useTenantMailbox
         ? await options.managerMailboxStore?.ensure({ tenantId: user.uid, authSubject: user.subject })
         : null;
-      const email = useTenantMailbox ? mailbox?.email : body.email;
-      if (typeof email !== "string" || (useTenantMailbox && !/^[^\s@]+@agentmail\.to$/i.test(email))) {
+      const email = useTenantMailbox ? mailbox?.email : enrollment.email;
+      if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new Error("maritime_capafy_email_invalid");
+      }
+      if (useTenantMailbox && !/^[^\s@]+@agentmail\.to$/i.test(email)) {
         throw new Error("maritime_mailbox_unavailable");
       }
       const attemptId = useTenantMailbox ? require("node:crypto").randomUUID() : null;

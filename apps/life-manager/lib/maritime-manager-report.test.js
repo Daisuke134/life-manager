@@ -90,7 +90,7 @@ test('missing or malformed cost records do not become verified zero expense',()=
   financialCoverage:coverage(),costs:{...coverage(),records}}),/invalid/);
 });
 function deliveryFixture(){
- const current={...enrollment,status:'active',paused_at:null,email:'current@example.invalid'};
+ const current={...enrollment,status:'active',paused_at:null,email:'person@example.invalid'};
  let receipt=null;const sends=[];
  const deps={managerStore:{read:async()=>({...current})},
   cfoReceiptIO:{read:async()=>receipt,claim:async(_,value)=>{if(receipt)return false;receipt={...value};return true;},mark:async(_,patch)=>Object.assign(receipt,patch)},
@@ -104,7 +104,7 @@ test('daily email replays original provider ID and uses the latest verified enro
  const second=await deliverMaritimeDailyResult(f.input,f.deps);
  assert.equal(first.providerMessageId,'mail-1');assert.equal(second.providerMessageId,'mail-1');
  assert.equal(second.status,'duplicate');assert.equal(f.sends.length,1);
- assert.equal(f.sends[0].to,'current@example.invalid');assert.match(f.sends[0].text,/利益：未確認/);
+ assert.equal(f.sends[0].to,'person@example.invalid');assert.match(f.sends[0].text,/利益：未確認/);
 });
 test('paused, foreign, malformed report scopes and invalid timestamps do not send email',async()=>{
  const f=deliveryFixture();f.current.paused_at='2026-10-21T09:00:00Z';

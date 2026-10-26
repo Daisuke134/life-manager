@@ -113,10 +113,11 @@ function activateRequest(deps,method="POST",csrf=true){
     "x-lm-web-csrf":csrf?createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET):"invalid"});
 }
 test("activate_post_enqueues_once_but_get_prefetch_does_not",async()=>{
-  assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs}=activationFixture();let res=response();
+  assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs,rows}=activationFixture();let res=response();
   await handleMaritimeManagerActivate(activateRequest(deps,"GET"),res,deps);assert.equal(res.statusCode,405);assert.equal(jobs.size,0);
   for(let i=0;i<2;i++){res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,202);}
   assert.equal(jobs.size,1);const job=[...jobs.values()][0];assert.equal(job.tenant_id,`lm_${SUBJECT}`);assert.equal(job.capability,"maritime.manager.provision");
+  assert.equal([...rows.values()][0].email, USER.email);
 });
 test("activation_requires_verified_identity_and_correct_csrf",async()=>{
   assert.equal(typeof handleMaritimeManagerActivate,"function");let f=activationFixture({user:null});let res=response();
@@ -463,7 +464,7 @@ function capafyConnectionFixture() {
   const bindingWrites = [], calls = [];
   f.deps.now = () => "2026-10-25T12:00:00.000Z";
   f.deps.managerStore = { read: async tenantId => tenantId === uid
-    ? { uid, auth_subject: SUBJECT, status: "active", paused_at: null } : null };
+    ? { uid, auth_subject: SUBJECT, email: USER.email, status: "active", paused_at: null } : null };
   f.deps.capafyBindingStore = {
     save: async input => { bindingWrites.push(input); return { provider: "capafy", tenantId: uid,
       providerSubject: "019d3c7f-fe51-7c57-aa2e-8e1055bb36a5", accountRef: `account://capafy/${uid}/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5`,
@@ -528,7 +529,7 @@ test("Capafy connection routes stay disabled until the explicit Cloud provider f
   delete f.deps.env.LM_MARITIME_CAPAFY_CONNECTION_ENABLED;
   const res = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "seller@example.com" }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+    {}, { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 503);
   assert.equal(JSON.parse(res.body).error, "capafy_connection_unavailable");
   assert.deepEqual(f.calls, []);
@@ -539,14 +540,15 @@ test("Capafy OTP connect is authenticated, CSRF protected, and returns only a te
   assert.equal(typeof handleMaritimeManagerCapafyConnection, "function");
   const f = capafyConnectionFixture(), res = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "Seller@Example.com", termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+    { termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 202);
   const result = JSON.parse(res.body);
   assert.equal(result.status, "check_email");
   assert.equal(result.expiresInSec, 300);
   assert.equal(typeof result.challengeRef, "string");
-  assert.doesNotMatch(res.body, /seller@example.com|accessToken|am_sk_/i);
-  assert.deepEqual(f.calls, [["start", "Seller@Example.com"]]);
+  assert.equal(res.body.includes(USER.email), false);
+  assert.doesNotMatch(res.body, /accessToken|am_sk_/i);
+  assert.deepEqual(f.calls, [["start", USER.email]]);
   const opened = require("./maritime-manager-capafy-binding.js").openChallenge(result.challengeRef, {
     tenantId: f.uid, authSubject: SUBJECT, secret: require("./web-auth.js").csrfSecret(f.deps), now: f.deps.now(),
   });
@@ -556,17 +558,17 @@ test("Capafy OTP connect is authenticated, CSRF protected, and returns only a te
     mailboxVerification: false });
   const rejected = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "Seller@Example.com" }, { origin: "https://foreign.invalid", "x-lm-web-csrf": f.csrf }), rejected, f.deps);
+    {}, { origin: "https://foreign.invalid", "x-lm-web-csrf": f.csrf }), rejected, f.deps);
   assert.equal(rejected.statusCode, 403);
   assert.equal(f.calls.length, 1);
 });
 
 test("Capafy OTP is not sent until the publisher explicitly accepts both current policies", async () => {
   for (const body of [
-    { email: "seller@example.com" },
-    { email: "seller@example.com", termsAccepted: true, privacyAccepted: false },
-    { email: "seller@example.com", termsAccepted: false, privacyAccepted: true },
-    { email: "seller@example.com", termsAccepted: "true", privacyAccepted: true },
+    {},
+    { termsAccepted: true, privacyAccepted: false },
+    { termsAccepted: false, privacyAccepted: true },
+    { termsAccepted: "true", privacyAccepted: true },
   ]) {
     const f = capafyConnectionFixture(), res = response();
     await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
@@ -581,7 +583,7 @@ test("Capafy OTP is not sent until the publisher explicitly accepts both current
 test("Capafy policy acceptance is bound to the signed challenge before verification", async () => {
   const f = capafyConnectionFixture(), res = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "seller@example.com", termsAccepted: true, privacyAccepted: true },
+    { termsAccepted: true, privacyAccepted: true },
     { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 202);
   const challenge = require("./maritime-manager-capafy-binding.js").openChallenge(JSON.parse(res.body).challengeRef, {
@@ -591,7 +593,7 @@ test("Capafy policy acceptance is bound to the signed challenge before verificat
     policyConsentVersion: "capafy-publisher-terms-privacy-v1", termsAcceptedAt: "2026-10-25T12:00:00.000Z",
     termsUrl: "https://api.capafy.ai/terms-of-service", privacyUrl: "https://api.capafy.ai/privacy-policy",
     mailboxVerification: false });
-  assert.deepEqual(f.calls, [["start", "seller@example.com"]]);
+  assert.deepEqual(f.calls, [["start", USER.email]]);
 });
 
 test("tenant mailbox setup reads only its Capafy OTP and verifies it server-side", async () => {
@@ -648,12 +650,15 @@ test("tenant mailbox is not created or read without explicit mailbox consent", a
   assert.deepEqual(f.calls, []);
 });
 
-test("manual Google-address challenge never reads an inbox when no code is supplied", async () => {
+test("verified signup address starts the platform challenge without reading an inbox", async () => {
   const f = capafyConnectionFixture(); let mailboxReads = 0;
-  f.deps.managerMailboxStore = { readCapafyVerificationCode: async () => { mailboxReads += 1; return { status: "code", code: "004219" }; } };
+  f.deps.managerMailboxStore = {
+    read: async () => { mailboxReads += 1; throw new Error("standard address must not read mailbox state"); },
+    readCapafyVerificationCode: async () => { mailboxReads += 1; return { status: "code", code: "004219" }; },
+  };
   const start = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST", {
-    email: "person@signup.example.invalid", termsAccepted: true, privacyAccepted: true,
+    termsAccepted: true, privacyAccepted: true,
   }, { "x-lm-web-csrf": f.csrf }), start, f.deps);
   const done = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/verify", "POST", {
@@ -662,22 +667,17 @@ test("manual Google-address challenge never reads an inbox when no code is suppl
   assert.equal(done.statusCode, 400);
   assert.deepEqual(JSON.parse(done.body), { error: "verification_code_required" });
   assert.equal(mailboxReads, 0);
-  assert.deepEqual(f.calls, [["start", "person@signup.example.invalid"]]);
+  assert.deepEqual(f.calls, [["start", USER.email]]);
 });
 
-test("manual start cannot bypass consent and reservation for the tenant-owned mailbox address", async () => {
+test("Capafy connection start rejects a caller-supplied contact address", async () => {
   const f = capafyConnectionFixture();
-  f.deps.managerMailboxStore = { read: async identity => {
-    assert.deepEqual(identity, { tenantId: f.uid, authSubject: SUBJECT });
-    return { connected: true, provider: "agentmail", tenantId: f.uid,
-      email: "lm-agent-a@agentmail.to", inboxId: "inbox-tenant-a", clientId: `life-manager-${f.uid}` };
-  } };
   const res = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST", {
-    email: "lm-agent-a+alternate@agentmail.to", termsAccepted: true, privacyAccepted: true,
+    email: "attacker@example.invalid", termsAccepted: true, privacyAccepted: true,
   }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 400);
-  assert.deepEqual(JSON.parse(res.body), { error: "tenant_mailbox_consent_required" });
+  assert.deepEqual(JSON.parse(res.body), { error: "invalid_request" });
   assert.deepEqual(f.calls, []);
 });
 
@@ -801,7 +801,7 @@ test("Capafy OTP verify binds the official verified seller to the signed Life Ma
   const f = capafyConnectionFixture();
   const started = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "seller@example.com", termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), started, f.deps);
+    { termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), started, f.deps);
   const challengeRef = JSON.parse(started.body).challengeRef;
   const done = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/verify", "POST", {
@@ -810,7 +810,7 @@ test("Capafy OTP verify binds the official verified seller to the signed Life Ma
   assert.equal(done.statusCode, 200);
   assert.equal(JSON.parse(done.body).status, "connected");
   assert.doesNotMatch(done.body, /am_sk_|seller@example.com|accessToken/i);
-  assert.deepEqual(f.calls, [["start", "seller@example.com"], ["verify", { challengeId: "challenge-1", code: "004219" }]]);
+  assert.deepEqual(f.calls, [["start", USER.email], ["verify", { challengeId: "challenge-1", code: "004219" }]]);
   assert.equal(f.bindingWrites.length, 1);
   assert.equal(f.bindingWrites[0].tenantId, f.uid);
   assert.equal(f.bindingWrites[0].authSubject, SUBJECT);
@@ -840,7 +840,7 @@ test("Capafy connection rejects foreign challenges, missing autonomy consent, an
   f.deps.managerStore.read = async uid => ({ uid, auth_subject: SUBJECT, status: "paused", paused_at: "2026-10-25T11:00:00Z" });
   res = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "seller@example.com", termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+    { termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 409);
   assert.equal(f.calls.length, 0);
   assert.equal(f.bindingWrites.length, 0);
@@ -851,7 +851,7 @@ test("Capafy OTP is not sent until the cloud encryption key is configured", asyn
   f.deps.capafyBindingStore.assertConfigured = () => { throw new Error("maritime_capafy_encryption_unavailable"); };
   const res = response();
   await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
-    { email: "seller@example.com", termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
+    { termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), res, f.deps);
   assert.equal(res.statusCode, 503);
   assert.equal(JSON.parse(res.body).error, "capafy_login_unavailable");
   assert.equal(f.calls.length, 0);
