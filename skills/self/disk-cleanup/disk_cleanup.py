@@ -551,25 +551,30 @@ def _expired_managed_lock(reason: object) -> Path | None:
     return lease if _lease_expired(lease) else None
 
 
+_PROTECTED_STATUS_PARTS = frozenset({"memory", "state", "private", "identity", "secrets", ".cloak"})
+
+
 def _only_regenerable_status(output: str) -> bool:
-    """Allow ignored dependency caches and untracked .DS_Store; anything else is work."""
+    """Allow ignored dependency caches, ignored build directories and untracked .DS_Store.
+
+    An ignored *directory* is build output or a cache (``.next/``, ``out/``, ``dist/``, generated
+    ``public/…`` assets) unless its path names a store or secret; an ignored *file* (``.env``) is
+    still work because that is where local secrets live.
+    """
     for line in output.splitlines():
         code, _, name = line.partition(" ")
-        parts = Path(name.strip().strip('"').rstrip("/")).parts
+        raw = name.strip().strip('"')
+        parts = Path(raw.rstrip("/")).parts
+        lowered = {part.lower() for part in parts}
         if code == "!!" and (_REGENERABLE_IGNORED_PARTS.intersection(parts) or parts[-1:] == (".DS_Store",)):
+            continue
+        if (code == "!!" and raw.endswith("/") and not lowered.intersection(_PROTECTED_STATUS_PARTS)
+                and not any("credential" in part or "passkey" in part or part.startswith(".env") for part in lowered)):
             continue
         if code == "??" and parts[-1:] == (".DS_Store",):
             continue
         return False
     return True
-
-
-def _hard_protected_tracked(relative: Path) -> bool:
-    """Memory stores and credential/env files stay protected even when committed."""
-    name = relative.name.lower()
-    return ("memory" in {part.lower() for part in relative.parts}
-            or "credential" in name or "passkey" in name
-            or name == ".env" or name.startswith(".env."))
 
 
 def _content_in_main(
@@ -593,6 +598,7 @@ def _content_in_main(
 
 
 PUSHED_WORKTREE_MIN_AGE_SECONDS = 72 * 3600
+FRESH_MAIN_TTL_SECONDS = 50
 
 
 def _pushed_and_stale(
@@ -837,6 +843,7 @@ class HostDiskGovernor:
         self._lock_fd: int | None = None
         self.full_inventory_marker = self.state_dir / "host-inventory-full.at"
         self.full_inventory_attempt_marker = self.state_dir / "host-inventory-full.attempt"
+        self._fresh_main: dict[str, tuple[float, str]] = {}
         self.candidate_cursor_path = self.state_dir / "candidate-cursor.json"
         self.lsof = lsof
         self.usage = usage or self._usage
@@ -1254,9 +1261,11 @@ class HostDiskGovernor:
                 descendant = Path(root) / name
                 try:
                     if (tracked_paths is not None
-                            and descendant.relative_to(path).as_posix() in tracked_paths
-                            and not _hard_protected_tracked(descendant.relative_to(path))):
-                        # Committed and merged: the content survives in origin/main.
+                            and descendant.relative_to(path).as_posix() in tracked_paths):
+                        # Committed and merged: the content survives in origin/main, whatever its
+                        # name. Keeping tracked memory/credential/.env.example files protected
+                        # left every worktree of both repositories on disk (2026-10-26); untracked
+                        # secrets and runtime stores still block through the status gate below.
                         continue
                     if dependency_packages is not None:
                         parts = tuple(part.lower() for part in descendant.parts)
@@ -1316,6 +1325,39 @@ class HostDiskGovernor:
                 return self.home / repository, self.home / root
         return None
 
+    def _fresh_main_head(self, repository: Path, *, deadline: float | None) -> str | None:
+        """origin/main as the remote has it, fetched into the repository when the local ref lags.
+
+        One ``ls-remote`` (0.5 s) per repository per pass; a stale local ``origin/main`` used to
+        fail the proof outright, so nothing retired between other agents' fetches (2026-10-26).
+        """
+        key = str(repository)
+        now = self.clock()
+        cached = self._fresh_main.get(key)
+        if cached is not None and now - cached[0] < FRESH_MAIN_TTL_SECONDS:
+            return cached[1]
+        listed = _run_git(repository, "ls-remote", "--exit-code", "origin", "refs/heads/main",
+                          deadline=deadline, clock=self.clock)
+        if listed is None or listed.returncode != 0:
+            return None
+        parts = listed.stdout.split()
+        if len(parts) != 2 or parts[1] != "refs/heads/main" or re.fullmatch(r"[0-9a-f]{40,64}", parts[0]) is None:
+            return None
+        remote = parts[0]
+        local = _run_git(repository, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}",
+                         deadline=deadline, clock=self.clock)
+        if local is None or local.returncode != 0 or local.stdout.strip() != remote:
+            fetched = _run_git(repository, "fetch", "--quiet", "origin", "refs/heads/main:refs/remotes/origin/main",
+                               timeout=20, deadline=deadline, clock=self.clock)
+            if fetched is None or fetched.returncode != 0:
+                return None
+            local = _run_git(repository, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}",
+                             deadline=deadline, clock=self.clock)
+            if local is None or local.returncode != 0 or local.stdout.strip() != remote:
+                return None
+        self._fresh_main[key] = (now, remote)
+        return remote
+
     def _worktree_identity(
         self,
         path: Path,
@@ -1368,8 +1410,8 @@ class HostDiskGovernor:
             return None
         common_result = _run_git(repository, "rev-parse", "--git-common-dir", deadline=deadline, clock=self.clock)
         head_result = _run_git(lexical, "rev-parse", "HEAD", deadline=deadline, clock=self.clock)
-        remote_result = _run_git(repository, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}", deadline=deadline, clock=self.clock)
-        if common_result is None or head_result is None or remote_result is None:
+        remote_head = self._fresh_main_head(repository, deadline=deadline)
+        if common_result is None or head_result is None or remote_head is None:
             return None
         if head_result.stdout.strip() != head:
             return None
@@ -1389,9 +1431,6 @@ class HostDiskGovernor:
         else:
             if not _lease_expired(lease):
                 return None
-        remote_head = remote_result.stdout.strip()
-        if re.fullmatch(r"[0-9a-f]{40,64}", remote_head) is None:
-            return None
         if deadline is not None and self.clock() >= deadline:
             return None
         ancestry_timeout = 5.0 if deadline is None else min(5.0, deadline - self.clock())
@@ -1426,15 +1465,15 @@ class HostDiskGovernor:
         if status is None or not _only_regenerable_status(status.stdout):
             return None
         if not dependency_cache:
-            if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
-                return None
             tracked = _tracked_paths(lexical, deadline=deadline, clock=self.clock)
-            if tracked is None or self._protected_descendant(
+            if tracked is None:
+                return None
+            if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock,
+                                              tracked_paths=tracked) is not None:
+                return None
+            if self._protected_descendant(
                     path, deadline=deadline, allow_worktree_sources=True, tracked_paths=tracked) is not None:
                 return None
-        fresh_main = _run_git(repository, "ls-remote", "--exit-code", "origin", "refs/heads/main", deadline=deadline, clock=self.clock)
-        if fresh_main is None or fresh_main.stdout.split() != [remote_head, "refs/heads/main"]:
-            return None
         if deadline is not None and self.clock() >= deadline:
             return None
         return (

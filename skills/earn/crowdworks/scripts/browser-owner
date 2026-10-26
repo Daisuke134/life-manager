@@ -26,6 +26,7 @@ fi
 [[ -x "$BROWSER" ]] || { echo "crowdworks browser binary unavailable" >&2; exit 78; }
 mkdir -p "$profile"
 exec "$BROWSER" --no-first-run --no-default-browser-check \
+  --disk-cache-size=67108864 \
   --disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess \
   --renderer-process-limit="$renderer_limit" \
   --remote-debugging-address=127.0.0.1 --remote-allow-origins='*' \

@@ -435,10 +435,30 @@ def _release_immutable_store_probe(
     *,
     deadline: float | None = None,
     clock: Callable[[], float] | None = None,
+    tracked_paths: frozenset[str] | None = None,
 ) -> str | None:
-    """Preserve memory/state JSONL paths; fail closed on probe errors or deadlines."""
+    """Preserve memory/state JSONL paths; fail closed on probe errors or deadlines.
+
+    ``tracked_paths`` (posix paths relative to ``path``, as ``git ls-files`` prints them) marks
+    repository content: a tracked ``memory`` directory or tracked ``state/*.jsonl`` files are
+    not a runtime store, their copy lives on origin/main (2026-10-26: anicca-products tracks
+    ``memory/`` and every one of its 41 worktrees survived the watchdog because of it).
+    """
     clock = clock or time.monotonic
     errors: list[OSError] = []
+    tracked_dirs: set[str] = set()
+    if tracked_paths is not None:
+        for tracked in tracked_paths:
+            parent = Path(tracked).parent
+            while parent != Path("."):
+                tracked_dirs.add(parent.as_posix())
+                parent = parent.parent
+
+    def _tracked_dir(directory: Path) -> bool:
+        return tracked_paths is not None and directory.relative_to(path).as_posix() in tracked_dirs
+
+    def _tracked_file(file: Path) -> bool:
+        return tracked_paths is not None and file.relative_to(path).as_posix() in tracked_paths
     try:
         for current, directories, files in os.walk(
             path, topdown=True, followlinks=False, onerror=errors.append
@@ -448,9 +468,12 @@ def _release_immutable_store_probe(
             if deadline is not None and clock() >= deadline:
                 return "probe-budget-exhausted"
             current_path = Path(current)
-            if current_path.name == "memory" or "memory" in directories:
+            if current_path.name == "memory" and not _tracked_dir(current_path):
                 return "protected_descendant"
-            if current_path.name == "state" and any(name.endswith(".jsonl") for name in files):
+            if "memory" in directories and not _tracked_dir(current_path / "memory"):
+                return "protected_descendant"
+            if current_path.name == "state" and any(
+                    name.endswith(".jsonl") and not _tracked_file(current_path / name) for name in files):
                 return "protected_descendant"
             for name in directories + files:
                 if deadline is not None and clock() >= deadline:
