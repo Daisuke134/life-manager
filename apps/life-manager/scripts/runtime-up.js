@@ -466,7 +466,9 @@ function createMaritimeCapafyAccountBinding({ query, managerStore, env = process
   const bindingStore = binding.createMaritimeCapafyBindingStore({ query,
     encryptionKey: requiredEnv(env, "LM_MARITIME_CAPAFY_ENCRYPTION_KEY") });
   const connector = binding.createCapafyAccountConnector({ fetchImpl });
-  return binding.createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connector });
+  const publisherConsentStore = require("../lib/maritime-manager-capafy-consent.js")
+    .createMaritimeCapafyPublisherConsentStore({ query });
+  return binding.createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connector, publisherConsentStore });
 }
 
 function createWorkerHandlers(env, capabilities, dependencies = {}) {

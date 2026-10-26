@@ -13,6 +13,9 @@ const CAPAFY_SUBJECT = "019d3c7f-fe51-7c57-aa2e-8e1055bb36a5";
 const KEY = "a".repeat(64);
 const TOKEN = "am_sk_" + "x".repeat(32);
 const NOW = "2026-10-25T12:00:00.000Z";
+const currentPublisherConsent = tenantId => ({ readCurrent: async ({ tenantId: requested, authSubject }) =>
+  requested === tenantId && authSubject === SUBJECT ? { tenantId, authSubject: SUBJECT,
+    agreementVersion: "v1.2", effectiveDate: "2026-09-28", acceptedAt: NOW } : null });
 
 test("Capafy OTP challenge is signed, time limited, and bound to the authenticated Life Manager identity", () => {
   const challenge = sealChallenge({ tenantId: UID, authSubject: SUBJECT, challengeId: "challenge-1",
@@ -204,6 +207,7 @@ test("host account binding checks the live official subject, tenant enrollment, 
   let tenantId = UID, authSubject = SUBJECT, accountRef = `account://capafy/${UID}/${CAPAFY_SUBJECT}`;
   let officialSubject = CAPAFY_SUBJECT, tokenReads = 0, callbackToken = null;
   const binding = createMaritimeCapafyAccountBinding({
+    publisherConsentStore: currentPublisherConsent(UID),
     managerStore: { read: async uid => uid === tenantId ? { uid, auth_subject: authSubject, status: "active", paused_at: null } : null },
     bindingStore: { read: async input => {
       if (input.tenantId !== UID || input.authSubject !== SUBJECT) throw new Error("binding unavailable");
@@ -218,7 +222,7 @@ test("host account binding checks the live official subject, tenant enrollment, 
   });
   assert.deepEqual(await binding.readAccountBinding({ tenantId: UID, accountRef }), {
     provider: "capafy", tenantId: UID, accountRef, providerSubject: CAPAFY_SUBJECT,
-    autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION,
+    autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION, publisherAgreementVersion: "v1.2",
   });
   assert.equal(JSON.stringify(await binding.readAccountBinding({ tenantId: UID, accountRef })).includes(TOKEN), false);
   const readsBeforeAccess = tokenReads;
@@ -230,16 +234,17 @@ test("host account binding checks the live official subject, tenant enrollment, 
   await assert.rejects(binding.readAccountBinding({ tenantId: UID, accountRef }), /subject/i);
   officialSubject = CAPAFY_SUBJECT;
   tenantId = "lm_22222222-2222-4222-8222-222222222222";
-  await assert.rejects(binding.readAccountBinding({ tenantId, accountRef }), /unavailable/i);
+  await assert.rejects(binding.readAccountBinding({ tenantId, accountRef }), /publisher_agreement_consent_required/i);
   tenantId = UID;
   authSubject = "22222222-2222-4222-8222-222222222222";
-  await assert.rejects(binding.readAccountBinding({ tenantId: UID, accountRef }), /unavailable/i);
+  await assert.rejects(binding.readAccountBinding({ tenantId: UID, accountRef }), /publisher_agreement_consent_required/i);
 });
 
 test("paused tenant can use its bound token for provider readback while action admission stays elsewhere", async () => {
   const accountRef = `account://capafy/${UID}/${CAPAFY_SUBJECT}`;
   let connectorReads = 0;
   const binding = createMaritimeCapafyAccountBinding({
+    publisherConsentStore: currentPublisherConsent(UID),
     managerStore: { read: async uid => ({ uid, auth_subject: SUBJECT, status: "paused",
       paused_at: "2026-10-25T11:00:00.000Z" }) },
     bindingStore: { read: async input => {
@@ -259,4 +264,23 @@ test("paused tenant can use its bound token for provider readback while action a
   await binding.withAccessToken({ tenantId: UID, accountRef }, async token => { callbackToken = token; }, { mode: "readback" });
   assert.equal(callbackToken, TOKEN);
   assert.equal(connectorReads, 1);
+});
+
+test("Capafy token access stops before binding or provider reads when agreement consent is missing or stale", async () => {
+  for (const current of [null, { tenantId: UID, authSubject: SUBJECT,
+    agreementVersion: "v1.1", effectiveDate: "2026-09-28", acceptedAt: NOW }]) {
+    let bindingReads = 0, officialReads = 0, actionCalls = 0;
+    const binding = createMaritimeCapafyAccountBinding({
+      publisherConsentStore: { readCurrent: async () => current },
+      managerStore: { read: async uid => ({ uid, auth_subject: SUBJECT, status: "active", paused_at: null }) },
+      bindingStore: { read: async () => { bindingReads++; return { provider: "capafy", tenantId: UID,
+        providerSubject: CAPAFY_SUBJECT, accountRef: `account://capafy/${UID}/${CAPAFY_SUBJECT}`,
+        autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION, accessToken: TOKEN }; } },
+      connector: { readAccount: async () => { officialReads++; return { provider: "capafy",
+        providerSubject: CAPAFY_SUBJECT, developerVerified: true }; } },
+    });
+    await assert.rejects(binding.withAccessToken({ tenantId: UID, accountRef: `account://capafy/${UID}/${CAPAFY_SUBJECT}` },
+      async () => { actionCalls++; }), /publisher_agreement_consent_required/i);
+    assert.deepEqual({ bindingReads, officialReads, actionCalls }, { bindingReads: 0, officialReads: 0, actionCalls: 0 });
+  }
 });

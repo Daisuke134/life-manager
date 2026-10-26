@@ -23,10 +23,11 @@ function fixture() {
   const proof = r => ({state:"present",receipt:r});
   const provider={
     readAccountBinding:async ({tenantId,accountRef})=>({provider:"capafy",tenantId,accountRef,
-      providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+      providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1",
+      publisherAgreementVersion:"v1.2"}),
     withAccessToken:async ({tenantId,accountRef},operation)=>operation("am_sk_"+"t".repeat(32),
       {provider:"capafy",tenantId,accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
-        autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+        autonomyConsentVersion:"maritime-capafy-autonomy-v1",publisherAgreementVersion:"v1.2"}),
     guardArtifact:async ()=>({original:true,frozen:false,duplicate:false}),
     prepare:async ()=>{prepares++;},publish:async ()=>{publishes++;},
     readPrepare:async ()=>proof(prepareReceipt),readPublish:async ()=>proof(publishReceipt),
@@ -55,6 +56,32 @@ test("provider jobs carry the exact immutable source chain and stable single-att
   assert.equal(f.publish.effect_key,`maritime-capafy-publish://${UID}/first`);
   assert.equal(f.publish.max_attempts,1);assert.equal(f.publish.effect_class,"publish");
   assert.equal(runtime().buildMaritimeCapafyPrepareJob({...f.args,releaseSha:"b".repeat(40)}).job_id,f.prepare.job_id);
+});
+test("provider actions stop before guard or prepare when the Publisher Agreement version is stale",async()=>{
+  const f=fixture();let guarded=0;
+  f.provider.withAccessToken=async({tenantId,accountRef},operation)=>operation("am_sk_"+"t".repeat(32),
+    {provider:"capafy",tenantId,accountRef,providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",
+      autonomyConsentVersion:"maritime-capafy-autonomy-v1",publisherAgreementVersion:"v1.1"});
+  f.provider.guardArtifact=async()=>{guarded++;return {original:true,frozen:false,duplicate:false};};
+  await assert.rejects(runtime().createMaritimeManagerCapafyPrepareAdapter(f.services).execute(f.prepare),/identity_mismatch/i);
+  assert.equal(guarded,0);assert.deepEqual(f.counts(),{prepares:0,publishes:0});
+});
+test("provider receipts reject credentials even when nested under an unknown field",()=>{
+  const f=fixture(),exposed={...f.prepareReceipt,metadata:{accessToken:"am_sk_"+"s".repeat(32)}};
+  assert.equal(runtime().verifyMaritimeCapafyPrepareReceipt(exposed,f.prepare,f.cycle,f.cycleReceipt),false);
+});
+test("provider receipts reject unrecognized fields that could carry personal data",()=>{
+  const f=fixture();
+  for(const [key,value] of [["email","publisher@example.test"],["legal_name","Publisher Name"]]){
+    assert.equal(runtime().verifyMaritimeCapafyPrepareReceipt({...f.prepareReceipt,[key]:value},
+      f.prepare,f.cycle,f.cycleReceipt),false,key);
+  }
+});
+test("draft and review-pending states never become revenue in Life Manager reports",()=>{
+  const f=fixture(),adapter=runtime().createMaritimeManagerCapafyPublishAdapter(f.services);
+  assert.deepEqual(adapter.report({status:"draft",estimatedRevenueUsd:99}),{status:"draft",provider:"capafy"});
+  assert.deepEqual(adapter.report({status:"under_review",salesUsd:99,proceedsUsd:99}),
+    {status:"under_review",provider:"capafy"});
 });
 test("trusted cycle, prepare and publish receipts reject every mismatched chain identity",()=>{
   const f=fixture(),r=runtime();
@@ -148,7 +175,8 @@ test("Capafy host actions receive only the matching tenant token from the encryp
  f.provider.withAccessToken=async(identity,operation,options)=>{
   calls.push(["token",options?.mode]);
   return operation(token,{provider:"capafy",tenantId:UID,accountRef:f.args.accountRef,
-    providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1"});
+    providerSubject:"019d3c7f-fe51-7c57-aa2e-8e1055bb36a5",autonomyConsentVersion:"maritime-capafy-autonomy-v1",
+    publisherAgreementVersion:"v1.2"});
  };
  const assertBound=input=>{
   assert.equal(input.accessToken,token);

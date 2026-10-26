@@ -3,6 +3,7 @@ const {createHash} = require("node:crypto");
 const {isDeepStrictEqual} = require("node:util");
 const {buildRuntimeJob} = require("./runtime-job-store.js");
 const {readMaritimeCycleContract,createMaritimeManagerLoopAdapter} = require("./maritime-manager-runtime.js");
+const {CAPAFY_PUBLISHER_AGREEMENT_VERSION} = require("./maritime-manager-capafy-consent.js");
 
 class ProviderError extends Error {
   constructor(code,unknownEffect=false) {super(code);this.code=code.toUpperCase();this.unknownEffect=unknownEffect;}
@@ -53,10 +54,31 @@ function officialUrl(value,agentId) {
       && url.pathname.split("/").includes(agentId);
   } catch {return false;}
 }
+function credentialFree(value) {
+  if(typeof value==="string")return !/am_sk_[A-Za-z0-9_-]{16,480}|Bearer\s+\S+/i.test(value);
+  if(Array.isArray(value))return value.every(credentialFree);
+  if(value && typeof value==="object")return Object.entries(value).every(([key,item])=>
+    !/(?:access.?token|api.?key|authorization|password|secret|credential)/i.test(key)&&credentialFree(item));
+  return true;
+}
+function hasExactReceiptKeys(receipt,job,contract) {
+  if(!receipt || typeof receipt!=="object" || Array.isArray(receipt))return false;
+  const prototype=Object.getPrototypeOf(receipt);
+  if(prototype!==Object.prototype && prototype!==null)return false;
+  const keys=Reflect.ownKeys(receipt);
+  if(keys.some(key=>typeof key!=="string"))return false;
+  const allowed=new Set(["schema_version","kind","tenant_id","job_id","attempt","effect_key","provider",
+    ...Object.keys(job.input_refs),"status","url","external_ref","evidence_refs","observed_at"]);
+  if(contract.phase==="prepare"){
+    allowed.add("agent_id");allowed.add("agent_version_id");
+  }
+  return keys.length===allowed.size && keys.every(key=>allowed.has(key));
+}
 function verifyReceipt(receipt,job,statuses) {
   try {
     const c=readMaritimeCapafyJobContract(job),ref=`capafy-action://${job.job_id}/1`;
-    return job.attempt===1 && receipt?.schema_version===1 && receipt.tenant_id===c.tenantId
+    return hasExactReceiptKeys(receipt,job,c) && credentialFree(receipt) && job.attempt===1
+      && receipt.schema_version===1 && receipt.tenant_id===c.tenantId
       && receipt.job_id===job.job_id && receipt.attempt===1 && receipt.effect_key===job.effect_key
       && receipt.provider==="capafy" && statuses.includes(receipt.status)
       && receipt.kind===(c.phase==="prepare"?"maritime_capafy_prepare":"provider_action_receipt")
@@ -92,7 +114,8 @@ async function withProviderAccess(provider,expectedIdentity,operation,mode="acti
     if(typeof accessToken!=="string" || identity?.provider!=="capafy"
       || identity.tenantId!==expectedIdentity.tenantId || identity.accountRef!==expectedIdentity.accountRef
       || identity.providerSubject!==expectedIdentity.providerSubject
-      || identity.autonomyConsentVersion!==expectedIdentity.autonomyConsentVersion)
+      || identity.autonomyConsentVersion!==expectedIdentity.autonomyConsentVersion
+      || identity.publisherAgreementVersion!==CAPAFY_PUBLISHER_AGREEMENT_VERSION)
       throw new ProviderError("maritime_capafy_identity_mismatch");
     return operation({accessToken,identity});
   },{mode});
@@ -112,7 +135,8 @@ function createAdapter(phase,services={}) {
     if(!provider || typeof provider.readAccountBinding!=="function"
       || typeof services.readCompletedCycle!=="function")throw new ProviderError("maritime_capafy_unconfigured");
     const account=await provider.readAccountBinding({tenantId:c.tenantId,accountRef:c.accountRef});
-    if(account?.provider!=="capafy" || account.tenantId!==c.tenantId || account.accountRef!==c.accountRef)invalid();
+    if(account?.provider!=="capafy" || account.tenantId!==c.tenantId || account.accountRef!==c.accountRef
+      || account.publisherAgreementVersion!==CAPAFY_PUBLISHER_AGREEMENT_VERSION)invalid();
     if(active) {
       const enrollment=await services.managerStore?.read(c.tenantId);
       if(enrollment?.uid!==c.tenantId || enrollment.status!=="active" || enrollment.paused_at

@@ -1680,6 +1680,19 @@ test("production Capafy account binding requires a tenant-scoped encrypted crede
  assert.equal(typeof binding.readAccountBinding,"function");
  assert.equal(typeof binding.withAccessToken,"function");
 });
+test("production Capafy account binding reads current tenant consent before any credential or provider access",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",subject="11111111-1111-4111-8111-111111111111";
+ const queries=[];let providerCalls=0;
+ const binding=createMaritimeCapafyAccountBinding({query:async(statement,values)=>{
+   queries.push({statement,values});return {rows:[]};
+  },managerStore:{read:async()=>({uid,auth_subject:subject,status:"active",paused_at:null})},
+  env:{LM_MARITIME_CAPAFY_ENCRYPTION_KEY:"a".repeat(64)},
+  fetchImpl:async()=>{providerCalls++;return new Response("{}");}});
+ await assert.rejects(binding.readAccountBinding({tenantId:uid}),/publisher_agreement_consent_required/i);
+ assert.match(queries[0].statement,/capafy_publisher_consents/i);
+ assert.deepEqual(queries[0].values,[uid,subject,"v1.2"]);
+ assert.equal(providerCalls,0);
+});
 test("Maritime provider reconcile allowlist commits present successor atomically, resolves absent, and retains unknown",async()=>{
   for(const phase of ["prepare","publish"])for(const state of ["present","absent","unknown"]){
     const capability=`maritime.manager.capafy.${phase}`,calls=[];

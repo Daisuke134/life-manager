@@ -277,9 +277,12 @@ function createCapafyAccountConnector({ fetchImpl = globalThis.fetch, baseUrl = 
   return Object.freeze({ startLogin, verifyLogin, readAccount });
 }
 
-function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connector } = {}) {
+function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connector, publisherConsentStore } = {}) {
   if (!bindingStore || typeof bindingStore.read !== "function" || !managerStore || typeof managerStore.read !== "function"
     || !connector || typeof connector.readAccount !== "function") fail("maritime_capafy_binding_unavailable");
+  if (!publisherConsentStore || typeof publisherConsentStore.readCurrent !== "function") {
+    fail("maritime_capafy_consent_store_unavailable");
+  }
   async function resolveBinding({ tenantId, accountRef, mode = "readback" } = {}) {
     const uid = validTenant(tenantId);
     const enrollment = await managerStore.read(uid);
@@ -289,6 +292,10 @@ function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connec
     if (mode === "action" && (enrollment.status !== "active" || enrollment.paused_at)) {
       fail("maritime_capafy_tenant_inactive");
     }
+    const consent = await publisherConsentStore.readCurrent({ tenantId: uid, authSubject: enrollment.auth_subject });
+    const consentVersion = require("./maritime-manager-capafy-consent.js").CAPAFY_PUBLISHER_AGREEMENT_VERSION;
+    if (consent?.tenantId !== uid || consent.authSubject !== String(enrollment.auth_subject).toLowerCase()
+      || consent.agreementVersion !== consentVersion) fail("maritime_capafy_publisher_agreement_consent_required");
     const binding = await bindingStore.read({ tenantId: uid, authSubject: enrollment.auth_subject });
     if (binding.provider !== "capafy" || binding.tenantId !== uid
       || binding.autonomyConsentVersion !== CAPAFY_AUTONOMY_CONSENT_VERSION
@@ -298,7 +305,8 @@ function createMaritimeCapafyAccountBinding({ bindingStore, managerStore, connec
       || official.developerVerified !== true) fail("maritime_capafy_subject_mismatch");
     return Object.freeze({ accessToken: binding.accessToken,
       identity: Object.freeze({ provider: "capafy", tenantId: uid, accountRef: binding.accountRef,
-        providerSubject: binding.providerSubject, autonomyConsentVersion: binding.autonomyConsentVersion }) });
+        providerSubject: binding.providerSubject, autonomyConsentVersion: binding.autonomyConsentVersion,
+        publisherAgreementVersion: consentVersion }) });
   }
   async function resolve(identity) { return (await resolveBinding({ ...identity, mode: "readback" })).identity; }
   async function withAccessToken(identity, operation, options = {}) {
