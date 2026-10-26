@@ -358,8 +358,14 @@ class SafetyBenchTests(unittest.TestCase):
     def test_original_four_canonical_records_unchanged(self):
         baseline = {'helpsteer2-candidates': '0b76b970e877dc17a6fc21c18979c9c7efaf4e1e6053c01a9c13577ee2920a41', 'xstest-mistral-refusal-private': 'e3f0f0d53269eb52d54ebd8b2feccf8654cf433dce0fbc746a875fbbdabf434d', 'helpsteer2-private-exploratory-sft-train27-v1': 'f41063b9ae281bc5bc1677655cb5a5997b1c9b5de8857ac180480176d71a1be5', 'helpsteer2-private-fixed-adapter-eval24-v1': '088f6cc5a17f8ff3c83dfc10b44bca70dbd0855d3dd0c8b1063727ff2271225d'}
         records = json.loads(RIGHTS.read_bytes())['sources']
-        self.assertEqual(len(records), 5)
+        self.assertEqual(len(records), 13)
         self.assertEqual({r['id']: sha256(canonical(r)).hexdigest() for r in records[:4]}, baseline)
+        self.assertEqual(records[-1]['id'], 'safetybench-mcq-private-evaluation-v1')
+        self.assertEqual(sha256(canonical(records[-1])).hexdigest(), '07e6beea0bf5570a9b1fab8153c80306dde7a1f29159125109b6b03e16648fd4')
+        self.assertEqual(
+            {r['id'] for r in records[4:-1]},
+            {f'eba-code-{name}' for name in ('inspect-ai', 'concordia', 'oasis', 'tau2bench', 'dowhy', 'econml', 'ai-economist', 'omni-behavior')},
+        )
 
     def test_frozen_bindings(self):
         p = PROTOCOL.read_bytes()

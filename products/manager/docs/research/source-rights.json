@@ -532,6 +532,465 @@
       "unresolved": "Actual conditional evaluation-purpose decision is recorded using existing AI QC and metadata/source-binding review with residual risk; historical pending purpose metadata is preserved privately. Exact reviewed scientific source integration/freeze, immutable implementation/test/review/CI, actual saved adapter inventory and external0400 G7 execution/resources remain pending. Per-row ShareGPT/Scale rights/consent/privacy, contamination, semantic/person/study/time independence and future weights classification remain UNKNOWN; no PII absence certified. Final16 QC exposure preserved and recorded model-unscored/train-unused/selection-unused status requires G7 reaffirmation. Stop/quarantine/new reviewed version for concrete issues; no source/task/count change or ML authority follows."
     },
     {
+      "id": "eba-code-inspect-ai",
+      "name": "inspect-ai pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/UKGovernmentBEIS/inspect_ai/tree/d1536eae98d7b8b9364c052f0e6d3de988e1aac9",
+      "license_expression": "MIT",
+      "license_evidence_url": "https://github.com/UKGovernmentBEIS/inspect_ai/blob/d1536eae98d7b8b9364c052f0e6d3de988e1aac9/LICENSE",
+      "license_evidence_sha": "d1536eae98d7b8b9364c052f0e6d3de988e1aac9",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "d1536eae98d7b8b9364c052f0e6d3de988e1aac9",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/UKGovernmentBEIS/inspect_ai/blob/d1536eae98d7b8b9364c052f0e6d3de988e1aac9/LICENSE",
+            "bytes": 1081,
+            "sha256": "c593c2afc81388521eaeb03f0d1a4b01bc3e5147ed9cb16c1f129e5be353b6af"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "MIT",
+        "license_file": "LICENSE",
+        "license_file_sha256": "c593c2afc81388521eaeb03f0d1a4b01bc3e5147ed9cb16c1f129e5be353b6af",
+        "license_file_bytes": 1081,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "UK Government BEIS"
+        ],
+        "license_url": "https://github.com/UKGovernmentBEIS/inspect_ai/blob/d1536eae98d7b8b9364c052f0e6d3de988e1aac9/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-concordia",
+      "name": "concordia pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/google-deepmind/concordia/tree/239f0e8275a55b186b99e133e06432cd681ff2e3",
+      "license_expression": "Apache-2.0",
+      "license_evidence_url": "https://github.com/google-deepmind/concordia/blob/239f0e8275a55b186b99e133e06432cd681ff2e3/LICENSE",
+      "license_evidence_sha": "239f0e8275a55b186b99e133e06432cd681ff2e3",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "239f0e8275a55b186b99e133e06432cd681ff2e3",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/google-deepmind/concordia/blob/239f0e8275a55b186b99e133e06432cd681ff2e3/LICENSE",
+            "bytes": 11359,
+            "sha256": "8c6db340475136df3c1201d458fa5755698eace76e510471ecc9d857d6083dac"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "Apache-2.0",
+        "license_file": "LICENSE",
+        "license_file_sha256": "8c6db340475136df3c1201d458fa5755698eace76e510471ecc9d857d6083dac",
+        "license_file_bytes": 11359,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "Google DeepMind"
+        ],
+        "license_url": "https://github.com/google-deepmind/concordia/blob/239f0e8275a55b186b99e133e06432cd681ff2e3/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-oasis",
+      "name": "oasis pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/camel-ai/oasis/tree/8607dba82d73f7bfc371b3beafe57cc844687be2",
+      "license_expression": "Apache-2.0",
+      "license_evidence_url": "https://github.com/camel-ai/oasis/blob/8607dba82d73f7bfc371b3beafe57cc844687be2/LICENSE",
+      "license_evidence_sha": "8607dba82d73f7bfc371b3beafe57cc844687be2",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "8607dba82d73f7bfc371b3beafe57cc844687be2",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/camel-ai/oasis/blob/8607dba82d73f7bfc371b3beafe57cc844687be2/LICENSE",
+            "bytes": 11344,
+            "sha256": "950deb34b1341a0ac95236fae92fe247c318c3a83a62c9ebacbe1882530ab1f6"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "Apache-2.0",
+        "license_file": "LICENSE",
+        "license_file_sha256": "950deb34b1341a0ac95236fae92fe247c318c3a83a62c9ebacbe1882530ab1f6",
+        "license_file_bytes": 11344,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "CAMEL-AI"
+        ],
+        "license_url": "https://github.com/camel-ai/oasis/blob/8607dba82d73f7bfc371b3beafe57cc844687be2/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-tau2bench",
+      "name": "tau2bench pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/sierra-research/tau2-bench/tree/0c69df456a96aa76a1162591574dad9c427a34d7",
+      "license_expression": "MIT",
+      "license_evidence_url": "https://github.com/sierra-research/tau2-bench/blob/0c69df456a96aa76a1162591574dad9c427a34d7/LICENSE",
+      "license_evidence_sha": "0c69df456a96aa76a1162591574dad9c427a34d7",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "0c69df456a96aa76a1162591574dad9c427a34d7",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/sierra-research/tau2-bench/blob/0c69df456a96aa76a1162591574dad9c427a34d7/LICENSE",
+            "bytes": 1072,
+            "sha256": "e67c5aa0074dfcaefd3c3a1aedb94cb539234aecd15d5a972574e3200e6252fe"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "MIT",
+        "license_file": "LICENSE",
+        "license_file_sha256": "e67c5aa0074dfcaefd3c3a1aedb94cb539234aecd15d5a972574e3200e6252fe",
+        "license_file_bytes": 1072,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "Sierra Research"
+        ],
+        "license_url": "https://github.com/sierra-research/tau2-bench/blob/0c69df456a96aa76a1162591574dad9c427a34d7/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-dowhy",
+      "name": "dowhy pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/py-why/dowhy/tree/0629ba0d1009b685b8e835514cabea89f7b22e5a",
+      "license_expression": "MIT",
+      "license_evidence_url": "https://github.com/py-why/dowhy/blob/0629ba0d1009b685b8e835514cabea89f7b22e5a/LICENSE",
+      "license_evidence_sha": "0629ba0d1009b685b8e835514cabea89f7b22e5a",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "0629ba0d1009b685b8e835514cabea89f7b22e5a",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/py-why/dowhy/blob/0629ba0d1009b685b8e835514cabea89f7b22e5a/LICENSE",
+            "bytes": 1159,
+            "sha256": "4be08a194b9c970bf9309ac19f09e7deaecb763957091bf08298bf0e897e7eab"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "MIT",
+        "license_file": "LICENSE",
+        "license_file_sha256": "4be08a194b9c970bf9309ac19f09e7deaecb763957091bf08298bf0e897e7eab",
+        "license_file_bytes": 1159,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "PyWhy"
+        ],
+        "license_url": "https://github.com/py-why/dowhy/blob/0629ba0d1009b685b8e835514cabea89f7b22e5a/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-econml",
+      "name": "econml pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/py-why/EconML/tree/9f61a3376cbf41c5a9155f46bbafaaea9f281508",
+      "license_expression": "MIT; BSD-3-Clause portions",
+      "license_evidence_url": "https://github.com/py-why/EconML/blob/9f61a3376cbf41c5a9155f46bbafaaea9f281508/LICENSE",
+      "license_evidence_sha": "9f61a3376cbf41c5a9155f46bbafaaea9f281508",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "9f61a3376cbf41c5a9155f46bbafaaea9f281508",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/py-why/EconML/blob/9f61a3376cbf41c5a9155f46bbafaaea9f281508/LICENSE",
+            "bytes": 2978,
+            "sha256": "e4503a01022a819cc3654273977885e4984cce87cd06bd81063d1bb36a056250"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "NOASSERTION",
+        "license_file": "LICENSE",
+        "license_file_sha256": "e4503a01022a819cc3654273977885e4984cce87cd06bd81063d1bb36a056250",
+        "license_file_bytes": 2978,
+        "third_party_components": [
+          "scikit-learn",
+          "BSD-3-Clause"
+        ],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "PyWhy"
+        ],
+        "license_url": "https://github.com/py-why/EconML/blob/9f61a3376cbf41c5a9155f46bbafaaea9f281508/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-ai-economist",
+      "name": "ai-economist pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/salesforce/ai-economist/tree/a84d5f3fdcabb207d9fde7754d34906903b3e184",
+      "license_expression": "BSD-3-Clause",
+      "license_evidence_url": "https://github.com/salesforce/ai-economist/blob/a84d5f3fdcabb207d9fde7754d34906903b3e184/LICENSE.txt",
+      "license_evidence_sha": "a84d5f3fdcabb207d9fde7754d34906903b3e184",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "allowed_with_conditions",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "a84d5f3fdcabb207d9fde7754d34906903b3e184",
+        "archived": true,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE.txt": {
+            "path": "LICENSE.txt",
+            "url": "https://github.com/salesforce/ai-economist/blob/a84d5f3fdcabb207d9fde7754d34906903b3e184/LICENSE.txt",
+            "bytes": 1482,
+            "sha256": "3360d12ecbe2fd87e7eddc6619daacfcb9132b2def5c3df6410941e1a2df6bfb"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "BSD-3-Clause",
+        "license_file": "LICENSE.txt",
+        "license_file_sha256": "3360d12ecbe2fd87e7eddc6619daacfcb9132b2def5c3df6410941e1a2df6bfb",
+        "license_file_bytes": 1482,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "Salesforce Research"
+        ],
+        "license_url": "https://github.com/salesforce/ai-economist/blob/a84d5f3fdcabb207d9fde7754d34906903b3e184/LICENSE.txt",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
+      "id": "eba-code-omni-behavior",
+      "name": "omni-behavior pinned upstream code-license evidence",
+      "kind": "public repository implementation code only; benchmark datasets, task content and outputs excluded",
+      "source_url": "https://github.com/icip-cas/OmniBehavior/tree/cd36b45b09b4bdc4254cbbebf773e2f880d6638a",
+      "license_expression": "CC-BY-NC-SA-4.0",
+      "license_evidence_url": "https://github.com/icip-cas/OmniBehavior/blob/cd36b45b09b4bdc4254cbbebf773e2f880d6638a/LICENSE",
+      "license_evidence_sha": "cd36b45b09b4bdc4254cbbebf773e2f880d6638a",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "code_reuse": "allowed_with_conditions",
+        "commercial_code_use": "hold",
+        "noncommercial_code_use": "allowed_with_conditions",
+        "dataset_reuse": "hold",
+        "task_content_reuse": "hold",
+        "raw_redistribution": "hold",
+        "live_use": "hold"
+      },
+      "requirements": [
+        "Preserve the complete upstream license and required copyright/notice text for any code reuse; review dependencies and modifications separately.",
+        "This code license record does not clear benchmark datasets, tasks, prompts, human/participant data, annotations, model outputs, or redistribution of those materials.",
+        "No upstream implementation is vendored or executed by this rights-record update; any adoption requires separate code-scope, dependency, security and reproducibility review."
+      ],
+      "artifact": {
+        "revision": "cd36b45b09b4bdc4254cbbebf773e2f880d6638a",
+        "archived": false,
+        "role": "code_implementation_reference_only",
+        "publication": "license_metadata_only",
+        "files": {
+          "LICENSE": {
+            "path": "LICENSE",
+            "url": "https://github.com/icip-cas/OmniBehavior/blob/cd36b45b09b4bdc4254cbbebf773e2f880d6638a/LICENSE",
+            "bytes": 20848,
+            "sha256": "9e502ba75fd0fd30cea5497b438a4bc12f07f02bc932a7a6041fd6a18b8f46a0"
+          }
+        }
+      },
+      "license_review": {
+        "repository_spdx_metadata": "NOASSERTION",
+        "license_file": "LICENSE",
+        "license_file_sha256": "9e502ba75fd0fd30cea5497b438a4bc12f07f02bc932a7a6041fd6a18b8f46a0",
+        "license_file_bytes": 20848,
+        "third_party_components": [],
+        "scope": "Repository code only; dataset, task, prompt, participant, annotation, model-output and live-use rights are not inferred."
+      },
+      "attribution": {
+        "creators": [
+          "ICI CAS"
+        ],
+        "license_url": "https://github.com/icip-cas/OmniBehavior/blob/cd36b45b09b4bdc4254cbbebf773e2f880d6638a/LICENSE",
+        "changes": "No upstream code or benchmark content copied or modified in this record update."
+      },
+      "decision": "REFERENCE_ONLY_NOT_VENDORED",
+      "risk": "A permissive or repository code license does not establish rights, provenance, validity, privacy, or commercial permission for linked datasets and benchmark content.",
+      "unresolved": "Dataset/task rights, source-specific validity, population/unit/label/holdout compatibility, live execution authority, outputs and third-party content remain unverified; this record alone does not permit execution, redistribution, training, or product use."
+    },
+    {
       "id": "safetybench-mcq-private-evaluation-v1",
       "name": "SafetyBench pinned English MCQ questions and released answer key",
       "kind": "public nonpersonal categorical evaluation benchmark",

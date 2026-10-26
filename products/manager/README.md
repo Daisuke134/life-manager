@@ -90,10 +90,16 @@ scoreは実行するまで`null`です。このcatalogはbenchmarkの実行結�
 安全性demoで、実モデルの比較でも人への効果評価でもありません。90件catalogの評価結果
 とも別物です。
 
+上流GitHub `LICENSE`を固定revision・hashで確認した8件は
+[`source-rights.json`](docs/research/source-rights.json)にコード専用で記録しています。
+これは関連dataset・task・participant・model outputの利用許可ではありません。
+EBA 90候補のrights clearanceは引き続き0件です。
+
 ```sh
 cd products/manager
 python -B -m manager_core.eba_manifest --check
 python -B -m unittest tests.test_eba_manifest -v
+python -B -m unittest tests.test_eba_source_rights -v
 python -B -m eba
 python -B -m unittest tests.test_eba_benchmark -v
 ```
