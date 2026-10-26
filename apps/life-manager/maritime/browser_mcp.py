@@ -253,10 +253,13 @@ TOOLS = [
 
 class BrowserMcpSession:
     def __init__(self, *, page: Any | None, context: Any | None = None,
-                 tenant_id: str, tenant_root: Path | str, receipt_path: Path | str, clock=None) -> None:
+                 tenant_id: str, occurrence_id: str, release_sha: str,
+                 tenant_root: Path | str, receipt_path: Path | str, clock=None) -> None:
         self.page = None
         self.context = context or (getattr(page, 'context', None) if page is not None else None)
         self.tenant_id = tenant_id
+        self.occurrence_id = occurrence_id
+        self.release_sha = release_sha
         self.tenant_root = Path(tenant_root)
         self.receipt_path = Path(receipt_path)
         self.clock = clock or (lambda: datetime.now(timezone.utc).isoformat())
@@ -332,6 +335,8 @@ class BrowserMcpSession:
             parent = receipt.parent
             parent_info = parent.lstat()
             if (not TENANT_PATTERN.fullmatch(self.tenant_id)
+                    or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}', self.occurrence_id)
+                    or not re.fullmatch(r'[0-9a-f]{40}', self.release_sha)
                     or not self.tenant_root.is_absolute()
                     or not self.receipt_path.is_absolute()
                     or root != self.tenant_root
@@ -342,7 +347,7 @@ class BrowserMcpSession:
                     or parent.resolve(strict=True) != parent
                     or not _private_directory(parent, owner)
                     or parent_info.st_uid != owner
-                    or not parent.is_relative_to(root / 'receipts')):
+                    or parent != root / 'receipts' / self.occurrence_id):
                 raise BrowserToolError('browser_receipt_path_invalid')
             if receipt.exists():
                 info = receipt.lstat()
@@ -379,6 +384,8 @@ class BrowserMcpSession:
         record = {
             'at': self.clock(), 'actionId': action_id, 'tool': tool,
             'outcome': outcome, 'origin': _origin(str(getattr(self.page, 'url', ''))),
+            'tenantId': self.tenant_id, 'occurrenceId': self.occurrence_id,
+            'releaseSha': self.release_sha,
         }
         if state_hash is not None:
             if not re.fullmatch(r'[a-f0-9]{64}', state_hash):
@@ -748,8 +755,11 @@ def run_stdio(session: BrowserMcpSession, input_stream=None, output_stream=None)
 
 def _connect(args: argparse.Namespace) -> tuple[Any, Any]:
     tenant_id = os.environ.get('LM_RUNTIME_TENANT_ID', '')
+    occurrence_id = os.environ.get('LM_RUNTIME_OCCURRENCE_ID', '')
+    release_sha = os.environ.get('LM_RELEASE_SHA', '')
     endpoint = os.environ.get('LM_MARITIME_BROWSER_CDP_URL', '')
     if (not TENANT_PATTERN.fullmatch(tenant_id) or tenant_id != args.tenant_root.name
+            or occurrence_id != args.occurrence_id or release_sha != args.release_sha
             or endpoint != CDP_ENDPOINT):
         raise BrowserToolError('browser_session_binding_invalid')
     from playwright.sync_api import sync_playwright
@@ -762,7 +772,8 @@ def _connect(args: argparse.Namespace) -> tuple[Any, Any]:
             raise BrowserToolError('browser_context_unavailable')
         context = contexts[0]
         session = BrowserMcpSession(
-            page=None, context=context, tenant_id=tenant_id, tenant_root=args.tenant_root,
+            page=None, context=context, tenant_id=tenant_id, occurrence_id=occurrence_id,
+            release_sha=release_sha, tenant_root=args.tenant_root,
             receipt_path=args.receipt_path,
         )
         pages = list(context.pages)
@@ -790,6 +801,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--tenant-root', type=Path, required=True)
     parser.add_argument('--receipt-path', type=Path, required=True)
+    parser.add_argument('--occurrence-id', required=True)
+    parser.add_argument('--release-sha', required=True)
     args = parser.parse_args(argv)
     try:
         playwright, session = _connect(args)

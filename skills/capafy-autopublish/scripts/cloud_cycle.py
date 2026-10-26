@@ -68,7 +68,7 @@ def _artifact_file(value, workspace, owner):
     return candidate
 
 
-def _browser_action_effect_unknown(path, owner):
+def _browser_action_effect_unknown(path, owner, *, tenant_id, occurrence_id, release_sha):
     """Fail closed when a browser action has no durable terminal receipt."""
     fd = None
     try:
@@ -101,10 +101,14 @@ def _browser_action_effect_unknown(path, owner):
         effect_unknown = False
         for line in lines:
             row = json.loads(line)
-            required = {'at', 'actionId', 'tool', 'outcome', 'origin'}
+            required = {'at', 'actionId', 'tool', 'outcome', 'origin',
+                        'tenantId', 'occurrenceId', 'releaseSha'}
             optional = {'stateHash', 'observationId', 'linkId', 'linkCount'}
             if (not isinstance(row, dict) or not required.issubset(row)
                     or set(row) - required - optional
+                    or row['tenantId'] != tenant_id
+                    or row['occurrenceId'] != occurrence_id
+                    or row['releaseSha'] != release_sha
                     or not isinstance(row['at'], str) or not isinstance(row['origin'], str)
                     or row['tool'] not in {'browser_observe', 'browser_navigate', 'browser_follow_link', 'browser_search'}
                     or not isinstance(row['actionId'], str)
@@ -315,7 +319,8 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
     child.update({key: str(path) for key, path in child_paths.items() if key != 'EVIDENCE_DIR'})
     child.update(AGENT_RUNNER_CONFIG=str(config), AGENT_RUNNER_WORKDIR=str(occurrence_workspace),
                  LM_RUNTIME_HOST='maritime', LM_RUNTIME_TENANT_ID=tenant_id,
-                 LM_RELEASE_SHA=release_sha, LIFE_MANAGER_STATE_HOME=str(home),
+                 LM_RUNTIME_OCCURRENCE_ID=occurrence_id, LM_RELEASE_SHA=release_sha,
+                 LIFE_MANAGER_STATE_HOME=str(home),
                  LIFE_MANAGER_BUILD_WORKSPACE=str(workspace),
                  LM_MARITIME_BROWSER_RECEIPT=str(receipt.parent / 'browser-actions.jsonl'),
                  LIFE_MANAGER_REPO=str(RELEASE), LIFE_MANAGER_RELEASE_ROOT=str(RELEASE),
@@ -357,7 +362,9 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
             child['LM_MARITIME_BROWSER_CDP_URL'] = browser_session.cdp_url
             browser_started = True
             process = runner(command, cwd=str(occurrence_workspace), env=child, input=prompt, text=True, capture_output=True, timeout=3600)
-        if _browser_action_effect_unknown(receipt.parent / 'browser-actions.jsonl', owner):
+        if _browser_action_effect_unknown(receipt.parent / 'browser-actions.jsonl', owner,
+                                          tenant_id=tenant_id, occurrence_id=occurrence_id,
+                                          release_sha=release_sha):
             final = result('effect_unknown', 'browser_effect_unknown')
             _save(receipt, dict(initial, result=final))
             return final

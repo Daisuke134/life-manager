@@ -50,6 +50,7 @@ class MaritimeBrowserCommandTests(unittest.TestCase):
             'LIFE_MANAGER_STATE_HOME': f'/data/{TENANT}',
             'LM_MARITIME_BROWSER_CDP_URL': 'http://127.0.0.1:9229',
             'LM_MARITIME_BROWSER_RECEIPT': f'/data/{TENANT}/receipts/cycle-1/browser-actions.jsonl',
+            'LM_RUNTIME_OCCURRENCE_ID': 'cycle-1', 'LM_RELEASE_SHA': 'a' * 40,
             **extra,
         }
 
@@ -76,12 +77,17 @@ class MaritimeBrowserCommandTests(unittest.TestCase):
         self.assertTrue(any(value.endswith('/' + TENANT) for value in mcp_args))
         self.assertIn('--receipt-path', mcp_args)
         self.assertTrue(any(value.endswith('/receipts/cycle-1/browser-actions.jsonl') for value in mcp_args))
+        self.assertIn('--occurrence-id', mcp_args)
+        self.assertIn('cycle-1', mcp_args)
+        self.assertIn('--release-sha', mcp_args)
+        self.assertIn('a' * 40, mcp_args)
         self.assertIn('shell_tool', command)
         self.assertIn('unified_exec', command)
         self.assertNotIn('tenant-model-secret', json.dumps(command))
 
     def test_maritime_agent_fails_closed_if_session_or_receipt_is_missing(self):
-        for missing in ['LM_MARITIME_BROWSER_CDP_URL', 'LM_MARITIME_BROWSER_RECEIPT']:
+        for missing in ['LM_MARITIME_BROWSER_CDP_URL', 'LM_MARITIME_BROWSER_RECEIPT',
+                        'LM_RUNTIME_OCCURRENCE_ID', 'LM_RELEASE_SHA']:
             env = self.maritime_env()
             del env[missing]
             with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, 'maritime browser'):
@@ -91,6 +97,7 @@ class MaritimeBrowserCommandTests(unittest.TestCase):
         for changes in [
             {'LM_MARITIME_BROWSER_CDP_URL': 'http://192.0.2.1:9229'},
             {'LM_MARITIME_BROWSER_RECEIPT': '/data/other/browser-actions.jsonl'},
+            {'LM_MARITIME_BROWSER_RECEIPT': f'/data/{TENANT}/receipts/other/browser-actions.jsonl'},
         ]:
             with self.subTest(changes=changes), self.assertRaisesRegex(ValueError, 'maritime browser'):
                 self.command(self.maritime_env(**changes))

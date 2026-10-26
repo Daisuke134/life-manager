@@ -157,6 +157,7 @@ class BrowserMcpTest(unittest.TestCase):
         self.session = browser_mcp.BrowserMcpSession(
             page=self.page, tenant_id=TENANT,
             tenant_root=self.tenant_root, receipt_path=self.receipt,
+            occurrence_id='cycle-1', release_sha='a' * 40,
         )
 
     @staticmethod
@@ -188,6 +189,13 @@ class BrowserMcpTest(unittest.TestCase):
             self.assertNotIn(secret, result['content'][0]['text'])
         self.assertEqual(len(result['content']), 1)
         self.assertEqual(self.page.screenshot_calls, 0)
+
+    def test_action_receipt_binds_tenant_occurrence_and_release(self):
+        self.session.call('browser_observe', {})
+        row = json.loads(self.receipt.read_text().splitlines()[0])
+        self.assertEqual(row['tenantId'], TENANT)
+        self.assertEqual(row['occurrenceId'], 'cycle-1')
+        self.assertEqual(row['releaseSha'], 'a' * 40)
 
     def test_observe_exposes_only_redacted_public_links_with_a_fresh_observation_id(self):
         self.page.links = [
@@ -510,16 +518,28 @@ class BrowserMcpTest(unittest.TestCase):
         outside.mkdir(mode=0o700)
         with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'receipt_path_invalid'):
             browser_mcp.BrowserMcpSession(
-                page=self.page, tenant_id=TENANT, tenant_root=self.tenant_root,
+                page=self.page, tenant_id=TENANT, occurrence_id='cycle-1', release_sha='a' * 40,
+                tenant_root=self.tenant_root,
                 receipt_path=outside / 'actions.jsonl',
             )
         link = self.tenant_root / 'receipts' / 'link'
         link.symlink_to(outside, target_is_directory=True)
         with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'receipt_path_invalid'):
             browser_mcp.BrowserMcpSession(
-                page=self.page, tenant_id=TENANT, tenant_root=self.tenant_root,
+                page=self.page, tenant_id=TENANT, occurrence_id='cycle-1', release_sha='a' * 40,
+                tenant_root=self.tenant_root,
                 receipt_path=link / 'actions.jsonl',
             )
+
+    def test_receipt_binding_requires_valid_occurrence_and_release_sha(self):
+        for occurrence_id, release_sha in [('../other', 'a' * 40), ('cycle-1', 'not-a-release')]:
+            with self.subTest(occurrence_id=occurrence_id, release_sha=release_sha):
+                with self.assertRaisesRegex(browser_mcp.BrowserToolError, 'receipt_path_invalid'):
+                    browser_mcp.BrowserMcpSession(
+                        page=self.page, tenant_id=TENANT, occurrence_id=occurrence_id,
+                        release_sha=release_sha, tenant_root=self.tenant_root,
+                        receipt_path=self.receipt,
+                    )
 
     def test_browser_tool_budget_stops_further_observation(self):
         self.session.calls = browser_mcp.MAX_TOOL_CALLS

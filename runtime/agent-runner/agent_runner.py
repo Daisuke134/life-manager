@@ -1495,11 +1495,16 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
         )
         if maritime_browser_enabled:
             tenant_id = os.environ.get("LM_RUNTIME_TENANT_ID", "").strip()
+            occurrence_id = os.environ.get("LM_RUNTIME_OCCURRENCE_ID", "").strip()
+            release_sha = os.environ.get("LM_RELEASE_SHA", "").strip()
             endpoint = os.environ.get("LM_MARITIME_BROWSER_CDP_URL", "").strip()
             tenant_root_raw = os.environ.get("LIFE_MANAGER_STATE_HOME", "").strip()
             receipt_raw = os.environ.get("LM_MARITIME_BROWSER_RECEIPT", "").strip()
             if not MARITIME_TENANT_RE.fullmatch(tenant_id):
                 raise ValueError("maritime browser tenant binding unavailable")
+            if (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", occurrence_id)
+                    or not re.fullmatch(r"[0-9a-f]{40}", release_sha)):
+                raise ValueError("maritime browser occurrence binding unavailable")
             tenant_root = Path(tenant_root_raw)
             expected_root = Path(os.path.abspath(tenant_root))
             if (not tenant_root.is_absolute() or expected_root.name != tenant_id
@@ -1520,7 +1525,8 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
             receipt_path = Path(receipt_raw)
             resolved_receipt = Path(os.path.abspath(receipt_path))
             try:
-                resolved_receipt.parent.relative_to(expected_root / "receipts")
+                if resolved_receipt.parent != expected_root / "receipts" / occurrence_id:
+                    raise ValueError("maritime browser action receipt unavailable")
                 receipt_parent = resolved_receipt.parent
                 receipt_parent_info = receipt_parent.lstat()
                 if (receipt_parent.resolve(strict=True) != receipt_parent
@@ -1543,11 +1549,15 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 "--ignore-environment",
                 "PATH=/usr/bin:/bin",
                 f"LM_RUNTIME_TENANT_ID={tenant_id}",
+                f"LM_RUNTIME_OCCURRENCE_ID={occurrence_id}",
+                f"LM_RELEASE_SHA={release_sha}",
                 f"LM_MARITIME_BROWSER_CDP_URL={endpoint}",
                 sys.executable,
                 str(browser_mcp.resolve()),
                 "--tenant-root", str(expected_root),
                 "--receipt-path", str(resolved_receipt),
+                "--occurrence-id", occurrence_id,
+                "--release-sha", release_sha,
             ]
             command.extend([
                 "-c", 'mcp_servers.maritime_browser.command="/usr/bin/env"',
