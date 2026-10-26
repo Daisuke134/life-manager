@@ -73,12 +73,13 @@ def test_cursor_resumes_where_the_slice_ran_out(tmp_path, monkeypatch):
     home, paths = _repo_with_three_worktrees(tmp_path)
     clock = [0.0]
     governor, seen = _governor_with_fake_proofs(home, monkeypatch, clock, cost=1.0)
-    first = governor._worktree_candidates(deadline=1.0)  # one proof fits
+    # share = 2 s: main (free), a (1 s); b would start with only 1 s left (< MIN_PROOF_SECONDS) and waits
+    first = governor._worktree_candidates(deadline=4.0)
     assert [Path(item["path"]).name for item in first] == ["a"]
     cursor = json.loads((home / "state" / "worktree-proof-cursor.json").read_text())
     assert cursor == {"Projects/life-manager-main": 2}  # records: main, a | b, c
     clock[0] = 0.0
-    second = governor._worktree_candidates(deadline=1.0)
+    second = governor._worktree_candidates(deadline=4.0)
     assert [Path(item["path"]).name for item in second] == ["b"]
     clock[0] = 0.0
     third = governor._worktree_candidates(deadline=10.0)  # finishes the ring: c, then wraps to a, b
@@ -92,5 +93,15 @@ def test_each_repository_gets_an_even_share_of_the_slice(tmp_path, monkeypatch):
     clock = [0.0]
     governor, seen = _governor_with_fake_proofs(home, monkeypatch, clock, cost=1.0)
     found = [Path(item["path"]).name for item in governor._worktree_candidates(deadline=4.0)]
-    # 4 s split evenly: life-manager-main gets 2 s (a, b), anicca-products the remaining 2 s (x, y).
-    assert found == ["a", "b", "x", "y"]
+    # 4 s split evenly: life-manager-main gets 2 s (a; b would not fit MIN_PROOF_SECONDS), then
+    # anicca-products gets the remaining 3 s (x, y; z would not fit).
+    assert found == ["a", "x", "y"]
+
+
+def test_a_record_that_cannot_finish_before_the_deadline_is_not_marked_done(tmp_path, monkeypatch):
+    home, _paths = _repo_with_three_worktrees(tmp_path)
+    clock = [0.0]
+    governor, seen = _governor_with_fake_proofs(home, monkeypatch, clock, cost=1.0)
+    found = [Path(item["path"]).name for item in governor._worktree_candidates(deadline=6.0)]  # share 3 s
+    assert found == ["a", "b"]  # c would start with 1 s left and be cut off; it waits for the next pass
+    assert json.loads((home / "state" / "worktree-proof-cursor.json").read_text()) == {"Projects/life-manager-main": 3}

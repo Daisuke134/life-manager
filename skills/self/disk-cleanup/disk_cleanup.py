@@ -600,6 +600,7 @@ def _content_in_main(
 PUSHED_WORKTREE_MIN_AGE_SECONDS = 72 * 3600
 FRESH_MAIN_TTL_SECONDS = 50
 WORKTREE_PROOF_SHARE = 0.4
+MIN_PROOF_SECONDS = 1.5
 
 
 def _pushed_and_stale(
@@ -2593,7 +2594,9 @@ class HostDiskGovernor:
                 start = 0
             done = 0
             for record in records[start:] + records[:start]:
-                if repo_deadline is not None and self.clock() >= repo_deadline:
+                # A proof cut off by the deadline reads as None; never count that record as done,
+                # or the cursor walks past it every pass (indices 8 and 14 of anicca-products, 2026-10-26).
+                if repo_deadline is not None and repo_deadline - self.clock() < MIN_PROOF_SECONDS:
                     break
                 done += 1
                 raw_path = record.get("worktree")
