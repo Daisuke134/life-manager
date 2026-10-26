@@ -174,16 +174,39 @@ class BrowserSessionTest(unittest.TestCase):
             forward.assert_called_once_with(4242, owner.signal.SIGTERM)
             popen.assert_not_called()
 
-    def test_two_tenants_receive_distinct_persistent_profiles_and_owner_state(self):
+    def test_two_tenants_receive_distinct_cookie_profiles_and_owner_state(self):
         other = 'lm_22222222-2222-4222-8222-222222222222'
         (self.root / other).mkdir(mode=0o700)
         first, second = self.session(), self.session(other)
         first._prepare_paths()
         second._prepare_paths()
         self.assertNotEqual(first.profile_dir, second.profile_dir)
+        self.assertNotEqual(first.profile_dir / 'Default' / 'Cookies', second.profile_dir / 'Default' / 'Cookies')
         self.assertNotEqual(first.state_dir, second.state_dir)
+        self.assertNotEqual(first.owner_id, second.owner_id)
         self.assertEqual(first.profile_dir, self.home / 'browser' / 'profile')
         self.assertEqual(second.profile_dir, self.root / other / 'browser' / 'profile')
+
+    def test_tenant_session_rejects_a_foreign_tenants_cdp_owner_receipt(self):
+        other = 'lm_22222222-2222-4222-8222-222222222222'
+        (self.root / other).mkdir(mode=0o700)
+        first, second = self.session(), self.session(other)
+        first._prepare_paths()
+        second._prepare_paths()
+        receipt = {
+            'owner': first.owner_id,
+            'pid': 4242,
+            'supervisor_pid': 4242,
+            'browser_root_pid': 4343,
+            'listener_pid': 4343,
+            'browser_uuid': self.browser_uuid,
+            'port': 9229,
+            'profile_name': 'profile',
+        }
+        foreign_receipt = second.state_dir / '9229.json'
+        foreign_receipt.write_text(json.dumps(receipt))
+        foreign_receipt.chmod(0o600)
+        self.assertIsNone(second._read_owner_receipt())
 
     def test_session_rejects_invalid_tenant_and_symlinked_profile(self):
         with self.assertRaisesRegex(browser_session.BrowserSessionError, 'tenant'):

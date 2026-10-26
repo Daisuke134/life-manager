@@ -410,25 +410,28 @@ test('pause cleanup cancels recent tenant executions and confirms the terminal p
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
  let revoked=false,schedules=[{id:'old'}],cancelled=[];
  const dispatches=[
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-queued',date_key:'2026-10-21',execution_id:'exec-queued'},
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-pending',date_key:'2026-10-21',execution_id:'exec-pending'},
   {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-running',date_key:'2026-10-21',execution_id:'exec-running'},
   {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-completed',date_key:'2026-10-21',execution_id:'exec-completed'},
  ];
+ const initialStatus={'exec-queued':'queued','exec-pending':'pending','exec-running':'running','exec-completed':'completed'};
  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),
   managerStore:{read:async()=>row,listRecentCycleDispatches:async input=>{assert.deepEqual(input,{uid:UID,agentId:'agent-a',releaseSha:SHA});return dispatches;}},
   isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
   writeScheduleSnapshot:async input=>{assert.deepEqual(input.snapshot.schedules,[]);schedules=[];},
   readWakeConfiguration:async()=>({ready:true,schedules}),
-  readExecution:async input=>({executionId:input.executionId,status:input.executionId==='exec-running'&&!cancelled.includes(input.executionId)?'running':'completed',exitCode:0}),
+  readExecution:async input=>({executionId:input.executionId,status:cancelled.includes(input.executionId)?'cancelled':initialStatus[input.executionId],exitCode:0}),
   cancelExecution:async input=>{cancelled.push(input.executionId);return {executionId:input.executionId,status:'cancelled',exitCode:-1};},
  });
  const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
  const proof=await adapter.reconcile(job);
  assert.equal(proof.state,'present');assert.equal(adapter.verify(proof.receipt,job),true);
- assert.equal(proof.receipt.checked_execution_count,2);
+ assert.equal(proof.receipt.checked_execution_count,4);
  assert.match(proof.receipt.execution_status_sha256,/^[0-9a-f]{64}$/);
- assert.deepEqual(cancelled,['exec-running']);
+ assert.deepEqual(cancelled,['exec-queued','exec-pending','exec-running']);
  assert.equal((await adapter.reconcile(job)).state,'present');
- assert.deepEqual(cancelled,['exec-running']);
+ assert.deepEqual(cancelled,['exec-queued','exec-pending','exec-running']);
 });
 
 test('pause cleanup remains unconfirmed while an execution survives provider cancellation',async()=>{

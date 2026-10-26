@@ -177,6 +177,43 @@ class BrowserPortOwnerTests(unittest.TestCase):
         self.assertEqual(conflict["port"], 9224)
         self.assertNotIn("profile", conflict)
 
+    def test_two_maritime_tenants_cannot_share_a_cdp_port(self):
+        first_profile = Path("/data/lm_11111111/browser/profile")
+        second_profile = Path("/data/lm_22222222/browser/profile")
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-tenant-test-state"),
+            "profile": str(second_profile),
+            "port": 9224,
+            "owner": "maritime-22222222",
+            "command": ["--", "/usr/bin/true"],
+        })()
+        stderr = StringIO()
+        child = MagicMock(pid=43210)
+        child.wait.return_value = 0
+
+        def profile_owner(profile, port):
+            self.assertEqual(profile, second_profile)
+            self.assertNotEqual(profile, first_profile)
+            self.assertEqual(port, args.port)
+            return None
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "tenant-b" / "owner-state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=True),
+            patch("runtime.host.browser_port_owner._live_profile_owner", side_effect=profile_owner),
+            patch("runtime.host.browser_port_owner.subprocess.Popen", return_value=child) as popen,
+            patch("runtime.host.browser_port_owner._terminate_process_group"),
+            redirect_stderr(stderr),
+        ):
+            from runtime.host.browser_port_owner import run
+            self.assertEqual(run(args), 75)
+        popen.assert_not_called()
+        conflict = json.loads(stderr.getvalue())
+        self.assertEqual(conflict["reason"], "browser_port_already_served")
+        self.assertEqual(conflict["port"], args.port)
+        self.assertNotIn("profile", conflict)
+
     def test_live_matching_profile_process_is_adoptable(self):
         from runtime.host import browser_port_owner as owner
 

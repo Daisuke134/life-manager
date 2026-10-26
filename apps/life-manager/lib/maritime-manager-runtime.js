@@ -359,7 +359,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
         && (c.phase === 'create' ? value.schedule_sha256 === null : /^[0-9a-f]{64}$/.test(value.schedule_sha256 || '')));
     } catch { return false; }
   }
-  async function pauseExecutionSummary(c, row, cancelRunning) {
+  async function pauseExecutionSummary(c, row, cancelPending) {
     if (!row.agent_id) return { count: 0, digest: emptyExecutionDigest };
     if (typeof services.managerStore?.listRecentCycleDispatches !== 'function') {
       throw new CycleError('maritime_pause_execution_readback_unavailable', false);
@@ -384,7 +384,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       if (typeof services.readExecution !== 'function') throw new CycleError('maritime_pause_execution_readback_unavailable', false);
       const identity = { uid: c.tenantId, agentId: row.agent_id, executionId: dispatch.execution_id };
       let result = await services.readExecution(identity);
-      if (result?.status === 'running' && cancelRunning) {
+      if (['pending', 'queued', 'running'].includes(result?.status) && cancelPending) {
         if (typeof services.cancelExecution !== 'function') throw new CycleError('maritime_pause_execution_cancel_unavailable', false);
         result = await services.cancelExecution(identity);
       }
