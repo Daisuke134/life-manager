@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import re
 from types import MappingProxyType
 from typing import Mapping
+from urllib.parse import urldefrag
 
 from .economic_scorecard import CostCoverage
 from .models.source import Source
@@ -30,6 +31,18 @@ def _hash(value, *, optional=False):
         return
     if type(value) is not str or re.fullmatch(r"[a-f0-9]{64}", value) is None:
         raise ValueError("immutable lowercase SHA256 artifact reference required")
+
+
+def _resource_url(url: str) -> str:
+    """Conservatively compare URI primary resources, not fragment labels.
+
+    RFC 3986 §3.5: fragments identify client-side secondary resources and
+    cannot on their own establish distinct provider payment transactions.
+    Keep query strings and paths exactly as supplied: they may identify
+    genuinely different transactions. This is a review gate, not proof of
+    payment identity.
+    """
+    return urldefrag(url).url
 
 
 @dataclass(frozen=True)
@@ -181,7 +194,7 @@ def reconcile_opportunity(record: OpportunityRecord, costs: OpportunityCosts, *,
     elif any(
         stage.source is not None and (
             stage.source.source_id == receipt.source.source_id
-            or stage.source.url == receipt.source.url
+            or _resource_url(stage.source.url) == _resource_url(receipt.source.url)
             or stage.source.content_sha256.lower() == receipt.source.content_sha256.lower()
         )
         for stage in stages if stage.name != "settlement"
