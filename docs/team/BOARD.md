@@ -8,6 +8,7 @@
 - 成田さんへの報告は日本語。承認は不要（全部承認済み）。
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
+- [Codex / Railway life-call-staging BUILD_IMAGE recovery] claim: fix/railway-life-call-staging-recovery-20261026。範囲: 失敗境界の確認、原因1行のBOARD記録、PR merge起点の逐次staging再buildと公式readback。life-callコード、service config/vars、productionは変更しない。
 - [Codex / AI Monk Database catalog] claim: fix/ai-monk-database-catalog-20261025。所有: canonical `/dais` EN/JA static HTML、route-manifest、portfolio acceptance test、本BOARD。AI Monk DatabaseへのFree/open-data導線だけを追加し、Factory runtime/provider/Instagram/Postiz effectは変更しない。
 - [Dots / Approved English Values] claim: feat/approved-values-20261025。承認済み2 ValuesをEN homeのみへ追加、対応route hashと回帰testを所有。明示cloud指示で専用worktree、Mac/source guardは変更せずFAILを記録。deploy pin・merge・本番操作は別review後。
 - [Codex / Life Manager Cloud current-state spec] claim: codex/lm-final-state-20261025。/lm EN/JAのno-mock live readback、統合SSOT/evidence/remaining TODOを更新。Source PR #8943 と Netlify overlay PR #719 / run #40163463100 は成功済み。Maritime provider chain PR #8745 は既存の別claimを維持する。
@@ -40,6 +41,7 @@
 - [Codex / Manager] prepared shadowの既存host/CLI/Actions接続。所有: feat/manager-host-shadow-connection-20261023の限定host/CLI/workflow/tests/docs。既定・schedule OFF、単一owner、P0比較のみ。本番推論・新規課金・他laneは変更しない。
 - [Codex / Anicca distribution goal] claim: `codex-anicca-distribution-goal` / branch `fix/anicca-distribution-end-to-end-20261025` / PR #9003 (new head checks pending after refresh). Own: unified SSOT TODO, notification/paywall fix and six-app measurement cursor. Current cursor=(1): one Affirmation pre-effect occurrence is resolved from run-bound proof; remaining 4,432 Affirmation rows are `history_incomplete`, Widget retains 858 unknown (856 `history_incomplete`, 2 `effect_ref_present`). Preserve all remaining fences; classify 3 unmanaged doctor labels before release/apply.
 ## ログ
+- 2026-10-26 23:48 JST Codex(Railway life-call-staging): FAILED 9c9dedf3/0bb02098はRailpack v4起動後の1ログで終了し、SUCCESS時のarchive unpack/railpack-v0.43.0/source snapshotへ到達しない。直前SUCCESS d114207bと同じ設定、失敗SHAまでの差分はlanding EN/JA HTML・route manifest・docsのみでapps/life-manager/build入力変更0。原因境界はRailway builder image bootstrap; PR mergeで1回逐次再buildしてSUCCESSを確認。
 - Codex(CrowdWorks公開導入): PR8840/main e9479629のCI13成功/公開2files一致を受入。継続観測は旧76ccへ戻りhost admission待機、fleet actorの05:16Z再applyを特定。通常reconcileと異なる祖先確認欠落を共通fleetで修復し、Lancers方式の公開installerを並行実装する。source検証で本番owner/本人値/未確定effectを変更しない。正本 → MAC03-CROWDWORKS-SETUP。
 - Codex(CrowdWorks限定反映): 独立反証0件/旧unknown保持の既存1test PASS後、paidとreplyだけをloaded-idle条件でmain2fb77acdの完全immutableへ反映。install eventとloaded/installed argv/SHAが各一致、本人profile不変/直接provider操作0/手動fence解決0。次: 自然terminal/公式成果と公開setup。応募の職種設定、全業務/別Mac/10,000starsは未完。
 - Codex(CrowdWorks限定promotion): 公式dashboardの本人IDと選択済detail/公開detail一致をread-only確認。private大分類とは不一致のため補完0/応募反映0。page作成1/close1、入力hash不変。native preflight全PASS、返信/受注後の2ownerだけfresh反証→loaded-idle反映へ進む。公開setup/全業務/別Macは未完、正本 → IDENTITY-PROMOTION。
