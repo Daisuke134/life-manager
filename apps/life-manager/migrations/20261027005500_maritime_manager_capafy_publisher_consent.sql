@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_publisher_consents
   support_obligation_sections text NOT NULL CHECK (support_obligation_sections = 'v1.2:3.2,4.2-4.3,8.5'),
   agreement_accepted boolean NOT NULL CHECK (agreement_accepted),
   accepted_at timestamptz NOT NULL,
+  withdrawn_at timestamptz,
   consent_digest text NOT NULL CHECK (consent_digest ~ '^[0-9a-f]{64}$'),
   PRIMARY KEY (uid, auth_subject, agreement_version),
   CHECK (uid ~ '^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
@@ -35,6 +36,9 @@ CREATE TABLE IF NOT EXISTS private.lm_maritime_manager_capafy_publisher_consents
     REFERENCES public.lm_maritime_manager_enrollments(uid, auth_subject) ON DELETE CASCADE
 );
 
+ALTER TABLE private.lm_maritime_manager_capafy_publisher_consents
+  ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz;
+
 ALTER TABLE private.lm_maritime_manager_capafy_publisher_consents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS lm_maritime_manager_capafy_publisher_consents_service_role_access
   ON private.lm_maritime_manager_capafy_publisher_consents;
@@ -43,4 +47,4 @@ CREATE POLICY lm_maritime_manager_capafy_publisher_consents_service_role_access
   USING (true) WITH CHECK (true);
 REVOKE ALL ON TABLE private.lm_maritime_manager_capafy_publisher_consents FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA private TO service_role;
-GRANT SELECT, INSERT ON TABLE private.lm_maritime_manager_capafy_publisher_consents TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE private.lm_maritime_manager_capafy_publisher_consents TO service_role;

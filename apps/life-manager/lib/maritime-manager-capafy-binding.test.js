@@ -284,3 +284,25 @@ test("Capafy token access stops before binding or provider reads when agreement 
     assert.deepEqual({ bindingReads, officialReads, actionCalls }, { bindingReads: 0, officialReads: 0, actionCalls: 0 });
   }
 });
+
+test("withdrawing the current Publisher consent closes the Capafy token action gate", async () => {
+  let withdrawn = false, bindingReads = 0, officialReads = 0, actionCalls = 0;
+  const current = currentPublisherConsent(UID).readCurrent;
+  const publisherConsentStore = {
+    readCurrent: async input => withdrawn ? null : current(input),
+    withdraw: async input => { assert.deepEqual(input, { tenantId: UID, authSubject: SUBJECT }); withdrawn = true; return true; },
+  };
+  const accountRef = `account://capafy/${UID}/${CAPAFY_SUBJECT}`;
+  const binding = createMaritimeCapafyAccountBinding({ publisherConsentStore,
+    managerStore: { read: async uid => ({ uid, auth_subject: SUBJECT, status: "active", paused_at: null }) },
+    bindingStore: { read: async () => { bindingReads++; return { provider: "capafy", tenantId: UID,
+      providerSubject: CAPAFY_SUBJECT, accountRef, autonomyConsentVersion: CAPAFY_AUTONOMY_CONSENT_VERSION,
+      accessToken: TOKEN }; } },
+    connector: { readAccount: async () => { officialReads++; return { provider: "capafy",
+      providerSubject: CAPAFY_SUBJECT, developerVerified: true }; } },
+  });
+  await publisherConsentStore.withdraw({ tenantId: UID, authSubject: SUBJECT });
+  await assert.rejects(binding.withAccessToken({ tenantId: UID, accountRef }, async () => { actionCalls++; }),
+    /publisher_agreement_consent_required/i);
+  assert.deepEqual({ bindingReads, officialReads, actionCalls }, { bindingReads: 0, officialReads: 0, actionCalls: 0 });
+});

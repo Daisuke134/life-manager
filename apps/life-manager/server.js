@@ -753,7 +753,8 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
-  if (["/maritime/capafy/connect/start", "/maritime/capafy/connect/verify", "/maritime/capafy/connect/disconnect"].includes(path)) {
+  if (["/maritime/capafy/connect/start", "/maritime/capafy/connect/verify", "/maritime/capafy/connect/disconnect",
+    "/maritime/capafy/publisher-consent", "/maritime/capafy/publisher-consent/withdraw"].includes(path)) {
     Promise.resolve().then(() => handleMaritimeManagerCapafyConnection(req, res, maritimeManagerHttpOptions())).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });

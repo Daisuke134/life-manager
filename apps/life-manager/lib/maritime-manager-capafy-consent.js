@@ -42,7 +42,7 @@ function text(value, max = 200) {
     || /[\u0000-\u001f\u007f]/.test(value)) fail("maritime_capafy_consent_invalid");
   return value.trim();
 }
-function publicRecord(row, uid, subject) {
+function publicMetadata(row, uid, subject) {
   if (!row || row.uid !== uid || String(row.auth_subject).toLowerCase() !== subject
     || row.agreement_version !== CAPAFY_PUBLISHER_AGREEMENT_VERSION
     || String(row.effective_date).slice(0, 10) !== CAPAFY_PUBLISHER_AGREEMENT_EFFECTIVE_DATE
@@ -53,6 +53,33 @@ function publicRecord(row, uid, subject) {
     effectiveDate: CAPAFY_PUBLISHER_AGREEMENT_EFFECTIVE_DATE,
     agreementUrl: CAPAFY_PUBLISHER_AGREEMENT_URL, certificationFeeUsd: CAPAFY_CERTIFICATION_FEE_USD,
     acceptedAt: timestamp(row.accepted_at) });
+}
+function publicRecord(row, uid, subject) {
+  if (row?.withdrawn_at != null) return null;
+  return publicMetadata(row, uid, subject);
+}
+function tenantRecord(row, uid, subject) {
+  const metadata = publicMetadata(row, uid, subject);
+  if (!metadata || !new Set(["individual", "entity"]).has(row.publisher_type)) return null;
+  const booleans = ["age_of_majority_attested", "entity_authority_attested", "supported_region_attested",
+    "sanctions_eligibility_attested", "identity_contact_accurate_attested", "single_publisher_account_attested",
+    "certification_fee_non_refundable_acknowledged", "data_disclosures_accepted", "support_obligations_accepted",
+    "agreement_accepted"];
+  if (booleans.some(field => typeof row[field] !== "boolean")) return null;
+  return Object.freeze({ ...metadata, publisherType: row.publisher_type, legalName: text(row.legal_name),
+    jurisdiction: text(row.jurisdiction, 100), verifiedContactEmail: email(row.verified_contact_email),
+    publicSupportEmail: email(row.public_support_email), ageOfMajorityAttested: row.age_of_majority_attested,
+    entityAuthorityAttested: row.entity_authority_attested, supportedRegionAttested: row.supported_region_attested,
+    sanctionsEligibilityAttested: row.sanctions_eligibility_attested,
+    identityContactAccurateAttested: row.identity_contact_accurate_attested,
+    singlePublisherAccountAttested: row.single_publisher_account_attested,
+    certificationFeeNonRefundableAcknowledged: row.certification_fee_non_refundable_acknowledged,
+    dataDisclosuresAccepted: row.data_disclosures_accepted,
+    dataDisclosureSections: row.data_disclosure_sections,
+    supportObligationsAccepted: row.support_obligations_accepted,
+    supportObligationSections: row.support_obligation_sections,
+    agreementAccepted: row.agreement_accepted,
+    withdrawnAt: row.withdrawn_at == null ? null : timestamp(row.withdrawn_at) });
 }
 
 function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date().toISOString() } = {}) {
@@ -94,7 +121,7 @@ function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date
     const uid = validTenant(tenantId), subject = validSubject(authSubject);
     const rows = (await query(`SELECT uid,auth_subject,agreement_version,effective_date,agreement_url,certification_fee_usd,accepted_at
       FROM private.lm_maritime_manager_capafy_publisher_consents
-      WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3 LIMIT 2`,
+      WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3 AND withdrawn_at IS NULL LIMIT 2`,
     [uid, subject, CAPAFY_PUBLISHER_AGREEMENT_VERSION])).rows;
     if (!Array.isArray(rows) || rows.length > 1) fail("maritime_capafy_consent_record_invalid");
     if (!rows.length) return null;
@@ -102,6 +129,34 @@ function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date
     if (!record) return null;
     if (record.acceptedAt > timestamp(now())) return null;
     return record;
+  }
+
+  async function readForTenant({ tenantId, authSubject } = {}) {
+    const uid = validTenant(tenantId), subject = validSubject(authSubject);
+    const rows = (await query(`SELECT uid,auth_subject,agreement_version,effective_date,agreement_url,certification_fee_usd,
+      publisher_type,legal_name,jurisdiction,verified_contact_email,public_support_email,age_of_majority_attested,
+      entity_authority_attested,supported_region_attested,sanctions_eligibility_attested,
+      identity_contact_accurate_attested,single_publisher_account_attested,certification_fee_non_refundable_acknowledged,
+      data_disclosures_accepted,data_disclosure_sections,support_obligations_accepted,support_obligation_sections,
+      agreement_accepted,accepted_at,withdrawn_at
+      FROM private.lm_maritime_manager_capafy_publisher_consents
+      WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3 LIMIT 2`,
+    [uid, subject, CAPAFY_PUBLISHER_AGREEMENT_VERSION])).rows;
+    if (!Array.isArray(rows) || rows.length > 1) fail("maritime_capafy_consent_record_invalid");
+    return rows.length ? tenantRecord(rows[0], uid, subject) : null;
+  }
+
+  async function withdraw({ tenantId, authSubject } = {}) {
+    const uid = validTenant(tenantId), subject = validSubject(authSubject);
+    const rows = (await query(`UPDATE private.lm_maritime_manager_capafy_publisher_consents
+      SET withdrawn_at=COALESCE(withdrawn_at,$4::timestamptz)
+      WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3
+      RETURNING uid,auth_subject,agreement_version,effective_date,agreement_url,certification_fee_usd,accepted_at,withdrawn_at`,
+    [uid, subject, CAPAFY_PUBLISHER_AGREEMENT_VERSION, timestamp(now())])).rows;
+    if (!Array.isArray(rows) || rows.length > 1) fail("maritime_capafy_consent_record_invalid");
+    const metadata = rows.length ? publicMetadata(rows[0], uid, subject) : null;
+    if (!metadata) return null;
+    return Object.freeze({ ...metadata, withdrawnAt: timestamp(rows[0].withdrawn_at) });
   }
 
   async function record(input = {}) {
@@ -131,19 +186,20 @@ function createMaritimeCapafyPublisherConsentStore({ query, now = () => new Date
       if (!publicResult) fail("maritime_capafy_consent_record_invalid");
       return publicResult;
     }
-    const rows = (await query(`SELECT uid,auth_subject,agreement_version,effective_date,agreement_url,certification_fee_usd,accepted_at,consent_digest
+    const rows = (await query(`SELECT uid,auth_subject,agreement_version,effective_date,agreement_url,certification_fee_usd,accepted_at,consent_digest,withdrawn_at
       FROM private.lm_maritime_manager_capafy_publisher_consents
       WHERE uid=$1 AND auth_subject=$2 AND agreement_version=$3 LIMIT 2`,
     [c.uid, c.subject, c.agreementVersion])).rows;
     if (!Array.isArray(rows) || rows.length !== 1 || rows[0].consent_digest !== c.digest) {
       fail("maritime_capafy_consent_already_recorded");
     }
+    if (rows[0].withdrawn_at != null) fail("maritime_capafy_consent_withdrawn");
     const publicResult = publicRecord(rows[0], c.uid, c.subject);
     if (!publicResult) fail("maritime_capafy_consent_record_invalid");
     return publicResult;
   }
 
-  return Object.freeze({ record, readCurrent });
+  return Object.freeze({ record, readCurrent, readForTenant, withdraw });
 }
 
 module.exports = { CAPAFY_PUBLISHER_AGREEMENT_VERSION, CAPAFY_PUBLISHER_AGREEMENT_EFFECTIVE_DATE,

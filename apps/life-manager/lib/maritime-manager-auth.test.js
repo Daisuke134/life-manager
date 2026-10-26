@@ -52,6 +52,15 @@ test("the actual application server keeps both legacy email paths closed",async(
     assert.equal(res.statusCode,410);assert.deepEqual(JSON.parse(res.body),{error:"google_sign_in_required"});
   }
 });
+test("the actual application server dispatches Publisher consent lifecycle routes",async()=>{
+  const {server}=require("../server.js");
+  for(const path of ["/maritime/capafy/publisher-consent","/maritime/capafy/publisher-consent/withdraw"]){
+    const req=request(path,"POST",{}),res=response();let finish;const completed=new Promise(resolve=>{finish=resolve;});
+    const end=res.end.bind(res);res.end=body=>{end(body);finish();};server.emit("request",req,res);await completed;
+    assert.notEqual(res.statusCode,404,path);
+    assert.equal(res.headersSent,true,path);
+  }
+});
 test("unverified_email_cannot_resolve_a_manager_user",async()=>{
   const {deps,calls}=fixture({user:{...USER,email_confirmed_at:null}});
   assert.equal(await resolveMaritimeManagerUser(request("/maritime/activate","POST"),response(),deps),null);
@@ -482,6 +491,8 @@ function capafyConnectionFixture() {
     record: async input => ({ tenantId: input.tenantId, authSubject: input.authSubject,
       agreementVersion: "v1.2", effectiveDate: "2026-09-28", agreementUrl: "https://capafy.ai/publisher-agreement/",
       acceptedAt: f.deps.now() }),
+    readForTenant: async () => null,
+    withdraw: async () => ({ agreementVersion: "v1.2", effectiveDate: "2026-09-28", acceptedAt: f.deps.now() }),
     readCurrent: async input => ({ tenantId: input.tenantId, authSubject: input.authSubject.toLowerCase(),
       agreementVersion: "v1.2", effectiveDate: "2026-09-28", agreementUrl: "https://capafy.ai/publisher-agreement/",
       acceptedAt: f.deps.now() }),
@@ -556,8 +567,9 @@ test("Capafy connection routes stay disabled until the explicit Cloud provider f
 
 test("Capafy consent record uses the authenticated tenant and returns no identity or credential facts", async () => {
   const f = capafyConnectionFixture(), res = response();
-  let recorded = null, emails = 0, logs = 0;
+  let recorded = null, recordCalls = 0, emails = 0, logs = 0;
   f.deps.capafyPublisherConsentStore.record = async input => {
+    recordCalls++;
     recorded = input;
     return { tenantId: input.tenantId, authSubject: input.authSubject, agreementVersion: "v1.2",
       effectiveDate: "2026-09-28", acceptedAt: f.deps.now() };
@@ -571,10 +583,70 @@ test("Capafy consent record uses the authenticated tenant and returns no identit
     verifiedContactEmail: USER.email, consent: publisherConsentInput() });
   assert.deepEqual(JSON.parse(res.body), { status: "recorded", agreementVersion: "v1.2",
     effectiveDate: "2026-09-28", acceptedAt: f.deps.now() });
+  assert.equal(recordCalls, 1);
   assert.doesNotMatch(res.body, /Test Publisher|support@example\.test|person@example\.invalid|am_sk_/i);
   assert.equal(emails, 0);
   assert.equal(logs, 0);
   assert.deepEqual(f.calls, []);
+});
+
+test("authenticated onboarding reads consent without accepting or creating a record", async () => {
+  const f = capafyConnectionFixture(), res = response();
+  let recordCalls = 0, reads = 0, readInput = null, emailCalls = 0, logCalls = 0;
+  f.deps.writeUsageDiagnostic = () => {};
+  f.deps.capafyPublisherConsentStore.record = async () => { recordCalls++; throw new Error("unexpected_record"); };
+  f.deps.capafyPublisherConsentStore.readForTenant = async input => { reads++; readInput = input; return null; };
+  f.deps.email = async () => { emailCalls++; };
+  f.deps.log = () => { logCalls++; };
+  await handleMaritimeManagerPage(request("/maritime"), res, f.deps);
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body, /Publisher Agreement v1\.2/);
+  assert.match(res.body, /US\$0\.99 certification fee is non-refundable even if certification is declined/);
+  assert.deepEqual(readInput, { tenantId: f.uid, authSubject: SUBJECT });
+  assert.equal(reads, 1);
+  assert.equal(recordCalls, 0);
+  assert.equal(emailCalls, 0);
+  assert.equal(logCalls, 0);
+});
+
+test("withdrawn Publisher consent returns a PII-free receipt and closes the Capafy action gate", async () => {
+  const f = capafyConnectionFixture();
+  let current = { tenantId: f.uid, authSubject: SUBJECT, agreementVersion: "v1.2",
+    effectiveDate: "2026-09-28", acceptedAt: f.deps.now() };
+  let withdrawInput = null;
+  f.deps.capafyPublisherConsentStore.readCurrent = async () => current;
+  f.deps.capafyPublisherConsentStore.record = async () => {
+    if (!current) throw new Error("maritime_capafy_consent_withdrawn");
+    return current;
+  };
+  f.deps.capafyPublisherConsentStore.withdraw = async input => {
+    withdrawInput = input; current = null;
+    return { agreementVersion: "v1.2", effectiveDate: "2026-09-28", withdrawnAt: f.deps.now() };
+  };
+  let emailCalls = 0, logCalls = 0;
+  f.deps.email = async () => { emailCalls++; };
+  f.deps.log = () => { logCalls++; };
+  const res = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/publisher-consent/withdraw", "POST", {},
+    { "x-lm-web-csrf": f.csrf }), res, f.deps);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(withdrawInput, { tenantId: f.uid, authSubject: SUBJECT });
+  assert.deepEqual(JSON.parse(res.body), { status: "withdrawn", agreementVersion: "v1.2",
+    effectiveDate: "2026-09-28", withdrawnAt: f.deps.now() });
+  assert.doesNotMatch(res.body, /Test Publisher|support@example\.test|person@example\.invalid|am_sk_/i);
+  const gated = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/connect/start", "POST",
+    { termsAccepted: true, privacyAccepted: true }, { "x-lm-web-csrf": f.csrf }), gated, f.deps);
+  assert.equal(gated.statusCode, 409);
+  assert.deepEqual(JSON.parse(gated.body), { error: "capafy_publisher_agreement_consent_required" });
+  const reaccept = response();
+  await handleMaritimeManagerCapafyConnection(request("/maritime/capafy/publisher-consent", "POST",
+    publisherConsentInput(), { "x-lm-web-csrf": f.csrf }), reaccept, f.deps);
+  assert.equal(reaccept.statusCode, 409);
+  assert.deepEqual(JSON.parse(reaccept.body), { error: "publisher_consent_withdrawn" });
+  assert.deepEqual(f.calls, []);
+  assert.equal(emailCalls, 0);
+  assert.equal(logCalls, 0);
 });
 
 test("missing or stale Publisher Agreement consent blocks Capafy login before any provider call", async () => {

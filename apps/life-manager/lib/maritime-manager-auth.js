@@ -8,6 +8,7 @@ const CAPAFY_CONNECT_PATH = "/maritime/capafy/connect/start";
 const CAPAFY_VERIFY_PATH = "/maritime/capafy/connect/verify";
 const CAPAFY_DISCONNECT_PATH = "/maritime/capafy/connect/disconnect";
 const CAPAFY_PUBLISHER_CONSENT_PATH = "/maritime/capafy/publisher-consent";
+const CAPAFY_PUBLISHER_CONSENT_WITHDRAW_PATH = "/maritime/capafy/publisher-consent/withdraw";
 function enabled(options) {
   return (options.env || process.env).LM_MARITIME_MANAGER_EMAIL_ENABLED === "1";
 }
@@ -325,7 +326,8 @@ function capafyPublisherConsentStore(options) {
 
 async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   const pathname = new URL(req.url || "/", "http://localhost").pathname;
-  if (![CAPAFY_CONNECT_PATH, CAPAFY_VERIFY_PATH, CAPAFY_DISCONNECT_PATH, CAPAFY_PUBLISHER_CONSENT_PATH].includes(pathname)) return false;
+  if (![CAPAFY_CONNECT_PATH, CAPAFY_VERIFY_PATH, CAPAFY_DISCONNECT_PATH, CAPAFY_PUBLISHER_CONSENT_PATH,
+    CAPAFY_PUBLISHER_CONSENT_WITHDRAW_PATH].includes(pathname)) return false;
   if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
   if (req.method !== "POST") { send(res, 405, { error: "method_not_allowed" }, { allow: "POST" }); return true; }
   let origin;
@@ -342,7 +344,8 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
   if (!enrollment || enrollment.auth_subject?.toLowerCase() !== user.subject.toLowerCase()) {
     send(res, 409, { error: "manager_setup_required" }); return true;
   }
-  if (pathname !== CAPAFY_DISCONNECT_PATH && !maritimeManagerActiveForCapafy(enrollment, user)) {
+  const consentLifecyclePath = [CAPAFY_PUBLISHER_CONSENT_PATH, CAPAFY_PUBLISHER_CONSENT_WITHDRAW_PATH].includes(pathname);
+  if (pathname !== CAPAFY_DISCONNECT_PATH && !consentLifecyclePath && !maritimeManagerActiveForCapafy(enrollment, user)) {
     send(res, enrollment.status === "paused" || enrollment.paused_at ? 409 : 202,
       { error: enrollment.status === "paused" || enrollment.paused_at ? "manager_paused" : "manager_not_ready" });
     return true;
@@ -363,10 +366,21 @@ async function handleMaritimeManagerCapafyConnection(req, res, options = {}) {
       const stale = reason === "maritime_capafy_agreement_version_stale";
       const invalid = /^maritime_capafy_consent_(?:invalid|identity_invalid|required)$/.test(reason);
       const conflict = reason === "maritime_capafy_consent_already_recorded";
-      send(res, stale || invalid ? 400 : conflict ? 409 : 503,
+      const withdrawn = reason === "maritime_capafy_consent_withdrawn";
+      send(res, stale || invalid ? 400 : conflict || withdrawn ? 409 : 503,
         { error: stale ? "publisher_agreement_version_stale" : invalid ? "publisher_consent_invalid"
-          : conflict ? "publisher_consent_already_recorded" : "publisher_consent_unavailable" });
+          : withdrawn ? "publisher_consent_withdrawn" : conflict ? "publisher_consent_already_recorded" : "publisher_consent_unavailable" });
     }
+    return true;
+  }
+  if (pathname === CAPAFY_PUBLISHER_CONSENT_WITHDRAW_PATH) {
+    if (Object.keys(body).length) { send(res, 400, { error: "invalid_request" }); return true; }
+    try {
+      const withdrawn = await capafyPublisherConsentStore(options).withdraw({ tenantId: user.uid, authSubject: user.subject });
+      if (!withdrawn) { send(res, 409, { error: "publisher_consent_not_found" }); return true; }
+      send(res, 200, { status: "withdrawn", agreementVersion: withdrawn.agreementVersion,
+        effectiveDate: withdrawn.effectiveDate, withdrawnAt: withdrawn.withdrawnAt });
+    } catch { send(res, 503, { error: "publisher_consent_unavailable" }); }
     return true;
   }
   if (pathname !== CAPAFY_DISCONNECT_PATH && options.capafyConnectionEnabled !== true
@@ -584,10 +598,19 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
   try {
     const user = await resolveMaritimeManagerUser(req, res, options);
-    let state = null, workbench = null, workbenchUnavailable = false;
+    let state = null, workbench = null, workbenchUnavailable = false, publisherConsent = null;
+    let publisherConsentAvailable = false;
     if (user) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
+      if (row?.uid === user.uid && String(row.auth_subject || "").toLowerCase() === user.subject.toLowerCase()) {
+        const consentStore = options.capafyPublisherConsentStore
+          || (typeof options.query === "function" ? capafyPublisherConsentStore(options) : null);
+        if (typeof consentStore?.readForTenant === "function") {
+          publisherConsent = await consentStore.readForTenant({ tenantId: user.uid, authSubject: user.subject });
+          publisherConsentAvailable = true;
+        }
+      }
       state = row?.status || null;
       if (["pending", "provisioning", "active"].includes(state) && row.consent_version !== MANAGER_CONSENT_VERSION) state = "consent_required";
       else if (state === "active" && !await managerReady(row, options)) state = "provisioning";
@@ -603,6 +626,7 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" });
     res.end(renderMaritimeLanding({ source, language, user, state, workbench, workbenchUnavailable,
+      publisherConsent, publisherConsentAvailable,
       telegramAvailable: options.telegramAvailable === true,
       authError: url.searchParams.get("auth_error") === "connection" ? "connection" : null }));
   } catch { send(res, 503, { error: "manager_unavailable" }); }
