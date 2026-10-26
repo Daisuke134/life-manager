@@ -25647,3 +25647,10 @@ Manager v1は「大きなモデルを作った時」ではなく、(1)既存研�
 - **Exact-head CI:** Security Scan `40293360219` failed only x86_64 Loop contracts test `test_owner_failure_does_not_delay_healthy_same_sha_budget_continuation`; Cloud contracts `40293360498` passed. GitHub reported `next_retry_epoch=1793104475` against an expected deadline within 60 seconds.
 - **Root cause/fix:** `bin/reconcile-agent-runner-release.sh` retained the default 100000-second backoff whenever a bounded-progress pass also had a timed-out owner. That delayed retries for remaining healthy owners on the same SHA. The fix shortens the same-SHA retry after bounded progress even with a failed/timed-out owner, while `budget_progress_continue` stays false so a different SHA remains coalesced until an error-free, non-timeout pass.
 - **Local verification:** the CI failure reproduces in the focused test after adding the worktree's omitted sparse paths. After the fix, the target and three related retry/coalescing tests pass 4/4. Next: commit/push the correction and read the new exact-head CI.
+
+### Maritime Step 3 retry correction green — 2026-10-26T09:01Z
+
+- **Commits:** Step 3 first code/test commit `7f6bf6e14c14040a4ba7a1e742f92dd92e9082e0`; retry correction `3cee097147bebd72be6fbdd4457b24ce4a081422`.
+- **Exact code-head checks:** Security Scan `40295129427` passes 14/14; Cloud reminder contracts `40295129401` passes. PR #8745 is OPEN/DRAFT, base `db85e8b85958bb56889b1e07338f8ff633edcd31`, code head `3cee097147bebd72be6fbdd4457b24ce4a081422`, `CLEAN/MERGEABLE`.
+- **Tests:** Cloud price config 1/1; same-SHA retry/coalescing 4/4; `bash -n`, source-boundary, and OSS checks pass. The prior x86 retry failure was reproduced and fixed; new head's 14/14 scan is green.
+- **Effects/next:** no Stripe/provider call, live price configuration, signup, deployment, customer effect, or main merge. Step 3 has only its first source slice; price/terms remain undecided. Step 1 / P1.4 is still incomplete.
