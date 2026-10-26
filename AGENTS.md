@@ -36,6 +36,7 @@ This repository is the source authority for Life Manager. The canonical remote i
 - Use Ponytail as the minimal-solution check inside that workflow: reuse existing code, native tools and installed dependencies before adding anything.
 - For Life Manager loop, launchd, release, runtime-event, provider-routing or cleanup changes, read `skills/loop-development/SKILL.md` before acting.
 - Preserve unrelated edits, active worktrees, runtime state, credentials and immutable releases. Do not edit another checkout to make a Life Manager change.
+- When a repository's documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.
 
 ## Development and evidence
 

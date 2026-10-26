@@ -3,3 +3,5 @@
 @AGENTS.md
 
 Claude-specific: use the imported project contract above. For any Life Manager loop, launchd, release, runtime-event, provider-routing, or cleanup change, read and follow `skills/loop-development/SKILL.md`.
+
+When a repository's documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.
