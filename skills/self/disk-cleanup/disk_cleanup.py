@@ -599,6 +599,7 @@ def _content_in_main(
 
 PUSHED_WORKTREE_MIN_AGE_SECONDS = 72 * 3600
 FRESH_MAIN_TTL_SECONDS = 50
+WORKTREE_PROOF_SHARE = 0.4
 
 
 def _pushed_and_stale(
@@ -2357,6 +2358,12 @@ class HostDiskGovernor:
         def expired() -> bool:
             return deadline is not None and self.clock() >= deadline
 
+        # Worktree proofs run first on a reserved slice: the inventory scan used the whole
+        # discovery budget on every 60 s pass (17.5 s, 2026-10-26) and the Git proofs placed
+        # after it never ran, so no worktree was ever retired. The other families keep the rest.
+        worktree_deadline = (None if deadline is None
+                             else self.clock() + WORKTREE_PROOF_SHARE * max(0.0, deadline - self.clock()))
+        candidates.extend(self._worktree_candidates(deadline=worktree_deadline))
         if expired():
             return candidates
         cache = _darwin_clang_cache(self.home)
@@ -2549,11 +2556,26 @@ class HostDiskGovernor:
                             "owner": "temporary-run",
                             "discovery": "allowlisted",
                         })
-        # Resolve costly Git proofs after other artifact families so an
-        # exhausted worktree proof cannot hide browser/temporary candidates.
-        if expired():
-            return candidates
+        return candidates
+
+    def _worktree_candidates(self, *, deadline: float | None) -> list[dict]:
+        """Registered-worktree proofs, resumed from the previous pass's cursor.
+
+        A pass rarely has time for every worktree (118 across both repositories, 2026-10-26), so
+        each repository's ring starts where the last pass stopped and every worktree gets its turn.
+        """
+        candidates: list[dict] = []
+        cursor_path = self.state_dir / "worktree-proof-cursor.json"
+        try:
+            cursor = json.loads(cursor_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            cursor = {}
+        if not isinstance(cursor, dict):
+            cursor = {}
         for repository_relative, _root in WORKTREE_REPOSITORIES:
+            if deadline is not None and self.clock() >= deadline:
+                break
+            key = str(repository_relative)
             repository = self.home / repository_relative
             records = (
                 _worktree_records(repository, deadline=deadline, clock=self.clock)
@@ -2561,9 +2583,14 @@ class HostDiskGovernor:
             )
             if records is None:
                 continue
-            for record in records:
+            start = cursor.get(key, 0)
+            if not isinstance(start, int) or not 0 <= start < len(records):
+                start = 0
+            done = 0
+            for record in records[start:] + records[:start]:
                 if deadline is not None and self.clock() >= deadline:
                     break
+                done += 1
                 raw_path = record.get("worktree")
                 if not isinstance(raw_path, str):
                     continue
@@ -2590,6 +2617,12 @@ class HostDiskGovernor:
                             "owner": "worktree-dependencies", "discovery": "allowlisted",
                             "dependency_identity": dependency_proof,
                         })
+            cursor[key] = 0 if done >= len(records) else (start + done) % len(records)
+        try:
+            cursor_path.parent.mkdir(parents=True, exist_ok=True)
+            cursor_path.write_text(json.dumps(cursor, sort_keys=True), encoding="utf-8")
+        except OSError:
+            pass
         return candidates
 
     def run_once(self) -> dict[str, object]:
