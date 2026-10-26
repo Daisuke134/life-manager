@@ -207,5 +207,66 @@ class ReceiptPortfolioTests(unittest.TestCase):
         self.assertEqual(result["next_action"], "NO_ACTION")
 
 
+    def test_fragment_only_receipt_url_alias_across_jobs_requires_review(self):
+        first = record("job_a", "receipt_a")
+        second = record("job_b", "receipt_b")
+        # Different source IDs, digests and fragments; same primary URI.
+        a = replace(
+            first.receipt.source,
+            url="https://example.org/ledger?tx=shared#receipt-a",
+            content_sha256="1" * 64,
+        )
+        b = replace(
+            second.receipt.source,
+            url="https://example.org/ledger?tx=shared#receipt-b",
+            content_sha256="2" * 64,
+        )
+        first = change_receipt_source(first, a)
+        second = change_receipt_source(second, b)
+        for pair in ([first, second], [second, first]):
+            with self.subTest(order=pair[0].opportunity_id):
+                result = preflight_receipt_portfolio(pair)
+                self.assertEqual(result["status"], "REVIEW_REQUIRED")
+                self.assertEqual(result["reason_codes"], ["RECEIPT_URL_REUSED"])
+                self.assertFalse(result["can_count_declared_receipts_as_income"])
+                self.assertIsNone(result["verified_income_minor"])
+                self.assertNotIn("tx=shared", json.dumps(result))
+
+    def test_fragment_only_earlier_stage_alias_requires_review(self):
+        item = record("job_a", "receipt_a")
+        previous = item.approval.source
+        alias = replace(
+            item.receipt.source,
+            source_id="a_new_source_id",
+            url=previous.url + "#relabelled-as-payment",
+            content_sha256="f" * 64,
+        )
+        result = preflight_receipt_portfolio(
+            [change_receipt_source(item, alias)]
+        )
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertIn(
+            "RECEIPT_REUSES_EARLIER_STAGE_EVIDENCE", result["reason_codes"]
+        )
+        self.assertFalse(result["independent_payment_verified"])
+
+    def test_distinct_query_identifiers_are_not_erased_as_fragments(self):
+        first = record("job_a", "receipt_a")
+        second = record("job_b", "receipt_b")
+        a = replace(first.receipt.source, url="https://example.org/ledger?tx=one#details")
+        b = replace(second.receipt.source, url="https://example.org/ledger?tx=two#details")
+        result = preflight_receipt_portfolio([
+            change_receipt_source(first, a),
+            change_receipt_source(second, b),
+        ])
+        # Different query parameters MAY describe different transactions.
+        # They do not prove independence, but this narrow screen must not
+        # collapse them just because they share a host/path.
+        self.assertEqual(result["status"], "PRELIMINARY_ONLY")
+        self.assertEqual(result["reason_codes"], [])
+        self.assertFalse(result["independent_payment_verified"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
