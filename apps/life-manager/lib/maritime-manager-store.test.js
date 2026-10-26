@@ -47,13 +47,14 @@ function fixture() {
     }
     if (u.pathname.endsWith("/rpc/claim_lm_maritime_manager_provision_v1")) {
       const row = rows.get(body.p_uid);
-      const claim = !!row && row.status === "pending" && !row.paused_at;
+      const claim = !!row && row.status === "pending" && !row.paused_at
+        && row.consent_version === MANAGER_CONSENT_VERSION;
       if (claim) row.status = "provisioning";
       return response(claim);
     }
     if (u.pathname.endsWith("/rpc/bind_lm_maritime_manager_agent_v1")) {
       const row = rows.get(body.p_uid);
-      if (!row || row.auth_subject !== body.p_auth_subject
+      if (!row || row.consent_version !== MANAGER_CONSENT_VERSION || row.auth_subject !== body.p_auth_subject
         || (row.agent_id && row.agent_id !== body.p_agent_id)
         || [...rows.values()].some(r => r.uid !== body.p_uid && r.agent_id === body.p_agent_id)) return response(false);
       row.agent_id = body.p_agent_id; row.release_sha = body.p_release_sha;
@@ -98,7 +99,8 @@ function fixture() {
     }
     if (statement.includes("claim_lm_maritime_manager_provision_v1")) {
       const row = rows.get(values[0]);
-      const claimed = Boolean(row && row.status === "pending" && row.paused_at == null);
+      const claimed = Boolean(row && row.status === "pending" && row.paused_at == null
+        && row.consent_version === MANAGER_CONSENT_VERSION);
       if (claimed) row.status = "provisioning";
       return { rows: [{ claimed }] };
     }
@@ -108,7 +110,8 @@ function fixture() {
       const duplicateAgent = [...rows.values()].some(candidate => candidate.uid !== uid && candidate.agent_id === agentId);
       const allowedStatus = row && (['provisioning', 'effect_unknown', 'paused'].includes(row.status)
         || (row.status === 'active' && row.agent_id === agentId));
-      const bound = Boolean(row && row.auth_subject === authSubject && row.release_sha === releaseSha
+      const bound = Boolean(row && row.consent_version === MANAGER_CONSENT_VERSION
+        && row.auth_subject === authSubject && row.release_sha === releaseSha
         && (row.agent_id == null || row.agent_id === agentId) && allowedStatus && !duplicateAgent);
       if (bound) {
         row.agent_id = agentId;
@@ -192,6 +195,12 @@ test("only_one_concurrent_provision_claim_succeeds", async () => {
   const { store } = fixture(); await store.enroll(input());
   const claims = await Promise.all([store.claimProvision(UID_A), store.claimProvision(UID_A)]);
   assert.deepEqual(claims, [true, false]);
+});
+test("legacy_consent_cannot_claim_provision_before_current_consent", async () => {
+  const { store, rows } = fixture();
+  await store.enroll({ ...input(), consentVersion: "maritime-manager-v1" });
+  assert.equal(await store.claimProvision(UID_A), false);
+  assert.equal(rows.get(UID_A).status, "pending");
 });
 test("a_foreign_subject_or_agent_binding_is_rejected", async () => {
   const { store } = fixture(); await store.enroll(input()); await store.enroll(input(UID_B, SUBJECT_B));

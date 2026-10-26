@@ -10,7 +10,7 @@ const test = require("node:test");
 const { createMaritimeManagerStore } = require("../../lib/maritime-manager-store.js");
 const { deliverCloudCfoEmail } = require("../../lib/cfo-cloud-delivery.js");
 const { separateWebUidForSubject } = require("../../lib/web-auth.js");
-const { CONSENT_VERSION, normalizeMaritimeSource } = require("../../lib/maritime-distribution.js");
+const { CONSENT_VERSION, MANAGER_CONSENT_VERSION, normalizeMaritimeSource } = require("../../lib/maritime-distribution.js");
 const { normalizeWebFunnelEvent } = require("../../lib/web-funnel-events.js");
 let createMaritimeManagerPersistence;
 try { ({ createMaritimeManagerPersistence } = require("../../lib/maritime-manager-persistence.js")); }
@@ -19,6 +19,7 @@ catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
 const CONSENT_ANCHOR_MIGRATION = path.join(__dirname, "../../migrations/20261025174214_lm_maritime_manager_consent_anchor.sql");
 const STOP_LOOKUP_MIGRATION = path.join(__dirname, "../../migrations/20261025221000_lm_maritime_manager_execution_stop_lookup.sql");
+const PROVISION_CONSENT_GATE_MIGRATION = path.join(__dirname, "../../migrations/20261026075819_lm_maritime_manager_provision_consent_gate.sql");
 const MANAGER_TABLES = [
   "lm_maritime_manager_identities",
   "lm_maritime_manager_enrollments",
@@ -96,6 +97,8 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
     assert.equal(fs.existsSync(STOP_LOOKUP_MIGRATION), true, "bounded Stop readback index migration must exist");
     await client.query(fs.readFileSync(STOP_LOOKUP_MIGRATION, "utf8"));
+    assert.equal(fs.existsSync(PROVISION_CONSENT_GATE_MIGRATION), true, "provisioning consent gate migration must exist");
+    await client.query(fs.readFileSync(PROVISION_CONSENT_GATE_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT to_regclass('public.lm_maritime_manager_execution_stop_lookup')::text")).rows[0].to_regclass,
       "lm_maritime_manager_execution_stop_lookup", "Stop readback index is present");
     assert.equal((await client.query(
@@ -202,12 +205,23 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
          VALUES ($1,$2,$3,'direct','maritime-manager-v1',$4)`,
         [serviceUid, serviceSubject, "service-role@example.invalid", serviceRelease],
       );
-      assert.equal((await client.query("SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed", [serviceUid])).rows[0].claimed, true,
-        "service_role can execute the SECURITY INVOKER provisioning RPC through RLS");
+      assert.equal((await client.query("SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed", [serviceUid])).rows[0].claimed, false,
+        "legacy consent cannot claim provisioning");
+      assert.equal((await client.query("SELECT status FROM public.lm_maritime_manager_enrollments WHERE uid=$1", [serviceUid])).rows[0].status, "pending",
+        "rejected legacy consent leaves enrollment pending");
+      await client.query("UPDATE public.lm_maritime_manager_enrollments SET status='provisioning' WHERE uid=$1", [serviceUid]);
       assert.equal((await client.query(
         "SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound",
         [serviceUid, serviceSubject, "service-role-agent", serviceRelease],
-      )).rows[0].bound, true, "service_role can execute the SECURITY INVOKER bind RPC through RLS");
+      )).rows[0].bound, false, "legacy consent cannot bind an agent during recovery");
+      await client.query("UPDATE public.lm_maritime_manager_enrollments SET status='pending',consent_version=$2 WHERE uid=$1",
+        [serviceUid, MANAGER_CONSENT_VERSION]);
+      assert.equal((await client.query("SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed", [serviceUid])).rows[0].claimed, true,
+        "current explicit consent can claim provisioning through the SECURITY INVOKER RPC");
+      assert.equal((await client.query(
+        "SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound",
+        [serviceUid, serviceSubject, "service-role-agent", serviceRelease],
+      )).rows[0].bound, true, "current consent can bind the agent through RLS");
       assert.equal((await client.query(
         "SELECT public.claim_lm_maritime_manager_cycle_v1($1,$2,$3,$4,$5::date) AS claimed",
         [serviceUid, "service-role-occurrence", "service-role-agent", serviceRelease, "2026-10-21"],
@@ -332,8 +346,8 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       assert.ok(enrollmentNames.has(column), `enrollment schema includes ${column}`);
     }
     await client.query(`INSERT INTO public.lm_maritime_manager_enrollments(uid,auth_subject,email,status,source,consent_version,release_sha)
-      VALUES ($1,$2,'a@example.invalid','pending','direct','maritime-manager-v1',$3),
-             ($4,$5,'b@example.invalid','pending','direct','maritime-manager-v1',$3)`, [uidA, subjectA, releaseSha, uidB, subjectB]);
+      VALUES ($1,$2,'a@example.invalid','pending','direct',$6,$3),
+             ($4,$5,'b@example.invalid','pending','direct',$6,$3)`, [uidA, subjectA, releaseSha, uidB, subjectB, MANAGER_CONSENT_VERSION]);
     const storeQueries = [];
     const managerStore = createMaritimeManagerStore({ pgPool: { query: (statement, values = []) => {
       storeQueries.push({ statement, values });
@@ -348,11 +362,11 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.match(storeQueries[0].statement, /WHERE uid = \$1/);
     const pendingEnrollments = await managerStore.listPending(5);
     assert.deepEqual(pendingEnrollments.map(row => row.uid), [uidA, uidB]);
-    assert.deepEqual(storeQueries[1].values, ["pending", 5]);
+    assert.deepEqual(storeQueries[1].values, [MANAGER_CONSENT_VERSION, 5]);
     assert.ok(pendingEnrollments.every(row => /^\d{4}-\d{2}-\d{2}T.*Z$/.test(row.created_at)));
     assert.deepEqual(await managerStore.listPaused(5), []);
     const enrollmentInput = { uid: uidC, authSubject: subjectC, email: "c@example.invalid", timezone: "Pacific/Honolulu",
-      source: "instagram", consentVersion: "maritime-manager-v1", releaseSha };
+      source: "instagram", consentVersion: MANAGER_CONSENT_VERSION, releaseSha };
     const enrolled = await managerStore.enroll(enrollmentInput);
     assert.equal(enrolled.uid, uidC);
     assert.equal(enrolled.auth_subject, subjectC);
@@ -365,7 +379,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await assert.rejects(managerStore.enroll({ ...enrollmentInput, authSubject: subjectA }), /identity_mismatch/);
     assert.equal((await managerStore.read(uidC)).email, "c@example.invalid", "conflicting input cannot overwrite the existing owner/contact");
     await managerStore.enroll({ uid: uidD, authSubject: subjectD, email: "d@example.invalid", timezone: "UTC",
-      source: "direct", consentVersion: "maritime-manager-v1", releaseSha });
+      source: "direct", consentVersion: MANAGER_CONSENT_VERSION, releaseSha });
     const quarantined = await managerStore.quarantinePendingProvision(uidD);
     assert.equal(quarantined.status, "effect_unknown");
     assert.equal(quarantined.agent_id, null);
@@ -705,6 +719,8 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
     await client.query(fs.readFileSync(CONSENT_ANCHOR_MIGRATION, "utf8"));
     await client.query(fs.readFileSync(STOP_LOOKUP_MIGRATION, "utf8"));
+    await client.query(fs.readFileSync(PROVISION_CONSENT_GATE_MIGRATION, "utf8"));
+    await client.query(fs.readFileSync(PROVISION_CONSENT_GATE_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
     assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
     assert.equal((await client.query("SELECT event_id FROM public.lm_web_funnel_events WHERE event_id='work-1'")).rows[0].event_id, "work-1", "reapplying the migration preserves append-only events");
