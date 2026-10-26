@@ -7,7 +7,7 @@ amounts, beneficiary names or source URLs.
 """
 from __future__ import annotations
 
-from .opportunity_outcomes import OpportunityRecord
+from .opportunity_outcomes import OpportunityRecord, _resource_url
 
 SCHEMA = "manager.opportunity-receipt-portfolio-preflight.v1"
 MAX_RECORDS = 128
@@ -16,7 +16,8 @@ MAX_RECORDS = 128
 def preflight_receipt_portfolio(records: list | tuple) -> dict:
     """Detect declared duplicate payment evidence across independent records.
 
-    Exact repeated source IDs, URLs or content digests trigger a conservative
+    Repeated source IDs, URL resources (even with different fragments), or
+    content digests trigger a conservative
     review. A common ledger page might legitimately contain several payments,
     so overlap is not proof of fraud; equally, distinct metadata cannot prove
     the underlying payment identities are different or funds were received.
@@ -73,7 +74,7 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
         if any(
             stage.source is not None and (
                 stage.source.source_id == receipt.source.source_id
-                or stage.source.url == receipt.source.url
+                or _resource_url(stage.source.url) == _resource_url(receipt.source.url)
                 or stage.source.content_sha256.lower() == receipt.source.content_sha256.lower()
             )
             for stage in (record.posting, record.delivery, record.approval)
@@ -84,6 +85,8 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
             value = getattr(source, field)
             if field == "content_sha256":
                 value = value.lower()
+            elif field == "url":
+                value = _resource_url(value)
             if value in seen[field]:
                 reasons.add(reason)
             seen[field].add(value)
