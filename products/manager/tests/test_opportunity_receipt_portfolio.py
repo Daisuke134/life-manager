@@ -109,6 +109,47 @@ class ReceiptPortfolioTests(unittest.TestCase):
             record("job_b", "receipt_b", amount=1200)])
         self.assertEqual(result["reason_codes"], [])
 
+    def test_d011_other_opportunity_stage_must_not_be_relabelled_as_payment(self):
+        # A payment source can pass within-opportunity checks while copying an
+        # unrelated job's posting, delivery or approval evidence.
+        first = record("job_a", "receipt_a")
+        second = record("job_b", "receipt_b")
+        for stage_name in ("posting", "delivery", "approval"):
+            earlier = getattr(first, stage_name).source
+            aliases = (
+                ("id", replace(second.receipt.source, source_id=earlier.source_id)),
+                ("url_fragment", replace(second.receipt.source,
+                                         url=earlier.url + "#looks-like-payment")),
+                ("hash", replace(second.receipt.source,
+                                 content_sha256=earlier.content_sha256)),
+            )
+            for alias_type, fake in aliases:
+                altered = change_receipt_source(second, fake)
+                for order in ([first, altered], [altered, first]):
+                    with self.subTest(stage=stage_name, alias=alias_type,
+                                      order=order[0].opportunity_id):
+                        report = preflight_receipt_portfolio(order)
+                        self.assertEqual(report["status"], "REVIEW_REQUIRED")
+                        self.assertEqual(report["reason_codes"], [
+                            "RECEIPT_REUSES_OTHER_OPPORTUNITY_STAGE_EVIDENCE"
+                        ])
+                        self.assertFalse(report["independent_payment_verified"])
+                        self.assertFalse(report["can_count_declared_receipts_as_income"])
+                        self.assertIsNone(report["verified_income_minor"])
+                        self.assertNotIn("looks-like-payment", json.dumps(report))
+
+    def test_d011_cross_job_stage_reuse_checks_unknown_receipt_records_too(self):
+        # A source of an unclaimed-payment opportunity still cannot be
+        # counted as an independent receipt for another opportunity.
+        first = replace(record("job_a", "receipt_a"), receipt=None)
+        second = record("job_b", "receipt_b")
+        altered = change_receipt_source(second, first.delivery.source)
+        report = preflight_receipt_portfolio([altered, first])
+        self.assertIn("RECEIPT_MISSING", report["reason_codes"])
+        self.assertIn("RECEIPT_REUSES_OTHER_OPPORTUNITY_STAGE_EVIDENCE",
+                      report["reason_codes"])
+        self.assertIsNone(report["verified_income_minor"])
+
     def test_only_source_collision_is_checked_not_provider_identity(self):
         first = record("job_a", "receipt_a")
         second = record("job_b", "receipt_b")

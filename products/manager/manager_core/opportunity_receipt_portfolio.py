@@ -35,13 +35,20 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
         "content_sha256": "RECEIPT_CONTENT_SHA256_REUSED",
     }
 
-    for record in records:
+    earlier_stage_sources = []
+    receipt_sources = []
+    for record_index, record in enumerate(records):
         if type(record) is not OpportunityRecord:
             raise ValueError("typed public opportunity record required")
         scope = (record.opportunity_id, record.beneficiary_group)
         if scope in scopes:
             reasons.add("OPPORTUNITY_SCOPE_REUSED")
         scopes.add(scope)
+
+        for name in ("posting", "delivery", "approval"):
+            stage = getattr(record, name)
+            if stage.source is not None:
+                earlier_stage_sources.append((record_index, stage.source))
 
         # A portfolio must not call a claim "preliminary" when its own
         # posting -> delivery -> approval -> settlement chain is broken.
@@ -81,6 +88,7 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
         ):
             reasons.add("RECEIPT_REUSES_EARLIER_STAGE_EVIDENCE")
         source = receipt.source
+        receipt_sources.append((record_index, source))
         for field, reason in reason_by_field.items():
             value = getattr(source, field)
             if field == "content_sha256":
@@ -90,6 +98,20 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
             if value in seen[field]:
                 reasons.add(reason)
             seen[field].add(value)
+
+    # A receipt for opportunity B cannot be treated as independent merely
+    # because it differs from B's own posting/delivery/approval materials:
+    # B's claimed receipt might be opportunity A's earlier-stage document.
+    # Source metadata is only a conservative screen, never payment proof.
+    for receipt_index, receipt_source in receipt_sources:
+        for earlier_index, earlier_source in earlier_stage_sources:
+            if receipt_index == earlier_index:
+                continue  # handled by the existing within-opportunity check
+            if (receipt_source.source_id == earlier_source.source_id
+                    or _resource_url(receipt_source.url) == _resource_url(earlier_source.url)
+                    or receipt_source.content_sha256.lower() == earlier_source.content_sha256.lower()):
+                reasons.add("RECEIPT_REUSES_OTHER_OPPORTUNITY_STAGE_EVIDENCE")
+                break
 
     return {
         "schema": SCHEMA,
