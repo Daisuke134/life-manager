@@ -69,6 +69,17 @@ test("Honne JA production cadence has three exact idempotent slots", () => {
   assert.throws(() => runSlot(null, Date.parse("2026-08-21T23:29:00.000Z")), /no due slot/i);
 });
 
+test("Anicca YouTube channels each keep one daily slot after the shared quota reset", () => {
+  const ai = parseArgs(["run-anicca-ai-youtube"]).lane;
+  const affirmation = parseArgs(["run-anicca-affirmation-youtube"]).lane;
+  assert.deepEqual([...ai.slots], ["19:45"]);
+  assert.deepEqual([...affirmation.slots], ["20:15"]);
+  assert.throws(() => runSlot(null, Date.parse("2026-10-27T10:44:00.000Z"), ai.slots), /no due slot/i);
+  assert.equal(runSlot(null, Date.parse("2026-10-27T10:45:00.000Z"), ai.slots), "2026-10-27T10:45:00.000Z");
+  assert.throws(() => runSlot(null, Date.parse("2026-10-27T11:14:00.000Z"), affirmation.slots), /no due slot/i);
+  assert.equal(runSlot(null, Date.parse("2026-10-27T11:15:00.000Z"), affirmation.slots), "2026-10-27T11:15:00.000Z");
+});
+
 test("Anicca main Instagram has three exact daily Reel slots", () => {
   assert.deepEqual([...ANICCA_MAIN_INSTAGRAM_SLOTS], ["08:10", "13:10", "19:10"]);
   const lane = parseArgs(["run-anicca-main-instagram"]).lane;
