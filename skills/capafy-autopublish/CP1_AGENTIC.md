@@ -7,6 +7,10 @@ decide the next click/type, and call it again — LOOP until the real success si
 appears. **Never hardcode coordinates from this doc; they change. Read the
 state/screenshot each step and decide.**
 
+`scripts/drive_cp1.py` is retired and exits immediately. It hardcoded
+`localhost:9222` and ran the whole CP1 form without screenshot decisions. Always
+use `scripts/cp1_agent.py` under the registered `capafy:kosuke` browser lease.
+
 Why this exists: the old `drive_cp1.py` hardcoded DOM positions and silently broke
 when Capafy changed the pricing widget (plan cards re-sort on period change → a
 positional price/cap script scrambles values → price tab red → card never saves →

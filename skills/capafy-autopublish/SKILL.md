@@ -98,7 +98,8 @@ print it. After the split flow prints ✅, **you still do the browser render che
   field, per-plan trial = No Free Trial, On-Demand, DPA checkbox, price-tab SVG green,
   get_by_text form-mount, anchored Add Plan). See RUNBOOK §"NEW-AGENT CP1".
 - **Cap**: max 5 unlisted (status 0-3) at once; publish-init fails when full. status=4 frees a slot.
-- **Browser**: CloakBrowser daily-driver (CDP :9222), never close it (HARD 0.39).
+- **Browser**: acquire the registered `capafy:kosuke` seller identity through
+  `skills/browser/with-browser.sh`; never connect directly to `:9222`/`:9223` or close it.
 
 ## Folder map
 ```
