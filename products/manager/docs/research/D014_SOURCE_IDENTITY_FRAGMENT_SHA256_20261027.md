@@ -1,6 +1,6 @@
 # D014 — fragment-insensitive and SHA256-case-insensitive source-alias preflight
 
-**Date:** 2026-10-27 JST. **Scope:** D014 atomic offline engineering / synthetic P0. **Status:** new hosted CI verification pending at initial commit; original D014 acceptance remains `todo`. Exactly 113 canonical tasks: 69 done, 41 todo, 3 blocked. H005 remains `blocked` (unrecoverable 2019 study-day mapping). No real participant data, external grants, messaging, purchases, facility control or welfare intervention.
+**Date:** 2026-10-27 JST. **Scope:** D014 atomic offline engineering / synthetic P0. **Status:** hosted offline CI **SUCCESS** for the implementation commit, 545 tests (5 skipped); original D014 acceptance remains `todo`. Exactly 113 canonical tasks: 69 done, 41 todo, 3 blocked. H005 remains `blocked` (unrecoverable 2019 study-day mapping). No real participant data, external grants, messaging, purchases, facility control or welfare intervention.
 
 ## Question → competing hypotheses → falsifier (imozuru)
 
@@ -27,3 +27,11 @@
 All preflight results preserve `can_ingest=false`, `can_publish=false`, `can_execute=false`, `disclosure_certified=false`, `cross_release_independence_verified=false`, `beneficiary_effect=NOT_MEASURED`. P1–P5 evidence remains absent. D014 requires independent source/publisher verification, formal disclosure/rights review, and actual partner ethics/consent and public aggregate availability, so original acceptance is **not** satisfied. This work does not modify Life Manager runtime or main.
 
 **Philosophy:** End suffering through lawful public non-personal macro-environment evidence; no human in the routine *authorized* loop; no dependency on other people's credentials or physical systems; distinguish engineering simulation from measured real-world changes.
+
+## External hosted verification (2026-10-27 JST)
+
+- Implementation commit: https://github.com/Daisuke134/life-manager/commit/a13401e9dde5d423a15dd444f5b0a0859f027c30
+- Manager Independent Offline Research: https://github.com/Daisuke134/life-manager/actions/runs/40425199595 — **success**. Retrieved job logs: four new tests `ok`, `Ran 545 tests`, `OK (skipped=5)`, `PASS 113 tasks; task JSON untouched`.
+- Manager EBA v0 Open Benchmark: https://github.com/Daisuke134/life-manager/actions/runs/40425199593 — **success**.
+- Manager Phase06 Digital Environment: https://github.com/Daisuke134/life-manager/actions/runs/40425199585 — **success**.
+- The five implementation-commit GitHub blobs were externally fetched again and confirmed; canonical states remained 69 done, 41 todo, 3 blocked. This evidence-only metadata update is an additional commit and does not expand proof beyond P0.
