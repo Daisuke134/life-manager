@@ -440,6 +440,10 @@ struct PaywallVariantBView: View {
                 let result = try await Purchases.shared.purchase(package: package)
                 if !result.userCancelled {
                     AnalyticsManager.shared.track(.onboardingPaywallPurchased)
+                    let entitlement = result.customerInfo.entitlements[AppConfig.revenueCatEntitlementId]
+                    if entitlement?.isActive == true, entitlement?.periodType == .trial {
+                        AnalyticsManager.shared.trackTrialStarted(productId: package.storeProduct.productIdentifier)
+                    }
                     isPurchasing = false
                     onPurchaseSuccess(result.customerInfo)
                 } else {

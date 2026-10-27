@@ -15,6 +15,7 @@ HELPER = APP_ROOT / "aniccaios/Onboarding/PaywallPackageSelection.swift"
 SUBSCRIPTION_MANAGER = APP_ROOT / "aniccaios/Services/SubscriptionManager.swift"
 ONBOARDING = APP_ROOT / "aniccaios/Onboarding/OnboardingFlowView.swift"
 ANALYTICS = APP_ROOT / "aniccaios/Services/AnalyticsManager.swift"
+PAYWALL_CONTAINER = APP_ROOT / "aniccaios/Onboarding/OnboardingBibleViews.swift"
 
 
 class PaywallSelectionWiringTests(unittest.TestCase):
@@ -157,6 +158,33 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         self.assertIn('case onboardingPaywallCustomerInfoResult = "onboarding_paywall_customer_info_result"', analytics)
         self.assertIn('case onboardingPaywallOfferingLoadResult = "onboarding_paywall_offering_load_result"', analytics)
         self.assertIn("trackedOfferingLoadOutcomes.insert(result).inserted", paywall)
+
+    def test_onboarding_end_opens_plan_selection_and_records_paywall_shown(self):
+        container = PAYWALL_CONTAINER.read_text(encoding="utf-8").split(
+            "struct PaywallFlowContainer", 1
+        )[1]
+        analytics = ANALYTICS.read_text(encoding="utf-8")
+        self.assertIn("@State private var step: PaywallStep = .planSelection", container)
+        self.assertIn("AnalyticsManager.shared.trackPaywallViewed()", self.source)
+        track_viewed = analytics.split("func trackPaywallViewed()", 1)[1].split(
+            "func updateSKANConversionValue", 1
+        )[0]
+        self.assertIn("track(.paywallShown)", track_viewed)
+        self.assertIn('case paywallShown = "paywall_shown"', analytics)
+
+    def test_trial_started_tracks_a_confirmed_active_trial_entitlement(self):
+        purchase = self.source.split("private func purchase()", 1)[1].split(
+            "private func restorePurchases()", 1
+        )[0]
+        self.assertIn(
+            "let entitlement = result.customerInfo.entitlements[AppConfig.revenueCatEntitlementId]",
+            purchase,
+        )
+        self.assertIn("if entitlement?.isActive == true, entitlement?.periodType == .trial", purchase)
+        self.assertIn(
+            "AnalyticsManager.shared.trackTrialStarted(productId: package.storeProduct.productIdentifier)",
+            purchase,
+        )
 
     def test_policy_returns_current_match_before_annual_monthly_defaults(self):
         # Structural contract only. Execute the companion Swift tests to verify

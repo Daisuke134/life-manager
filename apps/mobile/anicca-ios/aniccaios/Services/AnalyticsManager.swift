@@ -91,6 +91,7 @@ final class AnalyticsManager {
 
     /// ペイウォール表示
     func trackPaywallViewed() {
+        track(.paywallShown)
         track(.paywallPlanSelectionViewed)
         updateSKANConversionValue(2)
     }
@@ -157,6 +158,7 @@ enum AnalyticsEvent: String {
     case feedbackFormSkipped = "feedback_form_skipped"
 
     // Paywall funnel
+    case paywallShown = "paywall_shown"
     case paywallPrimerViewed = "paywall_primer_viewed"
     case paywallPlanSelectionViewed = "paywall_plan_selection_viewed"
     case onboardingPaywallCustomerInfoResult = "onboarding_paywall_customer_info_result"
