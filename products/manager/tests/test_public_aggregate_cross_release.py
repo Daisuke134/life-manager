@@ -240,5 +240,52 @@ class CrossReleaseTest(unittest.TestCase):
         self.assertEqual(r["beneficiary_effect"], "NOT_MEASURED")
 
 
+    def test_host_case_and_default_https_port_are_same_possible_source(self):
+        a, b = self.pair()
+        # Source IDs and digests differ; only the URL normalization matches.
+        a["source"]["url"] = "https://WWW.ONS.GOV.UK/example-a#tab-one"
+        b["source"]["url"] = "https://www.ons.gov.uk:443/example-a#tab-two"
+        result = preflight_cross_release(a, b)
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertIn("RELEASE_SOURCE_OVERLAP", result["reason_codes"])
+        self.assertFalse(result["source_bytes_verified"])
+        self.assertFalse(result["can_publish"])
+
+    def test_nondefault_https_port_does_not_assert_same_url(self):
+        a, b = self.pair()
+        a["source"]["url"] = "https://www.ons.gov.uk:8443/example-a"
+        b["source"]["url"] = "https://www.ons.gov.uk/example-a"
+        result = preflight_cross_release(a, b)
+        self.assertNotIn("RELEASE_SOURCE_OVERLAP", result["reason_codes"])
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertFalse(result["cross_release_independence_verified"])
+
+    def test_case_sensitive_path_and_query_stay_distinct(self):
+        a, b = self.pair()
+        a["source"]["url"] = "https://WWW.ONS.GOV.UK/Data?period=A"
+        b["source"]["url"] = "https://www.ons.gov.uk/data?period=A"
+        self.assertNotIn(
+            "RELEASE_SOURCE_OVERLAP",
+            preflight_cross_release(a, b)["reason_codes"],
+        )
+        b["source"]["url"] = "https://www.ons.gov.uk/Data?period=a"
+        self.assertNotIn(
+            "RELEASE_SOURCE_OVERLAP",
+            preflight_cross_release(a, b)["reason_codes"],
+        )
+
+    def test_bad_source_ports_fail_closed_without_echoing_url(self):
+        for bad_port in ("not_a_port", "65536", "0"):
+            with self.subTest(port=bad_port):
+                a, b = self.pair()
+                b["source"]["url"] = (
+                    "https://www.ons.gov.uk:" + bad_port + "/example-a"
+                )
+                with self.assertRaisesRegex(
+                    ValueError, "^invalid public aggregate source port$"
+                ):
+                    preflight_cross_release(a, b)
+
+
 if __name__ == "__main__":
     unittest.main()

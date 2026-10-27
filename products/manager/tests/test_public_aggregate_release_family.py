@@ -280,5 +280,17 @@ class ReleaseFamilyTest(unittest.TestCase):
 
 
 
+    def test_family_catches_host_case_and_default_https_port_alias(self):
+        a, b, c = self.family()
+        a["source"]["url"] = "https://WWW.ONS.GOV.UK/fictional-family-a#one"
+        b["source"]["url"] = "https://www.ons.gov.uk:443/fictional-family-a#two"
+        result = preflight_release_family([a, b, c])
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertIn("FAMILY_SOURCE_OVERLAP", result["reason_codes"])
+        self.assertFalse(result["source_bytes_verified"])
+        self.assertFalse(result["can_ingest"])
+        self.assertFalse(result["can_publish"])
+
+
 if __name__ == "__main__":
     unittest.main()
