@@ -11,6 +11,7 @@ differencing. Other disclosure mechanisms remain outside this narrow screen.
 from __future__ import annotations
 
 from typing import Mapping
+from urllib.parse import urldefrag
 
 from .public_aggregate_preflight import MIN_CELL, preflight_public_aggregate
 
@@ -42,9 +43,16 @@ def preflight_cross_release(first: Mapping, second: Mapping) -> dict:
     # The input source metadata is validated by the existing Source contract,
     # but identities, hashes and provenance are NOT independently verified.
     a_source, b_source = first["source"], second["source"]
-    if any(
-        a_source[field] == b_source[field]
-        for field in ("source_id", "url", "content_sha256")
+    # A URI fragment identifies a portion/view of the same primary resource
+    # (RFC 3986 §3.5); it is not part of the dereferenced server-side URL.
+    # Treat fragment-only variants as the same possible source while retaining
+    # the query string (it may select a genuinely different dataset).
+    # SHA-256 hex digits are case-insensitive, so mixed-case digests must
+    # not evade the source-overlap screen. This remains metadata-only.
+    if (
+        a_source["source_id"] == b_source["source_id"]
+        or urldefrag(a_source["url"]).url == urldefrag(b_source["url"]).url
+        or a_source["content_sha256"].lower() == b_source["content_sha256"].lower()
     ):
         reasons.add("RELEASE_SOURCE_OVERLAP")
 

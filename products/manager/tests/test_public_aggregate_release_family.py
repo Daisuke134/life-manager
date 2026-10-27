@@ -139,6 +139,20 @@ class ReleaseFamilyTest(unittest.TestCase):
         self.assertIn("FAMILY_SOURCE_OVERLAP", result["reason_codes"])
         self.assertFalse(result["cross_release_independence_verified"])
 
+    def test_fragment_alias_in_any_pair_propagates_to_family(self):
+        releases = self.family()
+        releases[0]["source"]["url"] = "https://www.ons.gov.uk/family#tab-a"
+        releases[2]["source"]["url"] = "https://www.ons.gov.uk/family#tab-c"
+        self.assertNotEqual(releases[0]["source"]["source_id"],
+                            releases[2]["source"]["source_id"])
+        self.assertNotEqual(releases[0]["source"]["content_sha256"],
+                            releases[2]["source"]["content_sha256"])
+        result = preflight_release_family(releases)
+        self.assertIn("FAMILY_SOURCE_OVERLAP", result["reason_codes"])
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertFalse(result["cross_release_independence_verified"])
+        self.assertNotIn("ons.gov.uk", json.dumps(result))
+
     def test_rejected_member_propagates_and_cannot_authorize(self):
         releases = self.family()
         releases[1]["release_state"] = "unknown"

@@ -171,6 +171,39 @@ class CrossReleaseTest(unittest.TestCase):
         self.assertIn("RELEASE_SOURCE_OVERLAP", r["reason_codes"])
         self.assertFalse(r["cross_release_independence_verified"])
 
+    def test_fragment_alias_source_url_is_not_independent_provenance(self):
+        a, b = self.pair()
+        a["source"]["url"] = "https://www.ons.gov.uk/example-a#table-one"
+        b["source"]["url"] = "https://www.ons.gov.uk/example-a#table-two"
+        # The source ids and SHA metadata differ; fragment is the sole alias.
+        self.assertNotEqual(a["source"]["source_id"], b["source"]["source_id"])
+        self.assertNotEqual(a["source"]["content_sha256"],
+                            b["source"]["content_sha256"])
+        r = preflight_cross_release(a, b)
+        self.assertEqual(r["status"], "REVIEW_REQUIRED")
+        self.assertIn("RELEASE_SOURCE_OVERLAP", r["reason_codes"])
+        self.assertFalse(r["cross_release_independence_verified"])
+        self.assertFalse(r["can_publish"])
+
+    def test_sha256_hex_case_change_cannot_hide_source_alias(self):
+        a, b = self.pair()
+        b["source"]["content_sha256"] = "A" * 64
+        self.assertNotEqual(a["source"]["url"], b["source"]["url"])
+        self.assertNotEqual(a["source"]["source_id"], b["source"]["source_id"])
+        r = preflight_cross_release(a, b)
+        self.assertEqual(r["status"], "REVIEW_REQUIRED")
+        self.assertIn("RELEASE_SOURCE_OVERLAP", r["reason_codes"])
+        self.assertFalse(r["source_bytes_verified"])
+
+    def test_distinct_source_query_is_not_collapsed_with_fragment(self):
+        a, b = self.pair()
+        a["source"]["url"] = "https://www.ons.gov.uk/example?period=2025#table"
+        b["source"]["url"] = "https://www.ons.gov.uk/example?period=2026#table"
+        r = preflight_cross_release(a, b)
+        self.assertNotIn("RELEASE_SOURCE_OVERLAP", r["reason_codes"])
+        self.assertFalse(r["cross_release_independence_verified"])
+        self.assertEqual(r["status"], "REVIEW_REQUIRED")
+
     def test_rejected_member_cannot_be_upgraded_by_pair(self):
         a, b = self.pair()
         b["release_state"] = "unknown"
