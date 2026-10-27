@@ -5670,3 +5670,27 @@ revenue owner and is not permission to send.
   and CrowdWorks/Lancers/Freelancer/Upwork have no active Paid loop that can be
   called complete. Registry presence alone is not completion; require a loaded
   owner plus official effect/readback/replay-zero.
+
+## Lancers approval lifecycle
+
+- The Lancers Paid adapter opens one browser page and reuses it while reading
+  acceptance candidates. The shared Paid kernel must close optional provider
+  resources on every completed or failed wake; a failed page cleanup is a
+  failed wake, while preserving any effect/readback counts already observed.
+- `paid-latest.json` records each `project_acceptance` provider state from the
+  official approval form and every visible proposal-status label: an approval
+  form is `awaiting_us`; `進行中` or `仮払い待ち` is `accepted`; `不採用`, `辞退`,
+  or a `キャンセル` status label is `declined`; `期限切れ`, `提案期限切れ`, or
+  `募集終了` is `expired`; a live `残り…` timer or `選定中` is `awaiting_client`;
+  `一時停止` is `paused`. Other responses remain `unknown`.
+- A generic approval page that says the seller lacks permission or another
+  freelancer may have been selected does not prove `declined`; preserve
+  `unknown` unless the official proposal-status label resolves it.
+- Only `awaiting_us` candidates with matching verified proposal/order amount,
+  delivery date, and milestone count can reach the existing accept action.
+  Accepted, awaiting-client, paused, declined, and expired candidates have no
+  further write effect.
+- Acceptance requires a regression test for page cleanup and state mapping, a
+  merged PR, a targeted release/apply for the Lancers Paid owner, and provider
+  readback of all assigned project IDs. Keep all other browser owners and
+  account state untouched.
