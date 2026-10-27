@@ -116,7 +116,8 @@ const { makeSteelCdpClient } = require("./lib/steel-cdp-client.js");
 const { claimEvent, unclaimEvent, applyBilling, parseStripeEvent } = require("./lib/billing.js");
 const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
-const { createMaritimeCloudBillingStore, handleMaritimeCloudStripeWebhook, resolveMaritimeCloudConfig } = require("./lib/maritime-cloud-billing.js");
+const { createMaritimeCloudBillingStore, handleMaritimeCloudBillingRequest, handleMaritimeCloudStripeWebhook,
+  requestMaritimeCloudStop, resolveMaritimeCloudConfig } = require("./lib/maritime-cloud-billing.js");
 const { recordCost } = require("./lib/ledger.js");
 const { recordUsageEvent, runtimeTrace, usageRuntimeEnv } = require("./lib/usage-event.js");
 const { createCloudCitizenStore } = require("./lib/cloud-citizen-store.js");
@@ -2059,6 +2060,11 @@ const server = http.createServer(async (req, res) => {
           env: process.env,
           stripe: cloudStripe,
           store: createMaritimeCloudBillingStore({ supaUrl: SUPA_URL, supaKey: SUPA_KEY }),
+          requestStop: async (tenantUid, eventId) => {
+            const dependencies = getMaritimeManagerDependencies();
+            return requestMaritimeCloudStop({ tenantUid, eventId, managerStore: dependencies.managerStore,
+              enqueueJob: job => enqueueJob(job, { query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) }) });
+          },
         });
         res.writeHead(result.statusCode, { "content-type": "application/json" });
         res.end(JSON.stringify(result.body));
@@ -2067,6 +2073,19 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "billing_not_configured" }));
       }
     })();
+    return;
+  }
+  if (path === "/api/stripe/cloud/checkout" || path === "/api/stripe/cloud/portal") {
+    Promise.resolve().then(async () => {
+      const options = maritimeManagerHttpOptions();
+      const billingStore = options.cloudBillingStore || createMaritimeCloudBillingStore({ supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+      await handleMaritimeCloudBillingRequest(req, res, { ...options, env: process.env,
+        publicOrigin: LM_MARITIME_WEB_ORIGIN, billingStore });
+    }).catch(() => {
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "billing_not_configured" }));
+    });
     return;
   }
   // POST /api/stripe/webhook — Stripe billing lifecycle = source of truth for lm_users.paid (HARD-3).

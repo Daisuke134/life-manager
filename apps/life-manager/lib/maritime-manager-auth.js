@@ -155,6 +155,12 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
   try {
     const lock = options.withControlLock || ((uid, operation) => require("./runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, options.storeOptions || {}));
     await lock(user.uid, async () => {
+    const cloudBillingStore = options.cloudBillingStore;
+    if (typeof cloudBillingStore?.isEntitled !== "function") { send(res, 503, { error: "billing_unavailable" }); return true; }
+    let cloudEntitled = false;
+    try { cloudEntitled = await cloudBillingStore.isEntitled(user.uid); }
+    catch { send(res, 503, { error: "billing_unavailable" }); return true; }
+    if (cloudEntitled !== true) { send(res, 402, { error: "cloud_subscription_required" }); return true; }
     const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env });
     let existing = await store.read(user.uid);
     let retentionAccepted = false;

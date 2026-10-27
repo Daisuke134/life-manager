@@ -91,6 +91,7 @@ test("manager_session_requires_a_confirmed_google_provider_identity",async()=>{
 function activationFixture({capacityFull=false,user=USER}={}) {
   const f=fixture({user});const rows=new Map();const jobs=new Map();const provisionStates=new Map();
   f.deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="a".repeat(40);
+  f.deps.cloudBillingStore={isEntitled:async()=>true};
   f.deps.readCommonReceipt=async()=>null;
   f.deps.withControlLock=async(_uid,operation)=>operation();
   f.deps.managerStore={read:async uid=>rows.get(uid)||null,enroll:async input=>{
@@ -133,6 +134,13 @@ test("activation_requires_verified_identity_and_correct_csrf",async()=>{
   await handleMaritimeManagerActivate(activateRequest(f.deps),res,f.deps);assert.equal(res.statusCode,401);assert.equal(f.jobs.size,0);
   f=activationFixture();res=response();await handleMaritimeManagerActivate(activateRequest(f.deps,"POST",false),res,f.deps);
   assert.equal(res.statusCode,403);assert.equal(f.jobs.size,0);assert.equal(f.rows.size,0);
+});
+test("activation refuses to enroll or enqueue before a Cloud entitlement exists",async()=>{
+  const {deps,jobs,rows}=activationFixture();let entitlementReads=0;
+  deps.cloudBillingStore={async isEntitled(uid){entitlementReads++;assert.equal(uid,`lm_${SUBJECT}`);return false;}};
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+  assert.equal(res.statusCode,402);assert.deepEqual(JSON.parse(res.body),{error:"cloud_subscription_required"});
+  assert.equal(entitlementReads,1);assert.equal(rows.size,0);assert.equal(jobs.size,0);
 });
 test("capacity_full_does_not_enroll_or_enqueue",async()=>{
   assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs,rows}=activationFixture({capacityFull:true});const res=response();

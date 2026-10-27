@@ -297,12 +297,16 @@ async function enqueueMaritimeProvisionRecovery(row, phase, { enqueueJob, readPr
 }
 
 async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, readProvisionJobState,
-  storeOptions = {}, pausedCursor = null } = {}) {
+  cloudBillingStore, storeOptions = {}, pausedCursor = null } = {}) {
   if (!capabilities.includes("maritime.manager.provision")) return;
   const { MANAGER_CONSENT_VERSION } = require("../lib/maritime-distribution.js");
   for (const row of await managerStore.listPending(1)) {
     // The legacy customer must explicitly accept v2 before any new provisioning job can be created.
     if (row.consent_version !== MANAGER_CONSENT_VERSION) continue;
+    if (typeof cloudBillingStore?.isEntitled !== "function") continue;
+    let entitled = false;
+    try { entitled = await cloudBillingStore.isEntitled(row.uid) === true; } catch { /* Fail closed; the next poll retries. */ }
+    if (!entitled) continue;
     const queued = await enqueueMaritimeProvisionRecovery(row, "create", { enqueueJob, readProvisionJobState, storeOptions });
     if (["dead_letter", "completed"].includes(queued?.job?.status)) {
       await managerStore.quarantinePendingProvision(row.uid);
@@ -327,13 +331,14 @@ async function enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, depende
   if (job?.capability !== "maritime.manager.cycle" || job.status !== "completed"
     || receipt?.kind !== "maritime_manager_cycle" || receipt.status !== "completed"
     || receipt.job_id !== job.job_id || receipt.tenant_id !== job.tenant_id) return { status: "skipped" };
-  const { provider, managerStore, enqueueJob, storeOptions = {} } = dependencies;
+  const { provider, managerStore, cloudBillingStore, enqueueJob, storeOptions = {} } = dependencies;
   if (!maritimeCapafyHostProviderConfigured(provider) || !managerStore || typeof enqueueJob !== "function") {
     return { status: "skipped", reason: "host_executor_unavailable" };
   }
   try {
     const result = await require("../lib/maritime-manager-provider-runtime.js").enqueueMaritimeCapafyPrepareFromCycle(
-      { job, receipt }, { provider, managerStore, enqueueJob: next => enqueueJob(next, storeOptions) });
+      { job, receipt }, { provider, managerStore, cloudBillingStore,
+        enqueueJob: next => enqueueJob(next, storeOptions) });
     return { status: "queued", created: result?.created === true,
       job_id: result?.job?.job_id || null, tenant_id: job.tenant_id };
   } catch (error) {
@@ -345,11 +350,11 @@ async function enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, depende
   }
 }
 
-function createMaritimeCapafyCompletionObserver({ onJobCompleted, provider, managerStore, enqueueJob,
+function createMaritimeCapafyCompletionObserver({ onJobCompleted, provider, managerStore, cloudBillingStore, enqueueJob,
   storeOptions = {}, observe } = {}) {
   return async (job, receipt, telemetry = {}) => {
     if (job?.capability === "maritime.manager.cycle") {
-      await enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, { provider, managerStore,
+      await enqueueMaritimeCapafyPrepareAfterCompletion(job, receipt, { provider, managerStore, cloudBillingStore,
         enqueueJob, storeOptions, observe });
     }
     return onJobCompleted?.(job, receipt, telemetry);
@@ -357,7 +362,7 @@ function createMaritimeCapafyCompletionObserver({ onJobCompleted, provider, mana
 }
 
 async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = false, provider,
-  managerStore, enqueueJob, query, storeOptions = {}, observe } = {}) {
+  managerStore, cloudBillingStore, enqueueJob, query, storeOptions = {}, observe } = {}) {
   if (enabled !== true || !capabilities.includes("maritime.manager.capafy.prepare")
     || !maritimeCapafyHostProviderConfigured(provider) || !managerStore
     || typeof enqueueJob !== "function" || typeof query !== "function") return { status: "disabled", queued: 0 };
@@ -425,7 +430,7 @@ async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = fa
   let queued = 0;
   for (const row of rows) {
     const result = await enqueueMaritimeCapafyPrepareAfterCompletion(row?.job, row?.receipt,
-      { provider, managerStore, enqueueJob, storeOptions, observe });
+      { provider, managerStore, cloudBillingStore, enqueueJob, storeOptions, observe });
     if (result.status === "queued") queued += Number(result.created === true);
     const completedAt = row?.completed_at;
     const tenantId = row?.tenant_id || row?.job?.tenant_id;
@@ -440,10 +445,14 @@ async function recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled = fa
 }
 
 async function recoverReconsentedMaritimeConfigurations(capabilities, { managerStore, enqueueJob, readProvisionJobState,
-  storeOptions = {}, activeCursor = null } = {}) {
+  cloudBillingStore, storeOptions = {}, activeCursor = null } = {}) {
   if (!capabilities.includes("maritime.manager.provision") || typeof managerStore?.listReconsentedActive !== "function") return null;
   const rows = await managerStore.listReconsentedActive(20, activeCursor);
   for (const row of rows) {
+    if (typeof cloudBillingStore?.isEntitled !== "function") continue;
+    let entitled = false;
+    try { entitled = await cloudBillingStore.isEntitled(row.uid) === true; } catch { /* Fail closed; the next poll retries. */ }
+    if (!entitled) continue;
     await enqueueMaritimeProvisionRecovery(row, "configure", { enqueueJob, readProvisionJobState, storeOptions });
   }
   return rows.length === 20 ? rows.at(-1).uid : null;
@@ -477,6 +486,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
   if (capabilities.some(value => value.startsWith("maritime.manager."))) {
     const managerDependencies = dependencies.maritimeManagerDependencies;
     const managerStore = dependencies.maritimeManagerStore || managerDependencies?.managerStore;
+    const cloudBillingStore = dependencies.maritimeCloudBillingStore || managerDependencies?.cloudBillingStore;
     if (!managerStore) throw new Error("maritime_manager_postgres_store_unavailable");
     const getWakeBinding = identity => require("../lib/maritime-manager-wake.js").createMaritimeWakeBinding(identity, {
       secret: env.LM_MARITIME_MANAGER_ID_SECRET, publicOrigin: env.LM_PANEL_BASE_URL,
@@ -495,7 +505,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
         if (state?.ok !== true) throw new Error("maritime_consent_readback_unavailable");
         return state.participant == null || Boolean(state.participant.revoked_at);
       };
-      servicesByAdapter["maritime-manager-provision"] = { managerStore, withControlLock,
+      servicesByAdapter["maritime-manager-provision"] = { managerStore, cloudBillingStore, withControlLock,
         isConsentRevoked,
         revokeConsent: async uid => {
           if (await isConsentRevoked(uid)) return;
@@ -514,7 +524,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
           { query: dependencies.query }),
       };
     }
-    servicesByAdapter["maritime-manager-cycle"] = { managerStore, withControlLock,
+    servicesByAdapter["maritime-manager-cycle"] = { managerStore, cloudBillingStore, withControlLock,
       prepareCycle: input => transport.readWakeConfiguration({ ...input, activeOnly: true }), dispatchCycle: transport.dispatchCycle,
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
     if (capabilities.some(value => /^maritime\.manager\.capafy\.(prepare|publish)$/.test(value))) {
@@ -539,7 +549,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
       };
       // Host provider binding is explicit. Never fall back to founder credentials
       // or model-controlled VM state when T08/T16 setup is still unavailable.
-      const services = { managerStore, provider,
+      const services = { managerStore, cloudBillingStore, provider,
         readCompletedCycle: readPredecessor, readPrepareReceipt: readPredecessor, now: dependencies.now };
       servicesByAdapter["maritime-manager-capafy-prepare"] = services;
       servicesByAdapter["maritime-manager-capafy-publish"] = services;
@@ -1081,6 +1091,7 @@ async function runCapabilityWorker(env = process.env, runtimeDependencies = {}) 
     onJobCompleted: maritimeManagerDependencies?.onJobCompleted,
     provider: capafyProviderEnabled ? maritimeCapafyProvider : null,
     managerStore: maritimeManagerStore,
+    cloudBillingStore: maritimeManagerDependencies?.cloudBillingStore,
     enqueueJob: runtimeStore.enqueueJob,
     storeOptions: opts,
     observe: event => process.stderr.write(JSON.stringify(event) + "\n"),
@@ -1130,12 +1141,15 @@ async function runCapabilityWorker(env = process.env, runtimeDependencies = {}) 
       if (maritimeManagerStore && Date.now() >= nextMaritimeRecoveryMs) {
         maritimePausedCursor = await recoverMaritimeEnrollments(capabilities, { managerStore: maritimeManagerStore,
           enqueueJob: runtimeStore.enqueueJob, readProvisionJobState: runtimeStore.readRuntimeJobState,
+          cloudBillingStore: maritimeManagerDependencies?.cloudBillingStore,
           storeOptions: opts, pausedCursor: maritimePausedCursor });
         maritimeReconsentCursor = await recoverReconsentedMaritimeConfigurations(capabilities, { managerStore: maritimeManagerStore,
           enqueueJob: runtimeStore.enqueueJob, readProvisionJobState: runtimeStore.readRuntimeJobState,
+          cloudBillingStore: maritimeManagerDependencies?.cloudBillingStore,
           storeOptions: opts, activeCursor: maritimeReconsentCursor });
         await recoverMaritimeCapafyCycleAdmissions(capabilities, { enabled: capafyProviderEnabled,
-          provider: maritimeCapafyProvider, managerStore: maritimeManagerStore, enqueueJob: runtimeStore.enqueueJob,
+          provider: maritimeCapafyProvider, managerStore: maritimeManagerStore,
+          cloudBillingStore: maritimeManagerDependencies?.cloudBillingStore, enqueueJob: runtimeStore.enqueueJob,
           query: opts.query, storeOptions: opts,
           observe: event => process.stderr.write(JSON.stringify(event) + "\n") });
         nextMaritimeRecoveryMs = Date.now() + 30000;

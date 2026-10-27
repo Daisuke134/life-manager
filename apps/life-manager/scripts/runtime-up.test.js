@@ -1264,7 +1264,7 @@ test("Maritime report worker injects existing queue reader and shared CFO receip
 
 test("pending Maritime enrollment recovery reuses stable jobs and skips undeclared capability",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),calls=[];
- const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha,consent_version:"maritime-manager-v2"}];}},
+ const dependencies={cloudBillingStore:{isEntitled:async()=>true},managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha,consent_version:"maritime-manager-v2"}];}},
   readProvisionJobState:async()=>null,enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job:{...job,status:"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.cycle"],dependencies);assert.equal(calls.length,0);
  await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
@@ -1272,12 +1272,23 @@ test("pending Maritime enrollment recovery reuses stable jobs and skips undeclar
  assert.deepEqual(calls[0],calls[1]);assert.equal(calls[0].tenant_id,uid);assert.equal(calls[0].capability,"maritime.manager.provision");
 });
 
+test("Maritime enrollment recovery refuses to enqueue provisioning without Cloud entitlement",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",row={uid,release_sha:"a".repeat(40),consent_version:"maritime-manager-v2"};
+ let queued=0;
+ const cloudBillingStore={isEntitled:async tenantId=>{assert.equal(tenantId,uid);return false;}};
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],{cloudBillingStore,
+   managerStore:{listPending:async()=>[row],listPaused:async()=>[]},enqueueJob:async()=>{queued++;}});
+ await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],{cloudBillingStore,
+   managerStore:{listReconsentedActive:async()=>[row]},enqueueJob:async()=>{queued++;}});
+ assert.equal(queued,0);
+});
+
 test("pending provision recovers after a consent-guard dead letter appears between worker polls",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),anchor="2026-10-22T00:00:00.000Z";
  const row={uid,release_sha:sha,status:"provisioning",consent_version:"maritime-manager-v2",consent_v2_at:anchor};
  const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha});
  const states=new Map([[base.job_id,{job_id:base.job_id,tenant_id:uid,status:"running",attempt:1,last_error_code:null}]]),queued=[],quarantined=[];
- const deps={managerStore:{listPending:async()=>[row],listPaused:async()=>[],quarantinePendingProvision:async id=>{quarantined.push(id);}},
+ const deps={cloudBillingStore:{isEntitled:async()=>true},managerStore:{listPending:async()=>[row],listPaused:async()=>[],quarantinePendingProvision:async id=>{quarantined.push(id);}},
   readProvisionJobState:async({tenantId,job})=>{assert.equal(tenantId,uid);return states.get(job.job_id)||null;},
   enqueueJob:async job=>{queued.push(job);return {created:false,job:{...job,status:"running"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
@@ -1293,7 +1304,7 @@ test("active reconsented configuration recovers only the known no-effect dead le
  const row={uid,release_sha:sha,status:"active",consent_version:"maritime-manager-v2",consent_v2_at:anchor,agent_id:"agent-b"};
  const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure"});
  const states=new Map([[base.job_id,{job_id:base.job_id,tenant_id:uid,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_CONSENT_REQUIRED"}]]),queued=[];
- const deps={managerStore:{listReconsentedActive:async(limit,after)=>{assert.equal(limit,20);assert.equal(after,null);return [row];}},
+ const deps={cloudBillingStore:{isEntitled:async()=>true},managerStore:{listReconsentedActive:async(limit,after)=>{assert.equal(limit,20);assert.equal(after,null);return [row];}},
   readProvisionJobState:async({job})=>states.get(job.job_id)||null,
   enqueueJob:async job=>{queued.push(job);return {created:true,job:{...job,status:"queued"}};}};
  const cursor=await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],deps);
@@ -1305,7 +1316,7 @@ test("active configuration with an unknown terminal result remains fenced",async
  const uid="lm_22222222-2222-4222-8222-222222222222",sha="b".repeat(40);
  const row={uid,release_sha:sha,status:"active",consent_version:"maritime-manager-v2",consent_v2_at:"2026-10-22T00:00:00.000Z",agent_id:"agent-b"};
  const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure"});
- const deps={managerStore:{listReconsentedActive:async()=>[row]},
+ const deps={cloudBillingStore:{isEntitled:async()=>true},managerStore:{listReconsentedActive:async()=>[row]},
   isProvisionReady:async()=>false,readProvisionJobState:async()=>({job_id:base.job_id,tenant_id:uid,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_CONFIGURATION_UNCONFIRMED"}),
   enqueueJob:async()=>{throw new Error("unknown configure must not be retried");}};
  await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],deps);
@@ -1315,7 +1326,7 @@ test("completed active configure job is not reconfigured by background recovery"
  const uid="lm_22222222-2222-4222-8222-222222222222",sha="b".repeat(40);
  const row={uid,release_sha:sha,status:"active",consent_version:"maritime-manager-v2",consent_v2_at:"2026-10-22T00:00:00.000Z",agent_id:"agent-b"};
  const runtime=require("../lib/maritime-manager-runtime.js"),base=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:"configure"});
- const deps={managerStore:{listReconsentedActive:async()=>[row]},
+ const deps={cloudBillingStore:{isEntitled:async()=>true},managerStore:{listReconsentedActive:async()=>[row]},
   readProvisionJobState:async()=>({job_id:base.job_id,tenant_id:uid,status:"completed",attempt:1,last_error_code:null}),
   enqueueJob:async()=>{throw new Error("ready tenants must not be reconfigured");}};
  await recoverReconsentedMaritimeConfigurations(["maritime.manager.provision"],deps);
@@ -1357,7 +1368,7 @@ test("Maritime post-send continuation failure reconciles the receipt without a s
 test("terminal pending provision is quarantined so the next tenant can recover",async()=>{
  const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40),consent_version:"maritime-manager-v2"},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
  const rows=[a,b],queued=[],quarantined=[];
- const deps={managerStore:{listPaused:async()=>[],listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
+ const deps={cloudBillingStore:{isEntitled:async()=>true},managerStore:{listPaused:async()=>[],listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
  readProvisionJobState:async({tenantId,job})=>tenantId===a.uid?{job_id:job.job_id,tenant_id:tenantId,status:"dead_letter",attempt:1,last_error_code:"MARITIME_PROVISION_UNCONFIGURED"}:null,
  enqueueJob:async job=>{queued.push(job.tenant_id);return {created:job.tenant_id===b.uid,job:{...job,status:job.tenant_id===a.uid?"dead_letter":"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
@@ -1491,6 +1502,7 @@ test("only a durable completed cycle auto-enqueues its tenant-bound Capafy prepa
    prepare:async()=>{},readPrepare:async()=>({state:"absent"}),readPublisherConfirmation:async()=>({}),readPublish:async()=>({state:"absent"})};
  const result=await require("./runtime-up.js").enqueueMaritimeCapafyPrepareAfterCompletion(cycle,receipt,{
    provider,managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
+   cloudBillingStore:{isEntitled:async()=>true},
    enqueueJob:async job=>{queued.push(job);return {created:true,job};}});
  assert.equal(result.status,"queued");
  assert.equal(queued.length,1);assert.equal(queued[0].tenant_id,uid);
@@ -1542,13 +1554,14 @@ test("Capafy auto-enqueue runs from the durable completion observer before usage
    external_ref:externalRef,evidence_refs:[externalRef]};
  const accountRef=`account://capafy/${uid}/${providerSubject}`,events=[];
  const provider={readAccountBinding:async({tenantId})=>({provider:"capafy",tenantId,accountRef,providerSubject,
-   autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+   autonomyConsentVersion:"maritime-capafy-autonomy-v1",publisherAgreementVersion:"v1.2"}),
    withAccessToken:async({tenantId},operation)=>operation("am_sk_"+"t".repeat(32),{provider:"capafy",tenantId,
-     accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1"}),
+     accountRef,providerSubject,autonomyConsentVersion:"maritime-capafy-autonomy-v1",publisherAgreementVersion:"v1.2"}),
    guardArtifact:async()=>({original:true,frozen:false,duplicate:false}),prepare:async()=>{},
    readPrepare:async()=>({state:"absent"}),readPublisherConfirmation:async()=>({}),readPublish:async()=>({state:"absent"})};
  const observer=require("./runtime-up.js").createMaritimeCapafyCompletionObserver({provider,
    managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
+   cloudBillingStore:{isEntitled:async()=>true},
    enqueueJob:async job=>{events.push(["enqueue",job.capability]);return {created:true,job};},
    onJobCompleted:async()=>events.push(["usage"])});
  await observer(cycle,receipt);
@@ -1573,6 +1586,7 @@ test("worker recovery finds only recent active bound cycles without a prepare jo
  const result=await require("./runtime-up.js").recoverMaritimeCapafyCycleAdmissions(
    ["maritime.manager.capafy.prepare"],{enabled:true,provider,
      managerStore:{read:async()=>({uid,release_sha:releaseSha,status:"active",paused_at:null})},
+     cloudBillingStore:{isEntitled:async()=>true},
      enqueueJob:async(job,options)=>{assert.equal(options.query,"store-query");queued.push(job);return {created:true,job};},
      query:async(statement,values=[])=>{
        if(/SELECT completed_at::text AS completed_at, tenant_id, job_id[\s\S]*FROM private\.lm_maritime_manager_capafy_recovery_cursor/i.test(statement))
@@ -1641,12 +1655,14 @@ test("bounded Capafy recovery advances a durable keyset past refused tenants", a
  };
  const managerStore={read:async tenantId=>({uid:tenantId,status:"active",paused_at:null,release_sha:"a".repeat(40)})};
  const recover=require("./runtime-up.js").recoverMaritimeCapafyCycleAdmissions;
- const first=await recover(["maritime.manager.capafy.prepare"],{enabled:true,provider,managerStore,query,
+ const first=await recover(["maritime.manager.capafy.prepare"],{enabled:true,provider,managerStore,
+   cloudBillingStore:{isEntitled:async()=>true},query,
    enqueueJob:async job=>{queued.push(job);return {created:true,job};}});
  assert.deepEqual(first,{status:"checked",queued:0,candidates:20});
  assert.equal(providerCalls,20);assert.deepEqual(cursor,cycleRows[19]&&{completed_at:cycleRows[19].completed_at,
    tenant_id:cycleRows[19].job.tenant_id,job_id:cycleRows[19].job.job_id});
- const second=await recover(["maritime.manager.capafy.prepare"],{enabled:true,provider,managerStore,query,
+ const second=await recover(["maritime.manager.capafy.prepare"],{enabled:true,provider,managerStore,
+   cloudBillingStore:{isEntitled:async()=>true},query,
    enqueueJob:async job=>{queued.push(job);return {created:true,job};}});
  assert.deepEqual(second,{status:"checked",queued:1,candidates:1});
  assert.equal(queued.length,1);assert.equal(queued[0].tenant_id,cycleRows[20].job.tenant_id);

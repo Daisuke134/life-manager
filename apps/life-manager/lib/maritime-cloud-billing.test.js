@@ -6,6 +6,7 @@ const {
   resolveMaritimeCloudConfig,
   createMaritimeCloudBillingStore,
   handleMaritimeCloudStripeWebhook,
+  requestMaritimeCloudStop,
 } = require("./maritime-cloud-billing.js");
 
 const TENANT_UID = "lm_123e4567-e89b-12d3-a456-426614174000";
@@ -39,7 +40,8 @@ function stripeFor(event) {
   };
 }
 
-function subscriptionEvent({ id, created, status, subscriptionCreated = 90, subscriptionId = "sub_cloud1", tenantUid = TENANT_UID }) {
+function subscriptionEvent({ id, created, status, subscriptionCreated = 90, subscriptionId = "sub_cloud1",
+  customerId = "cus_cloud1", cancelAtPeriodEnd = false, tenantUid = TENANT_UID }) {
   const deleted = status === "canceled";
   return {
     id,
@@ -50,11 +52,20 @@ function subscriptionEvent({ id, created, status, subscriptionCreated = 90, subs
       id: subscriptionId,
       object: "subscription",
       created: subscriptionCreated,
+      customer: customerId,
       status,
+      cancel_at_period_end: cancelAtPeriodEnd,
       metadata: { lm_tenant_uid: tenantUid, contact_email: TEST_CONTACT_EMAIL },
       items: { data: [{ price: { id: "price_cloudfixture", product: "prod_cloudfixture" }, quantity: 1 }] },
     } },
   };
+}
+
+function invoiceFailedEvent({ id, created, subscriptionId = "sub_cloud1", customerId = "cus_cloud1" }) {
+  return { id, type: "invoice.payment_failed", created, livemode: false, data: { object: {
+    id: "in_cloud1", object: "invoice", customer: customerId,
+    parent: { subscription_details: { subscription: subscriptionId } },
+  } } };
 }
 
 function fakePostgrest() {
@@ -67,8 +78,10 @@ function fakePostgrest() {
     assert.equal(options.headers.apikey, TEST_STORE_KEY);
     const method = options.method;
     if (method === "GET") {
-      const uid = url.searchParams.get("uid").slice(3);
-      const row = rows.get(uid);
+      const uidFilter = url.searchParams.get("uid");
+      const subscriptionFilter = url.searchParams.get("stripe_subscription_id");
+      const row = uidFilter ? rows.get(uidFilter.slice(3))
+        : [...rows.values()].find(value => value.stripe_subscription_id === subscriptionFilter.slice(3));
       return fakeResponse(200, row ? [structuredClone(row)] : []);
     }
     if (method === "POST") {
@@ -201,7 +214,7 @@ test("verified subscription events are tenant-bound and do not report Cloud MRR 
   assert.equal(db.rows.get(TENANT_UID).stripe_status, "active");
   assert.equal(db.writes.length, 1);
   assert.deepEqual(Object.keys(db.writes[0].row).sort(), [
-    "entitled", "last_event_created", "last_event_id", "stripe_price_id",
+    "cancel_at_period_end", "entitled", "last_event_created", "last_event_id", "stripe_customer_id", "stripe_price_id",
     "stripe_product_id", "stripe_status", "stripe_subscription_created",
     "stripe_subscription_id", "uid", "updated_at",
   ].sort());
@@ -252,6 +265,103 @@ test("replayed and out-of-order events preserve the newest tenant entitlement", 
   assert.equal(db.rows.get(TENANT_UID).entitled, false);
   assert.equal(db.rows.get(TENANT_UID).stripe_status, "canceled");
   assert.equal(db.writes.length, 2);
+});
+
+test("cancel-at-period-end and payment failure retain grace; unpaid and canceled revoke", async () => {
+  const db = fakePostgrest();
+  const store = fakeStore(db);
+  const stopRequests = [];
+  const send = (event) => handleMaritimeCloudStripeWebhook({
+    rawBody: Buffer.from("signed bytes"), signature: "signed-test-fixture", env: cloudEnv,
+    stripe: stripeFor(event), store, requestStop: async (tenantUid, eventId) => stopRequests.push([tenantUid, eventId]),
+    logger: { warn() {}, error() {} },
+  });
+
+  await send(subscriptionEvent({ id: "evt_active100", created: 100, status: "active" }));
+  const failedInvoice = await send(invoiceFailedEvent({ id: "evt_invoicefailed200", created: 200 }));
+  assert.deepEqual(failedInvoice.body, { status: "applied" });
+  assert.equal(db.rows.get(TENANT_UID).stripe_status, "past_due");
+  assert.equal(db.rows.get(TENANT_UID).entitled, true);
+  assert.deepEqual(stopRequests, []);
+
+  await send(subscriptionEvent({ id: "evt_cancelscheduled300", created: 300, status: "active", cancelAtPeriodEnd: true }));
+  assert.equal(db.rows.get(TENANT_UID).cancel_at_period_end, true);
+  assert.equal(db.rows.get(TENANT_UID).entitled, true);
+
+  const unpaid = subscriptionEvent({ id: "evt_unpaid400", created: 400, status: "unpaid" });
+  await send(unpaid);
+  await send(unpaid);
+  assert.equal(db.rows.get(TENANT_UID).entitled, false);
+  assert.equal(db.rows.get(TENANT_UID).stripe_status, "unpaid");
+  assert.equal(stopRequests.length, 2, "a replay retries the idempotent stop request");
+  assert.deepEqual(stopRequests[0], [TENANT_UID, "evt_unpaid400"]);
+  assert.deepEqual(stopRequests[1], stopRequests[0]);
+
+  await send(subscriptionEvent({ id: "evt_canceled500", created: 500, status: "canceled" }));
+  assert.equal(db.rows.get(TENANT_UID).entitled, false);
+  assert.equal(db.rows.get(TENANT_UID).stripe_status, "canceled");
+  assert.deepEqual(Object.keys(db.rows.get(TENANT_UID)).sort(), [
+    "cancel_at_period_end", "entitled", "last_event_created", "last_event_id", "stripe_customer_id",
+    "stripe_price_id", "stripe_product_id", "stripe_status", "stripe_subscription_created",
+    "stripe_subscription_id", "uid", "updated_at",
+  ].sort());
+});
+
+test("an initial invoice failure cannot turn an incomplete subscription into Cloud grace", async () => {
+  const db = fakePostgrest();
+  const store = fakeStore(db);
+  const send = event => handleMaritimeCloudStripeWebhook({
+    rawBody: Buffer.from("signed bytes"), signature: "signed-test-fixture", env: cloudEnv,
+    stripe: stripeFor(event), store, logger: { warn() {}, error() {} },
+  });
+  await send(subscriptionEvent({ id: "evt_incomplete100", created: 100, status: "incomplete" }));
+  assert.equal(db.rows.get(TENANT_UID).entitled, false);
+  const failed = await send(invoiceFailedEvent({ id: "evt_initialfailure200", created: 200 }));
+  assert.deepEqual(failed.body, { status: "stale" });
+  assert.equal(db.rows.get(TENANT_UID).stripe_status, "incomplete");
+  assert.equal(db.rows.get(TENANT_UID).entitled, false);
+});
+
+test("Cloud stop request advances past dead letters and reuses the next stable tenant-and-event job", async () => {
+  const jobs = new Map();
+  const requests = [];
+  let releaseSha = "a".repeat(40);
+  const managerStore = { async read(uid) {
+    return uid === TENANT_UID ? { uid, release_sha: releaseSha, status: "active", paused_at: null, agent_id: "agent-a" } : null;
+  } };
+  const enqueueJob = async job => {
+    requests.push(job);
+    const existing = jobs.get(job.job_id);
+    if (existing) return { created: false, job: existing };
+    if (!job.input_refs.provision_retry_ref) {
+      const deadLetter = { ...job, status: "dead_letter" };
+      jobs.set(job.job_id, deadLetter);
+      return { created: false, job: deadLetter };
+    }
+    const queued = { ...job, status: "queued" };
+    jobs.set(job.job_id, queued);
+    return { created: true, job: queued };
+  };
+
+  const first = await requestMaritimeCloudStop({ tenantUid: TENANT_UID, eventId: "evt_unpaid400", managerStore, enqueueJob });
+  const replay = await requestMaritimeCloudStop({ tenantUid: TENANT_UID, eventId: "evt_unpaid400", managerStore, enqueueJob });
+  releaseSha = "b".repeat(40);
+  const newRelease = await requestMaritimeCloudStop({ tenantUid: TENANT_UID, eventId: "evt_unpaid400", managerStore, enqueueJob });
+  const missing = await requestMaritimeCloudStop({
+    tenantUid: "lm_22222222-2222-4222-8222-222222222222", eventId: "evt_unpaid400", managerStore, enqueueJob,
+  });
+
+  assert.equal(first.created, true);
+  assert.equal(replay.created, false);
+  assert.equal(first.job.job_id, replay.job.job_id);
+  assert.notEqual(first.job.job_id, requests[0].job_id);
+  assert.equal(first.job.input_refs.provision_retry_ref, "maritime-billing-stop-retry://1");
+  assert.equal(first.job.input_refs.provision_phase_ref, "maritime-provision-phase://billing-stop");
+  assert.equal(first.job.input_refs.provision_request_ref, "stripe-event://evt_unpaid400");
+  assert.notEqual(first.job.job_id, newRelease.job.job_id, "release changes get a distinct stop identity");
+  assert.equal(newRelease.job.input_refs.release_ref, `release://git/${releaseSha}`);
+  assert.equal(missing.requested, false);
+  assert.equal(requests.length, 6, "same-release replay reuses its successor; a release change gets a new stop chain");
 });
 
 test("conflicting same-second events fail closed regardless of delivery order", async () => {

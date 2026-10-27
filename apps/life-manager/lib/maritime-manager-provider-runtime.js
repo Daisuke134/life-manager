@@ -143,14 +143,19 @@ function createAdapter(phase,services={}) {
     if(c.phase!==phase || job.attempt!==1)invalid();
     if(!provider || typeof provider.readAccountBinding!=="function"
       || typeof services.readCompletedCycle!=="function")throw new ProviderError("maritime_capafy_unconfigured");
-    const account=await provider.readAccountBinding({tenantId:c.tenantId,accountRef:c.accountRef});
-    if(account?.provider!=="capafy" || account.tenantId!==c.tenantId || account.accountRef!==c.accountRef
-      || account.publisherAgreementVersion!==CAPAFY_PUBLISHER_AGREEMENT_VERSION)invalid();
     if(active) {
       const enrollment=await services.managerStore?.read(c.tenantId);
       if(enrollment?.uid!==c.tenantId || enrollment.status!=="active" || enrollment.paused_at
         || enrollment.release_sha!==c.releaseSha)throw new ProviderError("maritime_capafy_inactive");
+      if(typeof services.cloudBillingStore?.isEntitled!=="function")throw new ProviderError("maritime_cloud_billing_unconfigured");
+      let entitled;
+      try {entitled=await services.cloudBillingStore.isEntitled(c.tenantId);}
+      catch {throw new ProviderError("maritime_cloud_entitlement_unavailable");}
+      if(entitled!==true)throw new ProviderError("maritime_cloud_entitlement_required");
     }
+    const account=await provider.readAccountBinding({tenantId:c.tenantId,accountRef:c.accountRef});
+    if(account?.provider!=="capafy" || account.tenantId!==c.tenantId || account.accountRef!==c.accountRef
+      || account.publisherAgreementVersion!==CAPAFY_PUBLISHER_AGREEMENT_VERSION)invalid();
     const cycle=await services.readCompletedCycle({tenantId:c.tenantId,jobId:c.sourceCycleJobId});
     if(!verifyCycle(c,cycle?.job,cycle?.receipt))invalid();
     let prepared=null;
@@ -205,7 +210,7 @@ function createAdapter(phase,services={}) {
     async execute(job) {
       // Publish jobs now only read back the Publisher's own Capafy action. Keep
       // them durable across pause; inspect() holds provider reads until resume.
-      const bound=await context(job,{active:phase==="prepare",guard:phase==="prepare"});
+      const bound=await context(job,{active:true,guard:phase==="prepare"});
       if(job.status!=="running")invalid();
       if(phase==="publish") {
         // Capafy requires the publisher to submit each Agent version through its website.
@@ -237,7 +242,7 @@ function createAdapter(phase,services={}) {
     },
     async continuation(job,receipt) {
       if(phase!=="prepare")return null;
-      const bound=await context(job);
+      const bound=await context(job,{active:true});
       if(!verifyWithContext(receipt,job,bound))invalid();
       const availableAt=(services.now||(()=>new Date().toISOString()))();
       if(!Number.isFinite(Date.parse(availableAt)))invalid();
@@ -253,11 +258,16 @@ async function enqueueMaritimeCapafyPrepareFromCycle({job,receipt,skillId,disclo
   const c=readMaritimeCycleContract(job),provider=services.provider;
   if(!provider || typeof provider.readAccountBinding!=="function" || typeof provider.guardArtifact!=="function"
     || typeof services.enqueueJob!=="function")throw new ProviderError("maritime_capafy_unconfigured");
-  const account=await provider.readAccountBinding({tenantId:c.tenantId});
-  if(account?.tenantId!==c.tenantId || account.provider!=="capafy")invalid();
   const enrollment=await services.managerStore?.read(c.tenantId);
   if(enrollment?.uid!==c.tenantId || enrollment.status!=="active" || enrollment.paused_at
     || enrollment.release_sha!==c.releaseSha)throw new ProviderError("maritime_capafy_inactive");
+  if(typeof services.cloudBillingStore?.isEntitled!=="function")throw new ProviderError("maritime_cloud_billing_unconfigured");
+  let entitled;
+  try {entitled=await services.cloudBillingStore.isEntitled(c.tenantId);}
+  catch {throw new ProviderError("maritime_cloud_entitlement_unavailable");}
+  if(entitled!==true)throw new ProviderError("maritime_cloud_entitlement_required");
+  const account=await provider.readAccountBinding({tenantId:c.tenantId});
+  if(account?.tenantId!==c.tenantId || account.provider!=="capafy")invalid();
   if(typeof provider.withAccessToken!=="function")throw new ProviderError("maritime_capafy_unconfigured");
   for(const artifactRef of receipt?.artifact_refs||[]) {
     const identity={...c,sourceCycleJobId:job.job_id,artifactRef,accountRef:account.accountRef,

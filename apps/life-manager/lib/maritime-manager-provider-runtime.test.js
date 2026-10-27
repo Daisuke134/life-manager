@@ -45,7 +45,8 @@ function fixture() {
     readPublisherConfirmation:async ({agentId,agentVersionId})=>({agentId,agentVersionId,
       isConfirmedSkills:true,isConfirmedConfigKeys:true,platformStatus:"under_review"}),
   };
-  const services={managerStore:{read:async()=>({uid:UID,release_sha:SHA,status:"active",paused_at:null})},
+  const services={cloudBillingStore:{isEntitled:async()=>true},
+    managerStore:{read:async()=>({uid:UID,release_sha:SHA,status:"active",paused_at:null})},
     readCompletedCycle:async()=>({job:cycle,receipt:cycleReceipt}),
     readPrepareReceipt:async()=>({job:{...prepare,status:"completed"},receipt:prepareReceipt}),
     provider,now:()=>"2026-10-23T12:00:00.000Z"};
@@ -67,6 +68,11 @@ test("provider jobs carry the exact immutable source chain and stable single-att
   assert.equal(f.publish.effect_key,`maritime-capafy-publish://${UID}/first`);
   assert.equal(f.publish.max_attempts,1);assert.equal(f.publish.effect_class,"publish");
   assert.equal(runtime().buildMaritimeCapafyPrepareJob({...f.args,releaseSha:"b".repeat(40)}).job_id,f.prepare.job_id);
+});
+test("Capafy preparation refuses to run after Cloud entitlement ends",async()=>{
+  const f=fixture();f.services.cloudBillingStore.isEntitled=async()=>false;
+  await assert.rejects(runtime().createMaritimeManagerCapafyPrepareAdapter(f.services).execute(f.prepare),/entitlement_required/i);
+  assert.deepEqual(f.counts(),{prepares:0,publishes:0});
 });
 test("Capafy create actions carry the exact tenant Skill disclosure scope",async()=>{
   const f=fixture();
@@ -265,6 +271,13 @@ test("completed central cycle selects one guarded original artifact and idempote
   assert.equal(saved.size,1);assert.deepEqual(f.counts(),{prepares:0,publishes:0});
   await assert.rejects(runtime().enqueueMaritimeCapafyPrepareFromCycle({...input,job:{...f.cycle,status:"running"}},services));
   await assert.rejects(runtime().enqueueMaritimeCapafyPrepareFromCycle({...input,receipt:{...f.cycleReceipt,providerReceiptRefs:["fake"]}},services));
+});
+test("trusted cycle handoff refuses Capafy queueing without Cloud entitlement",async()=>{
+  const f=fixture();f.services.cloudBillingStore.isEntitled=async()=>false;
+  let queued=0;
+  await assert.rejects(runtime().enqueueMaritimeCapafyPrepareFromCycle({job:f.cycle,receipt:f.cycleReceipt,
+    skillId:SKILL_ID,disclosureSha256:DISCLOSURE_SHA256},{...f.services,enqueueJob:async()=>{queued++;}}),/entitlement_required/i);
+  assert.equal(queued,0);
 });
 
 test("pause after successful prepare preserves readback job and fences provider reads until resume",async()=>{

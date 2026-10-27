@@ -3,6 +3,7 @@
 const { createMaritimeManagerPersistence } = require("./maritime-manager-persistence.js");
 const { createMaritimeManagerStore } = require("./maritime-manager-store.js");
 const { createAgentMailMailboxProvider, createMaritimeManagerMailboxStore } = require("./maritime-manager-mailbox.js");
+const { createMaritimeCloudBillingStore } = require("./maritime-cloud-billing.js");
 
 function createMaritimeManagerDependencies({ pgPool, env = process.env } = {}) {
   if (!pgPool || typeof pgPool.query !== "function") throw new Error("maritime_manager_dependencies_unconfigured");
@@ -14,6 +15,7 @@ function createMaritimeManagerDependencies({ pgPool, env = process.env } = {}) {
   return Object.freeze({
     query: pgPool.query.bind(pgPool),
     managerStore: createMaritimeManagerStore({ pgPool, env }),
+    cloudBillingStore: createMaritimeCloudBillingStore({ env }),
     managerMailboxStore,
     managerPersistence,
     distributionStore: managerPersistence,
