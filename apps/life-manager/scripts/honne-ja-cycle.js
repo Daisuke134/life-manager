@@ -30,16 +30,15 @@ const ANICCA_MAIN_SLOTS = Object.freeze(["08:00", "16:00", "22:37"]);
 const ANICCA_MAIN_INSTAGRAM_SLOTS = Object.freeze(["08:10", "13:10", "19:10"]);
 const ANICCA_EN_CARD_INSTAGRAM_SLOTS = Object.freeze(["08:45", "12:45", "21:30"]);
 const ANICCA_EN_WIDGET_INSTAGRAM_SLOTS = Object.freeze(["07:30", "09:30", "19:00"]);
-const ANICCA_AI_YOUTUBE_SLOTS = Object.freeze(["07:45", "13:15", "19:45"]);
-const ANICCA_AFFIRMATION_YOUTUBE_SLOTS = Object.freeze(["08:15", "14:15", "20:15"]);
+const ANICCA_AI_YOUTUBE_SLOTS = Object.freeze(["19:45"]);
+const ANICCA_AFFIRMATION_YOUTUBE_SLOTS = Object.freeze(["20:15"]);
 const ANICCA_JA_WIDGET_INSTAGRAM_SLOTS = Object.freeze(["08:05", "13:05", "18:20"]);
 const ANICCA_JP4_SLOTS = Object.freeze(["09:15", "15:15", "20:45"]);
 const ANICCA_HE_SLOTS = Object.freeze(["07:15", "13:45", "18:15"]);
 const CAPAFY_IG_SLOTS = Object.freeze(["09:00", "14:00", "20:00"]);
-// freshHookText: every anicca-ios lane cycles a 2-4 hook pack 3x/day, so the same
-// caption reposted every ~1.3 days (Postiz public API 2026-09-25..29, e.g. @anicca.he
-// "強い人の口癖、5つだけ" 6 times). honne packs hold enough distinct hooks and a
-// different product voice, so they keep verbatim pack text.
+// freshHookText keeps higher-frequency Anicca iOS lanes from repeating within
+// 1.3 days. The two YouTube lanes intentionally use one slot each after the
+// shared daily quota reset; Honne packs keep their distinct product voice.
 const LANES = Object.freeze({
   run: { name: "honne JA", product: "honne-ai", format: "reelclaw", locale: "ja", platform: "tiktok", account: "@honnevideo", integrationId: "cmnit95mg015rrm0ye5vm8dhl", slots: PRODUCTION_SLOTS, packKey: "LM_HONNE_JA_PACK_REF", mediaKey: "LM_HONNE_JA_MEDIA_REFS", approvalKey: "LM_HONNE_JA_PUBLICATION_APPROVAL_REF", telegramLane: "honne-ja" },
   "run-anicca-main": { name: "Anicca main", product: "anicca-ios", format: "reelclaw-card", locale: "ja", platform: "tiktok", account: "@anicca.jp", integrationId: "cmp9sdev5012voh0y58qs45xc", slots: ANICCA_MAIN_SLOTS, packKey: "LM_ANICCA_MAIN_PACK_REF", mediaKey: "LM_ANICCA_MAIN_MEDIA_REFS", approvalKey: "LM_ANICCA_MAIN_TIKTOK_APPROVAL_REF", telegramLane: "anicca-main-ja-tiktok", freshHookText: true },
