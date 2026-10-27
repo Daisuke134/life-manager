@@ -696,14 +696,14 @@ PY
     release_superseded_continue=1
     next_retry_epoch="$(date -u +%s)"
   fi
-  # Continue healthy owners on the same SHA after bounded progress. Failed owners remain
-  # recorded and ordered last; only an error-free pass may accelerate a different SHA.
+  # Continue healthy owners on the same SHA after bounded progress, even when another owner
+  # failed or timed out. Failed owners remain recorded and ordered last; only an error-free,
+  # non-timeout pass may accelerate a different SHA.
   local budget_progress_continue=0
   if [ "$status" = "partial" ] && [ "$release_superseded" -eq 0 ] \
-    && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
-    && [ "$changed" -gt 0 ]; then
+    && [ "$budget_exceeded" -eq 1 ] && [ "$changed" -gt 0 ]; then
     next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
-    if [ "$errors" -eq 0 ]; then
+    if [ "$errors" -eq 0 ] && [ -z "$timed_out_owners" ]; then
       budget_progress_continue=1
     fi
   fi

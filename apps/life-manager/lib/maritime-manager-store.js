@@ -3,7 +3,9 @@
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUBJECT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA = /^[0-9a-f]{40}$/;
-const SELECT = "uid,auth_subject,email,timezone,status,source,consent_version,consent_v2_at,agent_id,release_sha,paused_at,created_at";
+const SELECT = "uid,auth_subject,email,email_verified_at,timezone,status,source,consent_version,consent_v2_at,agent_id,release_sha,paused_at,created_at";
+const MAX_RECENT_CYCLE_DISPATCHES = 32;
+const CYCLE_DISPATCH_LOOKBACK_MS = 2 * 60 * 60 * 1000;
 const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
 function invalid() { throw new Error("maritime_manager_input_invalid"); }
 function identifier(value, pattern) {
@@ -69,7 +71,8 @@ function createMaritimeManagerStore(options = {}) {
       throw new Error("maritime_manager_store_invalid");
     }
     if (!rows[0]) return null;
-    return { ...rows[0], consent_v2_at: timestampIso(rows[0].consent_v2_at, true),
+    return { ...rows[0], email_verified_at: timestampIso(rows[0].email_verified_at, true),
+      consent_v2_at: timestampIso(rows[0].consent_v2_at, true),
       paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) };
   }
   async function listPending(limit = 20) {
@@ -132,8 +135,11 @@ function createMaritimeManagerStore(options = {}) {
   async function enroll(input) {
     const uid = identifier(input?.uid, UID);
     const authSubject = identifier(input.authSubject, SUBJECT).toLowerCase();
-    const email = bounded(input.email, 320).toLowerCase();
+    const email = bounded(input.email, 320);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid();
+    let emailVerifiedAt;
+    try { emailVerifiedAt = timestampIso(input.emailVerifiedAt); }
+    catch { invalid(); }
     const timezone = input.timezone || "UTC";
     try { new Intl.DateTimeFormat("en", { timeZone: timezone }); } catch { invalid(); }
     const source = bounded(input.source || "direct", 40);
@@ -142,12 +148,12 @@ function createMaritimeManagerStore(options = {}) {
     const releaseSha = identifier(input.releaseSha, SHA);
     const inserted = await queryPg(
       `INSERT INTO public.lm_maritime_manager_enrollments
-        (uid,auth_subject,email,timezone,status,source,consent_version,release_sha)
-       SELECT i.uid,i.auth_subject,$3,$4,'pending',$5,$6,$7
+        (uid,auth_subject,email,email_verified_at,timezone,status,source,consent_version,release_sha)
+       SELECT i.uid,i.auth_subject,$3,$4,$5,'pending',$6,$7,$8
        FROM public.lm_maritime_manager_identities AS i
        WHERE i.uid=$1 AND i.auth_subject=$2
        ON CONFLICT (uid) DO NOTHING RETURNING uid`,
-      [uid, authSubject, email, timezone, source, consentVersion, releaseSha],
+      [uid, authSubject, email, emailVerifiedAt, timezone, source, consentVersion, releaseSha],
     );
     if (inserted.length > 1) throw new Error("maritime_manager_store_invalid");
     const row = await read(uid);
@@ -283,7 +289,39 @@ function createMaritimeManagerStore(options = {}) {
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;
   }
+  async function listRecentCycleDispatches(input) {
+    const uid = identifier(input?.uid, UID);
+    const agentId = identifier(input.agentId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
+    const releaseSha = identifier(input.releaseSha, SHA);
+    const current = Date.parse(now());
+    if (!Number.isFinite(current)) throw new Error("maritime_manager_store_invalid");
+    const cutoff = new Date(current - CYCLE_DISPATCH_LOOKBACK_MS).toISOString();
+    const rows = await queryPg(
+      `SELECT uid,occurrence_id,agent_id,date_key::text AS date_key,release_sha,execution_id,claimed_at
+       FROM public.lm_maritime_manager_executions
+       WHERE uid=$1 AND agent_id=$2 AND release_sha=$3 AND claimed_at >= $4::timestamptz
+       ORDER BY claimed_at DESC, occurrence_id ASC LIMIT $5`,
+      [uid, agentId, releaseSha, cutoff, MAX_RECENT_CYCLE_DISPATCHES + 1],
+    );
+    if (rows.length > MAX_RECENT_CYCLE_DISPATCHES) throw new Error("maritime_manager_store_invalid");
+    const seen = new Set();
+    return rows.map(raw => {
+      if (!raw || raw.uid !== uid || raw.agent_id !== agentId || raw.release_sha !== releaseSha
+        || typeof raw.occurrence_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(raw.occurrence_id)
+        || seen.has(raw.occurrence_id)
+        || (raw.execution_id !== null && (typeof raw.execution_id !== "string"
+          || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(raw.execution_id)))) {
+        throw new Error("maritime_manager_store_invalid");
+      }
+      seen.add(raw.occurrence_id);
+      const dateKey = dateKeyString(raw.date_key);
+      const claimedAt = timestampIso(raw.claimed_at);
+      if (Date.parse(claimedAt) < Date.parse(cutoff)) throw new Error("maritime_manager_store_invalid");
+      return { uid, occurrence_id: raw.occurrence_id, agent_id: agentId, date_key: dateKey,
+        release_sha: releaseSha, execution_id: raw.execution_id, claimed_at: claimedAt };
+    });
+  }
   return Object.freeze({ enroll, reconsent, read, listPending, listReconsentedActive, listPaused, claimProvision, bindAgent, pause, quarantinePendingProvision,
-    claimCycleDispatch, readCycleDispatch, bindCycleExecution });
+    claimCycleDispatch, readCycleDispatch, bindCycleExecution, listRecentCycleDispatches });
 }
 module.exports = { createMaritimeManagerStore };

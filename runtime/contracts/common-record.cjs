@@ -34,6 +34,44 @@ function codePointLength(value) {
   return [...value].length;
 }
 
+function maritimeCapafyJobId(phase, tenantId, occurrenceId) {
+  const digest = crypto.createHash("sha256")
+    .update(`maritime-capafy-${phase}:v1:${tenantId}:${occurrenceId}`)
+    .digest("hex");
+  return `maritime-capafy-${phase}:${digest}`;
+}
+
+// The approved provider jobs carry literal queue identities, rather than URI refs.
+// Keep this exception exact and shared by construction and common-record reads.
+function validateMaritimeCapafyInputRefs(value) {
+  const phase = /^maritime\.manager\.capafy\.(prepare|publish)$/.exec(value.capability || "")?.[1];
+  if (!phase) return false;
+  const refs = value.input_refs;
+  const tenant = value.tenant_id;
+  const hasSkillScope = refs?.skill_id !== undefined || refs?.skill_disclosure_sha256 !== undefined;
+  const keys = ["source_cycle_job_id", "artifact_ref", "account_ref", "occurrence_id", "release_ref",
+    ...(hasSkillScope ? ["skill_id", "skill_disclosure_sha256"] : []),
+    ...(phase === "publish" ? ["prepare_job_id", "agent_id", "agent_version_id"] : [])].sort();
+  if (!/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tenant || "")
+    || !refs || typeof refs !== "object" || Array.isArray(refs)
+    || JSON.stringify(Object.keys(refs).sort()) !== JSON.stringify(keys)
+    || Object.values(refs).some(ref => typeof ref !== "string" || !ref || ref.length > 1000)
+    || value.loop_id !== value.capability || value.effect_class !== "publish" || value.max_attempts !== 1
+    || value.job_id !== maritimeCapafyJobId(phase, tenant, refs.occurrence_id)
+    || !/^maritime-cycle:[0-9a-f]{64}$/.test(refs.source_cycle_job_id)
+    || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(refs.occurrence_id)
+    || value.effect_key !== `maritime-capafy-${phase}://${tenant}/${encodeURIComponent(refs.occurrence_id)}`
+    || !/^release:\/\/git\/[0-9a-f]{40}$/.test(refs.release_ref)
+    || !refs.account_ref.startsWith(`account://capafy/${tenant}/`)
+    || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(refs.account_ref.slice(`account://capafy/${tenant}/`.length))
+    || !refs.artifact_ref.startsWith("artifact://") || refs.artifact_ref.includes("\0")
+    || refs.artifact_ref.slice(11).split("/").some(part => !part || part === "." || part === "..")
+    || (hasSkillScope && (!ID.test(refs.skill_id || "") || !/^[a-f0-9]{64}$/.test(refs.skill_disclosure_sha256 || "")))
+    || (phase === "publish" && (refs.prepare_job_id !== maritimeCapafyJobId("prepare", tenant, refs.occurrence_id)
+      || !ID.test(refs.agent_id) || !ID.test(refs.agent_version_id)))) invalid("Maritime Capafy input_refs");
+  return true;
+}
+
 function projectJob(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) invalid("record");
   const effectClass = value.effect_class;
@@ -46,9 +84,10 @@ function projectJob(value) {
   if (!value.input_refs || typeof value.input_refs !== "object" || Array.isArray(value.input_refs)) {
     invalid("input_refs");
   }
+  const providerRefs = validateMaritimeCapafyInputRefs(value);
   const inputRefs = {};
   for (const [key, raw] of Object.entries(value.input_refs)) {
-    if (!/_refs?$/.test(key)) invalid("input_refs");
+    if (!providerRefs && !/_refs?$/.test(key)) invalid("input_refs");
     const items = Array.isArray(raw) ? raw : [raw];
     if (items.length < 1 || items.some((item) => typeof item !== "string" || codePointLength(item) < 1 || codePointLength(item) > 1000)) {
       invalid("input_refs");
@@ -108,7 +147,7 @@ function projectReceipt(value) {
 }
 
 module.exports = {
-  projectJob, projectReceipt, projectFinancialRecord, financialRecordId,
+  validateMaritimeCapafyInputRefs, projectJob, projectReceipt, projectFinancialRecord, financialRecordId,
   createCitizenIdentity, projectCitizenIdentity, citizenIdentityRefs,
   assertCitizenBinding, assertCitizenCollection, assertSignerAddress,
 };

@@ -28,12 +28,23 @@
         "job_id": {"$ref": "#/$defs/Id"}, "tenant_id": {"$ref": "#/$defs/Id"}, "loop_id": {"$ref": "#/$defs/Id"}, "capability": {"$ref": "#/$defs/Id"},
         "effect_class": {"enum": ["none", "publish", "message", "money", "application", "trade", "account_mutation"]},
         "effect_key": {"type": ["string", "null"], "maxLength": 500},
-        "input_refs": {"type": "object", "propertyNames": {"pattern": "_refs?$"}, "additionalProperties": {"oneOf": [{"type": "string", "minLength": 1, "maxLength": 1000}, {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "maxLength": 1000}}]}},
+        "input_refs": {"type": "object"},
         "max_attempts": {"type": "integer", "minimum": 1, "maximum": 20}
       },
       "allOf": [
         {"if": {"properties": {"effect_class": {"const": "none"}}}, "then": {"properties": {"effect_key": {"type": "null"}}}},
-        {"if": {"properties": {"effect_class": {"not": {"const": "none"}}}}, "then": {"properties": {"effect_key": {"type": "string", "minLength": 1}}}}
+        {"if": {"properties": {"effect_class": {"not": {"const": "none"}}}}, "then": {"properties": {"effect_key": {"type": "string", "minLength": 1}}}},
+        {
+          "if": {"properties": {"capability": {"enum": ["maritime.manager.capafy.prepare", "maritime.manager.capafy.publish"]}}},
+          "then": {
+            "properties": {"tenant_id": {"type": "string", "pattern": "^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "effect_class": {"const": "publish"}, "max_attempts": {"const": 1}},
+            "oneOf": [
+              {"properties": {"capability": {"const": "maritime.manager.capafy.prepare"}, "loop_id": {"const": "maritime.manager.capafy.prepare"}, "job_id": {"type": "string", "pattern": "^maritime-capafy-prepare:[0-9a-f]{64}$"}, "effect_key": {"type": "string", "pattern": "^maritime-capafy-prepare://lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[A-Za-z0-9_.:%-]+$"}, "input_refs": {"type": "object", "additionalProperties": false, "required": ["source_cycle_job_id", "artifact_ref", "account_ref", "occurrence_id", "release_ref"], "properties": {"source_cycle_job_id": {"type": "string", "pattern": "^maritime-cycle:[0-9a-f]{64}$"}, "artifact_ref": {"type": "string", "maxLength": 1000, "pattern": "^artifact://[^/\\u0000]+(?:/[^/\\u0000]+)*$", "not": {"pattern": "(?:^|/)\\.\\.?(?:/|$)"}}, "account_ref": {"type": "string", "pattern": "^account://capafy/lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}, "occurrence_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}, "release_ref": {"type": "string", "pattern": "^release://git/[0-9a-f]{40}$"}, "skill_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}, "skill_disclosure_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}}},
+              {"properties": {"capability": {"const": "maritime.manager.capafy.publish"}, "loop_id": {"const": "maritime.manager.capafy.publish"}, "job_id": {"type": "string", "pattern": "^maritime-capafy-publish:[0-9a-f]{64}$"}, "effect_key": {"type": "string", "pattern": "^maritime-capafy-publish://lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[A-Za-z0-9_.:%-]+$"}, "input_refs": {"type": "object", "additionalProperties": false, "required": ["source_cycle_job_id", "artifact_ref", "account_ref", "occurrence_id", "release_ref", "prepare_job_id", "agent_id", "agent_version_id"], "properties": {"source_cycle_job_id": {"type": "string", "pattern": "^maritime-cycle:[0-9a-f]{64}$"}, "artifact_ref": {"type": "string", "maxLength": 1000, "pattern": "^artifact://[^/\\u0000]+(?:/[^/\\u0000]+)*$", "not": {"pattern": "(?:^|/)\\.\\.?(?:/|$)"}}, "account_ref": {"type": "string", "pattern": "^account://capafy/lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}, "occurrence_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}, "release_ref": {"type": "string", "pattern": "^release://git/[0-9a-f]{40}$"}, "skill_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}, "skill_disclosure_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "prepare_job_id": {"type": "string", "pattern": "^maritime-capafy-prepare:[0-9a-f]{64}$"}, "agent_id": {"$ref": "#/$defs/Id"}, "agent_version_id": {"$ref": "#/$defs/Id"}}}}}
+            ]
+          },
+          "else": {"properties": {"input_refs": {"type": "object", "propertyNames": {"pattern": "_refs?$"}, "additionalProperties": {"oneOf": [{"type": "string", "minLength": 1, "maxLength": 1000}, {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "maxLength": 1000}}]}}}}
+        }
       ]
     },
     "RuntimeEvent": {

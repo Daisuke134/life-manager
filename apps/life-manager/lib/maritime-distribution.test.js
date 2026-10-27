@@ -267,6 +267,51 @@ test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
   assert.match(en,/register or sign in to my authorized Publisher account/i);
   assert.match(en,/legal, identity, and Publisher confirmations remain mine/i);
 });
+test("authenticated setup shows the exact Publisher Agreement summary and explicit consent form",()=>{
+  const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"c".repeat(64)},
+    state:"pending",publisherConsentAvailable:true});
+  assert.match(html,/Publisher Agreement v1\.2/);
+  assert.match(html,/Effective September 28, 2026/i);
+  assert.match(html,/Agreement's English text is authoritative/i);
+  assert.match(html,/supported region.*sanctions/i);
+  assert.match(html,/accurate legal identity and contact facts/i);
+  assert.match(html,/public support email/i);
+  assert.match(html,/US\$0\.99 certification fee is non-refundable even if certification is declined/i);
+  assert.match(html,/Data disclosures \(sections 3\.4–3\.5 and 8\.1–8\.7\)/i);
+  assert.match(html,/Customer support and dispute obligations \(sections 3\.2, 4\.2–4\.3, and 8\.5\)/i);
+  assert.match(html,/You bear those LLM costs/i);
+  assert.match(html,/delete or return User Data within 30 days/i);
+  assert.match(html,/notify Capafy within 48 hours/i);
+  assert.match(html,/publisherType/);assert.match(html,/legalName/);assert.match(html,/jurisdiction/);
+  assert.match(html,/publicSupportEmail/);assert.match(html,/data-action="publisher-consent"/);
+  assert.match(html,/publisher-consent\//);
+  assert.doesNotMatch(html,/name="verifiedContactEmail"|value="person@example\.invalid"/);
+  const script=html.match(/<script>([\s\S]*?)<\/script>/);assert.ok(script);
+  assert.doesNotThrow(()=>new (require("node:vm").Script)(script[1]));
+});
+test("saved Publisher consent is shown only as tenant-provided escaped facts with a withdrawal control",()=>{
+  const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"d".repeat(64)},
+    state:"active",publisherConsentAvailable:true,publisherConsent:{agreementVersion:"v1.2",effectiveDate:"2026-09-28",
+      agreementUrl:"https://capafy.ai/publisher-agreement/",publisherType:"individual",legalName:"Publisher <One>",
+      jurisdiction:"Japan",verifiedContactEmail:"person@example.invalid",publicSupportEmail:"help@example.invalid",
+      acceptedAt:"2026-10-26T11:00:00.000Z",withdrawnAt:null}});
+  assert.match(html,/Publisher &lt;One&gt;/);assert.doesNotMatch(html,/Publisher <One>/);
+  assert.match(html,/help@example\.invalid/);assert.match(html,/person@example\.invalid/);
+  assert.match(html,/data-action="publisher-consent-withdraw"/);
+  assert.match(html,/2026-10-26T11:00:00\.000Z/);
+  assert.doesNotMatch(html,/<form[^>]+data-action="publisher-consent"/);
+});
+test("withdrawn Publisher consent remains visible and cannot be silently reaccepted",()=>{
+  const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"e".repeat(64)},
+    state:"active",publisherConsentAvailable:true,publisherConsent:{agreementVersion:"v1.2",effectiveDate:"2026-09-28",
+      agreementUrl:"https://capafy.ai/publisher-agreement/",publisherType:"individual",legalName:"Publisher One",
+      jurisdiction:"Japan",verifiedContactEmail:"person@example.invalid",publicSupportEmail:"help@example.invalid",
+      acceptedAt:"2026-10-26T11:00:00.000Z",withdrawnAt:"2026-10-27T02:00:00.000Z"}});
+  assert.match(html,/This consent is withdrawn/);
+  assert.match(html,/Withdrawn at: <time>2026-10-27T02:00:00\.000Z/);
+  assert.doesNotMatch(html,/<form[^>]+data-action="publisher-consent"/);
+  assert.doesNotMatch(html,/<button[^>]+data-action="publisher-consent-withdraw"/);
+});
 test("paused_or_uncertain_landing_does_not_offer_activation",()=>{
   for(const state of ["paused","effect_unknown","provisioning","pending","active"]){
     const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state});

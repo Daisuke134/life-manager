@@ -214,6 +214,27 @@ test("both public READMEs are bound to the canonical startup context", async () 
   }
 });
 
+test("English README presents one Cloud-first Life Manager without claiming earning E2E", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const readmeJa = await readFile(new URL("../README.ja.md", import.meta.url), "utf8");
+  const marketing = await readFile(marketingPath, "utf8");
+
+  assert.match(readme, /Life Manager is one product/i);
+  assert.match(readme, /Life Manager Cloud/i);
+  assert.match(readme, /Maritime VM/i);
+  assert.match(readme, /Grok Bot.*Muse.*Dots/is);
+  assert.match(readme, /signup.to.verified.earnings.*still in development/is);
+  assert.doesNotMatch(readme, /Mac mini|on your Mac/i);
+  assert.match(readmeJa, /一つの製品/);
+  assert.match(readmeJa, /Life Manager Cloud/);
+  assert.match(readmeJa, /返金不可の申請料US\$0\.99/);
+  assert.doesNotMatch(readmeJa, /Mac mini|Macの/i);
+  assert.match(marketing, /first intended Cloud income workflow is Capafy/i);
+  assert.match(marketing, /without daily task prompts/i);
+  assert.match(marketing, /human review/i);
+  assert.match(marketing, /payout.*deferr.*(?:unconfirmed|not confirmed)/is);
+});
+
 test("application kit is deterministic and bound to the canonical context digest", async () => {
   const context = await loadStartupContext(contextPath);
   const directory = await mkdtemp(join(tmpdir(), "life-manager-kit-"));

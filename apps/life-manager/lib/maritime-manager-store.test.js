@@ -5,13 +5,15 @@ let createMaritimeManagerStore;
 try { ({ createMaritimeManagerStore } = require("./maritime-manager-store.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
+const fs = require("node:fs");
+const path = require("node:path");
 const SUBJECT_A = "11111111-1111-4111-8111-111111111111";
 const SUBJECT_B = "22222222-2222-4222-8222-222222222222";
 const UID_A = `lm_${SUBJECT_A}`;
 const UID_B = `lm_${SUBJECT_B}`;
 const SHA = "a".repeat(40);
 function input(uid = UID_A, subject = SUBJECT_A) {
-  return { uid, authSubject: subject, email: "person@example.invalid", timezone: "Asia/Tokyo",
+  return { uid, authSubject: subject, email: "person@example.invalid", emailVerifiedAt: "2026-10-20T00:00:00.000Z", timezone: "Asia/Tokyo",
     source: "referral", consentVersion: MANAGER_CONSENT_VERSION, releaseSha: SHA };
 }
 function fixture() {
@@ -45,13 +47,14 @@ function fixture() {
     }
     if (u.pathname.endsWith("/rpc/claim_lm_maritime_manager_provision_v1")) {
       const row = rows.get(body.p_uid);
-      const claim = !!row && row.status === "pending" && !row.paused_at;
+      const claim = !!row && row.status === "pending" && !row.paused_at
+        && row.consent_version === MANAGER_CONSENT_VERSION;
       if (claim) row.status = "provisioning";
       return response(claim);
     }
     if (u.pathname.endsWith("/rpc/bind_lm_maritime_manager_agent_v1")) {
       const row = rows.get(body.p_uid);
-      if (!row || row.auth_subject !== body.p_auth_subject
+      if (!row || row.consent_version !== MANAGER_CONSENT_VERSION || row.auth_subject !== body.p_auth_subject
         || (row.agent_id && row.agent_id !== body.p_agent_id)
         || [...rows.values()].some(r => r.uid !== body.p_uid && r.agent_id === body.p_agent_id)) return response(false);
       row.agent_id = body.p_agent_id; row.release_sha = body.p_release_sha;
@@ -69,15 +72,16 @@ function fixture() {
     if (opts.method === "PATCH" && row) Object.assign(row, body);
     return response(row ? [row] : []);
   };
-  const pgRow = row => ({ ...row, consent_v2_at: row.consent_v2_at == null ? null : new Date(row.consent_v2_at),
+  const pgRow = row => ({ ...row, email_verified_at: row.email_verified_at == null ? null : new Date(row.email_verified_at),
+    consent_v2_at: row.consent_v2_at == null ? null : new Date(row.consent_v2_at),
     paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
   const pgPool = { query: async (statement, values = []) => {
     pgQueries.push({ statement, values });
     let selected;
     if (statement.includes("INSERT INTO public.lm_maritime_manager_enrollments")) {
-      const [uid, authSubject, email, timezone, source, consentVersion, releaseSha] = values;
+      const [uid, authSubject, email, emailVerifiedAt, timezone, source, consentVersion, releaseSha] = values;
       if (identities.get(uid) === authSubject && !rows.has(uid)) {
-        rows.set(uid, { uid, auth_subject: authSubject, email, timezone, status: "pending", source,
+        rows.set(uid, { uid, auth_subject: authSubject, email, email_verified_at: emailVerifiedAt, timezone, status: "pending", source,
           consent_version: consentVersion, agent_id: null, release_sha: releaseSha, paused_at: null,
           created_at: "2026-10-20T00:00:00.000Z" });
         return { rows: [{ uid }] };
@@ -96,7 +100,8 @@ function fixture() {
     }
     if (statement.includes("claim_lm_maritime_manager_provision_v1")) {
       const row = rows.get(values[0]);
-      const claimed = Boolean(row && row.status === "pending" && row.paused_at == null);
+      const claimed = Boolean(row && row.status === "pending" && row.paused_at == null
+        && row.consent_version === MANAGER_CONSENT_VERSION);
       if (claimed) row.status = "provisioning";
       return { rows: [{ claimed }] };
     }
@@ -106,7 +111,8 @@ function fixture() {
       const duplicateAgent = [...rows.values()].some(candidate => candidate.uid !== uid && candidate.agent_id === agentId);
       const allowedStatus = row && (['provisioning', 'effect_unknown', 'paused'].includes(row.status)
         || (row.status === 'active' && row.agent_id === agentId));
-      const bound = Boolean(row && row.auth_subject === authSubject && row.release_sha === releaseSha
+      const bound = Boolean(row && row.consent_version === MANAGER_CONSENT_VERSION
+        && row.auth_subject === authSubject && row.release_sha === releaseSha
         && (row.agent_id == null || row.agent_id === agentId) && allowedStatus && !duplicateAgent);
       if (bound) {
         row.agent_id = agentId;
@@ -121,7 +127,8 @@ function fixture() {
       const claimed = Boolean(enrollment && enrollment.status === "active" && enrollment.paused_at == null
         && enrollment.agent_id === agentId && enrollment.release_sha === releaseSha && !executions.has(key));
       if (claimed) executions.set(key, { uid, occurrence_id: occurrenceId, agent_id: agentId,
-        date_key: new Date(`${dateKey}T00:00:00.000Z`), release_sha: releaseSha, execution_id: null });
+        date_key: new Date(`${dateKey}T00:00:00.000Z`), release_sha: releaseSha, execution_id: null,
+        claimed_at: new Date('2026-10-20T00:00:00.000Z') });
       return { rows: [{ claimed }] };
     }
     if (statement.includes("bind_lm_maritime_manager_execution_v1")) {
@@ -134,6 +141,13 @@ function fixture() {
         && (row.execution_id == null || row.execution_id === executionId) && !duplicateExecution);
       if (bound) row.execution_id = executionId;
       return { rows: [{ bound }] };
+    }
+    if (statement.includes("claimed_at >= $4::timestamptz")) {
+      const [uid, agentId, releaseSha, cutoff, limit] = values;
+      const selected = [...executions.values()].filter(row => row.uid === uid && row.agent_id === agentId
+        && row.release_sha === releaseSha && row.claimed_at >= new Date(cutoff))
+        .sort((a, b) => b.claimed_at - a.claimed_at || a.occurrence_id.localeCompare(b.occurrence_id)).slice(0, limit);
+      return { rows: selected.map(row => ({ ...row })) };
     }
     if (statement.includes("FROM public.lm_maritime_manager_executions")) {
       const row = executions.get(values[0] + ":" + values[1]);
@@ -177,11 +191,28 @@ test("enrollment_is_idempotent_and_tenant_scoped", async () => {
   await assert.rejects(store.enroll({ ...input(), email: "changed@example.invalid" }), /identity_mismatch/);
   assert.equal(rows.get(UID_A).auth_subject, SUBJECT_A);
   assert.equal(rows.get(UID_A).email, "person@example.invalid");
+  assert.equal(a.email_verified_at, "2026-10-20T00:00:00.000Z");
+});
+test("enrollment requires a trusted signup-email verification timestamp", async () => {
+  const { store } = fixture();
+  await assert.rejects(store.enroll({ ...input(), emailVerifiedAt: null }), /input_invalid/);
+});
+test("enrollment preserves the exact verified signup address", async () => {
+  const { store, rows } = fixture();
+  const email = "Publisher.Contact@example.invalid";
+  await store.enroll({ ...input(), email });
+  assert.equal(rows.get(UID_A).email, email);
 });
 test("only_one_concurrent_provision_claim_succeeds", async () => {
   const { store } = fixture(); await store.enroll(input());
   const claims = await Promise.all([store.claimProvision(UID_A), store.claimProvision(UID_A)]);
   assert.deepEqual(claims, [true, false]);
+});
+test("legacy_consent_cannot_claim_provision_before_current_consent", async () => {
+  const { store, rows } = fixture();
+  await store.enroll({ ...input(), consentVersion: "maritime-manager-v1" });
+  assert.equal(await store.claimProvision(UID_A), false);
+  assert.equal(rows.get(UID_A).status, "pending");
 });
 test("a_foreign_subject_or_agent_binding_is_rejected", async () => {
   const { store } = fixture(); await store.enroll(input()); await store.enroll(input(UID_B, SUBJECT_B));
@@ -276,6 +307,29 @@ test('cycle replay preserves its dispatch marker and immutable execution id', as
   assert.equal(resume.row.execution_id, 'exec-1');
   await assert.rejects(store.bindCycleExecution({ ...identity, executionId: 'exec-2' }), /binding_rejected/);
   assert.equal((await store.readCycleDispatch(identity)).execution_id, 'exec-1');
+});
+
+test('stop readback lists only recent cycle executions for the bound tenant agent and release', async () => {
+  const f = await activeFixture();
+  const identity = cycleIdentity();
+  await f.store.claimCycleDispatch(identity);
+  await f.store.bindCycleExecution({ ...identity, executionId: 'exec-1' });
+  const rows = await f.store.listRecentCycleDispatches({ uid: UID_A, agentId: 'agent-a', releaseSha: SHA });
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0], { uid: UID_A, occurrence_id: 'cycle-1', agent_id: 'agent-a',
+    date_key: '2026-10-20', release_sha: SHA, execution_id: 'exec-1', claimed_at: '2026-10-20T00:00:00.000Z' });
+  const query = f.pgQueries.find(row => row.statement.includes('claimed_at >= $4::timestamptz'));
+  assert.match(query.statement, /ORDER BY claimed_at DESC.*LIMIT \$5/s);
+  assert.deepEqual(query.values.slice(0, 3), [UID_A, 'agent-a', SHA]);
+  assert.equal(Date.parse(query.values[3]), Date.parse('2026-10-19T22:00:00.000Z'));
+  assert.equal(query.values[4], 33);
+  assert.deepEqual(await f.store.listRecentCycleDispatches({ uid: UID_B, agentId: 'agent-b', releaseSha: SHA }), []);
+  await assert.rejects(f.store.listRecentCycleDispatches({ uid: UID_A, agentId: 'agent-a', releaseSha: 'bad' }), /input_invalid/);
+});
+
+test('Stop recent-dispatch readback has a tenant-agent-release time index', () => {
+  const migration = fs.readFileSync(path.join(__dirname, "../migrations/20261025221000_lm_maritime_manager_execution_stop_lookup.sql"), "utf8");
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS lm_maritime_manager_execution_stop_lookup\s+ON public\.lm_maritime_manager_executions\s+\(uid, agent_id, release_sha, claimed_at DESC, occurrence_id ASC\)/i);
 });
 
 test('an occurrence cannot be rebound to another date agent or release', async () => {

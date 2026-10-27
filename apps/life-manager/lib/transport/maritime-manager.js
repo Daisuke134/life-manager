@@ -210,6 +210,15 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       if (!Number.isInteger(result.exitCode) || typeof result.stdout !== 'string') throw new TransportError('execution_invalid');
       return { status: result.status, exitCode: result.exitCode, stdout: result.stdout };
     }); },
+    cancelExecution(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), executionId = valid(input.executionId, ID);
+      const row = await enrollment(uid, agentId);
+      if (row.status !== 'paused' || !row.paused_at) throw new TransportError('cancel_requires_pause', false);
+      const result = await request(`/api/agents/${agentId}/exec/${executionId}`, 'DELETE');
+      if (result?.executionId !== executionId || !['completed', 'timed_out', 'cancelled', 'failed'].includes(result.status)
+        || !Number.isInteger(result.exitCode)) throw new TransportError('execution_cancel_unconfirmed');
+      return { executionId, status: result.status, exitCode: result.exitCode };
+    }); },
     readCycleReceipt(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID); const occurrence = valid(input.occurrenceId, OCCURRENCE);
       await enrollment(uid, agentId);
@@ -262,6 +271,7 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
     readWakeConfiguration(input) { return safe(async () => {
       const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), releaseSha = valid(input.releaseSha, SHA);
       const activeOnly = input.activeOnly === true;
+      const expectPaused = input.expectPaused === true;
       await enrollment(uid, agentId, releaseSha, activeOnly);
       if (typeof getWakeBinding !== 'function') throw new TransportError('unconfigured', false);
       const wake = await getWakeBinding({ uid, agentId, releaseSha });
@@ -276,18 +286,21 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       try { result = JSON.parse(execution.stdout); } catch { throw new TransportError('runtime_readback_invalid'); }
       if (result?.health?.ok !== true || result.health.releaseSha !== releaseSha
         || result.health.relayBindingHash !== createHash('sha256').update(wake.token).digest('hex')) return { ready: false };
-      try { validateMaritimeScheduleSnapshot({ schema_version: 1, tenantId: uid, releaseSha, paused: false, schedules: result.schedules }, uid, releaseSha); }
+      try { validateMaritimeScheduleSnapshot({ schema_version: 1, tenantId: uid, releaseSha, paused: expectPaused, schedules: result.schedules }, uid, releaseSha); }
       catch { return { ready: false }; }
+      if (expectPaused && result.schedules.length !== 0) return { ready: false };
       return { ready: true, schedules: result.schedules };
     }); },
     writeScheduleSnapshot(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
       const snapshot = structuredClone(input.snapshot);
       const row = await enrollment(uid, agentId);
+      const billingStop = input.billingStop === true;
       try {
         validateMaritimeScheduleSnapshot(snapshot, uid, row.release_sha);
         const paused = row.status === 'paused' || Boolean(row.paused_at);
-        if (snapshot.paused !== paused || (paused ? snapshot.schedules.length !== 0
+        if (billingStop && (!['active', 'paused'].includes(row.status) || snapshot.paused !== true || snapshot.schedules.length !== 0)) throw new Error();
+        if (snapshot.paused !== (paused || billingStop) || (paused || billingStop ? snapshot.schedules.length !== 0
           : row.status !== 'active' || !snapshot.schedules.some(entry => entry.id === `lm-report:${uid}`))) throw new Error();
       } catch { throw new TransportError('schedule_invalid', false); }
       await wakeGuest(uid, agentId);

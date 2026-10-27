@@ -5,25 +5,45 @@ metrics, and evidence live in `startup-context.json` and must not be copied here
 
 ## Product Overview
 
-Life Manager is a proactive manager for a person's body, mind, and money. It chooses work and priorities,
-executes ongoing workflows without daily instructions, verifies external outcomes, and reports completed
-work and recorded revenue. User-defined goals and budgets are not required to start.
-The hosted target is email signup followed by autonomous work and a daily email report; Telegram is optional.
-This complete hosted earning journey is in development, distinct from the current Calendar offer below.
-The local self-hosted runtime and the cloud product are two delivery modes for the same Life Manager core.
+Life Manager is one proactive general agent for a person's work, income opportunities, money, body, mind,
+and everyday life. It chooses worthwhile priorities inside the authority the customer delegates, carries
+out ongoing workflows without daily task prompts, checks external outcomes, and reports what actually
+happened. A user-defined task or goal is not required to start.
 
-### Cloud-first Travel wedge (first commercial path)
+The product has self-hosted and managed Cloud run modes, plus agent-client integrations. The paid Cloud
+target is Google identity signup plus one informed setup authorization, then an always-on agent in a
+tenant-isolated Maritime VM. It uses the verified signup email where a provider supports it, reports
+results by email, and does not request Google Calendar as a prerequisite. Google identity does not grant
+Gmail inbox access; verification mail requires a separately disclosed tenant mailbox or explicit mailbox
+permission. This complete Cloud journey is not yet end-to-end verified.
 
-The first cloud offer is a Web-first Google Calendar travel-time agent. A visitor opens the public `/lm`
-page, connects Google Calendar, grants Google identity and Calendar permissions, and Life Manager starts
-processing eligible events automatically in the backend. As soon as the selected Calendar is confirmed
-ACTIVE, the Web page shows the connected state and hard paywall; it does not wait for a scan or Travel
-block. Calendar is the daily product surface; the Web page is for connecting and billing, with no dashboard
-or chat thread. Life Manager does not read Gmail. Events with unresolved locations or routes stay unchanged
-instead of receiving guessed travel times. The offer uses the existing seven-day card-required trial and
-USD 29/month price. Recurring automation starts only after Stripe confirms the trial or paid subscription.
-Google's identity check is still required; do not describe this flow as login-free or claim that the user
-never has to authorize Calendar.
+### Cloud-first income workflow (product target)
+
+The first intended Cloud income workflow is Capafy Publisher work: the agent evaluates and prepares useful
+Skills, submits only through an eligible customer's single Publisher account, follows official review,
+checks published and sales records, and reports verified outcomes and costs. It is an LLM-driven browser
+workflow grounded in observed page state; deterministic code protects tenant isolation, secrets, budgets,
+Stop, receipts, and replay safety. The agent does not create duplicate accounts or invent customer facts.
+
+The current Capafy Publisher Agreement v1.2 requires legal acceptance, age and supported-region/sanctions
+eligibility, accurate identity and contact details, one Publisher Account per person or entity, a public
+support email, and a non-refundable US$0.99 application fee. It also requires accurate payout/tax details
+and human review of every Skill. Whether payout details can be deferred is unconfirmed. One-time setup
+authorization can remove daily Life Manager prompts; it cannot bypass an eligibility, identity, fee, or
+other provider gate. Capafy review is controlled by the platform, and sales are uncertain. Do not promise
+automatic approval or earnings.
+
+Current Maritime source only observes redacted public text, searches public GET forms, navigates allowlisted
+public pages, and follows safe links from the latest observation. It cannot register or log in to Capafy,
+read verification mail, publish, read sales, or confirm payouts. The registration-to-earnings path is still
+in development.
+
+### Current public website offer
+
+The public `aniccaai.com/lm` readback still leads with Google Calendar travel-time planning and the old
+USD 29/month, seven-day card-required trial. The same-origin `/maritime` route is not live. This describes
+the currently published page, not the Life Manager Cloud product definition or the Capafy-first Cloud
+target. Do not route Cloud acquisition to a broken or misleading entry point.
 
 ## Target Audience
 
@@ -31,9 +51,10 @@ The first user is a busy founder or professional whose calendar, applications, h
 and follow-ups are fragmented across services. The broader audience is anyone who knows what would improve
 their life but repeatedly loses momentum between intention and execution.
 
-For the Cloud Travel wedge, start with Japanese-speaking professionals who use Google Calendar for
-in-person meetings, appointments, classes, and events, and repeatedly check both the event time and route
-because they are unsure when to leave.
+For Cloud, start with global professionals and creators who want to turn useful work into measurable income
+but do not want to manage an agent's tasks every day. Capafy Publisher availability and eligibility vary by
+country. A smartphone-first interface is the intended customer surface; the agent's workspace runs in the
+Cloud tenant, not on the customer's phone.
 
 ## Core Pain / Job to Be Done
 
@@ -41,8 +62,9 @@ People do not need another dashboard that only describes their problems. They ne
 keeps their life moving: find the next worthwhile action, execute it within delegated boundaries, preserve
 receipts, and report what actually happened. The job is to reduce the agency gap without hiding uncertainty.
 
-For Cloud Travel, the immediate job is narrower: stop repeatedly checking Calendar and Maps to work out
-when to leave. A calendar reminder at the event start does not solve the missed-travel-time problem.
+For Cloud, the immediate job is to close the gap between choosing an income opportunity and repeatedly
+shipping, distributing, verifying, and improving the work. A static dashboard or chat that waits for a new
+task each day does not solve the follow-through problem.
 
 ## Physical / Mental / Financial Organs
 
@@ -61,9 +83,11 @@ user has delegated authority, it performs the action, verifies the result, recor
 it in language a non-technical person can understand. Where action is unsafe or unauthorized, it fails closed
 and creates a concrete recovery task instead of inventing success.
 
-For Cloud Travel, the Web connection starts the work and Calendar shows the result. Eligible Travel blocks
-are added automatically; uncertain events remain untouched. Do not promise that the product can guarantee
-the user will never be late.
+For Cloud, the customer authorizes a bounded workspace once; the agent should then choose permitted next
+actions, use its browser to observe and act, verify results, and report through email without daily task
+prompts. Every external action needs an auditable receipt, and unknown outcomes stop blind retries. Provider
+eligibility, human review, marketplace sales, and settlement remain external facts; never turn a proposed
+action or a review-pending listing into an earnings claim.
 
 ## Alternatives / Competition
 
@@ -74,8 +98,9 @@ while reusing proven rails and open-source components instead of rebuilding ever
 
 ## Objections
 
-- **Can it be trusted with sensitive data?** Start locally, request the least privilege, separate read and
-  trade permissions, keep an auditable ledger, and never expose credentials in reports or public artifacts.
+- **Can it be trusted with sensitive data?** Use a tenant-isolated Cloud workspace, request the least
+  privilege, separate read and trade permissions, keep an auditable ledger, and never expose credentials in
+  reports or public artifacts. Google identity is not Gmail inbox permission.
 - **Will it claim actions it did not complete?** No. A successful action requires a receipt or an independently
   verifiable result. Attempts without evidence are reported as incomplete.
 - **Will it guarantee wealth or investment returns?** No. It can measure spending, surface opportunities,
@@ -98,15 +123,12 @@ what happened, where, when, what evidence exists, and what comes next, with tapp
 
 ## Current Proof and Unknowns
 
-The repository and Telegram entry point are public. Local and cloud components exist, and several specialist
-loops have implementation evidence in the repository. User count, revenue, retention, complete personal-bank
-coverage, production investing performance, a public demo, and the founder video must be treated as unknown
-until the current evidence source verifies each claim. Old Anicca product traction is not Life Manager traction.
-
-The public Web entry and a production retry page are verified. A dedicated test Google identity has not
-completed the real OAuth callback or Calendar consent; synthetic tests are not a customer-success claim.
-Use the Web funnel report and Stripe as the sources for current Cloud conversion and revenue. Do not infer
-MRR, users, or retention from visits, trial offers, or the existence of a $29 price.
+The repository and Telegram entry point are public. Self-hosted and Cloud components exist in source, but
+there is no verified Capafy signup-to-earnings Cloud journey. The public `/lm` page remains Calendar-first,
+and same-origin `/maritime` is not live. No Cloud billing entitlement, completed publisher onboarding,
+approved publication, user sale, payout, or customer MRR is verified. User count, revenue, retention,
+production investing performance, a public Cloud demo, and founder video must be treated as unknown until
+current evidence supports each claim. Old Anicca traction is not Life Manager traction.
 
 ## Fundraising Goals
 
@@ -114,8 +136,9 @@ Use accelerators and aligned investors to improve distribution, integrations, se
 around Life Manager. Applications must describe the current product truthfully, adapt to each program's actual
 thesis, and track submission, confirmation, reply, meeting, and outcome as one evidence-backed funnel.
 
-The Cloud Travel business target is USD 10,000 gross MRR. At the existing USD 29/month price, the plan
-requires 345 active paid subscribers; this is arithmetic, not a forecast. Optimize from measured
-landing → Calendar authorization → Calendar ACTIVE → paywall → card-backed trial → paid invoice → renewal,
-refund, and cancellation cohorts. Track the first confirmed Travel block separately as activation value; it
-does not gate the paywall or trial offer.
+The company target is USD 10,000 Cloud subscription MRR; the Capafy-first Cloud price and trial are
+undecided. Capafy customer sales/proceeds are not Anicca MRR. Measure the full funnel from Cloud signup and
+consent through isolated VM activation, verified provider work, official review/sales readback, delivered
+reports, subscription invoices, renewals, refunds, costs, and cancellations. Keep customer sales, settled
+payouts, cash received, Cloud subscription revenue, and operating costs separate. The target is not achieved
+or forecast until measured.

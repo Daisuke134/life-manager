@@ -52,6 +52,7 @@ function fixture() {
     if(url.endsWith('/exec') && options.method==='POST'&&data.command[0]==='python3')return {ok:true,status:200,json:async()=>({status:'completed',exitCode:0,stdout:JSON.stringify({tenantId:UID,artifactRef:data.command.at(-1),size:16,sha256:createHash('sha256').update('original product').digest('hex')})})};
     if(url.includes('/files/download?'))return {ok:true,status:200,headers:new Headers(oversized?{'content-length':String(20*1024*1024+1)}:{}),body:new ReadableStream({start(c){c.enqueue(download);if(!oversized)c.close();},cancel(){cancelled++;}})};
     if(url.endsWith('/exec') && options.method==='POST') return {ok:true,status:202,json:async()=>(missingExecution?{}:{executionId:'exec-1',status:'running'})};
+    if(url.endsWith('/exec/exec-1')&&options.method==='DELETE')return {ok:true,status:200,json:async()=>({executionId:'exec-1',status:'cancelled',exitCode:-1,stdout:'partial private output',stderr:'private-stderr'})};
     if(url.endsWith('/exec/exec-1')) return {ok:true,status:200,json:async()=>({executionId:'exec-1',status:'completed',exitCode:0,stdout:JSON.stringify(envelope.result),stderr:'private-stderr'})};
     throw new Error('unexpected-test-http');
   };
@@ -126,7 +127,8 @@ test('an accepted dispatch without an execution ID retains an unknown external e
 test('existing cycle adapter consumes real transport contracts and replays the persisted execution only', async () => {
   const f=fixture();await f.transport.ensureAgent(provision);f.ready();await f.transport.readAgent(provision);
   const adapter=createMaritimeManagerLoopAdapter({managerStore:f.managerStore,prepareCycle:f.transport.readWakeConfiguration,
-    dispatchCycle:f.transport.dispatchCycle,readExecution:f.transport.readExecution,readCycleReceipt:f.transport.readCycleReceipt});
+    withControlLock:async(_uid,operation)=>operation(),dispatchCycle:f.transport.dispatchCycle,
+    readExecution:f.transport.readExecution,readCycleReceipt:f.transport.readCycleReceipt});
   const job=buildMaritimeManagerCycleJob({tenantId:UID,occurrenceId:'cycle-1',dateKey:'2026-10-20',releaseSha:SHA});
   const first=await adapter.execute(job);assert.equal(adapter.verify(first.receipt,job),true);
   assert.deepEqual(await adapter.execute(job),first);
@@ -212,6 +214,18 @@ test('pending execution lifecycle is tenant bound and never replays the accepted
  row.status='paused';row.paused_at='2026-10-21T00:00:00.000Z';
  assert.deepEqual(await transport.readExecution(input),{status:'running'});assert.equal(wakes,1);
  await assert.rejects(()=>transport.readExecution({...input,agentId:'foreign'}),/binding/);assert.equal(reads,2);assert.equal(wakes,1);
+});
+
+test('cancel execution uses Maritime DELETE only for its paused tenant agent',async()=>{
+ const f=fixture();await f.transport.ensureAgent(provision);f.ready();await f.transport.readAgent(provision);
+ f.row.status='paused';f.row.paused_at='2026-10-25T21:00:00.000Z';
+ const result=await f.transport.cancelExecution({uid:UID,agentId:'agent-1',executionId:'exec-1'});
+ assert.deepEqual(result,{executionId:'exec-1',status:'cancelled',exitCode:-1});
+ const cancel=f.calls.find(x=>x[0]==='http'&&x[1].endsWith('/exec/exec-1')&&x[2].method==='DELETE');
+ assert.ok(cancel);assert.equal(cancel[2].redirect,'error');
+ await assert.rejects(f.transport.cancelExecution({uid:UID,agentId:'foreign',executionId:'exec-1'}),/binding/);
+ await assert.rejects(f.transport.cancelExecution({uid:UID,agentId:'agent-1',executionId:'exec-1/foreign'}),/invalid/);
+ assert.equal(f.calls.filter(x=>x[0]==='http'&&x[2].method==='DELETE').length,1);
 });
 
 

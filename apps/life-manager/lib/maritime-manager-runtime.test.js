@@ -53,9 +53,14 @@ function executionFixture() {
     nextEligibleAt: null, status: 'completed', errorClass: null } };
   const capturedOutput = JSON.stringify(envelope.result);
   const services = {
+    cloudBillingStore: { async isEntitled() { return true; } },
+    withControlLock: async (_uid, operation) => operation(),
     managerStore: {
       read: async () => structuredClone(enrollment),
-      readCycleDispatch: async () => checkpoint && structuredClone(checkpoint),
+      readCycleDispatch: async (input) => checkpoint
+        && checkpoint.uid === input.uid && checkpoint.agent_id === input.agentId
+        && checkpoint.occurrence_id === input.occurrenceId && checkpoint.date_key === input.dateKey
+        && checkpoint.release_sha === input.releaseSha ? structuredClone(checkpoint) : null,
       claimCycleDispatch: async (input) => {
         if (checkpoint) return { claimed: false, row: structuredClone(checkpoint) };
         checkpoint = { uid: input.uid, agent_id: input.agentId, occurrence_id: input.occurrenceId,
@@ -157,6 +162,86 @@ test('unconfigured adapter and changed job references never dispatch', async () 
   await assert.rejects(createMaritimeManagerLoopAdapter(f.services).execute({ ...job,
     input_refs: { ...job.input_refs, enrollment_ref: 'maritime-enrollment://other-user' } }), /invalid/);
   assert.equal(f.calls.length, 0);
+});
+
+test('cycle execution refuses a tenant without Cloud entitlement before preparation or dispatch', async () => {
+  const f = executionFixture();
+  let entitlementReads = 0;
+  f.services.cloudBillingStore = { async isEntitled(uid) { entitlementReads++; assert.equal(uid, UID); return false; } };
+  await assert.rejects(createMaritimeManagerLoopAdapter(f.services).execute(buildMaritimeManagerCycleJob(cycle)), error =>
+    error.code === 'MARITIME_CLOUD_ENTITLEMENT_REQUIRED');
+  assert.equal(entitlementReads, 1);
+  assert.equal(f.calls.length, 0);
+});
+
+test('provision creation refuses a tenant without Cloud entitlement before VM creation', async () => {
+  const calls = [];
+  const adapter = createMaritimeManagerProvisionAdapter({
+    managerStore: { async read(uid) { return { uid, release_sha: SHA, status: 'pending',
+      consent_version: MANAGER_CONSENT_VERSION, paused_at: null, agent_id: null }; } },
+    cloudBillingStore: { async isEntitled(uid) { assert.equal(uid, UID); return false; } },
+    provisionSource() { calls.push('source'); return { uploadS3Key: 'source/a.zip', archiveSha256: 'b'.repeat(64) }; },
+    async ensureAgent() { calls.push('ensureAgent'); },
+    async readAgent() { return { agentId: 'agent-a', status: 'active' }; },
+  });
+  await assert.rejects(adapter.execute(buildMaritimeManagerProvisionJob({ tenantId: UID, releaseSha: SHA })), error =>
+    error.code === 'MARITIME_CLOUD_ENTITLEMENT_REQUIRED');
+  assert.deepEqual(calls, []);
+});
+
+test('billing stop clears schedules and cancels active runs without revoking user consent', async () => {
+  const row = { uid: UID, release_sha: SHA, status: 'active', paused_at: null, agent_id: 'agent-a',
+    consent_version: MANAGER_CONSENT_VERSION };
+  let schedules = [{ id: `lm-report:${UID}`, prompt: 'lm:report', enabled: true, nextRunAt: '2026-10-27T00:00:00.000Z' }];
+  let writes = 0, executionStatus = 'running', cancelCalls = 0;
+  const adapter = createMaritimeManagerProvisionAdapter({
+    withControlLock: async (_uid, operation) => operation(),
+    managerStore: { async read() { return row; }, async listRecentCycleDispatches() { return [
+      { uid: UID, agent_id: 'agent-a', release_sha: SHA, occurrence_id: 'cycle-1', execution_id: 'exec-a' },
+    ]; } },
+    cloudBillingStore: { async isEntitled() { return false; } },
+    async readExecution({ executionId }) {
+      assert.equal(executionId, 'exec-a');
+      return { executionId, status: executionStatus, exitCode: executionStatus === 'running' ? null : 0 };
+    },
+    async cancelExecution({ executionId }) {
+      assert.equal(executionId, 'exec-a');
+      cancelCalls += 1;
+      executionStatus = 'cancelled';
+      return { executionId, status: executionStatus, exitCode: 0 };
+    },
+    async writeScheduleSnapshot(input) {
+      assert.equal(input.billingStop, true);
+      assert.deepEqual(input.snapshot.schedules, []);
+      writes += 1; schedules = [];
+    },
+    async readWakeConfiguration(input) {
+      assert.equal(input.expectPaused, true);
+      return { ready: schedules.length === 0, schedules };
+    },
+  });
+  const job = buildMaritimeManagerProvisionJob({ tenantId: UID, releaseSha: SHA,
+    phase: 'billing-stop', eventId: 'evt_cloudended' });
+  const first = await adapter.execute(job);
+  assert.equal(adapter.verify(first.receipt, job), true);
+  assert.equal(first.receipt.consent_revoked, false);
+  assert.equal(writes, 1);
+  assert.equal(cancelCalls, 1, 'the stop cancels an active tenant execution');
+  await adapter.execute(job);
+  assert.equal(writes, 1, 'same Stripe event replay uses the completed stop readback');
+  assert.equal(cancelCalls, 1, 'replaying the stop does not cancel a terminal execution twice');
+
+  let skippedWrites = 0;
+  const resubscribed = createMaritimeManagerProvisionAdapter({
+    withControlLock: async (_uid, operation) => operation(),
+    managerStore: { async read() { return row; } },
+    cloudBillingStore: { async isEntitled() { return true; } },
+    async writeScheduleSnapshot() { skippedWrites += 1; },
+  });
+  const skipped = await resubscribed.execute(job);
+  assert.equal(skipped.receipt.status, 'superseded');
+  assert.equal(resubscribed.verify(skipped.receipt, job), true);
+  assert.equal(skippedWrites, 0, 'resubscription prevents a stale billing stop');
 });
 
 test('completed cycle is readable through the existing common receipt contract', async () => {
@@ -271,7 +356,7 @@ test('daily report adapter sends through existing delivery and reconciles withou
 test('provision create and configure are separate stable jobs with read-only reconciliation',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'Asia/Tokyo'};
  const calls=[];let status='deploying',ready=false,schedules=[];
- const services={withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+ const services={cloudBillingStore:{isEntitled:async()=>true},withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
   ensureAgent:async()=>{calls.push('create');return {agentId:'agent-a',status};},
   readAgent:async()=>{calls.push('readAgent');return {agentId:'agent-a',status};},
   writeScheduleSnapshot:async input=>{calls.push('schedule');schedules=input.snapshot.schedules;},
@@ -311,7 +396,7 @@ test('consent recovery provision jobs are anchored and preserve their stable ide
  assert.equal(configure.job_id,buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure',resumeAt}).job_id);
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,
   consent_v2_at:resumeAt,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
- const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},readAgent:async()=>({agentId:'agent-a',status:'active'}),
+ const adapter=createMaritimeManagerProvisionAdapter({cloudBillingStore:{isEntitled:async()=>true},managerStore:{read:async()=>row},readAgent:async()=>({agentId:'agent-a',status:'active'}),
   provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)})});
  const proof=await adapter.reconcile({...create,available_at:row.created_at});assert.equal(proof.state,'present');
  const next=await adapter.continuation({...create,available_at:row.created_at},proof.receipt);
@@ -323,7 +408,7 @@ test('reconsented configure continuation seeds the persisted resume occurrence i
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,
   consent_v2_at:resumeAt,paused_at:null,created_at:'2026-09-01T00:00:00.000Z',timezone:'UTC'};
  let ready=false,schedules=[],seededReport=null;
- const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},withControlLock:async(_uid,operation)=>operation(),
+ const adapter=createMaritimeManagerProvisionAdapter({cloudBillingStore:{isEntitled:async()=>true},managerStore:{read:async()=>row},withControlLock:async(_uid,operation)=>operation(),
   writeScheduleSnapshot:async input=>{schedules=input.snapshot.schedules;},configureWake:async()=>{ready=true;},
   readWakeConfiguration:async()=>({ready,schedules}),seedInitialReport:async plan=>{seededReport=plan;}});
  const job={...buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure',resumeAt}),available_at:resumeAt};
@@ -338,7 +423,7 @@ test('reconsented configure continuation seeds the persisted resume occurrence i
 test('first configure readback failure happens after settings and recovers read-only',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
  let writes=0,reloads=0,reads=0,schedules=[];
- const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+ const adapter=createMaritimeManagerProvisionAdapter({cloudBillingStore:{isEntitled:async()=>true},withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
   writeScheduleSnapshot:async input=>{writes++;schedules=input.snapshot.schedules;},configureWake:async()=>{reloads++;},
   readWakeConfiguration:async()=>{if(++reads===1)throw new Error('temporary read failure');return {ready:reloads>0,schedules};},seedInitialReport:async()=>{},
  });
@@ -388,7 +473,7 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
  for(const bound of [true,false]){
   const row={uid:UID,agent_id:bound?'agent-a':null,release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
   let revoked=false,revokeCalls=0,writes=0,schedules=[{id:'old'}];
-  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row,listRecentCycleDispatches:async()=>[]},
    isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;revokeCalls++;},
    writeScheduleSnapshot:async input=>{assert.equal(input.snapshot.paused,true);assert.deepEqual(input.snapshot.schedules,[]);writes++;schedules=[];},
    readWakeConfiguration:async()=>({ready:true,schedules}),
@@ -402,12 +487,95 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
  }
 });
 
+test('pause cleanup cancels recent tenant executions and confirms the terminal provider readback',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
+ let revoked=false,schedules=[{id:'old'}],cancelled=[];
+ const dispatches=[
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-queued',date_key:'2026-10-21',execution_id:'exec-queued'},
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-pending',date_key:'2026-10-21',execution_id:'exec-pending'},
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-running',date_key:'2026-10-21',execution_id:'exec-running'},
+  {uid:UID,agent_id:'agent-a',release_sha:SHA,occurrence_id:'cycle-completed',date_key:'2026-10-21',execution_id:'exec-completed'},
+ ];
+ const initialStatus={'exec-queued':'queued','exec-pending':'pending','exec-running':'running','exec-completed':'completed'};
+ const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),
+  managerStore:{read:async()=>row,listRecentCycleDispatches:async input=>{assert.deepEqual(input,{uid:UID,agentId:'agent-a',releaseSha:SHA});return dispatches;}},
+  isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+  writeScheduleSnapshot:async input=>{assert.deepEqual(input.snapshot.schedules,[]);schedules=[];},
+  readWakeConfiguration:async()=>({ready:true,schedules}),
+  readExecution:async input=>({executionId:input.executionId,status:cancelled.includes(input.executionId)?'cancelled':initialStatus[input.executionId],exitCode:0}),
+  cancelExecution:async input=>{cancelled.push(input.executionId);return {executionId:input.executionId,status:'cancelled',exitCode:-1};},
+ });
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const proof=await adapter.reconcile(job);
+ assert.equal(proof.state,'present');assert.equal(adapter.verify(proof.receipt,job),true);
+ assert.equal(proof.receipt.checked_execution_count,4);
+ assert.match(proof.receipt.execution_status_sha256,/^[0-9a-f]{64}$/);
+ assert.deepEqual(cancelled,['exec-queued','exec-pending','exec-running']);
+ assert.equal((await adapter.reconcile(job)).state,'present');
+ assert.deepEqual(cancelled,['exec-queued','exec-pending','exec-running']);
+});
+
+test('pause cleanup remains unconfirmed while an execution survives provider cancellation',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
+ let revoked=false,schedules=[{id:'old'}];
+ const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),
+  managerStore:{read:async()=>row,listRecentCycleDispatches:async()=>[{uid:UID,agent_id:'agent-a',release_sha:SHA,
+   occurrence_id:'cycle-running',date_key:'2026-10-21',execution_id:'exec-running'}]},
+  isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+  writeScheduleSnapshot:async()=>{schedules=[];},readWakeConfiguration:async()=>({ready:true,schedules}),
+  readExecution:async()=>({status:'running'}),
+  cancelExecution:async input=>({executionId:input.executionId,status:'running'}),
+ });
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const proof=await adapter.reconcile(job);
+ assert.equal(proof.state,'unknown');assert.equal(proof.retryable,false);
+ assert.equal(proof.errorClass,'maritime_pause_cleanup_unconfirmed');
+});
+
 
 function controlMutex(){let tail=Promise.resolve();return async(_uid,operation)=>{const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;try{return await operation();}finally{release();}};}
+test('Stop serializes with a dispatch in flight and cancels its persisted execution before confirming pause',async()=>{
+ const f=executionFixture(),lock=controlMutex();f.services.withControlLock=lock;
+ let enterDispatch,releaseDispatch,cancelled=false,revoked=false,schedules=[];
+ const entered=new Promise(resolve=>{enterDispatch=resolve;}),gate=new Promise(resolve=>{releaseDispatch=resolve;});
+ f.services.dispatchCycle=async()=>{enterDispatch();await gate;return {executionId:'exec-1'};};
+ f.services.managerStore.listRecentCycleDispatches=async({uid,agentId,releaseSha})=>{
+  assert.deepEqual({uid,agentId,releaseSha},{uid:UID,agentId:'agent-a',releaseSha:SHA});
+  const row=f.checkpoint();return row?[{uid,agent_id:agentId,release_sha:releaseSha,occurrence_id:row.occurrence_id,
+    date_key:row.date_key,execution_id:row.execution_id}]:[];
+ };
+ f.services.readExecution=async({executionId})=>({executionId,status:cancelled?'cancelled':'running',exitCode:cancelled?-1:undefined});
+ f.services.cancelExecution=async({executionId})=>{cancelled=true;return {executionId,status:'cancelled',exitCode:-1};};
+ const cycleAdapter=createMaritimeManagerLoopAdapter(f.services),cycleJob=buildMaritimeManagerCycleJob(cycle);
+ const cycleExecution=cycleAdapter.execute(cycleJob).catch(error=>error);
+ await entered;
+ f.enrollment.status='paused';f.enrollment.paused_at='2026-10-25T21:00:00.000Z';
+ const provisionAdapter=createMaritimeManagerProvisionAdapter({withControlLock:lock,
+  managerStore:{read:async()=>f.enrollment,listRecentCycleDispatches:f.services.managerStore.listRecentCycleDispatches},
+  isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+  writeScheduleSnapshot:async input=>{assert.deepEqual(input.snapshot.schedules,[]);schedules=[];},
+  readWakeConfiguration:async()=>({ready:true,schedules}),
+  readExecution:f.services.readExecution,cancelExecution:f.services.cancelExecution,
+ });
+ const pauseJob=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const cleanup=provisionAdapter.reconcile(pauseJob);
+ const early=await Promise.race([cleanup.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15))]);
+ assert.equal(early,false,'pause waits until the in-flight dispatch has an immutable execution id');
+ releaseDispatch();
+ const cycleError=await cycleExecution;
+ assert.match(cycleError.message,/pending/);
+ const proof=await cleanup;
+ assert.equal(proof.state,'present');assert.equal(provisionAdapter.verify(proof.receipt,pauseJob),true);
+ assert.equal(proof.receipt.checked_execution_count,1);assert.equal(cancelled,true);
+ const next=await cycleAdapter.continuation({...cycleJob,available_at:'2026-10-25T21:00:00.000Z'});
+ assert.equal(next,null);
+ await assert.rejects(cycleAdapter.execute(buildMaritimeManagerCycleJob({...cycle,occurrenceId:'cycle-after-stop'})),/paused/);
+});
+
 test('pause final confirmation waits for the older configure writer before clearing schedules',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',consent_version:MANAGER_CONSENT_VERSION,paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
  let enter,release;const entered=new Promise(resolve=>{enter=resolve;}),gate=new Promise(resolve=>{release=resolve;});let schedules=[],revoked=false;
- const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row)},withControlLock:controlMutex(),
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row),listRecentCycleDispatches:async()=>[]},withControlLock:controlMutex(),
   writeScheduleSnapshot:async input=>{if(!input.snapshot.paused){enter();await gate;}schedules=input.snapshot.schedules;},
   configureWake:async()=>{},readWakeConfiguration:async()=>({ready:true,schedules}),isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
  });

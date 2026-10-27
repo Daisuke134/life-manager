@@ -3,18 +3,25 @@ const { createHash } = require("node:crypto");
 const { isDeepStrictEqual } = require("node:util");
 const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
-function buildMaritimeManagerProvisionJob({ tenantId, releaseSha, phase = "create", resumeAt = null }) {
+function buildMaritimeManagerProvisionJob({ tenantId, releaseSha, phase = "create", resumeAt = null, eventId = null, stopAttempt = 0 }) {
   if (!/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)
-    || !/^[0-9a-f]{40}$/.test(releaseSha) || !["create", "configure", "pause"].includes(phase)
+    || !/^[0-9a-f]{40}$/.test(releaseSha) || !["create", "configure", "pause", "billing-stop"].includes(phase)
+    || (phase === "billing-stop" ? !/^evt_[A-Za-z0-9]+$/.test(eventId || "") : eventId !== null)
+    || (phase === "billing-stop" && resumeAt !== null)
+    || !Number.isInteger(stopAttempt) || stopAttempt < 0 || stopAttempt > 32
+    || (phase !== "billing-stop" && stopAttempt !== 0)
     || (resumeAt !== null && (typeof resumeAt !== "string" || !Number.isFinite(Date.parse(resumeAt))
       || new Date(resumeAt).toISOString() !== resumeAt))) throw new Error("maritime_provision_job_invalid");
-  const namespace = resumeAt === null ? `v1:${tenantId}` : `v2:${tenantId}:${resumeAt}`;
+  const namespace = phase === "billing-stop" ? `v1:${tenantId}:${phase}:${eventId}:${releaseSha}${stopAttempt === 0 ? "" : `:${stopAttempt}`}`
+    : resumeAt === null ? `v1:${tenantId}` : `v2:${tenantId}:${resumeAt}`;
   const digest = createHash("sha256").update(`maritime-manager-provision:${namespace}${phase === "create" ? "" : ":" + phase}`).digest("hex");
   return buildRuntimeJob({ jobId: `maritime-provision:${digest}`, tenantId,
     loopId: "maritime.manager", capability: "maritime.manager.provision", effectClass: "money",
     effectKey: `maritime-provision://${digest}`, maxAttempts: 1,
     inputRefs: { enrollment_ref: `maritime-enrollment://${tenantId}`, release_ref: `release://git/${releaseSha}`,
       ...(phase !== "create" ? { provision_phase_ref: `maritime-provision-phase://${phase}` } : {}),
+      ...(phase === "billing-stop" ? { provision_request_ref: `stripe-event://${eventId}` } : {}),
+      ...(phase === "billing-stop" && stopAttempt > 0 ? { provision_retry_ref: `maritime-billing-stop-retry://${stopAttempt}` } : {}),
       ...(resumeAt !== null ? { provision_resume_ref: `maritime-provision-resume://${encodeURIComponent(resumeAt)}` } : {}) } });
 }
 function managerDate(value) {
@@ -116,6 +123,11 @@ function verifyCycleReceipt(receipt, job) {
 }
 function createMaritimeManagerLoopAdapter(services = {}) {
   const store = services.managerStore;
+  function controlLock(tenantId, operation) {
+    const lock = services.withControlLock || ((uid, callback) => require('./runtime-job-store.js')
+      .withRuntimeTenantControlLock({ tenantId: uid }, callback, services.storeOptions || {}));
+    return lock(tenantId, operation);
+  }
   function configured(requirePrepare = false) {
     if (!store || ['read', 'readCycleDispatch', 'claimCycleDispatch', 'bindCycleExecution'].some(key => typeof store[key] !== 'function')
       || ['dispatchCycle', 'readExecution', 'readCycleReceipt'].some(key => typeof services[key] !== 'function')
@@ -144,6 +156,13 @@ function createMaritimeManagerLoopAdapter(services = {}) {
     if (enrollment.status === 'paused' || enrollment.paused_at) throw new CycleError('maritime_cycle_paused', false);
     if (!managerConsentCurrent(enrollment)) throw new CycleError('maritime_cycle_consent_required', false);
     if (enrollment.status !== 'active' || enrollment.release_sha !== c.releaseSha) throw new CycleError('maritime_cycle_inactive', false);
+  }
+  async function cloudEntitled(tenantUid) {
+    if (typeof services.cloudBillingStore?.isEntitled !== "function") throw new CycleError('maritime_cloud_billing_unconfigured', false);
+    let entitled;
+    try { entitled = await services.cloudBillingStore.isEntitled(tenantUid); }
+    catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+    if (entitled !== true) throw new CycleError('maritime_cloud_entitlement_required', false);
   }
   async function inspect(job, c, identity, executionId) {
     const execution = await services.readExecution({ uid: c.tenantId, agentId: identity.agentId, executionId });
@@ -178,9 +197,17 @@ function createMaritimeManagerLoopAdapter(services = {}) {
         let executionId;
         if (row) {
           executionId = checkpoint(row, bound.identity);
-          if (!executionId) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
+          if (!executionId) {
+            executionId = await controlLock(c.tenantId, async () => {
+              const latest = await store.readCycleDispatch(bound.identity);
+              const persisted = checkpoint(latest, bound.identity);
+              if (!persisted) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
+              return persisted;
+            });
+          }
         } else {
           active(bound.enrollment, c);
+          await cloudEntitled(c.tenantId);
           let ready, preparationErrorClass = 'MARITIME_GUEST_NOT_READY';
           try { ready = await services.prepareCycle({ uid: c.tenantId, agentId: bound.identity.agentId, releaseSha: c.releaseSha }); }
           catch (error) {
@@ -190,21 +217,36 @@ function createMaritimeManagerLoopAdapter(services = {}) {
           if (ready?.ready !== true) return { receipt: deferredCyclePreflight(c, job, bound.identity.agentId, services, preparationErrorClass) };
           const current = await binding(c); active(current.enrollment, c);
           if (!isDeepStrictEqual(current.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown', false);
-          const claim = await store.claimCycleDispatch(bound.identity);
-          if (typeof claim?.claimed !== 'boolean') throw new CycleError('maritime_cycle_checkpoint_invalid');
-          executionId = checkpoint(claim.row, bound.identity);
-          if (!executionId) {
-            if (!claim.claimed) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
-            const current = await binding(c);
-            if (!isDeepStrictEqual(current.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown');
-            active(current.enrollment, c);
+          executionId = await controlLock(c.tenantId, async () => {
+            const locked = await binding(c); active(locked.enrollment, c);
+            await cloudEntitled(c.tenantId);
+            if (!isDeepStrictEqual(locked.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown', false);
+            const prior = await store.readCycleDispatch(bound.identity);
+            if (prior) {
+              const persisted = checkpoint(prior, bound.identity);
+              if (!persisted) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
+              return persisted;
+            }
+            const claim = await store.claimCycleDispatch(bound.identity);
+            if (typeof claim?.claimed !== 'boolean') throw new CycleError('maritime_cycle_checkpoint_invalid');
+            const claimedExecution = checkpoint(claim.row, bound.identity);
+            if (claimedExecution) return claimedExecution;
+            if (!claim.claimed) {
+              const latest = await binding(c); active(latest.enrollment, c);
+              throw new CycleError('maritime_cycle_dispatch_unconfirmed');
+            }
+            const beforeDispatch = await binding(c); active(beforeDispatch.enrollment, c);
+            if (!isDeepStrictEqual(beforeDispatch.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown');
             const dispatched = await services.dispatchCycle({ uid: c.tenantId, agentId: bound.identity.agentId,
               occurrenceId: c.occurrenceId, dateKey: c.dateKey, releaseSha: c.releaseSha });
-            executionId = dispatched?.executionId;
-            if (typeof executionId !== 'string' || !EXECUTION_ID.test(executionId)) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
-            row = await store.bindCycleExecution({ ...bound.identity, executionId });
-            if (checkpoint(row, bound.identity) !== executionId) throw new CycleError('maritime_cycle_checkpoint_invalid');
-          }
+            const acceptedExecution = dispatched?.executionId;
+            if (typeof acceptedExecution !== 'string' || !EXECUTION_ID.test(acceptedExecution)) {
+              throw new CycleError('maritime_cycle_dispatch_unconfirmed');
+            }
+            row = await store.bindCycleExecution({ ...bound.identity, executionId: acceptedExecution });
+            if (checkpoint(row, bound.identity) !== acceptedExecution) throw new CycleError('maritime_cycle_checkpoint_invalid');
+            return acceptedExecution;
+          });
         }
         const proof = await inspect(job, c, bound.identity, executionId);
         if (proof.state === 'present') return { receipt: proof.receipt };
@@ -232,6 +274,8 @@ function createMaritimeManagerLoopAdapter(services = {}) {
       const { enrollment } = await binding(c);
       if (enrollment.status !== 'active' || enrollment.paused_at || enrollment.release_sha !== c.releaseSha
         || !managerConsentCurrent(enrollment)) return null;
+      try { await cloudEntitled(c.tenantId); }
+      catch (error) { if (error?.code === 'MARITIME_CLOUD_ENTITLEMENT_REQUIRED') return null; throw error; }
       const preflight = receipt?.kind === 'maritime_manager_cycle_preflight';
       if (preflight && !verifyCycleReceipt(receipt, job)) throw new CycleError('maritime_cycle_receipt_invalid', false);
       const due = Date.parse(preflight ? receipt.next_eligible_at : job.available_at);
@@ -259,7 +303,10 @@ function provisionContract(job) {
     const normalized = buildRuntimeJob(job);
     const c = { tenantId: normalized.tenant_id, releaseSha: normalized.input_refs.release_ref.slice('release://git/'.length),
       phase: normalized.input_refs.provision_phase_ref === undefined ? 'create'
-        : ['configure', 'pause'].find(phase => normalized.input_refs.provision_phase_ref === `maritime-provision-phase://${phase}`) || null,
+        : ['configure', 'pause', 'billing-stop'].find(phase => normalized.input_refs.provision_phase_ref === `maritime-provision-phase://${phase}`) || null,
+      eventId: normalized.input_refs.provision_request_ref?.slice('stripe-event://'.length) || null,
+      stopAttempt: normalized.input_refs.provision_retry_ref === undefined ? 0
+        : Number(normalized.input_refs.provision_retry_ref.slice('maritime-billing-stop-retry://'.length)),
       resumeAt: normalized.input_refs.provision_resume_ref === undefined ? null
         : decodeURIComponent(normalized.input_refs.provision_resume_ref.slice('maritime-provision-resume://'.length)) };
     if (!isDeepStrictEqual(normalized, buildMaritimeManagerProvisionJob(c))) throw new Error();
@@ -267,6 +314,8 @@ function provisionContract(job) {
   } catch { throw new CycleError('maritime_provision_job_invalid', false); }
 }
 function createMaritimeManagerProvisionAdapter(services = {}) {
+  const emptyExecutionDigest = createHash('sha256').update('[]').digest('hex');
+  const terminalExecutionStatuses = new Set(['completed', 'timed_out', 'cancelled', 'failed']);
   function controlLock(c, operation) {
     const lock = services.withControlLock || ((uid, callback) => require('./runtime-job-store.js').withRuntimeTenantControlLock({ tenantId: uid }, callback));
     return lock(c.tenantId, operation);
@@ -274,7 +323,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
   async function enrollment(c, requireActive = false, allowPaused = false, allowLegacyConsentRead = false) {
     const row = await services.managerStore?.read(c.tenantId);
     if (!row || row.uid !== c.tenantId || row.release_sha !== c.releaseSha) throw new CycleError('maritime_provision_binding_invalid', false);
-    if (c.phase !== 'pause' && !allowLegacyConsentRead && !managerConsentCurrent(row)) throw new CycleError('maritime_provision_consent_required', false);
+    if (!['pause', 'billing-stop'].includes(c.phase) && !allowLegacyConsentRead && !managerConsentCurrent(row)) throw new CycleError('maritime_provision_consent_required', false);
     if (c.phase === 'pause' ? (row.status !== 'paused' || !row.paused_at)
       : ((!allowPaused && (row.status === 'paused' || row.paused_at))
         || (requireActive && row.status !== 'active' && !(allowPaused && (row.status === 'paused' || row.paused_at))))) {
@@ -289,7 +338,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     return { uid: c.tenantId, releaseSha: c.releaseSha, uploadS3Key: value.uploadS3Key, archiveSha256: value.archiveSha256 };
   }
   function snapshot(c, row) {
-    if (c.phase === 'pause') return { schema_version: 1, tenantId: c.tenantId, releaseSha: c.releaseSha, paused: true, schedules: [] };
+    if (['pause', 'billing-stop'].includes(c.phase)) return { schema_version: 1, tenantId: c.tenantId, releaseSha: c.releaseSha, paused: true, schedules: [] };
     const wake = require('./maritime-manager-wake.js');
     const plan = row.consent_v2_at ? wake.buildMaritimeReconsentJobs(row) : wake.buildMaritimeInitialJobs(row);
     const anchor = row.consent_v2_at || row.created_at;
@@ -297,12 +346,22 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       releaseSha: c.releaseSha, status: 'active', nextEligibleAt: plan.cycle.availableAt,
       timezone: row.timezone, nowMs: Date.parse(anchor) });
   }
-  function receipt(c, job, agentId, schedule = null) {
+  function receipt(c, job, agentId, schedule = null, executionSummary = null) {
     if (c.phase === 'pause') {
       const ref = `runtime-stop://${job.job_id.slice('maritime-provision:'.length)}`;
       return { schema_version: 1, kind: 'maritime_manager_pause', status: 'completed', provider: 'runtime',
         tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha, phase: 'pause', agent_id: agentId || null,
-        consent_revoked: true, schedule_sha256: createHash('sha256').update('[]').digest('hex'), external_ref: ref, evidence_refs: [ref] };
+        consent_revoked: true, schedule_sha256: emptyExecutionDigest,
+        checked_execution_count: executionSummary?.count, execution_status_sha256: executionSummary?.digest,
+        external_ref: ref, evidence_refs: [ref] };
+    }
+    if (c.phase === 'billing-stop') {
+      const ref = `runtime-billing-stop://${job.job_id.slice('maritime-provision:'.length)}`;
+      return { schema_version: 1, kind: 'maritime_manager_billing_stop', status: 'completed', provider: 'runtime',
+        tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha, phase: 'billing-stop', agent_id: agentId || null,
+        entitlement_ended: true, stop_skipped: false, consent_revoked: false, schedule_sha256: emptyExecutionDigest,
+        checked_execution_count: executionSummary?.count, execution_status_sha256: executionSummary?.digest,
+        external_ref: ref, evidence_refs: [ref] };
     }
     return { schema_version: 1, kind: 'maritime_manager_provision', status: 'completed', provider: 'maritime',
       tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha, phase: c.phase, agent_id: agentId,
@@ -316,8 +375,21 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
         && value.status === 'completed' && value.provider === 'runtime' && value.tenant_id === c.tenantId
         && value.job_id === job.job_id && value.release_sha === c.releaseSha && value.phase === 'pause'
         && (value.agent_id === null || (typeof value.agent_id === 'string' && EXECUTION_ID.test(value.agent_id)))
-        && value.consent_revoked === true && value.schedule_sha256 === createHash('sha256').update('[]').digest('hex')
+        && value.consent_revoked === true && value.schedule_sha256 === emptyExecutionDigest
+        && Number.isInteger(value.checked_execution_count) && value.checked_execution_count >= 0
+        && value.checked_execution_count <= 32 && /^[0-9a-f]{64}$/.test(value.execution_status_sha256 || '')
         && value.external_ref === `runtime-stop://${job.job_id.slice('maritime-provision:'.length)}`
+        && isDeepStrictEqual(value.evidence_refs, [value.external_ref]));
+      if (c.phase === 'billing-stop') return Boolean(value?.schema_version === 1 && value.kind === 'maritime_manager_billing_stop'
+        && ['completed', 'superseded'].includes(value.status) && value.provider === 'runtime' && value.tenant_id === c.tenantId
+        && value.job_id === job.job_id && value.release_sha === c.releaseSha && value.phase === 'billing-stop'
+        && (value.agent_id === null || (typeof value.agent_id === 'string' && EXECUTION_ID.test(value.agent_id)))
+        && value.consent_revoked === false && value.schedule_sha256 === emptyExecutionDigest
+        && (value.status === 'completed' ? value.entitlement_ended === true && value.stop_skipped === false
+          : value.entitlement_ended === false && value.stop_skipped === true)
+        && Number.isInteger(value.checked_execution_count) && value.checked_execution_count >= 0
+        && value.checked_execution_count <= 32 && /^[0-9a-f]{64}$/.test(value.execution_status_sha256 || '')
+        && value.external_ref === `runtime-billing-stop://${job.job_id.slice('maritime-provision:'.length)}`
         && isDeepStrictEqual(value.evidence_refs, [value.external_ref]));
       return Boolean(value?.schema_version === 1 && value.kind === 'maritime_manager_provision' && value.status === 'completed'
         && value.provider === 'maritime' && value.tenant_id === c.tenantId && value.job_id === job.job_id
@@ -326,6 +398,44 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
         && isDeepStrictEqual(value.evidence_refs, [value.external_ref])
         && (c.phase === 'create' ? value.schedule_sha256 === null : /^[0-9a-f]{64}$/.test(value.schedule_sha256 || '')));
     } catch { return false; }
+  }
+  async function pauseExecutionSummary(c, row, cancelPending) {
+    if (!row.agent_id) return { count: 0, digest: emptyExecutionDigest };
+    if (typeof services.managerStore?.listRecentCycleDispatches !== 'function') {
+      throw new CycleError('maritime_pause_execution_readback_unavailable', false);
+    }
+    const dispatches = await services.managerStore.listRecentCycleDispatches({
+      uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha,
+    });
+    if (!Array.isArray(dispatches) || dispatches.length > 32) {
+      throw new CycleError('maritime_pause_execution_readback_invalid', false);
+    }
+    const seen = new Set();
+    const outcomes = [];
+    for (const dispatch of dispatches) {
+      if (!dispatch || dispatch.uid !== c.tenantId || dispatch.agent_id !== row.agent_id
+        || dispatch.release_sha !== c.releaseSha
+        || typeof dispatch.occurrence_id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(dispatch.occurrence_id)
+        || seen.has(dispatch.occurrence_id)
+        || typeof dispatch.execution_id !== 'string' || !EXECUTION_ID.test(dispatch.execution_id)) {
+        throw new CycleError('maritime_pause_execution_untracked', false);
+      }
+      seen.add(dispatch.occurrence_id);
+      if (typeof services.readExecution !== 'function') throw new CycleError('maritime_pause_execution_readback_unavailable', false);
+      const identity = { uid: c.tenantId, agentId: row.agent_id, executionId: dispatch.execution_id };
+      let result = await services.readExecution(identity);
+      if (['pending', 'queued', 'running'].includes(result?.status) && cancelPending) {
+        if (typeof services.cancelExecution !== 'function') throw new CycleError('maritime_pause_execution_cancel_unavailable', false);
+        result = await services.cancelExecution(identity);
+      }
+      if (!result || result.executionId !== dispatch.execution_id
+        || !terminalExecutionStatuses.has(result.status) || !Number.isInteger(result.exitCode)) {
+        throw new CycleError('maritime_pause_execution_still_running');
+      }
+      outcomes.push({ execution_id_hash: createHash('sha256').update(dispatch.execution_id).digest('hex'), status: result.status });
+    }
+    outcomes.sort((a, b) => a.execution_id_hash.localeCompare(b.execution_id_hash) || a.status.localeCompare(b.status));
+    return { count: outcomes.length, digest: createHash('sha256').update(JSON.stringify(outcomes)).digest('hex') };
   }
   async function inspect(c, job, allowLegacyConsentRead = false) {
     const row = await enrollment(c, c.phase === 'configure', true, allowLegacyConsentRead);
@@ -336,11 +446,37 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       return { state: 'present', receipt: receipt(c, job, agent.agentId) };
     }
     const expected = snapshot(c, row);
+    let executionSummary = null;
+    if (c.phase === 'billing-stop') {
+      if (typeof services.cloudBillingStore?.isEntitled !== 'function') throw new CycleError('maritime_cloud_billing_unconfigured', false);
+      let entitled;
+      try { entitled = await services.cloudBillingStore.isEntitled(c.tenantId); }
+      catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+      if (entitled === true) {
+        const ref = `runtime-billing-stop://${job.job_id.slice('maritime-provision:'.length)}`;
+        return { state: 'present', receipt: { schema_version: 1, kind: 'maritime_manager_billing_stop', status: 'superseded',
+          provider: 'runtime', tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha,
+          phase: 'billing-stop', agent_id: row.agent_id || null, entitlement_ended: false, stop_skipped: true,
+          consent_revoked: false, schedule_sha256: emptyExecutionDigest, checked_execution_count: 0,
+          execution_status_sha256: emptyExecutionDigest, external_ref: ref, evidence_refs: [ref] } };
+      }
+      if (!row.agent_id) return { state: 'present', receipt: receipt(c, job, null, snapshot(c, row),
+        { count: 0, digest: emptyExecutionDigest }) };
+      if (typeof services.readWakeConfiguration !== 'function') throw new CycleError('maritime_billing_stop_readback_unavailable', false);
+      const loaded = await services.readWakeConfiguration({ uid: c.tenantId, agentId: row.agent_id,
+        releaseSha: c.releaseSha, expectPaused: true });
+      if (loaded?.ready !== true || !Array.isArray(loaded.schedules) || loaded.schedules.length !== 0) {
+        return { state: 'unknown', errorClass: 'maritime_billing_stop_readback_unconfirmed', nextAction: 'inspect_billing_stop', retryable: false };
+      }
+      const executionSummary = await pauseExecutionSummary(c, row, false);
+      return { state: 'present', receipt: receipt(c, job, row.agent_id, snapshot(c, row), executionSummary) };
+    }
     if (c.phase === 'pause') {
       if (typeof services.isConsentRevoked !== 'function' || !await services.isConsentRevoked(c.tenantId)) {
         return { state: 'unknown', errorClass: 'maritime_pause_consent_unconfirmed', nextAction: 'inspect_consent_state', retryable: false };
       }
-      if (!row.agent_id) return { state: 'present', receipt: receipt(c, job, null, expected) };
+      executionSummary = await pauseExecutionSummary(c, row, false);
+      if (!row.agent_id) return { state: 'present', receipt: receipt(c, job, null, expected, executionSummary) };
     }
     const loaded = await services.readWakeConfiguration({ uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha });
     if (loaded?.ready && c.phase === 'configure' && (row.status === 'paused' || row.paused_at)) {
@@ -349,7 +485,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     }
     if (!loaded?.ready || !isDeepStrictEqual(loaded.schedules, expected.schedules)) return { state: 'unknown',
       errorClass: 'maritime_provision_configuration_not_loaded', nextAction: 'inspect_agent_deployment', retryable: false };
-    return { state: 'present', receipt: receipt(c, job, row.agent_id, expected) };
+    return { state: 'present', receipt: receipt(c, job, row.agent_id, expected, executionSummary) };
   }
   async function reconcilePause(c, job) {
     const row = await enrollment(c);
@@ -357,24 +493,72 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     if (typeof services.revokeConsent !== 'function') throw new CycleError('maritime_pause_unconfigured', false);
     await services.revokeConsent(c.tenantId);
     if (row.agent_id) await services.writeScheduleSnapshot({ uid: c.tenantId, agentId: row.agent_id, snapshot: snapshot(c, row) });
+    await pauseExecutionSummary(c, row, true);
     return inspect(c, job);
+  }
+  async function reconcileBillingStop(c, job) {
+    const row = await enrollment(c, false, true);
+    let proof;
+    try { proof = await inspect(c, job); } catch { /* Continue to cancel any still-running work under the event-keyed stop. */ }
+    if (proof?.state === 'present') return proof;
+    if (!row.agent_id) return { state: 'present', receipt: receipt(c, job, null, snapshot(c, row), { count: 0, digest: emptyExecutionDigest }) };
+    let entitled;
+    try { entitled = await services.cloudBillingStore?.isEntitled?.(c.tenantId); }
+    catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+    if (entitled === true) return inspect(c, job);
+    if (entitled !== false) throw new CycleError('maritime_cloud_entitlement_unavailable', false);
+    if (typeof services.writeScheduleSnapshot !== 'function') throw new CycleError('maritime_billing_stop_unconfigured', false);
+    await services.writeScheduleSnapshot({ uid: c.tenantId, agentId: row.agent_id, snapshot: snapshot(c, row), billingStop: true });
+    const executionSummary = await pauseExecutionSummary(c, row, true);
+    const loaded = await services.readWakeConfiguration({ uid: c.tenantId, agentId: row.agent_id,
+      releaseSha: c.releaseSha, expectPaused: true });
+    if (loaded?.ready !== true || !Array.isArray(loaded.schedules) || loaded.schedules.length !== 0) {
+      throw new CycleError('maritime_billing_stop_readback_unconfirmed');
+    }
+    return { state: 'present', receipt: receipt(c, job, row.agent_id, snapshot(c, row), executionSummary) };
   }
   return Object.freeze({
     plan: async input => [buildMaritimeManagerProvisionJob(input)],
     async execute(job) {
       const c = provisionContract(job);
-      const row = await enrollment(c, c.phase === 'configure');
+      const row = await enrollment(c, c.phase === 'configure', c.phase === 'billing-stop');
+      if (['create', 'configure'].includes(c.phase)) {
+        if (typeof services.cloudBillingStore?.isEntitled !== 'function') throw new CycleError('maritime_cloud_billing_unconfigured', false);
+        let entitled;
+        try { entitled = await services.cloudBillingStore.isEntitled(c.tenantId); }
+        catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+        if (entitled !== true) throw new CycleError('maritime_cloud_entitlement_required', false);
+      }
       if (c.phase === 'pause') {
         try { const proof = await controlLock(c, () => reconcilePause(c, job)); if (proof.state === 'present') return { receipt: proof.receipt }; }
         catch { /* Retry only idempotent stop cleanup through reconciliation. */ }
         throw new CycleError('maritime_pause_cleanup_unconfirmed');
       }
-      if (c.phase === 'create') await services.ensureAgent(source(c));
+      if (c.phase === 'billing-stop') {
+        try { const proof = await controlLock(c, () => reconcileBillingStop(c, job)); if (proof.state === 'present') return { receipt: proof.receipt }; }
+        catch (error) {
+          if (error instanceof CycleError) throw error;
+          /* A failed readback remains retryable through the same event keyed job. */
+        }
+        throw new CycleError('maritime_billing_stop_unconfirmed');
+      }
+      if (c.phase === 'create') await controlLock(c, async () => {
+        const current = await enrollment(c);
+        let entitled;
+        try { entitled = await services.cloudBillingStore?.isEntitled?.(c.tenantId); }
+        catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+        if (entitled !== true) throw new CycleError('maritime_cloud_entitlement_required', false);
+        return services.ensureAgent(source({ ...c, tenantId: current.uid }));
+      });
       else {
         // Only a freshly claimed configure job writes. Reconciliation never calls execute.
         try {
           const configured = await controlLock(c, async () => {
             const current = await enrollment(c, true);
+            let entitled;
+            try { entitled = await services.cloudBillingStore?.isEntitled?.(c.tenantId); }
+            catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+            if (entitled !== true) throw new CycleError('maritime_cloud_entitlement_required', false);
             const input = { uid: c.tenantId, agentId: current.agent_id, releaseSha: c.releaseSha };
             await services.writeScheduleSnapshot({ ...input, snapshot: snapshot(c, current) });
             await services.configureWake(input);
@@ -391,15 +575,25 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     },
     async reconcile(job) {
       const c = provisionContract(job);
-      try { return c.phase === 'pause' ? await controlLock(c, () => reconcilePause(c, job)) : await inspect(c, job, true); }
-      catch { return { state: 'unknown', errorClass: c.phase === 'pause' ? 'maritime_pause_cleanup_unconfirmed' : 'maritime_provision_readback_unconfirmed',
-        nextAction: c.phase === 'pause' ? 'inspect_paused_schedule' : 'inspect_agent_deployment', retryable: false }; }
+      try { return c.phase === 'pause' ? await controlLock(c, () => reconcilePause(c, job))
+        : c.phase === 'billing-stop' ? await controlLock(c, () => reconcileBillingStop(c, job)) : await inspect(c, job, true); }
+      catch { return { state: 'unknown', errorClass: c.phase === 'pause' ? 'maritime_pause_cleanup_unconfirmed'
+        : c.phase === 'billing-stop' ? 'maritime_billing_stop_unconfirmed' : 'maritime_provision_readback_unconfirmed',
+      nextAction: c.phase === 'pause' ? 'inspect_paused_schedule' : c.phase === 'billing-stop' ? 'inspect_billing_stop' : 'inspect_agent_deployment', retryable: false }; }
     },
     async continuation(job, value) {
       const c = provisionContract(job);
+      if (['pause', 'billing-stop'].includes(c.phase)) return null;
       const row = await services.managerStore?.read(c.tenantId);
       if (!row || row.uid !== c.tenantId || row.status !== 'active' || row.paused_at || row.release_sha !== c.releaseSha
         || !managerConsentCurrent(row)) return null;
+      if (['create', 'configure'].includes(c.phase)) {
+        if (typeof services.cloudBillingStore?.isEntitled !== 'function') throw new CycleError('maritime_cloud_billing_unconfigured', false);
+        let entitled;
+        try { entitled = await services.cloudBillingStore.isEntitled(c.tenantId); }
+        catch { throw new CycleError('maritime_cloud_entitlement_unavailable', false); }
+        if (entitled !== true) return null;
+      }
       if (!verify(value, job) || row.agent_id !== value.agent_id) throw new CycleError('maritime_provision_receipt_invalid');
       if (c.phase === 'create') return { job: buildMaritimeManagerProvisionJob({ ...c, phase: 'configure' }), availableAt: job.available_at };
       const wake = require('./maritime-manager-wake.js');

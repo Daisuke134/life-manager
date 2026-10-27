@@ -476,3 +476,33 @@ test("tenant control lock uses a dedicated bounded transaction and releases on e
  calls.length=0;await assert.rejects(()=>withRuntimeTenantControlLock({tenantId:'tenant-a'},async()=>{throw new Error('fixture failure');},opts),/fixture failure/);
  assert.deepEqual(calls.slice(-2),[['ROLLBACK',undefined],['RELEASE']]);
 });
+
+test("only the two Maritime Capafy capabilities accept their exact tenant-bound identity refs", async () => {
+  const tenant = "lm_11111111-1111-4111-8111-111111111111";
+  const providerRuntime = require("./maritime-manager-provider-runtime.js");
+  const shared = {tenantId:tenant,releaseSha:"b".repeat(40),occurrenceId:"slot:1",
+    cycleJobId:"maritime-cycle:"+"a".repeat(64),artifactRef:"artifact://original/listing.md",
+    accountRef:`account://capafy/${tenant}/seller-1`};
+  const canonicalPrepare = providerRuntime.buildMaritimeCapafyPrepareJob(shared);
+  for (const phase of ["prepare", "publish"]) {
+    const canonical = phase === "prepare" ? canonicalPrepare : providerRuntime.buildMaritimeCapafyPublishJob({
+      ...shared,sourceCycleJobId:shared.cycleJobId,prepareJobId:canonicalPrepare.job_id,agentId:"123",agentVersionId:"456"});
+    const job=buildRuntimeJob(canonical);
+    const refs=canonical.input_refs;
+    assert.deepEqual(job.input_refs,refs);
+    const hydrated=await readCommonJob({tenantId:tenant,jobId:job.job_id},{query:async()=>({rows:[job]})});
+    assert.deepEqual(hydrated.input_refs,refs);
+    const invalids=[
+      {...canonical,capability:"other.publish"}, {...canonical,input_refs:{...refs,api_key:"secret"}},
+      {...canonical,input_refs:{...refs,occurrence_id:"secret://token/value"}},
+      {...canonical,input_refs:{...refs,account_ref:"account://capafy/lm_22222222-2222-4222-8222-222222222222/seller-1"}},
+      {...canonical,input_refs:{...refs,source_cycle_job_id:"arbitrary"}}, {...canonical,max_attempts:2},
+      {...canonical,input_refs:{...refs,agent_id:"secret://token/value"}},
+      {...canonical,job_id:`maritime-capafy-${phase}:`+"d".repeat(64)},
+      ...(phase==="publish"?[{...canonical,input_refs:{...refs,prepare_job_id:"maritime-capafy-prepare:"+"c".repeat(64)}}]:[]),
+    ];
+    for(const bad of invalids) assert.throws(()=>buildRuntimeJob(bad),/invalid|reference-only/);
+    await assert.rejects(readCommonJob({tenantId:tenant,jobId:job.job_id},
+      {query:async()=>({rows:[{...job,input_refs:{...refs,api_key:"secret"}}]})}),/invalid/);
+  }
+});

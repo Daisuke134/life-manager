@@ -1,6 +1,8 @@
 # Historical fingerprints adjudicated in
 # docs/evidence/security/2026-07-29-oss-security-baseline.md.
 # This baseline does not suppress a new secret at a new commit/path/line.
+# P1.5b test-only UUID-shaped idempotency fixture; replaced by a plain fixture in 4b04514.
+010a4f31363056b2206526187c457588c93d4c31:apps/life-manager/lib/maritime-cloud-billing-http.test.js:generic-api-key:30
 # Public attribution_token test fixtures; exact historical fingerprints only.
 bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:114
 929c69d900d5f654fc7716f083c93babb9410c1f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:254
@@ -1088,7 +1090,7 @@ ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-pub
 17d400f225ab4ee320daae337b2e866e0c32884a:products/manager/docs/verification/PHASE06_DIGITAL_V2_RESULT_20261022.json:generic-api-key:191
 # Independently reviewed historical authority-control prose; exact occurrence only.
 a6f8deaf743033dae21132be54d27223293b09f7:products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:generic-api-key:22
-# Redaction test fixture on feat/maritime-provider-chain-20261023 (placeholder "secret-token-abcdefghijkl"); exact occurrence only.
+# PR #8745: synthetic browser-redaction fixture, removed from the current tree; not a credential.
 dbd128f27c963d049ee47c66887720ffa3340cd2:apps/life-manager/maritime/test_browser_mcp.py:generic-api-key:65
 # Historical idempotency-key test fixture; reviewed as non-authentication data.
 010a4f31363056b2206526187c457588c93d4c31:apps/life-manager/lib/maritime-cloud-billing-http.test.js:generic-api-key:30

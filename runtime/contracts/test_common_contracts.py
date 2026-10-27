@@ -28,6 +28,39 @@ def validate(value):
 
 
 class CommonContractTests(unittest.TestCase):
+    def test_maritime_provider_jobs_match_schema_without_leaking_identity_exception(self):
+        script = (
+            "const p=require('./apps/life-manager/lib/maritime-manager-provider-runtime.js');"
+            "const {projectJob}=require('./runtime/contracts/common-record.cjs');"
+            "const tenantId='lm_11111111-1111-4111-8111-111111111111';"
+            "const shared={tenantId,releaseSha:'a'.repeat(40),occurrenceId:'first',"
+            "skillId:'agent-1',disclosureSha256:'c'.repeat(64),"
+            "cycleJobId:'maritime-cycle:'+ 'b'.repeat(64),artifactRef:'artifact://original/listing.md',"
+            "accountRef:'account://capafy/'+tenantId+'/seller-1'};"
+            "const a=p.buildMaritimeCapafyPrepareJob(shared);"
+            "const b=p.buildMaritimeCapafyPublishJob({...shared,sourceCycleJobId:shared.cycleJobId,"
+            "prepareJobId:a.job_id,agentId:'123',agentVersionId:'456'});"
+            "const jobs=[a,b].map(projectJob);"
+            "const identityMismatchRejected=[a,b].every(job=>{"
+            "const bad={...job,job_id:job.job_id.split(':')[0]+':'+'d'.repeat(64)};"
+            "try{projectJob(bad);return false;}catch{return true;}});"
+            "process.stdout.write(JSON.stringify({jobs,identityMismatchRejected}));"
+        )
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, text=True, capture_output=True, check=True)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["identityMismatchRejected"])
+        for job in payload["jobs"]:
+            validate(job)
+            for patch in [
+                {"capability": "unrelated.publish"},
+                {"input_refs": {**job["input_refs"], "api_key": "secret"}},
+                {"input_refs": {**job["input_refs"], "occurrence_id": ["first"]}},
+                {"input_refs": {**job["input_refs"], "account_ref": "secret://token/value"}},
+                {"input_refs": {**job["input_refs"], "artifact_ref": "artifact://../secret"}},
+                {"max_attempts": 2},
+            ]:
+                self.assertFalse(VALIDATOR.is_valid({**job, **patch}), patch)
+
     def test_citizen_identity_matches_the_shared_schema(self):
         script = (
             "const c=require('./runtime/contracts/common-record.cjs');"

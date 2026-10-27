@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import re
 from pathlib import Path
 import subprocess
@@ -13,15 +14,39 @@ TENANT = 'lm_11111111-1111-4111-8111-111111111111'
 
 
 class CloudCycleTest(unittest.TestCase):
-    def test_cloud_binary_is_image_owned_and_parent_profile_is_not_inherited(self):
-        from unittest.mock import patch
-        self.env.update(CAPAFY_CHROMIUM='/parent/browser', CLOAKBROWSER_BINARY_PATH='/parent/browser', CAPAFY_BROWSER_PROFILE='/parent/profile')
-        with patch.object(self.module.os, 'access', return_value=True):
-            self.run_cycle()
+    def test_cycle_owns_tenant_browser_and_passes_only_its_loopback_endpoint(self):
+        self.env.update(CAPAFY_CHROMIUM='/parent/browser', CLOAKBROWSER_BINARY_PATH='/parent/browser',
+                        CAPAFY_BROWSER_PROFILE='/parent/profile',
+                        LM_MARITIME_BROWSER_CDP_URL='http://attacker.invalid:9999')
+        result = self.run_cycle()
+        self.assertEqual(result['status'], 'completed')
         child = self.calls[0][1]['env']
-        self.assertEqual(child['CAPAFY_CHROMIUM'], '/usr/local/bin/lm-cloud-chromium')
-        self.assertEqual(child['CLOAKBROWSER_BINARY_PATH'], '/usr/local/bin/lm-cloud-chromium')
-        self.assertNotIn('CAPAFY_BROWSER_PROFILE', child)
+        self.assertEqual(child['LM_MARITIME_BROWSER_CDP_URL'], 'http://127.0.0.1:9229')
+        self.assertEqual(self.browser_sessions[0]['tenant_id'], TENANT)
+        self.assertEqual(self.browser_sessions[0]['data_root'], self.root)
+        self.assertEqual(self.browser_sessions[0]['profile'], self.home / 'browser' / 'profile')
+        for key in ['CAPAFY_CHROMIUM', 'CLOAKBROWSER_BINARY_PATH', 'CAPAFY_BROWSER_PROFILE']:
+            self.assertNotIn(key, child)
+        self.assertTrue(self.browser_sessions[0]['closed'])
+
+    def test_browser_start_failure_defers_before_runner_and_is_replay_safe(self):
+        class BrokenBrowserSession:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                raise self.module.BrowserSessionError('browser_session_startup_failed')
+
+            def __exit__(self, *_args):
+                return False
+
+        BrokenBrowserSession.module = self.module
+        self.module.BrowserSession = BrokenBrowserSession
+        result = self.run_cycle()
+        self.assertEqual(result['status'], 'deferred')
+        self.assertEqual(result['errorClass'], 'browser_session_startup_failed')
+        self.assertEqual(self.run_cycle(), result)
+        self.assertEqual(self.calls, [])
 
     def test_linux_browser_owner_uses_existing_binary_headlessly(self):
         import os
@@ -78,12 +103,46 @@ class CloudCycleTest(unittest.TestCase):
                     'LIFE_MANAGER_BUILD_WORKSPACE': str(self.work),
                     'AGENT_RUNNER_CONFIG': str(self.config), 'LM_RELEASE_SHA': 'a' * 40}
         self.calls = []
+        self.browser_sessions = []
+        module = self.module
+        browser_sessions = self.browser_sessions
+
+        class FakeBrowserSession:
+            def __init__(self, *, tenant_id, data_root, release_root, **_kwargs):
+                self.cdp_url = 'http://127.0.0.1:9229'
+                self.record = {'tenant_id': tenant_id, 'data_root': Path(data_root),
+                               'release_root': Path(release_root),
+                               'profile': Path(data_root) / tenant_id / 'browser' / 'profile',
+                               'closed': False}
+                browser_sessions.append(self.record)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                self.record['closed'] = True
+                return False
+
+        module.BrowserSession = FakeBrowserSession
 
     def runner(self, command, **options):
         self.calls.append((command, options))
         artifact = Path(command[command.index('--workdir') + 1]) / 'original-product.md'
         artifact.write_text('Original skill and listing prepared for this tenant.')
+        receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+        self.write_action_rows(receipt, [
+            {'at': '2026-10-20T00:00:00Z', 'actionId': 'a' * 32, 'tool': 'browser_navigate',
+             'outcome': 'started', 'origin': 'https://capafy.ai'},
+            {'at': '2026-10-20T00:00:01Z', 'actionId': 'a' * 32, 'tool': 'browser_navigate',
+             'outcome': 'opened', 'origin': 'https://capafy.ai'},
+        ])
         return types.SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'success', 'evidence': [str(artifact)]}), stderr='')
+
+    @staticmethod
+    def write_action_rows(receipt, rows, *, tenant_id=TENANT, occurrence_id='cycle-1', release_sha='a' * 40):
+        identity = {'tenantId': tenant_id, 'occurrenceId': occurrence_id, 'releaseSha': release_sha}
+        receipt.write_text('\n'.join(json.dumps({**identity, **row}) for row in rows) + '\n')
+        receipt.chmod(0o600)
 
     def run_cycle(self, runner=None, occurrence='cycle-1'):
         return self.module.run_cycle(TENANT, occurrence, '2026-10-20', env=self.env,
@@ -104,10 +163,185 @@ class CloudCycleTest(unittest.TestCase):
         self.assertEqual(opts['env']['AGENT_RUNNER_CONFIG'], str(self.config))
         self.assertEqual(opts['env']['AGENT_RUNNER_WORKDIR'], str(occurrence_work))
         self.assertEqual(opts['env']['LIFE_MANAGER_BUILD_WORKSPACE'], str(self.work))
-        self.assertIn('No provider account is connected', opts['input'])
+        self.assertIn('No authorized Publisher identity is connected', opts['input'])
+        self.assertIn('maritime_browser MCP tools', opts['input'])
+        self.assertNotIn('Reuse the existing Capafy factory', opts['input'])
         self.assertNotIn('goal', command)
         self.assertEqual(result['providerReceiptRefs'], [])
         self.assertEqual(len(result['artifactRefs']), 1)
+
+    def test_success_receipt_closes_started_browser_action(self):
+        result = self.run_cycle()
+        action_receipt = self.home / 'receipts/cycle-1/browser-actions.jsonl'
+        self.assertEqual(result['status'], 'completed')
+        self.assertFalse(self.module._browser_action_effect_unknown(
+            action_receipt, os.geteuid(), tenant_id=TENANT,
+            occurrence_id='cycle-1', release_sha='a' * 40,
+        ))
+
+    def test_cycle_accepts_observed_safe_link_receipt_with_page_state_evidence(self):
+        def followed_link(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            observation_id = 'c' * 32
+            state_hash = 'd' * 64
+            rows = [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:03Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '1'},
+                {'at': '2026-10-20T00:00:04Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '1'},
+            ]
+            self.write_action_rows(receipt, rows)
+            return result
+
+        result = self.run_cycle(followed_link)
+        action_receipt = self.home / 'receipts/cycle-1/browser-actions.jsonl'
+        self.assertEqual(result['status'], 'completed')
+        self.assertFalse(self.module._browser_action_effect_unknown(
+            action_receipt, os.geteuid(), tenant_id=TENANT,
+            occurrence_id='cycle-1', release_sha='a' * 40,
+        ))
+
+    def test_cycle_accepts_action_receipts_bound_to_tenant_occurrence_and_release(self):
+        def scoped_actions(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            identity = {'tenantId': TENANT, 'occurrenceId': 'cycle-1', 'releaseSha': 'a' * 40}
+            rows = [
+                {**identity, 'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': 'd' * 64, 'observationId': 'c' * 32, 'linkCount': 1},
+                {**identity, 'at': '2026-10-20T00:00:03Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': 'd' * 64, 'observationId': 'c' * 32, 'linkId': '1'},
+                {**identity, 'at': '2026-10-20T00:00:04Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': 'd' * 64, 'observationId': 'c' * 32, 'linkId': '1'},
+            ]
+            self.write_action_rows(receipt, rows)
+            return result
+
+        result = self.run_cycle(scoped_actions)
+        self.assertEqual(result['status'], 'completed')
+
+    def test_cycle_rejects_action_receipt_for_another_tenant(self):
+        def foreign_tenant_action(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            self.write_action_rows(receipt, [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': 'd' * 64, 'observationId': 'c' * 32, 'linkCount': 1},
+            ], tenant_id='lm_22222222-2222-4222-8222-222222222222')
+            return result
+
+        result = self.run_cycle(foreign_tenant_action)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
+    def test_cycle_rejects_action_receipt_for_another_occurrence(self):
+        def foreign_occurrence_action(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            self.write_action_rows(receipt, [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': 'd' * 64, 'observationId': 'c' * 32, 'linkCount': 1},
+            ], occurrence_id='cycle-2')
+            return result
+
+        result = self.run_cycle(foreign_occurrence_action)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
+    def test_cycle_rejects_action_receipt_for_another_release(self):
+        def foreign_release_action(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            self.write_action_rows(receipt, [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': 'd' * 64, 'observationId': 'c' * 32, 'linkCount': 1},
+            ], release_sha='b' * 40)
+            return result
+
+        result = self.run_cycle(foreign_release_action)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
+    def test_cycle_rejects_link_receipt_from_a_superseded_observation(self):
+        def stale_follow(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            old_observation, old_hash = 'c' * 32, 'd' * 64
+            current_observation, current_hash = '9' * 32, '8' * 64
+            rows = [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': old_hash, 'observationId': old_observation, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:03Z', 'actionId': '1' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': current_hash, 'observationId': current_observation, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:04Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': old_hash, 'observationId': old_observation, 'linkId': '1'},
+                {'at': '2026-10-20T00:00:05Z', 'actionId': 'f' * 32,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': old_hash, 'observationId': old_observation, 'linkId': '1'},
+            ]
+            self.write_action_rows(receipt, rows)
+            return result
+
+        result = self.run_cycle(stale_follow)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
+    def test_cycle_rejects_link_id_outside_the_observed_safe_link_count(self):
+        def unobserved_link(command, **options):
+            result = self.runner(command, **options)
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            observation_id, state_hash, action_id = 'c' * 32, 'd' * 64, 'f' * 32
+            rows = [
+                {'at': '2026-10-20T00:00:02Z', 'actionId': 'e' * 32,
+                 'tool': 'browser_observe', 'outcome': 'read', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkCount': 1},
+                {'at': '2026-10-20T00:00:03Z', 'actionId': action_id,
+                 'tool': 'browser_follow_link', 'outcome': 'started', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '2'},
+                {'at': '2026-10-20T00:00:04Z', 'actionId': action_id,
+                 'tool': 'browser_follow_link', 'outcome': 'opened', 'origin': 'https://capafy.ai',
+                 'stateHash': state_hash, 'observationId': observation_id, 'linkId': '2'},
+            ]
+            self.write_action_rows(receipt, rows)
+            return result
+
+        result = self.run_cycle(unobserved_link)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+
+    def test_unclosed_browser_action_stays_unknown_even_if_runner_reports_success(self):
+        def interrupted_after_dispatch(command, **options):
+            self.calls.append((command, options))
+            artifact = Path(command[command.index('--workdir') + 1]) / 'draft.md'
+            artifact.write_text('draft')
+            receipt = Path(options['env']['LM_MARITIME_BROWSER_RECEIPT'])
+            self.write_action_rows(receipt, [{
+                'at': '2026-10-20T00:00:00Z', 'actionId': 'b' * 32,
+                'tool': 'browser_search', 'outcome': 'started', 'origin': 'https://capafy.ai',
+            }])
+            return types.SimpleNamespace(returncode=0,
+                stdout=json.dumps({'status': 'success', 'evidence': [str(artifact)]}), stderr='')
+
+        result = self.run_cycle(interrupted_after_dispatch)
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'browser_effect_unknown')
+        self.assertEqual(self.run_cycle(interrupted_after_dispatch), result)
+        self.assertEqual(len(self.calls), 1)
 
     def test_cloud_output_schema_requires_literal_owned_file_paths(self):
         def checked(command, **options):

@@ -15,6 +15,8 @@ function row(key,kind,amount,currency='USD',occurredAt='2026-10-21T01:00:00Z'){
  verification:{status:'verified',observed_at:occurredAt,evidence_refs:['capafy://receipt/'+key]}};
 }
 function coverage(){return {tenantId:UID,periodKey,timezone:'Asia/Tokyo',complete:true,currencies:['USD'],evidenceRefs:['capafy://daily/2026-10-21']};}
+function payoutTaxReadback(){const accountRef='account://capafy/'+UID+'/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5';return {
+ provider:'capafy',tenantId:UID,accountRef,status:'verified',evidenceRef:'capafy://payout-tax/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',observedAt:'2026-10-21T03:00:00Z'};}
 test('daily result never turns missing sales, cost or payout observations into zero',()=>{
  const result=buildMaritimeDailyResult({enrollment,periodKey});
  assert.equal(result.financial.gross.status,'unknown');assert.equal(result.financial.costs.status,'unknown');
@@ -23,20 +25,39 @@ test('daily result never turns missing sales, cost or payout observations into z
  assert.match(text,/費用：未確認/);assert.match(text,/利益：未確認/);assert.doesNotMatch(text,/USD 0|¥0/);
 });
 test('verified observations remain subtotals until coverage is complete',()=>{
- const result=buildMaritimeDailyResult({enrollment,periodKey,financialRecords:[row('sale','business_revenue',1200)]});
+ const result=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialRecords:[row('sale','business_revenue',1200)]});
  assert.deepEqual(result.financial.gross,{status:'observed',amounts:[{currency:'USD',amountMinor:1200}]});
  assert.equal(result.financial.profit,null);assert.match(renderMaritimeDailyEmail(result),/確認済み小計/);
 });
 test('complete same-tenant coverage permits verified zero and separates payout from revenue',()=>{
- const result=buildMaritimeDailyResult({enrollment,periodKey,financialCoverage:coverage(),costs:{...coverage(),records:[]},
+ const result=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialCoverage:coverage(),costs:{...coverage(),records:[]},
  financialRecords:[row('sale','business_revenue',1200),row('capafy-financial:v1:2026-10-21:refund','business_cost',100),row('payout','payout',500)]});
  assert.deepEqual(result.financial.gross.amounts,[{currency:'USD',amountMinor:1200}]);
  assert.deepEqual(result.financial.payouts.amounts,[{currency:'USD',amountMinor:500}]);
  assert.deepEqual(result.financial.refunds.amounts,[{currency:'USD',amountMinor:100}]);
  assert.deepEqual(result.financial.profit,[{currency:'USD',amountMinor:1100}]);
- const zero=buildMaritimeDailyResult({enrollment,periodKey,financialCoverage:coverage()});
+ const zero=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialCoverage:coverage()});
  assert.deepEqual(zero.financial.gross,{status:'complete',amounts:[{currency:'USD',amountMinor:0}]});
  assert.equal(zero.financial.profit,null);
+});
+test('payout and tax stay deferrable and revenue stays unknown until official account readback',()=>{
+ const records=[row('sale','business_revenue',1200),row('payout','payout',500)];
+ const input={enrollment,periodKey,financialCoverage:coverage(),costs:{...coverage(),records:[]},financialRecords:records};
+ const blocked=buildMaritimeDailyResult(input);
+ assert.equal(blocked.payoutTaxStatus,'unverified_deferrable');
+ assert.equal(blocked.financial.gross.status,'unknown');assert.equal(blocked.financial.payouts.status,'unknown');
+ assert.equal(blocked.financial.profit,null);
+ const body=renderMaritimeDailyEmail(blocked);
+ assert.match(body,/payout\/tax：未確認/);assert.match(body,/売上：未確認/);
+ assert.match(body,/公式readback待ち/);assert.doesNotMatch(body,/revenue|settled|設定できます|後で設定/i);
+ const verified=buildMaritimeDailyResult({...input,payoutTaxReadback:{provider:'capafy',tenantId:UID,
+  accountRef:'account://capafy/'+UID+'/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',status:'verified',
+  evidenceRef:'capafy://payout-tax/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',observedAt:'2026-10-21T03:00:00Z'}});
+ assert.equal(verified.payoutTaxStatus,'verified');
+ assert.deepEqual(verified.financial.gross.amounts,[{currency:'USD',amountMinor:1200}]);
+ assert.throws(()=>buildMaritimeDailyResult({...input,payoutTaxReadback:{provider:'capafy',tenantId:UID,
+  accountRef:'account://capafy/'+UID+'/019d3c7f-fe51-7c57-aa2e-8e1055bb36a5',status:'verified',
+  evidenceRef:'capafy://payout-tax/019d3c7f-fe51-7c57-aa2e-8e1055bb36a6',observedAt:'2026-10-21T03:00:00Z'}}),/invalid/);
 });
 test('duplicate financial records and incomplete observations cannot become complete totals',()=>{
  const sale=row('sale','business_revenue',1200);
@@ -44,7 +65,7 @@ test('duplicate financial records and incomplete observations cannot become comp
  assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,financialCoverage:coverage(),financialRecords:[{...sale,verification:{...sale.verification,status:'unverified'}}]}),/invalid/);
 });
 test('currency and local calendar boundaries use existing Financial Manager aggregation',()=>{
- const result=buildMaritimeDailyResult({enrollment,periodKey,financialRecords:[
+ const result=buildMaritimeDailyResult({enrollment,periodKey,payoutTaxReadback:payoutTaxReadback(),financialRecords:[
  row('usd','business_revenue',250),row('jpy','business_revenue',900,'JPY'),
  row('previous','business_revenue',9999,'USD','2026-10-20T14:59:59Z')]});
  assert.deepEqual(result.financial.gross.amounts,[{currency:'JPY',amountMinor:900},{currency:'USD',amountMinor:250}]);
@@ -90,7 +111,7 @@ test('missing or malformed cost records do not become verified zero expense',()=
   financialCoverage:coverage(),costs:{...coverage(),records}}),/invalid/);
 });
 function deliveryFixture(){
- const current={...enrollment,status:'active',paused_at:null,email:'current@example.invalid'};
+ const current={...enrollment,status:'active',paused_at:null,email:'person@example.invalid',email_verified_at:'2026-10-20T00:00:00.000Z'};
  let receipt=null;const sends=[];
  const deps={managerStore:{read:async()=>({...current})},
   cfoReceiptIO:{read:async()=>receipt,claim:async(_,value)=>{if(receipt)return false;receipt={...value};return true;},mark:async(_,patch)=>Object.assign(receipt,patch)},
@@ -104,7 +125,19 @@ test('daily email replays original provider ID and uses the latest verified enro
  const second=await deliverMaritimeDailyResult(f.input,f.deps);
  assert.equal(first.providerMessageId,'mail-1');assert.equal(second.providerMessageId,'mail-1');
  assert.equal(second.status,'duplicate');assert.equal(f.sends.length,1);
- assert.equal(f.sends[0].to,'current@example.invalid');assert.match(f.sends[0].text,/利益：未確認/);
+ assert.equal(f.sends[0].to,'person@example.invalid');assert.match(f.sends[0].text,/利益：未確認/);
+});
+test('daily email is skipped with a recorded reason when signup email has no verification evidence',async()=>{
+ const f=deliveryFixture();f.current.email_verified_at=null;
+ const result=await deliverMaritimeDailyResult(f.input,f.deps);
+ assert.deepEqual(result,{status:'skipped',reason:'signup_email_unverified',report_kind:'maritime_daily_email'});
+ assert.equal(f.sends.length,0);
+});
+test('daily email is skipped with a recorded reason for an invalid signup address',async()=>{
+ const f=deliveryFixture();f.current.email='not-an-email';
+ const result=await deliverMaritimeDailyResult(f.input,f.deps);
+ assert.deepEqual(result,{status:'skipped',reason:'signup_email_invalid',report_kind:'maritime_daily_email'});
+ assert.equal(f.sends.length,0);
 });
 test('paused, foreign, malformed report scopes and invalid timestamps do not send email',async()=>{
  const f=deliveryFixture();f.current.paused_at='2026-10-21T09:00:00Z';
@@ -142,4 +175,92 @@ test('daily observations reuse tenant-scoped queue and financial stores without 
  assert.equal(result.financialCoverage,undefined);
  const foreign={...job,tenant_id:'lm_22222222-2222-4222-8222-222222222222'};
  await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{query:async()=>({rows:[{job:foreign}]}),financialStore}),/invalid/);
+});
+
+function capafyReportFixture(status='under_review'){
+ const provider=require('./maritime-manager-provider-runtime.js');
+ const cycleJob={...buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'provider-cycle',dateKey:'2026-10-20'}),status:'completed',attempt:1};
+ const sourceRef='maritime-execution://manager-agent/source-exec';
+ const cycleReceipt={schema_version:1,kind:'maritime_manager_cycle',tenant_id:UID,job_id:cycleJob.job_id,
+  occurrence_id:'provider-cycle',date_key:'2026-10-20',release_sha:enrollment.release_sha,agent_id:'manager-agent',execution_id:'source-exec',
+  status:'completed',artifact_refs:['artifact://original/agent-package.json'],error_class:null,provider:'maritime',external_ref:sourceRef,evidence_refs:[sourceRef]};
+ const common={tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'provider-cycle',artifactRef:cycleReceipt.artifact_refs[0],accountRef:`account://capafy/${UID}/tenant-account`};
+ const prepareJob={...provider.buildMaritimeCapafyPrepareJob({...common,cycleJobId:cycleJob.job_id}),status:'completed',attempt:1};
+ const prepareReceipt={schema_version:1,kind:'maritime_capafy_prepare',tenant_id:UID,job_id:prepareJob.job_id,attempt:1,
+  effect_key:prepareJob.effect_key,provider:'capafy',...prepareJob.input_refs,agent_id:'agent-123',agent_version_id:'version-456',
+  status:'prepared',url:'https://capafy.ai/agent/agent-123',external_ref:`capafy-action://${prepareJob.job_id}/1`,evidence_refs:[`capafy-action://${prepareJob.job_id}/1`],observed_at:'2026-10-21T01:00:00.000Z'};
+ const publishJob={...provider.buildMaritimeCapafyPublishJob({...common,sourceCycleJobId:cycleJob.job_id,prepareJobId:prepareJob.job_id,
+  agentId:'agent-123',agentVersionId:'version-456'}),status:'completed',attempt:1};
+ const publishReceipt={schema_version:1,kind:'provider_action_receipt',tenant_id:UID,job_id:publishJob.job_id,attempt:1,
+  effect_key:publishJob.effect_key,provider:'capafy',...publishJob.input_refs,status,
+  url:'https://capafy.ai/agent/agent-123',external_ref:`capafy-action://${publishJob.job_id}/1`,evidence_refs:[`capafy-action://${publishJob.job_id}/1`],observed_at:'2026-10-21T01:00:00.000Z'};
+ const context={sourceCycleJob:cycleJob,sourceCycleReceipt:cycleReceipt,prepareJob,prepareReceipt};
+ const prepare={receipt:prepareReceipt,job:prepareJob,completedAt:'2026-10-20T15:00:00Z',sourceCycleJob:cycleJob,sourceCycleReceipt:cycleReceipt};
+ const publish={receipt:publishReceipt,job:publishJob,completedAt:'2026-10-21T01:00:00Z',...context};
+ const pending={job:{...publishJob,status:'reconciling',updated_at:'2026-10-21T02:00:00Z'},status:'reconciling',observedAt:'2026-10-21T02:00:00Z',...context};
+ const dbRow=item=>({job:item.job,receipt:item.receipt,completed_at:item.completedAt,
+  source_cycle_job:item.sourceCycleJob,source_cycle_receipt:item.sourceCycleReceipt,prepare_job:item.prepareJob,prepare_receipt:item.prepareReceipt});
+ return {prepare,publish,pending,dbRow};
+}
+test('daily_result_separates_artifact_publish_sales_payout_and_unknown_cost',()=>{
+ const f=capafyReportFixture();
+ const result=buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[f.prepare,f.publish,f.publish]});
+ assert.equal(result.providerActions.length,2);
+ assert.deepEqual(result.providerActions.map(action=>action.status),['prepared','under_review']);
+ assert.equal(result.publicationStatus,'under_review');
+ assert.equal(result.actions.completedCycles,0);assert.equal(result.actions.artifactCount,0);
+ assert.equal(result.financial.gross.status,'unknown');assert.equal(result.financial.payouts.status,'unknown');assert.equal(result.financial.profit,null);
+ const email=renderMaritimeDailyEmail(result);
+ assert.match(email,/審査待ち/);assert.match(email,/売上：未確認/);assert.doesNotMatch(email,/販売可能|売上：.*0/);
+ assert.ok(email.includes('https://capafy.ai/agent/agent-123'));
+ const published=buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[capafyReportFixture('published').publish]});
+ assert.equal(published.publicationStatus,'published');assert.match(renderMaritimeDailyEmail(published),/公開済み/);
+});
+test('daily provider results use queue local day and keep unresolved publication separate from revenue',()=>{
+ const f=capafyReportFixture();
+ const result=buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[f.pending,f.pending,{...f.publish,completedAt:'2026-10-20T14:59:59Z'}]});
+ assert.equal(result.providerActions.length,1);assert.equal(result.providerActions[0].status,'reconciling');
+ assert.equal(result.publicationStatus,'unconfirmed');assert.equal(result.financial.gross.status,'unknown');
+ assert.equal(result.actions.unconfirmedCycles,0);assert.match(renderMaritimeDailyEmail(result),/公開結果確認中/);
+});
+test('provider report rejects foreign tenants and broken source, prepare, agent and version chains',()=>{
+ const f=capafyReportFixture();
+ const mutations=[
+  item=>{item.job.tenant_id='lm_22222222-2222-4222-8222-222222222222';},
+  item=>{item.sourceCycleJob.job_id='maritime-cycle:foreign';},
+  item=>{item.sourceCycleReceipt.artifact_refs=['artifact://other/package.json'];},
+  item=>{item.prepareJob.job_id='maritime-prepare:foreign';},
+  item=>{item.prepareReceipt.agent_version_id='other-version';},
+  item=>{item.receipt.agent_id='other-agent';},
+  item=>{item.receipt.account_ref='account://capafy/foreign';},
+ ];
+ for(const mutate of mutations){const item=structuredClone(f.publish);mutate(item);
+  assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[item]}),/invalid/);}
+ const pending=structuredClone(f.pending);pending.job.input_refs.agent_version_id='other-version';
+ assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[pending]}),/invalid/);
+});
+test('daily observations join immutable provider source and prepare rows and reject mismatched chains',async()=>{
+ const f=capafyReportFixture();const sqlCalls=[];
+ const financialStore={read:async()=>[]};
+ const query=async(sql,params)=>{sqlCalls.push({sql,params});return {rows:[f.dbRow(f.prepare),f.dbRow(f.publish),f.dbRow(f.pending)]};};
+ const observations=await readMaritimeDailyObservations({uid:UID,periodKey},{query,financialStore});
+ assert.equal(observations.actionReceipts.length,3);
+ assert.equal(observations.actionReceipts[1].sourceCycleJob.job_id,f.publish.sourceCycleJob.job_id);
+ assert.equal(observations.actionReceipts[1].prepareJob.job_id,f.publish.prepareJob.job_id);
+ assert.equal(observations.actionReceipts[2].status,'reconciling');assert.equal(observations.actionReceipts[2].receipt,undefined);
+ const result=buildMaritimeDailyResult({enrollment,periodKey,...observations});assert.equal(result.financial.gross.status,'unknown');
+ assert.match(sqlCalls[0].sql,/source_cycle_job_id/);assert.match(sqlCalls[0].sql,/prepare_job_id/);
+ assert.match(sqlCalls[0].sql,/maritime\.manager\.capafy\.prepare/);assert.match(sqlCalls[0].sql,/maritime\.manager\.capafy\.publish/);
+ const foreign=f.dbRow(f.publish);foreign.prepare_receipt={...foreign.prepare_receipt,agent_version_id:'foreign'};
+ await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{query:async()=>({rows:[foreign]}),financialStore}),/invalid/);
+});
+
+test('daily observations reject completed receipts outside their immutable central job',async()=>{
+ const job={...buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'exact-cycle',dateKey:'2026-10-21'}),status:'completed',attempt:1};
+ const foreign={schema_version:1,kind:'maritime_manager_cycle',tenant_id:UID,job_id:'maritime-cycle:foreign',
+  occurrence_id:'exact-cycle',date_key:'2026-10-21',release_sha:enrollment.release_sha,agent_id:'agent-1',execution_id:'exec-1',
+  status:'completed',artifact_refs:['artifact://original/product.json'],error_class:null,provider:'maritime',
+  external_ref:'maritime-execution://agent-1/exec-1',evidence_refs:['maritime-execution://agent-1/exec-1']};
+ await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{
+  query:async()=>({rows:[{job,receipt:foreign,completed_at:'2026-10-21T01:00:00Z'}]}),financialStore:{read:async()=>[]}}),/invalid/);
 });

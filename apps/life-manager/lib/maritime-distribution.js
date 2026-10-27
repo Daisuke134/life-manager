@@ -45,7 +45,8 @@ function sourceAttribution(source, medium = "telegram") {
 }
 
 function renderMaritimeLanding({ source = "direct", language = "en", user = null, state = null, workbench = null,
-  workbenchUnavailable = false, telegramAvailable = false, authError = null } = {}) {
+  workbenchUnavailable = false, telegramAvailable = false, authError = null, publisherConsent = null,
+  publisherConsentAvailable = false } = {}) {
   const campaignSource = normalizeMaritimeSource(source);
   const ja = String(language).toLowerCase().startsWith("ja");
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -61,6 +62,42 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
     failed: "開始できませんでした。しばらくしてから状態を確認してください。", signedIn: "確認済みメール",
     stop: "Life Managerを停止する", stopped: "新しい仕事と今後のメールを停止しました。", stopPending: "新しい仕事と今後のメールは停止済みです。一部の停止設定は確認待ちです。", stopFailed: "停止を確認できませんでした。もう一度お試しください。",
     stopNote: "進行中の処理は完了する場合があります。その結果確認は続けます。既存データは削除しません。",
+    publisherConsentTitle: "Capafy Publisherの同意",
+    publisherAgreement: "Publisher Agreement v1.2",
+    publisherEffective: "2026年9月28日発効",
+    publisherLanguageNotice: "契約の正式文は英語です。この日本語要約は参考用です。",
+    publisherTerms: [
+      "個人は居住地の成年年齢に達している必要があります。法人を代表する場合は有効な法人を拘束する権限が必要です。対応地域（Schedule E）に所在し、米国・国連・EUの包括的制裁対象に該当しないことが条件です。",
+      "本人、連絡先、振込先、税務情報は最新かつ正確である必要があります。個人・同一支配下の法人は原則Publisherアカウントを一つだけ持てます。公開サポートメールはSkillの掲載ページに表示され、Capafyはあなたに代わって利用者サポートをしません。",
+      "初回認証にはUS$0.99の返金不可の認証料がかかり、認証が拒否されても返金されません。ここで料金は請求されません。",
+      "データ開示（§§3.4–3.5、8.1–8.7）: Publisher Skillは選択したLLMへ作業ファイルを送り得ます。Capafyも設定済みLLM APIを限定的に審査利用できます。LLM費用はあなた負担です。掲載時はUser Dataの送信先、各社の保持・学習利用を開示し、実行中のUser Dataは機能提供・不具合修正、または利用者の明示同意を得た改善に限って使います。実行ログはinstance cleanup後90日保持され、契約終了時はUser Dataを30日以内に削除または返却します。",
+      "サポート義務（§§3.2、4.2–4.3、8.5）: 利用者の問い合わせに合理的な期間内に対応し、既知の不具合・脆弱性を速やかに修正します。Publisher Consoleの紛争を自分で確認し、表示された期限内に回答します（Capafyから別通知はありません）。User Dataを保護し、incidentを知ってから48時間以内にCapafyへ通知します。",
+    ],
+    publisherRecord: "保存済みの同意",
+    publisherAcceptedAt: "同意日時",
+    publisherWithdrawnAt: "撤回日時",
+    publisherWithdrawn: "この同意は撤回されています。Capafyの操作は停止しています。",
+    publisherConsentSubmit: "v1.2を確認して同意する",
+    publisherConsentWithdraw: "Publisherの同意を撤回する",
+    publisherConsentFailed: "同意を保存できませんでした。内容を確認して再度お試しください。",
+    publisherConsentWithdrawFailed: "撤回を確認できませんでした。もう一度お試しください。",
+    publisherType: "Publisher種別",
+    publisherTypePrompt: "選択してください",
+    individual: "個人",
+    entity: "法人・組織",
+    legalName: "法的氏名または法人名",
+    jurisdiction: "居住地または法人の法的管轄地域",
+    publicSupportEmail: "公開する利用者サポート用メールアドレス",
+    ageAttestation: "私は成人です。",
+    entityAuthorityAttestation: "この法人・組織を代表して契約する権限があります。",
+    regionAttestation: "私はCapafyが対応する地域の適格なPublisherです。",
+    sanctionsAttestation: "私は制裁対象者・地域に該当しません。",
+    accurateFactsAttestation: "入力した本人・連絡先情報は正確です。",
+    singleAccountAttestation: "私は別のPublisherアカウントを重複して作成・利用しません。",
+    feeAttestation: "US$0.99の認証料は返金不可で、認証が拒否されても返金されないことを理解しました。",
+    dataAttestation: "上記のデータ処理・共有内容に同意します。",
+    supportAttestation: "公開後の利用者サポートと紛争対応の責任を理解しました。",
+    agreementAttestation: "Publisher Agreement v1.2を読み、同意します。",
     states: { pending: "開始準備中", provisioning: "開始準備中", consent_required: "同意内容が更新されました。内容を確認して続行してください。", active: "Life Managerは稼働中です。Capafyでの公開と収益はまだ確認できていません。", paused: "停止中", effect_unknown: "実行結果を確認中" },
   } : {
     title: "Life Manager Cloud gets your work moving.",
@@ -74,6 +111,42 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
     failed: "We could not start the manager. Please check the status again shortly.", signedIn: "Verified email",
     stop: "Stop Life Manager", stopped: "New work and future emails are paused.", stopPending: "New work and future emails are paused. Some stop settings are awaiting confirmation.", stopFailed: "We could not confirm the stop. Please try again.",
     stopNote: "Work already in progress may finish. Its result checks continue. Existing data is retained.",
+    publisherConsentTitle: "Capafy Publisher consent",
+    publisherAgreement: "Publisher Agreement v1.2",
+    publisherEffective: "Effective September 28, 2026",
+    publisherLanguageNotice: "The Agreement's English text is authoritative; this plain-language summary is provided for review.",
+    publisherTerms: [
+      "An individual must have reached the age of majority where they live. An entity representative must be authorized to bind a valid entity. The Publisher must be in a Schedule E supported region and outside comprehensive U.S., U.N., and E.U. sanctions.",
+      "Keep your accurate legal identity and contact facts—legal name, jurisdiction, verified sign-in email, and public support email—plus payout and tax information current. A person or commonly controlled entity may have only one Publisher account unless Capafy approves another in writing. A public support email is required, displayed on your Skill listing, and Capafy does not provide your user support.",
+      "The US$0.99 certification fee is non-refundable even if certification is declined. This screen does not charge the fee.",
+      "Data disclosures (sections 3.4–3.5 and 8.1–8.7): Publisher Skill may send workspace files through your chosen LLM; Capafy may make limited review calls using the LLM API credential configured in Publisher Console. You bear those LLM costs. Each listing must disclose User Data flows, provider retention, and model-training use. During execution, use User Data only to provide the Skill, fix issues, or improve it with the User's explicit informed consent. Execution logs remain for 90 days after instance cleanup; on termination, delete or return User Data within 30 days.",
+      "Customer support and dispute obligations (sections 3.2, 4.2–4.3, and 8.5): Respond to user requests within a reasonable time and promptly fix known defects or vulnerabilities. Monitor Publisher Console and answer disputes within the displayed deadline; Capafy sends no separate dispute notice. Protect User Data and notify Capafy within 48 hours after learning of a data security incident.",
+    ],
+    publisherRecord: "Recorded consent",
+    publisherAcceptedAt: "Accepted at",
+    publisherWithdrawnAt: "Withdrawn at",
+    publisherWithdrawn: "This consent is withdrawn. Capafy actions are disabled.",
+    publisherConsentSubmit: "Review and accept v1.2",
+    publisherConsentWithdraw: "Withdraw Publisher consent",
+    publisherConsentFailed: "We could not save your consent. Review the terms and try again.",
+    publisherConsentWithdrawFailed: "We could not confirm withdrawal. Please try again.",
+    publisherType: "Publisher type",
+    publisherTypePrompt: "Select one",
+    individual: "Individual",
+    entity: "Entity or organization",
+    legalName: "Legal name or entity name",
+    jurisdiction: "Residence or entity jurisdiction",
+    publicSupportEmail: "Public customer support email",
+    ageAttestation: "I am an adult.",
+    entityAuthorityAttestation: "I am authorized to accept for this entity or organization.",
+    regionAttestation: "I am eligible as a Publisher in a region supported by Capafy.",
+    sanctionsAttestation: "I am not in a sanctioned person or region category.",
+    accurateFactsAttestation: "The identity and contact facts I entered are accurate.",
+    singleAccountAttestation: "I will not create or use a second Publisher account.",
+    feeAttestation: "I understand the US$0.99 certification fee is non-refundable, including if certification is declined.",
+    dataAttestation: "I agree to the data processing and sharing described above.",
+    supportAttestation: "I understand my customer support and dispute response duties after publication.",
+    agreementAttestation: "I have read and agree to Publisher Agreement v1.2.",
     states: { pending: "Preparing your manager", provisioning: "Preparing your manager", consent_required: "Please review and accept the updated authorization before work continues.", active: "Life Manager is active; Capafy listing and earnings are not verified yet.", paused: "Paused", effect_unknown: "Checking execution results" },
   };
   const ready = user && (state == null || state === "consent_required");
@@ -87,7 +160,11 @@ function renderMaritimeLanding({ source = "direct", language = "en", user = null
   const telegram = telegramAvailable ? `<p><a href="/maritime/start?source=${campaignSource}">Telegram (${ja ? "任意" : "optional"})</a></p>` : "";
   const workbenchSection = user && state === "active"
     ? require("./maritime-manager-workbench.js").renderMaritimeWorkbench({ language, workbench, unavailable: workbenchUnavailable }) : "";
-  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager Cloud</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}.signin{display:inline-block;margin:16px 0;padding:12px 20px;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;text-decoration:none}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[hidden]{display:none}.consent{display:block;margin-top:20px}.workbench{margin:32px 0;padding:20px;border:1px solid #d5d9d6;border-radius:12px;background:#fff}.workbench h2{margin-top:0}.workbench ul{padding-left:20px}.workbench li{margin:12px 0}.workbench time{display:block;color:#627069;font-size:.9rem}</style><main data-source="${campaignSource}"><p>Life Manager Cloud</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">${ja ? "Maritimeのプライバシーポリシー" : "Maritime Privacy Policy"}</a></p>${controls}${stopControl}${workbenchSection}<p id="feedback" role="status" aria-live="polite">${authFeedback}</p>${telegram}<noscript>${ja ? "開始と状態確認にはJavaScriptを有効にしてください。" : "Enable JavaScript to start Life Manager Cloud and check its status."}</noscript></main><script>
+  const publisherConsentRecord = publisherConsent && publisherConsent.agreementVersion === "v1.2" ? publisherConsent : null;
+  const publisherConsentForm = `<form id="publisher-consent-form" data-action="publisher-consent" data-csrf="${escape(user?.csrf || "")}" data-agreement-version="v1.2"><label>${copy.publisherType}<select name="publisherType" required><option value="" selected disabled>${copy.publisherTypePrompt}</option><option value="individual">${copy.individual}</option><option value="entity">${copy.entity}</option></select></label><label>${copy.legalName}<input name="legalName" maxlength="200" autocomplete="name" required></label><label>${copy.jurisdiction}<input name="jurisdiction" maxlength="100" required></label><label>${copy.publicSupportEmail}<input name="publicSupportEmail" type="email" maxlength="320" autocomplete="off" required></label><label><input type="checkbox" name="ageOfMajorityAttested">${copy.ageAttestation}</label><label><input type="checkbox" name="entityAuthorityAttested">${copy.entityAuthorityAttestation}</label><label><input type="checkbox" name="supportedRegionAttested" required>${copy.regionAttestation}</label><label><input type="checkbox" name="sanctionsEligibilityAttested" required>${copy.sanctionsAttestation}</label><label><input type="checkbox" name="identityContactAccurateAttested" required>${copy.accurateFactsAttestation}</label><label><input type="checkbox" name="singlePublisherAccountAttested" required>${copy.singleAccountAttestation}</label><label><input type="checkbox" name="certificationFeeNonRefundableAcknowledged" required>${copy.feeAttestation}</label><label><input type="checkbox" name="dataDisclosuresAccepted" required>${copy.dataAttestation}</label><label><input type="checkbox" name="supportObligationsAccepted" required>${copy.supportAttestation}</label><label><input type="checkbox" name="agreementAccepted" required>${copy.agreementAttestation}</label><button type="submit" disabled>${copy.publisherConsentSubmit}</button></form>`;
+  const publisherConsentSaved = publisherConsentRecord ? `<div><p><strong>${copy.publisherRecord}: ${escape(publisherConsentRecord.publisherType === "entity" ? copy.entity : copy.individual)}</strong></p><p>${escape(publisherConsentRecord.legalName)} — ${escape(publisherConsentRecord.jurisdiction)}</p><p>${escape(publisherConsentRecord.verifiedContactEmail)} — ${escape(publisherConsentRecord.publicSupportEmail)}</p><p>${copy.publisherAcceptedAt}: <time>${escape(publisherConsentRecord.acceptedAt)}</time></p><ul><li>${publisherConsentRecord.publisherType === "entity" ? copy.entityAuthorityAttestation : copy.ageAttestation}</li>${["regionAttestation", "sanctionsAttestation", "accurateFactsAttestation", "singleAccountAttestation", "feeAttestation", "dataAttestation", "supportAttestation", "agreementAttestation"].map(key => `<li>${copy[key]}</li>`).join("")}</ul>${publisherConsentRecord.withdrawnAt != null ? `<p role="status">${copy.publisherWithdrawn}</p><p>${copy.publisherWithdrawnAt}: <time>${escape(publisherConsentRecord.withdrawnAt)}</time></p>` : `<button type="button" data-action="publisher-consent-withdraw" data-csrf="${escape(user?.csrf || "")}">${copy.publisherConsentWithdraw}</button>`}</div>` : "";
+  const publisherConsentSection = user && publisherConsentAvailable ? `<section class="workbench" aria-labelledby="publisher-consent-title"><h2 id="publisher-consent-title">${copy.publisherConsentTitle}</h2><p><a href="https://capafy.ai/publisher-agreement/" rel="noreferrer">${copy.publisherAgreement}</a> (${copy.publisherEffective})</p><p>${copy.publisherLanguageNotice}</p><ul>${copy.publisherTerms.map(term => `<li>${term}</li>`).join("")}</ul>${publisherConsentSaved}${publisherConsentRecord ? "" : publisherConsentForm}<p id="publisher-consent-feedback" role="status" aria-live="polite"></p></section>` : "";
+  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager Cloud</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}.signin{display:inline-block;margin:16px 0;padding:12px 20px;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;text-decoration:none}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:8px;background:#172a23;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[hidden]{display:none}.consent{display:block;margin-top:20px}.workbench{margin:32px 0;padding:20px;border:1px solid #d5d9d6;border-radius:12px;background:#fff}.workbench h2{margin-top:0}.workbench ul{padding-left:20px}.workbench li{margin:12px 0}.workbench time{display:block;color:#627069;font-size:.9rem}</style><main data-source="${campaignSource}"><p>Life Manager Cloud</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">${ja ? "Maritimeのプライバシーポリシー" : "Maritime Privacy Policy"}</a></p>${controls}${stopControl}${publisherConsentSection}${workbenchSection}<p id="feedback" role="status" aria-live="polite">${authFeedback}</p>${telegram}<noscript>${ja ? "開始と状態確認にはJavaScriptを有効にしてください。" : "Enable JavaScript to start Life Manager Cloud and check its status."}</noscript></main><script>
 const feedback=document.getElementById('feedback');
 const main=document.querySelector('main');
 let source=main.dataset.source;
@@ -101,6 +178,10 @@ const stopControl=document.querySelector('[data-action="stop"]');
 if(stopControl)stopControl.addEventListener('click',async()=>{stopControl.disabled=true;try{const result=await fetch('/maritime/stop',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':stopControl.dataset.csrf},body:'{}'});const body=await result.json();if(body.status==='paused'){feedback.textContent=body.cleanupPending?${JSON.stringify(copy.stopPending)}:${JSON.stringify(copy.stopped)};const state=document.querySelector('[data-manager-state]');if(state)state.textContent=${JSON.stringify(copy.states.paused)};}else feedback.textContent=${JSON.stringify(copy.stopFailed)};}catch{feedback.textContent=${JSON.stringify(copy.stopFailed)};}finally{stopControl.disabled=false;}});
 const refreshWorkbench=document.querySelector('[data-action="refresh-workbench"]');
 if(refreshWorkbench)refreshWorkbench.addEventListener('click',()=>location.reload());
+const publisherConsentForm=document.querySelector('[data-action="publisher-consent"]');
+if(publisherConsentForm){const type=publisherConsentForm.elements.publisherType;const adult=publisherConsentForm.elements.ageOfMajorityAttested;const entity=publisherConsentForm.elements.entityAuthorityAttested;const submit=publisherConsentForm.querySelector('button[type="submit"]');const syncPublisherConsent=()=>{adult.required=type.value==='individual';entity.required=type.value==='entity';if(type.value==='individual')entity.checked=false;else adult.checked=false;submit.disabled=!publisherConsentForm.checkValidity();};publisherConsentForm.addEventListener('input',syncPublisherConsent);publisherConsentForm.addEventListener('change',syncPublisherConsent);publisherConsentForm.addEventListener('submit',async event=>{event.preventDefault();if(!publisherConsentForm.reportValidity())return;submit.disabled=true;const individual=type.value==='individual';const payload={agreementVersion:publisherConsentForm.dataset.agreementVersion,publisherType:type.value,legalName:publisherConsentForm.elements.legalName.value,jurisdiction:publisherConsentForm.elements.jurisdiction.value,publicSupportEmail:publisherConsentForm.elements.publicSupportEmail.value,ageOfMajorityAttested:individual&&adult.checked,entityAuthorityAttested:!individual&&entity.checked,supportedRegionAttested:publisherConsentForm.elements.supportedRegionAttested.checked,sanctionsEligibilityAttested:publisherConsentForm.elements.sanctionsEligibilityAttested.checked,identityContactAccurateAttested:publisherConsentForm.elements.identityContactAccurateAttested.checked,singlePublisherAccountAttested:publisherConsentForm.elements.singlePublisherAccountAttested.checked,certificationFeeNonRefundableAcknowledged:publisherConsentForm.elements.certificationFeeNonRefundableAcknowledged.checked,dataDisclosuresAccepted:publisherConsentForm.elements.dataDisclosuresAccepted.checked,supportObligationsAccepted:publisherConsentForm.elements.supportObligationsAccepted.checked,agreementAccepted:publisherConsentForm.elements.agreementAccepted.checked};try{const result=await fetch('/maritime/capafy/publisher-consent',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':publisherConsentForm.dataset.csrf},body:JSON.stringify(payload)});if(result.ok)location.reload();else{document.getElementById('publisher-consent-feedback').textContent=${JSON.stringify(copy.publisherConsentFailed)};syncPublisherConsent();}}catch{document.getElementById('publisher-consent-feedback').textContent=${JSON.stringify(copy.publisherConsentFailed)};syncPublisherConsent();}});syncPublisherConsent();}
+const publisherConsentWithdraw=document.querySelector('[data-action="publisher-consent-withdraw"]');
+if(publisherConsentWithdraw)publisherConsentWithdraw.addEventListener('click',async()=>{publisherConsentWithdraw.disabled=true;try{const result=await fetch('/maritime/capafy/publisher-consent/withdraw',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':publisherConsentWithdraw.dataset.csrf},body:'{}'});if(result.ok)location.reload();else{document.getElementById('publisher-consent-feedback').textContent=${JSON.stringify(copy.publisherConsentWithdrawFailed)};publisherConsentWithdraw.disabled=false;}}catch{document.getElementById('publisher-consent-feedback').textContent=${JSON.stringify(copy.publisherConsentWithdrawFailed)};publisherConsentWithdraw.disabled=false;}});
 </script></html>`;
 }
 
