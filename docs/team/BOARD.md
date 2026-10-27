@@ -226,4 +226,4 @@
     > Kind regards,
     > Anicca Support
 
-- 2026-10-27 12:52 JST Codex（再割当項目2 / marketing funnel metrics）: Daisuke134/anicca-products の専用branch marketing-funnel-utm-20261027 で site-hit にUTM mediumと4つの標準ファネルイベントのsource/medium/campaign/ct集計を追加し、/go のクリック領収契約を保持。コードPR #789（ddc45e1e10ccdc7a00c0171bdba112afc4a3193f）を作成。focused client/store 11/11、/go receipt 13/13 PASS、exact-head CIは進行中。メトリクス正本 docs/team/metrics/PRODUCT-METRICS.md とこのBoard更新は別のLife Manager docs PRに記録。staging/productionへの合成イベント送信と集計読み戻しは未実施。次: CI確認→stagingで ct=test_codex_1027 を1件検証。Capafy v1.0.3 upsellには触れない。
+- 2026-10-27 12:42 JST Codex（再割当項目2 / marketing funnel metrics）: Daisuke134/anicca-products の専用branch marketing-funnel-utm-20261027 で site-hit にUTM mediumと4つの標準ファネルイベントのsource/medium/campaign/ct集計を追加し、/go のクリック領収契約を保持。コードPR #789（ddc45e1e10ccdc7a00c0171bdba112afc4a3193f）を作成。focused client/store 11/11、/go receipt 13/13 PASS、exact-head CIは進行中。メトリクス正本 docs/team/metrics/PRODUCT-METRICS.md とこのBoard更新は別のLife Manager docs PRに記録。staging/productionへの合成イベント送信と集計読み戻しは未実施。次: CI確認→stagingで ct=test_codex_1027 を1件検証。Capafy v1.0.3 upsellには触れない。
