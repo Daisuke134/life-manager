@@ -88,6 +88,21 @@ def preflight_cross_release(first: Mapping, second: Mapping) -> dict:
         or first["route"] != second["route"]
     ):
         reasons.add("COHORT_OR_CONSTRUCT_NOT_COMPARABLE")
+        a_pop, b_pop = first["population"], second["population"]
+        if (
+            first["route"] == second["route"]
+            and first["outcome"] == second["outcome"]
+            and a_pop["window"] == b_pop["window"]
+            and a_pop["unit"] == b_pop["unit"]
+            and (
+                a_pop["geography"] != b_pop["geography"]
+                or a_pop["description"] != b_pop["description"]
+            )
+        ):
+            # Two same-period tables with different geographic or population
+            # scope MAY be linkable by differencing (ONS R5). We cannot
+            # establish nesting from metadata, so never subtract their cells.
+            reasons.add("CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING")
     else:
         a_partition, b_partition = first["partition"], second["partition"]
         a_cells = {cell["category"]: cell for cell in a_partition["cells"]}

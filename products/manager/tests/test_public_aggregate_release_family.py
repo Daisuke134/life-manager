@@ -292,5 +292,21 @@ class ReleaseFamilyTest(unittest.TestCase):
         self.assertFalse(result["can_publish"])
 
 
+
+    def test_possible_scope_differencing_propagates_without_inference(self):
+        a, b, c = self.family()
+        b["population"]["geography"] = "national"
+        b["population"]["description"] = "Fictional broader area"
+        result = preflight_release_family([a, b, c])
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertIn("FAMILY_SCOPE_NOT_COMPARABLE", result["reason_codes"])
+        self.assertIn("FAMILY_POSSIBLE_SCOPE_DIFFERENCING", result["reason_codes"])
+        self.assertNotIn("FAMILY_SINGLE_HIDDEN_CELL", result["reason_codes"])
+        self.assertFalse(result["can_publish"])
+        self.assertFalse(result["cross_release_independence_verified"])
+        self.assertEqual(result["beneficiary_effect"], "NOT_MEASURED")
+        self.assertNotIn("Fictional broader area", json.dumps(result))
+
+
 if __name__ == "__main__":
     unittest.main()

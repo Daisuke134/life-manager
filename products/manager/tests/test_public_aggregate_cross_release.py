@@ -287,5 +287,55 @@ class CrossReleaseTest(unittest.TestCase):
                     preflight_cross_release(a, b)
 
 
+
+    def test_geographic_scope_difference_warns_without_subtraction(self):
+        a, b = self.pair()
+        b["population"]["geography"] = "national"
+        b["population"]["description"] = "Entirely fictional broader area"
+        result = preflight_cross_release(a, b)
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertIn("COHORT_OR_CONSTRUCT_NOT_COMPARABLE", result["reason_codes"])
+        self.assertIn("CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING", result["reason_codes"])
+        self.assertNotIn("CROSS_RELEASE_SINGLE_HIDDEN_CELL", result["reason_codes"])
+        self.assertFalse(result["can_ingest"])
+        self.assertFalse(result["disclosure_certified"])
+        self.assertEqual(result["beneficiary_effect"], "NOT_MEASURED")
+        self.assertNotIn("Entirely fictional broader area", json.dumps(result))
+
+    def test_same_period_different_declared_subpopulation_warns(self):
+        a, b = self.pair()
+        b["population"]["description"] = "Entirely fictional subgroup B"
+        result = preflight_cross_release(a, b)
+        self.assertIn("CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING", result["reason_codes"])
+        self.assertNotIn("CROSS_RELEASE_SINGLE_HIDDEN_CELL", result["reason_codes"])
+        self.assertEqual(result["next_action"], "NO_ACTION")
+        self.assertFalse(result["can_execute"])
+
+    def test_unaligned_time_construct_or_route_does_not_claim_scope_link(self):
+        for field, value in (
+            ("window", "Different fictional period"),
+            ("unit", "Different fictional unit"),
+        ):
+            with self.subTest(field=field):
+                a, b = self.pair()
+                b["population"][field] = value
+                self.assertNotIn(
+                    "CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING",
+                    preflight_cross_release(a, b)["reason_codes"],
+                )
+        a, b = self.pair()
+        b["outcome"]["construct"] = "Different fictional construct"
+        self.assertNotIn(
+            "CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING",
+            preflight_cross_release(a, b)["reason_codes"],
+        )
+        a, b = self.pair()
+        b["route"] = "partner_public"
+        self.assertNotIn(
+            "CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING",
+            preflight_cross_release(a, b)["reason_codes"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

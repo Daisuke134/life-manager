@@ -105,6 +105,8 @@ def preflight_release_family(releases: list | tuple) -> dict:
             reasons.add("FAMILY_PAIR_REJECTED")
         if "RELEASE_SOURCE_OVERLAP" in pair["reason_codes"]:
             reasons.add("FAMILY_SOURCE_OVERLAP")
+        if "CROSS_RELEASE_POSSIBLE_SCOPE_DIFFERENCING" in pair["reason_codes"]:
+            reasons.add("FAMILY_POSSIBLE_SCOPE_DIFFERENCING")
 
     reference = releases[0]
     same_scope = all(
