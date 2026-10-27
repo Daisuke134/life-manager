@@ -76,3 +76,15 @@ enum PaywallOfferingSelection {
         return productIdentifiers.allSatisfy { $0.hasPrefix("ai.anicca.app.ios.") }
     }
 }
+
+enum OnboardingPaywallDecision: Equatable {
+    case completeOnboarding
+    case presentPaywall
+
+    static func resolve(freshEntitlement: Bool?, cachedEntitlement: Bool) -> Self {
+        guard let freshEntitlement else {
+            return cachedEntitlement ? .completeOnboarding : .presentPaywall
+        }
+        return freshEntitlement ? .completeOnboarding : .presentPaywall
+    }
+}

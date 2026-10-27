@@ -638,7 +638,7 @@ struct PaywallValueTimelineStepView: View {
 struct PaywallFlowContainer: View {
     let onPurchaseSuccess: (CustomerInfo) -> Void
     let onDismiss: () -> Void
-    @State private var step: PaywallStep = .primer
+    @State private var step: PaywallStep = .planSelection
     @EnvironmentObject private var appState: AppState
 
     var body: some View {

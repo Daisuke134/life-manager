@@ -199,6 +199,19 @@ final class SubscriptionManager: NSObject {
             return false
         }
     }
+
+    func refreshCustomerInfo() async -> Bool? {
+        guard isConfigured else { return nil }
+        do {
+            let customerInfo = try await Purchases.shared.customerInfo(fetchPolicy: .fetchCurrent)
+            let subscription = SubscriptionInfo(info: customerInfo)
+            AppState.shared.updateSubscriptionInfo(subscription)
+            return subscription.isEntitled
+        } catch {
+            print("[SubscriptionManager] CustomerInfo refresh failed")
+            return nil
+        }
+    }
     
     func syncNow() async {
         guard isConfigured else { return }
