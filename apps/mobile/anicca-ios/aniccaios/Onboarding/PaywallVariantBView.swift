@@ -17,6 +17,7 @@ struct PaywallVariantBView: View {
     @State private var hasShownRetention = false
     @State private var showRetention = false
     @State private var showReloadAfterTimeout = false
+    @State private var trackedOfferingLoadOutcomes: Set<String> = []
 
     private var offering: Offering? { appState.cachedOffering }
     private var packages: [Package] {
@@ -70,7 +71,10 @@ struct PaywallVariantBView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                         Button(String(localized: "paywall_b_retry")) {
-                            Task { await refreshStorefrontEligibility() }
+                            Task {
+                                let loaded = await refreshStorefrontEligibility()
+                                trackOfferingLoadResult(loaded)
+                            }
                         }
                         .font(.system(size: 16, weight: .semibold))
                         Button(String(localized: "paywall_plan_restore")) { restorePurchases() }
@@ -111,9 +115,11 @@ struct PaywallVariantBView: View {
             }
             var updatesIterator = storefrontUpdates.makeAsyncIterator()
             await Task.yield()
-            await refreshStorefrontEligibility()
+            let initialLoad = await refreshStorefrontEligibility()
+            trackOfferingLoadResult(initialLoad)
             while await updatesIterator.next() != nil {
-                await refreshStorefrontEligibility()
+                let updatedLoad = await refreshStorefrontEligibility()
+                trackOfferingLoadResult(updatedLoad)
             }
         }
         .sheet(isPresented: $showRetention) {
@@ -125,7 +131,7 @@ struct PaywallVariantBView: View {
     }
 
     @MainActor
-    private func refreshStorefrontEligibility() async {
+    private func refreshStorefrontEligibility() async -> Bool? {
         while !Task.isCancelled {
             let currentStorefront = await Storefront.current
             let countryCode = currentStorefront?.countryCode
@@ -142,8 +148,17 @@ struct PaywallVariantBView: View {
             guard latestStorefront?.countryCode.uppercased() == countryCode?.uppercased() else {
                 continue
             }
-            return
+            return !packages.isEmpty
         }
+        return nil
+    }
+
+    @MainActor
+    private func trackOfferingLoadResult(_ loaded: Bool?) {
+        guard let loaded else { return }
+        let result = loaded ? "loaded" : "unavailable"
+        guard trackedOfferingLoadOutcomes.insert(result).inserted else { return }
+        AnalyticsManager.shared.track(.onboardingPaywallOfferingLoadResult, properties: ["result": result])
     }
 
     // MARK: - Sections
@@ -379,7 +394,10 @@ struct PaywallVariantBView: View {
     private func scheduleReloadTimeout() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             if packages.isEmpty { showReloadAfterTimeout = true }
-            Task { await refreshStorefrontEligibility() }
+            Task {
+                let loaded = await refreshStorefrontEligibility()
+                trackOfferingLoadResult(loaded)
+            }
         }
     }
 
@@ -422,6 +440,10 @@ struct PaywallVariantBView: View {
                 let result = try await Purchases.shared.purchase(package: package)
                 if !result.userCancelled {
                     AnalyticsManager.shared.track(.onboardingPaywallPurchased)
+                    let entitlement = result.customerInfo.entitlements[AppConfig.revenueCatEntitlementId]
+                    if entitlement?.isActive == true, entitlement?.periodType == .trial {
+                        AnalyticsManager.shared.trackTrialStarted(productId: package.storeProduct.productIdentifier)
+                    }
                     isPurchasing = false
                     onPurchaseSuccess(result.customerInfo)
                 } else {
