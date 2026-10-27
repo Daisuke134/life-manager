@@ -27,7 +27,7 @@ function response() {
   }, end(body = "") { this.body = String(body); } };
 }
 
-function request(path, { uid = UID_A, idempotencyKey = "123e4567-e89b-12d3-a456-426614174001", body = {}, headers = {} } = {}) {
+function request(path, { uid = UID_A, idempotencyKey = "cloud-checkout-fixture-1", body = {}, headers = {} } = {}) {
   const req = Readable.from([JSON.stringify(body)]);
   req.url = path;
   req.method = "POST";
