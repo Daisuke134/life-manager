@@ -3,7 +3,7 @@
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUBJECT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA = /^[0-9a-f]{40}$/;
-const SELECT = "uid,auth_subject,email,timezone,status,source,consent_version,consent_v2_at,agent_id,release_sha,paused_at,created_at";
+const SELECT = "uid,auth_subject,email,email_verified_at,timezone,status,source,consent_version,consent_v2_at,agent_id,release_sha,paused_at,created_at";
 const MAX_RECENT_CYCLE_DISPATCHES = 32;
 const CYCLE_DISPATCH_LOOKBACK_MS = 2 * 60 * 60 * 1000;
 const { MANAGER_CONSENT_VERSION } = require("./maritime-distribution.js");
@@ -71,7 +71,8 @@ function createMaritimeManagerStore(options = {}) {
       throw new Error("maritime_manager_store_invalid");
     }
     if (!rows[0]) return null;
-    return { ...rows[0], consent_v2_at: timestampIso(rows[0].consent_v2_at, true),
+    return { ...rows[0], email_verified_at: timestampIso(rows[0].email_verified_at, true),
+      consent_v2_at: timestampIso(rows[0].consent_v2_at, true),
       paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) };
   }
   async function listPending(limit = 20) {
@@ -134,8 +135,11 @@ function createMaritimeManagerStore(options = {}) {
   async function enroll(input) {
     const uid = identifier(input?.uid, UID);
     const authSubject = identifier(input.authSubject, SUBJECT).toLowerCase();
-    const email = bounded(input.email, 320).toLowerCase();
+    const email = bounded(input.email, 320);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid();
+    let emailVerifiedAt;
+    try { emailVerifiedAt = timestampIso(input.emailVerifiedAt); }
+    catch { invalid(); }
     const timezone = input.timezone || "UTC";
     try { new Intl.DateTimeFormat("en", { timeZone: timezone }); } catch { invalid(); }
     const source = bounded(input.source || "direct", 40);
@@ -144,12 +148,12 @@ function createMaritimeManagerStore(options = {}) {
     const releaseSha = identifier(input.releaseSha, SHA);
     const inserted = await queryPg(
       `INSERT INTO public.lm_maritime_manager_enrollments
-        (uid,auth_subject,email,timezone,status,source,consent_version,release_sha)
-       SELECT i.uid,i.auth_subject,$3,$4,'pending',$5,$6,$7
+        (uid,auth_subject,email,email_verified_at,timezone,status,source,consent_version,release_sha)
+       SELECT i.uid,i.auth_subject,$3,$4,$5,'pending',$6,$7,$8
        FROM public.lm_maritime_manager_identities AS i
        WHERE i.uid=$1 AND i.auth_subject=$2
        ON CONFLICT (uid) DO NOTHING RETURNING uid`,
-      [uid, authSubject, email, timezone, source, consentVersion, releaseSha],
+      [uid, authSubject, email, emailVerifiedAt, timezone, source, consentVersion, releaseSha],
     );
     if (inserted.length > 1) throw new Error("maritime_manager_store_invalid");
     const row = await read(uid);

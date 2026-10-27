@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-const { handleMaritimeCloudBillingRequest } = require("./maritime-cloud-billing.js");
+const { CLOUD_TEST_CATALOG, handleMaritimeCloudBillingRequest } = require("./maritime-cloud-billing.js");
 
 const UID_A = "lm_123e4567-e89b-12d3-a456-426614174000";
 const UID_B = "lm_987e6543-e21b-12d3-a456-426614174000";
@@ -48,13 +48,14 @@ function fakeStripe() {
   } } } };
 }
 
-async function send(req, { env = cloudEnv, stripe = fakeStripe(), rows = new Map(), logger = { warn() {}, error() {} } } = {}) {
+async function send(req, { env = cloudEnv, stripe = fakeStripe(), rows = new Map(), logger = { warn() {}, error() {} },
+  resolveUserImpl = async request => ({ uid: request.fixtureUid, email: EMAIL, emailVerified: true, csrf: "csrf-fixture" }) } = {}) {
   const res = response();
   const result = await handleMaritimeCloudBillingRequest(req, res, {
     env,
     publicOrigin: "https://cloud.example.test",
     stripeClient: stripe,
-    resolveUserImpl: async request => ({ uid: request.fixtureUid, email: EMAIL, csrf: "csrf-fixture" }),
+    resolveUserImpl,
     billingStore: { async readTenant(uid) { return rows.get(uid) || null; } },
     logger,
   });
@@ -75,12 +76,43 @@ test("Cloud checkout is tenant-bound, uses only Cloud price/config, and retries 
   assert.equal(params.client_reference_id, UID_A);
   assert.equal(params.subscription_data.metadata.lm_tenant_uid, UID_A);
   assert.equal(params.customer_email, EMAIL);
-  assert.equal(Object.hasOwn(params.subscription_data, "trial_period_days"), false);
+  assert.equal(params.subscription_data.trial_period_days, 7);
   assert.equal(JSON.stringify(params).includes("calendar"), false);
   assert.equal(options.idempotencyKey, stripe.calls.checkout[1].options.idempotencyKey);
   assert.notEqual(options.idempotencyKey, stripe.calls.checkout[2].options.idempotencyKey);
   assert.equal(replay.res.statusCode, 200);
   assert.equal(otherTenant.res.statusCode, 200);
+  assert.equal(CLOUD_TEST_CATALOG.mode, "test");
+  assert.equal(CLOUD_TEST_CATALOG.amountMinor, 1900);
+  assert.equal(CLOUD_TEST_CATALOG.currency, "usd");
+  assert.equal(CLOUD_TEST_CATALOG.interval, "month");
+  assert.equal(CLOUD_TEST_CATALOG.trialPeriodDays, 7);
+  assert.equal(CLOUD_TEST_CATALOG.productMetadata.lm_catalog, "life-manager-cloud");
+  assert.equal(CLOUD_TEST_CATALOG.productMetadata.billing_mode, "test");
+  assert.equal(CLOUD_TEST_CATALOG.productMetadata.calendar_linkage, "none");
+  assert.deepEqual(CLOUD_TEST_CATALOG.priceMetadata, CLOUD_TEST_CATALOG.productMetadata);
+});
+
+test("Cloud checkout skips billing email for an unverified signup and records a PII-free reason", async () => {
+  const logs = [];
+  const logger = { info: value => logs.push(String(value)), warn: value => logs.push(String(value)), error: value => logs.push(String(value)) };
+  const stripe = fakeStripe();
+  const { res } = await send(request("/api/stripe/cloud/checkout"), { stripe, logger,
+    resolveUserImpl: async () => ({ emailVerified: false, billingEmailSkipReason: "signup_email_unverified" }) });
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(JSON.parse(res.body), { error: "billing_email_unverified", status: "skipped", reason: "signup_email_unverified" });
+  assert.equal(stripe.calls.checkout.length, 0);
+  assert.match(logs.join("\n"), /signup_email_unverified/);
+  assert.equal(logs.join("\n").includes(EMAIL), false);
+});
+
+test("Cloud checkout skips an invalid signup address before creating a Stripe session", async () => {
+  const stripe = fakeStripe();
+  const { res } = await send(request("/api/stripe/cloud/checkout"), { stripe,
+    resolveUserImpl: async () => ({ uid: UID_A, email: "invalid-address", emailVerified: true, csrf: "csrf-fixture" }) });
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(JSON.parse(res.body), { error: "billing_email_unverified", status: "skipped", reason: "signup_email_invalid" });
+  assert.equal(stripe.calls.checkout.length, 0);
 });
 
 test("checkout refuses live Cloud config, Calendar reuse, missing idempotency, bad origin, and CSRF", async () => {

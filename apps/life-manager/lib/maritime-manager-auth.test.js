@@ -2,9 +2,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop, handleMaritimeManagerCapafyConnection;
+let handleMaritimeManagerAuth, resolveMaritimeManagerUser, resolveMaritimeCloudBillingUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop, handleMaritimeManagerCapafyConnection;
 try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop,
-  handleMaritimeManagerCapafyConnection } = require("./maritime-manager-auth.js")); }
+  resolveMaritimeCloudBillingUser, handleMaritimeManagerCapafyConnection } = require("./maritime-manager-auth.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 let createMaritimeManagerDependencies;
 try { ({ createMaritimeManagerDependencies } = require("./maritime-manager-dependencies.js")); }
@@ -65,6 +65,21 @@ test("unverified_email_cannot_resolve_a_manager_user",async()=>{
   const {deps,calls}=fixture({user:{...USER,email_confirmed_at:null}});
   assert.equal(await resolveMaritimeManagerUser(request("/maritime/activate","POST"),response(),deps),null);
   assert.equal(calls.some(x=>x[0]==="ensure"),false);
+});
+test("Cloud billing resolver records unverified signup without exposing or binding its address",async()=>{
+  const {deps,calls}=fixture({user:{...USER,email_confirmed_at:null}});
+  const user=await resolveMaritimeCloudBillingUser(request("/api/stripe/cloud/checkout","POST"),response(),deps);
+  assert.deepEqual(user,{emailVerified:false,billingEmailSkipReason:"signup_email_unverified"});
+  assert.equal(calls.some(x=>x[0]==="ensure"),false);
+  assert.equal(JSON.stringify(user).includes(USER.email),false);
+});
+test("Cloud billing resolver marks only the confirmed Google signup address eligible",async()=>{
+  const {deps}=fixture();
+  const user=await resolveMaritimeCloudBillingUser(request("/api/stripe/cloud/checkout","POST"),response(),deps);
+  assert.equal(user.uid,`lm_${SUBJECT}`);
+  assert.equal(user.email,USER.email);
+  assert.equal(user.emailVerified,true);
+  assert.equal(user.emailVerifiedAt,"2026-10-20T00:00:00.000Z");
 });
 test("confirmed_email_without_google_identity_cannot_resolve_or_activate_a_manager",async()=>{
   const emailOnly={...USER,app_metadata:{provider:"email",providers:["email"]},identities:[{provider:"email"}]};

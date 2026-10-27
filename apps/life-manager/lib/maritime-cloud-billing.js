@@ -8,6 +8,16 @@ const CLOUD_PRICE_ENV = "LM_CLOUD_STRIPE_PRICE_ID";
 const CALENDAR_PRODUCT_ENV = "LM_STRIPE_PRODUCT_ID";
 const CALENDAR_PRICE_ENV = "LM_STRIPE_PRICE_ID";
 const TABLE = "lm_maritime_cloud_subscriptions";
+const CLOUD_TEST_CATALOG = Object.freeze({
+  mode: "test",
+  productName: "Life Manager Cloud",
+  amountMinor: 1900,
+  currency: "usd",
+  interval: "month",
+  trialPeriodDays: 7,
+  productMetadata: Object.freeze({ lm_catalog: "life-manager-cloud", billing_mode: "test", calendar_linkage: "none" }),
+  priceMetadata: Object.freeze({ lm_catalog: "life-manager-cloud", billing_mode: "test", calendar_linkage: "none" }),
+});
 const FIELDS = [
   "uid", "stripe_customer_id", "stripe_subscription_id", "stripe_product_id", "stripe_price_id", "stripe_status",
   "cancel_at_period_end", "entitled", "stripe_subscription_created", "last_event_created", "last_event_id", "updated_at",
@@ -360,9 +370,21 @@ async function handleMaritimeCloudBillingRequest(req, res, options = {}) {
   const publicOrigin = String(options.publicOrigin || "").replace(/\/$/, "");
   if (!/^https:\/\//.test(publicOrigin) || req.headers?.origin !== publicOrigin) { send(403, { error: "origin_rejected" }); return true; }
   let user;
-  try { user = await (options.resolveUserImpl || require("./maritime-manager-auth.js").resolveMaritimeManagerUser)(req, res, options); }
+  try { user = await (options.resolveUserImpl || require("./maritime-manager-auth.js").resolveMaritimeCloudBillingUser)(req, res, options); }
   catch { user = null; }
-  if (!user?.uid || !validTenantUid(user.uid) || !user.email || !user.csrf) { send(401, { error: "authentication_required" }); return true; }
+  if (!user) { send(401, { error: "authentication_required" }); return true; }
+  if (user.emailVerified !== true) {
+    const reason = ["signup_email_unverified", "signup_email_invalid"].includes(user.billingEmailSkipReason)
+      ? user.billingEmailSkipReason : "signup_email_unverified";
+    safeLog(options.logger, "info", `[cloud-stripe] billing email skipped: ${reason}`);
+    send(403, { error: "billing_email_unverified", status: "skipped", reason }); return true;
+  }
+  if (!user.uid || !validTenantUid(user.uid) || !user.email || !user.csrf) { send(401, { error: "authentication_required" }); return true; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
+    const reason = "signup_email_invalid";
+    safeLog(options.logger, "info", `[cloud-stripe] billing email skipped: ${reason}`);
+    send(403, { error: "billing_email_unverified", status: "skipped", reason }); return true;
+  }
   const suppliedCsrf = Buffer.from(String(req.headers?.["x-lm-web-csrf"] || ""));
   const expectedCsrf = Buffer.from(user.csrf);
   if (suppliedCsrf.length !== expectedCsrf.length || !require("node:crypto").timingSafeEqual(suppliedCsrf, expectedCsrf)) {
@@ -387,7 +409,8 @@ async function handleMaritimeCloudBillingRequest(req, res, options = {}) {
     if (pathname.endsWith("/checkout")) {
       const session = await stripe.checkout.sessions.create({ mode: "subscription",
         line_items: [{ price: config.priceId, quantity: 1 }], client_reference_id: user.uid,
-        customer_email: user.email, subscription_data: { metadata: { lm_tenant_uid: user.uid } },
+        customer_email: user.email, subscription_data: { trial_period_days: CLOUD_TEST_CATALOG.trialPeriodDays,
+        metadata: { lm_tenant_uid: user.uid } },
         success_url: `${origin}/maritime?cloud_checkout=success`, cancel_url: `${origin}/maritime?cloud_checkout=canceled` },
       { idempotencyKey });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://checkout.stripe.com/")) throw new Error();
@@ -426,6 +449,7 @@ async function requestMaritimeCloudStop({ tenantUid, eventId, managerStore, enqu
 }
 
 module.exports = {
+  CLOUD_TEST_CATALOG,
   resolveMaritimeCloudConfig,
   createMaritimeCloudBillingStore,
   handleMaritimeCloudStripeWebhook,

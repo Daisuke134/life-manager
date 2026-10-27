@@ -20,16 +20,41 @@ function send(res, status, body, extra = {}) {
 function clientFor(req, res, options) {
   return (options.createClient || createWebAuthClient)(req, res, options);
 }
-async function resolveMaritimeManagerUser(req, res, options = {}) {
+async function readMaritimeGoogleUser(req, res, options = {}) {
   if (!enabled(options)) return null;
   try {
     const client = clientFor(req, res, options);
     const result = await client.auth.getUser();
     const user = result?.data?.user;
-    if (result?.error || !user || !user.email || !Number.isFinite(Date.parse(user.email_confirmed_at))
-      || !hasVerifiedGoogleIdentity(user)) return null;
+    if (result?.error || !user || !hasVerifiedGoogleIdentity(user)) return null;
+    return user;
+  } catch { return null; }
+}
+function signupEmailVerification(user) {
+  const email = typeof user?.email === "string" ? user.email.trim() : "";
+  const confirmedAt = typeof user?.email_confirmed_at === "string" ? Date.parse(user.email_confirmed_at) : NaN;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { emailVerifiedAt: null, reason: "signup_email_invalid" };
+  if (!Number.isFinite(confirmedAt)) return { emailVerifiedAt: null, reason: "signup_email_unverified" };
+  return { emailVerifiedAt: new Date(confirmedAt).toISOString(), reason: null };
+}
+async function resolveMaritimeManagerUser(req, res, options = {}) {
+  const user = await readMaritimeGoogleUser(req, res, options);
+  const { emailVerifiedAt } = signupEmailVerification(user);
+  if (!user || !emailVerifiedAt) return null;
+  try {
     const uid = await (options.ensureWebUserImpl || ensureWebUser)(user.id, options);
-    return { uid, subject: user.id, email: user.email,
+    return { uid, subject: user.id, email: user.email, emailVerified: true, emailVerifiedAt,
+      csrf: createWebCsrfToken(uid, csrfSecret(options)) };
+  } catch { return null; }
+}
+async function resolveMaritimeCloudBillingUser(req, res, options = {}) {
+  const user = await readMaritimeGoogleUser(req, res, options);
+  if (!user) return null;
+  const { emailVerifiedAt, reason } = signupEmailVerification(user);
+  if (!emailVerifiedAt) return { emailVerified: false, billingEmailSkipReason: reason };
+  try {
+    const uid = await (options.ensureWebUserImpl || ensureWebUser)(user.id, options);
+    return { uid, subject: user.id, email: user.email, emailVerified: true, emailVerifiedAt,
       csrf: createWebCsrfToken(uid, csrfSecret(options)) };
   } catch { return null; }
 }
@@ -241,6 +266,7 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     const consent = retentionAccepted ? { ok: true, status: "consented" } : await distribution.accept(user.uid, source);
     if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503, { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
     const row = await store.enroll({ uid: user.uid, authSubject: user.subject, email: user.email,
+      emailVerifiedAt: user.emailVerifiedAt,
       timezone: body.timezone || "UTC", source, consentVersion: MANAGER_CONSENT_VERSION, releaseSha });
     if (row.status === "paused" || row.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (row.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
@@ -641,5 +667,5 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
 }
-module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate,
+module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, resolveMaritimeCloudBillingUser, handleMaritimeManagerActivate,
   handleMaritimeManagerPage, handleMaritimeManagerStop, handleMaritimeManagerCapafyConnection };

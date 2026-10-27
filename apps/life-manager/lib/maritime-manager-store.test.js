@@ -13,7 +13,7 @@ const UID_A = `lm_${SUBJECT_A}`;
 const UID_B = `lm_${SUBJECT_B}`;
 const SHA = "a".repeat(40);
 function input(uid = UID_A, subject = SUBJECT_A) {
-  return { uid, authSubject: subject, email: "person@example.invalid", timezone: "Asia/Tokyo",
+  return { uid, authSubject: subject, email: "person@example.invalid", emailVerifiedAt: "2026-10-20T00:00:00.000Z", timezone: "Asia/Tokyo",
     source: "referral", consentVersion: MANAGER_CONSENT_VERSION, releaseSha: SHA };
 }
 function fixture() {
@@ -72,15 +72,16 @@ function fixture() {
     if (opts.method === "PATCH" && row) Object.assign(row, body);
     return response(row ? [row] : []);
   };
-  const pgRow = row => ({ ...row, consent_v2_at: row.consent_v2_at == null ? null : new Date(row.consent_v2_at),
+  const pgRow = row => ({ ...row, email_verified_at: row.email_verified_at == null ? null : new Date(row.email_verified_at),
+    consent_v2_at: row.consent_v2_at == null ? null : new Date(row.consent_v2_at),
     paused_at: row.paused_at == null ? null : new Date(row.paused_at), created_at: new Date(row.created_at) });
   const pgPool = { query: async (statement, values = []) => {
     pgQueries.push({ statement, values });
     let selected;
     if (statement.includes("INSERT INTO public.lm_maritime_manager_enrollments")) {
-      const [uid, authSubject, email, timezone, source, consentVersion, releaseSha] = values;
+      const [uid, authSubject, email, emailVerifiedAt, timezone, source, consentVersion, releaseSha] = values;
       if (identities.get(uid) === authSubject && !rows.has(uid)) {
-        rows.set(uid, { uid, auth_subject: authSubject, email, timezone, status: "pending", source,
+        rows.set(uid, { uid, auth_subject: authSubject, email, email_verified_at: emailVerifiedAt, timezone, status: "pending", source,
           consent_version: consentVersion, agent_id: null, release_sha: releaseSha, paused_at: null,
           created_at: "2026-10-20T00:00:00.000Z" });
         return { rows: [{ uid }] };
@@ -190,6 +191,17 @@ test("enrollment_is_idempotent_and_tenant_scoped", async () => {
   await assert.rejects(store.enroll({ ...input(), email: "changed@example.invalid" }), /identity_mismatch/);
   assert.equal(rows.get(UID_A).auth_subject, SUBJECT_A);
   assert.equal(rows.get(UID_A).email, "person@example.invalid");
+  assert.equal(a.email_verified_at, "2026-10-20T00:00:00.000Z");
+});
+test("enrollment requires a trusted signup-email verification timestamp", async () => {
+  const { store } = fixture();
+  await assert.rejects(store.enroll({ ...input(), emailVerifiedAt: null }), /input_invalid/);
+});
+test("enrollment preserves the exact verified signup address", async () => {
+  const { store, rows } = fixture();
+  const email = "Publisher.Contact@example.invalid";
+  await store.enroll({ ...input(), email });
+  assert.equal(rows.get(UID_A).email, email);
 });
 test("only_one_concurrent_provision_claim_succeeds", async () => {
   const { store } = fixture(); await store.enroll(input());

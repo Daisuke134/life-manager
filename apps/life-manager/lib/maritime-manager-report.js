@@ -189,7 +189,12 @@ async function deliverMaritimeDailyResult({enrollment,result,observedAt}={},deps
  if(current.status!=='active'||current.paused_at){
   const error=new Error('maritime_daily_delivery_inactive');error.unknownEffect=false;throw error;
  }
- if(typeof current.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email))invalid();
+ if(typeof current.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email)){
+  return {status:'skipped',reason:'signup_email_invalid',report_kind:'maritime_daily_email'};
+ }
+ if(typeof current.email_verified_at!=='string'||!Number.isFinite(Date.parse(current.email_verified_at))){
+  return {status:'skipped',reason:'signup_email_unverified',report_kind:'maritime_daily_email'};
+ }
  const env=deps.env||process.env;
  const origin=result.work.some(work=>work.artifactRefs.length)
   ?require('./web-auth.js').cloudPublicOrigin(null,{env}):null;

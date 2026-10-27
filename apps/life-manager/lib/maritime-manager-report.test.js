@@ -111,7 +111,7 @@ test('missing or malformed cost records do not become verified zero expense',()=
   financialCoverage:coverage(),costs:{...coverage(),records}}),/invalid/);
 });
 function deliveryFixture(){
- const current={...enrollment,status:'active',paused_at:null,email:'person@example.invalid'};
+ const current={...enrollment,status:'active',paused_at:null,email:'person@example.invalid',email_verified_at:'2026-10-20T00:00:00.000Z'};
  let receipt=null;const sends=[];
  const deps={managerStore:{read:async()=>({...current})},
   cfoReceiptIO:{read:async()=>receipt,claim:async(_,value)=>{if(receipt)return false;receipt={...value};return true;},mark:async(_,patch)=>Object.assign(receipt,patch)},
@@ -126,6 +126,18 @@ test('daily email replays original provider ID and uses the latest verified enro
  assert.equal(first.providerMessageId,'mail-1');assert.equal(second.providerMessageId,'mail-1');
  assert.equal(second.status,'duplicate');assert.equal(f.sends.length,1);
  assert.equal(f.sends[0].to,'person@example.invalid');assert.match(f.sends[0].text,/利益：未確認/);
+});
+test('daily email is skipped with a recorded reason when signup email has no verification evidence',async()=>{
+ const f=deliveryFixture();f.current.email_verified_at=null;
+ const result=await deliverMaritimeDailyResult(f.input,f.deps);
+ assert.deepEqual(result,{status:'skipped',reason:'signup_email_unverified',report_kind:'maritime_daily_email'});
+ assert.equal(f.sends.length,0);
+});
+test('daily email is skipped with a recorded reason for an invalid signup address',async()=>{
+ const f=deliveryFixture();f.current.email='not-an-email';
+ const result=await deliverMaritimeDailyResult(f.input,f.deps);
+ assert.deepEqual(result,{status:'skipped',reason:'signup_email_invalid',report_kind:'maritime_daily_email'});
+ assert.equal(f.sends.length,0);
 });
 test('paused, foreign, malformed report scopes and invalid timestamps do not send email',async()=>{
  const f=deliveryFixture();f.current.paused_at='2026-10-21T09:00:00Z';
