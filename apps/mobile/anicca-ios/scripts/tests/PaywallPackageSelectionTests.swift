@@ -104,6 +104,16 @@ final class PaywallPackageSelectionTests {
         precondition(!PaywallOfferingSelection.isUsableAnicca(productIdentifiers: [], hasAnnualOrMonthlyPackage: true))
     }
 
+    func testFreshCustomerInfoOverridesStaleCachedEntitlement() {
+        precondition(OnboardingPaywallDecision.resolve(freshEntitlement: true, cachedEntitlement: false) == .completeOnboarding)
+        precondition(OnboardingPaywallDecision.resolve(freshEntitlement: false, cachedEntitlement: true) == .presentPaywall)
+    }
+
+    func testUnavailableCustomerInfoFallsBackToCachedEntitlement() {
+        precondition(OnboardingPaywallDecision.resolve(freshEntitlement: nil, cachedEntitlement: true) == .completeOnboarding)
+        precondition(OnboardingPaywallDecision.resolve(freshEntitlement: nil, cachedEntitlement: false) == .presentPaywall)
+    }
+
     func testDelayedLoadSelectsAnnualWithoutAnotherAppearance() {
         var selected = resolve([])
         precondition(selected == nil)
@@ -256,6 +266,8 @@ final class PaywallPackageSelectionTests {
         ("testValidAniccaCurrentKeepsRevenueCatTargetingChoice", testValidAniccaCurrentKeepsRevenueCatTargetingChoice),
         ("testInvalidFallbackNeverReturnsHonneProducts", testInvalidFallbackNeverReturnsHonneProducts),
         ("testAniccaOfferingMustContainOnlyAniccaProductsAndMonthlyOrAnnualPlan", testAniccaOfferingMustContainOnlyAniccaProductsAndMonthlyOrAnnualPlan),
+        ("testFreshCustomerInfoOverridesStaleCachedEntitlement", testFreshCustomerInfoOverridesStaleCachedEntitlement),
+        ("testUnavailableCustomerInfoFallsBackToCachedEntitlement", testUnavailableCustomerInfoFallsBackToCachedEntitlement),
         ("testDelayedLoadSelectsAnnualWithoutAnotherAppearance", testDelayedLoadSelectsAnnualWithoutAnotherAppearance),
         ("testMonthlyOnlyLoadSelectsMonthly", testMonthlyOnlyLoadSelectsMonthly),
         ("testUserMonthlyChoiceSurvivesRefreshAndRebindsToCurrentInstance", testUserMonthlyChoiceSurvivesRefreshAndRebindsToCurrentInstance),

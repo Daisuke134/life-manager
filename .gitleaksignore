@@ -1090,3 +1090,5 @@ ea646b27bfbfcc37c156a7d4bc7df97daf4a980e:products/manager/docs/demos/manager-pub
 a6f8deaf743033dae21132be54d27223293b09f7:products/manager/docs/verification/G001_G002_SOURCE_DESIGN_ACCEPTANCE_20261023.md:generic-api-key:22
 # Redaction test fixture on feat/maritime-provider-chain-20261023 (placeholder "secret-token-abcdefghijkl"); exact occurrence only.
 dbd128f27c963d049ee47c66887720ffa3340cd2:apps/life-manager/maritime/test_browser_mcp.py:generic-api-key:65
+# Historical idempotency-key test fixture; reviewed as non-authentication data.
+010a4f31363056b2206526187c457588c93d4c31:apps/life-manager/lib/maritime-cloud-billing-http.test.js:generic-api-key:30
