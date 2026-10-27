@@ -1,6 +1,8 @@
 # Historical fingerprints adjudicated in
 # docs/evidence/security/2026-07-29-oss-security-baseline.md.
 # This baseline does not suppress a new secret at a new commit/path/line.
+# P1.5b test-only UUID-shaped idempotency fixture; replaced by a plain fixture in 4b04514.
+010a4f31363056b2206526187c457588c93d4c31:apps/life-manager/lib/maritime-cloud-billing-http.test.js:generic-api-key:30
 # Public attribution_token test fixtures; exact historical fingerprints only.
 bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:114
 929c69d900d5f654fc7716f083c93babb9410c1f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:254
