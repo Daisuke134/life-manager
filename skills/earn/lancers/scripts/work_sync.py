@@ -310,14 +310,59 @@ def invalidate_acceptance_status_cache(page: Any) -> None:
             pass
 
 
-def _fetch_acceptance_statuses(page: Any) -> dict[str, Optional[str]]:
+def _fetch_acceptance_statuses(page: Any) -> dict[str, list[str]]:
     path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
     page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
     if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
     page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
-    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), labels: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")].map(node => node.innerText?.replace(/\\s+/g, " ")?.trim()).filter(Boolean)}))""")
     if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
-    return {row.get("href"): row.get("status") for row in projects if isinstance(row, Mapping)}
+    statuses = {}
+    for row in projects:
+        if not isinstance(row, Mapping) or not isinstance(row.get("href"), str):
+            continue
+        labels = row.get("labels")
+        if isinstance(labels, list) and all(isinstance(label, str) for label in labels):
+            statuses[row["href"]] = labels
+        elif isinstance(row.get("status"), str):
+            # Keep compatibility with the older one-status provider fixture shape.
+            statuses[row["href"]] = [row["status"]]
+    return statuses
+
+
+def _classify_acceptance_state(*, accept_form_present: bool,
+                               status_labels: Iterable[str]) -> str:
+    if accept_form_present:
+        return "awaiting_us"
+    labels = {" ".join(label.split()) for label in status_labels if isinstance(label, str)}
+    if labels.intersection({"進行中", "仮払い待ち"}):
+        return "accepted"
+    if labels.intersection({"不採用", "辞退", "キャンセル"}):
+        return "declined"
+    if labels.intersection({"期限切れ", "提案期限切れ", "募集終了"}):
+        return "expired"
+    if "一時停止" in labels:
+        return "paused"
+    if "選定中" in labels or any(re.fullmatch(r"残り\s*[0-9,]+\s*(?:時間|日)", label) for label in labels):
+        return "awaiting_client"
+    return "unknown"
+
+
+def _read_project_acceptance_state(page: Any, project_id: str) -> str:
+    statuses = getattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, None)
+    if statuses is None:
+        statuses = _fetch_acceptance_statuses(page)
+        try: setattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, statuses)
+        except AttributeError: pass
+    labels = statuses.get(f"/work/detail/{project_id}")
+    if labels is None:
+        print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(statuses)}", file=sys.stderr)
+        return "unknown"
+    state = _classify_acceptance_state(accept_form_present=False, status_labels=labels)
+    if state == "unknown":
+        shown = labels[1] if len(labels) > 1 else (labels[0] if labels else None)
+        print(f"lancers_acceptance_readback_probe:{project_id}:status={shown!r}", file=sys.stderr)
+    return state
 
 
 def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
@@ -332,19 +377,7 @@ def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     wake. Cache it on ``page`` itself so a wake that reuses one page across several
     candidates fetches the list once; a fresh page (a new wake) starts with no cache.
     """
-    statuses = getattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, None)
-    if statuses is None:
-        statuses = _fetch_acceptance_statuses(page)
-        try: setattr(page, _ACCEPTANCE_STATUS_CACHE_ATTR, statuses)
-        except AttributeError: pass
-    status = statuses.get(f"/work/detail/{project_id}")
-    if status in {"進行中", "仮払い待ち"}:
-        return True
-    if status is None:
-        print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(statuses)}", file=sys.stderr)
-    else:
-        print(f"lancers_acceptance_readback_probe:{project_id}:status={status!r}", file=sys.stderr)
-    return False
+    return _read_project_acceptance_state(page, project_id) == "accepted"
 
 
 def _recent_verified_proposals(state_path: Path, *, now: Optional[str] = None,

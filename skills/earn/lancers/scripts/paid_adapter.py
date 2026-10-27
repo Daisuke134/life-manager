@@ -180,6 +180,7 @@ class _LiveLancersProvider:
         if order is not None:
             return {
                 "provider_state": "awaiting_acceptance",
+                "acceptance_state": "awaiting_us",
                 "project_id": project_id, "proposal_id": proposal_id,
                 "verified_price": verified["price"],
                 "verified_delivery_due_on": verified["delivery_due_on"],
@@ -190,10 +191,13 @@ class _LiveLancersProvider:
                 "accept_form_action": order["action"],
                 "accept_fields": dict(order["fields"]),
             }
-        if work_sync._read_acceptance_confirmed(self.page, project_id):
+        acceptance_state = work_sync._read_project_acceptance_state(self.page, project_id)
+        if acceptance_state == "accepted":
             return {"provider_state": "accepted_confirmed",
+                    "acceptance_state": "accepted",
                     "project_id": project_id, "proposal_id": proposal_id}
         return {"provider_state": "acceptance_state_unknown",
+                "acceptance_state": acceptance_state,
                 "project_id": project_id, "proposal_id": proposal_id}
 
     def accept_order(self, intent: Mapping[str, Any], detail: Mapping[str, Any]) -> None:
@@ -285,17 +289,21 @@ class _LiveLancersProvider:
         self._open()
         return self._work_sync().read_paid_inventory(state_path=self.state_path, page=self.page)
 
-    def close(self) -> None:
-        work_sync = self._work_sync()
+    def close(self) -> bool:
+        cleanup_ok = True
         if self.page is not None:
             try:
-                work_sync._cleanup(self.page, self.browser)
+                cleanup_ok = bool(self._work_sync()._cleanup(self.page, self.browser))
             except Exception:
-                pass
+                cleanup_ok = False
         self.page = self.browser = None
         if self._lock is not None:
             lock, self._lock = self._lock, None
-            lock.__exit__(None, None, None)
+            try:
+                lock.__exit__(None, None, None)
+            except Exception:
+                cleanup_ok = False
+        return cleanup_ok
 
 
 class LancersPaidAdapter:
@@ -447,6 +455,11 @@ class LancersPaidAdapter:
             context["contract"] = {**context["contract"], **dict(detail)}
             self._contexts[work_id] = context
         return context
+
+    def close(self) -> bool:
+        """Release the page owned by this Paid wake before its process exits."""
+        close = getattr(self.provider, "close", None)
+        return close() is not False if callable(close) else True
 
     @staticmethod
     def _detail(context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -690,11 +703,27 @@ def decide(row: Mapping[str, Any], *,
         raise RuntimeError("lancers_paid_context_unavailable")
     provider_state = contract.get("provider_state")
     if provider_state == "awaiting_acceptance":
-        return _decide_acceptance(contract)
+        decision = _decide_acceptance(contract)
+        decision["provider_state"] = "awaiting_us"
+        return decision
     if provider_state == "accepted_confirmed":
-        return {"action": "noop", "classification": "completed"}
+        return {"action": "noop", "classification": "completed",
+                "provider_state": "accepted"}
+    acceptance_state = contract.get("acceptance_state")
+    if acceptance_state == "awaiting_client":
+        return {"action": "wait", "reason": "awaiting_client",
+                "provider_state": "awaiting_client",
+                "remaining_work": ["wait for the client to choose a freelancer"]}
+    if acceptance_state == "paused":
+        return {"action": "wait", "reason": "project_paused",
+                "provider_state": "paused",
+                "remaining_work": ["wait for the client to resume the project"]}
+    if acceptance_state in {"declined", "expired"}:
+        return {"action": "noop", "classification": "satisfied_noop",
+                "provider_state": acceptance_state}
     if provider_state == "acceptance_state_unknown":
         return {"action": "wait", "reason": "acceptance_state_unknown",
+                "provider_state": "unknown",
                 "remaining_work": ["reconfirm official acceptance/working state for this project"]}
     if provider_state == "delivered":
         return {"action": "noop", "classification": "completed"}

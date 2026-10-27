@@ -109,6 +109,82 @@ def test_verified_effect_replays_with_zero_mutations(tmp_path: Path) -> None:
     assert len(adapter.effects) == 1
 
 
+def test_wait_result_preserves_normalized_provider_state(tmp_path: Path) -> None:
+    adapter = Adapter([observation("project_acceptance:5618499")])
+    result = paid.run_wake(
+        adapter=adapter,
+        decide=lambda _row: {
+            "action": "wait", "reason": "awaiting_client",
+            "provider_state": "awaiting_client",
+            "remaining_work": ["wait for client decision"],
+        },
+        state_root=tmp_path,
+    )
+
+    assert result["items"][0]["provider_state"] == "awaiting_client"
+
+
+def test_main_closes_provider_adapter_after_successful_wake(tmp_path: Path) -> None:
+    closed = tmp_path / "provider-closed"
+    adapter_module = tmp_path / "provider_adapter.py"
+    adapter_module.write_text(
+        "from pathlib import Path\n"
+        "class Adapter:\n"
+        "    def observe_active(self): return []\n"
+        "    def observe_one(self, _work_id): return {}\n"
+        "    def context(self, _work_id): return {}\n"
+        "    def mutate(self, _intent): pass\n"
+        "    def readback(self, _intent): return {}\n"
+        f"    def close(self): Path({str(closed)!r}).write_text('closed')\n"
+        "def build(_argv): return Adapter(), lambda _row: {'action': 'wait', 'reason': 'idle'}\n",
+        encoding="utf-8",
+    )
+
+    exit_code = paid.main([
+        "--provider-adapter", str(adapter_module),
+        "--state-root", str(tmp_path / "state"),
+        "--output", str(tmp_path / "paid-latest.json"),
+        "--max-workers", "1",
+    ])
+
+    assert exit_code == 0
+    assert closed.read_text(encoding="utf-8") == "closed"
+
+
+def test_main_marks_provider_cleanup_failure_without_erasing_effect_readback(tmp_path: Path) -> None:
+    adapter_module = tmp_path / "provider_adapter.py"
+    adapter_module.write_text(
+        "class Adapter:\n"
+        "    def __init__(self): self.readback_calls = 0\n"
+        "    def observe_active(self): return [row()]\n"
+        "    def observe_one(self, _work_id): return row()\n"
+        "    def context(self, _work_id): return {}\n"
+        "    def mutate(self, _intent): pass\n"
+        "    def readback(self, _intent):\n"
+        "        self.readback_calls += 1\n"
+        "        return {'verified': self.readback_calls >= 2, 'provider_receipt_id': 'receipt-1', 'observed_at': '2026-10-27T00:00:00Z'}\n"
+        "    def close(self): return False\n"
+        "def row(): return {'provider': 'fixture', 'account_id': 'seller-1', 'work_id': 'work-1', 'latest_event_id': 'event-1', 'provider_state': 'active', 'observed_at': '2026-10-27T00:00:00Z'}\n"
+        "def build(_argv): return Adapter(), lambda _row: {'action': 'submit', 'payload': {'message': 'done'}}\n",
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "paid-latest.json"
+    exit_code = paid.main([
+        "--provider-adapter", str(adapter_module),
+        "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+        "--max-workers", "1",
+    ])
+    result = json.loads(output.read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert result["status"] == "failed"
+    assert result["failed_step"] == "provider_cleanup"
+    assert result["effect"] == 1
+    assert result["readback"] == 1
+
+
 def test_required_paid_handoff_blocks_mutation_without_provider_proof(tmp_path: Path) -> None:
     adapter = Adapter([observation("work-1")])
 

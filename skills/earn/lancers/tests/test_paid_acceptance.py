@@ -167,10 +167,32 @@ def test_decide_accepts_when_order_matches_the_verified_proposal():
     }
     decision = paid_adapter.decide({"context": {"contract": {
         **contract, "provider_state": "awaiting_acceptance"}}})
-    assert decision == {"action": "accept", "payload": {
+    assert decision == {"action": "accept", "provider_state": "awaiting_us", "payload": {
         "project_id": "5605912", "proposal_id": "27969614",
         "order_amount": FIXED_300, "order_delivery_due_on": "2026-09-30",
     }}
+
+
+def test_decide_keeps_open_client_selection_out_of_acceptance_path():
+    decision = paid_adapter.decide({"context": {"contract": {
+        "provider_state": "acceptance_state_unknown",
+        "acceptance_state": "awaiting_client",
+    }}})
+
+    assert decision["action"] == "wait"
+    assert decision["reason"] == "awaiting_client"
+    assert decision["provider_state"] == "awaiting_client"
+
+
+def test_decide_keeps_paused_project_out_of_acceptance_path():
+    decision = paid_adapter.decide({"context": {"contract": {
+        "provider_state": "acceptance_state_unknown",
+        "acceptance_state": "paused",
+    }}})
+
+    assert decision["action"] == "wait"
+    assert decision["reason"] == "project_paused"
+    assert decision["provider_state"] == "paused"
 
 
 def test_decide_never_accepts_when_amount_or_deadline_differs():
@@ -278,6 +300,71 @@ def test_terms_match_issues_exactly_one_accept_and_readback_closes(tmp_path: Pat
     assert result["effect"] == 1
     assert result["readback"] == 1
     assert result["items"][0]["status"] == "verified"
+
+
+def test_paid_adapter_close_releases_its_provider_page(tmp_path: Path) -> None:
+    class Provider:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    provider = Provider()
+    adapter = paid_adapter.LancersPaidAdapter(
+        account_id="keiodaisuke",
+        inventory_reader=lambda: _snapshot([]),
+        provider=provider,
+        state_path=tmp_path / "application.json",
+    )
+
+    adapter.close()
+
+    assert provider.closed is True
+
+
+def test_paid_adapter_reports_provider_cleanup_failure(tmp_path: Path) -> None:
+    class Provider:
+        def close(self):
+            return False
+
+    adapter = paid_adapter.LancersPaidAdapter(
+        account_id="keiodaisuke",
+        inventory_reader=lambda: _snapshot([]),
+        provider=Provider(),
+        state_path=tmp_path / "application.json",
+    )
+
+    assert adapter.close() is False
+
+
+def test_live_provider_keeps_active_project_as_awaiting_client(tmp_path: Path, monkeypatch) -> None:
+    class WorkSync:
+        @staticmethod
+        def _read_proposal_terms(_page, _proposal_id, expected_project=None):
+            assert expected_project == "5618499"
+            return {"price": FIXED_300, "delivery_due_on": "2026-10-29"}
+
+        @staticmethod
+        def _read_order_terms(_page, _project_id):
+            return None
+
+        @staticmethod
+        def _read_project_acceptance_state(_page, project_id):
+            assert project_id == "5618499"
+            return "awaiting_client"
+
+    monkeypatch.setattr(paid_adapter, "_load_work_sync", lambda: WorkSync)
+    provider = paid_adapter._LiveLancersProvider(state_path=tmp_path / "paid-latest.json")
+    provider.page = object()
+
+    detail = provider._read_acceptance_detail({
+        "source_kind": "project_acceptance",
+        "provider_id": "5618499",
+        "proposal_id": "proposal-1",
+    })
+
+    assert detail["provider_state"] == "acceptance_state_unknown"
+    assert detail["acceptance_state"] == "awaiting_client"
 
 
 def test_required_paid_handoff_keeps_pre_funding_acceptance_available(tmp_path: Path) -> None:
@@ -571,7 +658,44 @@ def test_acceptance_readback_counts_escrow_pending_as_accepted(capsys):
     assert work_sync._read_acceptance_confirmed(Page(), "3") is False
     assert all(url.endswith("/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC") for url in visited)
     err = capsys.readouterr().err
-    assert "2:status='選定中'" in err and "3:not_listed:rows=3" in err
+    assert "2:status='選定中'" not in err and "3:not_listed:rows=3" in err
+
+
+def test_acceptance_state_uses_the_provider_form_and_all_visible_status_labels():
+    classify = work_sync._classify_acceptance_state
+
+    assert classify(accept_form_present=True, status_labels=[]) == "awaiting_us"
+    assert classify(accept_form_present=False, status_labels=["プロジェクト", "仮払い待ち"]) == "accepted"
+    assert classify(accept_form_present=False, status_labels=["プロジェクト", "残り 2時間"]) == "awaiting_client"
+    assert classify(accept_form_present=False, status_labels=["プロジェクト", "一時停止"]) == "paused"
+    assert classify(accept_form_present=False, status_labels=["プロジェクト", "選定中"]) == "awaiting_client"
+    assert classify(accept_form_present=False, status_labels=["不採用"]) == "declined"
+    assert classify(accept_form_present=False, status_labels=["期限切れ"]) == "expired"
+    assert classify(accept_form_present=False, status_labels=[]) == "unknown"
+
+
+def test_acceptance_readback_classifies_live_labels_once_per_page():
+    class Page:
+        url = ""
+        calls = 0
+
+        def goto(self, url, **_kwargs):
+            self.url = url
+
+        def wait_for_function(self, *_args, **_kwargs):
+            return None
+
+        def evaluate(self, _script):
+            self.calls += 1
+            return [
+                {"href": "/work/detail/5618499", "labels": ["プロジェクト", "残り 2時間"]},
+                {"href": "/work/detail/5619698", "labels": ["プロジェクト", "一時停止"]},
+            ]
+
+    page = Page()
+    assert work_sync._read_project_acceptance_state(page, "5618499") == "awaiting_client"
+    assert work_sync._read_project_acceptance_state(page, "5619698") == "paused"
+    assert page.calls == 1
 
 
 def test_acceptance_readback_fetches_the_list_once_per_wake_for_the_same_page():

@@ -382,9 +382,13 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
             saved["receipt_history"] = history
             saved["receipt"] = history[-1]
         _write_state(path, saved, occurrence_id)
-        return {"work_id": row["work_id"], "status": classification,
-                "reason": "no_effect_required",
-                "effect": 0, "readback": 1, "failed": 0}
+        result = {"work_id": row["work_id"], "status": classification,
+                  "reason": "no_effect_required",
+                  "effect": 0, "readback": 1, "failed": 0}
+        provider_state = decision.get("provider_state")
+        if isinstance(provider_state, str) and provider_state.strip():
+            result["provider_state"] = provider_state.strip()
+        return result
     if action == "wait":
         reason = _text(decision.get("reason"), "reason")
         remaining = decision.get("remaining_work")
@@ -399,7 +403,11 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
                 saved["receipt_history"] = history
                 saved["receipt"] = history[-1]
         _write_state(path, saved, occurrence_id)
-        return _pending(row, reason)
+        result = _pending(row, reason)
+        provider_state = decision.get("provider_state")
+        if isinstance(provider_state, str) and provider_state.strip():
+            result["provider_state"] = provider_state.strip()
+        return result
 
     paid_handoff = None
     if require_paid_handoff and action in FUNDED_MUTATIONS:
@@ -625,6 +633,7 @@ def main(argv: list[str] | None = None) -> int:
     state_root = args.state_root.expanduser().resolve()
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
     run_marker = None
+    adapter = None
     try:
         run_marker = _prepare_run_marker(state_root, occurrence_id)
         prior_armed = (run_marker is not None and
@@ -669,6 +678,17 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(marker, Mapping) or marker.get("status") != "effect_started":
                 _write(run_marker, {"version": 1, "occurrence_id": occurrence_id,
                                     "status": "completed", "effect": result["effect"]})
+    if adapter is not None:
+        close = getattr(adapter, "close", None)
+        if callable(close):
+            try:
+                if close() is False:
+                    raise RuntimeError("provider_cleanup_failed")
+            except Exception as error:
+                result["status"] = "failed"
+                result["failed"] = int(result.get("failed", 0)) + 1
+                result["failed_step"] = "provider_cleanup"
+                result["cleanup_error_type"] = type(error).__name__
     if occurrence_id is not None:
         result["occurrence_id"] = occurrence_id
     _write(args.output.expanduser().resolve(), result)

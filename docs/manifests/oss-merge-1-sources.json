@@ -152,7 +152,7 @@
           "source": "skills/_shared",
           "target": "skills/_shared",
           "files": 191,
-          "inventory_sha256": "6b973a5436d93ed79fb74c8f0504b8a2ba0906d02a66600dfd92d83b592c5e9b"
+          "inventory_sha256": "94bae561d023aac19fb26d958fc116d5abe9311f607581d62141229274906eea"
         },
         {
           "source": "skills/anicca-life-manager",
