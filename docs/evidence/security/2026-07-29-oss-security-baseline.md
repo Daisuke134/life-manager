@@ -264,3 +264,21 @@ absent from this PR's current tree, so rewriting the current tree cannot remove
 the historical finding. Only this exact commit/path/rule/line fingerprint is
 recorded in `.gitleaksignore`. Scanner rules, path allowlists, current-tree
 scanning, and detection of findings at new locations remain unchanged.
+
+## Addendum 2026-10-27 — historical idempotency test fixture
+
+The Security Scan for PR #9034 passes the current-tree Gitleaks step and
+TruffleHog's verified-history step. Its full-history Gitleaks step reports one
+`generic-api-key` finding at commit `010a4f31363056b2206526187c457588c93d4c31`,
+`apps/life-manager/lib/maritime-cloud-billing-http.test.js:30`. Review of that
+commit shows the match is the default idempotency key in a test-only request
+helper; the test injects a local fake Stripe client. The historical test file
+is absent from current `main`. No credential material is present in the current
+tree, and the matched value is not copied into this evidence.
+
+Only this exact commit/path/rule/line fingerprint is recorded in
+`.gitleaksignore`:
+`010a4f31363056b2206526187c457588c93d4c31:apps/life-manager/lib/maritime-cloud-billing-http.test.js:generic-api-key:30`.
+
+The current-tree scan and full-history scan remain enabled. A finding at any
+other commit, path, rule, or line remains reportable.
