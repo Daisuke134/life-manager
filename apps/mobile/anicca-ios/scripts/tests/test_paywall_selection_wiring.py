@@ -13,6 +13,8 @@ APP_ROOT = Path(__file__).resolve().parents[2]
 VIEW = APP_ROOT / "aniccaios/Onboarding/PaywallVariantBView.swift"
 HELPER = APP_ROOT / "aniccaios/Onboarding/PaywallPackageSelection.swift"
 SUBSCRIPTION_MANAGER = APP_ROOT / "aniccaios/Services/SubscriptionManager.swift"
+ONBOARDING = APP_ROOT / "aniccaios/Onboarding/OnboardingFlowView.swift"
+ANALYTICS = APP_ROOT / "aniccaios/Services/AnalyticsManager.swift"
 
 
 class PaywallSelectionWiringTests(unittest.TestCase):
@@ -96,9 +98,11 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         retry = self.source.split('Button(String(localized: "paywall_b_retry"))', 1)[1].split(
             'Button(String(localized: "paywall_plan_restore"))', 1
         )[0]
-        self.assertIn("Task { await refreshStorefrontEligibility() }", retry)
+        self.assertIn("let loaded = await refreshStorefrontEligibility()", retry)
+        self.assertIn("trackOfferingLoadResult(loaded)", retry)
         timeout = self.source.split("private func scheduleReloadTimeout()", 1)[1].split("private func purchase()", 1)[0]
-        self.assertIn("Task { await refreshStorefrontEligibility() }", timeout)
+        self.assertIn("let loaded = await refreshStorefrontEligibility()", timeout)
+        self.assertIn("trackOfferingLoadResult(loaded)", timeout)
 
     def test_subscription_refresh_discards_outdated_and_cross_storefront_results(self):
         manager = SUBSCRIPTION_MANAGER.read_text(encoding="utf-8")
@@ -123,6 +127,36 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         self.assertIn("appState.currentStorefrontCountryCode", purchase)
         self.assertIn("Task { @MainActor in", purchase)
         self.assertNotIn("await MainActor.run", purchase)
+
+    def test_onboarding_end_refreshes_customer_info_before_routing_to_paywall(self):
+        onboarding = ONBOARDING.read_text(encoding="utf-8")
+        manager = SUBSCRIPTION_MANAGER.read_text(encoding="utf-8")
+
+        resume = onboarding.split("if appState.onboardingQuestionsCompleted", 1)[1].split(
+            "step = appState.onboardingStep", 1
+        )[0]
+        completion = onboarding.split("if step == .notifications", 1)[1].split(
+            "if let next = OnboardingStep", 1
+        )[0]
+        self.assertIn('resolveOnboardingPaywallEntry(source: "resume")', resume)
+        self.assertIn('resolveOnboardingPaywallEntry(source: "completion")', completion)
+        entry = onboarding.split("private func resolveOnboardingPaywallEntry", 1)[1].split(
+            "private func handlePaywallSuccess", 1
+        )[0]
+        self.assertIn("await SubscriptionManager.shared.refreshCustomerInfo()", entry)
+        self.assertLess(entry.index("refreshCustomerInfo()"), entry.index("OnboardingPaywallDecision.resolve("))
+        self.assertIn("customerInfo(fetchPolicy: .fetchCurrent)", manager)
+        self.assertIn("AppState.shared.updateSubscriptionInfo(subscription)", manager)
+
+    def test_onboarding_paywall_records_bounded_entitlement_and_offering_outcomes(self):
+        onboarding = ONBOARDING.read_text(encoding="utf-8")
+        analytics = ANALYTICS.read_text(encoding="utf-8")
+        paywall = VIEW.read_text(encoding="utf-8")
+        self.assertIn(".onboardingPaywallCustomerInfoResult", onboarding)
+        self.assertIn(".onboardingPaywallOfferingLoadResult", paywall)
+        self.assertIn('case onboardingPaywallCustomerInfoResult = "onboarding_paywall_customer_info_result"', analytics)
+        self.assertIn('case onboardingPaywallOfferingLoadResult = "onboarding_paywall_offering_load_result"', analytics)
+        self.assertIn("trackedOfferingLoadOutcomes.insert(result).inserted", paywall)
 
     def test_policy_returns_current_match_before_annual_monthly_defaults(self):
         # Structural contract only. Execute the companion Swift tests to verify

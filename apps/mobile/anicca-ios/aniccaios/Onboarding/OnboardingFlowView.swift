@@ -10,6 +10,7 @@ struct OnboardingFlowView: View {
     @EnvironmentObject private var appState: AppState
     @State private var step: OnboardingStep = .welcome
     @State private var showPaywall: Bool = false
+    @State private var isResolvingPaywallEntry = false
     @State private var didPurchaseOnPaywall = false
 
     var body: some View {
@@ -26,10 +27,15 @@ struct OnboardingFlowView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+
+            if isResolvingPaywallEntry {
+                ProgressView()
+                    .accessibilityIdentifier("onboarding-paywall-entitlement-check")
+            }
         }
         .onAppear {
-            if appState.onboardingQuestionsCompleted && !appState.subscriptionInfo.isEntitled {
-                showPaywall = true
+            if appState.onboardingQuestionsCompleted {
+                resolveOnboardingPaywallEntry(source: "resume")
                 return
             }
 
@@ -82,13 +88,7 @@ struct OnboardingFlowView: View {
             appState.markOnboardingQuestionsCompleted()
             AnalyticsManager.shared.track(.onboardingCompleted)
             AnalyticsManager.shared.updateSKANConversionValue(1)
-
-            if appState.subscriptionInfo.isEntitled {
-                completeOnboardingForExistingPro()
-                return
-            }
-
-            showPaywall = true
+            resolveOnboardingPaywallEntry(source: "completion")
             return
         }
 
@@ -102,6 +102,38 @@ struct OnboardingFlowView: View {
         // v1.8.7: remote-only notifications. APNs registration is triggered on
         // permission grant and on app foreground — nothing to schedule locally.
         appState.markOnboardingComplete()
+    }
+
+    @MainActor
+    private func resolveOnboardingPaywallEntry(source: String) {
+        guard !isResolvingPaywallEntry else { return }
+        isResolvingPaywallEntry = true
+        Task { @MainActor in
+            let freshEntitlement = await SubscriptionManager.shared.refreshCustomerInfo()
+            let cachedEntitlement = appState.subscriptionInfo.isEntitled
+            let result: String
+            if let freshEntitlement {
+                result = freshEntitlement ? "fresh_entitled" : "fresh_not_entitled"
+            } else {
+                result = cachedEntitlement ? "unavailable_cached_entitled" : "unavailable_cached_free"
+            }
+            AnalyticsManager.shared.track(.onboardingPaywallCustomerInfoResult, properties: [
+                "source": source,
+                "result": result,
+            ])
+
+            let decision = OnboardingPaywallDecision.resolve(
+                freshEntitlement: freshEntitlement,
+                cachedEntitlement: cachedEntitlement
+            )
+            isResolvingPaywallEntry = false
+            switch decision {
+            case .completeOnboarding:
+                completeOnboardingForExistingPro()
+            case .presentPaywall:
+                showPaywall = true
+            }
+        }
     }
 
     private func handlePaywallSuccess(customerInfo: CustomerInfo) {

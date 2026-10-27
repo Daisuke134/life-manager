@@ -159,6 +159,8 @@ enum AnalyticsEvent: String {
     // Paywall funnel
     case paywallPrimerViewed = "paywall_primer_viewed"
     case paywallPlanSelectionViewed = "paywall_plan_selection_viewed"
+    case onboardingPaywallCustomerInfoResult = "onboarding_paywall_customer_info_result"
+    case onboardingPaywallOfferingLoadResult = "onboarding_paywall_offering_load_result"
     case onboardingPaywallPurchased = "onboarding_paywall_purchased"
     case onboardingPaywallDismissedFree = "onboarding_paywall_dismissed_free"
 
@@ -190,4 +192,3 @@ enum AnalyticsEvent: String {
     case nudgeNegativeFeedback = "nudge_negative_feedback"
     case nudgeScheduled = "nudge_scheduled"
 }
-
