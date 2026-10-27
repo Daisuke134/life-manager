@@ -4,6 +4,10 @@ The canonical path publishes a run_online subscription listing with the model in
 Every step has a VERIFY gate. Never trust a local success/toast alone — confirm with
 publish-remote-status.
 
+**CP1 driver:** `scripts/drive_cp1.py` is retired and fails closed. Use the
+screenshot-guided `CP1_AGENTIC.md` / `scripts/cp1_agent.py` flow under the
+registered `capafy:kosuke` browser lease.
+
 ## Canonical LLM config
 - The official Agent detail's displayed `model` comes ONLY from CP2, not CP1 —
   **verified live 2026-09-28: the current card UI has no Primary Model field on
@@ -129,7 +133,10 @@ free trials. That is now the default new-skill shape again (BEST_PRACTICES.md §
 Trial, week = Free Trial 24h / 3 requests, month = Free Trial 72h / 5 requests, unless a specific
 winner's data says otherwise. Already-published listings are not retroactively edited.
 
-## drive_cp1.py — 2 MORE gotchas found on O2 (2026-06-27), now baked in:
+## Historical notes for the retired drive_cp1.py
+
+The following gotchas explain the old implementation only. The script is disabled;
+use the screenshot-guided workflow above.
 13. ★ The React form fields LAZY-MOUNT only after a Playwright LOCATOR click on the 基本情報 tab (`pg.get_by_text("基本情報",exact=True).first.click()`). On a fresh new_page goto, inputs count = 0 until that locator click fires the render. evaluate/coords clicks do NOT mount it. (drive_cp1 uses tab_click()).
 14. ★ DPA checkbox REQUIRED: at the bottom of 価格設定 there is a "*私は Capafy のデータ処理契約を読み…準拠していることを確認します" checkbox. Unchecked = price-tab red ✗ = 提出を確認 no-ops. Must check it. ★
 15. Add Plan button text is "Add Plan (1/3)" — match ANCHORED `^Add Plan` (a loose /Add Plan/ regex matches a huge page container and returns wrong coords → plans stay at 1).

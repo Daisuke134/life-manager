@@ -120,12 +120,14 @@ monitoring/deferred work.
    reference. Use the a→b→c agentic flow.)
 6. **Verify**: confirm remote-status `platform_status=1` ∧
    `is_confirmed_config_keys=true` ∧ `agent_type=run_online`. Screenshot the
-   card-done / review-submitted page via CloakBrowser (:9222) as fresh evidence.
+   card-done / review-submitted page with `scripts/cp1_agent.py` under the
+   registered `capafy:kosuke` browser lease as fresh evidence.
 7. **Record + report**: append to `state/published.jsonl`, `git add -A && commit && push` (main-internal),
    and send a Telegram summary (1 listing published OR why it stopped).
 
 ## Notes
-- Browser = CloakBrowser daily-driver (CDP :9222), already running. Never close it.
+- Browser = the registered Capafy seller identity `capafy:kosuke`. Acquire it through
+  `skills/browser/with-browser.sh`; never connect directly to `:9222`/`:9223` or close it.
 - Keys: CAPAFY_HOST_OPENROUTER_KEY / CAPAFY_HOST_OPENAI_KEY in $LIFE_MANAGER_STATE_HOME/.env.
 - The published Skill's hosted model comes from its LISTING.md contract and the same-Agent CP1/CP2 readback; never assume Sonnet or buyer-funded provider cost.
 - Keep total work tiny: 1 listing, ≤ ~15 tool calls. This protects the Claude subscription quota.
