@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cricket innings analysis">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071b35"/><stop offset="1" stop-color="#0b735d"/></linearGradient></defs>
+  <rect width="512" height="512" rx="94" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#8be0c6" stroke-width="7" opacity=".45"/>
+  <path d="M155 344C170 230 223 174 347 151" fill="none" stroke="#f6d58a" stroke-width="15" stroke-linecap="round"/>
+  <path d="M335 126l38 24-31 31" fill="none" stroke="#f6d58a" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="215" cy="254" r="61" fill="#f8f5ef"/>
+  <path d="M181 207c26 32 26 62 0 94M249 207c-26 32-26 62 0 94" fill="none" stroke="#c64b4b" stroke-width="7"/>
+  <path d="M330 279v77m-28 0h56m-28-77l-20-24m20 24l20-24" stroke="#8be0c6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
