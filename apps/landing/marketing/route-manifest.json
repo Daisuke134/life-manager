@@ -31,7 +31,7 @@
     {
       "source": "pages/products.html",
       "public_route": "/dais/ja",
-      "export_path": "dais-ja.html",
+      "export_path": "dais/ja.html",
       "sha256": "e084bf9faf8f5252fd54b799b6b010065556363b234ec3d9d28e408845921558"
     },
     {
@@ -43,7 +43,7 @@
     {
       "source": "pages/life-manager.html",
       "public_route": "/lm/ja",
-      "export_path": "lm-ja.html",
+      "export_path": "lm/ja.html",
       "sha256": "ec05da8c38ec0f7fd146caa0c2e0d04422c8fa34e323d0bf93733c44cb3d32ef"
     },
     {
@@ -70,7 +70,7 @@
     {
       "source": "assets/apps/6755129214.webp",
       "export_path": "assets/manager-site/apps/6755129214.webp",
-      "sha256": "4dd25915eb5c59828b79b61dc12db43fb9886b4bd15db77eb66be6396083c4"
+      "sha256": "4dd295915eb5c59828b79b61dc12db43fb9886b4bd15db77eb66be63960983c4"
     },
     {
       "source": "assets/apps/6757726663.webp",
@@ -80,34 +80,34 @@
     {
       "source": "assets/apps/6759514159.png",
       "export_path": "assets/manager-site/apps/6759514159.png",
-      "sha256": "9dc87bf546c507f52d7794fab3e46fb2fd05f5a691395c0a969813d18393a80"
+      "sha256": "9dc87b7f546c507f52d7794fab3e46fb2fd05f5a691395c0a969813d18393a80"
     },
     {
       "source": "assets/apps/6759667221.webp",
       "export_path": "assets/manager-site/apps/6759667221.webp",
-      "sha256": "7654d9425a9d22f0423655bc2b501b53267440c42986268a2f6912e324b1def"
+      "sha256": "7654d9425a9d22f0423655bc2b5012b53267440c42986268a2f6912e324b1def"
     },
     {
       "source": "assets/apps/6762143790.webp",
       "export_path": "assets/manager-site/apps/6762143790.webp",
-      "sha256": "9e29a618b27d43304f2395f59094f2b52eb92df6ea8bf354a24f53d9fec592d"
+      "sha256": "9e29a618b27d43304f2395f59094f2b52eb92df6ea8bf354a24fa53d9fec592d"
     },
     {
       "source": "assets/apps/6766485903.webp",
       "export_path": "assets/manager-site/apps/6766485903.webp",
-      "sha256": "19d4dff6f96ffa00d6ecaece1007d5d76178f306bcb18a6dfec32fdbf5619970c"
+      "sha256": "19d4dff6f96ffa00d6ecae1007d5d76178f306bcb18a6dfec32fdbf56419970c"
     },
     {
       "source": "pages/about.html",
       "public_route": "/about",
       "export_path": "about.html",
-      "sha256": "cc153a155ab697595bad478c30e077d781631b0a92f5741a78ea494fd1e7f78"
+      "sha256": "cc153a155ab697595bad478c30e6077d781631b0a92f5741a78ea494fd1e7f78"
     },
     {
       "source": "pages/about-ja.html",
       "public_route": "/about/ja",
-      "export_path": "about-ja.html",
-      "sha256": "2ceb53260984cdf1f42412fc2a5f8286c32fbd3d678eb66214512c2f3ec5040"
+      "export_path": "about/ja.html",
+      "sha256": "2ceb53260984cdf1f42412fc2a5f82868c32fbd3d678eb66214512c2f3ec5040"
     },
     {
       "source": "assets/public-resume.pdf",
