@@ -1,0 +1,11 @@
+{
+  "owner_id": "life-manager-anicca-jp4",
+  "occurrence_id": "life-manager-anicca-jp4:18deda485f5a25c0-32180",
+  "release_sha": "35b327a131bb3015baa48766d2026f83b85fc8d6",
+  "mutable_env_release_sha": "0000000000000000000000000000000000000000",
+  "expected_reconcile_args": [
+    "--auto-owner",
+    "life-manager-anicca-jp4",
+    "--resolve"
+  ]
+}
