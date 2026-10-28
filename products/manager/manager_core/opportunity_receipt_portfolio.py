@@ -45,10 +45,13 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
             reasons.add("OPPORTUNITY_SCOPE_REUSED")
         scopes.add(scope)
 
-        for name in ("posting", "delivery", "approval"):
+        for name in ("posting", "delivery", "approval", "settlement"):
             stage = getattr(record, name)
             if stage.source is not None:
-                earlier_stage_sources.append((record_index, stage.source))
+                # A malformed URL must fail even when the receipt is missing.
+                _resource_url(stage.source.url)
+                if name != "settlement":
+                    earlier_stage_sources.append((record_index, stage.source))
 
         # A portfolio must not call a claim "preliminary" when its own
         # posting -> delivery -> approval -> settlement chain is broken.
@@ -61,6 +64,7 @@ def preflight_receipt_portfolio(records: list | tuple) -> dict:
         if receipt is None:
             reasons.add("RECEIPT_MISSING")
             continue
+        _resource_url(receipt.source.url)
         if receipt.state != "settled":
             reasons.add("RECEIPT_NOT_SETTLED")
         if record.settlement.visibility != "public" or record.settlement.source != receipt.source:

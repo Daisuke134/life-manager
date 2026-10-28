@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import re
 from types import MappingProxyType
 from typing import Mapping
-from urllib.parse import urldefrag
+from urllib.parse import urlsplit
 
 from .economic_scorecard import CostCoverage
 from .models.source import Source
@@ -33,16 +33,23 @@ def _hash(value, *, optional=False):
         raise ValueError("immutable lowercase SHA256 artifact reference required")
 
 
-def _resource_url(url: str) -> str:
-    """Conservatively compare URI primary resources, not fragment labels.
+def _resource_url(url: str) -> tuple:
+    """Conservative HTTPS resource alias key, never verified payment identity.
 
-    RFC 3986 §3.5: fragments identify client-side secondary resources and
-    cannot on their own establish distinct provider payment transactions.
-    Keep query strings and paths exactly as supplied: they may identify
-    genuinely different transactions. This is a review gate, not proof of
-    payment identity.
+    RFC 9110 4.2.2-4.2.3: HTTPS host case, default port 443, fragments,
+    and empty-versus-root paths cannot establish separate payment documents.
+    Preserve case-sensitive paths/queries and non-default ports.
     """
-    return urldefrag(url).url
+    parsed = urlsplit(url)
+    try:
+        port = parsed.port
+    except ValueError:
+        raise ValueError("invalid public opportunity source port") from None
+    if port is not None and not (1 <= port <= 65535):
+        raise ValueError("invalid public opportunity source port")
+    return (parsed.scheme.lower(), parsed.hostname.lower(),
+            None if port in (None, 443) else port,
+            parsed.path or "/", parsed.query)
 
 
 @dataclass(frozen=True)
@@ -166,6 +173,8 @@ def reconcile_opportunity(record: OpportunityRecord, costs: OpportunityCosts, *,
         references.append(record.receipt.source)
     sources = {}
     for source in references:
+        # Validate every declared source before any ID match can short-circuit.
+        _resource_url(source.url)
         if source.source_id in sources and sources[source.source_id] != source:
             raise ValueError("same source ID cannot describe conflicting snapshots")
         sources[source.source_id] = source

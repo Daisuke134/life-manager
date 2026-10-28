@@ -309,5 +309,65 @@ class ReceiptPortfolioTests(unittest.TestCase):
 
 
 
+    def test_d011_https_authority_alias_across_jobs_requires_review(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        a = replace(first.receipt.source, url="https://PAY.EXAMPLE.org:443/transfers?tx=a#one",
+                    content_sha256="1" * 64)
+        b = replace(second.receipt.source, url="https://pay.example.ORG/transfers?tx=a#two",
+                    content_sha256="2" * 64)
+        result = preflight_receipt_portfolio([
+            change_receipt_source(first, a), change_receipt_source(second, b)])
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertEqual(result["reason_codes"], ["RECEIPT_URL_REUSED"])
+        self.assertIsNone(result["verified_income_minor"])
+
+    def test_d011_host_alias_of_another_job_posting_requires_review(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        alias = replace(second.receipt.source,
+                        url="https://EXAMPLE.ORG:443/job_a_posting#payment",
+                        content_sha256="e" * 64)
+        result = preflight_receipt_portfolio([
+            first, change_receipt_source(second, alias)])
+        self.assertEqual(result["reason_codes"],
+                         ["RECEIPT_REUSES_OTHER_OPPORTUNITY_STAGE_EVIDENCE"])
+        self.assertFalse(result["independent_payment_verified"])
+
+    def test_d011_query_path_and_nondefault_ports_remain_distinct(self):
+        cases = (
+            ("https://example.org/r/Receipt?tx=a", "https://example.org/r/receipt?tx=a"),
+            ("https://example.org/r?tx=A", "https://example.org/r?tx=a"),
+            ("https://example.org/r?tx=a", "https://example.org:8443/r?tx=a"),
+        )
+        for left, right in cases:
+            with self.subTest(left=left, right=right):
+                first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+                a = replace(first.receipt.source, url=left)
+                b = replace(second.receipt.source, url=right)
+                result = preflight_receipt_portfolio([
+                    change_receipt_source(first, a), change_receipt_source(second, b)])
+                self.assertEqual(result["status"], "PRELIMINARY_ONLY")
+                self.assertEqual(result["reason_codes"], [])
+                self.assertFalse(result["independent_payment_verified"])
+
+    def test_d011_empty_root_path_alias_is_not_distinct_payment(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        a = replace(first.receipt.source, url="https://example.org")
+        b = replace(second.receipt.source, url="https://EXAMPLE.ORG:443/#details")
+        result = preflight_receipt_portfolio([
+            change_receipt_source(first, a), change_receipt_source(second, b)])
+        self.assertEqual(result["reason_codes"], ["RECEIPT_URL_REUSED"])
+
+    def test_d011_bad_port_cannot_hide_behind_matching_source_id(self):
+        item = record("job_a", "receipt_a")
+        for port in ("abc", "0", "65536"):
+            with self.subTest(port=port):
+                alias = replace(item.receipt.source,
+                                source_id=item.posting.source.source_id,
+                                url=f"https://example.org:{port}/ledger")
+                with self.assertRaisesRegex(ValueError,
+                                            "invalid public opportunity source port"):
+                    preflight_receipt_portfolio([change_receipt_source(item, alias)])
+
+
 if __name__ == "__main__":
     unittest.main()

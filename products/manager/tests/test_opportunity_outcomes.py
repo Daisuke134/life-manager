@@ -229,5 +229,34 @@ class OpportunityOutcomeTests(unittest.TestCase):
 
 
 
+    def test_d011_https_authority_alias_of_approval_is_not_payment(self):
+        m = module()
+        item = opportunity()
+        alias = replace(item.receipt.source, source_id="other_label",
+                        url="https://EXAMPLE.ORG:443/approval#receipt",
+                        content_sha256="f" * 64)
+        changed = replace(item,
+                          settlement=m.OpportunityStage("settlement", "public", alias),
+                          receipt=replace(item.receipt, source=alias))
+        result = m.reconcile_opportunity(changed, costs())
+        self.assertEqual(result.evidence_status, "RECEIPT_EVIDENCE_REUSED")
+        self.assertIsNone(result.declared_received_minor)
+        self.assertEqual(result.income_status, "NOT_VERIFIED")
+
+    def test_d011_invalid_port_fails_even_with_pending_receipt(self):
+        m = module()
+        item = opportunity()
+        for port in ("abc", "0", "65536"):
+            with self.subTest(port=port):
+                bad = replace(item.posting.source,
+                              url=f"https://example.org:{port}/posting")
+                changed = replace(item,
+                                  posting=m.OpportunityStage("posting", "public", bad),
+                                  receipt=replace(item.receipt, state="pending"))
+                with self.assertRaisesRegex(ValueError,
+                                            "invalid public opportunity source port"):
+                    m.reconcile_opportunity(changed, costs())
+
+
 if __name__ == "__main__":
     unittest.main()
