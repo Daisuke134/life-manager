@@ -180,11 +180,11 @@ final class PaywallPackageSelectionTests {
         precondition(resolve([lifetime], selected: TestPackage("removed", .annual)) == nil)
     }
 
-    func testLifetimeIsAvailableOnlyForCurrentJapanStorefrontOffering() {
+    func testLifetimeIsAvailableOnlyForMatchingStorefrontOffering() {
         precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringCountryCode: "JPN"))
         precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "jpn", offeringCountryCode: "jpn"))
         precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "USA", offeringCountryCode: "JPN"))
-        precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "GBR", offeringCountryCode: "GBR"))
+        precondition(PaywallStorefrontEligibility.includesLifetime(countryCode: "GBR", offeringCountryCode: "GBR"))
         precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: nil, offeringCountryCode: "JPN"))
         precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringCountryCode: nil))
         precondition(!PaywallStorefrontEligibility.includesLifetime(countryCode: "JPN", offeringCountryCode: "USA"))
@@ -276,7 +276,7 @@ final class PaywallPackageSelectionTests {
         ("testRemovedSelectionFallsBackToAnnualThenMonthly", testRemovedSelectionFallsBackToAnnualThenMonthly),
         ("testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault", testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault),
         ("testNoAnnualOrMonthlyDoesNotInventADefault", testNoAnnualOrMonthlyDoesNotInventADefault),
-        ("testLifetimeIsAvailableOnlyForCurrentJapanStorefrontOffering", testLifetimeIsAvailableOnlyForCurrentJapanStorefrontOffering),
+        ("testLifetimeIsAvailableOnlyForMatchingStorefrontOffering", testLifetimeIsAvailableOnlyForMatchingStorefrontOffering),
         ("testLifetimePurchaseChecksTheLiveStorefrontAndKeepsOtherPlansAvailable", testLifetimePurchaseChecksTheLiveStorefrontAndKeepsOtherPlansAvailable),
         ("testOfferingRefreshRejectsOlderCompletionAndStorefrontChanges", testOfferingRefreshRejectsOlderCompletionAndStorefrontChanges),
         ("testStorefrontRevisionRejectsJapanUsaJapanRoundTrip", testStorefrontRevisionRejectsJapanUsaJapanRoundTrip),
