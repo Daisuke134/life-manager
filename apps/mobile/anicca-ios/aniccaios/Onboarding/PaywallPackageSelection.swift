@@ -29,7 +29,7 @@ enum PaywallStorefrontEligibility {
     static func includesLifetime(countryCode: String?, offeringCountryCode: String?) -> Bool {
         guard let countryCode, let offeringCountryCode else { return false }
         let currentCountry = countryCode.uppercased()
-        return currentCountry == "JPN" && offeringCountryCode.uppercased() == currentCountry
+        return offeringCountryCode.uppercased() == currentCountry
     }
 
     static func allowsPurchase(
