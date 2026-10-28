@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NPB Game-Flow Scenario Brief</title>
+  <desc id="desc">A navy baseball field with a coral game-flow path and analysis bars.</desc>
+  <rect width="512" height="512" rx="96" fill="#10233F"/>
+  <path d="M256 74 438 256 256 438 74 256Z" fill="#167C80" stroke="#E6F4F1" stroke-width="12"/>
+  <path d="M256 115v282M115 256h282" stroke="#D6EDE8" stroke-width="8" opacity=".8"/>
+  <circle cx="256" cy="256" r="47" fill="#F7F2E8" stroke="#F06D5E" stroke-width="14"/>
+  <path d="M224 224c22 10 42 30 64 64M288 224c-22 10-42 30-64 64" fill="none" stroke="#F06D5E" stroke-width="8" stroke-linecap="round"/>
+  <path d="M122 371h56v-45h42v45h56v-86h42v86h56" fill="none" stroke="#F6C453" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="122" cy="371" r="10" fill="#F06D5E"/><circle cx="220" cy="326" r="10" fill="#F06D5E"/><circle cx="318" cy="285" r="10" fill="#F06D5E"/><circle cx="374" cy="371" r="10" fill="#F06D5E"/>
+</svg>
