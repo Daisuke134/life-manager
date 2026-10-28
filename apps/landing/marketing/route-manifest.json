@@ -47,6 +47,12 @@
       "sha256": "ec05da8c38ec0f7fd146caa0c2e0d04422c8fa34e323d0bf93733c44cb3d32ef"
     },
     {
+      "source": "pages/maritime-en.html",
+      "public_route": "/maritime",
+      "export_path": "maritime.html",
+      "sha256": "5b819cfe0a074bc1f530adccefcdc736bc94fdc1fd0a99beaf662d870de4d2f7"
+    },
+    {
       "source": "assets/styles.css",
       "export_path": "assets/manager-site/styles.css",
       "sha256": "26ede2e686c1d2fd9282ff30b5ef68774cf98a9951cc6ac7c397736dcc9ed693"
