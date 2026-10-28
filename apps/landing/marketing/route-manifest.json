@@ -38,13 +38,13 @@
       "source": "pages/life-manager-en.html",
       "public_route": "/lm",
       "export_path": "lm.html",
-      "sha256": "fbfb390de47ca77e259608a449d09d5f4eb845b5fe91a979ad01e026646ee89d"
+      "sha256": "f2ca848b2e67a3fd808708f3ebdd043bba958a327e94b2f2debe7d7e7ac68859"
     },
     {
       "source": "pages/life-manager.html",
       "public_route": "/lm/ja",
       "export_path": "lm/ja.html",
-      "sha256": "e494cbcdd9830238b5b3d5a6b8d2689ce73454efa13ee8adf399435ec0641727"
+      "sha256": "ec05da8c38ec0f7fd146caa0c2e0d04422c8fa34e323d0bf93733c44cb3d32ef"
     },
     {
       "source": "assets/styles.css",
