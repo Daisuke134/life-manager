@@ -237,6 +237,8 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     analytics = tmp_path / "analytics.json"
     analytics.write_text(json.dumps({"per_skill_rows": []}))
     monkeypatch.setattr(module, "ANALYTICS_PATH", str(analytics))
+    monkeypatch.setattr(module, "_not_near_duplicate", lambda item: True)
+    monkeypatch.setattr(module, "fetch_agent_detail", lambda _agent_id: None)
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
     # Dais 2026-10-08: no update of an accepted Agent is selected -- except an UPDATE.json carrying
@@ -244,11 +246,22 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     assert decision.get("action") == "update_existing", decision
     assert decision["item"]["agent_id"] == "9999999999"
 
+    fresh = catalog / "fresh-candidate"
+    fresh.mkdir()
+    (fresh / "LISTING.md").write_text(
+        "## Title\nFresh Candidate For Inventory\n\n## shortDescription\nA distinct fixture.\n"
+    )
+    (fresh / "SKILL.md").write_text("# Fresh Candidate For Inventory\n\nA fixture skill.\n")
+    (fresh / "icon.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+        '<circle cx="32" cy="32" r="24"/></svg>'
+    )
     monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
     module.main()
     missing = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert missing == {"verdict": "SERVER_UNREADABLE",
-                       "reason": "same-Agent update target is missing or changed"}
+    assert missing["verdict"] == "PUBLISHABLE", missing
+    assert missing["action"] == "create_fresh", missing
+    assert missing["item"]["title"] == "Fresh Candidate For Inventory", missing
 
 
 def test_frozen_agent_update_is_never_selected(monkeypatch, tmp_path, capsys) -> None:
