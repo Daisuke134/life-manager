@@ -820,10 +820,15 @@ def main():
         matches = [agent for agent in agents
                    if str(agent.get("agentId") or "") == str(request["agent_id"])]
         if len(matches) != 1 or (matches[0].get("name") or "").strip() != item["title"]:
-            print("VERDICT=SERVER_UNREADABLE")
-            print(json.dumps({"verdict": "SERVER_UNREADABLE",
-                              "reason": "same-Agent update target is missing or changed"}))
-            return 0
+            # A stale UPDATE.json is an invalid local request, not an unreadable
+            # publish-list. Keep that item out of same-Agent updates, but let
+            # unrelated fresh inventory proceed instead of poisoning the pass.
+            print(
+                "[inventory_status] ignoring stale same-Agent update request "
+                f"for {item['feature']}: target {request['agent_id']} is missing or renamed",
+                file=sys.stderr,
+            )
+            continue
         target = matches[0]
         if (target.get("agentStatus") == "online"
                 and str(target.get("latestAgentVersionId") or "") == str(request["from_version_id"])):
