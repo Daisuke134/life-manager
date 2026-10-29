@@ -258,5 +258,33 @@ class OpportunityOutcomeTests(unittest.TestCase):
                     m.reconcile_opportunity(changed, costs())
 
 
+    def test_d011_unreserved_percent_alias_cannot_relabel_approval_as_receipt(self):
+        m = module()
+        item = opportunity()
+        alias = replace(item.receipt.source, source_id="new-label",
+                        url="https://EXAMPLE.org:443/%61pproval#payment",
+                        content_sha256="f" * 64)
+        changed = replace(item,
+                          settlement=m.OpportunityStage("settlement", "public", alias),
+                          receipt=replace(item.receipt, source=alias))
+        result = m.reconcile_opportunity(changed, costs())
+        self.assertEqual(result.evidence_status, "RECEIPT_EVIDENCE_REUSED")
+        self.assertIsNone(result.declared_received_minor)
+        self.assertEqual(result.income_status, "NOT_VERIFIED")
+
+    def test_d011_invalid_percent_rejected_even_with_pending_receipt(self):
+        m = module()
+        item = opportunity()
+        for invalid in ("%", "%2", "%ZZ"):
+            with self.subTest(invalid=invalid):
+                bad = replace(item.posting.source,
+                              url="https://example.org/post?x=" + invalid)
+                changed = replace(item,
+                                  posting=m.OpportunityStage("posting", "public", bad),
+                                  receipt=replace(item.receipt, state="pending"))
+                with self.assertRaisesRegex(ValueError, "invalid public opportunity percent encoding"):
+                    m.reconcile_opportunity(changed, costs())
+
+
 if __name__ == "__main__":
     unittest.main()
