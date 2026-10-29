@@ -38,7 +38,8 @@ def _resource_url(url: str) -> tuple:
 
     RFC 9110 4.2.2-4.2.3: HTTPS host case, default port 443, fragments,
     and empty-versus-root paths cannot establish separate payment documents.
-    Normalize only unreserved percent escapes; preserve reserved escapes,\n    case-sensitive literal paths/queries and non-default ports.
+    Normalize only unreserved percent escapes; preserve reserved escapes,
+    case-sensitive literal paths/queries and non-default ports.
     """
     parsed = urlsplit(url)
     try:
