@@ -38,7 +38,7 @@ def _resource_url(url: str) -> tuple:
 
     RFC 9110 4.2.2-4.2.3: HTTPS host case, default port 443, fragments,
     and empty-versus-root paths cannot establish separate payment documents.
-    Preserve case-sensitive paths/queries and non-default ports.
+    Normalize only unreserved percent escapes; preserve reserved escapes,\n    case-sensitive literal paths/queries and non-default ports.
     """
     parsed = urlsplit(url)
     try:
@@ -49,7 +49,28 @@ def _resource_url(url: str) -> tuple:
         raise ValueError("invalid public opportunity source port")
     return (parsed.scheme.lower(), parsed.hostname.lower(),
             None if port in (None, 443) else port,
-            parsed.path or "/", parsed.query)
+            _normalize_percent_unreserved(parsed.path or "/"),
+            _normalize_percent_unreserved(parsed.query))
+
+
+_UNRESERVED = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+_PERCENT_ESCAPE = re.compile(r"%([0-9A-Fa-f]{2})")
+
+
+def _normalize_percent_unreserved(component: str) -> str:
+    """RFC 3986 6.2.2.2: decode only unreserved triplets, uppercase others.
+
+    Do not decode reserved delimiters (e.g. %2F), sort query parameters,
+    or repeatedly decode nested escapes. This remains an offline alias key.
+    """
+    if re.search(r"%(?![0-9A-Fa-f]{2})", component):
+        raise ValueError("invalid public opportunity percent encoding")
+
+    def replace(match):
+        char = chr(int(match.group(1), 16))
+        return char if char in _UNRESERVED else "%" + match.group(1).upper()
+
+    return _PERCENT_ESCAPE.sub(replace, component)
 
 
 @dataclass(frozen=True)
