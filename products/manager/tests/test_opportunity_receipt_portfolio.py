@@ -369,5 +369,54 @@ class ReceiptPortfolioTests(unittest.TestCase):
                     preflight_receipt_portfolio([change_receipt_source(item, alias)])
 
 
+    def test_d011_percent_encoded_unreserved_aliases_across_jobs(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        a = replace(first.receipt.source,
+                    url="https://EXAMPLE.org:443/%72eceipt?tx=%41&sig=%7e#one")
+        b = replace(second.receipt.source,
+                    url="https://example.org/receipt?tx=A&sig=~#two")
+        result = preflight_receipt_portfolio([
+            change_receipt_source(first, a), change_receipt_source(second, b)])
+        self.assertEqual(result["reason_codes"], ["RECEIPT_URL_REUSED"])
+        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertIsNone(result["verified_income_minor"])
+
+    def test_d011_percent_hex_case_of_reserved_escape_is_same_octet(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        a = replace(first.receipt.source, url="https://example.org/r?part=%2f")
+        b = replace(second.receipt.source, url="https://example.org/r?part=%2F")
+        result = preflight_receipt_portfolio([
+            change_receipt_source(first, a), change_receipt_source(second, b)])
+        self.assertEqual(result["reason_codes"], ["RECEIPT_URL_REUSED"])
+
+    def test_d011_reserved_escape_not_decoded_or_double_decoded(self):
+        pairs = (
+            ("https://example.org/a%2Fb", "https://example.org/a/b"),
+            ("https://example.org/%252F", "https://example.org/%2F"),
+            ("https://example.org/r?tx=%2F", "https://example.org/r?tx=/"),
+            ("https://example.org/r?tx=A", "https://example.org/r?tx=a"),
+        )
+        for left, right in pairs:
+            with self.subTest(left=left, right=right):
+                first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+                a = replace(first.receipt.source, url=left)
+                b = replace(second.receipt.source, url=right)
+                result = preflight_receipt_portfolio([
+                    change_receipt_source(first, a), change_receipt_source(second, b)])
+                self.assertEqual(result["status"], "PRELIMINARY_ONLY")
+                self.assertEqual(result["reason_codes"], [])
+                self.assertFalse(result["independent_payment_verified"])
+
+    def test_d011_malformed_percent_escapes_fail_before_missing_receipt(self):
+        base = replace(record("job_a", "receipt_a"), receipt=None)
+        for invalid in ("%", "%2", "%GG", "%2G"):
+            with self.subTest(invalid=invalid):
+                bad = replace(base.posting.source,
+                              url="https://example.org/post?token=" + invalid)
+                altered = replace(base, posting=OpportunityStage("posting", "public", bad))
+                with self.assertRaisesRegex(ValueError, "invalid public opportunity percent encoding"):
+                    preflight_receipt_portfolio([altered])
+
+
 if __name__ == "__main__":
     unittest.main()
