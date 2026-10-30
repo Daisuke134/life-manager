@@ -56,6 +56,9 @@ struct VerticalPager<Page: View>: UIViewControllerRepresentable {
 
         init(_ parent: VerticalPager) { self.parent = parent }
 
+        // Avoid the Swift 6.3 optimizer crash in the synthesized MainActor deinitializer.
+        deinit {}
+
         func hosting(for index: Int) -> IndexedHosting {
             let host = IndexedHosting(index: index, rootView: AnyView(parent.pageContent(index)))
             host.view.backgroundColor = UIColor.clear
