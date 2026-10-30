@@ -418,5 +418,52 @@ class ReceiptPortfolioTests(unittest.TestCase):
                     preflight_receipt_portfolio([altered])
 
 
+
+    def test_d011_dot_segment_alias_detects_cross_opportunity_receipt_reuse(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        for alias in (
+            "https://example.org/placeholder/../receipt_a",
+            "https://EXAMPLE.ORG:443/./receipt_a#claim",
+            "https://example.org/placeholder/%2E%2E/%72eceipt_a",
+        ):
+            fake = replace(second.receipt.source, url=alias)
+            altered = change_receipt_source(second, fake)
+            for order in ([first, altered], [altered, first]):
+                with self.subTest(alias=alias, order=order[0].opportunity_id):
+                    result = preflight_receipt_portfolio(order)
+                    self.assertEqual(result["reason_codes"], ["RECEIPT_URL_REUSED"])
+                    self.assertEqual(result["status"], "REVIEW_REQUIRED")
+                    self.assertIsNone(result["verified_income_minor"])
+                    self.assertFalse(result["can_count_declared_receipts_as_income"])
+
+    def test_d011_dot_alias_detects_receipt_reusing_another_job_stage(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        earlier = first.delivery.source
+        fake = replace(second.receipt.source, url=earlier.url.replace(
+            "/job_a_delivery", "/public/../job_a_delivery"))
+        altered = change_receipt_source(second, fake)
+        for order in ([first, altered], [altered, first]):
+            with self.subTest(order=order[0].opportunity_id):
+                result = preflight_receipt_portfolio(order)
+                self.assertEqual(result["reason_codes"], [
+                    "RECEIPT_REUSES_OTHER_OPPORTUNITY_STAGE_EVIDENCE"
+                ])
+                self.assertFalse(result["independent_payment_verified"])
+
+    def test_d011_dot_like_queries_are_not_removed_as_path_segments(self):
+        first, second = record("job_a", "receipt_a"), record("job_b", "receipt_b")
+        first = change_receipt_source(
+            first, replace(first.receipt.source,
+                           url="https://example.org/public/receipt?proof=/a/../b"))
+        second = change_receipt_source(
+            second, replace(second.receipt.source,
+                            url="https://example.org/public/receipt?proof=/b"))
+        result = preflight_receipt_portfolio([first, second])
+        self.assertEqual(result["status"], "PRELIMINARY_ONLY")
+        self.assertEqual(result["reason_codes"], [])
+        self.assertFalse(result["independent_payment_verified"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
