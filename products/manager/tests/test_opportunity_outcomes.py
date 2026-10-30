@@ -286,5 +286,60 @@ class OpportunityOutcomeTests(unittest.TestCase):
                     m.reconcile_opportunity(changed, costs())
 
 
+
+    def test_d011_complete_dot_segments_cannot_relabel_approval_as_receipt(self):
+        # RFC 3986 5.2.4/6.2.2.3: aliases only flag review, not payment.
+        m = module()
+        item = opportunity()
+        for alias_url in (
+            "https://example.org/./approval",
+            "https://example.org/stage/../approval",
+            "https://example.org/stage/%2e%2E/approval",
+            "https://EXAMPLE.org:443/stage/../%61pproval#receipt",
+            "https://example.org/../../approval",
+        ):
+            with self.subTest(alias=alias_url):
+                fake = replace(item.receipt.source, source_id="renamed_receipt",
+                               url=alias_url, content_sha256="f" * 64)
+                changed = replace(item,
+                                  settlement=m.OpportunityStage("settlement", "public", fake),
+                                  receipt=replace(item.receipt, source=fake))
+                result = m.reconcile_opportunity(changed, costs())
+                self.assertEqual(result.evidence_status, "RECEIPT_EVIDENCE_REUSED")
+                self.assertIsNone(result.declared_received_minor)
+                self.assertIsNone(result.verified_income_minor)
+
+    def test_d011_dot_segment_alias_key_rfc_examples(self):
+        m = module()
+        for left, right in (
+            ("/a/b/../receipt", "/a/receipt"),
+            ("/a/./receipt", "/a/receipt"),
+            ("/a/b/c/./../../g", "/a/g"),
+            ("/a/b/.", "/a/b/"),
+            ("/a/b/..", "/a/"),
+            ("/a/%2E%2e/receipt", "/receipt"),
+            ("/../../receipt", "/receipt"),
+        ):
+            with self.subTest(left=left):
+                self.assertEqual(m._resource_url("https://example.org" + left),
+                                 m._resource_url("https://example.org" + right))
+
+    def test_d011_dot_segments_preserve_nonstructural_paths_and_query(self):
+        m = module()
+        for left, right in (
+            ("/a//receipt", "/a/receipt"),
+            ("/.well-known/receipt", "/receipt"),
+            ("/a/..receipt", "/receipt"),
+            ("/a/%2F/receipt", "/a//receipt"),
+            ("/a/%252e%252e/receipt", "/receipt"),
+            ("/receipt?path=/a/../b", "/receipt?path=/b"),
+            ("/receipt?x=1&x=2", "/receipt?x=2&x=1"),
+        ):
+            with self.subTest(left=left):
+                self.assertNotEqual(m._resource_url("https://example.org" + left),
+                                    m._resource_url("https://example.org" + right))
+
+
+
 if __name__ == "__main__":
     unittest.main()
