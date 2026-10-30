@@ -61,14 +61,15 @@ enum PaywallOfferingSelection {
         fallbackIdentifier: String,
         isUsableForAnicca: (Offering) -> Bool
     ) -> Offering? {
+        // The app's plan screen must include its configured Lifetime product,
+        // even when the shared current offering points at legacy subscriptions.
+        if let configured = all[fallbackIdentifier], isUsableForAnicca(configured) {
+            return configured
+        }
         if let current, isUsableForAnicca(current) {
             return current
         }
-
-        guard let fallback = all[fallbackIdentifier], isUsableForAnicca(fallback) else {
-            return nil
-        }
-        return fallback
+        return nil
     }
 
     static func isUsableAnicca(productIdentifiers: [String], hasAnnualOrMonthlyPackage: Bool) -> Bool {

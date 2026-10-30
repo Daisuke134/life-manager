@@ -3,7 +3,7 @@ import RevenueCat
 import StoreKit
 
 /// Variant B paywall — CRO optimized design for RevenueCat Experiments A/B
-/// Offering swap is handled server-side by RevenueCat; this view always renders the `current` offering.
+/// Uses the app-specific offering selected by SubscriptionManager.
 struct PaywallVariantBView: View {
     let variant: String
     let onPurchaseSuccess: (CustomerInfo) -> Void
