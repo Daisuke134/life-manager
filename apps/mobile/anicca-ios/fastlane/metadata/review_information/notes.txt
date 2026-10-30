@@ -1,9 +1,11 @@
-Version 1.9.6
+Version 1.9.6 - response to Guideline 2.1(b)
 
-Notification taps open the message shown in the notification. Paywall loading and package selection have been corrected for the Anicca offering.
+No demo account, app sign-in, or paid entitlement is required to locate the purchases.
 
-The Sign Out button in Settings now asks for confirmation, calls the existing sign-out flow, returns to onboarding, and closes Settings. Device permission settings are preserved.
+1. On a fresh install, tap Continue on the welcome screen and complete the brief onboarding questions. After the notification permission step, the purchase screen opens automatically.
+2. On an existing install (or after closing the purchase screen), open the affirmation feed, tap the sliders/settings icon at the top right, and tap Subscribe in the Subscription section. This opens the same purchase screen without repeating onboarding.
+3. Monthly Plan, Annual Plan, and Lifetime are displayed using products returned by StoreKit. Scroll within the plan list to see Lifetime if necessary. Tap Lifetime, then the purchase button to open Apple's purchase flow. Restore Purchases is below the purchase button. The X button returns to the app without purchasing.
 
-The app does not request an App Store rating during onboarding or on first launch. The current policy requires at least three distinct days of use and a subsequent value moment, such as favoriting an affirmation or reading three different affirmations in a session.
+Lifetime product: ai.anicca.app.ios.lifetime (non-consumable, one-time purchase). Monthly: ai.anicca.app.ios.monthly.b. Annual: ai.anicca.app.ios.yearly.b.
 
-Purchase presentation: monthly and annual packages are shown when available in the Anicca offering. In Variant B, the Lifetime option is shown only when StoreKit reports the current App Store storefront country code as JPN and the offering has been refreshed for that storefront. The option is hidden when the storefront is unknown or is not Japan; device language does not determine eligibility. Product availability and prices come from the store offering.
+There is no Japanese-language or Japan-only eligibility restriction. Products and localized prices depend on the current App Store storefront and the available StoreKit offering. The old language/Japan-only instructions and references to build 812 are superseded by these instructions. Please review the new build attached to this submission.
