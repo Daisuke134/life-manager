@@ -25481,3 +25481,5 @@ Apple公式メールの最新指摘はGuideline2.1(b)、iPad Air11-inch(M3)でIA
 認証境界: APIは有効。Web sessionは期限切れ。SSOTのApple登録credentialでSMS通常loginを試みるが、Macでfresh code取得がtimeoutする。専用mobile-release:dais browserは現在unreachable、他identity流用は行わない。
 
 Skill証拠: using-superpowers/systematic-debugging/using-git-worktrees/ponytailを読む。Astra orchestrationは現在の親model/effortがtool metadataから確定できず、その名義や旧モデル指定を採用しない。既存UI選択を保持しSuperpowersで進める。
+
+実装診断: FeedのSettingsSheetはSubscriptionをCustomerCenterへ接続するだけで、新規IAP購入画面への常設入口が無い。onboardingを終えたreviewerが購入画面へ戻れないため、設定の既存Subscription sectionに全locale既存Subscribeラベルを使った明示入口を追加し、既存PaywallFlowContainerを再利用する。purchase/restore成功は既存AppState.updateSubscriptionInfo(from:)を適用しcoverを閉じる。無料dismissは設定へ戻し、他stateを変えない。新API・新課金方式は作らない。Maestroは既存helperの古いprimer要求を現仕様へ直し、onboarding→全3plan→無料dismiss→Settings/Subscribe→全3planを検証する。

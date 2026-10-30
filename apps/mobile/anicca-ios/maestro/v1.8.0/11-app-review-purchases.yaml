@@ -1,0 +1,55 @@
+# App Review must find the same purchases after onboarding and on later launches.
+appId: ai.anicca.app.ios
+name: App Review purchase discovery
+tags:
+  - review
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      AppleLanguages: "(en)"
+      AppleLocale: "en_US"
+- runFlow: ./_onboarding_to_paywall.yaml
+- assertVisible: "Monthly Plan"
+- assertVisible: "Annual Plan"
+- scrollUntilVisible:
+    element:
+      text: "Lifetime"
+    direction: DOWN
+    timeout: 15000
+- takeScreenshot: "review-onboarding-all-plans"
+- tapOn:
+    id: "paywall-close-button"
+- extendedWaitUntil:
+    visible:
+      id: "feed-scroll"
+    timeout: 15000
+- tapOn:
+    id: "feed-settings"
+- scrollUntilVisible:
+    element:
+      id: "settings-subscribe"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "settings-subscribe"
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 60000
+- assertVisible: "Monthly Plan"
+- assertVisible: "Annual Plan"
+- scrollUntilVisible:
+    element:
+      text: "Lifetime"
+    direction: DOWN
+    timeout: 15000
+- takeScreenshot: "review-settings-all-plans"
+- tapOn: "Lifetime"
+- assertVisible:
+    id: "paywall-plan-cta"
+- tapOn:
+    id: "paywall-close-button"
+- assertVisible:
+    id: "settings-subscribe"
