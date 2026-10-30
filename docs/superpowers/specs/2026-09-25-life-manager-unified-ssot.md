@@ -25462,3 +25462,22 @@ Manager v1は「大きなモデルを作った時」ではなく、(1)既存研�
 - **Fix in progress:** `listPending` now selects only current-consent rows, and the worker defensively skips any v1 row. A v1 pending tenant remains reconsentable whether its old job is missing or has the exact attempt-1 consent-guard dead letter. Once the user provides v2 consent, the existing activation path creates the consent-anchored recovery job. Provisioning v2 rows and active v2 configuration continue through bounded worker recovery; other terminal or unknown states remain fenced.
 - **Verification (local source):** Regression tests cover both v1 cases and assert no state read, enqueue, or quarantine, while confirming re-consent remains available. Cloud focus 135 passed / 1 skipped; runtime-up 71/71; runtime-adapters 362 passed / 1 skipped; runtime-job 27/27; migration contract 1 passed / 1 PostgreSQL integration skipped because server binaries are unavailable; source-boundary and diff checks passed. These checks do not prove live runtime behavior or Capafy earnings.
 - **Remote state:** PR #8986 remains at `d720021bc`; this correction is local and unpushed. No production changes or earnings are verified.
+
+
+### Anicca正式再提出・現在cursor
+
+Daisの明示依頼: 最新リジェクトを修正し、Maestro E2E後に正式提出してWAITING_FOR_REVIEWまで完了する。質問・認証情報の再要求は行わない。scopeはapp6755129214、iOS1.9.6と購入導線・審査情報だけ。owner=codex-anicca-review-20261030、branch=fix/anicca-review-resubmit-20261030、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/anicca-review-resubmit-20261030、base=93fd0b42160a38fb78987f67f03948248382df5d。
+
+Apple公式メールの最新指摘はGuideline2.1(b)、iPad Air11-inch(M3)でIAPを発見できないこと。審査対象は812、最新814はVALID。ASCのversion677ae249-da6e-4105-a469-cf0d0521ba92がbuild36c10350-9d7f-4cac-a8ce-42a1cc1d8f95(812)を参照する。最新submission017984f9-8d67-429b-b92e-2b3e633d6275はUNRESOLVED_ISSUES。814のXcodeCloud run aa00cb26-f08b-43f4-918e-8a86f1b3d7c6はLifeManager main bf12f7556f460c732808f76528b898a0ed933abb由来で、日本限定Lifetime制限撤去とonboarding末尾paywall修正を含む。Archive/uploadは成功しbuild c96db27f-9ae8-41d9-b9f8-19cea9355e6aはVALID、run全体FAILEDはexternal beta post-actionであり、AppStore binary INVALIDとは区別する。
+
+順序: 旧cursorは不確実effectの配信照合→通知/paywallのTestFlight受入。本依頼の独立laneは、拒否理由とbinary対応確認→814と同じsourceのiPhone/iPad Maestro購入導線検証→必要最小の修正/CI/main→審査メモとIAP設定/契約照合→正式build選択と再提出→WAITING_FOR_REVIEW公式readback。配信ownerやfenceは変更しない。現在cursorはMaestro環境と購入導線の実検証。
+
+- [x] Apple指摘と812/814/sourceの対応を確認する。
+- [ ] Maestroで初回起動・購入画面・Lifetime表示・無料dismiss・設定から再表示をiPhone/iPadで確認する。
+- [ ] 必要な変更を検証し、独立read-only検証とCI/main統合を完了する。
+- [ ] 正式ビルド、審査メモ、課金情報を整えて再提出する。
+- [ ] ASC公式WAITING_FOR_REVIEWを確認する。
+
+認証境界: APIは有効。Web sessionは期限切れ。SSOTのApple登録credentialでSMS通常loginを試みるが、Macでfresh code取得がtimeoutする。専用mobile-release:dais browserは現在unreachable、他identity流用は行わない。
+
+Skill証拠: using-superpowers/systematic-debugging/using-git-worktrees/ponytailを読む。Astra orchestrationは現在の親model/effortがtool metadataから確定できず、その名義や旧モデル指定を採用しない。既存UI選択を保持しSuperpowersで進める。
