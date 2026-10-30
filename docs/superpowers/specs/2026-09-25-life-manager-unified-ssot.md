@@ -25491,3 +25491,5 @@ Maestro RED: 現mainと814の同一app sourceをRelease構成のsimulatorで起�
 source/受入: Settings追加後の関連Python21件、native22件、sim build PASS。Maestro iPhoneは初回→3plan→Lifetime選択→無料dismiss→設定Subscribe→3plan→設定へ戻る全flowが52秒PASS（~/.local/state/anicca-review-20261030/iphone-green.xml）。独立read-only検証はresolver/Settingsともblocking0/ship。PR9057/HEAD7bc4ce78b3。
 
 CIの限定修復: OSS self-contained boundaryはmain93fd0b4216の既存run40779535652でもFAILし、PR run40980765931で同じmanifest_inventory_mismatch skills/capafy-autopublishを再現する。原因は先行main PR9044がtest_drive_cp1_retired.pyを追加し、PR9054がinventory_status.py/testを変更した後に、分類マニフェストの257files/hashを更新していないこと。runtime/source/thresholdは変えず、docs/manifests/oss-merge-1-sources.jsonの同rootのcountを258へ、digestを現在のtracked258filesから既存verifierと同じアルゴリズムで更新する。初回assertで件数増加を捕捉したため、実際の追加履歴を確認してから2欄だけを再生成する。iOS修正のCI受入を閉じるための資料整合のみを所有し、Capafy本体と他rootは変更しない。
+
+購入/復元の実操作: iPhoneのStoreKit認証画面遷移→キャンセル→既存plan選択保持→Restore→操作可能な購入画面へ復帰→設定へ戻るMaestroが39秒PASS（~/.local/state/anicca-review-20261030/storekit-final.xml）。実商品とApple認証UIを使い、UITESTING・mock商品・課金確定は0。Sandbox testerの保存passwordをSSOTに確認できないため、購入完了や既存有料entitlementの復元成功の証拠とはしない。認証UIのNBSPと、empty restoreが再認証なしで返る挙動は実観測に合わせ、テストのselector/期待を修正する。
