@@ -25470,13 +25470,13 @@ Daisの明示依頼: 最新リジェクトを修正し、Maestro E2E後に正式
 
 Apple公式メールの最新指摘はGuideline2.1(b)、iPad Air11-inch(M3)でIAPを発見できないこと。審査対象は812、最新814はVALID。ASCのversion677ae249-da6e-4105-a469-cf0d0521ba92がbuild36c10350-9d7f-4cac-a8ce-42a1cc1d8f95(812)を参照する。最新submission017984f9-8d67-429b-b92e-2b3e633d6275はUNRESOLVED_ISSUES。814のXcodeCloud run aa00cb26-f08b-43f4-918e-8a86f1b3d7c6はLifeManager main bf12f7556f460c732808f76528b898a0ed933abb由来で、日本限定Lifetime制限撤去とonboarding末尾paywall修正を含む。Archive/uploadは成功しbuild c96db27f-9ae8-41d9-b9f8-19cea9355e6aはVALID、run全体FAILEDはexternal beta post-actionであり、AppStore binary INVALIDとは区別する。
 
-順序: 旧cursorは不確実effectの配信照合→通知/paywallのTestFlight受入。本依頼の独立laneは、拒否理由とbinary対応確認→814と同じsourceのiPhone/iPad Maestro購入導線検証→必要最小の修正/CI/main→審査メモとIAP設定/契約照合→正式build選択と再提出→WAITING_FOR_REVIEW公式readback。配信ownerやfenceは変更しない。現在cursorは修正済みsourceのCI/main統合→Xcode Cloud正式Release→アプリとLifetimeの同時再提出。購入導線の実検証は下記の結果を使う。
+順序: 旧cursorは不確実effectの配信照合→通知/paywallのTestFlight受入。本依頼の独立laneは、拒否理由とbinary対応確認→814と同じsourceのiPhone/iPad Maestro購入導線検証→必要最小の修正/CI/main→審査メモとIAP設定/契約照合→正式build選択と再提出→WAITING_FOR_REVIEW公式readback。配信ownerやfenceは変更しない。現在cursorは完了。正式version1.9.6/build815とLifetimeのWAITING_FOR_REVIEWをASC公式readbackで確認する。購入導線の実検証と提出証拠は下記を使う。
 
 - [x] Apple指摘と812/814/sourceの対応を確認する。
-- [ ] Maestroで初回起動・購入画面・Lifetime表示・無料dismiss・設定から再表示をiPhone/iPadで確認する。
-- [ ] 必要な変更を検証し、独立read-only検証とCI/main統合を完了する。
-- [ ] 正式ビルド、審査メモ、課金情報を整えて再提出する。
-- [ ] ASC公式WAITING_FOR_REVIEWを確認する。
+- [x] iPhoneは最適化ReleaseのMaestro、iPadは実画面操作で初回起動・購入画面・Lifetime表示/選択・無料dismiss・設定から再表示を確認する。iPadのMaestro失敗は下記に保持する。
+- [x] 必要な変更を検証し、独立read-only検証とCI/main統合を完了する。
+- [x] 正式ビルド、審査メモ、課金情報を整えて再提出する。
+- [x] ASC公式WAITING_FOR_REVIEWを確認する。
 
 認証境界: APIは有効。Web sessionは期限切れ。SSOTのApple登録credentialでSMS通常loginを試みるが、Macでfresh code取得がtimeoutする。専用mobile-release:dais browserは現在unreachable、他identity流用は行わない。
 
@@ -25500,4 +25500,10 @@ ASC審査情報: review detail b6024874-ff05-4108-a61c-ae0ed420fc76にsourceの�
 
 正式Releaseの追加診断: PR9057はHEAD2dfe0ac57eのCI15件全PASS後、main3f472029961727fd13a0679ec76b170ae18c5cc9へmergeし、iOS source一致を確認する。ASCの新draft39f7baec-1996-4bd9-9e8e-b4e54de15b6fにはapp versionとLifetime version73f8e0bd-4673-4f49-abbf-b6b354d51ad9の2件がREADY_FOR_REVIEWで存在する。まだ提出しない。Cloudの開始要求はApple500でrun生成前に失敗、公式latest814のまま。main限定manual条件を試すが500継続のため元へ戻し、自動main+iOS path条件の維持をreadbackする。
 
-ローカルmain由来の実機Release Archiveは署名処理を通るが、Swift6.3.3のEarlyPerfInlinerがVerticalPager.Coordinatorのsynthesized deinitでsignal11を出す。actual VerticalPager.swiftをmain actor/upcoming flags/arm64iOS16.6で単体compileすると-Oも-Osizeもsignal11、明示empty deinitの最小fixtureのみ-Oでexit0。修正契約はこのclassへempty deinitを明示するだけで、保存propertyの自動解放・UI動作・課金実装を変更しない。現在cursorをcompiler修正→最適化sim再検証/CI/main→main由来正式Archive/upload→draftのbuild差替→2item正式提出/WAITING_FOR_REVIEWへ進める。追加の互換層や最適化無効化は不要。private証拠: archive-main-815.log、baseline-mainactor.log、size-mainactor.log、explicit-deinit.log。
+ローカルmain由来の実機Release Archiveは署名処理を通るが、Swift6.3.3のEarlyPerfInlinerがVerticalPager.Coordinatorのsynthesized deinitでsignal11を出す。actual VerticalPager.swiftをmain actor/upcoming flags/arm64iOS16.6で単体compileすると-Oも-Osizeもsignal11、明示empty deinitの最小fixtureのみ-Oでexit0。修正契約はこのclassへempty deinitを明示するだけで、保存propertyの自動解放・UI動作・課金実装を変更しない。compiler修正→最適化sim再検証/CI/main→main由来正式Archive/upload→build差替→2item正式提出/WAITING_FOR_REVIEWを完了する。現在cursorは完了。追加の互換層や最適化無効化は不要。private証拠: archive-main-815.log、baseline-mainactor.log、size-mainactor.log、explicit-deinit.log。
+
+正式再提出の完了証拠: PR9057はmain3f47202996、compiler修正PR9058はmaine24aa053ced475c42f6b9404db432cdec19f20bbへ統合し、それぞれexact-head CI15件全PASS。追加fixの独立reviewはblocking0/ship、actual Pagerの-O compile PASS、最適化Release sim build PASS、Maestro2/2 PASS（47.737秒/33.826秒、optimized-iphone.xml）。main由来Release -O/WMO Archiveとapp-store-connect exportが成功し、処理前後のsource SHA/cleanを一致させる。IPA SHA256=99b1c521d61ada93a11240c22b3b38703b0efaef936fa5b93ccf5d62c2bd365c、bundle ai.anicca.app.ios、1.9.6/815、deep strict signature PASS。
+
+ASC CLIの正式upload/build730477a4-dcdc-48ce-a73d-d1c83a1e8903はCOMPLETE/errors0/warnings0、VALID/APP_STORE_ELIGIBLE。version677ae249-da6e-4105-a469-cf0d0521ba92のbuildを815へ差し替え、fresh-context artifact/provider verifierはblocking0/SHIP。submission39f7baec-1996-4bd9-9e8e-b4e54de15b6fを正式submitし、submissionとapp versionの両方をWAITING_FOR_REVIEWでreadbackする。Lifetime親6783239477とversion73f8e0bd-4673-4f49-abbf-b6b354d51ad9もWAITING_FOR_REVIEW。審査メモは正本と一致、attachment ad7adb55-54f1-46ef-8da3-f0bbf498a400はCOMPLETE/errors0、demo不要。private receipt正本は~/.local/state/anicca-review-20261030/{archive-source,ipa-receipt,build-815,version-build,submission-submitted,version-submitted,items-submitted,lifetime-submitted,lifetime-version-submitted}.json。
+
+限界と対象外: Appleの承認/公開はまだ成立しない（依頼の終点はWaiting for Review）。paid purchase完了/有料権利復元は未検証、empty restoreと認証キャンセルの復帰のみ確認する。iPad nativeはPR9057のUI sourceで確認し、後続empty deinitの最終UI再検証はiPhone最適化版を使う。Cloud開始500は未解決だが、設定probeを元へ戻し自動main+iOS path条件を維持、同じmainからローカル正式Archiveで提出する。今回作成した3test simulatorとDerivedDataは削除し、正式Archive/IPA/テスト/公式receiptは保持する。残TODOは本laneに無い。
