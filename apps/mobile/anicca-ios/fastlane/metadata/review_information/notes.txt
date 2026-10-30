@@ -2,7 +2,7 @@ Version 1.9.6 - response to Guideline 2.1(b)
 
 No demo account, app sign-in, or paid entitlement is required to locate the purchases.
 
-1. On a fresh install, tap Continue on the welcome screen and complete the brief onboarding questions. After the notification permission step, the purchase screen opens automatically.
+1. On a fresh install, tap Get Started on the welcome screen and complete the brief onboarding questions. After the notification permission step, the purchase screen opens automatically.
 2. On an existing install (or after closing the purchase screen), open the affirmation feed, tap the sliders/settings icon at the top right, and tap Subscribe in the Subscription section. This opens the same purchase screen without repeating onboarding.
 3. Monthly Plan, Annual Plan, and Lifetime are displayed using products returned by StoreKit. Scroll within the plan list to see Lifetime if necessary. Tap Lifetime, then the purchase button to open Apple's purchase flow. Restore Purchases is below the purchase button. The X button returns to the app without purchasing.
 

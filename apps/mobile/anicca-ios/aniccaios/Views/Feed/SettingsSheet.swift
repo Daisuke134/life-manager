@@ -14,6 +14,7 @@ struct SettingsSheet: View {
     @State private var showSavedQuotes = false
     @State private var showLikedQuotes = false
     @State private var showSignOutConfirmation = false
+    @State private var showPurchasePlans = false
 
     var body: some View {
         List {
@@ -51,6 +52,13 @@ struct SettingsSheet: View {
             }
 
             Section {
+                Button {
+                    showPurchasePlans = true
+                } label: {
+                    Label(String(localized: "settings_subscription_subscribe"), systemImage: "star.circle")
+                }
+                .accessibilityIdentifier("settings-subscribe")
+
                 NavigationLink {
                     RevenueCatUI.CustomerCenterView()
                         .navigationTitle(String(localized: "settings_subscription"))
@@ -75,6 +83,16 @@ struct SettingsSheet: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(String(localized: "common_done")) { dismiss() }
             }
+        }
+        .fullScreenCover(isPresented: $showPurchasePlans) {
+            PaywallFlowContainer(
+                onPurchaseSuccess: { customerInfo in
+                    AppState.shared.updateSubscriptionInfo(from: customerInfo)
+                    showPurchasePlans = false
+                },
+                onDismiss: { showPurchasePlans = false }
+            )
+            .environmentObject(AppState.shared)
         }
         .confirmationDialog(String(localized: "settings_sign_out"), isPresented: $showSignOutConfirmation, titleVisibility: .visible) {
             Button(String(localized: "common_sign_out"), role: .destructive) {
