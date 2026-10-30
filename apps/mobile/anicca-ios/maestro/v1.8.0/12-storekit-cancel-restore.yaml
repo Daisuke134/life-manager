@@ -72,4 +72,3 @@ name: StoreKit purchase cancel and restore
     id: "paywall-close-button"
 - assertVisible:
     id: "settings-subscribe"
-

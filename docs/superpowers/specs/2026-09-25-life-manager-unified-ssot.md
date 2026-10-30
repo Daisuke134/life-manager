@@ -25470,7 +25470,7 @@ Daisの明示依頼: 最新リジェクトを修正し、Maestro E2E後に正式
 
 Apple公式メールの最新指摘はGuideline2.1(b)、iPad Air11-inch(M3)でIAPを発見できないこと。審査対象は812、最新814はVALID。ASCのversion677ae249-da6e-4105-a469-cf0d0521ba92がbuild36c10350-9d7f-4cac-a8ce-42a1cc1d8f95(812)を参照する。最新submission017984f9-8d67-429b-b92e-2b3e633d6275はUNRESOLVED_ISSUES。814のXcodeCloud run aa00cb26-f08b-43f4-918e-8a86f1b3d7c6はLifeManager main bf12f7556f460c732808f76528b898a0ed933abb由来で、日本限定Lifetime制限撤去とonboarding末尾paywall修正を含む。Archive/uploadは成功しbuild c96db27f-9ae8-41d9-b9f8-19cea9355e6aはVALID、run全体FAILEDはexternal beta post-actionであり、AppStore binary INVALIDとは区別する。
 
-順序: 旧cursorは不確実effectの配信照合→通知/paywallのTestFlight受入。本依頼の独立laneは、拒否理由とbinary対応確認→814と同じsourceのiPhone/iPad Maestro購入導線検証→必要最小の修正/CI/main→審査メモとIAP設定/契約照合→正式build選択と再提出→WAITING_FOR_REVIEW公式readback。配信ownerやfenceは変更しない。現在cursorはMaestro環境と購入導線の実検証。
+順序: 旧cursorは不確実effectの配信照合→通知/paywallのTestFlight受入。本依頼の独立laneは、拒否理由とbinary対応確認→814と同じsourceのiPhone/iPad Maestro購入導線検証→必要最小の修正/CI/main→審査メモとIAP設定/契約照合→正式build選択と再提出→WAITING_FOR_REVIEW公式readback。配信ownerやfenceは変更しない。現在cursorは修正済みsourceのCI/main統合→Xcode Cloud正式Release→アプリとLifetimeの同時再提出。購入導線の実検証は下記の結果を使う。
 
 - [x] Apple指摘と812/814/sourceの対応を確認する。
 - [ ] Maestroで初回起動・購入画面・Lifetime表示・無料dismiss・設定から再表示をiPhone/iPadで確認する。
@@ -25493,3 +25493,7 @@ source/受入: Settings追加後の関連Python21件、native22件、sim build P
 CIの限定修復: OSS self-contained boundaryはmain93fd0b4216の既存run40779535652でもFAILし、PR run40980765931で同じmanifest_inventory_mismatch skills/capafy-autopublishを再現する。原因は先行main PR9044がtest_drive_cp1_retired.pyを追加し、PR9054がinventory_status.py/testを変更した後に、分類マニフェストの257files/hashを更新していないこと。runtime/source/thresholdは変えず、docs/manifests/oss-merge-1-sources.jsonの同rootのcountを258へ、digestを現在のtracked258filesから既存verifierと同じアルゴリズムで更新する。初回assertで件数増加を捕捉したため、実際の追加履歴を確認してから2欄だけを再生成する。iOS修正のCI受入を閉じるための資料整合のみを所有し、Capafy本体と他rootは変更しない。
 
 購入/復元の実操作: iPhoneのStoreKit認証画面遷移→キャンセル→既存plan選択保持→Restore→操作可能な購入画面へ復帰→設定へ戻るMaestroが39秒PASS（~/.local/state/anicca-review-20261030/storekit-final.xml）。実商品とApple認証UIを使い、UITESTING・mock商品・課金確定は0。Sandbox testerの保存passwordをSSOTに確認できないため、購入完了や既存有料entitlementの復元成功の証拠とはしない。認証UIのNBSPと、empty restoreが再認証なしで返る挙動は実観測に合わせ、テストのselector/期待を修正する。
+
+iPad実画面の受入: iPad Air11-inch(M3)/iOS26.5のMaestro2.8.0はWelcomeを描画するが、XCTest AX snapshotはAnicca rootだけでid0件となり2flowはFAIL。selectorの変更や待機延長で成功扱いにはしない。Mac Simulatorのnative AXでは全ボタンを認識し、実画面から初回onboarding→3plan→スクロールでLifetime実表示/選択→無料dismiss→feed→Settings/Subscribe→3plan→Lifetime→Apple認証→キャンセル→retention sheet dismiss→Lifetime選択保持→empty Restore→設定復帰を確認する。iPhone MaestroのPASSとiPad native操作を区別する。証拠はprivate local-acceptance.jsonと同thread cua_repl outputs。課金完了/有料権利復元は未確認のまま保持する。
+
+ASC審査情報: review detail b6024874-ff05-4108-a61c-ae0ed420fc76にsourceの英語手順を反映し、demoAccountRequired=falseの公式readbackを確認する。実購入画面review-settings-all-plans.pngをattachment ad7adb55-54f1-46ef-8da3-f0bbf498a400へuploadしUPLOAD_COMPLETEを確認する。未提出であり、version/build/提出状態はここでは完了扱いしない。
