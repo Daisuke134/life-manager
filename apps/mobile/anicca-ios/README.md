@@ -39,3 +39,17 @@ Run the isolated hook checks with:
 ```sh
 python3 apps/mobile/anicca-ios/scripts/tests/test_cloud_build_config.py
 ```
+
+## App Review purchases
+
+The plan screen opens after onboarding and from Feed → Settings → Subscribe.
+It prefers the configured `anicca_variant_b` offering so a shared legacy
+`current` offering cannot hide its Lifetime product. StoreKit supplies the
+available products and localized prices; there is no language/Japan-only gate.
+
+Run Maestro `maestro/v1.8.0/11-app-review-purchases.yaml` on a clean simulator
+to check onboarding, all three plans, free dismissal and the Settings entry.
+Then run `12-storekit-cancel-restore.yaml` on the same simulator to check
+Apple purchase authentication, cancellation and return from Restore Purchases.
+The latter does not authenticate a Sandbox Apple Account or prove a completed
+purchase/paid-entitlement restoration. Maestro requires Java 17 or newer.

@@ -1,6 +1,6 @@
 # Test 4: Paywall Variant B — English
 # Variant B (test): PaywallVariantBView
-# Verifies: EN localization, plans, review copy, lifetime は英語では非表示, soft × で無課金メイン到達
+# Verifies: EN localization, plans, review copy, Lifetime is available in English, soft × で無課金メイン到達
 
 appId: ai.anicca.app.ios
 name: Paywall Variant B EN
@@ -41,9 +41,12 @@ tags:
 - assertVisible:
     text: ".*Anicca helped me.*"
 
-# 英語(非日本語)には lifetime(買い切り) を表示しない
-- assertNotVisible:
-    text: "Lifetime"
+# StoreKit availability controls Lifetime; language does not hide it.
+- scrollUntilVisible:
+    element:
+      text: "Lifetime"
+    direction: DOWN
+    timeout: 15000
 
 # Soft paywall: 右上 × で無課金メインへ
 - assertVisible:

@@ -75,11 +75,9 @@ final class PaywallPackageSelectionTests {
         precondition(resolved?.identifier == "anicca_variant_b")
     }
 
-    func testValidAniccaCurrentKeepsRevenueCatTargetingChoice() {
+    func testValidAniccaCurrentIsUsedWhenConfiguredOfferingIsUnavailable() {
         let targeted = aniccaOffering("anicca_1_8_0_variant_a")
-        let fallback = aniccaOffering("anicca_variant_b")
-
-        let resolved = resolveOffering(targeted, all: ["anicca_variant_b": fallback])
+        let resolved = resolveOffering(targeted, all: [:])
 
         precondition(resolved?.identifier == "anicca_1_8_0_variant_a")
     }
@@ -102,6 +100,20 @@ final class PaywallPackageSelectionTests {
         precondition(!PaywallOfferingSelection.isUsableAnicca(productIdentifiers: products + ["com.daisuke.honne.premium.monthly"], hasAnnualOrMonthlyPackage: true))
         precondition(!PaywallOfferingSelection.isUsableAnicca(productIdentifiers: products, hasAnnualOrMonthlyPackage: false))
         precondition(!PaywallOfferingSelection.isUsableAnicca(productIdentifiers: [], hasAnnualOrMonthlyPackage: true))
+    }
+
+    func testExplicitAniccaOfferingWinsOverLegacyCurrentWithoutLifetime() {
+        let legacy = TestOffering(
+            identifier: "anicca",
+            productIdentifiers: ["ai.anicca.app.ios.annual", "ai.anicca.app.ios.monthly"],
+            hasAnnualOrMonthlyPackage: true
+        )
+        let intended = TestOffering(
+            identifier: "anicca_variant_b",
+            productIdentifiers: ["ai.anicca.app.ios.yearly.b", "ai.anicca.app.ios.monthly.b", "ai.anicca.app.ios.lifetime"],
+            hasAnnualOrMonthlyPackage: true
+        )
+        precondition(resolveOffering(legacy, all: ["anicca_variant_b": intended])?.identifier == "anicca_variant_b")
     }
 
     func testFreshCustomerInfoOverridesStaleCachedEntitlement() {
@@ -263,9 +275,10 @@ final class PaywallPackageSelectionTests {
     var allTests: [(String, () -> Void)] { [
         ("testHonneCurrentFallsBackToAniccaVariantB", testHonneCurrentFallsBackToAniccaVariantB),
         ("testMissingCurrentFallsBackToAniccaVariantB", testMissingCurrentFallsBackToAniccaVariantB),
-        ("testValidAniccaCurrentKeepsRevenueCatTargetingChoice", testValidAniccaCurrentKeepsRevenueCatTargetingChoice),
+        ("testValidAniccaCurrentIsUsedWhenConfiguredOfferingIsUnavailable", testValidAniccaCurrentIsUsedWhenConfiguredOfferingIsUnavailable),
         ("testInvalidFallbackNeverReturnsHonneProducts", testInvalidFallbackNeverReturnsHonneProducts),
         ("testAniccaOfferingMustContainOnlyAniccaProductsAndMonthlyOrAnnualPlan", testAniccaOfferingMustContainOnlyAniccaProductsAndMonthlyOrAnnualPlan),
+        ("testExplicitAniccaOfferingWinsOverLegacyCurrentWithoutLifetime", testExplicitAniccaOfferingWinsOverLegacyCurrentWithoutLifetime),
         ("testFreshCustomerInfoOverridesStaleCachedEntitlement", testFreshCustomerInfoOverridesStaleCachedEntitlement),
         ("testUnavailableCustomerInfoFallsBackToCachedEntitlement", testUnavailableCustomerInfoFallsBackToCachedEntitlement),
         ("testDelayedLoadSelectsAnnualWithoutAnotherAppearance", testDelayedLoadSelectsAnnualWithoutAnotherAppearance),

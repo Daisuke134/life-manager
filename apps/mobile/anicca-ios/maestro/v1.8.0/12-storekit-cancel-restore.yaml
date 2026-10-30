@@ -1,0 +1,74 @@
+# Run after 11-app-review-purchases.yaml on the same simulator.
+# Verify real StoreKit authentication and cancellation, without making a purchase.
+appId: ai.anicca.app.ios
+name: StoreKit purchase cancel and restore
+---
+- launchApp
+- tapOn:
+    text: "キャンセル|Cancel"
+    optional: true
+- stopApp
+- launchApp:
+    arguments:
+      AppleLanguages: "(en)"
+      AppleLocale: "en_US"
+- extendedWaitUntil:
+    visible:
+      id: "feed-scroll"
+    timeout: 15000
+- tapOn:
+    id: "feed-settings"
+- scrollUntilVisible:
+    element:
+      id: "settings-subscribe"
+    direction: DOWN
+- tapOn:
+    id: "settings-subscribe"
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "Lifetime"
+    direction: DOWN
+- tapOn: "Lifetime"
+- tapOn:
+    id: "paywall-plan-cta"
+- extendedWaitUntil:
+    visible:
+      text: "Apple.*Account.*サインイン|Sign In.*"
+    timeout: 15000
+- takeScreenshot: "sandbox-purchase-authentication"
+- tapOn: "キャンセル|Cancel"
+- runFlow:
+    when:
+      visible:
+        id: "retention-accept"
+    commands:
+      - swipe:
+          direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 10000
+- tapOn:
+    id: "paywall-restore"
+# StoreKit may return an empty restore without another sign-in prompt.
+- runFlow:
+    when:
+      visible:
+        text: "Apple.*Account.*サインイン|Sign In.*"
+    commands:
+      - takeScreenshot: "sandbox-restore-authentication"
+      - tapOn: "キャンセル|Cancel"
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+      enabled: true
+    timeout: 30000
+- takeScreenshot: "restore-returned-to-plans"
+- tapOn:
+    id: "paywall-close-button"
+- assertVisible:
+    id: "settings-subscribe"
