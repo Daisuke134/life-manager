@@ -38,8 +38,8 @@ def _resource_url(url: str) -> tuple:
 
     RFC 9110 4.2.2-4.2.3: HTTPS host case, default port 443, fragments,
     and empty-versus-root paths cannot establish separate payment documents.
-    Normalize only unreserved percent escapes; preserve reserved escapes,
-    case-sensitive literal paths/queries and non-default ports.
+    Normalize unreserved escapes and complete path dot segments; preserve
+    reserved escapes, literal case, query order and non-default ports.
     """
     parsed = urlsplit(url)
     try:
@@ -50,7 +50,7 @@ def _resource_url(url: str) -> tuple:
         raise ValueError("invalid public opportunity source port")
     return (parsed.scheme.lower(), parsed.hostname.lower(),
             None if port in (None, 443) else port,
-            _normalize_percent_unreserved(parsed.path or "/"),
+            _remove_dot_segments(_normalize_percent_unreserved(parsed.path or "/")),
             _normalize_percent_unreserved(parsed.query))
 
 
@@ -72,6 +72,44 @@ def _normalize_percent_unreserved(component: str) -> str:
         return char if char in _UNRESERVED else "%" + match.group(1).upper()
 
     return _PERCENT_ESCAPE.sub(replace, component)
+
+
+
+def _remove_dot_segments(path: str) -> str:
+    """RFC 3986 5.2.4: remove complete dot segments in URI paths only.
+
+    Called *after* one unreserved percent-decoding pass, so %2E may become
+    a structural dot, but encoded slashes (%2F) remain opaque. Query strings
+    are never passed here. Preserve empty and double-slash path segments.
+    This is a conservative metadata-only review key, not a URL dereference.
+    """
+    remaining, output = path, ""
+    while remaining:
+        if remaining.startswith("../"):
+            remaining = remaining[3:]
+        elif remaining.startswith("./"):
+            remaining = remaining[2:]
+        elif remaining.startswith("/./"):
+            remaining = remaining[2:]
+        elif remaining == "/.":
+            remaining = "/"
+        elif remaining.startswith("/../"):
+            remaining = remaining[3:]
+            output = output.rpartition("/")[0]
+        elif remaining == "/..":
+            remaining = "/"
+            output = output.rpartition("/")[0]
+        elif remaining in (".", ".."):
+            remaining = ""
+        else:
+            next_slash = remaining.find("/", 1 if remaining.startswith("/") else 0)
+            if next_slash == -1:
+                output += remaining
+                remaining = ""
+            else:
+                output += remaining[:next_slash]
+                remaining = remaining[next_slash:]
+    return output or "/"
 
 
 @dataclass(frozen=True)
