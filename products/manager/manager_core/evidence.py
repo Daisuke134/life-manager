@@ -58,16 +58,34 @@ def _choice(value: Any, options: set[str]) -> str:
 def _url(value: Any) -> str:
     value = _text(value)
     u = urlsplit(value)
-    if u.scheme != 'https' or not u.hostname or u.username or u.password:
-        raise ValueError('public HTTPS URL without credentials required')
-    if any(c.isspace() for c in value) or u.hostname in {'localhost', 'localhost.localdomain'}:
+    # RFC 9110 §4.2.4: reject *any* userinfo delimiter, even an empty
+    # username, rather than relying on the truthiness of parsed.username.
+    if u.scheme != 'https' or not u.hostname or '@' in u.netloc:
+        raise ValueError('public HTTPS URL without userinfo required')
+    if any(c.isspace() for c in value):
         raise ValueError('invalid public URL')
-    if u.hostname.endswith(('.localhost', '.local', '.internal')):
+    # Policy stricter than RFC 3986 reg-name syntax: require DNS/IDNA form.
+    # Percent-encoded hostnames introduce ambiguous resolution and can hide
+    # local names from text-only checks. No DNS lookups or HTTP requests.
+    if '%' in u.hostname:
+        raise ValueError('percent-encoded public URL host forbidden')
+    host = u.hostname.rstrip('.')
+    if not host or u.hostname.endswith('..'):
+        raise ValueError('invalid public URL host')
+    if host in {'localhost', 'localhost.localdomain'} or host.endswith(
+        ('.localhost', '.local', '.internal')
+    ):
         raise ValueError('local URL forbidden')
     try:
-        address = ipaddress.ip_address(u.hostname)
+        address = ipaddress.ip_address(host)
     except ValueError:
-        pass
+        # OWASP SSRF guidance: reject noncanonical numeric hosts that a
+        # downstream resolver might treat as hex, octal or shortened IPv4.
+        if re.fullmatch(
+            r'(?:0[xX][0-9a-fA-F]+|[0-9]+)(?:\\.(?:0[xX][0-9a-fA-F]+|[0-9]+))*',
+            host,
+        ):
+            raise ValueError('noncanonical numeric public URL host forbidden')
     else:
         if not address.is_global:
             raise ValueError('private/local IP forbidden')
