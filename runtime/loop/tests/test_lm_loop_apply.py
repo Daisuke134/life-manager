@@ -2332,6 +2332,33 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["REALTIME_GUIDE_OPERATOR_SETTING"], "kept")
         self.assertNotIn("WorkingDirectory", result_plist)
 
+    def test_capafy_jobs_get_bounded_key_budget_defaults(self):
+        release = self._release("release-capafy-budget").resolve()
+        entrypoint = release / "skills/self/capafy-loop/run.sh"
+        entrypoint.parent.mkdir(parents=True, exist_ok=True)
+        entrypoint.write_text("#!/bin/sh\n")
+        entrypoint.chmod(0o755)
+        for loop_id in ("capafy-loop-healthcheck", "capafy-loop-daily", "capafy-goal-monitor-hourly"):
+            registry_value = registry("skills/self/capafy-loop/run.sh")
+            entry = registry_value["loops"].pop("example")
+            entry.update({"label": f"ai.anicca.{loop_id}"})
+            registry_value["loops"][loop_id] = entry
+            rendered = build_apply_plan(registry_value, release, SHA)[0]
+            environment = plistlib.loads(rendered["plist_bytes"])["EnvironmentVariables"]
+            self.assertEqual(environment["CAPAFY_KEY_DAILY_HARD_CAP_USD"], "3")
+            self.assertEqual(environment["CAPAFY_REQUEST_HEADROOM_USD"], "2")
+
+    def test_non_capafy_jobs_do_not_get_key_budget_defaults(self):
+        release = self._release("release-noncapafy-budget").resolve()
+        entrypoint = release / "skills/self/capafy-loop/run.sh"
+        entrypoint.parent.mkdir(parents=True, exist_ok=True)
+        entrypoint.write_text("#!/bin/sh\n")
+        entrypoint.chmod(0o755)
+        registry_value = registry("skills/self/capafy-loop/run.sh")
+        rendered = build_apply_plan(registry_value, release, SHA)[0]
+        environment = plistlib.loads(rendered["plist_bytes"])["EnvironmentVariables"]
+        self.assertNotIn("CAPAFY_KEY_DAILY_HARD_CAP_USD", environment)
+
     def test_lateness_apply_retires_openclaw_environment(self):
         loop_id = "lateness-heartbeat"
         release = self._release("release-lateness").resolve()

@@ -32,6 +32,18 @@ _PRIVATE_LOG_LOOP_IDS = frozenset({
 MANAGED_NODE_CANDIDATES = (Path("/opt/homebrew/bin/node"), Path("/usr/local/bin/node"))
 
 
+CAPAFY_KEY_BUDGET_LOOPS = frozenset({
+    "capafy-loop-healthcheck",
+    "capafy-loop-daily",
+    "capafy-goal-monitor",
+    "capafy-goal-monitor-hourly",
+    "capafy-goal-monitor-daily-close",
+})
+CAPAFY_KEY_BUDGET_DEFAULTS = {
+    "CAPAFY_KEY_DAILY_HARD_CAP_USD": "3",
+    "CAPAFY_REQUEST_HEADROOM_USD": "2",
+}
+
 def _managed_node(loop_id: str) -> str:
     node = shutil.which("node")
     if node and Path(node).is_absolute():
@@ -197,6 +209,12 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
                 Path.home() / ".local/share/life-manager/venv/bin/python"
             ),
         })
+    if loop_id in CAPAFY_KEY_BUDGET_LOOPS:
+        # Keep the OpenRouter host key's daily self-heal bounded: the gate in
+        # skills/capafy-autopublish/scripts/key_health_gate.sh otherwise defaults
+        # to a $50 cap and a $20 headroom, raising the per-key limit every run.
+        for name, default in CAPAFY_KEY_BUDGET_DEFAULTS.items():
+            value["EnvironmentVariables"].setdefault(name, default)
     key, cadence = next(iter(entry["cadence"].items()))
     if key == "start_interval_seconds" and cadence >= 3600 and 86400 % cadence == 0:
         # launchd restarts the StartInterval countdown on every bootstrap, and
