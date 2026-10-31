@@ -275,3 +275,18 @@ def test_every_distributable_seller_has_issued_blog_and_x_promotion_links() -> N
     mapped = dict(re.findall(r"^\s{2}([a-z-]+)\) CAPAFY_CT=(\w+); X_CT=\w+ ;;", block, re.M))
     assert mapped["tiktok-series-continuity-planner"] == "tiktok_series_blog"
     assert "X_CT=tiktok_series_x" in block
+
+
+def test_allowlisted_agent_links_go_through_click_counter(tmp_path: Path, monkeypatch) -> None:
+    # 8123079349 / 8828622062 are in site/netlify/functions/allowed-agents.json, so the
+    # article and X links route via /go/<agent>/<platform>/<post> and keep the ct token.
+    monkeypatch.setitem(PRODUCTS_JSON["products"]["capafy-skills"]["skills"]["hook-lab"], "agent_id", "8123079349")
+    monkeypatch.setitem(PRODUCTS_JSON["products"]["capafy-skills"]["skills"]["slide-maker"], "agent_id", "8828622062")
+    result = run(tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    (entry,) = json.loads((tmp_path / "capafy-distribute-state" / "ledger.json").read_text()).values()
+    go = "https://capafy-skills-daily.netlify.app/go/"
+    assert entry["cta_url"].startswith(go) and "/article/" in entry["cta_url"]
+    assert entry["cta_url"].endswith(("?ct=hooklab_blog", "?ct=slides_blog"))
+    assert entry["x_cta_url"].startswith(go) and "/x/x-" in entry["x_cta_url"]
+    assert entry["x_cta_url"].endswith(("?ct=hooklab_x", "?ct=slides_x"))

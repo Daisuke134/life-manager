@@ -180,6 +180,15 @@ if [ -n "$SEO_QUERY" ]; then
 fi
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 [ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
+# Route Capafy links through our click counter (/go/<agent>/<platform>/<post>?ct=..)
+# so /go-stats reports clicks per platform and post; it 302s to Capafy with ct kept.
+# Only allow-listed Capafy agents; PromptBase/other landings stay direct.
+CAPAFY_AGENT_ID="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("agent_id") or "")')"
+CAPAFY_GO_BASE="${CAPAFY_GO_BASE:-https://capafy-skills-daily.netlify.app/go}"
+if [ -n "$CAPAFY_AGENT_ID" ] && grep -q "\"$CAPAFY_AGENT_ID\"" "$SCRIPT_DIR/site/netlify/functions/allowed-agents.json" 2>/dev/null; then
+  CTA_URL="${CAPAFY_GO_BASE%/}/${CAPAFY_AGENT_ID}/article/${FREE_ARTICLE_SLUG}?ct=${CAPAFY_CT}"
+  X_CTA_URL="${CAPAFY_GO_BASE%/}/${CAPAFY_AGENT_ID}/x/x-${FREE_ARTICLE_SLUG}?ct=${X_CT}"
+fi
 
 RUN_TS="capafy-distribute-$SLOT"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
