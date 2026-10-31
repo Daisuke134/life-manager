@@ -81,7 +81,8 @@ struct HardPaywallView: View {
     private var packages: [Package] { appState.cachedOffering?.availablePackages ?? [] }
     private var annual: Package? { packages.first { $0.packageType == .annual } }
     private var ordered: [Package] {
-        let order: [PackageType] = [.annual, .weekly, .monthly]
+        // Copy-the-winner (PAYWALL-PRICING.md): yearly first, weekly second, no monthly on the main screen.
+        let order: [PackageType] = [.annual, .weekly]
         return packages.filter { order.contains($0.packageType) }
             .sorted { (order.firstIndex(of: $0.packageType) ?? 9) < (order.firstIndex(of: $1.packageType) ?? 9) }
     }
@@ -177,6 +178,10 @@ struct HardPaywallView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(T.headline(p.storeProduct))
                         .font(.system(size: 18, weight: .bold)).foregroundStyle(AppTheme.Colors.label)
+                    if p.packageType == .annual, let pm = p.storeProduct.localizedPricePerMonth {
+                        Text(String(format: T.L("hp_per_month", "≈ %@ / month"), pm))
+                            .font(.system(size: 13)).foregroundStyle(.secondary)
+                    }
                     if let tr {
                         Text(String(format: T.L("hp_trial_badge", "%@ free trial"),
                                     "\(tr.subscriptionPeriod.value) \(T.periodText(SubscriptionPeriod(value: 1, unit: tr.subscriptionPeriod.unit)))"))
