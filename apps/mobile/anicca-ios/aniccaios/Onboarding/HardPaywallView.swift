@@ -121,7 +121,8 @@ struct HardPaywallView: View {
                 }
             }
             if showClose {
-                Button { showRetention = true } label: {
+                // 2026-10-31 参謀: retention offer skipped for now; close goes straight to the app.
+                Button { onDismiss() } label: {
                     Image(systemName: "xmark").font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.secondary).frame(width: 44, height: 44).contentShape(Rectangle())
                 }
