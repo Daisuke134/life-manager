@@ -341,5 +341,39 @@ class OpportunityOutcomeTests(unittest.TestCase):
 
 
 
+    def test_d011_public_source_authority_rejects_ambiguous_hosts(self):
+        # Synthetic metadata only: no DNS, HTTP fetch, receipts or money.
+        # RFC 9110 4.2.4 / RFC 3986 3.2.2 / OWASP SSRF prevention.
+        for url in (
+            "https://@example.org/receipt",              # empty userinfo
+            "https://%6cocalhost/receipt",                # encoded local host
+            "https://%65xample.org/receipt",              # encoded reg-name
+            "https://localhost./receipt",                 # rooted local host
+            "https://service.internal./receipt",          # rooted internal host
+            "https://127.1/receipt",                      # shortened IPv4
+            "https://0177.0.0.1/receipt",                 # octal IPv4
+            "https://0x7f000001/receipt",                 # hex IPv4 dword
+            "https://2130706433/receipt",                # decimal IPv4 dword
+            "https://127.0.0.1/receipt",                  # canonical private IP
+            "https://example.org../receipt",              # malformed root dots
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ValueError):
+                    replace(source("receipt"), url=url)
+
+    def test_d011_public_source_authority_preserves_valid_global_urls(self):
+        # Syntax and scope acceptance do not validate content or payment.
+        for url in (
+            "https://example.org/receipt",
+            "https://example.org./receipt",
+            "https://8.8.8.8/receipt",
+            "https://[2606:4700:4700::1111]/receipt",
+            "https://xn--bcher-kva.example/receipt",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(replace(source("receipt"), url=url).url, url)
+
+
+
 if __name__ == "__main__":
     unittest.main()
