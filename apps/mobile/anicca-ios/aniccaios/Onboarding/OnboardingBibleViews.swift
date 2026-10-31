@@ -642,6 +642,15 @@ struct PaywallFlowContainer: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
+        if HardPaywallExperiment.isTreatment(offering: appState.cachedOffering) {
+            // 2026-10-31 hard paywall (treatment): delayed X → single retention offer.
+            HardPaywallView(onPurchaseSuccess: onPurchaseSuccess, onDismiss: onDismiss)
+        } else {
+            softPaywall
+        }
+    }
+
+    private var softPaywall: some View {
         ZStack(alignment: .topTrailing) {
             AppBackground()
 

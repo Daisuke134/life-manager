@@ -2714,3 +2714,21 @@
 
 "billing_issue_title" = "お支払いに問題があります";
 "billing_issue_action" = "タップしてお支払い方法を更新";
+
+/* 2026-10-31 hard paywall */
+"hp_title" = "Aniccaのフルプランを解放";
+"hp_unit_day" = "日";
+"hp_unit_days" = "日";
+"hp_unit_week" = "週";
+"hp_unit_weeks" = "週";
+"hp_unit_month" = "か月";
+"hp_unit_months" = "か月";
+"hp_unit_year" = "年";
+"hp_unit_years" = "年";
+"hp_trial_badge" = "%@間無料トライアル";
+"hp_cta_trial" = "無料トライアルを開始";
+"hp_cta" = "続ける";
+"hp_restore_none" = "有効なサブスクリプションが見つかりません。";
+"hp_retention_decline" = "今回はやめておく";
+"hp_terms_trial" = "%1$@間無料、その後%3$@ごとに%2$@。解約するまで%3$@ごとに自動更新されます。トライアル終了の24時間前までに解約すれば請求されません。設定 > Apple ID > サブスクリプションからいつでも管理・解約できます。";
+"hp_terms_no_trial" = "%2$@ごとに%1$@が請求されます。解約するまで自動更新されます。お支払いは購入確定時にApple IDに請求されます。現在の期間終了の24時間前までに設定 > Apple ID > サブスクリプションから解約してください。";
