@@ -256,4 +256,4 @@
 - 2026-10-27 16:04 JST Codex（再割当項目7）: fresh `sysctl vm.swapusage` total `11264.00M` / used `9678.38M` / free `1585.62M`、`memory_pressure` free 42%。2GB free目標まで462.38MB不足。browser/helper検索はPID 1配下のmacOS `kdc` PID 146のみ。registry上のLancers browser `:9227` はowner `lancers-revenue-browser` の稼働lease。stale browser/helperを特定できず、Codex/ChatGPT/Claude/launchd jobや他processは終了していない。
 - 2026-10-27 16:04 JST Codex（再割当項目8）: ローカルrepo/specにMuse Sparkのhackathon対象submission/demo、Capafy listing ID、公開/草稿境界を特定する記述なし。daisuke/cursorへフルbrief再送を依頼（Reason `01M5Y2QAF2T2818H9XXYVDN8DM`）。Fucker所有のCapafy v1.0.3 upsellを含め、外部掲載変更は未実施。
 
-- 2026-11-01 08:34 JST Codex: claim `/lm` title-only SEO publication; source title + manifest, immutable production-baseline overlay, both products workflow pins; preserve all claims/description.
+- 2026-11-01 08:34 JST Codex: claim `/lm` title-only SEO publication; source title + manifest, merged-main immutable overlay verified against live ccf57e9, both products workflow pins; preserve all claims/description.
