@@ -101,6 +101,21 @@ def _counter_delta(current, previous):
     return None
 
 
+def _detail_url(stats_url: str) -> str:
+    return stats_url + ("&" if "?" in stats_url else "?") + "detail=1"
+
+
+def _tracked_clicks(stats_url: str, agent_id: str, row) -> list[dict]:
+    """Per-post click counts with the /go URL each count belongs to."""
+    if not isinstance(row, dict):
+        return []
+    go_base = stats_url.split("?", 1)[0].rsplit("/go-stats", 1)[0] + "/go"
+    return [
+        {"url": f"{go_base}/{agent_id}/{post}", "platform": post.split("/", 1)[0], "clicks": int(clicks)}
+        for post, clicks in sorted((row.get("posts") or {}).items())
+    ]
+
+
 def pull(
     stats_url: str = DEFAULT_STATS_URL,
     output_file: Path = OUTPUT_FILE,
@@ -113,13 +128,17 @@ def pull(
         return existing
 
     stats_request = request.Request(
-        stats_url,
+        _detail_url(stats_url),
         headers={"Accept": "application/json", "User-Agent": "capafy-attribution/1"},
     )
     with request.urlopen(stats_request, timeout=30) as response:
         stats = json.load(response)
     if not isinstance(stats, dict):
         raise RuntimeError("go-stats response must be a JSON object")
+    detail = stats if isinstance(stats.get("agents"), dict) else None
+    if detail is not None:
+        stats = {agent_id: row.get("total", 0) for agent_id, row in detail["agents"].items()}
+    detail_agents = (detail or {}).get("agents") or {}
 
     agents = _find_agent_list(_fetch_agents()) or []
     sales_by_id = {
@@ -153,6 +172,7 @@ def pull(
                 "cumulative_sales": cumulative_sales,
                 "window_clicks": _counter_delta(cumulative_clicks, prior.get("cumulative_clicks")),
                 "window_sales": _counter_delta(cumulative_sales, prior.get("cumulative_sales")),
+                "tracked_clicks": _tracked_clicks(stats_url, agent_id, detail_agents.get(agent_id)),
                 "subscription_orders": None,
                 "attribution_status": "candidate_no_order_level_source",
             }
@@ -166,6 +186,8 @@ def pull(
         "attribution_status": "candidate_no_order_level_source",
         "attribution_note": "Agent-level post, redirect, and sales windows are correlated only; Capafy exposes no order-level UTM/source or subscription-order join.",
         "agents": joined,
+        "clicks_total": (detail or {}).get("total", sum(int(v) for v in stats.values())),
+        "clicks_by_platform": (detail or {}).get("platforms", {}),
     }
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("a", encoding="utf-8") as ledger:

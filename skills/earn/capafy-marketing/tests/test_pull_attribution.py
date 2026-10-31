@@ -37,7 +37,7 @@ class PullAttributionTests(unittest.TestCase):
 
             urlopen.assert_called_once()
             request_arg = urlopen.call_args.args[0]
-            self.assertEqual(request_arg.full_url, "https://landing.example/go-stats")
+            self.assertEqual(request_arg.full_url, "https://landing.example/go-stats?detail=1")
             self.assertEqual(result["date"], "2026-07-19")
             self.assertFalse(result["causal_claim"])
             self.assertEqual(result["attribution_status"], "candidate_no_order_level_source")
@@ -52,6 +52,7 @@ class PullAttributionTests(unittest.TestCase):
                         "cumulative_sales": 7,
                         "window_clicks": None,
                         "window_sales": None,
+                        "tracked_clicks": [],
                         "subscription_orders": None,
                         "attribution_status": "candidate_no_order_level_source",
                     },
@@ -63,6 +64,7 @@ class PullAttributionTests(unittest.TestCase):
                         "cumulative_sales": 3,
                         "window_clicks": None,
                         "window_sales": None,
+                        "tracked_clicks": [],
                         "subscription_orders": None,
                         "attribution_status": "candidate_no_order_level_source",
                     },
@@ -125,6 +127,32 @@ class PullAttributionTests(unittest.TestCase):
             self.assertEqual(agent["window_sales"], 2)
             self.assertIsNone(agent["subscription_orders"])
             self.assertFalse(result["causal_claim"])
+
+    def test_detail_stats_report_tracked_urls_and_platform_counts(self):
+        detail = {
+            "total": 3,
+            "platforms": {"legacy": 1, "x": 2},
+            "agents": {"1": {"total": 3, "platforms": {"legacy": 1, "x": 2}, "posts": {"x/x-hook": 2}}},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch.object(pull_attribution.request, "urlopen", return_value=io.BytesIO(json.dumps(detail).encode())),
+                patch.object(pull_attribution, "_fetch_agents", return_value={"data": []}),
+            ):
+                result = pull_attribution.pull(
+                    stats_url="https://landing.example/go-stats",
+                    output_file=Path(tmp) / "out.jsonl",
+                    posts_file=Path(tmp) / "none.jsonl",
+                    today=date(2026, 10, 31),
+                )
+        self.assertEqual(result["clicks_total"], 3)
+        self.assertEqual(result["clicks_by_platform"], {"legacy": 1, "x": 2})
+        (agent,) = result["agents"]
+        self.assertEqual(agent["cumulative_clicks"], 3)
+        self.assertEqual(
+            agent["tracked_clicks"],
+            [{"url": "https://landing.example/go/1/x/x-hook", "platform": "x", "clicks": 2}],
+        )
 
 
 if __name__ == "__main__":
