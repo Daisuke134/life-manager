@@ -11,4 +11,8 @@
 
 環境: 最新main 8df675eec4c0352fd6482e1fa1b57dbafd9ffc5b を取得した専用linked worktree。既存canonical Git metadataはsandbox書込範囲外なので本workspaceの専用bare repositoryを使用。verify-source-boundary.sh の固定root要件は満たさない。既存checkout/owner/releaseは変更しない。
 
-TODO: manifest追加 → OSS検証・既存テスト → commit/push/PR/CI/main → Dots実経路の再検証 → 同ルーム報告。
+検証結果: manifest追加後のOSS検証PASS、既存OSSテスト12/12 PASS、git diff --check成功。scripts/test_ledger_check.py は6/6 PASS。追跡main由来台帳で既存キーlancers:5620321はBUSY(exit1)、存在しない確認用キーはFREE(exit0)。claim作成・応募送信は行わない。
+
+PR: https://github.com/Daisuke134/life-manager/pull/9068 。PR CIのOSS境界は成功。全CIとmain統合結果はGitHub PR/checksを正本にする。
+
+残る外部条件: Dots自身の実行環境での再検証は未確認。同ルームはteam/COMMS.mdからSlack #agents-hqと特定したが、Slack/Reasonのsendはいずれもapproval policy neverで拒否。未送信報告は作業workspaceのteam-outbox/AGENTS-HQ-REPORT.mdに保存する。CIのソース修復とこれらの外部条件は別々に判定する。
