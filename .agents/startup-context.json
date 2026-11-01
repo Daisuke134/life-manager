@@ -69,15 +69,15 @@
       "url": "https://github.com/Daisuke134/life-manager",
       "status": "verified",
       "expected_text": "Life Manager",
-      "verified_at": "2026-10-02T17:51:38+09:00",
-      "evidence": "Public repository returned HTTP 200 with Life Manager identity/context on 2026-10-02 JST."
+      "verified_at": "2026-11-01T19:34:07+09:00",
+      "evidence": "Public repository returned HTTP 200 at https://github.com/Daisuke134/life-manager (no redirect) with Life Manager identity/context on 2026-11-01 JST."
     },
     "telegram": {
       "url": "https://t.me/LifeManagerBotbot?start=lp",
       "status": "verified",
       "expected_text": "Life Manager",
-      "verified_at": "2026-10-02T17:51:38+09:00",
-      "evidence": "Telegram start page returned HTTP 200 with Life Manager identity/context on 2026-10-02 JST."
+      "verified_at": "2026-11-01T19:34:07+09:00",
+      "evidence": "Telegram start page returned HTTP 200 (title: Telegram: Launch @LifeManagerBotbot) with Life Manager identity/context on 2026-11-01 JST."
     },
     "dashboard": {
       "url": "https://aniccaai.com/dashboard",
