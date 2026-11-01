@@ -58,7 +58,36 @@ struct PaywallView: View {
     }
 
     private var packages: [Package] {
-        subscriptionService.offerings?.current?.availablePackages ?? []
+        let order: [PackageType] = [.annual, .weekly, .monthly]
+        return (subscriptionService.offerings?.current?.availablePackages ?? []).sorted {
+            (order.firstIndex(of: $0.packageType) ?? 9) < (order.firstIndex(of: $1.packageType) ?? 9)
+        }
+    }
+
+    private func periodWord(_ package: Package) -> String {
+        switch package.packageType {
+        case .weekly: return "週"
+        case .monthly: return "月"
+        case .annual: return "年"
+        default: return "期間"
+        }
+    }
+
+    /// Guideline 3.1.2: billed amount (most prominent), trial length, period and auto-renew next to the CTA.
+    @ViewBuilder
+    private func purchaseTerms(_ package: Package) -> some View {
+        let price = package.storeProduct.localizedPriceString
+        let per = periodWord(package)
+        VStack(spacing: 4) {
+            Text("\(price) / \(per)")
+                .font(.title3.bold())
+            Text(trialPeriod(package).map { "\($0)無料、その後\(price)/\(per)で自動更新。トライアル終了の24時間前までに解約すれば請求されません。" }
+                 ?? "\(price)/\(per)が請求され、解約するまで\(per)ごとに自動更新されます。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .accessibilityIdentifier("paywall_terms")
     }
 
     private func loadPlans() async {
@@ -166,6 +195,8 @@ struct PaywallView: View {
                         selectedPackage = package
                     }
                 }
+
+                if let selectedPackage { purchaseTerms(selectedPackage) }
 
                 Button {
                     guard let package = selectedPackage else { return }
