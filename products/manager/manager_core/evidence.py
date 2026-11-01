@@ -82,7 +82,7 @@ def _url(value: Any) -> str:
         # OWASP SSRF guidance: reject noncanonical numeric hosts that a
         # downstream resolver might treat as hex, octal or shortened IPv4.
         if re.fullmatch(
-            r'(?:0[xX][0-9a-fA-F]+|[0-9]+)(?:\\.(?:0[xX][0-9a-fA-F]+|[0-9]+))*',
+            r'(?:0[xX][0-9a-fA-F]+|[0-9]+)(?:\.(?:0[xX][0-9a-fA-F]+|[0-9]+))*',
             host,
         ):
             raise ValueError('noncanonical numeric public URL host forbidden')
