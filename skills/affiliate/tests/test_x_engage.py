@@ -49,6 +49,18 @@ class ParseTest(unittest.TestCase):
         _, error = x_engage.parse_section("## Engagement for Mac mini\n<!-- open\n")
         self.assertIsNotNone(error)
 
+    def test_two_line_reply_format(self):
+        text = (f"## Engagement for Mac mini\n- [ ] reply {URL}\nReply text here?\n"
+                f"- [x] reply {URL} → {URL} (2026-11-01 17:00 JST)\nOld reply text.\n- [ ] like {URL}\n")
+        actions, error = x_engage.parse_section(text)
+        self.assertIsNone(error)
+        self.assertEqual([(a[1], a[3]) for a in actions], [("reply", "Reply text here?"), ("like", None)])
+
+    def test_two_line_reply_without_text_fails_closed(self):
+        for tail in ("", f"- [ ] like {URL}\n", "\n"):
+            _, error = x_engage.parse_section(f"## Engagement for Mac mini\n- [ ] reply {URL}\n{tail}")
+            self.assertIsNotNone(error, tail)
+
     def test_missing_section_means_nothing(self):
         self.assertEqual(x_engage.parse_section("# q\n- [ ] like " + URL), ([], None))
 

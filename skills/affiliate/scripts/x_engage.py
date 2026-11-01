@@ -37,6 +37,8 @@ LINE = re.compile(
     rf"|^- \[ \] (?P<rkind>reply) (?P<rurl>{STATUS_URL}) :: (?P<text>\S.*?)\s*$"
 )
 DONE = re.compile(r"^- \[[xX]\] ")
+REPLY_HEAD = re.compile(rf"^- \[ \] (?P<rkind>reply) (?P<rurl>{STATUS_URL})\s*$")
+DONE_REPLY = re.compile(rf"^- \[[xX]\] reply {STATUS_URL}(?:\s|$)")
 COMMENT = re.compile(r"^\s*<!--.*-->\s*$")
 CAPS = {"like": 30, "repost": 10, "reply": 10}
 ENABLE_ENV = "AFFILIATE_X_ENGAGE_ENABLED"
@@ -60,24 +62,46 @@ def parse_section(text):
     if start is None:
         return [], None
     actions = []
-    for index in range(start + 1, len(lines)):
+    index = start
+    while index + 1 < len(lines):
+        index += 1
         line = lines[index]
         heading = ANY_HEADING.match(line)
         if heading and len(heading.group(1)) <= level:
             break
-        if not line.strip() or DONE.match(line) or COMMENT.match(line):
+        if not line.strip() or COMMENT.match(line):
+            continue
+        if DONE.match(line):
+            # A finished two-line reply keeps its text line; skip it.
+            if DONE_REPLY.match(line) and _is_text_line(lines, index + 1):
+                index += 1
             continue
         match = LINE.match(line)
-        if not match:
-            return [], f"unrecognized line {index + 1}"
-        if match.group("kind"):
+        if match and match.group("kind"):
             actions.append((index, match.group("kind"), match.group("url"), None))
-        else:
+            continue
+        if match:
             reply = match.group("text")
-            if len(reply) > MAX_REPLY_CHARS:
-                return [], f"reply too long on line {index + 1}"
-            actions.append((index, "reply", match.group("rurl"), reply))
+        else:
+            two_line = REPLY_HEAD.match(line)
+            if not two_line or not _is_text_line(lines, index + 1):
+                return [], f"unrecognized line {index + 1}"
+            reply = lines[index + 1].strip()
+            match = two_line
+        if len(reply) > MAX_REPLY_CHARS:
+            return [], f"reply too long on line {index + 1}"
+        actions.append((index, "reply", match.group("rurl"), reply))
+        if not LINE.match(line):
+            index += 1
     return actions, None
+
+
+def _is_text_line(lines, index):
+    """The reply text line: non-empty, not a list item, heading or comment."""
+    if index >= len(lines):
+        return False
+    line = lines[index]
+    return bool(line.strip()) and not line.lstrip().startswith(("- ", "#", "<!--"))
 
 
 def today():
