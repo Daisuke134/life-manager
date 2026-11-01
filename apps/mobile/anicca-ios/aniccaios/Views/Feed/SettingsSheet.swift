@@ -9,6 +9,7 @@ struct SettingsSheet: View {
     @EnvironmentObject var themeStore: ThemeStore
     @EnvironmentObject var likedStore: LikedQuotesStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var showThemePicker = false
     @State private var showSavedQuotes = false
@@ -54,6 +55,7 @@ struct SettingsSheet: View {
             Section {
                 Button {
                     showPurchasePlans = true
+                    ReviewPromptCoordinator.shared.noteScreen(.paywall)
                 } label: {
                     Label(String(localized: "settings_subscription_subscribe"), systemImage: "star.circle")
                 }
@@ -66,6 +68,15 @@ struct SettingsSheet: View {
                 } label: {
                     Label(String(localized: "settings_subscription"), systemImage: "creditcard")
                 }
+            }
+
+            Section {
+                Button {
+                    openURL(ReviewPromptCoordinator.writeReviewURL)
+                } label: {
+                    Label(String(localized: "settings_rate_app_store"), systemImage: "star.bubble")
+                }
+                .accessibilityIdentifier("settings-rate-app-store")
             }
 
             Section {

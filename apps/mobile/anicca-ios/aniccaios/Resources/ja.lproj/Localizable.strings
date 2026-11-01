@@ -2714,3 +2714,5 @@
 
 "billing_issue_title" = "お支払いに問題があります";
 "billing_issue_action" = "タップしてお支払い方法を更新";
+
+"settings_rate_app_store" = "App Storeで評価する";

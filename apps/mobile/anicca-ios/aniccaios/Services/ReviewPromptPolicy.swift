@@ -1,33 +1,56 @@
 import Foundation
 
-/// Decides when an in-app App Store review prompt is allowed.
-///
-/// Rules (Apple still enforces its own yearly cap on top of these):
-/// - Never on first launch
-/// - Require opens on at least `minimumDistinctOpenDays` distinct calendar days
-/// - At most once every `cooldownDays` days (tracked locally after we ask StoreKit)
-/// - Caller must only invoke after a value moment (favorite / session finished)
-struct ReviewPromptPolicy: Sendable {
-    static let minimumDistinctOpenDays = 3
-    static let cooldownDays = 120
+/// Screen the user saw right before the value moment. The prompt never follows
+/// the paywall, the notification permission ask, or an error.
+enum ReviewPromptPreviousScreen: String, Sendable {
+    case other
+    case paywall
+    case notificationPermission
+    case error
 
-    /// Pure gate used at a value moment. Does not mutate storage.
+    var blocksReviewPrompt: Bool { self != .other }
+}
+
+/// Snapshot of everything the gate needs. Pure value; no storage access.
+struct ReviewPromptState: Equatable, Sendable {
+    var isOnboardingComplete: Bool
+    var launchCount: Int
+    var distinctOpenDayCount: Int
+    var saveCount: Int
+    var lastPromptAt: Date?
+    var lastPromptVersion: String?
+    var previousScreen: ReviewPromptPreviousScreen
+}
+
+/// Decides when an in-app App Store review prompt is allowed.
+/// Spec: team/gaps/GAP-appstore-anicca.md "Rating prompt" (2026-11-02).
+/// Apple still enforces its own cap (3 per 365 days) on top of these rules.
+struct ReviewPromptPolicy: Sendable {
+    static let minimumLaunchCount = 3
+    static let minimumDistinctOpenDays = 2
+    static let minimumSaveCount = 3
+    static let cooldownDays = 120
+    /// Delay after the save animation before asking StoreKit.
+    static let delayAfterSave: TimeInterval = 0.8
+
     static func shouldRequestReview(
-        distinctOpenDayCount: Int,
-        lastReviewRequestAt: Date?,
+        state: ReviewPromptState,
+        currentVersion: String,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> Bool {
-        // First launch has 0–1 distinct days; require sustained return visits.
-        guard distinctOpenDayCount >= minimumDistinctOpenDays else { return false }
-
-        if let last = lastReviewRequestAt {
-            guard let eligibleAt = calendar.date(byAdding: .day, value: cooldownDays, to: last) else {
-                return false
-            }
-            guard now >= eligibleAt else { return false }
+        guard state.isOnboardingComplete else { return false }
+        guard state.launchCount >= minimumLaunchCount else { return false }
+        guard state.distinctOpenDayCount >= minimumDistinctOpenDays else { return false }
+        guard state.saveCount >= minimumSaveCount else { return false }
+        guard !state.previousScreen.blocksReviewPrompt else { return false }
+        // At most once per app version.
+        if let lastVersion = state.lastPromptVersion, lastVersion == currentVersion { return false }
+        // At least 120 days since the previous prompt.
+        if let last = state.lastPromptAt {
+            guard let eligibleAt = calendar.date(byAdding: .day, value: cooldownDays, to: last),
+                  now >= eligibleAt else { return false }
         }
-
         return true
     }
 
@@ -43,12 +66,7 @@ struct ReviewPromptPolicy: Sendable {
     }
 
     static func dayKey(for date: Date, calendar: Calendar = .current) -> String {
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        return String(
-            format: "%04d-%02d-%02d",
-            components.year ?? 0,
-            components.month ?? 0,
-            components.day ?? 0
-        )
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 }

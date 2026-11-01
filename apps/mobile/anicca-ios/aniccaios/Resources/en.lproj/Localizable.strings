@@ -2698,3 +2698,5 @@
 
 "billing_issue_title" = "Payment issue — action needed";
 "billing_issue_action" = "Tap to update your payment method";
+
+"settings_rate_app_store" = "Rate on the App Store";

@@ -92,6 +92,7 @@ struct PaywallVariantBView: View {
         }
         .background(AppBackground())
         .onAppear {
+            ReviewPromptCoordinator.shared.noteScreen(.paywall)
             if !hasTracked {
                 hasTracked = true
                 AnalyticsManager.shared.trackPaywallViewed()
@@ -463,6 +464,7 @@ struct PaywallVariantBView: View {
                     }
                 } else {
                     errorMessage = error.localizedDescription
+                    ReviewPromptCoordinator.shared.noteScreen(.error)
                 }
             }
         }
@@ -484,6 +486,7 @@ struct PaywallVariantBView: View {
                 await MainActor.run {
                     isPurchasing = false
                     errorMessage = error.localizedDescription
+                    ReviewPromptCoordinator.shared.noteScreen(.error)
                 }
             }
         }

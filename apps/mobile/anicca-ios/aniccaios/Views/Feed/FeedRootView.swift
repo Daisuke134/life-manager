@@ -124,11 +124,6 @@ struct FeedRootView: View {
     private func recordViewedQuoteIfNeeded() {
         guard quotes.indices.contains(currentIndex) else { return }
         viewedQuoteIDsThisSession.insert(quotes[currentIndex].id)
-        guard !didRequestReviewForSession, viewedQuoteIDsThisSession.count >= 3 else { return }
-        didRequestReviewForSession = true
-        ReviewPromptCoordinator.shared.requestReviewIfAppropriate {
-            requestReview()
-        }
     }
 
     private var billingIssueBanner: some View {

@@ -1332,3 +1332,5 @@
 
 "billing_issue_title" = "Problema no pagamento";
 "billing_issue_action" = "Toque para atualizar a forma de pagamento";
+
+"settings_rate_app_store" = "Avaliar na App Store";
