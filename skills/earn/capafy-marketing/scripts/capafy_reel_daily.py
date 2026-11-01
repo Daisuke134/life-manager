@@ -37,6 +37,40 @@ TT_ID = os.environ.get("CAPAFY_REEL_TT_INTEGRATION", "cmvc98itr1d3clu0yf8vy3dgx"
 # new account live (7-day warm-up; fresh-account posting got spam-blocked before).
 WARMUP_STATE = Path(os.environ.get("CAPAFY_REEL_WARMUP_STATE", str(
     Path.home() / ".local/state/life-manager/warmup-flip-daily/state/postiz-integrations.json")))
+JST = dt.timezone(dt.timedelta(hours=9))
+# Accounts limited to one post per Tokyo day (video and slideshow count together).
+DAILY_CAP_INTEGRATIONS = {TT_ID}
+ACCOUNT_DAILY_STATE = Path(os.environ.get("CAPAFY_REEL_ACCOUNT_DAILY_STATE", str(
+    Path.home() / ".local/state/life-manager/capafy-reel/account-daily.json")))
+
+
+def _tokyo_day(slot_iso: str) -> str:
+    when = dt.datetime.fromisoformat(slot_iso.replace("Z", "+00:00"))
+    return when.astimezone(JST).date().isoformat()
+
+
+def _account_day_taken(integration: str, slot_iso: str) -> str | None:
+    if integration not in DAILY_CAP_INTEGRATIONS:
+        return None
+    try:
+        data = json.loads(ACCOUNT_DAILY_STATE.read_text())
+    except (OSError, ValueError):
+        data = {}
+    return (data.get(integration) or {}).get(_tokyo_day(slot_iso))
+
+
+def _claim_account_day(integration: str, slot_iso: str, label: str) -> None:
+    if integration not in DAILY_CAP_INTEGRATIONS:
+        return
+    try:
+        data = json.loads(ACCOUNT_DAILY_STATE.read_text())
+    except (OSError, ValueError):
+        data = {}
+    data.setdefault(integration, {})[_tokyo_day(slot_iso)] = label
+    ACCOUNT_DAILY_STATE.parent.mkdir(parents=True, exist_ok=True)
+    _durable_write(ACCOUNT_DAILY_STATE, json.dumps(data, sort_keys=True) + "\n")
+
+
 SETTINGS = {
     "x": {"__type": "x", "who_can_reply_post": "everyone", "made_with_ai": True, "paid_partnership": False},
     "ig": {"__type": "instagram-standalone", "post_type": "post", "is_trial_reel": False, "collaborators": []},
@@ -71,7 +105,7 @@ def slots(day: dt.date, slot: int = 1) -> dict:
 
 def render_carousel(slug: str, spec: dict) -> list[Path]:
     """Six 1080x1920 JPEG slides for a TikTok photo post (slideshows reach non-followers:
-    our 1-follower slideshow account drew 3,158 views/7d): pain hook, promise, 3 hooks, CTA."""
+    our 1-follower slideshow account drew 3,158 views/7d): pain hook, promise, 3 hooks, recap."""
     from PIL import Image, ImageDraw, ImageFont  # noqa: PLC0415
     import textwrap  # noqa: PLC0415
     bold = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
@@ -79,7 +113,7 @@ def render_carousel(slug: str, spec: dict) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     pages = [(spec["hook_a"], spec["hook_b"]), (spec["title"], "Hooks Hook Lab wrote. Swipe.")]
     pages += [(quote, f"{label} hook · on screen: {onscreen}") for label, quote, onscreen in spec["cards"]]
-    pages.append(("Search \"Hook Lab\" on Capafy", "5+ hooks, a timed script and a caption from one line."))
+    pages.append((spec["title"], " / ".join(onscreen for _label, _quote, onscreen in spec["cards"])))
     paths = []
     for i, (head, sub) in enumerate(pages, 1):
         img = Image.new("RGB", (1080, 1920), (14, 14, 18))
@@ -108,9 +142,14 @@ def tiktok_live() -> bool:
 
 
 def caption(spec: dict) -> str:
-    return (f"{spec['hook_a']} {spec['hook_b']}\n\n"
-            "Hook Lab turns one line about your video into 5+ first-3-second hooks, a timed script and a caption.\n\n"
-            "Search \"Hook Lab\" on Capafy to try it.")
+    """Caption built only from this post's own content: no fixed promo sentence or CTA.
+
+    TikTok flagged identical promo text across posts as spam (2026-11-01), so every line
+    here comes from the spec of this one post.
+    """
+    lines = [f"{spec['hook_a']} {spec['hook_b']}", spec["title"]]
+    lines += [f"{label}: {quote}" for label, quote, _onscreen in spec.get("cards") or []]
+    return "\n\n".join(lines)
 
 
 def validate_spec(spec: dict) -> None:
@@ -285,10 +324,14 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         if receipt.exists():
             out[net] = "already_scheduled"
             continue
+        if _account_day_taken(integration, slots(day, slot)[net]):
+            out[net] = "daily_cap_skip"
+            continue
         found = existing_fn(net, slots(day, slot)[net]) if existing_fn else None
         if found:  # provider already has this slot (earlier crash after create): record, never re-create
             receipt.write_text(json.dumps({"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug,
                                            "readback_existing_post": found, "scheduled_for": slots(day, slot)[net]}) + "\n")
+            _claim_account_day(integration, slots(day, slot)[net], f"{slug}:{net}")
             out[net] = {"existing": found}
             continue
         if run_dir is not None:  # durable pre-dispatch marker for capafy_reel_fence_reconcile
@@ -313,6 +356,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         rec = {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug, "asset": str(mp4), "upload": up,
                "create": cr, "scheduled_for": slots(day, slot)[net], "integration": integration}
         receipt.write_text(json.dumps(rec) + "\n")
+        _claim_account_day(integration, slots(day, slot)[net], f"{slug}:{net}")
         out[net] = cr
     return out
 
