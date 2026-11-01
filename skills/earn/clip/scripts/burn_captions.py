@@ -99,29 +99,36 @@ def transcribe_segments(clip, model_size, lang):
     return [(float(s.start), float(s.end), s.text.strip()) for s in segs if s.text.strip()]
 
 
+OPENROUTER_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"  # free open-weight model ($0)
+
+
 def translate_segments_ja(segments):
-    """Translate EN segment texts → natural JP via Gemini. Returns list of
+    """Translate EN segment texts -> natural JP via a free OpenRouter model. Returns list of
     (start, end, jp_text). No-human, deterministic call."""
-    import os, json, urllib.request
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    import os, json, re, urllib.request
+    key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("CAPAFY_HOST_OPENROUTER_KEY")
     if not key:
-        raise RuntimeError("GEMINI_API_KEY/GOOGLE_API_KEY required for --jp")
+        raise RuntimeError("OPENROUTER_API_KEY (or CAPAFY_HOST_OPENROUTER_KEY) required for --jp")
     texts = [s[2] for s in segments]
     prompt = (
         "Translate each numbered English line into natural, punchy Japanese suitable "
-        "for a short-video subtitle. Keep it concise. Return ONLY a JSON array of "
-        "strings, same length and order, no numbering.\n\n"
+        "for a short-video subtitle. Keep it concise. Return ONLY a JSON object "
+        '{"lines": [...]} whose array has the same length and order, no numbering.\n\n'
         + "\n".join(f"{i+1}. {t}" for i, t in enumerate(texts))
     )
-    body = {"contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"}}
-    url = ("https://generativelanguage.googleapis.com/v1beta/models/"
-           "gemini-2.5-flash:generateContent?key=" + key)
-    req = urllib.request.Request(url, data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"})
-    resp = json.loads(urllib.request.urlopen(req, timeout=60).read())
-    raw = resp["candidates"][0]["content"]["parts"][0]["text"]
+    body = {"model": OPENROUTER_MODEL, "temperature": 0.3, "max_tokens": 4000,
+            "response_format": {"type": "json_object"},
+            "messages": [{"role": "user", "content": prompt}]}
+    req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions",
+                                 data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json",
+                                          "Authorization": "Bearer " + key})
+    resp = json.loads(urllib.request.urlopen(req, timeout=120).read())
+    raw = resp["choices"][0]["message"]["content"]
+    raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
     ja = json.loads(raw)
+    if isinstance(ja, dict):
+        ja = ja.get("lines") or next((v for v in ja.values() if isinstance(v, list)), [])
     out = []
     for i, (st, en, _) in enumerate(segments):
         out.append((st, en, ja[i] if i < len(ja) else ""))

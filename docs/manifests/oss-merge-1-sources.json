@@ -146,7 +146,7 @@
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
           "files": 258,
-          "inventory_sha256": "ee2561620e164cc25849c0d6985bd52d4e4e7f5c93d987b2173ab566e95ec2d0"
+          "inventory_sha256": "57ef73449e17557966abc5677f3dc223b8e3dff2dcb0b5a10c5f15c47b4754a6"
         },
         {
           "source": "skills/_shared",
@@ -158,7 +158,7 @@
           "source": "skills/anicca-life-manager",
           "target": "skills/anicca-life-manager",
           "files": 20,
-          "inventory_sha256": "7294dcbbb6ecac97447e1d80cd285de663a1a4042ec44db612e142bbbad74734"
+          "inventory_sha256": "52827088e85a80a0ef529f5675e9704068deaa8bba373791a10d7de2d26cfc20"
         }
       ]
     },

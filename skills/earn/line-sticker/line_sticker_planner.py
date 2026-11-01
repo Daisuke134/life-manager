@@ -169,6 +169,9 @@ def character_image(set_dir: Path, plan_draft: dict) -> None:
         receipt = {"backend": "chatgpt_imagegen", "prompt": plan_draft["character_prompt"], "cost_usd": "0"}
     except chatgpt.ChatGptImageGenUnavailable as exc:
         chatgpt.log_fallback(f"character_image:{set_dir.name}", exc)
+        # Paid Gemini image fallback is off since 2026-11-01; opt in with LINE_STICKER_GEMINI_FALLBACK=1.
+        if not os.environ.get("LINE_STICKER_GEMINI_FALLBACK", "").strip() == "1":
+            raise
         image_bytes, meta = _character_image_gemini(plan_draft)
         Image.open(io.BytesIO(image_bytes)).convert("RGB").save(char_ref)
         receipt = {"backend": "gemini_fallback", "prompt": plan_draft["character_prompt"], "cost_usd": "0.02", **meta}
