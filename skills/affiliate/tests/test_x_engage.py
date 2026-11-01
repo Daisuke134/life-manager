@@ -41,6 +41,14 @@ class ParseTest(unittest.TestCase):
         self.assertEqual([a[1] for a in actions], ["like", "repost", "reply"])
         self.assertEqual(actions[2][3], "ありがとうございます！")
 
+    def test_single_line_html_comments_are_ignored(self):
+        actions, error = x_engage.parse_section(
+            f"## Engagement for Mac mini\n<!-- note -->\n- [ ] like {URL}\n")
+        self.assertIsNone(error)
+        self.assertEqual(len(actions), 1)
+        _, error = x_engage.parse_section("## Engagement for Mac mini\n<!-- open\n")
+        self.assertIsNotNone(error)
+
     def test_missing_section_means_nothing(self):
         self.assertEqual(x_engage.parse_section("# q\n- [ ] like " + URL), ([], None))
 

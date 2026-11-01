@@ -37,6 +37,7 @@ LINE = re.compile(
     rf"|^- \[ \] (?P<rkind>reply) (?P<rurl>{STATUS_URL}) :: (?P<text>\S.*?)\s*$"
 )
 DONE = re.compile(r"^- \[[xX]\] ")
+COMMENT = re.compile(r"^\s*<!--.*-->\s*$")
 CAPS = {"like": 30, "repost": 10, "reply": 10}
 ENABLE_ENV = "AFFILIATE_X_ENGAGE_ENABLED"
 MAX_REPLY_CHARS = 280
@@ -64,7 +65,7 @@ def parse_section(text):
         heading = ANY_HEADING.match(line)
         if heading and len(heading.group(1)) <= level:
             break
-        if not line.strip() or DONE.match(line):
+        if not line.strip() or DONE.match(line) or COMMENT.match(line):
             continue
         match = LINE.match(line)
         if not match:
