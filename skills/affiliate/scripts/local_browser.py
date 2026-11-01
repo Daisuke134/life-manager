@@ -120,6 +120,31 @@ def _start_url() -> str:
     )
 
 
+_ENGAGE_SCRIPT = Path(__file__).resolve().parent / "x_engage.py"
+
+
+def _maybe_engage(last_run: float, now: float | None = None, runner=subprocess.run) -> float:
+    """Run one engagement-only pass on the X browser holder when explicitly enabled."""
+    now = time.monotonic() if now is None else now
+    if (
+        os.environ.get("LIFE_MANAGER_LOOP_ID") != "affiliate-x-browser"
+        or os.environ.get("AFFILIATE_X_ENGAGE_ENABLED") != "1"
+    ):
+        return last_run
+    try:
+        interval = max(60, int(os.environ.get("AFFILIATE_X_ENGAGE_INTERVAL_SECONDS", "600")))
+    except ValueError:
+        return last_run
+    if last_run and now - last_run < interval:
+        return last_run
+    try:
+        runner([sys.executable, str(_ENGAGE_SCRIPT)], check=False, timeout=900)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return now
+
+
+
 def main() -> int:
     if not _disk_preflight():
         return 1
@@ -154,7 +179,9 @@ def main() -> int:
             wait_until="domcontentloaded",
             timeout=30_000,
         )
+    last_engage = 0.0
     while True:
         time.sleep(60)
+        last_engage = _maybe_engage(last_engage)
 if __name__ == "__main__":
     raise SystemExit(main())
