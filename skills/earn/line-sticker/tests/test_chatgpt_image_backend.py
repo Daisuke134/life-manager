@@ -55,13 +55,32 @@ class StaticStickerFallsBackToGemini(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 ref = Path(tmp) / "ref-padded.png"
-                image, backend, cost = mod._generate_sticker_image(ref, "a cute otter", "waving happily", "test-task")
+                with mock.patch.dict(os.environ, {"LINE_STICKER_GEMINI_FALLBACK": "1"}):
+                    image, backend, cost = mod._generate_sticker_image(ref, "a cute otter", "waving happily", "test-task")
         finally:
             mod._gemini_sticker_image = original_gemini
             BACKEND.generate = original_backend_generate
         self.assertEqual(backend, "gemini_fallback")
         self.assertEqual(cost, STATIC.STATIC_IMAGE_COST_USD)
         self.assertEqual(calls["gemini_prompt"], "waving happily")
+
+    def test_paid_gemini_fallback_is_off_by_default(self) -> None:
+        def fake_generate(prompt, **kwargs):
+            raise BACKEND.ChatGptImageGenUnavailable("cli not installed")
+
+        def fake_gemini(ref_path, prompt):
+            raise AssertionError("paid Gemini must not be called")
+
+        import line_sticker_static as mod
+        original_gemini, original_backend_generate = mod._gemini_sticker_image, BACKEND.generate
+        mod._gemini_sticker_image, BACKEND.generate = fake_gemini, fake_generate
+        try:
+            with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("LINE_STICKER_GEMINI_FALLBACK", None)
+                with self.assertRaises(BACKEND.ChatGptImageGenUnavailable):
+                    mod._generate_sticker_image(Path(tmp) / "ref.png", "a cute otter", "waving", "test-task")
+        finally:
+            mod._gemini_sticker_image, BACKEND.generate = original_gemini, original_backend_generate
 
     def test_chatgpt_success_costs_zero(self) -> None:
         from PIL import Image

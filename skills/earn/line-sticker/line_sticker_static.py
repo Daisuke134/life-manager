@@ -340,6 +340,10 @@ def _generate_sticker_image(ref_path: Path, character_prompt: str, sticker_promp
         return image, "chatgpt_imagegen", Decimal("0")
     except chatgpt.ChatGptImageGenUnavailable as exc:
         chatgpt.log_fallback(task_label, exc)
+        # Paid Gemini image fallback is off since 2026-11-01 (no paid Gemini); opt back in
+        # with LINE_STICKER_GEMINI_FALLBACK=1. Without it the sticker step fails cleanly here.
+        if not os.environ.get("LINE_STICKER_GEMINI_FALLBACK", "").strip() == "1":
+            raise
         image, usage = _gemini_sticker_image(ref_path, sticker_prompt)
         return image, "gemini_fallback", STATIC_IMAGE_COST_USD
 
