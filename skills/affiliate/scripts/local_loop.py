@@ -51,6 +51,29 @@ from telegram_delivery import send_via_shared_client  # noqa: E402
 
 
 SYSTEME_LOGIN = "https://systeme.io/en/login"
+
+
+X_POST_ENABLED_ENV = "AFFILIATE_X_POST_ENABLED"
+
+
+def x_post_enabled(environ=None):
+    """Posting to X is prohibited unless the env var is exactly "1"."""
+    return (os.environ if environ is None else environ).get(X_POST_ENABLED_ENV) == "1"
+
+
+def gated_x_publish(args, publisher=None, environ=None):
+    """Single choke point in front of x_post_cli.publish; fails closed."""
+    if not x_post_enabled(environ):
+        print(json.dumps({
+            "event": "x_post_blocked",
+            "reason": f"{X_POST_ENABLED_ENV} != 1",
+            "placement": getattr(args, "placement", None),
+        }), file=sys.stderr, flush=True)
+        return {"state": "X_POST_BLOCKED", "public_url": None}
+    if publisher is None:
+        from x_post_cli import publish as publisher
+    return publisher(args)
+
 ELEVENLABS_HOME = "https://elevenlabs.io/app/home"
 RUN_OWNER_LABEL = "ai.anicca.affiliate-loop"
 RELEASE_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -3734,10 +3757,10 @@ def advance_generic_publication(
 ):
     """Advance one policy-PASS generic campaign through existing effect fences."""
     from owned_publish import publish as default_owned_publisher, render_affiliate_markdown
-    from x_post_cli import publish as default_x_publisher
 
     owned_publisher = owned_publisher or default_owned_publisher
-    x_publisher = x_publisher or default_x_publisher
+    _raw_x = x_publisher
+    x_publisher = lambda a: gated_x_publish(a, _raw_x)
     link_acquirer = link_acquirer or elevenlabs_link_action
     completed = False
     invalid_metadata = False
@@ -4078,11 +4101,11 @@ def advance_legacy_dedicated_publication(
         build, build_agents, build_x, build_x_agents, policy, policy_agents,
     )
     from owned_publish import publish as default_owned_publisher
-    from x_post_cli import publish as default_x_publisher
 
     link_acquirer = link_acquirer or elevenlabs_link_action
     owned_publisher = owned_publisher or default_owned_publisher
-    x_publisher = x_publisher or default_x_publisher
+    _raw_x = x_publisher
+    x_publisher = lambda a: gated_x_publish(a, _raw_x)
     root = Path(__file__).resolve().parents[1]
     completed = False
     for config in LEGACY_DEDICATED_PLACEMENTS:
@@ -4212,7 +4235,6 @@ def advance_known_publication(
 
     from content import build_x_agents
     from owned_publish import publish as publish_owned
-    from x_post_cli import publish as publish_x
 
     owned = publish_owned(SimpleNamespace(
         state=state,
@@ -4225,13 +4247,15 @@ def advance_known_publication(
     if owned.get("state") != "LIVE":
         return {"state": "OWNED_NOT_LIVE", "public_url": owned.get("public_url")}
     build_x_agents(state)
-    posted = publish_x(SimpleNamespace(
+    posted = gated_x_publish(SimpleNamespace(
         state=state,
         content=state / "x-content" / f"{placement}.txt",
         placement=placement,
         cdp_host="127.0.0.1",
         cdp_port=x_cdp_port,
     ))
+    if posted.get("state") == "X_POST_BLOCKED":
+        return posted
     return {"state": "X_LIVE", "public_url": posted.get("public_url")}
 
 
@@ -4258,7 +4282,7 @@ def advance_tts_api_publication(state, landing_root, x_cdp_port, private_markdow
 
     from content import build_tts_api, build_x_tts_api, policy_tts_api
     from owned_publish import publish as publish_owned
-    from x_post_cli import content_fingerprint, publish as publish_x
+    from x_post_cli import content_fingerprint
 
     root = Path(__file__).resolve().parents[1]
     build_tts_api(root, state, private_markdown)
@@ -4278,10 +4302,12 @@ def advance_tts_api_publication(state, landing_root, x_cdp_port, private_markdow
         x_content_path.read_text(encoding="utf-8")
     ):
         return {"state": "ALREADY_LIVE", "public_url": existing.get("public_url")}
-    posted = publish_x(SimpleNamespace(
+    posted = gated_x_publish(SimpleNamespace(
         state=state, content=x_content_path,
         placement=placement, cdp_host="127.0.0.1", cdp_port=x_cdp_port,
     ))
+    if posted.get("state") == "X_POST_BLOCKED":
+        return posted
     return {"state": "X_LIVE", "public_url": posted.get("public_url")}
 
 
@@ -4296,9 +4322,8 @@ def sweep_publication_liveness(state, x_cdp_port, now=None, publisher=None):
     matching live receipt is verify-only: the compose branch is unreachable once
     the receipt carries a public URL, so this can observe but never post.
     """
-    from x_post_cli import publish as default_publisher
-
-    publisher = publisher or default_publisher
+    _raw_pub = publisher
+    publisher = lambda a: gated_x_publish(a, _raw_pub)
     receipt_path = state / "publication-liveness.json"
     today = (now or datetime.now(ZoneInfo("Asia/Tokyo"))).date().isoformat()
     try:
