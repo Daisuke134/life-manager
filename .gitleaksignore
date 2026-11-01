@@ -1092,3 +1092,34 @@ a6f8deaf743033dae21132be54d27223293b09f7:products/manager/docs/verification/G001
 dbd128f27c963d049ee47c66887720ffa3340cd2:apps/life-manager/maritime/test_browser_mcp.py:generic-api-key:65
 # Historical idempotency-key test fixture; reviewed as non-authentication data.
 010a4f31363056b2206526187c457588c93d4c31:apps/life-manager/lib/maritime-cloud-billing-http.test.js:generic-api-key:30
+
+# 2026-11-01 history scan (run 41285874845): synthetic fixture values in landing __tests__ (MONK_FACTORY fixture secret, creative.contract.1 attribution golden vectors). Exact fingerprints only.
+25fc5db57f5c4281018ac128041901a4d30d7b1f:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:233
+28fc06ecdd79377e19b1eed734922da468d46284:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:114
+28fc06ecdd79377e19b1eed734922da468d46284:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:31
+28fc06ecdd79377e19b1eed734922da468d46284:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:52
+28fc06ecdd79377e19b1eed734922da468d46284:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:67
+28fc06ecdd79377e19b1eed734922da468d46284:apps/landing/netlify/functions/_lib/__tests__/monk-factory-db.test.js:generic-api-key:356
+28fc06ecdd79377e19b1eed734922da468d46284:apps/landing/netlify/functions/_lib/__tests__/monk-factory-db.test.js:generic-api-key:375
+4c58716b5c6e415040dee39ad5d46a534f9f44cb:apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js:generic-api-key:19
+4c58716b5c6e415040dee39ad5d46a534f9f44cb:apps/landing/netlify/functions/_lib/__tests__/ebook-checkout.test.js:generic-api-key:20
+4c58716b5c6e415040dee39ad5d46a534f9f44cb:apps/landing/netlify/functions/_lib/__tests__/ebook-webhook.test.js:generic-api-key:31
+4c58716b5c6e415040dee39ad5d46a534f9f44cb:apps/landing/netlify/functions/_lib/__tests__/ebook-webhook.test.js:generic-api-key:32
+4c58716b5c6e415040dee39ad5d46a534f9f44cb:apps/landing/netlify/functions/_lib/__tests__/marketing-go.test.js:generic-api-key:56
+780875429163509130e54e633784f2268e75fe64:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:84
+a34a94b19a0f06ada159d196b521451aa0bdc3f1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:302
+a34a94b19a0f06ada159d196b521451aa0bdc3f1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:337
+a34a94b19a0f06ada159d196b521451aa0bdc3f1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:365
+a52488f2c3f2b5392bcb14cd0ac6ea465a136134:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:120
+a52488f2c3f2b5392bcb14cd0ac6ea465a136134:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:68
+a52488f2c3f2b5392bcb14cd0ac6ea465a136134:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:97
+a58050177d9d0973a371cae904205281952875c1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:229
+a58050177d9d0973a371cae904205281952875c1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:275
+a58050177d9d0973a371cae904205281952875c1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:346
+a58050177d9d0973a371cae904205281952875c1:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:97
+ad3ac0ccecf2762a922853133bcaf253b1448a96:apps/landing/netlify/functions/_lib/__tests__/monk-factory-api.test.js:generic-api-key:37
+ad3ac0ccecf2762a922853133bcaf253b1448a96:apps/landing/netlify/functions/_lib/__tests__/monk-factory-db.test.js:generic-api-key:252
+ad3ac0ccecf2762a922853133bcaf253b1448a96:apps/landing/netlify/functions/_lib/__tests__/monk-factory-jobs.test.js:generic-api-key:7
+# 2026-11-01: public client-side SDK keys shipped in the iOS binary by design (PostHogConfig apiKey = PostHog project key; SingularConfig apiKey/andSecret = Singular SDK key). Exact fingerprints only.
+c760488bdc2c2f40dac93b28c7ef972b946e3b6d:aniccaios/aniccaios/AppDelegate.swift:generic-api-key:38
+c760488bdc2c2f40dac93b28c7ef972b946e3b6d:aniccaios/aniccaios/Services/SingularManager.swift:generic-api-key:19
