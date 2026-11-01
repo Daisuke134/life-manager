@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import datetime as dt
+import re
 import sys
 from pathlib import Path
 
@@ -28,10 +29,77 @@ def test_slots_match_existing_queue_times():
                                            "tc": "2026-10-22T20:00:00.000Z"}
 
 
-def test_caption_copies_the_live_queue_format():
-    assert caption(SPEC) == ("Your baking video is good. They swipe in 3 seconds.\n\n"
-                             "Hook Lab turns one line about your video into 5+ first-3-second hooks, "
-                             "a timed script and a caption.\n\nSearch \"Hook Lab\" on Capafy to try it.")
+@pytest.fixture(autouse=True)
+def _isolated_account_day_state(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    monkeypatch.setattr(m, "ACCOUNT_DAILY_STATE", tmp_path / "account-daily.json")
+
+
+OTHER = {"noun": "guitar video", "hook_a": "Your guitar video is fine.", "hook_b": "Nobody hears the riff.",
+         "title": "Guitar TikTok: 3 hooks",
+         "cards": [["Mistake", "You tune after you hit record.", "Tune first"],
+                   ["Question", "Why does your G chord buzz?", "The buzz fix"],
+                   ["Result", "Three chords, one clean take.", "One clean take"]]}
+
+
+def test_caption_is_built_only_from_this_posts_content():
+    text = caption(SPEC)
+    assert text.startswith("Your baking video is good. They swipe in 3 seconds.")
+    assert "Capafy" not in text and "Search" not in text and "Hook Lab turns" not in text
+
+
+def test_two_different_posts_share_no_caption_sentence():
+    def sentences(t):
+        return {s.strip() for s in re.split(r"[\n.!?]+", t) if s.strip()}
+    assert not sentences(caption(SPEC)) & sentences(caption(OTHER))
+
+
+def test_last_slide_has_no_fixed_cta(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    seen = []
+    monkeypatch.setattr(m, "BASE", tmp_path)
+    (tmp_path / "s").mkdir()
+    import PIL.ImageDraw as ImageDraw
+    real = ImageDraw.ImageDraw.text
+    monkeypatch.setattr(ImageDraw.ImageDraw, "text",
+                        lambda self, xy, text, *a, **k: (seen.append(text), real(self, xy, text, *a, **k))[1])
+    m.render_carousel("s", SPEC)
+    joined = " ".join(seen)
+    assert "Capafy" not in joined and "Search" not in joined
+    assert "Bakery loaves vs yours" in joined
+
+
+def test_tiktok_account_gets_at_most_one_post_per_tokyo_day(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    _video(tmp_path, m, monkeypatch)
+    for slug in ("a", "b", "c"):
+        (tmp_path / slug / "renders-v2").mkdir(parents=True)
+        (tmp_path / slug / "renders-v2" / "video.mp4").write_bytes(b"x")
+    monkeypatch.setattr(m, "TT_ID", "tt-id")
+    monkeypatch.setattr(m, "DAILY_CAP_INTEGRATIONS", {"tt-id"})
+    monkeypatch.setattr(m, "WARMUP_STATE", _warmup(tmp_path, "live"))
+    creates = []
+
+    def fake_req(key, url, data=None, headers=None, method=None):
+        if url.endswith("/upload"):
+            return {"id": "u", "path": "https://u/1"}
+        creates.append(url)
+        return [{"postId": "p"}]
+
+    monkeypatch.setattr(m, "_req", fake_req)
+    day = dt.date(2026, 11, 2)
+    first = m.schedule("a", SPEC, day, "k", ("tt", "tc"), slot=2)   # 10:00 and 17:00 JST
+    assert first["tc"] == "daily_cap_skip" and len(creates) == 1
+    second = m.schedule("b", SPEC, day, "k", ("tt",), slot=1)       # 23:00 JST, same Tokyo day
+    assert second == {"tt": "daily_cap_skip"} and len(creates) == 1
+    third = m.schedule("c", SPEC, dt.date(2026, 11, 3), "k", ("tt",), slot=2)
+    assert len(creates) == 2 and third["tt"] != "daily_cap_skip"
+
+
+def test_tokyo_day_crosses_midnight_utc():
+    import capafy_reel_daily as m
+    assert m._tokyo_day("2026-11-02T20:00:00.000Z") == "2026-11-03"
+    assert m._tokyo_day("2026-11-02T01:00:00.000Z") == "2026-11-02"
 
 
 def test_validate_spec_accepts_layout_safe_copy_and_rejects_overflow():
