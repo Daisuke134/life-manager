@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Volleyball Rotation and Side-Out Brief</title>
+  <desc id="desc">A volleyball beside a rotation decision card.</desc>
+  <rect width="512" height="512" rx="96" fill="#123047"/>
+  <path d="M44 108h424M44 404h424" stroke="#8CC8D7" stroke-width="8" opacity=".45"/>
+  <path d="M82 256h348" stroke="#EFF9E8" stroke-width="8" opacity=".24"/>
+  <circle cx="168" cy="256" r="105" fill="#F4C95D" stroke="#FFF4C7" stroke-width="10"/>
+  <path d="M102 186c62 12 93 79 66 140M234 186c-62 12-93 79-66 140M120 158c31 53 93 67 137 35" fill="none" stroke="#FDF7D8" stroke-width="10" stroke-linecap="round"/>
+  <g transform="translate(260 130)">
+    <rect width="178" height="231" rx="24" fill="#EFF9E8"/>
+    <rect x="27" y="32" width="92" height="15" rx="7.5" fill="#123047"/>
+    <circle cx="42" cy="89" r="13" fill="#E16050"/><circle cx="88" cy="89" r="13" fill="#E16050"/><circle cx="134" cy="89" r="13" fill="#E16050"/>
+    <path d="M42 121v38M88 121v38M134 121v38" stroke="#123047" stroke-width="8" stroke-linecap="round"/>
+    <path d="M35 185h92" stroke="#123047" stroke-width="10" stroke-linecap="round"/>
+    <path d="M108 163l27 22-27 22" fill="none" stroke="#E16050" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="256" y="451" text-anchor="middle" fill="#EFF9E8" font-family="Arial, sans-serif" font-size="25" font-weight="700" letter-spacing="1.1">SIDE-OUT BRIEF</text>
+</svg>
