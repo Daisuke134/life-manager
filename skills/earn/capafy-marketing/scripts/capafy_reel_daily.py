@@ -59,16 +59,48 @@ def _account_day_taken(integration: str, slot_iso: str) -> str | None:
     return (data.get(integration) or {}).get(_tokyo_day(slot_iso))
 
 
-def _claim_account_day(integration: str, slot_iso: str, label: str) -> None:
+def _claim_account_day(integration: str, slot_iso: str, label: str) -> str | None:
+    """Claim the Tokyo day for a capped account; never overwrites an earlier claim.
+
+    Returns the label that holds the day after the call (None for uncapped accounts).
+    """
     if integration not in DAILY_CAP_INTEGRATIONS:
-        return
+        return None
     try:
         data = json.loads(ACCOUNT_DAILY_STATE.read_text())
     except (OSError, ValueError):
         data = {}
-    data.setdefault(integration, {})[_tokyo_day(slot_iso)] = label
+    days = data.setdefault(integration, {})
+    day = _tokyo_day(slot_iso)
+    if days.get(day):
+        return days[day]
+    days[day] = label
     ACCOUNT_DAILY_STATE.parent.mkdir(parents=True, exist_ok=True)
-    _durable_write(ACCOUNT_DAILY_STATE, json.dumps(data, sort_keys=True) + "\n")
+    tmp = ACCOUNT_DAILY_STATE.with_suffix(".tmp")
+    _durable_write(tmp, json.dumps(data, sort_keys=True) + "\n")
+    os.replace(tmp, ACCOUNT_DAILY_STATE)
+    return label
+
+
+NET_INTEGRATION = {"ig": lambda: IG_ID, "x": lambda: X_ID, "tt": lambda: TT_ID, "tc": lambda: TT_ID}
+
+
+def restore_account_days_from_receipts() -> None:
+    """Rebuild day claims from every receipt on disk (a run interrupted between the
+    receipt write and the claim, or receipts older than the cap, must still count)."""
+    if not BASE.exists():
+        return
+    for receipt in sorted(BASE.glob("*/*-receipts-v3.jsonl")):
+        net = receipt.name.split("-receipts-v3.jsonl")[0]
+        if net not in NET_INTEGRATION:
+            continue
+        try:
+            rec = json.loads(receipt.read_text().splitlines()[0])
+            when = rec["scheduled_for"]
+        except (OSError, ValueError, KeyError, IndexError, TypeError):
+            continue
+        integration = rec.get("integration") or NET_INTEGRATION[net]()
+        _claim_account_day(integration, when, f"{receipt.parent.name}:{net}")
 
 
 SETTINGS = {
@@ -139,6 +171,33 @@ def tiktok_live() -> bool:
     except (OSError, ValueError):
         return False
     return any(r.get("id") == TT_ID and r.get("active") and r.get("warmup_phase") == "live" for r in rows)
+
+
+# Per-destination caption limits. X counts weighted characters (twitter-text v3: CJK etc. = 2);
+# we keep 270 of 280 as margin. Instagram and TikTok allow 2,200 characters.
+X_WEIGHTED_LIMIT = 270
+CAPTION_LIMITS = {"ig": 2200, "tt": 2200, "tc": 2200}
+_X_LIGHT_RANGES = ((0, 4351), (8192, 8205), (8208, 8223), (8242, 8247))
+
+
+def x_weighted_length(text: str) -> int:
+    return sum(1 if any(lo <= ord(ch) <= hi for lo, hi in _X_LIGHT_RANGES) else 2 for ch in text)
+
+
+def caption_for(net: str, spec: dict) -> str | None:
+    """Caption that fits the destination, or None when nothing safe fits (caller skips).
+
+    X gets a short post (hook + title, falling back to the hook alone); the long caption
+    with every card goes only to destinations that allow it.
+    """
+    if net == "x":
+        hook = f"{spec['hook_a']} {spec['hook_b']}"
+        for text in (f"{hook}\n\n{spec['title']}", hook):
+            if x_weighted_length(text) <= X_WEIGHTED_LIMIT:
+                return text
+        return None
+    text = caption(spec)
+    return text if len(text) <= CAPTION_LIMITS.get(net, 2200) else None
 
 
 def caption(spec: dict) -> str:
@@ -314,6 +373,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
              run_dir: Path | None = None, existing_fn=None, slot: int = 1) -> dict:
     mp4 = BASE / slug / "renders-v2" / "video.mp4"
     out = {}
+    restore_account_days_from_receipts()
     for net, integration in (("ig", IG_ID), ("x", X_ID), ("tt", TT_ID), ("tc", TT_ID)):
         if net not in nets:
             continue
@@ -321,18 +381,32 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
             out[net] = "warmup_skip"
             continue
         receipt = BASE / slug / f"{net}-receipts-v3.jsonl"
+        when = slots(day, slot)[net]
+        label = f"{slug}:{net}"
         if receipt.exists():
+            _claim_account_day(integration, when, label)  # restore the cap from the receipt
             out[net] = "already_scheduled"
             continue
-        if _account_day_taken(integration, slots(day, slot)[net]):
+        text = caption_for(net, spec)
+        if text is None:
+            out[net] = "caption_too_long_skip"
+            continue
+        holder = _account_day_taken(integration, when)
+        if holder and holder != label:
             out[net] = "daily_cap_skip"
             continue
-        found = existing_fn(net, slots(day, slot)[net]) if existing_fn else None
+        found = existing_fn(net, when) if existing_fn else None
         if found:  # provider already has this slot (earlier crash after create): record, never re-create
+            _claim_account_day(integration, when, label)
             receipt.write_text(json.dumps({"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug,
-                                           "readback_existing_post": found, "scheduled_for": slots(day, slot)[net]}) + "\n")
-            _claim_account_day(integration, slots(day, slot)[net], f"{slug}:{net}")
+                                           "readback_existing_post": found, "scheduled_for": when,
+                                           "integration": integration}) + "\n")
             out[net] = {"existing": found}
+            continue
+        # Claim the day before any provider call: an interrupted run then blocks other slugs
+        # for that day instead of leaving a window where a second post could be created.
+        if _claim_account_day(integration, when, label) not in (None, label):
+            out[net] = "daily_cap_skip"
             continue
         if run_dir is not None:  # durable pre-dispatch marker for capafy_reel_fence_reconcile
             _durable_write(run_dir / f"dispatch-{net}{'' if slot == 1 else f'-s{slot}'}.json",
@@ -349,14 +423,13 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         settings = ({**SETTINGS["tt"], "title": spec["hook_a"]} if net in ("tt", "tc") else SETTINGS[net])
         payload = {"type": "schedule", "date": slots(day, slot)[net], "shortLink": False, "tags": [],
                    "posts": [{"integration": {"id": integration},
-                              "value": [{"content": caption(spec),
+                              "value": [{"content": text,
                                          "image": [{"id": u["id"], "path": u["path"]} for u in uploads]}],
                               "settings": settings}]}
         cr = _req(key, f"{API}/posts", json.dumps(payload).encode(), {"Content-Type": "application/json"}, "POST")
         rec = {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug, "asset": str(mp4), "upload": up,
                "create": cr, "scheduled_for": slots(day, slot)[net], "integration": integration}
         receipt.write_text(json.dumps(rec) + "\n")
-        _claim_account_day(integration, slots(day, slot)[net], f"{slug}:{net}")
         out[net] = cr
     return out
 
