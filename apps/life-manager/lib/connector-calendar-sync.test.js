@@ -21,6 +21,10 @@ const TENANT = "dais-local";
 const JOB_ID = `outbound-event:${"b".repeat(64)}`;
 const ATTEMPT = 1;
 const JOB = Object.freeze({ tenant_id: TENANT, job_id: JOB_ID, attempt: ATTEMPT });
+const EXHAUSTED_RECOVERY_FIXTURE = Object.freeze({
+  event_id: "calendar-effect-unknown",
+  event_url: "https://calendar.google.com/calendar/event?eid=effect-unknown",
+});
 
 async function registrationReceipt() {
   const bytes = Buffer.alloc(5_000, 0x61);
@@ -108,15 +112,37 @@ test("verified Luma registration creates one idempotent Google Calendar event an
   assert.doesNotMatch(JSON.stringify(first), /google-event-private-id|primary/);
 });
 
+test("retained regression: a create response without authoritative calendar readback stays unavailable", async () => {
+  const { dateInventory } = await inventoryAndGate();
+  const receipt = await registrationReceipt();
+  let reads = 0;
+  await assert.rejects(syncVerifiedRegistrationToGoogleCalendar({
+    calendar: {
+      async findConnectorEvents() { reads += 1; return []; },
+      async createConnectorEvent() {
+        return { id: EXHAUSTED_RECOVERY_FIXTURE.event_id, htmlLink: EXHAUSTED_RECOVERY_FIXTURE.event_url };
+      },
+    },
+    calendarId: "primary",
+    dateInventory,
+    eventRef: "luma-event://event/founder-night",
+    registrationReceipt: receipt,
+    registrationJob: JOB,
+  }), /connector calendar sync unavailable/i);
+  assert.equal(reads, 2, "the create result is not authoritative until the provider readback succeeds");
+});
+
 test("unverified receipts and ambiguous existing events fail, while a verified commitment is recorded despite a conflict", async () => {
   const { dateInventory, gate } = await inventoryAndGate();
   const receipt = await registrationReceipt();
   let creates = 0;
+  let found = [];
   const calendar = {
-    async findConnectorEvents() { return []; },
+    async findConnectorEvents() { return found; },
     async createConnectorEvent() {
       creates += 1;
-      return { id: "created", htmlLink: "https://calendar.google.com/calendar/event?eid=created" };
+      found = [{ id: "created", htmlLink: "https://calendar.google.com/calendar/event?eid=created" }];
+      return found[0];
     },
   };
   await assert.rejects(syncVerifiedRegistrationToGoogleCalendar({
@@ -228,12 +254,14 @@ test("a missing Connector event records the verified commitment without resolvin
   const receipt = await registrationReceipt();
   let creates = 0;
   let gateCalls = 0;
+  let found = [];
   const result = await syncVerifiedRegistrationToGoogleCalendar({
     calendar: {
-      async findConnectorEvents() { return []; },
+      async findConnectorEvents() { return found; },
       async createConnectorEvent() {
         creates += 1;
-        return { id: "created", htmlLink: "https://calendar.google.com/calendar/event?eid=created" };
+        found = [{ id: "created", htmlLink: "https://calendar.google.com/calendar/event?eid=created" }];
+        return found[0];
       },
     },
     calendarId: "primary",

@@ -89,9 +89,8 @@ async function syncVerifiedRegistrationToGoogleCalendar(input = {}) {
     provider = providerEvent(found[0]);
     status = "existing";
   } else {
-    let created;
     try {
-      created = await calendar.createConnectorEvent({
+      await calendar.createConnectorEvent({
         calendarId,
         idempotencyValue,
         title: event.title,
@@ -101,7 +100,11 @@ async function syncVerifiedRegistrationToGoogleCalendar(input = {}) {
         canonicalUrl: event.canonical_url,
       });
     } catch { unavailable(); }
-    provider = providerEvent(created);
+    try {
+      found = await calendar.findConnectorEvents({ calendarId, idempotencyValue, timeMin, timeMax });
+    } catch { unavailable(); }
+    if (!Array.isArray(found) || found.length !== 1) unavailable();
+    provider = providerEvent(found[0]);
     status = "created";
   }
   const core = {
