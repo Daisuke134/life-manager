@@ -2475,6 +2475,7 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual([row["deduplicated"] for row in emitted], [False, True])
             self.assertNotIn("try.elevenlabs.io", output.getvalue())
 
+    @patch.dict("os.environ", {"AFFILIATE_X_POST_ENABLED": "1"})
     def test_settled_tts_api_placement_is_not_republished_to_x(self):
         import content as content_module
         import owned_publish as owned_module
@@ -2688,6 +2689,7 @@ class LocalLoopTest(unittest.TestCase):
             artifact = json.loads((state / "content" / f"{plan_id}-guide.json").read_text())
             self.assertEqual(artifact["markdown"], raw)
 
+    @patch.dict("os.environ", {"AFFILIATE_X_POST_ENABLED": "1"})
     def test_liveness_sweep_runs_once_per_jst_day_and_reports_a_dead_post(self):
         with tempfile.TemporaryDirectory() as root:
             state = Path(root) / "state"
