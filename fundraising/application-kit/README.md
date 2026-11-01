@@ -1,6 +1,6 @@
 <!-- generated from .agents/startup-context.json; do not edit -->
 context-version: 2026-10-20.1
-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea
+context-digest: 7c2a72ae0b66f083c12cafde115cc5079f2e9722807b42e2288aef3f370b170f
 
 # Life Manager fundraising application kit
 

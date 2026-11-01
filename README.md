@@ -1,5 +1,5 @@
 <!-- startup-context-version: 2026-10-20.1 -->
-<!-- startup-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea -->
+<!-- startup-context-digest: 7c2a72ae0b66f083c12cafde115cc5079f2e9722807b42e2288aef3f370b170f -->
 # Local Life Manager
 
 **An open-source, no-human-in-the-loop money printer: AI agents build businesses from scratch and run them on your Mac.**
