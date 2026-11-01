@@ -1,0 +1,6 @@
+{
+  "owner_id": "life-manager-anicca-ai-youtube",
+  "occurrence_id": "life-manager-anicca-ai-youtube:fixture-release-mismatch",
+  "bound_release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "installed_release_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

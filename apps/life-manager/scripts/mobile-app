@@ -30,6 +30,23 @@ PYTHON_BIN="${LIFE_MANAGER_PYTHON:-${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v p
 [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || { printf 'mobile app loop requires node\n' >&2; exit 1; }
 [ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ] || { printf 'mobile app loop requires python3\n' >&2; exit 1; }
 
+# An immutable release binding is authoritative only when it agrees with the
+# release manifest that launched this entrypoint.  Refuse a stale binding
+# before the reconciliation command can inspect or resolve an external effect.
+RELEASE_ROOT="${LIFE_MANAGER_REPO:-$REPO_ROOT}"
+if [ "$RELEASE_SHA_BOUND" -eq 1 ] && [ -n "${LIFE_MANAGER_REPO:-}" ]; then
+  RELEASE_MANIFEST="$RELEASE_ROOT/RELEASE.json"
+  [ -f "$RELEASE_MANIFEST" ] || { printf 'mobile app installed release manifest is unavailable\n' >&2; exit 2; }
+  INSTALLED_RELEASE_SHA="$("$NODE_BIN" -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if(typeof value.sha!=="string" || !/^[a-f0-9]{40}$/.test(value.sha)) process.exit(2); process.stdout.write(value.sha);' "$RELEASE_MANIFEST")" || {
+    printf 'mobile app installed release manifest is invalid\n' >&2
+    exit 2
+  }
+  if [ "$RELEASE_SHA" != "$INSTALLED_RELEASE_SHA" ]; then
+    printf 'mobile app release binding does not match installed release\n' >&2
+    exit 2
+  fi
+fi
+
 if ! POSTIZ_API_KEY="$LM_POSTIZ_API_KEY" "$PYTHON_BIN" \
   "$SCRIPT_DIR/mobile-postiz-provider-reconcile.py" \
   --auto-owner "$LOOP_ID" --resolve >&2
