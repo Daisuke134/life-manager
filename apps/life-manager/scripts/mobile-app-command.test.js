@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, "../../..");
 const manifest = require("../config/mobile-app-loops.json");
 const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
+const releaseMismatchFixture = require("../test/fixtures/self-heal/life-manager-anicca-jp4-release-sha-mismatch.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
   assert.equal(Object.keys(manifest.loops).length, 18); // obou-instagram retired (ebook account, out of mobile scope)
@@ -103,6 +104,15 @@ for (const binding of [
   {name: "bound", value: "a".repeat(40), expected: "a".repeat(40)},
   {name: "absent", value: undefined, expected: "unset"},
   {name: "empty", value: "", expected: ""},
+  {
+    name: "retained JP4 release-mismatch recovery fixture",
+    value: releaseMismatchFixture.release_sha,
+    expected: releaseMismatchFixture.release_sha,
+    staleReleaseSha: releaseMismatchFixture.mutable_env_release_sha,
+    ownerId: releaseMismatchFixture.owner_id,
+    occurrenceId: releaseMismatchFixture.occurrence_id,
+    expectedReconcileArgs: releaseMismatchFixture.expected_reconcile_args,
+  },
 ]) {
 test(`the mobile wrapper preserves ${binding.name} release binding but does not attest an unbound replay`, (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-wrapper-"));
@@ -112,7 +122,9 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   const envFile = path.join(directory, "marketing.env");
   const resultHint = path.join(directory, "effect-result.json");
   const releaseSha = binding.expected;
-  const staleReleaseSha = "b".repeat(40);
+  const staleReleaseSha = binding.staleReleaseSha || "b".repeat(40);
+  const ownerId = binding.ownerId || "life-manager-honne-ja";
+  const occurrenceId = binding.occurrenceId || `${ownerId}:run-1`;
   fs.writeFileSync(
     python,
     `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
@@ -126,15 +138,15 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
 
   const result = spawnSync(
     path.join(root, "apps/life-manager/scripts/mobile-app"),
-    ["life-manager-honne-ja"],
+    [ownerId],
     {
       cwd: root,
       env: {
         ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== "LIFE_MANAGER_RELEASE_SHA")),
         LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
         LIFE_MANAGER_PYTHON: python,
-        LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
-        LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-1",
+        LIFE_MANAGER_LOOP_ID: ownerId,
+        LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
         LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
         ...(binding.value === undefined ? {} : {LIFE_MANAGER_RELEASE_SHA: binding.value}),
       },
@@ -145,8 +157,12 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   assert.equal(result.status, 0, result.stderr);
   const invoked = fs.readFileSync(calls, "utf8").trim().split("\n");
   assert.equal(invoked.length, 2);
-  assert.match(invoked[0], /mobile-postiz-provider-reconcile\.py --auto-owner life-manager-honne-ja/);
+  assert.match(invoked[0], new RegExp(`mobile-postiz-provider-reconcile\\.py --auto-owner ${ownerId}`));
   assert.match(invoked[0], /--resolve/);
+  if (binding.expectedReconcileArgs) {
+    assert.ok(invoked[0].includes(binding.expectedReconcileArgs.join(" ")),
+      "the exact owner must reach the authoritative reconciliation readback");
+  }
   assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
   assert.ok(invoked.every((call) => call.endsWith(`|release=${releaseSha}`)), "the release binding must survive loading mutable marketing env");
   assert.equal(result.stdout.trim(), '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}');
