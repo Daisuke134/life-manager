@@ -232,7 +232,7 @@ def test_winner_openers_pick_top_viewed_shorts_and_feed_the_hook_prompt(tmp_path
                {"title": "Nobody tells you this about hooks", "view_count": 1_200_000, "duration": 45}]
     assert m.top_short_titles(entries, 2) == ["Nobody tells you this about hooks", "Stop opening with your name"]
     cache = tmp_path / "winner-openers.json"
-    cache.write_text(json.dumps({"fetched_at": "2026-10-18", "titles": ["Nobody tells you this about hooks"]}))
+    cache.write_text(json.dumps({"fetched_at": dt.date.today().isoformat(), "titles": ["Nobody tells you this about hooks"]}))
     monkeypatch.setattr(m, "WINNER_OPENERS", cache)
     seen = {}
     monkeypatch.setattr(m, "_generate_text", lambda prompt: seen.setdefault("p", prompt) or "out")
@@ -368,3 +368,112 @@ def test_upload_does_not_retry_a_client_error(monkeypatch):
     with pytest.raises(urllib.error.HTTPError):
         m._upload("k", b"data", "boundary")
     assert len(calls) == 1
+
+
+# --- PR 9078 review follow-up: per-destination caption limits and the daily cap ---
+
+LONG = {"noun": "n", "hook_a": "A" * 40, "hook_b": "B" * 40, "title": "T" * 34,
+        "cards": [["L" * 14, "Q" * 80, "O" * 36]] * 3}
+
+
+def test_long_valid_spec_gives_x_a_short_post_within_weighted_limit():
+    import capafy_reel_daily as m
+    validate_spec(LONG)
+    assert len(caption(LONG)) > 280
+    x = m.caption_for("x", LONG)
+    assert x and m.x_weighted_length(x) <= m.X_WEIGHTED_LIMIT
+    assert m.caption_for("ig", LONG) == caption(LONG) and m.caption_for("tt", LONG) == caption(LONG)
+
+
+def test_x_weighted_length_counts_cjk_double_and_falls_back_or_skips():
+    import capafy_reel_daily as m
+    assert m.x_weighted_length("ab") == 2 and m.x_weighted_length("日本") == 4
+    jp = {**SPEC, "hook_a": "あ" * 100, "hook_b": "い" * 100}
+    assert m.caption_for("x", jp) is None
+
+
+def test_over_limit_x_caption_is_skipped_without_provider_call(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    _video(tmp_path, m, monkeypatch)
+    monkeypatch.setattr(m, "_req", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no provider call")))
+    jp = {**SPEC, "hook_a": "あ" * 100, "hook_b": "い" * 100}
+    assert m.schedule("s", jp, dt.date(2026, 11, 2), "k", ("x",)) == {"x": "caption_too_long_skip"}
+
+
+def test_x_payload_uses_the_short_caption(tmp_path, monkeypatch):
+    import json
+    import capafy_reel_daily as m
+    _video(tmp_path, m, monkeypatch)
+    calls = []
+    monkeypatch.setattr(m, "_req", lambda key, url, data=None, *a, **k: calls.append((url, data)) or
+                        ({"id": "u", "path": "p"} if url.endswith("/upload") else [{"postId": "p"}]))
+    m.schedule("s", LONG, dt.date(2026, 11, 2), "k", ("x",))
+    content = json.loads(calls[-1][1])["posts"][0]["value"][0]["content"]
+    assert m.x_weighted_length(content) <= 270
+
+
+def _cap_env(tmp_path, monkeypatch, m, slugs):
+    monkeypatch.setattr(m, "BASE", tmp_path)
+    for slug in slugs:
+        (tmp_path / slug / "renders-v2").mkdir(parents=True)
+        (tmp_path / slug / "renders-v2" / "video.mp4").write_bytes(b"x")
+    monkeypatch.setattr(m, "TT_ID", "tt-id")
+    monkeypatch.setattr(m, "DAILY_CAP_INTEGRATIONS", {"tt-id"})
+    monkeypatch.setattr(m, "WARMUP_STATE", _warmup(tmp_path, "live"))
+    creates = []
+
+    def fake_req(key, url, data=None, headers=None, method=None):
+        if url.endswith("/upload"):
+            return {"id": "u", "path": "p"}
+        creates.append(url)
+        return [{"postId": "p"}]
+
+    monkeypatch.setattr(m, "_req", fake_req)
+    return creates
+
+
+def test_receipt_without_day_claim_still_blocks_a_second_slug_same_tokyo_day(tmp_path, monkeypatch):
+    """Reproduces the review: receipt saved, run killed before the day claim."""
+    import json
+    import capafy_reel_daily as m
+    creates = _cap_env(tmp_path, monkeypatch, m, ("a", "b"))
+    day = dt.date(2026, 11, 2)
+    (tmp_path / "a" / "tt-receipts-v3.jsonl").write_text(json.dumps(
+        {"slug": "a", "scheduled_for": slots(day, 2)["tt"]}) + "\n")
+    assert not m.ACCOUNT_DAILY_STATE.exists()
+    assert m.schedule("b", SPEC, day, "k", ("tt",), slot=1) == {"tt": "daily_cap_skip"}
+    assert creates == []
+    assert m._account_day_taken("tt-id", slots(day, 2)["tt"]) == "a:tt"
+
+
+def test_early_return_on_existing_receipt_restores_the_claim(tmp_path, monkeypatch):
+    import json
+    import capafy_reel_daily as m
+    creates = _cap_env(tmp_path, monkeypatch, m, ("a",))
+    day = dt.date(2026, 11, 2)
+    (tmp_path / "a" / "tt-receipts-v3.jsonl").write_text(json.dumps({"slug": "a", "scheduled_for": slots(day)["tt"]}) + "\n")
+    monkeypatch.setattr(m, "restore_account_days_from_receipts", lambda: None)
+    assert m.schedule("a", SPEC, day, "k", ("tt",)) == {"tt": "already_scheduled"}
+    assert m._account_day_taken("tt-id", slots(day)["tt"]) == "a:tt" and creates == []
+
+
+def test_day_is_claimed_before_post_creation_and_survives_a_crash(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    creates = _cap_env(tmp_path, monkeypatch, m, ("a", "b"))
+    day = dt.date(2026, 11, 2)
+    seen = []
+
+    def crash(key, url, data=None, headers=None, method=None):
+        if url.endswith("/upload"):
+            return {"id": "u", "path": "p"}
+        seen.append(m._account_day_taken("tt-id", slots(day)["tt"]))
+        raise RuntimeError("killed after create, before receipt")
+
+    monkeypatch.setattr(m, "_req", crash)
+    with pytest.raises(RuntimeError):
+        m.schedule("a", SPEC, day, "k", ("tt",))
+    assert seen == ["a:tt"]
+    monkeypatch.setattr(m, "_req", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no second post")))
+    assert m.schedule("b", SPEC, day, "k", ("tt",), slot=2) == {"tt": "daily_cap_skip"}
+    # the same slug may retry; the provider readback records the existing post instead of re-creating
+    assert m.schedule("a", SPEC, day, "k", ("tt",), existing_fn=lambda net, slot: "post-a") == {"tt": {"existing": "post-a"}}
