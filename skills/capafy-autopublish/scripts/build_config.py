@@ -30,6 +30,8 @@ MODEL_IDS = {
     "Claude Sonnet 5.5": "anthropic/claude-sonnet-5",
     "Claude Sonnet 5": "anthropic/claude-sonnet-5",
     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
+    # Free open-weight model on OpenRouter ($0 per token), for listings that must not bill.
+    "Nemotron 3 Ultra": "nvidia/nemotron-3-ultra-550b-a55b:free",
 }
 # Capafy's "LLM モデル" display combobox has no "Claude Sonnet 5.5" preset
 # (verified 2026-10-08), so a listing that runs on 5.5 must still show the
@@ -41,7 +43,7 @@ DISPLAY_PRESET = {"Claude Sonnet 5.5": "Claude Sonnet 5"}
 # huge and then gets echoed back into the next turn's history on a multi-turn card,
 # compounding input size run over run. Existing online agents (Hook Lab included)
 # keep their already-published CP2 config; only NEW skills get the lower ceiling.
-HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "Claude Sonnet 5.5": 8192, "Claude Sonnet 5": 8192, "DeepSeek V4.1 Flash": 8192}
+HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "Claude Sonnet 5.5": 8192, "Claude Sonnet 5": 8192, "DeepSeek V4.1 Flash": 8192, "Nemotron 3 Ultra": 8192}
 
 
 def main():

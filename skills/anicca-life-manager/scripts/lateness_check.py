@@ -516,29 +516,14 @@ def _user_moved(origin_loc, fresh_loc, threshold_m: int):
         return False
 
 
-def gemini_reachable():
-    """Pre-flight: is Gemini API callable? If billing is in dunning / key blocked (403),
-    placing the call only yields Twilio's robotic 'application error' (no Charon). Skip + alert.
+def voice_enabled():
+    """Pre-flight for the realtime call. The voice side ran on paid Gemini Live, whose
+    billing was removed on 2026-11-01, so the call is off unless LATE_PHONE_VOICE_ENABLED=1
+    is set for a replacement voice stack. No paid API is pinged here.
     Returns (ok: bool, reason: str)."""
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
-    if not key:
-        return False, "no GEMINI/GOOGLE_API_KEY"
-    try:
-        req = urllib.request.Request(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}",
-            data=b'{"contents":[{"parts":[{"text":"ping"}]}]}',
-            headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return (r.status == 200), f"HTTP {r.status}"
-    except urllib.error.HTTPError as e:
-        detail = ""
-        try:
-            detail = json.loads(e.read().decode()).get("error", {}).get("message", "")[:120]
-        except Exception:
-            pass
-        return False, f"HTTP {e.code}: {detail}"
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
+    if os.environ.get("LATE_PHONE_VOICE_ENABLED", "").strip() == "1":
+        return True, "LATE_PHONE_VOICE_ENABLED=1"
+    return False, "voice call off (paid Gemini Live stopped; set LATE_PHONE_VOICE_ENABLED=1 for a replacement)"
 
 
 def place_lateness_call(ctx):
@@ -547,12 +532,11 @@ def place_lateness_call(ctx):
     A managed dial-out endpoint is optional.  When one is not configured, keep
     the lateness/Telegram path alive and skip the unavailable phone channel.
     """
-    # Pre-flight: skip a doomed call (Twilio robotic "application error") when Gemini Live is down.
-    ok, why = gemini_reachable()
+    # Pre-flight: the voice call is off while no free voice stack is configured; the
+    # Telegram/nudge path keeps running.
+    ok, why = voice_enabled()
     if not ok:
-        slack(f"📵 lateness call SKIPPED — Gemini Live unreachable ({why}). No Charon voice would connect. "
-              f"Fix: resolve Google Cloud billing (dunning) or swap to a funded GEMINI_API_KEY. ctx: {ctx[:120]}")
-        print(f"[late] call skipped — gemini unreachable: {why}")
+        print(f"[late] call skipped — {why}")
         return None
     base = os.environ.get("ANICCA_PHONE_DIALOUT_URL", "").strip().rstrip("/")
     if not base:
