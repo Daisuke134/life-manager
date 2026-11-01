@@ -83,6 +83,7 @@ struct NotificationPermissionStepView: View {
         }
         .background(AppBackground())
         .onAppear {
+            ReviewPromptCoordinator.shared.noteScreen(.notificationPermission)
             Task { await refreshAuthorizationState(autoAdvance: false) }
         }
     }

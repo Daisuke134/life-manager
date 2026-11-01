@@ -9,174 +9,85 @@ final class ReviewPromptPolicyTests: XCTestCase {
         return cal
     }
 
-    private func date(_ year: Int, _ month: Int, _ day: Int, hour: Int = 12) -> Date {
-        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
+    private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
+        calendar.date(from: DateComponents(year: y, month: m, day: d, hour: 12))!
     }
 
-    // MARK: - shouldRequestReview
-
-    func test_shouldRequest_false_onFirstLaunch_zeroDays() {
-        XCTAssertFalse(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 0,
-                lastReviewRequestAt: nil,
-                now: date(2026, 10, 9),
-                calendar: calendar
-            )
+    private func eligible() -> ReviewPromptState {
+        ReviewPromptState(
+            isOnboardingComplete: true, launchCount: 3, distinctOpenDayCount: 2, saveCount: 3,
+            lastPromptAt: nil, lastPromptVersion: nil, previousScreen: .other
         )
     }
 
-    func test_shouldRequest_false_onFirstLaunch_oneDay() {
-        XCTAssertFalse(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 1,
-                lastReviewRequestAt: nil,
-                now: date(2026, 10, 9),
-                calendar: calendar
-            )
-        )
+    private func allowed(_ s: ReviewPromptState, version: String = "1.9.7", now: Date? = nil) -> Bool {
+        ReviewPromptPolicy.shouldRequestReview(state: s, currentVersion: version, now: now ?? date(2026, 11, 2), calendar: calendar)
     }
 
-    func test_shouldRequest_false_withTwoDistinctDays() {
-        XCTAssertFalse(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 2,
-                lastReviewRequestAt: nil,
-                now: date(2026, 10, 9),
-                calendar: calendar
-            )
-        )
+    func test_true_whenAllThresholdsMet() { XCTAssertTrue(allowed(eligible())) }
+
+    func test_false_beforeOnboardingComplete() {
+        var s = eligible(); s.isOnboardingComplete = false
+        XCTAssertFalse(allowed(s))
     }
 
-    func test_shouldRequest_true_afterThreeDistinctDays_neverAsked() {
-        XCTAssertTrue(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 3,
-                lastReviewRequestAt: nil,
-                now: date(2026, 10, 9),
-                calendar: calendar
-            )
-        )
+    func test_false_withTwoLaunches() {
+        var s = eligible(); s.launchCount = 2
+        XCTAssertFalse(allowed(s))
     }
 
-    func test_shouldRequest_false_within120DayCooldown() {
-        let last = date(2026, 6, 12)
-        let now = date(2026, 10, 9) // 119 days later
-        XCTAssertFalse(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 10,
-                lastReviewRequestAt: last,
-                now: now,
-                calendar: calendar
-            )
-        )
+    func test_false_withOneOpenDay() {
+        var s = eligible(); s.distinctOpenDayCount = 1
+        XCTAssertFalse(allowed(s))
     }
 
-    func test_shouldRequest_true_after120DayCooldown() {
-        let last = date(2026, 6, 11)
-        let now = date(2026, 10, 9) // exactly 120 days later
-        XCTAssertTrue(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 5,
-                lastReviewRequestAt: last,
-                now: now,
-                calendar: calendar
-            )
-        )
+    func test_false_withTwoSaves() {
+        var s = eligible(); s.saveCount = 2
+        XCTAssertFalse(allowed(s))
     }
 
-    func test_shouldRequest_true_wellPastCooldown() {
-        XCTAssertTrue(
-            ReviewPromptPolicy.shouldRequestReview(
-                distinctOpenDayCount: 3,
-                lastReviewRequestAt: date(2025, 1, 1),
-                now: date(2026, 10, 9),
-                calendar: calendar
-            )
-        )
+    func test_false_afterPaywall() {
+        var s = eligible(); s.previousScreen = .paywall
+        XCTAssertFalse(allowed(s))
     }
 
-    // MARK: - recordingOpenDay
-
-    func test_recordingOpenDay_addsTodayOnce() {
-        let day1 = date(2026, 10, 1)
-        var days = ReviewPromptPolicy.recordingOpenDay(
-            existingDayKeys: [],
-            now: day1,
-            calendar: calendar
-        )
-        XCTAssertEqual(days.count, 1)
-        XCTAssertEqual(days, ["2026-10-01"])
-
-        days = ReviewPromptPolicy.recordingOpenDay(
-            existingDayKeys: days,
-            now: date(2026, 10, 1, hour: 23),
-            calendar: calendar
-        )
-        XCTAssertEqual(days.count, 1)
-
-        days = ReviewPromptPolicy.recordingOpenDay(
-            existingDayKeys: days,
-            now: date(2026, 10, 2),
-            calendar: calendar
-        )
-        XCTAssertEqual(days.count, 2)
-        XCTAssertTrue(days.contains("2026-10-02"))
+    func test_false_afterNotificationPermission() {
+        var s = eligible(); s.previousScreen = .notificationPermission
+        XCTAssertFalse(allowed(s))
     }
 
-    // MARK: - Coordinator integration (injected defaults)
+    func test_false_afterError() {
+        var s = eligible(); s.previousScreen = .error
+        XCTAssertFalse(allowed(s))
+    }
 
-    @MainActor
-    func test_coordinator_requestsOnlyAfterThreeDaysAndValueMomentGate() {
-        let suite = "ReviewPromptPolicyTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+    func test_false_sameVersionAlreadyPrompted() {
+        var s = eligible(); s.lastPromptVersion = "1.9.7"; s.lastPromptAt = date(2026, 1, 1)
+        XCTAssertFalse(allowed(s, version: "1.9.7"))
+    }
 
-        let coordinator = ReviewPromptCoordinator(
-            defaults: defaults,
-            openDaysKey: "openDays",
-            lastRequestKey: "lastRequest"
-        )
+    func test_false_newVersionWithin120Days() {
+        var s = eligible(); s.lastPromptVersion = "1.9.6"; s.lastPromptAt = date(2026, 10, 1)
+        XCTAssertFalse(allowed(s, version: "1.9.7", now: date(2026, 11, 2)))
+    }
 
-        var requestCount = 0
-        let request: () -> Void = { requestCount += 1 }
+    func test_true_newVersionAfter120Days() {
+        var s = eligible(); s.lastPromptVersion = "1.9.6"; s.lastPromptAt = date(2026, 6, 1)
+        XCTAssertTrue(allowed(s, version: "1.9.7", now: date(2026, 9, 29)))
+    }
 
-        coordinator.recordAppOpen(now: date(2026, 10, 1), calendar: calendar)
-        XCTAssertFalse(coordinator.requestReviewIfAppropriate(
-            now: date(2026, 10, 1),
-            calendar: calendar,
-            request: request
-        ))
+    func test_false_oneDayShortOf120() {
+        var s = eligible(); s.lastPromptVersion = "1.9.6"; s.lastPromptAt = date(2026, 6, 1)
+        XCTAssertFalse(allowed(s, version: "1.9.7", now: date(2026, 9, 28)))
+    }
 
-        coordinator.recordAppOpen(now: date(2026, 10, 2), calendar: calendar)
-        XCTAssertFalse(coordinator.requestReviewIfAppropriate(
-            now: date(2026, 10, 2),
-            calendar: calendar,
-            request: request
-        ))
+    func test_delayIs0_8Seconds() { XCTAssertEqual(ReviewPromptPolicy.delayAfterSave, 0.8) }
 
-        coordinator.recordAppOpen(now: date(2026, 10, 3), calendar: calendar)
-        XCTAssertTrue(coordinator.requestReviewIfAppropriate(
-            now: date(2026, 10, 3),
-            calendar: calendar,
-            request: request
-        ))
-        XCTAssertEqual(requestCount, 1)
-
-        // Same day / within cooldown: no second ask
-        XCTAssertFalse(coordinator.requestReviewIfAppropriate(
-            now: date(2026, 10, 4),
-            calendar: calendar,
-            request: request
-        ))
-        XCTAssertEqual(requestCount, 1)
-
-        // After cooldown
-        XCTAssertTrue(coordinator.requestReviewIfAppropriate(
-            now: date(2027, 2, 1),
-            calendar: calendar,
-            request: request
-        ))
-        XCTAssertEqual(requestCount, 2)
+    func test_recordingOpenDay_isIdempotentPerDay() {
+        var keys = ReviewPromptPolicy.recordingOpenDay(existingDayKeys: [], now: date(2026, 11, 2), calendar: calendar)
+        keys = ReviewPromptPolicy.recordingOpenDay(existingDayKeys: keys, now: date(2026, 11, 2), calendar: calendar)
+        XCTAssertEqual(keys.count, 1)
+        keys = ReviewPromptPolicy.recordingOpenDay(existingDayKeys: keys, now: date(2026, 11, 3), calendar: calendar)
+        XCTAssertEqual(keys, ["2026-11-02", "2026-11-03"])
     }
 }

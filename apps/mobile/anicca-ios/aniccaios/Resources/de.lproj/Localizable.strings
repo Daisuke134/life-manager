@@ -1332,3 +1332,5 @@
 
 "billing_issue_title" = "Zahlungsproblem";
 "billing_issue_action" = "Tippe, um die Zahlungsmethode zu aktualisieren";
+
+"settings_rate_app_store" = "Im App Store bewerten";

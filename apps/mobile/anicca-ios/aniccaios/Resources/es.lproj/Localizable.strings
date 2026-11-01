@@ -2616,3 +2616,5 @@
 
 "billing_issue_title" = "Problema de pago";
 "billing_issue_action" = "Toca para actualizar tu método de pago";
+
+"settings_rate_app_store" = "Valorar en la App Store";

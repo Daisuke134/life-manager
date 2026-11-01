@@ -117,6 +117,7 @@ struct RetentionOfferSheet: View {
         } catch {
             loadFailed = true
             errorMessage = error.localizedDescription
+            ReviewPromptCoordinator.shared.noteScreen(.error)
         }
     }
 
@@ -133,6 +134,7 @@ struct RetentionOfferSheet: View {
             }
         } catch {
             errorMessage = error.localizedDescription
+            ReviewPromptCoordinator.shared.noteScreen(.error)
         }
     }
 }
