@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "path": "icon.png",
+      "sha256": "9d06483cc7f1800ccc9d229a3b86112671f025de90f4914f3e81a937bd7d181c",
+      "source": "icon.svg rendered offline with rsvg-convert at 512x512"
+    }
+  ]
+}

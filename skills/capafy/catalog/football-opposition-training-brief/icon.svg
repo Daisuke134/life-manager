@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Football Opposition Training Brief</title>
+  <desc id="desc">A dark blue football tactics board with coaching markers and an arrow</desc>
+  <rect width="512" height="512" rx="96" fill="#10233f"/>
+  <rect x="72" y="96" width="368" height="320" rx="24" fill="#153f63" stroke="#87d6f7" stroke-width="8"/>
+  <path d="M256 96v320M72 256h368M72 176h72M72 336h72M440 176h-72M440 336h-72" fill="none" stroke="#87d6f7" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="174" cy="196" r="22" fill="#f5c451"/>
+  <circle cx="232" cy="310" r="22" fill="#f5c451"/>
+  <circle cx="336" cy="208" r="22" fill="#ff8f70"/>
+  <circle cx="354" cy="322" r="22" fill="#ff8f70"/>
+  <path d="M184 212 C220 250 272 255 319 221" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+  <path d="M300 203l24 18-28 10" fill="#ffffff"/>
+  <path d="M232 310 C274 291 309 302 340 318" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" stroke-dasharray="10 14"/>
+  <path d="M327 302l20 17-25 6" fill="#ffffff"/>
+  <rect x="138" y="432" width="236" height="24" rx="12" fill="#87d6f7"/>
+</svg>
