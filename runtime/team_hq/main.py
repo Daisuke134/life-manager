@@ -119,7 +119,7 @@ def atomic_json(path, value):
     atomic_text(path, json.dumps(value, ensure_ascii=False, sort_keys=True))
 
 
-def canonical_slack_text(text):
+def canonical_slack_text(text, *, slack_observed=False):
     # Preserve URL/text boundaries, including prose, JSON quotes and Markdown brackets.
     parts, cursor = [], 0
     scan = re.compile(r"<[^>]*>|https?://")
@@ -130,7 +130,7 @@ def canonical_slack_text(text):
         value = match[0]
         if value.startswith("<"):
             link = re.fullmatch(r"<(https?://[^<>\s|]+)>", value)
-            token = ("url", link[1]) if link else ("markup", value)
+            token = ("url", link[1].replace("&amp;", "&") if slack_observed else link[1]) if link else ("markup", value)
         else:
             brackets = []
             while end < len(text) and text[end] in url_characters:
@@ -143,7 +143,7 @@ def canonical_slack_text(text):
                 end += 1
             value = text[match.start():end].rstrip(".,;:!?'")
             end = match.start() + len(value)
-            token = ("url", value)
+            token = ("url", value.replace("&amp;", "&") if slack_observed else value)
         parts.extend((text[cursor:match.start()], token))
         cursor = end
     return (*parts, text[cursor:])
@@ -975,7 +975,7 @@ class HQ:
                 own_sender = ((bool(user) and message.get("user") == user)
                               or (bool(bot) and message.get("bot_id") == bot))
                 if (own_sender and task["marker"] in message.get("text", "")
-                        and canonical_slack_text(message["text"]) == canonical_slack_text(task["reply_text"])):
+                        and canonical_slack_text(message["text"], slack_observed=True) == canonical_slack_text(task["reply_text"])):
                     return str(message["ts"])
         return None
 

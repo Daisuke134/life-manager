@@ -25860,6 +25860,8 @@ Gmail公式readbackには既存参加・Mariaとの返信があり、Maritime上
 
 **大会/課金の別目標:** The First 1,000の公式期限は2026-12-01 23:59 Pacific、検証対象は1,000人のdistinct実利用者（VM/subagentではない）。Naïveの公式日程は2026-11-07〜08 YC SF、両日現地参加、2〜4分のlive demoで自律運営を見る。主催者SNSのYC interview告知と公式pageの賞TBDを分け、対象track/条件が未確認のまま保証しない。Maritime大会の米国内対象flightを日本発無料航空券としない。$29/月案のCloud SaaSは345有料継続利用で$10,005 MRR（費用/税/返金等の前）。1,000無料user、Capafy出品数、単発受注、自己購入はSaaS MRRに算入しない。
 
+**HQ Slack返信照合の修正:** 本番task `9fb0f2237c0c8e4969babb92`はSlack公式repliesで本人sender・markerを確認済みだが、SlackのURL内`&amp;`と送信原文の`&`が異なり`post_unknown`となる。Slackから受けたURLのentityを正規化し、原文の意味の異なるURLは一致扱いしない。元identity、marker、全文照合とReason receipt条件は維持し、同一返信の再送は禁止。テストで実例と異なるURLを確認後、既存runtimeの自然照合と公式readbackを待つ。
+
 **L07配下：既存open dashboardの修正契約**
 
 **Dais追加要件・調査カーソル:** Openは売上だけでなく、各市場の受託（応募→返信→契約→納品→入金）と出品（掲載→表示→閲覧→購入→精算）を一画面で確認できる会社の公開状況とする。Capafyはimpressions・detail views・conversion・new buyers・units・salesを期間/source/as_of付きで収集し、Coconala/Lancers等も各サービスの公式に取得できる出品別指標と受託進捗を調査して追う。アプリinstall・SNS到達・費用も同様。各agentの作業は担当・内容・開始/完了時刻・結果・根拠を記録し、事業指標と合わせて日報の根拠として利用する。日報は昨日の行動量・結果・成功例との差を示し、根拠に基づく今日の次の行動につなげる。UIは簡潔にし、実データと対象期間、更新失敗・古さを区別する。秘密・顧客の非公開情報は公開しない。まず各事業の公式取得元から実データを取り、ダッシュボードへ反映する経路を事業ごとに完成させる。その後、取得・公開を繰り返し、元サービスの更新遅延と鮮度を表示し、次回自然実行後も維持されることをデスクトップ・スマホの公開UIで確認する。更新間隔の最適化は接続後に行う。

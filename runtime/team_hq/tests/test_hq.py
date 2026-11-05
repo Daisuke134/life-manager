@@ -23,6 +23,7 @@ except ModuleNotFoundError:
 
 
 AUTOLINK_BOUNDARIES = (
+    ("escaped_query", "証拠 https://example.test/?a=1&b=2", "証拠 <https://example.test/?a=1&amp;b=2>"),
     ("markdown_japanese", "[PR](https://example.test/result)でmainへ保存。",
      "[PR](<https://example.test/result>)でmainへ保存。"),
     ("json_proof", 'STATE {"proof":["https://example.test/result","/fixture/artifact","https://example.test/evidence"]}',
@@ -81,6 +82,15 @@ class Slack:
                 raise TimeoutError("private provider details must not be printed")
             return {"ok": True, "ts": message["ts"], "channel": parameters["channel"]}
         raise AssertionError(method)
+
+
+class SlackEntityTests(unittest.TestCase):
+    def test_observed_url_entity_matches_original_only(self):
+        original = "result https://example.test/?a=1&b=2"
+        observed = "result <https://example.test/?a=1&amp;b=2>"
+        self.assertEqual(hq.canonical_slack_text(observed, slack_observed=True), hq.canonical_slack_text(original))
+        different = "result https://example.test/?a=1&amp;b=2"
+        self.assertNotEqual(hq.canonical_slack_text(observed, slack_observed=True), hq.canonical_slack_text(different))
 
 
 class HQTests(unittest.TestCase):
@@ -467,6 +477,7 @@ class HQTests(unittest.TestCase):
         })
         reply = self.tasks()[0]["reply_text"]
         variants = [
+            ("literal_entity", "https://example.test/?a=1&amp;b=2", "<https://example.test/?a=1&amp;b=2>"),
             reply.replace("https://example.test/result", "<https://example.test/other>"),
             reply.replace("https://example.test/result", "<https://example.test/result|https://example.test/result>"),
             reply + "\n追加本文",
