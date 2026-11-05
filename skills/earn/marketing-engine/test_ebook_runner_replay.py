@@ -10,6 +10,12 @@ import ebook_runner
 from script_ledger import ScriptLedger
 
 
+def test_english_ebook_pack_uses_selected_heygen_renderer():
+    packs = ebook_runner.load_ebook_packs(Path(__file__).parent)
+
+    assert packs["ebook-en-anicca-monk"]["renderer_id"] == "heygen-avatar-iv"
+
+
 def registered_script(tmp_path: Path) -> tuple[Path, str]:
     ledger_path = tmp_path / "scripts.sqlite3"
     ledger = ScriptLedger(ledger_path)
