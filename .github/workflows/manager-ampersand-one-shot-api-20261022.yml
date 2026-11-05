@@ -1,0 +1,135 @@
+name: Manager Ampersand Multi-Turn Educational Session
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  educational-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install officially documented SDK
+        run: python -m pip install --disable-pip-version-check --no-input 'openai==3.24.0'
+      - name: Real authenticated multi-turn tutorial using synthetic conversation
+        env:
+          AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          from openai import OpenAI
+          key=os.environ.get("AMPERSAND_API_KEY","")
+          if not key:
+              print("RESULT=NO_SECRET")
+              sys.exit(2)
+          base="https://ampersand.humansand.ai/v1"
+          with OpenAI(base_url=base,api_key=key,max_retries=0,timeout=120) as client:
+              models=client.models.list()
+              ids=[x.id for x in models.data]
+              if "ampersand-v0.1" not in ids:
+                  print("RESULT=MODEL_NOT_AVAILABLE")
+                  sys.exit(3)
+              print("MODEL_AUTH=PASS")
+              instruction=("For an entirely fictional team, be concise and considerate. "
+                           "You have no tools. Do not claim to contact anyone or take actions.")
+              first=("Three colleagues want a Friday team check-in. "
+                     "Sam previously said Friday is impossible for them. "
+                     "Should you flag this, ask, or wait? Give a short reason.")
+              with client.beta.agents.sessions.create(
+                  agent={"model":"ampersand-v0.1","instructions":instruction},
+                  environment={"type":"none"}, input=first,stream=True
+              ).with_result_collection() as events:
+                  terminal=None
+                  for event in events:
+                      if event.type in {"agent.session.idle","agent.session.failed",
+                                        "agent.session.requires_action"}:
+                          terminal=event.type
+                          break
+                  result=events.get_final_result()
+              session_id=result.session_id
+              first_reply=(result.output_text or "").strip()
+              if terminal!="agent.session.idle" or not first_reply:
+                  print("RESULT=FIRST_TURN_FAILED","event",terminal)
+                  sys.exit(4)
+              print("FIRST_TURN=COMPLETE","CHARS",len(first_reply))
+              print("SESSION_PERSISTED=",bool(session_id))
+              # Open stream before new input per official guide; only one writer.
+              with client.beta.agents.sessions.events.stream(session_id) as eventstream:
+                  client.beta.agents.sessions.events.create(
+                      session_id,
+                      events=[{"type":"agent.session.input.message",
+                               "input":[{"role":"user","content":[{"type":"input_text",
+                                 "text":("New information: Sam now says Friday might work, "
+                                         "but hasn't confirmed. Should you treat Friday as "
+                                         "confirmed, or ask before booking? Explain briefly.")}]}]}],
+                      idempotency_key="ampersand-tutorial-20261103-1"
+                  )
+                  followup_reply=""
+                  done=False
+                  for event in eventstream:
+                      if event.type=="agent.session.turn.output_text.done":
+                          followup_reply=getattr(event,"text","") or ""
+                      if event.type=="agent.session.turn.completed":
+                          done=True
+                          break
+                      if event.type in {"agent.session.turn.failed",
+                                        "agent.session.turn.cancelled"}:
+                          print("RESULT=FOLLOWUP_TURN_FAILED")
+                          sys.exit(5)
+                  if not done:
+                      print("RESULT=FOLLOWUP_STREAM_ENDED")
+                      sys.exit(6)
+              if not followup_reply.strip():
+                  print("FOLLOWUP_TEXT_EMPTY")
+                  sys.exit(7)
+              items=client.beta.agents.sessions.items.list(session_id,order="asc",limit=20)
+              turns=client.beta.agents.sessions.turns.list(session_id,order="asc",limit=20)
+              print("FOLLOWUP_TURN=COMPLETE","CHARS",len(followup_reply))
+              print("SAVED_ITEM_COUNT",len(items.data))
+              print("SAVED_TURN_COUNT",len(turns.data))
+              print("MODEL_ANSWER_CONTENT_NOT_EXPORTED=TRUE")
+              print("RESULT=AUTHENTICATED_TWO_TURN_TUTORIAL_COMPLETE")
+          PY
+  tutor-educational:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check --no-input 'openai==3.24.0'
+      - name: Normal fictional tutoring call, not a competitive benchmark
+        env:
+          AMPERSAND_API_KEY: ${{ secrets.AMPERSAND_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os,sys
+          from openai import OpenAI
+          key=os.getenv("AMPERSAND_API_KEY","")
+          if not key:
+              print("TUTOR_RESULT=MISSING_SECRET");sys.exit(2)
+          with OpenAI(base_url="https://ampersand.humansand.ai/v1",
+                          api_key=key,max_retries=0,timeout=90) as c:
+              available={x.id for x in c.models.list().data}
+              if "ampersand-tutor-v0.1" not in available:
+                  print("TUTOR_RESULT=MODEL_UNAVAILABLE");sys.exit(3)
+              with c.beta.agents.sessions.create(
+                 agent={"model":"ampersand-tutor-v0.1",
+                        "instructions":"Explain in plain language to fictional learner Hana. Do not act externally."},
+                 environment={"type":"none"},
+                 input="Why are 120 survey answers from 40 people not the same as 120 independent people?",
+                 stream=True
+              ).with_result_collection() as stream:
+                  state="STREAM_ENDED"
+                  for event in stream:
+                      if event.type in {"agent.session.idle","agent.session.failed",
+                                        "agent.session.requires_action"}:
+                          state=event.type;break
+                  answer=(stream.get_final_result().output_text or "").strip()
+              print("TUTOR_STATUS",state)
+              print("TUTOR_ANSWER_CHARACTERS",len(answer))
+              print("TUTOR_RESULT", "REAL_TUTOR_INFERENCE_COMPLETED" if state=="agent.session.idle" and answer else "INCOMPLETE")
+              if state!="agent.session.idle" or not answer:sys.exit(4)
+          PY
