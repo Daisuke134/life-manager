@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, "../../..");
 const manifest = require("../config/mobile-app-loops.json");
 const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
+const releaseRootBindingFixture = require("../test/fixtures/mobile-app/release-root-binding.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
   assert.equal(Object.keys(manifest.loops).length, 18); // obou-instagram retired (ebook account, out of mobile scope)
@@ -154,6 +155,45 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
   assert.match(result.stderr, /mobile app exact result hint unavailable/);
 });
 }
+
+test("the mobile wrapper preserves the immutable release root across the mutable marketing environment", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-release-root-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const fixture = releaseRootBindingFixture;
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s|root=%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_ROOT-unset}" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_effect_created":false,"result_occurrence_id":"${fixture.owner_id}:readback-1","provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(
+    envFile,
+    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\nLIFE_MANAGER_RELEASE_ROOT=${fixture.stale_release_root}\n`,
+    { mode: 0o600 },
+  );
+
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), [fixture.owner_id], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !["LIFE_MANAGER_RELEASE_ROOT", "LIFE_MANAGER_RELEASE_SHA"].includes(key))),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: fixture.owner_id,
+      LIFE_MANAGER_OCCURRENCE_ID: `${fixture.owner_id}:readback-1`,
+      LIFE_MANAGER_RELEASE_ROOT: fixture.bound_release_root,
+      LIFE_MANAGER_RELEASE_SHA: fixture.release_sha,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const invoked = fs.readFileSync(calls, "utf8").trim().split("\n");
+  assert.equal(invoked.length, 2);
+  assert.ok(invoked.every((call) => call.includes(`|root=${fixture.bound_release_root}|release=${fixture.release_sha}`)));
+});
 
 test("mobile reconciled receipts require their origin occurrence to match", () => {
   const occurrenceId = "life-manager-honne-en:run-1";

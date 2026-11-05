@@ -15,6 +15,12 @@ if [ "${LIFE_MANAGER_RELEASE_SHA+x}" = x ]; then
 else
   RELEASE_SHA_BOUND=0
 fi
+if [ "${LIFE_MANAGER_RELEASE_ROOT+x}" = x ]; then
+  RELEASE_ROOT_BOUND=1
+  RELEASE_ROOT="${LIFE_MANAGER_RELEASE_ROOT}"
+else
+  RELEASE_ROOT_BOUND=0
+fi
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/load-env-file.sh"
 lm_load_env_file "$ENV_FILE"
@@ -22,6 +28,11 @@ if [ "$RELEASE_SHA_BOUND" -eq 1 ]; then
   export LIFE_MANAGER_RELEASE_SHA="$RELEASE_SHA"
 else
   unset LIFE_MANAGER_RELEASE_SHA
+fi
+if [ "$RELEASE_ROOT_BOUND" -eq 1 ]; then
+  export LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT"
+else
+  unset LIFE_MANAGER_RELEASE_ROOT
 fi
 lm_require_env_keys LM_POSTIZ_API_KEY
 

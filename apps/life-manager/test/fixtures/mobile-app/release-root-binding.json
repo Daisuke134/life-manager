@@ -1,0 +1,6 @@
+{
+  "owner_id": "life-manager-anicca-he",
+  "release_sha": "b17d6d66770ef72ed10d853d9523d61fda63d339",
+  "bound_release_root": "/immutable/releases/b17d6d66770ef72ed10d853d9523d61fda63d339",
+  "stale_release_root": "/mutable/marketing-env/release"
+}
