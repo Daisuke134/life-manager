@@ -1,0 +1,22 @@
+{
+  "name": "@life-manager/naive-migration",
+  "private": true,
+  "type": "module",
+  "description": "Local-mock fixture for the official Naïve SDK. Does not call the live API, create agents, or run naive up.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@usenaive-sdk/blueprints": "0.18.0",
+    "@usenaive-sdk/cli": "1.0.0",
+    "@usenaive-sdk/managed-agents": "0.12.0"
+  },
+  "overrides": {
+    "@usenaive-sdk/managed-agents": "0.12.0",
+    "@usenaive-sdk/blueprints": "0.18.0",
+    "@usenaive-sdk/cli": "1.0.0"
+  }
+}
