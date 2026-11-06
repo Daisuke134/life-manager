@@ -11,6 +11,7 @@
 - 数字は docs/team/SCOREBOARD.md が正本。
 ## タスク
 - [Codex / CLOUD-SINGLE-RUNTIME] 本番Maritime一つ・Naïve大会専用の設計/原子的計画を所有。状態と実行順の正本→統合SSOT末尾「Life Manager Cloud：本番Maritime一つ・Naïve大会専用」。provider/他owner変更なし。
+- [Codex / NAIVE-X402-SELLER] claim: 実行者はCodex一人。既存funding-rates商品を公式Hono/PayAIで専用Naïve fullstack Appに載せ、Capafy browser App・media-manager・他のAgentを変更しない。cursor=統合SSOT LC61c。実売上の認定は独立buyerのsettlement後。
 - [home-codex / NEAR反復外注report統合] task1d5ec011dfbf4098c35454c4、owner home-codex、branch docs/near-integration-1d5ec0。PR9219は必要CI15件成功後main67596940b8へ公式統合、原稿/CSV/証拠3件の公式blob一致。5pending/受注0、売上/費用実額の新receiptなし。現在cursor=本訂正CI→main→既存hourly全assignment照合、受注時の最新brief/契約確認とSLA内納品。親接続/Naive・会計・投稿・lease/fence維持、追加bid/submit/課金0。正本→NEAR初回販売spec task1d5ec0。
 - [home-codex / NEAR discovery納品準備] 統合完了: PR9207/main3e3f078149、head813f69404fの必要CI15件成功・独立SHIP・公式report/evidence blob一致。継続task ab33e8138665c2d3c939d6af、同owner home-codex。現在cursor=既存hourlyの全assignment照合→受注後最新brief/submit契約再読→SLA内納品。5pending/受注0は今回公式GETの観測値。親HQ/Naive・会計・投稿・fence維持、追加bid/受注前submit0。
 - [home-codex / NEAR framework納品準備] task fcdfdd26ab37754b9c37251e、owner home-codex-fcdfdd、branch task/home-codex-fcdfdd。既存応募dd6e4f85の英語report/一次資料比較だけを所有。5pending/受注0を公式GET確認。親PR9182/9178/9179、remote hook、会計、投稿、既存fenceを保護。受注前submit/追加bid0。

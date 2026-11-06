@@ -26584,6 +26584,16 @@ P06-3 (Statsmodels power/SciPy A/A false-positive/SRM), P06-4 (synthetic recogni
 
 **Naïveは大会専用の実稼働環境:** 同じ顧客価値・仕事の契約・playbook・権利のある素材を使い、Naïve公式SDK/managed Agentで限定した業務を本当に実行する。fake応答や本番APIへ転送するだけのSDK飾りはしない。通常顧客のsignup・subscription・本番scheduler・本番secrets/stateはNaïveへ接続しない。大会用environment/job ID/Agent-owned identity/予算/receiptを分け、実際の取引があれば本番と混同せず正しく記録する。利用者にNaïve/Maritimeを選ばせず、同じ注文を両方へ流さず、常設failover/router・第二SaaSを作らない。Naïve由来のharness設定やsnapshotをそのままMaritimeへ移せるとはしない。
 
+### 大会別の公式条件・技術境界（2026-11-06 readback）
+
+- **Naïve hackathon:** [公式brief](https://usenaive.ai/hackathon)は2026-11-07〜08、Naïve SDK必須、実際に動く会社の2〜4分ライブデモ、審査軸を「人の介入なしに会社がどれだけ動くか」としている。公式ページは1位の賞としてYC interview guaranteedと記載するが、これは**面接の保証でありYC採択の保証ではない**。申請はNaïve/YCが審査し、参加は承認制。現在の参加承認receiptは未確認。ページ内にprize detailsがTBDの表示も残るため、面接以外の賞金/credit条件を確定扱いしない。
+- **Naïve SDK:** [Managed Agents docs](https://usenaive.ai/docs)では、Agentはmodel/harness/prompt/tools/skills/computer/budgetを束ねる版管理された設定、Sessionは一回の実行、Eventsは再開可能な実行記録。Computerはfilesystem/shell/任意browserを持つmanaged sandboxで、sleep中はpauseする。Identityはagent persona、email/authorized account/vault等を束ねる。大会のbusiness blueprint/templateは会社の雛形であり、Managed Agentそのものとは別レイヤー。公式docsが記載する機能と本orgでの利用可否・残高は別途live readbackする。
+- **Maritime First 1,000:** [公式terms](https://competition.maritime.sh/terms)は締切を2026-12-01 23:59 Pacific、1,000人のdistinct real usersと実利用を条件にし、Agent/VM/subagent数を利用者数に含めない。bot・重複identity・架空activityは失格対象。条件確認後に到達した最初の3 projectがwinner。参加benefitの$1,000 Maritime creditsは現金売上ではなく、winner向けLLM creditsは「up to $20,000/project」。2・3位や旅行等の詳細は未公表。
+- **Maritime SDK:** [Quickstart](https://maritime.sh/docs/sdk/quickstart)の`provision({ externalId })`は顧客ごとのAgentを同じexternalIdで再利用でき、`chat`でsleep中のAgentをwakeする。providerがprovision/isolation/sleep-wake/billingを担い、API keyはbackendに保持する。公式quickstartでは最初のmachine作成前にcard登録を伴う7-day trial開始が必要とされるため、「現金0」と「決済情報不要」は同義ではない。現在の大会credit/契約で実際にcard不要かは未確認。
+- **共通の自律性表現:** Naïveのbrief自体が人にgoal/limitsを設定させ、審査でどこに人が介入したかを問う。したがって実測が揃うまでは「初回goal/limits設定後、対象業務を追加の都度承認なしで実行」と表現し、本人確認・支払手段・KYC等を要求する外部platformを迂回せず、その条件を明示する。end-to-endで人の手続きが一切不要という主張は未実証。
+
+**大会に勝つための一つの見せ方:** Naïveでは一つの実business jobをAgentが判断→実行→公開/納品→第三者receipt/費用へ結び、実行event・最終URL・人の介入・全費用を2〜4分で見せる。Maritimeでは同じ商品を本番hostし、実人のsignup→初回成功→継続利用→有料conversionを一つのURL/計測経路で増やし、1,000 real usersを公式usageで証明する。前者は短い自律会社の実演、後者は顧客獲得競争であり、Agent/VMを増やすだけではどちらも勝ちにならない。両方の結果・費用・顧客数・receiptは別々に記録する。
+
 **棄却案と最強の論拠:** Naïve本番ならbrowser/identity/budget等のmanaged部品をまとめられる利点がある。しかし既存Maritimeの顧客割当/停止/永続receipt接続を使えること、外部の同種構成があること、Maritime大会の実利用条件に直結することを優先する。二本番基盤なら将来の可用性/移植性を得られる可能性があるが、初回顧客提供の前に二重の契約・秘密管理・運用・不具合診断を増やす。本件の顧客価値を増やす証拠がない。
 
 **best/base/worst:** best＝現在のMaritime利用権と既製部品で一般提供と有料顧客成果まで通る。base＝browser/提供契約の不足を解消する間、Naïve大会実証と本番の独立作業を並行する。worst＝Maritimeの必要機能/契約が要件内で使えず、本番一般提供は未達のまま。この場合は比較表を更新して本番を一つ選び直し、二本番運用で隠さない。**判断が誤る最有力の筋:** Maritimeのbrowser・顧客別identity・許諾/原価の不足が大きく、Naïveの顧客別org/提供契約が実測で全て使える場合。両者を「どちらも本番」のまま放置しない。
@@ -26591,9 +26601,10 @@ P06-3 (Statsmodels power/SciPy A/A false-positive/SRM), P06-4 (synthetic recogni
 ### 商品・収益・資格情報の境界
 
 - **SaaS売上:** 外部利用者がLife Manager CloudのsubscriptionをAniccaへ支払う。公式subscription/invoice/refundで計測する。既存のTravel課金と混ぜない。価格・trial・対応範囲は現行sourceと契約を照合し、今回変更しない。
-- **Agentの事業収益:** 自社/利用者のManagerが外部の仕事で得る。売り手/tenant/order/settlementへ帰属させ、SaaS MRRに足さない。Capafyは一つの候補市場で、製品そのものでも全利用者の確定実行先でもない。既存会社Publisherを新利用者へ共用させない。
+- **Agentの事業収益:** 自社/利用者のManagerが外部の仕事で得る。売り手/tenant/order/settlementへ帰属させ、SaaS MRRに足さない。最初に試す自社Managerの販売先としてCapafyを選択する。これは初回検証先の決定であり、最高利益や実需要を証明した意味ではない。CapafyはLife Manager Cloud本体ではなく、全利用者の確定実行先でもない。既存会社Publisherを外部利用者へ共用させない。
+- **Capafyの入口・採算条件（公式Publisher Agreement v1.2）:** 新規Publisherは返金不可$0.99のCertification Fee、共通支配者ごとに原則1 Publisher Account、20% platform fee、7日間のdispute window、月次精算、最低$100 payoutを適用する。AgreementはPublisherがSkillを「independently develop」すること、正確な本人/連絡先/支払先情報と税務書類を保つことを定める。したがって「Copy Winner」は需要・価格帯・ページ構成の学習に限定し、コード/文章/画像/商標を丸写ししない。初期現金0・人の私用credentialなしで実行できる条件は、既存Anicca Publisherに正式なAgent roleを追加費用なしで付与でき、必要な支払/税務手続きが適法に満たせること。現在その権限は未確認で、Capafyへの問い合わせ返信も未確認。条件確認までは新規Publisher作成・費用支出・本人確認の迂回をしない。[Publisher Agreement](https://capafy.ai/publisher-agreement/)
 - **自己利用:** Aniccaも同じ公開onboarding、権限、上限、停止、費用/成果報告を使う。運営者だけの裏口を「誰でも使える」の証拠にしない。自己subscription/test paymentは外部顧客売上ではない。
-- **厳密な収益条件:** Agentの売り手口座は初期現金0、人の私用ID/カード/日々の承認なし、利用料と全運転費を超える実収益が目標。自社infra費・補助creditとAgentの現金は別。現在、登録→納品→使える受取までこの条件を実証した市場は未選定。「SaaSに課金できる」と「顧客のAgentが黒字」を分ける。達成前に自動黒字を販売上の実績として表示しない。
+- **厳密な収益条件:** Agentの売り手口座は初期現金0、人の私用ID/カード/日々の承認なし、利用料と全運転費を超える実収益が目標。自社infra費・補助creditとAgentの現金は別。Capafyは初回市場に選定済みだが、登録→納品→使える受取までこの条件で実証した市場はまだない。「SaaSに課金できる」と「顧客のAgentが黒字」を分ける。達成前に自動黒字を販売上の実績として表示しない。
 - **提供権:** [Maritime terms](https://maritime.sh/terms)と[Naïve terms §4.2](https://usenaive.ai/terms)はいずれもserviceの再販等に書面許諾の条項を持つ。SDK経由で自社アプリを提供する利用とservice accessそのものの再販の適用範囲、既存契約/許諾をLC06で確認する。SDK例があるだけで全利用形態を許可済みとも、現契約が不許可とも断定しない。
 
 ### As-Is → To-Be（証拠の種類を区別）
@@ -26603,11 +26614,11 @@ P06-3 (Statsmodels power/SciPy A/A false-positive/SRM), P06-4 (synthetic recogni
 | 販売商品 | 自社Agentの運転記録とCloudの設計/入口/sourceはある。外部利用者向けの一般提供→継続課金→顧客の実成果という全経路は未実証 | 一つのLife Manager Cloudを第三者が登録・購入・利用でき、自社も同じ経路で使う |
 | 本番source | `apps/life-manager/server.js`→`maritime-manager-auth.js`、store/runtime/transport、wake/report/usageの接続がある。`transport/maritime-manager.js`はframework=custom/ZIP archiveを要求し、`maritime/run-cycle.js`はCapafy専用cycleを呼ぶ。公式templateへ設定だけで切替可能とは言えず、一般Managerの完走証明でもない | 本番AgentはMaritimeのみ。既存接続/台帳を使い、公式harnessへ業務設定を接続する。自作Agent runtimeは新設しない |
 | 本番provider | 保存済みOpenClaw試験は/data保持・モデル/初期browser操作を確認。再開後browser無効、desktop変更はseat_limit | 契約内の公式経路で必要browserが再開後も動き、Agent-owned identity/stateを保持する |
-| Naïve | 前回公式API/native browser/owned inbox送信成功、限定閲覧run $0.024496、deployment10件停止の保存済み観測。今回live状態/費用を再取得しない | 大会専用Agentで本物の業務を有限実行。証拠・費用・人の介入・未達を正確に示す。本番提供成功へ読み替えない |
+| Naïve | 2026-11-06 live確認：Anicca org上の`capafy` Agentはv5・`anthropic/claude-sonnet-5`、月cap $10/task cap $2。default denyを維持し、`browser`のみCapafy allowlist・write許可・`ask_actions=[]`、CAPTCHA解決/stealth無効。Naïve管理identityは`manager@anicca-va700c.usenaive.ai`、third-party connectionsなし。読み取りbrowser sessionでCapafyの公開ページ/ログイン方法を確認し$0.063361を計上。Agent Computer `cmp_01a1b0d7266379dc821767716e289208`はpaused、`browser:null`。登録・Publisher申請・掲載・売上は未実施 | 大会専用Agentで本物の業務を有限実行。証拠・費用・人の介入・未達を正確に示す。本番提供成功へ読み替えない |
 | 公開と課金 | `/lm`等の説明/sourceはある。既存Web billingはTravel/Calendarの契約を含む。Cloud専用entitlement・現行配備・paid invoiceは未照合 | Cloud商品専用の課金と利用権を同じtenantへ結び、支払/停止/取消を正しく反映 |
-| 二大会 | Naïve公式公開頁は11/7–8、2–4分の実稼働demo。今回の賞品欄はTBD。Maritime termsは12/1 Pacific締切・実利用者1,000人・最初の3projectを確認後winner | 本番Maritimeの実利用でMaritime大会を狙い、Naïveの大会専用実稼働でNaïve大会を狙う。受理/参加資格/審査結果は公式receiptで別判定 |
+| 二大会 | Naïve公式briefは11/7–8、SDK必須、2–4分の実稼働demo、1位にYC interviewを記載。参加承認は未確認で、面接は採択ではない。Maritime termsは12/1 23:59 Pacific、実利用のある1,000 distinct users、最初の3 projectを確認後winner | 本番Maritimeの実利用でMaritime大会を狙い、Naïveの大会専用実稼働でNaïve大会を狙う。受理/参加資格/審査結果は公式receiptで別判定 |
 
-上表のruntime/売上は保存済み観測を含み、現在の停止状態・残高・顧客数を今回再確認したものではない。公開説明の「利用できる」と実運用未検証の差はLC33/LC52で修正・確認する。source testを商用提供の証拠にはしない。
+Naïve欄は2026-11-06のlive readback。ほかのruntime/売上は保存済み観測を含み、現在の停止状態・残高・顧客数を今回再確認したものではない。公開説明の「利用できる」と実運用未検証の差はLC33/LC52で修正・確認する。source testを商用提供の証拠にはしない。
 
 ```mermaid
 flowchart TD
@@ -26646,7 +26657,7 @@ flowchart TD
 - `OBS` = `apps/life-manager/lib/maritime-manager-usage.js`, `maritime-manager-report.js`, 既存CFO/`/open`のsource
 - `NAIVE` = `docs/superpowers/plans/2026-11-03-naive-browser-company.md`の既存source/provider参照と、今回使う公式Agent/config/SDK。別商品のBusinessRun Benchを本商品へ混ぜない
 
-**順序変更:** 旧＝BotBounty/Capafy適格性→自社Agentの販売→二つの本番runtime→Cloud販売。新＝商品/本番境界確定→本番現状/契約/必要機能→tenant別Managerと課金/入口→自社を同じtenant経路で検証→外部有料顧客→実利用・採算。同時にNaïve大会の規約/有限実稼働/demo/提出を進める。理由＝ユーザーが求めるのは自社Agentの副業ではなく一般利用者が買えるCloud商品で、既存公開経路/tenant/billingの不足が先に解消すべき依存だから。Naïve大会の提出やMaritimeの契約/基盤調査を月次精算待ちで止めない。既存effectを中断・再送しない。
+**順序変更:** 旧＝BotBounty/Capafy適格性→自社Agentの販売→二つの本番runtime→Cloud販売。新＝商品/本番境界確定→本番現状/契約/必要機能→tenant別Managerと課金/入口→自社を同じtenant経路で検証→外部有料顧客→実利用・採算。同時にNaïve大会の規約/有限実稼働/demo/提出を進める。自社Managerの初回販売先はCapafyに決定し、適格性・登録・listing・第三者注文・納品・精算をLC21–26で検証する。理由＝ユーザーが求めるCloud商品と初回販売先の選択を分離し、公開経路/tenant/billingの不足を先に解消しながら、Capafyを一つの測定可能な収益実験として進めるため。Naïve大会の提出やMaritimeの契約/基盤調査を月次精算待ちで止めない。既存effectを中断・再送しない。
 
 #### 商品・本番の境界
 
@@ -26687,9 +26698,9 @@ flowchart TD
 | ID | 状態・依存 | 対象と一つの作業 | 完了証拠 |
 |---|---|---|---|
 | LC20 | 未 / LC01/09 | `既存Life Manager playbook + official harness + maritime/run-cycle.jsの呼出元`：自発的な優先判断を一業務へ接続 | 旧Capafy専用cycleと一般Managerの実行を区別し、公式harnessで観測→次作業選択→実行→確認→状態保存を行う。固定応答/台本商品化/新wrapperなし |
-| LC21 | 未 / LC06/20 | `市場公式terms・実募集/受取条件`：ゼロ現金/無人受取に適合する最初の市場を確定 | 実働・需要・手数料・受取・ID/担保条件を記録。不適合は除外、Capafyを固定しない |
-| LC22 | 未 / LC16/21 | `選定provider + Agent-owned inbox`：正規登録または正式Agent roleを一件完了 | 検証メール/最終login/provider ID一致。利用者私用credentialや会社Publisher共用なし |
-| LC23 | 未 / LC22 | `選定providerの既存offer/掲載機能`：一つの有料offer/受注対象を提供 | live公開URL/正式提供状態。審査提出を公開としない |
+| LC21 | 選択済み・適格性未確認 / LC06/20 | `Capafyの公式Publisher Agreement・実募集・既存Anicca Publisher・support返信`：ゼロ現金/無人条件で使える正式なAgent roleを確認 | Capafyを初回販売先に固定。$0.99申請料、独自開発Skill要件、20% fee、7日間dispute、月次精算、$100 payout、本人/支払先/税務情報の要件と現在の需要を記録。既存Publisherへ追加費用なしの正式Agent roleを付けられるか確認する。最高利益や受注済みとは扱わない |
+| LC22 | 未 / LC16/21 | `Capafy + Agent-owned inbox`：既存Publisher上の正式Agent role、または条件適合する正規登録を一件完了 | 検証メール/最終login/Publisher IDとAgent roleを公式readback。人の私用credential・外部利用者とのPublisher共用・KYC迂回なし。新規$0.99支払いが必要なら初期現金0条件に適合しないため登録しない |
+| LC23 | 未 / LC22 | `Capafy Publisher Console + 既存商品素材`：一つの有料Agent listingを正式公開 | 自社の商品事実・権利のある素材を使ったlive URL/正式公開状態。審査提出やdraftを公開としない |
 | LC24 | 未 / LC23 | `既存無料集客経路/実募集`：独立した第三者の有償依頼を一件受ける | 実order/assignment/payment条件。自己購入/広告投稿を需要にしない |
 | LC25 | 未 / LC24 | `provider delivery + 既存artifact store`：注文の成果物を納品 | 当該orderの受領/acceptance receiptと成果物が一致 |
 | LC26 | 未 / LC25 | `provider settlement/payout/既存CFO`：実受取を照合 | 使える着金/確定receipt、refund/feeを当該tenant/orderへ結合。月次待ちは他laneを止めない |
@@ -26759,21 +26770,51 @@ flowchart TD
 
 | ID | 状態・依存 | 対象と一つの作業 | 完了証拠 |
 |---|---|---|---|
-| LC58 | 未・並行可 / LC01/02 | `Naïve/YC現行公式条件と既存参加receipt`：参加/SDK/事前開発/再利用/提出条件を確定 | 公式原文と参加状態。今回YC event本文は取得不十分、賞品はTBDなので旧YC interview記載を確定扱いしない |
-| LC59 | 未・並行可 / LC58 | `NAIVE + 公式Agent/SDK`：大会専用の有限Agent/configを確定 | 実org/Agent owner/許可tools/期間cap/task capと本番非接続をGETで確認。勝手なtop-upなし |
-| LC60 | 未 / LC59 + 共通playbook | `NAIVE + 分離した実provider job`：同じ事業価値の一業務をNaïveで実行 | native events/real artifact/receiptを得る。dummy response/本番API丸投げはしない |
-| LC61 | 未 / LC60 | `実run/費用/介入の証拠`：2–4分demoと事業説明を完成 | 一般提供の現状・Naïve実績・Maritime本番実績・売上/費用/未達を分ける |
-| LC62 | 未 / LC58/61 | `Naïve大会の公式提出先`：大会成果を提出して受領を確認 | 公式receipt/参加状態/実提出物。winner/YC採択を保証しない。月次入金待ちと独立 |
+| LC58 | 完了（2026-11-06） / LC01/02 | `Naïve/YC現行公式brief + event application`：参加承認・SDK必須・2〜4分demo条件を確定 | 公式brief確認済み。Daisが参加承認済みと確認したため、追加の承認receipt照合は省略する。1位のYC面接保証は採択保証ではない。賞品欄のTBDと他のprize文言の差は保持し、未公表条件を補完しない |
+| LC59 | 完了（2026-11-07、公式SDK readback） / LC58 | `NAIVE + 公式Agent/SDK`：大会専用の有限Agent/configとComputerの実状態を確定 | 公式SDKでAnicca org/keyの読み書き成功。direct HTTP 403はCloudflare edge拒否で、key不足ではない。`capafy` v5 / `anthropic/claude-sonnet-5` / agent月cap $10・task cap $2。既存Agentには以前Computerがなく、公式read-only session `ses_edatp3ehfea7sjxnme84q00ze5` でbashを一度実行した結果、Agent用Computer `cmp_01a1b1a989b17cc78234f89c398fbc78` が自動provisionされた。1 vCPU/1024 MB/10 GB、`/home/tenki` が存在、disk 9.8 GB中2.6 GB使用・6.8 GB空き。sessionは`end_turn`、$0.02249消費。statusはreadback時`running`、公式docsではidle約3分後にpauseする。Computerの`browser=null`。前session `ses_62wky45mct696mrcc9n5prz3wc` の組み込みbrowserは別のbrowser sessionで、event `computer_id=""`。そのsessionは公開Capafy一覧だけを読み、$0.089801消費。Capafyのlogin/signup/purchase/write、売上、着金はいずれも0。現在のcredit $17.886732。Computer shellの起動はログイン・販売・事業成果の証拠にしない |
+| LC60 | 完了（2026-11-07、利用者確認） / LC59 | Lancers laneの選定・所有者承認: 既存案件/既存利用はすでに承認済み・進行中というDaisの確認を反映。追加Lancers会社・新規アカウントを作らない | Daisが「Lancersはすでにやっており、承認済み」と明示したため、選定・所有者承認だけ完了。これは案件の納品、顧客検収、入金、Naïve Agent実行の完了を意味しない。公開[/open/data.json](https://aniccaai.com/open/data.json)の最新取得で案件5625250はescrow約$7.01・納期12/04・納品前。既存人間アカウントを使うLancers実績は「No Human Credentials」の証拠に使わない |
+| LC61a | 完了（2026-11-07、公式SDK + 公式Apps docs） / LC59/60 | `Naïveの公開API配置先をread-onlyで確定` | Vetta SDKのAnicca org readbackでは既存Appは無関係のactive `media-manager` fullstack 1個だけで、Life Manager/x402 seller Appはまだない。公式[Apps docs](https://usenaive.ai/docs/api/apps)はfullstack Appが自前MCP endpointを提供し、deployment filesとsecretsを受け取る契約を明記するため、NaïveはApp/server endpointのhost先として利用できる。Computer自体は外部portを公開しない。既存`apps/naive-capafy-browser`はこのMCP App契約用のroot Fetch appで、focused tests 8/8 PASSだが、まだNaïveへdeployしていない。x402 sellerは別途どの既存handler/hostを使うか未確定。既存`capafy` browser sessionは公開一覧を読むだけで、login/signup/purchase/write/売上/着金は0。本件の作業者はCodex一人であり、過去guardのprofile/lease文字列は別作業者の存在を示さない。
+| LC61b | 完了（2026-11-07、PayAI公式Hono docs + Base RPC） / LC61a | `zero-start x402の決済・受取前提を確定` | 受取専用Base wallet記録はある（identity=browser-operator、network=eip155:8453、spend_enabled=false、self-managed eth-account 0.13.7、runtime signer未接続）。記録先の公開残高はETH=0、USDC=0（Base RPC、chainId=8453、read-only）。これは受取先アドレスの残高であり、Naïve Agentへのwallet割当やAgent固有の所有権を示さない。x402は会社のseller Appが受取先アドレスを提示すればよく、Agent IDとの一致は決済成立条件でない。Naïve公式[wallet docs](https://usenaive.ai/docs/sdk/wallet)はnative wallet unavailable/501。PayAI公式[Base Express](https://docs.payai.network/x402/base-mainnet-express)と[Hono integration](https://docs.payai.network/x402/servers/typescript/hono)は`@payai/facilitator`、`@x402/hono`、Base `eip155:8453`を示し、通常exact決済はportal signup/API keyなしの初回1,000 creditsから開始できる。公式[`/supported`](https://facilitator.payai.network/supported)もBase v2 exactを示す。Naïve org keyをfacilitatorへ流用しない。これでゼロUSDC/ETHから受け取る方式は確認したが、販売App・challenge・外部buyer・売上は未確認。
+| LC61c | 未 / LC61b | `Naïve上に既存のfunding-rates商品を載せ、402 challengeを確認` | Capafy browser Appと既存`media-manager`を変更せず、専用fullstack Appを一つ配置する。Naïve Node 22 root Fetch入口で公式Hono x402 middlewareとPayAI facilitatorを使い、既存`skills/earn/x402-sell/funding-rates.mjs`の計算を`GET /funding-rates?symbol=BTC`一つに接続する。受取アドレスはAppのserver-side設定に置く。公式価格$0.003・Base・HTTPS resource・未決済HTTP 402・`/.well-known/x402.json`をreadbackする。Appの配置費用は既存Naïve残高内で確認し、追加top-upをしない。HTTP 402やcatalog listingを売上と数えない。
+| LC61d | 未 / LC61c | `既存無料discovery面から独立した買い手を呼ぶ` | `/.well-known/x402.json`・`/llms.txt`と既存machine-readable product descriptionを使う。x402 Bazaarは公式説明でearly developmentの発見catalogであり、買い手を保証しない。買い手獲得経路とunique external walletsを記録し、self-pay/会社内送金/owner seedをしない。
+| LC61e | 未 / LC61d | `初回の外部paid requestと正味額をreadback` | 独立buyerのBase USDC on-chain settlement、payer別判定、対応HTTP 200の有料結果、PayAI credit/fee、Naïve computeと他の原価を一件で照合。外部settlementが無ければ収益未実証のままにする。
+| LC62 | 未 / LC58/61e | Naïve大会の実演・提出: LC61e成功後に2〜4分のライブdemoを行い、録画を補助資料として残す | 公式briefはライブdemoを求めるが、公開ページに動画事前提出要件はない。Agentの依頼から独立buyerの外部USDC受領・有料結果・実費までを一画面で見せ、外部payer/receiptと各費用を分けて提示する。独立した買い手からの決済が無い場合は「売上を作った」と主張しない。公式receipt/参加状態/実提出物を確認。1位なら公式brief記載のYC interview対象だが、YC採択や面接後結果は保証しない |
 
 #### Maritime大会・YCの事業証拠
 
 | ID | 状態・依存 | 対象と一つの作業 | 完了証拠 |
 |---|---|---|---|
-| LC63 | 未・並行可 / LC01/02 | `First 1,000の既存申請/公式条件`：project参加状態と期限/計測定義を確定 | submitted/accepted/eligibilityを区別。Maritime race等の別プログラムと混同しない |
-| LC64 | 未 / LC52/54/63 | `既存無料配信と同じ本番URL`：本番Cloudを実利用者へ届ける | 成功構成を自社素材で使い、参照URLとUTM/登録/利用の帰属を保存。広告費追加なし |
-| LC65 | 未 / LC46/64 | `本番project usage/公式analytics`：1,000 distinct real usersの証拠を揃える | 実人・実利用を重複排除。VM/Agent/Naïve demoを人数へ加算しない |
+| LC63 | 進行中（read-only監査） / LC01/02 | `First 1,000の参加資格・締切・credit適用`を公式記録で確定 | [公式terms](https://competition.maritime.sh/terms)は期間10/20–12/1 23:59 Pacific、Keiki/Maritime上で実利用するdistinct実在1,000人、確認済み先着3 projects。bot/重複/fake activityは禁止。参加者の$1,000 Maritime creditと勝者向け最大$20,000 LLM creditは現金収入でない。指定project formは11/5受付画面を記録済みだが、project-specific deadline 11/3後の提出であるため、主催者の受理/適格性/credit付与は未確認。送信済み問い合わせの公式返信を照合する |
+| LC64 | 未 / LC52/54/63 | `既存の無料配信経路から/lmへ実ユーザーを案内` | 公開[/lm](https://aniccaai.com/lm)のGoogle identity loginとactivation/Publisher confirmationを現状として明示。既存配信素材に参照URL/UTMを付け、実人1人のsignup→利用を重複なく測る。新しい配信製品は作らない |
+| LC65 | 未 / LC46/64 | `Maritime/Keiki project usageでdistinct real usersを計測` | 公開[open/data.json](https://aniccaai.com/open/data.json)の11/6 readbackはLife Manager Cloud revenue $0・Stripe paid subscriptions 0で、free-user countを提示していない。これは利用者0の証明ではない。official project usageで実人・実利用を重複排除し、Agent/VM/botを人数に含めない |
 | LC66 | 未 / LC63/65 | `Maritime主催者の公式判定`：大会成果を申告し審査結果を確認 | 受領/確認/awardを公式readback。creditは現金/SaaS売上ではない |
 
-**現在cursor:** LC04（sourceと本番配備の対応を公式readbackで棚卸し）→LC05（契約内の必要機能）→LC06（提供の適用範囲）。Naïve担当はLC58、Maritime大会参加の確認はLC63を独立して進められる。顧客課金はLC27以降、外部顧客の有料成果はLC54以降で未完。文書上のLC01–03のみ完了、実装・運用の63項目は未完。優勝・YC採択・外部SaaS売上・利用者の黒字は未達/未確認のまま。
+**順序変更・2026-11-07:** 旧cursorはLancers候補の確認→実案件run→demoだった。Daisが既存Lancersの選定・所有者承認済みと確認したためLC60を完了にし、これは納品/検収/入金完了とは区別する。Naïve大会の唯一の収益laneは既存x402 `/funding-rates` route。x402は決済規格でありmarketplaceではない。公式Apps docsによりNaïveはfullstack MCP Appをhostできるが、x402 seller Appはまだない。次はLC61bのwallet/facilitator適用可否を確認し、既存x402 handlerをNaïve Appまたは既存対応hostへ配置する方法を確定する。Maritime側LC63→LC64→LC65→LC66は独立レーンとして保持する。Maritime側のbrowser entitlementはHTTP 402 seat_limit/paid plan requiredで止まるため、既存scheduler branch fix/maritime-t0-wake-20261106のscheduler.js/testsには触れない。同じjobを二providerへ重複送信しない。今回のNaïve作業者はCodex一名。browser profileのowner/lease文字列を別の人間作業者とみなさない。
+
+**現在cursor:** Naïve LC61a（完了：現App inventoryは無関係の`media-manager`のみ。公式Apps docsでfullstack/MCP hosting可能と確認。Agent Computerはread-only filesystem session後に自動provisionされ、現在browser=null）→**LC61b（現在：Agent-owned Base受取walletの割当/残高とPayAI facilitator適用を確認）**→LC61c（既存`/funding-rates` handlerをNaïve fullstack MCP Appまたは既存対応hostへ配置し402 challenge確認）→LC61d（無料discovery面から独立buyerを獲得）→LC61e（外部USDC settlement・HTTP 200・全原価を照合）→LC62（2〜4分live demo）。実行担当はCodex一名。Capafyの今回のブラウザsessionは公開ページを読むだけで終了し、販売・着金は0。LC60はDaisによる既存Lancers利用の選定/承認のみ完了。案件5625250のescrow約$7.01は納品前で、入金済み収益ではない。Capafyは[Publisher certification](https://capafy.ai/developer/doc/1.3)に一回限り$0.99・本人確認資料・支払口座情報と審査日数が必要なため、このNo Human Credentials laneにはしない。
+
+LC58は公式briefとDaisの参加承認確認で完了、追加receipt照合なし。LC59は2026-11-06時点のNaïve org/key・Agent/config/budget/Computer readbackで完了。新たに確認した公式computer docsではComputerは外部から接続できないoutbound sandboxで、Computerのport expose APIは未提供/404。公式Apps docsはhosted frontendと任意のPostgres backendを示すが、一般Express/x402 server実行の契約は未確認。2026-11-07公式SDK readbackでComputer 0台、既存Appは無関係のactive fullstack `media-manager` 1個、seller App 0個を確認しLC61aを完了した。以前の直接HTTP 403はCloudflare edge拒否で、公式SDKのlist/readは成功。公式内蔵browserは既存`capafy` Agent sessionで公開ページを読み終えたが、session `computer_id=null`。browser session成功は永続Computer/hostingの証明ではない。Naïve-managed agent walletは公式SDK docs上Phase 5/未提供で501。credential SSOTにはagent-owned `browser-operator` Base receiving walletが登録されているが、今回のSeller Agentへの割当と残高0は未確認。CDP/Coinbase facilitator credential entryはcredential SSOTにない。既存`serve-v2.mjs`は`CDP_API_KEY_ID/SECRET`なしでBase mainnetを選ぶとpaid requestに503を返すため、CDP keyを仮定しない。PayAI公式docsとlive supported endpointはBase v2 exactをAPI keyなしで扱い、初回1000 credits（$1相当）を提供する。ただし既存serverはPayAI endpoint選択をまだ持たない。LC61bでwallet/facilitator適用可否を先に確認する。既存x402 routeは$0.003/callだが公開URL/独立buyer/new external settlementは未確認。2026-11-06 `/open/data.json`のx402 $0.005はpayer種別とnet profitが未照合。優勝・YC採択・外部SaaS売上・利用者の黒字は未達/未確認。
+
+**再利用する外部部品の境界:** x402は既存API/サービスにHTTP 402決済を付ける標準で、単独の販売市場ではない。公式[Seller quickstart](https://docs.x402.org/getting-started/quickstart-for-sellers)は既存API/サーバーと受取walletを前提にする。[Bazaar](https://docs.x402.org/extensions/bazaar)は公式説明でもearly developmentの発見catalogで、listing数を需要/売上に置き換えない。既存の`skills/earn/x402-sell/`を使い、同じsellerや台帳を新作しない。実外部payer・settlement・手数料・compute費のreadbackが揃うまで、売上/黒字/収益拡大を主張しない。
+
+**x402で暗号資産決済を受ける売り手（2026-11-07 00:17 JST取得）:** x402は商品市場ではなく、既存HTTP APIにwallet paymentとsettlementを付ける規格。公式[Seller quickstart](https://docs.x402.org/getting-started/quickstart-for-sellers)は既存serverと受取walletを前提にし、[Bazaar docs](https://docs.x402.org/extensions/bazaar)は発見catalogをearly developmentと説明する。wallet経由の個別x402 routeがあることと、会社全体が暗号資産以外を受け付けないことは別。
+
+| 売り手/サービス | 決済・用途と観測値 | 公開されている配布の仕組み / 限界 |
+|---|---|---|
+| [AX1 Console](https://www.ax1.vc/console) | Agent402の取得時7日Base表は$14,558.77/732,103 calls/4,791 wallets。[Paddockの11/5 snapshot](https://paddock.finance/leaderboard)は10/30–11/5で$13,894.87/697,772 tx/6,580 wallets。Token Verdict routeは$0.02 USDC、外部Agentはaccount/API key不要 | [machine-readable agents.md](https://console.ax1.vc/agents.md)、x402 Bazaar、AgentCash integration、shareable verdict page/card、partner campaignsとweekly contest。発見・再利用・共有を一つのAPI結果につなぐ具体例。2つの集計値は同じではないため独立会計ではない |
+| [dTelecom](https://x402.dtelecom.org/) | [official gateway docs](https://x402.dtelecom.org/docs.md)はUSDCでSTT/TTS/voice/WebRTCをpay-per-use提供し、No API key/No accountと説明。Paddock 10/30–11/5は$8,660.50/3,946 tx/175 wallets。Agent402の同時取得値は$1,297.50/1,042 calls/6 wallets | 公開price/API docs、npm/GitHubのx402-clientとagents-js、ai-tutor demoと導入例。配布は開発者SDK・ハンズオン・具体的な音声ユースケース。集計者間の差が大きいため単一数値を売上の確定値とみなさない |
+| [Laso Finance](https://docs.laso.finance/guides/agent-quick-start) | Paddock 10/30–11/5で$41,565.12/160 tx/83 wallets。エージェントAPIがUSDCでプリペイドカード/ギフトカード等を発行する金融サービスで、売上総額はサービス代金/カード価値の通過額を含み利益ではない | SKILL.md、OpenAPI、llms.txt、agent wallet integrationsで見つけやすくする。ただしofficial quickstartはmanaged walletに最低$5相当を送るよう案内するため、資金ゼロで稼ぐ売り手の先例ではない |
+| [Cluster Protocol](https://hub.clusterprotocol.ai/docs) | API inferenceをx402でUSDC決済。docsはx402 routeについてaccount/API key不要・request当たり$0.001–$0.02と記載。Paddock 10/30–11/5で$914.79/880 tx/503 wallets | 価格・API contractを公開し、通常のaccount/API key方式とwallet-per-callの両方を用意。payment routeの導入しやすさの例だが、同社全体がcrypto-onlyとは言えない |
+| [BlockRun](https://blockrun.ai/developers) | AI inferenceをcall前に価格表示しwalletでUSDC支払可能。ただし同額のcard/API-key経路もあるのでcrypto-only businessではない。Paddock 10/30–11/5は$349.28/23,425 tx/433 wallets | Python/TS/Go SDK、Claude Code/Cursor/OpenClaw/ChatGPT向けMCP、MITの[ClawRouter](https://github.com/BlockRunAI/ClawRouter)。学ぶ点はagent harnessへの統合、安い単価の明示、OSSを使った発見性 |
+
+この数値はsettled gross/transfer値で、手数料、原価、返金、収益認識、独立payerかどうかをすべて証明しない。Agent402は自社ページの外部売り手をrankし、price-match/chain-methodを公開する一方、PaddockはBaseとSolanaのnightly snapshotを使い、取引数・wallet数に差が出る。[What Agents Buyの8/4–8/20調査](https://whatagentsbuy.com/p/96-percent-of-payments-one-wallet)も6.39M支払の96.4%が単一wallet依存売り手に集中したと記録し、transaction countだけでは独立需要を測れない例を示す。取引量ランキングを利益ランキングに置き換えない。
+
+**Naïve大会で一つだけ選ぶ推奨（2026-11-07）:** 第一候補は既存sellerの[GET /funding-rates?symbol=BTC](https://github.com/Daisuke134/life-manager/blob/main/skills/earn/x402-sell/serve-v2.mjs)をx402/USDCで売る一route。価格は既存コード上$0.003、公開exchange API、60秒cache。PayAI公式Hono integrationの`@payai/facilitator` + `@x402/hono`を使い、Naïve fullstack AppのNode 22 root Fetch入口に一つのpaid GET routeとして載せる。Computer port公開やCDP資格情報は不要。PayAI docsはBase mainnet exact、portal/API key不要、初回1,000 free creditsを示す。Naïve computer/App hostingやnetwork feesは別費用として測る。公開HTTP 402はchallenge成立の証拠にすぎず、売上は独立buyerのUSDC settlementと有料HTTP 200を照合するまで0。月$10,000 grossには既存価格で月約333万件必要でusage revenueでありMRRではないため、初回demoの成功をそのまま$10K MRRと扱わない。BlockRunのcall前価格/MCP配布、AX1のshareable結果/agents.md、dTelecomの公式SDK/docsは配信参考例だが、取引量を利益とは扱わない。Capafyは一回限りの$0.99 Publisher certification、本人確認・支払情報・審査があるため除外。Lancersは既存人間credentialを使う案件なのでこのNo Human Credentials demoに混ぜない。
+
+**Naïve大会の選択とAgent構成（2026-11-06）:** 公式[大会要項](https://usenaive.ai/hackathon)の審査は「会社のどれだけが人なしで動くか」を見る2〜4分のライブデモ。大会向けは一つのAnicca organizationを使い、既存`CEO`をcoordinator、既存`contract`をspecialist候補にする。team roster/Computer bindingを公式readbackできた時だけ親子構成で動かし、未接続なら既存一Agent/sessionへ縮退し、新しいAgent/会社を増やさない。公式[Team仕様](https://usenaive.ai/docs/capabilities/team)ではcoordinatorが全体task/contextを持ち、memberは別sessionで渡されたcontextだけを扱い、委譲は一段まで。Computer/browser・identity/inbox・vaultはAgent config/sessionと別resourceなので、実在・割当・login stateをreadbackする。organization/API key scopeはresourceへ到達できる範囲、Agentの[allow/ask/deny policy](https://usenaive.ai/docs/concepts/policies)は各tool callを通すか止めるかを決める別層。既存readbackの`capafy` agentはbudget limitで停止し、`life-manager-capafy` Computerは`Ready`だがAgent接続がない。これはLancers専用Agent/Computerのbindingを証明しない。Computer/API keyを作っただけでは販売実行にならない。
+
+**勝ち筋の推奨（zero-start x402 sales）:** Naïve公式[Computer networking](https://usenaive.ai/docs/computer/networking)はComputer inbound port exposureを提供しないため、sellerをComputer上で公開しない。公式[Apps](https://usenaive.ai/docs/api/apps)は組織単位のhosted web appとfullstack server/MCP endpointを提供し、すでに別のroot Fetch AppがNaïve上で公開HTTP応答できた実績がある。PayAI公式[Hono integration](https://docs.payai.network/x402/servers/typescript/hono)がFetch handlerに合うため、既存Express sellerを長時間listenさせず、既存funding-rates計算を独立fullstack Appへ接続する。既存Capafy browser Appには決済機能を追加しない。Appに会社の受取専用Base addressを設定し、PayAI facilitatorがpayment verify/settle、外部buyerがUSDCを支払う。Computer/Agentとseller Appは別のresourceであり、Naïve native walletやAgent固有wallet bindingが無くても会社の受取先は使える。初期残高ゼロは公開RPCで記録先ETH/USDC=0まで確認済みだが、未決済challenge、外部buyer、settlement、正味利益は未確認。外部buyer・on-chain receipt・HTTP 200・provider/compute費用がそろうまでは売上を主張しない。
+
+**権限・成果優先のコスパ（2026-11-07）:** 成果に必要なNaïve Agentのtool policyは一括readbackするが、organization admin keyをAgent/Browserへ渡さない。Naïve keyとx402 facilitator credentialは別のもの。Base mainnet sellerはCDP secretが無い場合現在のコードでは503となるため、API key不要のPayAI公式integrationを使う案をLC61bで確認する。販売規約や人間認証を偽装/迂回しない。0 seller USDC、PayAI initial free credits、Naïve platform cost、決済feeを別々に記録する。直近の既存x402調査sessionは`budget_paused`で終了し、$0.75枠のうち$0.319857を消費、最終回答なし。イベントreadbackには禁止指示後の`board_read`が2回あった。内部boardと公開webのreadのみで、外部書き込み・signup・支払・公開は0。このrunは事業成果0の失敗として記録し、再開しない。
 
 **一次資料の取得証跡:** `docs/research/cloud-market-20261106/single-runtime-sources.json`。以前の市場比較API証跡は同directoryの`public-readbacks.json`に残すが、本商品の一般提供/顧客課金の成功証拠にはしない。現行の「二本番runtime」TODO/N01–N12/M01–M06はこの66項目へ置換し、並行した別の実行キューにしない。
