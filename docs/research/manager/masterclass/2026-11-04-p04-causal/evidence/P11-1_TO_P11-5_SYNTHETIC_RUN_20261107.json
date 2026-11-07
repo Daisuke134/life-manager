@@ -1,0 +1,116 @@
+{
+  "date": "2026-11-07",
+  "mode": "ENTIRELY_SYNTHETIC_STD_LIB_NO_NETWORK",
+  "test_command": "python3 -m unittest -v test_p11_1_5_research_labs",
+  "tests_run": 38,
+  "tests_passed": 38,
+  "failures": 0,
+  "errors": 0,
+  "results": {
+    "P11-1": {
+      "direct_method": 0.4346684999999404,
+      "doubly_robust": 0.43539105555555907,
+      "effective_sample_size": 18826.769139331205,
+      "ips": 0.4355088888888712,
+      "method": "SYNTHETIC_RANDOMIZED_BANDIT_NOT_HUMAN_EFFICACY",
+      "n": 20000,
+      "oracle_population_value": 0.43499999999999994,
+      "policy_deployed": false,
+      "snips": 0.4355466362639885,
+      "support_verified": true
+    },
+    "P11-2": {
+      "homophily_counterexample": {
+        "data_kind": "SYNTHETIC_HOMOPHILY_WITH_ZERO_CAUSAL_INFLUENCE",
+        "interpretation": "observed social correlation does not identify contagion",
+        "neighbor_association_accuracy": 1.0,
+        "structural_peer_effect": 0.0
+      },
+      "network": {
+        "data_kind": "SYNTHETIC_STRUCTURAL_EQUATION",
+        "expected_outcome_probability": {
+          "a": 0.5,
+          "b": 0.47,
+          "c": 0.42,
+          "d": 0.5
+        },
+        "not_a_real_spillover_estimate": true,
+        "treatment_fraction": 0.5
+      }
+    },
+    "P11-3": {
+      "parallel": {
+        "independent_two_agents_both_wrong_probability": 0.010000000000000002,
+        "kind": "SYNTHETIC_ARCHITECTURE_COST_MODEL",
+        "multi_duration_units": 74.0,
+        "multi_tokens": 1320,
+        "perfectly_correlated_two_agents_both_wrong_probability": 0.1,
+        "quality_of_real_agents_evaluated": false,
+        "single_duration_units": 120.0,
+        "single_task_success_probability": 0.9,
+        "single_tokens": 960
+      },
+      "sequential": {
+        "independent_two_agents_both_wrong_probability": 0.010000000000000002,
+        "kind": "SYNTHETIC_ARCHITECTURE_COST_MODEL",
+        "multi_duration_units": 122.00000000000001,
+        "multi_tokens": 1320,
+        "perfectly_correlated_two_agents_both_wrong_probability": 0.1,
+        "quality_of_real_agents_evaluated": false,
+        "single_duration_units": 120.0,
+        "single_task_success_probability": 0.9,
+        "single_tokens": 960
+      },
+      "warning": "agreement of correlated agents is not independent validation"
+    },
+    "P11-4": {
+      "data_kind": "SYNTHETIC_NEGATIVE_TRANSFER_DEMONSTRATION",
+      "model_weight_release": false,
+      "not_a_trained_BFM": true,
+      "pooled_test_logloss": {
+        "A": 0.6771405242739207,
+        "B": 0.7172814964791064
+      },
+      "pooled_weight": 0.05818179450107816,
+      "specific_test_logloss": {
+        "A": 0.3953399263329083,
+        "B": 0.43324321785890724
+      },
+      "task_specific_weights": {
+        "A": 2.228832024439747,
+        "B": -1.966175352466907
+      }
+    },
+    "P11-5": {
+      "backtest_multiple_search": {
+        "best_in_sample_mean": 0.5370225769087164,
+        "data_kind": "SYNTHETIC_NO_SKILL_STRATEGIES",
+        "future_net_mean_after_cost": -0.06645966074084433,
+        "real_market_test": false,
+        "recommendation": "Never infer tradable edge from selected backtest",
+        "same_selected_future_mean": -0.036459660740844335,
+        "searched_strategies": 150,
+        "transaction_cost_per_period": 0.03
+      },
+      "transport_example": {
+        "data_kind": "SYNTHETIC_TRANSPORTABILITY_IF_ASSUMPTIONS_HOLD",
+        "not_identified_without_transport_assumptions": true,
+        "standardized_ate": 0.14
+      }
+    },
+    "actual_autonomous_operations": "NOT_PERFORMED",
+    "actual_company_revenue": "NOT_MEASURED",
+    "actual_shared_BFM_training": "NOT_PERFORMED",
+    "actual_user_outcomes": "NOT_MEASURED",
+    "suite": "PHASE_11_FIVE_SYNTHETIC_LABS_NO_EXTERNAL_EFFECT"
+  },
+  "code": "docs/research/manager/masterclass/2026-11-04-p04-causal/experiments/p11_1_5_research_labs.py",
+  "not_proven": [
+    "real human causal intervention",
+    "trained shared BFM",
+    "licensed real-money trading",
+    "agent performance improvement",
+    "real social simulation",
+    "live user benefits"
+  ]
+}
