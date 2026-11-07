@@ -6,16 +6,16 @@
 
 **順序・TODO・状態の唯一の正本:** [統合SSOTの ANICCA-PRODUCT-GROWTH](2026-09-25-life-manager-unified-ssot.md#anicca-product-growth--ios初回改善から全アプリ継続改善まで)。この文書は詳細な要求・契約、[実装計画](../plans/2026-11-06-anicca-ios-product-growth.md)は実行手順。進捗を別台帳へ二重管理しない。
 
-現在の実行順は**G2残件→G4（Mixpanel一本化・全画面計測）→G4.1（Anicca計測を既存Openへ表示）→G5（同一候補buildの全画面Maestro動画を提示し、全受入条件の後にASC CLIで提出）**。ASC公式readbackでは1.9.8/build 818は既に`WAITING_FOR_REVIEW`だが、これはPR #9289のscreen funnelを含まない旧source候補であり、再提出可能な完成証拠ではない。画面別の離脱、Mixpanelの本番受信、Openへの集計、同一candidate E2Eが実証されるまで追加提出しない。G6/G7の全アプリ計測拡張とG8〜G10の自動改善/他アプリ展開は後続として保持する。
+G2（swipe戻り・通知本文/遷移・Free/Pro通知設定）は完了。現在の実行順は**G4（Mixpanel一本化・全画面計測の実受信確認）→G4.1（Anicca計測を既存Openへ表示）→G5（build 820の全体Maestro動画、TestFlight失敗と審査中buildの整理、全受入条件後にASC CLIで提出）**。ASC公式readbackでは1.9.8 submissionは`WAITING_FOR_REVIEW`、latest build 820は`VALID`。Xcode Cloud run #820はArchive成功だがTestFlight External TestingがAppleのbeta review submission failureで失敗した。画面別の実数はOpen側で`missing_service_account`。画面離脱、Mixpanel実受信、Open集計、build 820の全体E2E動画が未実証のため、追加提出はしない。build 820動画はG5のリリース受入条件であり、G2を未完へ戻すものではない。G6/G7の全アプリ計測拡張とG8〜G10の自動改善/他アプリ展開は後続として保持する。
 
 ## 出所と現在の観測
 
-コード正本は `Daisuke134/life-manager` の `apps/mobile/anicca-ios`。最新main=`2f89767877f6266b77d1734bacaec704976c1979`。OpenのHTML/静的公開物は`Daisuke134/anicca-products`が所有し、PR #905統合後のmain=`6aea3804295aea27addab0f3c81582fc56c16587`。build 818はsource `6cc7c4a777be017e2d1ed4c50c439e02c2375d2e`（PR #9282 merge SHA）で、PR #9289 candidate head `aaabdd019b9825f4a9a6e7ffcebc055d023bb619`は未統合。
+コード正本は `Daisuke134/life-manager` の `apps/mobile/anicca-ios`。current main=`d567f6b6d211c4a4d8f38ad1b8b98c6774088a2e`。PR #9289 merge SHA `1555a020ece274ee68bc2587d161f44f019e1ac4`はMixpanel一本化・18画面tracking、purchase dedupを含み、Xcode Cloud run #820/build 820のsource。PR #9305はIntel x86_64 Security Scan jobを削除してarm64のみへ絞り、14 checks PASSでmain統合済み。OpenのHTML/静的公開物は`Daisuke134/anicca-products`が所有し、PR #905統合後のmain=`6aea3804295aea27addab0f3c81582fc56c16587`。
 
 | 対象 | 観測した事実 | 未確認・注意 |
 |---|---|---|
-| Apple | App=`6755129214`、bundle=`ai.anicca.app.ios`。1.9.8/build 818=`VALID`、version=`WAITING_FOR_REVIEW`、submission `9fa35898-1eee-44ce-942b-630780d9133b`=`WAITING_FOR_REVIEW`、`inFlight=true`（ASC CLI公式readback 2026-11-07） | build 818はPR #9282 sourceでありPR #9289の変更は含まない。現在の審査中submissionを重複作成しない。後続候補の提出可否は現審査状態と新candidateを照合して判断する |
-| 計測 | build 818はMixpanelとPostHog両方へ送信し、`screen_viewed`はonboarding step/feed/saved/reminders/themes/settingsの一部に配線される。PR #9289 candidateではMixpanel Swift 7.1.0一本にし、PostHog経路を外して18 screen IDとScreenVisitLedgerを配線する。 | **選定はMixpanel一本**。PR #9289は未統合。build 818で一部eventを送るコードはあるが、実receipt・identity/property・重複0・next-screen離脱の本番確認は未完了。candidate sourceの静的testは実受信証拠ではない |
+| Apple | App=`6755129214`、bundle=`ai.anicca.app.ios`。ASC latest 1.9.8 build 820=`VALID`、App Store submission `9fa35898-1eee-44ce-942b-630780d9133b`=`WAITING_FOR_REVIEW`、`inFlight=true`（CLI readback 2026-11-07 22:15 JST） | Xcode Cloud run #820はArchive成功、TestFlight External Testing actionは`Beta app review submission failed (Please try again later.)`で失敗。build 820の同一build E2E動画は未作成。既存審査中submissionを重複作成しない |
+| 計測 | PR #9289のsource/build 820ではMixpanel Swift 7.1.0一本、PostHog経路を外し、18 screen IDとScreenVisitLedger、purchase dedupを実装。 | **選定はMixpanel一本**。コードはmainにあるが、production Mixpanelの実receipt・identity/property・重複0・screen-level funnelは未確認。build 818は旧sourceで両SDKと一部`screen_viewed`を含む |
 | Onboarding | 9つの列挙stepと別の2段paywallが存在 | コメントの「10/20-step」と実際の画面数を混同しない |
 | 課金 | 閉じると無料利用へ進めるsoft paywall。`variant: "b"` 呼び出し | フラグの存在だけでA/B稼働としない |
 | 価格 | 事前調査の米国公開IAP一覧は月$14.99・年$59.99・買切$59.99。週$6.99も登録 | 公開一覧・現行Offering・対象国・無料体験資格を別に照合。モック値を本番へ固定しない |
@@ -23,33 +23,33 @@
 | 通知 | APNs起動処理、通知本文/IDの遷移coordinator、cold-start保留処理と既存回帰が存在 | 1.9.6の公開履歴にも同文言修正あり。再現確認なく同じ修正を作り直さない |
 | 設定 | 現在の `ReminderSchedule.slots(isPro:)` はFree 09:00/14:00/20:00、Pro 08:00/12:30/17:30/21:30を表示し、端末タイムゾーンも表示する。APNs token登録ではtimezone/langを送る。`Daisuke134/anicca-products` の確認済み `origin/main` (`0f2cd20b`) のaffirmation senderも同じFree/Pro枠を定義し、remote APNsを単一送信元として記述する | ソース上の予定時刻は一致。稼働中deploymentのcommit/readback、実端末APNs、Free/Pro実配信、登録/送信receiptは未確認 |
 | 売上計測 | build 818の購入eventは`displayed_price`を`amount_source=store_product_quote_not_settled_revenue`として送る。transaction IDはローカルledgerで重複観測を抑止 | 表示価格は決済済み収益ではない。RevenueCat/Apple receipt・renewal・refund・proceedsの公式照合、restore結果event、service側重複0は未確認 |
-| Open | PR #904でMixpanel collector・screen table・validator、PR #905でmissing-credential fail-safeを実装してmainへ統合。#905のlocal 41/41とLanding CI 2/2がPASS。main deploy run `42361224893`もSUCCESS | 公開JSONの最新readbackは`updated_at=2026-11-07 21:07 JST`、`observed_at=2026-11-07T12:21:11.292Z`。`product_analytics.anicca_ios.status=unavailable`, `error_code=missing_service_account`、`screens=[]`, `breakdowns=[]`。画面別実数は未取得で0ではない。hydrated pageの実表示も未確認 |
+| Open | PR #904でMixpanel collector・screen table・validator、PR #905でmissing-credential fail-safeを実装してmainへ統合。#905のlocal 41/41とLanding CI 2/2がPASS。main deploy run `42361224893`もSUCCESS | 2026-11-07 22:15 JSTの公開JSON readbackではtop-level `updated_at=2026-11-07 21:37 JST`、Anicca `observed_at=2026-11-07T13:15:33.369Z`。`status=unavailable`, `error_code=missing_service_account`、`screens=[]`, `breakdowns=[]`。画面別実数はunknownで0ではない。`updated_at`と`observed_at`の時刻差は要確認 |
 | 継続処理 | Life Managerの`marketing-product-summary.js`はproduct-pack内のactivation/retention観測JSONを読む | G4.1 collectorはOpen ownerのanicca-products側に実装中。実データ取得・snapshot・公開deployを別々にreadbackする |
 
 公開feedの観測例: `https://aniccaai.com/open/data.json` の期間10/29〜11/04、Aniccaは新規3件、JP2/CO1、取得行はApp Store検索。download coverageは7日中4日。米国0・SNS0や「全期間3件」とは断定しない。取得期間と欠測を保持し、別collectorの「行無し→0」と不整合があれば集計境界を直す。
 
 2026-11-07 G4.1取得経路と認証preflightの過去確認（18:37 JST）: repository secret名`MIXPANEL_SERVICE_ACCOUNT`は存在（GitHub上の最終更新表示2026-05-24）し、main workflowも`${{ secrets.MIXPANEL_SERVICE_ACCOUNT }}`をcollector stepへ渡す。値はGitHubから再表示できないが、main run `42359464576`ではcollectorが有効値を受け取らず、Mixpanel Raw Event Export APIを呼ぶ前に停止した。値が空か、実行時に使えない理由まではreadbackできていない。repo vars `MIXPANEL_PROJECT_ID=3970220`、`MIXPANEL_SERVER=data`は設定済み。Mixpanel Export service accountはcredential SSOTに未登録。接続済みGoogle profileはowner-authorized Google credential rowと一致したが、それはGoogle account identityの確認だけでMixpanel project accessの証明ではない。registered browser registryにMixpanel routeはなく、`interactive:dais` CDPは到達不能・leaseなし。当時は開いているChromeがClaude認証フローと多数のタブを表示していたため、認証操作はしていない。既存Anicca projectへ登録済み専用routeでログインし、project/regionと既存Export service accountを確認する必要がある。Mixpanel公式Raw Event Export APIはBasic Authorizationを要求する（[公式API資料](https://developer.mixpanel.com/reference/raw-event-export)）。PR #904はmainへ統合済み。PR #905 (`713868cae19038e12590050919c5b17696905077`)はmissing credentialを`unavailable`/unknownとして扱うfail-safeを追加し、local 41/41・Landing CI 2/2 PASS後にmain commit `6aea3804295aea27addab0f3c81582fc56c16587`へ統合。main deploy run `42361224893`はSUCCESSし、公開feed `https://aniccaai.com/open/data.json`を`2026-11-07 18:37 JST`でreadback。Aniccaは`status=unavailable`, `error_code=missing_service_account`, 空screen/breakdownsであり、実Export API request/receiptはない。実データ受信、preview/liveの数値照合、hydrated dashboardの実表示確認までG4.1を完了扱いしない。
 
-### G4.1 取得・認証の最新実測（2026-11-07）
+### G4.1 取得・認証の実測
 
 Mixpanel公式GitHubの[`mixpanel-headless`](https://github.com/mixpanel/mixpanel-headless)を発見し、`uvx --from mixpanel-headless mp --version`で`0.4.0`を実行した。公式QuickstartはユーザーOAuth（PKCE）とservice accountの両方を案内する。初回`mp login --no-browser`はPTYなしで起動したためstdinが閉じ、`OAUTH_PASTE_ERROR: Empty paste`で終了。PTY付きで再起動した現在のCLIは`127.0.0.1:19284`でLISTENし、OAuth callbackを待受中。`mp session`はAccount/Project none、`mp inspect events --format json`は`No account configured`で、認証・数値取得は未完了。URL/PKCE stateはrepoへ保存しない。OAuth tokenが生成された場合はcredential SSOTへ直ちに保管し、CLI既定`~/.mp/accounts/{name}/tokens.json`の重複を除く。公式GitHub組織内で公式MCPは見つからず、現セッションに呼出可能なMixpanel MCP/connectorもない。
 
 GitHub Actions run [`42365669499`](https://github.com/Daisuke134/anicca-products/actions/runs/42365669499) の`Collect Anicca Mixpanel screen funnel` stepでは、`MIXPANEL_PROJECT_ID=3970220`、`MIXPANEL_SERVER=data`に対し`MIXPANEL_SERVICE_ACCOUNT`のruntime値が空で、ログは`unavailable (missing_service_account); no export request was made`と記録した。workflowは同secretをstep envへ渡す設定で、GitHub secret名自体は存在するが、secret値はproviderから再表示できない。よって確定した直接原因はcollectorへの空env、secret保存値が空になった理由は未確定。公開feedの最新readbackは`updated_at=2026-11-07 20:37 JST`、`observed_at=2026-11-07T11:46:20.291Z`、`unavailable/missing_service_account`、空screens/breakdowns。これは欠測であり、実測0ではない。
 
-登録済みGoogle identity route `interactive:dais`は現在`reachable=false`、UUID/holderなし。`/Users/anicca/.config/ai/bin/browser-guard.sh acquire interactive:dais`はexit 10 `CDP unreachable on 9222`。新しいPTY付き`mp login --no-browser`はOAuth callback `127.0.0.1:19284`をLISTENして待受中だが、最新`mp session`はAccount/Project none。OAuth URL/stateはrepoへ保存していない。Google Prompt/Gmail確認画面は見えておらず、メールも送信していないため、まだタップする時点ではない。認証URLは同じMacの登録済み`interactive:dais` routeで開き、Google Promptが実際に表示された時だけ承認する。ユーザーはMuseの認証済みVMがあると報告しているため、引継ぎ側はそのVMのproject `3970220`・region・event visibilityをlive readbackしてから進める。Mixpanel一本化を維持し、Export read-only receipt→Open集計/画面表示→同一candidate動画/ASC整合確認を終えるまで提出しない。
+**直近readback（2026-11-07 22:15 JST）:** `uvx --from mixpanel-headless mp session`はAccount/Project none。OAuth callback `127.0.0.1:19284`はLISTENしておらず、登録済みGoogle browser route `interactive:dais`は`reachable=false`。現Codex sessionはMixpanelへログインしておらずevent数値を取得していない。Open `https://aniccaai.com/open/data.json`ではtop-level `updated_at=2026-11-07 21:37 JST`、`product_analytics.anicca_ios`はsource `Mixpanel Raw Event Export API`、`observed_at=2026-11-07T13:15:33.369Z`、`status=unavailable`、`error_code=missing_service_account`、`screens=[]`、`breakdowns=[]`。`updated_at`と`observed_at`の時刻順も一致していないため、collectorの鮮度表示を実データ取得後に照合する。画面数値はunknownであり0ではない。Open collectorへ実効Export認証を渡し、Mixpanel実event receipt→Open集計/分母/期間/成熟窓/privacy/hydrated UIを照合する。
 
-### G5 現在のApp Store Connect readback（2026-11-07）
+### G5 現在のApp Store Connect readback（2026-11-07 22:15 JST）
 
-ASC CLIの`review doctor` readbackはversion `1.9.8`=`DEVELOPER_REJECTED`、build `818`=`VALID`、latest submission `a0d5a164-95fd-4f5b-9088-d3b56e753af2`=`COMPLETE`、`inFlight=false`。doctorはblocking 1（以前のreview itemがすべて削除されたsubmission）、warnings 15（legacy IAP metadata/pricing等を含む）を返した。G4/G4.1と同一candidate E2Eが未完了のため、新規submissionは作成しない。G5の前にdoctorの具体的な警告を候補版のIAP/metadata状態と照合する。
+ASC CLI公式readback: App `6755129214`のlatest 1.9.8 build 820（ID `7ea0e0e5-6b3d-4b9e-ba87-299736144571`）=`VALID`、App Store version 1.9.8=`WAITING_FOR_REVIEW`、submission `9fa35898-1eee-44ce-942b-630780d9133b`=`WAITING_FOR_REVIEW`、`inFlight=true`、blocking issues 0。Xcode Cloud run #820（source `1555a020ece274ee68bc2587d161f44f019e1ac4`）のArchive actionは成功しbuild 820がASCでVALIDになった。一方、TestFlight External Testing actionは`Beta app review submission failed (Please try again later.)`で失敗した。これはArchive/build validationの失敗ではない。App Store review submissionがどのbuildを参照しているかは、このreadback単体では断定しない。G4/G4.1とbuild 820の同一candidate E2E/videoが未完了なので別submissionは作成しない。
 
 ## 1.9.7 / 1.9.8 のAs-Is
 
 | 版 | build/source | 含まれる変更 | 現在の状態 |
 |---|---|---|---|
 | 1.9.7 | 816、source `9cc3d6e1bee952fa3f73659cc28c48529b1e2ca3`、PR #9272 | 初回目的選択→最初のaffirmation→任意通知→soft paywall、affirmation catalog/保存/like/推薦、swipe/通知遷移と一部画面/購入event | 旧提出は取り下げ済み。現行App Store version recordは1.9.8へ更新済み |
-| 1.9.8 | 818、source `6cc7c4a777be017e2d1ed4c50c439e02c2375d2e`、PR #9282 | 1.9.7の変更に、同じquote IDがpersonalized feedにもある場合に通知本文を表示文字列へ保持する修正を追加 | build=`VALID`。最新ASC statusはversion=`DEVELOPER_REJECTED`、submission `a0d5a164-95fd-4f5b-9088-d3b56e753af2`=`COMPLETE`、`inFlight=false`。新sourceの署名buildは未作成 |
+| 1.9.8 | build 818 source `6cc7c4a777be017e2d1ed4c50c439e02c2375d2e`（PR #9282）; build 820 source `1555a020ece274ee68bc2587d161f44f019e1ac4`（PR #9289） | build 818: notification text fix. build 820: prior changes plus Mixpanel-only 18-screen analytics and purchase dedup | ASC latest build 820=`VALID`; App Store submission `9fa35898-1eee-44ce-942b-630780d9133b` remains `WAITING_FOR_REVIEW`/`inFlight=true`. Xcode Cloud TestFlight External Testing failed; same-build E2E/video not done |
 
-どちらもscreen-level analyticsがMixpanel serviceで受信されたこと、全画面の離脱率、MixpanelからOpenへのfunnel、paid restoreのevent、build 818そのものの全画面動画を証明しない。現在は限定公開動画3本（うち1本は6-flow E2E）があり、すべてSimulator build 819の録画で署名candidateとのsource一致は未証明。
+build 820はscreen-level analyticsがMixpanelで受信されたこと、全画面の離脱率、MixpanelからOpenへのfunnel、paid restore event、同一buildのE2E動画をまだ証明しない。限定公開動画3本（うち1本は6-flow E2E）はSimulator build 819の録画であり、build 820とのsource/build一致は未証明。
 
 ## 勝ち筋の参照と採用範囲
 
@@ -75,7 +75,9 @@ soft paywallを初回版の基準にする。閉じる・無料継続・復元�
 
 Pro特典・free/proの通知上限は、実際に権限で分かれる動作を調べて文言へ反映する。mockにある「全カテゴリ」「テーマ」等は未確定の表示案であり、未実装特典の販売・独断のfree機能削除を許可しない。価格変更・hard paywall・trial変更はG8で別実験とする。
 
-## G2 — swipeと通知を確実にする
+## G2 — swipeと通知を確実にする（完了）
+
+**完了:** PR #9272のswipe戻り、通知本文/遷移、Free/Pro通知設定のsource修正とSimulator回帰・通知routing確認を完了した。実端末APNs試験はスコープ外。build 820の全画面E2E動画はG5の提出前検証として残るが、G2の実装完了を取り消す条件ではない。
 
 swipeはユーザー報告の約10回に1回の戻りを、連続上下・短/長/高速操作・逆方向・保存/テーマ更新・通知遷移の重なりで再現する。pagerの対話遷移とprogrammatic更新、index、catalog mutation、hosting stateを観測して根本原因を限定する。完了したswipeの後に古いindexへ戻らず、隣の全文を一度だけ表示する。短く戻す意図的gesture cancellationは不具合と数えない。
 
