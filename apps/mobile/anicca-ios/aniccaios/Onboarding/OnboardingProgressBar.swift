@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Progress bar for onboarding. Formula: 0.2 + 0.6 * (rawValue / (n-1)).
-/// Screen 1 (welcome) = 20%, last pre-paywall screen (notifications) = 80%. Paywall hides the bar.
+/// Progress follows the displayed journey, independent of persisted raw values.
 struct OnboardingProgressBar: View {
     let step: OnboardingStep
+    var journey: [OnboardingStep] = OnboardingStep.initialJourney
 
     var body: some View {
         GeometryReader { geometry in
@@ -15,7 +15,7 @@ struct OnboardingProgressBar: View {
                 Rectangle()
                     .fill(AppTheme.Colors.accent)
                     .frame(
-                        width: geometry.size.width * Self.progress(for: step),
+                        width: geometry.size.width * Self.progress(for: step, journey: journey),
                         height: 4
                     )
                     .animation(.easeInOut(duration: 0.4), value: step)
@@ -24,8 +24,8 @@ struct OnboardingProgressBar: View {
         .frame(height: 4)
     }
 
-    static func progress(for step: OnboardingStep) -> Double {
-        let index = OnboardingStep.initialJourney.firstIndex(of: step.resumableInitialStep) ?? 0
-        return Double(index + 1) / Double(OnboardingStep.initialJourney.count)
+    static func progress(for step: OnboardingStep, journey: [OnboardingStep] = OnboardingStep.initialJourney) -> Double {
+        let index = journey.firstIndex(of: step.resumableInitialStep) ?? 0
+        return Double(index + 1) / Double(max(journey.count, 1))
     }
 }

@@ -4,14 +4,14 @@ enum AppTheme {
     enum Colors {
         // MARK: - Adaptive Colors (Light/Dark Mode対応)
         
-        /// Global accent (monochrome, adapts to dark mode)
+        /// Shared deep-green accent for the affirmation experience.
         static var accent: Color {
-            Color(light: Color(hex: "#222222"), dark: Color(hex: "#e5e5e5"))
+            Color(light: Color(hex: "#305C45"), dark: Color(hex: "#396C52"))
         }
         
         /// Main background
         static var background: Color {
-            Color(light: Color(hex: "#f8f5ed"), dark: Color(hex: "#1c1b1a"))
+            Color(light: Color(hex: "#F1F1E8"), dark: Color(hex: "#1C241E"))
         }
         
         /// Background with opacity (for overlays)
@@ -37,7 +37,7 @@ enum AppTheme {
         
         /// Secondary label color
         static var secondaryLabel: Color {
-            Color(light: Color(hex: "#898783"), dark: Color(hex: "#a0a09e"))
+            Color(light: Color(hex: "#62695F"), dark: Color(hex: "#B8C3B3"))
         }
         
         /// Tertiary label color
@@ -47,7 +47,7 @@ enum AppTheme {
         
         /// Selected button background
         static var buttonSelected: Color {
-            Color(light: Color(hex: "#222222"), dark: Color(hex: "#e5e5e5"))
+            Color(light: Color(hex: "#305C45"), dark: Color(hex: "#396C52"))
         }
         
         /// Unselected button background
@@ -57,12 +57,12 @@ enum AppTheme {
         
         /// Selected button text
         static var buttonTextSelected: Color {
-            Color(light: Color(hex: "#e1e1e1"), dark: Color(hex: "#1c1b1a"))
+            Color.white
         }
         
         /// Unselected button text
         static var buttonTextUnselected: Color {
-            Color(light: Color(hex: "#898783"), dark: Color(hex: "#a0a09e"))
+            Color(light: Color(hex: "#62695F"), dark: Color(hex: "#B8C3B3"))
         }
         
         /// Border color
@@ -146,18 +146,18 @@ enum AppTheme {
         static let xl: CGFloat = 36
         static let xxl: CGFloat = 76
         
-        static let card: CGFloat = 37
+        static let card: CGFloat = 18
         static let cardLarge: CGFloat = 76
         static let cardXLarge: CGFloat = 87
     }
     
     enum Typography {
-        // オンボーディングの見出しを全画面で統一（1行収まる最大サイズ想定）
-        static let onboardingTitle: Font = .system(size: 36, weight: .heavy)
+        // Headings wrap and follow the same serif treatment at every step.
+        static let onboardingTitle: Font = .system(.largeTitle, design: .serif)
         
-        static let appTitleDynamic: Font = .largeTitle
-        static let title2Dynamic: Font = .title2
-        static let headlineDynamic: Font = .headline
+        static let appTitleDynamic: Font = .system(.largeTitle, design: .serif)
+        static let title2Dynamic: Font = .system(.title2, design: .serif)
+        static let headlineDynamic: Font = .system(.headline, design: .serif)
         static let bodyDynamic: Font = .body
         static let subheadlineDynamic: Font = .subheadline
         static let appTitle: Font = .system(size: 48, weight: .bold)

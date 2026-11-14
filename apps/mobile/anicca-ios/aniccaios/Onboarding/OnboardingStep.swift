@@ -11,6 +11,24 @@ enum OnboardingStep: Int, CaseIterable, Codable {
     case planReveal = 6
     case comparison = 7
     case notifications = 8
+    case name = 9
+    case birthContext = 10
+    case moodBaseline = 11
+    case beliefThemes = 12
+    case tone = 13
+    case lifeContext = 14
+    case routineAnchors = 15
+    case priorAttempts = 16
+    case startReason = 17
+    case quietHours = 18
+    case stressTrigger = 19
+    case anxietyTarget = 20
+    case selfCriticism = 21
+    case avoidanceTask = 22
+    case sleepReason = 23
+    case bedtime = 24
+    case wakeTime = 25
+    case priorHelpfulness = 26
 }
 
 enum PaywallStep: Int, CaseIterable, Codable {
@@ -19,12 +37,46 @@ enum PaywallStep: Int, CaseIterable, Codable {
 }
 
 extension OnboardingStep {
-    static let initialJourney: [OnboardingStep] = [.goal, .planReveal, .nudgeTimes, .notifications]
+    /// Introduce the product, then ask one question per screen before the
+    /// personalized preview, reminder schedule and optional permission.
+    static let initialJourney = journey(painPointIds: [])
+
+    static func deepDiveSteps(painPointIds: [String]) -> [OnboardingStep] {
+        let modules: [(String, [OnboardingStep])] = [
+            ("stress", [.stressTrigger]), ("anxiety", [.anxietyTarget]),
+            ("self_doubt", [.selfCriticism]), ("procrastination", [.avoidanceTask]),
+            ("sleep", [.sleepReason, .bedtime, .wakeTime])
+        ]
+        return modules.filter { painPointIds.contains($0.0) }.prefix(2).flatMap { $0.1 }
+    }
+
+    static func journey(painPointIds: [String], priorAttempts: [String] = []) -> [OnboardingStep] {
+        let experienceFollowUp: [OnboardingStep] = priorAttempts.contains(where: {
+            ["meditation", "journaling", "therapy", "books"].contains($0)
+        }) ? [.priorHelpfulness] : []
+        return [.welcome, .goal, .name, .birthContext, .moodBaseline, .painPoints]
+            + deepDiveSteps(painPointIds: painPointIds)
+            + [.struggleFreq, .beliefThemes, .tone, .lifeContext, .routineAnchors, .priorAttempts]
+            + experienceFollowUp
+            + [.startReason, .quietHours, .planReveal, .nudgeTimes, .notifications]
+    }
+
+    func resumableStep(painPointIds: [String], priorAttempts: [String] = []) -> OnboardingStep {
+        let step = resumableInitialStep
+        if Self.journey(painPointIds: painPointIds, priorAttempts: priorAttempts).contains(step) { return step }
+        return step == .priorHelpfulness ? .startReason : .struggleFreq
+    }
+
+    func nextStep(painPointIds: [String], priorAttempts: [String] = []) -> OnboardingStep? {
+        let journey = Self.journey(painPointIds: painPointIds, priorAttempts: priorAttempts)
+        let current = resumableStep(painPointIds: painPointIds, priorAttempts: priorAttempts)
+        guard let index = journey.firstIndex(of: current), index + 1 < journey.count else { return nil }
+        return journey[index + 1]
+    }
 
     var resumableInitialStep: OnboardingStep {
         switch self {
-        case .welcome: return .goal
-        case .painPoints, .struggleFreq, .processing, .comparison: return .planReveal
+        case .processing, .comparison: return .planReveal
         default: return self
         }
     }
@@ -80,6 +132,24 @@ extension OnboardingStep {
         switch self {
         case .welcome: return "welcome"
         case .goal: return "goal"
+        case .name: return "name"
+        case .birthContext: return "birth_context"
+        case .moodBaseline: return "mood_baseline"
+        case .beliefThemes: return "belief_themes"
+        case .tone: return "tone"
+        case .lifeContext: return "life_context"
+        case .routineAnchors: return "routine_anchors"
+        case .priorAttempts: return "prior_attempts"
+        case .startReason: return "start_reason"
+        case .quietHours: return "quiet_hours"
+        case .stressTrigger: return "stress_trigger"
+        case .anxietyTarget: return "anxiety_target"
+        case .selfCriticism: return "self_criticism"
+        case .avoidanceTask: return "avoidance_task"
+        case .sleepReason: return "sleep_reason"
+        case .bedtime: return "bedtime"
+        case .wakeTime: return "wake_time"
+        case .priorHelpfulness: return "prior_helpfulness"
         case .painPoints: return "pain_points"
         case .struggleFreq: return "struggle_freq"
         case .nudgeTimes: return "nudge_times"

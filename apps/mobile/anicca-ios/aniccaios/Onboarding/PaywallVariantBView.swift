@@ -2,8 +2,7 @@ import SwiftUI
 import RevenueCat
 import StoreKit
 
-/// Variant B paywall — CRO optimized design for RevenueCat Experiments A/B
-/// Uses the app-specific offering selected by SubscriptionManager.
+/// One primary offer, with alternative plans available in a separate sheet.
 struct PaywallVariantBView: View {
     let variant: String
     let onPurchaseSuccess: (CustomerInfo) -> Void
@@ -17,8 +16,10 @@ struct PaywallVariantBView: View {
     @State private var hasShownRetention = false
     @State private var didAcceptRetention = false
     @State private var showRetention = false
+    @State private var showOtherPlans = false
     @State private var showReloadAfterTimeout = false
     @State private var trackedOfferingLoadOutcomes: Set<String> = []
+    @State private var eligibility: [String: IntroEligibility] = [:]
 
     private var offering: Offering? { appState.cachedOffering }
     private var packages: [Package] {
@@ -31,108 +32,54 @@ struct PaywallVariantBView: View {
         }
         return available
     }
-    private var yearlyPackage: Package? { packages.first { $0.packageType == .annual } }
-    private var monthlyPackage: Package? { packages.first { $0.packageType == .monthly } }
-    private var lifetimePackage: Package? { packages.first { $0.packageType == .lifetime } }
 
-    private var savePct: Int? {
-        guard let yearly = yearlyPackage, let monthly = monthlyPackage else { return nil }
-        let yearlyPrice = (yearly.storeProduct.price as NSDecimalNumber).doubleValue
-        let monthlyPrice = (monthly.storeProduct.price as NSDecimalNumber).doubleValue
-        guard monthlyPrice > 0 else { return nil }
-        return Int((1.0 - yearlyPrice / (monthlyPrice * 12.0)) * 100)
-    }
-
-    private var dailyPrice: String? {
-        guard let yearly = yearlyPackage else { return nil }
-        let price = (yearly.storeProduct.price as NSDecimalNumber).doubleValue / 365.0
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale.current
-        formatter.currencyCode = yearly.storeProduct.currencyCode
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: price))
-    }
-
-    // 2026-06-23 に無料トライアルを全廃したが、2026-11-07 のハードペイウォール化で
-    // 年額トライアルを復活 (ASC 側で introductory offer を再設定)。
-    // 選択中パッケージに introductory offer が付いている場合のみトライアル文面を出す
-    // (PlanSelectionStepView と同じ判定方式)。
-    private var hasTrialEligibility: Bool {
-        selectedPackage?.storeProduct.introductoryDiscount != nil
-    }
-
-    /// 選択中パッケージの無料トライアルオファー (introductory offer のうち
-    /// paymentMode が free trial のものだけを対象にする)。
-    private var freeTrialDiscount: StoreProductDiscount? {
-        guard let discount = selectedPackage?.storeProduct.introductoryDiscount,
+    private func freeTrialDiscount(for package: Package?) -> StoreProductDiscount? {
+        guard let discount = package?.storeProduct.introductoryDiscount,
               discount.paymentMode == .freeTrial else { return nil }
         return discount
     }
 
-    /// トライアル終了日。Blinkist 型の「正直ペイウォール」のタイムライン表示用。
-    /// 期間は ASC の実オファー (subscriptionPeriod) から算出するので、トライアル
-    /// 日数が変わっても表示は実オファーに追随する (現在は年額3日)。
-    private var trialEndDate: Date? {
-        guard let period = freeTrialDiscount?.subscriptionPeriod else { return nil }
-        var components = DateComponents()
-        switch period.unit {
-        case .day: components.day = period.value
-        case .week: components.day = period.value * 7
-        case .month: components.month = period.value
-        case .year: components.year = period.value
-        @unknown default: return nil
-        }
-        return Calendar.current.date(byAdding: components, to: Calendar.current.startOfDay(for: Date()))
+    private var freeTrialDiscount: StoreProductDiscount? {
+        freeTrialDiscount(for: selectedPackage)
     }
 
-    /// 課金前リマインドの日付 (トライアル終了の2日前)。
-    private var trialReminderDate: Date? {
-        guard let end = trialEndDate else { return nil }
-        return Calendar.current.date(byAdding: .day, value: -2, to: end)
+    private func trialPresentation(for package: Package) -> PaywallTrialPresentation {
+        let isEligible: Bool?
+        switch eligibility[package.storeProduct.productIdentifier]?.status {
+        case .eligible: isEligible = true
+        case .ineligible, .noIntroOfferExists: isEligible = false
+        default: isEligible = nil
+        }
+        return PaywallTrialPresentation.resolve(
+            hasFreeTrial: freeTrialDiscount(for: package) != nil,
+            isEligible: isEligible
+        )
+    }
+
+    private var hasTrialEligibility: Bool {
+        selectedPackage.map { trialPresentation(for: $0) == .eligible } ?? false
+    }
+
+    private var trialEndDate: Date? {
+        guard hasTrialEligibility, let period = freeTrialDiscount?.subscriptionPeriod else { return nil }
+        return Calendar.current.date(byAdding: dateComponents(for: period), to: Date())
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            heroSection
-            featureList
-
-            if packages.isEmpty {
-                VStack(spacing: 16) {
-                    ProgressView()
-                    if showReloadAfterTimeout {
-                        Text(String(localized: "paywall_b_load_failed"))
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                        Button(String(localized: "paywall_b_retry")) {
-                            Task {
-                                let loaded = await refreshStorefrontEligibility()
-                                trackOfferingLoadResult(loaded)
-                            }
-                        }
-                        .font(.system(size: 16, weight: .semibold))
-                        Button(String(localized: "paywall_plan_restore")) { restorePurchases() }
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.top, 40)
-                .onAppear { scheduleReloadTimeout() }
-                Spacer()
-            } else {
-                planCards
-                ctaSection
-            }
+        ViewThatFits(in: .vertical) {
+            paywallContent.fixedSize(horizontal: false, vertical: true)
+            ScrollView { paywallContent }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppBackground())
         .onAppear {
             synchronizePackageSelection()
         }
-        // Observe instances: a refreshed offering can reuse package IDs and values.
         .onChange(of: packages.map { ObjectIdentifier($0) }) { _ in
             synchronizePackageSelection()
+        }
+        .task(id: packages.map { ObjectIdentifier($0) }) {
+            await refreshTrialEligibility()
         }
         .task {
             let storefrontUpdates = AsyncStream<Void> { continuation in
@@ -154,6 +101,9 @@ struct PaywallVariantBView: View {
                 trackOfferingLoadResult(updatedLoad)
             }
         }
+        .sheet(isPresented: $showOtherPlans) {
+            alternativePlans
+        }
         .sheet(isPresented: $showRetention, onDismiss: {
             if !didAcceptRetention {
                 AnalyticsManager.shared.trackScreenViewed(screenID: .paywall, flowID: flowID)
@@ -165,6 +115,323 @@ struct PaywallVariantBView: View {
                 onPurchaseSuccess(customerInfo)
             }
         }
+    }
+
+    private var paywallContent: some View {
+        VStack(spacing: 12) {
+            Text(String(localized: "paywall_b_title"))
+                .font(.system(.title2, design: .serif))
+                .foregroundStyle(AppTheme.Colors.label)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+
+            VStack(alignment: .leading, spacing: 6) {
+                featureRow(String(localized: "soft_paywall_free_benefit"))
+                featureRow(String(localized: "soft_paywall_premium_benefit"))
+            }
+
+            if packages.isEmpty {
+                loadingContent
+            } else if let package = selectedPackage {
+                offerCard(package: package, isSelected: true)
+                if packages.count > 1 {
+                    Button(String(localized: "paywall_other_plans")) { showOtherPlans = true }
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.Colors.accent)
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("paywall-other-plans")
+                        .disabled(isPurchasing)
+                }
+                if let end = trialEndDate {
+                    trialTimeline(end: end, package: package)
+                }
+                Text(disclosure(for: package))
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.Colors.label)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("paywall-billing-disclosure")
+                ctaSection
+            }
+            legalLinks
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 48)
+        .padding(.bottom, 16)
+    }
+
+    private var loadingContent: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            if showReloadAfterTimeout {
+                Text(String(localized: "paywall_b_load_failed"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(String(localized: "paywall_b_retry")) {
+                    Task {
+                        let loaded = await refreshStorefrontEligibility()
+                        trackOfferingLoadResult(loaded)
+                    }
+                }
+                .font(.headline)
+            }
+        }
+        .padding(.vertical, 24)
+        .onAppear { scheduleReloadTimeout() }
+    }
+
+    private var legalLinks: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                restoreButton
+                termsLinks
+            }
+            VStack(spacing: 4) {
+                restoreButton
+                termsLinks
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(AppTheme.Colors.accent)
+    }
+
+    private var restoreButton: some View {
+        Button(String(localized: "paywall_plan_restore")) { restorePurchases() }
+            .frame(minHeight: 44)
+            .disabled(isPurchasing)
+            .accessibilityIdentifier("paywall-restore")
+    }
+
+    private var termsLinks: some View {
+        HStack(spacing: 8) {
+            Link(String(localized: "paywall_plan_terms"), destination: AppConfig.termsURL)
+                .frame(minHeight: 44)
+            Text("·")
+            Link(String(localized: "paywall_plan_privacy"), destination: AppConfig.privacyURL)
+                .frame(minHeight: 44)
+        }
+    }
+
+    private var ctaSection: some View {
+        VStack(spacing: 8) {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button { purchase() } label: {
+                Group {
+                    if isPurchasing {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text(String(localized: selectedPackage?.packageType == .lifetime
+                            ? "paywall_cta_lifetime"
+                            : (hasTrialEligibility ? "paywall_b_cta_trial" : "paywall_plan_cta_subscribe")))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .padding(.vertical, 4)
+                .background(AppTheme.Colors.accent)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+            }
+            .disabled(selectedPackage == nil || isPurchasing)
+            .accessibilityIdentifier("paywall-plan-cta")
+        }
+    }
+
+    private var alternativePlans: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    Text(String(localized: "paywall_other_plans"))
+                        .font(.system(.title2, design: .serif))
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(packages, id: \.identifier) { package in
+                        Button {
+                            selectedPackage = package
+                            AnalyticsManager.shared.track(.productSelected, properties: [
+                                "product_id": package.storeProduct.productIdentifier,
+                                "offering_id": offering?.identifier ?? "unknown",
+                                "source": "paywall",
+                            ])
+                            showOtherPlans = false
+                        } label: {
+                            offerCard(package: package, isSelected: selectedPackage?.identifier == package.identifier)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("paywall-plan-\(package.packageType.rawValue)")
+                    }
+                }
+                .padding(24)
+            }
+            .background(AppBackground())
+            .foregroundStyle(AppTheme.Colors.label)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(String(localized: "common_close")) { showOtherPlans = false }
+                        .accessibilityIdentifier("paywall-other-plans-close")
+                }
+            }
+        }
+        .tint(AppTheme.Colors.accent)
+    }
+
+    private func offerCard(package: Package, isSelected: Bool) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(localizedPlanTitle(for: package))
+                    .font(.subheadline)
+                Text(billedAmount(for: package))
+                    .font(.system(.title2, design: .serif).weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("paywall-billed-amount")
+                if let equivalent = monthlyEquivalent(for: package) {
+                    Text(equivalent)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("paywall-monthly-equivalent")
+                }
+                if trialPresentation(for: package) == .eligible,
+                   let trial = freeTrialDiscount(for: package) {
+                    Text(String(format: NSLocalizedString("paywall_trial_duration", comment: ""), periodDescription(trial.subscriptionPeriod)))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(AppTheme.Colors.accent)
+                .accessibilityHidden(true)
+        }
+        .padding(16)
+        .foregroundStyle(AppTheme.Colors.label)
+        .selectionCard(isSelected: isSelected)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func featureRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(AppTheme.Colors.accent)
+            Text(text)
+                .foregroundStyle(AppTheme.Colors.label)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.footnote)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func trialTimeline(end: Date, package: Package) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            trialTimelineRow(date: Date(), detail: String(localized: "paywall_trial_starts_short"))
+            trialTimelineRow(date: end, detail: billedAmount(for: package))
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.Colors.cardBackground.opacity(0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .accessibilityIdentifier("paywall-trial-timeline")
+    }
+
+    private func trialTimelineRow(date: Date, detail: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(date, style: .date).fontWeight(.semibold)
+                Text(detail)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(date, style: .date).fontWeight(.semibold)
+                Text(detail)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(AppTheme.Colors.label)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func billedAmount(for package: Package) -> String {
+        if package.packageType == .lifetime {
+            return String(format: NSLocalizedString("paywall_billing_once", comment: ""), package.localizedPriceString)
+        }
+        guard let period = package.storeProduct.subscriptionPeriod else { return package.localizedPriceString }
+        return String(format: NSLocalizedString("paywall_billing_period", comment: ""), package.localizedPriceString, periodDescription(period))
+    }
+
+    private func disclosure(for package: Package) -> String {
+        guard package.packageType != .lifetime else {
+            return String(format: NSLocalizedString("paywall_lifetime_disclosure", comment: ""), package.localizedPriceString)
+        }
+        if let trial = freeTrialDiscount(for: package) {
+            switch trialPresentation(for: package) {
+            case .eligible:
+                return String(format: NSLocalizedString("paywall_trial_disclosure", comment: ""), periodDescription(trial.subscriptionPeriod), billedAmount(for: package))
+            case .conditional:
+                return String(format: NSLocalizedString("paywall_conditional_trial_disclosure", comment: ""), periodDescription(trial.subscriptionPeriod), billedAmount(for: package))
+            case .none:
+                break
+            }
+        }
+        return String(format: NSLocalizedString("paywall_subscription_disclosure", comment: ""), billedAmount(for: package))
+    }
+
+    private func monthlyEquivalent(for package: Package) -> String? {
+        guard package.packageType == .annual,
+              let period = package.storeProduct.subscriptionPeriod,
+              period.unit == .year, period.value > 0 else { return nil }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = Locale.current
+        formatter.currencyCode = package.storeProduct.currencyCode
+        let monthlyPrice = package.storeProduct.price / Decimal(period.value * 12)
+        guard let price = formatter.string(from: monthlyPrice as NSDecimalNumber) else { return nil }
+        return String(format: NSLocalizedString("paywall_monthly_equivalent", comment: ""), price)
+    }
+
+    private func periodDescription(_ period: RevenueCat.SubscriptionPeriod) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 1
+        return formatter.string(from: dateComponents(for: period)) ?? ""
+    }
+
+    private func dateComponents(for period: RevenueCat.SubscriptionPeriod) -> DateComponents {
+        var components = DateComponents()
+        switch period.unit {
+        case .day: components.day = period.value
+        case .week: components.weekOfMonth = period.value
+        case .month: components.month = period.value
+        case .year: components.year = period.value
+        @unknown default: break
+        }
+        return components
+    }
+
+    private func localizedPlanTitle(for package: Package) -> String {
+        switch package.packageType {
+        case .annual: return String(localized: "paywall_b_plan_yearly")
+        case .monthly: return String(localized: "paywall_b_plan_monthly")
+        case .weekly: return String(localized: "paywall_b_plan_weekly")
+        case .lifetime: return String(localized: "paywall_b_plan_lifetime")
+        default: return package.storeProduct.localizedTitle
+        }
+    }
+
+    @MainActor
+    private func refreshTrialEligibility() async {
+        eligibility = [:]
+        let productIDs = packages.map { $0.storeProduct.productIdentifier }
+        guard !productIDs.isEmpty else { return }
+        let result = await Purchases.shared.checkTrialOrIntroDiscountEligibility(productIdentifiers: productIDs)
+        guard !Task.isCancelled else { return }
+        eligibility = result
     }
 
     @MainActor
@@ -196,297 +463,6 @@ struct PaywallVariantBView: View {
         let result = loaded ? "loaded" : "unavailable"
         guard trackedOfferingLoadOutcomes.insert(result).inserted else { return }
         AnalyticsManager.shared.track(.onboardingPaywallOfferingLoadResult, properties: ["result": result])
-    }
-
-    // MARK: - Sections
-
-    private var heroSection: some View {
-        VStack(spacing: 8) {
-            Text(String(localized: "paywall_b_title"))
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(AppTheme.Colors.label)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .padding(.top, 32)
-
-            Text(String(localized: "paywall_b_subtitle"))
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-        }
-    }
-
-    private var featureList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            featureRow(String(localized: "soft_paywall_free_benefit"))
-            featureRow(String(localized: "soft_paywall_premium_benefit"))
-            featureRow(String(localized: "paywall_b_feature_cancel"))
-        }
-        .padding(.horizontal, 32)
-    }
-
-    private var planCards: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                // 並び順 2026-06-23 Dais: 月 → 年 → 買い切り
-                if let monthly = monthlyPackage {
-                    planCard(
-                        package: monthly,
-                        priceLabel: monthly.localizedPriceString + String(localized: "paywall_b_per_month"),
-                        badge: trialBadge(for: monthly),
-                        dailyPriceLabel: nil
-                    )
-                }
-
-                if let yearly = yearlyPackage {
-                    planCard(
-                        package: yearly,
-                        priceLabel: yearly.localizedPriceString + String(localized: "paywall_b_per_year"),
-                        badge: trialBadge(for: yearly) ?? String(localized: "paywall_plan_yearly_badge"),
-                        dailyPriceLabel: dailyPrice.map {
-                            String(format: NSLocalizedString("paywall_b_daily_price", comment: ""), $0)
-                        }
-                    )
-                }
-
-                if let lifetime = lifetimePackage {
-                    planCard(
-                        package: lifetime,
-                        priceLabel: lifetime.localizedPriceString + String(localized: "paywall_b_per_lifetime"),
-                        badge: String(localized: "paywall_b_lifetime_badge"),
-                        dailyPriceLabel: nil
-                    )
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-        }
-    }
-
-    private func trialBadge(for package: Package) -> String? {
-        guard package.packageType == .annual || package.packageType == .monthly else { return nil }
-        // そのパッケージ自身に introductory offer が付いている場合だけバッジを出す。
-        guard package.storeProduct.introductoryDiscount != nil else { return nil }
-        return String(localized: "paywall_b_trial_badge")
-    }
-
-    private var trustText: String {
-        guard hasTrialEligibility, let pkg = selectedPackage else {
-            return String(localized: "paywall_b_trust_no_trial")
-        }
-        return String(format: NSLocalizedString("paywall_b_trust_trial", comment: ""), pkg.localizedPriceString)
-    }
-
-    private var ctaSection: some View {
-        VStack(spacing: 10) {
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 24)
-            }
-
-            if let trialEndDate, let trialReminderDate {
-                trialTimeline(end: trialEndDate, reminder: trialReminderDate)
-            }
-
-            Button { purchase() } label: {
-                Group {
-                    if isPurchasing {
-                        ProgressView().tint(.white)
-                    } else {
-                        Text(String(localized: hasTrialEligibility ? "paywall_b_cta_trial" : "paywall_b_cta_no_trial"))
-                    }
-                }
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(selectedPackage != nil ? AppTheme.Colors.accent : AppTheme.Colors.accent.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 28))
-            }
-            .disabled(selectedPackage == nil || isPurchasing)
-            .accessibilityIdentifier("paywall-plan-cta")
-            .padding(.horizontal, 24)
-
-            Text(String(localized: "paywall_b_review"))
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
-                .italic()
-                .padding(.horizontal, 24)
-
-            Text(trustText)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-
-            HStack(spacing: 24) {
-                Button(String(localized: "paywall_plan_restore")) { restorePurchases() }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("paywall-restore")
-            }
-
-            HStack(spacing: 8) {
-                Link(String(localized: "paywall_plan_terms"), destination: AppConfig.termsURL)
-                Text("·").foregroundStyle(.secondary)
-                Link(String(localized: "paywall_plan_privacy"), destination: AppConfig.privacyURL)
-            }
-            .font(.system(size: 12))
-            .foregroundStyle(.secondary)
-        }
-        .padding(.bottom, 32)
-    }
-
-    // MARK: - Trial Timeline
-
-    /// 課金タイムライン (Blinkist の「正直ペイウォール」型): 今日トライアル開始 →
-    /// 終了2日前にリマインド → 終了日に課金開始、を実日付で可視化し、
-    /// 「課金前に必ず知らせる」を明記する。
-    @ViewBuilder
-    private func trialTimeline(end: Date, reminder: Date) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            trialTimelineRow(
-                date: Date(),
-                detail: String(localized: "paywall_trial_timeline_start")
-            )
-            trialTimelineRow(
-                date: reminder,
-                detail: String(localized: "paywall_trial_timeline_reminder")
-            )
-            trialTimelineRow(
-                date: end,
-                detail: String(format: NSLocalizedString("paywall_trial_timeline_charge", comment: ""), selectedPackage?.localizedPriceString ?? "")
-            )
-
-            HStack(spacing: 6) {
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.Colors.accent)
-                Text(String(localized: "paywall_trial_timeline_promise"))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(AppTheme.Colors.label)
-            }
-            .padding(.top, 2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(AppTheme.Colors.buttonUnselected)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 24)
-        .accessibilityIdentifier("paywall-trial-timeline")
-    }
-
-    @ViewBuilder
-    private func trialTimelineRow(date: Date, detail: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(formattedTrialDate(date))
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(AppTheme.Colors.accent)
-                .frame(width: 86, alignment: .leading)
-            Text(detail)
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.Colors.label)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func formattedTrialDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
-
-    // MARK: - Components
-
-    @ViewBuilder
-    private func featureRow(_ text: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(AppTheme.Colors.accent)
-                .frame(width: 24)
-            Text(text)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(AppTheme.Colors.label)
-        }
-    }
-
-    @ViewBuilder
-    private func planCard(
-        package: Package,
-        priceLabel: String,
-        badge: String?,
-        dailyPriceLabel: String?
-    ) -> some View {
-        let isSelected = selectedPackage?.identifier == package.identifier
-
-        Button {
-            selectedPackage = package
-            AnalyticsManager.shared.track(.productSelected, properties: [
-                "product_id": package.storeProduct.productIdentifier,
-                "offering_id": offering?.identifier ?? "unknown",
-                "source": "paywall",
-            ])
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(localizedPlanTitle(for: package))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppTheme.Colors.label)
-
-                        if let badge {
-                            Text(badge)
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(AppTheme.Colors.accent)
-                                .clipShape(Capsule())
-                        }
-                    }
-
-                    Text(priceLabel)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-
-                    if let dailyPriceLabel {
-                        Text(dailyPriceLabel)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(AppTheme.Colors.accent)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 24))
-                    .foregroundStyle(isSelected ? AppTheme.Colors.accent : .secondary)
-            }
-            .padding(16)
-            .background(isSelected ? AppTheme.Colors.accent.opacity(0.1) : AppTheme.Colors.buttonUnselected)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? AppTheme.Colors.accent : Color.clear, lineWidth: 2)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("paywall-plan-\(package.packageType.rawValue)")
-    }
-
-    private func localizedPlanTitle(for package: Package) -> String {
-        switch package.packageType {
-        case .annual: return String(localized: "paywall_b_plan_yearly")
-        case .monthly: return String(localized: "paywall_b_plan_monthly")
-        case .weekly: return String(localized: "paywall_b_plan_weekly")
-        case .lifetime: return String(localized: "paywall_b_plan_lifetime")
-        default: return package.storeProduct.localizedTitle
-        }
     }
 
     // MARK: - Actions

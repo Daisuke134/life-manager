@@ -75,6 +75,7 @@ struct Big5Scores: Codable, Equatable {
 
 struct UserProfile: Codable {
     var displayName: String
+    var personalization: PersonalizationProfile?
     
     // Demographics (onboarding)
     var acquisitionSource: String?
@@ -148,6 +149,7 @@ struct UserProfile: Codable {
         problemDetails: [String: [String]] = [:],
         customProblems: [CustomProblem] = []
     ) {
+        self.personalization = nil
         self.displayName = displayName
         self.acquisitionSource = acquisitionSource
         self.gender = gender
@@ -174,6 +176,7 @@ struct UserProfile: Codable {
     
     // 既存データとの互換性のためのカスタムデコーディング
     enum CodingKeys: String, CodingKey {
+        case personalization
         case displayName, preferredLanguage, sleepLocation, trainingFocus
         
         // Demographics (onboarding)
@@ -199,6 +202,7 @@ struct UserProfile: Codable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        personalization = try container.decodeIfPresent(PersonalizationProfile.self, forKey: .personalization)
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? ""
         
         // Demographics (onboarding)
@@ -252,6 +256,7 @@ struct UserProfile: Codable {
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(personalization, forKey: .personalization)
         try container.encode(displayName, forKey: .displayName)
         
         // Demographics (onboarding)

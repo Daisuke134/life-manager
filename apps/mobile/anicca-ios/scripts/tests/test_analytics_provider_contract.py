@@ -103,8 +103,14 @@ def main() -> int:
             raise AssertionError(f"Client-only price/transaction values must not be sent: {unsafe}")
 
     required_screens = {
-        "onboarding.welcome", "onboarding.goal", "onboarding.pain_points",
+        "onboarding.welcome", "onboarding.goal", "onboarding.name", "onboarding.pain_points",
         "onboarding.struggle_frequency", "onboarding.reminder_schedule",
+        "onboarding.birth_context", "onboarding.mood_baseline", "onboarding.belief_themes",
+        "onboarding.tone", "onboarding.life_context", "onboarding.routine_anchors",
+        "onboarding.prior_attempts", "onboarding.prior_helpfulness", "onboarding.start_reason",
+        "onboarding.quiet_hours", "onboarding.stress_trigger", "onboarding.anxiety_target",
+        "onboarding.self_criticism", "onboarding.avoidance_task", "onboarding.sleep_reason",
+        "onboarding.bedtime", "onboarding.wake_time",
         "onboarding.processing", "onboarding.first_affirmation",
         "onboarding.comparison", "onboarding.notifications", "paywall",
         "paywall.retention_offer", "feed", "feed.collections", "feed.saved",
@@ -118,11 +124,11 @@ def main() -> int:
     required_callers = {
         "onboarding": ("onboardingStepCompleted", "trackScreenViewed", "onboardingStepViewed"),
         "paywall": ("analyticsScreen(.paywall",),
-        "feed": ("analyticsScreen(.feed", "feedCollections", "trackScreenViewed"),
+        "feed": ("analyticsScreen(.feed", "affirmationViewed", "trackScreenViewed"),
         "permission": ("notificationPermissionRequested",),
         "push_registration": ("notificationRegistrationResult",),
         "active_paywall": ("trackPurchaseStarted", "trackRestoreStarted", "trackRestoreResult"),
-        "legacy_paywall": ("trackPurchaseStarted", "trackRestoreStarted", "trackRestoreResult"),
+        "legacy_paywall": ("PaywallVariantBView(", 'flowID: "legacy_paywall"', "onPurchaseSuccess: onPurchaseSuccess"),
         "retention_offer": ("trackPurchaseStarted", "trackPurchaseResult"),
     }
     missing_callers = {

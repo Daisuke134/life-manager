@@ -4,110 +4,74 @@
 import XCTest
 @testable import aniccaios
 
+@MainActor
 final class OnboardingV2Tests: XCTestCase {
 
-    // MARK: - OnboardingStep Raw Values (v2)
-
-    func test_welcome_rawValue_is0() {
+    func test_persistedStepRawValues_areStable() {
         XCTAssertEqual(OnboardingStep.welcome.rawValue, 0)
+        XCTAssertEqual(OnboardingStep.goal.rawValue, 1)
+        XCTAssertEqual(OnboardingStep.painPoints.rawValue, 2)
+        XCTAssertEqual(OnboardingStep.struggleFreq.rawValue, 3)
+        XCTAssertEqual(OnboardingStep.nudgeTimes.rawValue, 4)
+        XCTAssertEqual(OnboardingStep.processing.rawValue, 5)
+        XCTAssertEqual(OnboardingStep.planReveal.rawValue, 6)
+        XCTAssertEqual(OnboardingStep.comparison.rawValue, 7)
+        XCTAssertEqual(OnboardingStep.notifications.rawValue, 8)
+        XCTAssertEqual(OnboardingStep.name.rawValue, 9)
     }
 
-    func test_struggles_rawValue_is1() {
-        XCTAssertEqual(OnboardingStep.struggles.rawValue, 1)
+    func test_initialJourney_asksDeviceOnlyNameSeparatelyAfterGoal() {
+        XCTAssertEqual(OnboardingStep.initialJourney, [
+            .welcome, .goal, .name, .birthContext, .moodBaseline, .painPoints, .struggleFreq,
+            .beliefThemes, .tone, .lifeContext, .routineAnchors, .priorAttempts, .startReason, .quietHours,
+            .planReveal, .nudgeTimes, .notifications
+        ])
+        XCTAssertEqual(OnboardingStep.welcome.nextInitialStep, .goal)
+        XCTAssertEqual(OnboardingStep.goal.nextInitialStep, .name)
+        XCTAssertEqual(OnboardingStep.name.nextInitialStep, .birthContext)
+        XCTAssertEqual(OnboardingStep(rawValue: 9)?.resumableStep(painPointIds: []), .name)
+        XCTAssertEqual(AnalyticsScreenID.onboarding(.name).rawValue, "onboarding.name")
+        XCTAssertEqual(AnalyticsScreenID.onboarding(.birthContext).rawValue, "onboarding.birth_context")
+        XCTAssertNil(OnboardingStep.notifications.nextInitialStep)
     }
 
-    func test_struggleDepth_rawValue_is2() {
-        XCTAssertEqual(OnboardingStep.struggleDepth.rawValue, 2)
+    func test_resumingWelcome_keepsIntroduction() {
+        XCTAssertEqual(OnboardingStep.welcome.resumableInitialStep, .welcome)
     }
 
-    func test_goals_rawValue_is3() {
-        XCTAssertEqual(OnboardingStep.goals.rawValue, 3)
+    func test_retiredSteps_resumeAtPreview() {
+        XCTAssertEqual(OnboardingStep.processing.resumableInitialStep, .planReveal)
+        XCTAssertEqual(OnboardingStep.comparison.resumableInitialStep, .planReveal)
     }
 
-    func test_personalizedInsight_rawValue_is4() {
-        XCTAssertEqual(OnboardingStep.personalizedInsight.rawValue, 4)
+    func test_progressBar_followsJourneyOrderNotRawValues() {
+        for (index, step) in OnboardingStep.initialJourney.enumerated() {
+            XCTAssertEqual(OnboardingProgressBar.progress(for: step), Double(index + 1) / 17, accuracy: 0.001)
+        }
     }
 
-    func test_valueProp_rawValue_is5() {
-        XCTAssertEqual(OnboardingStep.valueProp.rawValue, 5)
+    func test_v7Migration_preservesQuestionStateAndSkipsRating() {
+        XCTAssertEqual(OnboardingStep.migratedFromV7RawValue(0), .welcome)
+        XCTAssertEqual(OnboardingStep.migratedFromV7RawValue(1), .goal)
+        XCTAssertEqual(OnboardingStep.migratedFromV7RawValue(8), .notifications)
+        XCTAssertEqual(OnboardingStep.migratedFromV7RawValue(9), .notifications)
+        XCTAssertNil(OnboardingStep.migratedFromV7RawValue(99))
     }
 
-    func test_liveDemo_rawValue_is6() {
-        XCTAssertEqual(OnboardingStep.liveDemo.rawValue, 6)
+    func test_v6Migration_retiredScreensResolveToReachableSteps() {
+        for rawValue in 0...18 {
+            let migrated = OnboardingStep.migratedFromV6RawValue(rawValue)
+            XCTAssertNotNil(migrated)
+            if let migrated {
+                XCTAssertTrue(OnboardingStep.initialJourney.contains(migrated.resumableInitialStep))
+            }
+        }
+        XCTAssertNil(OnboardingStep.migratedFromV6RawValue(99))
     }
 
-    func test_notifications_rawValue_is7() {
-        XCTAssertEqual(OnboardingStep.notifications.rawValue, 7)
-    }
-
-    func test_allCases_count_is8() {
-        XCTAssertEqual(OnboardingStep.allCases.count, 8)
-    }
-
-    // MARK: - PaywallStep Raw Values
-
-    func test_paywallPrimer_rawValue_is0() {
+    func test_paywallStepRawValues_areStable() {
         XCTAssertEqual(PaywallStep.primer.rawValue, 0)
-    }
-
-    func test_paywallTimeline_rawValue_is1() {
-        XCTAssertEqual(PaywallStep.timeline.rawValue, 1)
-    }
-
-    func test_paywallPlanSelection_rawValue_is2() {
-        XCTAssertEqual(PaywallStep.planSelection.rawValue, 2)
-    }
-
-    // MARK: - Progress Bar Calculation
-
-    func test_progressBar_welcome_starts_at_20_percent() {
-        let progress = OnboardingProgressBar.progress(for: .welcome)
-        XCTAssertEqual(progress, 0.2, accuracy: 0.001)
-    }
-
-    func test_progressBar_notifications_is_100_percent() {
-        let progress = OnboardingProgressBar.progress(for: .notifications)
-        XCTAssertEqual(progress, 1.0, accuracy: 0.001)
-    }
-
-    func test_progressBar_struggles_correct() {
-        // 0.2 + 0.8 * (1/7) = 0.2 + 0.1143 = 0.3143
-        let progress = OnboardingProgressBar.progress(for: .struggles)
-        let expected = 0.2 + 0.8 * (1.0 / 7.0)
-        XCTAssertEqual(progress, expected, accuracy: 0.001)
-    }
-
-    func test_progressBar_valueProp_correct() {
-        // 0.2 + 0.8 * (5/7)
-        let progress = OnboardingProgressBar.progress(for: .valueProp)
-        let expected = 0.2 + 0.8 * (5.0 / 7.0)
-        XCTAssertEqual(progress, expected, accuracy: 0.001)
-    }
-
-    // MARK: - v2 Migration (v1.6.1 rawValues → v2 rawValues)
-
-    func test_v2Migration_old0_welcome_maps_to_welcome() {
-        // Old rawValue 0 (welcome) → New 0 (welcome)
-        XCTAssertEqual(OnboardingStep.migratedFromV1RawValue(0), .welcome)
-    }
-
-    func test_v2Migration_old1_struggles_maps_to_struggles() {
-        // Old rawValue 1 (struggles) → New 1 (struggles)
-        XCTAssertEqual(OnboardingStep.migratedFromV1RawValue(1), .struggles)
-    }
-
-    func test_v2Migration_old2_liveDemo_maps_to_liveDemo() {
-        // Old rawValue 2 (liveDemo) → New 6 (liveDemo)
-        XCTAssertEqual(OnboardingStep.migratedFromV1RawValue(2), .liveDemo)
-    }
-
-    func test_v2Migration_old3_notifications_maps_to_notifications() {
-        // Old rawValue 3 (notifications) → New 7 (notifications)
-        XCTAssertEqual(OnboardingStep.migratedFromV1RawValue(3), .notifications)
-    }
-
-    func test_v2Migration_unknown_maps_to_welcome() {
-        XCTAssertEqual(OnboardingStep.migratedFromV1RawValue(99), .welcome)
+        XCTAssertEqual(PaywallStep.planSelection.rawValue, 1)
     }
 
     // MARK: - UserProfile goals and struggleFrequency
@@ -161,24 +125,9 @@ final class OnboardingV2Tests: XCTestCase {
         XCTAssertEqual(event.rawValue, "paywall_primer_viewed")
     }
 
-    func test_analytics_paywallTimelineViewed_exists() {
-        let event = AnalyticsEvent.paywallTimelineViewed
-        XCTAssertEqual(event.rawValue, "paywall_timeline_viewed")
-    }
-
     func test_analytics_paywallPlanSelectionViewed_exists() {
         let event = AnalyticsEvent.paywallPlanSelectionViewed
         XCTAssertEqual(event.rawValue, "paywall_plan_selection_viewed")
-    }
-
-    func test_analytics_paywallDrawerViewed_exists() {
-        let event = AnalyticsEvent.paywallDrawerViewed
-        XCTAssertEqual(event.rawValue, "paywall_drawer_viewed")
-    }
-
-    func test_analytics_paywallDrawerConverted_exists() {
-        let event = AnalyticsEvent.paywallDrawerConverted
-        XCTAssertEqual(event.rawValue, "paywall_drawer_converted")
     }
 
     // MARK: - PaywallGateVariant (2026-11-08 hard paywall A/B)

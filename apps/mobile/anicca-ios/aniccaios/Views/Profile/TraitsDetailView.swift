@@ -11,7 +11,7 @@ struct TraitsDetailView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text(t.title)
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(AppTheme.Typography.title2Dynamic)
                                     .foregroundStyle(AppTheme.Colors.label)
                                 Spacer()
                                 Text("\(t.score)/100")
@@ -33,7 +33,7 @@ struct TraitsDetailView: View {
                             Text(t.description)
                                 .font(AppTheme.Typography.subheadlineDynamic)
                                 .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -41,8 +41,7 @@ struct TraitsDetailView: View {
             .padding(.horizontal, AppTheme.Spacing.lg)
             .padding(.vertical, AppTheme.Spacing.md)
         }
-        .navigationTitle(String(localized: "traits_title"))
-        .navigationBarTitleDisplayMode(.inline)
+        .affirmationNavigationTitle(String(localized: "traits_title"))
         .background(AppBackground())
     }
 

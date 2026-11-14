@@ -140,9 +140,17 @@ class PaywallSelectionWiringTests(unittest.TestCase):
             "if let next = step.nextInitialStep", 1
         )[0]
         self.assertIn("completeFreeOnboarding()", resume)
-        self.assertIn("completeFreeOnboarding()", completion)
+        self.assertIn("showPaywall = true", completion)
+        paywall = onboarding.split(".fullScreenCover(isPresented: $showPaywall)", 1)[1].split(
+            ".fullScreenCover(isPresented: $showFirstIntervention)", 1
+        )[0]
+        self.assertIn("onDismiss:", paywall)
+        self.assertEqual(paywall.count("showFirstIntervention = true"), 2)
+        intervention = onboarding.split(".fullScreenCover(isPresented: $showFirstIntervention)", 1)[1].split(
+            "// MARK: - Onboarding Steps", 1
+        )[0]
+        self.assertIn("completeFreeOnboarding()", intervention)
         self.assertNotIn("refreshCustomerInfo()", onboarding)
-        self.assertNotIn("fullScreenCover", onboarding)
 
     def test_soft_paywall_does_not_emit_retired_hard_experiment_exposure(self):
         container = PAYWALL_CONTAINER.read_text(encoding="utf-8").split("struct PaywallFlowContainer", 1)[1]
@@ -211,10 +219,12 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         for source, call in (
             (self.source, "observePurchase(package: package, transaction: result.transaction, customerInfo: result.customerInfo, flowID: flowID)"),
             (retention, "observePurchase(package: pkg, transaction: result.transaction, customerInfo: result.customerInfo, flowID: flowID)"),
-            (legacy, 'observePurchase(package: package, transaction: result.transaction, customerInfo: result.customerInfo, flowID: "legacy_paywall")'),
         ):
             self.assertIn(call, source)
             self.assertNotIn("track(.onboardingPaywallPurchased)", source)
+        self.assertIn("PaywallVariantBView(", legacy)
+        self.assertIn('flowID: "legacy_paywall"', legacy)
+        self.assertNotIn("Purchases.shared.purchase", legacy)
 
     def test_experiment_exposure_wires_mixpanel_and_revenuecat_custom_impression(self):
         analytics = ANALYTICS.read_text(encoding="utf-8")
@@ -258,9 +268,28 @@ class PaywallSelectionWiringTests(unittest.TestCase):
         relaunch = flow.split("- stopApp", 1)[1]
         self.assertIn("text: Cancel", relaunch)
         self.assertIn("optional: true", relaunch)
-        self.assertLess(relaunch.index("text: Cancel"), relaunch.index("id: feed-scroll"))
-        self.assertIn("- swipe:", relaunch)
-        self.assertIn("maestro.copiedText !== output.relaunchedQuote", relaunch)
+        self.assertLess(relaunch.index("text: Cancel"), relaunch.index("id: feed-today"))
+        self.assertIn("maestro.copiedText === output.intervention", relaunch)
+        self.assertNotIn("maestro.copiedText !== output.relaunchedQuote", relaunch)
+
+    def test_trial_disclosures_never_fall_back_to_another_product(self):
+        self.assertNotIn("offerFreeTrialDiscount", self.source)
+        self.assertNotIn("displayedTrialDiscount", self.source)
+        self.assertIn("freeTrialDiscount(for: selectedPackage)", self.source)
+        self.assertIn("checkTrialOrIntroDiscountEligibility(productIdentifiers:", self.source)
+        self.assertIn("eligibility[package.storeProduct.productIdentifier]?.status", self.source)
+        self.assertIn("PaywallTrialPresentation.resolve(", self.source)
+
+    def test_primary_offer_and_alternatives_do_not_have_competing_scroll_regions(self):
+        self.assertIn('accessibilityIdentifier("paywall-other-plans")', self.source)
+        self.assertIn(".sheet(isPresented: $showOtherPlans)", self.source)
+        self.assertNotIn("private var planCards", self.source)
+        self.assertIn('accessibilityIdentifier("paywall-billed-amount")', self.source)
+        self.assertIn('accessibilityIdentifier("paywall-monthly-equivalent")', self.source)
+        self.assertNotIn("dailyPrice", self.source)
+        self.assertNotIn(".lineLimit(1)", self.source)
+        for key in ("paywall_plan_restore", "paywall_plan_terms", "paywall_plan_privacy"):
+            self.assertIn(key, self.source)
 
     def test_policy_returns_current_match_before_annual_monthly_defaults(self):
         # Structural contract only. Execute the companion Swift tests to verify

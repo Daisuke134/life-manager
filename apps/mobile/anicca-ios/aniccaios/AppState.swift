@@ -52,6 +52,7 @@ final class AppState: ObservableObject {
     
     /// アプリがフォアグラウンドに戻った時に呼び出し、Viewの再描画をトリガー
     func triggerDailyRefresh() {
+        refreshSyntheticUserIfNeeded()
         dailyRefreshTrigger = UUID()
     }
     
@@ -82,7 +83,17 @@ final class AppState: ObservableObject {
     private let onboardingQuestionsCompletedKey = "com.anicca.onboardingQuestionsCompleted"
     @Published private(set) var onboardingQuestionsCompleted: Bool = false
 
+    // Phase 1: onboarding answers as one profile (answer→change mapping).
+    private let personalizationProfileKey = "com.anicca.personalizationProfile"
+    var personalizationProfile: PersonalizationProfile {
+        userProfile.personalization ?? PersonalizationProfile()
+    }
+    private let syntheticUserStore = SyntheticUserStore()
+    @Published private(set) var syntheticUser: SyntheticUser
+
     private init() {
+        let modelStore = SyntheticUserStore()
+        self.syntheticUser = modelStore.load() ?? SyntheticUser(profile: PersonalizationProfile(), personId: modelStore.personId)
         self.isOnboardingComplete = defaults.bool(forKey: onboardingKey)
 
         // オンボーディング未完了時は welcome から開始、途中の場合は保存された step を復元
@@ -118,6 +129,8 @@ final class AppState: ObservableObject {
         self.monthlyNudgeCount = defaults.integer(forKey: monthlyNudgeCountKey)
         self.hasRequestedReview = defaults.bool(forKey: hasRequestedReviewKey)
         self.onboardingQuestionsCompleted = defaults.bool(forKey: onboardingQuestionsCompletedKey)
+        migratePersonalizationProfile()
+        refreshSyntheticUser()
 
         // 月初リセットチェック
         checkAndResetMonthlyNudgeCountIfNeeded()
@@ -165,6 +178,7 @@ final class AppState: ObservableObject {
     }
 
     func markOnboardingComplete() {
+        refreshSyntheticUser()
         guard !isOnboardingComplete else { return }
         isOnboardingComplete = true
         defaults.set(true, forKey: onboardingKey)
@@ -230,6 +244,7 @@ final class AppState: ObservableObject {
         isOnboardingComplete = false
         onboardingStep = .welcome
         userProfile = UserProfile()
+        clearSyntheticUser()
         subscriptionInfo = .free
         clearUserCredentials()
         defaults.removeObject(forKey: onboardingStepKey)
@@ -244,6 +259,7 @@ final class AppState: ObservableObject {
 
     /// 1.8.5 R3: 質問全 20 screen 完了時に呼ぶ。paywall 購入前に kill された場合、再起動で paywall 直接復帰を可能にする。
     func markOnboardingQuestionsCompleted() {
+        refreshSyntheticUser()
         onboardingQuestionsCompleted = true
         defaults.set(true, forKey: onboardingQuestionsCompletedKey)
     }
@@ -316,6 +332,7 @@ final class AppState: ObservableObject {
     func signOutPreservingSensorAccess() {
         authStatus = .signedOut
         userProfile = UserProfile()
+        clearSyntheticUser()
         subscriptionInfo = .free
         cachedOffering = nil
 
@@ -347,6 +364,7 @@ final class AppState: ObservableObject {
     func signOutAndWipe() {
         authStatus = .signedOut
         userProfile = UserProfile()
+        clearSyntheticUser()
         subscriptionInfo = .free
         cachedOffering = nil
 
@@ -394,6 +412,9 @@ final class AppState: ObservableObject {
         let previousProfile = userProfile
         userProfile = profile
         saveUserProfile()
+        if previousProfile.personalization != profile.personalization || previousProfile.goals != profile.goals || previousProfile.struggles != profile.struggles {
+            refreshSyntheticUser()
+        }
 
         // v1.8.7: struggles no longer drive notifications. Widget keeps using them
         // for back-compat; affirmation notifications are delivered remotely via APNs
@@ -412,7 +433,67 @@ final class AppState: ObservableObject {
     private func saveUserProfile() {
         if let data = try? JSONEncoder().encode(userProfile) {
             defaults.set(data, forKey: userProfileKey)
+            if userProfile.personalization != nil {
+                defaults.removeObject(forKey: personalizationProfileKey)
+            }
         }
+    }
+
+    // MARK: - Phase 1 Personalization Profile
+
+    /// Persist the onboarding-answer profile and sync the answer IDs plus
+    /// the user-chosen schedule (never the name — it is on-device only) so
+    /// the backend sender and later selection can act on the answers.
+    func updatePersonalizationProfile(_ profile: PersonalizationProfile) {
+        var updated = profile
+        updated.updatedAt = Date()
+        updated.timezoneIdentifier = TimeZone.current.identifier
+        updated.schemaVersion = 2
+        userProfile.personalization = updated
+        saveUserProfile()
+        refreshSyntheticUser()
+        Task {
+            await ProfileSyncService.shared.enqueue(profile: userProfile)
+        }
+    }
+
+    private func migratePersonalizationProfile() {
+        guard userProfile.personalization == nil,
+              let data = defaults.data(forKey: personalizationProfileKey),
+              let profile = try? JSONDecoder().decode(PersonalizationProfile.self, from: data) else { return }
+        userProfile.personalization = profile
+        saveUserProfile()
+    }
+
+    private func refreshSyntheticUser(now: Date = Date()) {
+        let history = DecisionPointStore.shared.syntheticInterventionHistory(personId: syntheticUserStore.personId)
+        let legacy = SyntheticUser.LegacySignals(
+            goals: userProfile.goals, problems: userProfile.problems,
+            likedIDs: defaults.stringArray(forKey: "anicca.liked.ids") ?? [],
+            recentIDs: defaults.stringArray(forKey: "anicca.feed.recent-quote-ids") ?? [])
+        syntheticUser = syntheticUserStore.refresh(profile: personalizationProfile, observedHistory: history, legacySignals: legacy, now: now)
+    }
+
+    func refreshSyntheticUserIfNeeded(now: Date = Date()) {
+        guard !Calendar.current.isDate(syntheticUser.updatedAt, inSameDayAs: now) else { return }
+        refreshSyntheticUser(now: now)
+    }
+
+    func recordSyntheticIntervention(messageId: String?, deliveryId: String, event: String, at: Date) {
+        syntheticUser.recordIntervention(messageId: messageId, deliveryId: deliveryId, event: event, at: at)
+        syntheticUserStore.save(syntheticUser)
+    }
+
+    private func clearSyntheticUser() {
+        syntheticUserStore.clear()
+        DailyAffirmationStore.shared.clear()
+        for key in ["anicca.liked.ids", "anicca.liked.quotes", "anicca.liked.themes", "anicca.feed.recent-quote-ids"] {
+            defaults.removeObject(forKey: key)
+        }
+        defaults.removeObject(forKey: personalizationProfileKey)
+        defaults.removeObject(forKey: onboardingQuestionsCompletedKey)
+        onboardingQuestionsCompleted = false
+        syntheticUser = syntheticUserStore.refresh(profile: PersonalizationProfile())
     }
     
     func profileSyncPayload(for profile: UserProfile) -> [String: Any] {
@@ -456,6 +537,10 @@ final class AppState: ObservableObject {
             if let s = big5.summary { obj["summary"] = s }
             payload["big5"] = obj
         }
+
+        // Phase 1 personalization: answer IDs and the user-chosen schedule.
+        // The preferred name is on-device only and is never synced.
+        payload["personalization"] = syntheticUser.deliveryPayload(timezoneIdentifier: TimeZone.current.identifier)
         return payload
     }
     

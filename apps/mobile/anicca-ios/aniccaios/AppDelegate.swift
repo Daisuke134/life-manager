@@ -60,6 +60,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Distinct open days for post-value App Store review prompts.
         Task { @MainActor in
             ReviewPromptCoordinator.shared.recordAppOpen()
+            DecisionPointRecorder.shared.recordAppOpened()
         }
         // Best-effort: recover APNs token registration if it was delayed on first run.
         Task { await registerForRemoteIfAuthorized() }
@@ -86,6 +87,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             "quote_id": content.userInfo["quoteId"] as? String ?? "unavailable",
             "app_state": "foreground",
         ])
+        // Phase 1 decision-point record: foreground receipt = delivered.
+        let deliveryId = content.userInfo["delivery_id"] as? String ?? content.userInfo["messageId"] as? String ?? notification.request.identifier
+        let messageId = content.userInfo["quoteId"] as? String
+        Task { @MainActor in
+            DecisionPointRecorder.shared.recordNotificationAssignment(userInfo: content.userInfo, deliveryId: deliveryId)
+            DecisionPointRecorder.shared.recordNotificationOutcome(
+                deliveryId: deliveryId,
+                messageId: messageId,
+                outcome: "delivered",
+                at: notification.date
+            )
+        }
         if #available(iOS 14.0, *) {
             completionHandler([.banner, .list, .sound])
         } else {
@@ -97,13 +110,29 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let content = response.notification.request.content
         let quoteID = content.userInfo["quoteId"] as? String
         let alertBody = content.body
+        let isDismiss = response.actionIdentifier == UNNotificationDismissActionIdentifier ||
+            response.actionIdentifier == NotificationScheduler.Action.dismissAll.rawValue
+        let deliveryId = content.userInfo["delivery_id"] as? String ?? content.userInfo["messageId"] as? String ?? response.notification.request.identifier
 
         Task { @MainActor in
-            AnalyticsManager.shared.track(.notificationOpened, properties: [
-                "quote_id": quoteID ?? "unavailable",
-                "notification_id": content.userInfo["messageId"] as? String ?? response.notification.request.identifier
-            ])
-            QuoteNavigationCoordinator.shared.request(quoteID: quoteID, alertBody: alertBody)
+            DecisionPointRecorder.shared.recordNotificationAssignment(userInfo: content.userInfo, deliveryId: deliveryId)
+            // The OS notification date is actual delivery evidence, including a
+            // background notification opened after relaunch.
+            DecisionPointRecorder.shared.recordNotificationOutcome(
+                deliveryId: deliveryId, messageId: quoteID, outcome: "delivered", at: response.notification.date
+            )
+            DecisionPointRecorder.shared.recordNotificationOutcome(
+                deliveryId: deliveryId,
+                messageId: quoteID,
+                outcome: isDismiss ? "skipped" : "opened"
+            )
+            if !isDismiss {
+                DecisionPointRecorder.shared.recordResponse(deliveryId: deliveryId, event: .appOpened)
+                AnalyticsManager.shared.track(.notificationOpened, properties: [
+                    "quote_id": quoteID ?? "unavailable", "notification_id": deliveryId
+                ])
+                QuoteNavigationCoordinator.shared.request(quoteID: quoteID, alertBody: alertBody, deliveryId: deliveryId)
+            }
             completionHandler()
         }
     }

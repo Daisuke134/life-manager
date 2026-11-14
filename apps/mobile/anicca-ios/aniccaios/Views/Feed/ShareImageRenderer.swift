@@ -9,6 +9,7 @@ enum ShareImageRenderer {
     static func render(quote: Quote, background: ThemeID, size: CGSize = CGSize(width: 1080, height: 1920)) -> UIImage {
         let view = ShareCardView(quote: quote, background: background)
             .frame(width: size.width, height: size.height)
+            .clipped()
         let renderer = ImageRenderer(content: view)
         renderer.scale = 1
         return renderer.uiImage ?? UIImage()
@@ -28,15 +29,18 @@ private struct ShareCardView: View {
             VStack {
                 Spacer()
                 Text(quote.text)
-                    .font(.system(size: 64, weight: .regular))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 64, weight: .regular, design: .serif))
+                    .foregroundStyle(background.foregroundColor)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 80)
-                    .shadow(color: .black.opacity(0.3), radius: 12, y: 2)
                 Spacer()
-                Text("aniccaai.com")
+                Text(verbatim: "aniccaai.com")
                     .font(.system(size: 24, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.Colors.accent, in: Capsule())
                     .padding(.bottom, 80)
             }
         }

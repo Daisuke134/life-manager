@@ -22,11 +22,12 @@ struct HabitWakeFollowUpView: View {
     
     var body: some View {
         List {
-            Section(String(localized: "habit_wake_location")) {
+            Section(header: Text(String(localized: "habit_wake_location")).font(AppTheme.Typography.headlineDynamic)) {
                 TextField(String(localized: "habit_wake_location_placeholder"), text: $wakeLocation)
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
             
-            Section(String(localized: "habit_wake_routines")) {
+            Section(header: Text(String(localized: "habit_wake_routines")).font(AppTheme.Typography.headlineDynamic)) {
                 ForEach(routines) { routine in
                     HStack {
                         // ドラッグハンドル（iOS標準の三本線アイコン）
@@ -64,10 +65,15 @@ struct HabitWakeFollowUpView: View {
                     }
                 }
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
         }
         .toolbar {
             EditButton() // onMove UIを有効化
         }
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
+        .foregroundStyle(AppTheme.Colors.label)
+        .tint(AppTheme.Colors.accent)
         .onAppear {
             wakeLocation = appState.userProfile.wakeLocation
             let savedRoutines = appState.userProfile.wakeRoutines

@@ -72,8 +72,7 @@ struct NudgeWidgetSmallView: View {
             Spacer()
 
             Text(entry.nudgeText)
-                .font(.system(size: 14, weight: .semibold))
-                .lineLimit(4)
+                .font(.system(size: 14, weight: .regular, design: .serif))
                 .minimumScaleFactor(0.8)
 
             Text("— Anicca")
@@ -94,8 +93,7 @@ struct NudgeWidgetMediumView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.nudgeText)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(3)
+                    .font(.system(size: 15, weight: .regular, design: .serif))
                     .minimumScaleFactor(0.8)
 
                 Text("— Anicca 🪷")
@@ -115,8 +113,7 @@ struct NudgeWidgetLockScreenView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(entry.nudgeText)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
+                .font(.system(size: 12, weight: .regular, design: .serif))
                 .minimumScaleFactor(0.8)
         }
     }
@@ -138,7 +135,7 @@ struct AniccaWidget: Widget {
         StaticConfiguration(kind: kind, provider: NudgeTimelineProvider()) { entry in
             if #available(iOS 17.0, *) {
                 NudgeWidgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
+                    .containerBackground(for: .widget) { WidgetAppearance.gradient }
             } else {
                 NudgeWidgetEntryView(entry: entry)
             }
@@ -157,12 +154,15 @@ struct NudgeWidgetEntryView: View {
         switch family {
         case .systemSmall:
             NudgeWidgetSmallView(entry: entry)
+                .foregroundStyle(WidgetAppearance.label)
         case .systemMedium:
             NudgeWidgetMediumView(entry: entry)
+                .foregroundStyle(WidgetAppearance.label)
         case .accessoryRectangular:
             NudgeWidgetLockScreenView(entry: entry)
         default:
             NudgeWidgetSmallView(entry: entry)
+                .foregroundStyle(WidgetAppearance.label)
         }
     }
 }

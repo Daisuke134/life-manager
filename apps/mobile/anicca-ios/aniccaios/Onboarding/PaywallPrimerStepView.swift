@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Phase 5: CONVERT — Step 1: "Try for free", no price shown.
 struct PaywallPrimerStepView: View {
     let next: () -> Void
     @State private var hasTracked = false
@@ -12,54 +11,36 @@ struct PaywallPrimerStepView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-
-            Text(String(localized: "paywall_primer_title"))
-                .font(.system(size: 32, weight: .bold))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(AppTheme.Colors.label)
-                .padding(.horizontal, 24)
-
-            Text(String(localized: "paywall_primer_subtitle"))
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(features, id: \.key) { feature in
-                    HStack(spacing: 12) {
-                        Image(systemName: feature.icon)
-                            .font(.system(size: 20))
-                            .foregroundStyle(AppTheme.Colors.accent)
-                            .frame(width: 28)
-
-                        Text(String(localized: String.LocalizationValue(feature.key)))
-                            .font(.system(size: 16, weight: .medium))
+        ScrollView {
+            VStack(spacing: 24) {
+                Text(String(localized: "paywall_primer_title"))
+                    .font(.system(.largeTitle, design: .serif))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(String(localized: "paywall_primer_subtitle"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(features, id: \.key) { feature in
+                        Label(String(localized: String.LocalizationValue(feature.key)), systemImage: feature.icon)
+                            .font(.body)
                             .foregroundStyle(AppTheme.Colors.label)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                .padding(20)
+                .background(AppTheme.Colors.cardBackground.opacity(0.8))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                PrimaryButton(title: String(localized: "common_continue"), action: next)
+                    .accessibilityIdentifier("paywall-primer-cta")
             }
-            .padding(.horizontal, 40)
-
-            Spacer()
-
-            Button {
-                next()
-            } label: {
-                Text(String(localized: "common_continue"))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(AppTheme.Colors.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-            }
-            .accessibilityIdentifier("paywall-primer-cta")
             .padding(.horizontal, 24)
-            .padding(.bottom, 64)
+            .padding(.vertical, 64)
         }
+        .foregroundStyle(AppTheme.Colors.label)
         .background(AppBackground())
         .onAppear {
             guard !hasTracked else { return }

@@ -1,0 +1,68 @@
+appId: ai.anicca.app.ios
+name: Remaining adaptive modules and absent unselected modules
+---
+- runFlow: _start-to-pain.yaml
+# Reverse the tap order to verify that stress is presented before self-doubt.
+- tapOn:
+    id: onboarding-struggle-self_doubt
+- tapOn:
+    id: onboarding-struggle-stress
+- tapOn:
+    id: onboarding-struggles-next
+- assertNotVisible:
+    id: onboarding-anxiety_target-title
+- assertNotVisible:
+    id: onboarding-sleep_reason-title
+- assertVisible:
+    id: onboarding-stress_trigger-title
+- tapOn:
+    id: onboarding-stress_trigger-work
+- takeScreenshot: ${EVIDENCE_DIR}/frames/02f-stress-trigger
+- tapOn:
+    id: onboarding-stress_trigger-continue
+- assertVisible:
+    id: onboarding-self_criticism-title
+- tapOn:
+    id: onboarding-self_criticism-work
+- takeScreenshot: ${EVIDENCE_DIR}/frames/02g-self-criticism
+- tapOn:
+    id: onboarding-self_criticism-continue
+- assertVisible:
+    id: onboarding-depth-daily
+- assertNotVisible:
+    id: onboarding-avoidance_task-title
+- assertNotVisible:
+    id: onboarding-anxiety_target-title
+- assertNotVisible:
+    id: onboarding-sleep_reason-title
+# A new profile is needed to prove that procrastination alone has one module.
+- runFlow: _start-to-pain.yaml
+- tapOn:
+    id: onboarding-struggle-procrastination
+- tapOn:
+    id: onboarding-struggles-next
+- assertNotVisible:
+    id: onboarding-stress_trigger-title
+- assertNotVisible:
+    id: onboarding-self_criticism-title
+- assertNotVisible:
+    id: onboarding-anxiety_target-title
+- assertNotVisible:
+    id: onboarding-sleep_reason-title
+- assertVisible:
+    id: onboarding-avoidance_task-title
+- tapOn:
+    id: onboarding-avoidance_task-messages
+- takeScreenshot: ${EVIDENCE_DIR}/frames/02h-avoidance-task
+- tapOn:
+    id: onboarding-avoidance_task-continue
+- assertVisible:
+    id: onboarding-depth-daily
+- assertNotVisible:
+    id: onboarding-stress_trigger-title
+- assertNotVisible:
+    id: onboarding-self_criticism-title
+- assertNotVisible:
+    id: onboarding-anxiety_target-title
+- assertNotVisible:
+    id: onboarding-sleep_reason-title

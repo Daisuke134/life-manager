@@ -22,7 +22,22 @@ final class NotificationScheduler {
     private let center = UNUserNotificationCenter.current()
     private let logger = Logger(subsystem: "com.anicca.ios", category: "NotificationScheduler")
 
+    private(set) var observedAuthorizationStatus = "unknown"
+    private(set) var authorizationObservedAt: Date?
+
     private init() {}
+
+    private func observeAuthorization(_ settings: UNNotificationSettings) {
+        switch settings.authorizationStatus {
+        case .notDetermined: observedAuthorizationStatus = "not_determined"
+        case .denied: observedAuthorizationStatus = "denied"
+        case .authorized: observedAuthorizationStatus = "authorized"
+        case .provisional: observedAuthorizationStatus = "provisional"
+        case .ephemeral: observedAuthorizationStatus = "ephemeral"
+        @unknown default: observedAuthorizationStatus = "unknown"
+        }
+        authorizationObservedAt = Date()
+    }
 
     // MARK: - Localization Helper
 
@@ -45,6 +60,7 @@ final class NotificationScheduler {
                 options.insert(.timeSensitive)
             }
             let notificationsGranted = try await center.requestAuthorization(options: options)
+            observeAuthorization(await center.notificationSettings())
             return notificationsGranted
         } catch {
             logger.error("Notification authorization error: \(error.localizedDescription, privacy: .public)")
@@ -55,6 +71,7 @@ final class NotificationScheduler {
     @discardableResult
     func requestAuthorizationIfNeeded() async -> Bool {
         let settings = await center.notificationSettings()
+        observeAuthorization(settings)
         switch settings.authorizationStatus {
         case .notDetermined:
             return await requestAuthorization()
@@ -67,6 +84,7 @@ final class NotificationScheduler {
 
     func isAuthorizedForAlerts() async -> Bool {
         let settings = await center.notificationSettings()
+        observeAuthorization(settings)
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
             return true

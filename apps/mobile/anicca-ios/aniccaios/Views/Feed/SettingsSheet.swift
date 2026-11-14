@@ -6,16 +6,12 @@ import Combine
 import RevenueCat
 import RevenueCatUI
 
-/// ↓ pull-down sheet from FeedRootView.
-/// 1mm clone of i.am app settings (modal sheet with categories: Theme / Notifications / Saved / Liked / Subscription / Account / Sign out).
+/// Home settings share the onboarding palette and typography.
 struct SettingsSheet: View {
     @EnvironmentObject var themeStore: ThemeStore
     @EnvironmentObject var likedStore: LikedQuotesStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showThemePicker = false
-    @State private var showSavedQuotes = false
-    @State private var showLikedQuotes = false
     @State private var showSignOutConfirmation = false
     @State private var showPurchasePlans = false
 
@@ -56,6 +52,7 @@ struct SettingsSheet: View {
                     }
                 }
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
 
             Section {
                 Button {
@@ -74,6 +71,7 @@ struct SettingsSheet: View {
                     Label(String(localized: "settings_subscription"), systemImage: "creditcard")
                 }
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
 
             Section {
                 Button(role: .destructive) {
@@ -82,13 +80,17 @@ struct SettingsSheet: View {
                     Label(String(localized: "settings_sign_out"), systemImage: "rectangle.portrait.and.arrow.right")
                 }
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(String(localized: "settings_title"))
-        .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
+        .foregroundStyle(AppTheme.Colors.label)
+        .affirmationNavigationTitle(String(localized: "settings_title"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(String(localized: "common_done")) { dismiss() }
+                    .accessibilityIdentifier("settings-done")
             }
         }
         .fullScreenCover(isPresented: $showPurchasePlans) {
@@ -127,11 +129,14 @@ struct ThemePickerView: View {
     @State private var showThemePaywall = false
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    private var orderedThemes: [ThemeID] {
+        [themeStore.selected] + ThemeID.allCases.filter { $0 != themeStore.selected }
+    }
 
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(ThemeID.allCases) { theme in
+                ForEach(orderedThemes) { theme in
                     Button {
                         if theme.isAvailable(isEntitled: appState.subscriptionInfo.isEntitled) {
                             themeStore.select(theme)
@@ -142,39 +147,52 @@ struct ThemePickerView: View {
                         }
                     } label: {
                         ZStack(alignment: .bottomLeading) {
-                            theme.image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(height: 240)
+                            Color.clear.frame(height: 220)
+                                .overlay { theme.image.resizable().scaledToFill() }
                                 .clipped()
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                            HStack {
-                                Text(theme.displayName)
-                                    .font(.footnote)
-                                    .foregroundStyle(.white)
-                                    .padding(8)
+                            LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Spacer()
+                                    if themeStore.selected == theme {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.title2)
+                                            .foregroundStyle(.white)
+                                            .padding(4)
+                                            .background(AppTheme.Colors.accent, in: Circle())
+                                            .accessibilityLabel(String(localized: "growth_theme_selected"))
+                                            .accessibilityIdentifier("theme-selected-\(theme.rawValue)")
+                                    }
+                                }
                                 Spacer()
+                                Text(theme.displayName)
+                                    .font(.system(.headline, design: .serif))
+                                    .fixedSize(horizontal: false, vertical: true)
                                 if !theme.isAvailable(isEntitled: appState.subscriptionInfo.isEntitled) {
-                                    Label("Premium", systemImage: "lock.fill")
-                                        .font(.caption).foregroundStyle(.white).padding(8)
-                                } else if themeStore.selected == theme {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.white)
-                                        .padding(8)
+                                    Label(String(localized: "growth_theme_premium"), systemImage: "lock.fill")
+                                        .font(.caption)
                                 }
                             }
-                            .background(LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .top, endPoint: .bottom))
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .foregroundStyle(.white)
+                            .padding(12)
                         }
-                        .accessibilityIdentifier("theme-\(theme.rawValue)")
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(themeStore.selected == theme ? AppTheme.Colors.accent : .clear, lineWidth: 2)
+                        }
                     }
+                    .accessibilityIdentifier("theme-\(theme.rawValue)")
+                    .accessibilityLabel(theme.displayName)
+                    .accessibilityAddTraits(themeStore.selected == theme ? .isSelected : [])
+                    .accessibilityElement(children: .contain)
                     .buttonStyle(.plain)
                 }
             }
             .padding(16)
         }
-        .navigationTitle(String(localized: "settings_theme"))
-        .navigationBarTitleDisplayMode(.inline)
+        .background(AppBackground())
+        .affirmationNavigationTitle(String(localized: "settings_theme"))
         .fullScreenCover(isPresented: $showThemePaywall) {
             PaywallFlowContainer(
                 onPurchaseSuccess: { customerInfo in
@@ -201,12 +219,12 @@ struct ThemePickerView: View {
     }
 }
 
-/// Liked quotes grid. Tap = (future) jump back to feed at that quote.
+/// Each saved affirmation keeps the background it had when it was liked.
 struct LikedQuotesView: View {
     @EnvironmentObject var likedStore: LikedQuotesStore
 
     var likedQuotes: [Quote] {
-        likedStore.savedQuotes(in: QuoteProvider.shared.all())
+        likedStore.savedQuotes(in: QuoteProvider.shared.all(preferredLanguage: AppState.shared.effectiveLanguage))
     }
 
     var body: some View {
@@ -217,7 +235,7 @@ struct LikedQuotesView: View {
                         .font(.system(size: 44))
                         .foregroundStyle(.secondary)
                     Text(String(localized: "liked_empty_title"))
-                        .font(.headline)
+                        .font(.system(.title2, design: .serif))
                     Text(String(localized: "liked_empty_subtitle"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -226,20 +244,39 @@ struct LikedQuotesView: View {
                 .padding(40)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List {
-                    ForEach(likedQuotes) { q in
-                        Text(q.text)
-                            .padding(.vertical, 8)
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(likedQuotes) { quote in
+                            let theme = ThemeID(rawValue: likedStore.themeID(for: quote.id)) ?? .sageMist
+                            Text(quote.text)
+                                .font(.system(.title2, design: .serif))
+                                .foregroundStyle(theme.foregroundColor)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(24)
+                                .frame(maxWidth: .infinity, minHeight: 220)
+                                .background {
+                                    GeometryReader { geo in
+                                        theme.image.resizable().scaledToFill()
+                                            .frame(width: geo.size.width, height: geo.size.height)
+                                            .clipped()
+                                    }
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .accessibilityIdentifier("liked-quote-\(quote.id)")
+                        }
                     }
+                    .padding(24)
                 }
             }
         }
-        .navigationTitle(String(localized: "settings_liked_quotes"))
-        .navigationBarTitleDisplayMode(.inline)
+        .background(AppBackground())
+        .foregroundStyle(AppTheme.Colors.label)
+        .affirmationNavigationTitle(String(localized: "settings_liked_quotes"))
     }
 }
 
-/// Shows the actual server schedule and OS permission separately.
+/// Shows the saved delivery configuration and OS permission separately.
 struct NotificationsSettingsView: View {
     @ObservedObject private var appState = AppState.shared
     @Environment(\.openURL) private var openURL
@@ -248,7 +285,13 @@ struct NotificationsSettingsView: View {
     @State private var isUpdatingPermission = false
     private let permissionLogger = Logger(subsystem: "com.anicca.ios", category: "NotificationSettings")
 
-    private var slots: [String] { ReminderSchedule.slots(isPro: appState.subscriptionInfo.isEntitled) }
+    private var slots: [String] {
+        let user = appState.syntheticUser
+        if user.hasAdaptiveAnswers || !(user.receptivityWindows["reminder_slots"] ?? []).isEmpty {
+            return PersonalizationRules.effectiveSlots(user: user).map { $0.label }
+        }
+        return ReminderSchedule.slots(isPro: appState.subscriptionInfo.isEntitled)
+    }
 
     var body: some View {
         Form {
@@ -260,10 +303,10 @@ struct NotificationsSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(slots, id: \.self) { time in Text(time).monospacedDigit() }
-                Text(TimeZone.current.identifier).font(.footnote).foregroundStyle(.secondary)
+
                 Text(String(localized: notificationsAllowed ? "growth_notifications_on" : "growth_notifications_off"))
                     .accessibilityIdentifier("reminder-permission-status")
-                Button(String(localized: "growth_notification_settings")) {
+                PrimaryButton(title: String(localized: "growth_notification_settings"), isEnabled: !isUpdatingPermission) {
                     permissionLogger.notice("permission tap busy=\(isUpdatingPermission, privacy: .public)")
                     guard !isUpdatingPermission else { return }
                     isUpdatingPermission = true
@@ -290,10 +333,14 @@ struct NotificationsSettingsView: View {
                 .accessibilityIdentifier("reminder-enable-notifications")
             } footer: {
                 Text(String(localized: "growth_reminder_explanation"))
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
         }
-        .navigationTitle(String(localized: "settings_notifications"))
-        .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
+        .foregroundStyle(AppTheme.Colors.label)
+        .affirmationNavigationTitle(String(localized: "settings_notifications"))
         .task { notificationsAllowed = await NotificationScheduler.shared.isAuthorizedForAlerts() }
         .onChange(of: scenePhase) { phase in
             if phase == .active { Task { notificationsAllowed = await NotificationScheduler.shared.isAuthorizedForAlerts() } }

@@ -3,13 +3,11 @@ import Combine
 import StoreKit
 import UIKit
 
-/// One full-screen affirmation card. NO background here — owned by `FeedRootView`.
-/// Layout: uniform 26pt centered quote text, wraps naturally; action row centered below.
-/// `pageWidth` is the actual visible width passed from FeedRootView so text can hard-clamp
-/// to it (works around UIPageViewController giving hosting controllers oversized frames).
+/// Today's affirmation; the home owns its background and scrolls only when text needs more room.
 struct QuoteCardView: View {
     let quote: Quote
     let pageWidth: CGFloat
+    var deliveryId: String? = nil
 
     @EnvironmentObject var themeStore: ThemeStore
     @EnvironmentObject var likedStore: LikedQuotesStore
@@ -25,11 +23,10 @@ struct QuoteCardView: View {
 
             Text(quote.text)
                 .font(.system(size: quoteFontSize, weight: .regular, design: .serif))
-                .foregroundStyle(.white)
+                .foregroundStyle(themeStore.selected.foregroundColor)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: max(120, pageWidth - 64))
-                .shadow(color: .black.opacity(0.35), radius: 10, y: 2)
                 .accessibilityIdentifier("quote-text")
 
             actionRow
@@ -56,6 +53,7 @@ struct QuoteCardView: View {
                 ),
                 "aniccaai.com"
             ], onComplete: {
+                DecisionPointRecorder.shared.recordQuoteResponse(messageId: quote.id, deliveryId: deliveryId, event: .shared)
                 AnalyticsManager.shared.track(.affirmationShared, properties: ["quote_id": quote.id, "category": quote.categoryID])
             })
         }
@@ -71,10 +69,11 @@ struct QuoteCardView: View {
                 systemName: likedStore.isLiked(quote.id) ? "heart.fill" : "heart",
                 identifier: "quote-like"
             ) {
-                let didFavorite = likedStore.toggle(quote)
+                let didFavorite = likedStore.toggle(quote, themeID: themeStore.selected.rawValue)
                 AnalyticsManager.shared.track(didFavorite ? .affirmationLiked : .affirmationUnliked, properties: ["quote_id": quote.id, "category": quote.categoryID, "source": "feed"])
                 UIImpactFeedbackGenerator(style: .soft).impactOccurred()
                 if didFavorite {
+                    DecisionPointRecorder.shared.recordQuoteResponse(messageId: quote.id, deliveryId: deliveryId, event: .saved)
                     ReviewPromptCoordinator.shared.requestReviewIfAppropriate {
                         requestReview()
                     }
@@ -96,10 +95,9 @@ struct QuoteCardView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(.white)
+                .foregroundStyle(themeStore.selected.foregroundColor)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
-                .shadow(color: .black.opacity(0.4), radius: 6, y: 1)
         }
         .accessibilityIdentifier(identifier)
     }

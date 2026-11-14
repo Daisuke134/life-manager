@@ -44,12 +44,12 @@
 "onboarding_permission_status_not_allowed" = "Not allowed";
 "onboarding_microphone_optional_hint" = "Need the voice experience later? Just return to Settings → Anicca and flip the microphone back on when you're ready.";
 
-"onboarding_notifications_title" = "Don't miss your reminders";
+"onboarding_notifications_title" = "Let kindness find you";
 "onboarding_notifications_card_title" = "Notification Access";
-"onboarding_notifications_description" = "Anicca sends gentle reminders exactly when you need them. Without notifications, Anicca can't reach you.";
+"onboarding_notifications_description" = "Receive your words at the times you chose. You can change your reminders anytime.";
 "onboarding_notifications_allow" = "Allow notifications";
 "onboarding_notifications_preview_now" = "now";
-"onboarding_notifications_optional_hint" = "Skip for now if you prefer. You can enable notifications anytime from Settings → Anicca.";
+"onboarding_notifications_optional_hint" = "Optional. You can enable notifications later in Settings.";
 
 
 "onboarding_alarmkit_title" = "Alarms";
@@ -2738,8 +2738,8 @@
 "growth_collections" = "Collections";
 
 // Actual remote reminder schedule
-"growth_reminder_title" = "A little kindness. Right on time.";
-"growth_reminder_explanation" = "Scheduled in your time zone. Device settings and connectivity can affect delivery.";
+"growth_reminder_title" = "A moment for you";
+"growth_reminder_explanation" = "Choose times in your local time zone. Delivery depends on your notification settings and connection.";
 "growth_reminder_free_schedule" = "Free: %@";
 "growth_reminder_pro_schedule" = "Pro: %@";
 "growth_notifications_on" = "Notifications allowed";
@@ -2749,3 +2749,146 @@
 /* Optional Premium after the free experience. */
 "soft_paywall_free_benefit" = "Free: read, save and share affirmations";
 "soft_paywall_premium_benefit" = "Premium: all 8 themes and 4 daily reminders";
+
+// Phase 1 personalization (2026-11-14)
+"growth_goal_focus" = "Focus";
+"growth_name_title" = "What should we call you?";
+"growth_name_placeholder" = "Your name (optional)";
+"growth_first_for_name" = "%@, this first step is for you.";
+"growth_first_next_time" = "Next moment: %@";
+"growth_slots_title" = "When should we reach you?";
+"growth_frequency_title" = "How many moments a day?";
+"growth_slots_need_more" = "Choose at least as many times as your daily moments.";
+"growth_chosen_schedule" = "Your moments: %@";
+"onboarding_depth_rarely" = "Rarely";
+"onboarding_depth_many_times_daily" = "Many times a day";
+
+/* Phase 1 UI/UX audit */
+"growth_name_optional_hint" = "Optional. Leave this blank if you prefer. Your name stays on this device.";
+"growth_set_reminders" = "Choose my reminder times";
+"growth_open_today" = "Open my daily moment";
+"growth_today_for_you" = "Today, for you";
+"growth_theme_premium" = "Premium";
+"growth_theme_selected" = "Selected theme";
+
+/* Selected-product billing disclosures */
+"paywall_other_plans" = "Other plans";
+"paywall_billing_period" = "%@ / %@";
+"paywall_billing_once" = "%@ once";
+"paywall_trial_duration" = "%@ free";
+"paywall_trial_starts_short" = "Free trial begins";
+"paywall_monthly_equivalent" = "Equivalent to %@/month; billed annually";
+"paywall_trial_disclosure" = "%@ free, then %@. Renews automatically. Cancel anytime.";
+"paywall_conditional_trial_disclosure" = "If eligible, %@ free; then %@. Auto-renews. Cancel anytime.";
+"paywall_subscription_disclosure" = "%@. Renews automatically. Cancel anytime.";
+"paywall_lifetime_disclosure" = "%@ once. No subscription or renewal.";
+"retention_renewal_disclosure" = "%@ per year. Renews automatically. Cancel anytime.";
+"paywall_cta_lifetime" = "Unlock lifetime";
+
+/* Round 2: adaptive onboarding questions */
+"adaptive_birth_context_title" = "Your birthday or zodiac sign?";
+"adaptive_birth_context_aries" = "Aries";
+"adaptive_birth_context_taurus" = "Taurus";
+"adaptive_birth_context_gemini" = "Gemini";
+"adaptive_birth_context_cancer" = "Cancer";
+"adaptive_birth_context_leo" = "Leo";
+"adaptive_birth_context_virgo" = "Virgo";
+"adaptive_birth_context_libra" = "Libra";
+"adaptive_birth_context_scorpio" = "Scorpio";
+"adaptive_birth_context_sagittarius" = "Sagittarius";
+"adaptive_birth_context_capricorn" = "Capricorn";
+"adaptive_birth_context_aquarius" = "Aquarius";
+"adaptive_birth_context_pisces" = "Pisces";
+"adaptive_mood_baseline_title" = "How are you feeling today?";
+"adaptive_mood_baseline_very_heavy" = "Very heavy";
+"adaptive_mood_baseline_heavy" = "Heavy";
+"adaptive_mood_baseline_neutral" = "Somewhere in the middle";
+"adaptive_mood_baseline_light" = "Light";
+"adaptive_mood_baseline_very_light" = "Very light";
+"adaptive_belief_themes_title" = "Which words do you want to believe?";
+"adaptive_belief_themes_self_trust" = "I can trust myself";
+"adaptive_belief_themes_inner_peace" = "I can find inner peace";
+"adaptive_belief_themes_courage" = "I can move forward";
+"adaptive_belief_themes_forgiveness" = "I can forgive";
+"adaptive_belief_themes_gratitude" = "I can feel grateful";
+"adaptive_tone_title" = "What tone feels right for you?";
+"adaptive_tone_gentle" = "Gentle";
+"adaptive_tone_direct" = "Direct";
+"adaptive_tone_poetic" = "Poetic";
+"adaptive_tone_practical" = "Practical";
+"adaptive_life_context_title" = "What is part of your life right now?";
+"adaptive_life_context_work" = "Work demands";
+"adaptive_life_context_caregiving" = "Parenting or caregiving";
+"adaptive_life_context_study" = "Studying";
+"adaptive_life_context_transition" = "A life transition";
+"adaptive_life_context_none" = "None of these";
+"adaptive_routine_anchors_title" = "When could a small moment fit?";
+"adaptive_routine_anchors_waking" = "Just after waking";
+"adaptive_routine_anchors_commute" = "During my commute";
+"adaptive_routine_anchors_lunch" = "On my lunch break";
+"adaptive_routine_anchors_bedtime" = "Before bed";
+"adaptive_routine_anchors_none" = "No regular moment yet";
+"adaptive_prior_attempts_title" = "What have you tried so far?";
+"adaptive_prior_attempts_meditation" = "Meditation apps";
+"adaptive_prior_attempts_journaling" = "Journaling";
+"adaptive_prior_attempts_therapy" = "Counseling or therapy";
+"adaptive_prior_attempts_books" = "Books or videos";
+"adaptive_prior_attempts_first_time" = "This is my first time";
+"adaptive_start_reason_title" = "What brings you here today?";
+"adaptive_start_reason_overwhelmed" = "Things feel like too much";
+"adaptive_start_reason_new_chapter" = "I am ready for a new chapter";
+"adaptive_start_reason_recommended" = "Someone recommended it";
+"adaptive_start_reason_curious" = "I am just curious";
+"adaptive_quiet_hours_title" = "When would you rather not be disturbed?";
+"adaptive_quiet_hours_morning" = "Morning · 06:00–12:00";
+"adaptive_quiet_hours_afternoon" = "Afternoon · 12:00–18:00";
+"adaptive_quiet_hours_evening" = "Evening · 18:00–22:00";
+"adaptive_quiet_hours_overnight" = "Overnight · 22:00–06:00";
+"adaptive_quiet_hours_none" = "No quiet hours";
+"adaptive_stress_trigger_title" = "When does stress feel heaviest?";
+"adaptive_stress_trigger_work" = "While working";
+"adaptive_stress_trigger_social" = "After being around people";
+"adaptive_stress_trigger_morning" = "When I wake up";
+"adaptive_stress_trigger_night" = "At night";
+"adaptive_anxiety_target_title" = "What tends to bring up anxiety?";
+"adaptive_anxiety_target_future" = "What lies ahead";
+"adaptive_anxiety_target_judgment" = "What others think of me";
+"adaptive_anxiety_target_health" = "Health";
+"adaptive_anxiety_target_money" = "Money";
+"adaptive_self_criticism_title" = "When are you hardest on yourself?";
+"adaptive_self_criticism_work" = "After a mistake at work";
+"adaptive_self_criticism_relationships" = "In relationships";
+"adaptive_self_criticism_appearance" = "About my appearance";
+"adaptive_self_criticism_parenting" = "As a parent";
+"adaptive_avoidance_task_title" = "What have you been putting off?";
+"adaptive_avoidance_task_work" = "A task at work";
+"adaptive_avoidance_task_messages" = "Replying or reaching out";
+"adaptive_avoidance_task_chores" = "Household chores";
+"adaptive_avoidance_task_personal_plan" = "My own plans";
+"adaptive_sleep_reason_title" = "What tends to keep you awake?";
+"adaptive_sleep_reason_racing_mind" = "My thoughts will not slow down";
+"adaptive_sleep_reason_body_clock" = "My body feels tired at the wrong time";
+"adaptive_sleep_reason_screens" = "Screens or evening habits";
+"adaptive_bedtime_title" = "About when do you go to bed on weekdays?";
+"adaptive_bedtime_before_22" = "Before 22:00";
+"adaptive_bedtime_22_to_24" = "22:00–00:00";
+"adaptive_bedtime_after_midnight" = "After midnight";
+"adaptive_wake_time_title" = "About when do you wake up on weekdays?";
+"adaptive_wake_time_before_6" = "Before 06:00";
+"adaptive_wake_time_6_to_8" = "06:00–08:00";
+"adaptive_wake_time_after_8" = "After 08:00";
+"adaptive_prior_helpfulness_title" = "Which of those did not feel right for you?";
+"adaptive_prior_helpfulness_meditation" = "Meditation apps";
+"adaptive_prior_helpfulness_journaling" = "Journaling";
+"adaptive_prior_helpfulness_therapy" = "Counseling or therapy";
+"adaptive_prior_helpfulness_books" = "Books or videos";
+"adaptive_prior_helpfulness_none" = "None of these";
+"adaptive_choose_one" = "Choose one.";
+"adaptive_choose_many" = "Choose all that fit.";
+"adaptive_skip" = "Skip for now";
+"adaptive_birth_date" = "Birth date";
+"adaptive_zodiac" = "Zodiac sign";
+"adaptive_birth_privacy" = "Optional. Your birth date stays on this device; only its age group goes to analytics. We do not use your sign to infer your personality.";
+"adaptive_quiet_conflict" = "Reminders will not arrive during your quiet hours. You can choose another time.";
+"adaptive_no_available_times" = "Your quiet hours cover the whole day, so no reminders will be scheduled.";
+"adaptive_prior_attempts_hint" = "Trying something does not mean it failed. Next, you can tell us what did not suit you.";

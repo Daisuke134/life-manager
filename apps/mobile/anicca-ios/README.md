@@ -18,14 +18,35 @@ external checkout is required for source editing.
 
 ## Initial affirmation experience
 
-The active first-run journey is goal selection → a real, saveable affirmation →
-actual reminder schedule → optional notification permission → the existing soft
-paywall. Legacy persisted step raw values remain stable and resume in this journey.
-Closing the paywall continues to the feed; existing subscribers keep the current
-fresh-entitlement check. Notification permission has an explicit skip action.
+The active first-run journey is welcome → goal → optional name → optional birth
+context → mood baseline → pain points → up to two selected deep-dive modules →
+frequency → belief themes → tone → life context → routine anchors → prior attempts
+→ an optional follow-up on unhelpful methods → starting reason → quiet hours → a
+saveable personalized preview → reminder schedule → optional notification
+permission → soft paywall → first intervention → today's affirmation.
+Modules follow stress, anxiety, self-doubt, procrastination, sleep priority,
+independent of selection order. Sleep asks reason, bedtime and wake time separately.
+The journey has 20–24 screens through the first intervention, including the name
+step and at least one selected pain point, depending on answers;
+actual completion time must be measured on the simulator/device.
 
-The native journey regression is independent of the legacy, unregistered
-`OnboardingV2Tests.swift` file:
+Answers persist in `UserProfile.personalization`, migrating the old separate
+profile on first load. A local `SyntheticUser` record built from enumerated answer
+IDs conditions selection and notification schedules, with intervention history
+preserved across answer changes. The separate name question supplies the on-device
+form of address in the first intervention; saved step 9 resumes at that question.
+Raw names and birth dates never enter the synthetic record or eval cases. Decision records use
+`managerbench-cases.jsonl`: situation → stimulus → measured response, with explicit
+nulls for unobserved outcomes and the actual assignment probability. Notifications
+without sender assignment metadata remain pending observations, not complete eval
+cases. Quiet hours suppress conflicting delivery slots, including an
+empty schedule when all preset times are blocked. The remote APNs sender must
+honor the synchronized schedule; server receipt/delivery is a separate readback.
+The home keeps one affirmation for the local day and language, starting with the
+exact first intervention. A tapped notification takes priority. Legacy persisted
+step values remain stable and map into this journey.
+
+The native journey regression can run without Xcode:
 
 ```sh
 swiftc -swift-version 5 aniccaios/Onboarding/OnboardingStep.swift \
@@ -88,3 +109,18 @@ Then run `12-storekit-cancel-restore.yaml` on the same simulator to check
 Apple purchase authentication, cancellation and return from Restore Purchases.
 The latter does not authenticate a Sandbox Apple Account or prove a completed
 purchase/paid-entitlement restoration. Maestro requires Java 17 or newer.
+
+## Phase 1 UI/UX audit capture
+
+Run `.github/workflows/anicca-ios-build.yml` with `run_maestro=false` for the build
+and unit tests, then separately with `run_maestro=true` for the real simulator
+journey. The delegated fixes are documented in `PHASE1-UIUX-FIX-NOTES.md`.
+The canonical runner `scripts/run-soft-paywall-maestro.sh` writes screenshots
+01–13 to the evidence artifact's `frames/` directory. Additional frames cover
+welcome, name, alternative plans, selected theme after relaunch, settings, and
+notification settings. Round two adds branches 01c–01d, 02b–02h and 03b–03i.
+The runner first captures `02-adaptive-modules.yaml` (stress/self-doubt and
+procrastination), then the canonical anxiety/sleep journey. Either flow failing
+fails the job. These captures require the real CI run; local source
+checks are not screenshots or E2E evidence. This workflow does not submit to the
+App Store.

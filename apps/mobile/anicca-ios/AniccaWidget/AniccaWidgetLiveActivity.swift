@@ -1,15 +1,7 @@
-//
-//  AniccaWidgetLiveActivity.swift
-//  AniccaWidget
-//
-//  Created by CBNS03 on 2025/12/07.
-//
-
 import ActivityKit
 import WidgetKit
 import SwiftUI
 
-// MARK: - Live Activity
 struct AniccaWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var emoji: String
@@ -20,58 +12,50 @@ struct AniccaWidgetAttributes: ActivityAttributes {
 struct AniccaWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: AniccaWidgetAttributes.self) { context in
-            VStack {
-                Text("Hello \(context.state.emoji)")
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Anicca")
+                    .font(.system(.headline, design: .serif))
+                    .foregroundStyle(WidgetAppearance.accent)
+                Text(context.attributes.name)
+                    .font(.system(.body, design: .serif))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(WidgetAppearance.label)
             }
-            .activityBackgroundTint(Color.cyan)
-            .activitySystemActionForegroundColor(Color.black)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .activityBackgroundTint(WidgetAppearance.background)
+            .activitySystemActionForegroundColor(WidgetAppearance.accent)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Leading")
+                    Text("Anicca").font(.system(.headline, design: .serif))
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("Trailing")
+                    Text(context.state.emoji)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Bottom \(context.state.emoji)")
+                    Text(context.attributes.name)
+                        .font(.system(.body, design: .serif))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             } compactLeading: {
-                Text("L")
+                Image(systemName: "sun.max")
             } compactTrailing: {
-                Text("T \(context.state.emoji)")
-            } minimal: {
                 Text(context.state.emoji)
+            } minimal: {
+                Image(systemName: "sun.max")
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
-            .keylineTint(Color.red)
+            .widgetURL(URL(string: "anicca://"))
+            .keylineTint(WidgetAppearance.accent)
         }
     }
 }
 
-extension AniccaWidgetAttributes {
-    fileprivate static var preview: AniccaWidgetAttributes {
-        AniccaWidgetAttributes(name: "World")
-    }
-}
-
-extension AniccaWidgetAttributes.ContentState {
-    fileprivate static var smiley: AniccaWidgetAttributes.ContentState {
-        AniccaWidgetAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: AniccaWidgetAttributes.ContentState {
-         AniccaWidgetAttributes.ContentState(emoji: "🤩")
-     }
-}
-
-// Preview を iOS 17+ に制限
 #if swift(>=5.9)
 @available(iOS 17.0, *)
-#Preview("Notification", as: .content, using: AniccaWidgetAttributes.preview) {
-   AniccaWidgetLiveActivity()
+#Preview("Affirmation", as: .content, using: AniccaWidgetAttributes(name: "Be kind to yourself.")) {
+    AniccaWidgetLiveActivity()
 } contentStates: {
-    AniccaWidgetAttributes.ContentState.smiley
-    AniccaWidgetAttributes.ContentState.starEyes
+    AniccaWidgetAttributes.ContentState(emoji: "🪷")
 }
 #endif

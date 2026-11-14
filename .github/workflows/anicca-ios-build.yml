@@ -82,12 +82,20 @@ jobs:
       - name: Build app (unsigned)
         run: |
           set -o pipefail
+          set +e
           xcodebuild build \
             -project aniccaios.xcodeproj \
             -scheme aniccaios \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
-            | tail -40
+            > "$RUNNER_TEMP/build-output.log" 2>&1
+          BUILD_EXIT=$?
+          set -e
+          echo "----- compiler errors -----"
+          grep -E "error:|fatal error:|\*\* BUILD (FAILED|SUCCEEDED)" "$RUNNER_TEMP/build-output.log" | head -80 || true
+          echo "----- build summary -----"
+          tail -40 "$RUNNER_TEMP/build-output.log"
+          exit "$BUILD_EXIT"
 
       - name: Run unit tests (unsigned)
         # The macos-15 image (Xcode 16.4) ships no pre-created "iPhone 15"
@@ -110,12 +118,22 @@ jobs:
             -destination "platform=iOS Simulator,id=$UDID" \
             -only-testing:aniccaiosTests \
             CODE_SIGNING_ALLOWED=NO \
-            > /tmp/test-output.log 2>&1
+            > "$RUNNER_TEMP/test-output.log" 2>&1
           TEST_EXIT=$?
           set -e
           echo "----- failing tests / errors -----"
-          grep -E "Test Case .* failed|error:|\*\* TEST (FAILED|SUCCEEDED)" /tmp/test-output.log | head -80 || true
+          grep -E "Test Case .* failed|error:|\*\* TEST (FAILED|SUCCEEDED)" "$RUNNER_TEMP/test-output.log" | head -80 || true
           echo "----- test summary -----"
-          grep -E "Executed [0-9]+ test|Test Suite .* (passed|failed)" /tmp/test-output.log | tail -20 || true
-          tail -20 /tmp/test-output.log
+          grep -E "Executed [0-9]+ test|Test Suite .* (passed|failed)" "$RUNNER_TEMP/test-output.log" | tail -20 || true
+          tail -20 "$RUNNER_TEMP/test-output.log"
           exit $TEST_EXIT
+
+      - name: Preserve full build and unit test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-and-unit-test-logs-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/build-output.log
+            ${{ runner.temp }}/test-output.log
+          if-no-files-found: warn

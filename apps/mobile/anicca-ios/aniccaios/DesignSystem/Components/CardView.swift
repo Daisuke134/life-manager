@@ -37,6 +37,32 @@ struct CardView<Content: View>: View {
     }
 }
 
+extension View {
+    /// Shared selection treatment; callers supply the label and trailing checkmark.
+    func selectionCard(isSelected: Bool) -> some View {
+        self
+            .foregroundStyle(AppTheme.Colors.label)
+            .background(isSelected ? AppTheme.Colors.accent.opacity(0.12) : AppTheme.Colors.cardBackground.opacity(0.8))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card, style: .continuous)
+                    .strokeBorder(isSelected ? AppTheme.Colors.accent : .clear, lineWidth: 1)
+            }
+    }
 
-
-
+    func affirmationNavigationTitle(_ title: String) -> some View {
+        self
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(title)
+                        .font(AppTheme.Typography.title2Dynamic)
+                        .foregroundStyle(AppTheme.Colors.label)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+            .tint(AppTheme.Colors.accent)
+    }
+}

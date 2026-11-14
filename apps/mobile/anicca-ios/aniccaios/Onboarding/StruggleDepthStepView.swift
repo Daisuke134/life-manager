@@ -1,59 +1,63 @@
 import SwiftUI
 
-/// Phase 1: HOOK — frequency question with 1-tap auto-advance.
 struct StruggleDepthStepView: View {
     let next: () -> Void
     @EnvironmentObject private var appState: AppState
+    @State private var selected: String?
 
     private let options: [(key: String, labelKey: String)] = [
-        ("daily", "onboarding_depth_daily"),
-        ("several_times_week", "onboarding_depth_several"),
+        ("rarely", "onboarding_depth_rarely"),
         ("weekly", "onboarding_depth_weekly"),
-        ("occasionally", "onboarding_depth_occasionally")
+        ("daily", "onboarding_depth_daily"),
+        ("many_times_daily", "onboarding_depth_many_times_daily")
     ]
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
+        OnboardingPage(alignment: .leading) {
+            Text("Anicca").font(.system(.title, design: .serif))
+            Spacer(minLength: 12)
             Text(String(localized: "onboarding_depth_title"))
-                .font(.system(size: 32, weight: .bold))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(AppTheme.Colors.label)
-                .padding(.horizontal, 24)
-
+                .font(AppTheme.Typography.onboardingTitle)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             VStack(spacing: 12) {
                 ForEach(options, id: \.key) { option in
                     Button {
-                        selectFrequency(option.key)
+                        selected = option.key
                     } label: {
-                        Text(String(localized: String.LocalizationValue(option.labelKey)))
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(AppTheme.Colors.label)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(AppTheme.Colors.buttonUnselected)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        HStack(spacing: 14) {
+                            Text(String(localized: String.LocalizationValue(option.labelKey)))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 8)
+                            Image(systemName: selected == option.key ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(selected == option.key ? AppTheme.Colors.accent : AppTheme.Colors.secondaryLabel)
+                        }
+                        .padding(18)
+                        .selectionCard(isSelected: selected == option.key)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("onboarding-depth-\(option.key)")
+                    .accessibilityAddTraits(selected == option.key ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 24)
-
-            Spacer()
-            Spacer()
+            Spacer(minLength: 12)
+        } footer: {
+            PrimaryButton(title: String(localized: "common_continue"), isEnabled: selected != nil) {
+                if let selected { selectFrequency(selected) }
+            }
+            .accessibilityIdentifier("onboarding-depth-continue")
         }
-        .background(AppBackground())
+        .onAppear { selected = appState.personalizationProfile.struggleFrequency }
     }
 
     private func selectFrequency(_ frequency: String) {
         var profile = appState.userProfile
         profile.struggleFrequency = frequency
         appState.updateUserProfile(profile, sync: true)
-        AnalyticsManager.shared.track(.onboardingStruggleDepthCompleted, properties: [
-            "frequency": frequency
-        ])
+        var personalization = appState.personalizationProfile
+        personalization.struggleFrequency = frequency
+        appState.updatePersonalizationProfile(personalization)
+        AnalyticsManager.shared.track(.onboardingStruggleDepthCompleted, properties: ["frequency": frequency])
         next()
     }
 }

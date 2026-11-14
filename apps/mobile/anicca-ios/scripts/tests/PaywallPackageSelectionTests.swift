@@ -274,7 +274,17 @@ final class PaywallPackageSelectionTests {
         }
     }
 
+    func testTrialPresentationRequiresThisProductsFreeOfferAndEligibility() {
+        precondition(PaywallTrialPresentation.resolve(hasFreeTrial: true, isEligible: true) == .eligible)
+        precondition(PaywallTrialPresentation.resolve(hasFreeTrial: true, isEligible: nil) == .conditional)
+        precondition(PaywallTrialPresentation.resolve(hasFreeTrial: true, isEligible: false) == .none)
+        for eligibility in [true, false, nil] as [Bool?] {
+            precondition(PaywallTrialPresentation.resolve(hasFreeTrial: false, isEligible: eligibility) == .none)
+        }
+    }
+
     var allTests: [(String, () -> Void)] { [
+        ("testTrialPresentationRequiresThisProductsFreeOfferAndEligibility", testTrialPresentationRequiresThisProductsFreeOfferAndEligibility),
         ("testEveryAssignedOfferingUsesSoftGateAndEverySurfaceCanClose", testEveryAssignedOfferingUsesSoftGateAndEverySurfaceCanClose),
         ("testHonneCurrentFallsBackToAniccaVariantB", testHonneCurrentFallsBackToAniccaVariantB),
         ("testMissingCurrentFallsBackToAniccaVariantB", testMissingCurrentFallsBackToAniccaVariantB),

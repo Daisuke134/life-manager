@@ -103,3 +103,19 @@ enum PaywallOfferingSelection {
         return productIdentifiers.allSatisfy { $0.hasPrefix("ai.anicca.app.ios.") }
     }
 }
+
+/// Unknown eligibility may describe the offer conditionally, but must not promise a free purchase.
+enum PaywallTrialPresentation: Equatable {
+    case none
+    case conditional
+    case eligible
+
+    static func resolve(hasFreeTrial: Bool, isEligible: Bool?) -> Self {
+        guard hasFreeTrial else { return .none }
+        switch isEligible {
+        case .some(true): return .eligible
+        case .some(false): return .none
+        case .none: return .conditional
+        }
+    }
+}

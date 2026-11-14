@@ -5,6 +5,7 @@ import Foundation
 struct QuoteNavigationRequest: Codable, Equatable {
     let quoteID: String?
     let alertBody: String?
+    var deliveryId: String? = nil
 }
 
 @MainActor
@@ -28,12 +29,13 @@ final class QuoteNavigationCoordinator: ObservableObject {
         }
     }
 
-    func request(quoteID: String?, alertBody: String?) {
+    func request(quoteID: String?, alertBody: String?, deliveryId: String? = nil) {
         let cleanedID = quoteID?.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedBody = alertBody?.trimmingCharacters(in: .whitespacesAndNewlines)
         let request = QuoteNavigationRequest(
             quoteID: cleanedID?.isEmpty == false ? cleanedID : nil,
-            alertBody: cleanedBody?.isEmpty == false ? cleanedBody : nil
+            alertBody: cleanedBody?.isEmpty == false ? cleanedBody : nil,
+            deliveryId: deliveryId
         )
         guard request.quoteID != nil || request.alertBody != nil else { return }
 

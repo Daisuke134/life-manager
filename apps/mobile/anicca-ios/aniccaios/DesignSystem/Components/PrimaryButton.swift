@@ -30,10 +30,13 @@ struct PrimaryButton: View {
                 }
                 Text(title)
                     .font(.headline)
-                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 64)  // HTML仕様: h-16 = 64pt
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .frame(minHeight: 56)
         }
         .foregroundStyle(foregroundColor)
         .background(
@@ -70,16 +73,7 @@ struct PrimaryButton: View {
         }
     }
 
-    private var cornerRadius: CGFloat {
-        switch style {
-        case .primary:
-            return AppTheme.Radius.xxl  // 丸角に変更
-        case .selected, .unselected:
-            return .infinity  // 完全な丸(Capsule)
-        case .large:
-            return .infinity  // 完全な丸(Capsule)
-        }
-    }
+    private var cornerRadius: CGFloat { AppTheme.Radius.card }
 
     private var borderColor: Color {
         switch style {

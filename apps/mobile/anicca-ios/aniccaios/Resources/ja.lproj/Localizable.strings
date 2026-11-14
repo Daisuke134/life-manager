@@ -44,12 +44,12 @@
 "onboarding_permission_status_not_allowed" = "未許可";
 "onboarding_microphone_optional_hint" = "音声体験が必要になったら、設定→アニッチャでマイクをオンにし直してください。";
 
-"onboarding_notifications_title" = "毎日の声かけを受け取る";
+"onboarding_notifications_title" = "やさしい言葉を受け取る";
 "onboarding_notifications_card_title" = "通知アクセス";
-"onboarding_notifications_description" = "必要な瞬間に、やさしいリマインダーを届けます。通知がないと、あなたにメッセージを届けられません。";
+"onboarding_notifications_description" = "選んだ時間に、あなたへの言葉を届けます。通知はいつでも変更できます。";
 "onboarding_notifications_allow" = "通知を許可";
 "onboarding_notifications_preview_now" = "今";
-"onboarding_notifications_optional_hint" = "今はスキップしても構いません。設定→アニッチャからいつでも通知をオンにできます。";
+"onboarding_notifications_optional_hint" = "通知は任意です。あとから設定で有効にできます。";
 
 
 "onboarding_alarmkit_title" = "アラーム";
@@ -2754,8 +2754,8 @@
 "growth_collections" = "コレクション";
 
 // Actual remote reminder schedule
-"growth_reminder_title" = "毎日に、やさしい言葉を。";
-"growth_reminder_explanation" = "登録されたタイムゾーンの配信予定です。端末の設定や通信状況により届かない場合があります。";
+"growth_reminder_title" = "あなたのための時間";
+"growth_reminder_explanation" = "この端末の時間で選べます。通知の設定や通信状況によって届く時刻が変わることがあります。";
 "growth_reminder_free_schedule" = "無料: %@";
 "growth_reminder_pro_schedule" = "Pro: %@";
 "growth_notifications_on" = "通知は許可されています";
@@ -2765,3 +2765,146 @@
 /* Optional Premium after the free experience. */
 "soft_paywall_free_benefit" = "無料：言葉の閲覧・保存・共有";
 "soft_paywall_premium_benefit" = "Premium：全8背景と1日4回のリマインダー";
+
+// Phase 1 personalization (2026-11-14)
+"growth_goal_focus" = "集中";
+"growth_name_title" = "なんと呼べばいいですか？";
+"growth_name_placeholder" = "名前（任意）";
+"growth_first_for_name" = "%@さん、最初の一歩です。";
+"growth_first_next_time" = "次のひととき: %@";
+"growth_slots_title" = "いつ届けますか？";
+"growth_frequency_title" = "1日に何回届けますか？";
+"growth_slots_need_more" = "1日の回数以上の時刻を選んでください。";
+"growth_chosen_schedule" = "あなたのひととき: %@";
+"onboarding_depth_rarely" = "まれに";
+"onboarding_depth_many_times_daily" = "1日に何度も";
+
+/* Phase 1 UI/UX audit */
+"growth_name_optional_hint" = "任意です。空欄のままでも進めます。名前はこの端末にだけ保存されます。";
+"growth_set_reminders" = "言葉を受け取る時間を選ぶ";
+"growth_open_today" = "今日の言葉を開く";
+"growth_today_for_you" = "今日のあなたへ";
+"growth_theme_premium" = "プレミアム";
+"growth_theme_selected" = "選択中のテーマ";
+
+/* Selected-product billing disclosures */
+"paywall_other_plans" = "ほかのプラン";
+"paywall_billing_period" = "%@ / %@";
+"paywall_billing_once" = "%@（買い切り）";
+"paywall_trial_duration" = "%@ 無料";
+"paywall_trial_starts_short" = "無料トライアル開始";
+"paywall_monthly_equivalent" = "月額換算 %@（年払い）";
+"paywall_trial_disclosure" = "%@ 無料。その後は%@で自動更新。いつでも解約できます。";
+"paywall_conditional_trial_disclosure" = "対象の方は%@ 無料。その後は%@で自動更新。いつでも解約できます。";
+"paywall_subscription_disclosure" = "%@で自動更新。いつでも解約できます。";
+"paywall_lifetime_disclosure" = "%@の買い切り。定期課金や更新はありません。";
+"retention_renewal_disclosure" = "年額%@で自動更新。いつでも解約できます。";
+"paywall_cta_lifetime" = "買い切りで購入";
+
+/* Round 2: adaptive onboarding questions */
+"adaptive_birth_context_title" = "生年月日、または星座を教えてください";
+"adaptive_birth_context_aries" = "おひつじ座";
+"adaptive_birth_context_taurus" = "おうし座";
+"adaptive_birth_context_gemini" = "ふたご座";
+"adaptive_birth_context_cancer" = "かに座";
+"adaptive_birth_context_leo" = "しし座";
+"adaptive_birth_context_virgo" = "おとめ座";
+"adaptive_birth_context_libra" = "てんびん座";
+"adaptive_birth_context_scorpio" = "さそり座";
+"adaptive_birth_context_sagittarius" = "いて座";
+"adaptive_birth_context_capricorn" = "やぎ座";
+"adaptive_birth_context_aquarius" = "みずがめ座";
+"adaptive_birth_context_pisces" = "うお座";
+"adaptive_mood_baseline_title" = "今日の気分はどうですか？";
+"adaptive_mood_baseline_very_heavy" = "とても重い";
+"adaptive_mood_baseline_heavy" = "重い";
+"adaptive_mood_baseline_neutral" = "どちらでもない";
+"adaptive_mood_baseline_light" = "軽い";
+"adaptive_mood_baseline_very_light" = "とても軽い";
+"adaptive_belief_themes_title" = "どんな言葉を信じたいですか？";
+"adaptive_belief_themes_self_trust" = "自分を信じられる";
+"adaptive_belief_themes_inner_peace" = "心に静けさを持てる";
+"adaptive_belief_themes_courage" = "前に進む力がある";
+"adaptive_belief_themes_forgiveness" = "許すことができる";
+"adaptive_belief_themes_gratitude" = "感謝を感じられる";
+"adaptive_tone_title" = "どんな語りかけが心地よいですか？";
+"adaptive_tone_gentle" = "やさしい";
+"adaptive_tone_direct" = "まっすぐ";
+"adaptive_tone_poetic" = "詩的";
+"adaptive_tone_practical" = "実用的";
+"adaptive_life_context_title" = "いまの生活に当てはまるものは？";
+"adaptive_life_context_work" = "仕事の負荷";
+"adaptive_life_context_caregiving" = "子育て・介護";
+"adaptive_life_context_study" = "学業";
+"adaptive_life_context_transition" = "人生の転機";
+"adaptive_life_context_none" = "特になし";
+"adaptive_routine_anchors_title" = "ひと息つけそうなのはいつですか？";
+"adaptive_routine_anchors_waking" = "起床直後";
+"adaptive_routine_anchors_commute" = "通勤・通学中";
+"adaptive_routine_anchors_lunch" = "昼休み";
+"adaptive_routine_anchors_bedtime" = "就寝前";
+"adaptive_routine_anchors_none" = "決まった時間はない";
+"adaptive_prior_attempts_title" = "これまでに試したことは？";
+"adaptive_prior_attempts_meditation" = "瞑想アプリ";
+"adaptive_prior_attempts_journaling" = "日記";
+"adaptive_prior_attempts_therapy" = "相談・セラピー";
+"adaptive_prior_attempts_books" = "本・動画";
+"adaptive_prior_attempts_first_time" = "今回が初めて";
+"adaptive_start_reason_title" = "いま始めようと思った理由は？";
+"adaptive_start_reason_overwhelmed" = "限界を感じた";
+"adaptive_start_reason_new_chapter" = "変わりたい節目だから";
+"adaptive_start_reason_recommended" = "誰かに勧められた";
+"adaptive_start_reason_curious" = "なんとなく気になった";
+"adaptive_quiet_hours_title" = "邪魔されたくない時間帯は？";
+"adaptive_quiet_hours_morning" = "朝 · 06:00〜12:00";
+"adaptive_quiet_hours_afternoon" = "午後 · 12:00〜18:00";
+"adaptive_quiet_hours_evening" = "夜 · 18:00〜22:00";
+"adaptive_quiet_hours_overnight" = "深夜・早朝 · 22:00〜06:00";
+"adaptive_quiet_hours_none" = "特になし";
+"adaptive_stress_trigger_title" = "いちばん重く感じるのはいつですか？";
+"adaptive_stress_trigger_work" = "仕事中";
+"adaptive_stress_trigger_social" = "人と会った後";
+"adaptive_stress_trigger_morning" = "朝起きたとき";
+"adaptive_stress_trigger_night" = "夜";
+"adaptive_anxiety_target_title" = "どんなことに不安を感じますか？";
+"adaptive_anxiety_target_future" = "先の予定や将来";
+"adaptive_anxiety_target_judgment" = "人からの評価";
+"adaptive_anxiety_target_health" = "健康";
+"adaptive_anxiety_target_money" = "お金";
+"adaptive_self_criticism_title" = "自分を責めてしまうのはどんなとき？";
+"adaptive_self_criticism_work" = "仕事で失敗したとき";
+"adaptive_self_criticism_relationships" = "人間関係で悩むとき";
+"adaptive_self_criticism_appearance" = "見た目が気になるとき";
+"adaptive_self_criticism_parenting" = "子育てをしているとき";
+"adaptive_avoidance_task_title" = "先延ばしにしていることは？";
+"adaptive_avoidance_task_work" = "仕事の課題";
+"adaptive_avoidance_task_messages" = "返信や連絡";
+"adaptive_avoidance_task_chores" = "家事";
+"adaptive_avoidance_task_personal_plan" = "自分のための計画";
+"adaptive_sleep_reason_title" = "眠りにくい理由は何ですか？";
+"adaptive_sleep_reason_racing_mind" = "考えが止まらない";
+"adaptive_sleep_reason_body_clock" = "体が疲れる時間と眠る時間がずれる";
+"adaptive_sleep_reason_screens" = "画面を見ることや夜の習慣";
+"adaptive_bedtime_title" = "平日は何時ごろ寝ますか？";
+"adaptive_bedtime_before_22" = "22:00より前";
+"adaptive_bedtime_22_to_24" = "22:00〜00:00";
+"adaptive_bedtime_after_midnight" = "深夜0時より後";
+"adaptive_wake_time_title" = "平日は何時ごろ起きますか？";
+"adaptive_wake_time_before_6" = "06:00より前";
+"adaptive_wake_time_6_to_8" = "06:00〜08:00";
+"adaptive_wake_time_after_8" = "08:00より後";
+"adaptive_prior_helpfulness_title" = "試してみて、合わなかったものは？";
+"adaptive_prior_helpfulness_meditation" = "瞑想アプリ";
+"adaptive_prior_helpfulness_journaling" = "日記";
+"adaptive_prior_helpfulness_therapy" = "相談・セラピー";
+"adaptive_prior_helpfulness_books" = "本・動画";
+"adaptive_prior_helpfulness_none" = "特になし";
+"adaptive_choose_one" = "1つ選んでください。";
+"adaptive_choose_many" = "当てはまるものをすべて選んでください。";
+"adaptive_skip" = "今はスキップ";
+"adaptive_birth_date" = "生年月日";
+"adaptive_zodiac" = "星座";
+"adaptive_birth_privacy" = "回答は任意です。生年月日はこの端末にのみ保存し、分析には年齢層だけを送ります。星座から性格を推測することはありません。";
+"adaptive_quiet_conflict" = "静かな時間に重なる通知は届きません。別の時刻を選べます。";
+"adaptive_no_available_times" = "静かな時間が一日全体にわたるため、通知は設定しません。";
+"adaptive_prior_attempts_hint" = "試した経験だけで、合わなかったとは判断しません。次に、合わなかったものを選べます。";

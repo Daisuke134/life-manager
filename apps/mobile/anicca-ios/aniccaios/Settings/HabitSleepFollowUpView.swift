@@ -16,11 +16,12 @@ struct HabitSleepFollowUpView: View {
     
     var body: some View {
         List {
-            Section(String(localized: "habit_sleep_location")) {
+            Section(header: Text(String(localized: "habit_sleep_location")).font(AppTheme.Typography.headlineDynamic)) {
                 TextField(String(localized: "habit_sleep_location_placeholder"), text: $sleepLocation)
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
             
-            Section(String(localized: "habit_sleep_routines")) {
+            Section(header: Text(String(localized: "habit_sleep_routines")).font(AppTheme.Typography.headlineDynamic)) {
                 ForEach(routines) { routine in
                     HStack {
                         // ドラッグハンドル（iOS標準の三本線アイコン）
@@ -58,10 +59,15 @@ struct HabitSleepFollowUpView: View {
                     }
                 }
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
         }
         .toolbar {
             EditButton() // onMove UIを有効化
         }
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
+        .foregroundStyle(AppTheme.Colors.label)
+        .tint(AppTheme.Colors.accent)
         .onAppear {
             sleepLocation = appState.userProfile.sleepLocation
             let savedRoutines = appState.userProfile.sleepRoutines

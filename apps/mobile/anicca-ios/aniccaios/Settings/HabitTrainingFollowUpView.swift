@@ -12,11 +12,12 @@ struct HabitTrainingFollowUpView: View {
     
     var body: some View {
         Form {
-            Section(String(localized: "habit_training_goal")) {
+            Section(header: Text(String(localized: "habit_training_goal")).font(AppTheme.Typography.headlineDynamic)) {
                 TextField(String(localized: "habit_training_goal_placeholder"), text: $trainingGoal)
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
             
-            Section(String(localized: "habit_training_types")) {
+            Section(header: Text(String(localized: "habit_training_types")).font(AppTheme.Typography.headlineDynamic)) {
                 // ベストプラクティス: 単一選択にはPickerを使用（トグルは複数選択向け）
                 Picker(String(localized: "habit_training_types"), selection: $selectedOption) {
                     Text(String(localized: "training_focus_option_pushup")).tag("Push-up" as String?)
@@ -26,7 +27,12 @@ struct HabitTrainingFollowUpView: View {
                 }
                 .pickerStyle(.menu)
             }
+            .listRowBackground(AppTheme.Colors.cardBackground.opacity(0.8))
         }
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
+        .foregroundStyle(AppTheme.Colors.label)
+        .tint(AppTheme.Colors.accent)
         .onAppear {
             trainingGoal = appState.userProfile.trainingGoal
             selectedOption = appState.userProfile.trainingFocus.first

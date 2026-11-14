@@ -8,28 +8,31 @@ struct UsageLimitModalView: View {
     let onManage: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text(title)
-                .font(.headline)
-            Text(message)
-                .font(.subheadline)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-            HStack(spacing: 12) {
-                Button(closeButtonText) { onClose() }
-                    .buttonStyle(.bordered)
+        ScrollView {
+            VStack(spacing: 20) {
+                Text(title)
+                    .font(AppTheme.Typography.title2Dynamic)
+                    .accessibilityAddTraits(.isHeader)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
                 if plan == .free {
-                    Button(upgradeButtonText) { onUpgrade() }
-                        .buttonStyle(.borderedProminent)
+                    PrimaryButton(title: upgradeButtonText, action: onUpgrade)
                 } else {
-                    Button(manageButtonText) { onManage() }
-                        .buttonStyle(.borderedProminent)
+                    PrimaryButton(title: manageButtonText, action: onManage)
                 }
+                Button(closeButtonText, action: onClose)
+                    .frame(minHeight: 44)
+                    .tint(AppTheme.Colors.accent)
             }
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(AppTheme.Colors.label)
+            .padding(24)
         }
-        .padding()
-        .presentationDetents([.fraction(0.35), .medium])
+        .background(AppBackground())
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private var title: String {

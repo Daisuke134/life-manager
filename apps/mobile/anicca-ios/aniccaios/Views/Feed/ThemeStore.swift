@@ -35,6 +35,15 @@ enum ThemeID: String, CaseIterable, Codable, Identifiable {
 
     /// SwiftUI Image loaded from Assets.xcassets/Themes/<id>.imageset.
     var image: Image { Image("Themes/\(rawValue)") }
+
+    var foregroundColor: Color {
+        switch self {
+        case .silkDusk, .sandWave, .oceanSunset, .linenCream, .sageMist, .skyDawn, .rosePetal:
+            return Color(hex: "#393634")
+        case .midnightDusk:
+            return .white
+        }
+    }
 }
 
 /// Owns the currently-selected background theme.

@@ -1,14 +1,7 @@
 import SwiftUI
 import RevenueCat
 
-/// Retention Offer Sheet (Will / Adam Lyttle pattern)
-/// Triggered when user cancels Apple Pay sheet during paywall purchase.
-/// Single CTA: Accept Offer. No decline button.
-/// Shown at most once per session (gated by parent's hasShownRetention flag).
-/// 表示価格は StoreKit の localizedPriceString が正。ただし未ロード時の
-/// フォールバック表示 "$44.99" と App Store 公開価格 (Annual Retention Plan
-/// $59.99、2026-11-07 監査で公開ページ実測) には乖離がある。実価格の変更は
-/// 価格判断として別途行う残件 (paywall-audit-2026-11-07 仕様4)。
+/// Shown once when a purchase is cancelled, with the real retention product price.
 struct RetentionOfferSheet: View {
     var flowID: String = "onboarding"
     let onAccepted: (CustomerInfo) -> Void
@@ -20,99 +13,96 @@ struct RetentionOfferSheet: View {
     @State private var loadFailed = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer().frame(height: 16)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    Image(systemName: "gift")
+                        .font(.system(size: 40, weight: .ultraLight))
+                        .foregroundStyle(AppTheme.Colors.accent)
+                        .accessibilityHidden(true)
+                    Text(String(localized: "retention_title"))
+                        .font(.system(.largeTitle, design: .serif))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(String(localized: "retention_subtitle"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            Text("🎁")
-                .font(.system(size: 64))
-
-            Text(String(localized: "retention_title"))
-                .font(.system(size: 28, weight: .bold))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(AppTheme.Colors.label)
-
-            Text(String(localized: "retention_subtitle"))
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            // Price card
-            VStack(spacing: 12) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(retentionPackage?.storeProduct.localizedPriceString ?? "$44.99")
-                        .font(.system(size: 36, weight: .heavy))
-                        .foregroundColor(AppTheme.Colors.label)
-                    Text("/ \(String(localized: "retention_per_year"))")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-
-                Text(String(localized: "retention_discount_badge"))
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Color.green)
-                    .clipShape(Capsule())
-            }
-            .padding(.vertical, 20)
-            .frame(maxWidth: .infinity)
-            .background(AppTheme.Colors.buttonUnselected)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .padding(.horizontal, 24)
-
-            // Bullets
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text(String(localized: "retention_bullet_cancel"))
-                        .font(.system(size: 15))
-                        .foregroundStyle(AppTheme.Colors.label)
-                }
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text(String(localized: "retention_bullet_features"))
-                        .font(.system(size: 15))
-                        .foregroundStyle(AppTheme.Colors.label)
-                }
-            }
-
-            Spacer()
-
-            Button {
-                Task { await acceptOffer() }
-            } label: {
-                ZStack {
-                    Text(String(localized: "retention_cta_accept"))
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .opacity(isPurchasing ? 0 : 1)
-                    if isPurchasing {
-                        ProgressView().tint(.white)
+                    if let package = retentionPackage {
+                        VStack(spacing: 8) {
+                            Text(String(localized: "paywall_b_plan_yearly"))
+                                .font(.subheadline)
+                            Text(String(format: NSLocalizedString("paywall_plan_price_yearly", comment: ""), package.localizedPriceString))
+                                .font(.system(.title, design: .serif).weight(.semibold))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(String(format: NSLocalizedString("retention_renewal_disclosure", comment: ""), package.localizedPriceString))
+                                .font(.footnote)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .selectionCard(isSelected: true)
+                    } else if loadFailed {
+                        Text(String(localized: "paywall_b_load_failed"))
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button(String(localized: "paywall_b_retry")) {
+                            Task { await loadOffer() }
+                        }
+                    } else {
+                        ProgressView()
                     }
+
+                    Label(String(localized: "retention_bullet_features"), systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.Colors.accent)
+                    PrimaryButton(
+                        title: String(localized: "retention_cta_accept"),
+                        isEnabled: retentionPackage != nil,
+                        isLoading: isPurchasing
+                    ) {
+                        Task { await acceptOffer() }
+                    }
+                    .accessibilityIdentifier("retention-accept")
+
+                    HStack(spacing: 16) {
+                        Link(String(localized: "paywall_plan_terms"), destination: AppConfig.termsURL)
+                        Link(String(localized: "paywall_plan_privacy"), destination: AppConfig.privacyURL)
+                    }
+                    .font(.footnote)
+                    .frame(minHeight: 44)
                 }
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .background(AppTheme.Colors.label)
-                .clipShape(RoundedRectangle(cornerRadius: 28))
+                .padding(24)
             }
-            .accessibilityIdentifier("retention-accept")
-            .disabled(isPurchasing || retentionPackage == nil)
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
+            .background(AppBackground())
+            .foregroundStyle(AppTheme.Colors.label)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(String(localized: "common_close")) { dismiss() }
+                        .accessibilityIdentifier("retention-close")
+                }
+            }
         }
-        .background(AppBackground())
+        .tint(AppTheme.Colors.accent)
         .analyticsScreen(.retentionOffer, flowID: flowID)
         .task { await loadOffer() }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
+        .alert(String(localized: "common_error"), isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button(String(localized: "common_ok")) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
     }
 
+    @MainActor
     private func loadOffer() async {
+        loadFailed = false
         do {
             let offerings = try await Purchases.shared.offerings()
             if let pkg = offerings.offering(identifier: "anicca_retention")?.annual {
@@ -126,6 +116,7 @@ struct RetentionOfferSheet: View {
         }
     }
 
+    @MainActor
     private func acceptOffer() async {
         guard let pkg = retentionPackage else { return }
         isPurchasing = true

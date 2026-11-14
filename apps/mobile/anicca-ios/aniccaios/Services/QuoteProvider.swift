@@ -7,7 +7,7 @@ struct Quote: Identifiable, Codable, Hashable {
 
     var categoryID: String {
         let components = id.split(separator: ".")
-        if components.count == 3, components[0] == "growth" { return String(components[1]) }
+        if components.count == 3, ["growth", "adaptive"].contains(String(components[0])) { return String(components[1]) }
         guard id.hasPrefix("q"), let number = Int(id.dropFirst()), (1...200).contains(number) else { return "general" }
         let categories = ["growth", "self_love", "calm", "presence", "confidence", "gratitude", "resilience", "letting_go", "presence", "self_love", "confidence", "hope", "hope", "hope", "calm", "growth", "self_love", "connection", "resilience", "letting_go"]
         return categories[(number - 1) / 10]
@@ -22,11 +22,13 @@ final class QuoteProvider {
     private init() {}
 
     func all(preferredLanguage: LanguagePreference = LanguagePreference.detectDefault()) -> [Quote] {
+        let base: [Quote]
         switch preferredLanguage {
-        case .ja: return Self.ja
-        case .es: return Self.es
-        case .en, .de, .fr, .ptBR: return Self.english
+        case .ja: base = Self.ja
+        case .es: base = Self.es
+        case .en, .de, .fr, .ptBR: base = Self.english
         }
+        return base + AdaptiveAffirmationCatalog.quotes(language: preferredLanguage)
     }
 
     private static let english: [Quote] = {
@@ -55,13 +57,13 @@ final class QuoteProvider {
         "rumination": ["presence", "letting_go"],
         "anger": ["calm", "letting_go"]
     ]
+    static let goalCategories = ["reduce_anxiety": "calm", "feel_peace": "calm", "sleep_better": "rest", "build_discipline": "growth", "focus_more": "presence", "break_habit": "letting_go"]
 
     static func recommendations(from pool: [Quote], goals: [String], problems: [String] = [], likedIDs: Set<String>, recentIDs: [String]) -> [Quote] {
         let recent = Set(recentIDs.suffix(20))
         let unseen = pool.filter { !recent.contains($0.id) }
         let candidates = unseen.isEmpty ? pool : unseen
-        let legacyGoals = ["reduce_anxiety": "calm", "feel_peace": "calm", "sleep_better": "rest", "build_discipline": "growth", "focus_more": "presence", "break_habit": "letting_go"]
-        var preferredCategories = Set(goals.map { legacyGoals[$0] ?? $0 })
+        var preferredCategories = Set(goals.map { goalCategories[$0] ?? $0 })
         preferredCategories.formUnion(problems.flatMap { problemCategories[$0] ?? [] })
         // Stable quote IDs encode category even after that quote leaves the candidate pool.
         preferredCategories.formUnion(likedIDs.map { Quote(id: $0, text: "").categoryID })
