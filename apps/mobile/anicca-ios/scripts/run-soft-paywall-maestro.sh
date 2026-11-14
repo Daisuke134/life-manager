@@ -25,11 +25,24 @@ xcrun simctl boot "$simulator_id"
 xcrun simctl bootstatus "$simulator_id" -b
 xcrun simctl status_bar "$simulator_id" override --time '9:41' --batteryState charged --batteryLevel 100
 
-# Avoid printing or uploading build settings containing the private xcconfig.
+# Keep full build output off the console; preserve diagnostics on failure.
+build_log=${RUNNER_TEMP:-/tmp}/anicca-soft-paywall-build.log
+set +e
 xcodebuild build -project aniccaios.xcodeproj -scheme aniccaios \
     -configuration Release -destination "platform=iOS Simulator,id=$simulator_id" \
     -derivedDataPath "$derived_dir" CODE_SIGNING_ALLOWED=NO \
-    > "${RUNNER_TEMP:-/tmp}/anicca-soft-paywall-build.log" 2>&1
+    > "$build_log" 2>&1
+build_result=$?
+if [[ "$build_result" != 0 ]]; then
+    cp "$build_log" "$evidence_dir/anicca-soft-paywall-build.log" || \
+        printf '%s\n' 'Could not copy the build log into the evidence directory.' >&2
+    printf '%s\n' '----- compiler errors -----'
+    grep -E 'error:|fatal error:|\*\* BUILD (FAILED|SUCCEEDED)' "$build_log" | head -80 || true
+    printf '%s\n' '----- build summary -----'
+    tail -40 "$build_log"
+    exit "$build_result"
+fi
+set -e
 xcrun simctl install "$simulator_id" "$derived_dir/Build/Products/Release-iphonesimulator/aniccaios.app"
 
 export MAESTRO_CLI_NO_ANALYTICS=1

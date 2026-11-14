@@ -556,3 +556,56 @@ R3-3は `DailyAffirmationStore.Presentation(quote, deliveryId)` を保存/復元
 - `git diff --check` は成功。Solの独立読み取り専用レビュー（実指定 `gpt-6-sol` / effort `medium`）は指摘0件・blocking 0件。指定3関数だけの削除、近傍テストの保持、基点と現行のイベント不在、証拠の出所と未検証事項の記載を確認した。
 
 指定worktreeに未コミット差分を保持して引き渡す。commit / push / merge / PR作成 / ASC提出 / 新規の有料支払いは行わない。**D-01〜D-16は再撮影フレームの目視確認まで全件「未完了」のまま。**
+
+## 第6ラウンド — Maestro用Releaseビルド失敗の証拠保存（2026-11-14）
+
+### 委任元提供の実測事実と、ソースで確認した欠落
+
+以下のActions結果は委任元提供の一次証拠。本ラウンドでActions・XCTest・Maestroを実行した結果ではない。
+
+- PRのrun `43587914085`、HEAD `2b2591c21`: **Build and unit tests (unsigned) がsuccess**。アプリビルドはDebug・`generic/platform=iOS`で通過。単体テストは別のsimulator宛てで、schemeのTestActionはDebug。
+- 同じHEADのMaestro run `43589033225`（`run_maestro=true`）: **failure**。失敗ステップは `Build, run the actual journey, and record`。artifactは**0件**。証拠保存ステップは `if: always()` だが、証拠フォルダにアップロード可能なファイルが無かった。
+- 時系列（UTC）: スクリプト開始 **11:14:56**、simulator起動監視 **11:15:42〜11:18:57**、その後はログ無出力のまま **11:36:22にexit code 65**。無出力区間は `xcodebuild build` のstdout/stderrをファイルへリダイレクトする区間と一致する。
+- 修正前のPhase 1基点側には、元の動画run `43565027974` の完走実績がある。
+
+現行ソースでも保存欠落を確認した。`run-soft-paywall-maestro.sh` は先に `$evidence_dir/frames` を作るが、Release・特定simulator宛てのビルドログは `${RUNNER_TEMP:-/tmp}/anicca-soft-paywall-build.log` に置く。`set -euo pipefail` によりビルド失敗で終了し、後段の `maestro-version.txt` 等には到達しない。workflowのartifact対象は `$RUNNER_TEMP/soft-paywall-evidence` のみなので、別の場所にあるビルドログは保存されない。
+
+**Releaseビルド失敗の根本原因は未確定。** Debug/generic側の成功からRelease/simulator側の成功は判断できず、Release固有・宛先固有・ビルドフェーズのどれが失敗したかは、次回Maestro runのartifactで切り分ける。
+
+### スクリプトの変更内容
+
+第3ラウンドの `.github/workflows/anicca-ios-build.yml` にある「全文をファイルへ出力 → 終了コード退避 → エラー行と末尾を表示 → 元の終了コードを返す」形を再利用した。新規依存やビルド設定の変更はない。
+
+- `xcodebuild` 前に `set +e` とし、直後に終了コードを `build_result` へ退避する。
+- 失敗時は全文ログを **`$evidence_dir/anicca-soft-paywall-build.log`** へコピーする。既存の `if: always()` のartifact保存で回収できるパスへ置くため、workflow自体は変更しない。
+- 失敗時は `error:` / `fatal error:` / BUILD結果に一致する行を先頭80行まで、さらにログ末尾40行をコンソールへ表示する。全文はartifact側に保持する。
+- コピー・grep・tail等の診断処理が失敗しても、最後は退避した**元のxcodebuild終了コード**で終了する。コピー失敗時はその旨をstderrに表示する。
+- 成功時は `set -e` を復帰させ、従来のsimulator installと録画フローへ進む。Release・scheme `aniccaios`・特定simulator宛先・derivedDataPath・署名設定・Maestroフロー・録画判定は保持する。成功ログの追加アップロードは行わない。
+
+### 第1〜第5ラウンドの静的監査
+
+対象は `git diff 2bac2ac6c..2b2591c21 -- apps/mobile/anicca-ios .github/workflows/anicca-ios-build.yml` と、参照先の現行ソース・project・scheme。**Releaseでのみ失敗する要因として確定できるものは無かった。推測によるSwiftコード・ビルド設定の変更は行っていない。**
+
+| 観点 | 静的確認と残る候補 |
+|---|---|
+| `#if DEBUG` / `#if !DEBUG` の参照 | 指定差分に新規のDEBUG条件分岐はない。既存の `ScreenshotDebugManager` 宣言と `aniccaiosApp.swift` の呼出しはともにDEBUG条件内で対応。差分からRelease側だけ未定義となる参照は確認できなかった。 |
+| Releaseビルドフェーズ | projectの唯一のshell phase `Copy WebRTC dSYM` は既存のarchive向け処理。`runOnlyForDeploymentPostprocessing = 1` かつ `ARCHIVE_PRODUCTS_PATH` が空なら即時exit 0であり、通常の `build` でReleaseというだけで実処理へ進む形ではない。今回の差分でphase/script変更はない。実runでのphase実行状況はログ待ち。 |
+| whole-module最適化・型・依存 | Releaseの `SWIFT_COMPILATION_MODE = wholemodule` / `SWIFT_OPTIMIZATION_LEVEL = -O` は既存設定。変更ファイルのトップレベル宣言（app 89名・Widget 13名）をターゲット別に照合し、同一ターゲット内の重複0件。project差分は新規XCTest 5ファイルの登録だけで、最適化・architecture・SDK・package・target依存設定の変更はない。app→Widget/Notification、tests→appの依存に循環は確認できない。新しいSwiftコードと最適化の相互作用・未解決参照は静的検索だけでは除外できない。 |
+| 特定simulatorとtoolchain | Maestroは `macos-15-intel` / 明示Xcode 26.2 / iOS 26.2 iPhone simulator / Release。PR buildは `macos-15` / 標準Xcode / generic iOS、単体テストはDebug・別のsimulator。workflowコメントの標準Xcode想定は16.4だが、今回の実際の版・archは実runログで照合する。Intel simulator用依存ライブラリのslice/link、SDKやコンパイラ差は未確定候補。 |
+| xcconfig | Maestroは `ci_post_clone.sh` による実値Production設定（Stagingへもコピー）、PR buildはexample由来のplaceholder。設定注入方法・xcconfigの差分変更はないが、実効設定差が失敗に関与するかは未確定。秘密値は取得・記録していない。 |
+
+次回は統合側が修正を含む同一SHAでMaestroを実行し、`soft-paywall-evidence-<SHA>/anicca-soft-paywall-build.log` を回収する。先頭の `error:` と周辺、失敗target/phase、`SwiftCompile` / `SwiftEmitModule` / linker等の失敗コマンド・architectureを確認し、根本原因を確定する。`error:` が無い失敗でも末尾40行と全文で診断する。本ラウンドはビルド成功やartifactの外部readbackを完了したとは扱わない。
+
+### 検証・作業境界・引き継ぎ
+
+- Git実読: root `/home/hatch/workspace/life-manager-phase1`、branch `claude/phase1-personalized-onboarding`、common Git dir `/home/hatch/workspace/life-manager/.git`、origin `https://github.com/Daisuke134/anicca.git`、開始HEAD `2b2591c217b0eb24b7a0277e16ee2966c5edaac6`。開始時の未コミット差分は0件。
+- `bash scripts/verify-source-boundary.sh`: 旧固定パスを要求してexit 2。指定作業ツリーと改名後originの先行承認を適用。境界スクリプトは変更しない。
+- 手順の実読: `/home/hatch/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/` 配下の `using-superpowers/SKILL.md`（Codex reference含む）、`systematic-debugging/SKILL.md`、`dispatching-parallel-agents/SKILL.md`、`test-driven-development/SKILL.md`（writing-good-tests含む）、`verification-before-completion/SKILL.md`、`requesting-code-review/SKILL.md`（reviewer template含む）、`finishing-a-development-branch/SKILL.md`。Astra Advisorは公開ツールにない。Ponytailの最小解確認として既存CIの診断処理を再利用する。
+- 一時ハーネス `/tmp/anicca-round6-build-diagnostics-check.py` で実スクリプトを模擬xcodebuild/xcrunと実行。修正前は4件中3件FAIL（証拠ファイル・コンソール診断が無い）、修正後は**4件PASS**。exit 65でstdout/stderr全文コピーと先頭エラー・末尾表示、`error:` 不在でもexit 73保持、コピー失敗でもexit 65保持、ビルド成功時の既存install到達を確認。全ケースでRelease・scheme・宛先等の引数も照合。これはシェルの制御・保存検証であり、AppleビルドやE2Eの成功ではない。一時ハーネスはGit対象外の小さなファイルで、新規依存や大容量の一時ファイルはない。
+- `apps/mobile/anicca-ios` 配下で `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests`: **Ran 44 tests in 31.160s / OK (skipped=2)、exit 0**。42成功・Swiftコンパイラ/ランタイム不在による既存2件skip。環境変数はbytecode生成の抑制のみ。
+- `bash -n apps/mobile/anicca-ios/scripts/run-soft-paywall-maestro.sh` と `git diff --check`: **exit 0**。
+- 静的監査の読み取り専用分担はSol（spawn指定 `gpt-6-sol` / effort `high`）。追加の確定不備0件・blocking 0件。`xcodebuild` / `swiftc` はVMに未検出で、XCTest・Maestro・実動画の再撮影は未実行。
+- 別のSolによる独立読み取り専用レビュー（spawn指定 `gpt-6-sol` / effort `medium`）も**指摘0件・blocking 0件**。終了コード・ログ保存先・ビルド引数・成功時フロー・記録の証拠範囲を確認し、一時ハーネス4件・`bash -n`・`git diff --check` を再実行して成功。モデル表記はツールへの指定値であり、別途runtime readbackはない。
+- HEADとの文字列比較でビルド前のsimulator処理、ビルド後のinstall以降、既存FIX-NOTES全文（D-01〜D-16含む）の一致を確認。最終差分も指定2ファイルのみ、HEADは開始時と同じ。
+
+変更ファイルは `scripts/run-soft-paywall-maestro.sh` と本記録の**2ファイルだけ**。今回の限定範囲を優先してBOARD追記は行わず、anicca-ops側監査ファイルにも触れない。指定worktreeに未コミット差分を保持する。commit / push / merge / PR作成 / ASC提出 / 新規の有料支払いは行わない。**D-01〜D-16は再撮影フレームの目視確認まで全件「未完了」のまま。**
