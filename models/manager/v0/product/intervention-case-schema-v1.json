@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anicca.example/eval/managerbench/intervention-case-schema-v1.json",
+  "title": "ManagerBench intervention decision point v1",
+  "description": "One randomized decision point. Personal history is observed before assignment; outcome is observed after the registered window.",
+  "type": "object",
+  "required": [
+    "case_id", "person_id", "decision_point_at", "available",
+    "personal_history", "treatment_assigned", "assigned_probability",
+    "proximal_outcome", "outcome_window_sec"
+  ],
+  "properties": {
+    "case_id": {"type": "string", "minLength": 1},
+    "person_id": {"type": "string", "minLength": 1},
+    "decision_point_at": {"type": "string", "format": "date-time"},
+    "available": {"type": "boolean"},
+    "personal_history": {"type": "object", "minProperties": 1},
+    "treatment_assigned": {"type": "boolean"},
+    "assigned_probability": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+    "intervention_id": {"type": ["string", "null"]},
+    "delivery_id": {"type": ["string", "null"]},
+    "proximal_outcome": {"type": ["number", "boolean", "null"]},
+    "outcome_window_sec": {"type": "integer", "minimum": 1},
+    "outcome_observed": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"treatment_assigned": {"const": true}}},
+      "then": {"required": ["intervention_id", "delivery_id"], "properties": {"intervention_id": {"type": "string", "minLength": 1}, "delivery_id": {"type": "string", "minLength": 1}}}
+    }
+  ],
+  "additionalProperties": true
+}

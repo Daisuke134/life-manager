@@ -1,0 +1,6 @@
+{"type": "delivery", "delivery_id": "dlv_001", "user_id": "u_anna", "at": "2026-11-14T09:00:00Z", "intervention_id": "affirmation_morning_calm", "assigned_probability": 0.5, "available": true, "personal_history": {"onboarding_answers": {"goal": "less_rumination"}, "recent_opens": 3}}
+{"type": "delivery", "delivery_id": "dlv_002", "user_id": "u_ben", "at": "2026-11-14T09:05:00Z", "intervention_id": null, "assigned_probability": 0.5, "available": true, "personal_history": {"onboarding_answers": {"goal": "sleep"}, "recent_opens": 0}}
+{"type": "delivery", "delivery_id": "dlv_003", "user_id": "u_cora", "at": "2026-11-14T09:10:00Z", "intervention_id": "affirmation_evening_release", "assigned_probability": 0.5, "available": true, "personal_history": {"onboarding_answers": {"goal": "confidence"}, "recent_opens": 7}}
+{"type": "outcome", "delivery_id": "dlv_001", "at": "2026-11-14T21:00:00Z", "proximal_outcome": 1, "outcome_name": "opened_within_window"}
+{"type": "outcome", "delivery_id": "dlv_002", "at": "2026-11-14T20:00:00Z", "proximal_outcome": 0, "outcome_name": "opened_within_window"}
+{"type": "outcome", "delivery_id": "dlv_003", "at": "2026-11-16T09:10:00Z", "proximal_outcome": 1, "outcome_name": "opened_within_window"}

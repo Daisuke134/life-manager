@@ -1,0 +1,44 @@
+{
+  "label": "base-smollm2-135m",
+  "model": "HuggingFaceTB/SmolLM2-135M-Instruct",
+  "protocol": "MG-06 prereg (anicca-ops files/mg06-prereg-2026-11-14.md); frozen split seed 0",
+  "n_train_full": 29885,
+  "n_test_full": 12808,
+  "n_eval": 1000,
+  "eval_subsample": "seed 0, stratified by treatment x visit, declared before scoring (CPU compute)",
+  "ate_eval": 0.04548418193672776,
+  "random_qini_mean": -0.006970307659369377,
+  "random_qini_p95": 0.07150743083005084,
+  "llm_scoring_sec": 1838.5229439735413,
+  "arms": {
+    "population_prior": {
+      "qini": 0.0,
+      "auuc": 0.0,
+      "uplift_at_30pct": 0.07489221743188586
+    },
+    "t_learner_logreg": {
+      "qini": 0.10172448733210186,
+      "auuc": 0.04794201447172739,
+      "uplift_at_30pct": 0.06709350406829398,
+      "qini_boot95": [
+        0.00791150067077862,
+        0.21281961606872052
+      ]
+    },
+    "base-smollm2-135m": {
+      "qini": 0.07385549135305548,
+      "auuc": 0.034511354760189114,
+      "uplift_at_30pct": 0.07532051282051282,
+      "qini_boot95": [
+        -0.0457600296931732,
+        0.18526754525178749
+      ]
+    }
+  },
+  "gate_vs_random": {
+    "rule": "MG-06 training gate: uplift ranking beats random targeting (lower 95% CI > random p95)",
+    "lower_ci": -0.0457600296931732,
+    "random_p95": 0.07150743083005084,
+    "pass": false
+  }
+}

@@ -1,0 +1,65 @@
+[
+ {
+  "case_id": "case-dlv_001",
+  "person_id": "u_anna",
+  "decision_point_at": "2026-11-14T09:00:00Z",
+  "available": true,
+  "personal_history": {
+   "onboarding_answers": {
+    "goal": "less_rumination"
+   },
+   "recent_opens": 3
+  },
+  "treatment_assigned": true,
+  "assigned_probability": 0.5,
+  "intervention_id": "affirmation_morning_calm",
+  "delivery_id": "dlv_001",
+  "proximal_outcome": 1,
+  "outcome_window_sec": 86400,
+  "outcome_observed": true,
+  "source": "anicca_app",
+  "outcome_name": "opened_within_window"
+ },
+ {
+  "case_id": "case-dlv_002",
+  "person_id": "u_ben",
+  "decision_point_at": "2026-11-14T09:05:00Z",
+  "available": true,
+  "personal_history": {
+   "onboarding_answers": {
+    "goal": "sleep"
+   },
+   "recent_opens": 0
+  },
+  "treatment_assigned": false,
+  "assigned_probability": 0.5,
+  "intervention_id": null,
+  "delivery_id": "dlv_002",
+  "proximal_outcome": 0,
+  "outcome_window_sec": 86400,
+  "outcome_observed": true,
+  "source": "anicca_app",
+  "outcome_name": "opened_within_window"
+ },
+ {
+  "case_id": "case-dlv_003",
+  "person_id": "u_cora",
+  "decision_point_at": "2026-11-14T09:10:00Z",
+  "available": true,
+  "personal_history": {
+   "onboarding_answers": {
+    "goal": "confidence"
+   },
+   "recent_opens": 7
+  },
+  "treatment_assigned": true,
+  "assigned_probability": 0.5,
+  "intervention_id": "affirmation_evening_release",
+  "delivery_id": "dlv_003",
+  "proximal_outcome": null,
+  "outcome_window_sec": 86400,
+  "outcome_observed": false,
+  "source": "anicca_app",
+  "outcome_name": "opened_within_window"
+ }
+]
